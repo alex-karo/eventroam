@@ -15,7 +15,9 @@
     "lint": "eslint .",
     "format:check": "prettier --check src next.config.ts vitest.config.mts postcss.config.mjs eslint.config.mjs package.json tsconfig.json",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:migrate": "tsx scripts/catalog-db.ts migrate",
+    "db:fixtures": "tsx scripts/catalog-db.ts fixtures"
   },
   "dependencies": {
     "@tailwindcss/postcss": "4.3.3",
@@ -38,6 +40,7 @@
     "eslint-config-next": "16.3.8",
     "eslint-config-prettier": "10.1.8",
     "prettier": "3.9.9",
+    "tsx": "4.23.15",
     "typescript": "6.0.3",
     "vitest": "5.0.3"
   }

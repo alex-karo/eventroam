@@ -1,0 +1,1261 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "a317176e-d014-4fd2-abda-983f6091b7fa",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "catalog_changes": {
+      "name": "catalog_changes",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "occurrence_id": {
+          "name": "occurrence_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "subject_version": {
+          "name": "subject_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "changed_fields": {
+          "name": "changed_fields",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operation_key": {
+          "name": "operation_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ingestion_run_id": {
+          "name": "ingestion_run_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "initiated_by": {
+          "name": "initiated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "changed_at": {
+          "name": "changed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "catalog_changes_event_operation_uq": {
+          "name": "catalog_changes_event_operation_uq",
+          "columns": ["operation_key", "event_id"],
+          "isUnique": true
+        },
+        "catalog_changes_occurrence_operation_uq": {
+          "name": "catalog_changes_occurrence_operation_uq",
+          "columns": ["operation_key", "occurrence_id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "catalog_changes_event_id_events_id_fk": {
+          "name": "catalog_changes_event_id_events_id_fk",
+          "tableFrom": "catalog_changes",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "catalog_changes_occurrence_id_occurrences_id_fk": {
+          "name": "catalog_changes_occurrence_id_occurrences_id_fk",
+          "tableFrom": "catalog_changes",
+          "tableTo": "occurrences",
+          "columnsFrom": ["occurrence_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "catalog_changes_ingestion_run_id_ingestion_runs_id_fk": {
+          "name": "catalog_changes_ingestion_run_id_ingestion_runs_id_fk",
+          "tableFrom": "catalog_changes",
+          "tableTo": "ingestion_runs",
+          "columnsFrom": ["ingestion_run_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "catalog_changes_subject_ck": {
+          "name": "catalog_changes_subject_ck",
+          "value": "(\"catalog_changes\".\"event_id\" IS NOT NULL) != (\"catalog_changes\".\"occurrence_id\" IS NOT NULL)"
+        },
+        "catalog_changes_version_ck": {
+          "name": "catalog_changes_version_ck",
+          "value": "\"catalog_changes\".\"subject_version\" > 0"
+        }
+      }
+    },
+    "change_evidence": {
+      "name": "change_evidence",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "change_id": {
+          "name": "change_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "field_paths": {
+          "name": "field_paths",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "inspected_url": {
+          "name": "inspected_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "retrieved_at": {
+          "name": "retrieved_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "authority": {
+          "name": "authority",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "excerpt": {
+          "name": "excerpt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "snapshot_ref": {
+          "name": "snapshot_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "change_evidence_change_idx": {
+          "name": "change_evidence_change_idx",
+          "columns": ["change_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "change_evidence_change_id_catalog_changes_id_fk": {
+          "name": "change_evidence_change_id_catalog_changes_id_fk",
+          "tableFrom": "change_evidence",
+          "tableTo": "catalog_changes",
+          "columnsFrom": ["change_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "change_evidence_source_id_sources_id_fk": {
+          "name": "change_evidence_source_id_sources_id_fk",
+          "tableFrom": "change_evidence",
+          "tableTo": "sources",
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "events": {
+      "name": "events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "canonical_name": {
+          "name": "canonical_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "aliases": {
+          "name": "aliases",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "home_scope": {
+          "name": "home_scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "publication_state": {
+          "name": "publication_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'draft'"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "events_slug_uq": {
+          "name": "events_slug_uq",
+          "columns": ["slug"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "events_version_ck": {
+          "name": "events_version_ck",
+          "value": "\"events\".\"version\" > 0"
+        },
+        "events_state_ck": {
+          "name": "events_state_ck",
+          "value": "\"events\".\"publication_state\" IN ('draft','published','withdrawn')"
+        },
+        "events_scope_ck": {
+          "name": "events_scope_ck",
+          "value": "\"events\".\"home_scope\" IS NULL OR \"events\".\"home_scope\" = 'festivals'"
+        },
+        "events_published_scope_ck": {
+          "name": "events_published_scope_ck",
+          "value": "\"events\".\"publication_state\" != 'published' OR \"events\".\"home_scope\" IS NOT NULL"
+        }
+      }
+    },
+    "external_links": {
+      "name": "external_links",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "occurrence_id": {
+          "name": "occurrence_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "official": {
+          "name": "official",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "external_links_event_uq": {
+          "name": "external_links_event_uq",
+          "columns": ["event_id", "kind", "url"],
+          "isUnique": true
+        },
+        "external_links_occurrence_uq": {
+          "name": "external_links_occurrence_uq",
+          "columns": ["occurrence_id", "kind", "url"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "external_links_event_id_events_id_fk": {
+          "name": "external_links_event_id_events_id_fk",
+          "tableFrom": "external_links",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "external_links_occurrence_id_occurrences_id_fk": {
+          "name": "external_links_occurrence_id_occurrences_id_fk",
+          "tableFrom": "external_links",
+          "tableTo": "occurrences",
+          "columnsFrom": ["occurrence_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "external_links_source_id_sources_id_fk": {
+          "name": "external_links_source_id_sources_id_fk",
+          "tableFrom": "external_links",
+          "tableTo": "sources",
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "external_links_owner_ck": {
+          "name": "external_links_owner_ck",
+          "value": "(\"external_links\".\"event_id\" IS NOT NULL) != (\"external_links\".\"occurrence_id\" IS NOT NULL)"
+        },
+        "external_links_kind_ck": {
+          "name": "external_links_kind_ck",
+          "value": "\"external_links\".\"kind\" IN ('official_site','instagram','facebook','youtube','tiktok','ticketing','other')"
+        }
+      }
+    },
+    "ingestion_runs": {
+      "name": "ingestion_runs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "initiated_by": {
+          "name": "initiated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "adapter_versions": {
+          "name": "adapter_versions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "finished_at": {
+          "name": "finished_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "results": {
+          "name": "results",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ingestion_runs_mode_ck": {
+          "name": "ingestion_runs_mode_ck",
+          "value": "\"ingestion_runs\".\"mode\" IN ('dry_run','apply')"
+        },
+        "ingestion_runs_status_ck": {
+          "name": "ingestion_runs_status_ck",
+          "value": "\"ingestion_runs\".\"status\" IN ('running','succeeded','partially_failed','failed')"
+        }
+      }
+    },
+    "occurrence_terms": {
+      "name": "occurrence_terms",
+      "columns": {
+        "occurrence_id": {
+          "name": "occurrence_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "term_id": {
+          "name": "term_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "occurrence_terms_occurrence_id_occurrences_id_fk": {
+          "name": "occurrence_terms_occurrence_id_occurrences_id_fk",
+          "tableFrom": "occurrence_terms",
+          "tableTo": "occurrences",
+          "columnsFrom": ["occurrence_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "occurrence_terms_term_id_taxonomy_terms_id_fk": {
+          "name": "occurrence_terms_term_id_taxonomy_terms_id_fk",
+          "tableFrom": "occurrence_terms",
+          "tableTo": "taxonomy_terms",
+          "columnsFrom": ["term_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "occurrence_terms_occurrence_id_term_id_pk": {
+          "columns": ["occurrence_id", "term_id"],
+          "name": "occurrence_terms_occurrence_id_term_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "occurrences": {
+      "name": "occurrences",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "occurrence_key": {
+          "name": "occurrence_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "occurrence_year": {
+          "name": "occurrence_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "starts_on": {
+          "name": "starts_on",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ends_on": {
+          "name": "ends_on",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "date_state": {
+          "name": "date_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'unknown'"
+        },
+        "schedule_status": {
+          "name": "schedule_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'announced'"
+        },
+        "ticket_availability": {
+          "name": "ticket_availability",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'unknown'"
+        },
+        "capacity_estimate": {
+          "name": "capacity_estimate",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "publication_state": {
+          "name": "publication_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'draft'"
+        },
+        "venue_name": {
+          "name": "venue_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "venue_address": {
+          "name": "venue_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "locality": {
+          "name": "locality",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "administrative_area": {
+          "name": "administrative_area",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "country_code": {
+          "name": "country_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "coordinate_precision": {
+          "name": "coordinate_precision",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'unknown'"
+        },
+        "time_zone": {
+          "name": "time_zone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "price_kind": {
+          "name": "price_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "price_currency": {
+          "name": "price_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "price_min_minor": {
+          "name": "price_min_minor",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "price_max_minor": {
+          "name": "price_max_minor",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "price_coverage": {
+          "name": "price_coverage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "price_qualification": {
+          "name": "price_qualification",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "occurrences_event_key_uq": {
+          "name": "occurrences_event_key_uq",
+          "columns": ["event_id", "occurrence_key"],
+          "isUnique": true
+        },
+        "occurrences_event_idx": {
+          "name": "occurrences_event_idx",
+          "columns": ["event_id"],
+          "isUnique": false
+        },
+        "occurrences_date_idx": {
+          "name": "occurrences_date_idx",
+          "columns": ["starts_on", "ends_on"],
+          "isUnique": false
+        },
+        "occurrences_country_idx": {
+          "name": "occurrences_country_idx",
+          "columns": ["country_code"],
+          "isUnique": false
+        },
+        "occurrences_coordinates_idx": {
+          "name": "occurrences_coordinates_idx",
+          "columns": ["latitude", "longitude"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "occurrences_event_id_events_id_fk": {
+          "name": "occurrences_event_id_events_id_fk",
+          "tableFrom": "occurrences",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "occurrences_dates_ck": {
+          "name": "occurrences_dates_ck",
+          "value": "((\"occurrences\".\"starts_on\" IS NULL AND \"occurrences\".\"ends_on\" IS NULL AND \"occurrences\".\"date_state\" = 'unknown') OR (\"occurrences\".\"starts_on\" IS NOT NULL AND \"occurrences\".\"ends_on\" IS NOT NULL AND \"occurrences\".\"date_state\" IN ('provisional','confirmed') AND \"occurrences\".\"ends_on\" >= \"occurrences\".\"starts_on\"))"
+        },
+        "occurrences_status_ck": {
+          "name": "occurrences_status_ck",
+          "value": "\"occurrences\".\"schedule_status\" IN ('announced','scheduled','postponed','cancelled') AND (\"occurrences\".\"schedule_status\" != 'scheduled' OR \"occurrences\".\"starts_on\" IS NOT NULL)"
+        },
+        "occurrences_state_ck": {
+          "name": "occurrences_state_ck",
+          "value": "\"occurrences\".\"publication_state\" IN ('draft','published','withdrawn') AND \"occurrences\".\"ticket_availability\" IN ('unknown','available','sold_out')"
+        },
+        "occurrences_location_ck": {
+          "name": "occurrences_location_ck",
+          "value": "((\"occurrences\".\"latitude\" IS NULL AND \"occurrences\".\"longitude\" IS NULL AND \"occurrences\".\"coordinate_precision\" = 'unknown') OR (\"occurrences\".\"latitude\" IS NOT NULL AND \"occurrences\".\"longitude\" IS NOT NULL AND \"occurrences\".\"latitude\" BETWEEN -90 AND 90 AND \"occurrences\".\"longitude\" BETWEEN -180 AND 180 AND \"occurrences\".\"coordinate_precision\" IN ('exact','approximate','locality','region')))"
+        },
+        "occurrences_publication_ck": {
+          "name": "occurrences_publication_ck",
+          "value": "\"occurrences\".\"publication_state\" != 'published' OR (\"occurrences\".\"occurrence_year\" IS NOT NULL AND \"occurrences\".\"starts_on\" IS NOT NULL AND \"occurrences\".\"country_code\" IS NOT NULL AND (\"occurrences\".\"venue_name\" IS NOT NULL OR \"occurrences\".\"locality\" IS NOT NULL OR \"occurrences\".\"administrative_area\" IS NOT NULL))"
+        },
+        "occurrences_capacity_ck": {
+          "name": "occurrences_capacity_ck",
+          "value": "\"occurrences\".\"capacity_estimate\" IS NULL OR \"occurrences\".\"capacity_estimate\" > 0"
+        },
+        "occurrences_price_ck": {
+          "name": "occurrences_price_ck",
+          "value": "(\"occurrences\".\"price_kind\" IS NULL AND \"occurrences\".\"price_currency\" IS NULL AND \"occurrences\".\"price_min_minor\" IS NULL AND \"occurrences\".\"price_max_minor\" IS NULL AND \"occurrences\".\"price_coverage\" IS NULL AND \"occurrences\".\"price_qualification\" IS NULL) OR (\"occurrences\".\"price_kind\" IS NOT NULL AND \"occurrences\".\"price_kind\" = 'free' AND \"occurrences\".\"price_currency\" IS NULL AND \"occurrences\".\"price_min_minor\" IS NOT NULL AND \"occurrences\".\"price_max_minor\" IS NOT NULL AND \"occurrences\".\"price_coverage\" IS NOT NULL AND \"occurrences\".\"price_min_minor\" = 0 AND \"occurrences\".\"price_max_minor\" = 0 AND \"occurrences\".\"price_coverage\" = 'full_programme' AND length(coalesce(\"occurrences\".\"price_qualification\",'')) <= 500) OR (\"occurrences\".\"price_kind\" IS NOT NULL AND \"occurrences\".\"price_kind\" IN ('exact','from','range') AND \"occurrences\".\"price_currency\" IS NOT NULL AND length(\"occurrences\".\"price_currency\") = 3 AND \"occurrences\".\"price_currency\" GLOB '[A-Z][A-Z][A-Z]' AND \"occurrences\".\"price_min_minor\" IS NOT NULL AND \"occurrences\".\"price_max_minor\" IS NOT NULL AND typeof(\"occurrences\".\"price_min_minor\") = 'integer' AND typeof(\"occurrences\".\"price_max_minor\") = 'integer' AND \"occurrences\".\"price_min_minor\" >= 0 AND ((\"occurrences\".\"price_kind\" = 'range' AND \"occurrences\".\"price_max_minor\" > \"occurrences\".\"price_min_minor\") OR (\"occurrences\".\"price_kind\" IN ('exact','from') AND \"occurrences\".\"price_max_minor\" = \"occurrences\".\"price_min_minor\")) AND \"occurrences\".\"price_coverage\" IS NOT NULL AND \"occurrences\".\"price_coverage\" IN ('full_programme','day','package') AND length(coalesce(\"occurrences\".\"price_qualification\",'')) <= 500)"
+        },
+        "occurrences_version_ck": {
+          "name": "occurrences_version_ck",
+          "value": "\"occurrences\".\"version\" > 0"
+        }
+      }
+    },
+    "operation_receipts": {
+      "name": "operation_receipts",
+      "columns": {
+        "operation_key": {
+          "name": "operation_key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "payload_hash": {
+          "name": "payload_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "result": {
+          "name": "result",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "applied_at": {
+          "name": "applied_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "source_subjects": {
+      "name": "source_subjects",
+      "columns": {
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "occurrence_id": {
+          "name": "occurrence_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "source_subjects_event_uq": {
+          "name": "source_subjects_event_uq",
+          "columns": ["source_id", "event_id"],
+          "isUnique": true
+        },
+        "source_subjects_occurrence_uq": {
+          "name": "source_subjects_occurrence_uq",
+          "columns": ["source_id", "occurrence_id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "source_subjects_source_id_sources_id_fk": {
+          "name": "source_subjects_source_id_sources_id_fk",
+          "tableFrom": "source_subjects",
+          "tableTo": "sources",
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "source_subjects_event_id_events_id_fk": {
+          "name": "source_subjects_event_id_events_id_fk",
+          "tableFrom": "source_subjects",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "source_subjects_occurrence_id_occurrences_id_fk": {
+          "name": "source_subjects_occurrence_id_occurrences_id_fk",
+          "tableFrom": "source_subjects",
+          "tableTo": "occurrences",
+          "columnsFrom": ["occurrence_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "source_subjects_owner_ck": {
+          "name": "source_subjects_owner_ck",
+          "value": "(\"source_subjects\".\"event_id\" IS NOT NULL) != (\"source_subjects\".\"occurrence_id\" IS NOT NULL)"
+        }
+      }
+    },
+    "sources": {
+      "name": "sources",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "canonical_url": {
+          "name": "canonical_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "authority": {
+          "name": "authority",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "platform": {
+          "name": "platform",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "sources_url_uq": {
+          "name": "sources_url_uq",
+          "columns": ["canonical_url"],
+          "isUnique": true
+        },
+        "sources_platform_id_uq": {
+          "name": "sources_platform_id_uq",
+          "columns": ["platform", "external_id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "sources_kind_ck": {
+          "name": "sources_kind_ck",
+          "value": "\"sources\".\"kind\" IN ('website','social','feed','api','submission','manual_reference')"
+        },
+        "sources_authority_ck": {
+          "name": "sources_authority_ck",
+          "value": "\"sources\".\"authority\" IN ('official','partner','secondary','community')"
+        }
+      }
+    },
+    "taxonomy_terms": {
+      "name": "taxonomy_terms",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "facet": {
+          "name": "facet",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "taxonomy_terms_facet_slug_uq": {
+          "name": "taxonomy_terms_facet_slug_uq",
+          "columns": ["facet", "slug"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "taxonomy_terms_parent_id_taxonomy_terms_id_fk": {
+          "name": "taxonomy_terms_parent_id_taxonomy_terms_id_fk",
+          "tableFrom": "taxonomy_terms",
+          "tableTo": "taxonomy_terms",
+          "columnsFrom": ["parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "taxonomy_terms_facet_ck": {
+          "name": "taxonomy_terms_facet_ck",
+          "value": "\"taxonomy_terms\".\"facet\" IN ('event_type','format','topic','genre','culture')"
+        },
+        "taxonomy_terms_parent_ck": {
+          "name": "taxonomy_terms_parent_ck",
+          "value": "\"taxonomy_terms\".\"parent_id\" IS NULL OR \"taxonomy_terms\".\"parent_id\" != \"taxonomy_terms\".\"id\""
+        }
+      }
+    },
+    "url_aliases": {
+      "name": "url_aliases",
+      "columns": {
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "occurrence_id": {
+          "name": "occurrence_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "url_aliases_event_id_events_id_fk": {
+          "name": "url_aliases_event_id_events_id_fk",
+          "tableFrom": "url_aliases",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "url_aliases_occurrence_id_occurrences_id_fk": {
+          "name": "url_aliases_occurrence_id_occurrences_id_fk",
+          "tableFrom": "url_aliases",
+          "tableTo": "occurrences",
+          "columnsFrom": ["occurrence_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "url_aliases_scope_path_pk": {
+          "columns": ["scope", "path"],
+          "name": "url_aliases_scope_path_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "url_aliases_scope_ck": {
+          "name": "url_aliases_scope_ck",
+          "value": "\"url_aliases\".\"scope\" = 'festivals'"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

@@ -11,11 +11,11 @@ Build the catalog service using development fixtures. Parsing, crawling, imports
 
 ## 2 Catalog and publication
 
-- [ ] Create schemas and migrations for Events, Occurrences, taxonomy, links, evidence, and audit history.
-- [ ] Add stable IDs, slugs, edition keys, and retained URL aliases.
-- [ ] Implement validated internal writes with atomic audit history, version checks, and replay protection.
-- [ ] Enforce date, location, publication, and withdrawal rules; keep facts specific to each edition.
-- [ ] Add repeatable development fixtures and focused tests for tentative dates, missing coordinates, historical editions, cancellations, and postponements.
+- [x] Create schemas and migrations for Events, Occurrences, taxonomy, links, evidence, and audit history.
+- [x] Add stable IDs, slugs, edition keys, and retained URL aliases.
+- [x] Implement validated internal writes with atomic audit history, version checks, and replay protection.
+- [x] Enforce date, location, publication, and withdrawal rules; keep facts specific to each edition.
+- [x] Add repeatable development fixtures and focused tests for tentative dates, missing coordinates, historical editions, cancellations, and postponements.
 
 ## 3 Basic catalog pages
 
