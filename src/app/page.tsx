@@ -83,7 +83,7 @@ export default async function HomePage({ searchParams }: Props) {
   }
   const normalized = serializeFilters(initial).toString();
   return (
-    <main className="catalog">
+    <main className="catalog discovery-page">
       <nav>
         <a href={origins.apex}>Eventroam</a> / Festivals
       </nav>
@@ -98,6 +98,7 @@ export default async function HomePage({ searchParams }: Props) {
         initialError={error}
         initialQuery={normalized}
         initialNow={new Date().toISOString()}
+        initialView={raw.get("view") === "map" ? "map" : "list"}
       />
     </main>
   );

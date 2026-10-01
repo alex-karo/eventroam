@@ -16,6 +16,9 @@ import {
   type SizeBand,
 } from "@/application/discovery";
 import { editionPath } from "@/application/public-site";
+import type { PublicOccurrence } from "@/application/public-catalog";
+import { DiscoveryMap, hasMapPoint } from "@/components/discovery-map";
+import { Dates, Location, Status, TicketPrice } from "@/components/catalog";
 
 type Catalog = { summaries: DiscoverySummary[]; genres: Genre[] };
 const sizeLabels: Record<SizeBand, string> = {
@@ -83,12 +86,14 @@ export function Discovery({
   initialError,
   initialQuery,
   initialNow,
+  initialView,
 }: {
   initialCatalog: Catalog;
   initialFilters: Filters;
   initialError: string | null;
   initialQuery: string;
   initialNow: string;
+  initialView: "map" | "list";
 }) {
   const [catalog, setCatalog] = useState(initialCatalog);
   const [applied, setApplied] = useState(initialFilters);
@@ -100,6 +105,13 @@ export function Discovery({
   const error = urlError ?? formError;
   const [loadError, setLoadError] = useState(false);
   const [panel, setPanel] = useState(false);
+  const [view, setView] = useState<"map" | "list">(initialView);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<PublicOccurrence | null>(null);
+  const [detailError, setDetailError] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const detailRequest = useRef(0);
+  const detailPanel = useRef<HTMLElement>(null);
   const today = new Date(initialNow);
   const panelButton = useRef<HTMLButtonElement>(null);
   const latest = useRef(0);
@@ -117,6 +129,11 @@ export function Discovery({
   }, [initialError, initialQuery]);
   useEffect(() => {
     const restore = () => {
+      setView(
+        new URLSearchParams(window.location.search).get("view") === "map"
+          ? "map"
+          : "list",
+      );
       try {
         const next = parseFilters(
           new URLSearchParams(window.location.search),
@@ -173,6 +190,9 @@ export function Discovery({
         if (request === latest.current) setLoadError(true);
       });
   }, []);
+  useEffect(() => {
+    if (selectedId) detailPanel.current?.scrollIntoView({ block: "nearest" });
+  }, [selectedId]);
   function apply(next: Filters) {
     try {
       const valid = normalizeFilters(next, catalog.genres);
@@ -197,9 +217,36 @@ export function Discovery({
       );
     }
   }
+  function switchView(next: "map" | "list") {
+    setView(next);
+    const url = new URL(window.location.href);
+    if (next === "map") url.searchParams.set("view", "map");
+    else url.searchParams.delete("view");
+    window.history.pushState(null, "", `${url.pathname}${url.search}`);
+  }
+  async function selectEdition(id: string) {
+    const request = ++detailRequest.current;
+    setSelectedId(id);
+    setDetail(null);
+    setDetailError(false);
+    setDetailLoading(true);
+    try {
+      const response = await fetch(`/api/discovery/${encodeURIComponent(id)}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Detail unavailable");
+      const next = (await response.json()) as PublicOccurrence;
+      if (request === detailRequest.current) setDetail(next);
+    } catch {
+      if (request === detailRequest.current) setDetailError(true);
+    } finally {
+      if (request === detailRequest.current) setDetailLoading(false);
+    }
+  }
   const results = invalidUrl
     ? []
     : filterSummaries(catalog.summaries, applied, catalog.genres, today);
+  const mapped = results.filter(hasMapPoint).length;
   const active = [
     applied.q && ["Name", "q"],
     applied.from && ["When", "date"],
@@ -283,7 +330,7 @@ export function Discovery({
         <span aria-live="polite">
           {invalidUrl
             ? "Invalid filters"
-            : `${results.length} ${results.length === 1 ? "edition" : "editions"}`}
+            : `${results.length} ${results.length === 1 ? "edition" : "editions"} · ${mapped} mapped · ${results.length - mapped} unlocated`}
         </span>
         <button type="button" onClick={() => apply(emptyFilters())}>
           Clear all
@@ -524,64 +571,180 @@ export function Discovery({
           </button>
         </div>
       )}
-      {!error &&
-        (results.length ? (
-          <ul className="edition-list">
-            {results.map((edition) => (
-              <li key={edition.id}>
-                <a href={editionPath(edition.eventSlug, edition.key)}>
-                  {edition.name ?? `${edition.eventName} ${edition.year}`}
-                </a>
-                <p>
-                  {edition.dateState === "provisional" && "Tentative dates: "}
-                  <time dateTime={edition.startsOn}>
-                    {format(edition.startsOn)}
-                  </time>
-                  {edition.endsOn !== edition.startsOn && (
-                    <>
-                      {" "}
-                      –{" "}
-                      <time dateTime={edition.endsOn}>
-                        {format(edition.endsOn)}
+      <div className="view-switch" role="group" aria-label="Discovery view">
+        <button
+          type="button"
+          aria-pressed={view === "map"}
+          onClick={() => switchView("map")}
+        >
+          Map
+        </button>
+        <button
+          type="button"
+          aria-pressed={view === "list"}
+          onClick={() => switchView("list")}
+        >
+          List
+        </button>
+      </div>
+      <div className={`discovery-results view-${view}`}>
+        <section className="map-region" aria-label="Map results">
+          <h2>Map</h2>
+          <DiscoveryMap
+            summaries={results}
+            selectedId={selectedId}
+            onSelect={(id) => void selectEdition(id)}
+            visible={view === "map"}
+          />
+        </section>
+        <section className="list-region" aria-label="List results">
+          <h2>List</h2>
+          {!error &&
+            (results.length ? (
+              <ul className="edition-list">
+                {results.map((edition) => (
+                  <li
+                    key={edition.id}
+                    className={
+                      selectedId === edition.id ? "selected-edition" : ""
+                    }
+                  >
+                    <a href={editionPath(edition.eventSlug, edition.key)}>
+                      {edition.name ?? `${edition.eventName} ${edition.year}`}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => void selectEdition(edition.id)}
+                      aria-label={`Show details for ${edition.name ?? `${edition.eventName} ${edition.year}`}`}
+                    >
+                      Details
+                    </button>
+                    <p>
+                      {edition.dateState === "provisional" &&
+                        "Tentative dates: "}
+                      <time dateTime={edition.startsOn}>
+                        {format(edition.startsOn)}
                       </time>
-                    </>
-                  )}{" "}
-                  · {durationDays(edition.startsOn, edition.endsOn)} days
-                </p>
-                <p>
-                  {[
-                    edition.venueName,
-                    edition.locality,
-                    edition.administrativeArea,
-                    edition.countryCode,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                  {!edition.venueName && " · Approximate location"}
-                  {edition.latitude === null && " · Map location unavailable"}
-                </p>
-                {edition.capacityEstimate !== null && (
-                  <p>
-                    Estimated capacity:{" "}
-                    {edition.capacityEstimate.toLocaleString("en")}
-                  </p>
-                )}
-                {edition.ticketAvailability === "sold_out" && (
-                  <p>
-                    <strong>Sold out</strong>
-                  </p>
-                )}
-              </li>
+                      {edition.endsOn !== edition.startsOn && (
+                        <>
+                          {" "}
+                          –{" "}
+                          <time dateTime={edition.endsOn}>
+                            {format(edition.endsOn)}
+                          </time>
+                        </>
+                      )}{" "}
+                      · {durationDays(edition.startsOn, edition.endsOn)} days
+                    </p>
+                    <p>
+                      {[
+                        edition.venueName,
+                        edition.locality,
+                        edition.administrativeArea,
+                        edition.countryCode,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                      {!edition.venueName && " · Approximate location"}
+                      {edition.latitude === null &&
+                        " · Map location unavailable"}
+                    </p>
+                    {edition.capacityEstimate !== null && (
+                      <p>
+                        Estimated capacity:{" "}
+                        {edition.capacityEstimate.toLocaleString("en")}
+                      </p>
+                    )}
+                    {edition.ticketAvailability === "sold_out" && (
+                      <p>
+                        <strong>Sold out</strong>
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="notice">
+                <p>No editions match these filters.</p>
+                <button type="button" onClick={() => apply(emptyFilters())}>
+                  Clear all filters
+                </button>
+              </div>
             ))}
-          </ul>
-        ) : (
-          <div className="notice">
-            <p>No editions match these filters.</p>
-            <button type="button" onClick={() => apply(emptyFilters())}>
-              Clear all filters
-            </button>
-          </div>
-        ))}
+        </section>
+      </div>
+      {selectedId && (
+        <section
+          ref={detailPanel}
+          className="detail-panel"
+          aria-live="polite"
+          aria-label="Selected edition details"
+        >
+          <button
+            type="button"
+            onClick={() => {
+              ++detailRequest.current;
+              setSelectedId(null);
+              setDetail(null);
+              setDetailError(false);
+              setDetailLoading(false);
+            }}
+          >
+            Close details
+          </button>
+          {detailLoading && <p>Loading edition details…</p>}
+          {detailError && (
+            <div role="alert">
+              <p>Could not load edition details.</p>
+              <button
+                type="button"
+                onClick={() => void selectEdition(selectedId)}
+              >
+                Retry details
+              </button>
+            </div>
+          )}
+          {detail && (
+            <>
+              <h2>{detail.name ?? `${detail.eventName} ${detail.year}`}</h2>
+              <Status edition={detail} />
+              <Dates edition={detail} />
+              <Location edition={detail} />
+              {detail.venueAddress && <p>{detail.venueAddress}</p>}
+              {detail.terms.length > 0 && (
+                <p>
+                  Classification:{" "}
+                  {detail.terms.map((term) => term.name).join(", ")}
+                </p>
+              )}
+              {detail.capacityEstimate !== null && (
+                <p>
+                  Estimated capacity:{" "}
+                  {detail.capacityEstimate.toLocaleString("en")}
+                </p>
+              )}
+              <TicketPrice edition={detail} />
+              {detail.links.length > 0 && (
+                <>
+                  <h3>Official links</h3>
+                  <ul>
+                    {detail.links.map((link) => (
+                      <li key={`${link.kind}:${link.url}`}>
+                        <a href={link.url} rel="noopener noreferrer">
+                          {link.label ?? link.kind.replaceAll("_", " ")}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              <a href={editionPath(detail.eventSlug, detail.key)}>
+                Open full edition page
+              </a>
+            </>
+          )}
+        </section>
+      )}
     </div>
   );
 }

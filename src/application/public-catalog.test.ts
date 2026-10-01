@@ -8,6 +8,7 @@ import { seedDevelopmentFixtures } from "../db/development-fixtures";
 import { applyCatalogOperation } from "./catalog";
 import {
   publicEvent,
+  publicOccurrenceById,
   publicList,
   resolvePublicPath,
   selectActive,
@@ -58,6 +59,18 @@ test("upcoming list and active selection use only current public editions", () =
   expect(JSON.stringify(event)).not.toMatch(
     /sourceId|operationKey|catalog_changes|retrievedAt|dev-source-official/,
   );
+});
+
+test("on-demand discovery details obey publication and schedule gates", () => {
+  const { client } = setup();
+  const ids = client
+    .prepare("SELECT id,occurrence_key AS key FROM occurrences")
+    .all() as { id: string; key: string }[];
+  const byKey = Object.fromEntries(ids.map(({ id, key }) => [key, id]));
+  expect(publicOccurrenceById(client, byKey["2027"])?.key).toBe("2027");
+  expect(publicOccurrenceById(client, byKey["2025"])?.key).toBe("2025");
+  expect(publicOccurrenceById(client, byKey["2026-cancelled"])).toBeNull();
+  expect(publicOccurrenceById(client, "missing")).toBeNull();
 });
 
 test("published history and postponement retain pages but leave upcoming list", () => {

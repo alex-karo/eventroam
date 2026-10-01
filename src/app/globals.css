@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "mapbox-gl/dist/mapbox-gl.css";
 
 :root {
   color-scheme: light;
@@ -220,4 +221,86 @@ a:hover {
   display: inline-flex;
   gap: 0.35rem;
   align-items: center;
+}
+.discovery-page {
+  max-width: 88rem;
+}
+.discovery-results {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(22rem, 0.85fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.discovery-results > section {
+  min-width: 0;
+}
+.discovery-results h2 {
+  margin: 1rem 0 0.6rem;
+}
+.map-shell {
+  position: relative;
+}
+.map-canvas {
+  height: min(70vh, 42rem);
+  min-height: 24rem;
+  border: 1px solid #c7d1ca;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.map-fallback {
+  padding: 1.5rem;
+  background: #fff7e5;
+  border: 1px solid #d3aa54;
+  border-radius: 0.5rem;
+}
+.map-shell .map-fallback {
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  top: 1rem;
+  z-index: 2;
+}
+.map-caption {
+  font-size: 0.85rem;
+  margin: 0.35rem 0;
+}
+.view-switch {
+  display: none;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+.view-switch [aria-pressed="true"] {
+  background: #12614f;
+  color: #fff;
+}
+.edition-list li > button {
+  margin-left: 0.75rem;
+}
+.selected-edition {
+  background: #e1eee8;
+}
+.detail-panel {
+  border: 1px solid #c7d1ca;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-top: 1.5rem;
+  background: white;
+}
+.detail-panel h2 {
+  margin-top: 0.5rem;
+}
+@media (max-width: 50rem) {
+  .discovery-results {
+    display: block;
+  }
+  .view-switch {
+    display: flex;
+  }
+  .discovery-results.view-map .list-region,
+  .discovery-results.view-list .map-region {
+    display: none;
+  }
+  .map-canvas {
+    height: 60vh;
+  }
 }

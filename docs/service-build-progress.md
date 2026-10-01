@@ -1,27 +1,28 @@
 # Service build progress
 
-Current section: 4 — Search and filters  
-Fix rounds: 1 of 2  
-Status: accepted; commit pending
+Current section: 5 — Map and responsive discovery  
+Fix rounds: 0 of 2  
+Status: development-fixture build complete and committed
 
 ## Acceptance checklist
 
-- [x] A same-origin read endpoint returns the complete compact public discovery summary set for Festivals, including eligible historical editions and records without coordinates; full details and internal evidence stay out.
-- [x] Shared pure browser/server matching covers name, When, Where, Music genre, Duration, and Size with same-Occurrence AND semantics, multi-select OR semantics, unknown handling, date overlap, and deterministic ordering.
-- [x] Server-rendered direct filter URLs and client interaction agree; applied URL state round-trips through reload and back/forward, while pending edits use Apply/Cancel.
-- [x] Search/filter UI has active chips, result count, Clear all, empty/error recovery, valid URL normalization, and visible errors for invalid filters; unrelated or `bbox` parameters never constrain results.
-- [x] Focused tests cover combined filters, inclusive/leap date boundaries, genre ancestry, capacity/duration bands and unknowns, same-edition matching, and browser/server parity.
+- [x] Mapbox GL JS renders via a small client adapter with public token, style, visible attribution, clustered markers, and approximate-location labels; missing token/WebGL leaves the list usable.
+- [x] Desktop displays map and list together; narrow screens provide a keyboard-usable Map/List switch without losing filters or selected edition.
+- [x] Both views consume the same filtered summaries. Unlocated editions remain in the list, with accurate total, mapped, and unlocated counts independent of viewport.
+- [x] Marker/list selection loads full public Occurrence details on demand through a publication-gated endpoint; errors can retry, stale responses cannot replace newer selections, and ordinary direct links remain usable.
+- [x] Map movement does not refetch or filter results. Direct links, mobile and keyboard flows, selection persistence, clustering, and map-unavailable fallback received focused verification.
 
 ## Decisions
 
-- Sections 1–3 committed as `1863314`, `b626c9c`, and `2ebad02`; all passed independent review.
+- Sections 1–4 committed as `1863314`, `b626c9c`, `2ebad02`, and `955ed9f`; section 5 is the current commit. All passed independent review for the development-fixture build.
 - Use fictional development fixtures. Parsing, crawling, imports, agent workflows, public-content/SEO completion, and deployment remain deferred.
 - Optional findings remain parked: section 1 documentation cleanup; section 2 taxonomy immutability, UTC normalization, and partial-fixture recovery.
 - Section 3 optional notes remain parked: stricter origin validation and extra route/render fixtures.
-- Section 4 implements list discovery only; Mapbox, combined map/list layout, mobile switch, and selection details are section 5.
-- Initial section 4 review found Cancel hides an invalid-URL alert while the URL remains invalid, and the genre picker lists the full alphabetic taxonomy instead of eligible-inventory terms grouped under parents. Details: `/tmp/eventroam-section4-review.md`. Optional notes stay out of scope.
-- Independent follow-up verified both fixes in Chrome, endpoint data, and tests; no remaining blockers. Type check, lint, format, 25 tests, build, and HTTP/browser checks pass.
+- Section 4 optional findings remain parked: descriptive chips, opener-specific focus restoration, and automated browser regression coverage.
+- Mapbox token restrictions and usage monitoring are a required pre-deployment gate. Production deployment is deferred; document the exact gate now without creating or exposing an account token.
+- Section 5 code review and independent live Mapbox review passed with no blocking findings. Lint, format, type check, 27 tests, build, HTTP, fallback, live tiles/attribution/clustering/selection, and browser flows pass. Details: `/tmp/eventroam-section5-review.md` and `/tmp/eventroam-section5-live-review.md`.
+- The ignored `.env` contains a working local public token. Account-side restrictions, launch-host allowlist, usage monitoring, and budget alerts remain unverified and required before public deployment.
 
 ## Next action
 
-Commit accepted section 4, then define section 5 acceptance and start a fresh Sol implementer.
+Before any public deployment, verify the account-side Mapbox restrictions, launch-host allowlist, monitoring, and budget alerts; keep that deployment gate unchecked until then.

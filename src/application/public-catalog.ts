@@ -116,6 +116,17 @@ export function publicEvent(
   const editions = publicEditions(client, eventId);
   return editions.length ? { ...event, editions } : null;
 }
+export function publicOccurrenceById(
+  client: Database.Database,
+  id: string,
+): PublicOccurrence | null {
+  const row = client
+    .prepare(
+      `${select} AND o.id=? AND o.schedule_status NOT IN ('cancelled','postponed')`,
+    )
+    .get(id) as Row | undefined;
+  return row ? enrich(client, row) : null;
+}
 export function publicList(
   client: Database.Database,
   today: string,

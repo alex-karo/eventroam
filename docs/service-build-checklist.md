@@ -36,10 +36,11 @@ Build the catalog service using development fixtures. Parsing, crawling, imports
 
 ## 5 Map and responsive discovery
 
-- [ ] Integrate Mapbox GL JS with a public token, Mapbox style, and visible attribution; consult eventmap read-only where useful. Configure token restrictions and usage monitoring before public deployment.
-- [ ] Show map and list together on desktop and provide a Map/List switch on mobile.
-- [ ] Use the same filtered results in both views, keeping editions without coordinates in the list and showing total, mapped, and unlocated counts.
-- [ ] Add marker clustering, selection, and approximate-location labels.
-- [ ] Load full details on selection, with retry and protection against stale responses.
-- [ ] Preserve filters and selection across view changes; keep map movement independent of result filtering and fetching.
-- [ ] Verify mobile and keyboard flows, direct links, and a usable list when the map is unavailable.
+- [x] Integrate Mapbox GL JS with a public token, Mapbox style, and visible attribution; consult eventmap read-only where useful.
+- [ ] Configure token restrictions and usage monitoring before public deployment.
+- [x] Show map and list together on desktop and provide a Map/List switch on mobile.
+- [x] Use the same filtered results in both views, keeping editions without coordinates in the list and showing total, mapped, and unlocated counts.
+- [x] Add marker clustering, selection, and approximate-location labels.
+- [x] Load full details on selection, with retry and protection against stale responses.
+- [x] Preserve filters and selection across view changes; keep map movement independent of result filtering and fetching.
+- [x] Verify mobile and keyboard flows, direct links, and a usable list when the map is unavailable.
