@@ -1,29 +1,25 @@
 # Service build progress
 
-Current section: 2 — Catalog and publication  
-Fix rounds: 2 of 2  
+Current section: 3 — Basic catalog pages  
+Fix rounds: 1 of 2  
 Status: accepted; commit pending
 
 ## Acceptance checklist
 
-- [x] Reviewed Drizzle schema and SQL migrations cover Events, Occurrences, occurrence-owned taxonomy, links, Source/evidence, run records, and immutable CatalogChange history with typed constraints and foreign keys.
-- [x] Stable opaque IDs, globally unique Event slugs, stable per-Event Occurrence keys, home-scope ownership, and retained published URL aliases survive rename/date moves and cannot be reused by another identity.
-- [x] Validated internal create/update/publication operations atomically write changes and audit entries, reject stale versions, and make same-key retries idempotent while rejecting different payloads.
-- [x] Date/location/publication/withdrawal and edition-isolation rules are enforced; factual publication and changes require appropriate source evidence. Typed positive capacity and bounded original-currency price summaries follow the information brief.
-- [x] Repeatable development fixtures are separate from schema migrations; focused real SQLite tests cover tentative dates, missing coordinates, historical editions, cancellations, postponements, rollback, and replay/version behavior.
+- [x] Server-rendered Festivals list uses only public Occurrences and ordinary links to their stable detail routes; no draft or withdrawn data reaches HTML or read responses.
+- [x] Durable Event pages show published editions and history, with deterministic active-edition selection and no cross-edition fact mixing.
+- [x] Occurrence pages show accepted dates and status, tentative/previous-date labels, qualified location, edition classifications and official links; direct entry works without client JavaScript.
+- [x] Configured scope host and canonical origins determine stable `/events/{slug}` and `/events/{slug}/{key}` routes; retained public aliases redirect to the current address while missing/hidden targets return 404.
+- [x] Focused route/read tests verify public gates, direct visits, renamed addresses, historical/cancelled/postponed pages, and missing-coordinate presentation.
 
 ## Decisions
 
-- Process sections in checklist order and commit each accepted section separately.
-- Use development fixtures. Parsing, crawling, imports, agent workflows, public-content/SEO completion, and production deployment remain deferred.
-- Section 1 accepted and committed as `1863314` after independent review and checks on Node 26.10.0/npm 11.19.1.
-- Section 1 optional improvements are parked: remove one stale pre-scaffold statement and mention the polling fallback in `docs/development.md`.
-- Keep fixtures as development data operations, not migration seed data. Parsing, crawling, imports, public pages, and agent workflow transport are outside section 2.
-- Initial independent review found six blocking defects: unchanged link replacement mutates IDs/history; evidence can lack excerpt/snapshot; completed source-check replay fails; completed runs can be deleted; SQL permits incomplete price values through NULL; published records accept `ZZ` country code. Details: `/tmp/eventroam-section2-review.md`.
-- Optional review notes (out of gate): assigned taxonomy immutability, UTC normalization, and fixture recovery after partial seeding.
-- Follow-up review verified five of six fixes. The SQL price CHECK still accepts populated rows with `price_kind = NULL` because SQLite treats NULL CHECK results as passing. Details: `/tmp/eventroam-section2-followup1.md`.
-- Final independent review verified the last SQL fix against fresh SQLite and found no remaining blockers. Required tests, type check, lint, format, build, migration check, and repeat fixture/migration runs pass.
+- Section 1 committed as `1863314`; section 2 committed as `b626c9c`. Section 2 used two fix rounds and passed independent final review.
+- Use fictional development fixtures. Parsing, crawling, imports, agent workflows, public-content/SEO completion, and deployment remain deferred.
+- Optional findings remain parked: section 1 documentation cleanup; section 2 taxonomy immutability, UTC normalization, and partial-fixture recovery.
+- Initial section 3 review found JPY minor units incorrectly divided by 100 on Occurrence pages. Details: `/tmp/eventroam-section3-review.md`. Optional notes: route/render tests and origin validation.
+- Independent follow-up verified currency-aware server rendering (EUR, JPY, KWD) with no remaining blockers. Type check, lint, format, 19 tests, build, and direct HTTP checks pass. Optional test-fixture refinements remain parked.
 
 ## Next action
 
-Commit accepted section 2, then define section 3 acceptance and start a fresh Sol implementer.
+Commit accepted section 3, then define section 4 acceptance and start a fresh Sol implementer.

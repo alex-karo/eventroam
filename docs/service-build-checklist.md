@@ -19,11 +19,11 @@ Build the catalog service using development fixtures. Parsing, crawling, imports
 
 ## 3 Basic catalog pages
 
-- [ ] Build a server-rendered festival list using public records only.
-- [ ] Build Event pages with links to published editions and history.
-- [ ] Build Occurrence pages with dates, status, qualified location, and official links.
-- [ ] Support direct page visits, stable URLs, and redirects for renamed public addresses.
-- [ ] Verify drafts and withdrawn records are absent from public pages and responses.
+- [x] Build a server-rendered festival list using public records only.
+- [x] Build Event pages with links to published editions and history.
+- [x] Build Occurrence pages with dates, status, qualified location, and official links.
+- [x] Support direct page visits, stable URLs, and redirects for renamed public addresses.
+- [x] Verify drafts and withdrawn records are absent from public pages and responses.
 
 ## 4 Search and filters
 
