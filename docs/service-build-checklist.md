@@ -4,7 +4,7 @@ Build the catalog service using development fixtures. Parsing, crawling, imports
 
 ## 1 Application foundation
 
-- [ ] Scaffold one Next.js application with React, strict TypeScript, and pnpm.
+- [ ] Scaffold one Next.js application with React, strict TypeScript, and npm.
 - [ ] Set up domain logic, application services, database access, and UI directories.
 - [ ] Configure SQLite, Drizzle, and environment validation.
 - [ ] Add working development, type-check, lint, test, and build commands.
@@ -36,7 +36,7 @@ Build the catalog service using development fixtures. Parsing, crawling, imports
 
 ## 5 Map and responsive discovery
 
-- [ ] Integrate Mapbox with token configuration, a map style, and attribution; consult eventmap read-only where useful.
+- [ ] Integrate Mapbox GL JS with a public token, Mapbox style, and visible attribution; consult eventmap read-only where useful. Configure token restrictions and usage monitoring before public deployment.
 - [ ] Show map and list together on desktop and provide a Map/List switch on mobile.
 - [ ] Use the same filtered results in both views, keeping editions without coordinates in the list and showing total, mapped, and unlocated counts.
 - [ ] Add marker clustering, selection, and approximate-location labels.
