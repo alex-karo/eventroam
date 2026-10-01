@@ -213,3 +213,37 @@ test("a published Event with no published edition has no public route", () => {
   expect(publicEvent(client, id)).toBeNull();
   expect(resolvePublicPath(client, "/events/fictional-field-days")).toBeNull();
 });
+
+test("complete compact discovery includes history and unlocated editions, excluding cancelled", async () => {
+  const { discoveryCatalog } = await import("./discovery-catalog");
+  const { filterSummaries, parseFilters } = await import("./discovery");
+  const { client } = setup();
+  const catalog = discoveryCatalog(client);
+  expect(catalog.summaries.map((s) => s.key).sort()).toEqual(["2025", "2027"]);
+  expect(
+    catalog.summaries.every((s) => s.latitude === null && s.longitude === null),
+  ).toBe(true);
+  expect(JSON.stringify(catalog)).not.toMatch(
+    /price|sourceId|retrievedAt|evidence|venueAddress|summary/,
+  );
+  const filters = parseFilters(
+    new URLSearchParams(
+      "from=2025-07-03&to=2025-07-03&country=PT&durationMin=3",
+    ),
+    catalog.genres,
+  );
+  const serverResults = filterSummaries(
+    catalog.summaries,
+    filters,
+    catalog.genres,
+    new Date("2026-10-01T12:00:00Z"),
+  );
+  const browserResults = filterSummaries(
+    JSON.parse(JSON.stringify(catalog.summaries)),
+    filters,
+    JSON.parse(JSON.stringify(catalog.genres)),
+    new Date("2026-10-01T12:00:00Z"),
+  );
+  expect(serverResults.map((s) => s.key)).toEqual(["2025"]);
+  expect(browserResults).toEqual(serverResults);
+});

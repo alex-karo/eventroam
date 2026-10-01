@@ -27,12 +27,12 @@ Build the catalog service using development fixtures. Parsing, crawling, imports
 
 ## 4 Search and filters
 
-- [ ] Return the complete discovery summary set, including historical editions eligible for date searches.
-- [ ] Implement name search, When, Where, Music genre, Duration, and Size using shared browser/server matching rules.
-- [ ] Add Apply/Cancel, active filter chips, result counts, and Clear all.
-- [ ] Persist applied filters in the URL and restore them on reload and back/forward navigation.
-- [ ] Handle unknown values, invalid filters, empty results, and retryable errors.
-- [ ] Test combined filters, date boundaries, same-edition matching, and browser/server parity.
+- [x] Return the complete discovery summary set, including historical editions eligible for date searches.
+- [x] Implement name search, When, Where, Music genre, Duration, and Size using shared browser/server matching rules.
+- [x] Add Apply/Cancel, active filter chips, result counts, and Clear all.
+- [x] Persist applied filters in the URL and restore them on reload and back/forward navigation.
+- [x] Handle unknown values, invalid filters, empty results, and retryable errors.
+- [x] Test combined filters, date boundaries, same-edition matching, and browser/server parity.
 
 ## 5 Map and responsive discovery
 
