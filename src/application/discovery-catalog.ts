@@ -34,12 +34,17 @@ export function publicSummaries(client: Database.Database): DiscoverySummary[] {
     )
     .all() as Row[];
   const genresByOccurrence = new Map<string, string[]>();
-  const classifications = client.prepare(
-    `SELECT ot.occurrence_id AS occurrenceId,t.slug
+  const classifications = client
+    .prepare(
+      `SELECT ot.occurrence_id AS occurrenceId,t.slug
      FROM occurrence_terms ot JOIN taxonomy_terms t ON t.id=ot.term_id
      WHERE ot.occurrence_id IN (SELECT value FROM json_each(?))
      AND t.facet='genre' ORDER BY t.slug`,
-  ).all(JSON.stringify(rows.map((row) => row.id))) as { occurrenceId: string; slug: string }[];
+    )
+    .all(JSON.stringify(rows.map((row) => row.id))) as {
+    occurrenceId: string;
+    slug: string;
+  }[];
   for (const { occurrenceId, slug } of classifications) {
     const genres = genresByOccurrence.get(occurrenceId) ?? [];
     genres.push(slug);
@@ -54,5 +59,8 @@ export function publicSummaries(client: Database.Database): DiscoverySummary[] {
 }
 
 export function discoveryCatalog(client: Database.Database) {
-  return { genres: discoveryGenres(client), summaries: publicSummaries(client) };
+  return {
+    genres: discoveryGenres(client),
+    summaries: publicSummaries(client),
+  };
 }

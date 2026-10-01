@@ -1,13 +1,11 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   durationDays,
   emptyFilters,
   filterSummaries,
   genrePickerTree,
   normalizeFilters,
-  parseFilters,
-  serializeFilters,
   sizeBands,
   type DiscoverySummary,
   type Filters,
@@ -19,6 +17,18 @@ import { editionPath } from "@/application/public-site";
 import type { PublicOccurrence } from "@/application/public-catalog";
 import { DiscoveryMap, hasMapPoint } from "@/components/discovery-map";
 import { Dates, Location, Status, TicketPrice } from "@/components/catalog";
+
+import {
+  normalizeDiscoveryLocation,
+  pushDiscoveryFilters,
+  pushDiscoveryView,
+  readDiscoveryLocation,
+} from "./discovery-url";
+
+type DetailState =
+  | { status: "idle" }
+  | { status: "loading" | "error"; id: string }
+  | { status: "ready"; id: string; data: PublicOccurrence };
 
 type Catalog = { summaries: DiscoverySummary[]; genres: Genre[] };
 const sizeLabels: Record<SizeBand, string> = {
@@ -106,74 +116,41 @@ export function Discovery({
   const [loadError, setLoadError] = useState(false);
   const [panel, setPanel] = useState(false);
   const [view, setView] = useState<"map" | "list">(initialView);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<PublicOccurrence | null>(null);
-  const [detailError, setDetailError] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailState, setDetailState] = useState<DetailState>({
+    status: "idle",
+  });
+  const selectedId = detailState.status === "idle" ? null : detailState.id;
+  const detail = detailState.status === "ready" ? detailState.data : null;
   const detailRequest = useRef(0);
   const detailPanel = useRef<HTMLElement>(null);
   const today = new Date(initialNow);
   const panelButton = useRef<HTMLButtonElement>(null);
   const latest = useRef(0);
-  const [countries, setCountries] = useState<string[]>(() =>
-    [...new Set(initialCatalog.summaries.map((s) => s.countryCode))].sort(),
-  );
+  const countries = [
+    ...new Set(catalog.summaries.map((s) => s.countryCode)),
+  ].sort();
   useEffect(() => {
-    const url = new URL(window.location.href);
-    if (!initialError) {
-      const view = url.searchParams.get("view");
-      const normalized = `${window.location.pathname}${initialQuery ? `?${initialQuery}${view === "map" || view === "list" ? `&view=${view}` : ""}` : view === "map" || view === "list" ? `?view=${view}` : ""}`;
-      if (normalized !== `${url.pathname}${url.search}`)
-        window.history.replaceState(null, "", normalized);
-    }
+    if (!initialError) normalizeDiscoveryLocation(initialQuery);
   }, [initialError, initialQuery]);
   useEffect(() => {
     const restore = () => {
-      setView(
-        new URLSearchParams(window.location.search).get("view") === "map"
-          ? "map"
-          : "list",
-      );
-      try {
-        const next = parseFilters(
-          new URLSearchParams(window.location.search),
-          catalog.genres,
-        );
-        setApplied(next);
-        setPending(next);
-        setQuery(next.q);
-        setUrlError(null);
-        setFormError(null);
-      } catch (caught) {
-        setUrlError(
-          caught instanceof Error ? caught.message : "Invalid filters.",
-        );
-        setFormError(null);
+      const { view, filters, error } = readDiscoveryLocation(catalog.genres);
+      setView(view);
+      if (filters) {
+        setApplied(filters);
+        setPending(filters);
+        setQuery(filters.q);
       }
+      setUrlError(error);
+      setFormError(null);
       setPanel(false);
     };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
   }, [catalog.genres]);
-  async function load() {
+  const load = useCallback(() => {
     const request = ++latest.current;
-    try {
-      const response = await fetch("/api/discovery", { cache: "no-store" });
-      if (!response.ok) throw new Error("Discovery is unavailable.");
-      const next = (await response.json()) as Catalog;
-      if (request !== latest.current) return;
-      setCatalog(next);
-      setCountries(
-        [...new Set(next.summaries.map((s) => s.countryCode))].sort(),
-      );
-      setLoadError(false);
-    } catch {
-      if (request === latest.current) setLoadError(true);
-    }
-  }
-  useEffect(() => {
-    const request = ++latest.current;
-    fetch("/api/discovery", { cache: "no-store" })
+    return fetch("/api/discovery", { cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error("Discovery is unavailable.");
         return response.json() as Promise<Catalog>;
@@ -181,9 +158,6 @@ export function Discovery({
       .then((next) => {
         if (request !== latest.current) return;
         setCatalog(next);
-        setCountries(
-          [...new Set(next.summaries.map((s) => s.countryCode))].sort(),
-        );
         setLoadError(false);
       })
       .catch(() => {
@@ -191,19 +165,21 @@ export function Discovery({
       });
   }, []);
   useEffect(() => {
+    const catalogRequests = latest;
+    const detailRequests = detailRequest;
+    void load();
+    return () => {
+      ++catalogRequests.current;
+      ++detailRequests.current;
+    };
+  }, [load]);
+  useEffect(() => {
     if (selectedId) detailPanel.current?.scrollIntoView({ block: "nearest" });
   }, [selectedId]);
   function apply(next: Filters) {
     try {
       const valid = normalizeFilters(next, catalog.genres);
-      const params = serializeFilters(valid);
-      const view = new URLSearchParams(window.location.search).get("view");
-      if (view === "map" || view === "list") params.set("view", view);
-      window.history.pushState(
-        null,
-        "",
-        `${window.location.pathname}${params.size ? `?${params}` : ""}`,
-      );
+      pushDiscoveryFilters(valid);
       setApplied(valid);
       setPending(valid);
       setQuery(valid.q);
@@ -219,28 +195,22 @@ export function Discovery({
   }
   function switchView(next: "map" | "list") {
     setView(next);
-    const url = new URL(window.location.href);
-    if (next === "map") url.searchParams.set("view", "map");
-    else url.searchParams.delete("view");
-    window.history.pushState(null, "", `${url.pathname}${url.search}`);
+    pushDiscoveryView(next);
   }
   async function selectEdition(id: string) {
     const request = ++detailRequest.current;
-    setSelectedId(id);
-    setDetail(null);
-    setDetailError(false);
-    setDetailLoading(true);
+    setDetailState({ status: "loading", id });
     try {
       const response = await fetch(`/api/discovery/${encodeURIComponent(id)}`, {
         cache: "no-store",
       });
       if (!response.ok) throw new Error("Detail unavailable");
       const next = (await response.json()) as PublicOccurrence;
-      if (request === detailRequest.current) setDetail(next);
+      if (request === detailRequest.current)
+        setDetailState({ status: "ready", id, data: next });
     } catch {
-      if (request === detailRequest.current) setDetailError(true);
-    } finally {
-      if (request === detailRequest.current) setDetailLoading(false);
+      if (request === detailRequest.current)
+        setDetailState({ status: "error", id });
     }
   }
   const results = invalidUrl
@@ -684,16 +654,13 @@ export function Discovery({
             type="button"
             onClick={() => {
               ++detailRequest.current;
-              setSelectedId(null);
-              setDetail(null);
-              setDetailError(false);
-              setDetailLoading(false);
+              setDetailState({ status: "idle" });
             }}
           >
             Close details
           </button>
-          {detailLoading && <p>Loading edition details…</p>}
-          {detailError && (
+          {detailState.status === "loading" && <p>Loading edition details…</p>}
+          {detailState.status === "error" && (
             <div role="alert">
               <p>Could not load edition details.</p>
               <button

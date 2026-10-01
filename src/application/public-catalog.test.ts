@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import {
   createTestEvent,
   createTestPublishedOccurrence,
@@ -9,12 +9,17 @@ import {
 import { testDatabase } from "../test/database";
 import { applyCatalogOperation } from "./catalog";
 import {
+  publicEditions,
   publicEvent,
   publicOccurrenceById,
   resolvePublicPath,
   selectActive,
 } from "./public-catalog";
-import { discoveryCatalog } from "./discovery-catalog";
+import {
+  discoveryCatalog,
+  discoveryGenres,
+  publicSummaries,
+} from "./discovery-catalog";
 import { emptyFilters, filterSummaries, parseFilters } from "./discovery";
 import { siteForHost, siteOrigins } from "./public-site";
 
@@ -209,50 +214,31 @@ test("official links inherit by kind and private links and evidence stay outside
   const insert = client.prepare(
     "INSERT INTO external_links(id,event_id,occurrence_id,kind,url,label,official,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
   );
-  insert.run(
-    "parent-site",
-    id,
-    null,
-    "official_site",
-    "https://example.org/parent",
-    null,
-    1,
-    now,
-    now,
-  );
-  insert.run(
-    "parent-social",
-    id,
-    null,
-    "facebook",
-    "https://example.org/parent-social",
-    null,
-    1,
-    now,
-    now,
-  );
-  insert.run(
-    "edition-site",
-    null,
-    edition.id,
-    "official_site",
-    "https://example.org/edition",
-    "Edition site",
-    1,
-    now,
-    now,
-  );
-  insert.run(
-    "private-social",
-    null,
-    edition.id,
-    "instagram",
-    "https://example.org/private",
-    null,
-    0,
-    now,
-    now,
-  );
+  for (const [key, eventId, occurrenceId, kind, path, label, official] of [
+    ["parent-site", id, null, "official_site", "parent", null, 1],
+    ["parent-social", id, null, "facebook", "parent-social", null, 1],
+    [
+      "edition-site",
+      null,
+      edition.id,
+      "official_site",
+      "edition",
+      "Edition site",
+      1,
+    ],
+    ["private-social", null, edition.id, "instagram", "private", null, 0],
+  ])
+    insert.run(
+      key,
+      eventId,
+      occurrenceId,
+      kind,
+      `https://example.org/${path}`,
+      label,
+      official,
+      now,
+      now,
+    );
   const read = resolvePublicPath(
     client,
     "/events/test-field-days/2027",
@@ -369,4 +355,147 @@ test("complete compact discovery includes history and unlocated editions, exclud
   );
   expect(serverResults.map((s) => s.key)).toEqual(["2025"]);
   expect(browserResults).toEqual(serverResults);
+});
+
+test("public summary and detail reads batch classification and link lookup across editions", () => {
+  const client = testDatabase().client;
+  const { event, occurrences } = createTestPublishedEvent(client, {
+    occurrences: [
+      { occurrenceKey: "2027-a" },
+      { occurrenceKey: "2027-b" },
+      { occurrenceKey: "2027-c" },
+    ],
+  });
+  client.exec(`
+    INSERT INTO taxonomy_terms (id,facet,slug,name,parent_id) VALUES
+    ('genre-parent','genre','electronic','Electronic',NULL),
+    ('genre-child','genre','psytrance','Psytrance','genre-parent'),
+    ('genre-metal','genre','metal','Metal',NULL);
+  `);
+  const assign = client.prepare(
+    "INSERT INTO occurrence_terms (occurrence_id,term_id) VALUES (?,?)",
+  );
+  assign.run(occurrences[0].id, "genre-child");
+  assign.run(occurrences[0].id, "genre-metal");
+  assign.run(occurrences[1].id, "genre-parent");
+  const insertLink = client.prepare(
+    "INSERT INTO external_links (id,event_id,occurrence_id,kind,url,official,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+  );
+  const now = "2026-10-01T12:00:00Z";
+  for (const [key, eventId, occurrenceId, path, official] of [
+    ["parent-site", event.id, null, "event", 1],
+    ["edition-site", null, occurrences[0].id, "edition", 1],
+    ["private-site", null, occurrences[1].id, "private", 0],
+  ])
+    insertLink.run(
+      key,
+      eventId,
+      occurrenceId,
+      "official_site",
+      `https://example.org/${path}`,
+      official,
+      now,
+      now,
+    );
+  const queries: string[] = [];
+  const originalPrepare = client.prepare.bind(client);
+  const prepare = vi
+    .spyOn(client, "prepare")
+    .mockImplementation((sql: string) => {
+      const statement = originalPrepare(sql);
+      const all = statement.all.bind(statement);
+      const get = statement.get.bind(statement);
+      statement.all = (...params) => {
+        queries.push(sql);
+        return all(...params);
+      };
+      statement.get = (...params) => {
+        queries.push(sql);
+        return get(...params);
+      };
+      return statement;
+    });
+  try {
+    expect(discoveryGenres(client)).toEqual([
+      { slug: "electronic", name: "Electronic", parentSlug: null },
+      { slug: "metal", name: "Metal", parentSlug: null },
+      { slug: "psytrance", name: "Psytrance", parentSlug: "electronic" },
+    ]);
+    expect(queries).toHaveLength(1);
+    expect(queries[0]).not.toContain("occurrences");
+    queries.length = 0;
+    const summaries = publicSummaries(client);
+    expect(queries).toHaveLength(2);
+    expect(summaries.find((s) => s.id === occurrences[0].id)?.genres).toEqual([
+      "metal",
+      "psytrance",
+    ]);
+    expect(summaries.find((s) => s.id === occurrences[1].id)?.genres).toEqual([
+      "electronic",
+    ]);
+    expect(summaries.find((s) => s.id === occurrences[2].id)?.genres).toEqual(
+      [],
+    );
+    queries.length = 0;
+    const editions = publicEditions(client, event.id);
+    expect(queries).toHaveLength(3);
+    expect(
+      editions
+        .find((s) => s.id === occurrences[0].id)
+        ?.terms.filter((t) => t.facet === "genre"),
+    ).toEqual([
+      { facet: "genre", name: "Metal" },
+      { facet: "genre", name: "Psytrance" },
+    ]);
+    expect(editions.find((s) => s.id === occurrences[0].id)?.links).toEqual([
+      {
+        kind: "official_site",
+        url: "https://example.org/edition",
+        label: null,
+      },
+    ]);
+    expect(editions.find((s) => s.id === occurrences[1].id)?.links).toEqual([]);
+    expect(editions.find((s) => s.id === occurrences[2].id)?.links).toEqual([
+      { kind: "official_site", url: "https://example.org/event", label: null },
+    ]);
+    createTestPublishedOccurrence(client, event.id, {
+      occurrenceKey: "2027-d",
+    });
+    queries.length = 0;
+    expect(publicSummaries(client)).toHaveLength(4);
+    expect(queries).toHaveLength(2);
+    queries.length = 0;
+    expect(publicEditions(client, event.id)).toHaveLength(4);
+    expect(queries).toHaveLength(3);
+  } finally {
+    prepare.mockRestore();
+  }
+});
+
+test("discovery hides draft and withdrawn parents and editions", () => {
+  const client = testDatabase().client;
+  const { event, occurrences } = createTestPublishedEvent(client, {
+    occurrences: [
+      { occurrenceKey: "visible" },
+      { occurrenceKey: "draft" },
+      { occurrenceKey: "withdrawn" },
+    ],
+  });
+  client
+    .prepare("UPDATE occurrences SET publication_state='draft' WHERE id=?")
+    .run(occurrences[1].id);
+  client
+    .prepare("UPDATE occurrences SET publication_state='withdrawn' WHERE id=?")
+    .run(occurrences[2].id);
+  expect(
+    upcoming(client, new Date("2026-10-01T12:00:00Z")).map((s) => s.id),
+  ).toEqual([occurrences[0].id]);
+  for (const state of ["draft", "withdrawn"]) {
+    client
+      .prepare("UPDATE events SET publication_state=? WHERE id=?")
+      .run(state, event.id);
+    expect(discoveryCatalog(client).summaries).toEqual([]);
+    expect(upcoming(client, new Date("2026-10-01T12:00:00Z"))).toEqual([]);
+    expect(publicOccurrenceById(client, occurrences[0].id)).toBeNull();
+  }
 });

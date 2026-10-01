@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { requestSite } from "@/application/public-request";
-import { discoveryCatalog, discoveryGenres } from "@/application/discovery-catalog";
+import {
+  discoveryCatalog,
+  discoveryGenres,
+} from "@/application/discovery-catalog";
 import {
   emptyFilters,
   parseFilters,

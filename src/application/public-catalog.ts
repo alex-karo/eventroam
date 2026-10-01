@@ -75,31 +75,47 @@ function enrich(client: Database.Database, rows: Row[]): PublicOccurrence[] {
     .prepare(
       `SELECT ot.occurrence_id AS occurrenceId,t.facet,t.name FROM occurrence_terms ot JOIN taxonomy_terms t ON t.id=ot.term_id WHERE ot.occurrence_id IN (SELECT value FROM json_each(?)) ORDER BY t.facet,t.name,t.id`,
     )
-    .all(JSON.stringify(rows.map((row) => row.id))) as { occurrenceId: string; facet: string; name: string }[];
+    .all(JSON.stringify(rows.map((row) => row.id))) as {
+    occurrenceId: string;
+    facet: string;
+    name: string;
+  }[];
   const termsByOccurrence = new Map<string, PublicOccurrence["terms"]>();
   for (const { occurrenceId, ...term } of terms) {
     const assigned = termsByOccurrence.get(occurrenceId) ?? [];
     assigned.push(term);
     termsByOccurrence.set(occurrenceId, assigned);
   }
-  return rows.map((row) => {
-  // Edition links override event links of the same kind. Never expose source IDs.
+  // Edition links override event links of the same kind, including private ones.
   const links = client
     .prepare(
-      `SELECT kind,url,label FROM external_links WHERE official=1 AND occurrence_id=?
-    UNION ALL SELECT kind,url,label FROM external_links el WHERE official=1 AND event_id=?
-    AND NOT EXISTS(SELECT 1 FROM external_links own WHERE own.occurrence_id=? AND own.kind=el.kind)
-    ORDER BY kind,url`,
+      `WITH selected AS (SELECT id,event_id FROM occurrences WHERE id IN (SELECT value FROM json_each(?)))
+     SELECT s.id AS occurrenceId,l.kind,l.url,l.label
+     FROM selected s JOIN external_links l ON l.occurrence_id=s.id WHERE l.official=1
+     UNION ALL
+     SELECT s.id AS occurrenceId,l.kind,l.url,l.label
+     FROM selected s JOIN external_links l ON l.event_id=s.event_id WHERE l.official=1
+     AND NOT EXISTS(SELECT 1 FROM external_links own WHERE own.occurrence_id=s.id AND own.kind=l.kind)
+     ORDER BY kind,url`,
     )
-    .all(row.id, row.eventId, row.id) as PublicOccurrence["links"];
-  const { occurrenceKey, latitude, longitude, ...publicFields } = row;
-  return {
-    ...publicFields,
-    key: occurrenceKey,
-    hasCoordinates: latitude !== null && longitude !== null,
-    terms: termsByOccurrence.get(row.id) ?? [],
-    links,
-  };
+    .all(
+      JSON.stringify(rows.map((row) => row.id)),
+    ) as (PublicOccurrence["links"][number] & { occurrenceId: string })[];
+  const linksByOccurrence = new Map<string, PublicOccurrence["links"]>();
+  for (const { occurrenceId, ...link } of links) {
+    const assigned = linksByOccurrence.get(occurrenceId) ?? [];
+    assigned.push(link);
+    linksByOccurrence.set(occurrenceId, assigned);
+  }
+  return rows.map((row) => {
+    const { occurrenceKey, latitude, longitude, ...publicFields } = row;
+    return {
+      ...publicFields,
+      key: occurrenceKey,
+      hasCoordinates: latitude !== null && longitude !== null,
+      terms: termsByOccurrence.get(row.id) ?? [],
+      links: linksByOccurrence.get(row.id) ?? [],
+    };
   });
 }
 export function publicEditions(
