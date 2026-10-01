@@ -4,10 +4,10 @@ Build the catalog service using development fixtures. Parsing, crawling, imports
 
 ## 1 Application foundation
 
-- [ ] Scaffold one Next.js application with React, strict TypeScript, and npm.
-- [ ] Set up domain logic, application services, database access, and UI directories.
-- [ ] Configure SQLite, Drizzle, and environment validation.
-- [ ] Add working development, type-check, lint, test, and build commands.
+- [x] Scaffold one Next.js application with React, strict TypeScript, and npm.
+- [x] Set up domain logic, application services, database access, and UI directories.
+- [x] Configure SQLite, Drizzle, and environment validation.
+- [x] Add working development, type-check, lint, test, and build commands.
 
 ## 2 Catalog and publication
 
