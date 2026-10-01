@@ -70,12 +70,19 @@ const select = `SELECT o.id,o.event_id AS eventId,o.occurrence_key AS occurrence
  WHERE e.publication_state='published' AND e.home_scope='festivals'
  AND o.publication_state='published' AND o.starts_on IS NOT NULL AND o.ends_on IS NOT NULL`;
 
-function enrich(client: Database.Database, row: Row): PublicOccurrence {
+function enrich(client: Database.Database, rows: Row[]): PublicOccurrence[] {
   const terms = client
     .prepare(
-      `SELECT t.facet,t.name FROM occurrence_terms ot JOIN taxonomy_terms t ON t.id=ot.term_id WHERE ot.occurrence_id=? ORDER BY t.facet,t.name,t.id`,
+      `SELECT ot.occurrence_id AS occurrenceId,t.facet,t.name FROM occurrence_terms ot JOIN taxonomy_terms t ON t.id=ot.term_id WHERE ot.occurrence_id IN (SELECT value FROM json_each(?)) ORDER BY t.facet,t.name,t.id`,
     )
-    .all(row.id) as PublicOccurrence["terms"];
+    .all(JSON.stringify(rows.map((row) => row.id))) as { occurrenceId: string; facet: string; name: string }[];
+  const termsByOccurrence = new Map<string, PublicOccurrence["terms"]>();
+  for (const { occurrenceId, ...term } of terms) {
+    const assigned = termsByOccurrence.get(occurrenceId) ?? [];
+    assigned.push(term);
+    termsByOccurrence.set(occurrenceId, assigned);
+  }
+  return rows.map((row) => {
   // Edition links override event links of the same kind. Never expose source IDs.
   const links = client
     .prepare(
@@ -90,9 +97,10 @@ function enrich(client: Database.Database, row: Row): PublicOccurrence {
     ...publicFields,
     key: occurrenceKey,
     hasCoordinates: latitude !== null && longitude !== null,
-    terms,
+    terms: termsByOccurrence.get(row.id) ?? [],
     links,
   };
+  });
 }
 export function publicEditions(
   client: Database.Database,
@@ -101,7 +109,7 @@ export function publicEditions(
   const rows = client
     .prepare(`${select} AND e.id=? ORDER BY o.starts_on DESC,o.id`)
     .all(eventId) as Row[];
-  return rows.map((row) => enrich(client, row));
+  return enrich(client, rows);
 }
 export function publicEvent(
   client: Database.Database,
@@ -125,18 +133,7 @@ export function publicOccurrenceById(
       `${select} AND o.id=? AND o.schedule_status NOT IN ('cancelled','postponed')`,
     )
     .get(id) as Row | undefined;
-  return row ? enrich(client, row) : null;
-}
-export function publicList(
-  client: Database.Database,
-  today: string,
-): PublicOccurrence[] {
-  const rows = client
-    .prepare(
-      `${select} AND o.ends_on>=? AND o.schedule_status NOT IN ('cancelled','postponed') ORDER BY o.starts_on,o.id`,
-    )
-    .all(today) as Row[];
-  return rows.map((row) => enrich(client, row));
+  return row ? enrich(client, [row])[0] : null;
 }
 export function selectActive(
   editions: PublicOccurrence[],

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requestSite } from "@/application/public-request";
-import { discoveryCatalog } from "@/application/discovery-catalog";
+import { discoveryCatalog, discoveryGenres } from "@/application/discovery-catalog";
 import {
   emptyFilters,
   parseFilters,
@@ -34,7 +34,7 @@ export async function generateMetadata({
   const { client } = openDatabase();
   let genres;
   try {
-    genres = discoveryCatalog(client).genres;
+    genres = discoveryGenres(client);
   } finally {
     client.close();
   }

@@ -6,15 +6,17 @@ type Row = Omit<DiscoverySummary, "aliases" | "genres" | "key"> & {
   occurrenceKey: string;
 };
 
-export function discoveryCatalog(client: Database.Database): {
-  summaries: DiscoverySummary[];
-  genres: Genre[];
-} {
-  const genres = client
+export function discoveryGenres(client: Database.Database): Genre[] {
+  return client
     .prepare(
-      `SELECT slug,name,(SELECT p.slug FROM taxonomy_terms p WHERE p.id=t.parent_id) AS parentSlug FROM taxonomy_terms t WHERE facet='genre' ORDER BY name,slug`,
+      `SELECT t.slug,t.name,p.slug AS parentSlug FROM taxonomy_terms t
+       LEFT JOIN taxonomy_terms p ON p.id=t.parent_id
+       WHERE t.facet='genre' ORDER BY t.name,t.slug`,
     )
     .all() as Genre[];
+}
+
+export function publicSummaries(client: Database.Database): DiscoverySummary[] {
   const rows = client
     .prepare(
       `SELECT o.id,e.slug AS eventSlug,e.canonical_name AS eventName,e.aliases AS aliasesJson,
@@ -31,18 +33,26 @@ export function discoveryCatalog(client: Database.Database): {
     ORDER BY o.starts_on,e.canonical_name,o.id`,
     )
     .all() as Row[];
-  const genreQuery = client.prepare(
-    `SELECT t.slug FROM occurrence_terms ot JOIN taxonomy_terms t ON t.id=ot.term_id WHERE ot.occurrence_id=? AND t.facet='genre' ORDER BY t.slug`,
-  );
-  return {
-    genres,
-    summaries: rows.map(({ aliasesJson, occurrenceKey, ...row }) => ({
-      ...row,
-      key: occurrenceKey,
-      aliases: JSON.parse(aliasesJson) as string[],
-      genres: (genreQuery.all(row.id) as { slug: string }[]).map(
-        (item) => item.slug,
-      ),
-    })),
-  };
+  const genresByOccurrence = new Map<string, string[]>();
+  const classifications = client.prepare(
+    `SELECT ot.occurrence_id AS occurrenceId,t.slug
+     FROM occurrence_terms ot JOIN taxonomy_terms t ON t.id=ot.term_id
+     WHERE ot.occurrence_id IN (SELECT value FROM json_each(?))
+     AND t.facet='genre' ORDER BY t.slug`,
+  ).all(JSON.stringify(rows.map((row) => row.id))) as { occurrenceId: string; slug: string }[];
+  for (const { occurrenceId, slug } of classifications) {
+    const genres = genresByOccurrence.get(occurrenceId) ?? [];
+    genres.push(slug);
+    genresByOccurrence.set(occurrenceId, genres);
+  }
+  return rows.map(({ aliasesJson, occurrenceKey, ...row }) => ({
+    ...row,
+    key: occurrenceKey,
+    aliases: JSON.parse(aliasesJson) as string[],
+    genres: genresByOccurrence.get(row.id) ?? [],
+  }));
+}
+
+export function discoveryCatalog(client: Database.Database) {
+  return { genres: discoveryGenres(client), summaries: publicSummaries(client) };
 }
