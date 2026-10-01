@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import { testSummary } from "../test/discovery";
 import {
   capacityBand,
   durationDays,
@@ -10,66 +11,36 @@ import {
   parseFilters,
   serializeFilters,
   validDate,
-  type DiscoverySummary,
   type Genre,
 } from "./discovery";
-const now = new Date("2026-10-01T12:00:00Z");
-const genres: Genre[] = [
-  { slug: "electronic", name: "Electronic", parentSlug: null },
-  { slug: "trance", name: "Trance", parentSlug: "electronic" },
-  { slug: "psytrance", name: "Psytrance", parentSlug: "electronic" },
-];
-const base: DiscoverySummary = {
-  id: "a",
-  eventSlug: "field-days",
-  eventName: "Field Days",
-  aliases: ["Old Field Name"],
-  name: "Field Days 2027",
-  year: 2027,
-  key: "2027",
-  startsOn: "2027-07-01",
-  endsOn: "2027-07-03",
-  dateState: "provisional",
-  status: "scheduled",
-  ticketAvailability: "sold_out",
-  countryCode: "PT",
-  locality: "Example Valley",
-  administrativeArea: null,
-  venueName: null,
-  latitude: null,
-  longitude: null,
-  coordinatePrecision: "unknown",
-  timeZone: "Europe/Lisbon",
-  capacityEstimate: 5000,
-  genres: ["psytrance"],
-};
+
 test("date validation, inclusive overlap, leap boundaries, and duration", () => {
+  const now = new Date("2026-10-01T12:00:00Z");
+  const summary = testSummary({
+    startsOn: "2027-07-01",
+    endsOn: "2027-07-03",
+  });
   expect(validDate("2028-02-29")).toBe(true);
   expect(validDate("2027-02-29")).toBe(false);
   expect(durationDays("2028-02-28", "2028-03-01")).toBe(3);
   expect(
     matchSummary(
-      base,
+      summary,
       { ...emptyFilters(), from: "2027-07-03", to: "2027-07-03" },
-      genres,
+      [],
       now,
     ),
   ).toBe(true);
   expect(
     matchSummary(
-      base,
+      summary,
       { ...emptyFilters(), from: "2027-07-04", to: "2027-07-04" },
-      genres,
+      [],
       now,
     ),
   ).toBe(false);
   expect(
-    matchSummary(
-      base,
-      emptyFilters(),
-      genres,
-      new Date("2028-01-01T00:00:00Z"),
-    ),
+    matchSummary(summary, emptyFilters(), [], new Date("2028-01-01T00:00:00Z")),
   ).toBe(false);
 });
 
@@ -82,8 +53,8 @@ test("genre picker uses eligible inventory, groups descendants, and retains sele
     { slug: "electronic", name: "Electronic", parentSlug: null },
   ];
   const inventory = [
-    { ...base, genres: ["psytrance"] },
-    { ...base, id: "rock", genres: ["rock"] },
+    testSummary({ id: "psytrance", genres: ["psytrance"] }),
+    testSummary({ id: "rock", genres: ["rock"] }),
   ];
   const tree = genrePickerTree(inventory, vocabulary, []);
   expect(tree.map((node) => node.genre.slug)).toEqual(["electronic", "rock"]);
@@ -101,7 +72,23 @@ test("genre picker uses eligible inventory, groups descendants, and retains sele
     ),
   ).toEqual(["drum-and-bass", "psytrance"]);
 });
+
 test("genre ancestry, aliases, AND across groups, OR within groups, unknowns", () => {
+  const now = new Date("2026-10-01T12:00:00Z");
+  const genres: Genre[] = [
+    { slug: "electronic", name: "Electronic", parentSlug: null },
+    { slug: "trance", name: "Trance", parentSlug: "electronic" },
+    { slug: "psytrance", name: "Psytrance", parentSlug: "electronic" },
+  ];
+  const summary = testSummary({
+    aliases: ["Old Field Name"],
+    startsOn: "2027-07-01",
+    endsOn: "2027-07-03",
+    countryCode: "PT",
+    locality: "Example Valley",
+    capacityEstimate: 5000,
+    genres: ["psytrance"],
+  });
   const filters = {
     ...emptyFilters(),
     q: "old field",
@@ -112,19 +99,19 @@ test("genre ancestry, aliases, AND across groups, OR within groups, unknowns", (
     durationMax: 3,
     place: "valley",
   };
-  expect(matchSummary(base, filters, genres, now)).toBe(true);
+  expect(matchSummary(summary, filters, genres, now)).toBe(true);
   expect(
-    matchSummary(base, { ...filters, genres: ["trance"] }, genres, now),
+    matchSummary(summary, { ...filters, genres: ["trance"] }, genres, now),
   ).toBe(false);
   expect(
-    matchSummary(base, { ...filters, countries: ["DE"] }, genres, now),
+    matchSummary(summary, { ...filters, countries: ["DE"] }, genres, now),
   ).toBe(false);
   expect(
-    matchSummary({ ...base, capacityEstimate: null }, filters, genres, now),
+    matchSummary({ ...summary, capacityEstimate: null }, filters, genres, now),
   ).toBe(false);
   expect(
     matchSummary(
-      { ...base, capacityEstimate: null, genres: [] },
+      { ...summary, capacityEstimate: null, genres: [] },
       emptyFilters(),
       genres,
       now,
@@ -139,15 +126,24 @@ test("genre ancestry, aliases, AND across groups, OR within groups, unknowns", (
   expect(capacityBand(49999)).toBe("20000-49999");
   expect(capacityBand(50000)).toBe("gte-50000");
 });
+
 test("matching stays on one edition and ordering is stable", () => {
-  const other = {
-    ...base,
+  const now = new Date("2026-10-01T12:00:00Z");
+  const genres: Genre[] = [
+    { slug: "electronic", name: "Electronic", parentSlug: null },
+    { slug: "psytrance", name: "Psytrance", parentSlug: "electronic" },
+  ];
+  const base = testSummary({
+    id: "a",
+    genres: ["psytrance"],
+    startsOn: "2027-07-01",
+  });
+  const other = testSummary({
     id: "b",
     startsOn: "2027-08-01",
     endsOn: "2027-08-02",
     genres: [],
-    capacityEstimate: null,
-  };
+  });
   const filters = {
     ...emptyFilters(),
     from: "2027-08-01",
@@ -167,7 +163,11 @@ test("matching stays on one edition and ordering is stable", () => {
     ).map((s) => s.id),
   ).toEqual(["a", "z"]);
 });
+
 test("URL round trip, normalization, invalid bounds, unrelated and bbox", () => {
+  const genres: Genre[] = [
+    { slug: "psytrance", name: "Psytrance", parentSlug: null },
+  ];
   const raw = new URLSearchParams(
     "genre=psytrance&country=pt&country=PT&q=%20Field%20%20Days%20&bbox=1,2,3,4&view=map",
   );

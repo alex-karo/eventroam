@@ -5,7 +5,7 @@ This guide holds implementation and working practices. Product behavior belongs 
 ## Technical direction
 
 - Build the smallest working vertical slice first. Default to one Next.js/React application with strict TypeScript, server-rendered public pages, and a client-side interactive map. Keep domain logic separate from React, route handlers, database clients, ingestion, and AI adapters within the repository. Agent operations use validated application interfaces; add a protected UI only when needed.
-- Follow [ADR 002](decisions/002-runtime-and-tooling.md) for the selected runtime/tooling baseline: latest stable Node.js, npm, Next.js/React, Zod, Tailwind, Mapbox GL JS, Vitest, and Playwright, with compatible compiler/lint versions. Verify pins and native SQLite packaging during scaffolding; no install or check commands exist yet.
+- Follow [ADR 002](decisions/002-runtime-and-tooling.md) for the selected runtime/tooling baseline: Node.js, npm, Next.js/React, Zod, Tailwind, Mapbox GL JS, Vitest, and Playwright, with compatible compiler/lint versions. Keep pinned versions and native SQLite packaging verified when dependencies change.
 - Use SQLite, Drizzle, explicit reviewed migrations, and one persistent local Docker volume as described in [ADR 001](decisions/001-sqlite-and-drizzle.md). Run owner-initiated ingestion in repository commands. Add a separate API, queue, search, scraper, or AI service only when a concrete requirement justifies it.
 - Prefer this sequence: schema and domain rules; read-only dump inspection and idempotent draft import; a small source-verified dataset; indexable list and detail pages; map using the same query and filters; validated agent writes and history; complete manual refresh and discovery. Keep each step part of a working product.
 
@@ -25,13 +25,15 @@ Use Node.js 26.10.0 and its bundled npm 11.19.1 (see `.node-version` and `packag
 
 Run `npm run type-check`, `npm run lint`, `npm run format:check`, and `npm test` for local checks. `npm run build` creates the production build, and `npm start` serves it. The SQLite smoke test uses a temporary real database file and verifies Drizzle queries, foreign keys, WAL, and the bounded busy timeout. `npm run test:e2e` is reserved for browser journeys when they are added with the catalog pages. Compose commands will be documented when that workflow is implemented.
 
+Vitest installs database cleanup for every test. Call `testDatabase()` when a test needs SQLite; it creates and migrates a fresh temporary database on first use. Describe scenario data inside each test, using `src/test/` builders only for defaults and repeated setup. Specify values that the test checks or that affect its logic. Tests do not load development fixtures.
+
 Run `npm run db:migrate` to apply the reviewed Drizzle SQL migrations to `DATABASE_PATH`. Run `npm run db:fixtures` to migrate and add repeatable fictional development records; this is a separate data operation and is not part of the schema migration. The fixture command keeps existing fixture identities on repeat runs. Catalog writes use `applyCatalogOperation` with a stable operation key, expected version for existing records, actor, and field-specific source evidence. The internal run helpers retain keyed source-check results; no agent transport or scheduled runner is configured yet.
 
 - Write a concise feature spec before implementation. Cover outcome, scope, acceptance, data and unknown semantics, interfaces and sources, failure/retry behavior, tests, and rollout. Update an accepted spec when behavior changes. Record lasting cross-cutting decisions in short ADRs.
 - Before editing, read the relevant spec, nearby tests, and configuration; inspect the working tree and preserve unrelated changes. Make the smallest complete change that keeps data, UI, and ingestion aligned.
 - Validate external input at runtime; avoid `any`. Review generated migrations. Keep secrets out of source control and document only safe variable names in `.env.example`. Log stable run/source IDs without credentials or unnecessary personal data.
 - Use focused unit tests for normalization, matching, and transitions; persistence and route integration tests; and a few critical end-to-end tests. Add a regression test for a bug when practical. Normal parser tests use small, attributable saved fixtures, not live third-party pages.
-- Before handoff, run narrow relevant tests and standard checks when practical. Verify changed Docker configuration. Report changes, checks, and remaining uncertainty. Document canonical install, development, checks, migration, ingestion, and Compose commands here once they exist; do not invent commands before scaffolding.
+- Before handoff, run narrow relevant tests and standard checks when practical. Verify changed Docker configuration. Report changes, checks, and remaining uncertainty. Document new ingestion and Compose commands here when they exist.
 
 ## Operations
 

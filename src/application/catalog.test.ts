@@ -1,106 +1,35 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import { afterEach, expect, test } from "vitest";
-import { openDatabase } from "../db/connection";
-import { seedDevelopmentFixtures } from "../db/development-fixtures";
+import { expect, test } from "vitest";
+import {
+  createTestEvent,
+  createTestPublishedOccurrence,
+  createTestPublishedEvent,
+  prepareFestivalTerms,
+  publishTestEvent,
+  testEvidence,
+  testSourceId,
+  testSourceUrl,
+} from "../test/catalog";
+import { testDatabase } from "../test/database";
 import { applyCatalogOperation } from "./catalog";
 
-const cleanup: (() => void)[] = [];
-afterEach(() => {
-  for (const close of cleanup.splice(0)) close();
-});
-function setup() {
-  const dir = mkdtempSync(join(tmpdir(), "eventroam-catalog-"));
-  const { client, db } = openDatabase(join(dir, "catalog.sqlite"));
-  migrate(db, { migrationsFolder: "./src/db/migrations" });
-  cleanup.push(() => {
-    client.close();
-    rmSync(dir, { recursive: true, force: true });
-  });
-  return client;
-}
-const facts = [
-  "slug",
-  "canonical_name",
-  "starts_on",
-  "ends_on",
-  "date_state",
-  "country_code",
-  "locality",
-  "terms",
-  "publication_state",
-  "schedule_status",
-  "capacity_estimate",
-  "price_kind",
-  "price_currency",
-  "price_min_minor",
-  "price_max_minor",
-  "price_coverage",
-];
-const ev = (fields = facts) => [
-  {
-    sourceId: "dev-source-official",
-    inspectedUrl: "https://example.org/fictional-festival",
-    retrievedAt: "2026-10-01T12:00:00Z",
-    authority: "official" as const,
-    fieldPaths: fields,
-    excerpt: "Fictional development evidence",
-  },
-];
-const count = (client: ReturnType<typeof setup>, table: string) =>
+const count = (
+  client: ReturnType<typeof testDatabase>["client"],
+  table: string,
+) =>
   (client.prepare(`SELECT count(*) n FROM ${table}`).get() as { n: number }).n;
 
-test("fixtures are repeatable and keep historical, tentative and cancelled editions separate", () => {
-  const client = setup();
-  const id = seedDevelopmentFixtures(client);
-  expect(seedDevelopmentFixtures(client)).toBe(id);
-  expect(count(client, "events")).toBe(1);
-  expect(count(client, "occurrences")).toBe(3);
-  const rows = client
-    .prepare(
-      "SELECT occurrence_key,date_state,schedule_status,latitude,longitude,publication_state FROM occurrences ORDER BY occurrence_key",
-    )
-    .all() as {
-    occurrence_key: string;
-    date_state: string;
-    schedule_status: string;
-    latitude: number | null;
-    longitude: number | null;
-    publication_state: string;
-  }[];
-  expect(rows.find((r) => r.occurrence_key === "2025")?.publication_state).toBe(
-    "published",
-  );
-  expect(rows.find((r) => r.occurrence_key === "2027")?.date_state).toBe(
-    "provisional",
-  );
-  expect(
-    rows.find((r) => r.occurrence_key === "2026-cancelled")?.schedule_status,
-  ).toBe("cancelled");
-  expect(rows.every((r) => r.latitude === null && r.longitude === null)).toBe(
-    true,
-  );
-  expect(count(client, "url_aliases")).toBe(4);
-});
-
 test("postponement preserves previous dates and only changes its edition", () => {
-  const client = setup();
-  seedDevelopmentFixtures(client);
-  const edition = client
-    .prepare(
-      "SELECT id,version,starts_on,ends_on FROM occurrences WHERE occurrence_key='2027'",
-    )
-    .get() as {
-    id: string;
-    version: number;
-    starts_on: string;
-    ends_on: string;
-  };
-  const other = client
-    .prepare("SELECT id,version FROM occurrences WHERE occurrence_key='2025'")
-    .get() as { id: string; version: number };
+  const client = testDatabase().client;
+  const event = createTestEvent(client);
+  const edition = createTestPublishedOccurrence(client, event.id, {
+    occurrenceKey: "2027",
+    startsOn: "2027-07-01",
+    endsOn: "2027-07-03",
+  });
+  const other = createTestPublishedOccurrence(client, event.id, {
+    occurrenceKey: "2025",
+    startsOn: "2025-07-01",
+  });
   const result = applyCatalogOperation(client, {
     kind: "updateOccurrence",
     operationKey: "test:postpone",
@@ -108,7 +37,7 @@ test("postponement preserves previous dates and only changes its edition", () =>
     id: edition.id,
     expectedVersion: edition.version,
     data: { scheduleStatus: "postponed" },
-    evidence: ev(["schedule_status"]),
+    evidence: testEvidence(["schedule_status"]),
   });
   expect(result.version).toBe(edition.version + 1);
   expect(
@@ -118,8 +47,8 @@ test("postponement preserves previous dates and only changes its edition", () =>
       )
       .get(edition.id),
   ).toMatchObject({
-    starts_on: edition.starts_on,
-    ends_on: edition.ends_on,
+    starts_on: "2027-07-01",
+    ends_on: "2027-07-03",
     schedule_status: "postponed",
   });
   expect(
@@ -141,12 +70,14 @@ test("postponement preserves previous dates and only changes its edition", () =>
 });
 
 test("invalid changes roll back, stale writes fail, replay is idempotent and payload mismatch fails", () => {
-  const client = setup();
-  seedDevelopmentFixtures(client);
-  const old = client
-    .prepare("SELECT id,version FROM occurrences WHERE occurrence_key='2027'")
-    .get() as { id: string; version: number };
+  const client = testDatabase().client;
+  const event = createTestEvent(client);
+  const old = createTestPublishedOccurrence(client, event.id, {
+    startsOn: "2027-07-01",
+    endsOn: "2027-07-03",
+  });
   const before = count(client, "catalog_changes");
+  const beforeReceipts = count(client, "operation_receipts");
   expect(() =>
     applyCatalogOperation(client, {
       kind: "updateOccurrence",
@@ -155,11 +86,11 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
       id: old.id,
       expectedVersion: old.version,
       data: { startsOn: null },
-      evidence: ev(["starts_on"]),
+      evidence: testEvidence(["starts_on"]),
     }),
   ).toThrow();
   expect(count(client, "catalog_changes")).toBe(before);
-  expect(count(client, "operation_receipts")).toBe(11);
+  expect(count(client, "operation_receipts")).toBe(beforeReceipts);
   const op = {
     kind: "updateOccurrence" as const,
     operationKey: "test:valid",
@@ -167,7 +98,7 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
     id: old.id,
     expectedVersion: old.version,
     data: { capacityEstimate: 1200 },
-    evidence: ev(["capacity_estimate"]),
+    evidence: testEvidence(["capacity_estimate"]),
   };
   const applied = applyCatalogOperation(client, op);
   expect(applied.changed).toBe(true);
@@ -182,9 +113,9 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
 });
 
 test("publication gates evidence, dates, area and scope; withdrawal retains URL reservation", () => {
-  const client = setup();
-  seedDevelopmentFixtures(client);
-  const event = client.prepare("SELECT id FROM events").get() as { id: string };
+  const client = testDatabase().client;
+  const event = createTestEvent(client, { slug: "test-field-days" });
+  prepareFestivalTerms(client);
   const draft = applyCatalogOperation(client, {
     kind: "createOccurrence",
     operationKey: "test:draft",
@@ -196,7 +127,7 @@ test("publication gates evidence, dates, area and scope; withdrawal retains URL 
       countryCode: "PT",
       locality: "Example Valley",
     },
-    evidence: ev(),
+    evidence: testEvidence(),
   });
   expect(() =>
     applyCatalogOperation(client, {
@@ -205,7 +136,7 @@ test("publication gates evidence, dates, area and scope; withdrawal retains URL 
       actor: "owner",
       id: draft.id,
       expectedVersion: draft.version,
-      evidence: ev(),
+      evidence: testEvidence(),
     }),
   ).toThrow(/Publication needs/);
   let updated = applyCatalogOperation(client, {
@@ -220,7 +151,12 @@ test("publication gates evidence, dates, area and scope; withdrawal retains URL 
       endsOn: "2028-07-03",
       dateState: "provisional",
     },
-    evidence: ev(["occurrence_year", "starts_on", "ends_on", "date_state"]),
+    evidence: testEvidence([
+      "occurrence_year",
+      "starts_on",
+      "ends_on",
+      "date_state",
+    ]),
   });
   expect(() =>
     applyCatalogOperation(client, {
@@ -229,7 +165,7 @@ test("publication gates evidence, dates, area and scope; withdrawal retains URL 
       actor: "owner",
       id: draft.id,
       expectedVersion: updated.version,
-      evidence: ev(),
+      evidence: testEvidence(),
     }),
   ).toThrow(/format/);
   updated = applyCatalogOperation(client, {
@@ -238,8 +174,8 @@ test("publication gates evidence, dates, area and scope; withdrawal retains URL 
     actor: "owner",
     id: draft.id,
     expectedVersion: updated.version,
-    termIds: ["dev-festival", "dev-outdoor", "dev-music"],
-    evidence: ev(["terms"]),
+    termIds: ["test-festival", "test-outdoor", "test-music"],
+    evidence: testEvidence(["terms"]),
   });
   expect(() =>
     applyCatalogOperation(client, {
@@ -257,9 +193,10 @@ test("publication gates evidence, dates, area and scope; withdrawal retains URL 
     actor: "owner",
     id: draft.id,
     expectedVersion: updated.version,
-    evidence: ev(),
+    evidence: testEvidence(),
   });
   expect(published.changed).toBe(true);
+  publishTestEvent(client, event);
   const withdrawn = applyCatalogOperation(client, {
     kind: "withdrawOccurrence",
     operationKey: "test:withdraw",
@@ -273,15 +210,17 @@ test("publication gates evidence, dates, area and scope; withdrawal retains URL 
     client
       .prepare("SELECT path FROM url_aliases WHERE occurrence_id=?")
       .get(draft.id),
-  ).toMatchObject({ path: "/events/fictional-field-days/2028" });
+  ).toMatchObject({ path: "/events/test-field-days/2028" });
 });
 
 test("published event rename reserves old and new paths, including editions", () => {
-  const client = setup();
-  const id = seedDevelopmentFixtures(client);
-  const event = client
-    .prepare("SELECT version FROM events WHERE id=?")
-    .get(id) as { version: number };
+  const client = testDatabase().client;
+  const { event } = createTestPublishedEvent(client, {
+    event: { slug: "test-field-days" },
+    occurrences: [{ occurrenceKey: "2027" }],
+  });
+  const id = event.id;
+  const aliasesBefore = count(client, "url_aliases");
   applyCatalogOperation(client, {
     kind: "updateEvent",
     operationKey: "test:rename",
@@ -289,26 +228,29 @@ test("published event rename reserves old and new paths, including editions", ()
     id,
     expectedVersion: event.version,
     data: { slug: "fictional-new-name" },
-    evidence: ev(["slug"]),
+    evidence: testEvidence(["slug"]),
   });
-  expect(count(client, "url_aliases")).toBe(8);
+  expect(count(client, "url_aliases")).toBe(aliasesBefore + 2);
   expect(() =>
     applyCatalogOperation(client, {
       kind: "createEvent",
       operationKey: "test:reuse",
       actor: "owner",
-      data: { slug: "fictional-field-days", canonicalName: "Other" },
-      evidence: ev(),
+      data: { slug: "test-field-days", canonicalName: "Other" },
+      evidence: testEvidence(),
     }),
   ).toThrow(/reserved/);
 });
 
 test("typed price, capacity, coordinates, and area rules reject unsupported values", () => {
-  const client = setup();
-  seedDevelopmentFixtures(client);
-  const edition = client
-    .prepare("SELECT id,version FROM occurrences WHERE occurrence_key='2027'")
-    .get() as { id: string; version: number };
+  const client = testDatabase().client;
+  const event = createTestEvent(client);
+  const edition = createTestPublishedOccurrence(client, event.id, {
+    countryCode: "PT",
+    latitude: null,
+    longitude: null,
+    coordinatePrecision: "unknown",
+  });
   expect(() =>
     applyCatalogOperation(client, {
       kind: "updateOccurrence",
@@ -325,7 +267,7 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
           coverage: "full_programme",
         },
       },
-      evidence: ev(),
+      evidence: testEvidence(),
     }),
   ).toThrow();
   expect(() =>
@@ -336,7 +278,7 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
       id: edition.id,
       expectedVersion: edition.version,
       data: { latitude: 0, coordinatePrecision: "approximate" },
-      evidence: ev(["latitude", "coordinate_precision"]),
+      evidence: testEvidence(["latitude", "coordinate_precision"]),
     }),
   ).toThrow(/Coordinate pair/);
   expect(() =>
@@ -347,7 +289,7 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
       id: edition.id,
       expectedVersion: edition.version,
       data: { countryCode: null },
-      evidence: ev(["country_code"]),
+      evidence: testEvidence(["country_code"]),
     }),
   ).toThrow(/country/);
   const changed = applyCatalogOperation(client, {
@@ -367,7 +309,7 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
         qualification: "Early tier; fees unknown",
       },
     },
-    evidence: ev([
+    evidence: testEvidence([
       "capacity_estimate",
       "price_kind",
       "price_currency",
@@ -436,19 +378,16 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
       id: edition.id,
       expectedVersion: changed.version,
       data: { countryCode: "ZZ" },
-      evidence: ev(["country_code"]),
+      evidence: testEvidence(["country_code"]),
     }),
   ).toThrow(/ISO 3166-1/);
 });
 
 test("identical link replacement is a no-op and an added link preserves existing identity", () => {
-  const client = setup();
-  const id = seedDevelopmentFixtures(client);
-  const initialVersion = (
-    client.prepare("SELECT version FROM events WHERE id=?").get(id) as {
-      version: number;
-    }
-  ).version;
+  const client = testDatabase().client;
+  const event = createTestEvent(client);
+  const id = event.id;
+  const initialVersion = event.version;
   const first = applyCatalogOperation(client, {
     kind: "replaceLinks",
     operationKey: "test:links-first",
@@ -458,7 +397,7 @@ test("identical link replacement is a no-op and an added link preserves existing
     links: [
       { kind: "official_site", url: "https://example.org/", official: true },
     ],
-    evidence: ev(["links"]),
+    evidence: testEvidence(["links"]),
   });
   const existing = client
     .prepare("SELECT id,created_at FROM external_links WHERE event_id=?")
@@ -490,7 +429,7 @@ test("identical link replacement is a no-op and an added link preserves existing
         official: true,
       },
     ],
-    evidence: ev(["links"]),
+    evidence: testEvidence(["links"]),
   });
   expect(added.changed).toBe(true);
   expect(
@@ -503,12 +442,13 @@ test("identical link replacement is a no-op and an added link preserves existing
 });
 
 test("factual writes and publication reject metadata-only evidence", () => {
-  const client = setup();
-  const id = seedDevelopmentFixtures(client);
+  const client = testDatabase().client;
+  const event = createTestEvent(client);
+  const edition = createTestPublishedOccurrence(client, event.id);
   const metadataOnly = [
     {
-      sourceId: "dev-source-official",
-      inspectedUrl: "https://example.org/fictional-festival",
+      sourceId: testSourceId,
+      inspectedUrl: testSourceUrl,
       retrievedAt: "2026-10-01T12:00:00Z",
       authority: "official" as const,
       fieldPaths: ["slug", "canonical_name", "publication_state"],
@@ -523,9 +463,6 @@ test("factual writes and publication reject metadata-only evidence", () => {
       evidence: metadataOnly,
     }),
   ).toThrow(/excerpt or snapshot/);
-  const edition = client
-    .prepare("SELECT id,version FROM occurrences WHERE occurrence_key='2027'")
-    .get() as { id: string; version: number };
   const withdrawn = applyCatalogOperation(client, {
     kind: "withdrawOccurrence",
     operationKey: "test:withdraw-evidence",
@@ -548,11 +485,4 @@ test("factual writes and publication reject metadata-only evidence", () => {
       .prepare("SELECT publication_state FROM occurrences WHERE id=?")
       .get(edition.id),
   ).toMatchObject({ publication_state: "withdrawn" });
-  expect(
-    (
-      client.prepare("SELECT id FROM events WHERE id=?").get(id) as {
-        id: string;
-      }
-    ).id,
-  ).toBe(id);
 });

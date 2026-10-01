@@ -4,31 +4,44 @@ import { expect, test } from "vitest";
 import type { PublicOccurrence } from "../application/public-catalog";
 import { TicketPrice } from "./catalog";
 
-const base = {
-  priceKind: "exact",
-  priceCurrency: "EUR",
-  priceMinMinor: 12000,
-  priceMaxMinor: 12000,
-  priceCoverage: "full_programme",
-  priceQualification: null,
-} as PublicOccurrence;
 const render = (fields: Partial<PublicOccurrence>) =>
   renderToStaticMarkup(
-    createElement(TicketPrice, { edition: { ...base, ...fields } }),
+    createElement(TicketPrice, {
+      edition: {
+        priceKind: null,
+        priceCurrency: null,
+        priceMinMinor: null,
+        priceMaxMinor: null,
+        priceCoverage: null,
+        priceQualification: null,
+        ...fields,
+      } as PublicOccurrence,
+    }),
   );
 
 test("Occurrence ticket output scales original-currency minor units", () => {
-  expect(render({})).toBe("<p>Tickets: €120.00</p>");
-  expect(render({ priceCurrency: "JPY" })).toBe("<p>Tickets: ¥12,000</p>");
-  expect(render({ priceCurrency: "KWD", priceMinMinor: 12345 })).toBe(
+  const exact = {
+    priceKind: "exact" as const,
+    priceCurrency: "EUR",
+    priceMinMinor: 12000,
+  };
+  expect(render(exact)).toBe("<p>Tickets: €120.00</p>");
+  expect(render({ ...exact, priceCurrency: "JPY" })).toBe(
+    "<p>Tickets: ¥12,000</p>",
+  );
+  expect(render({ ...exact, priceCurrency: "KWD", priceMinMinor: 12345 })).toBe(
     "<p>Tickets: KWD 12.345</p>",
   );
 });
 
 test("Occurrence ticket output preserves from, range, free, coverage and qualification", () => {
-  expect(render({ priceKind: "from", priceCurrency: "JPY" })).toBe(
-    "<p>Tickets: From ¥12,000</p>",
-  );
+  expect(
+    render({
+      priceKind: "from",
+      priceCurrency: "JPY",
+      priceMinMinor: 12000,
+    }),
+  ).toBe("<p>Tickets: From ¥12,000</p>");
   expect(
     render({
       priceKind: "range",
@@ -47,7 +60,5 @@ test("Occurrence ticket output preserves from, range, free, coverage and qualifi
       priceQualification: "Registration required",
     }),
   ).toBe("<p>Tickets: Free (day) · Registration required</p>");
-  expect(
-    render({ priceKind: null, priceCurrency: null, priceMinMinor: null }),
-  ).toBe("");
+  expect(render({})).toBe("");
 });
