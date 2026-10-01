@@ -1,0 +1,36 @@
+# Development guide
+
+This guide holds implementation and working practices. Product behavior belongs in the [foundation](../specs/000-product-foundation.md), domain invariants in the [domain model](../specs/001-domain-model.md), and lasting technology choices in [ADRs](decisions/001-sqlite-and-drizzle.md).
+
+## Technical direction
+
+- Build the smallest working vertical slice first. Default to one Next.js/React application with strict TypeScript, server-rendered public pages, and a client-side interactive map. Keep domain logic separate from React, route handlers, database clients, ingestion, and AI adapters within the repository. Agent operations use validated application interfaces; add a protected UI only when needed.
+- Follow [ADR 002](decisions/002-runtime-and-tooling.md) for the selected runtime/tooling baseline: latest stable Node.js, pnpm, Next.js/React, Zod, Tailwind, MapLibre, Vitest, and Playwright, with compatible compiler/lint versions. Verify pins and native SQLite packaging during scaffolding; no install or check commands exist yet.
+- Use SQLite, Drizzle, explicit reviewed migrations, and one persistent local Docker volume as described in [ADR 001](decisions/001-sqlite-and-drizzle.md). Run owner-initiated ingestion in repository commands. Add a separate API, queue, search, scraper, or AI service only when a concrete requirement justifies it.
+- Prefer this sequence: schema and domain rules; read-only dump inspection and idempotent draft import; a small source-verified dataset; indexable list and detail pages; map using the same query and filters; validated agent writes and history; complete manual refresh and discovery. Keep each step part of a working product.
+
+## Public web
+
+- The map enhances linked list/detail discovery. Public pages need stable URLs, server-rendered content, titles and descriptions, canonical and social metadata, sitemap entries, and relevant schema.org data. Exclude drafts, duplicate filtered views, and thin placeholders from indexing.
+- Put useful shareable filter state in URLs. Treat mobile usability, keyboard access, reduced motion, and map/list parity as baseline. Keep map-provider code behind a small adapter.
+- Follow the [discovery contract](../specs/004-discovery-filters.md): return the complete public discovery summary set, load full details on selection, show map/list together on desktop, and provide easy switching on narrow screens. No viewport query or “Search this area” control. Browser filtering with shared server-rendering rules is the proposed delivery default.
+- Use scope subdomains with one application and shared catalog. The [website structure spec](../specs/005-website-structure-and-urls.md) records confirmed domain direction and proposed routes/canonical behavior.
+- Agent execution, operation transport, and exact command/error contracts are deferred to the next planning iteration; existing domain write invariants still apply.
+
+## Change workflow
+
+- Write a concise feature spec before implementation. Cover outcome, scope, acceptance, data and unknown semantics, interfaces and sources, failure/retry behavior, tests, and rollout. Update an accepted spec when behavior changes. Record lasting cross-cutting decisions in short ADRs.
+- Before editing, read the relevant spec, nearby tests, and configuration; inspect the working tree and preserve unrelated changes. Make the smallest complete change that keeps data, UI, and ingestion aligned.
+- Validate external input at runtime; avoid `any`. Review generated migrations. Keep secrets out of source control and document only safe variable names in `.env.example`. Log stable run/source IDs without credentials or unnecessary personal data.
+- Use focused unit tests for normalization, matching, and transitions; persistence and route integration tests; and a few critical end-to-end tests. Add a regression test for a bug when practical. Normal parser tests use small, attributable saved fixtures, not live third-party pages.
+- Before handoff, run narrow relevant tests and standard checks when practical. Verify changed Docker configuration. Report changes, checks, and remaining uncertainty. Document canonical install, development, checks, migration, ingestion, and Compose commands here once they exist; do not invent commands before scaffolding.
+
+## Operations
+
+- `docker compose up --build` is the production-like startup target. Use health checks, clean shutdown, explicit repeatable migrations, named volumes for required persistent data, and pinned production image/runtime versions.
+- Back up live SQLite with a consistent SQLite backup operation and test restoration; copying only the live main file in WAL mode is insufficient.
+- Respect source terms, robots guidance, rate limits, and privacy. Prefer supported feeds or APIs where practical.
+
+## Reference project
+
+`/Users/karo/projects/eventmap` is a read-only product reference, not a codebase to migrate wholesale. Useful concepts include shared map/list data, recurring identities, uncertain date/location fields, and public detail routes. Avoid its dated dependencies, split frontend/admin apps, array-order assumptions for upcoming editions, seed data in migrations, and committed database files. The selected complete-summary delivery needs measured payload/rendering performance and server-rendered list parity; do not copy an unbounded full-detail payload design. Do not modify the reference project unless the user asks.
