@@ -1,11 +1,6 @@
 import { expect, test, vi } from "vitest";
-import {
-  createTestEvent,
-  createTestPublishedOccurrence,
-  createTestPublishedEvent,
-  publishTestEvent,
-} from "../test/catalog";
 import { testDatabase } from "../test/database";
+import { testFixtures } from "../test/fixtures";
 import {
   publicEditions,
   publicEvent,
@@ -28,7 +23,8 @@ function upcoming(client: Parameters<typeof discoveryCatalog>[0], now: Date) {
 
 test("upcoming list and active selection use only current public editions", () => {
   const client = testDatabase().client;
-  const { event: created } = createTestPublishedEvent(client, {
+  const fx = testFixtures(client);
+  const { event: created } = fx.publishedEvent({
     occurrences: [
       {
         occurrenceKey: "2025",
@@ -79,7 +75,8 @@ test("upcoming list and active selection use only current public editions", () =
 
 test("on-demand discovery details obey publication and schedule gates", () => {
   const client = testDatabase().client;
-  const { occurrences } = createTestPublishedEvent(client, {
+  const fx = testFixtures(client);
+  const { occurrences } = fx.publishedEvent({
     occurrences: [
       { occurrenceKey: "2027", scheduleStatus: "scheduled" },
       {
@@ -103,7 +100,8 @@ test("on-demand discovery details obey publication and schedule gates", () => {
 
 test("published history and postponement retain pages but leave upcoming list", () => {
   const client = testDatabase().client;
-  const { occurrences } = createTestPublishedEvent(client, {
+  const fx = testFixtures(client);
+  const { occurrences } = fx.publishedEvent({
     event: { slug: "test-field-days" },
     occurrences: [
       {
@@ -142,22 +140,18 @@ test("published history and postponement retain pages but leave upcoming list", 
 
 test("renamed addresses redirect by stored identity and hidden targets fail", () => {
   const client = testDatabase().client;
-  const { event, occurrences } = createTestPublishedEvent(client, {
+  const fx = testFixtures(client);
+  const { event, occurrences } = fx.publishedEvent({
     event: { slug: "test-field-days" },
     occurrences: [{ occurrenceKey: "2027" }],
   });
   const id = event.id;
   client.prepare("UPDATE events SET slug='test-new-name' WHERE id=?").run(id);
-  const alias = client.prepare(
-    "INSERT INTO url_aliases(scope,path,event_id,occurrence_id,created_at) VALUES ('festivals',?,?,?,?)",
-  );
-  alias.run("/events/test-new-name", id, null, "2026-10-01T12:00:00Z");
-  alias.run(
-    "/events/test-new-name/2027",
-    id,
-    occurrences[0].id,
-    "2026-10-01T12:00:00Z",
-  );
+  fx.alias(event, { path: "/events/test-new-name" });
+  fx.alias(event, {
+    occurrence: occurrences[0],
+    path: "/events/test-new-name/2027",
+  });
   expect(resolvePublicPath(client, "/events/test-field-days")?.redirect).toBe(
     true,
   );
@@ -194,41 +188,30 @@ test("scope hosts are allowlisted and canonical origins are configured", () => {
 
 test("official links inherit by kind and private links stay outside public reads", () => {
   const client = testDatabase().client;
-  const { event, occurrences } = createTestPublishedEvent(client, {
+  const fx = testFixtures(client);
+  const { event, occurrences } = fx.publishedEvent({
     event: { slug: "test-field-days" },
     occurrences: [{ occurrenceKey: "2027" }],
   });
-  const id = event.id;
   const edition = occurrences[0];
-  const now = "2026-10-01T12:00:00Z";
-  const insert = client.prepare(
-    "INSERT INTO external_links(id,event_id,occurrence_id,kind,url,label,official,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
-  );
-  for (const [key, eventId, occurrenceId, kind, path, label, official] of [
-    ["parent-site", id, null, "official_site", "parent", null, 1],
-    ["parent-social", id, null, "facebook", "parent-social", null, 1],
-    [
-      "edition-site",
-      null,
-      edition.id,
-      "official_site",
-      "edition",
-      "Edition site",
-      1,
-    ],
-    ["private-social", null, edition.id, "instagram", "private", null, 0],
-  ])
-    insert.run(
-      key,
-      eventId,
-      occurrenceId,
-      kind,
-      `https://example.org/${path}`,
-      label,
-      official,
-      now,
-      now,
-    );
+  fx.eventLink(event, {
+    kind: "official_site",
+    url: "https://example.org/parent",
+  });
+  fx.eventLink(event, {
+    kind: "facebook",
+    url: "https://example.org/parent-social",
+  });
+  fx.occurrenceLink(edition, {
+    kind: "official_site",
+    url: "https://example.org/edition",
+    label: "Edition site",
+  });
+  fx.occurrenceLink(edition, {
+    kind: "instagram",
+    url: "https://example.org/private",
+    official: false,
+  });
   const read = resolvePublicPath(
     client,
     "/events/test-field-days/2027",
@@ -250,7 +233,8 @@ test("official links inherit by kind and private links stay outside public reads
 
 test("a published Event with no published edition has no public route", () => {
   const client = testDatabase().client;
-  const { event } = createTestPublishedEvent(client, {
+  const fx = testFixtures(client);
+  const { event } = fx.publishedEvent({
     event: { slug: "test-field-days" },
     occurrences: [{ occurrenceKey: "2027" }],
   });
@@ -266,7 +250,8 @@ test("a published Event with no published edition has no public route", () => {
 
 test("complete compact discovery includes history and unlocated editions, excluding cancelled", () => {
   const client = testDatabase().client;
-  createTestPublishedEvent(client, {
+  const fx = testFixtures(client);
+  fx.publishedEvent({
     occurrences: [
       {
         occurrenceKey: "2025",
@@ -291,10 +276,10 @@ test("complete compact discovery includes history and unlocated editions, exclud
       },
     ],
   });
-  const mapped = createTestEvent(client, {
+  const mapped = fx.event({
     slug: "test-river-sounds",
   });
-  createTestPublishedOccurrence(client, mapped.id, {
+  fx.publishedOccurrence(mapped, {
     occurrenceKey: "2027",
     startsOn: "2027-08-19",
     endsOn: "2027-08-21",
@@ -305,7 +290,7 @@ test("complete compact discovery includes history and unlocated editions, exclud
     longitude: 4.8357,
     coordinatePrecision: "locality",
   });
-  publishTestEvent(client, mapped);
+  fx.publishEvent(mapped);
   const catalog = discoveryCatalog(client);
   expect(catalog.summaries.map((s) => s.key).sort()).toEqual([
     "2025",
@@ -349,44 +334,37 @@ test("complete compact discovery includes history and unlocated editions, exclud
 
 test("public summary and detail reads batch classification and link lookup across editions", () => {
   const client = testDatabase().client;
-  const { event, occurrences } = createTestPublishedEvent(client, {
+  const fx = testFixtures(client);
+  const { event, occurrences } = fx.publishedEvent({
     occurrences: [
       { occurrenceKey: "2027-a" },
       { occurrenceKey: "2027-b" },
       { occurrenceKey: "2027-c" },
     ],
   });
-  client.exec(`
-    INSERT INTO taxonomy_terms (id,facet,slug,name,parent_id) VALUES
-    ('genre-parent','genre','electronic','Electronic',NULL),
-    ('genre-child','genre','psytrance','Psytrance','genre-parent'),
-    ('genre-metal','genre','metal','Metal',NULL);
-  `);
-  const assign = client.prepare(
-    "INSERT INTO occurrence_terms (occurrence_id,term_id) VALUES (?,?)",
-  );
-  assign.run(occurrences[0].id, "genre-child");
-  assign.run(occurrences[0].id, "genre-metal");
-  assign.run(occurrences[1].id, "genre-parent");
-  const insertLink = client.prepare(
-    "INSERT INTO external_links (id,event_id,occurrence_id,kind,url,official,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
-  );
-  const now = "2026-10-01T12:00:00Z";
-  for (const [key, eventId, occurrenceId, path, official] of [
-    ["parent-site", event.id, null, "event", 1],
-    ["edition-site", null, occurrences[0].id, "edition", 1],
-    ["private-site", null, occurrences[1].id, "private", 0],
-  ])
-    insertLink.run(
-      key,
-      eventId,
-      occurrenceId,
-      "official_site",
-      `https://example.org/${path}`,
-      official,
-      now,
-      now,
-    );
+  const parent = fx.term({
+    facet: "genre",
+    slug: "electronic",
+    name: "Electronic",
+  });
+  const child = fx.term({
+    facet: "genre",
+    slug: "psytrance",
+    name: "Psytrance",
+    parentId: parent.id,
+  });
+  const metal = fx.term({ facet: "genre", slug: "metal", name: "Metal" });
+  fx.assignTerm(occurrences[0], child);
+  fx.assignTerm(occurrences[0], metal);
+  fx.assignTerm(occurrences[1], parent);
+  fx.eventLink(event, { url: "https://example.org/event" });
+  fx.occurrenceLink(occurrences[0], {
+    url: "https://example.org/edition",
+  });
+  fx.occurrenceLink(occurrences[1], {
+    url: "https://example.org/private",
+    official: false,
+  });
   const queries: string[] = [];
   const originalPrepare = client.prepare.bind(client);
   const prepare = vi
@@ -448,7 +426,7 @@ test("public summary and detail reads batch classification and link lookup acros
     expect(editions.find((s) => s.id === occurrences[2].id)?.links).toEqual([
       { kind: "official_site", url: "https://example.org/event", label: null },
     ]);
-    createTestPublishedOccurrence(client, event.id, {
+    fx.publishedOccurrence(event, {
       occurrenceKey: "2027-d",
     });
     queries.length = 0;
@@ -464,7 +442,8 @@ test("public summary and detail reads batch classification and link lookup acros
 
 test("discovery hides draft and withdrawn parents and editions", () => {
   const client = testDatabase().client;
-  const { event, occurrences } = createTestPublishedEvent(client, {
+  const fx = testFixtures(client);
+  const { event, occurrences } = fx.publishedEvent({
     occurrences: [
       { occurrenceKey: "visible" },
       { occurrenceKey: "draft" },

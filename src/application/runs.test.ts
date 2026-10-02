@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { testDatabase } from "../test/database";
+import { testFixtures } from "../test/fixtures";
 import { applyCatalogOperation } from "./catalog";
 import {
   finishIngestionRun,
@@ -9,11 +10,10 @@ import {
 
 test("source-check results replay by key, complete immutably, and dry runs cannot mutate catalog", () => {
   const { client } = testDatabase();
-  client
-    .prepare(
-      "INSERT INTO sources (id,canonical_url,kind,authority,created_at,updated_at) VALUES ('source','https://example.org/','website','official','2026-10-01T00:00:00Z','2026-10-01T00:00:00Z')",
-    )
-    .run();
+  testFixtures(client).source({
+    id: "source",
+    canonicalUrl: "https://example.org/",
+  });
   const id = startIngestionRun(client, {
     mode: "dry_run",
     initiatedBy: "owner",

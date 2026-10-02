@@ -1,12 +1,6 @@
 import { expect, test } from "vitest";
-import {
-  createTestEvent,
-  createTestPublishedOccurrence,
-  createTestPublishedEvent,
-  prepareFestivalTerms,
-  publishTestEvent,
-} from "../test/catalog";
 import { testDatabase } from "../test/database";
+import { testFixtures } from "../test/fixtures";
 import { applyCatalogOperation, type CatalogOperation } from "./catalog";
 
 const count = (
@@ -17,13 +11,14 @@ const count = (
 
 test("postponement preserves previous dates and only changes its edition", () => {
   const client = testDatabase().client;
-  const event = createTestEvent(client);
-  const edition = createTestPublishedOccurrence(client, event.id, {
+  const fx = testFixtures(client);
+  const event = fx.event();
+  const edition = fx.publishedOccurrence(event, {
     occurrenceKey: "2027",
     startsOn: "2027-07-01",
     endsOn: "2027-07-03",
   });
-  const other = createTestPublishedOccurrence(client, event.id, {
+  const other = fx.publishedOccurrence(event, {
     occurrenceKey: "2025",
     startsOn: "2025-07-01",
   });
@@ -58,8 +53,9 @@ test("postponement preserves previous dates and only changes its edition", () =>
 
 test("invalid changes roll back, stale writes fail, replay is idempotent and payload mismatch fails", () => {
   const client = testDatabase().client;
-  const event = createTestEvent(client);
-  const old = createTestPublishedOccurrence(client, event.id, {
+  const fx = testFixtures(client);
+  const event = fx.event();
+  const old = fx.publishedOccurrence(event, {
     startsOn: "2027-07-01",
     endsOn: "2027-07-03",
   });
@@ -100,8 +96,9 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
 
 test("publication gates dates, area and scope; withdrawal retains URL reservation", () => {
   const client = testDatabase().client;
-  const event = createTestEvent(client, { slug: "test-field-days" });
-  prepareFestivalTerms(client);
+  const fx = testFixtures(client);
+  const event = fx.event({ slug: "test-field-days" });
+  fx.festivalTerms();
   const draft = applyCatalogOperation(client, {
     kind: "createOccurrence",
     operationKey: "test:draft",
@@ -161,7 +158,7 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
     expectedVersion: updated.version,
   });
   expect(published.changed).toBe(true);
-  publishTestEvent(client, event);
+  fx.publishEvent(event);
   const withdrawn = applyCatalogOperation(client, {
     kind: "withdrawOccurrence",
     operationKey: "test:withdraw",
@@ -179,7 +176,8 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
 
 test("published event rename reserves old and new paths, including editions", () => {
   const client = testDatabase().client;
-  const { event } = createTestPublishedEvent(client, {
+  const fx = testFixtures(client);
+  const { event } = fx.publishedEvent({
     event: { slug: "test-field-days" },
     occurrences: [{ occurrenceKey: "2027" }],
   });
@@ -206,8 +204,9 @@ test("published event rename reserves old and new paths, including editions", ()
 
 test("typed price, capacity, coordinates, and area rules reject unsupported values", () => {
   const client = testDatabase().client;
-  const event = createTestEvent(client);
-  const edition = createTestPublishedOccurrence(client, event.id, {
+  const fx = testFixtures(client);
+  const event = fx.event();
+  const edition = fx.publishedOccurrence(event, {
     countryCode: "PT",
     latitude: null,
     longitude: null,
@@ -334,7 +333,8 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
 
 test("identical link replacement is a no-op and an added link preserves existing identity", () => {
   const client = testDatabase().client;
-  const event = createTestEvent(client);
+  const fx = testFixtures(client);
+  const event = fx.event();
   const id = event.id;
   const initialVersion = event.version;
   const first = applyCatalogOperation(client, {

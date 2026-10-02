@@ -1,9 +1,11 @@
 import { expect, test } from "vitest";
-import { testSummary } from "../test/discovery";
+import { testFixtures } from "../test/fixtures";
+
+const { build } = testFixtures();
 import { mapFeatures, hasMapPoint } from "./discovery-map";
 
 test("map features retain approximate labels and exclude unlocated summaries", () => {
-  const located = testSummary({
+  const located = build.summary({
     id: "located",
     eventName: "Fictional Festival",
     year: 2027,
@@ -12,7 +14,7 @@ test("map features retain approximate labels and exclude unlocated summaries", (
     coordinatePrecision: "locality",
     ticketAvailability: "sold_out",
   });
-  const unlocated = testSummary({
+  const unlocated = build.summary({
     id: "unlocated",
     latitude: null,
     longitude: null,

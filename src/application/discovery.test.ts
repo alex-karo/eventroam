@@ -1,5 +1,7 @@
 import { expect, test } from "vitest";
-import { testSummary } from "../test/discovery";
+import { testFixtures } from "../test/fixtures";
+
+const { build } = testFixtures();
 import {
   capacityBand,
   durationDays,
@@ -16,7 +18,7 @@ import {
 
 test("date validation, inclusive overlap, leap boundaries, and duration", () => {
   const now = new Date("2026-10-01T12:00:00Z");
-  const summary = testSummary({
+  const summary = build.summary({
     startsOn: "2027-07-01",
     endsOn: "2027-07-03",
   });
@@ -53,8 +55,8 @@ test("genre picker uses eligible inventory, groups descendants, and retains sele
     { slug: "electronic", name: "Electronic", parentSlug: null },
   ];
   const inventory = [
-    testSummary({ id: "psytrance", genres: ["psytrance"] }),
-    testSummary({ id: "rock", genres: ["rock"] }),
+    build.summary({ id: "psytrance", genres: ["psytrance"] }),
+    build.summary({ id: "rock", genres: ["rock"] }),
   ];
   const tree = genrePickerTree(inventory, vocabulary, []);
   expect(tree.map((node) => node.genre.slug)).toEqual(["electronic", "rock"]);
@@ -80,7 +82,7 @@ test("genre ancestry, aliases, AND across groups, OR within groups, unknowns", (
     { slug: "trance", name: "Trance", parentSlug: "electronic" },
     { slug: "psytrance", name: "Psytrance", parentSlug: "electronic" },
   ];
-  const summary = testSummary({
+  const summary = build.summary({
     aliases: ["Old Field Name"],
     startsOn: "2027-07-01",
     endsOn: "2027-07-03",
@@ -133,12 +135,12 @@ test("matching stays on one edition and ordering is stable", () => {
     { slug: "electronic", name: "Electronic", parentSlug: null },
     { slug: "psytrance", name: "Psytrance", parentSlug: "electronic" },
   ];
-  const base = testSummary({
+  const base = build.summary({
     id: "a",
     genres: ["psytrance"],
     startsOn: "2027-07-01",
   });
-  const other = testSummary({
+  const other = build.summary({
     id: "b",
     startsOn: "2027-08-01",
     endsOn: "2027-08-02",
