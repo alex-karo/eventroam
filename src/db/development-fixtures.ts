@@ -1,5 +1,8 @@
 import type Database from "better-sqlite3";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 import { applyCatalogOperation } from "../application/catalog";
+import { events, sources, taxonomyTerms } from "./schema";
 
 const sourceId = "dev-source-official";
 const inspectedUrl = "https://example.org/fictional-festival";
@@ -66,24 +69,32 @@ const geographicExamples = [
 ] as const;
 export function seedDevelopmentFixtures(client: Database.Database) {
   const now = "2026-10-01T12:00:00.000Z";
-  client
-    .prepare(
-      "INSERT OR IGNORE INTO sources (id,canonical_url,kind,authority,created_at,updated_at) VALUES (?,?,?,?,?,?)",
-    )
-    .run(sourceId, inspectedUrl, "website", "official", now, now);
+  const db = drizzle(client);
+  db.insert(sources)
+    .values({
+      id: sourceId,
+      canonicalUrl: inspectedUrl,
+      kind: "website",
+      authority: "official",
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing()
+    .run();
   for (const [id, facet, slug, name] of [
     ["dev-festival", "event_type", "festival", "Festival"],
     ["dev-outdoor", "format", "outdoor", "Outdoor"],
     ["dev-music", "topic", "music", "Music"],
-  ])
-    client
-      .prepare(
-        "INSERT OR IGNORE INTO taxonomy_terms (id,facet,slug,name) VALUES (?,?,?,?)",
-      )
-      .run(id, facet, slug, name);
-  const existing = client
-    .prepare("SELECT id,version FROM events WHERE slug='fictional-field-days'")
-    .get() as { id: string; version: number } | undefined;
+  ] as const)
+    db.insert(taxonomyTerms)
+      .values({ id, facet, slug, name })
+      .onConflictDoNothing()
+      .run();
+  const existing = db
+    .select({ id: events.id, version: events.version })
+    .from(events)
+    .where(eq(events.slug, "fictional-field-days"))
+    .get();
   const event =
     existing ??
     applyCatalogOperation(client, {
@@ -155,7 +166,13 @@ export function seedDevelopmentFixtures(client: Database.Database) {
     });
   }
   for (const example of geographicExamples) {
-    if (client.prepare("SELECT id FROM events WHERE slug=?").get(example.slug))
+    if (
+      db
+        .select({ id: events.id })
+        .from(events)
+        .where(eq(events.slug, example.slug))
+        .get()
+    )
       continue;
     const newEvent = applyCatalogOperation(client, {
       kind: "createEvent",

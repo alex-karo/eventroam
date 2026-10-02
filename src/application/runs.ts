@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
+import { and, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 import { z } from "zod";
+import { ingestionRuns, sources } from "../db/schema";
 
 const url = z.url().refine((v) => /^https?:\/\//.test(v));
 const resultSchema = z
@@ -62,17 +65,18 @@ export function startIngestionRun(
 ) {
   const data = startSchema.parse(input);
   const id = randomUUID();
-  client
-    .prepare(
-      "INSERT INTO ingestion_runs (id,mode,initiated_by,adapter_versions,started_at,status,results) VALUES (?,?,?,?,?,'running','[]')",
-    )
-    .run(
+  drizzle(client)
+    .insert(ingestionRuns)
+    .values({
       id,
-      data.mode,
-      data.initiatedBy,
-      JSON.stringify(data.adapterVersions),
-      new Date().toISOString(),
-    );
+      mode: data.mode,
+      initiatedBy: data.initiatedBy,
+      adapterVersions: data.adapterVersions,
+      startedAt: new Date().toISOString(),
+      status: "running",
+      results: [],
+    })
+    .run();
   return id;
 }
 export function recordSourceCheck(
@@ -81,12 +85,14 @@ export function recordSourceCheck(
   input: z.input<typeof resultSchema>,
 ) {
   const result = resultSchema.parse(input);
-  return client.transaction(() => {
-    const run = client
-      .prepare("SELECT status,results FROM ingestion_runs WHERE id=?")
-      .get(runId) as { status: string; results: string } | undefined;
+  return drizzle(client).transaction((tx) => {
+    const run = tx
+      .select({ status: ingestionRuns.status, results: ingestionRuns.results })
+      .from(ingestionRuns)
+      .where(eq(ingestionRuns.id, runId))
+      .get();
     if (!run) throw new Error("Run is not active");
-    const results = JSON.parse(run.results) as RunResult[];
+    const results = (run.results ?? []) as RunResult[];
     const previous = results.find((x) => x.key === result.key);
     if (previous) {
       if (JSON.stringify(previous) !== JSON.stringify(result))
@@ -95,15 +101,20 @@ export function recordSourceCheck(
     }
     if (run.status !== "running") throw new Error("Run is not active");
     if (
-      !client.prepare("SELECT id FROM sources WHERE id=?").get(result.sourceId)
+      !tx
+        .select({ id: sources.id })
+        .from(sources)
+        .where(eq(sources.id, result.sourceId))
+        .get()
     )
       throw new Error("Unknown source");
     results.push(result);
-    client
-      .prepare("UPDATE ingestion_runs SET results=? WHERE id=?")
-      .run(JSON.stringify(results), runId);
+    tx.update(ingestionRuns)
+      .set({ results })
+      .where(eq(ingestionRuns.id, runId))
+      .run();
     return true;
-  })();
+  });
 }
 export function finishIngestionRun(
   client: Database.Database,
@@ -112,10 +123,16 @@ export function finishIngestionRun(
   input: z.input<typeof summarySchema>,
 ) {
   const summary = summarySchema.parse(input);
-  const updated = client
-    .prepare(
-      "UPDATE ingestion_runs SET status=?,summary=?,finished_at=? WHERE id=? AND status='running'",
+  const updated = drizzle(client)
+    .update(ingestionRuns)
+    .set({
+      status,
+      summary,
+      finishedAt: new Date().toISOString(),
+    })
+    .where(
+      and(eq(ingestionRuns.id, runId), eq(ingestionRuns.status, "running")),
     )
-    .run(status, JSON.stringify(summary), new Date().toISOString(), runId);
+    .run();
   if (updated.changes !== 1) throw new Error("Run is not active");
 }

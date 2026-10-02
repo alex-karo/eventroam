@@ -1,8 +1,10 @@
 import type Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 import {
   applyCatalogOperation,
   type CatalogOperation,
 } from "../application/catalog";
+import { sources, taxonomyTerms } from "../db/schema";
 
 export const testSourceId = "test-source-official";
 export const testSourceUrl = "https://example.org/test-festival";
@@ -46,31 +48,31 @@ export function testEvidence(fieldPaths = defaultEvidenceFields) {
 }
 
 export function prepareTestSource(client: Database.Database) {
-  client
-    .prepare(
-      "INSERT OR IGNORE INTO sources (id,canonical_url,kind,authority,created_at,updated_at) VALUES (?,?,?,?,?,?)",
-    )
-    .run(
-      testSourceId,
-      testSourceUrl,
-      "website",
-      "official",
-      timestamp,
-      timestamp,
-    );
+  drizzle(client)
+    .insert(sources)
+    .values({
+      id: testSourceId,
+      canonicalUrl: testSourceUrl,
+      kind: "website",
+      authority: "official",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .onConflictDoNothing()
+    .run();
 }
 
 export function prepareFestivalTerms(client: Database.Database) {
+  const db = drizzle(client);
   for (const [id, facet, slug, name] of [
     ["test-festival", "event_type", "festival", "Festival"],
     ["test-outdoor", "format", "outdoor", "Outdoor"],
     ["test-music", "topic", "music", "Music"],
-  ])
-    client
-      .prepare(
-        "INSERT OR IGNORE INTO taxonomy_terms (id,facet,slug,name) VALUES (?,?,?,?)",
-      )
-      .run(id, facet, slug, name);
+  ] as const)
+    db.insert(taxonomyTerms)
+      .values({ id, facet, slug, name })
+      .onConflictDoNothing()
+      .run();
   return [...festivalTermIds];
 }
 
