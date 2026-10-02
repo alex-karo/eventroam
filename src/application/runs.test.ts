@@ -26,7 +26,6 @@ test("source-check results replay by key, complete immutably, and dry runs canno
     outcome: "unchanged" as const,
     inspectedUrl: "https://example.org/",
     authority: "official" as const,
-    excerpt: "Unchanged fixture",
   };
   expect(recordSourceCheck(client, id, result)).toBe(true);
   expect(recordSourceCheck(client, id, result)).toBe(false);
@@ -40,16 +39,6 @@ test("source-check results replay by key, complete immutably, and dry runs canno
       actor: "agent",
       ingestionRunId: id,
       data: { slug: "no-write", canonicalName: "No write" },
-      evidence: [
-        {
-          sourceId: "source",
-          inspectedUrl: "https://example.org/",
-          retrievedAt: "2026-10-01T12:00:00Z",
-          authority: "official",
-          fieldPaths: ["slug", "canonical_name"],
-          excerpt: "Fictional source",
-        },
-      ],
     }),
   ).toThrow(/active apply run/);
   expect(
@@ -71,13 +60,6 @@ test("source-check results replay by key, complete immutably, and dry runs canno
   expect(() =>
     recordSourceCheck(client, id, { ...result, key: "check-2" }),
   ).toThrow(/not active/);
-  expect(() =>
-    recordSourceCheck(client, id, {
-      ...result,
-      key: "check-3",
-      excerpt: undefined,
-    }),
-  ).toThrow(/excerpt or snapshot/);
   expect(() =>
     client
       .prepare("UPDATE ingestion_runs SET status='failed' WHERE id=?")

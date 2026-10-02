@@ -3,6 +3,8 @@
 Status: Draft; product constraints confirmed in the foundation spec  
 Scope: Logical records, invariants, identity, evidence, and publication
 
+Implementation note (2026-10-02): Source evidence requirements and storage in this specification are deferred until the catalog database update workflow is implemented. Current catalog writes, publication, source-check results, and audit history do not require or store source excerpts, snapshots, or field-level evidence. Date, location, scope, versioning, and audit rules remain active. The detailed evidence rules below describe the intended later workflow.
+
 ## 1. Context and boundaries
 
 This model defines records and invariants for the [first release](000-product-foundation.md). It separates durable Event identities from dated Occurrences, and source evidence from accepted catalog values. Unknown facts remain unknown. [ADR 001](../docs/decisions/001-sqlite-and-drizzle.md) selects SQLite and Drizzle; this model does not prescribe table layout.

@@ -7,7 +7,7 @@ import {
   publishTestEvent,
 } from "../test/catalog";
 import { testDatabase } from "../test/database";
-import { applyCatalogOperation } from "./catalog";
+import { applyCatalogOperation, type CatalogOperation } from "./catalog";
 
 const count = (
   client: ReturnType<typeof testDatabase>["client"],
@@ -15,54 +15,8 @@ const count = (
 ) =>
   (client.prepare(`SELECT count(*) n FROM ${table}`).get() as { n: number }).n;
 
-const sourceId = "test-source-official";
-const sourceUrl = "https://example.org/test-festival";
-const timestamp = "2026-10-01T12:00:00Z";
-const defaultFields = [
-  "publication_state",
-  "canonical_name",
-  "starts_on",
-  "ends_on",
-  "date_state",
-  "country_code",
-  "terms",
-  "slug",
-  "occurrence_year",
-  "schedule_status",
-  "locality",
-  "capacity_estimate",
-  "price_kind",
-  "price_currency",
-  "price_min_minor",
-  "price_max_minor",
-  "price_coverage",
-  "price_qualification",
-];
-
-function testEvidence(fieldPaths = defaultFields) {
-  return [
-    {
-      sourceId,
-      inspectedUrl: sourceUrl,
-      retrievedAt: timestamp,
-      authority: "official" as const,
-      fieldPaths,
-      excerpt: "Fictional test record",
-    },
-  ];
-}
-
-function prepareTestSource(client: ReturnType<typeof testDatabase>["client"]) {
-  client
-    .prepare(
-      "INSERT INTO sources(id,canonical_url,kind,authority,created_at,updated_at) VALUES (?,?,?,?,?,?)",
-    )
-    .run(sourceId, sourceUrl, "website", "official", timestamp, timestamp);
-}
-
 test("postponement preserves previous dates and only changes its edition", () => {
   const client = testDatabase().client;
-  prepareTestSource(client);
   const event = createTestEvent(client);
   const edition = createTestPublishedOccurrence(client, event.id, {
     occurrenceKey: "2027",
@@ -80,7 +34,6 @@ test("postponement preserves previous dates and only changes its edition", () =>
     id: edition.id,
     expectedVersion: edition.version,
     data: { scheduleStatus: "postponed" },
-    evidence: testEvidence(["schedule_status"]),
   });
   expect(result.version).toBe(edition.version + 1);
   expect(
@@ -105,7 +58,6 @@ test("postponement preserves previous dates and only changes its edition", () =>
 
 test("invalid changes roll back, stale writes fail, replay is idempotent and payload mismatch fails", () => {
   const client = testDatabase().client;
-  prepareTestSource(client);
   const event = createTestEvent(client);
   const old = createTestPublishedOccurrence(client, event.id, {
     startsOn: "2027-07-01",
@@ -119,7 +71,6 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
       id: old.id,
       expectedVersion: old.version,
       data: { startsOn: null },
-      evidence: testEvidence(["starts_on"]),
     }),
   ).toThrow();
   const op = {
@@ -129,11 +80,16 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
     id: old.id,
     expectedVersion: old.version,
     data: { capacityEstimate: 1200 },
-    evidence: testEvidence(["capacity_estimate"]),
   };
   const applied = applyCatalogOperation(client, op);
   expect(applied.changed).toBe(true);
   expect(applyCatalogOperation(client, op)).toEqual(applied);
+  expect(() =>
+    applyCatalogOperation(client, {
+      ...op,
+      evidence: [],
+    } as CatalogOperation),
+  ).toThrow();
   expect(() =>
     applyCatalogOperation(client, { ...op, data: { capacityEstimate: 1300 } }),
   ).toThrow(/different payload/);
@@ -144,7 +100,6 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
 
 test("publication gates dates, area and scope; withdrawal retains URL reservation", () => {
   const client = testDatabase().client;
-  prepareTestSource(client);
   const event = createTestEvent(client, { slug: "test-field-days" });
   prepareFestivalTerms(client);
   const draft = applyCatalogOperation(client, {
@@ -158,7 +113,6 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
       countryCode: "PT",
       locality: "Example Valley",
     },
-    evidence: testEvidence(),
   });
   expect(() =>
     applyCatalogOperation(client, {
@@ -167,7 +121,6 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
       actor: "owner",
       id: draft.id,
       expectedVersion: draft.version,
-      evidence: testEvidence(),
     }),
   ).toThrow(/Publication needs/);
   let updated = applyCatalogOperation(client, {
@@ -182,12 +135,6 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
       endsOn: "2028-07-03",
       dateState: "provisional",
     },
-    evidence: testEvidence([
-      "occurrence_year",
-      "starts_on",
-      "ends_on",
-      "date_state",
-    ]),
   });
   expect(() =>
     applyCatalogOperation(client, {
@@ -196,7 +143,6 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
       actor: "owner",
       id: draft.id,
       expectedVersion: updated.version,
-      evidence: testEvidence(),
     }),
   ).toThrow(/format/);
   updated = applyCatalogOperation(client, {
@@ -206,7 +152,6 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
     id: draft.id,
     expectedVersion: updated.version,
     termIds: ["test-festival", "test-outdoor", "test-music"],
-    evidence: testEvidence(["terms"]),
   });
   const published = applyCatalogOperation(client, {
     kind: "publishOccurrence",
@@ -214,7 +159,6 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
     actor: "owner",
     id: draft.id,
     expectedVersion: updated.version,
-    evidence: testEvidence(),
   });
   expect(published.changed).toBe(true);
   publishTestEvent(client, event);
@@ -224,7 +168,6 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
     actor: "owner",
     id: draft.id,
     expectedVersion: published.version,
-    evidence: [],
   });
   expect(withdrawn.changed).toBe(true);
   expect(
@@ -236,7 +179,6 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
 
 test("published event rename reserves old and new paths, including editions", () => {
   const client = testDatabase().client;
-  prepareTestSource(client);
   const { event } = createTestPublishedEvent(client, {
     event: { slug: "test-field-days" },
     occurrences: [{ occurrenceKey: "2027" }],
@@ -250,7 +192,6 @@ test("published event rename reserves old and new paths, including editions", ()
     id,
     expectedVersion: event.version,
     data: { slug: "fictional-new-name" },
-    evidence: testEvidence(["slug"]),
   });
   expect(count(client, "url_aliases")).toBe(aliasesBefore + 2);
   expect(() =>
@@ -259,14 +200,12 @@ test("published event rename reserves old and new paths, including editions", ()
       operationKey: "test:reuse",
       actor: "owner",
       data: { slug: "test-field-days", canonicalName: "Other" },
-      evidence: testEvidence(),
     }),
   ).toThrow(/reserved/);
 });
 
 test("typed price, capacity, coordinates, and area rules reject unsupported values", () => {
   const client = testDatabase().client;
-  prepareTestSource(client);
   const event = createTestEvent(client);
   const edition = createTestPublishedOccurrence(client, event.id, {
     countryCode: "PT",
@@ -290,7 +229,6 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
           coverage: "full_programme",
         },
       },
-      evidence: testEvidence(),
     }),
   ).toThrow();
   expect(() =>
@@ -301,7 +239,6 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
       id: edition.id,
       expectedVersion: edition.version,
       data: { latitude: 0, coordinatePrecision: "approximate" },
-      evidence: testEvidence(["latitude", "coordinate_precision"]),
     }),
   ).toThrow(/Coordinate pair/);
   expect(() =>
@@ -312,7 +249,6 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
       id: edition.id,
       expectedVersion: edition.version,
       data: { countryCode: null },
-      evidence: testEvidence(["country_code"]),
     }),
   ).toThrow(/country/);
   const changed = applyCatalogOperation(client, {
@@ -332,15 +268,6 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
         qualification: "Early tier; fees unknown",
       },
     },
-    evidence: testEvidence([
-      "capacity_estimate",
-      "price_kind",
-      "price_currency",
-      "price_min_minor",
-      "price_max_minor",
-      "price_coverage",
-      "price_qualification",
-    ]),
   });
   expect(changed.changed).toBe(true);
   expect(
@@ -401,14 +328,12 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
       id: edition.id,
       expectedVersion: changed.version,
       data: { countryCode: "ZZ" },
-      evidence: testEvidence(["country_code"]),
     }),
   ).toThrow(/ISO 3166-1/);
 });
 
 test("identical link replacement is a no-op and an added link preserves existing identity", () => {
   const client = testDatabase().client;
-  prepareTestSource(client);
   const event = createTestEvent(client);
   const id = event.id;
   const initialVersion = event.version;
@@ -421,7 +346,6 @@ test("identical link replacement is a no-op and an added link preserves existing
     links: [
       { kind: "official_site", url: "https://example.org/", official: true },
     ],
-    evidence: testEvidence(["links"]),
   });
   const existing = client
     .prepare("SELECT id,created_at FROM external_links WHERE event_id=?")
@@ -451,7 +375,6 @@ test("identical link replacement is a no-op and an added link preserves existing
         official: true,
       },
     ],
-    evidence: testEvidence(["links"]),
   });
   expect(added.changed).toBe(true);
   expect(

@@ -24,4 +24,11 @@ test("each test database call starts empty in a distinct file", () => {
 test("the automatic database starts empty for another test", () => {
   const { client } = testDatabase();
   expect(client.prepare("SELECT count(*) FROM sources").pluck().get()).toBe(0);
+  expect(
+    client
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='change_evidence'",
+      )
+      .get(),
+  ).toBeUndefined();
 });

@@ -3,6 +3,8 @@
 Status: Accepted  
 Date: 2026-10-01
 
+Implementation update (2026-10-02): Source evidence storage is deferred until the catalog database update workflow is built. The current schema retains sources, ingestion runs, and immutable audit changes without change evidence.
+
 ## Context
 
 Eventroam's first release is one deployable application with a relational catalog, source-backed change evidence, immutable field-change history, and manually initiated ingestion. Public reads may be concurrent, but catalog writes are owner initiated and can be kept short. The application is not scaffolded yet, so the database can be selected without a data migration. PostgreSQL would add a server to operate before a requirement calls for one.

@@ -4,6 +4,8 @@ Status: Expected starter vocabulary and assignment policy, version 0.1
 Date: 2026-10-01  
 Basis: The owner accepted the simpler Occurrence-only classification model on 2026-10-01. The terms below make that model concrete; validate their usefulness against the launch dataset before implementation.
 
+Implementation note (2026-10-02): The evidence requirements below are deferred until the catalog database update workflow is built. Current classification writes and publication use the structural rules without source evidence.
+
 ## 1 Context and outcome
 
 This file defines the starter vocabulary and evidence rules for classifying each Occurrence. The [domain model](001-domain-model.md#53-occurrence-classification) owns records and invariants; the [foundation](000-product-foundation.md) owns scope and publication. The [rival research](../docs/research/2026-09-19-filters-and-classification.md) informed the vocabulary, but its Event-inheritance proposal is superseded. This taxonomy does not select public filters or expand the catalog to concerts, conferences, retreats, or club nights.

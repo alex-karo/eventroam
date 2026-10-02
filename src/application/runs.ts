@@ -16,8 +16,6 @@ const resultSchema = z
     authority: z
       .enum(["official", "partner", "secondary", "community"])
       .optional(),
-    excerpt: z.string().trim().min(1).max(2000).optional(),
-    snapshotRef: z.string().trim().min(1).max(500).optional(),
     errorCode: z.string().max(100).optional(),
   })
   .strict()
@@ -27,11 +25,6 @@ const resultSchema = z
         ctx.addIssue({
           code: "custom",
           message: "Successful checks require authority",
-        });
-      if (!r.excerpt && !r.snapshotRef)
-        ctx.addIssue({
-          code: "custom",
-          message: "Successful checks require an excerpt or snapshot reference",
         });
     }
     if ((r.outcome === "failed" || r.outcome === "blocked") && !r.errorCode)

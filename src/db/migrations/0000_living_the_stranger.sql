@@ -19,21 +19,6 @@ CREATE TABLE `catalog_changes` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `catalog_changes_event_operation_uq` ON `catalog_changes` (`operation_key`,`event_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `catalog_changes_occurrence_operation_uq` ON `catalog_changes` (`operation_key`,`occurrence_id`);--> statement-breakpoint
-CREATE TABLE `change_evidence` (
-	`id` text PRIMARY KEY NOT NULL,
-	`change_id` text NOT NULL,
-	`source_id` text NOT NULL,
-	`field_paths` text NOT NULL,
-	`inspected_url` text NOT NULL,
-	`retrieved_at` text NOT NULL,
-	`authority` text NOT NULL,
-	`excerpt` text,
-	`snapshot_ref` text,
-	FOREIGN KEY (`change_id`) REFERENCES `catalog_changes`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`source_id`) REFERENCES `sources`(`id`) ON UPDATE no action ON DELETE no action
-);
---> statement-breakpoint
-CREATE INDEX `change_evidence_change_idx` ON `change_evidence` (`change_id`);--> statement-breakpoint
 CREATE TABLE `events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`slug` text NOT NULL,
@@ -203,10 +188,6 @@ CREATE TABLE `url_aliases` (
 CREATE TRIGGER catalog_changes_immutable_update BEFORE UPDATE ON catalog_changes BEGIN SELECT RAISE(ABORT, 'catalog_changes are immutable'); END;
 --> statement-breakpoint
 CREATE TRIGGER catalog_changes_immutable_delete BEFORE DELETE ON catalog_changes BEGIN SELECT RAISE(ABORT, 'catalog_changes are immutable'); END;
---> statement-breakpoint
-CREATE TRIGGER change_evidence_immutable_update BEFORE UPDATE ON change_evidence BEGIN SELECT RAISE(ABORT, 'change evidence is immutable'); END;
---> statement-breakpoint
-CREATE TRIGGER change_evidence_immutable_delete BEFORE DELETE ON change_evidence BEGIN SELECT RAISE(ABORT, 'change evidence is immutable'); END;
 --> statement-breakpoint
 CREATE TRIGGER url_aliases_immutable_update BEFORE UPDATE ON url_aliases BEGIN SELECT RAISE(ABORT, 'public URL aliases are immutable'); END;
 --> statement-breakpoint

@@ -73,7 +73,7 @@ test("upcoming list and active selection use only current public editions", () =
   expect(selectActive(event.editions, "2026-10-01")?.key).toBe("2027");
   expect(selectActive(event.editions, "2028-01-01")).toBeNull();
   expect(JSON.stringify(event)).not.toMatch(
-    /sourceId|operationKey|catalog_changes|retrievedAt|test-source-official/,
+    /sourceId|operationKey|catalog_changes/,
   );
 });
 
@@ -192,7 +192,7 @@ test("scope hosts are allowlisted and canonical origins are configured", () => {
   expect(siteForHost("unconfigured.example", origins)).toBeNull();
 });
 
-test("official links inherit by kind and private links and evidence stay outside public reads", () => {
+test("official links inherit by kind and private links stay outside public reads", () => {
   const client = testDatabase().client;
   const { event, occurrences } = createTestPublishedEvent(client, {
     event: { slug: "test-field-days" },
@@ -323,7 +323,7 @@ test("complete compact discovery includes history and unlocated editions, exclud
     ),
   ).toHaveLength(1);
   expect(JSON.stringify(catalog)).not.toMatch(
-    /price|sourceId|retrievedAt|evidence|venueAddress|summary/,
+    /price|sourceId|venueAddress|summary/,
   );
   const filters = parseFilters(
     new URLSearchParams(

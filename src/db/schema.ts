@@ -350,27 +350,6 @@ export const catalogChanges = sqliteTable(
     ),
   ],
 );
-export const changeEvidence = sqliteTable(
-  "change_evidence",
-  {
-    id: text("id").primaryKey(),
-    changeId: text("change_id")
-      .notNull()
-      .references(() => catalogChanges.id),
-    sourceId: text("source_id")
-      .notNull()
-      .references(() => sources.id),
-    fieldPaths: text("field_paths", { mode: "json" })
-      .$type<string[]>()
-      .notNull(),
-    inspectedUrl: text("inspected_url").notNull(),
-    retrievedAt: text("retrieved_at").notNull(),
-    authority: text("authority").notNull(),
-    excerpt: text("excerpt"),
-    snapshotRef: text("snapshot_ref"),
-  },
-  (t) => [index("change_evidence_change_idx").on(t.changeId)],
-);
 export const operationReceipts = sqliteTable("operation_receipts", {
   operationKey: text("operation_key").primaryKey(),
   payloadHash: text("payload_hash").notNull(),

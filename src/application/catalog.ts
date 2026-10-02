@@ -5,14 +5,12 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { z } from "zod";
 import {
   catalogChanges,
-  changeEvidence,
   events,
   externalLinks,
   ingestionRuns,
   occurrenceTerms,
   occurrences,
   operationReceipts,
-  sources,
   taxonomyTerms,
   urlAliases,
 } from "../db/schema";
@@ -22,31 +20,17 @@ const slug = z
   .string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   .max(100);
-const instant = z.iso.datetime({ offset: true });
 const localDate = z.iso.date();
 const url = z.url().refine((value) => /^https?:\/\//.test(value));
-const evidenceItem = z
+const common = z
   .object({
-    sourceId: z.string().min(1),
-    inspectedUrl: url,
-    retrievedAt: instant,
-    authority: z.enum(["official", "partner", "secondary", "community"]),
-    fieldPaths: z.array(z.string().min(1)).min(1).max(40),
-    excerpt: z.string().trim().min(1).max(2000).optional(),
-    snapshotRef: z.string().trim().min(1).max(500).optional(),
+    operationKey: z.string().min(1).max(200),
+    actor: z.string().min(1).max(200),
+    initiatedBy: z.string().min(1).max(200).optional(),
+    ingestionRunId: z.string().optional(),
+    note: z.string().max(500).optional(),
   })
-  .strict()
-  .refine((item) => item.excerpt || item.snapshotRef, {
-    message: "Source evidence needs an excerpt or snapshot reference",
-  });
-const common = z.object({
-  operationKey: z.string().min(1).max(200),
-  actor: z.string().min(1).max(200),
-  initiatedBy: z.string().min(1).max(200).optional(),
-  ingestionRunId: z.string().optional(),
-  evidence: z.array(evidenceItem).max(20).default([]),
-  note: z.string().max(500).optional(),
-});
+  .strict();
 const price = z.discriminatedUnion("kind", [
   z
     .object({
@@ -191,7 +175,6 @@ const operation = z.discriminatedUnion("kind", [
 ]);
 export type CatalogOperation = z.input<typeof operation>;
 type Row = Record<string, unknown>;
-type Evidence = z.infer<typeof evidenceItem>;
 const columns: Record<string, string> = {
   canonicalName: "canonical_name",
   occurrenceKey: "occurrence_key",
@@ -212,35 +195,6 @@ const columns: Record<string, string> = {
   homeScope: "home_scope",
   publicationState: "publication_state",
 };
-const factual = new Set([
-  "slug",
-  "canonical_name",
-  "occurrence_year",
-  "starts_on",
-  "ends_on",
-  "date_state",
-  "schedule_status",
-  "ticket_availability",
-  "capacity_estimate",
-  "venue_name",
-  "venue_address",
-  "locality",
-  "administrative_area",
-  "country_code",
-  "latitude",
-  "longitude",
-  "coordinate_precision",
-  "time_zone",
-  "price_kind",
-  "price_currency",
-  "price_min_minor",
-  "price_max_minor",
-  "price_coverage",
-  "price_qualification",
-  "terms",
-  "links",
-  "publication_state",
-]);
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
@@ -426,29 +380,6 @@ function diff(old: Row, next: Row) {
       newValue: valueFor(field, newValue ?? null),
     }));
 }
-function evidenceFor(
-  client: Database.Database,
-  items: Evidence[],
-  fields: string[],
-  required: boolean,
-) {
-  if (required) assert(items.length > 0, "Source evidence required");
-  for (const item of items)
-    assert(
-      drizzle(client)
-        .select({ id: sources.id })
-        .from(sources)
-        .where(eq(sources.id, item.sourceId))
-        .get(),
-      "Unknown evidence source",
-    );
-  const covered = fields.filter((f) => factual.has(f));
-  if (required)
-    assert(
-      covered.every((f) => items.some((x) => x.fieldPaths.includes(f))),
-      `Evidence must identify each factual field: ${covered.join(",")}`,
-    );
-}
 function validateScope(client: Database.Database, id: string) {
   const terms = drizzle(client)
     .select({ facet: taxonomyTerms.facet, slug: taxonomyTerms.slug })
@@ -497,20 +428,6 @@ function writeChange(
       note: meta.note ?? null,
     })
     .run();
-  for (const item of meta.evidence)
-    db.insert(changeEvidence)
-      .values({
-        id: randomUUID(),
-        changeId,
-        sourceId: item.sourceId,
-        fieldPaths: item.fieldPaths,
-        inspectedUrl: normalUrl(item.inspectedUrl),
-        retrievedAt: new Date(item.retrievedAt).toISOString(),
-        authority: item.authority,
-        excerpt: item.excerpt ?? null,
-        snapshotRef: item.snapshotRef ?? null,
-      })
-      .run();
 }
 function alias(
   client: Database.Database,
@@ -637,7 +554,6 @@ export function applyCatalogOperation(
     if (op.kind === "createEvent") {
       const id = randomUUID();
       const data = sqlData(op.data);
-      evidenceFor(client, op.evidence, Object.keys(data), true);
       assert(
         !db
           .select({ path: urlAliases.path })
@@ -663,7 +579,6 @@ export function applyCatalogOperation(
       row(client, "events", op.eventId);
       const id = randomUUID();
       const data = sqlData(op.data);
-      evidenceFor(client, op.evidence, Object.keys(data), true);
       const record = {
         id,
         event_id: op.eventId,
@@ -688,12 +603,6 @@ export function applyCatalogOperation(
       const data = sqlData(op.data);
       const changes = diff(old, data);
       if (changes.length) {
-        evidenceFor(
-          client,
-          op.evidence,
-          changes.map((c) => c.field),
-          changes.some((c) => factual.has(c.field)),
-        );
         const updated = { ...old, ...data };
         if (table === "occurrences") validateOccurrence(updated);
         if (
@@ -753,12 +662,6 @@ export function applyCatalogOperation(
       );
       if (target === "published") {
         if (isEvent) {
-          evidenceFor(
-            client,
-            op.evidence,
-            ["publication_state", "canonical_name"],
-            true,
-          );
           assert(
             db
               .select({ id: occurrences.id })
@@ -779,26 +682,6 @@ export function applyCatalogOperation(
         } else {
           validateOccurrence({ ...old, publication_state: "published" });
           validateScope(client, op.id);
-          const location =
-            old.venue_name != null
-              ? "venue_name"
-              : old.locality != null
-                ? "locality"
-                : "administrative_area";
-          evidenceFor(
-            client,
-            op.evidence,
-            [
-              "publication_state",
-              "starts_on",
-              "ends_on",
-              "date_state",
-              "country_code",
-              location,
-              "terms",
-            ],
-            true,
-          );
         }
       }
       const values: Row = { publication_state: target };
@@ -863,7 +746,6 @@ export function applyCatalogOperation(
         .map((x) => x.termId);
       const changed = JSON.stringify(previous) !== JSON.stringify(ids);
       if (changed) {
-        evidenceFor(client, op.evidence, ["terms"], true);
         db.delete(occurrenceTerms)
           .where(eq(occurrenceTerms.occurrenceId, op.id))
           .run();
@@ -936,7 +818,6 @@ export function applyCatalogOperation(
       const previous = normalize(existing);
       const changed = JSON.stringify(previous) !== JSON.stringify(desired);
       if (changed) {
-        evidenceFor(client, op.evidence, ["links"], true);
         const wanted = new Map(desired.map((l) => [`${l.kind}:${l.url}`, l]));
         const priorByKey = new Map(
           existingRows.map((l) => [`${l.kind}:${normalUrl(l.url)}`, l]),
