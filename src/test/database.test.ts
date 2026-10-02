@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
-import { createTestDatabase, testDatabase } from "./database";
-import { testFixtures } from "./fixtures";
+import { createTestDatabase, testDatabase } from "@/test/database";
+import { testFixtures } from "@/test/fixtures";
 
 test("each test database call starts empty in a distinct file", () => {
   const first = testDatabase();

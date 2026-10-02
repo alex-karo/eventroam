@@ -1,7 +1,9 @@
 import { sql } from "drizzle-orm";
 import { expect, test } from "vitest";
-import { testDatabase } from "../test/database";
-import { readDatabaseEnvironment } from "./env";
+import { testDatabase } from "@/test/database";
+import { readDatabaseEnvironment } from "@/db/env";
+import { openReadDatabase } from "@/db/connection";
+import { testFixtures } from "@/test/fixtures";
 
 test("SQLite settings and Drizzle work against a real database file", () => {
   const { client, db } = testDatabase();
@@ -26,4 +28,38 @@ test("SQLite settings and Drizzle work against a real database file", () => {
 
 test("database environment rejects an empty path", () => {
   expect(() => readDatabaseEnvironment({ DATABASE_PATH: " " })).toThrow();
+});
+
+test("public reader is read-only and sees committed writes on later reads", () => {
+  const writer = testDatabase();
+  const reader = openReadDatabase(writer.path);
+  try {
+    expect(
+      reader.client.prepare("SELECT count(*) FROM sources").pluck().get(),
+    ).toBe(0);
+    expect(() =>
+      reader.client.exec("CREATE TABLE unexpected (id INTEGER)"),
+    ).toThrow(/readonly/i);
+    writer.client.exec("BEGIN");
+    try {
+      testFixtures(writer.client).source({ id: "committed" });
+      expect(
+        reader.client.prepare("SELECT count(*) FROM sources").pluck().get(),
+      ).toBe(0);
+      writer.client.exec("COMMIT");
+    } catch (error) {
+      writer.client.exec("ROLLBACK");
+      throw error;
+    }
+    expect(
+      reader.client.prepare("SELECT count(*) FROM sources").pluck().get(),
+    ).toBe(1);
+  } finally {
+    reader.client.close();
+  }
+});
+
+test("public reader requires an existing database", () => {
+  const writer = testDatabase();
+  expect(() => openReadDatabase(`${writer.path}.missing`)).toThrow();
 });

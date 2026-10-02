@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
-import { testDatabase } from "./database";
-import { testFixtures } from "./fixtures";
+import { testDatabase } from "@/test/database";
+import { testFixtures } from "@/test/fixtures";
 
 test("builders preserve explicit null and do not insert data", () => {
   const client = testDatabase().client;

@@ -54,7 +54,7 @@ Synchronous SQLite calls are acceptable for short local queries and writes at th
 
 ### Repository layout and quality checks
 
-Start with `src/app` for Next routes, `src/components` for reusable UI, `src/domain` for framework-independent rules, `src/application` for use cases/read models, and `src/db` for schemas and persistence adapters. Put reviewed migrations in `drizzle`; colocate focused tests and keep browser journeys in `tests/e2e`. Add import/source adapters only as their workflow is implemented. These are directory responsibilities, not separate packages.
+The initial scaffold used `src/domain` and `src/application`; the adopted layout is specified in the [project structure](../project-structure.md). Keep routes in `src/app`, feature UI and pure discovery logic in `src/features`, reusable components in `src/components`, catalog rules and operations in `src/catalog`, request adapters in `src/site/server`, and schema and connections in `src/db`. Put reviewed migrations in `src/db/migrations`; colocate focused tests and add browser journeys in `tests/e2e` when implemented. These are directory responsibilities, not separate packages.
 
 Vitest covers normalization, filter/date boundaries, publication rules, and real persistence transactions. Browser tests cover the desktop combined view, mobile switch, URL restoration, on-demand details, direct SSR entry, missing coordinates, and scope isolation. Test async Server Component behavior through the running app: Next's [Vitest guide](https://nextjs.org/docs/app/guides/testing/vitest) explicitly directs those cases toward end-to-end testing. Use deterministic fixtures and avoid live source sites or map-vendor calls in routine tests.
 

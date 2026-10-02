@@ -14,6 +14,7 @@ The repository now has a single Next.js application with SQLite/Drizzle schema a
 - [Festival information](specs/003-festival-information.md): collected facts, prices, capacity, and practical details.
 - [Discovery filters](specs/004-discovery-filters.md): selected controls, map/list interaction, and summary loading.
 - [Website structure and URLs](specs/005-website-structure-and-urls.md): scope domains and proposed routing/indexing rules.
+- [Project structure](docs/project-structure.md): current directories, dependency boundaries, and planned extensions.
 - [Development guide](docs/development.md): technical direction, implementation workflow, quality, and operations.
 - [Service build checklist](docs/service-build-checklist.md) and [progress](docs/service-build-progress.md): implemented fixture-backed slices and remaining work.
 - [ADR 001](docs/decisions/001-sqlite-and-drizzle.md): SQLite and Drizzle decision.

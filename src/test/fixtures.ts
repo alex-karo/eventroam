@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import type { DiscoverySummary } from "../application/discovery";
+import type { DiscoverySummary } from "@/catalog/read/contracts";
 import {
   events,
   externalLinks,
@@ -12,8 +12,8 @@ import {
   sources,
   taxonomyTerms,
   urlAliases,
-} from "../db/schema";
-import { testDatabase } from "./database";
+} from "@/db/schema";
+import { testDatabase } from "@/test/database";
 
 const timestamp = "2026-10-01T12:00:00Z";
 

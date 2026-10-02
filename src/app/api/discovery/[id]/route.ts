@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requestSite } from "@/application/public-request";
-import { publicOccurrenceById } from "@/application/public-catalog";
-import { openDatabase } from "@/db/connection";
+import { requestSite } from "@/site/server/public-request";
+import { publicOccurrenceById } from "@/catalog/read/public-catalog";
+import { openReadDatabase } from "@/db/connection";
 
 export async function GET(
   _request: Request,
@@ -11,7 +11,7 @@ export async function GET(
   if (site !== "festivals")
     return NextResponse.json({ error: "Unknown scope" }, { status: 404 });
   const { id } = await params;
-  const { client } = openDatabase();
+  const { client } = openReadDatabase();
   try {
     const edition = publicOccurrenceById(client, id);
     if (!edition)

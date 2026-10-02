@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
-import { requestSite } from "@/application/public-request";
-import {
-  discoveryCatalog,
-  discoveryGenres,
-} from "@/application/discovery-catalog";
+import { requestSite } from "@/site/server/public-request";
+import { discoveryCatalog, discoveryGenres } from "@/catalog/read/discovery";
 import {
   emptyFilters,
   parseFilters,
   serializeFilters,
-} from "@/application/discovery";
-import { openDatabase } from "@/db/connection";
-import { Discovery } from "@/components/discovery";
+} from "@/features/discovery/model/discovery";
+import { openReadDatabase } from "@/db/connection";
+import { Discovery } from "@/features/discovery/discovery";
 
 type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -34,7 +31,7 @@ export async function generateMetadata({
   const { site, origins } = await requestSite();
   if (site !== "festivals") return { title: "Eventroam" };
   const params = paramsFromRecord(await searchParams);
-  const { client } = openDatabase();
+  const { client } = openReadDatabase();
   let genres;
   try {
     genres = discoveryGenres(client);
@@ -69,7 +66,7 @@ export default async function HomePage({ searchParams }: Props) {
         <a href={origins.festivals}>Festivals</a>
       </main>
     );
-  const { client } = openDatabase();
+  const { client } = openReadDatabase();
   let catalog;
   try {
     catalog = discoveryCatalog(client);

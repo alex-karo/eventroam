@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import { openDatabase } from "../db/connection";
+import { openDatabase } from "@/db/connection";
 
 type TestDatabase = ReturnType<typeof openDatabase> & {
   path: string;

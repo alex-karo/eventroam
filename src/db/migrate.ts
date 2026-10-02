@@ -1,5 +1,5 @@
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import { openDatabase } from "./connection";
+import { openDatabase } from "@/db/connection";
 
 export function migrateDatabase(path?: string) {
   const connection = openDatabase(path);
