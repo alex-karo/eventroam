@@ -83,16 +83,9 @@ export default async function HomePage({ searchParams }: Props) {
   }
   const normalized = serializeFilters(initial).toString();
   return (
-    <main className="catalog discovery-page">
-      <nav>
-        <a href={origins.apex}>Eventroam</a> / Festivals
-      </nav>
-      <h1>Festivals</h1>
-      <p>
-        Explore upcoming and past festivals and gatherings. Date ranges include
-        any overlapping edition.
-      </p>
+    <main className="discovery-page">
       <Discovery
+        apexHref={origins.apex}
         initialCatalog={catalog}
         initialFilters={initial}
         initialError={error}

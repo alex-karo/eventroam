@@ -30,16 +30,9 @@ import {
 } from "@/features/discovery/hooks/discovery-url";
 
 type Catalog = { summaries: DiscoverySummary[]; genres: Genre[] };
-function countGroups(f: Filters) {
-  return (
-    Number(Boolean(f.from)) +
-    Number(Boolean(f.countries.length || f.place)) +
-    Number(Boolean(f.genres.length)) +
-    Number(f.durationMin !== null || f.durationMax !== null) +
-    Number(Boolean(f.sizes.length))
-  );
-}
+type FilterGroup = "when" | "where" | "genre" | "more";
 export function Discovery({
+  apexHref,
   initialCatalog,
   initialFilters,
   initialError,
@@ -47,6 +40,7 @@ export function Discovery({
   initialNow,
   initialView,
 }: {
+  apexHref: string;
   initialCatalog: Catalog;
   initialFilters: Filters;
   initialError: string | null;
@@ -60,16 +54,17 @@ export function Discovery({
   const [query, setQuery] = useState(initialFilters.q);
   const [urlError, setUrlError] = useState(initialError);
   const [formError, setFormError] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const invalidUrl = urlError !== null;
-  const error = urlError ?? formError;
   const [loadError, setLoadError] = useState(false);
-  const [panel, setPanel] = useState(false);
+  const [panel, setPanel] = useState<FilterGroup | null>(null);
   const [view, setView] = useState<"map" | "list">(initialView);
   const [detailState, setDetailState] = useState<DetailState>({
     status: "idle",
   });
   const selectedId = detailState.status === "idle" ? null : detailState.id;
   const detailRequest = useRef(0);
+  const detailOrigin = useRef<HTMLElement | null>(null);
   const detailPanel = useRef<HTMLElement>(null);
   const today = new Date(initialNow);
   const panelButton = useRef<HTMLButtonElement>(null);
@@ -91,7 +86,8 @@ export function Discovery({
       }
       setUrlError(error);
       setFormError(null);
-      setPanel(false);
+      setSearchError(null);
+      setPanel(null);
     };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
@@ -122,9 +118,36 @@ export function Discovery({
     };
   }, [load]);
   useEffect(() => {
-    if (selectedId) detailPanel.current?.scrollIntoView({ block: "nearest" });
+    if (selectedId) detailPanel.current?.querySelector("button")?.focus();
   }, [selectedId]);
-  function apply(next: Filters) {
+  useEffect(() => {
+    if (panel)
+      document
+        .querySelector<HTMLElement>("#filter-panel input, #filter-panel button")
+        ?.focus();
+  }, [panel]);
+  function closePanel() {
+    setPending(applied);
+    setPanel(null);
+    setFormError(null);
+    requestAnimationFrame(() => panelButton.current?.focus());
+  }
+  function openPanel(group: FilterGroup, opener: HTMLButtonElement) {
+    if (panel === group) {
+      closePanel();
+      return;
+    }
+    panelButton.current = opener;
+    setPending(applied);
+    setFormError(null);
+    setPanel(group);
+  }
+  function apply(next: Filters, source: "search" | "filters" = "filters") {
+    if (source === "search") {
+      setPanel(null);
+      setPending(applied);
+      setFormError(null);
+    }
     try {
       const valid = normalizeFilters(next, catalog.genres);
       pushDiscoveryFilters(valid);
@@ -133,12 +156,13 @@ export function Discovery({
       setQuery(valid.q);
       setUrlError(null);
       setFormError(null);
-      setPanel(false);
-      panelButton.current?.focus();
+      setSearchError(null);
+      setPanel(null);
+      if (panel && source === "filters")
+        requestAnimationFrame(() => panelButton.current?.focus());
     } catch (caught) {
-      setFormError(
-        caught instanceof Error ? caught.message : "Invalid filters.",
-      );
+      const setError = source === "search" ? setSearchError : setFormError;
+      setError(caught instanceof Error ? caught.message : "Invalid filters.");
     }
   }
   function switchView(next: "map" | "list") {
@@ -146,6 +170,12 @@ export function Discovery({
     pushDiscoveryView(next);
   }
   async function selectEdition(id: string) {
+    if (
+      selectedId !== id &&
+      document.activeElement instanceof HTMLElement &&
+      !detailPanel.current?.contains(document.activeElement)
+    )
+      detailOrigin.current = document.activeElement;
     const request = ++detailRequest.current;
     setDetailState({ status: "loading", id });
     try {
@@ -161,6 +191,30 @@ export function Discovery({
         setDetailState({ status: "error", id });
     }
   }
+  function closeDetail() {
+    ++detailRequest.current;
+    setDetailState({ status: "idle" });
+    requestAnimationFrame(() => {
+      if (detailOrigin.current?.getClientRects().length)
+        detailOrigin.current.focus();
+      else
+        document
+          .querySelector<HTMLElement>(".view-switch [aria-pressed=true]")
+          ?.focus();
+    });
+  }
+  useEffect(() => {
+    if (!panel && !selectedId) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (panel) closePanel();
+      else closeDetail();
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+    // closePanel always uses the applied filters at the moment the panel opened.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panel, applied, selectedId]);
   const results = invalidUrl
     ? []
     : filterSummaries(catalog.summaries, applied, catalog.genres, today);
@@ -195,152 +249,202 @@ export function Discovery({
     if (group === "size") next.sizes = [];
     apply(next);
   }
+  const secondaryGroups =
+    Number(applied.durationMin !== null || applied.durationMax !== null) +
+    Number(Boolean(applied.sizes.length));
   return (
     <div className="discovery">
-      <form
-        className="name-search"
-        onSubmit={(event) => {
-          event.preventDefault();
-          apply({ ...applied, q: query });
-        }}
-      >
-        <label htmlFor="name-search">Search by name</label>
-        <div>
+      <header className="discovery-header">
+        <a
+          className="discovery-brand"
+          href={apexHref}
+          aria-label="Eventroam home"
+        >
+          event<span>roam</span>
+        </a>
+        <span className="discovery-scope">Festivals</span>
+        <form
+          className="name-search"
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            apply({ ...applied, q: query }, "search");
+          }}
+        >
+          <label className="sr-only" htmlFor="name-search">
+            Search festival names
+          </label>
           <input
             id="name-search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Festival name"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setSearchError(null);
+            }}
+            aria-invalid={searchError ? true : undefined}
+            aria-describedby={searchError ? "search-error" : undefined}
+            placeholder="Find a festival…"
           />
-          <button type="submit">Search</button>
-        </div>
-      </form>
-      <div className="filter-toolbar">
-        <div className="primary-filters">
-          {["When", "Where", "Music genre"].map((label) => (
-            <button
-              key={label}
-              className={label === "Music genre" ? "genre-shortcut" : ""}
-              type="button"
-              onClick={() => {
-                setPending(applied);
-                setPanel(true);
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <button
-          ref={panelButton}
-          type="button"
-          aria-expanded={panel}
-          aria-controls="filter-panel"
-          onClick={() => {
-            setPending(applied);
-            setPanel(!panel);
-          }}
+          <button type="submit" aria-label="Search festival names">
+            ⌕
+          </button>
+        </form>
+      </header>
+      <div className="discovery-stage">
+        <div
+          className="filter-toolbar"
+          role="group"
+          aria-label="Discovery filters"
         >
-          <span className="desktop-filter-label">More filters</span>
-          <span className="mobile-filter-label">Filters</span> (
-          {countGroups(applied)})
-        </button>
-        <span aria-live="polite">
-          {invalidUrl
-            ? "Invalid filters"
-            : `${results.length} ${results.length === 1 ? "edition" : "editions"} · ${mapped} mapped · ${results.length - mapped} unlocated`}
-        </span>
-        <button type="button" onClick={() => apply(emptyFilters())}>
-          Clear all
-        </button>
-      </div>
-      {panel && (
-        <FilterPanel
-          pending={pending}
-          setPending={setPending}
-          countries={countries}
-          summaries={catalog.summaries}
-          genres={catalog.genres}
-          onApply={apply}
-          onCancel={() => {
-            setPending(applied);
-            setPanel(false);
-            setFormError(null);
-            panelButton.current?.focus();
-          }}
-        />
-      )}
-      {active.length > 0 && (
-        <div className="chips" aria-label="Applied filters">
-          {active.map(([label, key]) => (
-            <button type="button" key={key} onClick={() => remove(key)}>
-              {label} ×
-            </button>
-          ))}
+          {(["when", "where", "genre", "more"] as FilterGroup[]).map(
+            (group) => (
+              <button
+                key={group}
+                className={`filter-trigger filter-trigger-${group}`}
+                type="button"
+                aria-expanded={panel === group}
+                aria-controls="filter-panel"
+                onClick={(event) => openPanel(group, event.currentTarget)}
+              >
+                {group === "when" && "When"}
+                {group === "where" && "Where"}
+                {group === "genre" && "Music genre"}
+                {group === "more" && (
+                  <>
+                    <span className="desktop-filter-label">More filters</span>
+                    <span className="mobile-filter-label">Filters</span>
+                    <span className="desktop-filter-label">
+                      {secondaryGroups > 0 && ` · ${secondaryGroups}`}
+                    </span>
+                    <span className="mobile-filter-label">
+                      {secondaryGroups +
+                        Number(Boolean(applied.genres.length)) >
+                        0 &&
+                        ` · ${secondaryGroups + Number(Boolean(applied.genres.length))}`}
+                    </span>
+                  </>
+                )}
+              </button>
+            ),
+          )}
         </div>
-      )}
-      {error && (
-        <div className="notice" role="alert">
-          <p>{error}</p>
-          <button type="button" onClick={() => apply(emptyFilters())}>
-            Reset invalid filters
+        {panel && (
+          <FilterPanel
+            group={panel}
+            pending={pending}
+            setPending={setPending}
+            countries={countries}
+            summaries={catalog.summaries}
+            genres={catalog.genres}
+            onApply={apply}
+            onCancel={closePanel}
+            error={formError}
+          />
+        )}
+        <div className={`discovery-results-shell view-${view}`}>
+          <div className="list-column">
+            <div className="results-summary">
+              <strong aria-live="polite">
+                {invalidUrl
+                  ? "Invalid filters"
+                  : `${results.length} ${results.length === 1 ? "edition" : "editions"}`}
+              </strong>
+              <span className="results-geography">
+                {mapped} mapped · {results.length - mapped} unlocated
+              </span>
+              {active.length > 0 && (
+                <div className="chips" aria-label="Applied filters">
+                  {active.map(([label, key]) => (
+                    <button
+                      type="button"
+                      key={key}
+                      onClick={() => remove(key)}
+                      aria-label={`Remove ${label} filter`}
+                    >
+                      {label} ×
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button
+                className="clear-filters"
+                type="button"
+                onClick={() => apply(emptyFilters())}
+              >
+                Clear all
+              </button>
+            </div>
+            {(urlError || loadError || searchError) && (
+              <div className="discovery-notices">
+                {searchError && (
+                  <div id="search-error" className="notice" role="alert">
+                    <p>{searchError}</p>
+                  </div>
+                )}
+                {urlError && (
+                  <div className="notice" role="alert">
+                    <p>{urlError}</p>
+                    <button type="button" onClick={() => apply(emptyFilters())}>
+                      Reset invalid filters
+                    </button>
+                  </div>
+                )}
+                {loadError && (
+                  <div className="notice" role="alert">
+                    <p>
+                      Could not refresh discovery results. Showing the last
+                      available list.
+                    </p>
+                    <button type="button" onClick={() => void load()}>
+                      Retry
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            <ResultsList
+              results={results}
+              selectedId={selectedId}
+              error={urlError}
+              onSelect={(id) => void selectEdition(id)}
+              onClear={() => apply(emptyFilters())}
+            />
+          </div>
+          <section className="map-region" aria-label="Map results">
+            <DiscoveryMap
+              summaries={results}
+              selectedId={selectedId}
+              onSelect={(id) => void selectEdition(id)}
+              visible={view === "map"}
+            />
+            <div className="map-result-count" aria-live="polite">
+              {mapped} on map · {results.length - mapped} without a map location
+            </div>
+          </section>
+          <SelectedPreview
+            detailState={detailState}
+            panelRef={detailPanel}
+            onClose={closeDetail}
+            onRetry={(id) => void selectEdition(id)}
+          />
+        </div>
+        <div className="view-switch" role="group" aria-label="Discovery view">
+          <button
+            type="button"
+            aria-pressed={view === "list"}
+            onClick={() => switchView("list")}
+          >
+            List
+          </button>
+          <button
+            type="button"
+            aria-pressed={view === "map"}
+            onClick={() => switchView("map")}
+          >
+            Map
           </button>
         </div>
-      )}
-      {loadError && (
-        <div className="notice" role="alert">
-          <p>
-            Could not refresh discovery results. Showing the last available
-            list.
-          </p>
-          <button type="button" onClick={() => void load()}>
-            Retry
-          </button>
-        </div>
-      )}
-      <div className="view-switch" role="group" aria-label="Discovery view">
-        <button
-          type="button"
-          aria-pressed={view === "map"}
-          onClick={() => switchView("map")}
-        >
-          Map
-        </button>
-        <button
-          type="button"
-          aria-pressed={view === "list"}
-          onClick={() => switchView("list")}
-        >
-          List
-        </button>
       </div>
-      <div className={`discovery-results view-${view}`}>
-        <section className="map-region" aria-label="Map results">
-          <h2>Map</h2>
-          <DiscoveryMap
-            summaries={results}
-            selectedId={selectedId}
-            onSelect={(id) => void selectEdition(id)}
-            visible={view === "map"}
-          />
-        </section>
-        <ResultsList
-          results={results}
-          selectedId={selectedId}
-          error={error}
-          onSelect={(id) => void selectEdition(id)}
-          onClear={() => apply(emptyFilters())}
-        />
-      </div>
-      <SelectedPreview
-        detailState={detailState}
-        panelRef={detailPanel}
-        onClose={() => {
-          ++detailRequest.current;
-          setDetailState({ status: "idle" });
-        }}
-        onRetry={(id) => void selectEdition(id)}
-      />
     </div>
   );
 }

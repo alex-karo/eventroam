@@ -58,123 +58,553 @@ a:hover {
   margin: 0.25rem 0;
 }
 
+/* The discovery surface is a compact atlas: the list is the index and the map is its canvas. */
+.discovery-page {
+  width: 100%;
+  min-width: 320px;
+  margin: 0;
+  padding: 0;
+}
+.discovery {
+  --ink: #172b36;
+  --muted: #536671;
+  --line: #dce4e8;
+  --soft: #f2f6f8;
+  --teal: #007969;
+  --tint: #e8f5f0;
+  color: var(--ink);
+  background: #fff;
+  font:
+    14px/1.45 "IBM Plex Sans",
+    "Avenir Next",
+    Arial,
+    sans-serif;
+}
+.discovery * {
+  box-sizing: border-box;
+}
 .discovery button,
 .discovery input {
   font: inherit;
 }
 .discovery button {
-  border: 1px solid #53736b;
-  border-radius: 0.45rem;
-  color: #173d33;
-  background: white;
-  padding: 0.4rem 0.75rem;
   cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+  color: var(--ink);
+  padding: 7px 10px;
 }
-.discovery button:hover,
-.discovery button:focus-visible {
-  background: #e1eee8;
+.discovery button:hover {
+  background: var(--soft);
 }
-.discovery input {
-  border: 1px solid #81998e;
-  border-radius: 0.35rem;
-  padding: 0.4rem;
-  max-width: 100%;
+.discovery button:focus-visible,
+.discovery a:focus-visible,
+.discovery input:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+}
+.discovery a {
+  color: var(--teal);
+}
+.discovery-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 52px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.discovery-brand {
+  color: var(--ink) !important;
+  text-decoration: none;
+  font:
+    800 23px/1 "Trebuchet MS",
+    "Avenir Next",
+    sans-serif;
+  letter-spacing: -1.3px;
+  white-space: nowrap;
+}
+.discovery-brand span {
+  color: var(--teal);
+}
+.discovery-scope {
+  border-left: 1px solid var(--line);
+  padding-left: 13px;
+  color: var(--muted);
+  font-size: 12px;
 }
 .name-search {
-  margin: 1.5rem 0 1rem;
-}
-.name-search > label {
-  display: block;
-  font-weight: 700;
-  margin-bottom: 0.3rem;
-}
-.name-search > div {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  width: min(300px, 35vw);
+  margin-left: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 .name-search input {
-  flex: 1;
   min-width: 0;
-}
-.filter-toolbar,
-.chips,
-.filter-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-  align-items: center;
-}
-.filter-toolbar {
-  border-block: 1px solid #c7d1ca;
-  padding: 0.8rem 0;
-}
-.filter-toolbar span[aria-live] {
-  font-weight: 700;
-  margin-inline: auto;
-}
-.filter-panel {
-  background: #edf2ed;
-  border: 1px solid #c7d1ca;
-  border-radius: 0.6rem;
-  padding: 1rem;
-  margin-top: 0.75rem;
-}
-.filter-panel h2 {
-  margin-top: 0;
-}
-.filter-panel fieldset {
+  width: 100%;
   border: 0;
-  border-top: 1px solid #c7d1ca;
-  padding: 0.9rem 0;
-  margin: 0;
+  padding: 6px 9px;
+  background: transparent;
+  outline-offset: -2px;
 }
-.filter-panel legend {
-  font-weight: 700;
-  padding-top: 0.9rem;
+.name-search button {
+  border: 0;
+  padding: 4px 8px;
+  font-size: 20px;
+  line-height: 1;
 }
-.filter-panel fieldset > label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0.2rem 0.8rem 0.4rem 0;
+.discovery-stage {
+  position: relative;
+  height: calc(100dvh - 52px);
+  min-height: 460px;
 }
-.filter-panel fieldset p {
-  margin: 0.2rem 0 0.6rem;
-  font-size: 0.9rem;
+.discovery-results-shell {
+  display: grid;
+  grid-template-columns: minmax(300px, 40%) minmax(0, 60%);
+  height: 100%;
+  min-height: 0;
 }
-.choices {
+.list-column {
+  min-width: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  background: white;
+}
+.results-summary {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  margin-top: 0.5rem;
-}
-.choices label {
-  display: inline-flex;
-  gap: 0.3rem;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 9px 14px;
+  min-height: 43px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.results-summary strong {
+  white-space: nowrap;
 }
 .chips {
-  margin-top: 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
-.chips button {
-  background: #dcece3;
+.discovery .chips button {
+  border: 0;
+  background: var(--tint);
+  color: var(--teal);
+  padding: 3px 6px;
+  font-size: 11px;
+}
+.discovery .clear-filters {
+  border: 0;
+  margin-left: auto;
+  padding: 3px 5px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.discovery .clear-filters:hover {
+  color: var(--teal);
+}
+.discovery-notices {
+  padding: 10px 14px 0;
 }
 .notice {
-  margin-top: 1.2rem;
-  padding: 1rem;
-  background: #fff7e5;
-  border: 1px solid #d3aa54;
-  border-radius: 0.5rem;
+  padding: 12px;
+  border: 1px solid #d2aa64;
+  border-radius: 8px;
+  background: #fff9ed;
+}
+.notice + .notice {
+  margin-top: 8px;
 }
 .notice p {
-  margin-top: 0;
+  margin: 0 0 8px;
+}
+.list-region {
+  min-width: 0;
+}
+.discovery .edition-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.discovery .edition-list li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 11px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.discovery .edition-list li.selected-edition {
+  background: var(--tint);
+  box-shadow: inset 3px 0 var(--teal);
+}
+.edition-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 4px 2px;
+  line-height: 1.1;
+}
+.edition-date span {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.edition-date strong {
+  margin-top: 3px;
+  font:
+    700 21px/1 "Trebuchet MS",
+    "Avenir Next",
+    sans-serif;
+}
+.edition-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.edition-name {
+  color: var(--ink) !important;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.25px;
+  line-height: 1.25;
+}
+.edition-name:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--teal);
+}
+.edition-place {
+  margin-top: 3px;
+  font-size: 12px;
+}
+.edition-meta {
+  color: var(--muted);
+  margin-top: 3px;
+  font-size: 11px;
+}
+.edition-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin-top: 3px;
+  color: #855321;
+  font-size: 11px;
+}
+.edition-statuses span::before {
+  content: "•";
+  margin-right: 4px;
+}
+.discovery .edition-details {
+  align-self: center;
+  padding: 5px 7px;
+  color: var(--teal);
+  font-size: 11px;
+}
+.discovery .edition-details[aria-pressed="true"] {
+  border-color: var(--teal);
+  background: var(--tint);
+}
+.empty-results {
+  margin: 16px;
+}
+.map-region {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #e2edf2;
+}
+.map-shell,
+.map-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+}
+.map-shell {
+  position: relative;
+}
+.map-fallback {
+  position: absolute;
+  top: 72px;
+  left: 16px;
+  right: 16px;
+  z-index: 2;
+  padding: 12px;
+  border: 1px solid #d2aa64;
+  border-radius: 8px;
+  background: #fff9ed;
+}
+.map-caption {
+  position: absolute;
+  bottom: 34px;
+  left: 12px;
+  z-index: 1;
+  max-width: 70%;
+  margin: 0;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #ffffffd9;
+  color: var(--muted);
+  font-size: 10px;
+}
+.map-result-count {
+  position: absolute;
+  top: 58px;
+  left: 16px;
+  z-index: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #ffffffd9;
+  color: var(--muted);
+  font-size: 11px;
+}
+.filter-toolbar {
+  position: absolute;
+  z-index: 6;
+  top: 12px;
+  left: calc(40% + 12px);
+  display: flex;
+  width: max-content;
+  max-width: calc(60% - 24px);
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 3px 12px #00000012;
+}
+.discovery .filter-trigger {
+  flex: none;
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 9px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.discovery .filter-trigger + .filter-trigger {
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+}
+.discovery .filter-trigger[aria-expanded="true"] {
+  color: var(--teal);
+  background: var(--tint);
 }
 .mobile-filter-label {
   display: none;
 }
-@media (max-width: 42rem) {
-  .catalog {
-    padding: 1.5rem 1rem 4rem;
+.filter-panel {
+  position: absolute;
+  z-index: 7;
+  top: 58px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  width: min(530px, calc(60% - 24px));
+  max-height: calc(100% - 70px);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: white;
+  box-shadow: 0 8px 25px #0002;
+}
+.filter-panel h2 {
+  flex: none;
+  margin: 0;
+  padding: 14px 16px 8px;
+  font:
+    700 18px/1.2 "Trebuchet MS",
+    "Avenir Next",
+    sans-serif;
+  letter-spacing: -0.4px;
+}
+.filter-fields {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0 16px 14px;
+}
+.filter-panel fieldset {
+  min-width: 0;
+  border: 0;
+  margin: 0;
+  padding: 3px 0;
+}
+.filter-panel fieldset + fieldset {
+  border-top: 1px solid var(--line);
+  margin-top: 13px;
+  padding-top: 13px;
+}
+.filter-panel legend {
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.filter-panel fieldset p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 2px 0 10px;
+}
+.filter-panel label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 12px 5px 0;
+  font-size: 13px;
+}
+.filter-panel input:not([type="checkbox"]) {
+  max-width: 100%;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+}
+.filter-panel input[type="checkbox"] {
+  accent-color: var(--teal);
+  width: 17px;
+  height: 17px;
+}
+.filter-panel .choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 9px;
+}
+.filter-panel .choices label {
+  white-space: nowrap;
+}
+.filter-panel .genre-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 3px 8px;
+  list-style: none;
+  padding: 0;
+  margin: 5px 0;
+}
+.filter-panel .genre-options .genre-options {
+  display: block;
+  margin: 2px 0 0 12px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+.filter-panel .genre-options label {
+  margin: 2px 0;
+}
+.filter-panel .mobile-genre-field {
+  display: none;
+}
+.filter-actions {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  background: white;
+  border-radius: 0 0 11px 11px;
+}
+.discovery .filter-actions button:first-child {
+  background: var(--teal);
+  color: white;
+  border-color: var(--teal);
+}
+.detail-panel {
+  position: absolute;
+  z-index: 4;
+  top: 62px;
+  right: 14px;
+  width: min(380px, calc(60% - 28px));
+  max-height: calc(100% - 76px);
+  overflow-y: auto;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 8px 25px #0002;
+}
+.detail-panel > button:first-child {
+  float: right;
+  margin: -3px -3px 8px 8px;
+}
+.detail-panel h2 {
+  font:
+    700 22px/1.2 "Trebuchet MS",
+    "Avenir Next",
+    sans-serif;
+  letter-spacing: -0.5px;
+  margin: 3px 0 12px;
+}
+.detail-panel h3 {
+  margin: 13px 0 5px;
+  font-size: 13px;
+}
+.detail-panel p {
+  margin: 7px 0;
+}
+.detail-panel ul {
+  margin: 5px 0 10px;
+  padding-left: 20px;
+}
+.view-switch {
+  display: none;
+}
+@media (max-width: 900px) and (min-width: 741px) {
+  .filter-toolbar {
+    max-width: calc(60% - 16px);
+  }
+  .discovery .filter-trigger {
+    padding: 7px 6px;
+    font-size: 11px;
+  }
+  .discovery .edition-list li {
+    grid-template-columns: 37px minmax(0, 1fr);
+  }
+  .edition-details {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+@media (max-width: 740px) {
+  .discovery-header {
+    height: 49px;
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .discovery-brand {
+    font-size: 20px;
+  }
+  .discovery-scope {
+    display: none;
+  }
+  .name-search {
+    flex: 1;
+    width: auto;
+  }
+  .name-search input {
+    font-size: 16px;
+  }
+  .discovery-stage {
+    height: calc(100dvh - 49px);
+    min-height: 450px;
+  }
+  .filter-toolbar {
+    top: 8px;
+    left: 10px;
+    right: 10px;
+    width: max-content;
+    max-width: calc(100% - 20px);
+  }
+  .discovery .filter-trigger {
+    min-height: 39px;
+    padding: 7px 10px;
+  }
+  .filter-trigger-genre {
+    display: none;
   }
   .desktop-filter-label {
     display: none;
@@ -182,125 +612,149 @@ a:hover {
   .mobile-filter-label {
     display: inline;
   }
-  .filter-panel fieldset > label {
+  .filter-panel {
+    top: 56px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    max-height: calc(100% - 120px);
+  }
+  .filter-panel .mobile-genre-field {
+    display: block;
+  }
+  .filter-panel label {
     display: flex;
   }
-  .choices {
-    flex-direction: column;
+  .filter-panel input:not([type="checkbox"]) {
+    font-size: 16px;
+  }
+  .discovery-results-shell {
+    display: block;
+    padding-top: 56px;
+  }
+  .list-column,
+  .map-region {
+    height: 100%;
+  }
+  .list-column {
+    overflow-y: auto;
+    padding-bottom: 68px;
+    border-right: 0;
+  }
+  .discovery-results-shell.view-list .map-region {
+    display: none;
+  }
+  .discovery-results-shell.view-map .list-column {
+    display: contents;
+  }
+  .discovery-results-shell.view-map .list-region {
+    display: none;
+  }
+  .discovery-results-shell.view-map .discovery-notices {
+    position: absolute;
+    z-index: 4;
+    top: 60px;
+    left: 10px;
+    right: 10px;
+    max-height: min(190px, calc(100% - 180px));
+    overflow-y: auto;
+    padding: 0;
+  }
+  .discovery-results-shell.view-map .results-summary {
+    position: absolute;
+    z-index: 3;
+    bottom: calc(92px + env(safe-area-inset-bottom));
+    left: 10px;
+    right: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 2px 9px #0002;
+  }
+  .map-result-count {
+    display: none;
+  }
+  .map-caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .map-fallback {
+    top: 45px;
+  }
+  .detail-panel {
+    top: 65px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    max-height: calc(100% - 135px);
+  }
+  .view-switch {
+    position: absolute;
+    z-index: 5;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: white;
+    box-shadow: 0 3px 12px #0002;
+  }
+  .discovery-results-shell.view-map ~ .view-switch {
+    bottom: calc(32px + env(safe-area-inset-bottom));
+  }
+  .view-switch button {
+    min-width: 55px;
+  }
+  .view-switch button[aria-pressed="true"] {
+    color: white;
+    background: var(--teal);
+    border-color: var(--teal);
+  }
+}
+@media (max-width: 380px) {
+  .discovery-brand {
+    font-size: 18px;
+  }
+  .discovery .filter-trigger {
+    padding: 7px 8px;
+    font-size: 11px;
+  }
+  .discovery .edition-list li {
+    grid-template-columns: 38px minmax(0, 1fr);
+    padding: 12px 10px;
+  }
+  .edition-details {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .results-summary {
+    padding: 8px 10px;
+  }
+}
+@media (pointer: coarse) {
+  .discovery .filter-trigger,
+  .discovery .view-switch button {
+    min-height: 44px;
   }
 }
 
-.primary-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+.results-geography {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
 }
-@media (max-width: 42rem) {
-  .primary-filters .genre-shortcut {
-    display: none;
-  }
-}
-.genre-options {
-  list-style: none;
-  margin: 0.4rem 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 0.45rem 1rem;
-}
-.genre-options .genre-options {
-  display: block;
-  margin: 0.3rem 0 0 1.1rem;
-  border-left: 1px solid #aebeb3;
-  padding-left: 0.75rem;
-}
-.genre-options .genre-options li + li {
-  margin-top: 0.3rem;
-}
-.genre-options label {
-  display: inline-flex;
-  gap: 0.35rem;
-  align-items: center;
-}
-.discovery-page {
-  max-width: 88rem;
-}
-.discovery-results {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(22rem, 0.85fr);
-  gap: 1.5rem;
-  align-items: start;
-}
-.discovery-results > section {
-  min-width: 0;
-}
-.discovery-results h2 {
-  margin: 1rem 0 0.6rem;
-}
-.map-shell {
-  position: relative;
-}
-.map-canvas {
-  height: min(70vh, 42rem);
-  min-height: 24rem;
-  border: 1px solid #c7d1ca;
-  border-radius: 0.5rem;
-  overflow: hidden;
-}
-.map-fallback {
-  padding: 1.5rem;
-  background: #fff7e5;
-  border: 1px solid #d3aa54;
-  border-radius: 0.5rem;
-}
-.map-shell .map-fallback {
-  position: absolute;
-  left: 1rem;
-  right: 1rem;
-  top: 1rem;
-  z-index: 2;
-}
-.map-caption {
-  font-size: 0.85rem;
-  margin: 0.35rem 0;
-}
-.view-switch {
-  display: none;
-  gap: 0.4rem;
-  margin-top: 1rem;
-}
-.view-switch [aria-pressed="true"] {
-  background: #12614f;
-  color: #fff;
-}
-.edition-list li > button {
-  margin-left: 0.75rem;
-}
-.selected-edition {
-  background: #e1eee8;
-}
-.detail-panel {
-  border: 1px solid #c7d1ca;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-top: 1.5rem;
-  background: white;
-}
-.detail-panel h2 {
-  margin-top: 0.5rem;
-}
-@media (max-width: 50rem) {
-  .discovery-results {
-    display: block;
-  }
-  .view-switch {
-    display: flex;
-  }
-  .discovery-results.view-map .list-region,
-  .discovery-results.view-list .map-region {
-    display: none;
-  }
-  .map-canvas {
-    height: 60vh;
-  }
+.filter-error {
+  margin: 0;
+  padding: 7px 16px;
+  color: #8b3f20;
+  font-size: 12px;
 }

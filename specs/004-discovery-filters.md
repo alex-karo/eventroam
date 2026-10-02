@@ -1,12 +1,22 @@
 # V1 discovery filters
 
-Date: 2026-10-01 · Status: Selected scope, complete summary loading, and responsive map/list layout; remaining interaction details and size bands are proposed defaults
+Date: 2026-10-02 · Status: Selected scope, complete summary loading, and compact responsive map/list layout; size bands remain proposed defaults
 
 Support **When, Where, Music genre, Duration, and Size**, plus name search. Exclude Experience, Setting, and date-confirmation controls. Defer price, camping, and other practical filters. Continue collecting [festival information](003-festival-information.md), including prices in original currencies.
 
 This replaces earlier filter recommendations; [domain rules](001-domain-model.md) and [taxonomy definitions](002-festival-taxonomy.md) still apply.
 
 ## Placement and interaction
+
+### Compact discovery presentation (2026-10-02)
+
+Implement the approved compact proposal: a slim brand/scope header with name search, a dense edition list on the left (about 40%) and a map on the right filling the remaining viewport. Remove the introductory heading block and redundant Map/List headings. Float the compact filter strip and its on-demand panel over the map on desktop; keep result counts and applied chips with the list. Panels must not obscure their own Apply/Cancel controls, and must restore focus to their opener. On narrow screens reserve a compact control area above list rows and provide a readily accessible floating Map/List switch. Keep content usable at 320px and with keyboard navigation.
+
+Use the proposal's restrained teal palette and expressive brand typography. Map points should be approximately 9px visually with larger pointer/touch hit areas, a distinct selected state, and names/status in a hover preview or selected details. Place zoom/fit controls in a map corner. Preserve Mapbox attribution, approximate-location labels, clustering, and all coordinate-bearing results. Details open in a compact contextual panel with the linked public edition page still available.
+
+This presentation change keeps the existing catalog/API/URL contracts and unknown-value semantics. Search, filters, Apply/Cancel, browser history, retry handling and stale-response protection must retain their behavior. No data migration, new collection fields, animations, or mock-only detail features are required. Map configuration/loading failures retain a useful list and clear fallback. Roll out as the default discovery layout; verify standard checks plus desktop/mobile layout, filter application/cancellation, selection, and view switching against fictional fixtures.
+
+Compact row styling is confined to discovery; public Event history retains its document layout. On mobile, fit/zoom and Map/List controls share a bottom row above attribution, with the applied summary growing upward above that row. Search validation feedback remains visible and associated with the search field whether filter pickers are open or closed; invalid submissions preserve the applied URL/results. Regression checks cover public history, wrapped chips at 320px, and overlong name searches in both views.
 
 | Placement | Desktop | Mobile |
 | --- | --- | --- |

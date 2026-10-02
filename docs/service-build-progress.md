@@ -23,6 +23,14 @@ Status: development-fixture build complete and committed
 - Section 5 code review and independent live Mapbox review passed with no blocking findings. Lint, format, type check, 27 tests, build, HTTP, fallback, live tiles/attribution/clustering/selection, and browser flows pass. Details: `/tmp/eventroam-section5-review.md` and `/tmp/eventroam-section5-live-review.md`.
 - The ignored `.env` contains a working local public token. Account-side restrictions, launch-host allowlist, usage monitoring, and budget alerts remain unverified and required before public deployment.
 
+## Compact discovery refresh (2026-10-02)
+
+- Implemented the approved compact proposal: slim search header, list/map workspace, floating filter pickers, denser edition rows, and contextual details. Mobile keeps results and Map/List switching accessible without a large heading block.
+- Map points use smaller visual circles with larger invisible hit targets, compact clusters, informative previews, and fit/zoom controls. Initial fitting waits for a visible map and handles locations across the date line.
+- Verified filtering, cancellation and focus restoration, history, empty search/reset, invalid pending filters, mobile error recovery, detail selection/Escape, direct edition links, and live Mapbox selection at desktop and 320px/390px mobile widths. Type checking, lint, formatting, 41 tests, and the production build pass.
+- No catalog/API changes, dependencies, migrations, or production deployment were required.
+- Astra review regressions corrected: discovery row styles no longer affect public event history, mobile map controls share a row below wrapping filter chips, and name-search validation has visible accessible feedback outside pickers. Browser checks reproduced and verified all three fixes, including search recovery and preservation of applied results.
+
 ## Next action
 
 Before any public deployment, verify the account-side Mapbox restrictions, launch-host allowlist, monitoring, and budget alerts; keep that deployment gate unchecked until then.

@@ -1,0 +1,65 @@
+.controls {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 2.75rem;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.controls button {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #bed1c8;
+  border-radius: 0.35rem;
+  background: #fff;
+  color: #173d33;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px #00000018;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .controls button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
+.controls button:hover,
+.controls button:focus-visible {
+  background: #e6f2ed;
+}
+
+@media (max-width: 740px) {
+  .controls {
+    left: 0.75rem;
+    right: auto;
+    bottom: calc(32px + env(safe-area-inset-bottom));
+    flex-direction: row;
+  }
+}
+
+.previewPopup :global(.mapboxgl-popup-content) {
+  border: 1px solid #bed1c8;
+  border-radius: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  box-shadow: 0 3px 12px #00000020;
+}
+
+.previewContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: #173d33;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.previewContent strong {
+  font-size: 0.85rem;
+}
