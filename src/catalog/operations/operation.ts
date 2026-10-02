@@ -12,7 +12,6 @@ const common = z
     operationKey: z.string().min(1).max(200),
     actor: z.string().min(1).max(200),
     initiatedBy: z.string().min(1).max(200).optional(),
-    ingestionRunId: z.string().optional(),
     note: z.string().max(500).optional(),
   })
   .strict();

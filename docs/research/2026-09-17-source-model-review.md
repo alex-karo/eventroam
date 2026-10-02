@@ -15,7 +15,7 @@ The current Event/Occurrence split, date uncertainty, approximate-location handl
 4. Define occurrence dates as public programme dates and explicitly reject campsite, gate, accommodation, ticket-sale, build, or strike windows. Treat a fallow year as absence, not cancellation.
 5. Represent a source's date-only publication label without inventing a midnight timestamp.
 
-These findings are incorporated in `specs/001-domain-model.md` version 0.6. Its first-release design stores check outcomes in IngestionRun results and evidence for applied facts in CatalogChange; a separate Observation entity is deferred.
+These findings informed the domain model. Its current design keeps Source and CatalogChange records without a persisted source-check result entity; a separate Observation entity is deferred.
 
 Do not add ticket products, lineups, artists, transport, accommodation, or media solely because the dumps contain them. They remain valid later features, but none is necessary to identify and publish the first coherent catalog slice.
 
@@ -35,7 +35,7 @@ Do not add ticket products, lineups, artists, transport, accommodation, or media
 - 121 records have neither a website nor Facebook URL, so the dump alone cannot provide current publication evidence.
 - Three records use `[0, 0]` for unknown coordinates. The domain model correctly rejects this sentinel.
 - Confidence is a property of this dataset's row (`304 HIGH`, `117 MEDIUM`, `53 LOW`), not a substitute for field-level evidence or Eventroam validation.
-- Examples show classification noise and geocoding risk. Imported tags and confidence should stay in source-check results or import evidence until mapped and verified.
+- Examples show classification noise and geocoding risk. Imported tags and confidence should stay in process output or import evidence until mapped and verified.
 
 ### `sources/festt/festivals.json`
 
@@ -63,7 +63,7 @@ The following examples were sampled to challenge the model, not to certify or im
 | --- | --- | --- |
 | Edition-specific outdoor/hybrid presentation | Add Occurrence classification overrides | Scope eligibility is evaluated per edition. |
 | Country, region/locality, and approximate coordinates | Require country plus area; keep coordinates optional and qualified | Prevent globally ambiguous pages and false map precision. |
-| Redirects and changing source authority | Preserve final URL and authority in run results and CatalogChange evidence | Preserve what evidence meant when accepted. |
+| Redirects and changing source authority | Preserve final URL and authority in process output and CatalogChange evidence | Preserve what evidence meant when accepted. |
 | Date-only source publication label | Retain the date-only label in evidence without inventing an instant | Preserve source precision without inventing midnight or a timezone. |
 | Festival dates mixed with gate/camping/sales dates | Add a date-boundary invariant | Prevent plausible but materially wrong ranges. |
 | Fallow year | Represent no Occurrence | Absence is not cancellation. |

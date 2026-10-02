@@ -6,7 +6,6 @@ import {
   catalogChanges,
   events,
   externalLinks,
-  ingestionRuns,
   occurrenceTerms,
   occurrences,
   operationReceipts,
@@ -269,7 +268,6 @@ function writeChange(
       subjectVersion: version,
       changedFields: changes,
       operationKey: meta.operationKey,
-      ingestionRunId: meta.ingestionRunId ?? null,
       actor: meta.actor,
       initiatedBy: meta.initiatedBy ?? null,
       changedAt: now,
@@ -381,17 +379,6 @@ export function applyCatalogOperation(
         "Operation key reused with different payload",
       );
       return prior.result as CatalogOperationResult;
-    }
-    if (op.ingestionRunId) {
-      const run = db
-        .select({ mode: ingestionRuns.mode, status: ingestionRuns.status })
-        .from(ingestionRuns)
-        .where(eq(ingestionRuns.id, op.ingestionRunId))
-        .get();
-      assert(
-        run?.mode === "apply" && run.status === "running",
-        "Catalog writes require an active apply run",
-      );
     }
     const now = new Date().toISOString();
     let result: CatalogOperationResult;

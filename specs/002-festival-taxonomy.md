@@ -121,7 +121,7 @@ The filter interaction spec will choose useful public controls; this vocabulary 
 
 ## 6 Writes and observability
 
-Validated application operations accept term IDs or resolve known `(facet, slug)` pairs. They validate facet cardinality and parent rules before writing. Normal classification writes only attach existing terms; unmatched labels appear in run results rather than silently creating vocabulary.
+Validated application operations accept term IDs or resolve known `(facet, slug)` pairs. They validate facet cardinality and parent rules before writing. Normal classification writes only attach existing terms; unmatched labels appear in process output rather than silently creating vocabulary.
 
 Apply assignment changes and their Occurrence `CatalogChange` atomically under the existing expected-version and operation-key contract. Accepted changes retain source evidence and actor attribution; unchanged sets create no duplicate assignments or audit entries. Run summaries distinguish applied changes, unmapped labels, source conflicts, and failed retrievals. There is no review entity or per-change approval step.
 

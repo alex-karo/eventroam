@@ -276,31 +276,6 @@ export const externalLinks = sqliteTable(
     ),
   ],
 );
-export const ingestionRuns = sqliteTable(
-  "ingestion_runs",
-  {
-    id: text("id").primaryKey(),
-    mode: text("mode", { enum: ["dry_run", "apply"] }).notNull(),
-    initiatedBy: text("initiated_by").notNull(),
-    adapterVersions: text("adapter_versions", { mode: "json" })
-      .$type<Record<string, string>>()
-      .notNull(),
-    startedAt: text("started_at").notNull(),
-    finishedAt: text("finished_at"),
-    status: text("status", {
-      enum: ["running", "succeeded", "partially_failed", "failed"],
-    }).notNull(),
-    summary: text("summary", { mode: "json" }).$type<Record<string, number>>(),
-    results: text("results", { mode: "json" }).$type<unknown[]>(),
-  },
-  (t) => [
-    check("ingestion_runs_mode_ck", sql`${t.mode} IN ('dry_run','apply')`),
-    check(
-      "ingestion_runs_status_ck",
-      sql`${t.status} IN ('running','succeeded','partially_failed','failed')`,
-    ),
-  ],
-);
 export const urlAliases = sqliteTable(
   "url_aliases",
   {
@@ -328,7 +303,6 @@ export const catalogChanges = sqliteTable(
       .$type<unknown[]>()
       .notNull(),
     operationKey: text("operation_key").notNull(),
-    ingestionRunId: text("ingestion_run_id").references(() => ingestionRuns.id),
     actor: text("actor").notNull(),
     initiatedBy: text("initiated_by"),
     changedAt: text("changed_at").notNull(),

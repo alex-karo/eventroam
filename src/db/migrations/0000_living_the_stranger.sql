@@ -5,14 +5,12 @@ CREATE TABLE `catalog_changes` (
 	`subject_version` integer NOT NULL,
 	`changed_fields` text NOT NULL,
 	`operation_key` text NOT NULL,
-	`ingestion_run_id` text,
 	`actor` text NOT NULL,
 	`initiated_by` text,
 	`changed_at` text NOT NULL,
 	`note` text,
 	FOREIGN KEY (`event_id`) REFERENCES `events`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`occurrence_id`) REFERENCES `occurrences`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`ingestion_run_id`) REFERENCES `ingestion_runs`(`id`) ON UPDATE no action ON DELETE no action,
 	CONSTRAINT "catalog_changes_subject_ck" CHECK(("catalog_changes"."event_id" IS NOT NULL) != ("catalog_changes"."occurrence_id" IS NOT NULL)),
 	CONSTRAINT "catalog_changes_version_ck" CHECK("catalog_changes"."subject_version" > 0)
 );
@@ -57,20 +55,6 @@ CREATE TABLE `external_links` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `external_links_event_uq` ON `external_links` (`event_id`,`kind`,`url`);--> statement-breakpoint
 CREATE UNIQUE INDEX `external_links_occurrence_uq` ON `external_links` (`occurrence_id`,`kind`,`url`);--> statement-breakpoint
-CREATE TABLE `ingestion_runs` (
-	`id` text PRIMARY KEY NOT NULL,
-	`mode` text NOT NULL,
-	`initiated_by` text NOT NULL,
-	`adapter_versions` text NOT NULL,
-	`started_at` text NOT NULL,
-	`finished_at` text,
-	`status` text NOT NULL,
-	`summary` text,
-	`results` text,
-	CONSTRAINT "ingestion_runs_mode_ck" CHECK("ingestion_runs"."mode" IN ('dry_run','apply')),
-	CONSTRAINT "ingestion_runs_status_ck" CHECK("ingestion_runs"."status" IN ('running','succeeded','partially_failed','failed'))
-);
---> statement-breakpoint
 CREATE TABLE `occurrence_terms` (
 	`occurrence_id` text NOT NULL,
 	`term_id` text NOT NULL,
@@ -202,7 +186,3 @@ CREATE TRIGGER occurrence_term_facet_insert BEFORE INSERT ON occurrence_terms WH
 CREATE TRIGGER url_aliases_occurrence_owner_insert BEFORE INSERT ON url_aliases WHEN NEW.occurrence_id IS NOT NULL BEGIN SELECT RAISE(ABORT, 'alias occurrence must belong to event') WHERE (SELECT event_id FROM occurrences WHERE id=NEW.occurrence_id) != NEW.event_id; END;
 --> statement-breakpoint
 CREATE TRIGGER taxonomy_parent_cycle_update BEFORE UPDATE OF parent_id ON taxonomy_terms WHEN NEW.parent_id IS NOT NULL BEGIN WITH RECURSIVE ancestors(id) AS (SELECT NEW.parent_id UNION ALL SELECT t.parent_id FROM taxonomy_terms t JOIN ancestors a ON t.id=a.id WHERE t.parent_id IS NOT NULL) SELECT RAISE(ABORT, 'taxonomy parent cycle') WHERE EXISTS (SELECT 1 FROM ancestors WHERE id=NEW.id); END;
---> statement-breakpoint
-CREATE TRIGGER ingestion_runs_completed_immutable BEFORE UPDATE ON ingestion_runs WHEN OLD.status != 'running' BEGIN SELECT RAISE(ABORT, 'completed runs are immutable'); END;
---> statement-breakpoint
-CREATE TRIGGER ingestion_runs_completed_no_delete BEFORE DELETE ON ingestion_runs WHEN OLD.status != 'running' BEGIN SELECT RAISE(ABORT, 'completed runs are immutable'); END;

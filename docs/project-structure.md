@@ -29,7 +29,7 @@ src/
 │   ├── domain/                # Pure business rules
 │   ├── operations/            # Validated mutation contracts
 │   ├── read/                  # Public queries and browser-safe DTO contracts
-│   └── write/                 # Transactions, publication, audit, run records
+│   └── write/                 # Transactions, publication, audit
 ├── site/
 │   └── server/                # Request adapters; site.ts holds scope and URL rules
 ├── db/                        # Schema, connections, and SQL migrations

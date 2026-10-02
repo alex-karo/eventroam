@@ -38,6 +38,6 @@ These are optional event details, not publication gates or v1 filters. Use quali
 
 Prioritize publication facts, then genre and capacity, then prices and practical details. Prefer edition-relevant official sources. Retain inspected URL, authority, retrieval time, and supporting excerpt/snapshot under the domain contract; existing dumps are leads, not current verification.
 
-Unknown never means no or zero. Previous editions are leads, not inherited facts. Failed checks, missing extraction, and unresolved conflicts preserve accepted values and produce run results. Refreshes remain owner-initiated and changes audited.
+Unknown never means no or zero. Previous editions are leads, not inherited facts. Failed checks, missing extraction, and unresolved conflicts preserve accepted values and are reported in process output. Refreshes remain owner-initiated and changes audited.
 
 Extend the taxonomy's roughly 30-event validation sample across countries, currencies, sizes, and musical/non-musical events. Report usable capacity, other size measures, unknowns, and conflicts separately, alongside price coverage and qualifications. Missing optional information must not block publication.

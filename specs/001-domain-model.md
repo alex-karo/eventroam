@@ -3,7 +3,7 @@
 Status: Draft; product constraints confirmed in the foundation spec  
 Scope: Logical records, invariants, identity, evidence, and publication
 
-Implementation note (2026-10-02): Source evidence requirements and storage in this specification are deferred until the catalog database update workflow is implemented. Current catalog writes, publication, source-check results, and audit history do not require or store source excerpts, snapshots, or field-level evidence. Date, location, scope, versioning, and audit rules remain active. The detailed evidence rules below describe the intended later workflow.
+Implementation note (2026-10-02): Source evidence requirements and storage in this specification are deferred until the catalog database update workflow is implemented. Current catalog writes, publication, and audit history do not require or store source excerpts, snapshots, or field-level evidence. Date, location, scope, versioning, and audit rules remain active. The detailed evidence rules below describe the intended later workflow.
 
 ## 1. Context and boundaries
 
@@ -11,7 +11,7 @@ This model defines records and invariants for the [first release](000-product-fo
 
 ## 2. Modeling principles
 
-AI extraction is input, not evidence; validate against sources before a write. Keep accepted history and completed run results immutable. Temporal state, map features, and search documents are projections, not competing sources of truth. Logical value objects do not each require a table or service.
+AI extraction is input, not evidence; validate against sources before a write. Keep accepted change history immutable. Temporal state, map features, and search documents are projections, not competing sources of truth. Logical value objects do not each require a table or service.
 
 ## 3. Model overview
 
@@ -24,16 +24,14 @@ erDiagram
     EVENT ||--o{ EXTERNAL_LINK : publishes
     OCCURRENCE ||--o{ EXTERNAL_LINK : publishes
 
-    SOURCE }o--o{ INGESTION_RUN : checked_in
     SOURCE }o--o{ CATALOG_CHANGE : cited_by
-    INGESTION_RUN o|--o{ CATALOG_CHANGE : produces
     CATALOG_CHANGE }o--o| EVENT : changes
     CATALOG_CHANGE }o--o| OCCURRENCE : changes
 ```
 
 `ExternalLink` and `CatalogChange` have exactly one owner/subject even though the conceptual diagram shows both possible target types. `OccurrenceTerm` always belongs to one Occurrence.
 
-Catalog records are Event, Occurrence (including venue/location), TaxonomyTerm, OccurrenceTerm, and ExternalLink. Source, IngestionRun, and CatalogChange hold evidence and operations; source-check results and change evidence are embedded values. A one-off Event has one Occurrence; a recurring Event may have many. “Candidate” means a discovered or unpublished Event/Occurrence, not a separate entity. V1 has no Observation, Proposal, approval queue, or review state.
+Catalog records are Event, Occurrence (including venue/location), TaxonomyTerm, OccurrenceTerm, and ExternalLink. Source identifies external locations; CatalogChange holds applied change history and, when implemented, supporting evidence. A one-off Event has one Occurrence; a recurring Event may have many. “Candidate” means a discovered or unpublished Event/Occurrence, not a separate entity. V1 has no Observation, Proposal, approval queue, or review state.
 
 ## 4. Common types
 
@@ -53,7 +51,7 @@ These are logical types, not storage instructions.
 | `SubjectRef` | Logical reference to exactly one Event or Occurrence. Physical implementations should prefer explicit relations over unconstrained polymorphic strings. |
 | `ActorRef` | A human or system identity used for audit. It does not require user accounts in the MVP. |
 
-All mutable catalog records have `createdAt`, `updatedAt`, and a monotonically increasing `version` for optimistic concurrency. Immutable workflow records have a creation timestamp but are never updated except for lifecycle fields explicitly listed below.
+All mutable catalog records have `createdAt`, `updatedAt`, and a monotonically increasing `version` for optimistic concurrency. Immutable audit records have a creation timestamp and are never updated.
 
 ## 5. Catalog records
 
@@ -114,7 +112,7 @@ Date rules:
 - `scheduleStatus = scheduled` requires dates to be present.
 - `announced`, `postponed`, and `cancelled` may have known dates. For an already-published Occurrence postponed without replacement dates, retain the previous date pair and its original date state as historical context, set `scheduleStatus = postponed`, and label the range "Previous dates" beneath "Postponed — new dates TBA." Those dates no longer represent an active schedule. Accepting replacement dates updates the same Occurrence and records the old values in CatalogChange; it does not create a new Occurrence merely because dates moved.
 - `occurrenceYear` does not have to equal the year of `endsOn` for occurrences crossing New Year.
-- Month-only, season-only, and similar source text remains in the source-check result or change evidence until exact or explicitly provisional dates can be represented without invention.
+- Month-only, season-only, and similar source text remains in extraction output or change evidence until exact or explicitly provisional dates can be represented without invention.
 - The date pair represents the public event programme covered by this Occurrence. Do not substitute campsite, gate, accommodation, ticket-sale, build, or strike windows. When an official source presents main days plus satellite programming, define and evidence the chosen public boundary; do not silently widen it or bridge discontinuous periods.
 - A confirmed fallow year or explicit statement that no edition will take place is evidence of absence, not a cancelled Occurrence. Do not create a placeholder Occurrence for it.
 
@@ -126,7 +124,7 @@ Ticket availability rules:
 
 - Set `sold_out` only from an explicit edition-wide statement by the organizer or authorized ticket seller. A sold-out tier, day, campsite, or allocation alone does not establish this. Closed/not-yet-open sales, missing ticket links, and failed checks are not evidence of sell-out.
 - `available` means general-admission tickets were offered by an official/authorized source when checked, not guaranteed checkout availability. Retain partial-day or pass restrictions in price/attendance details. Otherwise start at `unknown`; unticketed events also need no ticket-availability claim.
-- Availability changes require source evidence and audit history. Retain URL and check time through existing evidence/run records, not a public freshness timestamp. Missing extraction or failed checks preserve the accepted value; supported ticket reopening may change `sold_out` to `available`. New editions start at `unknown`.
+- Availability changes require source evidence and audit history. Retain URL and check time with the applied change evidence, not a public freshness timestamp. Missing extraction or failed checks preserve the accepted value; supported ticket reopening may change `sold_out` to `available`. New editions start at `unknown`.
 - Sold-out editions remain discoverable and eligible as the next Occurrence. Show a “Sold out” badge in list/map previews and details; do not infer “Available” from `unknown`. No availability filter is introduced in v1.
 
 Location and venue fields belong to the Occurrence and are stored in its row, not in a separate Venue table. Each Occurrence has one location snapshot, preserving its history when a later edition moves or a venue is renamed.
@@ -166,7 +164,7 @@ Rules:
 - Event facts with native types—dates, status, location, capacity, accessibility, and price—remain typed fields or future feature models, not taxonomy terms.
 - Classification-set replacements are atomic and idempotent. Each actual set change is audited on the owning Occurrence with old/new term IDs, writer, and applicable source evidence. Replaying an identical replacement creates no duplicate write or audit entry.
 - Source-backed evidence is required for factual classification changes and publication. A copied prior-edition assignment may seed a new draft as an initial value, but is not current verification and cannot satisfy publication evidence requirements.
-- Unknown extraction never silently clears existing assignments. Removing a term requires an explicit validated replacement supported by applicable evidence; conflicts are skipped and reported in the run, without a review task.
+- Unknown extraction never silently clears existing assignments. Removing a term requires an explicit validated replacement supported by applicable evidence; conflicts are skipped and reported in the process output, without a review task.
 - Publication scope is evaluated from that Occurrence's own classifications and source evidence. In particular, `format` describes that edition.
 - Official affiliation or recognition by an external network is not implied by a taxonomy term. If the product later displays affiliation, model it as an evidence-backed, occurrence-aware status.
 
@@ -206,29 +204,9 @@ A Source identifies an external location that can support facts or be checked re
 
 Source identity uses a stable platform ID when available, otherwise a canonical URL. A URL redirect should update the Source without losing its history.
 
-### 6.2 IngestionRun
+### 6.2 CatalogChange
 
-An IngestionRun groups one owner-initiated pipeline execution.
-
-| Field | Required | Meaning |
-| --- | --- | --- |
-| `id: Identifier` | yes | Stable run identity used in logs. |
-| `mode` | yes | `dry_run` or `apply`. Dry runs report intended changes without catalog mutations; apply runs may write and publish eligible records directly. |
-| `initiatedBy: ActorRef` | yes | Owner who initiated the run; this does not imply individual changes were human-reviewed. |
-| `adapterVersions` | yes | Version identifiers for parsers/extractors used in the run. |
-| `startedAt: Instant` | yes | Run start. |
-| `finishedAt: Instant` | no | Run completion. |
-| `status` | yes | `running`, `succeeded`, `partially_failed`, or `failed`. |
-| `summary` | no | Counts of checked, created, updated, published, unchanged, skipped, and failed items. |
-| `results` | no | Persisted per-source check and per-item outcomes with stable keys, source/target identifiers, operation keys, reason codes, and bounded evidence or diagnostics; not a review queue. |
-
-The run is operational grouping, not the source of truth for catalog data. Discovery and refresh are manually initiated; retrying a run also requires owner initiation. Completed results are retained and may not be silently rewritten. Dry runs may persist operational run/evidence results but never mutate the catalog or create CatalogChanges. Each applied item is transactional; one failed item does not undo independent successful items. Skipped conflicts are visible in results even when no technical failure occurred.
-
-Each source-check result records a stable key within its run, Source ID, check time in UTC, outcome (`changed`, `unchanged`, `failed`, `blocked`, or `skipped`), and the attempted URL or final inspected URL. Successful checks also retain the Source authority at check time and a bounded excerpt or snapshot reference; failures retain a safe error code. `changed` and `unchanged` describe checked source content, not accepted catalog facts. These are embedded run results, not separate Observation records. Replaying a completed check with the same run/result key does not duplicate its result; a new fetch, including a retry after failure, gets a new key. An unchanged check creates a run result but no CatalogChange when accepted facts are unchanged.
-
-### 6.3 CatalogChange
-
-A CatalogChange is the immutable audit record for an applied background catalog mutation during a manually initiated run. It is not a complete history of every catalog write; development fixtures and test setup do not create CatalogChanges.
+A CatalogChange is the immutable audit record for an applied background catalog mutation. It is not a complete history of every catalog write; development fixtures and test setup do not create CatalogChanges.
 
 | Field | Required | Meaning |
 | --- | --- | --- |
@@ -237,14 +215,13 @@ A CatalogChange is the immutable audit record for an applied background catalog 
 | `subjectVersion: integer` | yes | Version produced by this change. |
 | `changedFields` | yes | Non-empty, versioned list of field identifiers/paths and their old/new accepted values. Preserve typed values and explicit nulls; distinguish an absent field from a known field whose value is null. |
 | `operationKey: string` | yes | Stable key for one logical write operation, reused on retry. Multiple subjects changed atomically share the key. |
-| `ingestionRunId: Identifier` | no | Run responsible for the change, when applicable. |
 | `evidence` | conditional | Immutable, bounded source evidence embedded in this change; required for externally verifiable factual changes. |
 | `actor: ActorRef` | yes | Actual writer: owner, agent, or system, including relevant agent/adapter version. |
 | `initiatedBy: ActorRef` | no | Owner initiating the operation when different from the writer; not a reviewer or per-change approver. |
 | `changedAt: Instant` | yes | UTC time when the accepted change was applied; shared by all fields in this atomic change. Not the source retrieval time. |
 | `note: string` | no | Concise editorial explanation. |
 
-Each embedded source-evidence item records its Source ID, final inspected URL, retrieval time in UTC, authority at retrieval, and a review-safe excerpt or snapshot reference. Keep relevant original extracted values and extraction metadata with that evidence. When different sources support different changed fields, identify the supporting evidence item for each field. A later Source URL or authority edit does not rewrite it. Preserve a source's date-only publication label as a calendar date or original text in evidence; never fabricate a midnight instant. Legacy import references may be retained in run results and change notes but are not current evidence for publication.
+Each embedded source-evidence item records its Source ID, final inspected URL, retrieval time in UTC, authority at retrieval, and a review-safe excerpt or snapshot reference. Keep relevant original extracted values and extraction metadata with that evidence. When different sources support different changed fields, identify the supporting evidence item for each field. A later Source URL or authority edit does not rewrite it. Preserve a source's date-only publication label as a calendar date or original text in evidence; never fabricate a midnight instant. Legacy import references may be retained in change notes but are not current evidence for publication.
 
 Background edits of editorial copy may have no external evidence but still record an actor. Background changes to dates, schedule status, location, official links, factual Occurrence classifications, and identity merges require source evidence.
 
@@ -254,14 +231,16 @@ Audit rules:
 - Unchanged checks, failed validation, skipped matches, and replayed operations create no CatalogChange or field-update timestamp. Publishing a checked draft embeds supporting evidence even when its accepted facts did not change; legacy import alone cannot satisfy that gate.
 - The agent interface retrieves ordered background-change history, filterable by field. This is not a complete history of all catalog edits. Evidence retrieval time and `changedAt` remain distinct; a field update is not proof of fresh verification. Show no public freshness or verification timestamps in v1, while retaining tentative-date and approximate-location labels.
 
-### 6.4 Direct write contract (not a persisted entity)
+### 6.3 Direct write contract (not a persisted entity)
 
+- Discovery and refresh are manually initiated. Dry runs return diffs and check diagnostics without catalog mutation. Apply processes report per-item outcomes and summary counts without persisting execution records in the catalog database. Each applied item is transactional; one failed item does not undo independent successful items.
+- Source-check output identifies the Source, check time, outcome (`changed`, `unchanged`, `failed`, `blocked`, or `skipped`), and attempted or final inspected URL. Successful checks include authority at check time; failures include a safe error code. `changed` and `unchanged` describe source content, not accepted catalog facts.
 - The application accepts typed create/update/publication operations with actor, operation key, supporting evidence, and an expected subject version for updates. A dry-run diff is transient output, not a Proposal entity.
-- An apply run can create/update records and publish those meeting source, identity, date, location, and scope rules without another approval step. Incomplete new records remain drafts. Existing drafts that become eligible may be published by the apply operation; withdrawn records are not silently republished by refresh.
+- An owner-initiated apply process can create/update records and publish those meeting source, identity, date, location, and scope rules without another approval step. Incomplete new records remain drafts. Existing drafts that become eligible may be published by the apply operation; withdrawn records are not silently republished by refresh.
 - Runtime validation and database constraints gate every write. A changed subject version rejects the stale write for re-read/reconciliation; it must not overwrite newer data. Related values, such as a date pair and schedule status, are validated and applied together.
 - Missing extracted values do not clear known facts. Clearing a field requires source-backed evidence that the previous fact no longer applies. Conflicting sources or unresolved identity matches leave the affected catalog data unchanged and produce an explicit skipped result. No approval task is created; a later run or direct owner correction can resolve the issue.
 - Populate `capacityEstimate` only when the source meaning is capacity. Actual attendance, ticket inventory, campsite capacity, and an aggregator's qualitative size band remain evidence or future feature data; do not coerce them into this field.
-- Supported material changes, including cancellation and date/venue movement, apply directly and are highlighted in the run summary and audit history. Do not silently replace an explicit owner correction with a lower-confidence extraction.
+- Supported material changes, including cancellation and date/venue movement, apply directly and are highlighted in the process summary and audit history. Do not silently replace an explicit owner correction with a lower-confidence extraction.
 - Retrying the same logical operation must not duplicate writes or audit entries. Reusing an operation key with a different payload is an error. A later legitimate change gets a new operation key even when it returns to a previously used value; current-value equality is a no-op, not a new update.
 - Identity matching also prevents duplicate creations across separate runs. No unattended scheduler or public submission flow is implied by direct writes in a manually started run.
 
@@ -302,7 +281,6 @@ Required uniqueness rules:
 - `(eventId, occurrenceKey)` is unique.
 - `TaxonomyTerm.slug` is unique within `TaxonomyTerm.facet`; each facet value is one of the five fixed application-config facets.
 - `(OccurrenceTerm.occurrenceId, OccurrenceTerm.termId)` is unique; each pair links one Occurrence and one TaxonomyTerm.
-- Each source-check result key is unique within its IngestionRun and stable when that completed check is replayed.
 - An ExternalLink URL is unique per owner and kind after canonicalization.
 - `(operationKey, subject)` is unique in CatalogChange; one operation can affect multiple subjects, but retries cannot create duplicate changes for a subject.
 
@@ -314,7 +292,7 @@ Candidate matching uses evidence in this order:
 2. Stable official external identifier.
 3. Canonical URL match.
 4. Normalized name/alias plus compatible geography and occurrence date/year.
-5. Skip unresolved ambiguous matches and record the reason and potential targets in run results; do not merge or create a likely duplicate.
+5. Skip unresolved ambiguous matches and report the reason and potential targets in process output; do not merge or create a likely duplicate.
 
 Name similarity alone must never auto-merge records. When duplicates are confirmed, preserve redirects and audit references to the surviving identifier; do not silently delete a published identity.
 
@@ -336,6 +314,6 @@ draft -> published -> withdrawn
 
 Defer Proposals and review workflows, standalone Observations, artist/lineup and ticket models, organizer/brand entities, reusable Places or multiple active venues, user accounts and submissions, full localization, media storage, arbitrary fact stores, and separate search or geospatial infrastructure until a feature requires them.
 
-Use typed relationships and validated, bounded JSON only for audit diffs, run results, and evidence. Keep large raw snapshots behind `snapshotRef` with a defined retention policy. Enforce invariants in domain code and database constraints where supported. Published identities use lifecycle transitions; hard deletion is limited to never-published test/development data under an explicit operation.
+Use typed relationships and validated, bounded JSON only for audit diffs and evidence. Keep large raw snapshots behind `snapshotRef` with a defined retention policy. Enforce invariants in domain code and database constraints where supported. Published identities use lifecycle transitions; hard deletion is limited to never-published test/development data under an explicit operation.
 
-Test the [release acceptance scenarios](000-product-foundation.md#3-end-to-end-acceptance-scenarios), especially date/location null semantics and publication gates; occurrence identity and isolation; taxonomy cardinality and evidence; deterministic upcoming selection; matching and conflict skips; keyed source-check replay; and atomic, idempotent background catalog writes with their audit entries. Use saved, attributable source fixtures rather than live pages in normal tests. Review SQLite/Drizzle migrations before applying them. Initial vocabulary and eventmap imports are idempotent data operations, separate from schema migrations.
+Test the [release acceptance scenarios](000-product-foundation.md#3-end-to-end-acceptance-scenarios), especially date/location null semantics and publication gates; occurrence identity and isolation; taxonomy cardinality and evidence; deterministic upcoming selection; matching and conflict skips; and atomic, idempotent background catalog writes with their audit entries. Use saved, attributable source fixtures rather than live pages in normal tests. Review SQLite/Drizzle migrations before applying them. Initial vocabulary and eventmap imports are idempotent data operations, separate from schema migrations.

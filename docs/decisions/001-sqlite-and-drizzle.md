@@ -3,7 +3,7 @@
 Status: Accepted  
 Date: 2026-10-01
 
-Implementation update (2026-10-02): Source evidence storage is deferred until the catalog database update workflow is built. The current schema retains sources, ingestion runs, and immutable audit changes without change evidence.
+Implementation update (2026-10-02): Source evidence storage is deferred until the catalog database update workflow is built. The current schema retains sources and immutable audit changes without change evidence. Ingestion runs are not stored in the catalog database.
 
 ## Context
 
