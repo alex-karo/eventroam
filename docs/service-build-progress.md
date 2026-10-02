@@ -1,3 +1,11 @@
+---
+type: Progress
+title: Service build progress
+description: Dated record of fixture-backed build completion and remaining deployment work.
+status: stable
+tags: [progress, development]
+---
+
 # Service build progress
 
 Current section: 5 — Map and responsive discovery  

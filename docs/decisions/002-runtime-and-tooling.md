@@ -1,6 +1,15 @@
+---
+type: Decision
+title: "ADR 002: Runtime and tooling"
+description: Accepted runtime and tooling baseline, with production packaging still open.
+status: stable
+tags: [architecture, tooling]
+---
+
 # ADR 002: Runtime and tooling
 
-Status: Selected implementation baseline; installation and build verification pending  
+Status: Accepted; the fixture-backed application has been installed, tested, and built. Production image and deployment verification remain open.
+
 Date: 2026-10-01
 
 ## Context
@@ -15,7 +24,7 @@ Use one Next.js application, one package, and one dependency lockfile. Use the N
 
 ### Runtime and dependency baseline
 
-Versions below were checked on 2026-10-01 against official documentation and publisher package metadata. They are the starting pins for scaffolding, not evidence that an application has already built successfully. Recheck releases and peer dependencies when scaffolding if these pins have aged.
+Versions below were checked on 2026-10-01 against official documentation and publisher package metadata. The application now pins and builds with this baseline. Recheck releases and peer dependencies during upgrades.
 
 | Area | Selection | Reason and source |
 | --- | --- | --- |
@@ -32,7 +41,7 @@ Versions below were checked on 2026-10-01 against official documentation and pub
 | Browser tests | **Playwright Test 1.63.0** | Cover critical responsive, keyboard, navigation, and server-rendered journeys against the running application. [Playwright documentation](https://playwright.dev/docs/intro), [version metadata](https://registry.npmjs.org/@playwright/test/1.63.0) |
 | Lint and format | **ESLint 9.39.5**, **eslint-config-next 16.3.8**, **Prettier 3.9.9**, **eslint-config-prettier 10.1.8** | Next/React/accessibility rules plus a separate formatter. Use ESLint 9 because the current React, import, and accessibility plugins do not declare ESLint 10 support. [Next lint guide](https://nextjs.org/docs/app/api-reference/config/eslint), [React plugin peers](https://registry.npmjs.org/eslint-plugin-react/7.37.5), [import plugin peers](https://registry.npmjs.org/eslint-plugin-import/2.32.0), [accessibility plugin peers](https://registry.npmjs.org/eslint-plugin-jsx-a11y/6.10.2) |
 
-Use Node 26 and React 19 matching type declarations. Select compatible support packages such as `@types/better-sqlite3` when scaffolding. Install only Radix primitives actually used, keeping their shared dependencies aligned. Prefer native fetch, URL, and Intl APIs; do not add an HTTP client, global state manager, or date library without a specific need. Programme dates remain calendar dates, never implicitly converted to local or UTC midnight instants.
+Use Node 26 and React 19 matching type declarations. Keep compatible support packages such as `@types/better-sqlite3` aligned during upgrades. Install only Radix primitives actually used, keeping their shared dependencies aligned. Prefer native fetch, URL, and Intl APIs; do not add an HTTP client, global state manager, or date library without a specific need. Programme dates remain calendar dates, never implicitly converted to local or UTC midnight instants.
 
 ### Rendering and data flow
 
@@ -58,7 +67,7 @@ The initial scaffold used `src/domain` and `src/application`; the adopted layout
 
 Vitest covers normalization, filter/date boundaries, publication rules, and real persistence transactions. Browser tests cover the desktop combined view, mobile switch, URL restoration, on-demand details, direct SSR entry, missing coordinates, and scope isolation. Test async Server Component behavior through the running app: Next's [Vitest guide](https://nextjs.org/docs/app/guides/testing/vitest) explicitly directs those cases toward end-to-end testing. Use deterministic fixtures and avoid live source sites or map-vendor calls in routine tests.
 
-At scaffolding, establish canonical scripts for development, type checking, ESLint, formatting checks, focused tests, production build, and browser tests. Check lint separately from the production build. Add actual install/migration/Compose commands to the development guide after they exist and have run successfully; this ADR does not establish executable repository commands.
+The repository now has canonical scripts for development, type checking, ESLint, formatting checks, focused tests, production build, and browser tests. Check lint separately from the production build. The [development guide](../development.md) documents the commands that exist; add Compose commands there only after they have run successfully.
 
 ### Pinning and upgrades
 
@@ -71,8 +80,8 @@ Review stable release updates as maintenance changes. The Node policy remains la
 - Agent execution, operation transport, command contracts, and AI/scraping tooling wait for the next iteration, per the owner. Do not introduce an agent SDK or command framework now.
 - The exact Mapbox style, token values, budget limits, and any ingestion geocoder remain open. The v1 locality/country filter can use catalog fields without a geocoding service. Configure the selected style, tokens, attribution, and usage monitoring before public deployment.
 - Production hosting vendor, ingress/TLS tooling, backup destination/schedule, and monitoring service remain deployment decisions. Supporting several scope hostnames does not require a multi-service deployment.
-- Exact payload schemas belong in the discovery implementation contract. The confirmed requirement is all summaries with details on selection and no map-area fetching; the discovery spec proposes browser filtering of the complete scope summary set with shared server-rendering rules.
+- Discovery payload schemas are implemented in the application. The confirmed requirement is all summaries with details on selection and no map-area fetching; the current application filters the complete scope summary set in the browser with shared server-rendering rules.
 
 ## Verification limits
 
-This is a documentation decision only: no application, dependency installation, lockfile, database, or Docker image was created. Official documentation and package engine/peer declarations support the baseline; they do not replace an integration build. In particular, verify native SQLite packaging, Next's production output, and the complete resolved lint dependency graph during scaffolding.
+The fixture-backed application, lockfile, database migration, tests, and production build now exist. The production Docker image and deployment path remain unverified. Verify native SQLite packaging and Next's production output in the target image before deployment.

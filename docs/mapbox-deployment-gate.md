@@ -1,3 +1,11 @@
+---
+type: Playbook
+title: Mapbox public deployment gate
+description: Required token, host, and monitoring checks before public map deployment.
+status: stable
+tags: [deployment, mapbox]
+---
+
 # Mapbox public deployment gate
 
 The map uses Mapbox GL JS 3.30.0 and `NEXT_PUBLIC_MAPBOX_STYLE` (default `mapbox://styles/mapbox/streets-v12`). `NEXT_PUBLIC_MAPBOX_TOKEN` is intentionally unset in the repository; without it the linked list remains available. Mapbox attribution stays visible in the map control.

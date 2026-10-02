@@ -1,3 +1,11 @@
+---
+type: Research
+title: Source data and domain-model review
+description: Dated source-model observations; classification recommendations were superseded.
+status: stable
+tags: [research, domain]
+---
+
 # Source data and domain-model review
 
 Date: 2026-09-17  

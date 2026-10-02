@@ -1,3 +1,11 @@
+---
+type: Specification
+title: Festival information to extract
+description: V1 information brief for edition facts, practical details, and source collection.
+status: draft
+tags: [catalog, ingestion]
+---
+
 # Festival information to extract
 
 Date: 2026-10-01 · Status: V1 information brief

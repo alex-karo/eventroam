@@ -1,3 +1,11 @@
+---
+type: Research
+title: Eventroam competitor scan
+description: Dated competitor observations; current specifications supersede earlier recommendations.
+status: stable
+tags: [research, competitors]
+---
+
 # Eventroam competitor scan
 
 Date: 2026-09-14

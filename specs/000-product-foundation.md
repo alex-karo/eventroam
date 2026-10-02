@@ -1,3 +1,11 @@
+---
+type: Specification
+title: "Product foundation: first release"
+description: First-release scope, outcomes, acceptance scenarios, and rollout direction.
+status: draft
+tags: [product, release]
+---
+
 # Product foundation: first release
 
 Status: Draft; product direction confirmed by the owner on 2026-09-17  
@@ -11,7 +19,7 @@ Implementation note (2026-10-02): Source evidence collection, storage, and publi
 
 The first release combines a crawlable list and Event/Occurrence pages with an interactive map over the same records. Desktop shows map and list together; narrow layouts offer two easily switched views. The backend returns complete discovery summaries, with full details loaded on selection. Map movement does not filter or fetch a geographic subset; there is no “Search this area” action. Parallel recurring festivals under one brand in different countries/locations are separate Events; one festival relocating between years keeps its identity. Brand grouping is deferred.
 
-Separate scope domains organize the website, starting with `festivals.eventroam.com`; `it.eventroam.com` is a future scope, not an expansion of the first release. The [website structure and URL specification](005-website-structure-and-urls.md) documents proposed page hierarchy, routes, and domain behavior.
+Separate scope domains organize the website, starting with `festivals.eventroam.com`; `it.eventroam.com` is a future scope, not an expansion of the first release. The [website structure and URL specification](005-website-structure-and-urls.md) documents current routes and domain behavior and links to the remaining draft policies.
 
 The owner uses an agent to research, discover, refresh, edit, and publish through validated application interfaces. Both discovery and source checks are manually initiated in the first release. An apply run writes and publishes eligible records directly, with source evidence, duplicate checks, atomic audit history for its changes, and a run summary; no per-item or batch approval, Proposal entity, or review UI is required. Incomplete records remain drafts. No public freshness indicator is shown, but the owner can retrieve background field-change history through the agent.
 
@@ -50,7 +58,7 @@ The first release is complete when these flows work without placeholder facts:
 
 ## 4. Remaining release decisions
 
-Resolve these before implementing dependent behavior: dump location/field mapping; validation of discovery defaults and starter vocabulary against launch data; idempotent vocabulary loading; typed price/practical-detail storage; snapshot retention; and proposed website/URL defaults. Agent execution and command/API contracts, including conflict codes, wait for the next planning iteration. Filter scope, complete discovery summaries with on-demand details, responsive map/list presentation, and scope domains are selected. Publication edge cases and internal history are defined in the [domain model](001-domain-model.md).
+Open choices are tracked separately in the [draft release decisions](proposals/release-open-decisions.md). Filter scope, complete discovery summaries with on-demand details, responsive map/list presentation, and scope domains are selected. Publication edge cases and internal history are defined in the [domain model](001-domain-model.md).
 
 ## 5. Test approach and rollout
 

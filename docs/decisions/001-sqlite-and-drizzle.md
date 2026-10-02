@@ -1,3 +1,11 @@
+---
+type: Decision
+title: "ADR 001: SQLite and Drizzle"
+description: Accepted storage and migration decision for the catalog service.
+status: stable
+tags: [database, architecture]
+---
+
 # ADR 001: SQLite and Drizzle
 
 Status: Accepted  

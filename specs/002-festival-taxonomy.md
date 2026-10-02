@@ -1,3 +1,11 @@
+---
+type: Specification
+title: Festival taxonomy
+description: Starter Occurrence vocabulary and assignment policy pending launch-data validation.
+status: draft
+tags: [taxonomy, festivals]
+---
+
 # Festival taxonomy
 
 Status: Expected starter vocabulary and assignment policy, version 0.1  

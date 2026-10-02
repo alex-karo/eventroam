@@ -1,3 +1,11 @@
+---
+type: Specification
+title: Domain model
+description: Logical catalog records, identity, publication, writes, and target evidence rules.
+status: draft
+tags: [domain, catalog]
+---
+
 # Domain model
 
 Status: Draft; product constraints confirmed in the foundation spec  

@@ -13,6 +13,7 @@
     "start": "next start",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
+    "docs:check": "node scripts/check-docs.mjs && node --test scripts/check-docs.test.mjs",
     "format:check": "prettier --check src commands e2e scripts drizzle.config.ts next.config.ts playwright.config.ts vitest.config.mts postcss.config.mjs eslint.config.mjs package.json tsconfig.json",
     "test": "vitest run",
     "test:e2e": "node scripts/run-e2e.mjs",
@@ -44,6 +45,7 @@
     "prettier": "3.9.9",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
-    "vitest": "5.0.3"
+    "vitest": "5.0.3",
+    "yaml": "2.9.1"
   }
 }

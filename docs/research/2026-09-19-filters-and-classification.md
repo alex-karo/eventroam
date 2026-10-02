@@ -1,3 +1,11 @@
+---
+type: Research
+title: Rival filters and classification research
+description: Dated rival research; its filter and inheritance recommendations were superseded.
+status: stable
+tags: [research, discovery]
+---
+
 # Rival filters and classification research
 
 Research date: 2026-09-19. Status: recommendations for product selection, not an accepted implementation spec.

@@ -1,3 +1,11 @@
+---
+type: Reference
+title: Eventroam project structure
+description: Current application directories, dependency boundaries, and planned extensions.
+status: stable
+tags: [architecture]
+---
+
 # Eventroam project structure
 
 Status: Implemented core structure · Updated: 2026-10-02

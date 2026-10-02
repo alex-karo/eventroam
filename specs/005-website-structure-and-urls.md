@@ -1,7 +1,16 @@
+---
+type: Specification
+title: Website structure and URLs
+description: Selected scope domains and current fixture-backed routes and discovery URL behavior.
+status: stable
+tags: [website, routing]
+---
+
 # Website structure and URLs
 
-Date: 2026-10-01  
-Status: Scope domains and discovery interaction confirmed by the owner; the remaining structure and routing rules are proposed implementation defaults.
+Date: 2026-10-01
+
+This document records the selected scope-domain direction and the routes and discovery behavior in the fixture-backed application. Unselected cross-scope and public-launch policies are in the [draft routing and indexing proposal](proposals/website-routing-and-indexing.md).
 
 ## 1. Confirmed direction and boundaries
 
@@ -11,25 +20,22 @@ The first release still covers open-air music festivals and burning-like gatheri
 
 Discovery has two presentations of the same results: map and list. Show both together on desktop; provide an easy Map/List switch on smaller screens. The backend returns the complete discovery summary set, and full details load when a visitor opens a result. There is no “Search this area” action, bounding-box query, viewport-triggered result fetch, or result pagination. Moving the map changes only its presentation.
 
-**Proposed delivery interpretation:** return all public discovery summaries for the active scope and filter them in the browser, with the same rules used for the server-rendered list on direct entry. This interpretation of “returns all” remains a proposed default; the complete set must include matches without coordinates and enforce publication gates on the server. The [discovery specification](004-discovery-filters.md) owns filter semantics and summary delivery.
+The current application returns all public discovery summaries for the active scope and filters them in the browser, with the same rules used for the server-rendered list on direct entry. The complete set includes matches without coordinates and enforces publication gates on the server. The [discovery specification](004-discovery-filters.md) owns filter semantics and summary delivery. This records implementation, not a separate owner approval of the delivery strategy.
 
 ## 2. Domains and site hierarchy
 
-The proposed structure is:
+The current fixture-backed routes are:
 
 | Host and path | Purpose | Release |
 | --- | --- | --- |
-| `eventroam.com/` | Small Eventroam introduction and directory of available scopes | V1 |
-| `eventroam.com/about` | Shared explanation of the catalog, coverage, and uncertainty labels | V1 |
-| `eventroam.com/privacy` | Shared privacy information reflecting the implemented site | Before public launch |
-| `festivals.eventroam.com/` | Festival discovery: filters, list, and map | V1 |
-| `festivals.eventroam.com/events/{eventSlug}` | Durable Event page with links to its published editions | V1 |
-| `festivals.eventroam.com/events/{eventSlug}/{occurrenceKey}` | One specific Occurrence and its full details | V1 |
-| `it.eventroam.com/` | Discovery for a future, separately specified IT scope | Deferred |
+| `eventroam.com/` | Apex directory of available scopes | Implemented |
+| `festivals.eventroam.com/` | Festival discovery: filters, list, and map | Implemented |
+| `festivals.eventroam.com/events/{eventSlug}` | Durable Event page with links to its published editions | Implemented |
+| `festivals.eventroam.com/events/{eventSlug}/{occurrenceKey}` | One specific Occurrence and its full details | Implemented |
 
 The apex is a scope directory, not a duplicate festival catalog or an automatic redirect. With only one launched scope, give Festivals a direct prominent link. Do not display empty future catalogs as active navigation destinations or publish indexable placeholder scope sites.
 
-Scope navigation identifies the current scope and offers links to launched alternatives plus the apex. Each scope root is its discovery page; do not add synonymous `/map`, `/list`, `/search`, or `/festivals` routes. Shared informational pages live on the apex and are linked from each scope footer.
+Each scope root is its discovery page; do not add synonymous `/map`, `/list`, `/search`, or `/festivals` routes. Proposed shared information pages and navigation for additional launched scopes are tracked in the [draft routing proposal](proposals/website-routing-and-indexing.md).
 
 Country, city, genre, and date selections remain filters rather than path hierarchies. Curated editorial landing pages, global cross-scope search, localization, accounts, and submissions are deferred. No language prefix, year archive route, or country subdomain is needed for V1.
 
@@ -39,9 +45,9 @@ Use one application and shared catalog, with an explicit allowlisted mapping fro
 
 The Festivals scope uses the release eligibility rules already established in the foundation and taxonomy. Evaluate discovery membership per Occurrence using its own facts and classifications. A scope is a product/navigation concept, not a sixth taxonomy facet or an inherited Event classification. Define each future scope's membership rules and filters before launching it.
 
-Retain globally unique Event slugs and shared Event/Occurrence IDs from the [domain model](001-domain-model.md). A record can eventually qualify for several scopes without being duplicated. Propose a small routing attribute, `homeScope`, on the Event, assigned at first publication; all its Occurrences share that canonical host. This is URL ownership metadata, not a claim that every edition has the same classification. Its physical storage and audit integration belong in the schema specification.
+Retain globally unique Event slugs and shared Event/Occurrence IDs from the [domain model](001-domain-model.md). A record can eventually qualify for several scopes without being duplicated. The current schema stores `homeScope` on the Event and assigns `festivals` at first publication; all its Occurrences share that canonical host. This is URL ownership metadata, not a claim that every edition has the same classification.
 
-For V1, every public Event has `homeScope = festivals`. Before launching overlapping scopes, define how to choose the initial home scope. Never recalculate an existing canonical host from current filters, genre edits, or a visitor's entry point. An explicit home-scope migration preserves the same IDs and redirects the old URLs.
+For the current Festivals scope, every public Event has `homeScope = festivals`. Before launching overlapping scopes, define how to choose the initial home scope. Never recalculate an existing canonical host from current filters, genre edits, or a visitor's entry point. Proposed cross-scope migration and redirect behavior is in the [draft routing proposal](proposals/website-routing-and-indexing.md).
 
 Generate absolute links from configured public origins, not an arbitrary request `Host` or forwarded-host value. Unconfigured hosts do not expose a default catalog. Configure DNS and TLS for each launched host; do not make wildcard subdomains silently create new scopes.
 
@@ -75,21 +81,9 @@ An Occurrence page contains edition dates/status, qualified location, relevant c
 
 Selecting a list result or map marker loads that Occurrence's details on demand; its already-loaded summary may remain visible while details load. Standard links and direct navigation must work independently of the interactive map. A later drawer/modal enhancement must use the same route, preserve browser back behavior, and never create an alternative indexable detail URL.
 
-Publication gates and uncertainty labels remain those of the domain model. Completed, cancelled, and already-published postponed Occurrences retain their pages and stable URLs even though cancellation/postponement excludes them from discovery. Drafts and withdrawn records expose no public detail payload; the proposed HTTP behavior is `404`, with internal audit history retained. A deleted/merged public identity redirects only when a confirmed replacement exists; never send unrelated missing pages to the homepage.
+Publication gates and uncertainty labels remain those of the domain model. Completed, cancelled, and already-published postponed Occurrences retain their pages and stable URLs even though cancellation/postponement excludes them from discovery. Drafts and withdrawn records expose no public detail payload and return `404`, with internal audit history retained. Proposed merge redirect behavior is in the [draft routing proposal](proposals/website-routing-and-indexing.md).
 
-## 5. Cross-scope links, canonical URLs, and redirects
-
-Each public Event and Occurrence has exactly one canonical absolute URL on its Event's home scope. An eligible result discovered on another scope links directly to that canonical address; the destination visibly identifies its home scope. A known public record requested at the equivalent path on another launched scope redirects permanently to its canonical host. The apex can likewise redirect a recognized detail path rather than serve another copy; unknown paths return `404`.
-
-Scope roots are distinct discovery experiences and have their own canonical URLs. Do not canonicalize all scope roots to the apex or to Festivals. Shared about/privacy content is served only from the apex; scope navigation links directly to it.
-
-Use permanent server redirects for old published slugs/keys, confirmed duplicate merges, explicit home-scope moves, HTTPS normalization, and configured host aliases such as `www.eventroam.com` to `eventroam.com`. Resolve aliases to the final current route in one redirect where practical; prevent loops. Preserve old published aliases indefinitely and never reuse them for another identity.
-
-Redirect a known old slug together with its Occurrence suffix to the same Occurrence's current address. If a merge involved a conflicting key, resolve it using the stored identity/alias mapping rather than assuming the suffix matches on the surviving Event. Recheck public visibility before redirects or payload reads so aliases cannot expose a draft or withdrawn target.
-
-Detail-page filter/view/tracking parameters do not alter identity or content; canonical and social URLs omit them. Do not copy arbitrary user-supplied redirect destinations. Scope changes initiated from discovery start at the destination root with defaults, since future scopes may have different filters; an Event link always preserves the selected identity.
-
-## 6. Discovery URL state and responsive layout
+## 5. Discovery URL state and responsive layout
 
 Applied filter state belongs on the scope root as query parameters. The [discovery specification](004-discovery-filters.md#url-contract) owns the exact keys, normalization, validation, and unknown-value behavior. A representative URL is:
 
@@ -97,48 +91,28 @@ Applied filter state belongs on the scope root as query parameters. The [discove
 https://festivals.eventroam.com/?from=2027-08-01&to=2027-08-31&country=PT&genre=electronic&view=map
 ```
 
-Use `view=list` or `view=map` only as a narrow-screen presentation preference, with List as the proposed default. Both presentations remain visible at desktop widths regardless of this parameter. Preserve the preference when resizing, so returning to a small screen restores the selected view. Choose the responsive breakpoint during UI implementation based on usable map and list widths.
+Use `view=list` or `view=map` only as a narrow-screen presentation preference, with List as the current default. Both presentations remain visible at desktop widths regardless of this parameter. Preserve the preference when resizing, so returning to a small screen restores the selected view.
 
 Switching views, panning, zooming, opening details, and returning with browser Back preserve the applied filters and the complete result set. Keep viewport and list scroll position in client/history state where practical; neither becomes a backend filter. No `bbox` parameter, map-area chip, viewport count, or viewport-based result restriction is supported.
 
-Discovery uses lightweight summaries and coordinates when available. List and map consume the same complete filtered result set, with the map displaying its coordinate-bearing subset and explicit counts for records without map locations. Browser filtering is the proposed default described above. Full descriptions and practical details are fetched only when opened. Client rendering may cluster markers or virtualize visible rows, but must not silently truncate matches or invent paginated backend discovery.
+Discovery uses lightweight summaries and coordinates when available. List and map consume the same complete filtered result set, with the map displaying its coordinate-bearing subset and explicit counts for records without map locations. Browser filtering is the current implementation described above. Full descriptions and practical details are fetched only when opened. Client rendering may cluster markers or virtualize visible rows, but must not silently truncate matches or invent paginated backend discovery.
 
 Reload and browser back/forward restore applied URL state. Pending picker edits stay out of the URL. Direct detail URLs render a complete page without requiring a prior discovery request. Returning through browser history restores the prior discovery URL rather than reconstructing filters from the selected record.
 
-## 7. Crawlability and indexing
+## 6. Current discovery indexing behavior
 
-Serve useful discovery list content, ordinary linked result titles, Event/Occurrence content, and page metadata from the server. The map enhances these links; it is not the only way to discover records. Event pages link to all their public editions so published historical pages remain reachable without a historical search query. Draft data and internal evidence/history never appear in public HTML, page data, or sitemaps.
+The fixture-backed Festivals discovery page sets its canonical URL from the configured Festivals origin and normalized filter query. A view-only or tracking-only query canonicalizes to the clean scope root. A materially filtered query keeps its normalized filters in the canonical URL and emits `noindex,follow`; invalid filter state also emits `noindex,follow` with visible recovery feedback. These are implemented behaviors, not owner approval of a complete public indexing policy. Detail-page metadata, sitemaps, and host-level crawler rules remain in the [draft routing and indexing proposal](proposals/website-routing-and-indexing.md).
 
-Proposed indexing policy:
+## 7. Acceptance and remaining work
 
-| Page class | Policy |
-| --- | --- |
-| Apex and launched scope roots | Indexable, self-canonical |
-| Useful public Event and Occurrence pages | Indexable, canonical on home scope |
-| Shared informational pages | Indexable on apex when substantive |
-| Applied filter/search combinations | `noindex,follow`; exclude from sitemaps |
-| View-only or tracking-only root variants | Canonical to the clean scope root; exclude variants from sitemaps |
-| Invalid filter state, unavailable record, or unlaunched scope | Not indexable; never presented as an empty indexable catalog |
-
-Filtered pages should use a normalized self URL with presentation/tracking parameters removed, alongside `noindex,follow`; do not assert that a materially filtered result is the same content as the unfiltered root. Invalid filter values produce the discovery spec's visible recovery state, not a silently broadened indexable response. Permit crawlers to retrieve pages carrying `noindex`; do not rely on `robots.txt` alone to express this indexing policy.
-
-Each launched host serves its own `robots.txt` and sitemap, containing only its canonical, currently public URLs. The apex sitemap lists shared pages; each scope sitemap lists its root and the Events/Occurrences it canonically owns. Include retained historical, cancelled, and postponed public pages; remove withdrawn pages and never include redirects, filtered combinations, API routes, or placeholders. A future large sitemap may use an index without changing public content URLs.
-
-Titles, descriptions, social metadata, and relevant structured data must describe the rendered record and accepted dates/status. Page URLs and structured-data identity URLs use the same canonical origin. Do not label historical or previous postponed dates as upcoming merely to populate metadata.
-
-## 8. Acceptance and remaining work
-
-Validate these behaviors when implementing routing and discovery:
+The current fixture-backed routing and discovery behavior should remain true as the site develops:
 
 1. Festivals opens on its scoped host; the apex links to it without duplicating the catalog. An unconfigured hostname does not open a default scope.
 2. Desktop displays map and list together. Small screens switch easily without changing matches or filters. Moving the map makes no discovery request and changes no URL filter.
 3. The summary response supports the complete matching set, including records without coordinates, under the selected delivery contract. Selecting a result loads the same Occurrence that its ordinary link identifies; direct visits render its full details.
 4. Two weekends under one Event have separate durable URLs. Date moves preserve IDs, keys, and addresses; renames retain working redirects, including edition paths.
-5. A cross-scope result uses one shared identity and canonical home-scope URL. An explicit home-scope migration redirects old URLs without duplicate indexable pages.
-6. Public history remains linked and in the correct host's sitemap. Drafts and withdrawn records are absent from all public payloads and aliases; retained cancellations/postponements display their status.
-7. Filter URLs round-trip through reload and history. View-only variants canonicalize to the root; actual filtered pages carry `noindex` and never enter sitemaps.
-8. Canonical links, social URLs, sitemap entries, and redirect destinations come from configured origins and retained identity mappings.
+5. Filter URLs round-trip through reload and history. View-only variants canonicalize to the root; filtered and invalid states emit `noindex,follow`. Drafts and withdrawn records are absent from public payloads. The remaining canonical URL, redirect, and sitemap acceptance cases are in the [draft routing proposal](proposals/website-routing-and-indexing.md#acceptance-for-proposed-policies).
 
-Before implementation, incorporate the proposed routing attributes and alias constraints into the schema specification, select the small-screen default/breakpoint in UI design, and set up the actual launch domains/TLS. Measure summary payload size and rendering with the launch sample; an eventual need for a different delivery strategy requires an explicit revision, not an undocumented result cap.
+The current schema includes the `homeScope` routing attribute and the current UI defaults to List on small screens. Before public launch, set up the actual domains/TLS and measure summary payload size and rendering with the launch sample; an eventual need for a different delivery strategy requires an explicit revision, not an undocumented result cap. Remaining alias constraints are in the [draft routing proposal](proposals/website-routing-and-indexing.md).
 
 Before adding another scope, specify its inventory, membership/filter rules, and the initial home-scope choice for overlapping records. Further landing pages and global discovery can be designed then. These decisions do not require finalizing agent execution in this iteration.

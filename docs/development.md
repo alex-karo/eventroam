@@ -1,3 +1,11 @@
+---
+type: Guide
+title: Development guide
+description: Implementation workflow, application commands, and local development practices.
+status: stable
+tags: [development]
+---
+
 # Development guide
 
 This guide holds implementation and working practices. Product behavior belongs in the [foundation](../specs/000-product-foundation.md), domain invariants in the [domain model](../specs/001-domain-model.md), and lasting technology choices in [ADRs](decisions/001-sqlite-and-drizzle.md).
@@ -13,8 +21,8 @@ This guide holds implementation and working practices. Product behavior belongs 
 
 - The map enhances linked list/detail discovery. Public pages need stable URLs, server-rendered content, titles and descriptions, canonical and social metadata, sitemap entries, and relevant schema.org data. Exclude drafts, duplicate filtered views, and thin placeholders from indexing.
 - Put useful shareable filter state in URLs. Treat mobile usability, keyboard access, reduced motion, and map/list parity as baseline. Keep map-provider code behind a small adapter.
-- Follow the [discovery contract](../specs/004-discovery-filters.md): return the complete public discovery summary set, load full details on selection, show map/list together on desktop, and provide easy switching on narrow screens. No viewport query or “Search this area” control. Browser filtering with shared server-rendering rules is the proposed delivery default.
-- Use scope subdomains with one application and shared catalog. The [website structure spec](../specs/005-website-structure-and-urls.md) records confirmed domain direction and proposed routes/canonical behavior.
+- Follow the [discovery contract](../specs/004-discovery-filters.md): return the complete public discovery summary set, load full details on selection, show map/list together on desktop, and provide easy switching on narrow screens. No viewport query or “Search this area” control. The fixture-backed application filters in the browser with shared server-rendering rules.
+- Use scope subdomains with one application and shared catalog. The [website structure spec](../specs/005-website-structure-and-urls.md) records selected domain direction and current routes; its linked draft proposal covers unselected cross-scope and indexing policies.
 - Agent execution, operation transport, and exact command/error contracts are deferred to the next planning iteration; existing domain write invariants still apply. Web routes use public catalog reads. The browser uses public contracts and pure filtering rules, and does not import database or writer modules.
 
 ## Change workflow

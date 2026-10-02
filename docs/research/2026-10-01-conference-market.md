@@ -1,3 +1,11 @@
+---
+type: Research
+title: Conference market research for Eventroam
+description: Dated market research for a future conference scope, not a release decision.
+status: stable
+tags: [research, conferences]
+---
+
 # Conference market research for Eventroam
 
 Research conducted: 2026-09-30. Scope: worldwide discovery of IT, business, and academic conferences. This is desk research, not a traffic study or revenue forecast.
