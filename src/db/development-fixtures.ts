@@ -1,39 +1,17 @@
 import type Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { applyCatalogOperation } from "../application/catalog";
-import { events, sources, taxonomyTerms } from "./schema";
+import {
+  events,
+  externalLinks,
+  occurrenceTerms,
+  occurrences,
+  taxonomyTerms,
+  urlAliases,
+} from "./schema";
 
-const sourceId = "dev-source-official";
-const inspectedUrl = "https://example.org/fictional-festival";
-const evidence = (fieldPaths: string[]) => [
-  {
-    sourceId,
-    inspectedUrl,
-    retrievedAt: "2026-10-01T12:00:00Z",
-    authority: "official" as const,
-    fieldPaths,
-    excerpt: "Fictional development fixture, not a real event.",
-  },
-];
-const allFacts = [
-  "slug",
-  "canonical_name",
-  "occurrence_key",
-  "occurrence_year",
-  "starts_on",
-  "ends_on",
-  "date_state",
-  "schedule_status",
-  "country_code",
-  "locality",
-  "latitude",
-  "longitude",
-  "coordinate_precision",
-  "capacity_estimate",
-  "publication_state",
-  "terms",
-];
+const termIds = ["dev-festival", "dev-outdoor", "dev-music"];
 // Fictional events use city-center markers; their dates and links are placeholders.
 const geographicExamples = [
   {
@@ -69,124 +47,99 @@ const geographicExamples = [
 ] as const;
 export function seedDevelopmentFixtures(client: Database.Database) {
   const now = "2026-10-01T12:00:00.000Z";
-  const db = drizzle(client);
-  db.insert(sources)
-    .values({
-      id: sourceId,
-      canonicalUrl: inspectedUrl,
-      kind: "website",
-      authority: "official",
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoNothing()
-    .run();
-  for (const [id, facet, slug, name] of [
-    ["dev-festival", "event_type", "festival", "Festival"],
-    ["dev-outdoor", "format", "outdoor", "Outdoor"],
-    ["dev-music", "topic", "music", "Music"],
-  ] as const)
-    db.insert(taxonomyTerms)
-      .values({ id, facet, slug, name })
-      .onConflictDoNothing()
-      .run();
-  const existing = db
-    .select({ id: events.id, version: events.version })
-    .from(events)
-    .where(eq(events.slug, "fictional-field-days"))
-    .get();
-  const event =
-    existing ??
-    applyCatalogOperation(client, {
-      kind: "createEvent",
-      operationKey: "dev:event",
-      actor: "fixture",
-      data: {
-        slug: "fictional-field-days",
-        canonicalName: "Fictional Field Days",
-      },
-      evidence: evidence(allFacts),
-    });
-  function edition(
-    key: string,
-    year: number,
-    start: string,
-    end: string,
-    status: "scheduled" | "cancelled" | "postponed",
-    published = true,
-  ) {
-    let result = applyCatalogOperation(client, {
-      kind: "createOccurrence",
-      operationKey: `dev:${key}:create`,
-      actor: "fixture",
-      eventId: event.id,
-      data: {
-        occurrenceKey: key,
-        occurrenceYear: year,
-        startsOn: start,
-        endsOn: end,
-        dateState: year === 2027 ? "provisional" : "confirmed",
-        scheduleStatus: status,
-        countryCode: "PT",
-        locality: "Example Valley",
-      },
-      evidence: evidence(allFacts),
-    });
-    result = applyCatalogOperation(client, {
-      kind: "replaceTerms",
-      operationKey: `dev:${key}:terms`,
-      actor: "fixture",
-      id: result.id,
-      expectedVersion: result.version,
-      termIds: ["dev-festival", "dev-outdoor", "dev-music"],
-      evidence: evidence(["terms"]),
-    });
-    if (published)
-      result = applyCatalogOperation(client, {
-        kind: "publishOccurrence",
-        operationKey: `dev:${key}:publish`,
-        actor: "fixture",
-        id: result.id,
-        expectedVersion: result.version,
-        evidence: evidence(allFacts),
-      });
-    return result;
-  }
-  if (!existing) {
-    edition("2025", 2025, "2025-07-01", "2025-07-03", "scheduled");
-    edition("2027", 2027, "2027-07-01", "2027-07-03", "scheduled");
-    edition("2026-cancelled", 2026, "2026-07-01", "2026-07-03", "cancelled");
-    applyCatalogOperation(client, {
-      kind: "publishEvent",
-      operationKey: "dev:event:publish",
-      actor: "fixture",
-      id: event.id,
-      expectedVersion: event.version,
-      evidence: evidence(allFacts),
-    });
-  }
-  for (const example of geographicExamples) {
-    if (
-      db
+  return drizzle(client).transaction((db) => {
+    for (const [id, facet, slug, name] of [
+      ["dev-festival", "event_type", "festival", "Festival"],
+      ["dev-outdoor", "format", "outdoor", "Outdoor"],
+      ["dev-music", "topic", "music", "Music"],
+    ] as const)
+      db.insert(taxonomyTerms)
+        .values({ id, facet, slug, name })
+        .onConflictDoNothing()
+        .run();
+
+    function addEvent(slug: string, canonicalName: string) {
+      const existing = db
         .select({ id: events.id })
         .from(events)
-        .where(eq(events.slug, example.slug))
-        .get()
-    )
-      continue;
-    const newEvent = applyCatalogOperation(client, {
-      kind: "createEvent",
-      operationKey: `dev:${example.slug}:event`,
-      actor: "fixture",
-      data: { slug: example.slug, canonicalName: example.name },
-      evidence: evidence(allFacts),
-    });
-    let occurrence = applyCatalogOperation(client, {
-      kind: "createOccurrence",
-      operationKey: `dev:${example.slug}:2027:create`,
-      actor: "fixture",
-      eventId: newEvent.id,
-      data: {
+        .where(eq(events.slug, slug))
+        .get();
+      if (existing) return { id: existing.id, created: false };
+      const id = randomUUID();
+      db.insert(events)
+        .values({
+          id,
+          slug,
+          canonicalName,
+          homeScope: "festivals",
+          publicationState: "published",
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(urlAliases)
+        .values({
+          scope: "festivals",
+          path: `/events/${slug}`,
+          eventId: id,
+          createdAt: now,
+        })
+        .run();
+      return { id, created: true };
+    }
+
+    function addOccurrence(
+      eventId: string,
+      data: Omit<
+        typeof occurrences.$inferInsert,
+        "id" | "eventId" | "createdAt" | "updatedAt"
+      >,
+    ) {
+      const id = randomUUID();
+      db.insert(occurrences)
+        .values({ id, eventId, ...data, createdAt: now, updatedAt: now })
+        .run();
+      const parent = db
+        .select({ slug: events.slug })
+        .from(events)
+        .where(eq(events.id, eventId))
+        .get()!;
+      db.insert(urlAliases)
+        .values({
+          scope: "festivals",
+          path: `/events/${parent.slug}/${data.occurrenceKey}`,
+          eventId,
+          occurrenceId: id,
+          createdAt: now,
+        })
+        .run();
+      for (const termId of termIds)
+        db.insert(occurrenceTerms).values({ occurrenceId: id, termId }).run();
+    }
+
+    const event = addEvent("fictional-field-days", "Fictional Field Days");
+    if (event.created)
+      for (const [key, year, start, end, status] of [
+        ["2025", 2025, "2025-07-01", "2025-07-03", "scheduled"],
+        ["2027", 2027, "2027-07-01", "2027-07-03", "scheduled"],
+        ["2026-cancelled", 2026, "2026-07-01", "2026-07-03", "cancelled"],
+      ] as const)
+        addOccurrence(event.id, {
+          occurrenceKey: key,
+          occurrenceYear: year,
+          startsOn: start,
+          endsOn: end,
+          dateState: year === 2027 ? "provisional" : "confirmed",
+          scheduleStatus: status,
+          countryCode: "PT",
+          locality: "Example Valley",
+          publicationState: "published",
+        });
+
+    for (const example of geographicExamples) {
+      const added = addEvent(example.slug, example.name);
+      if (!added.created) continue;
+      addOccurrence(added.id, {
         occurrenceKey: "2027",
         occurrenceYear: 2027,
         startsOn: example.startsOn,
@@ -198,51 +151,21 @@ export function seedDevelopmentFixtures(client: Database.Database) {
         latitude: example.latitude,
         longitude: example.longitude,
         coordinatePrecision: "locality",
-      },
-      evidence: evidence(allFacts),
-    });
-    occurrence = applyCatalogOperation(client, {
-      kind: "replaceTerms",
-      operationKey: `dev:${example.slug}:2027:terms`,
-      actor: "fixture",
-      id: occurrence.id,
-      expectedVersion: occurrence.version,
-      termIds: ["dev-festival", "dev-outdoor", "dev-music"],
-      evidence: evidence(["terms"]),
-    });
-    applyCatalogOperation(client, {
-      kind: "publishOccurrence",
-      operationKey: `dev:${example.slug}:2027:publish`,
-      actor: "fixture",
-      id: occurrence.id,
-      expectedVersion: occurrence.version,
-      evidence: evidence(allFacts),
-    });
-    const linked = applyCatalogOperation(client, {
-      kind: "replaceLinks",
-      operationKey: `dev:${example.slug}:links`,
-      actor: "fixture",
-      owner: { type: "event", id: newEvent.id },
-      expectedVersion: newEvent.version,
-      links: [
-        {
+        publicationState: "published",
+      });
+      db.insert(externalLinks)
+        .values({
+          id: randomUUID(),
+          eventId: added.id,
           kind: "official_site",
           url: `https://example.org/${example.slug}`,
           label: "Fictional festival website",
           official: true,
-          sourceId,
-        },
-      ],
-      evidence: evidence(["links"]),
-    });
-    applyCatalogOperation(client, {
-      kind: "publishEvent",
-      operationKey: `dev:${example.slug}:publish`,
-      actor: "fixture",
-      id: newEvent.id,
-      expectedVersion: linked.version,
-      evidence: evidence(allFacts),
-    });
-  }
-  return event.id;
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+    return event.id;
+  });
 }

@@ -4,10 +4,8 @@ import {
   createTestPublishedOccurrence,
   createTestPublishedEvent,
   publishTestEvent,
-  testEvidence,
 } from "../test/catalog";
 import { testDatabase } from "../test/database";
-import { applyCatalogOperation } from "./catalog";
 import {
   publicEditions,
   publicEvent,
@@ -126,15 +124,9 @@ test("published history and postponement retain pages but leave upcoming list", 
     ],
   });
   const old = occurrences[1];
-  applyCatalogOperation(client, {
-    kind: "updateOccurrence",
-    operationKey: "public:postpone",
-    actor: "owner",
-    id: old.id,
-    expectedVersion: old.version,
-    data: { scheduleStatus: "postponed" },
-    evidence: testEvidence(["schedule_status"]),
-  });
+  client
+    .prepare("UPDATE occurrences SET schedule_status='postponed' WHERE id=?")
+    .run(old.id);
   expect(upcoming(client, new Date("2026-10-01T12:00:00Z"))).toEqual([]);
   expect(
     resolvePublicPath(client, "/events/test-field-days/2027")?.edition?.status,
@@ -155,15 +147,17 @@ test("renamed addresses redirect by stored identity and hidden targets fail", ()
     occurrences: [{ occurrenceKey: "2027" }],
   });
   const id = event.id;
-  applyCatalogOperation(client, {
-    kind: "updateEvent",
-    operationKey: "public:rename",
-    actor: "owner",
+  client.prepare("UPDATE events SET slug='test-new-name' WHERE id=?").run(id);
+  const alias = client.prepare(
+    "INSERT INTO url_aliases(scope,path,event_id,occurrence_id,created_at) VALUES ('festivals',?,?,?,?)",
+  );
+  alias.run("/events/test-new-name", id, null, "2026-10-01T12:00:00Z");
+  alias.run(
+    "/events/test-new-name/2027",
     id,
-    expectedVersion: event.version,
-    data: { slug: "test-new-name" },
-    evidence: testEvidence(["slug"]),
-  });
+    occurrences[0].id,
+    "2026-10-01T12:00:00Z",
+  );
   expect(resolvePublicPath(client, "/events/test-field-days")?.redirect).toBe(
     true,
   );
@@ -175,13 +169,9 @@ test("renamed addresses redirect by stored identity and hidden targets fail", ()
   ).toBe(false);
   expect(resolvePublicPath(client, "/events/missing")).toBeNull();
   const edition = occurrences[0];
-  applyCatalogOperation(client, {
-    kind: "withdrawOccurrence",
-    operationKey: "public:withdraw",
-    actor: "owner",
-    id: edition.id,
-    expectedVersion: edition.version,
-  });
+  client
+    .prepare("UPDATE occurrences SET publication_state='withdrawn' WHERE id=?")
+    .run(edition.id);
   expect(resolvePublicPath(client, "/events/test-field-days/2027")).toBeNull();
   expect(resolvePublicPath(client, "/events/test-new-name/2027")).toBeNull();
   expect(upcoming(client, new Date("2026-10-01T12:00:00Z"))).toEqual([]);

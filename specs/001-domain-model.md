@@ -226,7 +226,7 @@ Each source-check result records a stable key within its run, Source ID, check t
 
 ### 6.3 CatalogChange
 
-A CatalogChange is the immutable audit record for an applied catalog mutation, whether made directly by the owner or by an agent during a manually initiated run.
+A CatalogChange is the immutable audit record for an applied background catalog mutation during a manually initiated run. It is not a complete history of every catalog write; development fixtures and test setup do not create CatalogChanges.
 
 | Field | Required | Meaning |
 | --- | --- | --- |
@@ -244,13 +244,13 @@ A CatalogChange is the immutable audit record for an applied catalog mutation, w
 
 Each embedded source-evidence item records its Source ID, final inspected URL, retrieval time in UTC, authority at retrieval, and a review-safe excerpt or snapshot reference. Keep relevant original extracted values and extraction metadata with that evidence. When different sources support different changed fields, identify the supporting evidence item for each field. A later Source URL or authority edit does not rewrite it. Preserve a source's date-only publication label as a calendar date or original text in evidence; never fabricate a midnight instant. Legacy import references may be retained in run results and change notes but are not current evidence for publication.
 
-Editorial copy edits may have no external evidence but still require an actor and audit record. Dates, schedule status, location, official links, factual Occurrence classifications, and identity merges require source evidence.
+Background edits of editorial copy may have no external evidence but still record an actor. Background changes to dates, schedule status, location, official links, factual Occurrence classifications, and identity merges require source evidence.
 
 Audit rules:
 
-- Write CatalogChanges atomically with every owner/agent edit, import, ingestion mutation, and publication transition. Record one entry per affected Event/Occurrence with a shared operation key for a multi-subject write; never expose a half-created public Event. Changes to owned links, classification sets, and location fields are audited on their owner with enough values to reconstruct additions/removals.
+- Write CatalogChanges atomically with applied background ingestion mutations and their publication transitions. Record one entry per affected Event/Occurrence with a shared operation key for a multi-subject write; never expose a half-created public Event. Changes to owned links, classification sets, and location fields made by a background run are audited on their owner with enough values to reconstruct additions/removals. Direct development fixture and test setup writes are outside this audit history.
 - Unchanged checks, failed validation, skipped matches, and replayed operations create no CatalogChange or field-update timestamp. Publishing a checked draft embeds supporting evidence even when its accepted facts did not change; legacy import alone cannot satisfy that gate.
-- The agent interface retrieves ordered field history, filterable by field. Evidence retrieval time and `changedAt` remain distinct; a field update is not proof of fresh verification. Show no public freshness or verification timestamps in v1, while retaining tentative-date and approximate-location labels.
+- The agent interface retrieves ordered background-change history, filterable by field. This is not a complete history of all catalog edits. Evidence retrieval time and `changedAt` remain distinct; a field update is not proof of fresh verification. Show no public freshness or verification timestamps in v1, while retaining tentative-date and approximate-location labels.
 
 ### 6.4 Direct write contract (not a persisted entity)
 
@@ -336,4 +336,4 @@ Defer Proposals and review workflows, standalone Observations, artist/lineup and
 
 Use typed relationships and validated, bounded JSON only for audit diffs, run results, and evidence. Keep large raw snapshots behind `snapshotRef` with a defined retention policy. Enforce invariants in domain code and database constraints where supported. Published identities use lifecycle transitions; hard deletion is limited to never-published test/development data under an explicit operation.
 
-Test the [release acceptance scenarios](000-product-foundation.md#3-end-to-end-acceptance-scenarios), especially date/location null semantics and publication gates; occurrence identity and isolation; taxonomy cardinality and evidence; deterministic upcoming selection; matching and conflict skips; keyed source-check replay; and atomic, idempotent catalog writes with complete field history. Use saved, attributable source fixtures rather than live pages in normal tests. Review SQLite/Drizzle migrations before applying them. Initial vocabulary and eventmap imports are idempotent data operations, separate from schema migrations.
+Test the [release acceptance scenarios](000-product-foundation.md#3-end-to-end-acceptance-scenarios), especially date/location null semantics and publication gates; occurrence identity and isolation; taxonomy cardinality and evidence; deterministic upcoming selection; matching and conflict skips; keyed source-check replay; and atomic, idempotent background catalog writes with their audit entries. Use saved, attributable source fixtures rather than live pages in normal tests. Review SQLite/Drizzle migrations before applying them. Initial vocabulary and eventmap imports are idempotent data operations, separate from schema migrations.
