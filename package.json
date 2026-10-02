@@ -13,9 +13,9 @@
     "start": "next start",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
-    "format:check": "prettier --check src commands drizzle.config.ts next.config.ts vitest.config.mts postcss.config.mjs eslint.config.mjs package.json tsconfig.json",
+    "format:check": "prettier --check src commands e2e scripts drizzle.config.ts next.config.ts playwright.config.ts vitest.config.mts postcss.config.mjs eslint.config.mjs package.json tsconfig.json",
     "test": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "node scripts/run-e2e.mjs",
     "db:migrate": "tsx commands/catalog-db.ts migrate",
     "db:fixtures": "tsx commands/catalog-db.ts fixtures"
   },
