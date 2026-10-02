@@ -11,6 +11,7 @@ import {
   operationReceipts,
   taxonomyTerms,
   urlAliases,
+  type CatalogFieldChange,
 } from "@/db/schema";
 import {
   catalogOperationSchema,
@@ -255,9 +256,10 @@ function writeChange(
   subject: "event" | "occurrence",
   id: string,
   version: number,
-  changes: unknown[],
+  changes: CatalogFieldChange[],
   now: string,
 ) {
+  assert(changes.length > 0, "Catalog change needs at least one field");
   const changeId = randomUUID();
   const db = drizzle(client);
   db.insert(catalogChanges)

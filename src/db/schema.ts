@@ -14,6 +14,13 @@ import {
 const lifecycle = ["draft", "published", "withdrawn"] as const;
 const facets = ["event_type", "format", "topic", "genre", "culture"] as const;
 
+export type CatalogFieldChange = {
+  field: string;
+  oldPresent?: boolean;
+  oldValue: unknown;
+  newValue: unknown;
+};
+
 export const events = sqliteTable(
   "events",
   {
@@ -300,7 +307,7 @@ export const catalogChanges = sqliteTable(
     occurrenceId: text("occurrence_id").references(() => occurrences.id),
     subjectVersion: integer("subject_version").notNull(),
     changedFields: text("changed_fields", { mode: "json" })
-      .$type<unknown[]>()
+      .$type<CatalogFieldChange[]>()
       .notNull(),
     operationKey: text("operation_key").notNull(),
     actor: text("actor").notNull(),

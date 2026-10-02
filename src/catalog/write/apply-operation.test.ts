@@ -81,6 +81,7 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
   const applied = applyCatalogOperation(client, op);
   expect(applied.changed).toBe(true);
   expect(applyCatalogOperation(client, op)).toEqual(applied);
+  expect(count(client, "catalog_changes")).toBe(1);
   expect(() =>
     applyCatalogOperation(client, {
       ...op,
