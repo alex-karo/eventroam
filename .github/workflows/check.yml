@@ -22,5 +22,6 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run docs:check
+      - run: npm run openspec:validate
       - run: npm test
       - run: npm run build

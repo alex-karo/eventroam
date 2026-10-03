@@ -11,7 +11,7 @@ tags: [research, domain]
 Date: 2026-09-17  
 Scope: Read-only review of the three files under `sources/` plus a small set of current official festival sources. This is a model review, not source verification or an import plan.
 
-Update 2026-10-01: The [current domain model](../../specs/001-domain-model.md#53-occurrence-classification) now uses Occurrence-only classifications without Event inheritance or overrides. That decision supersedes this review's classification-override recommendation; the source observations remain historical context.
+Update 2026-10-01: The [current classification contract](../../openspec/specs/catalog/classification/spec.md) uses Occurrence-only classifications without Event inheritance or overrides. That decision supersedes this review's classification-override recommendation; the source observations remain historical context.
 
 ## Outcome
 

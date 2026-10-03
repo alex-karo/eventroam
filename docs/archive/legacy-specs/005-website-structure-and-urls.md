@@ -1,16 +1,18 @@
 ---
-type: Specification
+type: Reference
 title: Website structure and URLs
 description: Selected scope domains and current fixture-backed routes and discovery URL behavior.
-status: stable
+status: deprecated
 tags: [website, routing]
 ---
 
 # Website structure and URLs
 
+Historical source document. Its requirements were migrated to OpenSpec; use `openspec/specs/` for current behavior and `openspec/changes/` for approved future work.
+
 Date: 2026-10-01
 
-This document records the selected scope-domain direction and the routes and discovery behavior in the fixture-backed application. Unselected cross-scope and public-launch policies are in the [draft routing and indexing proposal](proposals/website-routing-and-indexing.md).
+This document records the selected scope-domain direction and the routes and discovery behavior in the fixture-backed application. Unselected cross-scope and public-launch policies are in the [draft routing and indexing proposal](../../proposals/website-routing-and-indexing.md).
 
 ## 1. Confirmed direction and boundaries
 
@@ -35,7 +37,7 @@ The current fixture-backed routes are:
 
 The apex is a scope directory, not a duplicate festival catalog or an automatic redirect. With only one launched scope, give Festivals a direct prominent link. Do not display empty future catalogs as active navigation destinations or publish indexable placeholder scope sites.
 
-Each scope root is its discovery page; do not add synonymous `/map`, `/list`, `/search`, or `/festivals` routes. Proposed shared information pages and navigation for additional launched scopes are tracked in the [draft routing proposal](proposals/website-routing-and-indexing.md).
+Each scope root is its discovery page; do not add synonymous `/map`, `/list`, `/search`, or `/festivals` routes. Proposed shared information pages and navigation for additional launched scopes are tracked in the [draft routing proposal](../../proposals/website-routing-and-indexing.md).
 
 Country, city, genre, and date selections remain filters rather than path hierarchies. Curated editorial landing pages, global cross-scope search, localization, accounts, and submissions are deferred. No language prefix, year archive route, or country subdomain is needed for V1.
 
@@ -47,7 +49,7 @@ The Festivals scope uses the release eligibility rules already established in th
 
 Retain globally unique Event slugs and shared Event/Occurrence IDs from the [domain model](001-domain-model.md). A record can eventually qualify for several scopes without being duplicated. The current schema stores `homeScope` on the Event and assigns `festivals` at first publication; all its Occurrences share that canonical host. This is URL ownership metadata, not a claim that every edition has the same classification.
 
-For the current Festivals scope, every public Event has `homeScope = festivals`. Before launching overlapping scopes, define how to choose the initial home scope. Never recalculate an existing canonical host from current filters, genre edits, or a visitor's entry point. Proposed cross-scope migration and redirect behavior is in the [draft routing proposal](proposals/website-routing-and-indexing.md).
+For the current Festivals scope, every public Event has `homeScope = festivals`. Before launching overlapping scopes, define how to choose the initial home scope. Never recalculate an existing canonical host from current filters, genre edits, or a visitor's entry point. Proposed cross-scope migration and redirect behavior is in the [draft routing proposal](../../proposals/website-routing-and-indexing.md).
 
 Generate absolute links from configured public origins, not an arbitrary request `Host` or forwarded-host value. Unconfigured hosts do not expose a default catalog. Configure DNS and TLS for each launched host; do not make wildcard subdomains silently create new scopes.
 
@@ -81,7 +83,7 @@ An Occurrence page contains edition dates/status, qualified location, relevant c
 
 Selecting a list result or map marker loads that Occurrence's details on demand; its already-loaded summary may remain visible while details load. Standard links and direct navigation must work independently of the interactive map. A later drawer/modal enhancement must use the same route, preserve browser back behavior, and never create an alternative indexable detail URL.
 
-Publication gates and uncertainty labels remain those of the domain model. Completed, cancelled, and already-published postponed Occurrences retain their pages and stable URLs even though cancellation/postponement excludes them from discovery. Drafts and withdrawn records expose no public detail payload and return `404`, with internal audit history retained. Proposed merge redirect behavior is in the [draft routing proposal](proposals/website-routing-and-indexing.md).
+Publication gates and uncertainty labels remain those of the domain model. Completed, cancelled, and already-published postponed Occurrences retain their pages and stable URLs even though cancellation/postponement excludes them from discovery. Drafts and withdrawn records expose no public detail payload and return `404`, with internal audit history retained. Proposed merge redirect behavior is in the [draft routing proposal](../../proposals/website-routing-and-indexing.md).
 
 ## 5. Discovery URL state and responsive layout
 
@@ -101,7 +103,7 @@ Reload and browser back/forward restore applied URL state. Pending picker edits 
 
 ## 6. Current discovery indexing behavior
 
-The fixture-backed Festivals discovery page sets its canonical URL from the configured Festivals origin and normalized filter query. A view-only or tracking-only query canonicalizes to the clean scope root. A materially filtered query keeps its normalized filters in the canonical URL and emits `noindex,follow`; invalid filter state also emits `noindex,follow` with visible recovery feedback. These are implemented behaviors, not owner approval of a complete public indexing policy. Detail-page metadata, sitemaps, and host-level crawler rules remain in the [draft routing and indexing proposal](proposals/website-routing-and-indexing.md).
+The fixture-backed Festivals discovery page sets its canonical URL from the configured Festivals origin and normalized filter query. A view-only or tracking-only query canonicalizes to the clean scope root. A materially filtered query keeps its normalized filters in the canonical URL and emits `noindex,follow`; invalid filter state also emits `noindex,follow` with visible recovery feedback. These are implemented behaviors, not owner approval of a complete public indexing policy. Detail-page metadata, sitemaps, and host-level crawler rules remain in the [draft routing and indexing proposal](../../proposals/website-routing-and-indexing.md).
 
 ## 7. Acceptance and remaining work
 
@@ -111,8 +113,8 @@ The current fixture-backed routing and discovery behavior should remain true as 
 2. Desktop displays map and list together. Small screens switch easily without changing matches or filters. Moving the map makes no discovery request and changes no URL filter.
 3. The summary response supports the complete matching set, including records without coordinates, under the selected delivery contract. Selecting a result loads the same Occurrence that its ordinary link identifies; direct visits render its full details.
 4. Two weekends under one Event have separate durable URLs. Date moves preserve IDs, keys, and addresses; renames retain working redirects, including edition paths.
-5. Filter URLs round-trip through reload and history. View-only variants canonicalize to the root; filtered and invalid states emit `noindex,follow`. Drafts and withdrawn records are absent from public payloads. The remaining canonical URL, redirect, and sitemap acceptance cases are in the [draft routing proposal](proposals/website-routing-and-indexing.md#acceptance-for-proposed-policies).
+5. Filter URLs round-trip through reload and history. View-only variants canonicalize to the root; filtered and invalid states emit `noindex,follow`. Drafts and withdrawn records are absent from public payloads. The remaining canonical URL, redirect, and sitemap acceptance cases are in the [draft routing proposal](../../proposals/website-routing-and-indexing.md#acceptance-for-proposed-policies).
 
-The current schema includes the `homeScope` routing attribute and the current UI defaults to List on small screens. Before public launch, set up the actual domains/TLS and measure summary payload size and rendering with the launch sample; an eventual need for a different delivery strategy requires an explicit revision, not an undocumented result cap. Remaining alias constraints are in the [draft routing proposal](proposals/website-routing-and-indexing.md).
+The current schema includes the `homeScope` routing attribute and the current UI defaults to List on small screens. Before public launch, set up the actual domains/TLS and measure summary payload size and rendering with the launch sample; an eventual need for a different delivery strategy requires an explicit revision, not an undocumented result cap. Remaining alias constraints are in the [draft routing proposal](../../proposals/website-routing-and-indexing.md).
 
 Before adding another scope, specify its inventory, membership/filter rules, and the initial home-scope choice for overlapping records. Further landing pages and global discovery can be designed then. These decisions do not require finalizing agent execution in this iteration.

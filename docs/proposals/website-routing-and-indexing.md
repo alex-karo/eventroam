@@ -8,7 +8,7 @@ tags: [website, routing, seo]
 
 # Website routing and indexing defaults
 
-These remaining rules were proposed in the [website structure specification](../005-website-structure-and-urls.md). Existing application behavior, including discovery canonical URLs and `noindex` responses, is documented there; implementation alone does not imply owner approval of the remaining choices.
+These remaining rules were proposed alongside the [scoped website specification](../../openspec/specs/website/routing/spec.md). Existing application behavior, including discovery canonical URLs and `noindex` responses, is specified in OpenSpec; implementation alone does not imply owner approval of the remaining choices.
 
 ## Site hierarchy and later scopes
 

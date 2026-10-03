@@ -1,12 +1,14 @@
 ---
-type: Specification
+type: Reference
 title: V1 discovery filters
 description: Selected discovery controls and the current fixture-backed map and list behavior.
-status: stable
+status: deprecated
 tags: [discovery, festivals]
 ---
 
 # V1 discovery filters
+
+Historical source document. Its requirements were migrated to OpenSpec; use `openspec/specs/` for current behavior and `openspec/changes/` for approved future work.
 
 Date: 2026-10-02
 
@@ -14,7 +16,7 @@ The fixture-backed application implements the selected filters, complete summary
 
 Support **When, Where, Music genre, Duration, and Size**, plus name search. Exclude Experience, Setting, and date-confirmation controls. Defer price, camping, and other practical filters. Continue collecting [festival information](003-festival-information.md), including prices in original currencies.
 
-This replaces earlier filter recommendations; [domain rules](001-domain-model.md) and [taxonomy definitions](002-festival-taxonomy.md) still apply.
+This replaces earlier filter recommendations; [domain rules](001-domain-model.md) and [taxonomy definitions](../../proposals/festival-taxonomy-vocabulary.md) still apply.
 
 ## Placement and interaction
 
@@ -49,7 +51,7 @@ Pickers/panel use Apply; dismissing discards pending edits. Submit search with E
 
 **Duration:** optional inclusive minimum/maximum positive integer days, with 1 day, 2–3 days, and 4+ days shortcuts filling those inputs. Derive `endsOn - startsOn + 1` from the entire programme, not its overlap with travel dates or camping windows. Display dates alongside duration; tentative dates imply tentative duration.
 
-**Size:** the current implementation uses multi-select attendee-capacity bands: **under 1,000; 1,000–4,999; 5,000–19,999; 20,000–49,999; 50,000+**. Help text: “Estimated attendee capacity.” Use only supported positive `capacityEstimate` values; label estimates and never infer a point from a source range. Unrestricted size includes unknowns; any selected band excludes them, even if all bands are selected. Show qualifying capacity on results. Validate the boundaries against the launch sample before freezing identifiers; this open choice is tracked in the [draft release decisions](proposals/release-open-decisions.md).
+**Size:** the current implementation uses multi-select attendee-capacity bands: **under 1,000; 1,000–4,999; 5,000–19,999; 20,000–49,999; 50,000+**. Help text: “Estimated attendee capacity.” Use only supported positive `capacityEstimate` values; label estimates and never infer a point from a source range. Unrestricted size includes unknowns; any selected band excludes them, even if all bands are selected. Show qualifying capacity on results. Validate the boundaries against the launch sample before freezing identifiers; this open choice is tracked in the [draft release decisions](../../proposals/release-open-decisions.md).
 
 ## Matching and results
 
@@ -84,6 +86,6 @@ Omit defaults, deduplicate/order multi-values, and serialize resolved dates rath
 
 Check date overlap, leap/year boundaries, one-day and separate-weekend duration, tentative/status rules, genre ancestry, size-band boundaries and unknowns, same-edition matching, unlocated/approximate map points, URL restoration, Apply/Cancel/reset, empty/error states, and keyboard/mobile flows. Verify desktop shows both views, narrow layouts switch without losing state, map movement does not fetch/filter results, complete summaries are returned, and detail clicks handle failures and stale responses. Check browser/server matching parity and direct crawlable detail routes. Use fixed dates and saved fixtures. Confirm price never affects filtering or sorting.
 
-Before launch, align domain validation with positive capacity and add typed storage for original-currency price summaries. The unimplemented storage choice is tracked in the [draft release decisions](proposals/release-open-decisions.md). Duration and size bands are derived values, not taxonomy terms. Validate source coverage using the information brief's sample; sparse data must remain visibly unknown.
+Before launch, align domain validation with positive capacity and add typed storage for original-currency price summaries. The unimplemented storage choice is tracked in the [draft release decisions](../../proposals/release-open-decisions.md). Duration and size bands are derived values, not taxonomy terms. Validate source coverage using the information brief's sample; sparse data must remain visibly unknown.
 
 Check edition-wide versus partial sell-out, unknown availability, failed-check preservation, supported reopening, and new-edition isolation; sold-out status must not remove an otherwise eligible result.

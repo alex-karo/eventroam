@@ -1,12 +1,14 @@
 ---
-type: Specification
+type: Reference
 title: "Product foundation: first release"
 description: First-release scope, outcomes, acceptance scenarios, and rollout direction.
-status: draft
+status: deprecated
 tags: [product, release]
 ---
 
 # Product foundation: first release
+
+Historical source document. Its requirements were migrated to OpenSpec; use `openspec/specs/` for current behavior and `openspec/changes/` for approved future work.
 
 Status: Draft; product direction confirmed by the owner on 2026-09-17  
 Scope: First-release behavior, acceptance, and rollout
@@ -25,7 +27,7 @@ The owner uses an agent to research, discover, refresh, edit, and publish throug
 
 Publication requires source-backed dates, a country, and at least a supported approximate locality/region within it. Provisional dates are allowed with “Tentative dates” wherever displayed. Qualify an approximate location; an exact venue or coordinates are not required. A published postponed Occurrence keeps its page and previous-date history but leaves upcoming discovery. An Event page requires at least one published current or historical Occurrence. The [domain model](001-domain-model.md) defines these gates and all record invariants.
 
-Scheduled or unattended runs, public submissions, accounts, ticketing, travel booking, lineups, and personalization are outside this release. [ADR 001](../docs/decisions/001-sqlite-and-drizzle.md) records the database choice; command/API contracts and physical layout still need implementation specifications.
+Scheduled or unattended runs, public submissions, accounts, ticketing, travel booking, lineups, and personalization are outside this release. [ADR 001](../../decisions/001-sqlite-and-drizzle.md) records the database choice; command/API contracts and physical layout still need implementation specifications.
 
 ### Initial import and agent interfaces
 
@@ -35,7 +37,7 @@ Provide versioned, validated operations for import, discovery, refresh, direct e
 
 ### Discovery decisions
 
-The [discovery specification](004-discovery-filters.md) selects When, Where, Music genre, Duration, and Size, alongside event-name search, and owns map/list behavior and query state. It supersedes the earlier recommendations in the [initial competitor scan](../docs/research/2026-09-14-competitor-scan.md) and [filters/classification research](../docs/research/2026-09-19-filters-and-classification.md). The [festival information brief](003-festival-information.md) distinguishes collected details from public filters, including original-currency prices without price filtering. Validate international trip planning and local discovery, mobile use, date ranges, unknown values, combined filters, URL state, empty results, and source-backed coverage against the dump and refreshed launch data. The [festival taxonomy](002-festival-taxonomy.md) defines starter terms, not additional public controls.
+The [discovery specification](004-discovery-filters.md) selects When, Where, Music genre, Duration, and Size, alongside event-name search, and owns map/list behavior and query state. It supersedes the earlier recommendations in the [initial competitor scan](../../research/2026-09-14-competitor-scan.md) and [filters/classification research](../../research/2026-09-19-filters-and-classification.md). The [festival information brief](003-festival-information.md) distinguishes collected details from public filters, including original-currency prices without price filtering. Validate international trip planning and local discovery, mobile use, date ranges, unknown values, combined filters, URL state, empty results, and source-backed coverage against the dump and refreshed launch data. The [festival taxonomy](../../proposals/festival-taxonomy-vocabulary.md) defines starter terms, not additional public controls.
 
 ## 2. Domain contract
 
@@ -58,7 +60,7 @@ The first release is complete when these flows work without placeholder facts:
 
 ## 4. Remaining release decisions
 
-Open choices are tracked separately in the [draft release decisions](proposals/release-open-decisions.md). Filter scope, complete discovery summaries with on-demand details, responsive map/list presentation, and scope domains are selected. Publication edge cases and internal history are defined in the [domain model](001-domain-model.md).
+Open choices are tracked separately in the [draft release decisions](../../proposals/release-open-decisions.md). Filter scope, complete discovery summaries with on-demand details, responsive map/list presentation, and scope domains are selected. Publication edge cases and internal history are defined in the [domain model](001-domain-model.md).
 
 ## 5. Test approach and rollout
 

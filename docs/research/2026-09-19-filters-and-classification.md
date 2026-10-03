@@ -10,7 +10,7 @@ tags: [research, discovery]
 
 Research date: 2026-09-19. Status: recommendations for product selection, not an accepted implementation spec.
 
-Update 2026-10-01: The owner selected a simpler classification model with fixed facets and Occurrence-only assignments. The [current domain model](../../specs/001-domain-model.md#53-occurrence-classification) and [festival taxonomy](../../specs/002-festival-taxonomy.md) supersede this report's Event-default/inheritance recommendations and tentative vocabulary. The rival observations below remain historical research.
+Update 2026-10-01: The owner selected a simpler classification model with fixed facets and Occurrence-only assignments. The [current classification contract](../../openspec/specs/catalog/classification/spec.md) and [festival vocabulary proposal](../proposals/festival-taxonomy-vocabulary.md) supersede this report's Event-default/inheritance recommendations and tentative vocabulary. The rival observations below remain historical research.
 
 ## Recommendation
 
@@ -18,7 +18,7 @@ Start with **When, Where, Experience, and Music genre**, plus event-name search.
 
 Camping is the strongest candidate for the next practical filter. Do not launch price, size, family suitability, accessibility, or alcohol-policy filters merely because rivals expose them: their definitions and available evidence are substantially weaker than dates and geography.
 
-This follows the [foundation research brief](../../specs/000-product-foundation.md) and [current domain model](../../specs/001-domain-model.md). It supersedes the filter recommendations in the [initial scan](2026-09-14-competitor-scan.md), not the later product constraints. In particular, this report does not recommend public freshness indicators, approval queues, accounts, submissions, ticketing, or unattended ingestion.
+This follows the [historical foundation brief](../archive/legacy-specs/000-product-foundation.md) and [current catalog contract](../../openspec/specs/catalog/records/spec.md). It supersedes the filter recommendations in the [initial scan](2026-09-14-competitor-scan.md), not the later product constraints. In particular, this report does not recommend public freshness indicators, approval queues, accounts, submissions, ticketing, or unattended ingestion.
 
 ## Method and limits
 

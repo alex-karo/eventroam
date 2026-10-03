@@ -1,18 +1,20 @@
 ---
-type: Specification
+type: Reference
 title: Festival information to extract
 description: V1 information brief for edition facts, practical details, and source collection.
-status: draft
+status: deprecated
 tags: [catalog, ingestion]
 ---
 
 # Festival information to extract
 
+Historical source document. Its requirements were migrated to OpenSpec; use `openspec/specs/` for current behavior and `openspec/changes/` for approved future work.
+
 Date: 2026-10-01 · Status: V1 information brief
 
 Implementation note (2026-10-02): Source evidence collection and storage described below are deferred until the catalog database update workflow is built. Current catalog writes do not accept evidence payloads.
 
-Collect information about each dated edition (Occurrence); keep enduring names and descriptions on the Event. Follow the [domain model](001-domain-model.md) for identity, evidence, publication, and writes, and the [taxonomy](002-festival-taxonomy.md) for classification. The [filter spec](004-discovery-filters.md) selects what visitors can filter.
+Collect information about each dated edition (Occurrence); keep enduring names and descriptions on the Event. Follow the [domain model](001-domain-model.md) for identity, evidence, publication, and writes, and the [taxonomy](../../proposals/festival-taxonomy-vocabulary.md) for classification. The [filter spec](004-discovery-filters.md) selects what visitors can filter.
 
 ## Core information
 

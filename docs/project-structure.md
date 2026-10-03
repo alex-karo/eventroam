@@ -44,7 +44,8 @@ src/
 └── test/                      # Temporary databases and data builders
 
 commands/                     # Database migration and development fixtures
-specs/                        # Product and domain contracts
+openspec/specs/               # Implemented behavior, grouped by catalog/ and website/
+openspec/changes/             # Approved future work; delta specs use matching domain paths
 docs/                         # Decisions and development guidance
 data/                         # Ignored local database and runtime data
 ```
@@ -60,11 +61,11 @@ Create additional folders when code needs them. Unit and integration tests live 
 
 ESLint enforces these import boundaries. The writer runs without Next.js. Avoid exports that mix browser-safe contracts with server query implementations.
 
-Discovery loads complete public summaries for the active scope and applies the same filtering rules on direct server entry and in the browser. The map displays the coordinate-bearing subset of list results; moving the map does not fetch or filter inventory. Full details load on selection. See the [discovery contract](../specs/004-discovery-filters.md) and [domain model](../specs/001-domain-model.md).
+Discovery loads complete public summaries for the active scope and applies the same filtering rules on direct server entry and in the browser. The map displays the coordinate-bearing subset of list results; moving the map does not fetch or filter inventory. Full details load on selection. See the [discovery contract](../openspec/specs/website/discovery/spec.md) and [catalog records](../openspec/specs/catalog/records/spec.md).
 
 ## Routes and scope
 
-The application currently has a root page, Event and Occurrence pages, and two discovery API routes. The root renders an apex directory or Festivals discovery according to the allowed host. Unknown hosts do not expose a default catalog. Detail requests resolve public identity and canonical hosts through `site/server` and `catalog/read`. The [website structure and URL specification](../specs/005-website-structure-and-urls.md) owns the full routing and indexing rules.
+The application currently has a root page, Event and Occurrence pages, and two discovery API routes. The root renders an apex directory or Festivals discovery according to the allowed host. Unknown hosts do not expose a default catalog. Detail requests resolve public identity and canonical hosts through `site/server` and `catalog/read`. The [scoped website specification](../openspec/specs/website/routing/spec.md) owns implemented routing behavior; [public site launch](../openspec/changes/public-site-launch/proposal.md) tracks approved metadata work.
 
 About and privacy pages, dedicated error pages, robots and sitemap routes, and complete SEO metadata remain future work. Add their files when the behavior is implemented; do not publish placeholder routes.
 

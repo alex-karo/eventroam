@@ -1,24 +1,44 @@
 # Eventroam documentation
 
-This is a hand-maintained guide to the project's Markdown knowledge. `stable` describes an accepted decision, a verified current behavior, or a reliable historical record; it does not mean every target feature is implemented. `draft` marks material still being selected or reviewed. The application and [build progress](service-build-progress.md) show what currently runs. Research records observations at their stated dates; current specs and decisions govern behavior.
+This is a hand-maintained guide to the project's Markdown knowledge. Main OpenSpec specs describe implemented behavior. Active OpenSpec changes describe approved work that has not been implemented; draft proposals hold unresolved choices. The application and [build progress](service-build-progress.md) show what currently runs. `stable` describes an accepted decision, verified current behavior, or reliable historical record; `draft` marks material still being selected or reviewed. Dated research and legacy specs are background evidence.
 
 ## Maintaining the docs
 
-Every substantive file under `specs/` and `docs/` has OKF-style `type`, `title`, `description`, and `status` frontmatter; `tags` are optional. Index files and `AGENTS.md` are navigation and instructions, not concepts. This in-place layout is not a single conformant OKF bundle. Keep unapproved choices in draft proposals, and distinguish accepted target behavior from implemented behavior in prose. Do not add `generated`, `verified`, or `stale_after` without evidence. Update this index when adding or removing a document, and run `npm run docs:check` after editing docs.
+Every substantive file under `docs/` has OKF-style `type`, `title`, `description`, and `status` frontmatter; `tags` are optional. OpenSpec owns behavioral specifications and follows its own format. Index files and `AGENTS.md` are navigation and instructions, not concepts. Keep unapproved choices in draft proposals; do not promote them to main OpenSpec specs or active changes. Do not add `generated`, `verified`, or `stale_after` without evidence. Update this index when adding or removing a document. Run `npm run docs:check` after editing docs and `npm run openspec:validate` after editing OpenSpec artifacts.
 
-## Product and domain specs
+## Implemented behavior: OpenSpec
 
-- [Product foundation](../specs/000-product-foundation.md) — release scope, outcomes, and acceptance; draft overall, with selected direction called out in the text.
-- [Domain model](../specs/001-domain-model.md) — identity, publication, writes, and target evidence rules; draft overall.
-- [Festival taxonomy](../specs/002-festival-taxonomy.md) — proposed starter vocabulary awaiting launch-data validation.
-- [Festival information](../specs/003-festival-information.md) — draft brief for edition facts and practical details.
-- [Discovery filters](../specs/004-discovery-filters.md) — selected controls and fixture-backed map/list behavior.
-- [Website structure and URLs](../specs/005-website-structure-and-urls.md) — scope direction and current routes.
+Catalog:
 
-## Draft proposals
+- [Catalog records](../openspec/specs/catalog/records/spec.md) — Event/Occurrence identity, validated facts, typed prices, and versioned writes.
+- [Publication and details](../openspec/specs/catalog/publication/spec.md) — publication gates, visibility, and public edition presentation.
+- [Occurrence classification](../openspec/specs/catalog/classification/spec.md) — fixed facets, per-edition assignments, and public labels.
 
-- [Remaining release decisions](../specs/proposals/release-open-decisions.md) — unresolved launch-data, ingestion, and storage choices.
-- [Website routing and indexing defaults](../specs/proposals/website-routing-and-indexing.md) — unselected cross-scope and public-launch policies.
+Website:
+
+- [Discovery](../openspec/specs/website/discovery/spec.md) — filters, URL state, and the shared map/list result set.
+- [Scoped website](../openspec/specs/website/routing/spec.md) — configured hosts, stable detail routes, and scope-root state.
+
+## Approved future changes
+
+- [Source-backed catalog workflow](../openspec/changes/source-backed-catalog-workflow/proposal.md) — owner-initiated import, verification, refresh, and field evidence.
+- [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
+- [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
+
+## Draft proposals and migration record
+
+- [Remaining release decisions](proposals/release-open-decisions.md) — unresolved launch-data, ingestion, and storage choices.
+- [Website routing and indexing defaults](proposals/website-routing-and-indexing.md) — unselected cross-scope and public-launch policies.
+- [Festival taxonomy vocabulary proposal](proposals/festival-taxonomy-vocabulary.md) — starter terms awaiting launch-data validation.
+- [Specification migration map](specification-migration.md) — where each legacy section moved.
+
+## Historical specifications
+
+- [Product foundation](archive/legacy-specs/000-product-foundation.md) — original first-release scope and acceptance text.
+- [Domain model](archive/legacy-specs/001-domain-model.md) — original record, publication, and evidence model.
+- [Festival information](archive/legacy-specs/003-festival-information.md) — original collection brief.
+- [Discovery filters](archive/legacy-specs/004-discovery-filters.md) — original filter and map/list contract.
+- [Website structure and URLs](archive/legacy-specs/005-website-structure-and-urls.md) — original host and routing contract.
 
 ## Development and operations
 

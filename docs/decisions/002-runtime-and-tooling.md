@@ -16,7 +16,7 @@ Date: 2026-10-01
 
 Eventroam needs one English-language application with crawlable Event/Occurrence pages, a shared map/list catalog, and a local SQLite database. The owner requested the latest stable Node.js and a concrete tooling selection before scaffolding. [ADR 001](001-sqlite-and-drizzle.md) already selects SQLite and Drizzle; this decision implements the direction in the [development guide](../development.md).
 
-The backend supplies all discovery summaries, with full details loaded when a visitor opens a result. Map movement does not request another geographic subset. Desktop displays map and list together; smaller screens offer an easy switch between them. The precise division of filter execution between browser and server is a discovery-contract decision, not a reason to add another service. [Discovery filters](../../specs/004-discovery-filters.md) owns the behavior.
+The backend supplies all discovery summaries, with full details loaded when a visitor opens a result. Map movement does not request another geographic subset. Desktop displays map and list together; smaller screens offer an easy switch between them. The precise division of filter execution between browser and server is a discovery-contract decision, not a reason to add another service. [Discovery](../../openspec/specs/website/discovery/spec.md) owns the behavior.
 
 ## Decision
 

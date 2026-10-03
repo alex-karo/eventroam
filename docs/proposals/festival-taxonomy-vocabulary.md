@@ -1,12 +1,14 @@
 ---
-type: Specification
-title: Festival taxonomy
+type: Proposal
+title: Festival taxonomy vocabulary proposal
 description: Starter Occurrence vocabulary and assignment policy pending launch-data validation.
 status: draft
 tags: [taxonomy, festivals]
 ---
 
-# Festival taxonomy
+# Festival taxonomy vocabulary proposal
+
+This draft retains the proposed starter terms and their validation notes. Implemented facet and classification behavior belongs to OpenSpec; the vocabulary remains subject to launch-data validation.
 
 Status: Expected starter vocabulary and assignment policy, version 0.3
 
@@ -18,7 +20,7 @@ Implementation note (2026-10-02): The evidence requirements below are deferred u
 
 ## 1 Context and outcome
 
-This file defines the starter vocabulary and evidence rules for classifying each Occurrence. The [domain model](001-domain-model.md#53-occurrence-classification) owns records and invariants; the [foundation](000-product-foundation.md) owns scope and publication. The [rival research](../docs/research/2026-09-19-filters-and-classification.md) informed the vocabulary, but its Event-inheritance proposal is superseded. This taxonomy does not select public filters or expand the catalog to concerts, conferences, retreats, or club nights.
+This proposal defines starter vocabulary and future evidence rules for classifying each Occurrence. [Occurrence classification](../../openspec/specs/catalog/classification/spec.md) owns implemented facet and assignment behavior, while [publication and details](../../openspec/specs/catalog/publication/spec.md) owns current scope and public visibility. The [rival research](../research/2026-09-19-filters-and-classification.md) informed the vocabulary, but its Event-inheritance proposal is superseded. This proposal does not select public filters or expand the catalog to concerts, conferences, retreats, or club nights.
 
 ## 2 Facets and starter terms
 

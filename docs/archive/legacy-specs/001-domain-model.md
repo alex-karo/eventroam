@@ -1,12 +1,14 @@
 ---
-type: Specification
+type: Reference
 title: Domain model
 description: Logical catalog records, identity, publication, writes, and target evidence rules.
-status: draft
+status: deprecated
 tags: [domain, catalog]
 ---
 
 # Domain model
+
+Historical source document. Its requirements were migrated to OpenSpec; use `openspec/specs/` for current behavior and `openspec/changes/` for approved future work.
 
 Status: Draft; product constraints confirmed in the foundation spec  
 Scope: Logical records, invariants, identity, evidence, and publication
@@ -15,7 +17,7 @@ Implementation note (2026-10-02): Source evidence requirements and storage in th
 
 ## 1. Context and boundaries
 
-This model defines records and invariants for the [first release](000-product-foundation.md). It separates durable Event identities from dated Occurrences, and source evidence from accepted catalog values. Unknown facts remain unknown. [ADR 001](../docs/decisions/001-sqlite-and-drizzle.md) selects SQLite and Drizzle; this model does not prescribe table layout.
+This model defines records and invariants for the [first release](000-product-foundation.md). It separates durable Event identities from dated Occurrences, and source evidence from accepted catalog values. Unknown facts remain unknown. [ADR 001](../../decisions/001-sqlite-and-drizzle.md) selects SQLite and Drizzle; this model does not prescribe table layout.
 
 ## 2. Modeling principles
 
@@ -154,7 +156,7 @@ Location rules:
 
 Each Occurrence owns its complete classification set. Event-level classifications, inherited values, overrides, and polymorphic assignment owners are not part of this model. The public Event page displays the classifications of the explicitly selected published Occurrence; it does not union values across Occurrences or expose draft Occurrence values.
 
-The application config defines exactly five fixed facets and their selection rules: `event_type` (single), `format` (single), `topic` (multiple), `genre` (multiple), and `culture` (multiple). There is no TaxonomyFacet table. The concrete starting vocabulary and assignment policy are documented in [the festival taxonomy spec](002-festival-taxonomy.md); the public UI filter set remains a separate product decision.
+The application config defines exactly five fixed facets and their selection rules: `event_type` (single), `format` (single), `topic` (multiple), `genre` (multiple), and `culture` (multiple). There is no TaxonomyFacet table. The concrete starting vocabulary and assignment policy are documented in [the festival taxonomy spec](../../proposals/festival-taxonomy-vocabulary.md); the public UI filter set remains a separate product decision.
 
 #### TaxonomyTerm
 
