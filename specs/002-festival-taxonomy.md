@@ -8,9 +8,11 @@ tags: [taxonomy, festivals]
 
 # Festival taxonomy
 
-Status: Expected starter vocabulary and assignment policy, version 0.1  
-Date: 2026-10-01  
-Basis: The owner accepted the simpler Occurrence-only classification model on 2026-10-01. The terms below make that model concrete; validate their usefulness against the launch dataset before implementation.
+Status: Expected starter vocabulary and assignment policy, version 0.3
+
+Date: 2026-10-03
+
+Basis: The owner accepted the simpler Occurrence-only classification model on 2026-10-01 and added `reenactment`, `wellness`, and `moto` as programme topics on 2026-10-03. Validate the vocabulary against the launch dataset before implementation.
 
 Implementation note (2026-10-02): The evidence requirements below are deferred until the catalog database update workflow is built. Current classification writes and publication use the structural rules without source evidence.
 
@@ -55,8 +57,11 @@ Preserve raw source wording. “Hybrid” may mean online plus in-person; an ope
 | --- | --- | --- |
 | `music` | Music | Live or recorded musical performances form a substantial advertised programme. |
 | `arts` | Arts | Installations, visual art, performance art, or other non-musical artistic participation form a substantial advertised programme. |
+| `reenactment` | Historical reenactment | Re-creations of historical events or ways of life, such as living-history camps, period demonstrations, or staged historical encounters, form a substantial advertised programme. |
+| `wellness` | Wellness | Guided well-being practices, such as yoga, meditation, breathwork, or restorative movement, form a substantial advertised programme for attendees. |
+| `moto` | Motorcycling | Motorcycle rides, custom-bike shows, stunt or racing displays, or hands-on riding activities form a substantial advertised programme. |
 
-Music does not imply arts; decoration alone does not establish an arts programme. Workshops, yoga, food, and wellness remain descriptive evidence, not starter terms or grounds for including an out-of-scope event.
+Music does not imply arts; decoration alone does not establish an arts programme. Historical costume, fantasy theming, or an isolated demonstration does not establish reenactment; do not infer arts from reenactment without a separately supported artistic programme. A single yoga session, spa service, relaxing setting, or wellness marketing does not establish a substantial wellness programme. Biker attendance, motorcycle parking, a sponsor display, or a single incidental ride does not establish moto. Other workshops and food remain descriptive evidence, not starter terms. None of these additional topics makes an otherwise out-of-scope event eligible for publication.
 
 ### Music genres
 
@@ -100,8 +105,8 @@ The term applies to official and independent events when supported. It makes no 
 ## 3 Assignment and normalization rules
 
 1. **Use edition-relevant evidence.** Prefer the official edition page, programme, or organizer account. An enduring official description may support a current edition when it clearly applies; old assignments and aggregator tags alone do not establish that it still does.
-2. **Classify substantial programming.** An explicit central musical identity or clearly substantial programme section can support a genre. One incidental performer or workshop cannot. No lineup-percentage calculation, numeric confidence threshold, or mandatory artist database is required.
-3. **Keep dimensions independent.** Psytrance does not imply burning-like culture. Camping does not imply outdoor programming. A gathering need not have music, and missing genre must not exclude a supported non-musical burn.
+2. **Classify substantial programming.** An explicit central identity or clearly substantial programme section can support a topic; musical styles also require substantial musical programming. One incidental performer, demonstration, or workshop cannot. No lineup-percentage calculation, numeric confidence threshold, or mandatory artist database is required.
+3. **Keep dimensions independent.** Psytrance does not imply burning-like culture. Reenactment does not imply arts or a music genre; wellness does not imply burning-like culture; moto does not imply rock, sports, or a participatory gathering. Camping does not imply outdoor programming. A gathering need not have music, and missing genre must not exclude a supported non-musical burn.
 4. **Use the exact known term.** Map harmless spelling variants through a small versioned application mapping. Examples: `D&B` and `drum and bass` map to `drum-and-bass`; `psy-trance` maps to `psytrance`; `open air` maps to `outdoor` only when it describes the programme. Ambiguous `EDM`, `indie`, `hybrid`, and `urban` require context. No alias table is needed in v1.
 5. **Preserve uncertainty.** If a source only establishes electronic music, do not guess techno. “Multi-genre” is evidence of breadth, not a list of known genres; assign the specific styles supported or leave the facet unset. Do not seed multi-genre as a substitute for unknown.
 6. **Replace only intentionally.** A missing label in a new extraction is not an instruction to delete an accepted assignment. Additions, removals, and complete set replacements use the domain's evidence, conflict, and owner-correction rules. A failed source fetch never clears terms.
@@ -118,6 +123,9 @@ Fictional Occurrence examples, not verified real-event records:
 | Forest Signal: official outdoor festival centered on psytrance | `festival` | `outdoor` | `music` | `psytrance` | Unset |
 | Common Ground Burn: participant-created art and gifting, no music programme | `gathering` | `outdoor` | `arts` | Unset | `burning-like` |
 | Valley Weekender: substantial indoor/outdoor stages, rock and jazz | `festival` | `mixed-indoor-outdoor` | `music` | `rock`, `jazz` | Unset |
+| Hearthfield Festival: outdoor live music and a substantial living-history programme | `festival` | `outdoor` | `music`, `reenactment` | Unset | Unset |
+| Quiet Fields Burn: participant-created art and gifting with daily guided meditation and yoga | `gathering` | `outdoor` | `arts`, `wellness` | Unset | `burning-like` |
+| Roadlight Festival: outdoor live music, organized rides, and custom-bike shows | `festival` | `outdoor` | `music`, `moto` | Unset | Unset |
 
 ## 5 Public behavior and acceptance
 
@@ -136,5 +144,5 @@ Apply assignment changes and their Occurrence `CatalogChange` atomically under t
 ## 7 Validation and rollout
 
 - Verify unique `(facet, slug)` pairs, configured facets, same-facet parents, and no cycles. Test cardinality, parent matching, aliases, unknown labels, edition isolation, intentional removals, idempotent replacements, rollback, owner corrections, and draft/withdrawn exclusion.
-- Use small attributable saved fixtures; normal tests must not fetch live sites. Before launch, classify roughly 30 varied official-source examples, including non-musical burns, independent gatherings, mixed programmes, missing genres, and styles outside the starter list. Record disagreements and unmapped labels, then refine the vocabulary.
+- Use small attributable saved fixtures; normal tests must not fetch live sites. Before launch, classify roughly 30 varied official-source examples, including non-musical burns, independent gatherings, mixed programmes, substantial versus incidental reenactment, wellness, and moto, missing genres, and styles outside the starter list. Record disagreements and unmapped labels, then refine the vocabulary.
 - Create the two classification tables in reviewed migrations. Load starter terms through a separate idempotent data operation keyed by facet/slug. Imported candidates require refreshed evidence before publication.
