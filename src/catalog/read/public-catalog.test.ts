@@ -472,3 +472,26 @@ test("discovery hides draft and withdrawn parents and editions", () => {
     expect(publicOccurrenceById(client, occurrences[0].id)).toBeNull();
   }
 });
+
+test("closed sales are public while ticket variants and audit history stay private", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const { event, occurrences } = fx.publishedEvent();
+  client
+    .prepare(
+      "UPDATE occurrences SET ticket_availability='closed', price_details=? WHERE id=?",
+    )
+    .run(
+      JSON.stringify([
+        { label: "Private offer", amount: 120, currency: "EUR" },
+      ]),
+      occurrences[0].id,
+    );
+  const detail = publicEvent(client, event.id)!;
+  const summaries = publicSummaries(client);
+  expect(detail.editions[0].ticketAvailability).toBe("closed");
+  expect(summaries[0].ticketAvailability).toBe("closed");
+  expect(JSON.stringify({ detail, summaries })).not.toMatch(
+    /priceDetails|price_details|Private offer|changedFields|operationKey|retrievedAt/,
+  );
+});

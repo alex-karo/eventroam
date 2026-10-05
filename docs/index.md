@@ -13,6 +13,7 @@ Catalog:
 - [Catalog records](../openspec/specs/catalog/records/spec.md) — Event/Occurrence identity, validated facts, typed prices, and versioned writes.
 - [Publication and details](../openspec/specs/catalog/publication/spec.md) — publication gates, visibility, and public edition presentation.
 - [Occurrence classification](../openspec/specs/catalog/classification/spec.md) — fixed facets, per-edition assignments, and public labels.
+- [Source-backed catalog workflow](../openspec/specs/catalog/source-workflow/spec.md) — owner-initiated collection, model-led refresh, and attributable run outcomes.
 
 Website:
 
@@ -21,9 +22,12 @@ Website:
 
 ## Approved future changes
 
-- [Source-backed catalog workflow](../openspec/changes/source-backed-catalog-workflow/proposal.md) — owner-initiated import, verification, refresh, and field evidence.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
+
+## Archived changes
+
+- [Source-backed catalog workflow](../openspec/changes/archive/2026-10-05-source-backed-catalog-workflow/proposal.md) — completed local collection change; its [design](../openspec/changes/archive/2026-10-05-source-backed-catalog-workflow/design.md) records the implementation approach.
 
 ## Draft proposals and migration record
 
@@ -43,6 +47,7 @@ Website:
 ## Development and operations
 
 - [Development guide](development.md) — commands, workflow, and working practices.
+- [Ingestion process](ingestion-process.md) — plain-language steps for local festival research and catalog updates.
 - [Project structure](project-structure.md) — directories and dependency boundaries.
 - [Service build checklist](service-build-checklist.md) — build tasks and remaining gates.
 - [Service build progress](service-build-progress.md) — fixture-backed implementation and verification record.

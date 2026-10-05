@@ -24,7 +24,6 @@ Build the catalog service using development fixtures. Parsing, crawling, imports
 - [x] Implement validated internal writes with atomic audit history, version checks, and replay protection.
 - [x] Enforce date, location, publication, and withdrawal rules; keep facts specific to each edition.
 - [x] Add repeatable development fixtures and focused tests for tentative dates, missing coordinates, historical editions, cancellations, and postponements.
-- [ ] Add source evidence when implementing the catalog database update workflow.
 
 ## 3 Basic catalog pages
 

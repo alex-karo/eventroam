@@ -11,17 +11,17 @@ tags: [database, architecture]
 Status: Accepted  
 Date: 2026-10-01
 
-Implementation update (2026-10-02): Source evidence storage is deferred until the catalog database update workflow is built. The current schema retains sources and immutable audit changes without change evidence. Ingestion runs are not stored in the catalog database.
+Implementation update (2026-10-05): The catalog workflow keeps immutable audit changes without per-change evidence. Ingestion run reports stay outside the catalog database.
 
 ## Context
 
-Eventroam's first release is one deployable application with a relational catalog, source-backed change evidence, immutable field-change history, and manually initiated ingestion. Public reads may be concurrent, but catalog writes are owner initiated and can be kept short. The application is not scaffolded yet, so the database can be selected without a data migration. PostgreSQL would add a server to operate before a requirement calls for one.
+Eventroam's first release is one deployable application with a relational catalog, immutable field-change history, and manually initiated ingestion. Public reads may be concurrent, but catalog writes are owner initiated and can be kept short. The application is not scaffolded yet, so the database can be selected without a data migration. PostgreSQL would add a server to operate before a requirement calls for one.
 
 ## Decision
 
 - Use **SQLite** as the primary database for the first release, stored in a persistent local Docker volume shared by the application and its manually invoked jobs on one host. Do not put the live database on a network filesystem or run application replicas on different hosts against the same file.
 - Keep **Drizzle ORM** for TypeScript schema definitions and typed queries. Use **Drizzle Kit** to generate explicit, version-controlled SQLite migrations; review them before applying them. Run migrations as a separate, repeatable step.
-- Store canonical catalog fields in typed relational columns with foreign keys, uniqueness rules, and database checks where supported. Enable and verify foreign-key enforcement on every connection. Store bounded, validated evidence and audit payloads as structured JSON only where their shape varies; do not replace canonical tables with JSON documents.
+- Store canonical catalog fields in typed relational columns with foreign keys, uniqueness rules, and database checks where supported. Enable and verify foreign-key enforcement on every connection. Store bounded, validated audit payloads as structured JSON only where their shape varies; do not replace canonical tables with JSON documents.
 - Enable SQLite write-ahead logging for concurrent public reads during writes. Keep write transactions short: fetch and interpret external sources before opening a transaction, then apply catalog changes and their CatalogChange records atomically. Configure a bounded wait for writer contention and report exhausted contention as a retryable failure.
 - Store latitude and longitude as ordinary columns. Index the queries required by the chosen map and list filters, including coordinate bounds where needed; this ADR does not select the filter set. Revisit the database choice if real spatial-query needs or multi-host operation emerge.
 - Back up the live database with SQLite's online backup mechanism (or `VACUUM INTO`), store backups separately from the live volume, and test restoration before production use. Do not copy only the main database file while it is live in WAL mode.

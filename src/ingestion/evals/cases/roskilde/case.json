@@ -1,0 +1,130 @@
+{
+  "id": "roskilde",
+  "input": {
+    "mode": "refresh",
+    "eventId": "festivalnetwork:event:87b1f34093d76b709011",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "festivalnetwork:event:87b1f34093d76b709011",
+      "slug": "festivalnetwork-roskilde-festival-87b1f340",
+      "canonicalName": "Roskilde Festival",
+      "links": [
+        {
+          "kind": "other",
+          "url": "https://www.roskilde-festival.dk/",
+          "label": "FestivalNetwork website (unverified)",
+          "official": false
+        }
+      ],
+      "occurrences": [
+        {
+          "id": "festivalnetwork:occurrence:87b1f34093d76b709011",
+          "occurrenceKey": "source-row",
+          "occurrenceYear": 2026,
+          "startsOn": "2026-06-27",
+          "endsOn": "2026-07-04",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "DK",
+          "termIds": []
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://www.roskilde-festival.dk/",
+      "finalUrl": "https://www.roskilde-festival.dk/",
+      "retrievedAt": "2026-10-03T16:33:58.662Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    },
+    {
+      "attemptedUrl": "https://www.roskilde-festival.dk/billetter",
+      "finalUrl": "https://www.roskilde-festival.dk/billetter",
+      "retrievedAt": "2026-10-03T23:49:31.905Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "tickets.md"
+    },
+    {
+      "attemptedUrl": "https://www.roskilde-festival.dk/kontakt",
+      "finalUrl": "https://www.roskilde-festival.dk/kontakt",
+      "retrievedAt": "2026-10-04T00:50:16.361Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "contact.md"
+    },
+    {
+      "attemptedUrl": "https://www.roskilde-festival.dk/festival-med-formaal",
+      "finalUrl": "https://www.roskilde-festival.dk/festival-med-formaal",
+      "retrievedAt": "2026-10-03T23:49:31.906Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "purpose.md"
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "event",
+        "field": "links",
+        "contains": {
+          "url": "https://www.roskilde-festival.dk/",
+          "kind": "official_site"
+        }
+      },
+      {
+        "owner": "occurrence",
+        "field": "starts_on",
+        "value": "2027-06-26",
+        "editionYear": 2027
+      },
+      {
+        "owner": "occurrence",
+        "field": "ends_on",
+        "value": "2027-07-03",
+        "editionYear": 2027
+      },
+      {
+        "owner": "occurrence",
+        "field": "date_state",
+        "value": "confirmed",
+        "editionYear": 2027
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "occurrence",
+        "editionKey": "source-row",
+        "field": "starts_on"
+      },
+      {
+        "owner": "occurrence",
+        "editionKey": "source-row",
+        "field": "ends_on"
+      },
+      {
+        "owner": "occurrence",
+        "field": "venue_address",
+        "editionYear": 2027,
+        "containsText": "Rabalderstræde"
+      },
+      {
+        "owner": "occurrence",
+        "field": "country_code",
+        "notValue": "DK",
+        "editionYear": 2027
+      }
+    ]
+  }
+}

@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
 import type { PublicOccurrence } from "@/catalog/read/contracts";
-import { TicketPrice } from "@/components/catalog/catalog";
+import { Status, TicketPrice } from "@/components/catalog/catalog";
 
 const render = (fields: Partial<PublicOccurrence>) =>
   renderToStaticMarkup(
@@ -18,6 +18,18 @@ const render = (fields: Partial<PublicOccurrence>) =>
       } as PublicOccurrence,
     }),
   );
+
+test("closed ticket sales stay separate from schedule status and sell-out", () => {
+  const output = renderToStaticMarkup(
+    createElement(Status, {
+      edition: {
+        status: "scheduled",
+        ticketAvailability: "closed",
+      } as PublicOccurrence,
+    }),
+  );
+  expect(output).toBe("<p>Scheduled · Ticket sales closed</p>");
+});
 
 test("Occurrence ticket output scales original-currency minor units", () => {
   const exact = {

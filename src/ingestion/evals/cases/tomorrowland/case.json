@@ -1,0 +1,186 @@
+{
+  "id": "tomorrowland",
+  "input": {
+    "mode": "refresh",
+    "eventId": "festivalnetwork:event:1e403c8e3a0cec796f1c",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "festivalnetwork:event:1e403c8e3a0cec796f1c",
+      "slug": "festivalnetwork-tomorrowland-1e403c8e",
+      "canonicalName": "Tomorrowland",
+      "links": [
+        {
+          "kind": "other",
+          "url": "https://www.tomorrowland.com/",
+          "label": "FestivalNetwork website (unverified)",
+          "official": false
+        }
+      ],
+      "occurrences": [
+        {
+          "id": "festivalnetwork:occurrence:1e403c8e3a0cec796f1c",
+          "occurrenceKey": "source-row",
+          "occurrenceYear": 2026,
+          "startsOn": "2026-07-17",
+          "endsOn": "2026-07-26",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "BE",
+          "termIds": ["festivalnetwork:term:genre:electronic"]
+        }
+      ]
+    },
+    "relatedEvents": [
+      {
+        "id": "festivalnetwork:event:1a93da278ad7eb2df52a",
+        "slug": "festivalnetwork-tomorrowland-winter-1a93da27",
+        "canonicalName": "Tomorrowland Winter",
+        "links": [
+          {
+            "kind": "other",
+            "url": "https://winter.tomorrowland.com/",
+            "label": "FestivalNetwork website (unverified)",
+            "official": false
+          }
+        ],
+        "occurrences": [
+          {
+            "id": "festivalnetwork:occurrence:1a93da278ad7eb2df52a",
+            "occurrenceKey": "source-row",
+            "occurrenceYear": 2027,
+            "startsOn": "2027-03-20",
+            "endsOn": "2027-03-27",
+            "dateState": "confirmed",
+            "scheduleStatus": "scheduled",
+            "countryCode": "FR",
+            "termIds": ["festivalnetwork:term:genre:electronic"]
+          }
+        ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://www.tomorrowland.com/",
+      "finalUrl": "https://www.tomorrowland.com/",
+      "retrievedAt": "2026-10-03T16:33:58.656Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    },
+    {
+      "attemptedUrl": "https://www.tomorrowland.com/events",
+      "finalUrl": "https://www.tomorrowland.com/events/",
+      "retrievedAt": "2026-10-03T23:49:30.644Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "events.md"
+    },
+    {
+      "attemptedUrl": "https://www.tomorrowland.com/article/tomorrowland-belgium-2026-aftermovie",
+      "finalUrl": "https://www.tomorrowland.com/article/tomorrowland-belgium-2026-aftermovie/",
+      "retrievedAt": "2026-10-03T23:49:30.645Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "aftermovie.md"
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "event",
+        "field": "links",
+        "containsAny": [
+          {
+            "kind": "official_site",
+            "url": "https://www.tomorrowland.com/"
+          },
+          {
+            "kind": "official_site",
+            "url": "https://belgium.tomorrowland.com/"
+          }
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "event",
+        "field": "publication_state",
+        "value": "published"
+      },
+      {
+        "owner": "occurrence",
+        "field": "publication_state",
+        "value": "published"
+      },
+      {
+        "owner": "event",
+        "field": "links",
+        "contains": {
+          "url": "https://winter.tomorrowland.com/"
+        }
+      },
+      {
+        "owner": "occurrence",
+        "field": "links",
+        "contains": {
+          "url": "https://winter.tomorrowland.com/"
+        }
+      },
+      {
+        "owner": "occurrence",
+        "field": "ticket_availability",
+        "value": "sold_out"
+      },
+      {
+        "owner": "event",
+        "field": "links",
+        "contains": {
+          "url": "https://brasil.tomorrowland.com/"
+        }
+      },
+      {
+        "owner": "event",
+        "field": "links",
+        "contains": {
+          "url": "https://brasil.tomorrowland.com/en/tickets/"
+        }
+      },
+      {
+        "owner": "event",
+        "field": "links",
+        "contains": {
+          "url": "https://thailand.tomorrowland.com/"
+        }
+      },
+      {
+        "owner": "occurrence",
+        "field": "links",
+        "contains": {
+          "url": "https://brasil.tomorrowland.com/"
+        }
+      },
+      {
+        "owner": "occurrence",
+        "field": "links",
+        "contains": {
+          "url": "https://brasil.tomorrowland.com/en/tickets/"
+        }
+      },
+      {
+        "owner": "occurrence",
+        "field": "links",
+        "contains": {
+          "url": "https://thailand.tomorrowland.com/"
+        }
+      }
+    ]
+  }
+}

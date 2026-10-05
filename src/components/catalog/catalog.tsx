@@ -52,6 +52,7 @@ export function Status({ edition }: { edition: PublicOccurrence }) {
             ? "Announced"
             : "Scheduled"}
       {edition.ticketAvailability === "sold_out" && " · Sold out"}
+      {edition.ticketAvailability === "closed" && " · Ticket sales closed"}
     </p>
   );
 }

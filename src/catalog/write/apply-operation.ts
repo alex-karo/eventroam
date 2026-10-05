@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import type Database from "better-sqlite3";
+import Database from "better-sqlite3";
 import { and, asc, eq, getTableColumns } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import {
@@ -19,6 +19,7 @@ import {
   type CatalogOperationMeta,
   type CatalogOperationResult,
   type CatalogPrice,
+  type CatalogPriceDetail,
 } from "@/catalog/operations/operation";
 import { isAssignedCountryCode } from "@/catalog/domain/country-codes";
 
@@ -42,6 +43,7 @@ const columns: Record<string, string> = {
   timeZone: "time_zone",
   homeScope: "home_scope",
   publicationState: "publication_state",
+  priceDetails: "price_details",
 };
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -64,7 +66,12 @@ function rawRow(
     Object.entries(values).map(([property, value]) => {
       const name = Object.keys(names).find((key) => names[key] === property);
       assert(name, `Unknown ${table} column: ${property}`);
-      return [name, property === "aliases" ? JSON.stringify(value) : value];
+      return [
+        name,
+        property === "aliases" || property === "priceDetails"
+          ? JSON.stringify(value)
+          : value,
+      ];
     }),
   );
 }
@@ -76,7 +83,9 @@ function typedValues(table: "events" | "occurrences", values: Row) {
       assert(property, `Unknown ${table} column: ${name}`);
       return [
         property,
-        property === "aliases" ? JSON.parse(value as string) : value,
+        property === "aliases" || property === "priceDetails"
+          ? JSON.parse(value as string)
+          : value,
       ];
     }),
   );
@@ -105,6 +114,24 @@ function normalUrl(value: string) {
     parsed.port = "";
   return parsed.toString();
 }
+function normalizedPriceDetails(details: CatalogPriceDetail[]) {
+  const normalized = details.map((detail) => ({
+    label: detail.label,
+    ...(detail.amount === undefined
+      ? {}
+      : { amount: detail.amount, currency: detail.currency }),
+    ...(detail.terms === undefined ? {} : { terms: detail.terms }),
+    ...(detail.availability === undefined
+      ? {}
+      : { availability: detail.availability }),
+    ...(detail.url === undefined ? {} : { url: normalUrl(detail.url) }),
+  }));
+  return [
+    ...new Map(
+      normalized.map((detail) => [JSON.stringify(detail), detail]),
+    ).values(),
+  ].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+}
 function sqlData(data: Record<string, unknown>): Row {
   const out: Row = {};
   for (const [key, value] of Object.entries(data)) {
@@ -119,6 +146,7 @@ function sqlData(data: Record<string, unknown>): Row {
         price_qualification: p?.qualification ?? null,
       });
     } else if (key === "aliases") out.aliases = JSON.stringify(value);
+    else if (key === "priceDetails") out.price_details = JSON.stringify(value);
     else out[columns[key] ?? key] = value;
   }
   return out;
@@ -216,8 +244,9 @@ function insertRow(
 }
 function diff(old: Row, next: Row) {
   const valueFor = (field: string, value: unknown) =>
-    field === "aliases" && typeof value === "string"
-      ? (JSON.parse(value) as string[])
+    (field === "aliases" || field === "price_details") &&
+    typeof value === "string"
+      ? (JSON.parse(value) as unknown[])
       : value;
   return Object.entries(next)
     .filter(([key, value]) => old[key] !== value)
@@ -542,6 +571,29 @@ export function applyCatalogOperation(
         version: op.expectedVersion + (changes.length ? 1 : 0),
         changed: changes.length > 0,
       };
+    } else if (op.kind === "replacePriceBlock") {
+      const old = row(client, "occurrences", op.id);
+      assert(old.version === op.expectedVersion, "Stale subject version");
+      const details = normalizedPriceDetails(op.priceDetails);
+      const data = sqlData({ price: op.basePrice, priceDetails: details });
+      const changes = diff(old, data);
+      if (changes.length) {
+        bump(client, "occurrences", op.id, op.expectedVersion, data, now);
+        writeChange(
+          client,
+          op,
+          "occurrence",
+          op.id,
+          op.expectedVersion + 1,
+          changes,
+          now,
+        );
+      }
+      result = {
+        id: op.id,
+        version: op.expectedVersion + (changes.length ? 1 : 0),
+        changed: changes.length > 0,
+      };
     } else if (op.kind === "replaceTerms") {
       const old = row(client, "occurrences", op.id);
       assert(old.version === op.expectedVersion, "Stale subject version");
@@ -723,4 +775,74 @@ export function applyCatalogOperation(
       .run();
     return result;
   });
+}
+
+export type CatalogItemResult = {
+  operations: CatalogOperationResult[];
+  references: Record<string, string>;
+  changes: Array<typeof catalogChanges.$inferSelect>;
+};
+
+/** Apply dependent operations atomically; dry runs roll back the same transaction. */
+export function applyCatalogItem(
+  client: Database.Database,
+  operations: CatalogOperation[],
+  options: { dryRun?: boolean } = {},
+): CatalogItemResult {
+  assert(operations.length > 0, "Catalog item needs an operation");
+  const run = (working: Database.Database) =>
+    working.transaction(() => {
+      const references: Record<string, string> = {};
+      const results: CatalogOperationResult[] = [];
+      const itemVersions = new Map<string, number>();
+      const resolve = (value: string) => {
+        if (!value.startsWith("$")) return value;
+        const found = references[value.slice(1)];
+        assert(found, `Unknown temporary reference: ${value}`);
+        return found;
+      };
+      for (const input of operations) {
+        const op = structuredClone(input);
+        if ("eventId" in op) op.eventId = resolve(op.eventId);
+        if ("id" in op) op.id = resolve(op.id);
+        if ("owner" in op) op.owner.id = resolve(op.owner.id);
+        const subject =
+          "id" in op ? op.id : "owner" in op ? op.owner.id : undefined;
+        if (subject && "expectedVersion" in op)
+          op.expectedVersion = itemVersions.get(subject) ?? op.expectedVersion;
+        const result = applyCatalogOperation(working, op);
+        results.push(result);
+        if (subject) itemVersions.set(subject, result.version);
+        if (op.tempKey) {
+          assert(
+            !references[op.tempKey],
+            `Duplicate temporary key: ${op.tempKey}`,
+          );
+          references[op.tempKey] = result.id;
+          itemVersions.set(result.id, result.version);
+        }
+      }
+      const keys = operations.map((operation) => operation.operationKey);
+      const changes = drizzle(working)
+        .select()
+        .from(catalogChanges)
+        .all()
+        .filter((change) => keys.includes(change.operationKey))
+        .sort(
+          (a, b) => keys.indexOf(a.operationKey) - keys.indexOf(b.operationKey),
+        );
+      return { operations: results, references, changes };
+    })();
+  if (!options.dryRun) return run(client);
+  const rollback = new Error("dry-run rollback");
+  let preview: CatalogItemResult | undefined;
+  try {
+    client.transaction(() => {
+      preview = run(client);
+      throw rollback;
+    })();
+  } catch (error) {
+    if (error !== rollback) throw error;
+  }
+  return preview!;
 }

@@ -7,12 +7,23 @@ const slug = z
   .max(100);
 const localDate = z.iso.date();
 const url = z.url().refine((value) => /^https?:\/\//.test(value));
+const currency = z
+  .string()
+  .regex(/^[A-Z]{3}$/)
+  .refine(
+    (value) => Intl.supportedValuesOf("currency").includes(value),
+    "Unknown ISO currency",
+  );
 const common = z
   .object({
     operationKey: z.string().min(1).max(200),
     actor: z.string().min(1).max(200),
     initiatedBy: z.string().min(1).max(200).optional(),
     note: z.string().max(500).optional(),
+    tempKey: z
+      .string()
+      .regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/)
+      .optional(),
   })
   .strict();
 const price = z.discriminatedUnion("kind", [
@@ -28,7 +39,7 @@ const price = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.enum(["exact", "from", "range"]),
-      currency: z.string().regex(/^[A-Z]{3}$/),
+      currency,
       minMinor: z.number().int().nonnegative().safe(),
       maxMinor: z.number().int().nonnegative().safe(),
       coverage: z.enum(["full_programme", "day", "package"]),
@@ -39,6 +50,24 @@ const price = z.discriminatedUnion("kind", [
       p.kind === "range" ? p.maxMinor > p.minMinor : p.maxMinor === p.minMinor,
     ),
 ]);
+const priceDetail = z
+  .object({
+    label: z.string().trim().min(1).max(250),
+    amount: z.number().nonnegative().finite().optional(),
+    currency: currency.optional(),
+    terms: z.string().trim().min(1).max(1000).optional(),
+    availability: z
+      .enum(["unknown", "available", "sold_out", "closed"])
+      .optional(),
+    url: url.optional(),
+  })
+  .strict()
+  .refine(
+    (value) => (value.amount === undefined) === (value.currency === undefined),
+    {
+      message: "Amount and currency must be supplied together",
+    },
+  );
 const eventData = z
   .object({
     slug,
@@ -58,7 +87,9 @@ const occurrenceData = z
     scheduleStatus: z
       .enum(["announced", "scheduled", "postponed", "cancelled"])
       .optional(),
-    ticketAvailability: z.enum(["unknown", "available", "sold_out"]).optional(),
+    ticketAvailability: z
+      .enum(["unknown", "available", "sold_out", "closed"])
+      .optional(),
     capacityEstimate: z.number().int().positive().safe().nullable().optional(),
     venueName: z.string().trim().min(1).max(250).nullable().optional(),
     venueAddress: z.string().trim().min(1).max(500).nullable().optional(),
@@ -80,6 +111,19 @@ const occurrenceData = z
       .optional(),
     timeZone: z.string().max(100).nullable().optional(),
     price: price.nullable().optional(),
+  })
+  .strict();
+export const catalogPriceBlockSchema = z
+  .object({
+    priceDetails: z.array(priceDetail).max(100),
+    basePrice: price
+      .nullable()
+      .refine(
+        (value) => value === null || value.coverage === "full_programme",
+        {
+          message: "Primary price must cover the full programme",
+        },
+      ),
   })
   .strict();
 export const catalogOperationSchema = z.discriminatedUnion("kind", [
@@ -156,10 +200,17 @@ export const catalogOperationSchema = z.discriminatedUnion("kind", [
       )
       .max(30),
   }),
+  common.extend({
+    kind: z.literal("replacePriceBlock"),
+    id: z.string().min(1),
+    expectedVersion: z.number().int().positive(),
+    ...catalogPriceBlockSchema.shape,
+  }),
 ]);
 export type CatalogOperation = z.input<typeof catalogOperationSchema>;
 export type CatalogOperationMeta = z.infer<typeof common>;
 export type CatalogPrice = z.infer<typeof price>;
+export type CatalogPriceDetail = z.infer<typeof priceDetail>;
 export type CatalogOperationResult = {
   id: string;
   version: number;

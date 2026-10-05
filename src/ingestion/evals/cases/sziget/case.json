@@ -1,0 +1,125 @@
+{
+  "id": "sziget",
+  "input": {
+    "mode": "refresh",
+    "eventId": "festivalnetwork:event:a22324dcf0078266ed4e",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "festivalnetwork:event:a22324dcf0078266ed4e",
+      "slug": "festivalnetwork-sziget-festival-a22324dc",
+      "canonicalName": "Sziget Festival",
+      "links": [
+        {
+          "kind": "other",
+          "url": "https://www.szigetfestival.com/",
+          "label": "FestivalNetwork website (unverified)",
+          "official": false
+        }
+      ],
+      "occurrences": [
+        {
+          "id": "festivalnetwork:occurrence:a22324dcf0078266ed4e",
+          "occurrenceKey": "source-row",
+          "occurrenceYear": 2026,
+          "startsOn": "2026-08-11",
+          "endsOn": "2026-08-15",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "HU",
+          "termIds": []
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://www.szigetfestival.com/",
+      "finalUrl": "https://szigetfestival.com/en/",
+      "retrievedAt": "2026-10-03T16:33:58.662Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    },
+    {
+      "attemptedUrl": "https://szigetfestival.com/en/tickets",
+      "finalUrl": "https://szigetfestival.com/en/tickets",
+      "retrievedAt": "2026-10-03T23:16:38.705Z",
+      "method": "http",
+      "outcome": "partial",
+      "completeness": "partial",
+      "reason": "renders_budget_exhausted",
+      "markdownFile": "tickets.md"
+    },
+    {
+      "attemptedUrl": "https://szigetfestival.com/en/travel",
+      "finalUrl": "https://szigetfestival.com/en/travel/",
+      "retrievedAt": "2026-10-03T23:14:50.663Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "travel.md"
+    },
+    {
+      "attemptedUrl": "https://szigetfestival.com/en/festival-info",
+      "finalUrl": "https://szigetfestival.com/en/festival-info",
+      "retrievedAt": "2026-10-03T23:49:32.520Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "info.md"
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "event",
+        "field": "links",
+        "containsAny": [
+          {
+            "url": "https://szigetfestival.com/en/",
+            "kind": "official_site"
+          },
+          {
+            "url": "https://www.szigetfestival.com/",
+            "kind": "official_site"
+          }
+        ]
+      },
+      {
+        "owner": "occurrence",
+        "field": "starts_on",
+        "value": "2027-08-10",
+        "editionYear": 2027
+      },
+      {
+        "owner": "occurrence",
+        "field": "ends_on",
+        "value": "2027-08-14",
+        "editionYear": 2027
+      },
+      {
+        "owner": "occurrence",
+        "field": "date_state",
+        "value": "confirmed",
+        "editionYear": 2027
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "occurrence",
+        "editionKey": "source-row",
+        "field": "starts_on"
+      },
+      {
+        "owner": "occurrence",
+        "editionKey": "source-row",
+        "field": "ends_on"
+      }
+    ]
+  }
+}

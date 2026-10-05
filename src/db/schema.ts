@@ -20,6 +20,14 @@ export type CatalogFieldChange = {
   oldValue: unknown;
   newValue: unknown;
 };
+export type StoredPriceDetail = {
+  label: string;
+  amount?: number;
+  currency?: string;
+  terms?: string;
+  availability?: "unknown" | "available" | "sold_out" | "closed";
+  url?: string;
+};
 
 export const events = sqliteTable(
   "events",
@@ -81,7 +89,7 @@ export const occurrences = sqliteTable(
       .notNull()
       .default("announced"),
     ticketAvailability: text("ticket_availability", {
-      enum: ["unknown", "available", "sold_out"],
+      enum: ["unknown", "available", "sold_out", "closed"],
     })
       .notNull()
       .default("unknown"),
@@ -110,6 +118,10 @@ export const occurrences = sqliteTable(
       enum: ["full_programme", "day", "package"],
     }),
     priceQualification: text("price_qualification"),
+    priceDetails: text("price_details", { mode: "json" })
+      .$type<StoredPriceDetail[]>()
+      .notNull()
+      .default(sql`'[]'`),
     version: integer("version").notNull().default(1),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
@@ -130,7 +142,7 @@ export const occurrences = sqliteTable(
     ),
     check(
       "occurrences_state_ck",
-      sql`${t.publicationState} IN ('draft','published','withdrawn') AND ${t.ticketAvailability} IN ('unknown','available','sold_out')`,
+      sql`${t.publicationState} IN ('draft','published','withdrawn') AND ${t.ticketAvailability} IN ('unknown','available','sold_out','closed')`,
     ),
     check(
       "occurrences_location_ck",
@@ -149,6 +161,10 @@ export const occurrences = sqliteTable(
       sql`(${t.priceKind} IS NULL AND ${t.priceCurrency} IS NULL AND ${t.priceMinMinor} IS NULL AND ${t.priceMaxMinor} IS NULL AND ${t.priceCoverage} IS NULL AND ${t.priceQualification} IS NULL) OR (${t.priceKind} IS NOT NULL AND ${t.priceKind} = 'free' AND ${t.priceCurrency} IS NULL AND ${t.priceMinMinor} IS NOT NULL AND ${t.priceMaxMinor} IS NOT NULL AND ${t.priceCoverage} IS NOT NULL AND ${t.priceMinMinor} = 0 AND ${t.priceMaxMinor} = 0 AND ${t.priceCoverage} = 'full_programme' AND length(coalesce(${t.priceQualification},'')) <= 500) OR (${t.priceKind} IS NOT NULL AND ${t.priceKind} IN ('exact','from','range') AND ${t.priceCurrency} IS NOT NULL AND length(${t.priceCurrency}) = 3 AND ${t.priceCurrency} GLOB '[A-Z][A-Z][A-Z]' AND ${t.priceMinMinor} IS NOT NULL AND ${t.priceMaxMinor} IS NOT NULL AND typeof(${t.priceMinMinor}) = 'integer' AND typeof(${t.priceMaxMinor}) = 'integer' AND ${t.priceMinMinor} >= 0 AND ((${t.priceKind} = 'range' AND ${t.priceMaxMinor} > ${t.priceMinMinor}) OR (${t.priceKind} IN ('exact','from') AND ${t.priceMaxMinor} = ${t.priceMinMinor})) AND ${t.priceCoverage} IS NOT NULL AND ${t.priceCoverage} IN ('full_programme','day','package') AND length(coalesce(${t.priceQualification},'')) <= 500)`,
     ),
     check("occurrences_version_ck", sql`${t.version} > 0`),
+    check(
+      "occurrences_price_details_ck",
+      sql`json_valid(${t.priceDetails}) AND json_type(${t.priceDetails}) = 'array'`,
+    ),
   ],
 );
 
