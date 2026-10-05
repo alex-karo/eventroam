@@ -1,4 +1,5 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { normalizeCatalogUrl } from "@/catalog/domain/urls";
 import type {
   CatalogOperation,
   CatalogOperationMeta,
@@ -19,13 +20,20 @@ type DraftOperation = CatalogOperation extends infer Op
   : never;
 type Term = { id: string; facet: string; slug: string };
 
-const slug = (value: string) =>
-  value
-    .normalize("NFKC")
+function slug(value: string): string {
+  const ascii = value
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 100);
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-/, "")
+    .slice(0, 100)
+    .replace(/-$/, "");
+  return (
+    ascii ||
+    `event-${createHash("sha256").update(value.normalize("NFKC")).digest("hex").slice(0, 12)}`
+  );
+}
 
 /** Turn one model answer into catalog operations. Source interpretation belongs to the model. */
 export function prepareResearch(
@@ -157,10 +165,10 @@ export function prepareResearch(
     if (!proposed.length) return;
     const merged = new Map(
       previous.map((link) => [
-        `${link.kind}:${link.url}`,
+        `${link.kind}:${normalizeCatalogUrl(link.url)}`,
         {
           kind: link.kind,
-          url: link.url,
+          url: normalizeCatalogUrl(link.url),
           label: link.label,
           official: link.official,
           sourceId: link.sourceId,
@@ -168,9 +176,9 @@ export function prepareResearch(
       ]),
     );
     for (const link of proposed)
-      merged.set(`${link.kind}:${link.url}`, {
+      merged.set(`${link.kind}:${normalizeCatalogUrl(link.url)}`, {
         kind: link.kind,
-        url: link.url,
+        url: normalizeCatalogUrl(link.url),
         label: link.label ?? null,
         official: true,
         sourceId: null,

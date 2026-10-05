@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { readResearchCatalog } from "@/catalog/read/research";
+import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput } from "../workflow";
 import type { ResearchCandidate } from "./contracts";
 import { prepareResearch } from "./prepare";
@@ -20,6 +21,83 @@ const candidate = (): ResearchCandidate => ({
   links: [],
   observations: [],
 });
+
+test.each([
+  ["Sónar", "sonar"],
+  ["So\u0301nar", "sonar"],
+  ["Ｆｅｓｔ ２０２７", "fest-2027"],
+  [`${"a".repeat(99)} Festival`, "a".repeat(99)],
+  ["音楽祭", /^event-[a-f0-9]{12}$/],
+])(
+  "adds %s with a valid ASCII slug and unchanged name",
+  (eventName, expected) => {
+    const client = testDatabase().client;
+    const proposal = { ...candidate(), eventName };
+    const result = prepareResearch(proposal, [], input, []);
+    applyCatalogItem(client, result.operations);
+    const [saved] = readResearchCatalog(client);
+    expect(saved.canonicalName).toBe(eventName);
+    if (typeof expected === "string") expect(saved.slug).toBe(expected);
+    else expect(saved.slug).toMatch(expected);
+    expect(
+      prepareResearch(proposal, [], input, []).operations[0],
+    ).toMatchObject({
+      data: { slug: saved.slug },
+    });
+  },
+);
+
+test.each(["event", "occurrence"] as const)(
+  "merges equivalent %s URLs without rolling back other changes",
+  (owner) => {
+    const client = testDatabase().client;
+    const proposal = candidate();
+    const link = {
+      owner,
+      ...(owner === "occurrence" ? { editionKey: "2027" } : {}),
+      kind: "official_site" as const,
+      url: "https://example.org/",
+    };
+    proposal.links = [link];
+    const initial = prepareResearch(proposal, [], input, []);
+    const saved = applyCatalogItem(client, initial.operations);
+    const eventId = saved.references.event;
+    const request = { ...input, mode: "refresh" as const, eventId };
+    const update = {
+      ...proposal,
+      eventId,
+      summary: "Updated description",
+      links: [
+        { ...link, url: "https://example.org" },
+        { ...link, url: "https://EXAMPLE.org:443/#tickets" },
+        { ...link, url: "https://example.org/?edition=2027" },
+        { ...link, url: "https://example.org/?edition=2028" },
+      ],
+    };
+    const prepared = prepareResearch(
+      update,
+      readResearchCatalog(client),
+      request,
+      [],
+    );
+    applyCatalogItem(client, prepared.operations);
+    const [event] = readResearchCatalog(client);
+    expect(event.summary).toBe(update.summary);
+    const links = owner === "event" ? event.links : event.editions[0].links;
+    expect(links.map(({ url }) => url).sort()).toEqual([
+      "https://example.org/",
+      "https://example.org/?edition=2027",
+      "https://example.org/?edition=2028",
+    ]);
+    const repeat = prepareResearch(
+      update,
+      readResearchCatalog(client),
+      request,
+      [],
+    );
+    expect(applyCatalogItem(client, repeat.operations).changes).toEqual([]);
+  },
+);
 
 test("accepts the model's factual proposal without reading or checking citations", () => {
   const client = testDatabase().client;

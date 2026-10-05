@@ -22,6 +22,7 @@ import {
   type CatalogPriceDetail,
 } from "@/catalog/operations/operation";
 import { isAssignedCountryCode } from "@/catalog/domain/country-codes";
+import { normalizeCatalogUrl } from "@/catalog/domain/urls";
 
 type Row = Record<string, unknown>;
 const columns: Record<string, string> = {
@@ -103,17 +104,6 @@ function row(
   assert(found, `${table} record not found`);
   return rawRow(table, found);
 }
-function normalUrl(value: string) {
-  const parsed = new URL(value);
-  parsed.hash = "";
-  parsed.hostname = parsed.hostname.toLowerCase();
-  if (
-    (parsed.protocol === "https:" && parsed.port === "443") ||
-    (parsed.protocol === "http:" && parsed.port === "80")
-  )
-    parsed.port = "";
-  return parsed.toString();
-}
 function normalizedPriceDetails(details: CatalogPriceDetail[]) {
   const normalized = details.map((detail) => ({
     label: detail.label,
@@ -124,7 +114,9 @@ function normalizedPriceDetails(details: CatalogPriceDetail[]) {
     ...(detail.availability === undefined
       ? {}
       : { availability: detail.availability }),
-    ...(detail.url === undefined ? {} : { url: normalUrl(detail.url) }),
+    ...(detail.url === undefined
+      ? {}
+      : { url: normalizeCatalogUrl(detail.url) }),
   }));
   return [
     ...new Map(
@@ -667,7 +659,7 @@ export function applyCatalogOperation(
         links
           .map((l) => ({
             kind: l.kind,
-            url: normalUrl(l.url),
+            url: normalizeCatalogUrl(l.url),
             label: l.label ?? null,
             official: l.official,
             sourceId: l.sourceId ?? null,
@@ -705,11 +697,16 @@ export function applyCatalogOperation(
       if (changed) {
         const wanted = new Map(desired.map((l) => [`${l.kind}:${l.url}`, l]));
         const priorByKey = new Map(
-          existingRows.map((l) => [`${l.kind}:${normalUrl(l.url)}`, l]),
+          existingRows.map((l) => [
+            `${l.kind}:${normalizeCatalogUrl(l.url)}`,
+            l,
+          ]),
         );
         for (const existingLink of existingRows) {
           if (
-            !wanted.has(`${existingLink.kind}:${normalUrl(existingLink.url)}`)
+            !wanted.has(
+              `${existingLink.kind}:${normalizeCatalogUrl(existingLink.url)}`,
+            )
           )
             db.delete(externalLinks)
               .where(eq(externalLinks.id, existingLink.id))
