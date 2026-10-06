@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
-import { and, asc, eq, getTableColumns } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import {
   catalogChanges,
@@ -410,11 +410,19 @@ export function applyCatalogOperation(
       const data = sqlData(op.data);
       assert(
         !db
+          .select({ id: events.id })
+          .from(events)
+          .where(eq(events.slug, data.slug as string))
+          .get(),
+        `Event slug "${data.slug}" is already used by another Event`,
+      );
+      assert(
+        !db
           .select({ path: urlAliases.path })
           .from(urlAliases)
           .where(eq(urlAliases.path, `/events/${data.slug}`))
           .get(),
-        "Public URL is reserved by another identity",
+        `Event slug "${data.slug}" has a public URL reserved by another identity`,
       );
       const record = {
         id,
@@ -823,8 +831,8 @@ export function applyCatalogItem(
       const changes = drizzle(working)
         .select()
         .from(catalogChanges)
+        .where(inArray(catalogChanges.operationKey, keys))
         .all()
-        .filter((change) => keys.includes(change.operationKey))
         .sort(
           (a, b) => keys.indexOf(a.operationKey) - keys.indexOf(b.operationKey),
         );

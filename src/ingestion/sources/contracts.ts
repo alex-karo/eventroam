@@ -1,12 +1,6 @@
 export type RetrievalOutcome =
   "ok" | "partial" | "unsupported" | "blocked" | "failed";
 
-export interface SourceLink {
-  url: string;
-  text: string;
-  context?: string;
-}
-
 export interface ReadSourceResult {
   attemptedUrl: string;
   finalUrl: string;
@@ -16,7 +10,7 @@ export interface ReadSourceResult {
   reason?: string;
   /** Ordered Markdown extracted from the fetched page. */
   markdown: string;
-  links: SourceLink[];
+  links: string[];
   /** Whether the fetched source was sufficiently readable to support absence claims. */
   completeness: "full" | "partial" | "none";
 }

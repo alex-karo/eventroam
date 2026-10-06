@@ -1,7 +1,6 @@
 import { load, type CheerioAPI } from "cheerio";
 import TurndownService from "turndown";
 import { tables } from "turndown-plugin-gfm";
-import type { SourceLink } from "./contracts";
 
 const MAX_MARKDOWN_CHARS = 20_000;
 const MAX_LINKS = 120;
@@ -75,28 +74,14 @@ function safeLink(href: string, baseUrl: string): string | null {
   }
 }
 
-function appendLink(
-  links: SourceLink[],
-  href: string,
-  baseUrl: string,
-  text: string,
-  context?: string,
-): void {
-  if (links.length >= MAX_LINKS) return;
-  const url = safeLink(href, baseUrl);
-  if (!url || links.some((link) => link.url === url && link.text === text))
-    return;
-  links.push({
-    url,
-    text: clean(text).slice(0, 300),
-    ...(context ? { context: clean(context).slice(0, 500) } : {}),
-  });
+function appendLink(links: string[], url: string): void {
+  if (links.length < MAX_LINKS && !links.includes(url)) links.push(url);
 }
 
 function structuredItems(
   value: unknown,
   items: string[],
-  links: SourceLink[],
+  links: string[],
   baseUrl: string,
   path = "",
 ): void {
@@ -134,14 +119,10 @@ function structuredItems(
     .map((field) => `${field}: ${clean(String(record[field]))}`);
   if (values.length)
     items.push(`- ${path ? `${path}: ` : ""}${values.join(" · ")}`);
-  if (typeof record.url === "string")
-    appendLink(
-      links,
-      record.url,
-      baseUrl,
-      typeof record.name === "string" ? record.name : "Structured event link",
-      values.join(" · "),
-    );
+  if (typeof record.url === "string") {
+    const url = safeLink(record.url, baseUrl);
+    if (url) appendLink(links, url);
+  }
   for (const nested of [
     "@graph",
     "location",
@@ -197,11 +178,11 @@ export function extractSource(
   contentType: string,
 ): {
   markdown: string;
-  links: SourceLink[];
+  links: string[];
   needsJavascript: boolean;
   truncated: boolean;
 } {
-  const links: SourceLink[] = [];
+  const links: string[] = [];
   if (
     contentType.includes("application/json") ||
     contentType.includes("application/ld+json")
@@ -267,10 +248,11 @@ export function extractSource(
     const label =
       clean(labelNode.text()) ||
       clean($(element).find("img[alt]").first().attr("alt") ?? "");
-    appendLink(links, href, finalUrl, label, $(element).parent().text());
     const url = safeLink(href, finalUrl);
-    if (url) $(element).attr("href", url);
-    else $(element).removeAttr("href");
+    if (url) {
+      appendLink(links, url);
+      $(element).attr("href", url);
+    } else $(element).removeAttr("href");
     if (!label) {
       $(element).remove();
       return;

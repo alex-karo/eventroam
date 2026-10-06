@@ -57,7 +57,7 @@ async function main() {
 main().catch((error: unknown) => {
   const message =
     error instanceof Error &&
-    /^(OPENROUTER_API_KEY is required|OPENROUTER_MODEL must not enable automatic web search|OPENROUTER_REASONING_EFFORT is invalid|Unknown eval option:|Missing value for|Unknown or empty eval case selection|repeat must be)/.test(
+    /^(OPENROUTER_API_KEY is required|OPENROUTER_MODEL must not enable automatic web search|OPENROUTER_REASONING_EFFORT is invalid|Unknown eval option:|Missing value for|Unknown or empty eval case selection|repeat must be|Eval report already exists:)/.test(
       error.message,
     )
       ? error.message

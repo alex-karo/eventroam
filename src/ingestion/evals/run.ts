@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname } from "node:path";
 import { runEvals } from "@mastra/core/evals";
@@ -192,6 +192,8 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   const repeat = options.repeat ?? 1;
   if (!Number.isSafeInteger(repeat) || repeat < 1 || repeat > 20)
     throw new Error("repeat must be 1–20");
+  if (options.reportPath && existsSync(options.reportPath))
+    throw new Error(`Eval report already exists: ${options.reportPath}`);
   const config = loadResearchConfig({
     ...process.env,
     ...(options.model ? { OPENROUTER_MODEL: options.model } : {}),

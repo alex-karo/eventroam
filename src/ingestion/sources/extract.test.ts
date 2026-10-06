@@ -15,6 +15,23 @@ test("navigation has an explicit end even without a main region", () => {
   expect(page).not.toContain("[Main content]");
 });
 
+test("links keep each safe URL once even when labels differ", () => {
+  const result = extractSource(
+    `<script type="application/ld+json">{"@type":"MusicEvent","url":"https://festival.example/tickets"}</script>
+    <main><a href="/tickets">Tickets</a><a href="/tickets">Buy passes</a>
+    <a href="javascript:alert(1)">Unsafe</a></main>`,
+    url,
+    "text/html",
+  );
+  expect(result.links).toEqual(["https://festival.example/tickets"]);
+  expect(result.markdown).toContain(
+    "[Tickets](https://festival.example/tickets)",
+  );
+  expect(result.markdown).toContain(
+    "[Buy passes](https://festival.example/tickets)",
+  );
+});
+
 test("a Wacken-style skip link identifies content and keeps nested headers local", () => {
   const page = markdown(`<a href="#page-content">Zum Hauptinhalt springen</a>
     <header><nav>Menu links</nav></header>

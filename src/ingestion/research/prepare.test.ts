@@ -99,6 +99,61 @@ test.each(["event", "occurrence"] as const)(
   },
 );
 
+test.each(["event", "occurrence"] as const)(
+  "preserves saved %s link metadata when a recheck omits the label",
+  (owner) => {
+    const client = testDatabase().client;
+    const fx = testFixtures(client);
+    const event = fx.event({ canonicalName: "Example Fest" });
+    const edition = fx.occurrence(event, {
+      occurrenceKey: "2027",
+      occurrenceYear: 2027,
+    });
+    const source = fx.source();
+    const savedLink = {
+      kind: "official_site" as const,
+      url: "https://example.org/",
+      label: "Official programme",
+      official: true,
+      sourceId: source.id,
+    };
+    if (owner === "event") fx.eventLink(event, savedLink);
+    else fx.occurrenceLink(edition, savedLink);
+
+    const proposal: ResearchCandidate = {
+      eventId: event.id,
+      eventName: "Example Fest",
+      editions: [{ key: "2027", year: 2027, status: "announced" }],
+      claims: [],
+      prices: [],
+      links: [
+        {
+          owner,
+          ...(owner === "occurrence" ? { editionKey: "2027" } : {}),
+          kind: "official_site",
+          url: "https://EXAMPLE.org:443/#programme",
+        },
+      ],
+      observations: [],
+    };
+    const request = { ...input, mode: "check" as const, eventId: event.id };
+    const prepared = prepareResearch(
+      proposal,
+      readResearchCatalog(client),
+      request,
+      [],
+    );
+    expect(applyCatalogItem(client, prepared.operations).changes).toEqual([]);
+    const [saved] = readResearchCatalog(client);
+    const link =
+      owner === "event" ? saved.links[0] : saved.editions[0].links[0];
+    expect(link).toMatchObject({
+      label: "Official programme",
+      sourceId: source.id,
+    });
+  },
+);
+
 test("accepts the model's factual proposal without reading or checking citations", () => {
   const client = testDatabase().client;
   const result = prepareResearch(

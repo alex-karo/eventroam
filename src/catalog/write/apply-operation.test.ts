@@ -228,7 +228,20 @@ test("published event rename reserves old and new paths, including editions", ()
       actor: "owner",
       data: { slug: "test-field-days", canonicalName: "Other" },
     }),
-  ).toThrow(/reserved/);
+  ).toThrow(/Event slug "test-field-days" has a public URL reserved/);
+});
+
+test("new Event slug collision identifies the slug", () => {
+  const client = testDatabase().client;
+  testFixtures(client).event({ slug: "same-festival" });
+  expect(() =>
+    applyCatalogOperation(client, {
+      kind: "createEvent",
+      operationKey: "test:duplicate-event-slug",
+      actor: "owner",
+      data: { slug: "same-festival", canonicalName: "Separate Festival" },
+    }),
+  ).toThrow(/Event slug "same-festival" is already used by another Event/);
 });
 
 test("typed price, capacity, coordinates, and area rules reject unsupported values", () => {

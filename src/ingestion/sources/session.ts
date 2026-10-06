@@ -35,12 +35,9 @@ export function createSourceSession(
         depth,
       });
       reads.push(result);
-      for (const link of result.links)
-        if (!depthByUrl.has(link.url))
-          depthByUrl.set(
-            link.url,
-            Math.min(depth + 1, budget.limits.depth + 1),
-          );
+      for (const url of result.links)
+        if (!depthByUrl.has(url))
+          depthByUrl.set(url, Math.min(depth + 1, budget.limits.depth + 1));
       return result;
     })();
     inFlight.set(key, request);

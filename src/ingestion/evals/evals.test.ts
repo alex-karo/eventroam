@@ -1,4 +1,7 @@
-import { expect, test } from "vitest";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { expect, test, vi } from "vitest";
 import { runEvals } from "@mastra/core/evals";
 import { Mastra } from "@mastra/core/mastra";
 import { noopLogger } from "@mastra/core/logger";
@@ -9,13 +12,29 @@ import { createResearchBudget } from "../runtime/budget";
 import type { CatalogResearchResult } from "../workflow";
 import { loadEvalSuite, evalCaseSchema } from "./fixtures";
 import { sourceLinks } from "./source-links";
-import { fixedSources, seedDatabase } from "./run";
+import { fixedSources, runCatalogEvals, seedDatabase } from "./run";
 import { assertionMatches, createEvalScorers, scoreCase } from "./score";
 
 const suite = loadEvalSuite();
 const byId = new Map(suite.cases.map((item) => [item.id, item]));
 const tomorrowland = byId.get("tomorrowland")!;
 const wacken = byId.get("wacken")!;
+
+test("existing eval report is rejected before provider setup", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "eventroam-eval-report-"));
+  const reportPath = join(directory, "report.json");
+  writeFileSync(reportPath, "existing report");
+  vi.stubEnv("OPENROUTER_API_KEY", "");
+  try {
+    await expect(
+      runCatalogEvals({ caseIds: [tomorrowland.id], reportPath }),
+    ).rejects.toThrow(`Eval report already exists: ${reportPath}`);
+    expect(readFileSync(reportPath, "utf8")).toBe("existing report");
+  } finally {
+    vi.unstubAllEnvs();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 function result(
   changes: CatalogResearchResult["changes"] = [],
@@ -68,9 +87,7 @@ test("fixed source adapter uses captured pages and blocks unknown URLs without n
         sources: [{ ...tomorrowland.sources[0], links: [] }],
       }).success,
     ).toBe(false);
-    expect(known.links).toContainEqual(
-      expect.objectContaining({ url: "https://winter.tomorrowland.com/" }),
-    );
+    expect(known.links).toContain("https://winter.tomorrowland.com/");
     expect(known).not.toHaveProperty("blocks");
     expect(known.markdown).not.toMatch(/<!-- b\d+ -->/);
     const unknown = await sources.readSource("https://unknown.example/eval", {
@@ -291,11 +308,11 @@ test("Mastra runEvals scores the final workflow output without model calls", asy
   });
 });
 
-test("fixture links preserve Markdown destinations and context without interpreting code as links", () => {
+test("fixture links preserve Markdown destinations without interpreting code as links", () => {
   const links = sourceLinks(
     `## Festival 2027 tickets
 
-[Weekend **pass**](../tickets/a_(b) "Buy") and [Details][info].
+[Weekend **pass**](../tickets/a_(b) "Buy"), [Another pass](../tickets/a_(b)), and [Details][info].
 
 [info]: /info
 
@@ -305,16 +322,8 @@ test("fixture links preserve Markdown destinations and context without interpret
     "https://festival.example/2027/",
   );
   expect(links).toEqual([
-    {
-      url: "https://festival.example/tickets/a_(b)",
-      text: "Weekend pass",
-      context: expect.stringContaining("Festival 2027 tickets"),
-    },
-    {
-      url: "https://festival.example/info",
-      text: "Details",
-      context: expect.stringContaining("Weekend pass"),
-    },
+    "https://festival.example/tickets/a_(b)",
+    "https://festival.example/info",
   ]);
 });
 

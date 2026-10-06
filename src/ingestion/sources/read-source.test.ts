@@ -161,11 +161,7 @@ describe("readSource", () => {
     expect(result).not.toHaveProperty("blocks");
     expect(result.markdown).toContain("startDate: 2027-06-10");
     expect(result.markdown).toContain("Thursday: 2027-06-10");
-    expect(result.links).toContainEqual({
-      url: "https://festival.example/tickets",
-      text: "Tickets for 2027",
-      context: expect.stringContaining("Tickets for 2027"),
-    });
+    expect(result.links).toContain("https://festival.example/tickets");
   });
 
   it("keeps a date shown only in a header anchor and organizer text in the footer", async () => {
@@ -236,7 +232,7 @@ describe("readSource", () => {
       reason: "social_content_unsupported",
       completeness: "none",
     });
-    expect(result.links[0].url).toBe("https://www.instagram.com/festival/");
+    expect(result.links[0]).toBe("https://www.instagram.com/festival/");
     expect(request).not.toHaveBeenCalled();
   });
 

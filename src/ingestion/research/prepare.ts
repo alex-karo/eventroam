@@ -129,6 +129,7 @@ export function prepareResearch(
       {
         kind: "createEvent",
         data: {
+          // Accepted v1 limit: colliding names fail the item write; no slug fallback yet.
           slug: slug(candidate.eventName),
           canonicalName: candidate.eventName,
           ...(candidate.summary === undefined
@@ -175,14 +176,17 @@ export function prepareResearch(
         },
       ]),
     );
-    for (const link of proposed)
-      merged.set(`${link.kind}:${normalizeCatalogUrl(link.url)}`, {
+    for (const link of proposed) {
+      const key = `${link.kind}:${normalizeCatalogUrl(link.url)}`;
+      const saved = merged.get(key);
+      merged.set(key, {
         kind: link.kind,
         url: normalizeCatalogUrl(link.url),
-        label: link.label ?? null,
+        label: link.label ?? saved?.label ?? null,
         official: true,
-        sourceId: null,
+        sourceId: saved?.sourceId ?? null,
       });
+    }
     add({ kind: "replaceLinks", owner, links: [...merged.values()] }, version);
   };
   addLinks(

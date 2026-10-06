@@ -93,7 +93,7 @@ export async function readSource(
       method: "social_stub",
       outcome: "unsupported",
       reason: "social_content_unsupported",
-      links: [{ url: parsed.href, text: parsed.hostname }],
+      links: [parsed.href],
     };
   }
 

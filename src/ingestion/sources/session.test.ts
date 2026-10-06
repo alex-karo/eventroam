@@ -29,7 +29,7 @@ test("saved and discovered URLs start at depth zero; followed links keep their d
   const readSource = vi.fn<NonNullable<ResearchDependencies["readSource"]>>(
     async (url, options) => {
       options.budget.consumePage(options.depth);
-      return { ...page(url), links: [{ url: checkout, text: "Checkout" }] };
+      return { ...page(url), links: [checkout] };
     },
   );
   const sources = createSourceSession(budget, config, knownLinks, {

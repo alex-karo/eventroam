@@ -55,6 +55,8 @@ Fields the model omits keep their saved values: if it says nothing about a venue
 
 The system checks the proposal's shape and target IDs. The writer checks data rules, versions, and publication requirements. It can reject an invalid date, but it cannot tell whether a valid date is factually correct.
 
+Accepted first-version limit: new Event slugs come from their names. If a distinct Event has the same generated slug as an existing Event or reserved alias, its item write fails and the run reports `write_failed` with the conflicting slug. The run does not merge the two Events or choose a fallback slug automatically.
+
 ## Preview or apply
 
 By default, the writer previews changes and rolls them back. The preview is not a saved proposal: `--apply` starts a new research run before saving, so its result may differ. Review the apply report too.
