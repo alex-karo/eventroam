@@ -1,7 +1,10 @@
 import { expect, test } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
-import { applyCatalogOperation } from "@/catalog/write/apply-operation";
+import {
+  applyCatalogItem,
+  applyCatalogOperation,
+} from "@/catalog/write/apply-operation";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 
 const count = (
@@ -82,12 +85,6 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
   expect(applied.changed).toBe(true);
   expect(applyCatalogOperation(client, op)).toEqual(applied);
   expect(count(client, "catalog_changes")).toBe(1);
-  expect(() =>
-    applyCatalogOperation(client, {
-      ...op,
-      evidence: [],
-    } as CatalogOperation),
-  ).toThrow();
   expect(() =>
     applyCatalogOperation(client, { ...op, data: { capacityEstimate: 1300 } }),
   ).toThrow(/different payload/);
@@ -176,6 +173,36 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
   ).toMatchObject({ path: "/events/test-field-days/2028" });
 });
 
+test("publication accepts structurally complete editions with saved links", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const event = fx.event();
+  const edition = fx.occurrence(event);
+  for (const term of fx.festivalTerms()) fx.assignTerm(edition, term);
+  fx.occurrenceLink(edition, {
+    kind: "ticketing",
+    url: "https://example.org/2027/tickets#offers",
+  });
+  const operation: CatalogOperation = {
+    kind: "publishOccurrence",
+    operationKey: "publish:with-link",
+    actor: "catalog-agent",
+    initiatedBy: "owner",
+    id: edition.id,
+    expectedVersion: edition.version,
+  };
+  const result = applyCatalogOperation(client, operation);
+  expect(result).toMatchObject({ changed: true, version: edition.version + 1 });
+  expect(applyCatalogOperation(client, operation)).toEqual(result);
+  expect(count(client, "catalog_changes")).toBe(1);
+  expect(() =>
+    applyCatalogOperation(client, {
+      ...operation,
+      operationKey: "publish:stale-with-link",
+    }),
+  ).toThrow(/Stale subject version/);
+});
+
 test("published event rename reserves old and new paths, including editions", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
@@ -201,7 +228,20 @@ test("published event rename reserves old and new paths, including editions", ()
       actor: "owner",
       data: { slug: "test-field-days", canonicalName: "Other" },
     }),
-  ).toThrow(/reserved/);
+  ).toThrow(/Event slug "test-field-days" has a public URL reserved/);
+});
+
+test("new Event slug collision identifies the slug", () => {
+  const client = testDatabase().client;
+  testFixtures(client).event({ slug: "same-festival" });
+  expect(() =>
+    applyCatalogOperation(client, {
+      kind: "createEvent",
+      operationKey: "test:duplicate-event-slug",
+      actor: "owner",
+      data: { slug: "same-festival", canonicalName: "Separate Festival" },
+    }),
+  ).toThrow(/Event slug "same-festival" is already used by another Event/);
 });
 
 test("typed price, capacity, coordinates, and area rules reject unsupported values", () => {
@@ -386,4 +426,453 @@ test("identical link replacement is a no-op and an added link preserves existing
       )
       .get(id),
   ).toEqual(existing);
+});
+
+test("link replacement audits changes and leaves unchanged links alone", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const event = fx.event();
+  fx.eventLink(event, { url: "https://example.org/" });
+  const operation: CatalogOperation = {
+    kind: "replaceLinks",
+    operationKey: "links:added",
+    actor: "catalog-agent",
+    initiatedBy: "owner",
+    owner: { type: "event", id: event.id },
+    expectedVersion: event.version,
+    links: [
+      { kind: "official_site", url: "https://example.org/", official: true },
+      {
+        kind: "instagram",
+        url: "https://instagram.com/example",
+        official: true,
+      },
+    ],
+  };
+  const added = applyCatalogOperation(client, operation);
+  expect(added.changed).toBe(true);
+  expect(applyCatalogOperation(client, operation)).toEqual(added);
+  const unchanged = applyCatalogOperation(client, {
+    ...operation,
+    operationKey: "links:unchanged",
+    expectedVersion: added.version,
+  });
+  expect(unchanged).toEqual({
+    id: event.id,
+    version: added.version,
+    changed: false,
+  });
+  expect(
+    client
+      .prepare("SELECT count(*) n FROM catalog_changes WHERE event_id=?")
+      .get(event.id),
+  ).toEqual({ n: 1 });
+});
+
+test("item dry run rolls back dependent creates and publication", () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  fx.festivalTerms();
+  const operations: CatalogOperation[] = [
+    {
+      kind: "createEvent",
+      tempKey: "event",
+      operationKey: "item:event",
+      actor: "owner",
+      data: { slug: "item-festival", canonicalName: "Item Festival" },
+    },
+    {
+      kind: "createOccurrence",
+      tempKey: "edition",
+      operationKey: "item:edition",
+      actor: "owner",
+      eventId: "$event",
+      data: {
+        occurrenceKey: "2028",
+        occurrenceYear: 2028,
+        startsOn: "2028-07-01",
+        endsOn: "2028-07-03",
+        dateState: "confirmed",
+        countryCode: "PT",
+        locality: "Example Valley",
+      },
+    },
+    {
+      kind: "replaceTerms",
+      operationKey: "item:terms",
+      actor: "owner",
+      id: "$edition",
+      expectedVersion: 1,
+      termIds: ["test-festival", "test-outdoor", "test-music"],
+    },
+    {
+      kind: "publishOccurrence",
+      operationKey: "item:publish-edition",
+      actor: "owner",
+      id: "$edition",
+      expectedVersion: 2,
+    },
+    {
+      kind: "publishEvent",
+      operationKey: "item:publish-event",
+      actor: "owner",
+      id: "$event",
+      expectedVersion: 1,
+    },
+  ];
+  const before = [
+    "events",
+    "occurrences",
+    "catalog_changes",
+    "operation_receipts",
+  ].map((table) => count(client, table));
+  const preview = applyCatalogItem(client, operations, {
+    dryRun: true,
+  });
+  expect(preview.operations.map((result) => result.changed)).toEqual([
+    true,
+    true,
+    true,
+    true,
+    true,
+  ]);
+  expect(preview.changes).toHaveLength(5);
+  expect(
+    ["events", "occurrences", "catalog_changes", "operation_receipts"].map(
+      (table) => count(client, table),
+    ),
+  ).toEqual(before);
+  const applied = applyCatalogItem(client, operations);
+  expect(applied.operations.map((result) => result.changed)).toEqual(
+    preview.operations.map((result) => result.changed),
+  );
+  expect(
+    applied.changes.map((change) =>
+      change.changedFields.map((field) => field.field),
+    ),
+  ).toEqual(
+    preview.changes.map((change) =>
+      change.changedFields.map((field) => field.field),
+    ),
+  );
+  expect(applyCatalogItem(client, operations).operations).toEqual(
+    applied.operations,
+  );
+});
+
+test("item rollback and complete price replacement preserve atomic state", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const event = fx.event();
+  const edition = fx.publishedOccurrence(event);
+  const first = applyCatalogOperation(client, {
+    kind: "replacePriceBlock",
+    operationKey: "price:first",
+    actor: "owner",
+    id: edition.id,
+    expectedVersion: edition.version,
+    priceDetails: [
+      {
+        label: "Weekend",
+        amount: 180,
+        currency: "EUR",
+        availability: "available",
+        url: "https://example.org/tickets",
+      },
+    ],
+    basePrice: {
+      kind: "exact",
+      minMinor: 18000,
+      maxMinor: 18000,
+      currency: "EUR",
+      coverage: "full_programme",
+    },
+  });
+  expect(first.changed).toBe(true);
+  const reordered = applyCatalogOperation(client, {
+    kind: "replacePriceBlock",
+    operationKey: "price:recheck",
+    actor: "owner",
+    id: edition.id,
+    expectedVersion: first.version,
+    priceDetails: [
+      { label: "Friday", amount: 70, currency: "EUR" },
+      {
+        label: "Weekend",
+        amount: 180,
+        currency: "EUR",
+        availability: "available",
+        url: "https://example.org/tickets",
+      },
+    ],
+    basePrice: null,
+  });
+  expect(reordered.changed).toBe(true);
+  const noOp = applyCatalogOperation(client, {
+    kind: "replacePriceBlock",
+    operationKey: "price:order",
+    actor: "owner",
+    id: edition.id,
+    expectedVersion: reordered.version,
+    priceDetails: [
+      {
+        label: "Weekend",
+        amount: 180,
+        currency: "EUR",
+        availability: "available",
+        url: "https://example.org/tickets",
+      },
+      { label: "Friday", amount: 70, currency: "EUR" },
+    ],
+    basePrice: null,
+  });
+  expect(noOp.changed).toBe(false);
+  const state = client
+    .prepare(
+      "SELECT price_details,price_kind,version FROM occurrences WHERE id=?",
+    )
+    .get(edition.id);
+  expect(() =>
+    applyCatalogItem(client, [
+      {
+        kind: "replacePriceBlock",
+        operationKey: "item:clear",
+        actor: "owner",
+        id: edition.id,
+        expectedVersion: reordered.version,
+        priceDetails: [],
+        basePrice: null,
+      },
+      {
+        kind: "updateOccurrence",
+        operationKey: "item:bad",
+        actor: "owner",
+        id: edition.id,
+        expectedVersion: reordered.version,
+        data: { startsOn: null },
+      },
+    ]),
+  ).toThrow(/Date pair is incomplete/);
+  expect(
+    client
+      .prepare(
+        "SELECT price_details,price_kind,version FROM occurrences WHERE id=?",
+      )
+      .get(edition.id),
+  ).toEqual(state);
+  const cleared = applyCatalogOperation(client, {
+    kind: "replacePriceBlock",
+    operationKey: "price:clear",
+    actor: "owner",
+    id: edition.id,
+    expectedVersion: reordered.version,
+    priceDetails: [],
+    basePrice: null,
+  });
+  expect(cleared.changed).toBe(true);
+  expect(
+    client
+      .prepare("SELECT price_details,price_kind FROM occurrences WHERE id=?")
+      .get(edition.id),
+  ).toEqual({ price_details: "[]", price_kind: null });
+});
+
+test("audit records attribution and receipts reject changed payloads", () => {
+  const client = testDatabase().client;
+  const edition = testFixtures(client).publishedOccurrence(
+    testFixtures(client).event(),
+  );
+  const operation: CatalogOperation = {
+    kind: "updateOccurrence",
+    operationKey: "audit:capacity",
+    actor: "catalog-agent",
+    initiatedBy: "owner",
+    id: edition.id,
+    expectedVersion: edition.version,
+    data: { capacityEstimate: 1200 },
+  };
+  const applied = applyCatalogOperation(client, operation);
+  expect(applied.changed).toBe(true);
+  expect(
+    client
+      .prepare(
+        "SELECT actor,initiated_by,changed_fields FROM catalog_changes WHERE operation_key='audit:capacity'",
+      )
+      .get(),
+  ).toEqual({
+    actor: "catalog-agent",
+    initiated_by: "owner",
+    changed_fields: JSON.stringify([
+      {
+        field: "capacity_estimate",
+        oldPresent: true,
+        oldValue: null,
+        newValue: 1200,
+      },
+    ]),
+  });
+  expect(applyCatalogOperation(client, operation)).toEqual(applied);
+  expect(() =>
+    applyCatalogOperation(client, {
+      ...operation,
+      data: { capacityEstimate: 1300 },
+    }),
+  ).toThrow(/different payload/);
+  expect(() =>
+    applyCatalogOperation(client, {
+      ...operation,
+      operationKey: "audit:stale",
+    }),
+  ).toThrow(/Stale subject version/);
+});
+
+test("item applies successive operations with the latest subject version", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const edition = fx.publishedOccurrence(fx.event());
+  const results = applyCatalogItem(client, [
+    {
+      kind: "updateOccurrence",
+      operationKey: "versions:capacity",
+      actor: "owner",
+      id: edition.id,
+      expectedVersion: edition.version,
+      data: { capacityEstimate: 1200 },
+    },
+    {
+      kind: "updateOccurrence",
+      operationKey: "versions:venue",
+      actor: "owner",
+      id: edition.id,
+      expectedVersion: edition.version,
+      data: { venueName: "New field" },
+    },
+  ]);
+  expect(results.operations.map((result) => result.version)).toEqual([
+    edition.version + 1,
+    edition.version + 2,
+  ]);
+  expect(
+    client
+      .prepare(
+        "SELECT version,capacity_estimate,venue_name FROM occurrences WHERE id=?",
+      )
+      .get(edition.id),
+  ).toEqual({
+    version: edition.version + 2,
+    capacity_estimate: 1200,
+    venue_name: "New field",
+  });
+});
+
+test("price variants validate amount and currency together and preserve audit values", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const edition = fx.publishedOccurrence(fx.event());
+  const base: CatalogOperation = {
+    kind: "replacePriceBlock",
+    operationKey: "price:invalid",
+    actor: "owner",
+    id: edition.id,
+    expectedVersion: edition.version,
+    priceDetails: [{ label: "Weekend", amount: 180 }],
+    basePrice: null,
+  };
+  expect(() => applyCatalogOperation(client, base)).toThrow(
+    /Amount and currency/,
+  );
+  expect(() =>
+    applyCatalogOperation(client, {
+      ...base,
+      priceDetails: [{ label: "Weekend", amount: -1, currency: "EUR" }],
+    }),
+  ).toThrow();
+  expect(() =>
+    applyCatalogOperation(client, {
+      ...base,
+      priceDetails: [{ label: "Weekend", amount: 180, currency: "ZZZ" }],
+    }),
+  ).toThrow(/Unknown ISO currency/);
+  const applied = applyCatalogOperation(client, {
+    ...base,
+    priceDetails: [
+      {
+        label: "Weekend",
+        amount: 180,
+        currency: "EUR",
+        terms: "Camping extra",
+      },
+    ],
+  });
+  expect(applied.changed).toBe(true);
+  const change = client
+    .prepare(
+      "SELECT changed_fields FROM catalog_changes WHERE operation_key='price:invalid'",
+    )
+    .get() as { changed_fields: string };
+  expect(JSON.parse(change.changed_fields)).toContainEqual(
+    expect.objectContaining({
+      field: "price_details",
+      oldValue: [],
+      newValue: [
+        {
+          label: "Weekend",
+          amount: 180,
+          currency: "EUR",
+          terms: "Camping extra",
+        },
+      ],
+    }),
+  );
+  expect(() =>
+    applyCatalogOperation(client, {
+      ...base,
+      priceDetails: [{ label: "Weekend", amount: 181, currency: "EUR" }],
+    }),
+  ).toThrow(/different payload/);
+});
+
+test("price removal records old and new values without requiring a note", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const edition = fx.publishedOccurrence(fx.event());
+  const added = applyCatalogOperation(client, {
+    kind: "replacePriceBlock",
+    operationKey: "price:seed",
+    actor: "owner",
+    id: edition.id,
+    expectedVersion: edition.version,
+    priceDetails: [{ label: "Weekend", amount: 120, currency: "EUR" }],
+    basePrice: {
+      kind: "exact",
+      minMinor: 12000,
+      maxMinor: 12000,
+      currency: "EUR",
+      coverage: "full_programme",
+    },
+  });
+  const result = applyCatalogOperation(client, {
+    kind: "replacePriceBlock",
+    operationKey: "price:clear",
+    actor: "catalog-agent",
+    initiatedBy: "owner",
+    id: edition.id,
+    expectedVersion: added.version,
+    priceDetails: [],
+    basePrice: null,
+  });
+  expect(result.changed).toBe(true);
+  const audit = client
+    .prepare(
+      "SELECT actor,initiated_by,changed_fields FROM catalog_changes WHERE operation_key='price:clear'",
+    )
+    .get() as { actor: string; initiated_by: string; changed_fields: string };
+  expect(audit.actor).toBe("catalog-agent");
+  expect(audit.initiated_by).toBe("owner");
+  expect(JSON.parse(audit.changed_fields)).toContainEqual(
+    expect.objectContaining({ field: "price_details", newValue: [] }),
+  );
+  expect(JSON.parse(audit.changed_fields)).toContainEqual(
+    expect.objectContaining({ field: "price_kind", newValue: null }),
+  );
 });

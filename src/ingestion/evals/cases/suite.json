@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "todayUtc": "2026-10-03",
+  "provenance": {
+    "kind": "captured",
+    "sourceReport": "docs/research/2026-10-03-source-workflow-validation.md#five-additional-deepseek-refresh-dry-runs",
+    "note": "Homepages fetched on 2026-10-03; continuous Markdown produced by the production reader. Follow-up pages were captured via readSource with rendering disabled. Each case stores at most four pages including its homepage: Tomorrowland 3, Wacken 3, Roskilde 4, Sziget 4, Glastonbury 1. Empty responses, navigation-only new pages, and redirects back to the homepage were excluded. Original Sziget tickets retains its partial HTTP outcome; travel supports Budapest, Hungary. Expectations are unchanged from the preceding Sziget-expanded suite. Capture timestamps and outcomes are stored per source. Fixtures store page content once; traversal/provenance links are derived from Markdown during replay. No live website/search fallback during evals. Roskilde ticket-sale news was replaced on 2026-10-04 with an HTTP-only contact-page capture distinguishing venue and office addresses; its location expectations were revised accordingly."
+  },
+  "terms": [
+    {
+      "id": "festivalnetwork:term:genre:electronic",
+      "facet": "genre",
+      "slug": "electronic",
+      "name": "Electronic"
+    },
+    {
+      "id": "festivalnetwork:term:genre:metal",
+      "facet": "genre",
+      "slug": "metal",
+      "name": "Metal"
+    },
+    {
+      "id": "validation:festival",
+      "facet": "event_type",
+      "slug": "festival",
+      "name": "Festival"
+    },
+    {
+      "id": "validation:outdoor",
+      "facet": "format",
+      "slug": "outdoor",
+      "name": "Outdoor"
+    },
+    {
+      "id": "validation:music",
+      "facet": "topic",
+      "slug": "music",
+      "name": "Music"
+    }
+  ],
+  "cases": [
+    "tomorrowland/case.json",
+    "wacken/case.json",
+    "roskilde/case.json",
+    "sziget/case.json",
+    "glastonbury/case.json"
+  ]
+}

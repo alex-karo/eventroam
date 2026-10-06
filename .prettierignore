@@ -1,0 +1,2 @@
+# Captured eval pages must remain byte-for-byte source snapshots.
+src/ingestion/evals/cases/**/*.md

@@ -1,0 +1,89 @@
+{
+  "id": "glastonbury",
+  "input": {
+    "mode": "refresh",
+    "eventId": "festivalnetwork:event:2d90837f6b8f1217f50c",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "festivalnetwork:event:2d90837f6b8f1217f50c",
+      "slug": "festivalnetwork-glastonbury-2027-2d90837f",
+      "canonicalName": "Glastonbury (2027)",
+      "links": [
+        {
+          "kind": "other",
+          "url": "https://www.glastonburyfestivals.co.uk/",
+          "label": "FestivalNetwork website (unverified)",
+          "official": false
+        }
+      ],
+      "occurrences": [
+        {
+          "id": "festivalnetwork:occurrence:2d90837f6b8f1217f50c",
+          "occurrenceKey": "source-row",
+          "occurrenceYear": 2027,
+          "startsOn": "2027-06-23",
+          "endsOn": "2027-06-27",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "GB",
+          "termIds": []
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/",
+      "retrievedAt": "2026-10-03T16:33:58.662Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "event",
+        "field": "links",
+        "contains": {
+          "url": "https://www.glastonburyfestivals.co.uk/",
+          "kind": "official_site"
+        }
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "event",
+        "field": "publication_state",
+        "value": "published"
+      },
+      {
+        "owner": "occurrence",
+        "field": "publication_state",
+        "value": "published"
+      },
+      {
+        "owner": "event",
+        "field": "links",
+        "contains": {
+          "url": "https://glastonbury.seetickets.com/mailinglist/subscribe",
+          "kind": "ticketing"
+        }
+      },
+      {
+        "owner": "occurrence",
+        "field": "links",
+        "contains": {
+          "url": "https://glastonbury.seetickets.com/mailinglist/subscribe",
+          "kind": "ticketing"
+        }
+      }
+    ]
+  }
+}

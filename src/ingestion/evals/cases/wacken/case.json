@@ -1,0 +1,121 @@
+{
+  "id": "wacken",
+  "input": {
+    "mode": "refresh",
+    "eventId": "festivalnetwork:event:792d44feb71838d4b28b",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "festivalnetwork:event:792d44feb71838d4b28b",
+      "slug": "festivalnetwork-wacken-open-air-792d44fe",
+      "canonicalName": "Wacken Open Air",
+      "links": [
+        {
+          "kind": "other",
+          "url": "https://www.wacken.com/",
+          "label": "FestivalNetwork website (unverified)",
+          "official": false
+        }
+      ],
+      "occurrences": [
+        {
+          "id": "festivalnetwork:occurrence:792d44feb71838d4b28b",
+          "occurrenceKey": "source-row",
+          "occurrenceYear": 2026,
+          "startsOn": "2026-07-30",
+          "endsOn": "2026-08-01",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "DE",
+          "termIds": []
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://www.wacken.com/",
+      "finalUrl": "https://www.wacken.com/de/",
+      "retrievedAt": "2026-10-03T16:33:58.662Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    },
+    {
+      "attemptedUrl": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
+      "finalUrl": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
+      "retrievedAt": "2026-10-03T23:49:31.171Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "tickets.md"
+    },
+    {
+      "attemptedUrl": "https://www.wacken.com/de/camping-travel/die-uebersicht/",
+      "finalUrl": "https://www.wacken.com/de/camping-travel/die-uebersicht/",
+      "retrievedAt": "2026-10-03T23:49:31.172Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "travel.md"
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "event",
+        "field": "links",
+        "containsAny": [
+          {
+            "url": "https://www.wacken.com/de/",
+            "kind": "official_site"
+          },
+          {
+            "url": "https://www.wacken.com/",
+            "kind": "official_site"
+          }
+        ]
+      },
+      {
+        "owner": "occurrence",
+        "field": "starts_on",
+        "value": "2027-07-28",
+        "editionYear": 2027
+      },
+      {
+        "owner": "occurrence",
+        "field": "ends_on",
+        "value": "2027-07-31",
+        "editionYear": 2027
+      },
+      {
+        "owner": "occurrence",
+        "field": "date_state",
+        "value": "confirmed",
+        "editionYear": 2027
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "occurrence",
+        "field": "country_code",
+        "editionYear": 2027,
+        "notValue": "DE"
+      },
+      {
+        "owner": "occurrence",
+        "editionKey": "source-row",
+        "field": "starts_on"
+      },
+      {
+        "owner": "occurrence",
+        "editionKey": "source-row",
+        "field": "ends_on"
+      }
+    ]
+  }
+}
