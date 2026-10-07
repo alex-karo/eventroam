@@ -1,4 +1,12 @@
 import { z } from "zod";
+import { currency, price } from "@/catalog/domain/price";
+import {
+  dateStates,
+  scheduleStatuses,
+  ticketAvailabilities,
+  coordinatePrecisions,
+  linkKinds,
+} from "@/catalog/domain/vocabulary";
 import { isAssignedCountryCode } from "@/catalog/domain/country-codes";
 
 const slug = z
@@ -7,13 +15,6 @@ const slug = z
   .max(100);
 const localDate = z.iso.date();
 const url = z.url().refine((value) => /^https?:\/\//.test(value));
-const currency = z
-  .string()
-  .regex(/^[A-Z]{3}$/)
-  .refine(
-    (value) => Intl.supportedValuesOf("currency").includes(value),
-    "Unknown ISO currency",
-  );
 const common = z
   .object({
     operationKey: z.string().min(1).max(200),
@@ -26,39 +27,13 @@ const common = z
       .optional(),
   })
   .strict();
-const price = z.discriminatedUnion("kind", [
-  z
-    .object({
-      kind: z.literal("free"),
-      minMinor: z.literal(0),
-      maxMinor: z.literal(0),
-      coverage: z.literal("full_programme"),
-      qualification: z.string().max(500).optional(),
-    })
-    .strict(),
-  z
-    .object({
-      kind: z.enum(["exact", "from", "range"]),
-      currency,
-      minMinor: z.number().int().nonnegative(),
-      maxMinor: z.number().int().nonnegative(),
-      coverage: z.enum(["full_programme", "day", "package"]),
-      qualification: z.string().max(500).optional(),
-    })
-    .strict()
-    .refine((p) =>
-      p.kind === "range" ? p.maxMinor > p.minMinor : p.maxMinor === p.minMinor,
-    ),
-]);
 const priceDetail = z
   .object({
     label: z.string().trim().min(1).max(250),
     amount: z.number().nonnegative().optional(),
     currency: currency.optional(),
     terms: z.string().trim().min(1).max(1000).optional(),
-    availability: z
-      .enum(["unknown", "available", "sold_out", "closed"])
-      .optional(),
+    availability: z.enum(ticketAvailabilities).optional(),
     url: url.optional(),
   })
   .strict()
@@ -83,13 +58,9 @@ const occurrenceData = z
     occurrenceYear: z.number().int().min(1).max(9999).nullable().optional(),
     startsOn: localDate.nullable().optional(),
     endsOn: localDate.nullable().optional(),
-    dateState: z.enum(["unknown", "provisional", "confirmed"]).optional(),
-    scheduleStatus: z
-      .enum(["announced", "scheduled", "postponed", "cancelled"])
-      .optional(),
-    ticketAvailability: z
-      .enum(["unknown", "available", "sold_out", "closed"])
-      .optional(),
+    dateState: z.enum(dateStates).optional(),
+    scheduleStatus: z.enum(scheduleStatuses).optional(),
+    ticketAvailability: z.enum(ticketAvailabilities).optional(),
     capacityEstimate: z.number().int().positive().nullable().optional(),
     venueName: z.string().trim().min(1).max(250).nullable().optional(),
     venueAddress: z.string().trim().min(1).max(500).nullable().optional(),
@@ -106,9 +77,7 @@ const occurrenceData = z
       .optional(),
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
-    coordinatePrecision: z
-      .enum(["unknown", "exact", "approximate", "locality", "region"])
-      .optional(),
+    coordinatePrecision: z.enum(coordinatePrecisions).optional(),
     timeZone: z.string().max(100).nullable().optional(),
     price: price.nullable().optional(),
   })
@@ -182,15 +151,7 @@ export const catalogOperationSchema = z.discriminatedUnion("kind", [
       .array(
         z
           .object({
-            kind: z.enum([
-              "official_site",
-              "instagram",
-              "facebook",
-              "youtube",
-              "tiktok",
-              "ticketing",
-              "other",
-            ]),
+            kind: z.enum(linkKinds),
             url,
             label: z.string().max(250).nullable().optional(),
             official: z.boolean(),

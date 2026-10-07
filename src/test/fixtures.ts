@@ -1,3 +1,4 @@
+import { validateCatalogValues } from "@/catalog/write/validate-values";
 import type Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
@@ -58,7 +59,8 @@ export function testFixtures(client?: Database.Database) {
   const usedTermSlugs = new Set<string>();
   const usedSourceUrls = new Set<string>();
   const usedLinkUrls = new Set<string>();
-  const db = () => drizzle(client ?? testDatabase().client);
+  const connectionClient = () => client ?? testDatabase().client;
+  const db = () => drizzle(connectionClient());
 
   function uniqueSlug() {
     let slug: string;
@@ -272,72 +274,134 @@ export function testFixtures(client?: Database.Database) {
   };
 
   function event(overrides: EventInput = {}) {
-    return db().insert(events).values(build.event(overrides)).returning().get();
+    return db().transaction(() =>
+      db()
+        .insert(events)
+        .values(
+          validateCatalogValues(
+            connectionClient(),
+            "events",
+            build.event(overrides),
+          ),
+        )
+        .returning()
+        .get(),
+    );
   }
 
   function occurrence(
     parent: Pick<EventRow, "id">,
     overrides: OccurrenceInput = {},
   ) {
-    return db()
-      .insert(occurrences)
-      .values(build.occurrence(parent, overrides))
-      .returning()
-      .get();
+    return db().transaction(() =>
+      db()
+        .insert(occurrences)
+        .values(
+          validateCatalogValues(
+            connectionClient(),
+            "occurrences",
+            build.occurrence(parent, overrides),
+          ),
+        )
+        .returning()
+        .get(),
+    );
   }
 
   function term(overrides: TermInput = {}) {
-    return db()
-      .insert(taxonomyTerms)
-      .values(build.term(overrides))
-      .returning()
-      .get();
+    return db().transaction(() =>
+      db()
+        .insert(taxonomyTerms)
+        .values(
+          validateCatalogValues(
+            connectionClient(),
+            "taxonomy_terms",
+            build.term(overrides),
+          ),
+        )
+        .returning()
+        .get(),
+    );
   }
 
   function assignTerm(
     edition: Pick<OccurrenceRow, "id">,
     classification: Pick<TermRow, "id">,
   ) {
-    return db()
-      .insert(occurrenceTerms)
-      .values(build.occurrenceTerm(edition, classification))
-      .returning()
-      .get();
+    return db().transaction(() =>
+      db()
+        .insert(occurrenceTerms)
+        .values(
+          validateCatalogValues(
+            connectionClient(),
+            "occurrence_terms",
+            build.occurrenceTerm(edition, classification),
+          ),
+        )
+        .returning()
+        .get(),
+    );
   }
 
   function source(overrides: SourceInput = {}) {
-    return db()
-      .insert(sources)
-      .values(build.source(overrides))
-      .returning()
-      .get();
+    return db().transaction(() =>
+      db()
+        .insert(sources)
+        .values(
+          validateCatalogValues(
+            connectionClient(),
+            "sources",
+            build.source(overrides),
+          ),
+        )
+        .returning()
+        .get(),
+    );
   }
 
   function sourceSubject(origin: Pick<SourceRow, "id">, subject: LinkOwner) {
-    return db()
-      .insert(sourceSubjects)
-      .values(build.sourceSubject(origin, subject))
-      .returning()
-      .get();
+    return db().transaction(() =>
+      db()
+        .insert(sourceSubjects)
+        .values(build.sourceSubject(origin, subject))
+        .returning()
+        .get(),
+    );
   }
 
   function link(owner: LinkOwner, overrides: LinkInput = {}) {
-    return db()
-      .insert(externalLinks)
-      .values(build.link(owner, overrides))
-      .returning()
-      .get();
+    return db().transaction(() =>
+      db()
+        .insert(externalLinks)
+        .values(
+          validateCatalogValues(
+            connectionClient(),
+            "external_links",
+            build.link(owner, overrides),
+          ),
+        )
+        .returning()
+        .get(),
+    );
   }
 
   function alias(
     parent: EventRow,
     overrides: AliasInput & { occurrence?: OccurrenceRow } = {},
   ) {
-    return db()
-      .insert(urlAliases)
-      .values(build.alias(parent, overrides))
-      .returning()
-      .get();
+    return db().transaction(() =>
+      db()
+        .insert(urlAliases)
+        .values(
+          validateCatalogValues(
+            connectionClient(),
+            "url_aliases",
+            build.alias(parent, overrides),
+          ),
+        )
+        .returning()
+        .get(),
+    );
   }
 
   function festivalTerms() {
@@ -351,29 +415,32 @@ export function testFixtures(client?: Database.Database) {
       { id: "test-outdoor", facet: "format", slug: "outdoor", name: "Outdoor" },
       { id: "test-music", facet: "topic", slug: "music", name: "Music" },
     ] as const;
-    const connection = db();
-    for (const value of values) {
-      connection
-        .insert(taxonomyTerms)
-        .values(value)
-        .onConflictDoNothing()
-        .run();
-    }
-    return values.map((value) => {
-      const found = connection
-        .select()
-        .from(taxonomyTerms)
-        .where(
-          and(
-            eq(taxonomyTerms.facet, value.facet),
-            eq(taxonomyTerms.slug, value.slug),
-          ),
-        )
-        .get();
-      if (!found) {
-        throw new Error(`Missing test term: ${value.facet}/${value.slug}`);
+    return db().transaction((connection) => {
+      for (const value of values) {
+        connection
+          .insert(taxonomyTerms)
+          .values(
+            validateCatalogValues(connectionClient(), "taxonomy_terms", value),
+          )
+          .onConflictDoNothing()
+          .run();
       }
-      return found;
+      return values.map((value) => {
+        const found = connection
+          .select()
+          .from(taxonomyTerms)
+          .where(
+            and(
+              eq(taxonomyTerms.facet, value.facet),
+              eq(taxonomyTerms.slug, value.slug),
+            ),
+          )
+          .get();
+        if (!found) {
+          throw new Error(`Missing test term: ${value.facet}/${value.slug}`);
+        }
+        return found;
+      });
     });
   }
 
@@ -416,9 +483,16 @@ export function testFixtures(client?: Database.Database) {
       if (!published) {
         throw new Error(`Missing test event: ${parent.id}`);
       }
+      validateCatalogValues(connectionClient(), "events", published);
       connection
         .insert(urlAliases)
-        .values(build.alias(published))
+        .values(
+          validateCatalogValues(
+            connectionClient(),
+            "url_aliases",
+            build.alias(published),
+          ),
+        )
         .onConflictDoNothing()
         .run();
       for (const edition of connection
@@ -431,7 +505,13 @@ export function testFixtures(client?: Database.Database) {
         }
         connection
           .insert(urlAliases)
-          .values(build.alias(published, { occurrence: edition }))
+          .values(
+            validateCatalogValues(
+              connectionClient(),
+              "url_aliases",
+              build.alias(published, { occurrence: edition }),
+            ),
+          )
           .onConflictDoNothing()
           .run();
       }

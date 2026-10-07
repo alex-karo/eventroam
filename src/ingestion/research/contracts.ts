@@ -1,3 +1,4 @@
+import { scheduleStatuses, linkKinds } from "@/catalog/domain/vocabulary";
 import { z } from "zod";
 import { catalogPriceBlockSchema } from "@/catalog/operations/operation";
 
@@ -12,7 +13,7 @@ export const researchClaimSchema = z
       .object({
         editionKey,
         field: z.literal("scheduleStatus"),
-        value: z.enum(["announced", "scheduled", "postponed", "cancelled"]),
+        value: z.enum(scheduleStatuses),
       })
       .strict(),
     z
@@ -74,15 +75,7 @@ export const researchCandidateSchema = z
           .object({
             owner: z.enum(["event", "occurrence"]),
             editionKey: editionKey.optional(),
-            kind: z.enum([
-              "official_site",
-              "instagram",
-              "facebook",
-              "youtube",
-              "tiktok",
-              "ticketing",
-              "other",
-            ]),
+            kind: z.enum(linkKinds),
             url: z.url(),
             label: z.string().max(250).optional(),
           })

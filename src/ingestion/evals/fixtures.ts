@@ -1,18 +1,19 @@
+import {
+  publicationStates,
+  scopes,
+  dateStates,
+  scheduleStatuses,
+  ticketAvailabilities,
+  facets,
+  linkKinds,
+} from "@/catalog/domain/vocabulary";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 const link = z.object({
-  kind: z.enum([
-    "official_site",
-    "instagram",
-    "facebook",
-    "youtube",
-    "tiktok",
-    "ticketing",
-    "other",
-  ]),
+  kind: z.enum(linkKinds),
   url: z.url(),
   label: z.string().nullable().optional(),
   official: z.boolean().optional(),
@@ -24,14 +25,10 @@ const occurrence = z.object({
   displayName: z.string().nullable().optional(),
   startsOn: z.string().nullable().optional(),
   endsOn: z.string().nullable().optional(),
-  dateState: z.enum(["unknown", "provisional", "confirmed"]).optional(),
-  scheduleStatus: z
-    .enum(["announced", "scheduled", "postponed", "cancelled"])
-    .optional(),
-  ticketAvailability: z
-    .enum(["unknown", "available", "sold_out", "closed"])
-    .optional(),
-  publicationState: z.enum(["draft", "published", "withdrawn"]).optional(),
+  dateState: z.enum(dateStates).optional(),
+  scheduleStatus: z.enum(scheduleStatuses).optional(),
+  ticketAvailability: z.enum(ticketAvailabilities).optional(),
+  publicationState: z.enum(publicationStates).optional(),
   countryCode: z.string().nullable().optional(),
   locality: z.string().nullable().optional(),
   administrativeArea: z.string().nullable().optional(),
@@ -46,8 +43,8 @@ const event = z.object({
   canonicalName: z.string(),
   aliases: z.array(z.string()).optional(),
   summary: z.string().nullable().optional(),
-  homeScope: z.literal("festivals").nullable().optional(),
-  publicationState: z.enum(["draft", "published", "withdrawn"]).optional(),
+  homeScope: z.enum(scopes).nullable().optional(),
+  publicationState: z.enum(publicationStates).optional(),
   links: z.array(link).optional(),
   occurrences: z.array(occurrence),
 });
@@ -108,7 +105,7 @@ export const evalSuiteSchema = z.object({
   terms: z.array(
     z.object({
       id: z.string(),
-      facet: z.enum(["event_type", "format", "topic", "genre", "culture"]),
+      facet: z.enum(facets),
       slug: z.string(),
       name: z.string(),
     }),

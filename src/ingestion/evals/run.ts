@@ -1,3 +1,4 @@
+import { validateCatalogValues } from "@/catalog/write/validate-values";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname } from "node:path";
@@ -37,87 +38,107 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
   try {
     migrateCatalogConnection(connection);
     const db = drizzle(connection.client);
-    for (const term of suite.terms) {
-      db.insert(taxonomyTerms).values(term).run();
-    }
-    for (const initial of [
-      item.initial.event,
-      ...(item.initial.relatedEvents ?? []),
-    ]) {
-      db.insert(events)
-        .values({
-          id: initial.id,
-          slug: initial.slug,
-          canonicalName: initial.canonicalName,
-          aliases: initial.aliases ?? [],
-          summary: initial.summary,
-          homeScope: initial.homeScope,
-          publicationState: initial.publicationState ?? "draft",
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        })
-        .run();
-      for (const link of initial.links ?? []) {
-        db.insert(externalLinks)
-          .values({
-            id: `eval-link-${initial.id}-${link.kind}-${link.url}`,
-            eventId: initial.id,
-            kind: link.kind,
-            url: link.url,
-            label: link.label,
-            official: link.official ?? false,
-            createdAt: timestamp,
-            updatedAt: timestamp,
-          })
+    db.transaction(() => {
+      for (const term of suite.terms) {
+        db.insert(taxonomyTerms)
+          .values(
+            validateCatalogValues(connection.client, "taxonomy_terms", term),
+          )
           .run();
       }
-      for (const edition of initial.occurrences) {
-        db.insert(occurrences)
-          .values({
-            id: edition.id,
-            eventId: initial.id,
-            occurrenceKey: edition.occurrenceKey,
-            occurrenceYear: edition.occurrenceYear,
-            displayName: edition.displayName,
-            startsOn: edition.startsOn,
-            endsOn: edition.endsOn,
-            dateState:
-              edition.dateState ?? (edition.startsOn ? "confirmed" : "unknown"),
-            scheduleStatus:
-              edition.scheduleStatus ??
-              (edition.startsOn ? "scheduled" : "announced"),
-            ticketAvailability: edition.ticketAvailability ?? "unknown",
-            publicationState: edition.publicationState ?? "draft",
-            countryCode: edition.countryCode,
-            locality: edition.locality,
-            administrativeArea: edition.administrativeArea,
-            venueName: edition.venueName,
-            venueAddress: edition.venueAddress,
-            createdAt: timestamp,
-            updatedAt: timestamp,
-          })
-          .run();
-        for (const termId of edition.termIds ?? []) {
-          db.insert(occurrenceTerms)
-            .values({ occurrenceId: edition.id, termId })
-            .run();
-        }
-        for (const link of edition.links ?? []) {
-          db.insert(externalLinks)
-            .values({
-              id: `eval-link-${edition.id}-${link.kind}-${link.url}`,
-              occurrenceId: edition.id,
-              kind: link.kind,
-              url: link.url,
-              label: link.label,
-              official: link.official ?? false,
+      for (const initial of [
+        item.initial.event,
+        ...(item.initial.relatedEvents ?? []),
+      ]) {
+        db.insert(events)
+          .values(
+            validateCatalogValues(connection.client, "events", {
+              id: initial.id,
+              slug: initial.slug,
+              canonicalName: initial.canonicalName,
+              aliases: initial.aliases ?? [],
+              summary: initial.summary,
+              homeScope: initial.homeScope,
+              publicationState: initial.publicationState ?? "draft",
               createdAt: timestamp,
               updatedAt: timestamp,
-            })
+            }),
+          )
+          .run();
+        for (const link of initial.links ?? []) {
+          db.insert(externalLinks)
+            .values(
+              validateCatalogValues(connection.client, "external_links", {
+                id: `eval-link-${initial.id}-${link.kind}-${link.url}`,
+                eventId: initial.id,
+                kind: link.kind,
+                url: link.url,
+                label: link.label,
+                official: link.official ?? false,
+                createdAt: timestamp,
+                updatedAt: timestamp,
+              }),
+            )
             .run();
         }
+        for (const edition of initial.occurrences) {
+          db.insert(occurrences)
+            .values(
+              validateCatalogValues(connection.client, "occurrences", {
+                id: edition.id,
+                eventId: initial.id,
+                occurrenceKey: edition.occurrenceKey,
+                occurrenceYear: edition.occurrenceYear,
+                displayName: edition.displayName,
+                startsOn: edition.startsOn,
+                endsOn: edition.endsOn,
+                dateState:
+                  edition.dateState ??
+                  (edition.startsOn ? "confirmed" : "unknown"),
+                scheduleStatus:
+                  edition.scheduleStatus ??
+                  (edition.startsOn ? "scheduled" : "announced"),
+                ticketAvailability: edition.ticketAvailability ?? "unknown",
+                publicationState: edition.publicationState ?? "draft",
+                countryCode: edition.countryCode,
+                locality: edition.locality,
+                administrativeArea: edition.administrativeArea,
+                venueName: edition.venueName,
+                venueAddress: edition.venueAddress,
+                createdAt: timestamp,
+                updatedAt: timestamp,
+              }),
+            )
+            .run();
+          for (const termId of edition.termIds ?? []) {
+            db.insert(occurrenceTerms)
+              .values(
+                validateCatalogValues(connection.client, "occurrence_terms", {
+                  occurrenceId: edition.id,
+                  termId,
+                }),
+              )
+              .run();
+          }
+          for (const link of edition.links ?? []) {
+            db.insert(externalLinks)
+              .values(
+                validateCatalogValues(connection.client, "external_links", {
+                  id: `eval-link-${edition.id}-${link.kind}-${link.url}`,
+                  occurrenceId: edition.id,
+                  kind: link.kind,
+                  url: link.url,
+                  label: link.label,
+                  official: link.official ?? false,
+                  createdAt: timestamp,
+                  updatedAt: timestamp,
+                }),
+              )
+              .run();
+          }
+        }
       }
-    }
+    });
     return connection;
   } catch (error) {
     connection.client.close();

@@ -326,44 +326,6 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
       .run(edition.id),
   ).toThrow();
   expect(() =>
-    client
-      .prepare("UPDATE occurrences SET price_coverage=NULL WHERE id=?")
-      .run(edition.id),
-  ).toThrow();
-  expect(() =>
-    client
-      .prepare(
-        "UPDATE occurrences SET price_kind='free',price_currency=NULL,price_min_minor=NULL,price_max_minor=0,price_coverage='full_programme' WHERE id=?",
-      )
-      .run(edition.id),
-  ).toThrow();
-  expect(() =>
-    client
-      .prepare(
-        "UPDATE occurrences SET price_kind='free',price_currency=NULL,price_min_minor=0,price_max_minor=0,price_coverage='full_programme' WHERE id=?",
-      )
-      .run(edition.id),
-  ).not.toThrow();
-  expect(() =>
-    client
-      .prepare("UPDATE occurrences SET price_kind=NULL WHERE id=?")
-      .run(edition.id),
-  ).toThrow();
-  expect(() =>
-    client
-      .prepare(
-        "UPDATE occurrences SET price_kind=NULL,price_currency='EUR',price_min_minor=100,price_max_minor=100,price_coverage='full_programme' WHERE id=?",
-      )
-      .run(edition.id),
-  ).toThrow();
-  expect(() =>
-    client
-      .prepare(
-        "UPDATE occurrences SET price_kind=NULL,price_currency=NULL,price_min_minor=NULL,price_max_minor=NULL,price_coverage=NULL,price_qualification=NULL WHERE id=?",
-      )
-      .run(edition.id),
-  ).not.toThrow();
-  expect(() =>
     applyCatalogOperation(client, {
       kind: "updateOccurrence",
       operationKey: "test:unassigned-country",
@@ -877,4 +839,57 @@ test("price removal records old and new values without requiring a note", () => 
   expect(JSON.parse(audit.changed_fields)).toContainEqual(
     expect.objectContaining({ field: "price_kind", newValue: null }),
   );
+});
+
+test("merged-record validation rolls back writes, versions, audit and receipts", () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  const parent = fx.event();
+  const edition = fx.occurrence(parent);
+  const snapshot = () => ({
+    occurrences: client.prepare("SELECT * FROM occurrences").all(),
+    changes: client.prepare("SELECT * FROM catalog_changes").all(),
+    receipts: client.prepare("SELECT * FROM operation_receipts").all(),
+  });
+  const before = snapshot();
+  for (const data of [
+    { startsOn: null, endsOn: null },
+    { dateState: "unknown" as const },
+    { latitude: 38, longitude: -9 },
+  ]) {
+    expect(() =>
+      applyCatalogOperation(client, {
+        kind: "updateOccurrence",
+        operationKey: "invalid:merged",
+        actor: "test",
+        id: edition.id,
+        expectedVersion: edition.version,
+        data,
+      }),
+    ).toThrow();
+    expect(snapshot()).toEqual(before);
+  }
+  // The new DB intentionally permits unknown statuses. The writer still checks
+  // the complete final record, even when the operation only replaces its price.
+  client
+    .prepare("UPDATE occurrences SET ticket_availability='future' WHERE id=?")
+    .run(edition.id);
+  const corrupted = snapshot();
+  expect(() =>
+    applyCatalogOperation(client, {
+      kind: "replacePriceBlock",
+      operationKey: "invalid:price",
+      actor: "test",
+      id: edition.id,
+      expectedVersion: edition.version,
+      basePrice: {
+        kind: "free",
+        minMinor: 0,
+        maxMinor: 0,
+        coverage: "full_programme",
+      },
+      priceDetails: [],
+    }),
+  ).toThrow();
+  expect(snapshot()).toEqual(corrupted);
 });

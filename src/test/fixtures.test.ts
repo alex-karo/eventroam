@@ -126,3 +126,36 @@ test("a failed published scenario rolls back every related insert", () => {
     );
   }
 });
+
+test("fixture writes validate sources, links, aliases, prices and taxonomy before insertion", () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  const event = fx.event();
+  const edition = fx.occurrence(event);
+  const parent = fx.term({ facet: "genre" });
+  expect(() => fx.source({ kind: "future" as "website" })).toThrow();
+  expect(() => fx.source({ authority: "future" as "official" })).toThrow();
+  expect(() =>
+    fx.eventLink(event, { kind: "future" as "official_site" }),
+  ).toThrow();
+  expect(() => fx.alias(event, { scope: "future" })).toThrow();
+  expect(() => fx.occurrence(event, { priceCurrency: "EUR" })).toThrow(/price/);
+  expect(() => fx.term({ facet: "topic", parentId: parent.id })).toThrow(
+    /same facet/,
+  );
+  const first = fx.term({ facet: "event_type" });
+  const second = fx.term({ facet: "event_type" });
+  fx.assignTerm(edition, first);
+  expect(() => fx.assignTerm(edition, second)).toThrow(/Only one/);
+  for (const table of ["sources", "external_links", "url_aliases"]) {
+    expect(client.prepare(`SELECT count(*) FROM ${table}`).pluck().get()).toBe(
+      0,
+    );
+  }
+  expect(
+    client.prepare("SELECT count(*) FROM occurrence_terms").pluck().get(),
+  ).toBe(1);
+  expect(client.prepare("SELECT count(*) FROM occurrences").pluck().get()).toBe(
+    1,
+  );
+});
