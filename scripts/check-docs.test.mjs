@@ -106,3 +106,56 @@ test("checks shortcut references and counts them toward index coverage", (t) => 
   );
   assert.match(checkDocs(root).errors.join("\n"), /broken local link/);
 });
+
+test("ignores links in code and image destinations", (t) => {
+  const { root, write } = fixture(t);
+  write(
+    "AGENTS.md",
+    [
+      "# Agent",
+      "",
+      "`[Inline](docs/missing-inline.md)`",
+      "",
+      "```md",
+      "[Fenced](docs/missing-fenced.md)",
+      "```",
+      "",
+      "    [Indented](docs/missing-indented.md)",
+      "",
+      "![Image](docs/missing-image.png)",
+      "",
+    ].join("\n"),
+  );
+  assert.deepEqual(checkDocs(root), { errors: [], count: 1 });
+});
+
+test("checks inline destinations with balanced parentheses", (t) => {
+  const { root, write } = fixture(t);
+  write("AGENTS.md", "# Agent\n\n[Missing](docs/missing-(draft).md)\n");
+  assert.deepEqual(checkDocs(root).errors, [
+    "AGENTS.md: broken local link: docs/missing-(draft).md",
+  ]);
+});
+
+test("resolves references from the first definition outside code", (t) => {
+  const { root, write } = fixture(t);
+  write(
+    "docs/index.md",
+    [
+      "# Docs",
+      "",
+      "[Topic][TOPIC] and [Topic][] and [Topic].",
+      "",
+      "```md",
+      "[topic]: ../specs/missing-fenced.md",
+      "```",
+      "",
+      "    [topic]: ../specs/missing-indented.md",
+      "",
+      "[topic]: ../specs/topic.md",
+      "[TOPIC]: ../specs/missing-duplicate.md",
+      "",
+    ].join("\n"),
+  );
+  assert.deepEqual(checkDocs(root), { errors: [], count: 1 });
+});

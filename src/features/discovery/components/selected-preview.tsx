@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import type { PublicOccurrence } from "@/catalog/read/contracts";
+import type { DetailState } from "@/features/discovery/hooks/use-selected-edition";
 import { editionPath } from "@/site/site";
 import {
   Dates,
@@ -7,11 +7,6 @@ import {
   Status,
   TicketPrice,
 } from "@/components/catalog/catalog";
-
-export type DetailState =
-  | { status: "idle" }
-  | { status: "loading" | "error"; id: string }
-  | { status: "ready"; id: string; data: PublicOccurrence };
 
 export function SelectedPreview({
   detailState,

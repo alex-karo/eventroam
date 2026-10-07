@@ -2,12 +2,15 @@ import { expect, test } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { applyCatalogOperation } from "@/catalog/write/apply-operation";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { catalogChanges } from "@/db/schema";
 import {
   readResearchCatalog,
   readResearchEvent,
 } from "@/catalog/read/research";
 
-test("private research context retains drafts, links, classification, variants and audit attribution", () => {
+test("private research context retains drafts, links, classification and variants while audit retains attribution", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Private Festival" });
@@ -43,7 +46,15 @@ test("private research context retains drafts, links, classification, variants a
   expect(context?.editions[0].priceDetails).toEqual([
     { label: "Weekend", amount: 120, currency: "EUR" },
   ]);
-  expect(context?.editions[0].changes[0]).toMatchObject({
+  expect(context).not.toHaveProperty("changes");
+  expect(context?.editions[0]).not.toHaveProperty("changes");
+  expect(
+    drizzle(client)
+      .select()
+      .from(catalogChanges)
+      .where(eq(catalogChanges.occurrenceId, edition.id))
+      .get(),
+  ).toMatchObject({
     actor: "catalog-agent",
     initiatedBy: "owner",
     changedFields: expect.any(Array),

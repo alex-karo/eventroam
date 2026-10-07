@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { fromMarkdown } from "mdast-util-from-markdown";
 import { parseDocument } from "yaml";
 
 const defaultRoot = path.resolve(
@@ -48,53 +49,33 @@ function bodyAndMetadata(content, name, errors) {
 }
 
 function links(body) {
+  const tree = fromMarkdown(body);
+  const definitions = new Map();
+  const visit = (node, callback) => {
+    callback(node);
+    node.children?.forEach((child) => visit(child, callback));
+  };
+  visit(tree, (node) => {
+    if (
+      node.type === "definition" &&
+      node.url &&
+      !definitions.has(node.identifier)
+    ) {
+      definitions.set(node.identifier, node.url);
+    }
+  });
   const found = [];
-  const lines = [];
-  let fence = null;
-  for (const line of body.split(/\r?\n/)) {
-    const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
-    if (marker) {
-      const kind = marker[1][0];
-      if (!fence) {
-        fence = { kind, length: marker[1].length };
-      } else if (kind === fence.kind && marker[1].length >= fence.length) {
-        fence = null;
-      }
-      continue;
+  visit(tree, (node) => {
+    const href =
+      node.type === "link"
+        ? node.url
+        : node.type === "linkReference"
+          ? definitions.get(node.identifier)
+          : null;
+    if (href) {
+      found.push(href);
     }
-    if (fence) {
-      continue;
-    }
-    lines.push(line);
-  }
-  const references = new Map();
-  const label = (value) => value.trim().replace(/\s+/g, " ").toLowerCase();
-  for (const line of lines) {
-    const definition = line.match(/^ {0,3}\[([^\]]+)\]:\s*(<[^>]+>|\S+)/);
-    if (definition) {
-      references.set(label(definition[1]), definition[2].replace(/^<|>$/g, ""));
-    }
-  }
-  for (const line of lines) {
-    const pattern = /(?<!!)\[[^\]]+\]\((<[^>]+>|[^\s)]+)(?:\s+"[^"]*")?\)/g;
-    for (const match of line.matchAll(pattern)) {
-      found.push(match[1].replace(/^<|>$/g, ""));
-    }
-    const referencePattern = /(?<!!)\[([^\]]+)\]\[([^\]]*)\]/g;
-    for (const match of line.matchAll(referencePattern)) {
-      const href = references.get(label(match[2] || match[1]));
-      if (href) {
-        found.push(href);
-      }
-    }
-    const shortcutPattern = /(?<![!\]])\[([^\]]+)\](?![\[(:])/g;
-    for (const match of line.matchAll(shortcutPattern)) {
-      const href = references.get(label(match[1]));
-      if (href) {
-        found.push(href);
-      }
-    }
-  }
+  });
   return found;
 }
 
