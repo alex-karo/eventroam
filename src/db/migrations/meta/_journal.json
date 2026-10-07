@@ -15,6 +15,13 @@
       "when": 1791036167635,
       "tag": "0001_married_aaron_stack",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791334770814,
+      "tag": "0002_application_validation",
+      "breakpoints": true
     }
   ]
 }

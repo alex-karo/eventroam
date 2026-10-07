@@ -11,8 +11,19 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
-const lifecycle = ["draft", "published", "withdrawn"] as const;
-const facets = ["event_type", "format", "topic", "genre", "culture"] as const;
+import {
+  publicationStates as lifecycle,
+  facets,
+  dateStates,
+  scheduleStatuses,
+  ticketAvailabilities,
+  coordinatePrecisions,
+  priceKinds,
+  priceCoverages,
+  sourceKinds,
+  sourceAuthorities,
+  linkKinds,
+} from "@/catalog/domain/vocabulary";
 
 export type CatalogFieldChange = {
   field: string;
@@ -25,7 +36,7 @@ export type StoredPriceDetail = {
   amount?: number;
   currency?: string;
   terms?: string;
-  availability?: "unknown" | "available" | "sold_out" | "closed";
+  availability?: (typeof ticketAvailabilities)[number];
   url?: string;
 };
 
@@ -51,18 +62,6 @@ export const events = sqliteTable(
   (t) => [
     uniqueIndex("events_slug_uq").on(t.slug),
     check("events_version_ck", sql`${t.version} > 0`),
-    check(
-      "events_state_ck",
-      sql`${t.publicationState} IN ('draft','published','withdrawn')`,
-    ),
-    check(
-      "events_scope_ck",
-      sql`${t.homeScope} IS NULL OR ${t.homeScope} = 'festivals'`,
-    ),
-    check(
-      "events_published_scope_ck",
-      sql`${t.publicationState} != 'published' OR ${t.homeScope} IS NOT NULL`,
-    ),
   ],
 );
 
@@ -79,17 +78,17 @@ export const occurrences = sqliteTable(
     startsOn: text("starts_on"),
     endsOn: text("ends_on"),
     dateState: text("date_state", {
-      enum: ["unknown", "provisional", "confirmed"],
+      enum: dateStates,
     })
       .notNull()
       .default("unknown"),
     scheduleStatus: text("schedule_status", {
-      enum: ["announced", "scheduled", "postponed", "cancelled"],
+      enum: scheduleStatuses,
     })
       .notNull()
       .default("announced"),
     ticketAvailability: text("ticket_availability", {
-      enum: ["unknown", "available", "sold_out", "closed"],
+      enum: ticketAvailabilities,
     })
       .notNull()
       .default("unknown"),
@@ -105,17 +104,17 @@ export const occurrences = sqliteTable(
     latitude: real("latitude"),
     longitude: real("longitude"),
     coordinatePrecision: text("coordinate_precision", {
-      enum: ["unknown", "exact", "approximate", "locality", "region"],
+      enum: coordinatePrecisions,
     })
       .notNull()
       .default("unknown"),
     timeZone: text("time_zone"),
-    priceKind: text("price_kind", { enum: ["free", "exact", "from", "range"] }),
+    priceKind: text("price_kind", { enum: priceKinds }),
     priceCurrency: text("price_currency"),
     priceMinMinor: integer("price_min_minor"),
     priceMaxMinor: integer("price_max_minor"),
     priceCoverage: text("price_coverage", {
-      enum: ["full_programme", "day", "package"],
+      enum: priceCoverages,
     }),
     priceQualification: text("price_qualification"),
     priceDetails: text("price_details", { mode: "json" })
@@ -134,31 +133,15 @@ export const occurrences = sqliteTable(
     index("occurrences_coordinates_idx").on(t.latitude, t.longitude),
     check(
       "occurrences_dates_ck",
-      sql`((${t.startsOn} IS NULL AND ${t.endsOn} IS NULL AND ${t.dateState} = 'unknown') OR (${t.startsOn} IS NOT NULL AND ${t.endsOn} IS NOT NULL AND ${t.dateState} IN ('provisional','confirmed') AND ${t.endsOn} >= ${t.startsOn}))`,
-    ),
-    check(
-      "occurrences_status_ck",
-      sql`${t.scheduleStatus} IN ('announced','scheduled','postponed','cancelled') AND (${t.scheduleStatus} != 'scheduled' OR ${t.startsOn} IS NOT NULL)`,
-    ),
-    check(
-      "occurrences_state_ck",
-      sql`${t.publicationState} IN ('draft','published','withdrawn') AND ${t.ticketAvailability} IN ('unknown','available','sold_out','closed')`,
+      sql`((${t.startsOn} IS NULL AND ${t.endsOn} IS NULL) OR (${t.startsOn} IS NOT NULL AND ${t.endsOn} IS NOT NULL AND ${t.endsOn} >= ${t.startsOn}))`,
     ),
     check(
       "occurrences_location_ck",
-      sql`((${t.latitude} IS NULL AND ${t.longitude} IS NULL AND ${t.coordinatePrecision} = 'unknown') OR (${t.latitude} IS NOT NULL AND ${t.longitude} IS NOT NULL AND ${t.latitude} BETWEEN -90 AND 90 AND ${t.longitude} BETWEEN -180 AND 180 AND ${t.coordinatePrecision} IN ('exact','approximate','locality','region')))`,
-    ),
-    check(
-      "occurrences_publication_ck",
-      sql`${t.publicationState} != 'published' OR (${t.occurrenceYear} IS NOT NULL AND ${t.startsOn} IS NOT NULL AND ${t.countryCode} IS NOT NULL AND (${t.venueName} IS NOT NULL OR ${t.locality} IS NOT NULL OR ${t.administrativeArea} IS NOT NULL))`,
+      sql`((${t.latitude} IS NULL AND ${t.longitude} IS NULL) OR (${t.latitude} IS NOT NULL AND ${t.longitude} IS NOT NULL AND ${t.latitude} BETWEEN -90 AND 90 AND ${t.longitude} BETWEEN -180 AND 180))`,
     ),
     check(
       "occurrences_capacity_ck",
       sql`${t.capacityEstimate} IS NULL OR ${t.capacityEstimate} > 0`,
-    ),
-    check(
-      "occurrences_price_ck",
-      sql`(${t.priceKind} IS NULL AND ${t.priceCurrency} IS NULL AND ${t.priceMinMinor} IS NULL AND ${t.priceMaxMinor} IS NULL AND ${t.priceCoverage} IS NULL AND ${t.priceQualification} IS NULL) OR (${t.priceKind} IS NOT NULL AND ${t.priceKind} = 'free' AND ${t.priceCurrency} IS NULL AND ${t.priceMinMinor} IS NOT NULL AND ${t.priceMaxMinor} IS NOT NULL AND ${t.priceCoverage} IS NOT NULL AND ${t.priceMinMinor} = 0 AND ${t.priceMaxMinor} = 0 AND ${t.priceCoverage} = 'full_programme' AND length(coalesce(${t.priceQualification},'')) <= 500) OR (${t.priceKind} IS NOT NULL AND ${t.priceKind} IN ('exact','from','range') AND ${t.priceCurrency} IS NOT NULL AND length(${t.priceCurrency}) = 3 AND ${t.priceCurrency} GLOB '[A-Z][A-Z][A-Z]' AND ${t.priceMinMinor} IS NOT NULL AND ${t.priceMaxMinor} IS NOT NULL AND typeof(${t.priceMinMinor}) = 'integer' AND typeof(${t.priceMaxMinor}) = 'integer' AND ${t.priceMinMinor} >= 0 AND ((${t.priceKind} = 'range' AND ${t.priceMaxMinor} > ${t.priceMinMinor}) OR (${t.priceKind} IN ('exact','from') AND ${t.priceMaxMinor} = ${t.priceMinMinor})) AND ${t.priceCoverage} IS NOT NULL AND ${t.priceCoverage} IN ('full_programme','day','package') AND length(coalesce(${t.priceQualification},'')) <= 500)`,
     ),
     check("occurrences_version_ck", sql`${t.version} > 0`),
     check(
@@ -181,10 +164,6 @@ export const taxonomyTerms = sqliteTable(
   },
   (t) => [
     uniqueIndex("taxonomy_terms_facet_slug_uq").on(t.facet, t.slug),
-    check(
-      "taxonomy_terms_facet_ck",
-      sql`${t.facet} IN ('event_type','format','topic','genre','culture')`,
-    ),
     check(
       "taxonomy_terms_parent_ck",
       sql`${t.parentId} IS NULL OR ${t.parentId} != ${t.id}`,
@@ -209,17 +188,10 @@ export const sources = sqliteTable(
     id: text("id").primaryKey(),
     canonicalUrl: text("canonical_url").notNull(),
     kind: text("kind", {
-      enum: [
-        "website",
-        "social",
-        "feed",
-        "api",
-        "submission",
-        "manual_reference",
-      ],
+      enum: sourceKinds,
     }).notNull(),
     authority: text("authority", {
-      enum: ["official", "partner", "secondary", "community"],
+      enum: sourceAuthorities,
     }).notNull(),
     platform: text("platform"),
     externalId: text("external_id"),
@@ -230,14 +202,6 @@ export const sources = sqliteTable(
   (t) => [
     uniqueIndex("sources_url_uq").on(t.canonicalUrl),
     uniqueIndex("sources_platform_id_uq").on(t.platform, t.externalId),
-    check(
-      "sources_kind_ck",
-      sql`${t.kind} IN ('website','social','feed','api','submission','manual_reference')`,
-    ),
-    check(
-      "sources_authority_ck",
-      sql`${t.authority} IN ('official','partner','secondary','community')`,
-    ),
   ],
 );
 export const sourceSubjects = sqliteTable(
@@ -265,15 +229,7 @@ export const externalLinks = sqliteTable(
     eventId: text("event_id").references(() => events.id),
     occurrenceId: text("occurrence_id").references(() => occurrences.id),
     kind: text("kind", {
-      enum: [
-        "official_site",
-        "instagram",
-        "facebook",
-        "youtube",
-        "tiktok",
-        "ticketing",
-        "other",
-      ],
+      enum: linkKinds,
     }).notNull(),
     url: text("url").notNull(),
     label: text("label"),
@@ -286,10 +242,6 @@ export const externalLinks = sqliteTable(
     check(
       "external_links_owner_ck",
       sql`(${t.eventId} IS NOT NULL) != (${t.occurrenceId} IS NOT NULL)`,
-    ),
-    check(
-      "external_links_kind_ck",
-      sql`${t.kind} IN ('official_site','instagram','facebook','youtube','tiktok','ticketing','other')`,
     ),
     uniqueIndex("external_links_event_uq").on(t.eventId, t.kind, t.url),
     uniqueIndex("external_links_occurrence_uq").on(
@@ -310,10 +262,7 @@ export const urlAliases = sqliteTable(
     occurrenceId: text("occurrence_id").references(() => occurrences.id),
     createdAt: text("created_at").notNull(),
   },
-  (t) => [
-    primaryKey({ columns: [t.scope, t.path] }),
-    check("url_aliases_scope_ck", sql`${t.scope} = 'festivals'`),
-  ],
+  (t) => [primaryKey({ columns: [t.scope, t.path] })],
 );
 export const catalogChanges = sqliteTable(
   "catalog_changes",

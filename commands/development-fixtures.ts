@@ -1,3 +1,4 @@
+import { validateCatalogValues } from "@/catalog/write/validate-values";
 import type Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
@@ -54,7 +55,14 @@ export function seedDevelopmentFixtures(client: Database.Database) {
       ["dev-music", "topic", "music", "Music"],
     ] as const) {
       db.insert(taxonomyTerms)
-        .values({ id, facet, slug, name })
+        .values(
+          validateCatalogValues(client, "taxonomy_terms", {
+            id,
+            facet,
+            slug,
+            name,
+          }),
+        )
         .onConflictDoNothing()
         .run();
     }
@@ -70,23 +78,27 @@ export function seedDevelopmentFixtures(client: Database.Database) {
       }
       const id = randomUUID();
       db.insert(events)
-        .values({
-          id,
-          slug,
-          canonicalName,
-          homeScope: "festivals",
-          publicationState: "published",
-          createdAt: now,
-          updatedAt: now,
-        })
+        .values(
+          validateCatalogValues(client, "events", {
+            id,
+            slug,
+            canonicalName,
+            homeScope: "festivals",
+            publicationState: "published",
+            createdAt: now,
+            updatedAt: now,
+          }),
+        )
         .run();
       db.insert(urlAliases)
-        .values({
-          scope: "festivals",
-          path: `/events/${slug}`,
-          eventId: id,
-          createdAt: now,
-        })
+        .values(
+          validateCatalogValues(client, "url_aliases", {
+            scope: "festivals",
+            path: `/events/${slug}`,
+            eventId: id,
+            createdAt: now,
+          }),
+        )
         .run();
       return { id, created: true };
     }
@@ -100,7 +112,15 @@ export function seedDevelopmentFixtures(client: Database.Database) {
     ) {
       const id = randomUUID();
       db.insert(occurrences)
-        .values({ id, eventId, ...data, createdAt: now, updatedAt: now })
+        .values(
+          validateCatalogValues(client, "occurrences", {
+            id,
+            eventId,
+            ...data,
+            createdAt: now,
+            updatedAt: now,
+          }),
+        )
         .run();
       const parent = db
         .select({ slug: events.slug })
@@ -108,16 +128,25 @@ export function seedDevelopmentFixtures(client: Database.Database) {
         .where(eq(events.id, eventId))
         .get()!;
       db.insert(urlAliases)
-        .values({
-          scope: "festivals",
-          path: `/events/${parent.slug}/${data.occurrenceKey}`,
-          eventId,
-          occurrenceId: id,
-          createdAt: now,
-        })
+        .values(
+          validateCatalogValues(client, "url_aliases", {
+            scope: "festivals",
+            path: `/events/${parent.slug}/${data.occurrenceKey}`,
+            eventId,
+            occurrenceId: id,
+            createdAt: now,
+          }),
+        )
         .run();
       for (const termId of termIds) {
-        db.insert(occurrenceTerms).values({ occurrenceId: id, termId }).run();
+        db.insert(occurrenceTerms)
+          .values(
+            validateCatalogValues(client, "occurrence_terms", {
+              occurrenceId: id,
+              termId,
+            }),
+          )
+          .run();
       }
     }
 
@@ -162,16 +191,18 @@ export function seedDevelopmentFixtures(client: Database.Database) {
         publicationState: "published",
       });
       db.insert(externalLinks)
-        .values({
-          id: randomUUID(),
-          eventId: added.id,
-          kind: "official_site",
-          url: `https://example.org/${example.slug}`,
-          label: "Fictional festival website",
-          official: true,
-          createdAt: now,
-          updatedAt: now,
-        })
+        .values(
+          validateCatalogValues(client, "external_links", {
+            id: randomUUID(),
+            eventId: added.id,
+            kind: "official_site",
+            url: `https://example.org/${example.slug}`,
+            label: "Fictional festival website",
+            official: true,
+            createdAt: now,
+            updatedAt: now,
+          }),
+        )
         .run();
     }
     return event.id;

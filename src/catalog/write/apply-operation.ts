@@ -1,3 +1,9 @@
+import {
+  validateEventRecord,
+  validateOccurrenceRecord,
+  validateAliasRecord,
+  validateTermAssignments,
+} from "@/catalog/domain/validation";
 import { createHash, randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { and, asc, eq, getTableColumns, inArray } from "drizzle-orm";
@@ -129,6 +135,10 @@ function normalizedPriceDetails(details: CatalogPriceDetail[]) {
 function sqlData(data: Record<string, unknown>): Row {
   const out: Row = {};
   for (const [key, value] of Object.entries(data)) {
+    // Match Drizzle's omitted-field semantics before expansion, merging or diffing.
+    if (value === undefined) {
+      continue;
+    }
     if (key === "price") {
       const p = value as CatalogPrice | null;
       Object.assign(out, {
@@ -150,8 +160,7 @@ function sqlData(data: Record<string, unknown>): Row {
   return out;
 }
 function validateOccurrence(r: Row) {
-  const start = r.starts_on,
-    end = r.ends_on;
+  validateOccurrenceRecord(typedValues("occurrences", r));
   if (r.country_code != null) {
     assert(
       typeof r.country_code === "string" &&
@@ -159,32 +168,6 @@ function validateOccurrence(r: Row) {
       "Country code is not assigned by ISO 3166-1",
     );
   }
-  assert((start == null) === (end == null), "Date pair is incomplete");
-  assert(
-    start == null
-      ? r.date_state === "unknown"
-      : r.date_state === "provisional" || r.date_state === "confirmed",
-    "Date state conflicts with dates",
-  );
-  assert(
-    start == null ||
-      (typeof start === "string" && typeof end === "string" && end >= start),
-    "End date precedes start date",
-  );
-  assert(
-    r.schedule_status !== "scheduled" || start != null,
-    "Scheduled occurrence needs dates",
-  );
-  assert(
-    (r.latitude == null) === (r.longitude == null),
-    "Coordinate pair is incomplete",
-  );
-  assert(
-    r.latitude == null
-      ? r.coordinate_precision === "unknown"
-      : r.coordinate_precision !== "unknown",
-    "Coordinate precision conflicts with coordinates",
-  );
   if (r.time_zone != null) {
     try {
       new Intl.DateTimeFormat("en", { timeZone: r.time_zone as string });
@@ -192,20 +175,15 @@ function validateOccurrence(r: Row) {
       throw new Error("Invalid IANA time zone");
     }
   }
-  if (r.publication_state === "published") {
-    assert(
-      start != null && end != null && r.occurrence_year != null,
-      "Publication needs supported dates and year",
-    );
-    assert(
-      r.country_code != null &&
-        (r.venue_name != null ||
-          r.locality != null ||
-          r.administrative_area != null),
-      "Publication needs country and supported area",
-    );
+}
+function validateSubject(table: "events" | "occurrences", values: Row) {
+  if (table === "events") {
+    validateEventRecord(typedValues(table, values));
+  } else {
+    validateOccurrence(values);
   }
 }
+
 function setRow(
   client: Database.Database,
   table: "events" | "occurrences",
@@ -216,6 +194,7 @@ function setRow(
   if (!keys.length) {
     return;
   }
+  validateSubject(table, { ...row(client, table, id), ...values });
   const db = drizzle(client);
   if (table === "events") {
     db.update(events)
@@ -234,6 +213,7 @@ function insertRow(
   table: "events" | "occurrences",
   values: Row,
 ) {
+  validateSubject(table, values);
   const db = drizzle(client);
   if (table === "events") {
     db.insert(events)
@@ -317,6 +297,7 @@ function alias(
   occurrenceId: string | null,
   now: string,
 ) {
+  validateAliasRecord({ scope });
   const db = drizzle(client);
   const existing = db
     .select({
@@ -454,7 +435,6 @@ function createOccurrence(
     created_at: now,
     updated_at: now,
   };
-  validateOccurrence(record);
   insertRow(client, "occurrences", record);
   writeChange(client, op, "occurrence", id, 1, diff({}, record), now);
   return { id, version: 1, changed: true };
@@ -475,9 +455,6 @@ function updateSubject(
     return { id: op.id, version: op.expectedVersion, changed: false };
   }
   const updated = { ...old, ...data };
-  if (table === "occurrences") {
-    validateOccurrence(updated);
-  }
   if (table === "events" && data.slug !== undefined && data.slug !== old.slug) {
     const reserved = db
       .select({ eventId: urlAliases.eventId })
@@ -649,12 +626,7 @@ function replaceTerms(
       .get(),
   );
   assert(terms.every(Boolean), "Unknown taxonomy term");
-  for (const facet of ["event_type", "format"]) {
-    assert(
-      terms.filter((t) => t?.facet === facet).length <= 1,
-      `Only one ${facet} term allowed`,
-    );
-  }
+  validateTermAssignments(terms.filter((term) => term !== undefined));
   for (const t of terms) {
     if (t?.parentId) {
       assert(!ids.includes(t.parentId), "Do not assign redundant parent genre");
