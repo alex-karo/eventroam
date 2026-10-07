@@ -62,6 +62,7 @@ Website:
 
 ## Research
 
+- [Facebook and Instagram text access](research/2026-10-05-facebook-instagram-text-access.md) — dated retrieval checks and per-item costs for public posts.
 - [Competitor scan](research/2026-09-14-competitor-scan.md) — dated rival observations; later specs supersede recommendations.
 - [Source-model review](research/2026-09-17-source-model-review.md) — dated source observations; inheritance recommendation superseded.
 - [Filters and classification research](research/2026-09-19-filters-and-classification.md) — dated rival findings; filter and inheritance proposals superseded.
