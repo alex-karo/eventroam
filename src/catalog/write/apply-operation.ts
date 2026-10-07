@@ -30,87 +30,32 @@ import {
 import { isAssignedCountryCode } from "@/catalog/domain/country-codes";
 import { normalizeCatalogUrl } from "@/catalog/domain/urls";
 
-type Row = Record<string, unknown>;
-const columns: Record<string, string> = {
-  canonicalName: "canonical_name",
-  occurrenceKey: "occurrence_key",
-  occurrenceYear: "occurrence_year",
-  startsOn: "starts_on",
-  endsOn: "ends_on",
-  dateState: "date_state",
-  scheduleStatus: "schedule_status",
-  ticketAvailability: "ticket_availability",
-  capacityEstimate: "capacity_estimate",
-  displayName: "display_name",
-  venueName: "venue_name",
-  venueAddress: "venue_address",
-  administrativeArea: "administrative_area",
-  countryCode: "country_code",
-  coordinatePrecision: "coordinate_precision",
-  timeZone: "time_zone",
-  homeScope: "home_scope",
-  publicationState: "publication_state",
-  priceDetails: "price_details",
-};
+type EventRow = typeof events.$inferSelect;
+type OccurrenceRow = typeof occurrences.$inferSelect;
+type EventValues = typeof events.$inferInsert;
+type OccurrenceValues = typeof occurrences.$inferInsert;
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
   }
 }
-function columnNames(table: "events" | "occurrences") {
-  const schema = table === "events" ? events : occurrences;
-  return Object.fromEntries(
-    Object.entries(getTableColumns(schema)).map(([property, column]) => [
-      column.name,
-      property,
-    ]),
-  ) as Record<string, string>;
+function eventRow(client: Database.Database, id: string): EventRow {
+  const found = drizzle(client)
+    .select()
+    .from(events)
+    .where(eq(events.id, id))
+    .get();
+  assert(found, "events record not found");
+  return found;
 }
-function rawRow(
-  table: "events" | "occurrences",
-  values: Record<string, unknown>,
-): Row {
-  const names = columnNames(table);
-  return Object.fromEntries(
-    Object.entries(values).map(([property, value]) => {
-      const name = Object.keys(names).find((key) => names[key] === property);
-      assert(name, `Unknown ${table} column: ${property}`);
-      return [
-        name,
-        property === "aliases" || property === "priceDetails"
-          ? JSON.stringify(value)
-          : value,
-      ];
-    }),
-  );
-}
-function typedValues(table: "events" | "occurrences", values: Row) {
-  const names = columnNames(table);
-  return Object.fromEntries(
-    Object.entries(values).map(([name, value]) => {
-      const property = names[name];
-      assert(property, `Unknown ${table} column: ${name}`);
-      return [
-        property,
-        property === "aliases" || property === "priceDetails"
-          ? JSON.parse(value as string)
-          : value,
-      ];
-    }),
-  );
-}
-function row(
-  client: Database.Database,
-  table: "events" | "occurrences",
-  id: string,
-): Row {
-  const db = drizzle(client);
-  const found =
-    table === "events"
-      ? db.select().from(events).where(eq(events.id, id)).get()
-      : db.select().from(occurrences).where(eq(occurrences.id, id)).get();
-  assert(found, `${table} record not found`);
-  return rawRow(table, found);
+function occurrenceRow(client: Database.Database, id: string): OccurrenceRow {
+  const found = drizzle(client)
+    .select()
+    .from(occurrences)
+    .where(eq(occurrences.id, id))
+    .get();
+  assert(found, "occurrences record not found");
+  return found;
 }
 function normalizedPriceDetails(details: CatalogPriceDetail[]) {
   const normalized = details.map((detail) => ({
@@ -132,113 +77,96 @@ function normalizedPriceDetails(details: CatalogPriceDetail[]) {
     ).values(),
   ].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
 }
-function sqlData(data: Record<string, unknown>): Row {
-  const out: Row = {};
-  for (const [key, value] of Object.entries(data)) {
-    // Match Drizzle's omitted-field semantics before expansion, merging or diffing.
+function withoutUndefined<T extends object>(data: T): T {
+  return Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined),
+  ) as T;
+}
+function priceColumns(p: CatalogPrice | null) {
+  return {
+    priceKind: p?.kind ?? null,
+    priceCurrency: p && "currency" in p ? p.currency : null,
+    priceMinMinor: p?.minMinor ?? null,
+    priceMaxMinor: p?.maxMinor ?? null,
+    priceCoverage: p?.coverage ?? null,
+    priceQualification: p?.qualification ?? null,
+  };
+}
+function occurrenceData<T extends { price?: CatalogPrice | null }>(
+  data: T,
+): Omit<T, "price"> & Partial<OccurrenceValues> {
+  // Expanding at price's original position also preserves audit field order.
+  const entries: Array<[string, unknown]> = [];
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
     if (value === undefined) {
       continue;
     }
     if (key === "price") {
-      const p = value as CatalogPrice | null;
-      Object.assign(out, {
-        price_kind: p?.kind ?? null,
-        price_currency: p && "currency" in p ? p.currency : null,
-        price_min_minor: p?.minMinor ?? null,
-        price_max_minor: p?.maxMinor ?? null,
-        price_coverage: p?.coverage ?? null,
-        price_qualification: p?.qualification ?? null,
-      });
-    } else if (key === "aliases") {
-      out.aliases = JSON.stringify(value);
-    } else if (key === "priceDetails") {
-      out.price_details = JSON.stringify(value);
+      entries.push(...Object.entries(priceColumns(data.price ?? null)));
     } else {
-      out[columns[key] ?? key] = value;
+      entries.push([key, value]);
     }
   }
-  return out;
+  return Object.fromEntries(entries) as Omit<T, "price"> &
+    Partial<OccurrenceValues>;
 }
-function validateOccurrence(r: Row) {
-  validateOccurrenceRecord(typedValues("occurrences", r));
-  if (r.country_code != null) {
+function validateOccurrence(r: Partial<OccurrenceRow>) {
+  validateOccurrenceRecord(r);
+  if (r.countryCode != null) {
     assert(
-      typeof r.country_code === "string" &&
-        isAssignedCountryCode(r.country_code),
+      typeof r.countryCode === "string" && isAssignedCountryCode(r.countryCode),
       "Country code is not assigned by ISO 3166-1",
     );
   }
-  if (r.time_zone != null) {
+  if (r.timeZone != null) {
     try {
-      new Intl.DateTimeFormat("en", { timeZone: r.time_zone as string });
+      new Intl.DateTimeFormat("en", { timeZone: r.timeZone });
     } catch {
       throw new Error("Invalid IANA time zone");
     }
   }
 }
-function validateSubject(table: "events" | "occurrences", values: Row) {
-  if (table === "events") {
-    validateEventRecord(typedValues(table, values));
-  } else {
-    validateOccurrence(values);
-  }
-}
-
-function setRow(
+function setEvent(
   client: Database.Database,
-  table: "events" | "occurrences",
   id: string,
-  values: Row,
+  values: Partial<EventValues>,
 ) {
-  const keys = Object.keys(values);
-  if (!keys.length) {
-    return;
-  }
-  validateSubject(table, { ...row(client, table, id), ...values });
+  validateEventRecord({ ...eventRow(client, id), ...values });
   const db = drizzle(client);
-  if (table === "events") {
-    db.update(events)
-      .set(typedValues(table, values))
-      .where(eq(events.id, id))
-      .run();
-  } else {
-    db.update(occurrences)
-      .set(typedValues(table, values))
-      .where(eq(occurrences.id, id))
-      .run();
-  }
+  db.update(events).set(values).where(eq(events.id, id)).run();
 }
-function insertRow(
+function setOccurrence(
   client: Database.Database,
-  table: "events" | "occurrences",
-  values: Row,
+  id: string,
+  values: Partial<OccurrenceValues>,
 ) {
-  validateSubject(table, values);
+  validateOccurrence({ ...occurrenceRow(client, id), ...values });
   const db = drizzle(client);
-  if (table === "events") {
-    db.insert(events)
-      .values(typedValues(table, values) as typeof events.$inferInsert)
-      .run();
-  } else {
-    db.insert(occurrences)
-      .values(typedValues(table, values) as typeof occurrences.$inferInsert)
-      .run();
-  }
+  db.update(occurrences).set(values).where(eq(occurrences.id, id)).run();
 }
-function diff(old: Row, next: Row) {
-  const valueFor = (field: string, value: unknown) =>
-    (field === "aliases" || field === "price_details") &&
-    typeof value === "string"
-      ? (JSON.parse(value) as unknown[])
-      : value;
+function diff<T extends object>(
+  table: typeof events | typeof occurrences,
+  old: Partial<T>,
+  next: Partial<T>,
+): CatalogFieldChange[] {
+  const names = getTableColumns(table) as Record<string, { name: string }>;
   return Object.entries(next)
-    .filter(([key, value]) => old[key] !== value)
-    .map(([field, newValue]) => ({
-      field,
-      oldPresent: Object.hasOwn(old, field),
-      oldValue: valueFor(field, old[field] ?? null),
-      newValue: valueFor(field, newValue ?? null),
-    }));
+    .filter(([key, value]) => {
+      const previous = old[key as keyof T];
+      return Array.isArray(value) && Array.isArray(previous)
+        ? JSON.stringify(previous) !== JSON.stringify(value)
+        : previous !== value;
+    })
+    .map(([key, newValue]) => {
+      const column = names[key];
+      assert(column, `Unknown audit column: ${key}`);
+      return {
+        field: column.name,
+        oldPresent: Object.hasOwn(old, key),
+        oldValue: old[key as keyof T] ?? null,
+        newValue: newValue ?? null,
+      };
+    });
 }
 function validateScope(client: Database.Database, id: string) {
   const terms = drizzle(client)
@@ -318,9 +246,13 @@ function alias(
       .run();
   }
 }
-function reserveEventPaths(client: Database.Database, event: Row, now: string) {
-  const scope = event.home_scope as string;
-  const eventId = event.id as string;
+function reserveEventPaths(
+  client: Database.Database,
+  event: EventRow,
+  now: string,
+) {
+  const scope = event.homeScope as string;
+  const eventId = event.id;
   alias(client, scope, `/events/${event.slug}`, eventId, null, now);
   const children = drizzle(client)
     .select({
@@ -346,33 +278,41 @@ function reserveEventPaths(client: Database.Database, event: Row, now: string) {
 }
 function reserveOccurrencePath(
   client: Database.Database,
-  occ: Row,
+  occ: OccurrenceRow,
   now: string,
 ) {
-  const event = row(client, "events", occ.event_id as string);
-  if (event.home_scope) {
+  const event = eventRow(client, occ.eventId);
+  if (event.homeScope) {
     alias(
       client,
-      event.home_scope as string,
-      `/events/${event.slug}/${occ.occurrence_key}`,
-      event.id as string,
-      occ.id as string,
+      event.homeScope,
+      `/events/${event.slug}/${occ.occurrenceKey}`,
+      event.id,
+      occ.id,
       now,
     );
   }
 }
-function bump(
+function bumpEvent(
   client: Database.Database,
-  table: "events" | "occurrences",
   id: string,
   version: number,
-  values: Row,
+  values: Partial<EventValues>,
   now: string,
 ) {
-  setRow(client, table, id, {
+  setEvent(client, id, { ...values, version: version + 1, updatedAt: now });
+}
+function bumpOccurrence(
+  client: Database.Database,
+  id: string,
+  version: number,
+  values: Partial<OccurrenceValues>,
+  now: string,
+) {
+  setOccurrence(client, id, {
     ...values,
     version: version + 1,
-    updated_at: now,
+    updatedAt: now,
   });
 }
 function createEvent(
@@ -382,12 +322,12 @@ function createEvent(
 ): CatalogOperationResult {
   const db = drizzle(client);
   const id = randomUUID();
-  const data = sqlData(op.data);
+  const data = withoutUndefined(op.data);
   assert(
     !db
       .select({ id: events.id })
       .from(events)
-      .where(eq(events.slug, data.slug as string))
+      .where(eq(events.slug, data.slug))
       .get(),
     `Event slug "${data.slug}" is already used by another Event`,
   );
@@ -402,15 +342,16 @@ function createEvent(
   const record = {
     id,
     ...data,
-    aliases: data.aliases ?? "[]",
-    home_scope: null,
-    publication_state: "draft",
+    aliases: data.aliases ?? [],
+    homeScope: null,
+    publicationState: "draft" as const,
     version: 1,
-    created_at: now,
-    updated_at: now,
-  };
-  insertRow(client, "events", record);
-  writeChange(client, op, "event", id, 1, diff({}, record), now);
+    createdAt: now,
+    updatedAt: now,
+  } satisfies EventValues;
+  validateEventRecord(record);
+  db.insert(events).values(record).run();
+  writeChange(client, op, "event", id, 1, diff(events, {}, record), now);
   return { id, version: 1, changed: true };
 }
 
@@ -419,24 +360,34 @@ function createOccurrence(
   op: Extract<CatalogOperation, { kind: "createOccurrence" }>,
   now: string,
 ): CatalogOperationResult {
-  row(client, "events", op.eventId);
+  eventRow(client, op.eventId);
+  const db = drizzle(client);
   const id = randomUUID();
-  const data = sqlData(op.data);
+  const data = occurrenceData(op.data);
   const record = {
     id,
-    event_id: op.eventId,
+    eventId: op.eventId,
     ...data,
-    publication_state: "draft",
-    date_state: data.date_state ?? "unknown",
-    schedule_status: data.schedule_status ?? "announced",
-    ticket_availability: data.ticket_availability ?? "unknown",
-    coordinate_precision: data.coordinate_precision ?? "unknown",
+    publicationState: "draft" as const,
+    dateState: data.dateState ?? "unknown",
+    scheduleStatus: data.scheduleStatus ?? "announced",
+    ticketAvailability: data.ticketAvailability ?? "unknown",
+    coordinatePrecision: data.coordinatePrecision ?? "unknown",
     version: 1,
-    created_at: now,
-    updated_at: now,
-  };
-  insertRow(client, "occurrences", record);
-  writeChange(client, op, "occurrence", id, 1, diff({}, record), now);
+    createdAt: now,
+    updatedAt: now,
+  } satisfies OccurrenceValues;
+  validateOccurrence(record);
+  db.insert(occurrences).values(record).run();
+  writeChange(
+    client,
+    op,
+    "occurrence",
+    id,
+    1,
+    diff(occurrences, {}, record),
+    now,
+  );
   return { id, version: 1, changed: true };
 }
 
@@ -446,45 +397,58 @@ function updateSubject(
   now: string,
 ): CatalogOperationResult {
   const db = drizzle(client);
-  const table = op.kind === "updateEvent" ? "events" : "occurrences";
-  const old = row(client, table, op.id);
-  assert(old.version === op.expectedVersion, "Stale subject version");
-  const data = sqlData(op.data);
-  const changes = diff(old, data);
-  if (!changes.length) {
-    return { id: op.id, version: op.expectedVersion, changed: false };
-  }
-  const updated = { ...old, ...data };
-  if (table === "events" && data.slug !== undefined && data.slug !== old.slug) {
-    const reserved = db
-      .select({ eventId: urlAliases.eventId })
-      .from(urlAliases)
-      .where(eq(urlAliases.path, `/events/${data.slug}`))
-      .get();
-    assert(
-      !reserved || reserved.eventId === op.id,
-      "Public URL is reserved by another identity",
+  if (op.kind === "updateEvent") {
+    const old = eventRow(client, op.id);
+    assert(old.version === op.expectedVersion, "Stale subject version");
+    const data = withoutUndefined(op.data);
+    const changes = diff(events, old, data);
+    if (!changes.length) {
+      return { id: op.id, version: op.expectedVersion, changed: false };
+    }
+    if (data.slug !== undefined && data.slug !== old.slug) {
+      const reserved = db
+        .select({ eventId: urlAliases.eventId })
+        .from(urlAliases)
+        .where(eq(urlAliases.path, `/events/${data.slug}`))
+        .get();
+      assert(
+        !reserved || reserved.eventId === op.id,
+        "Public URL is reserved by another identity",
+      );
+      if (old.publicationState === "published") {
+        reserveEventPaths(client, old, now);
+        reserveEventPaths(client, { ...old, ...data }, now);
+      }
+    }
+    bumpEvent(client, op.id, op.expectedVersion, data, now);
+    writeChange(
+      client,
+      op,
+      "event",
+      op.id,
+      op.expectedVersion + 1,
+      changes,
+      now,
+    );
+  } else {
+    const old = occurrenceRow(client, op.id);
+    assert(old.version === op.expectedVersion, "Stale subject version");
+    const data = occurrenceData(op.data);
+    const changes = diff(occurrences, old, data);
+    if (!changes.length) {
+      return { id: op.id, version: op.expectedVersion, changed: false };
+    }
+    bumpOccurrence(client, op.id, op.expectedVersion, data, now);
+    writeChange(
+      client,
+      op,
+      "occurrence",
+      op.id,
+      op.expectedVersion + 1,
+      changes,
+      now,
     );
   }
-  if (
-    table === "events" &&
-    old.publication_state === "published" &&
-    data.slug !== undefined &&
-    data.slug !== old.slug
-  ) {
-    reserveEventPaths(client, old, now);
-    reserveEventPaths(client, updated, now);
-  }
-  bump(client, table, op.id, op.expectedVersion, data, now);
-  writeChange(
-    client,
-    op,
-    table === "events" ? "event" : "occurrence",
-    op.id,
-    op.expectedVersion + 1,
-    changes,
-    now,
-  );
   return {
     id: op.id,
     version: op.expectedVersion + 1,
@@ -506,20 +470,18 @@ function changePublication(
   >,
   now: string,
 ): CatalogOperationResult {
-  const db = drizzle(client);
   const isEvent = op.kind.endsWith("Event");
-  const table = isEvent ? "events" : "occurrences";
-  const old = row(client, table, op.id);
-  assert(old.version === op.expectedVersion, "Stale subject version");
   const target = op.kind.startsWith("publish") ? "published" : "withdrawn";
-  assert(
-    old.publication_state !== "draft" || target === "published",
-    "Cannot withdraw a draft",
-  );
-  if (target === "published") {
-    if (isEvent) {
+  if (isEvent) {
+    const old = eventRow(client, op.id);
+    assert(old.version === op.expectedVersion, "Stale subject version");
+    assert(
+      old.publicationState !== "draft" || target === "published",
+      "Cannot withdraw a draft",
+    );
+    if (target === "published") {
       assert(
-        db
+        drizzle(client)
           .select({ id: occurrences.id })
           .from(occurrences)
           .where(
@@ -532,39 +494,63 @@ function changePublication(
         "Event publication needs a published occurrence",
       );
       assert(
-        old.home_scope == null || old.home_scope === "festivals",
+        old.homeScope == null || old.homeScope === "festivals",
         "Invalid home scope",
       );
-    } else {
-      validateOccurrence({ ...old, publication_state: "published" });
+    }
+    const values: Partial<EventValues> = {
+      publicationState: target,
+      ...(target === "published" && old.homeScope == null
+        ? { homeScope: "festivals" }
+        : {}),
+    };
+    const changes = diff(events, old, values);
+    if (!changes.length) {
+      return { id: op.id, version: op.expectedVersion, changed: false };
+    }
+    if (target === "published") {
+      reserveEventPaths(client, { ...old, ...values }, now);
+    }
+    bumpEvent(client, op.id, op.expectedVersion, values, now);
+    writeChange(
+      client,
+      op,
+      "event",
+      op.id,
+      op.expectedVersion + 1,
+      changes,
+      now,
+    );
+  } else {
+    const old = occurrenceRow(client, op.id);
+    assert(old.version === op.expectedVersion, "Stale subject version");
+    assert(
+      old.publicationState !== "draft" || target === "published",
+      "Cannot withdraw a draft",
+    );
+    if (target === "published") {
+      validateOccurrence({ ...old, publicationState: "published" });
       validateScope(client, op.id);
     }
-  }
-  const values: Row = { publication_state: target };
-  if (isEvent && target === "published" && old.home_scope == null) {
-    values.home_scope = "festivals";
-  }
-  const changes = diff(old, values);
-  if (!changes.length) {
-    return { id: op.id, version: op.expectedVersion, changed: false };
-  }
-  if (target === "published") {
-    if (isEvent) {
-      reserveEventPaths(client, { ...old, ...values }, now);
-    } else {
+    const values: Partial<OccurrenceValues> = { publicationState: target };
+    const changes = diff(occurrences, old, values);
+    if (!changes.length) {
+      return { id: op.id, version: op.expectedVersion, changed: false };
+    }
+    if (target === "published") {
       reserveOccurrencePath(client, old, now);
     }
+    bumpOccurrence(client, op.id, op.expectedVersion, values, now);
+    writeChange(
+      client,
+      op,
+      "occurrence",
+      op.id,
+      op.expectedVersion + 1,
+      changes,
+      now,
+    );
   }
-  bump(client, table, op.id, op.expectedVersion, values, now);
-  writeChange(
-    client,
-    op,
-    isEvent ? "event" : "occurrence",
-    op.id,
-    op.expectedVersion + 1,
-    changes,
-    now,
-  );
   return {
     id: op.id,
     version: op.expectedVersion + 1,
@@ -577,15 +563,15 @@ function replacePriceBlock(
   op: Extract<CatalogOperation, { kind: "replacePriceBlock" }>,
   now: string,
 ): CatalogOperationResult {
-  const old = row(client, "occurrences", op.id);
+  const old = occurrenceRow(client, op.id);
   assert(old.version === op.expectedVersion, "Stale subject version");
   const details = normalizedPriceDetails(op.priceDetails);
-  const data = sqlData({ price: op.basePrice, priceDetails: details });
-  const changes = diff(old, data);
+  const data = { ...priceColumns(op.basePrice), priceDetails: details };
+  const changes = diff(occurrences, old, data);
   if (!changes.length) {
     return { id: op.id, version: op.expectedVersion, changed: false };
   }
-  bump(client, "occurrences", op.id, op.expectedVersion, data, now);
+  bumpOccurrence(client, op.id, op.expectedVersion, data, now);
   writeChange(
     client,
     op,
@@ -608,7 +594,7 @@ function replaceTerms(
   now: string,
 ): CatalogOperationResult {
   const db = drizzle(client);
-  const old = row(client, "occurrences", op.id);
+  const old = occurrenceRow(client, op.id);
   assert(old.version === op.expectedVersion, "Stale subject version");
   // IDs use a locale-independent order for no-op comparisons and audit history.
   // eslint-disable-next-line sonarjs/no-alphabetical-sort
@@ -651,10 +637,10 @@ function replaceTerms(
       .values({ occurrenceId: op.id, termId: id })
       .run();
   }
-  if (old.publication_state === "published") {
+  if (old.publicationState === "published") {
     validateScope(client, op.id);
   }
-  bump(client, "occurrences", op.id, op.expectedVersion, {}, now);
+  bumpOccurrence(client, op.id, op.expectedVersion, {}, now);
   writeChange(
     client,
     op,
@@ -677,8 +663,10 @@ function replaceLinks(
   now: string,
 ): CatalogOperationResult {
   const db = drizzle(client);
-  const table = op.owner.type === "event" ? "events" : "occurrences";
-  const old = row(client, table, op.owner.id);
+  const old =
+    op.owner.type === "event"
+      ? eventRow(client, op.owner.id)
+      : occurrenceRow(client, op.owner.id);
   assert(old.version === op.expectedVersion, "Stale subject version");
   const ownerColumn =
     op.owner.type === "event"
@@ -764,7 +752,11 @@ function replaceLinks(
         .run();
     }
   }
-  bump(client, table, op.owner.id, op.expectedVersion, {}, now);
+  if (op.owner.type === "event") {
+    bumpEvent(client, op.owner.id, op.expectedVersion, {}, now);
+  } else {
+    bumpOccurrence(client, op.owner.id, op.expectedVersion, {}, now);
+  }
   writeChange(
     client,
     op,

@@ -93,6 +93,114 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
   ).toThrow(/Stale/);
 });
 
+test("create audit keeps supplied field order, arrays, and omitted defaults", () => {
+  const client = testDatabase().client;
+  const event = applyCatalogOperation(client, {
+    kind: "createEvent",
+    operationKey: "audit:create-event",
+    actor: "owner",
+    data: {
+      slug: "array-festival",
+      canonicalName: "Array Festival",
+      aliases: ["Array Fest"],
+      summary: undefined,
+    },
+  });
+  const edition = applyCatalogOperation(client, {
+    kind: "createOccurrence",
+    operationKey: "audit:create-occurrence",
+    actor: "owner",
+    eventId: event.id,
+    data: {
+      occurrenceKey: "2028",
+      displayName: null,
+      price: {
+        kind: "free",
+        minMinor: 0,
+        maxMinor: 0,
+        coverage: "full_programme",
+      },
+      locality: "Test field",
+      dateState: undefined,
+    },
+  });
+  const fields = (key: string) => {
+    const row = client
+      .prepare(
+        "SELECT changed_fields FROM catalog_changes WHERE operation_key=?",
+      )
+      .get(key) as { changed_fields: string };
+    return JSON.parse(row.changed_fields) as Array<{
+      field: string;
+      oldPresent: boolean;
+      oldValue: unknown;
+      newValue: unknown;
+    }>;
+  };
+  const eventFields = fields("audit:create-event");
+  expect(eventFields.map((change) => change.field)).toEqual([
+    "id",
+    "slug",
+    "canonical_name",
+    "aliases",
+    "home_scope",
+    "publication_state",
+    "version",
+    "created_at",
+    "updated_at",
+  ]);
+  expect(
+    eventFields.find((change) => change.field === "aliases")?.newValue,
+  ).toEqual(["Array Fest"]);
+  expect(
+    eventFields.every(
+      (change) => !change.oldPresent && change.oldValue === null,
+    ),
+  ).toBe(true);
+  const occurrenceFields = fields("audit:create-occurrence");
+  expect(occurrenceFields.map((change) => change.field)).toEqual([
+    "id",
+    "event_id",
+    "occurrence_key",
+    "display_name",
+    "locality",
+    "price_kind",
+    "price_currency",
+    "price_min_minor",
+    "price_max_minor",
+    "price_coverage",
+    "price_qualification",
+    "publication_state",
+    "date_state",
+    "schedule_status",
+    "ticket_availability",
+    "coordinate_precision",
+    "version",
+    "created_at",
+    "updated_at",
+  ]);
+  expect(
+    occurrenceFields.find((change) => change.field === "display_name")
+      ?.newValue,
+  ).toBeNull();
+  expect(
+    occurrenceFields.every(
+      (change) => !change.oldPresent && change.oldValue === null,
+    ),
+  ).toBe(true);
+  expect(edition.version).toBe(1);
+  expect(
+    applyCatalogOperation(client, {
+      kind: "updateEvent",
+      operationKey: "audit:same-aliases",
+      actor: "owner",
+      id: event.id,
+      expectedVersion: event.version,
+      data: { aliases: ["Array Fest"] },
+    }),
+  ).toEqual({ id: event.id, version: 1, changed: false });
+});
+
 test("publication gates dates, area and scope; withdrawal retains URL reservation", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
