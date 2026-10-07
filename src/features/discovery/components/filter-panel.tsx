@@ -8,6 +8,13 @@ import {
   type SizeBand,
 } from "@/features/discovery/model/discovery";
 
+const groupTitles = {
+  when: "When do you want to go?",
+  where: "Where are you looking?",
+  genre: "Choose music genres",
+  more: "Refine your search",
+};
+
 const sizeLabels: Record<SizeBand, string> = {
   "lt-1000": "Under 1,000",
   "1000-4999": "1,000–4,999",
@@ -24,12 +31,14 @@ function GenreChoices({
   options,
   selected,
   onToggle,
-}: {
+}: Readonly<{
   options: GenreOption[];
   selected: string[];
   onToggle: (slug: string) => void;
-}) {
-  if (options.length === 0) return <p>No music genres listed yet.</p>;
+}>) {
+  if (options.length === 0) {
+    return <p>No music genres listed yet.</p>;
+  }
   return (
     <ul className="genre-options">
       {options.map(({ genre, children }) => (
@@ -65,7 +74,7 @@ export function FilterPanel({
   onApply,
   onCancel,
   error,
-}: {
+}: Readonly<{
   group: "when" | "where" | "genre" | "more";
   pending: Filters;
   setPending: Dispatch<SetStateAction<Filters>>;
@@ -75,18 +84,10 @@ export function FilterPanel({
   onApply: (filters: Filters) => void;
   onCancel: () => void;
   error: string | null;
-}) {
+}>) {
   return (
     <div id="filter-panel" className="filter-panel">
-      <h2>
-        {group === "when"
-          ? "When do you want to go?"
-          : group === "where"
-            ? "Where are you looking?"
-            : group === "genre"
-              ? "Choose music genres"
-              : "Refine your search"}
-      </h2>
+      <h2>{groupTitles[group]}</h2>
       <div className="filter-fields">
         {group === "when" && (
           <fieldset>
@@ -144,7 +145,9 @@ export function FilterPanel({
               <input
                 type="month"
                 onChange={(e) => {
-                  if (!e.target.value) return;
+                  if (!e.target.value) {
+                    return;
+                  }
                   const [year, month] = e.target.value.split("-").map(Number);
                   const end = new Date(year, month, 0).getDate();
                   setPending({

@@ -42,7 +42,9 @@ export function mapFeatures(
 // Choose the shorter longitude arc so locations either side of the date line fit together.
 export function mapBounds(summaries: DiscoverySummary[]) {
   const located = summaries.filter(hasMapPoint);
-  if (located.length === 0) return null;
+  if (located.length === 0) {
+    return null;
+  }
   const longitudes = located
     .map((summary) => (((summary.longitude! + 180) % 360) + 360) % 360)
     .sort((a, b) => a - b);
@@ -94,7 +96,7 @@ export function DiscoveryMap({
   selectedId,
   onSelect,
   visible,
-}: Props) {
+}: Readonly<Props>) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const popup = useRef<mapboxgl.Popup | null>(null);
@@ -134,7 +136,9 @@ export function DiscoveryMap({
   const fitResults = useCallback(() => {
     const instance = map.current;
     const bounds = mapBounds(latestSummaries.current);
-    if (!instance || !bounds) return;
+    if (!instance || !bounds) {
+      return;
+    }
     initialFitPending.current = false;
     if (bounds.west === bounds.east && bounds.south === bounds.north) {
       instance.easeTo({
@@ -171,20 +175,56 @@ export function DiscoveryMap({
       map.current?.getSource("editions") &&
       container.current?.clientWidth &&
       container.current.clientHeight
-    )
+    ) {
       fitResults();
+    }
   }, [fitResults]);
 
   useEffect(() => {
-    if (!token || !container.current) return;
+    if (!token || !container.current) {
+      return;
+    }
     let disposed = false;
     let instance: mapboxgl.Map | null = null;
     let observer: ResizeObserver | null = null;
+    const nearestFeature = (point: mapboxgl.Point) => {
+      if (!instance) {
+        return null;
+      }
+      const features = instance.queryRenderedFeatures(point, {
+        layers: ["point-hit-targets", "cluster-hit-targets"],
+      });
+      const distance = (feature: (typeof features)[number]) => {
+        const coordinates = (feature.geometry as Point).coordinates;
+        const projected = instance!.project(coordinates as [number, number]);
+        return (projected.x - point.x) ** 2 + (projected.y - point.y) ** 2;
+      };
+      return (
+        features
+          .filter((feature) => feature.geometry.type === "Point")
+          .sort((a, b) => distance(a) - distance(b))[0] ?? null
+      );
+    };
+    function expandCluster(
+      source: mapboxgl.GeoJSONSource,
+      clusterId: number,
+      center: [number, number],
+    ) {
+      source.getClusterExpansionZoom(clusterId, (error, zoom) => {
+        if (!error && instance && zoom !== null && zoom !== undefined) {
+          instance.easeTo({ center, zoom });
+        }
+      });
+    }
     async function start() {
       try {
         const gl = (await import("mapbox-gl")).default;
-        if (disposed || !container.current) return;
-        if (!gl.supported()) throw new Error("WebGL is unavailable.");
+        if (disposed || !container.current) {
+          return;
+        }
+        if (!gl.supported()) {
+          throw new Error("WebGL is unavailable.");
+        }
         gl.accessToken = token!;
         instance = new gl.Map({
           container: container.current,
@@ -209,7 +249,9 @@ export function DiscoveryMap({
           setError("Map could not load. Use the list to explore editions."),
         );
         instance.on("load", () => {
-          if (!instance || disposed) return;
+          if (!instance || disposed) {
+            return;
+          }
           instance.addSource("editions", {
             type: "geojson",
             data: mapFeatures(latestSummaries.current),
@@ -293,32 +335,11 @@ export function DiscoveryMap({
               "circle-radius": 22,
             },
           });
-          const nearestFeature = (point: mapboxgl.Point) => {
-            if (!instance) return null;
-            const features = instance.queryRenderedFeatures(point, {
-              layers: ["point-hit-targets", "cluster-hit-targets"],
-            });
-            return (
-              features
-                .filter((feature) => feature.geometry.type === "Point")
-                .sort((a, b) => {
-                  const distance = (feature: (typeof features)[number]) => {
-                    const coordinates = (feature.geometry as Point).coordinates;
-                    const projected = instance!.project(
-                      coordinates as [number, number],
-                    );
-                    return (
-                      (projected.x - point.x) ** 2 +
-                      (projected.y - point.y) ** 2
-                    );
-                  };
-                  return distance(a) - distance(b);
-                })[0] ?? null
-            );
-          };
           instance.on("click", (event) => {
             const feature = nearestFeature(event.point);
-            if (!feature || !instance) return;
+            if (!feature || !instance) {
+              return;
+            }
             const clusterId = feature.properties?.cluster_id;
             if (typeof clusterId === "number") {
               const source = instance.getSource(
@@ -328,29 +349,33 @@ export function DiscoveryMap({
                 number,
                 number,
               ];
-              source.getClusterExpansionZoom(clusterId, (error, zoom) => {
-                if (!error && instance && zoom !== null && zoom !== undefined)
-                  instance.easeTo({ center, zoom });
-              });
+              expandCluster(source, clusterId, center);
               return;
             }
             const id = feature.properties?.id;
-            if (typeof id === "string") select.current(id);
+            if (typeof id === "string") {
+              select.current(id);
+            }
           });
           instance.on("mousemove", "point-hit-targets", (event) => {
             const id = nearestFeature(event.point)?.properties?.id;
-            if (typeof id === "string" && !latestSelected.current)
+            if (typeof id === "string" && !latestSelected.current) {
               showPreview(id);
+            }
           });
           instance.on("mouseleave", "point-hit-targets", () => {
             showPreview(latestSelected.current);
           });
           for (const layer of ["point-hit-targets", "cluster-hit-targets"]) {
             instance.on("mouseenter", layer, () => {
-              if (instance) instance.getCanvas().style.cursor = "pointer";
+              if (instance) {
+                instance.getCanvas().style.cursor = "pointer";
+              }
             });
             instance.on("mouseleave", layer, () => {
-              if (instance) instance.getCanvas().style.cursor = "";
+              if (instance) {
+                instance.getCanvas().style.cursor = "";
+              }
             });
           }
           fitInitially();
@@ -375,10 +400,11 @@ export function DiscoveryMap({
 
   useEffect(() => {
     const instance = map.current;
-    if (instance?.getSource("editions"))
+    if (instance?.getSource("editions")) {
       (instance.getSource("editions") as mapboxgl.GeoJSONSource).setData(
         mapFeatures(summaries),
       );
+    }
     fitInitially();
     showPreview(latestSelected.current);
   }, [summaries, fitInitially]);
@@ -408,12 +434,13 @@ export function DiscoveryMap({
     }
   }, [visible, fitInitially]);
 
-  if (!token)
+  if (!token) {
     return (
       <div className="map-fallback" role="status">
         Map is not configured. Explore editions in the list.
       </div>
     );
+  }
   return (
     <div className="map-shell">
       <div ref={container} className="map-canvas" aria-label="Festival map" />

@@ -47,7 +47,9 @@ const SAFE_REQUEST_REASONS = new Set([
 ]);
 
 function requestReason(error: unknown): string {
-  if (error instanceof UnsafeSourceError) return error.message;
+  if (error instanceof UnsafeSourceError) {
+    return error.message;
+  }
   if (error instanceof Error && SAFE_REQUEST_REASONS.has(error.message)) {
     return error.message;
   }
@@ -155,7 +157,9 @@ export async function readSource(
   result.outcome = extracted.markdown ? "ok" : "partial";
   result.completeness =
     extracted.markdown && !extracted.truncated ? "full" : "partial";
-  if (extracted.truncated) result.reason = "source_content_truncated";
+  if (extracted.truncated) {
+    result.reason = "source_content_truncated";
+  }
 
   if (extracted.needsJavascript) {
     result.outcome = "partial";

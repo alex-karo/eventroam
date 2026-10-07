@@ -39,7 +39,7 @@ export function Discovery({
   initialQuery,
   initialNow,
   initialView,
-}: {
+}: Readonly<{
   apexHref: string;
   initialCatalog: Catalog;
   initialFilters: Filters;
@@ -47,7 +47,7 @@ export function Discovery({
   initialQuery: string;
   initialNow: string;
   initialView: "map" | "list";
-}) {
+}>) {
   const [catalog, setCatalog] = useState(initialCatalog);
   const [applied, setApplied] = useState(initialFilters);
   const [pending, setPending] = useState(initialFilters);
@@ -69,11 +69,14 @@ export function Discovery({
   const today = new Date(initialNow);
   const panelButton = useRef<HTMLButtonElement>(null);
   const latest = useRef(0);
-  const countries = [
-    ...new Set(catalog.summaries.map((s) => s.countryCode)),
-  ].sort();
+  const countries = [...new Set(catalog.summaries.map((s) => s.countryCode))];
+  // These are uppercase ISO codes, so code-unit order is intentional.
+  // eslint-disable-next-line sonarjs/no-alphabetical-sort
+  countries.sort();
   useEffect(() => {
-    if (!initialError) normalizeDiscoveryLocation(initialQuery);
+    if (!initialError) {
+      normalizeDiscoveryLocation(initialQuery);
+    }
   }, [initialError, initialQuery]);
   useEffect(() => {
     const restore = () => {
@@ -96,16 +99,22 @@ export function Discovery({
     const request = ++latest.current;
     return fetch("/api/discovery", { cache: "no-store" })
       .then((response) => {
-        if (!response.ok) throw new Error("Discovery is unavailable.");
+        if (!response.ok) {
+          throw new Error("Discovery is unavailable.");
+        }
         return response.json() as Promise<Catalog>;
       })
       .then((next) => {
-        if (request !== latest.current) return;
+        if (request !== latest.current) {
+          return;
+        }
         setCatalog(next);
         setLoadError(false);
       })
       .catch(() => {
-        if (request === latest.current) setLoadError(true);
+        if (request === latest.current) {
+          setLoadError(true);
+        }
       });
   }, []);
   useEffect(() => {
@@ -118,13 +127,16 @@ export function Discovery({
     };
   }, [load]);
   useEffect(() => {
-    if (selectedId) detailPanel.current?.querySelector("button")?.focus();
+    if (selectedId) {
+      detailPanel.current?.querySelector("button")?.focus();
+    }
   }, [selectedId]);
   useEffect(() => {
-    if (panel)
+    if (panel) {
       document
         .querySelector<HTMLElement>("#filter-panel input, #filter-panel button")
         ?.focus();
+    }
   }, [panel]);
   function closePanel() {
     setPending(applied);
@@ -158,8 +170,9 @@ export function Discovery({
       setFormError(null);
       setSearchError(null);
       setPanel(null);
-      if (panel && source === "filters")
+      if (panel && source === "filters") {
         requestAnimationFrame(() => panelButton.current?.focus());
+      }
     } catch (caught) {
       const setError = source === "search" ? setSearchError : setFormError;
       setError(caught instanceof Error ? caught.message : "Invalid filters.");
@@ -174,41 +187,54 @@ export function Discovery({
       selectedId !== id &&
       document.activeElement instanceof HTMLElement &&
       !detailPanel.current?.contains(document.activeElement)
-    )
+    ) {
       detailOrigin.current = document.activeElement;
+    }
     const request = ++detailRequest.current;
     setDetailState({ status: "loading", id });
     try {
       const response = await fetch(`/api/discovery/${encodeURIComponent(id)}`, {
         cache: "no-store",
       });
-      if (!response.ok) throw new Error("Detail unavailable");
+      if (!response.ok) {
+        throw new Error("Detail unavailable");
+      }
       const next = (await response.json()) as PublicOccurrence;
-      if (request === detailRequest.current)
+      if (request === detailRequest.current) {
         setDetailState({ status: "ready", id, data: next });
+      }
     } catch {
-      if (request === detailRequest.current)
+      if (request === detailRequest.current) {
         setDetailState({ status: "error", id });
+      }
     }
   }
   function closeDetail() {
     ++detailRequest.current;
     setDetailState({ status: "idle" });
     requestAnimationFrame(() => {
-      if (detailOrigin.current?.getClientRects().length)
+      if (detailOrigin.current?.getClientRects().length) {
         detailOrigin.current.focus();
-      else
+      } else {
         document
           .querySelector<HTMLElement>(".view-switch [aria-pressed=true]")
           ?.focus();
+      }
     });
   }
   useEffect(() => {
-    if (!panel && !selectedId) return;
+    if (!panel && !selectedId) {
+      return;
+    }
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      if (panel) closePanel();
-      else closeDetail();
+      if (event.key !== "Escape") {
+        return;
+      }
+      if (panel) {
+        closePanel();
+      } else {
+        closeDetail();
+      }
     };
     window.addEventListener("keydown", onEscape);
     return () => window.removeEventListener("keydown", onEscape);
@@ -218,6 +244,7 @@ export function Discovery({
   const results = invalidUrl
     ? []
     : filterSummaries(catalog.summaries, applied, catalog.genres, today);
+  const editionLabel = results.length === 1 ? "edition" : "editions";
   const mapped = results.filter(hasMapPoint).length;
   const active = [
     applied.q && ["Name", "q"],
@@ -232,7 +259,9 @@ export function Discovery({
   ].filter(Boolean) as string[][];
   function remove(group: string) {
     const next = { ...applied };
-    if (group === "q") next.q = "";
+    if (group === "q") {
+      next.q = "";
+    }
     if (group === "date") {
       next.from = "";
       next.to = "";
@@ -241,12 +270,16 @@ export function Discovery({
       next.countries = [];
       next.place = "";
     }
-    if (group === "genre") next.genres = [];
+    if (group === "genre") {
+      next.genres = [];
+    }
     if (group === "duration") {
       next.durationMin = null;
       next.durationMax = null;
     }
-    if (group === "size") next.sizes = [];
+    if (group === "size") {
+      next.sizes = [];
+    }
     apply(next);
   }
   const secondaryGroups =
@@ -347,7 +380,7 @@ export function Discovery({
               <strong aria-live="polite">
                 {invalidUrl
                   ? "Invalid filters"
-                  : `${results.length} ${results.length === 1 ? "edition" : "editions"}`}
+                  : `${results.length} ${editionLabel}`}
               </strong>
               <span className="results-geography">
                 {mapped} mapped · {results.length - mapped} unlocated

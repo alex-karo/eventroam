@@ -154,7 +154,8 @@ export function loadEvalSuite(
     }),
   });
   const ids = suite.cases.map((item) => item.id);
-  if (new Set(ids).size !== ids.length)
+  if (new Set(ids).size !== ids.length) {
     throw new Error("Duplicate eval case ID");
+  }
   return suite;
 }

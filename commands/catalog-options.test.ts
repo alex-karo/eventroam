@@ -31,8 +31,9 @@ test("ambiguous commands fail before opening the database or calling a model", (
     ["check", "--event", "id", "--apply", "--dry-run"],
     ["check", "--event", "id", "--pages", "-1"],
     ["add", "--name", "Test", "--url", "https://example.org"],
-  ])
+  ]) {
     expect(() => parseCatalogOptions(args)).toThrow();
+  }
   expect(() =>
     parseCatalogOptions(["add", "--name", "Test", "--owner", "Owner"]),
   ).toThrow();

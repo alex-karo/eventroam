@@ -59,11 +59,14 @@ function savedSource(client: ReturnType<typeof testDatabase>["client"]) {
 }
 
 function strictSchemaProblems(value: unknown, path: string = "$"): string[] {
-  if (Array.isArray(value))
+  if (Array.isArray(value)) {
     return value.flatMap((part, index) =>
       strictSchemaProblems(part, `${path}[${index}]`),
     );
-  if (!value || typeof value !== "object") return [];
+  }
+  if (!value || typeof value !== "object") {
+    return [];
+  }
   const node = value as Record<string, unknown>;
   const problems: string[] = [];
   for (const keyword of [
@@ -72,23 +75,31 @@ function strictSchemaProblems(value: unknown, path: string = "$"): string[] {
     "minLength",
     "maxLength",
     "oneOf",
-  ])
-    if (keyword in node) problems.push(`${path}.${keyword}`);
+  ]) {
+    if (keyword in node) {
+      problems.push(`${path}.${keyword}`);
+    }
+  }
   if (node.type === "object") {
-    if (node.additionalProperties !== false)
+    if (node.additionalProperties !== false) {
       problems.push(`${path}.additionalProperties`);
-    if ("propertyNames" in node) problems.push(`${path}.propertyNames`);
+    }
+    if ("propertyNames" in node) {
+      problems.push(`${path}.propertyNames`);
+    }
     if (node.properties && typeof node.properties === "object") {
       const properties = Object.keys(node.properties).sort();
       const required = Array.isArray(node.required)
         ? (node.required as string[]).sort()
         : [];
-      if (JSON.stringify(required) !== JSON.stringify(properties))
+      if (JSON.stringify(required) !== JSON.stringify(properties)) {
         problems.push(`${path}.required`);
+      }
     }
   }
-  for (const [key, part] of Object.entries(node))
+  for (const [key, part] of Object.entries(node)) {
     problems.push(...strictSchemaProblems(part, `${path}.${key}`));
+  }
   return problems;
 }
 
@@ -470,10 +481,11 @@ test("provider rejection has a safe outcome and never logs raw provider payloads
   savedSource(client);
   const secret = "PROVIDER_PRIVATE_SESSION_HEADER";
   const written: unknown[] = [];
-  for (const name of ["error", "warn", "log", "info", "debug"] as const)
+  for (const name of ["error", "warn", "log", "info", "debug"] as const) {
     vi.spyOn(console, name).mockImplementation((...parts: unknown[]) => {
       written.push(...parts);
     });
+  }
   const fetchMock = vi.fn(
     async () =>
       new Response(JSON.stringify({ error: { message: secret } }), {

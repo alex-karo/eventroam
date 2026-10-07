@@ -5,9 +5,9 @@ import { EventDetailsPage } from "@/features/event-details/event-page";
 
 export default async function EventPage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ slug: string }>;
-}) {
+}>) {
   const { slug } = await params;
   const { event } = await requestDetail(eventPath(slug));
   const active = selectActive(

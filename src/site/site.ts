@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-const origin = z
-  .string()
-  .url()
-  .transform((s) => new URL(s).origin);
+const origin = z.url().transform((s) => new URL(s).origin);
 export function siteOrigins(
   values: Record<string, string | undefined> = process.env,
 ) {
@@ -19,10 +16,16 @@ export function siteForHost(
   host: string | null,
   origins = siteOrigins(),
 ): Site | null {
-  if (!host) return null;
+  if (!host) {
+    return null;
+  }
   const normalized = host.toLowerCase();
-  if (normalized === new URL(origins.apex).host) return "apex";
-  if (normalized === new URL(origins.festivals).host) return "festivals";
+  if (normalized === new URL(origins.apex).host) {
+    return "apex";
+  }
+  if (normalized === new URL(origins.festivals).host) {
+    return "festivals";
+  }
   return null;
 }
 export const eventPath = (slug: string) => `/events/${slug}`;

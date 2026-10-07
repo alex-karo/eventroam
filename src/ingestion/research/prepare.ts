@@ -49,7 +49,7 @@ export function prepareResearch(
 } {
   const operations: CatalogOperation[] = [];
   const parsed = researchCandidateSchema.safeParse(raw);
-  if (!parsed.success)
+  if (!parsed.success) {
     return {
       candidate: null,
       operations,
@@ -63,6 +63,7 @@ export function prepareResearch(
         },
       ],
     };
+  }
   const candidate = parsed.data;
   const gaps: ResearchGap[] = candidate.observations.map(({ detail }) => ({
     code: "observation",
@@ -163,7 +164,9 @@ export function prepareResearch(
     const proposed = candidate.links.filter(
       (link) => link.owner === owner.type && link.editionKey === editionKey,
     );
-    if (!proposed.length) return;
+    if (!proposed.length) {
+      return;
+    }
     const merged = new Map(
       previous.map((link) => [
         `${link.kind}:${normalizeCatalogUrl(link.url)}`,
@@ -195,12 +198,14 @@ export function prepareResearch(
     event?.version ?? 1,
   );
 
-  let willPublishOccurrence = false;
-  for (const edition of candidate.editions) {
+  const prepareEdition = (
+    edition: ResearchCandidate["editions"][number],
+    index: number,
+  ) => {
     const existing = event?.editions.find(
       (item) => item.occurrenceKey === edition.key,
     );
-    const id = existing?.id ?? `$occ_${candidate.editions.indexOf(edition)}`;
+    const id = existing?.id ?? `$occ_${index}`;
     const claims = candidate.claims.filter(
       (claim) => claim.editionKey === edition.key,
     );
@@ -208,14 +213,20 @@ export function prepareResearch(
     let additions: string[] = [];
     let removals: string[] = [];
     for (const claim of claims) {
-      if (claim.field === "termIds") additions = claim.value as string[];
-      else if (claim.field === "removeTermIds")
+      if (claim.field === "termIds") {
+        additions = claim.value as string[];
+      } else if (claim.field === "removeTermIds") {
         removals = claim.value as string[];
-      else data[claim.field] = claim.value;
+      } else {
+        data[claim.field] = claim.value;
+      }
     }
-    if (edition.year !== undefined) data.occurrenceYear = edition.year;
-    if (edition.status === "cancelled" && data.scheduleStatus === undefined)
+    if (edition.year !== undefined) {
+      data.occurrenceYear = edition.year;
+    }
+    if (edition.status === "cancelled" && data.scheduleStatus === undefined) {
       data.scheduleStatus = "cancelled";
+    }
     const version = existing?.version ?? 1;
     if (!existing) {
       add(
@@ -223,24 +234,25 @@ export function prepareResearch(
           kind: "createOccurrence",
           eventId: eventRef,
           data: { occurrenceKey: edition.key, ...data },
-        } as DraftOperation,
+        },
         undefined,
         id.slice(1),
       );
     } else if (Object.keys(data).length) {
-      add({ kind: "updateOccurrence", id, data } as DraftOperation, version);
+      add({ kind: "updateOccurrence", id, data }, version);
     }
     const priorTerms = existing?.terms.map((term) => term.id) ?? [];
     const nextTerms = [...new Set([...priorTerms, ...additions])].filter(
       (term) => !removals.includes(term),
     );
-    if (additions.length || removals.length)
+    if (additions.length || removals.length) {
       add({ kind: "replaceTerms", id, termIds: nextTerms }, version);
+    }
 
     const price = candidate.prices.find(
       (item) => item.editionKey === edition.key,
     );
-    if (price)
+    if (price) {
       add(
         {
           kind: "replacePriceBlock",
@@ -250,6 +262,7 @@ export function prepareResearch(
         },
         version,
       );
+    }
     addLinks(
       { type: "occurrence", id },
       existing?.links ?? [],
@@ -281,16 +294,21 @@ export function prepareResearch(
         (existing.publicationState === "withdrawn" && input.republish))
     ) {
       add({ kind: "publishOccurrence", id }, version);
-      willPublishOccurrence = true;
+      return true;
     }
-  }
+    return false;
+  };
+  const willPublishOccurrence = candidate.editions
+    .map(prepareEdition)
+    .some(Boolean);
   if (
     (!event ||
       event.publicationState === "draft" ||
       (event.publicationState === "withdrawn" && input.republish)) &&
     (willPublishOccurrence ||
       event?.editions.some((item) => item.publicationState === "published"))
-  )
+  ) {
     add({ kind: "publishEvent", id: eventRef }, event?.version ?? 1);
+  }
   return result;
 }

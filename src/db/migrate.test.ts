@@ -15,8 +15,11 @@ test("populated catalog migration preserves identities, foreign keys, indexes an
       "src/db/migrations/0000_living_the_stranger.sql",
       "utf8",
     );
-    for (const statement of first.split("--> statement-breakpoint"))
-      if (statement.trim()) old.exec(statement);
+    for (const statement of first.split("--> statement-breakpoint")) {
+      if (statement.trim()) {
+        old.exec(statement);
+      }
+    }
     old.exec(
       "CREATE TABLE __drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at numeric)",
     );

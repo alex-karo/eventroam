@@ -1,7 +1,7 @@
 import type { PublicOccurrence } from "@/catalog/read/contracts";
 import { editionPath } from "@/site/site";
 
-export function Dates({ edition }: { edition: PublicOccurrence }) {
+export function Dates({ edition }: Readonly<{ edition: PublicOccurrence }>) {
   const format = (date: string) =>
     new Intl.DateTimeFormat("en", {
       dateStyle: "medium",
@@ -24,7 +24,7 @@ export function Dates({ edition }: { edition: PublicOccurrence }) {
     </p>
   );
 }
-export function Location({ edition }: { edition: PublicOccurrence }) {
+export function Location({ edition }: Readonly<{ edition: PublicOccurrence }>) {
   const place = [
     edition.venueName,
     edition.locality,
@@ -41,23 +41,26 @@ export function Location({ edition }: { edition: PublicOccurrence }) {
     </p>
   );
 }
-export function Status({ edition }: { edition: PublicOccurrence }) {
+const statusLabels = {
+  cancelled: "Cancelled",
+  postponed: "Postponed",
+  announced: "Announced",
+  scheduled: "Scheduled",
+};
+
+export function Status({ edition }: Readonly<{ edition: PublicOccurrence }>) {
   return (
     <p>
-      {edition.status === "cancelled"
-        ? "Cancelled"
-        : edition.status === "postponed"
-          ? "Postponed"
-          : edition.status === "announced"
-            ? "Announced"
-            : "Scheduled"}
+      {statusLabels[edition.status]}
       {edition.ticketAvailability === "sold_out" && " · Sold out"}
       {edition.ticketAvailability === "closed" && " · Ticket sales closed"}
     </p>
   );
 }
 
-export function TicketPrice({ edition }: { edition: PublicOccurrence }) {
+export function TicketPrice({
+  edition,
+}: Readonly<{ edition: PublicOccurrence }>) {
   let price: string | null = null;
   if (edition.priceKind === "free") {
     price = "Free";
@@ -69,9 +72,15 @@ export function TicketPrice({ edition }: { edition: PublicOccurrence }) {
     const minorUnit =
       10 ** (formatter.resolvedOptions().maximumFractionDigits ?? 2);
     const amount = (minor: number) => formatter.format(minor / minorUnit);
-    price = `${edition.priceKind === "from" ? "From " : ""}${amount(edition.priceMinMinor)}${edition.priceKind === "range" && edition.priceMaxMinor !== null ? `–${amount(edition.priceMaxMinor)}` : ""}`;
+    const upperAmount =
+      edition.priceKind === "range" && edition.priceMaxMinor !== null
+        ? `–${amount(edition.priceMaxMinor)}`
+        : "";
+    price = `${edition.priceKind === "from" ? "From " : ""}${amount(edition.priceMinMinor)}${upperAmount}`;
   }
-  if (!price) return null;
+  if (!price) {
+    return null;
+  }
   return (
     <p>
       Tickets: {price}
@@ -82,7 +91,9 @@ export function TicketPrice({ edition }: { edition: PublicOccurrence }) {
     </p>
   );
 }
-export function EditionItem({ edition }: { edition: PublicOccurrence }) {
+export function EditionItem({
+  edition,
+}: Readonly<{ edition: PublicOccurrence }>) {
   return (
     <li>
       <a href={editionPath(edition.eventSlug, edition.key)}>

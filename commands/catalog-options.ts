@@ -33,22 +33,55 @@ export function parseCatalogOptions(args: string[]) {
       seconds: { type: "string" },
     },
   });
-  if (values.help) return { help: true as const };
+  if (values.help) {
+    return { help: true as const };
+  }
   const [mode] = positionals;
-  if (positionals.length !== 1 || !["add", "refresh", "check"].includes(mode))
+  if (positionals.length !== 1 || !["add", "refresh", "check"].includes(mode)) {
     throw new Error("Choose add, refresh, or check.");
-  if (values.apply && values["dry-run"])
+  }
+  if (values.apply && values["dry-run"]) {
     throw new Error("Choose either --apply or --dry-run.");
+  }
   const eventIds = [...new Set(values.event ?? [])];
   if (mode === "add") {
-    if (!values.name?.trim()) throw new Error("add requires --name.");
-    if (eventIds.length) throw new Error("add does not accept record IDs.");
+    if (!values.name?.trim()) {
+      throw new Error("add requires --name.");
+    }
+    if (eventIds.length) {
+      throw new Error("add does not accept record IDs.");
+    }
   } else {
-    if (values.name) throw new Error("--name belongs to add.");
-    if (!eventIds.length) throw new Error("Provide --event.");
-    if (mode === "refresh" && eventIds.length !== 1)
+    if (values.name) {
+      throw new Error("--name belongs to add.");
+    }
+    if (!eventIds.length) {
+      throw new Error("Provide --event.");
+    }
+    if (mode === "refresh" && eventIds.length !== 1) {
       throw new Error("refresh requires one --event.");
+    }
   }
+  const limits = parseLimits(values);
+  return {
+    help: false as const,
+    mode: mode as "add" | "refresh" | "check",
+    name: values.name?.trim(),
+    eventIds,
+    dryRun: !values.apply,
+    republish: values.republish ?? false,
+    database: values.database,
+    report: values.report,
+    json: values.json ?? false,
+    limits,
+  };
+}
+
+function parseLimits(
+  values: Partial<
+    Record<"pages" | "searches" | "model-calls" | "seconds", string>
+  >,
+) {
   const limits: Partial<
     Record<"pages" | "searches" | "modelCalls" | "durationMs", number>
   > = {};
@@ -64,21 +97,11 @@ export function parseCatalogOptions(args: string[]) {
         !Number.isSafeInteger(number) ||
         number < 0 ||
         !Number.isSafeInteger(number * factor)
-      )
+      ) {
         throw new Error(`--${flag} must be a non-negative integer.`);
+      }
       limits[key] = number * factor;
     }
   }
-  return {
-    help: false as const,
-    mode: mode as "add" | "refresh" | "check",
-    name: values.name?.trim(),
-    eventIds,
-    dryRun: !values.apply,
-    republish: values.republish ?? false,
-    database: values.database,
-    report: values.report,
-    json: values.json ?? false,
-    limits,
-  };
+  return limits;
 }

@@ -52,11 +52,12 @@ export function seedDevelopmentFixtures(client: Database.Database) {
       ["dev-festival", "event_type", "festival", "Festival"],
       ["dev-outdoor", "format", "outdoor", "Outdoor"],
       ["dev-music", "topic", "music", "Music"],
-    ] as const)
+    ] as const) {
       db.insert(taxonomyTerms)
         .values({ id, facet, slug, name })
         .onConflictDoNothing()
         .run();
+    }
 
     function addEvent(slug: string, canonicalName: string) {
       const existing = db
@@ -64,7 +65,9 @@ export function seedDevelopmentFixtures(client: Database.Database) {
         .from(events)
         .where(eq(events.slug, slug))
         .get();
-      if (existing) return { id: existing.id, created: false };
+      if (existing) {
+        return { id: existing.id, created: false };
+      }
       const id = randomUUID();
       db.insert(events)
         .values({
@@ -113,17 +116,18 @@ export function seedDevelopmentFixtures(client: Database.Database) {
           createdAt: now,
         })
         .run();
-      for (const termId of termIds)
+      for (const termId of termIds) {
         db.insert(occurrenceTerms).values({ occurrenceId: id, termId }).run();
+      }
     }
 
     const event = addEvent("fictional-field-days", "Fictional Field Days");
-    if (event.created)
+    if (event.created) {
       for (const [key, year, start, end, status] of [
         ["2025", 2025, "2025-07-01", "2025-07-03", "scheduled"],
         ["2027", 2027, "2027-07-01", "2027-07-03", "scheduled"],
         ["2026-cancelled", 2026, "2026-07-01", "2026-07-03", "cancelled"],
-      ] as const)
+      ] as const) {
         addOccurrence(event.id, {
           occurrenceKey: key,
           occurrenceYear: year,
@@ -135,10 +139,14 @@ export function seedDevelopmentFixtures(client: Database.Database) {
           locality: "Example Valley",
           publicationState: "published",
         });
+      }
+    }
 
     for (const example of geographicExamples) {
       const added = addEvent(example.slug, example.name);
-      if (!added.created) continue;
+      if (!added.created) {
+        continue;
+      }
       addOccurrence(added.id, {
         occurrenceKey: "2027",
         occurrenceYear: 2027,

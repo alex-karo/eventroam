@@ -2,6 +2,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier";
+import sonarjs from "eslint-plugin-sonarjs";
 
 const restrictedImports = (groups) => [
   "error",
@@ -73,6 +74,30 @@ export default defineConfig([
   ...nextTypescript,
   prettier,
   {
+    rules: { curly: ["error", "all"] },
+  },
+  {
+    ...sonarjs.configs.recommended,
+    files: ["src/**/*.{ts,tsx}", "commands/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}"],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      ...sonarjs.configs.recommended.rules,
+      "sonarjs/cognitive-complexity": ["error", 20],
+      "sonarjs/no-hardcoded-ip": "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      "no-else-return": "error",
+      "no-unneeded-ternary": "error",
+      "@typescript-eslint/prefer-optional-chain": "error",
+      "@typescript-eslint/prefer-find": "error",
+    },
+  },
+  {
     files: [
       "src/app/**/*.{ts,tsx}",
       "src/features/**/*.{ts,tsx}",
@@ -131,5 +156,11 @@ export default defineConfig([
       ]),
     },
   },
-  globalIgnores([".next/**", "out/**", "node_modules/**", "next-env.d.ts"]),
+  globalIgnores([
+    ".next/**",
+    "out/**",
+    "node_modules/**",
+    "data/**",
+    "next-env.d.ts",
+  ]),
 ]);

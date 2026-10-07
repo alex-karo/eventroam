@@ -9,7 +9,9 @@ export async function requestSite() {
   const host = (await headers()).get("host");
   const origins = siteOrigins();
   const site = siteForHost(host, origins);
-  if (!site) notFound();
+  if (!site) {
+    notFound();
+  }
   return { site, origins };
 }
 export async function requestDetail(path: string) {
@@ -21,11 +23,14 @@ export async function requestDetail(path: string) {
   } finally {
     client.close();
   }
-  if (!detail) notFound();
+  if (!detail) {
+    notFound();
+  }
   const current = detail.edition
     ? editionPath(detail.event.slug, detail.edition.key)
     : eventPath(detail.event.slug);
-  if (site !== "festivals" || detail.redirect)
+  if (site !== "festivals" || detail.redirect) {
     permanentRedirect(`${origins.festivals}${current}`);
+  }
   return detail;
 }

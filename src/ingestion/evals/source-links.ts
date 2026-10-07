@@ -13,19 +13,20 @@ export function sourceLinks(markdown: string, finalUrl: string): string[] {
   const root = fromMarkdown(markdown);
   const definitions = new Map<string, string>();
   const collect = (node: Node) => {
-    if (node.type === "definition" && node.identifier && node.url)
+    if (node.type === "definition" && node.identifier && node.url) {
       definitions.set(node.identifier, node.url);
+    }
     node.children?.forEach(collect);
   };
   collect(root);
   const links: string[] = [];
   const visit = (node: Node) => {
-    const href =
-      node.type === "link"
-        ? node.url
-        : node.type === "linkReference"
-          ? definitions.get(node.identifier ?? "")
-          : undefined;
+    let href: string | undefined;
+    if (node.type === "link") {
+      href = node.url;
+    } else if (node.type === "linkReference") {
+      href = definitions.get(node.identifier ?? "");
+    }
     if (href && links.length < 120) {
       try {
         const url = new URL(href, finalUrl);

@@ -40,8 +40,8 @@ const price = z.discriminatedUnion("kind", [
     .object({
       kind: z.enum(["exact", "from", "range"]),
       currency,
-      minMinor: z.number().int().nonnegative().safe(),
-      maxMinor: z.number().int().nonnegative().safe(),
+      minMinor: z.number().int().nonnegative(),
+      maxMinor: z.number().int().nonnegative(),
       coverage: z.enum(["full_programme", "day", "package"]),
       qualification: z.string().max(500).optional(),
     })
@@ -53,7 +53,7 @@ const price = z.discriminatedUnion("kind", [
 const priceDetail = z
   .object({
     label: z.string().trim().min(1).max(250),
-    amount: z.number().nonnegative().finite().optional(),
+    amount: z.number().nonnegative().optional(),
     currency: currency.optional(),
     terms: z.string().trim().min(1).max(1000).optional(),
     availability: z
@@ -90,7 +90,7 @@ const occurrenceData = z
     ticketAvailability: z
       .enum(["unknown", "available", "sold_out", "closed"])
       .optional(),
-    capacityEstimate: z.number().int().positive().safe().nullable().optional(),
+    capacityEstimate: z.number().int().positive().nullable().optional(),
     venueName: z.string().trim().min(1).max(250).nullable().optional(),
     venueAddress: z.string().trim().min(1).max(500).nullable().optional(),
     locality: z.string().trim().min(1).max(250).nullable().optional(),

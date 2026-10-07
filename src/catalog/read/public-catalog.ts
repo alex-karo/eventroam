@@ -80,7 +80,9 @@ function publicRows(
 type Row = ReturnType<typeof publicRows>[number];
 
 function enrich(client: Database.Database, rows: Row[]): PublicOccurrence[] {
-  if (!rows.length) return [];
+  if (!rows.length) {
+    return [];
+  }
   const db = drizzle(client);
   const ids = rows.map((row) => row.id);
   const terms = db
@@ -208,7 +210,9 @@ export function publicEvent(
         ),
       )
       .get();
-    if (!event) return null;
+    if (!event) {
+      return null;
+    }
     const editions = publicEditions(client, eventId);
     return editions.length ? { ...event, editions } : null;
   })();
@@ -261,7 +265,9 @@ export function resolvePublicPath(
     /^\/events\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\/([a-z0-9]+(?:-[a-z0-9]+)*))?$/.exec(
       path,
     );
-  if (!canonical) return null;
+  if (!canonical) {
+    return null;
+  }
   return client.transaction(() => {
     const stored = drizzle(client)
       .select({
@@ -272,14 +278,21 @@ export function resolvePublicPath(
       .where(and(eq(urlAliases.scope, "festivals"), eq(urlAliases.path, path)))
       .get();
     // Only stored public addresses are routable. The identity is checked again below.
-    if (!stored) return null;
+    if (!stored) {
+      return null;
+    }
     const event = publicEvent(client, stored.eventId);
-    if (!event) return null;
+    if (!event) {
+      return null;
+    }
     const edition = stored.occurrenceId
       ? (event.editions.find((o) => o.id === stored.occurrenceId) ?? null)
       : null;
-    if (stored.occurrenceId && !edition) return null;
-    const current = `/events/${event.slug}${edition ? `/${edition.key}` : ""}`;
+    if (stored.occurrenceId && !edition) {
+      return null;
+    }
+    const editionSuffix = edition ? `/${edition.key}` : "";
+    const current = `/events/${event.slug}${editionSuffix}`;
     return { event, edition, redirect: current !== path };
   })();
 }

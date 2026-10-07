@@ -335,8 +335,9 @@ test.each(["add", "refresh"] as const)(
     expect(first.outcome).toBe("published");
     const before = readResearchCatalog(client);
     const proposed = candidate(termIds);
-    if (mode === "add") proposed.eventName = "Another Fest";
-    else {
+    if (mode === "add") {
+      proposed.eventName = "Another Fest";
+    } else {
       proposed.eventId = first.eventId;
       // The summary write succeeds before the invalid edition forces a rollback.
       proposed.summary = "A proposed replacement description.";

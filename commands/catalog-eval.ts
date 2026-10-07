@@ -12,11 +12,13 @@ function parseArgs(args: string[]): EvalOptions {
       );
       process.exit(0);
     }
-    if (!["--case", "--model", "--repeat", "--report"].includes(arg))
+    if (!["--case", "--model", "--repeat", "--report"].includes(arg)) {
       throw new Error(`Unknown eval option: ${arg}`);
+    }
     const value = args[++index];
-    if (!value || value.startsWith("--"))
+    if (!value || value.startsWith("--")) {
       throw new Error(`Missing value for ${arg}`);
+    }
     switch (arg) {
       case "--case":
         options.caseIds = [...(options.caseIds ?? []), value];
@@ -51,19 +53,21 @@ async function main() {
       `${item.caseId} #${item.repetition}: correctness ${item.score.correctness.toFixed(2)}, completeness ${item.score.completeness.toFixed(2)}, ${item.outcome}\n`,
     );
   }
-  if (passed !== report.results.length) process.exitCode = 1;
+  if (passed !== report.results.length) {
+    process.exitCode = 1;
+  }
 }
 
 main().catch((error: unknown) => {
-  const message =
+  let message = error instanceof Error ? error.name : "unknown error";
+  if (
     error instanceof Error &&
     /^(OPENROUTER_API_KEY is required|OPENROUTER_MODEL must not enable automatic web search|OPENROUTER_REASONING_EFFORT is invalid|Unknown eval option:|Missing value for|Unknown or empty eval case selection|repeat must be|Eval report already exists:)/.test(
       error.message,
     )
-      ? error.message
-      : error instanceof Error
-        ? error.name
-        : "unknown error";
+  ) {
+    message = error.message;
+  }
   process.stderr.write(`Catalog eval failed: ${message}\n`);
   process.exitCode = 1;
 });

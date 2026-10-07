@@ -4,11 +4,13 @@ import { OccurrenceDetailsPage } from "@/features/event-details/occurrence-page"
 
 export default async function OccurrencePage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ slug: string; key: string }>;
-}) {
+}>) {
   const { slug, key } = await params;
   const { event, edition } = await requestDetail(editionPath(slug, key));
-  if (!edition) return null;
+  if (!edition) {
+    return null;
+  }
   return <OccurrenceDetailsPage event={event} edition={edition} />;
 }

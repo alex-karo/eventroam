@@ -3,10 +3,11 @@ import { defineConfig, devices } from "@playwright/test";
 if (
   !process.env.E2E_DATABASE_PATH ||
   process.env.DATABASE_PATH !== process.env.E2E_DATABASE_PATH
-)
+) {
   throw new Error(
     "Run Playwright through npm run test:e2e to use a temporary fixture database.",
   );
+}
 
 export default defineConfig({
   testDir: "./e2e",

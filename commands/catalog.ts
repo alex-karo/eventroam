@@ -26,14 +26,18 @@ export function formatCatalogReport(
         `  ${change.subject}.${change.field}: ${JSON.stringify(change.oldValue)} → ${JSON.stringify(change.newValue)}`,
       );
     }
-    for (const source of result.sources)
+    for (const source of result.sources) {
+      const reason = source.reason ? ` (${source.reason})` : "";
       lines.push(
-        `  ${source.outcome}: ${source.finalUrl} [${source.retrievedAt}]${source.reason ? ` (${source.reason})` : ""}`,
+        `  ${source.outcome}: ${source.finalUrl} [${source.retrievedAt}]${reason}`,
       );
-    for (const gap of result.gaps)
-      lines.push(
-        `  ${gap.code}${gap.editionKey ? ` [${gap.editionKey}]` : ""}${gap.field ? `: ${gap.field}` : ""}${gap.detail ? ` — ${gap.detail}` : ""}`,
-      );
+    }
+    for (const gap of result.gaps) {
+      const edition = gap.editionKey ? ` [${gap.editionKey}]` : "";
+      const field = gap.field ? `: ${gap.field}` : "";
+      const detail = gap.detail ? ` — ${gap.detail}` : "";
+      lines.push(`  ${gap.code}${edition}${field}${detail}`);
+    }
     lines.push(
       `  Model: ${result.modelVersion}; reasoning: ${result.reasoningEffort ?? "provider default"}; prompt: ${result.promptVersion}; tokens: ${result.usage.inputTokens}/${result.usage.outputTokens}; cached input: ${result.usage.cachedInputTokens ?? "unavailable"}; reasoning tokens: ${result.usage.reasoningTokens ?? "unavailable"}; model USD: ${result.usage.modelCostUsd ?? "unavailable"}; search USD: ${result.usage.searchCostUsd}`,
     );
@@ -62,19 +66,22 @@ export async function executeCatalogCommand(
     [database, `${database}-wal`, `${database}-shm`].some(
       (path) => resolve(path) === reportPath,
     )
-  )
+  ) {
     throw new Error("Report path must differ from database files.");
-  if (!existsSync(database))
+  }
+  if (!existsSync(database)) {
     throw new Error(
       "Catalog does not exist; run db:migrate with the intended DATABASE_PATH first.",
     );
+  }
   const connection = openDatabase(database);
   try {
     for (const id of options.eventIds) {
       if (
         !connection.client.prepare("SELECT id FROM events WHERE id=?").get(id)
-      )
+      ) {
         throw new Error("Event ID not found.");
+      }
     }
     const targets = options.mode === "add" ? [undefined] : options.eventIds;
     const results: CatalogResearchResult[] = [];

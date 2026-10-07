@@ -20,13 +20,13 @@ export function ResultsList({
   error,
   onSelect,
   onClear,
-}: {
+}: Readonly<{
   results: DiscoverySummary[];
   selectedId: string | null;
   error: string | null;
   onSelect: (id: string) => void;
   onClear: () => void;
-}) {
+}>) {
   return (
     <section className="list-region" aria-label="List results">
       {!error &&

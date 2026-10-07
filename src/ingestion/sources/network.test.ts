@@ -65,9 +65,11 @@ const load = (
 
 it("follows redirects with one checked, pinned DNS lookup per hop", async () => {
   respond = (request, response) => {
-    if (request.url === "/start")
+    if (request.url === "/start") {
       response.writeHead(302, { location: "http://next.example/end" });
-    else response.writeHead(200, { "content-type": "text/plain" });
+    } else {
+      response.writeHead(200, { "content-type": "text/plain" });
+    }
     response.end("Festival");
   };
   expect(await load()).toMatchObject({

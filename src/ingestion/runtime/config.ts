@@ -27,7 +27,9 @@ export function loadResearchConfig(
 ): ResearchConfig {
   const apiKey = env.OPENROUTER_API_KEY?.trim();
   const model = env.OPENROUTER_MODEL?.trim() || DEFAULT_RESEARCH_MODEL;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY is required for research");
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY is required for research");
+  }
   if (model.endsWith(":online")) {
     throw new Error("OPENROUTER_MODEL must not enable automatic web search");
   }
@@ -51,7 +53,9 @@ export function loadResearchConfig(
     string,
   ][]) {
     const raw = env[envName];
-    if (raw === undefined || raw === "") continue;
+    if (raw === undefined || raw === "") {
+      continue;
+    }
     const parsed = Number(raw);
     if (!Number.isSafeInteger(parsed) || parsed < 0) {
       throw new Error(`${envName} must be a non-negative integer`);

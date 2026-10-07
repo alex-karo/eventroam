@@ -37,8 +37,11 @@ test.each([
     applyCatalogItem(client, result.operations);
     const [saved] = readResearchCatalog(client);
     expect(saved.canonicalName).toBe(eventName);
-    if (typeof expected === "string") expect(saved.slug).toBe(expected);
-    else expect(saved.slug).toMatch(expected);
+    if (typeof expected === "string") {
+      expect(saved.slug).toBe(expected);
+    } else {
+      expect(saved.slug).toMatch(expected);
+    }
     expect(
       prepareResearch(proposal, [], input, []).operations[0],
     ).toMatchObject({
@@ -117,8 +120,11 @@ test.each(["event", "occurrence"] as const)(
       official: true,
       sourceId: source.id,
     };
-    if (owner === "event") fx.eventLink(event, savedLink);
-    else fx.occurrenceLink(edition, savedLink);
+    if (owner === "event") {
+      fx.eventLink(event, savedLink);
+    } else {
+      fx.occurrenceLink(edition, savedLink);
+    }
 
     const proposal: ResearchCandidate = {
       eventId: event.id,

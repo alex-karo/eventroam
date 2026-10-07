@@ -16,20 +16,24 @@ function paramsFromRecord(
   record: Record<string, string | string[] | undefined>,
 ) {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(record))
-    for (const item of Array.isArray(value)
-      ? value
-      : value === undefined
-        ? []
-        : [value])
+  for (const [key, value] of Object.entries(record)) {
+    if (value === undefined) {
+      continue;
+    }
+    const items = Array.isArray(value) ? value : [value];
+    for (const item of items) {
       params.append(key, item);
+    }
+  }
   return params;
 }
 export async function generateMetadata({
   searchParams,
 }: Props): Promise<Metadata> {
   const { site, origins } = await requestSite();
-  if (site !== "festivals") return { title: "Eventroam" };
+  if (site !== "festivals") {
+    return { title: "Eventroam" };
+  }
   const params = paramsFromRecord(await searchParams);
   const { client } = openReadDatabase();
   let genres;
@@ -42,11 +46,12 @@ export async function generateMetadata({
     const normalized = serializeFilters(
       parseFilters(params, genres),
     ).toString();
+    const query = normalized ? `?${normalized}` : "";
     return {
       title: "Festivals | Eventroam",
       robots: normalized ? { index: false, follow: true } : undefined,
       alternates: {
-        canonical: `${origins.festivals}/${normalized ? `?${normalized}` : ""}`,
+        canonical: `${origins.festivals}/${query}`,
       },
     };
   } catch {
@@ -56,9 +61,9 @@ export async function generateMetadata({
     };
   }
 }
-export default async function HomePage({ searchParams }: Props) {
+export default async function HomePage({ searchParams }: Readonly<Props>) {
   const { site, origins } = await requestSite();
-  if (site === "apex")
+  if (site === "apex") {
     return (
       <main className="catalog">
         <h1>Eventroam</h1>
@@ -66,6 +71,7 @@ export default async function HomePage({ searchParams }: Props) {
         <a href={origins.festivals}>Festivals</a>
       </main>
     );
+  }
   const { client } = openReadDatabase();
   let catalog;
   try {

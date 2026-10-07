@@ -10,10 +10,14 @@ const defaultRoot = path.resolve(
 const statuses = new Set(["draft", "stable", "deprecated"]);
 
 function markdownFiles(directory) {
-  if (!existsSync(directory)) return [];
+  if (!existsSync(directory)) {
+    return [];
+  }
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const target = path.join(directory, entry.name);
-    if (entry.isDirectory()) return markdownFiles(target);
+    if (entry.isDirectory()) {
+      return markdownFiles(target);
+    }
     return entry.isFile() && entry.name.endsWith(".md") ? [target] : [];
   });
 }
@@ -29,7 +33,9 @@ function bodyAndMetadata(content, name, errors) {
     return { body: content, metadata: null };
   }
   const document = parseDocument(content.slice(4, end));
-  for (const error of document.errors) errors.push(`${name}: ${error.message}`);
+  for (const error of document.errors) {
+    errors.push(`${name}: ${error.message}`);
+  }
   let metadata = null;
   if (!document.errors.length) {
     metadata = document.toJS();
@@ -49,20 +55,25 @@ function links(body) {
     const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
     if (marker) {
       const kind = marker[1][0];
-      if (!fence) fence = { kind, length: marker[1].length };
-      else if (kind === fence.kind && marker[1].length >= fence.length)
+      if (!fence) {
+        fence = { kind, length: marker[1].length };
+      } else if (kind === fence.kind && marker[1].length >= fence.length) {
         fence = null;
+      }
       continue;
     }
-    if (fence) continue;
+    if (fence) {
+      continue;
+    }
     lines.push(line);
   }
   const references = new Map();
   const label = (value) => value.trim().replace(/\s+/g, " ").toLowerCase();
   for (const line of lines) {
     const definition = line.match(/^ {0,3}\[([^\]]+)\]:\s*(<[^>]+>|\S+)/);
-    if (definition)
+    if (definition) {
       references.set(label(definition[1]), definition[2].replace(/^<|>$/g, ""));
+    }
   }
   for (const line of lines) {
     const pattern = /(?<!!)\[[^\]]+\]\((<[^>]+>|[^\s)]+)(?:\s+"[^"]*")?\)/g;
@@ -72,21 +83,29 @@ function links(body) {
     const referencePattern = /(?<!!)\[([^\]]+)\]\[([^\]]*)\]/g;
     for (const match of line.matchAll(referencePattern)) {
       const href = references.get(label(match[2] || match[1]));
-      if (href) found.push(href);
+      if (href) {
+        found.push(href);
+      }
     }
     const shortcutPattern = /(?<![!\]])\[([^\]]+)\](?![\[(:])/g;
     for (const match of line.matchAll(shortcutPattern)) {
       const href = references.get(label(match[1]));
-      if (href) found.push(href);
+      if (href) {
+        found.push(href);
+      }
     }
   }
   return found;
 }
 
 function localTarget(root, from, href) {
-  if (/^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith("//")) return null;
+  if (/^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith("//")) {
+    return null;
+  }
   const pathname = href.split(/[?#]/, 1)[0];
-  if (!pathname) return null;
+  if (!pathname) {
+    return null;
+  }
   let decoded;
   try {
     decoded = decodeURIComponent(pathname);
@@ -111,8 +130,9 @@ export function checkDocs(root = defaultRoot) {
     (file) => !["index.md", "log.md"].includes(path.basename(file)),
   );
   const index = path.join(root, "docs/index.md");
-  if (!existsSync(index))
+  if (!existsSync(index)) {
     errors.push("docs/index.md: missing documentation index");
+  }
   const files = [
     ...markdown,
     ...[path.join(root, "AGENTS.md")].filter(existsSync),
@@ -149,7 +169,9 @@ export function checkDocs(root = defaultRoot) {
     }
     for (const href of links(body)) {
       const target = localTarget(root, file, href);
-      if (!target) continue;
+      if (!target) {
+        continue;
+      }
       if (target.error) {
         errors.push(`${name}: ${target.error}`);
         continue;
@@ -158,13 +180,15 @@ export function checkDocs(root = defaultRoot) {
         errors.push(`${name}: broken local link: ${href}`);
         continue;
       }
-      if (file === index && concepts.includes(target.path))
+      if (file === index && concepts.includes(target.path)) {
         indexed.add(target.path);
+      }
     }
   }
   for (const file of concepts) {
-    if (!indexed.has(file))
+    if (!indexed.has(file)) {
       errors.push(`${path.relative(root, file)}: missing from docs/index.md`);
+    }
   }
   return { errors, count: concepts.length };
 }
@@ -175,7 +199,9 @@ if (
 ) {
   const { errors, count } = checkDocs();
   if (errors.length) {
-    for (const error of errors) console.error(error);
+    for (const error of errors) {
+      console.error(error);
+    }
     process.exitCode = 1;
   } else {
     console.log(`Checked ${count} documents, index coverage, and local links.`);

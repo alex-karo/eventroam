@@ -11,10 +11,10 @@ import {
 export function EventDetailsPage({
   event,
   active,
-}: {
+}: Readonly<{
   event: PublicEvent;
   active: PublicOccurrence | null;
-}) {
+}>) {
   return (
     <main className="catalog">
       <nav>
