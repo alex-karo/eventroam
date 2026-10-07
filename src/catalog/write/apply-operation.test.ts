@@ -841,6 +841,177 @@ test("price removal records old and new values without requiring a note", () => 
   );
 });
 
+test.each([
+  {
+    name: "date state",
+    data: {
+      startsOn: null,
+      endsOn: null,
+      dateState: undefined,
+      scheduleStatus: "announced" as const,
+    },
+    error: /Date state conflicts/,
+  },
+  {
+    name: "schedule status",
+    data: {
+      startsOn: null,
+      endsOn: null,
+      dateState: "unknown" as const,
+      scheduleStatus: undefined,
+    },
+    error: /Scheduled occurrence needs dates/,
+  },
+  {
+    name: "coordinate precision",
+    data: { latitude: null, longitude: null, coordinatePrecision: undefined },
+    error: /Coordinate precision conflicts/,
+  },
+])(
+  "undefined $name cannot bypass final-record validation",
+  ({ data, error }) => {
+    const { client } = testDatabase();
+    const fx = testFixtures(client);
+    const edition = fx.occurrence(fx.event(), {
+      latitude: 38,
+      longitude: -9,
+      coordinatePrecision: "exact",
+    });
+    const snapshot = () => ({
+      occurrences: client.prepare("SELECT * FROM occurrences").all(),
+      changes: client.prepare("SELECT * FROM catalog_changes").all(),
+      receipts: client.prepare("SELECT * FROM operation_receipts").all(),
+    });
+    const before = snapshot();
+    expect(() =>
+      applyCatalogOperation(client, {
+        kind: "updateOccurrence",
+        operationKey: "invalid:undefined",
+        actor: "test",
+        id: edition.id,
+        expectedVersion: edition.version,
+        data,
+      }),
+    ).toThrow(error);
+    expect(snapshot()).toEqual(before);
+  },
+);
+
+test("undefined update fields are omitted from writes and audit, while null clears price", () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  const event = fx.event();
+  const edition = fx.occurrence(event, {
+    priceKind: "exact",
+    priceCurrency: "EUR",
+    priceMinMinor: 12000,
+    priceMaxMinor: 12000,
+    priceCoverage: "full_programme",
+  });
+  const snapshot = () => ({
+    events: client.prepare("SELECT * FROM events").all(),
+    occurrences: client.prepare("SELECT * FROM occurrences").all(),
+    changes: client.prepare("SELECT * FROM catalog_changes").all(),
+  });
+  const before = snapshot();
+  const operations = [
+    {
+      kind: "updateEvent",
+      operationKey: "undefined:event",
+      actor: "test",
+      id: event.id,
+      expectedVersion: event.version,
+      data: { slug: undefined, aliases: undefined, summary: undefined },
+    },
+    {
+      kind: "updateOccurrence",
+      operationKey: "undefined:occurrence",
+      actor: "test",
+      id: edition.id,
+      expectedVersion: edition.version,
+      data: {
+        startsOn: undefined,
+        dateState: undefined,
+        scheduleStatus: undefined,
+        coordinatePrecision: undefined,
+        ticketAvailability: undefined,
+        price: undefined,
+      },
+    },
+  ] satisfies CatalogOperation[];
+  for (const op of operations) {
+    const result = applyCatalogOperation(client, op);
+    expect(result).toEqual({
+      id: op.id,
+      version: op.expectedVersion,
+      changed: false,
+    });
+    expect(applyCatalogOperation(client, op)).toEqual(result);
+    expect(snapshot()).toEqual(before);
+  }
+  // Successful no-ops still receive their normal idempotency receipts.
+  expect(count(client, "operation_receipts")).toBe(2);
+  const changed = applyCatalogOperation(client, {
+    kind: "updateOccurrence",
+    operationKey: "undefined:mixed",
+    actor: "test",
+    id: edition.id,
+    expectedVersion: edition.version,
+    data: {
+      displayName: "Updated edition",
+      dateState: undefined,
+      price: undefined,
+    },
+  });
+  expect(changed).toEqual({
+    id: edition.id,
+    version: edition.version + 1,
+    changed: true,
+  });
+  const audit = client
+    .prepare("SELECT changed_fields FROM catalog_changes WHERE operation_key=?")
+    .get("undefined:mixed") as { changed_fields: string };
+  expect(JSON.parse(audit.changed_fields)).toEqual([
+    expect.objectContaining({
+      field: "display_name",
+      newValue: "Updated edition",
+    }),
+  ]);
+  expect(
+    client
+      .prepare(
+        "SELECT date_state, price_kind, price_min_minor FROM occurrences WHERE id=?",
+      )
+      .get(edition.id),
+  ).toEqual({
+    date_state: "confirmed",
+    price_kind: "exact",
+    price_min_minor: 12000,
+  });
+  applyCatalogOperation(client, {
+    kind: "updateOccurrence",
+    operationKey: "undefined:clear-price",
+    actor: "test",
+    id: edition.id,
+    expectedVersion: changed.version,
+    data: { price: null },
+  });
+  expect(
+    client
+      .prepare(
+        "SELECT price_kind, price_currency, price_min_minor, price_max_minor, price_coverage, price_qualification FROM occurrences WHERE id=?",
+      )
+      .get(edition.id),
+  ).toEqual({
+    price_kind: null,
+    price_currency: null,
+    price_min_minor: null,
+    price_max_minor: null,
+    price_coverage: null,
+    price_qualification: null,
+  });
+});
+
 test("merged-record validation rolls back writes, versions, audit and receipts", () => {
   const { client } = testDatabase();
   const fx = testFixtures(client);

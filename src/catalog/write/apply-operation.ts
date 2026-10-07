@@ -135,6 +135,10 @@ function normalizedPriceDetails(details: CatalogPriceDetail[]) {
 function sqlData(data: Record<string, unknown>): Row {
   const out: Row = {};
   for (const [key, value] of Object.entries(data)) {
+    // Match Drizzle's omitted-field semantics before expansion, merging or diffing.
+    if (value === undefined) {
+      continue;
+    }
     if (key === "price") {
       const p = value as CatalogPrice | null;
       Object.assign(out, {
@@ -451,7 +455,6 @@ function updateSubject(
     return { id: op.id, version: op.expectedVersion, changed: false };
   }
   const updated = { ...old, ...data };
-  validateSubject(table, updated);
   if (table === "events" && data.slug !== undefined && data.slug !== old.slug) {
     const reserved = db
       .select({ eventId: urlAliases.eventId })
