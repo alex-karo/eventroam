@@ -24,10 +24,12 @@ export async function runCatalogResearch(
   deps: ResearchDependencies,
 ): Promise<CatalogResearchResult> {
   const started = Date.now();
-  if (input.mode === "add" && !input.name)
+  if (input.mode === "add" && !input.name) {
     throw new Error("add requires a festival name");
-  if (input.mode !== "add" && !input.eventId)
+  }
+  if (input.mode !== "add" && !input.eventId) {
     throw new Error(`${input.mode} requires an Event ID`);
+  }
   const config =
     deps.config ??
     (deps.generateCandidate

@@ -6,7 +6,8 @@ export function normalizeCatalogUrl(value: string): string {
   if (
     (parsed.protocol === "https:" && parsed.port === "443") ||
     (parsed.protocol === "http:" && parsed.port === "80")
-  )
+  ) {
     parsed.port = "";
+  }
   return parsed.toString();
 }

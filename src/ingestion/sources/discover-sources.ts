@@ -29,16 +29,22 @@ async function boundedJson(
   response: Response,
   maxBytes: number,
 ): Promise<unknown> {
-  if (!response.body) return response.json();
+  if (!response.body) {
+    return response.json();
+  }
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        break;
+      }
       size += value.byteLength;
-      if (size > maxBytes) throw new Error("search_response_too_large");
+      if (size > maxBytes) {
+        throw new Error("search_response_too_large");
+      }
       chunks.push(value);
     }
   } finally {
@@ -51,6 +57,83 @@ async function boundedJson(
     offset += chunk.byteLength;
   }
   return JSON.parse(new TextDecoder().decode(combined));
+}
+
+function requestSearch(
+  query: string,
+  maxResults: number,
+  options: DiscoverSourcesOptions,
+) {
+  const signal = AbortSignal.timeout(
+    Math.min(20_000, options.budget.remaining().durationMs),
+  );
+  return (options.fetch ?? fetch)(
+    "https://openrouter.ai/api/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${options.config.apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: options.config.model,
+        ...(options.config.serviceTier && {
+          service_tier: options.config.serviceTier,
+        }),
+        ...(options.config.reasoningEffort && {
+          reasoning: { effort: options.config.reasoningEffort },
+        }),
+        messages: [
+          {
+            role: "user",
+            content: `Find official festival/organizer pages and edition ticket links for: ${query}. Return only a short list of candidate links.`,
+          },
+        ],
+        plugins: [{ id: "web", engine: "exa", max_results: maxResults }],
+        max_tokens: Math.min(500, options.budget.limits.modelOutputTokens),
+      }),
+      signal,
+    },
+  );
+}
+
+function sourceCandidates(
+  data: SearchResponse,
+  maxResults: number,
+): SourceCandidate[] {
+  const candidates: SourceCandidate[] = [];
+  const annotations = data.choices?.[0]?.message?.annotations ?? [];
+  for (const annotation of annotations) {
+    if (annotation.type !== "url_citation") {
+      continue;
+    }
+    const rawUrl = annotation.url_citation?.url;
+    if (typeof rawUrl !== "string") {
+      continue;
+    }
+    try {
+      const url = new URL(rawUrl);
+      if (!["http:", "https:"].includes(url.protocol)) {
+        continue;
+      }
+      if (candidates.some((candidate) => candidate.url === url.href)) {
+        continue;
+      }
+      candidates.push({
+        url: url.href,
+        title:
+          typeof annotation.url_citation?.title === "string"
+            ? annotation.url_citation.title.slice(0, 300)
+            : url.hostname,
+      });
+      if (candidates.length >= maxResults) {
+        break;
+      }
+    } catch {
+      // Search citations are leads; discard malformed URLs.
+    }
+  }
+  return candidates;
 }
 
 export async function discoverSources(
@@ -73,37 +156,7 @@ export async function discoverSources(
     options.budget.consumeModelCall(normalized.length + 200);
     billedSearches += 1;
     try {
-      const signal = AbortSignal.timeout(
-        Math.min(20_000, options.budget.remaining().durationMs),
-      );
-      const response = await (options.fetch ?? fetch)(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${options.config.apiKey}`,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            model: options.config.model,
-            ...(options.config.serviceTier && {
-              service_tier: options.config.serviceTier,
-            }),
-            ...(options.config.reasoningEffort && {
-              reasoning: { effort: options.config.reasoningEffort },
-            }),
-            messages: [
-              {
-                role: "user",
-                content: `Find official festival/organizer pages and edition ticket links for: ${normalized}. Return only a short list of candidate links.`,
-              },
-            ],
-            plugins: [{ id: "web", engine: "exa", max_results: maxResults }],
-            max_tokens: Math.min(500, options.budget.limits.modelOutputTokens),
-          }),
-          signal,
-        },
-      );
+      const response = await requestSearch(normalized, maxResults, options);
       if (!response.ok) {
         const error = new Error(`search_http_${response.status}`);
         if (
@@ -127,30 +180,11 @@ export async function discoverSources(
       }
     }
   }
-  if (!data) throw lastError ?? new Error("search_failed");
-
-  const candidates: SourceCandidate[] = [];
-  const annotations = data.choices?.[0]?.message?.annotations ?? [];
-  for (const annotation of annotations) {
-    if (annotation.type !== "url_citation") continue;
-    const rawUrl = annotation.url_citation?.url;
-    if (typeof rawUrl !== "string") continue;
-    try {
-      const url = new URL(rawUrl);
-      if (!["http:", "https:"].includes(url.protocol)) continue;
-      if (candidates.some((candidate) => candidate.url === url.href)) continue;
-      candidates.push({
-        url: url.href,
-        title:
-          typeof annotation.url_citation?.title === "string"
-            ? annotation.url_citation.title.slice(0, 300)
-            : url.hostname,
-      });
-      if (candidates.length >= maxResults) break;
-    } catch {
-      // Search citations are leads; discard malformed URLs.
-    }
+  if (!data) {
+    throw lastError ?? new Error("search_failed");
   }
+
+  const candidates = sourceCandidates(data, maxResults);
   return {
     query: normalized,
     candidates,

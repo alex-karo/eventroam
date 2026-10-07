@@ -16,7 +16,9 @@ export type ResearchEvent = NonNullable<ReturnType<typeof readResearchEvent>>;
 export function readResearchEvent(client: Database.Database, eventId: string) {
   const db = drizzle(client);
   const event = db.select().from(events).where(eq(events.id, eventId)).get();
-  if (!event) return null;
+  if (!event) {
+    return null;
+  }
   const editions = db
     .select()
     .from(occurrences)

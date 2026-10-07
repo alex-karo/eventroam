@@ -11,10 +11,10 @@ import {
 export function OccurrenceDetailsPage({
   event,
   edition,
-}: {
+}: Readonly<{
   event: PublicEvent;
   edition: PublicOccurrence;
-}) {
+}>) {
   const siblings = event.editions.filter((o) => o.id !== edition.id);
   return (
     <main className="catalog">

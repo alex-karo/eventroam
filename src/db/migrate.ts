@@ -5,8 +5,9 @@ export function migrateCatalogConnection(
   connection: ReturnType<typeof openDatabase>,
 ) {
   const { client, db } = connection;
-  if (client.inTransaction)
+  if (client.inTransaction) {
     throw new Error("Catalog migration needs its own connection");
+  }
   client.pragma("foreign_keys = OFF");
   try {
     migrate(db, { migrationsFolder: "./src/db/migrations" });
@@ -14,10 +15,12 @@ export function migrateCatalogConnection(
     client.pragma("foreign_keys = ON");
   }
   const violations = client.pragma("foreign_key_check") as unknown[];
-  if (violations.length)
+  if (violations.length) {
     throw new Error("Catalog migration has foreign key violations");
-  if (client.pragma("integrity_check", { simple: true }) !== "ok")
+  }
+  if (client.pragma("integrity_check", { simple: true }) !== "ok") {
     throw new Error("Catalog migration failed integrity check");
+  }
 }
 
 export function migrateDatabase(path?: string) {

@@ -18,7 +18,9 @@ const env = {
 
 function run(command, args) {
   const result = spawnSync(command, args, { env, stdio: "inherit" });
-  if (result.error) throw result.error;
+  if (result.error) {
+    throw result.error;
+  }
   if (result.signal) {
     console.error(`${command} ended with ${result.signal}`);
     process.exitCode = 1;
@@ -32,12 +34,13 @@ function run(command, args) {
 }
 
 try {
-  if (run("npm", ["run", "db:migrate"]) && run("npm", ["run", "db:fixtures"]))
+  if (run("npm", ["run", "db:migrate"]) && run("npm", ["run", "db:fixtures"])) {
     run(process.execPath, [
       "node_modules/@playwright/test/cli.js",
       "test",
       ...process.argv.slice(2),
     ]);
+  }
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }

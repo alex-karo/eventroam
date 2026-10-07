@@ -178,7 +178,9 @@ test("publication accepts structurally complete editions with saved links", () =
   const fx = testFixtures(client);
   const event = fx.event();
   const edition = fx.occurrence(event);
-  for (const term of fx.festivalTerms()) fx.assignTerm(edition, term);
+  for (const term of fx.festivalTerms()) {
+    fx.assignTerm(edition, term);
+  }
   fx.occurrenceLink(edition, {
     kind: "ticketing",
     url: "https://example.org/2027/tickets#offers",

@@ -15,8 +15,9 @@ const opened: TestDatabase[] = [];
 
 /** Always passes a unique temporary path, never the application's default. */
 export function createTestDatabase() {
-  if (!active)
+  if (!active) {
     throw new Error("Test database can only be created during a test");
+  }
   const directory = mkdtempSync(join(tmpdir(), "eventroam-test-"));
   const path = join(directory, "catalog.sqlite");
   let connection: ReturnType<typeof openDatabase> | undefined;
@@ -50,7 +51,9 @@ export function beginTestDatabase() {
 }
 
 export function testDatabase() {
-  if (!active) throw new Error("Test database is only available during a test");
+  if (!active) {
+    throw new Error("Test database is only available during a test");
+  }
   current ??= createTestDatabase();
   return current;
 }
@@ -59,5 +62,7 @@ export function testDatabase() {
 export function endTestDatabase() {
   active = false;
   current = undefined;
-  for (const database of opened.splice(0).reverse()) database.close();
+  for (const database of opened.splice(0).reverse()) {
+    database.close();
+  }
 }

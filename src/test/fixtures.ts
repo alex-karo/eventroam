@@ -40,7 +40,6 @@ type LinkOwner =
       event?: never;
       occurrence: OccurrenceRow;
     };
-type Subject = LinkOwner;
 
 function supplied<T extends object>(overrides: Partial<T>): Partial<T> {
   return Object.fromEntries(
@@ -79,7 +78,11 @@ export function testFixtures(client?: Database.Database) {
     usedKeys.set(eventId, used);
     const base = String(year ?? 2027);
     let key = base;
-    for (let suffix = 2; used.has(key); suffix += 1) key = `${base}-${suffix}`;
+    let suffix = 2;
+    while (used.has(key)) {
+      key = `${base}-${suffix}`;
+      suffix += 1;
+    }
     used.add(key);
     return key;
   }
@@ -115,12 +118,10 @@ export function testFixtures(client?: Database.Database) {
     ): typeof occurrences.$inferInsert {
       const startsOn =
         overrides.startsOn === undefined ? "2027-07-01" : overrides.startsOn;
-      const year =
-        overrides.occurrenceYear === undefined
-          ? startsOn
-            ? Number(startsOn.slice(0, 4))
-            : null
-          : overrides.occurrenceYear;
+      let year = overrides.occurrenceYear;
+      if (year === undefined) {
+        year = startsOn ? Number(startsOn.slice(0, 4)) : null;
+      }
       const key =
         overrides.occurrenceKey === undefined
           ? uniqueKey(event.id, year)
@@ -154,11 +155,12 @@ export function testFixtures(client?: Database.Database) {
         overrides.slug === undefined
           ? `test-genre-${termNumber}`
           : overrides.slug;
-      if (overrides.slug === undefined)
+      if (overrides.slug === undefined) {
         while (usedTermSlugs.has(`${facet}:${slug}`)) {
           termNumber += 1;
           slug = `test-genre-${termNumber}`;
         }
+      }
       usedTermSlugs.add(`${facet}:${slug}`);
       return {
         id: randomUUID(),
@@ -211,9 +213,10 @@ export function testFixtures(client?: Database.Database) {
       overrides: AliasInput & { occurrence?: OccurrenceRow } = {},
     ): typeof urlAliases.$inferInsert {
       const { occurrence, ...values } = overrides;
+      const editionSuffix = occurrence ? `/${occurrence.occurrenceKey}` : "";
       return {
         scope: "festivals",
-        path: `/events/${event.slug}${occurrence ? `/${occurrence.occurrenceKey}` : ""}`,
+        path: `/events/${event.slug}${editionSuffix}`,
         eventId: event.id,
         occurrenceId: occurrence?.id,
         createdAt: timestamp,
@@ -230,7 +233,7 @@ export function testFixtures(client?: Database.Database) {
 
     sourceSubject(
       origin: Pick<SourceRow, "id">,
-      subject: Subject,
+      subject: LinkOwner,
     ): typeof sourceSubjects.$inferInsert {
       return {
         sourceId: origin.id,
@@ -310,7 +313,7 @@ export function testFixtures(client?: Database.Database) {
       .get();
   }
 
-  function sourceSubject(origin: Pick<SourceRow, "id">, subject: Subject) {
+  function sourceSubject(origin: Pick<SourceRow, "id">, subject: LinkOwner) {
     return db()
       .insert(sourceSubjects)
       .values(build.sourceSubject(origin, subject))
@@ -349,12 +352,13 @@ export function testFixtures(client?: Database.Database) {
       { id: "test-music", facet: "topic", slug: "music", name: "Music" },
     ] as const;
     const connection = db();
-    for (const value of values)
+    for (const value of values) {
       connection
         .insert(taxonomyTerms)
         .values(value)
         .onConflictDoNothing()
         .run();
+    }
     return values.map((value) => {
       const found = connection
         .select()
@@ -366,8 +370,9 @@ export function testFixtures(client?: Database.Database) {
           ),
         )
         .get();
-      if (!found)
+      if (!found) {
         throw new Error(`Missing test term: ${value.facet}/${value.slug}`);
+      }
       return found;
     });
   }
@@ -381,18 +386,20 @@ export function testFixtures(client?: Database.Database) {
         ...overrides,
         publicationState: "published",
       });
-      for (const classification of festivalTerms())
+      for (const classification of festivalTerms()) {
         assignTerm(edition, classification);
+      }
       const publishedParent = db()
         .select()
         .from(events)
         .where(eq(events.id, parent.id))
         .get();
-      if (publishedParent?.homeScope)
+      if (publishedParent?.homeScope) {
         alias(publishedParent, {
           occurrence: edition,
           scope: publishedParent.homeScope,
         });
+      }
       return edition;
     });
   }
@@ -406,7 +413,9 @@ export function testFixtures(client?: Database.Database) {
         .where(eq(events.id, parent.id))
         .returning()
         .get();
-      if (!published) throw new Error(`Missing test event: ${parent.id}`);
+      if (!published) {
+        throw new Error(`Missing test event: ${parent.id}`);
+      }
       connection
         .insert(urlAliases)
         .values(build.alias(published))
@@ -417,7 +426,9 @@ export function testFixtures(client?: Database.Database) {
         .from(occurrences)
         .where(eq(occurrences.eventId, parent.id))
         .all()) {
-        if (edition.publicationState !== "published") continue;
+        if (edition.publicationState !== "published") {
+          continue;
+        }
         connection
           .insert(urlAliases)
           .values(build.alias(published, { occurrence: edition }))

@@ -29,17 +29,21 @@ function writeLocation(
   params: URLSearchParams,
   method: "pushState" | "replaceState",
 ) {
-  const path = `${window.location.pathname}${params.size ? `?${params}` : ""}`;
+  const query = params.size ? `?${params}` : "";
+  const path = `${window.location.pathname}${query}`;
   if (
     method === "pushState" ||
     path !== `${window.location.pathname}${window.location.search}`
-  )
+  ) {
     window.history[method](null, "", path);
+  }
 }
 
 function preserveView(params: URLSearchParams) {
   const view = new URLSearchParams(window.location.search).get("view");
-  if (view === "map" || view === "list") params.set("view", view);
+  if (view === "map" || view === "list") {
+    params.set("view", view);
+  }
   return params;
 }
 
@@ -53,7 +57,10 @@ export function pushDiscoveryFilters(filters: Filters) {
 
 export function pushDiscoveryView(view: DiscoveryView) {
   const params = new URLSearchParams(window.location.search);
-  if (view === "map") params.set("view", view);
-  else params.delete("view");
+  if (view === "map") {
+    params.set("view", view);
+  } else {
+    params.delete("view");
+  }
   writeLocation(params, "pushState");
 }

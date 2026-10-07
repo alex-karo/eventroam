@@ -78,13 +78,17 @@ export function createResearchBudget(
   let modelCalls = 0;
 
   function assertTime(): void {
-    if (now() >= deadline) throw new ResearchLimitError("time");
+    if (now() >= deadline) {
+      throw new ResearchLimitError("time");
+    }
   }
 
   function consume(kind: "searches" | "pages" | "modelCalls"): void {
     assertTime();
     const used = { searches, pages, modelCalls }[kind];
-    if (used >= limits[kind]) throw new ResearchLimitError(kind);
+    if (used >= limits[kind]) {
+      throw new ResearchLimitError(kind);
+    }
     switch (kind) {
       case "searches":
         searches += 1;

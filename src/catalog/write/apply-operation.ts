@@ -47,7 +47,9 @@ const columns: Record<string, string> = {
   priceDetails: "price_details",
 };
 function assert(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new Error(message);
+  if (!condition) {
+    throw new Error(message);
+  }
 }
 function columnNames(table: "events" | "occurrences") {
   const schema = table === "events" ? events : occurrences;
@@ -137,21 +139,26 @@ function sqlData(data: Record<string, unknown>): Row {
         price_coverage: p?.coverage ?? null,
         price_qualification: p?.qualification ?? null,
       });
-    } else if (key === "aliases") out.aliases = JSON.stringify(value);
-    else if (key === "priceDetails") out.price_details = JSON.stringify(value);
-    else out[columns[key] ?? key] = value;
+    } else if (key === "aliases") {
+      out.aliases = JSON.stringify(value);
+    } else if (key === "priceDetails") {
+      out.price_details = JSON.stringify(value);
+    } else {
+      out[columns[key] ?? key] = value;
+    }
   }
   return out;
 }
 function validateOccurrence(r: Row) {
   const start = r.starts_on,
     end = r.ends_on;
-  if (r.country_code != null)
+  if (r.country_code != null) {
     assert(
       typeof r.country_code === "string" &&
         isAssignedCountryCode(r.country_code),
       "Country code is not assigned by ISO 3166-1",
     );
+  }
   assert((start == null) === (end == null), "Date pair is incomplete");
   assert(
     start == null
@@ -206,18 +213,21 @@ function setRow(
   values: Row,
 ) {
   const keys = Object.keys(values);
-  if (!keys.length) return;
+  if (!keys.length) {
+    return;
+  }
   const db = drizzle(client);
-  if (table === "events")
+  if (table === "events") {
     db.update(events)
       .set(typedValues(table, values))
       .where(eq(events.id, id))
       .run();
-  else
+  } else {
     db.update(occurrences)
       .set(typedValues(table, values))
       .where(eq(occurrences.id, id))
       .run();
+  }
 }
 function insertRow(
   client: Database.Database,
@@ -225,14 +235,15 @@ function insertRow(
   values: Row,
 ) {
   const db = drizzle(client);
-  if (table === "events")
+  if (table === "events") {
     db.insert(events)
       .values(typedValues(table, values) as typeof events.$inferInsert)
       .run();
-  else
+  } else {
     db.insert(occurrences)
       .values(typedValues(table, values) as typeof occurrences.$inferInsert)
       .run();
+  }
 }
 function diff(old: Row, next: Row) {
   const valueFor = (field: string, value: unknown) =>
@@ -320,10 +331,11 @@ function alias(
       (existing.eventId === eventId && existing.occurrenceId === occurrenceId),
     "Public URL is reserved by another identity",
   );
-  if (!existing)
+  if (!existing) {
     db.insert(urlAliases)
       .values({ scope, path, eventId, occurrenceId, createdAt: now })
       .run();
+  }
 }
 function reserveEventPaths(client: Database.Database, event: Row, now: string) {
   const scope = event.home_scope as string;
@@ -338,8 +350,8 @@ function reserveEventPaths(client: Database.Database, event: Row, now: string) {
     .from(occurrences)
     .where(eq(occurrences.eventId, eventId))
     .all();
-  for (const child of children)
-    if (child.publicationState === "published")
+  for (const child of children) {
+    if (child.publicationState === "published") {
       alias(
         client,
         scope,
@@ -348,6 +360,8 @@ function reserveEventPaths(client: Database.Database, event: Row, now: string) {
         child.id,
         now,
       );
+    }
+  }
 }
 function reserveOccurrencePath(
   client: Database.Database,
@@ -355,7 +369,7 @@ function reserveOccurrencePath(
   now: string,
 ) {
   const event = row(client, "events", occ.event_id as string);
-  if (event.home_scope)
+  if (event.home_scope) {
     alias(
       client,
       event.home_scope as string,
@@ -364,6 +378,7 @@ function reserveOccurrencePath(
       occ.id as string,
       now,
     );
+  }
 }
 function bump(
   client: Database.Database,
@@ -379,6 +394,448 @@ function bump(
     updated_at: now,
   });
 }
+function createEvent(
+  client: Database.Database,
+  op: Extract<CatalogOperation, { kind: "createEvent" }>,
+  now: string,
+): CatalogOperationResult {
+  const db = drizzle(client);
+  const id = randomUUID();
+  const data = sqlData(op.data);
+  assert(
+    !db
+      .select({ id: events.id })
+      .from(events)
+      .where(eq(events.slug, data.slug as string))
+      .get(),
+    `Event slug "${data.slug}" is already used by another Event`,
+  );
+  assert(
+    !db
+      .select({ path: urlAliases.path })
+      .from(urlAliases)
+      .where(eq(urlAliases.path, `/events/${data.slug}`))
+      .get(),
+    `Event slug "${data.slug}" has a public URL reserved by another identity`,
+  );
+  const record = {
+    id,
+    ...data,
+    aliases: data.aliases ?? "[]",
+    home_scope: null,
+    publication_state: "draft",
+    version: 1,
+    created_at: now,
+    updated_at: now,
+  };
+  insertRow(client, "events", record);
+  writeChange(client, op, "event", id, 1, diff({}, record), now);
+  return { id, version: 1, changed: true };
+}
+
+function createOccurrence(
+  client: Database.Database,
+  op: Extract<CatalogOperation, { kind: "createOccurrence" }>,
+  now: string,
+): CatalogOperationResult {
+  row(client, "events", op.eventId);
+  const id = randomUUID();
+  const data = sqlData(op.data);
+  const record = {
+    id,
+    event_id: op.eventId,
+    ...data,
+    publication_state: "draft",
+    date_state: data.date_state ?? "unknown",
+    schedule_status: data.schedule_status ?? "announced",
+    ticket_availability: data.ticket_availability ?? "unknown",
+    coordinate_precision: data.coordinate_precision ?? "unknown",
+    version: 1,
+    created_at: now,
+    updated_at: now,
+  };
+  validateOccurrence(record);
+  insertRow(client, "occurrences", record);
+  writeChange(client, op, "occurrence", id, 1, diff({}, record), now);
+  return { id, version: 1, changed: true };
+}
+
+function updateSubject(
+  client: Database.Database,
+  op: Extract<CatalogOperation, { kind: "updateEvent" | "updateOccurrence" }>,
+  now: string,
+): CatalogOperationResult {
+  const db = drizzle(client);
+  const table = op.kind === "updateEvent" ? "events" : "occurrences";
+  const old = row(client, table, op.id);
+  assert(old.version === op.expectedVersion, "Stale subject version");
+  const data = sqlData(op.data);
+  const changes = diff(old, data);
+  if (!changes.length) {
+    return { id: op.id, version: op.expectedVersion, changed: false };
+  }
+  const updated = { ...old, ...data };
+  if (table === "occurrences") {
+    validateOccurrence(updated);
+  }
+  if (table === "events" && data.slug !== undefined && data.slug !== old.slug) {
+    const reserved = db
+      .select({ eventId: urlAliases.eventId })
+      .from(urlAliases)
+      .where(eq(urlAliases.path, `/events/${data.slug}`))
+      .get();
+    assert(
+      !reserved || reserved.eventId === op.id,
+      "Public URL is reserved by another identity",
+    );
+  }
+  if (
+    table === "events" &&
+    old.publication_state === "published" &&
+    data.slug !== undefined &&
+    data.slug !== old.slug
+  ) {
+    reserveEventPaths(client, old, now);
+    reserveEventPaths(client, updated, now);
+  }
+  bump(client, table, op.id, op.expectedVersion, data, now);
+  writeChange(
+    client,
+    op,
+    table === "events" ? "event" : "occurrence",
+    op.id,
+    op.expectedVersion + 1,
+    changes,
+    now,
+  );
+  return {
+    id: op.id,
+    version: op.expectedVersion + 1,
+    changed: true,
+  };
+}
+
+function changePublication(
+  client: Database.Database,
+  op: Extract<
+    CatalogOperation,
+    {
+      kind:
+        | "publishEvent"
+        | "publishOccurrence"
+        | "withdrawEvent"
+        | "withdrawOccurrence";
+    }
+  >,
+  now: string,
+): CatalogOperationResult {
+  const db = drizzle(client);
+  const isEvent = op.kind.endsWith("Event");
+  const table = isEvent ? "events" : "occurrences";
+  const old = row(client, table, op.id);
+  assert(old.version === op.expectedVersion, "Stale subject version");
+  const target = op.kind.startsWith("publish") ? "published" : "withdrawn";
+  assert(
+    old.publication_state !== "draft" || target === "published",
+    "Cannot withdraw a draft",
+  );
+  if (target === "published") {
+    if (isEvent) {
+      assert(
+        db
+          .select({ id: occurrences.id })
+          .from(occurrences)
+          .where(
+            and(
+              eq(occurrences.eventId, op.id),
+              eq(occurrences.publicationState, "published"),
+            ),
+          )
+          .get(),
+        "Event publication needs a published occurrence",
+      );
+      assert(
+        old.home_scope == null || old.home_scope === "festivals",
+        "Invalid home scope",
+      );
+    } else {
+      validateOccurrence({ ...old, publication_state: "published" });
+      validateScope(client, op.id);
+    }
+  }
+  const values: Row = { publication_state: target };
+  if (isEvent && target === "published" && old.home_scope == null) {
+    values.home_scope = "festivals";
+  }
+  const changes = diff(old, values);
+  if (!changes.length) {
+    return { id: op.id, version: op.expectedVersion, changed: false };
+  }
+  if (target === "published") {
+    if (isEvent) {
+      reserveEventPaths(client, { ...old, ...values }, now);
+    } else {
+      reserveOccurrencePath(client, old, now);
+    }
+  }
+  bump(client, table, op.id, op.expectedVersion, values, now);
+  writeChange(
+    client,
+    op,
+    isEvent ? "event" : "occurrence",
+    op.id,
+    op.expectedVersion + 1,
+    changes,
+    now,
+  );
+  return {
+    id: op.id,
+    version: op.expectedVersion + 1,
+    changed: true,
+  };
+}
+
+function replacePriceBlock(
+  client: Database.Database,
+  op: Extract<CatalogOperation, { kind: "replacePriceBlock" }>,
+  now: string,
+): CatalogOperationResult {
+  const old = row(client, "occurrences", op.id);
+  assert(old.version === op.expectedVersion, "Stale subject version");
+  const details = normalizedPriceDetails(op.priceDetails);
+  const data = sqlData({ price: op.basePrice, priceDetails: details });
+  const changes = diff(old, data);
+  if (!changes.length) {
+    return { id: op.id, version: op.expectedVersion, changed: false };
+  }
+  bump(client, "occurrences", op.id, op.expectedVersion, data, now);
+  writeChange(
+    client,
+    op,
+    "occurrence",
+    op.id,
+    op.expectedVersion + 1,
+    changes,
+    now,
+  );
+  return {
+    id: op.id,
+    version: op.expectedVersion + 1,
+    changed: true,
+  };
+}
+
+function replaceTerms(
+  client: Database.Database,
+  op: Extract<CatalogOperation, { kind: "replaceTerms" }>,
+  now: string,
+): CatalogOperationResult {
+  const db = drizzle(client);
+  const old = row(client, "occurrences", op.id);
+  assert(old.version === op.expectedVersion, "Stale subject version");
+  // IDs use a locale-independent order for no-op comparisons and audit history.
+  // eslint-disable-next-line sonarjs/no-alphabetical-sort
+  const ids = [...new Set(op.termIds)].sort();
+  assert(ids.length === op.termIds.length, "Duplicate term ID");
+  const terms = ids.map((id) =>
+    db
+      .select({
+        id: taxonomyTerms.id,
+        facet: taxonomyTerms.facet,
+        parentId: taxonomyTerms.parentId,
+      })
+      .from(taxonomyTerms)
+      .where(eq(taxonomyTerms.id, id))
+      .get(),
+  );
+  assert(terms.every(Boolean), "Unknown taxonomy term");
+  for (const facet of ["event_type", "format"]) {
+    assert(
+      terms.filter((t) => t?.facet === facet).length <= 1,
+      `Only one ${facet} term allowed`,
+    );
+  }
+  for (const t of terms) {
+    if (t?.parentId) {
+      assert(!ids.includes(t.parentId), "Do not assign redundant parent genre");
+    }
+  }
+  const previous = db
+    .select({ termId: occurrenceTerms.termId })
+    .from(occurrenceTerms)
+    .where(eq(occurrenceTerms.occurrenceId, op.id))
+    .orderBy(asc(occurrenceTerms.termId))
+    .all()
+    .map((x) => x.termId);
+  const changed = JSON.stringify(previous) !== JSON.stringify(ids);
+  if (!changed) {
+    return { id: op.id, version: op.expectedVersion, changed: false };
+  }
+  db.delete(occurrenceTerms)
+    .where(eq(occurrenceTerms.occurrenceId, op.id))
+    .run();
+  for (const id of ids) {
+    db.insert(occurrenceTerms)
+      .values({ occurrenceId: op.id, termId: id })
+      .run();
+  }
+  if (old.publication_state === "published") {
+    validateScope(client, op.id);
+  }
+  bump(client, "occurrences", op.id, op.expectedVersion, {}, now);
+  writeChange(
+    client,
+    op,
+    "occurrence",
+    op.id,
+    op.expectedVersion + 1,
+    [{ field: "terms", oldValue: previous, newValue: ids }],
+    now,
+  );
+  return {
+    id: op.id,
+    version: op.expectedVersion + 1,
+    changed: true,
+  };
+}
+
+function replaceLinks(
+  client: Database.Database,
+  op: Extract<CatalogOperation, { kind: "replaceLinks" }>,
+  now: string,
+): CatalogOperationResult {
+  const db = drizzle(client);
+  const table = op.owner.type === "event" ? "events" : "occurrences";
+  const old = row(client, table, op.owner.id);
+  assert(old.version === op.expectedVersion, "Stale subject version");
+  const ownerColumn =
+    op.owner.type === "event"
+      ? externalLinks.eventId
+      : externalLinks.occurrenceId;
+  const normalize = (links: typeof op.links) =>
+    links
+      .map((l) => ({
+        kind: l.kind,
+        url: normalizeCatalogUrl(l.url),
+        label: l.label ?? null,
+        official: l.official,
+        sourceId: l.sourceId ?? null,
+      }))
+      .sort((a, b) => `${a.kind}:${a.url}`.localeCompare(`${b.kind}:${b.url}`));
+  const desired = normalize(op.links);
+  assert(
+    new Set(desired.map((l) => `${l.kind}:${l.url}`)).size === desired.length,
+    "Duplicate link",
+  );
+  const existingRows = db
+    .select({
+      id: externalLinks.id,
+      kind: externalLinks.kind,
+      url: externalLinks.url,
+      label: externalLinks.label,
+      official: externalLinks.official,
+      sourceId: externalLinks.sourceId,
+    })
+    .from(externalLinks)
+    .where(eq(ownerColumn, op.owner.id))
+    .all();
+  const previous = normalize(existingRows);
+  const changed = JSON.stringify(previous) !== JSON.stringify(desired);
+  if (!changed) {
+    return { id: op.owner.id, version: op.expectedVersion, changed: false };
+  }
+  const wanted = new Map(desired.map((l) => [`${l.kind}:${l.url}`, l]));
+  const priorByKey = new Map(
+    existingRows.map((l) => [`${l.kind}:${normalizeCatalogUrl(l.url)}`, l]),
+  );
+  for (const existingLink of existingRows) {
+    if (
+      !wanted.has(
+        `${existingLink.kind}:${normalizeCatalogUrl(existingLink.url)}`,
+      )
+    ) {
+      db.delete(externalLinks)
+        .where(eq(externalLinks.id, existingLink.id))
+        .run();
+    }
+  }
+  for (const link of desired) {
+    const priorLink = priorByKey.get(`${link.kind}:${link.url}`);
+    if (!priorLink) {
+      db.insert(externalLinks)
+        .values({
+          id: randomUUID(),
+          eventId: op.owner.type === "event" ? op.owner.id : null,
+          occurrenceId: op.owner.type === "occurrence" ? op.owner.id : null,
+          kind: link.kind,
+          url: link.url,
+          label: link.label,
+          official: link.official,
+          sourceId: link.sourceId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    } else if (
+      priorLink.label !== link.label ||
+      priorLink.official !== link.official ||
+      priorLink.sourceId !== link.sourceId
+    ) {
+      db.update(externalLinks)
+        .set({
+          label: link.label,
+          official: link.official,
+          sourceId: link.sourceId,
+          updatedAt: now,
+        })
+        .where(eq(externalLinks.id, priorLink.id))
+        .run();
+    }
+  }
+  bump(client, table, op.owner.id, op.expectedVersion, {}, now);
+  writeChange(
+    client,
+    op,
+    op.owner.type,
+    op.owner.id,
+    op.expectedVersion + 1,
+    [{ field: "links", oldValue: previous, newValue: desired }],
+    now,
+  );
+  return {
+    id: op.owner.id,
+    version: op.expectedVersion + 1,
+    changed: true,
+  };
+}
+
+function applyOperation(
+  client: Database.Database,
+  op: CatalogOperation,
+  now: string,
+): CatalogOperationResult {
+  switch (op.kind) {
+    case "createEvent":
+      return createEvent(client, op, now);
+    case "createOccurrence":
+      return createOccurrence(client, op, now);
+    case "updateEvent":
+    case "updateOccurrence":
+      return updateSubject(client, op, now);
+    case "publishEvent":
+    case "publishOccurrence":
+    case "withdrawEvent":
+    case "withdrawOccurrence":
+      return changePublication(client, op, now);
+    case "replacePriceBlock":
+      return replacePriceBlock(client, op, now);
+    case "replaceTerms":
+      return replaceTerms(client, op, now);
+    case "replaceLinks":
+      return replaceLinks(client, op, now);
+  }
+}
+
 export function applyCatalogOperation(
   client: Database.Database,
   input: CatalogOperation,
@@ -404,372 +861,7 @@ export function applyCatalogOperation(
       return prior.result as CatalogOperationResult;
     }
     const now = new Date().toISOString();
-    let result: CatalogOperationResult;
-    if (op.kind === "createEvent") {
-      const id = randomUUID();
-      const data = sqlData(op.data);
-      assert(
-        !db
-          .select({ id: events.id })
-          .from(events)
-          .where(eq(events.slug, data.slug as string))
-          .get(),
-        `Event slug "${data.slug}" is already used by another Event`,
-      );
-      assert(
-        !db
-          .select({ path: urlAliases.path })
-          .from(urlAliases)
-          .where(eq(urlAliases.path, `/events/${data.slug}`))
-          .get(),
-        `Event slug "${data.slug}" has a public URL reserved by another identity`,
-      );
-      const record = {
-        id,
-        ...data,
-        aliases: data.aliases ?? "[]",
-        home_scope: null,
-        publication_state: "draft",
-        version: 1,
-        created_at: now,
-        updated_at: now,
-      };
-      insertRow(client, "events", record);
-      writeChange(client, op, "event", id, 1, diff({}, record), now);
-      result = { id, version: 1, changed: true };
-    } else if (op.kind === "createOccurrence") {
-      row(client, "events", op.eventId);
-      const id = randomUUID();
-      const data = sqlData(op.data);
-      const record = {
-        id,
-        event_id: op.eventId,
-        ...data,
-        publication_state: "draft",
-        date_state: data.date_state ?? "unknown",
-        schedule_status: data.schedule_status ?? "announced",
-        ticket_availability: data.ticket_availability ?? "unknown",
-        coordinate_precision: data.coordinate_precision ?? "unknown",
-        version: 1,
-        created_at: now,
-        updated_at: now,
-      };
-      validateOccurrence(record);
-      insertRow(client, "occurrences", record);
-      writeChange(client, op, "occurrence", id, 1, diff({}, record), now);
-      result = { id, version: 1, changed: true };
-    } else if (op.kind === "updateEvent" || op.kind === "updateOccurrence") {
-      const table = op.kind === "updateEvent" ? "events" : "occurrences";
-      const old = row(client, table, op.id);
-      assert(old.version === op.expectedVersion, "Stale subject version");
-      const data = sqlData(op.data);
-      const changes = diff(old, data);
-      if (changes.length) {
-        const updated = { ...old, ...data };
-        if (table === "occurrences") validateOccurrence(updated);
-        if (
-          table === "events" &&
-          data.slug !== undefined &&
-          data.slug !== old.slug
-        ) {
-          const reserved = db
-            .select({ eventId: urlAliases.eventId })
-            .from(urlAliases)
-            .where(eq(urlAliases.path, `/events/${data.slug}`))
-            .get();
-          assert(
-            !reserved || reserved.eventId === op.id,
-            "Public URL is reserved by another identity",
-          );
-        }
-        if (
-          table === "events" &&
-          old.publication_state === "published" &&
-          data.slug !== undefined &&
-          data.slug !== old.slug
-        ) {
-          reserveEventPaths(client, old, now);
-          reserveEventPaths(client, updated, now);
-        }
-        bump(client, table, op.id, op.expectedVersion, data, now);
-        writeChange(
-          client,
-          op,
-          table === "events" ? "event" : "occurrence",
-          op.id,
-          op.expectedVersion + 1,
-          changes,
-          now,
-        );
-      }
-      result = {
-        id: op.id,
-        version: op.expectedVersion + (changes.length ? 1 : 0),
-        changed: changes.length > 0,
-      };
-    } else if (
-      op.kind === "publishEvent" ||
-      op.kind === "publishOccurrence" ||
-      op.kind === "withdrawEvent" ||
-      op.kind === "withdrawOccurrence"
-    ) {
-      const isEvent = op.kind.endsWith("Event");
-      const table = isEvent ? "events" : "occurrences";
-      const old = row(client, table, op.id);
-      assert(old.version === op.expectedVersion, "Stale subject version");
-      const target = op.kind.startsWith("publish") ? "published" : "withdrawn";
-      assert(
-        old.publication_state !== "draft" || target === "published",
-        "Cannot withdraw a draft",
-      );
-      if (target === "published") {
-        if (isEvent) {
-          assert(
-            db
-              .select({ id: occurrences.id })
-              .from(occurrences)
-              .where(
-                and(
-                  eq(occurrences.eventId, op.id),
-                  eq(occurrences.publicationState, "published"),
-                ),
-              )
-              .get(),
-            "Event publication needs a published occurrence",
-          );
-          assert(
-            old.home_scope == null || old.home_scope === "festivals",
-            "Invalid home scope",
-          );
-        } else {
-          validateOccurrence({ ...old, publication_state: "published" });
-          validateScope(client, op.id);
-        }
-      }
-      const values: Row = { publication_state: target };
-      if (isEvent && target === "published" && old.home_scope == null)
-        values.home_scope = "festivals";
-      const changes = diff(old, values);
-      if (changes.length) {
-        if (target === "published") {
-          if (isEvent) reserveEventPaths(client, { ...old, ...values }, now);
-          else reserveOccurrencePath(client, old, now);
-        }
-        bump(client, table, op.id, op.expectedVersion, values, now);
-        writeChange(
-          client,
-          op,
-          isEvent ? "event" : "occurrence",
-          op.id,
-          op.expectedVersion + 1,
-          changes,
-          now,
-        );
-      }
-      result = {
-        id: op.id,
-        version: op.expectedVersion + (changes.length ? 1 : 0),
-        changed: changes.length > 0,
-      };
-    } else if (op.kind === "replacePriceBlock") {
-      const old = row(client, "occurrences", op.id);
-      assert(old.version === op.expectedVersion, "Stale subject version");
-      const details = normalizedPriceDetails(op.priceDetails);
-      const data = sqlData({ price: op.basePrice, priceDetails: details });
-      const changes = diff(old, data);
-      if (changes.length) {
-        bump(client, "occurrences", op.id, op.expectedVersion, data, now);
-        writeChange(
-          client,
-          op,
-          "occurrence",
-          op.id,
-          op.expectedVersion + 1,
-          changes,
-          now,
-        );
-      }
-      result = {
-        id: op.id,
-        version: op.expectedVersion + (changes.length ? 1 : 0),
-        changed: changes.length > 0,
-      };
-    } else if (op.kind === "replaceTerms") {
-      const old = row(client, "occurrences", op.id);
-      assert(old.version === op.expectedVersion, "Stale subject version");
-      const ids = [...new Set(op.termIds)].sort();
-      assert(ids.length === op.termIds.length, "Duplicate term ID");
-      const terms = ids.map((id) =>
-        db
-          .select({
-            id: taxonomyTerms.id,
-            facet: taxonomyTerms.facet,
-            parentId: taxonomyTerms.parentId,
-          })
-          .from(taxonomyTerms)
-          .where(eq(taxonomyTerms.id, id))
-          .get(),
-      );
-      assert(terms.every(Boolean), "Unknown taxonomy term");
-      for (const facet of ["event_type", "format"])
-        assert(
-          terms.filter((t) => t?.facet === facet).length <= 1,
-          `Only one ${facet} term allowed`,
-        );
-      for (const t of terms)
-        if (t?.parentId)
-          assert(
-            !ids.includes(t.parentId),
-            "Do not assign redundant parent genre",
-          );
-      const previous = db
-        .select({ termId: occurrenceTerms.termId })
-        .from(occurrenceTerms)
-        .where(eq(occurrenceTerms.occurrenceId, op.id))
-        .orderBy(asc(occurrenceTerms.termId))
-        .all()
-        .map((x) => x.termId);
-      const changed = JSON.stringify(previous) !== JSON.stringify(ids);
-      if (changed) {
-        db.delete(occurrenceTerms)
-          .where(eq(occurrenceTerms.occurrenceId, op.id))
-          .run();
-        for (const id of ids)
-          db.insert(occurrenceTerms)
-            .values({ occurrenceId: op.id, termId: id })
-            .run();
-        if (old.publication_state === "published") validateScope(client, op.id);
-        bump(client, "occurrences", op.id, op.expectedVersion, {}, now);
-        writeChange(
-          client,
-          op,
-          "occurrence",
-          op.id,
-          op.expectedVersion + 1,
-          [{ field: "terms", oldValue: previous, newValue: ids }],
-          now,
-        );
-      }
-      result = {
-        id: op.id,
-        version: op.expectedVersion + (changed ? 1 : 0),
-        changed,
-      };
-    } else {
-      const table = op.owner.type === "event" ? "events" : "occurrences";
-      const old = row(client, table, op.owner.id);
-      assert(old.version === op.expectedVersion, "Stale subject version");
-      const ownerColumn =
-        op.owner.type === "event"
-          ? externalLinks.eventId
-          : externalLinks.occurrenceId;
-      const normalize = (links: typeof op.links) =>
-        links
-          .map((l) => ({
-            kind: l.kind,
-            url: normalizeCatalogUrl(l.url),
-            label: l.label ?? null,
-            official: l.official,
-            sourceId: l.sourceId ?? null,
-          }))
-          .sort((a, b) =>
-            `${a.kind}:${a.url}`.localeCompare(`${b.kind}:${b.url}`),
-          );
-      const desired = normalize(op.links);
-      assert(
-        new Set(desired.map((l) => `${l.kind}:${l.url}`)).size ===
-          desired.length,
-        "Duplicate link",
-      );
-      const existingRows = db
-        .select({
-          id: externalLinks.id,
-          kind: externalLinks.kind,
-          url: externalLinks.url,
-          label: externalLinks.label,
-          official: externalLinks.official,
-          sourceId: externalLinks.sourceId,
-        })
-        .from(externalLinks)
-        .where(eq(ownerColumn, op.owner.id))
-        .all();
-      const existing = existingRows.map((l) => ({
-        kind: l.kind,
-        url: l.url,
-        label: l.label,
-        official: l.official,
-        sourceId: l.sourceId,
-      }));
-      const previous = normalize(existing);
-      const changed = JSON.stringify(previous) !== JSON.stringify(desired);
-      if (changed) {
-        const wanted = new Map(desired.map((l) => [`${l.kind}:${l.url}`, l]));
-        const priorByKey = new Map(
-          existingRows.map((l) => [
-            `${l.kind}:${normalizeCatalogUrl(l.url)}`,
-            l,
-          ]),
-        );
-        for (const existingLink of existingRows) {
-          if (
-            !wanted.has(
-              `${existingLink.kind}:${normalizeCatalogUrl(existingLink.url)}`,
-            )
-          )
-            db.delete(externalLinks)
-              .where(eq(externalLinks.id, existingLink.id))
-              .run();
-        }
-        for (const link of desired) {
-          const priorLink = priorByKey.get(`${link.kind}:${link.url}`);
-          if (!priorLink)
-            db.insert(externalLinks)
-              .values({
-                id: randomUUID(),
-                eventId: op.owner.type === "event" ? op.owner.id : null,
-                occurrenceId:
-                  op.owner.type === "occurrence" ? op.owner.id : null,
-                kind: link.kind,
-                url: link.url,
-                label: link.label,
-                official: link.official,
-                sourceId: link.sourceId,
-                createdAt: now,
-                updatedAt: now,
-              })
-              .run();
-          else if (
-            priorLink.label !== link.label ||
-            priorLink.official !== link.official ||
-            priorLink.sourceId !== link.sourceId
-          )
-            db.update(externalLinks)
-              .set({
-                label: link.label,
-                official: link.official,
-                sourceId: link.sourceId,
-                updatedAt: now,
-              })
-              .where(eq(externalLinks.id, priorLink.id))
-              .run();
-        }
-        bump(client, table, op.owner.id, op.expectedVersion, {}, now);
-        writeChange(
-          client,
-          op,
-          op.owner.type,
-          op.owner.id,
-          op.expectedVersion + 1,
-          [{ field: "links", oldValue: previous, newValue: desired }],
-          now,
-        );
-      }
-      result = {
-        id: op.owner.id,
-        version: op.expectedVersion + (changed ? 1 : 0),
-        changed,
-      };
-    }
+    const result = applyOperation(client, op, now);
     db.insert(operationReceipts)
       .values({
         operationKey: op.operationKey,
@@ -801,23 +893,38 @@ export function applyCatalogItem(
       const results: CatalogOperationResult[] = [];
       const itemVersions = new Map<string, number>();
       const resolve = (value: string) => {
-        if (!value.startsWith("$")) return value;
+        if (!value.startsWith("$")) {
+          return value;
+        }
         const found = references[value.slice(1)];
         assert(found, `Unknown temporary reference: ${value}`);
         return found;
       };
       for (const input of operations) {
         const op = structuredClone(input);
-        if ("eventId" in op) op.eventId = resolve(op.eventId);
-        if ("id" in op) op.id = resolve(op.id);
-        if ("owner" in op) op.owner.id = resolve(op.owner.id);
-        const subject =
-          "id" in op ? op.id : "owner" in op ? op.owner.id : undefined;
-        if (subject && "expectedVersion" in op)
+        if ("eventId" in op) {
+          op.eventId = resolve(op.eventId);
+        }
+        if ("id" in op) {
+          op.id = resolve(op.id);
+        }
+        if ("owner" in op) {
+          op.owner.id = resolve(op.owner.id);
+        }
+        let subject: string | undefined;
+        if ("id" in op) {
+          subject = op.id;
+        } else if ("owner" in op) {
+          subject = op.owner.id;
+        }
+        if (subject && "expectedVersion" in op) {
           op.expectedVersion = itemVersions.get(subject) ?? op.expectedVersion;
+        }
         const result = applyCatalogOperation(working, op);
         results.push(result);
-        if (subject) itemVersions.set(subject, result.version);
+        if (subject) {
+          itemVersions.set(subject, result.version);
+        }
         if (op.tempKey) {
           assert(
             !references[op.tempKey],
@@ -838,7 +945,9 @@ export function applyCatalogItem(
         );
       return { operations: results, references, changes };
     })();
-  if (!options.dryRun) return run(client);
+  if (!options.dryRun) {
+    return run(client);
+  }
   const rollback = new Error("dry-run rollback");
   let preview: CatalogItemResult | undefined;
   try {
@@ -847,7 +956,9 @@ export function applyCatalogItem(
       throw rollback;
     })();
   } catch (error) {
-    if (error !== rollback) throw error;
+    if (error !== rollback) {
+      throw error;
+    }
   }
   return preview!;
 }

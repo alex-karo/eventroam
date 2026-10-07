@@ -19,18 +19,22 @@ function markRegions($: CheerioAPI, finalUrl: string): void {
         !/(?:skip|jump)\s+to\s+(?:the\s+)?(?:main\s+)?content|zum\s+hauptinhalt/i.test(
           label,
         )
-      )
+      ) {
         continue;
+      }
       try {
         const targetUrl = new URL($(anchor).attr("href")!, finalUrl);
         const id = decodeURIComponent(targetUrl.hash.slice(1));
         targetUrl.hash = "";
-        if (!id || targetUrl.href !== page.href) continue;
+        if (!id || targetUrl.href !== page.href) {
+          continue;
+        }
         const target = $("[id]")
           .filter((_index, node) => $(node).attr("id") === id)
           .first();
-        if (!target.length || !target.is("div, main, section, article"))
+        if (!target.length || !target.is("div, main, section, article")) {
           continue;
+        }
         main = target;
         break;
       } catch {
@@ -51,8 +55,9 @@ function markRegions($: CheerioAPI, finalUrl: string): void {
         !$(node).parents(
           `article, section, aside, nav, main, [role='main'], [${REGION_ATTRIBUTE}]`,
         ).length
-      )
+      ) {
         $(node).attr(REGION_ATTRIBUTE, label);
+      }
     });
   }
 }
@@ -75,7 +80,9 @@ function safeLink(href: string, baseUrl: string): string | null {
 }
 
 function appendLink(links: string[], url: string): void {
-  if (links.length < MAX_LINKS && !links.includes(url)) links.push(url);
+  if (links.length < MAX_LINKS && !links.includes(url)) {
+    links.push(url);
+  }
 }
 
 function structuredItems(
@@ -86,11 +93,14 @@ function structuredItems(
   path = "",
 ): void {
   if (Array.isArray(value)) {
-    for (const item of value)
+    for (const item of value) {
       structuredItems(item, items, links, baseUrl, path);
+    }
     return;
   }
-  if (!value || typeof value !== "object") return;
+  if (!value || typeof value !== "object") {
+    return;
+  }
   const record = value as Record<string, unknown>;
   const fields = [
     "@type",
@@ -117,11 +127,15 @@ function structuredItems(
         typeof record[field] === "string" || typeof record[field] === "number",
     )
     .map((field) => `${field}: ${clean(String(record[field]))}`);
-  if (values.length)
-    items.push(`- ${path ? `${path}: ` : ""}${values.join(" · ")}`);
+  const label = path ? `${path}: ` : "";
+  if (values.length) {
+    items.push(`- ${label}${values.join(" · ")}`);
+  }
   if (typeof record.url === "string") {
     const url = safeLink(record.url, baseUrl);
-    if (url) appendLink(links, url);
+    if (url) {
+      appendLink(links, url);
+    }
   }
   for (const nested of [
     "@graph",
@@ -131,7 +145,7 @@ function structuredItems(
     "organizer",
     "performer",
     "subEvent",
-  ])
+  ]) {
     structuredItems(
       record[nested],
       items,
@@ -139,6 +153,21 @@ function structuredItems(
       baseUrl,
       path ? `${path}.${nested}` : nested,
     );
+  }
+}
+
+function finalWordBoundary(text: string): number {
+  let index = text.length - 1;
+  while (index >= 0 && !/\s/.test(text[index])) {
+    index -= 1;
+  }
+  if (index < 0) {
+    return -1;
+  }
+  while (index >= 0 && /\s/.test(text[index])) {
+    index -= 1;
+  }
+  return index + 1;
 }
 
 function boundMarkdown(markdown: string): {
@@ -146,28 +175,32 @@ function boundMarkdown(markdown: string): {
   truncated: boolean;
 } {
   const content = markdown.trim();
-  if (content.length <= MAX_MARKDOWN_CHARS)
+  if (content.length <= MAX_MARKDOWN_CHARS) {
     return { markdown: content, truncated: false };
+  }
 
   const prefix = content.slice(0, MAX_MARKDOWN_CHARS);
   // Keep the final paragraph, line, or word whole where possible. A page
   // without whitespace still retains a bounded prefix instead of vanishing.
   const paragraphEnd = prefix.lastIndexOf("\n\n");
   const lineEnd = prefix.lastIndexOf("\n");
-  const wordEnd = prefix.search(/\s+\S*$/);
-  let end =
-    paragraphEnd > MAX_MARKDOWN_CHARS - 2_000
-      ? paragraphEnd
-      : lineEnd > MAX_MARKDOWN_CHARS - 2_000
-        ? lineEnd
-        : wordEnd;
-  if (end <= 0) end = MAX_MARKDOWN_CHARS;
+  let end = finalWordBoundary(prefix);
+  if (paragraphEnd > MAX_MARKDOWN_CHARS - 2_000) {
+    end = paragraphEnd;
+  } else if (lineEnd > MAX_MARKDOWN_CHARS - 2_000) {
+    end = lineEnd;
+  }
+  if (end <= 0) {
+    end = MAX_MARKDOWN_CHARS;
+  }
   // A Markdown link is atomic: do not emit a dangling label or destination.
   const openLabel = prefix.lastIndexOf("[") > prefix.lastIndexOf("]");
   const openDestination = prefix.lastIndexOf("](") > prefix.lastIndexOf(")");
   if (openLabel || openDestination) {
     const linkStart = prefix.lastIndexOf("[");
-    if (linkStart > 0 && linkStart < end) end = linkStart;
+    if (linkStart > 0 && linkStart < end) {
+      end = linkStart;
+    }
   }
   return { markdown: prefix.slice(0, end).trimEnd(), truncated: true };
 }
@@ -199,12 +232,13 @@ export function extractSource(
       needsJavascript: false,
     };
   }
-  if (contentType.includes("text/plain"))
+  if (contentType.includes("text/plain")) {
     return {
       ...boundMarkdown(body.replace(/\r\n?/g, "\n")),
       links,
       needsJavascript: false,
     };
+  }
 
   const $ = load(body);
   const hasApplicationScripts = $("script")
@@ -232,12 +266,15 @@ export function extractSource(
   $("time[datetime]").each((_index, element) => {
     const dateTime = clean($(element).attr("datetime") ?? "");
     const label = clean($(element).text());
-    if (dateTime && !label.includes(dateTime))
+    if (dateTime && !label.includes(dateTime)) {
       $(element).text(`${label || "Time"}: ${dateTime}`);
+    }
   });
   $("a[href]").each((_index, element) => {
     const href = $(element).attr("href");
-    if (!href) return;
+    if (!href) {
+      return;
+    }
     const labelNode = $(element).clone();
     labelNode
       .find("div, p, h1, h2, h3, h4, h5, h6, section, article, br")
@@ -252,7 +289,9 @@ export function extractSource(
     if (url) {
       appendLink(links, url);
       $(element).attr("href", url);
-    } else $(element).removeAttr("href");
+    } else {
+      $(element).removeAttr("href");
+    }
     if (!label) {
       $(element).remove();
       return;
@@ -284,7 +323,9 @@ export function extractSource(
   turndown.addRule("structuralRegion", {
     filter: (node) => node.hasAttribute(REGION_ATTRIBUTE),
     replacement: (content, node) => {
-      if (!content.trim()) return "";
+      if (!content.trim()) {
+        return "";
+      }
       const label = node.getAttribute(REGION_ATTRIBUTE);
       return `\n\n[${label}]\n\n${content.trim()}\n\n[/${label}]\n\n`;
     },

@@ -15,7 +15,9 @@ export function loadResearchContext(
   const target = input.eventId
     ? readResearchEvent(client, input.eventId)
     : null;
-  if (input.eventId && !target) throw new Error("Event not found");
+  if (input.eventId && !target) {
+    throw new Error("Event not found");
+  }
   const catalog = target ? [target] : readResearchCatalog(client);
   const terms = drizzle(client)
     .select({

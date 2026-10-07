@@ -18,13 +18,15 @@ export function SelectedPreview({
   panelRef,
   onClose,
   onRetry,
-}: {
+}: Readonly<{
   detailState: DetailState;
   panelRef: RefObject<HTMLElement | null>;
   onClose: () => void;
   onRetry: (id: string) => void;
-}) {
-  if (detailState.status === "idle") return null;
+}>) {
+  if (detailState.status === "idle") {
+    return null;
+  }
   const selectedId = detailState.id;
   const detail = detailState.status === "ready" ? detailState.data : null;
   return (

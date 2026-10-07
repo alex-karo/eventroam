@@ -133,20 +133,30 @@ function researchOutcome({
   modelFailed: boolean;
   gaps: ResearchGap[];
 }): CatalogResearchResult["outcome"] {
-  if (writeFailed) return "failed";
+  if (writeFailed) {
+    return "failed";
+  }
   if (
     changedKinds.includes("publishEvent") ||
     changedKinds.includes("publishOccurrence")
-  )
+  ) {
     return "published";
+  }
   if (
     changedKinds.includes("createEvent") ||
     changedKinds.includes("createOccurrence")
-  )
+  ) {
     return "created";
-  if (changedKinds.length) return "updated";
-  if (modelFailed) return "failed";
-  if (gaps.some((gap) => gap.code !== "observation")) return "skipped";
+  }
+  if (changedKinds.length) {
+    return "updated";
+  }
+  if (modelFailed) {
+    return "failed";
+  }
+  if (gaps.some((gap) => gap.code !== "observation")) {
+    return "skipped";
+  }
   return "unchanged";
 }
 

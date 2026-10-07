@@ -5,7 +5,9 @@ import { discoverSources } from "./discover-sources";
 describe("discoverSources", () => {
   it("uses Exa only for discovery and returns citations as candidates", async () => {
     const fetchMock = vi.fn(async (...args: Parameters<typeof fetch>) => {
-      if (!args[0] || !args[1]) throw new Error("missing request");
+      if (!args[0] || !args[1]) {
+        throw new Error("missing request");
+      }
       return new Response(
         JSON.stringify({
           choices: [

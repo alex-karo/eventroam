@@ -46,8 +46,12 @@ for (const [address, prefix] of [
 
 export function isPublicAddress(address: string): boolean {
   const family = isIP(address);
-  if (family === 4) return !blockedIpv4.check(address, "ipv4");
-  if (family === 6) return !blockedIpv6.check(address, "ipv6");
+  if (family === 4) {
+    return !blockedIpv4.check(address, "ipv4");
+  }
+  if (family === 6) {
+    return !blockedIpv6.check(address, "ipv6");
+  }
   return false;
 }
 
@@ -139,8 +143,9 @@ export async function getBoundedResponse(
           parseSourceUrl(
             new URL(response.headers.location!, response.url).href,
           );
-          if (response.redirectUrls.length >= (options.maxRedirects ?? 5))
+          if (response.redirectUrls.length >= (options.maxRedirects ?? 5)) {
             throw new Error("redirect_limit");
+          }
           return true;
         } catch (error) {
           hookError = error;
@@ -172,16 +177,22 @@ export async function getBoundedResponse(
             try {
               // Got does not emit downloadProgress for intermediate responses.
               let bytes = 0;
-              if (Number(response.headers["content-length"]) > options.maxBytes)
+              if (
+                Number(response.headers["content-length"]) > options.maxBytes
+              ) {
                 throw new Error("oversized_response");
+              }
               for await (const chunk of response) {
                 bytes += chunk.length;
-                if (bytes > options.maxBytes)
+                if (bytes > options.maxBytes) {
                   throw new Error("oversized_response");
+                }
               }
               abort.signal.throwIfAborted();
             } catch (error) {
-              if (abort.signal.aborted) throw abort.signal.reason;
+              if (abort.signal.aborted) {
+                throw abort.signal.reason;
+              }
               if (
                 error instanceof Error &&
                 error.message === "oversized_response"
@@ -198,8 +209,9 @@ export async function getBoundedResponse(
         beforeRequest: [
           async (requestOptions) => {
             try {
-              if (requestOptions.username || requestOptions.password)
+              if (requestOptions.username || requestOptions.password) {
                 throw new UnsafeSourceError("unsafe_url");
+              }
               // Got runs this hook for the initial request, each redirect and retry.
               const { addresses } = await assertPublicUrl(
                 requestOptions.url!.href,
@@ -212,14 +224,19 @@ export async function getBoundedResponse(
                 lookupOptions,
                 callback,
               ) => {
-                if (lookupOptions.all) callback(null, [address]);
-                else callback(null, address.address, address.family);
+                if (lookupOptions.all) {
+                  callback(null, [address]);
+                } else {
+                  callback(null, address.address, address.family);
+                }
               };
               requestOptions.timeout = {
                 request: Math.max(1, deadline - Date.now()),
               };
             } catch (error) {
-              if (error instanceof UnsafeSourceError) hookError = error;
+              if (error instanceof UnsafeSourceError) {
+                hookError = error;
+              }
               throw error;
             }
           },
@@ -239,8 +256,9 @@ export async function getBoundedResponse(
             if (
               [301, 302, 303, 307, 308].includes(response.statusCode) &&
               !response.headers.location
-            )
+            ) {
               throw new Error("redirect_without_location");
+            }
             return response;
           },
         ],
@@ -249,8 +267,9 @@ export async function getBoundedResponse(
       if (
         transferred > options.maxBytes ||
         (total !== undefined && total > options.maxBytes)
-      )
+      ) {
         abort.abort(new Error("oversized_response"));
+      }
     });
     return {
       finalUrl: response.url,
@@ -259,10 +278,18 @@ export async function getBoundedResponse(
       body: Buffer.from(response.body),
     };
   } catch (error) {
-    if (hookError) throw hookError;
-    if (abort.signal.aborted) throw abort.signal.reason;
-    if (error instanceof TimeoutError) throw new Error("timeout");
-    if (error instanceof MaxRedirectsError) throw new Error("redirect_limit");
+    if (hookError) {
+      throw hookError;
+    }
+    if (abort.signal.aborted) {
+      throw abort.signal.reason;
+    }
+    if (error instanceof TimeoutError) {
+      throw new Error("timeout");
+    }
+    if (error instanceof MaxRedirectsError) {
+      throw new Error("redirect_limit");
+    }
     throw error;
   } finally {
     clearTimeout(timer);

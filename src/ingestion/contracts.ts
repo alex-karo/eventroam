@@ -54,7 +54,10 @@ export type CatalogResearchResult = {
     searchCostUsd: number;
   };
   modelVersion: string;
-  reasoningEffort?: ResearchConfig["reasoningEffort"] | null;
+  reasoningEffort?: Exclude<
+    ResearchConfig["reasoningEffort"],
+    undefined
+  > | null;
   promptVersion: string;
   durationMs: number;
 };

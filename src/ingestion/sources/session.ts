@@ -25,9 +25,13 @@ export function createSourceSession(
     const prior = reads.find(
       (item) => item.attemptedUrl === key || item.finalUrl === key,
     );
-    if (prior) return prior;
+    if (prior) {
+      return prior;
+    }
     const pending = inFlight.get(key);
-    if (pending) return pending;
+    if (pending) {
+      return pending;
+    }
     const depth = depthByUrl.get(key) ?? 1;
     const request = (async () => {
       const result = await (deps.readSource ?? readSource)(key, {
@@ -35,9 +39,11 @@ export function createSourceSession(
         depth,
       });
       reads.push(result);
-      for (const url of result.links)
-        if (!depthByUrl.has(url))
+      for (const url of result.links) {
+        if (!depthByUrl.has(url)) {
           depthByUrl.set(url, Math.min(depth + 1, budget.limits.depth + 1));
+        }
+      }
       return result;
     })();
     inFlight.set(key, request);
@@ -57,31 +63,40 @@ export function createSourceSession(
       inputTokens: 0,
       outputTokens: 0,
     });
-    if (budget.remaining().modelCalls <= 1) return reservedResult();
+    if (budget.remaining().modelCalls <= 1) {
+      return reservedResult();
+    }
     let result: DiscoverSourcesResult;
     try {
       result = await (deps.discoverSources ?? discoverSources)(query, {
         budget: {
           ...budget,
           consumeModelCall: (inputChars) => {
-            if (budget.remaining().modelCalls <= 1)
+            if (budget.remaining().modelCalls <= 1) {
               throw new ResearchLimitError("modelCalls");
+            }
             budget.consumeModelCall(inputChars);
           },
         },
         config,
       });
     } catch (error) {
-      if (error instanceof ResearchLimitError && error.limit === "modelCalls")
+      if (error instanceof ResearchLimitError && error.limit === "modelCalls") {
         return reservedResult();
+      }
       throw error;
     }
     discovery.push(result);
-    for (const lead of result.candidates)
-      if (!depthByUrl.has(lead.url)) depthByUrl.set(lead.url, 0);
+    for (const lead of result.candidates) {
+      if (!depthByUrl.has(lead.url)) {
+        depthByUrl.set(lead.url, 0);
+      }
+    }
     return result;
   };
-  for (const { url } of knownLinks) depthByUrl.set(new URL(url).toString(), 0);
+  for (const { url } of knownLinks) {
+    depthByUrl.set(new URL(url).toString(), 0);
+  }
   async function readInitialSource() {
     const initialUrl =
       knownLinks.find((link) => link.kind === "official_site")?.url ??
@@ -91,7 +106,9 @@ export function createSourceSession(
       try {
         await read(initialUrl);
       } catch (error) {
-        if (!(error instanceof ResearchLimitError)) throw error;
+        if (!(error instanceof ResearchLimitError)) {
+          throw error;
+        }
       }
     }
   }

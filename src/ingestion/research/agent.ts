@@ -69,7 +69,6 @@ export async function researchFestival(
         model: createResearchModel(config),
         tools: { readSource: sourceTool, discoverSources: searchTool },
       });
-  if (agent) new Mastra({ agents: { festivalResearch: agent }, logger: false });
   const usage: ModelUsage = {
     inputTokens: 0,
     outputTokens: 0,
@@ -97,8 +96,9 @@ export async function researchFestival(
   let raw: unknown;
   let text: string | null = null;
   try {
-    if (prompt.length > budget.limits.modelInputChars)
+    if (prompt.length > budget.limits.modelInputChars) {
       throw new ResearchLimitError("modelInputChars");
+    }
     if (deps.generateCandidate) {
       budget.consumeModelCall();
       raw = await deps.generateCandidate(prompt, {
@@ -108,6 +108,10 @@ export async function researchFestival(
         discoverSources: search,
       });
     } else {
+      const mastra = new Mastra({
+        agents: { festivalResearch: agent! },
+        logger: false,
+      });
       const abort = new AbortController();
       const timeout = setTimeout(
         () => abort.abort(),
@@ -115,7 +119,7 @@ export async function researchFestival(
       );
       let generated;
       try {
-        generated = await agent!.generate(prompt, {
+        generated = await mastra.getAgent("festivalResearch").generate(prompt, {
           structuredOutput: {
             schema: modelOutputSchema(),
             // Mastra also validates intermediate tool-call commentary.
@@ -133,8 +137,9 @@ export async function researchFestival(
             const chars =
               JSON.stringify(messageList.get.all.db()).length +
               JSON.stringify(systemMessages).length;
-            if (chars > budget.limits.modelInputChars)
+            if (chars > budget.limits.modelInputChars) {
               throw new ResearchLimitError("modelInputChars");
+            }
             const finalCall = budget.remaining().modelCalls <= 1;
             budget.consumeModelCall();
             return finalCall
@@ -144,6 +149,7 @@ export async function researchFestival(
         });
       } finally {
         clearTimeout(timeout);
+        await mastra.shutdown();
       }
       raw = generated.object;
       text = generated.text ?? null;
@@ -235,8 +241,9 @@ function updateModelUsage(
   const effectiveCost = metadata.steps?.length
     ? cost
     : metadata.providerMetadata?.openrouter?.usage?.cost;
-  if (effectiveCost && effectiveCost > 0)
+  if (effectiveCost && effectiveCost > 0) {
     usage.modelCostUsd = (usage.modelCostUsd ?? 0) + effectiveCost;
+  }
 }
 
 function promptFor(
@@ -320,6 +327,33 @@ function boundedToolSource(read: ReadSourceResult, maxChars = 80_000) {
   };
 }
 
+function serializedResearchLimit(item: Record<string, unknown>) {
+  if (
+    item.name === "ResearchLimitError" &&
+    typeof item.limit === "string" &&
+    [
+      "time",
+      "searches",
+      "pages",
+      "depth",
+      "modelCalls",
+      "modelInputChars",
+    ].includes(item.limit)
+  ) {
+    return new ResearchLimitError(item.limit as ResearchLimitError["limit"]);
+  }
+  if (typeof item.message === "string") {
+    const match =
+      /^Research (time|searches|pages|depth|modelCalls|modelInputChars) limit exhausted$/.exec(
+        item.message,
+      );
+    if (match) {
+      return new ResearchLimitError(match[1] as ResearchLimitError["limit"]);
+    }
+  }
+  return undefined;
+}
+
 function classifyModelError(error: unknown, deadline: number) {
   const names: string[] = [];
   let status: number | undefined;
@@ -329,50 +363,32 @@ function classifyModelError(error: unknown, deadline: number) {
   const seen = new Set<unknown>();
   for (let depth = 0; depth < 6 && current && !seen.has(current); depth++) {
     seen.add(current);
-    if (current instanceof ResearchLimitError) limit = current;
-    if (typeof current !== "object") break;
-    const item = current as Record<string, unknown>;
-    if (
-      !limit &&
-      item.name === "ResearchLimitError" &&
-      typeof item.limit === "string" &&
-      [
-        "time",
-        "searches",
-        "pages",
-        "depth",
-        "modelCalls",
-        "modelInputChars",
-      ].includes(item.limit)
-    )
-      limit = new ResearchLimitError(item.limit as ResearchLimitError["limit"]);
-    if (!limit && typeof item.message === "string") {
-      const match =
-        /^Research (time|searches|pages|depth|modelCalls|modelInputChars) limit exhausted$/.exec(
-          item.message,
-        );
-      if (match)
-        limit = new ResearchLimitError(match[1] as ResearchLimitError["limit"]);
+    if (current instanceof ResearchLimitError) {
+      limit = current;
     }
-    if (
-      typeof item.name === "string" &&
-      /^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(item.name)
-    )
+    if (typeof current !== "object") {
+      break;
+    }
+    const item = current as Record<string, unknown>;
+    limit ??= serializedResearchLimit(item);
+    if (typeof item.name === "string" && /^[A-Za-z]\w{0,39}$/.test(item.name)) {
       names.push(item.name);
+    }
     if (
       typeof item.statusCode === "number" &&
       item.statusCode >= 400 &&
       item.statusCode < 600
-    )
+    ) {
       status = item.statusCode;
-    if (
-      typeof item.code === "string" &&
-      /^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(item.code)
-    )
+    }
+    if (typeof item.code === "string" && /^[A-Za-z]\w{0,39}$/.test(item.code)) {
       code = item.code;
+    }
     current = item.cause;
   }
-  if (!limit && Date.now() >= deadline) limit = new ResearchLimitError("time");
+  if (!limit && Date.now() >= deadline) {
+    limit = new ResearchLimitError("time");
+  }
   return {
     limit,
     diagnostic:
@@ -399,8 +415,12 @@ function modelOutputSchema() {
     "maxItems",
   ]);
   const clean = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(clean);
-    if (!value || typeof value !== "object") return value;
+    if (Array.isArray(value)) {
+      return value.map(clean);
+    }
+    if (!value || typeof value !== "object") {
+      return value;
+    }
     const original = value as Record<string, unknown>;
     const result = Object.fromEntries(
       Object.entries(original)
@@ -417,8 +437,9 @@ function modelOutputSchema() {
         Array.isArray(original.required) ? original.required : [],
       );
       for (const [key, property] of Object.entries(properties)) {
-        if (!required.has(key))
+        if (!required.has(key)) {
           properties[key] = { anyOf: [property, { type: "null" }] };
+        }
       }
       result.required = Object.keys(properties);
       result.additionalProperties = false;
@@ -430,8 +451,12 @@ function modelOutputSchema() {
 }
 
 function normalizeWireCandidate(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(normalizeWireCandidate);
-  if (!value || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    return value.map(normalizeWireCandidate);
+  }
+  if (!value || typeof value !== "object") {
+    return value;
+  }
   return Object.fromEntries(
     Object.entries(value)
       .filter(

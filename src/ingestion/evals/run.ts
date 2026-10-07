@@ -37,7 +37,9 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
   try {
     migrateCatalogConnection(connection);
     const db = drizzle(connection.client);
-    for (const term of suite.terms) db.insert(taxonomyTerms).values(term).run();
+    for (const term of suite.terms) {
+      db.insert(taxonomyTerms).values(term).run();
+    }
     for (const initial of [
       item.initial.event,
       ...(item.initial.relatedEvents ?? []),
@@ -55,7 +57,7 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
           updatedAt: timestamp,
         })
         .run();
-      for (const link of initial.links ?? [])
+      for (const link of initial.links ?? []) {
         db.insert(externalLinks)
           .values({
             id: `eval-link-${initial.id}-${link.kind}-${link.url}`,
@@ -68,6 +70,7 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
             updatedAt: timestamp,
           })
           .run();
+      }
       for (const edition of initial.occurrences) {
         db.insert(occurrences)
           .values({
@@ -94,11 +97,12 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
             updatedAt: timestamp,
           })
           .run();
-        for (const termId of edition.termIds ?? [])
+        for (const termId of edition.termIds ?? []) {
           db.insert(occurrenceTerms)
             .values({ occurrenceId: edition.id, termId })
             .run();
-        for (const link of edition.links ?? [])
+        }
+        for (const link of edition.links ?? []) {
           db.insert(externalLinks)
             .values({
               id: `eval-link-${edition.id}-${link.kind}-${link.url}`,
@@ -111,6 +115,7 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
               updatedAt: timestamp,
             })
             .run();
+        }
       }
     }
     return connection;
@@ -187,13 +192,16 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   if (
     !selected.length ||
     options.caseIds?.some((id) => !suite.cases.some((item) => item.id === id))
-  )
+  ) {
     throw new Error("Unknown or empty eval case selection");
+  }
   const repeat = options.repeat ?? 1;
-  if (!Number.isSafeInteger(repeat) || repeat < 1 || repeat > 20)
+  if (!Number.isSafeInteger(repeat) || repeat < 1 || repeat > 20) {
     throw new Error("repeat must be 1–20");
-  if (options.reportPath && existsSync(options.reportPath))
+  }
+  if (options.reportPath && existsSync(options.reportPath)) {
     throw new Error(`Eval report already exists: ${options.reportPath}`);
+  }
   const config = loadResearchConfig({
     ...process.env,
     ...(options.model ? { OPENROUTER_MODEL: options.model } : {}),
@@ -211,7 +219,9 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     outputSchema: z.custom<CatalogResearchResult>(),
     execute: async ({ inputData }) => {
       const item = byId.get(inputData.caseId);
-      if (!item) throw new Error(`Unknown eval case: ${inputData.caseId}`);
+      if (!item) {
+        throw new Error(`Unknown eval case: ${inputData.caseId}`);
+      }
       const connection = seedDatabase(suite, item);
       try {
         let result: CatalogResearchResult;
@@ -290,10 +300,11 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   const results = data.map(({ input }) => {
     const item = byId.get(input.caseId)!;
     const result = outputs.get(`${input.caseId}/${input.repetition}`);
-    if (!result)
+    if (!result) {
       throw new Error(
         `Eval workflow did not return ${input.caseId}/${input.repetition}`,
       );
+    }
     return {
       caseId: input.caseId,
       repetition: input.repetition,
