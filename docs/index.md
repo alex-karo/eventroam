@@ -2,6 +2,8 @@
 
 This is a hand-maintained guide to the project's Markdown knowledge. Main OpenSpec specs describe implemented behavior. Active OpenSpec changes describe approved work that has not been implemented; draft proposals hold unresolved choices. The application and [build progress](service-build-progress.md) show what currently runs. `stable` describes an accepted decision, verified current behavior, or reliable historical record; `draft` marks material still being selected or reviewed. Dated research and legacy specs are background evidence.
 
+For a short introduction to the product, architecture, technology, and local setup, start with the [project README](../README.md).
+
 ## Maintaining the docs
 
 Every substantive file under `docs/` has OKF-style `type`, `title`, `description`, and `status` frontmatter; `tags` are optional. OpenSpec owns behavioral specifications and follows its own format. Index files and `AGENTS.md` are navigation and instructions, not concepts. Keep unapproved choices in draft proposals; do not promote them to main OpenSpec specs or active changes. Do not add `generated`, `verified`, or `stale_after` without evidence. Update this index when adding or removing a document. Run `npm run docs:check` after editing docs and `npm run openspec:validate` after editing OpenSpec artifacts.
