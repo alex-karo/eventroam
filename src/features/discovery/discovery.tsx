@@ -6,17 +6,10 @@ import {
   normalizeFilters,
   type Filters,
 } from "@/features/discovery/model/discovery";
-import type {
-  DiscoverySummary,
-  Genre,
-  PublicOccurrence,
-} from "@/catalog/read/contracts";
+import type { DiscoverySummary, Genre } from "@/catalog/read/contracts";
 import { FilterPanel } from "@/features/discovery/components/filter-panel";
 import { ResultsList } from "@/features/discovery/components/results-list";
-import {
-  SelectedPreview,
-  type DetailState,
-} from "@/features/discovery/components/selected-preview";
+import { SelectedPreview } from "@/features/discovery/components/selected-preview";
 import {
   DiscoveryMap,
   hasMapPoint,
@@ -28,6 +21,7 @@ import {
   pushDiscoveryView,
   readDiscoveryLocation,
 } from "@/features/discovery/hooks/discovery-url";
+import { useSelectedEdition } from "@/features/discovery/hooks/use-selected-edition";
 
 type Catalog = { summaries: DiscoverySummary[]; genres: Genre[] };
 type FilterGroup = "when" | "where" | "genre" | "more";
@@ -59,13 +53,18 @@ export function Discovery({
   const [loadError, setLoadError] = useState(false);
   const [panel, setPanel] = useState<FilterGroup | null>(null);
   const [view, setView] = useState<"map" | "list">(initialView);
-  const [detailState, setDetailState] = useState<DetailState>({
-    status: "idle",
-  });
-  const selectedId = detailState.status === "idle" ? null : detailState.id;
-  const detailRequest = useRef(0);
-  const detailOrigin = useRef<HTMLElement | null>(null);
-  const detailPanel = useRef<HTMLElement>(null);
+  const viewSwitch = useRef<HTMLDivElement>(null);
+  const {
+    state: detailState,
+    selectedId,
+    panelRef: detailPanel,
+    select: selectEdition,
+    close: closeDetail,
+  } = useSelectedEdition(
+    () =>
+      viewSwitch.current?.querySelector<HTMLElement>("[aria-pressed=true]") ??
+      null,
+  );
   const today = new Date(initialNow);
   const panelButton = useRef<HTMLButtonElement>(null);
   const latest = useRef(0);
@@ -119,18 +118,11 @@ export function Discovery({
   }, []);
   useEffect(() => {
     const catalogRequests = latest;
-    const detailRequests = detailRequest;
     void load();
     return () => {
       ++catalogRequests.current;
-      ++detailRequests.current;
     };
   }, [load]);
-  useEffect(() => {
-    if (selectedId) {
-      detailPanel.current?.querySelector("button")?.focus();
-    }
-  }, [selectedId]);
   useEffect(() => {
     if (panel) {
       document
@@ -182,46 +174,6 @@ export function Discovery({
     setView(next);
     pushDiscoveryView(next);
   }
-  async function selectEdition(id: string) {
-    if (
-      selectedId !== id &&
-      document.activeElement instanceof HTMLElement &&
-      !detailPanel.current?.contains(document.activeElement)
-    ) {
-      detailOrigin.current = document.activeElement;
-    }
-    const request = ++detailRequest.current;
-    setDetailState({ status: "loading", id });
-    try {
-      const response = await fetch(`/api/discovery/${encodeURIComponent(id)}`, {
-        cache: "no-store",
-      });
-      if (!response.ok) {
-        throw new Error("Detail unavailable");
-      }
-      const next = (await response.json()) as PublicOccurrence;
-      if (request === detailRequest.current) {
-        setDetailState({ status: "ready", id, data: next });
-      }
-    } catch {
-      if (request === detailRequest.current) {
-        setDetailState({ status: "error", id });
-      }
-    }
-  }
-  function closeDetail() {
-    ++detailRequest.current;
-    setDetailState({ status: "idle" });
-    requestAnimationFrame(() => {
-      if (detailOrigin.current?.getClientRects().length) {
-        detailOrigin.current.focus();
-      } else {
-        document
-          .querySelector<HTMLElement>(".view-switch [aria-pressed=true]")
-          ?.focus();
-      }
-    });
-  }
   useEffect(() => {
     if (!panel && !selectedId) {
       return;
@@ -240,7 +192,7 @@ export function Discovery({
     return () => window.removeEventListener("keydown", onEscape);
     // closePanel always uses the applied filters at the moment the panel opened.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [panel, applied, selectedId]);
+  }, [panel, applied, selectedId, closeDetail]);
   const results = invalidUrl
     ? []
     : filterSummaries(catalog.summaries, applied, catalog.genres, today);
@@ -461,7 +413,12 @@ export function Discovery({
             onRetry={(id) => void selectEdition(id)}
           />
         </div>
-        <div className="view-switch" role="group" aria-label="Discovery view">
+        <div
+          ref={viewSwitch}
+          className="view-switch"
+          role="group"
+          aria-label="Discovery view"
+        >
           <button
             type="button"
             aria-pressed={view === "list"}
