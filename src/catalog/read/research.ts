@@ -2,7 +2,6 @@ import type Database from "better-sqlite3";
 import { asc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import {
-  catalogChanges,
   events,
   externalLinks,
   occurrenceTerms,
@@ -12,7 +11,7 @@ import {
 
 export type ResearchEvent = NonNullable<ReturnType<typeof readResearchEvent>>;
 
-/** Private management context; includes drafts and audit attribution. Never use in public routes. */
+/** Private management context; includes drafts and accepted facts. Never use in public routes. */
 export function readResearchEvent(client: Database.Database, eventId: string) {
   const db = drizzle(client);
   const event = db.select().from(events).where(eq(events.id, eventId)).get();
@@ -35,21 +34,9 @@ export function readResearchEvent(client: Database.Database, eventId: string) {
           : eq(externalLinks.occurrenceId, owner.id),
       )
       .all();
-  const changesFor = (owner: { type: "event" | "occurrence"; id: string }) =>
-    db
-      .select()
-      .from(catalogChanges)
-      .where(
-        owner.type === "event"
-          ? eq(catalogChanges.eventId, owner.id)
-          : eq(catalogChanges.occurrenceId, owner.id),
-      )
-      .orderBy(asc(catalogChanges.subjectVersion))
-      .all();
   return {
     ...event,
     links: linksFor({ type: "event", id: event.id }),
-    changes: changesFor({ type: "event", id: event.id }),
     editions: editions.map((edition) => ({
       ...edition,
       links: linksFor({ type: "occurrence", id: edition.id }),
@@ -65,7 +52,6 @@ export function readResearchEvent(client: Database.Database, eventId: string) {
         .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, occurrenceTerms.termId))
         .where(eq(occurrenceTerms.occurrenceId, edition.id))
         .all(),
-      changes: changesFor({ type: "occurrence", id: edition.id }),
     })),
   };
 }

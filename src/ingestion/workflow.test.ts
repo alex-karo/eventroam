@@ -1,4 +1,8 @@
 import { expect, test, vi } from "vitest";
+import { asc, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import type Database from "better-sqlite3";
+import { catalogChanges, operationReceipts } from "@/db/schema";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { publicEvent } from "@/catalog/read/public-catalog";
@@ -55,6 +59,23 @@ function fixture() {
     return source;
   });
   return { client, termIds, readSource };
+}
+
+function catalogState(client: Database.Database) {
+  const db = drizzle(client);
+  return {
+    catalog: readResearchCatalog(client),
+    audit: db
+      .select()
+      .from(catalogChanges)
+      .orderBy(asc(catalogChanges.id))
+      .all(),
+    receipts: db
+      .select()
+      .from(operationReceipts)
+      .orderBy(asc(operationReceipts.operationKey))
+      .all(),
+  };
 }
 
 test("concurrent and repeated failed reads are cached and charged once", async () => {
@@ -202,13 +223,16 @@ test.each([
 test("one model answer writes directly; dry run rolls back without a database copy", async () => {
   const { client, termIds, readSource } = fixture();
   const generateCandidate = vi.fn(async () => candidate(termIds));
-  const before = readResearchCatalog(client);
+  const before = catalogState(client);
   const serialize = vi.spyOn(client, "serialize");
   const preview = await runCatalogResearch(input, {
     client,
     readSource,
     generateCandidate: async (prompt, context) => {
-      expect(JSON.parse(prompt).inspectedSources).toEqual([]);
+      const promptInput = JSON.parse(prompt);
+      expect(promptInput.inspectedSources).toEqual([]);
+      expect(promptInput).not.toHaveProperty("compact");
+      expect(promptInput.catalog).toEqual([]);
       await context.readSource(url);
       return generateCandidate();
     },
@@ -217,7 +241,7 @@ test("one model answer writes directly; dry run rolls back without a database co
   expect(preview.changes).toContainEqual(
     expect.objectContaining({ field: "starts_on", newValue: "2027-07-01" }),
   );
-  expect(readResearchCatalog(client)).toEqual(before);
+  expect(catalogState(client)).toEqual(before);
   expect(serialize).not.toHaveBeenCalled();
   const applied = await runCatalogResearch(
     { ...input, dryRun: false },
@@ -235,9 +259,20 @@ test("one model answer writes directly; dry run rolls back without a database co
   ]);
   const saved = readResearchEvent(client, applied.eventId!)!;
   expect(saved.editions).toHaveLength(1);
-  expect(saved.changes.length).toBeGreaterThan(0);
-  expect(saved.editions[0].changes.length).toBeGreaterThan(0);
-  for (const change of [...saved.changes, ...saved.editions[0].changes]) {
+  const db = drizzle(client);
+  const eventChanges = db
+    .select()
+    .from(catalogChanges)
+    .where(eq(catalogChanges.eventId, saved.id))
+    .all();
+  const editionChanges = db
+    .select()
+    .from(catalogChanges)
+    .where(eq(catalogChanges.occurrenceId, saved.editions[0].id))
+    .all();
+  expect(eventChanges.length).toBeGreaterThan(0);
+  expect(editionChanges.length).toBeGreaterThan(0);
+  for (const change of [...eventChanges, ...editionChanges]) {
     expect(change).toMatchObject({
       actor: "catalog-research",
       initiatedBy: "fixture-owner",
@@ -260,7 +295,7 @@ test("rerun preserves identity and omitting facts does not clear them", async ()
       generateCandidate: async () => candidate(termIds),
     },
   );
-  const before = readResearchCatalog(client);
+  const before = catalogState(client);
   const editionId = readResearchEvent(client, first.eventId!)!.editions[0].id;
   const proposed = candidate(termIds);
   proposed.eventId = first.eventId;
@@ -285,8 +320,8 @@ test("rerun preserves identity and omitting facts does not clear them", async ()
       newValue: "sold_out",
     }),
   ]);
-  // Private reads include stored versions and audit history, not only public facts.
-  expect(readResearchCatalog(client)).toEqual(before);
+  // The rollback covers accepted facts, audit history, and operation receipts.
+  expect(catalogState(client)).toEqual(before);
   const changed = await runCatalogResearch(
     {
       mode: "refresh",
@@ -305,9 +340,11 @@ test("rerun preserves identity and omitting facts does not clear them", async ()
     startsOn: "2027-07-01",
     ticketAvailability: "sold_out",
   });
-  const after = readResearchCatalog(client);
-  expect(after.map((event) => event.id)).toEqual([first.eventId]);
-  expect(after[0].editions.map((edition) => edition.id)).toEqual([editionId]);
+  const after = catalogState(client);
+  expect(after.catalog.map((event) => event.id)).toEqual([first.eventId]);
+  expect(after.catalog[0].editions.map((edition) => edition.id)).toEqual([
+    editionId,
+  ]);
   const repeat = await runCatalogResearch(
     {
       mode: "check",
@@ -321,7 +358,23 @@ test("rerun preserves identity and omitting facts does not clear them", async ()
   expect(repeat.outcome).toBe("unchanged");
   expect(repeat.eventId).toBe(first.eventId);
   expect(repeat.changes).toEqual([]);
-  expect(readResearchCatalog(client)).toEqual(after);
+  const afterRepeat = catalogState(client);
+  expect(afterRepeat.catalog).toEqual(after.catalog);
+  expect(afterRepeat.audit).toEqual(after.audit);
+  expect(afterRepeat.receipts).toHaveLength(after.receipts.length + 2);
+  expect(
+    afterRepeat.receipts
+      .filter(
+        (receipt) =>
+          !after.receipts.some(
+            (prior) => prior.operationKey === receipt.operationKey,
+          ),
+      )
+      .map((receipt) => receipt.result),
+  ).toEqual([
+    expect.objectContaining({ changed: false }),
+    expect.objectContaining({ changed: false }),
+  ]);
 });
 
 test.each(["add", "refresh"] as const)(
@@ -333,7 +386,7 @@ test.each(["add", "refresh"] as const)(
       { client, readSource, generateCandidate: async () => candidate(termIds) },
     );
     expect(first.outcome).toBe("published");
-    const before = readResearchCatalog(client);
+    const before = catalogState(client);
     const proposed = candidate(termIds);
     if (mode === "add") {
       proposed.eventName = "Another Fest";
@@ -366,44 +419,49 @@ test.each(["add", "refresh"] as const)(
     );
     expect(result.modelResponse).toEqual({ text: null, object: proposed });
     expect(result.changes).toEqual([]);
-    expect(readResearchCatalog(client)).toEqual(before);
+    expect(catalogState(client)).toEqual(before);
   },
 );
 
-test("refresh exposes only its Event and saved links to the model", async () => {
-  const { client, readSource } = fixture();
-  const fx = testFixtures(client);
-  const event = fx.event({ canonicalName: "Example Fest" });
-  fx.event({ canonicalName: "Unrelated Fest" });
-  fx.eventLink(event, { url, kind: "official_site", official: true });
-  const generateCandidate = vi.fn(async (prompt: string) => {
-    const context = JSON.parse(prompt);
-    expect(context.catalog.map((item: { id: string }) => item.id)).toEqual([
-      event.id,
-    ]);
-    expect(context.knownLinks).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ url, owner: "event" }),
-      ]),
+test.each(["refresh", "check"] as const)(
+  "%s exposes only its Event and saved links to the model",
+  async (mode) => {
+    const { client, readSource } = fixture();
+    const fx = testFixtures(client);
+    const event = fx.event({ canonicalName: "Example Fest" });
+    fx.event({ canonicalName: "Unrelated Fest" });
+    fx.eventLink(event, { url, kind: "official_site", official: true });
+    const generateCandidate = vi.fn(async (prompt: string) => {
+      const context = JSON.parse(prompt);
+      expect(context.catalog.map((item: { id: string }) => item.id)).toEqual([
+        event.id,
+      ]);
+      expect(context.compact).toEqual(readResearchEvent(client, event.id));
+      expect(context.compact).not.toHaveProperty("changes");
+      expect(context.knownLinks).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ url, owner: "event" }),
+        ]),
+      );
+      expect(context.inspectedSources).toHaveLength(1);
+      return { ...candidate([]), eventId: "wrong-event" };
+    });
+    const result = await runCatalogResearch(
+      {
+        mode,
+        eventId: event.id,
+        actor: input.actor,
+        initiatedBy: input.initiatedBy,
+        dryRun: false,
+      },
+      { client, readSource, generateCandidate },
     );
-    expect(context.inspectedSources).toHaveLength(1);
-    return { ...candidate([]), eventId: "wrong-event" };
-  });
-  const result = await runCatalogResearch(
-    {
-      mode: "refresh",
-      eventId: event.id,
-      actor: input.actor,
-      initiatedBy: input.initiatedBy,
-      dryRun: false,
-    },
-    { client, readSource, generateCandidate },
-  );
-  expect(readSource).toHaveBeenCalledTimes(1);
-  expect(generateCandidate).toHaveBeenCalledTimes(1);
-  expect(result.outcome).toBe("skipped");
-  expect(result.operations).toEqual([]);
-});
+    expect(readSource).toHaveBeenCalledTimes(1);
+    expect(generateCandidate).toHaveBeenCalledTimes(1);
+    expect(result.outcome).toBe("skipped");
+    expect(result.operations).toEqual([]);
+  },
+);
 
 test("reports preserve raw candidates even when local schema validation rejects them", async () => {
   const { client, readSource } = fixture();
