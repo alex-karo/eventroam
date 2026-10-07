@@ -897,17 +897,11 @@ test.each([
   },
 );
 
-test("undefined update fields are omitted from writes and audit, while null clears price", () => {
+test("updates containing only undefined fields are idempotent no-ops", () => {
   const { client } = testDatabase();
   const fx = testFixtures(client);
   const event = fx.event();
-  const edition = fx.occurrence(event, {
-    priceKind: "exact",
-    priceCurrency: "EUR",
-    priceMinMinor: 12000,
-    priceMaxMinor: 12000,
-    priceCoverage: "full_programme",
-  });
+  const edition = fx.occurrence(event);
   const snapshot = () => ({
     events: client.prepare("SELECT * FROM events").all(),
     occurrences: client.prepare("SELECT * FROM occurrences").all(),
@@ -951,6 +945,18 @@ test("undefined update fields are omitted from writes and audit, while null clea
   }
   // Successful no-ops still receive their normal idempotency receipts.
   expect(count(client, "operation_receipts")).toBe(2);
+});
+
+test("partial updates preserve undefined fields and audit only actual changes", () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  const edition = fx.occurrence(fx.event(), {
+    priceKind: "exact",
+    priceCurrency: "EUR",
+    priceMinMinor: 12000,
+    priceMaxMinor: 12000,
+    priceCoverage: "full_programme",
+  });
   const changed = applyCatalogOperation(client, {
     kind: "updateOccurrence",
     operationKey: "undefined:mixed",
@@ -988,12 +994,25 @@ test("undefined update fields are omitted from writes and audit, while null clea
     price_kind: "exact",
     price_min_minor: 12000,
   });
+});
+
+test("an explicit null clears every stored price field", () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  const edition = fx.occurrence(fx.event(), {
+    priceKind: "exact",
+    priceCurrency: "EUR",
+    priceMinMinor: 12000,
+    priceMaxMinor: 12000,
+    priceCoverage: "full_programme",
+    priceQualification: "Fees included",
+  });
   applyCatalogOperation(client, {
     kind: "updateOccurrence",
     operationKey: "undefined:clear-price",
     actor: "test",
     id: edition.id,
-    expectedVersion: changed.version,
+    expectedVersion: edition.version,
     data: { price: null },
   });
   expect(
