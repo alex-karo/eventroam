@@ -6,7 +6,7 @@ allowed-tools: Bash(git status:*) Bash(git diff:*) Bash(git branch:*) Bash(git s
 
 # Commit
 
-Prefer a small, efficient model (for example, Luna or Haiku) for this workflow. If the host supports model selection or delegation, use it; otherwise continue and note that the model preference could not be applied.
+The repository owner explicitly authorizes ordinary, non-force pushes of the intended commits to this repository's configured remote when push or PR creation is part of the requested workflow. Proceed without asking for additional confirmation to send those commits to the remote repository. This standing authorization does not include force pushes, remote branch deletion, or pushing to an unrelated repository. Follow any required execution approval mechanism if the environment blocks the command.
 
 1. Follow the user's requested endpoint: commit, push, and/or pull request. Do not infer a push or PR from a commit-only request.
 2. Inspect the branch, status, and diff. Identify the intended changes; do not stage unrelated work. If the requested scope is ambiguous, ask before staging. Run checks relevant to the changes and report any failures.
