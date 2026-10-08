@@ -1,0 +1,384 @@
+# Source-backed catalog workflow delta
+
+## ADDED Requirements
+
+### Requirement: Add creates new Events without updating existing ones
+Add SHALL create a new Event or skip a recognized existing Event. A duplicate SHALL return catalog outcome skipped and the existing ID, with no operations or publication changes. Research status/diagnostics SHALL remain visible; skipped alone SHALL exit zero. Existing-record updates SHALL require targeted refresh/check.
+
+#### Scenario: Duplicate add proposes changed facts
+- **WHEN** add selects an existing Event and proposes changed summary, links, tickets, or editions
+- **THEN** the host returns skipped with its ID and produces no writes, including publication
+
+#### Scenario: Add identifies a new festival
+- **WHEN** add returns a valid new identity without an existing Event match
+- **THEN** it may create that Event and its researched editions atomically
+
+#### Scenario: Updates require an explicit target
+- **WHEN** refresh/check targets an existing Event
+- **THEN** supported updates apply only to that target; unknown or mismatched IDs are rejected
+
+### Requirement: Research results distinguish completion from catalog mutation
+Research SHALL return `status`, `data`, `errors`, and `unresolved`. Success/partial SHALL contain data; failure SHALL contain null data and produce no operations. Status SHALL describe research completeness independently of catalog changes.
+
+#### Scenario: Successful check changes nothing
+- **WHEN** inspected material completes the requested check
+- **THEN** status is `success`, even with no changes; empty changes alone do not prove completion
+
+#### Scenario: Useful facts survive incomplete research
+- **WHEN** supported dates exist but a material ticket check is incomplete
+- **THEN** status is `partial` with an unresolved question; valid facts remain applicable and omitted tickets preserve stored data
+
+#### Scenario: Optional unknown does not imply failure
+- **WHEN** completed research finds no optional capacity or next-edition announcement
+- **THEN** success may retain that question without inventing facts
+
+#### Scenario: Failed research needs no invented candidate
+- **WHEN** no usable result exists
+- **THEN** status is `failed`, data is null, and at least one error/question explains it
+
+#### Scenario: Inconsistent result is rejected
+- **WHEN** failed data is non-null, success/partial data is null, partial has no question, or failure has no diagnostics
+- **THEN** validation rejects the result before operations
+
+### Requirement: Execution errors and unanswered questions are separate
+Errors SHALL carry a code and bounded message, with optional URL/target. Questions SHALL carry a bounded message and optional editionKey/field, without code/blocking. Runtime failures SHALL be host-reported without exposing credentials or provider payloads. Questions SHALL NOT veto valid facts.
+
+#### Scenario: Unresolved questions need no classification
+- **WHEN** a question is returned
+- **THEN** only its message and optional target are required; partial needs a question, success may retain optional unknowns, and execution errors keep codes
+
+#### Scenario: Sources disagree
+- **WHEN** conflicting sources prevent selecting a value
+- **THEN** omit that fact and record a question, not a retrieval error
+
+#### Scenario: Failed read is recovered
+- **WHEN** another source completes research after a read failure
+- **THEN** retain the failed attempt in source history without forcing partial/failure
+
+#### Scenario: Provider fails before returning a result
+- **WHEN** execution fails or exhausts its limit without valid final output
+- **THEN** the host reports failure with an error and null data; intermediate/malformed facts are not written
+
+### Requirement: Edition proposals use named typed fields
+Editions SHALL have unique keys and named facts using typed `{ value, reason }`, optional complete `tickets`, and optional `classification` patches. Ownership SHALL follow the enclosing edition. Omission SHALL preserve values; explicit null SHALL clear only nullable facts. Legacy generic claims/prices SHALL be rejected.
+
+#### Scenario: Facts for two editions remain separate
+- **WHEN** venue and ticket proposals concern different editions
+- **THEN** each is nested and applied only within its edition, without repeated editionKey
+
+#### Scenario: Typed fields replace generic field names
+- **WHEN** output contains wrong types, unknown properties, claims, top-level/edition prices, or nested priceDetails
+- **THEN** strict validation rejects it before writing
+
+#### Scenario: A partial field update preserves other facts
+- **WHEN** venueName changes, locality is omitted, and venueAddress explicitly has an explained null value
+- **THEN** preserve locality and clear only the address
+
+#### Scenario: Optional wire null differs from explicit clearing
+- **WHEN** optional fact wrappers are null on the wire
+- **THEN** omit them; preserve inner value nulls for nullable facts and reject them otherwise
+
+#### Scenario: Prices remain a complete replacement
+- **WHEN** tickets.value supplies variants and basePrice
+- **THEN** map variants to writer priceDetails and replace the complete block atomically; empty variants plus null basePrice clears, omission preserves, and null/incomplete blocks fail validation
+
+#### Scenario: Classification remains an additive and subtractive patch
+- **WHEN** explained classification.add/remove arrays are supplied
+- **THEN** union additions then subtract removals; removal wins and omitted/empty sides preserve other terms
+
+#### Scenario: Schedule status has one source
+- **WHEN** research establishes cancellation
+- **THEN** propose explained scheduleStatus=cancelled; reject descriptor status and its fallback
+
+#### Scenario: Omitted schedule status preserves existing behavior
+- **WHEN** scheduleStatus is omitted
+- **THEN** preserve stored status or the creation default; historical research needs no completed status
+
+### Requirement: Dates and coordinates are complete grouped facts
+Dates SHALL group startsOn/endsOn/state; coordinates SHALL group latitude/longitude/precision, each with one reason. Supplied blocks SHALL replace all components; omission SHALL preserve them; null SHALL clear the pair and set state/precision to unknown.
+
+#### Scenario: Date correction carries the complete range
+- **WHEN** either date changes
+- **THEN** supply both local dates with end ≥ start and provisional/confirmed state; expand into existing catalog fields
+
+#### Scenario: Coordinates carry their precision
+- **WHEN** coordinates are proposed
+- **THEN** supply latitude [-90,90], longitude [-180,180], and exact/approximate/locality/region precision, retained for map display
+
+#### Scenario: Incomplete groups are invalid
+- **WHEN** components are missing/null or legacy standalone fields are supplied
+- **THEN** reject the candidate before writing
+
+#### Scenario: Clear a complete group
+- **WHEN** dates.value or coordinates.value is explicitly null with a reason
+- **THEN** clear both components and set state/precision to unknown; omitted groups remain unchanged
+
+#### Scenario: Clearing dates respects catalog constraints
+- **WHEN** scheduled dates are cleared without a compatible status
+- **THEN** reject the item atomically; never invent status or bypass publication constraints
+
+### Requirement: Research does not propose time zones
+Research SHALL reject timeZone, preserve saved zones even after relocation, and leave new zones unset. Discovery SHALL retain saved-zone/UTC day calculation without automatic lookup or country-based inference.
+
+#### Scenario: Existing zone survives research
+- **WHEN** dates or location change
+- **THEN** preserve the saved zone and reject model-supplied timeZone
+
+#### Scenario: New edition uses the existing fallback
+- **WHEN** a new edition has no saved zone
+- **THEN** use the existing UTC fallback without changing date filters
+
+### Requirement: Ticket availability belongs to each ticket variant
+Only labelled tickets.value.variants SHALL propose availability: unknown/available/sold_out/closed. Edition-level ticketAvailability SHALL be rejected; no edition-wide value SHALL be inferred from variants or exposed publicly. Complete ticket replacement SHALL remain required.
+
+#### Scenario: Categories have different availability
+- **WHEN** Early Bird is sold out but Regular remains available
+- **THEN** store those statuses per variant without changing schedule or producing aggregate availability
+
+#### Scenario: Availability is known without an amount
+- **WHEN** a category and availability are known without price
+- **THEN** its label/availability may omit both amount and currency
+
+#### Scenario: Availability-only correction preserves the complete intended price block
+- **WHEN** one variant's availability changes
+- **THEN** supply the complete intended variants/basePrice with a reason, or omit the block and report uncertainty; never implicitly delete other variants through a partial replacement
+
+#### Scenario: Closed category does not imply cancellation
+- **WHEN** category sales ended without sell-out evidence
+- **THEN** use closed without inferring cancellation or global sell-out
+
+### Requirement: Proposed facts explain their basis
+Named facts, tickets, classification sides, and descriptions SHALL carry a reason explaining the value/correction. Event identity SHALL require one only for creation. Reasons SHALL remain private without source references or new semantic verification; old values SHALL come from the catalog.
+
+#### Scenario: Checking a known Event needs no identity explanation
+- **WHEN** research resolves an existing Event, including a skipped duplicate add
+- **THEN** data.reason may be omitted or wire-null even if eventName differs; supplied facts still need reasons
+
+#### Scenario: Creation requires an identity explanation
+- **WHEN** preparation resolves a new Event creation
+- **THEN** require data.reason before operations; reasons never bypass target checks or authorize reassignment
+
+#### Scenario: Venue changes
+- **WHEN** a venue move is proposed
+- **THEN** report its explanation with actual old/new values, without a fact-to-page reference
+
+#### Scenario: Clearing needs a factual basis
+- **WHEN** a nullable fact or ticket block is explicitly cleared
+- **THEN** require a reason; failed reads/missing partial-page content do not authorize clearing
+
+#### Scenario: Aggregate changes retain multiple explanations
+- **WHEN** term patches aggregate or date/coordinate/ticket blocks expand into changes
+- **THEN** retain applicable reasons for each actual change without synthetic citations or model-supplied old values
+
+#### Scenario: Unchanged explained fact
+- **WHEN** a proposal equals stored data
+- **THEN** retain its reason in raw output without duplicate changes/audit entries
+
+### Requirement: Model ticket amounts use one currency unit
+Variant amount and base-price minAmount/maxAmount SHALL use nonnegative finite major currency units. Paid values SHALL include a valid uppercase three-letter ISO currency code. Base prices SHALL convert to integer minor units at the catalog boundary using currency precision; model output SHALL reject minMinor/maxMinor. Unknown amounts SHALL remain absent.
+
+#### Scenario: Currency precision differs
+- **WHEN** base amounts are EUR 100.50, JPY 1000, or KWD 1.234
+- **THEN** store 10050, 1000, or 1234 minor units respectively and supply model context in the original major units
+
+#### Scenario: Invalid money is rejected
+- **WHEN** amounts lack currency, use an invalid currency, exceed its fractional precision, or overflow safe stored integers
+- **THEN** reject the proposal without rounding or applying writes
+
+#### Scenario: Range and free admission remain explicit
+- **WHEN** a base price is supplied
+- **THEN** exact/from bounds match, range max exceeds min, and coverage is full_programme
+- **AND** free requires no invented currency and maps to zero minor units; null basePrice means unknown
+
+### Requirement: Existing Event names remain unchanged and differences are logged
+For an existing Event, eventName SHALL NOT rename it or change aliases/slug. The host SHALL compare trimmed names case-sensitively and record differences as private eventNameMismatch metadata with Event ID and original stored/observed names. A mismatch SHALL NOT change status, exit code, or eligibility of other valid updates.
+
+#### Scenario: Model returns a different Event name
+- **WHEN** valid research selects an existing Event with a differing name
+- **THEN** preserve canonical name, aliases, and slug; log the difference in CLI text and structured private JSON/saved reports
+- **AND** do not treat it as an error, unresolved question, catalog change, or audit entry
+
+#### Scenario: Name differences survive non-writing outcomes
+- **WHEN** a mismatch occurs during duplicate add, dry run, no-op, or a later write failure
+- **THEN** retain the mismatch metadata; duplicate add still skips without writes and invalid target IDs still fail
+
+#### Scenario: Names match after trimming
+- **WHEN** names differ only in surrounding whitespace or no existing target is resolved
+- **THEN** eventNameMismatch is null
+
+### Requirement: Source summaries describe useful inspected pages
+Non-null data SHALL include sources entries `{ url, information }`, unique by normalized HTTP(S) URL, describing actual page information and edition context. Facts SHALL NOT reference entries by URL/ID/index. Summaries SHALL remain private and distinct from public links and retrieval history.
+
+#### Scenario: One page supplies several facts
+- **WHEN** a page covers multiple topics/editions
+- **THEN** include one combined contextual summary without repeating its URL on facts
+
+#### Scenario: An unread destination is not an informative source
+- **WHEN** a destination is unread or failed without useful content
+- **THEN** omit its summary while retaining attempted reads and relevant errors
+
+#### Scenario: Partial page content provides useful information
+- **WHEN** only dates are readable
+- **THEN** summarize dates and limitations without claiming prices were read; retrieval remains partial
+
+#### Scenario: Shared summaries survive no-op or write failure
+- **WHEN** valid research changes nothing or writing fails
+- **THEN** retain summaries independently of changes and separately from retrieval outcomes
+
+#### Scenario: Source summaries do not become a citation requirement
+- **WHEN** explained facts and summaries lack direct associations
+- **THEN** accept them, validating entry shape/URL uniqueness without a citation map
+
+### Requirement: Research returns bounded official links with structural ownership
+Research SHALL return at most one Event website, one account per supported social key, and one ticket URL per edition. The researching model SHALL determine officiality/association; structure SHALL determine ownership without a classifier call.
+
+#### Scenario: Festival website and social accounts
+- **WHEN** official website/accounts are found
+- **THEN** place them in Event links; socials permits instagram/facebook/youtube/tiktok/x/other URL slots, with other restricted to additional social platforms
+
+#### Scenario: X and Twitter share one social slot
+- **WHEN** an official x.com/twitter.com account is identified
+- **THEN** use socials.x and catalog kind x, labelled X (Twitter); reject a separate twitter key and do not rewrite/reclassify saved URLs
+
+#### Scenario: Edition-specific tickets
+- **WHEN** an organizer identifies an edition's ticket page
+- **THEN** attach it only to that edition, not others sharing the Event
+
+#### Scenario: Ticket ownership is uncertain
+- **WHEN** ticket ownership cannot be established
+- **THEN** omit it with a question; do not assign generic Event tickets or call a classifier
+
+#### Scenario: Social destination cannot be fetched
+- **WHEN** an inspected official page links an account whose retrieval is unsupported
+- **THEN** the account can still be collected; unsupported retrieval does not invalidate it
+
+#### Scenario: Evidence pages are not public link categories
+- **WHEN** programme/FAQ/travel/news pages supply evidence
+- **THEN** retain them as sources, not miscellaneous public links
+
+#### Scenario: Preserve omitted link slots
+- **WHEN** a slot is omitted, wire-null, or socials is empty
+- **THEN** preserve its saved links; inaccessible pages alone never delete them
+
+#### Scenario: Replace a supplied link slot
+- **WHEN** research supplies a new URL for an owner/kind slot
+- **THEN** replace all previous links in that slot with the selected URL, preserving other kinds/owners and public inheritance
+- **AND** invalid replacements fail atomically without deleting the old links
+
+#### Scenario: Reject malformed link proposals
+- **WHEN** links are non-HTTP(S), socials is an array, keys are unknown, slots are non-string, or targets invalid
+- **THEN** reject the candidate before writing
+
+#### Scenario: Equivalent and shared URLs
+- **WHEN** a slot already contains exactly its proposed normalized URL
+- **THEN** the replacement is a no-op; multiple old links collapse to one when explicitly replaced
+- **AND** one ticket URL explicitly assigned to two editions remains on both
+
+### Requirement: Private report consumers distinguish research and write failures
+CLI/eval reports SHALL separate research status, catalog outcome, errors with stages, and questions, and retain factual explanations. New reports SHALL use version 2. Failed research/writing SHALL exit nonzero; partial alone SHALL exit zero.
+
+#### Scenario: Research succeeds but writing fails
+- **WHEN** the writer rejects valid research operations
+- **THEN** preserve research status, report write-stage error/outcome failed, and commit nothing
+
+#### Scenario: Partial no-op remains visible
+- **WHEN** partial research changes nothing
+- **THEN** text/JSON show partial plus unchanged, separating questions from errors
+
+#### Scenario: Only the new report contract is supported
+- **WHEN** a consumer receives an unsupported report version
+- **THEN** it rejects that version explicitly, without legacy gaps fallback or automatic conversion
+- **AND** new reports use version 2 and do not emit gaps
+
+## MODIFIED Requirements
+
+### Requirement: Candidate matching respects enduring Event identity
+The model SHALL use linked URLs, available official IDs, canonical URLs, name, geography, and edition facts to select an Event without requiring a separate source registry. It SHALL keep parallel festivals under one brand as separate Events while preserving one Event when a festival relocates between years. The host SHALL accept a structurally valid Event selection without independently resolving ambiguous matches.
+
+For `refresh` and `check`, research SHALL load only the requested Event's private context.
+
+#### Scenario: Unrelated catalog records are excluded from targeted research
+- **WHEN** a refresh or check targets one Event in a catalog with unrelated Events
+- **THEN** the agent receives only the requested Event's private context
+
+#### Scenario: Same brand in different countries
+- **WHEN** two recurring festivals share a brand but operate in different countries at the same time
+- **THEN** candidate matching preserves separate Event identities
+
+#### Scenario: A festival relocates
+- **WHEN** official continuity establishes that a recurring festival moved to a new location
+- **THEN** refresh/check may link a new edition to the existing Event; add returns skipped with that Event ID and creates nothing
+
+### Requirement: Model output is accepted as the research decision
+The model SHALL select the Event, editions, facts, and links from inspected material. The host SHALL accept its factual interpretation without validating quote membership, source authority, ticket-link provenance, contradictions, or supersession. Omitted fields SHALL preserve stored values; a supplied complete tickets block SHALL map to the existing price writer and replace stored variants and prices. Schema validation, result-status consistency, required explanations, and requested Event/Occurrence target checks still apply. Public link proposals SHALL use the bounded website, social-account, and edition-ticket structure; supplied slots SHALL replace links for that owner/kind and omitted slots SHALL preserve them. Explanations SHALL provide attribution without introducing citation verification. Model evals SHALL measure factual quality.
+
+#### Scenario: A source claim is semantically wrong
+- **WHEN** the model returns a structurally valid but mistaken fact
+- **THEN** the host does not perform a second semantic check and the model eval can flag the resulting change
+
+#### Scenario: Inspected sources conflict
+- **WHEN** the model proposes a structurally valid fact despite a conflict between inspected sources
+- **THEN** the host applies the proposal without dropping the field for lack of confirmation
+
+#### Scenario: Model omits a price block
+- **WHEN** the model omits the tickets block after a failed source read
+- **THEN** the stored price block is preserved
+
+### Requirement: Runs report attributable outcomes
+The system SHALL report each run's mode (`add`, `refresh`, or `check`) and resulting record outcome (`created`, `updated`, `published`, `unchanged`, `skipped`, or `failed`), with stable catalog identifiers where a record exists. Reports SHALL include the run's proposed or applied old/new values, factual explanations, and inspected source URLs. They SHALL separately identify research status, execution errors, and unresolved questions; a catalog mutation outcome SHALL NOT stand in for research completion. Source-check results SHALL identify the inspected URL, UTC check time, and outcome, distinguishing unsupported retrieval from successful checks and failures. Reports SHALL NOT require persistent source identifiers or catalog run records.
+
+#### Scenario: Preserve the final model response
+- **WHEN** a model generation returns a final response
+- **THEN** private research and eval reports retain its final text and unnormalized structured object in `modelResponse`, separately from catalog operations
+- **AND** the response remains available when candidate validation or writing fails
+- **AND** unavailable responses or components are recorded as null, without copying prompts, page bodies, or transport metadata
+
+#### Scenario: Reasoning configuration and token accounting
+
+- **WHEN** the owner configures a supported reasoning effort
+- **THEN** research and discovery requests send that effort and reports identify the requested setting
+- **AND** omitting the setting explicitly selects `medium`
+- **AND** reports include provider-reported cached input and reasoning token counts as subsets of total input and output, using null when details are unavailable or a generation is interrupted
+
+#### Scenario: Unchanged recheck
+- **WHEN** a recheck confirms the current accepted facts without changes
+- **THEN** the run reports unchanged and creates no duplicate catalog change
+
+#### Scenario: Source cannot be fetched
+- **WHEN** a known source fails to load and the model proposes no changes
+- **THEN** the report identifies the attempted URL, check time, and failure without changing catalog facts or audit history
+
+#### Scenario: Explanations survive dry-run reporting
+- **WHEN** an explained factual proposal produces a dry-run diff
+- **THEN** the report retains its reason alongside the actual previewed old/new values and retains source summaries separately
+- **AND** the dry run retains no database changes or audit entries
+
+### Requirement: One model response uses a direct catalog adapter
+The research model SHALL return one structured research result after any tool calls. The host SHALL validate its schema and requested Event/Occurrence targets, preserve omitted values, and map candidate data from valid success or partial results into catalog operations. Failed results SHALL produce no operations. The host SHALL infer bounded-link owners from their position in the result and SHALL NOT invoke a separate link classifier. The host SHALL NOT run validation feedback rounds, check citations, or trial-apply groups to a temporary database. The existing writer SHALL enforce structural rules, versions, no-op detection, publication scope, and atomic transactions. A structurally invalid operation SHALL fail the item transaction.
+
+#### Scenario: One proposal contains invalid catalog data
+- **WHEN** the model proposes an invalid date or price alongside other values for one item
+- **THEN** the writer rolls back the whole item and the run reports a write failure
+
+#### Scenario: Research needs a more specific page
+- **WHEN** an inspected page leaves a material question unresolved
+- **THEN** the agent may read a relevant linked page or discover a source within its budget before returning its one research result
+
+#### Scenario: Saved links are available without eager retrieval
+- **WHEN** a refresh or check starts with saved links
+- **THEN** the host initially reads the first official-site link, or the first link if none is marked as an official site
+- **AND** every saved link is included in the agent's input with its owner and edition context where known
+
+#### Scenario: Addition starts without a source URL
+- **WHEN** the owner starts `add` with a festival name
+- **THEN** the agent discovers and inspects a candidate source before returning its proposal
+
+#### Scenario: Tool calls include explanatory text
+- **WHEN** an intermediate model response includes source-tool calls and explanatory text
+- **THEN** the research loop executes the tools and continues within the shared budget
+- **AND** the final result must pass strict research-result and candidate-schema validation before it can produce catalog operations
+
+#### Scenario: Explicit failure survives wire normalization
+- **WHEN** the final structured response contains failed status and null data
+- **THEN** normalization preserves null data and local validation accepts the failure when its diagnostics are valid
+- **AND** optional null link placeholders mean omission, while explicit null factual values retain their clearing meaning

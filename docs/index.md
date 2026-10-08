@@ -24,6 +24,7 @@ Website:
 
 ## Approved future changes
 
+- [Simpler research output](../openspec/changes/simplify-research-output/proposal.md) — explicit research outcomes, explained facts, replaceable link slots, and ticket-category availability.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
