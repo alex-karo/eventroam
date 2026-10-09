@@ -345,7 +345,7 @@ Research SHALL reject timeZone, preserve saved zones even after relocation, and 
 - **THEN** use the existing UTC fallback without changing date filters
 
 ### Requirement: Ticket availability belongs to each ticket variant
-Only labelled tickets.value.variants SHALL propose availability: unknown/available/sold_out/closed. Edition-level ticketAvailability SHALL be rejected; no edition-wide value SHALL be inferred from variants or exposed publicly. Complete ticket replacement SHALL remain required.
+Only labelled tickets.value.variants SHALL propose availability: unknown/available/sold_out/closed. Edition-level availability proposals SHALL be rejected; no edition-wide value SHALL be inferred from variants or exposed publicly. Complete ticket replacement SHALL remain required.
 
 #### Scenario: Categories have different availability
 - **WHEN** Early Bird is sold out but Regular remains available

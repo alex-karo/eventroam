@@ -50,16 +50,11 @@ test("scenario helpers create distinct public records and typed relationships", 
       .get(edition.id),
   ).toBe(3);
 
-  const source = fx.source();
-  const subject = fx.sourceSubject(source, { occurrence: edition });
   const link = fx.occurrenceLink(edition, {
     kind: "ticketing",
-    sourceId: source.id,
   });
-  expect(subject.occurrenceId).toBe(edition.id);
   expect(link.occurrenceId).toBe(edition.id);
   expect(link.eventId).toBeNull();
-  expect(link.sourceId).toBe(source.id);
   expect(
     client.prepare("SELECT count(*) FROM catalog_changes").pluck().get(),
   ).toBe(0);
@@ -86,10 +81,6 @@ test("scenario publication reuses terms created through the low-level API", () =
 
 test("generated URLs skip values explicitly supplied in the same fixture", () => {
   const fx = testFixtures();
-  fx.source({ canonicalUrl: "https://example.org/test-source-2" });
-  expect(fx.source().canonicalUrl).toBe("https://example.org/test-source-1");
-  expect(fx.source().canonicalUrl).toBe("https://example.org/test-source-3");
-
   const { event } = fx.publishedEvent();
   fx.eventLink(event, { url: "https://example.org/test-link-2" });
   expect(fx.eventLink(event).url).toBe("https://example.org/test-link-1");
@@ -127,14 +118,12 @@ test("a failed published scenario rolls back every related insert", () => {
   }
 });
 
-test("fixture writes validate sources, links, aliases, prices and taxonomy before insertion", () => {
+test("fixture writes validate links, aliases, prices and taxonomy before insertion", () => {
   const { client } = testDatabase();
   const fx = testFixtures(client);
   const event = fx.event();
   const edition = fx.occurrence(event);
   const parent = fx.term({ facet: "genre" });
-  expect(() => fx.source({ kind: "future" as "website" })).toThrow();
-  expect(() => fx.source({ authority: "future" as "official" })).toThrow();
   expect(() =>
     fx.eventLink(event, { kind: "future" as "official_site" }),
   ).toThrow();
@@ -147,7 +136,7 @@ test("fixture writes validate sources, links, aliases, prices and taxonomy befor
   const second = fx.term({ facet: "event_type" });
   fx.assignTerm(edition, first);
   expect(() => fx.assignTerm(edition, second)).toThrow(/Only one/);
-  for (const table of ["sources", "external_links", "url_aliases"]) {
+  for (const table of ["external_links", "url_aliases"]) {
     expect(client.prepare(`SELECT count(*) FROM ${table}`).pluck().get()).toBe(
       0,
     );

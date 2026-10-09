@@ -30,20 +30,6 @@ export const coordinatePrecisions = [
 export const paidPriceKinds = ["exact", "from", "range"] as const;
 export const priceKinds = ["free", ...paidPriceKinds] as const;
 export const priceCoverages = ["full_programme", "day", "package"] as const;
-export const sourceKinds = [
-  "website",
-  "social",
-  "feed",
-  "api",
-  "submission",
-  "manual_reference",
-] as const;
-export const sourceAuthorities = [
-  "official",
-  "partner",
-  "secondary",
-  "community",
-] as const;
 export const linkKinds = [
   "official_site",
   "instagram",

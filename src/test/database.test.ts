@@ -5,22 +5,22 @@ import { testFixtures } from "@/test/fixtures";
 test("each test database call starts empty in a distinct file", () => {
   const first = testDatabase();
   expect(
-    first.client.prepare("SELECT count(*) FROM sources").pluck().get(),
+    first.client.prepare("SELECT count(*) FROM events").pluck().get(),
   ).toBe(0);
-  testFixtures(first.client).source({ id: "first" });
+  testFixtures(first.client).event({ id: "first" });
   const second = createTestDatabase();
   expect(second.path).not.toBe(first.path);
   expect(
-    second.client.prepare("SELECT count(*) FROM sources").pluck().get(),
+    second.client.prepare("SELECT count(*) FROM events").pluck().get(),
   ).toBe(0);
   expect(
-    first.client.prepare("SELECT count(*) FROM sources").pluck().get(),
+    first.client.prepare("SELECT count(*) FROM events").pluck().get(),
   ).toBe(1);
 });
 
 test("the automatic database starts empty for another test", () => {
   const { client } = testDatabase();
-  expect(client.prepare("SELECT count(*) FROM sources").pluck().get()).toBe(0);
+  expect(client.prepare("SELECT count(*) FROM events").pluck().get()).toBe(0);
   expect(
     client
       .prepare(

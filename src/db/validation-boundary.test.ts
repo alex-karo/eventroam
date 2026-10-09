@@ -9,7 +9,6 @@ test("SQLite accepts removed business rules but retains structural constraints",
   const edition = fx.occurrence(event);
   const term = fx.term({ facet: "event_type" });
   const second = fx.term({ facet: "event_type" });
-  const source = fx.source();
   const link = fx.eventLink(event);
   client
     .prepare(
@@ -18,12 +17,9 @@ test("SQLite accepts removed business rules but retains structural constraints",
     .run(event.id);
   client
     .prepare(
-      "UPDATE occurrences SET ticket_availability='future',schedule_status='future',date_state='unknown',coordinate_precision='exact',publication_state='published',country_code=NULL,price_currency='bad' WHERE id=?",
+      "UPDATE occurrences SET schedule_status='future',date_state='unknown',coordinate_precision='exact',publication_state='published',country_code=NULL,price_currency='bad' WHERE id=?",
     )
     .run(edition.id);
-  client
-    .prepare("UPDATE sources SET kind='future',authority='future' WHERE id=?")
-    .run(source.id);
   client
     .prepare("UPDATE external_links SET kind='future' WHERE id=?")
     .run(link.id);

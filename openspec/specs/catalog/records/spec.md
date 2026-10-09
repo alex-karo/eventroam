@@ -91,11 +91,11 @@ The catalog SHALL store ticket variants with their labels, supplied amounts/curr
 - **THEN** normalization produces no catalog change
 
 ### Requirement: Ticket availability represents closed sales
-Occurrence ticket availability SHALL support `unknown`, `available`, `sold_out`, and `closed`. `closed` SHALL mean general-admission sales have ended or are closed, without asserting an edition-wide sell-out or cancellation. Existing values SHALL retain their meaning.
+Each named ticket variant MAY store availability as `unknown`, `available`, `sold_out`, or `closed`. `closed` SHALL mean sales for that category have ended or are closed, without asserting an edition-wide sell-out or cancellation. Availability SHALL be stored only inside the ticket variant list, without an edition-wide aggregate.
 
 #### Scenario: Closed sales are recorded
-- **WHEN** a validated operation sets an Occurrence's ticket availability to `closed`
-- **THEN** the catalog stores and returns `closed` without changing the edition's schedule status
+- **WHEN** a validated complete price-block replacement sets a ticket variant's availability to `closed`
+- **THEN** the catalog stores `closed` for that category without changing the edition's schedule status or another category's availability
 
 ### Requirement: Model writes retain changes and attribution
 The system SHALL commit catalog changes, operation receipts, actor, and any supplied initiating owner atomically. The audit SHALL retain old and new field values.

@@ -371,7 +371,6 @@ function createOccurrence(
     publicationState: "draft" as const,
     dateState: data.dateState ?? "unknown",
     scheduleStatus: data.scheduleStatus ?? "announced",
-    ticketAvailability: data.ticketAvailability ?? "unknown",
     coordinatePrecision: data.coordinatePrecision ?? "unknown",
     version: 1,
     createdAt: now,
@@ -679,7 +678,6 @@ function replaceLinks(
         url: normalizeCatalogUrl(l.url),
         label: l.label ?? null,
         official: l.official,
-        sourceId: l.sourceId ?? null,
       }))
       .sort((a, b) => `${a.kind}:${a.url}`.localeCompare(`${b.kind}:${b.url}`));
   const desired = normalize(op.links);
@@ -694,7 +692,6 @@ function replaceLinks(
       url: externalLinks.url,
       label: externalLinks.label,
       official: externalLinks.official,
-      sourceId: externalLinks.sourceId,
     })
     .from(externalLinks)
     .where(eq(ownerColumn, op.owner.id))
@@ -731,21 +728,18 @@ function replaceLinks(
           url: link.url,
           label: link.label,
           official: link.official,
-          sourceId: link.sourceId,
           createdAt: now,
           updatedAt: now,
         })
         .run();
     } else if (
       priorLink.label !== link.label ||
-      priorLink.official !== link.official ||
-      priorLink.sourceId !== link.sourceId
+      priorLink.official !== link.official
     ) {
       db.update(externalLinks)
         .set({
           label: link.label,
           official: link.official,
-          sourceId: link.sourceId,
           updatedAt: now,
         })
         .where(eq(externalLinks.id, priorLink.id))

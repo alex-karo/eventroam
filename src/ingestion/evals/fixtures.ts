@@ -3,7 +3,6 @@ import {
   scopes,
   dateStates,
   scheduleStatuses,
-  ticketAvailabilities,
   facets,
   linkKinds,
 } from "@/catalog/domain/vocabulary";
@@ -27,7 +26,6 @@ const occurrence = z.object({
   endsOn: z.string().nullable().optional(),
   dateState: z.enum(dateStates).optional(),
   scheduleStatus: z.enum(scheduleStatuses).optional(),
-  ticketAvailability: z.enum(ticketAvailabilities).optional(),
   publicationState: z.enum(publicationStates).optional(),
   countryCode: z.string().nullable().optional(),
   locality: z.string().nullable().optional(),
