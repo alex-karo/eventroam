@@ -1,6 +1,7 @@
-import type { ResearchBudget } from "../runtime/budget";
+import { ResearchLimitError, type ResearchBudget } from "../runtime/budget";
 import type { ResearchConfig } from "../runtime/config";
 import type { DiscoverSourcesResult, SourceCandidate } from "./contracts";
+import { searchQuerySchema } from "./tool-schemas";
 
 interface Citation {
   type?: unknown;
@@ -136,14 +137,42 @@ function sourceCandidates(
   return candidates;
 }
 
+async function waitBeforeRetry(
+  attempt: number,
+  options: DiscoverSourcesOptions,
+  retryAfter: string | null = null,
+): Promise<void> {
+  const remaining = options.budget.remaining();
+  if (remaining.searches === 0) {
+    throw new ResearchLimitError("searches");
+  }
+  if (remaining.modelCalls === 0) {
+    throw new ResearchLimitError("modelCalls");
+  }
+  const now = (options.now?.() ?? new Date()).getTime();
+  const seconds =
+    retryAfter !== null && /^\d+(?:\.\d+)?$/.test(retryAfter.trim())
+      ? Number(retryAfter) * 1000
+      : NaN;
+  const retryAfterMs = Number.isFinite(seconds)
+    ? seconds
+    : Date.parse(retryAfter ?? "") - now;
+  const delay = Math.max(
+    500 * 2 ** attempt,
+    Number.isFinite(retryAfterMs) ? retryAfterMs : 0,
+  );
+  if (delay >= remaining.durationMs) {
+    throw new ResearchLimitError("time");
+  }
+  await new Promise<void>((resolve) => setTimeout(resolve, delay));
+  options.budget.assertTime();
+}
+
 export async function discoverSources(
   query: string,
   options: DiscoverSourcesOptions,
 ): Promise<DiscoverSourcesResult> {
-  const normalized = query.trim();
-  if (!normalized || normalized.length > 500) {
-    throw new Error("Search query must contain 1–500 characters");
-  }
+  const normalized = searchQuerySchema.parse(query);
   const maxResults = Math.min(
     Math.max(1, options.budget.limits.searchResults),
     20,
@@ -164,6 +193,12 @@ export async function discoverSources(
           attempt < 2
         ) {
           lastError = error;
+          await response.body?.cancel();
+          await waitBeforeRetry(
+            attempt,
+            options,
+            response.headers.get("retry-after"),
+          );
           continue;
         }
         throw error;
@@ -178,6 +213,7 @@ export async function discoverSources(
       ) {
         throw lastError;
       }
+      await waitBeforeRetry(attempt, options);
     }
   }
   if (!data) {
@@ -187,6 +223,10 @@ export async function discoverSources(
   const candidates = sourceCandidates(data, maxResults);
   return {
     query: normalized,
+    usageComplete:
+      billedSearches === 1 &&
+      typeof data.usage?.prompt_tokens === "number" &&
+      typeof data.usage?.completion_tokens === "number",
     candidates,
     retrievedAt: (options.now?.() ?? new Date()).toISOString(),
     modelCostUsd:

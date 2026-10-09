@@ -9,12 +9,19 @@ import type { ResearchConfig } from "../runtime/config";
 import { createResearchModel } from "../runtime/openrouter";
 import type { ReadSourceResult, KnownSourceLink } from "../sources/contracts";
 import type { SourceSession } from "../sources/session";
+import {
+  readSourceInputSchema,
+  readSourceOutputSchema,
+  discoverSourcesInputSchema,
+  discoverSourcesOutputSchema,
+} from "../sources/tool-schemas";
 import { researchCandidateSchema, type ResearchError } from "./contracts";
 import { minorToMajor } from "./money";
 import type { ResearchCatalog } from "./prepare";
 import type { ResearchContext } from "./context";
 
 export type ModelUsage = {
+  complete: boolean;
   inputTokens: number;
   outputTokens: number;
   cachedInputTokens: number | null;
@@ -42,9 +49,10 @@ export async function researchFestival(
     id: "readSource",
     description:
       "Read a specific public page to resolve a missing or conflicting festival fact. Choose a relevant inspected link or discovered URL. Returns Markdown and remaining budget; repeated URLs return cached content, including failures. No writes.",
-    inputSchema: z.object({ url: z.string() }),
+    inputSchema: readSourceInputSchema,
+    outputSchema: readSourceOutputSchema,
     execute: async ({ url }) => {
-      const result = await read(z.url().parse(url));
+      const result = await read(url);
       return { ...boundedToolSource(result), remaining: budget.remaining() };
     },
   });
@@ -52,9 +60,10 @@ export async function researchFestival(
     id: "discoverSources",
     description:
       "Find source URLs when inspected pages and their relevant links cannot answer a material question. Inspect a destination with readSource before using its facts.",
-    inputSchema: z.object({ query: z.string() }),
+    inputSchema: discoverSourcesInputSchema,
+    outputSchema: discoverSourcesOutputSchema,
     execute: async ({ query }) => ({
-      ...(await search(z.string().min(3).max(300).parse(query))),
+      ...(await search(query)),
       remaining: budget.remaining(),
     }),
   });
@@ -72,12 +81,16 @@ export async function researchFestival(
         tools: { readSource: sourceTool, discoverSources: searchTool },
       });
   const usage: ModelUsage = {
+    complete: !deps.generateCandidate,
     inputTokens: 0,
     outputTokens: 0,
     cachedInputTokens: deps.generateCandidate ? null : 0,
     reasoningTokens: deps.generateCandidate ? null : 0,
     modelCostUsd: null,
   };
+  let completedSteps = 0;
+  let startedSteps = 0;
+  let missingCost = false;
   if (budget.remaining().modelCalls <= 0) {
     return {
       ok: false,
@@ -140,6 +153,17 @@ export async function researchFestival(
             maxRetries: 0,
           },
           abortSignal: abort.signal,
+          onStepFinish: (step) => {
+            completedSteps += 1;
+            updateModelUsage(usage, step);
+            missingCost ||= usage.modelCostUsd === null;
+          },
+          onError: () => {
+            usage.complete = false;
+          },
+          onAbort: () => {
+            usage.complete = false;
+          },
           prepareStep: ({ messageList, systemMessages }) => {
             const chars =
               JSON.stringify(messageList.get.all.db()).length +
@@ -149,6 +173,7 @@ export async function researchFestival(
             }
             const finalCall = budget.remaining().modelCalls <= 1;
             budget.consumeModelCall();
+            startedSteps += 1;
             return finalCall
               ? { toolChoice: "none", activeTools: [] }
               : undefined;
@@ -159,19 +184,20 @@ export async function researchFestival(
         await mastra.shutdown();
       }
       raw = generated.object;
-      updateModelUsage(usage, generated);
-      if (raw == null && generated.finishReason === "retry") {
-        // Mastra can return a retry finish reason without an error object even
-        // when the provider rejected the only HTTP request.
-        throw Object.assign(new Error("Model generation failed"), {
-          statusCode: providerHttpStatus,
-        });
-      }
+      throwIfProviderRetry(raw, generated.finishReason, providerHttpStatus);
       text = generated.text ?? null;
+      usage.complete &&= completedSteps === startedSteps;
+      if (!usage.complete || missingCost) {
+        usage.modelCostUsd = null;
+      }
     }
   } catch (error) {
-    usage.cachedInputTokens = null;
-    usage.reasoningTokens = null;
+    usage.complete = false;
+    usage.modelCostUsd = null;
+    if (completedSteps === 0) {
+      usage.cachedInputTokens = null;
+      usage.reasoningTokens = null;
+    }
     const classified = classifyModelError(error, budget.deadline);
     return {
       ok: false,
@@ -189,6 +215,8 @@ export async function researchFestival(
     };
   }
   if (raw == null && budget.remaining().durationMs === 0) {
+    usage.complete = false;
+    usage.modelCostUsd = null;
     return {
       ok: false,
       usage,
@@ -210,23 +238,51 @@ export async function researchFestival(
   };
 }
 
+function throwIfProviderRetry(
+  object: unknown,
+  finishReason: string | undefined,
+  statusCode: number | undefined,
+): void {
+  // Mastra can return a retry finish reason without an error object even
+  // when the provider rejected the only HTTP request.
+  if (object == null && finishReason === "retry") {
+    throw Object.assign(new Error("Model generation failed"), { statusCode });
+  }
+}
+
 function updateModelUsage(
   usage: ModelUsage,
-  generated: { usage?: { inputTokens?: number; outputTokens?: number } },
+  step: {
+    usage?: { inputTokens?: number; outputTokens?: number; raw?: unknown };
+  },
 ): void {
-  usage.inputTokens += generated.usage?.inputTokens ?? 0;
-  usage.outputTokens += generated.usage?.outputTokens ?? 0;
-  const metadata = generated as unknown as {
-    providerMetadata?: {
-      openrouter?: {
-        usage?: {
-          cost?: number;
-          promptTokensDetails?: { cachedTokens?: number };
-          completionTokensDetails?: { reasoningTokens?: number };
-        };
-      };
-    };
-    steps?: Array<{
+  const input = step.usage?.inputTokens;
+  const output = step.usage?.outputTokens;
+  // OpenRouter synthesizes zero counts when usage is missing. Read the original
+  // provider payload through Mastra's normalized usage envelopes.
+  let raw = step.usage?.raw;
+  while (raw && typeof raw === "object" && "raw" in raw) {
+    raw = raw.raw;
+  }
+  const rawUsage = raw as
+    | {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+      }
+    | undefined;
+  usage.complete &&=
+    rawUsage?.prompt_tokens != null &&
+    rawUsage?.completion_tokens != null &&
+    input !== undefined &&
+    output !== undefined;
+  if (input === undefined && output === undefined) {
+    usage.modelCostUsd = null;
+    return;
+  }
+  usage.inputTokens += input ?? 0;
+  usage.outputTokens += output ?? 0;
+  const providerUsage = (
+    step as {
       providerMetadata?: {
         openrouter?: {
           usage?: {
@@ -236,34 +292,24 @@ function updateModelUsage(
           };
         };
       };
-    }>;
-  };
-  // Read provider details: SDK-normalized usage may turn missing metrics into zero.
-  const usageSteps = metadata.steps?.length ? metadata.steps : [metadata];
-  for (const step of usageSteps) {
-    const providerUsage = step.providerMetadata?.openrouter?.usage;
-    const cached = providerUsage?.promptTokensDetails?.cachedTokens;
-    const reasoning = providerUsage?.completionTokensDetails?.reasoningTokens;
-    usage.cachedInputTokens =
-      usage.cachedInputTokens !== null && cached !== undefined
-        ? usage.cachedInputTokens + cached
-        : null;
-    usage.reasoningTokens =
-      usage.reasoningTokens !== null && reasoning !== undefined
-        ? usage.reasoningTokens + reasoning
-        : null;
-  }
-  const cost = (metadata.steps ?? []).reduce(
-    (total, step) =>
-      total + (step.providerMetadata?.openrouter?.usage?.cost ?? 0),
-    0,
-  );
-  const effectiveCost = metadata.steps?.length
-    ? cost
-    : metadata.providerMetadata?.openrouter?.usage?.cost;
-  if (effectiveCost && effectiveCost > 0) {
-    usage.modelCostUsd = (usage.modelCostUsd ?? 0) + effectiveCost;
-  }
+    }
+  ).providerMetadata?.openrouter?.usage;
+  // Provider details retain the difference between missing metrics and zero.
+  const cached = providerUsage?.promptTokensDetails?.cachedTokens;
+  const reasoning = providerUsage?.completionTokensDetails?.reasoningTokens;
+  usage.cachedInputTokens =
+    usage.cachedInputTokens !== null && cached !== undefined
+      ? usage.cachedInputTokens + cached
+      : null;
+  usage.reasoningTokens =
+    usage.reasoningTokens !== null && reasoning !== undefined
+      ? usage.reasoningTokens + reasoning
+      : null;
+  const cost = providerUsage?.cost;
+  usage.modelCostUsd =
+    cost !== undefined && Number.isFinite(cost) && cost >= 0
+      ? (usage.modelCostUsd ?? 0) + cost
+      : null;
 }
 
 export function promptFor(

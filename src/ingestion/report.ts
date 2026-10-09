@@ -67,6 +67,10 @@ export function buildResearchReport({
     reasoningTokens,
     modelCostUsd,
   } = research.usage;
+  const usageComplete =
+    research.usage.complete &&
+    budget.searches === discovery.length &&
+    discovery.every((result) => result.usageComplete !== false);
   const changedKinds = operations
     .filter((_, index) => receipts[index]?.changed)
     .map((operation) => operation.kind);
@@ -93,6 +97,7 @@ export function buildResearchReport({
     eventNameMismatch: prepared?.eventNameMismatch ?? null,
     usage: {
       ...budget,
+      complete: usageComplete,
       inputTokens:
         inputTokens +
         discovery.reduce((sum, result) => sum + result.inputTokens, 0),
@@ -118,6 +123,7 @@ export function buildResearchReport({
               0,
             ),
       modelCostUsd:
+        usageComplete &&
         modelCostUsd !== null &&
         discovery.every((result) => result.modelCostUsd !== null)
           ? modelCostUsd +

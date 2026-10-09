@@ -162,5 +162,7 @@ export default defineConfig([
     "node_modules/**",
     "data/**",
     "next-env.d.ts",
+    // Vendored Mastra skill helper; preserve the upstream file and its digest.
+    ".agents/skills/mastra/scripts/provider-registry.mjs",
   ]),
 ]);

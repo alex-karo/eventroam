@@ -113,4 +113,6 @@ With `--apply`, success and partial results use the atomic writer. Failed resear
 
 Reports and explanations are private CLI output/files, not public website data or a separate hosted logging service. Public details expose only ticket category labels and availability; amount/terms/variant URLs and research metadata remain private. Unknown category availability has no badge. Discovery and details never derive a global sold-out/closed label from variants or the old stored aggregate.
 
+Token counts retain usage reported by completed model steps even if a later step fails or is interrupted. JSON reports set `usage.complete` to `false` when some usage is unknown; the CLI marks those token counts as `partial`. A full model cost is `null` (`unavailable` in the CLI) unless every call's usage and cost are known. A reported zero cost is preserved as zero.
+
 The [source workflow specification](../openspec/specs/catalog/source-workflow/spec.md) defines the detailed behavior.

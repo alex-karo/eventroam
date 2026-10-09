@@ -279,6 +279,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
             eventNameMismatch: null,
             usage: {
               ...createResearchBudget(config.limits).snapshot(),
+              complete: false,
               inputTokens: 0,
               outputTokens: 0,
               cachedInputTokens: null,

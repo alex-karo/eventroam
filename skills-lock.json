@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "skills": {
+    "mastra": {
+      "source": "mastra.ai",
+      "sourceUrl": "https://mastra.ai/",
+      "sourceType": "well-known",
+      "computedHash": "53302fb4fbafaf6d5e607b4383508e51ae342b4e958c6c055ed96c817b87ef7c",
+      "wellKnownDigest": "sha256:b9078876e06f94737cf13c7e7d63191a6ce6dc54ffc58dec6869f9dfd1329085"
+    }
+  }
+}

@@ -10,6 +10,10 @@ import {
 } from "@/ingestion/workflow";
 import { parseCatalogOptions, catalogUsage } from "./catalog-options";
 
+function formatTokens(usage: CatalogResearchResult["usage"]) {
+  return `${usage.inputTokens}/${usage.outputTokens}${usage.complete === false ? " (partial)" : ""}`;
+}
+
 export function formatCatalogReport(
   results: CatalogResearchResult[],
   dryRun: boolean,
@@ -48,7 +52,7 @@ function formatResult(result: CatalogResearchResult): string[] {
       (question) =>
         `  Unresolved${optionalSuffix(question.editionKey, " [", "]")}${optionalSuffix(question.field, ": ")}: ${question.message}`,
     ),
-    `  Model: ${result.modelVersion}; reasoning: ${result.reasoningEffort ?? "provider default"}; prompt: ${result.promptVersion}; tokens: ${result.usage.inputTokens}/${result.usage.outputTokens}; cached input: ${result.usage.cachedInputTokens ?? "unavailable"}; reasoning tokens: ${result.usage.reasoningTokens ?? "unavailable"}; model USD: ${result.usage.modelCostUsd ?? "unavailable"}; search USD: ${result.usage.searchCostUsd}`,
+    `  Model: ${result.modelVersion}; reasoning: ${result.reasoningEffort ?? "provider default"}; prompt: ${result.promptVersion}; tokens: ${formatTokens(result.usage)}; cached input: ${result.usage.cachedInputTokens ?? "unavailable"}; reasoning tokens: ${result.usage.reasoningTokens ?? "unavailable"}; model USD: ${result.usage.modelCostUsd ?? "unavailable"}; search USD: ${result.usage.searchCostUsd}`,
   ];
 }
 

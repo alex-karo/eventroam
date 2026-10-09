@@ -60,6 +60,8 @@ export type CatalogResearchResult = {
     observedName: string;
   } | null;
   usage: ReturnType<ResearchBudget["snapshot"]> & {
+    /** False means reported tokens are only the known portion of the run. */
+    complete: boolean;
     inputTokens: number;
     outputTokens: number;
     cachedInputTokens?: number | null;

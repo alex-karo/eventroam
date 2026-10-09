@@ -23,6 +23,7 @@ const result = (): CatalogResearchResult => ({
   unresolved: [],
   eventNameMismatch: null,
   usage: {
+    complete: true,
     searches: 0,
     pages: 0,
     modelCalls: 0,
@@ -41,6 +42,20 @@ const result = (): CatalogResearchResult => ({
   modelVersion: "fixture",
   promptVersion: "fixture",
   durationMs: 0,
+});
+
+test("CLI marks partial tokens and renders unknown cost separately from zero", () => {
+  const partial = result();
+  partial.usage.complete = false;
+  partial.usage.inputTokens = 10;
+  partial.usage.outputTokens = 20;
+  const text = formatCatalogReport([partial], true);
+  expect(text).toContain("tokens: 10/20 (partial)");
+  expect(text).toContain("model USD: unavailable");
+  partial.usage.complete = true;
+  partial.usage.modelCostUsd = 0;
+  expect(formatCatalogReport([partial], true)).toContain("tokens: 10/20;");
+  expect(formatCatalogReport([partial], true)).toContain("model USD: 0;");
 });
 
 test("CLI targets an Event and starts fresh research for dry-run and apply", async () => {

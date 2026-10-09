@@ -71,6 +71,10 @@ export function createSourceSession(
       result = await (deps.discoverSources ?? discoverSources)(query, {
         budget: {
           ...budget,
+          remaining: () => ({
+            ...budget.remaining(),
+            modelCalls: Math.max(0, budget.remaining().modelCalls - 1),
+          }),
           consumeModelCall: (inputChars) => {
             if (budget.remaining().modelCalls <= 1) {
               throw new ResearchLimitError("modelCalls");

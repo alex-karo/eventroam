@@ -28,6 +28,8 @@ export interface DiscoverSourcesResult {
   searchCostUsd: number;
   inputTokens: number;
   outputTokens: number;
+  /** False when attempts or provider token counts are unaccounted for. */
+  usageComplete?: boolean;
   cachedInputTokens?: number | null;
   reasoningTokens?: number | null;
 }
