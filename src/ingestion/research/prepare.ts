@@ -38,6 +38,10 @@ export type EventNameMismatch = {
   observedName: string;
 };
 export type PreparedResearch = {
+  validation: {
+    structural: "passed" | "failed";
+    target: "passed" | "failed" | "not_run";
+  };
   candidate: ResearchCandidate | null;
   operations: CatalogOperation[];
   errors: ResearchError[];
@@ -397,6 +401,7 @@ export function prepareResearch(
   maxSources = 20,
 ): PreparedResearch {
   const result: PreparedResearch = {
+    validation: { structural: "failed", target: "not_run" },
     candidate: null,
     operations: [],
     errors: [],
@@ -415,6 +420,7 @@ export function prepareResearch(
         .join(", "),
     );
   }
+  result.validation.structural = "passed";
   const candidate = parsed.data;
   result.candidate = candidate;
   result.errors = candidate.errors.map((error) => ({
@@ -436,8 +442,10 @@ export function prepareResearch(
     (input.eventId && data.eventId && input.eventId !== data.eventId) ||
     (!event && input.mode !== "add")
   ) {
+    result.validation.target = "failed";
     return invalid(result, "Event is outside the requested catalog target");
   }
+  result.validation.target = "passed";
   result.matchedEventId = matchedEventId;
   if (!event && !data.reason) {
     return invalid(result, "data.reason is required for Event creation");

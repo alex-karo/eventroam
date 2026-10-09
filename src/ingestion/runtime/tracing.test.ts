@@ -238,3 +238,66 @@ test("internally handled exporter write failures and drops emit only fixed codes
   await finishResearchTracing(mastra, tracing.diagnose);
   expect(stderr.mock.calls.flat().join("")).toBe("trace_export_failed\n");
 });
+
+test("missing mandatory processor disables tracing before creating a run", async () => {
+  const { Observability } = await import("@mastra/observability");
+  vi.spyOn(Observability.prototype, "getDefaultInstance").mockReturnValue(
+    undefined,
+  );
+  vi.stubEnv("CATALOG_TRACING", "true");
+  vi.stubEnv(
+    "CATALOG_TRACE_DATABASE_PATH",
+    join(directory(), "unavailable.sqlite"),
+  );
+  const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+  expect(
+    await createResearchTracing(
+      { mode: "add", name: "Fixture", actor: "test" },
+      "fixture/model",
+    ),
+  ).toBeUndefined();
+  expect(stderr.mock.calls.flat().join("")).toBe(
+    "trace_initialization_failed\n",
+  );
+});
+
+test("unknown spans and start/update/end events retain only the host projection and numeric fields", async () => {
+  const tracing = await enabledTracing();
+  expect(tracing.options).toMatchObject({
+    hideInput: false,
+    hideOutput: false,
+  });
+  const mastra = new Mastra({
+    logger: false,
+    storage: tracing.storage,
+    observability: tracing.observability,
+  });
+  tracing.observability.setLogger({ logger: tracing.logger });
+  const exported: string[] = [];
+  const original = ResearchTraceExporter.prototype._exportTracingEvent;
+  vi.spyOn(
+    ResearchTraceExporter.prototype,
+    "_exportTracingEvent",
+  ).mockImplementation(async function (this: ResearchTraceExporter, event) {
+    exported.push(JSON.stringify(event.exportedSpan));
+    await original.call(this, event);
+  });
+  const span = tracing.observability.getDefaultInstance()!.startSpan({
+    type: "PRIVATE_UNKNOWN_TYPE" as SpanType,
+    name: "PRIVATE_NAME",
+    input: "PRIVATE_INPUT",
+    metadata: { secret: "PRIVATE_KEY" },
+    entityName: "PRIVATE_ENTITY",
+  });
+  span.update({
+    input: "PRIVATE_UPDATE",
+    output: "PRIVATE_OUTPUT",
+    attributes: { inputTokens: 12, secret: "PRIVATE_ATTRIBUTES" } as never,
+  });
+  span.end({ output: "PRIVATE_FINAL" });
+  await finishResearchTracing(mastra, tracing.diagnose);
+  expect(exported).toHaveLength(3);
+  expect(exported.join("")).not.toContain("PRIVATE_");
+  const rows = readTraceRows(process.env.CATALOG_TRACE_DATABASE_PATH!);
+  expect(JSON.stringify(rows)).not.toContain("PRIVATE_");
+});

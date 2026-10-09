@@ -60,7 +60,12 @@ test("failed research and invalid target produce no operations", () => {
     errors: [{ code: "source_blocked", message: "Page unavailable" }],
     unresolved: [],
   };
-  expect(prepareResearch(failed, [], input, []).operations).toEqual([]);
+  const preparedFailed = prepareResearch(failed, [], input, []);
+  expect(preparedFailed.operations).toEqual([]);
+  expect(preparedFailed.validation).toEqual({
+    structural: "passed",
+    target: "not_run",
+  });
   const { client, eventId } = create();
   const proposed = candidate();
   proposed.data!.eventId = "wrong";
@@ -74,6 +79,26 @@ test("failed research and invalid target produce no operations", () => {
   expect(result.operations).toEqual([]);
   expect(result.matchedEventId).toBeUndefined();
   expect(result.errors[0].stage).toBe("validation");
+  expect(result.validation).toEqual({ structural: "passed", target: "failed" });
+});
+
+test("preparation leaves target validation unreached after structure or source-budget failure", () => {
+  const malformed = prepareResearch({}, [], input, []);
+  expect(malformed.validation).toEqual({
+    structural: "failed",
+    target: "not_run",
+  });
+  const proposed = candidate();
+  proposed.data!.sources = [
+    { url: "https://example.org/", information: "Info" },
+  ];
+  const overBudget = prepareResearch(proposed, [], input, [], 0);
+  expect(overBudget.validation).toEqual({
+    structural: "passed",
+    target: "not_run",
+  });
+  expect(overBudget.candidate).toBeNull();
+  expect(overBudget.operations).toEqual([]);
 });
 
 test("add with recognized existing ID skips every proposed update and logs name difference", () => {
@@ -107,6 +132,7 @@ test("add with recognized existing ID skips every proposed update and logs name 
     [],
   );
   expect(result.skipped).toBe(true);
+  expect(result.validation).toEqual({ structural: "passed", target: "passed" });
   expect(result.matchedEventId).toBe(eventId);
   expect(result.operations).toEqual([]);
   expect(result.eventNameMismatch).toEqual({
@@ -323,9 +349,12 @@ test("base prices convert major to minor and variants retain major", () => {
 test("creation needs identity reason; existing refresh does not", () => {
   const proposed = candidate();
   delete proposed.data!.reason;
-  expect(prepareResearch(proposed, [], input, []).errors[0].code).toBe(
-    "invalid_candidate",
-  );
+  const missingReason = prepareResearch(proposed, [], input, []);
+  expect(missingReason.errors[0].code).toBe("invalid_candidate");
+  expect(missingReason.validation).toEqual({
+    structural: "passed",
+    target: "passed",
+  });
   const { client, eventId } = create();
   proposed.data!.eventId = eventId;
   expect(

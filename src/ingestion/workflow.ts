@@ -4,6 +4,10 @@ import type {
   CatalogResearchResult,
   ResearchDependencies,
 } from "./contracts";
+import {
+  createCatalogRunTrace,
+  readInitialWithTrace,
+} from "./runtime/run-trace";
 import { createResearchBudget } from "./runtime/budget";
 import { loadResearchConfig } from "./runtime/config";
 import { loadResearchContext } from "./research/context";
@@ -54,6 +58,12 @@ export async function runCatalogResearch(
     started,
     input.mode === "add" ? null : input.eventId!,
   );
+  const trace = await createCatalogRunTrace(
+    input,
+    config.model,
+    runId,
+    !!deps.generateCandidate,
+  );
   let sources: SourceSession | null = null;
   let research: ResearchExecution = {
     ok: false,
@@ -88,75 +98,103 @@ export async function runCatalogResearch(
     started,
     finished: Date.now(),
   });
-  let report: CatalogResearchResult;
+  let report: CatalogResearchResult | undefined;
   try {
-    const context = loadResearchContext(deps.client, input);
-    sources = createSourceSession(budget, config, context.knownLinks, deps);
-    await sources.readInitialSource();
-    research = await researchFestival(
-      input,
-      context,
-      sources,
-      budget,
-      config,
-      deps,
-      runId,
-    );
-    if (research.ok) {
-      prepared = prepareResearch(
-        research.candidate,
-        context.catalog,
-        input,
-        context.terms,
-        budget.limits.pages,
-      );
-      errors = prepared.errors;
-      unresolved = prepared.unresolved;
-    } else {
-      errors = research.errors;
-    }
     try {
-      if (
-        prepared?.candidate?.status !== "failed" &&
-        prepared?.operations.length
-      ) {
-        applied = applyCatalogItem(deps.client, prepared.operations, {
-          dryRun: input.dryRun,
+      const context = loadResearchContext(deps.client, input);
+      trace?.update({ context, phase: "initial_source" });
+      sources = createSourceSession(budget, config, context.knownLinks, deps);
+      await readInitialWithTrace(sources, trace);
+      trace?.update({ phase: "research" });
+      research = await researchFestival(
+        input,
+        context,
+        sources,
+        budget,
+        config,
+        deps,
+        runId,
+        trace?.tracing,
+      );
+      trace?.update({ phase: "validation" });
+      if (research.ok) {
+        prepared = prepareResearch(
+          research.candidate,
+          context.catalog,
+          input,
+          context.terms,
+          budget.limits.pages,
+        );
+        trace?.validated(prepared);
+        errors = prepared.errors;
+        unresolved = prepared.unresolved;
+      } else {
+        errors = research.errors;
+        trace?.failed("research_failed", false);
+      }
+      trace?.update({ phase: "write" });
+      try {
+        if (
+          prepared?.candidate?.status !== "failed" &&
+          prepared?.operations.length
+        ) {
+          if (trace) {
+            trace.state.writeState = "unknown";
+          }
+          applied = applyCatalogItem(deps.client, prepared.operations, {
+            dryRun: input.dryRun,
+          });
+          if (trace) {
+            trace.state.writeState = applied.operations.some(
+              (operation) => operation.changed,
+            )
+              ? "committed"
+              : "unchanged";
+          }
+          trace?.update({ applied });
+        }
+      } catch {
+        writeFailed = true;
+        if (trace) {
+          trace.state.writeState = "rolled_back";
+        }
+        trace?.failed("write_failed");
+        errors.push({
+          code: "write_failed",
+          stage: "write",
+          message: "Catalog write failed",
         });
       }
+      trace?.update({ phase: "report" });
+      report = buildResearchReport(reportInput());
     } catch {
-      writeFailed = true;
-      errors.push({
-        code: "write_failed",
-        stage: "write",
-        message: "Catalog write failed",
-      });
+      trace?.workflowFailed();
+      errors = [
+        ...errors,
+        {
+          code: "workflow_failed",
+          stage: "workflow",
+          message: "Ingestion workflow failed",
+        },
+      ];
+      report = buildWorkflowFailureReport(reportInput());
     }
-    report = buildResearchReport(reportInput());
-  } catch {
-    errors = [
-      ...errors,
-      {
-        code: "workflow_failed",
-        stage: "workflow",
-        message: "Ingestion workflow failed",
-      },
-    ];
-    report = buildWorkflowFailureReport(reportInput());
-  }
-  // Writer transactions have finished. A persistence failure must not re-enter the workflow catch.
-  let persistentEventId = input.eventId ?? null;
-  if (input.mode === "add") {
-    persistentEventId = prepared?.matchedEventId ?? null;
-    if (!input.dryRun) {
-      persistentEventId ??= applied?.references.event ?? null;
+    // Writer transactions have finished. A persistence failure must not re-enter the workflow catch.
+    let persistentEventId = input.eventId ?? null;
+    if (input.mode === "add") {
+      persistentEventId = prepared?.matchedEventId ?? null;
+      if (!input.dryRun) {
+        persistentEventId ??= applied?.references.event ?? null;
+      }
     }
+    return finalizeIngestionRun(
+      deps.client,
+      runId,
+      report,
+      persistentEventId,
+      Date.now(),
+    );
+  } finally {
+    await trace?.finish(report);
   }
-  return finalizeIngestionRun(
-    deps.client,
-    runId,
-    report,
-    persistentEventId,
-    Date.now(),
-  );
 }

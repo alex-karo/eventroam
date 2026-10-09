@@ -20,6 +20,7 @@ export function createSourceSession(
   const inFlight = new Map<string, Promise<ReadSourceResult>>();
   const depthByUrl = new Map<string, number>();
   const discovery: DiscoverSourcesResult[] = [];
+  const reservedSearches = new WeakSet<DiscoverSourcesResult>();
   const read = async (url: string) => {
     const key = new URL(url).toString();
     const prior = reads.find(
@@ -30,7 +31,7 @@ export function createSourceSession(
     }
     const pending = inFlight.get(key);
     if (pending) {
-      return pending;
+      return await pending;
     }
     const depth = depthByUrl.get(key) ?? 1;
     const request = (async () => {
@@ -54,15 +55,19 @@ export function createSourceSession(
     }
   };
   const search = async (query: string) => {
-    const reservedResult = () => ({
-      query,
-      candidates: [],
-      retrievedAt: new Date().toISOString(),
-      modelCostUsd: null,
-      searchCostUsd: 0,
-      inputTokens: 0,
-      outputTokens: 0,
-    });
+    const reservedResult = () => {
+      const result = {
+        query,
+        candidates: [],
+        retrievedAt: new Date().toISOString(),
+        modelCostUsd: null,
+        searchCostUsd: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+      };
+      reservedSearches.add(result);
+      return result;
+    };
     if (budget.remaining().modelCalls <= 1) {
       return reservedResult();
     }
@@ -101,11 +106,11 @@ export function createSourceSession(
   for (const { url } of knownLinks) {
     depthByUrl.set(new URL(url).toString(), 0);
   }
+  const initialUrl =
+    knownLinks.find((link) => link.kind === "official_site")?.url ??
+    knownLinks.find((link) => link.official)?.url ??
+    knownLinks[0]?.url;
   async function readInitialSource() {
-    const initialUrl =
-      knownLinks.find((link) => link.kind === "official_site")?.url ??
-      knownLinks.find((link) => link.official)?.url ??
-      knownLinks[0]?.url;
     if (initialUrl) {
       try {
         await read(initialUrl);
@@ -122,6 +127,16 @@ export function createSourceSession(
     readSource: read,
     discoverSources: search,
     readInitialSource,
+    initialUrl,
+    wasSearchReserved: (result: DiscoverSourcesResult) =>
+      reservedSearches.has(result),
+    isReadCached: (url: string) => {
+      const key = new URL(url).toString();
+      return (
+        inFlight.has(key) ||
+        reads.some((item) => item.attemptedUrl === key || item.finalUrl === key)
+      );
+    },
   };
 }
 
