@@ -35,7 +35,7 @@ Next.js pages and read endpoints <──── public catalog reads <── SQLi
 | Web | Next.js App Router, React, strict TypeScript, Node.js |
 | Data | SQLite, `better-sqlite3`, Drizzle ORM, reviewed SQL migrations |
 | UI and map | Tailwind CSS, Mapbox GL JS behind a client adapter |
-| AI agent | Mastra, OpenRouter AI SDK provider, GPT-6 Luna by default, structured proposals and fixed-source evals |
+| AI agent | Mastra with its built-in OpenRouter model router, GPT-6 Luna by default, structured proposals and fixed-source evals |
 | Source processing | Bounded HTTP reads with Got, Cheerio, and Turndown |
 | Validation and quality | Zod, ESLint, Prettier, Vitest, Playwright |
 

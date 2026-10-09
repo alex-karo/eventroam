@@ -1,25 +1,22 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { ResearchConfig } from "./config";
 
 /** Ordinary model calls have no web plugin. Discovery is isolated in discoverSources. */
-export function createResearchModel(
-  config: ResearchConfig,
-  onHttpResponse?: (status: number) => void,
-) {
-  const openrouter = createOpenRouter({
+export function createResearchModel(config: ResearchConfig) {
+  return {
+    id: `openrouter/${config.model}` as const,
     apiKey: config.apiKey,
-    fetch: async (input, init) => {
-      const response = await fetch(input, init);
-      onHttpResponse?.(response.status);
-      return response;
+  };
+}
+
+export function researchProviderOptions(config: ResearchConfig) {
+  return {
+    openrouter: {
+      ...(config.reasoningEffort && {
+        reasoning: { effort: config.reasoningEffort },
+      }),
+      ...(config.serviceTier && {
+        service_tier: config.serviceTier,
+      }),
     },
-  });
-  return openrouter(config.model, {
-    ...(config.reasoningEffort && {
-      reasoning: { effort: config.reasoningEffort },
-    }),
-    ...(config.serviceTier && {
-      extraBody: { service_tier: config.serviceTier },
-    }),
-  });
+  };
 }

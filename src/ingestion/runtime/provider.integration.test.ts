@@ -172,6 +172,12 @@ test("actual Mastra request sends a compatible bounded response schema", async (
   vi.stubGlobal(
     "fetch",
     vi.fn(async (_input: unknown, init?: RequestInit) => {
+      expect(String(_input)).toBe(
+        "https://openrouter.ai/api/v1/chat/completions",
+      );
+      expect(new Headers(init?.headers).get("authorization")).toBe(
+        `Bearer ${config.apiKey}`,
+      );
       requests.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
       return new Response(
         JSON.stringify({
@@ -205,11 +211,12 @@ test("actual Mastra request sends a compatible bounded response schema", async (
     client,
     config: {
       ...config,
+      model: "openai/gpt-6-luna",
       serviceTier: loadResearchConfig({
         NODE_ENV: "test",
         OPENROUTER_API_KEY: "test-key",
       }).serviceTier,
-      reasoningEffort: "low",
+      reasoningEffort: "medium",
     },
     readSource: async () => source,
   });
@@ -222,8 +229,11 @@ test("actual Mastra request sends a compatible bounded response schema", async (
     "createOccurrence",
   );
   const request = requests[0];
-  expect(request.reasoning).toEqual({ effort: "low" });
+  expect(request.model).toBe("openai/gpt-6-luna");
+  expect(request.reasoning).toEqual({ effort: "medium" });
   expect(request.service_tier).toBe("flex");
+  expect(request.extraBody).toBeUndefined();
+  expect(request.stream).not.toBe(true);
   expect(result.usage.cachedInputTokens).toBe(6);
   expect(result.usage.reasoningTokens).toBe(12);
   expect(request.plugins).toBeUndefined();
@@ -630,6 +640,81 @@ const finalStepUsage = {
   completion_tokens_details: { reasoning_tokens: 9 },
 };
 
+test.each(["standard", "flex"] as const)(
+  "%s routing sends only the requested provider options",
+  async (tier) => {
+    const client = testDatabase().client;
+    savedSource(client);
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementation(finalResponse(stepUsage));
+    vi.stubGlobal("fetch", fetchMock);
+    const configured = loadResearchConfig({
+      NODE_ENV: "test",
+      OPENROUTER_API_KEY: config.apiKey,
+      OPENROUTER_MODEL: "openai/gpt-6-luna",
+      OPENROUTER_SERVICE_TIER: tier,
+      OPENROUTER_REASONING_EFFORT: "medium",
+    });
+    const result = await runCatalogResearch(input, {
+      client,
+      config: { ...configured, limits: config.limits },
+      readSource: async () => source,
+    });
+    expect(result.errors).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(body.model).toBe("openai/gpt-6-luna");
+    expect(body.reasoning).toEqual({ effort: "medium" });
+    expect(Object.hasOwn(body, "service_tier")).toBe(tier === "flex");
+    if (tier === "flex") {
+      expect(body.service_tier).toBe("flex");
+    }
+    expect(body.extraBody).toBeUndefined();
+    expect(body.plugins).toBeUndefined();
+    expect(body.stream).not.toBe(true);
+  },
+);
+
+test.each([true, false])(
+  "zero token usage stays complete and preserves detail availability (%s)",
+  async (details) => {
+    const client = testDatabase().client;
+    savedSource(client);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(
+        finalResponse({
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0,
+          cost: 0,
+          ...(details
+            ? {
+                prompt_tokens_details: { cached_tokens: 0 },
+                completion_tokens_details: { reasoning_tokens: 0 },
+              }
+            : {}),
+        }),
+      ),
+    );
+    const result = await runCatalogResearch(input, {
+      client,
+      config,
+      readSource: async () => source,
+    });
+    expect(result.usage).toMatchObject({
+      complete: true,
+      inputTokens: 0,
+      outputTokens: 0,
+      modelCostUsd: 0,
+      cachedInputTokens: details ? 0 : null,
+      reasoningTokens: details ? 0 : null,
+    });
+    expect(result.errors).toEqual([]);
+  },
+);
+
 function readCall(
   args: Record<string, unknown> = { url: "https://example.org/linked-page" },
 ) {
@@ -751,7 +836,7 @@ test.each([undefined, 0, 0.125])(
   },
 );
 
-test.each([undefined, {}])(
+test.each([undefined, {}, { prompt_tokens: 0 }, { completion_tokens: 0 }])(
   "a final response without token counts (%s) preserves earlier tokens and marks the total partial",
   async (usage) => {
     const client = testDatabase().client;
@@ -950,7 +1035,7 @@ test("malformed final text at the deadline is retained in a failed research repo
   expect(result.modelResponse).toEqual({ text: content, object: null });
 });
 
-test.each([400, 429, 503])(
+test.each([200, 400, 429, 503])(
   "provider HTTP %i has safe diagnostics and no automatic retry",
   async (status) => {
     const client = testDatabase().client;
@@ -978,18 +1063,27 @@ test.each([400, 429, 503])(
     vi.stubGlobal("fetch", fetchMock);
     const result = await runCatalogResearch(input, {
       client,
-      config,
+      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
       readSource: async () => source,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.outcome).toBe("failed");
+    expect(result.usage).toMatchObject({
+      complete: false,
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedInputTokens: null,
+      reasoningTokens: null,
+      modelCostUsd: null,
+    });
     expect(result.errors).toContainEqual(
       expect.objectContaining({
         code: "model_failed",
         stage: "research",
         diagnostic: expect.objectContaining({
           httpStatus: status,
-          ...(status === 400 ? { providerCode: 1001 } : {}),
+          providerCode: 1001,
+          retryable: status === 429 || status === 503,
         }),
       }),
     );
