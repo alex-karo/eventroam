@@ -179,6 +179,7 @@ export async function readSource(
     response.finalUrl,
     response.contentType,
   );
+  result.sourceTruncated = extracted.truncated;
   result.markdown = extracted.markdown;
   result.links = extracted.links;
   result.outcome = extracted.markdown ? "ok" : "partial";

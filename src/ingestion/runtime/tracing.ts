@@ -3,8 +3,13 @@ import { mkdir } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { MastraLogger } from "@mastra/core/logger";
-import type { Mastra } from "@mastra/core/mastra";
-import type { AnySpan, SpanOutputProcessor } from "@mastra/core/observability";
+import { Mastra } from "@mastra/core/mastra";
+import {
+  SpanType,
+  type AnySpan,
+  type SpanOutputProcessor,
+} from "@mastra/core/observability";
+import { traceText, boundTraceProjection } from "./trace-projections";
 import { LibSQLStore } from "@mastra/libsql";
 import {
   MastraStorageExporter,
@@ -21,6 +26,14 @@ type TraceDiagnostic =
   | "trace_shutdown_failed"
   | "trace_sanitization_failed";
 type Diagnose = (code: TraceDiagnostic) => void;
+export type TraceProjection = {
+  name: string;
+  entityId: string;
+  input?: unknown;
+  output?: unknown;
+  metadata?: Record<string, unknown>;
+};
+export type TraceProjections = Map<string, TraceProjection>;
 type TraceMetadata = {
   runId?: string;
   mode: CatalogResearchInput["mode"];
@@ -65,7 +78,7 @@ class TraceLogger extends MastraLogger {
 /** Drop notifications may contain raw error messages: deliberately ignore them. */
 export class ResearchTraceExporter extends MastraStorageExporter {
   constructor(private readonly diagnose: Diagnose) {
-    super({ maxRetries: 0 });
+    super({ maxRetries: 0, strategy: "insert-only" });
   }
   onDroppedEvent() {
     this.diagnose("trace_export_failed");
@@ -158,6 +171,7 @@ function numericFields(value: unknown, fields: string[]) {
 export function researchSpanProcessor(
   metadata: TraceMetadata,
   diagnose: Diagnose,
+  projections: TraceProjections = new Map(),
 ): SpanOutputProcessor {
   return {
     name: "catalog-content-exclusions",
@@ -191,18 +205,42 @@ export function researchSpanProcessor(
         if (span.type.startsWith("model_")) {
           safe.model = metadata.model;
         }
-        // Only these two application tools exist; never retain provider tool IDs/names.
-        const tool = ["readSource", "discoverSources"].find((name) =>
-          span.name.includes(name),
+        if (typeof span.type !== "string" || typeof span.name !== "string") {
+          throw new Error("Invalid span");
+        }
+        if (!Object.values(SpanType).includes(span.type)) {
+          span.type = SpanType.GENERIC;
+        }
+        span.entityType = undefined;
+        const stored = projections.get(span.id);
+        const limit =
+          stored?.entityId === "catalog-research"
+            ? 16384 - Buffer.byteLength(JSON.stringify(metadata))
+            : 8192;
+        const projection = stored
+          ? boundTraceProjection(stored, limit)
+          : undefined;
+        const tool = ["readSource", "discoverSources"].find(
+          (name) => span.entityId === name,
         );
         span.name =
-          span.type === "agent_run" ? "Festival research" : (tool ?? span.type);
-        span.entityId = span.type === "agent_run" ? "festival-research" : tool;
-        span.entityName = span.entityId;
+          projection?.name ??
+          (span.type === "agent_run"
+            ? "Festival research"
+            : (tool ?? span.type));
+        const rootId =
+          span.type === "generic" && span.entityId === "catalog-research"
+            ? "catalog-research"
+            : undefined;
+        span.entityId =
+          projection?.entityId ??
+          rootId ??
+          (span.type === "agent_run" ? "festival-research" : tool);
+        span.entityName = span.name;
         span.attributes = safe;
-        span.metadata = { ...metadata };
-        span.input = undefined;
-        span.output = undefined;
+        span.metadata = { ...metadata, ...projection?.metadata };
+        span.input = projection?.input;
+        span.output = projection?.output;
         span.requestContext = undefined;
         span.tags = undefined;
         span.errorInfo = span.errorInfo
@@ -224,7 +262,7 @@ export async function createResearchTracing(
   model: string,
   runId?: string,
 ) {
-  if (process.env.CATALOG_TRACING !== "true") {
+  if (process.env.CATALOG_TRACING !== "true" || input.dryRun) {
     return undefined;
   }
   const diagnose = createDiagnostics();
@@ -245,10 +283,12 @@ export async function createResearchTracing(
     const metadata: TraceMetadata = {
       ...(runId ? { runId } : {}),
       mode: input.mode,
-      ...(input.eventId ? { eventId: input.eventId.slice(0, 160) } : {}),
-      model: model.slice(0, 160),
+      ...(input.eventId ? { eventId: traceText(input.eventId, 160) } : {}),
+      model: traceText(model, 160),
       promptVersion: RESEARCH_PROMPT_VERSION,
     };
+    const projections: TraceProjections = new Map();
+    const processor = researchSpanProcessor(metadata, diagnose, projections);
     const observability = new Observability({
       sensitiveDataFilter: false,
       configs: {
@@ -257,17 +297,26 @@ export async function createResearchTracing(
           sampling: { type: SamplingStrategyType.ALWAYS },
           logging: { enabled: false },
           exporters: [new ResearchTraceExporter(diagnose)],
-          spanOutputProcessors: [researchSpanProcessor(metadata, diagnose)],
+          spanOutputProcessors: [processor],
         },
       },
     });
+    if (
+      !observability
+        .getDefaultInstance()
+        ?.getSpanOutputProcessors()
+        .includes(processor)
+    ) {
+      throw new Error("Mandatory processor unavailable");
+    }
     initializing = false;
     return {
       storage,
       observability,
       logger,
       diagnose,
-      options: { hideInput: true, hideOutput: true, metadata },
+      projections,
+      options: { hideInput: false, hideOutput: false, metadata },
     };
   } catch {
     diagnose("trace_initialization_failed");
@@ -298,5 +347,100 @@ export async function finishResearchTracing(
     await mastra.shutdown();
   } catch {
     diagnose("trace_shutdown_failed");
+  }
+}
+
+/** Host projection updates and SDK instrumentation are always fail open. */
+export function updateTrace(
+  tracing: RunTracing | undefined,
+  span: AnySpan | undefined,
+  projection: TraceProjection,
+) {
+  if (!tracing || !span) {
+    return;
+  }
+  try {
+    tracing.projections.set(span.id, projection);
+    span.update({ name: projection.name });
+  } catch {
+    tracing.diagnose("trace_export_failed");
+  }
+}
+export async function createRunTracing(
+  input: CatalogResearchInput,
+  model: string,
+  runId: string,
+) {
+  const tracing = await createResearchTracing(input, model, runId);
+  if (!tracing) {
+    return undefined;
+  }
+  let mastra: Mastra | undefined;
+  try {
+    mastra = new Mastra({
+      logger: false,
+      storage: tracing.storage,
+      observability: tracing.observability,
+    });
+    tracing.observability.setLogger({ logger: tracing.logger });
+    const root = tracing.observability.getDefaultInstance()!.startSpan({
+      type: SpanType.GENERIC,
+      name: "catalog-research",
+      entityId: "catalog-research",
+      tracingOptions: tracing.options,
+    });
+    return { ...tracing, mastra, root };
+  } catch {
+    tracing.diagnose("trace_initialization_failed");
+    if (mastra) {
+      await finishResearchTracing(mastra, tracing.diagnose);
+    } else {
+      try {
+        await tracing.storage.close();
+      } catch {
+        tracing.diagnose("trace_shutdown_failed");
+      }
+    }
+    return undefined;
+  }
+}
+export type RunTracing = NonNullable<
+  Awaited<ReturnType<typeof createRunTracing>>
+>;
+export function traceFailure(
+  tracing: RunTracing | undefined,
+  code: string,
+  span: AnySpan | undefined = tracing?.root,
+) {
+  try {
+    span?.error({ error: new Error(code), endSpan: false });
+  } catch {
+    tracing?.diagnose("trace_export_failed");
+  }
+}
+export async function finishRunTracing(tracing?: RunTracing) {
+  if (!tracing) {
+    return;
+  }
+  try {
+    tracing.root.end({ endTree: true });
+  } catch {
+    tracing.diagnose("trace_export_failed");
+  }
+  await finishResearchTracing(tracing.mastra, tracing.diagnose);
+}
+
+export function observeTrace(
+  tracing: RunTracing | undefined,
+  span: AnySpan | undefined,
+  project: () => TraceProjection,
+) {
+  if (!tracing || !span) {
+    return;
+  }
+  try {
+    updateTrace(tracing, span, project());
+  } catch {
+    tracing.diagnose("trace_sanitization_failed");
   }
 }

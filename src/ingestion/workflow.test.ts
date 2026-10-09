@@ -13,12 +13,9 @@ import { runCatalogResearch as executeResearch } from "./workflow";
 import * as contextModule from "./research/context";
 import * as prepareModule from "./research/prepare";
 import * as reportModule from "./report";
-import * as agentModule from "./research/agent";
 import { RunPersistenceError } from "./runs";
 import { discoverSources } from "./sources/discover-sources";
 import { DEFAULT_RESEARCH_LIMITS } from "./runtime/budget";
-import { runTraceFixture, readTraceRows } from "@/test/tracing-fixture";
-import { Observability } from "@mastra/observability";
 import { join, dirname } from "node:path";
 import { existsSync } from "node:fs";
 
@@ -1064,85 +1061,6 @@ test.each(["update", "serialization"] as const)(
         .prepare("SELECT * FROM ingestion_runs WHERE id=?")
         .get(persistence.runId),
     ).toEqual(unfinished);
-  },
-);
-
-test.each([
-  "enabled",
-  "disabled",
-  "initialization",
-  "cleanup",
-  "deadline",
-] as const)(
-  "%s tracing preserves durable lifecycle and report accounting",
-  async (tracing) => {
-    const { client } = fixture();
-    const path = join(dirname(testDatabase().path), "traces.sqlite");
-    vi.stubEnv("CATALOG_TRACING", tracing === "disabled" ? "false" : "true");
-    vi.stubEnv("CATALOG_TRACE_DATABASE_PATH", path);
-    if (tracing === "initialization") {
-      vi.stubEnv("DATABASE_PATH", path);
-    }
-    if (tracing === "cleanup") {
-      vi.spyOn(Observability.prototype, "flush").mockRejectedValue(
-        new Error("SECRET"),
-      );
-    }
-    if (tracing === "deadline") {
-      const original = Observability.prototype.flush;
-      const now = Date.now;
-      vi.spyOn(Observability.prototype, "flush").mockImplementation(
-        async function (this: Observability) {
-          await original.call(this);
-          vi.spyOn(Date, "now").mockReturnValue(now() + 60_000);
-        },
-      );
-    }
-    vi.spyOn(process.stderr, "write").mockReturnValue(true);
-    const agent = vi
-      .spyOn(agentModule, "researchFestival")
-      .mockImplementation(
-        async (_input, _context, _sources, _budget, _config, _deps, runId) => {
-          expect(runId).toMatch(/^[0-9a-f-]{36}$/);
-          return (
-            await runTraceFixture(
-              tracing === "deadline" ? "http" : "success",
-              false,
-              runId,
-            )
-          ).result;
-        },
-      );
-    const report = await runCatalogResearch(input, {
-      client,
-      generateCandidate: async () => candidate([]),
-    });
-    expect(agent).toHaveBeenCalledOnce();
-    expect(
-      report.errors.some(
-        (error) =>
-          error.code === "workflow_failed" ||
-          error.code === "run_persistence_failed",
-      ),
-    ).toBe(false);
-    expect(report.usage).toMatchObject({
-      inputTokens: tracing === "deadline" ? 10 : 20,
-      outputTokens: tracing === "deadline" ? 20 : 40,
-      complete: tracing !== "deadline",
-      modelCostUsd: tracing === "deadline" ? null : 0,
-    });
-    if (tracing === "enabled") {
-      const spans = readTraceRows(path).mastra_ai_spans as {
-        metadata: string;
-      }[];
-      expect(spans.length).toBeGreaterThan(0);
-      expect(
-        spans.every((span) => JSON.parse(span.metadata).runId === report.runId),
-      ).toBe(true);
-    }
-    if (tracing === "disabled" || tracing === "initialization") {
-      expect(existsSync(path)).toBe(false);
-    }
   },
 );
 

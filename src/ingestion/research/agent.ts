@@ -13,9 +13,14 @@ import {
   researchProviderOptions,
 } from "../runtime/openrouter";
 import {
-  createResearchTracing,
-  finishResearchTracing,
+  observeTrace,
+  traceFailure,
+  type RunTracing,
 } from "../runtime/tracing";
+import {
+  readProjection,
+  discoveryProjection,
+} from "../runtime/trace-projections";
 import type { ReadSourceResult, KnownSourceLink } from "../sources/contracts";
 import type { SourceSession } from "../sources/session";
 import {
@@ -51,6 +56,7 @@ export async function researchFestival(
   config: ResearchConfig,
   deps: Pick<ResearchDependencies, "generateCandidate" | "todayUtc">,
   runId?: string,
+  tracing?: RunTracing,
 ): Promise<ResearchExecution> {
   const { catalog, terms, knownLinks } = context;
   const { reads, readSource: read, discoverSources: search } = sources;
@@ -61,9 +67,20 @@ export async function researchFestival(
       "Read a specific public page to resolve a missing or conflicting festival fact. Choose a relevant inspected link or discovered URL. Returns Markdown and remaining budget; repeated URLs return cached content, including failures. No writes.",
     inputSchema: readSourceInputSchema,
     outputSchema: readSourceOutputSchema,
-    execute: async ({ url }) => {
-      const result = await read(url);
-      return { ...boundedToolSource(result), remaining: budget.remaining() };
+    execute: async ({ url }, toolContext) => {
+      const span = toolContext?.tracingContext?.currentSpan;
+      try {
+        const cached = sources.isReadCached(url);
+        const result = await read(url);
+        const bounded = boundedToolSource(result);
+        observeTrace(tracing, span, () =>
+          readProjection(url, result, bounded.truncated, cached),
+        );
+        return { ...bounded, remaining: budget.remaining() };
+      } catch (error) {
+        observeTrace(tracing, span, () => readProjection(url));
+        throw error;
+      }
     },
   });
   const searchTool = createTool({
@@ -72,10 +89,23 @@ export async function researchFestival(
       "Find source URLs when inspected pages and their relevant links cannot answer a material question. Inspect a destination with readSource before using its facts.",
     inputSchema: discoverSourcesInputSchema,
     outputSchema: discoverSourcesOutputSchema,
-    execute: async ({ query }) => ({
-      ...(await search(query)),
-      remaining: budget.remaining(),
-    }),
+    execute: async ({ query }, toolContext) => {
+      const span = toolContext?.tracingContext?.currentSpan;
+      try {
+        const result = await search(query);
+        observeTrace(tracing, span, () =>
+          discoveryProjection(
+            query,
+            sources.wasSearchReserved(result) ? "not_run" : "ok",
+            result,
+          ),
+        );
+        return { ...result, remaining: budget.remaining() };
+      } catch (error) {
+        observeTrace(tracing, span, () => discoveryProjection(query, "failed"));
+        throw error;
+      }
+    },
   });
   const usage: ModelUsage = {
     complete: !deps.generateCandidate,
@@ -146,13 +176,8 @@ export async function researchFestival(
         discoverSources: search,
       });
     } else {
-      const tracing = await createResearchTracing(input, config.model, runId);
-      const mastra = new Mastra({
-        agents: { festivalResearch: agent! },
-        logger: false,
-        storage: tracing?.storage,
-        observability: tracing?.observability,
-      });
+      const runtime = agentRuntime(agent!, tracing);
+      const { mastra } = runtime;
       // Core sets the observability logger in its constructor; override it afterwards.
       tracing?.observability.setLogger({ logger: tracing.logger });
       const abort = new AbortController();
@@ -163,7 +188,8 @@ export async function researchFestival(
       let generated;
       try {
         generated = await mastra.getAgent("festivalResearch").generate(prompt, {
-          tracingOptions: tracing?.options,
+          tracingOptions: runtime.options,
+          tracingContext: runtime.context,
           structuredOutput: {
             schema: modelOutputSchema(),
             // Mastra also validates intermediate tool-call commentary.
@@ -218,7 +244,7 @@ export async function researchFestival(
         // Trace cleanup can cross the deadline after generation has already finished.
         generationFinishedAt = Date.now();
         clearTimeout(timeout);
-        await finishResearchTracing(mastra, tracing?.diagnose);
+        await runtime.finish();
       }
       raw = generated.object;
       throwIfProviderRetry(raw, generated.finishReason, providerError);
@@ -229,6 +255,7 @@ export async function researchFestival(
       }
     }
   } catch (error) {
+    traceFailure(tracing, "research_failed");
     usage.complete = false;
     usage.modelCostUsd = null;
     if (completedSteps === 0) {
@@ -256,6 +283,7 @@ export async function researchFestival(
     };
   }
   if (raw == null && (generationFinishedAt ?? Date.now()) >= budget.deadline) {
+    traceFailure(tracing, "research_failed");
     usage.complete = false;
     usage.modelCostUsd = null;
     return {
@@ -780,4 +808,15 @@ export function normalizeWireCandidate(
         normalizeWireCandidate(part, [...path, key]),
       ]),
   );
+}
+
+function agentRuntime(agent: Agent, tracing?: RunTracing) {
+  const mastra = tracing?.mastra ?? new Mastra({ logger: false });
+  mastra.addAgent(agent, "festivalResearch");
+  return {
+    mastra,
+    options: tracing?.options,
+    context: tracing ? { currentSpan: tracing.root } : undefined,
+    finish: () => (tracing ? Promise.resolve() : mastra.shutdown()),
+  };
 }

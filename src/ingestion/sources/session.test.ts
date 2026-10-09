@@ -134,3 +134,38 @@ test("does not wait for a search retry that would spend the reserved final call"
   expect(budget.snapshot()).toMatchObject({ searches: 1, modelCalls: 1 });
   expect(budget.remaining().modelCalls).toBe(1);
 });
+
+test("cache observations belong to each call, including concurrent duplicates and redirect aliases", async () => {
+  const budget = createResearchBudget();
+  let release!: (result: ReadSourceResult) => void;
+  const readSource = vi.fn<NonNullable<ResearchDependencies["readSource"]>>(
+    (_url, options) => {
+      options.budget.consumePage();
+      return new Promise((resolve) => {
+        release = resolve;
+      });
+    },
+  );
+  const sources = createSourceSession(
+    budget,
+    { apiKey: "fixture", model: "fixture", limits: budget.limits },
+    [],
+    { readSource },
+  );
+  const readWithObservation = async () => {
+    const cached = sources.isReadCached(homepage);
+    const result = await sources.readSource(homepage);
+    return { cached, result };
+  };
+  const first = readWithObservation();
+  const second = readWithObservation();
+  release({ ...page(homepage), finalUrl: tickets });
+  const observations = await Promise.all([first, second]);
+  expect(observations.map(({ cached }) => cached)).toEqual([false, true]);
+  expect(observations[0].result).toBe(observations[1].result);
+  expect(sources.isReadCached(homepage)).toBe(true);
+  expect(sources.isReadCached(tickets)).toBe(true);
+  expect(await sources.readSource(tickets)).toBe(observations[0].result);
+  expect(readSource).toHaveBeenCalledTimes(1);
+  expect(budget.snapshot().pages).toBe(1);
+});

@@ -8,6 +8,8 @@ export interface ReadSourceResult {
   method: "http" | "firecrawl" | "social_stub";
   outcome: RetrievalOutcome;
   reason?: string;
+  /** Host-only extractor observation; never part of model tool output. */
+  sourceTruncated?: boolean;
   /** Ordered Markdown extracted from the fetched page. */
   markdown: string;
   links: string[];
