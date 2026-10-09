@@ -24,6 +24,7 @@ Website:
 
 ## Approved future changes
 
+- [Durable ingestion run records](../openspec/changes/add-ingestion-run-records/proposal.md) — per-festival start/final history, private reports, and known usage/costs, including dry runs.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
