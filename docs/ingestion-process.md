@@ -63,19 +63,41 @@ For example, an existing Event check can return:
   "data": {
     "eventId": "EVENT_ID",
     "eventName": "Example Festival",
-    "sources": [{ "url": "https://example.org/2027", "information": "2027 programme dates; ticket prices require an unavailable booking page." }],
+    "sources": [
+      {
+        "url": "https://example.org/2027",
+        "information": "2027 programme dates; ticket prices require an unavailable booking page."
+      }
+    ],
     "links": { "website": "https://example.org", "socials": {} },
-    "editions": [{
-      "key": "2027",
-      "dates": {
-        "value": { "startsOn": "2027-07-01", "endsOn": "2027-07-03", "state": "confirmed" },
-        "reason": "The organizer confirms the full programme dates, replacing the tentative range."
-      },
-      "links": {}
-    }]
+    "editions": [
+      {
+        "key": "2027",
+        "dates": {
+          "value": {
+            "startsOn": "2027-07-01",
+            "endsOn": "2027-07-03",
+            "state": "confirmed"
+          },
+          "reason": "The organizer confirms the full programme dates, replacing the tentative range."
+        },
+        "links": {}
+      }
+    ]
   },
-  "errors": [{ "code": "source_unavailable", "message": "The booking page could not be read." }],
-  "unresolved": [{ "message": "Could not verify announced 2027 ticket prices because the linked ticket page was inaccessible.", "editionKey": "2027", "field": "tickets" }]
+  "errors": [
+    {
+      "code": "source_unavailable",
+      "message": "The booking page could not be read."
+    }
+  ],
+  "unresolved": [
+    {
+      "message": "Could not verify announced 2027 ticket prices because the linked ticket page was inaccessible.",
+      "editionKey": "2027",
+      "field": "tickets"
+    }
+  ]
 }
 ```
 
@@ -114,5 +136,17 @@ With `--apply`, success and partial results use the atomic writer. Failed resear
 Reports and explanations are private CLI output/files, not public website data or a separate hosted logging service. Public details expose only ticket category labels and availability; amount/terms/variant URLs and research metadata remain private. Unknown category availability has no badge. Discovery and details never derive a global sold-out/closed label from variants.
 
 Token counts retain usage reported by completed model steps even if a later step fails or is interrupted. JSON reports set `usage.complete` to `false` when some usage is unknown; the CLI marks those token counts as `partial`. A full model cost is `null` (`unavailable` in the CLI) unless every call's usage and cost are known. A reported zero cost is preserved as zero.
+
+## Inspect local agent traces
+
+Set `CATALOG_TRACING=true` to save the research agent's automatic model and tool spans. Tracing is off by default and fixture-injected candidates create no store. The default file is `data/mastra-traces.sqlite`; `CATALOG_TRACE_DATABASE_PATH` selects another local path, resolved from the project working directory. It must be separate from `DATABASE_PATH`. LibSQL provides Mastra's trace storage; the catalog continues to use better-sqlite3 and Drizzle.
+
+Traces retain operation names, parent relationships, timing, numeric token usage, technical error status, and bounded metadata: mode, model, prompt version, and requested Event ID when supplied. They exclude prompts, pages, model responses, tool payloads, credentials, transport headers/bodies, raw error messages/stacks, and agent/SDK logs. Use the private version-2 report for final model output. Tracing does not change reports, budgets, provider retries, catalog writes, or research exit status. Initial host reads, preparation, writes, and the eval workflow/scorers have no spans.
+
+Handled completion, provider errors, and cooperative cancellation await an explicit flush attempt before closing the store. Persistence is best effort: the current SDK can lose spans or terminal updates when a background flush overlaps another flush or storage shutdown. This known risk is accepted for local diagnostics; custom buffers, write queues, and an exporter patch are deferred. Forced termination, including SIGKILL, may also leave incomplete traces. Research results and reports remain independent of trace completeness.
+
+A sanitization failure drops the affected span. Application tracing diagnostics use fixed stderr codes, bounded to one of each per invocation: `trace_initialization_failed`, `trace_export_failed`, `trace_flush_failed`, `trace_shutdown_failed`, and `trace_sanitization_failed`. Initialization failure falls back to untraced research; other tracing failures preserve the research result. The tracing logger adapter discards original SDK messages and payloads, but LibSQL's private logger may additionally print original technical errors and stacks to local stderr. Those messages are not forwarded into stored traces or research reports.
+
+Run `npm run catalog:studio` to inspect saved traces after research exits. Studio runs on localhost without model credentials or a catalog connection and registers no agents or mutation workflows. See the [development guide](development.md#local-trace-inspection) for commands and cleanup.
 
 The [source workflow specification](../openspec/specs/catalog/source-workflow/spec.md) defines the detailed behavior.
