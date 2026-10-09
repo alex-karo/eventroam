@@ -98,7 +98,6 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
                 scheduleStatus:
                   edition.scheduleStatus ??
                   (edition.startsOn ? "scheduled" : "announced"),
-                ticketAvailability: edition.ticketAvailability ?? "unknown",
                 publicationState: edition.publicationState ?? "draft",
                 countryCode: edition.countryCode,
                 locality: edition.locality,

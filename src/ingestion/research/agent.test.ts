@@ -159,7 +159,6 @@ test("saved prices in model context use major units and omit aggregate availabil
         availability: "available",
       },
     ],
-    ticketAvailability: "sold_out",
   });
   const catalog = readResearchCatalog(client);
   const context = modelContext(catalog[0]);

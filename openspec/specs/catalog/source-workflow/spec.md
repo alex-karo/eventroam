@@ -347,7 +347,7 @@ Research SHALL reject timeZone, preserve saved zones even after relocation, and 
 - **THEN** use the existing UTC fallback without changing date filters
 
 ### Requirement: Ticket availability belongs to each ticket variant
-Only labelled tickets.value.variants SHALL propose availability: unknown/available/sold_out/closed. Edition-level ticketAvailability SHALL be rejected; no edition-wide value SHALL be inferred from variants or exposed publicly. Complete ticket replacement SHALL remain required.
+Only labelled tickets.value.variants SHALL propose availability: unknown/available/sold_out/closed. Edition-level availability proposals SHALL be rejected; no edition-wide value SHALL be inferred from variants or exposed publicly. Complete ticket replacement SHALL remain required.
 
 #### Scenario: Categories have different availability
 - **WHEN** Early Bird is sold out but Regular remains available
@@ -498,7 +498,7 @@ Research SHALL return at most one Event website, one account per supported socia
 - **AND** one ticket URL explicitly assigned to two editions remains on both
 
 ### Requirement: Model failures expose safe technical details
-Host-generated model_failed errors SHALL preserve bounded safe structured diagnostics in CLI text, JSON, and eval reports: recognized error/cause types, HTTP status, provider/network code, and retryability when available. Unknown fields SHALL remain absent or explicitly unknown. Diagnostics SHALL exclude raw exception messages, provider payloads, request/response headers, prompts, and credentials. Research limits SHALL retain precedence over model_failed. Model failures SHALL NOT trigger automatic retries; configured budgets SHALL remain unchanged.
+Host-generated model_failed errors SHALL preserve bounded safe structured diagnostics in CLI text, JSON, and eval reports: recognized error/cause types, HTTP status, provider/network code, and retryability when available. Unknown fields SHALL remain absent or explicitly unknown. Diagnostics SHALL exclude raw exception messages, provider payloads, request/response headers, prompts, and credentials. Research limits SHALL retain precedence over model_failed. Ordinary research SHALL retry only explicit OpenRouter `provider_unavailable` errors, at most three times per run with 10-second, 30-second, and 90-second exponential backoff within the existing deadline. Those unavailable attempts SHALL NOT consume the model-call budget. Other model failures SHALL NOT trigger automatic retries; all other configured budget accounting SHALL remain unchanged. Retries SHALL retain completed steps and SHALL NOT replay their tools or estimate missing usage/cost.
 
 #### Scenario: Provider or network failure
 - **WHEN** a model request fails and safe technical diagnostics are available
@@ -506,7 +506,12 @@ Host-generated model_failed errors SHALL preserve bounded safe structured diagno
 
 #### Scenario: Provider failure produces no final result
 - **WHEN** a provider failure ends research without a final result
-- **THEN** report model_failed with available safe diagnostics, not invalid_candidate, without retrying the request
+- **THEN** report model_failed with available safe diagnostics, not invalid_candidate, after any permitted provider_unavailable retries
+
+#### Scenario: Unavailable provider preserves research capacity
+- **WHEN** OpenRouter explicitly reports provider_unavailable during ordinary research
+- **THEN** exclude that attempt from the model-call budget and retry at most three times with 10-second, 30-second, and 90-second delays, cancellable at the run deadline
+- **AND** retain completed steps, tool results, and known usage; other provider errors are not retried
 
 #### Scenario: A provider failure follows completed work
 - **WHEN** a model request fails after earlier calls have reported usage

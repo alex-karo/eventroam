@@ -96,18 +96,11 @@ test("populated catalog migration preserves identities, foreign keys, indexes an
           )
           .run(),
       ).toThrow();
-      client
-        .prepare(
-          "UPDATE occurrences SET ticket_availability='closed' WHERE id='edition-old'",
-        )
-        .run();
       expect(
-        client
-          .prepare(
-            "SELECT ticket_availability FROM occurrences WHERE id='edition-old'",
-          )
-          .get(),
-      ).toEqual({ ticket_availability: "closed" });
+        (client.pragma("table_info('occurrences')") as { name: string }[]).map(
+          (column) => column.name,
+        ),
+      ).not.toContain("ticket_availability");
     } finally {
       connection.client.close();
     }
@@ -117,8 +110,8 @@ test("populated catalog migration preserves identities, foreign keys, indexes an
 });
 
 // Exercise the migration from each released schema, with every catalog table populated.
-for (const from of [0, 1]) {
-  test(`application validation migration preserves the catalog from 000${from}`, async () => {
+for (const from of [0, 1, 2]) {
+  test(`catalog cleanup migration preserves retained data from 000${from}`, async () => {
     const { testFixtures } = await import("@/test/fixtures");
     const directory = mkdtempSync(
       join(tmpdir(), "eventroam-validation-migration-"),
@@ -175,13 +168,22 @@ for (const from of [0, 1]) {
           ('festivals','/events/festival','event',NULL,'2026-10-01'),
           ('festivals','/events/festival/2027','event','edition','2026-10-01');
       `);
-      if (from === 1) {
+      if (from >= 1) {
         client
           .prepare(
             "UPDATE occurrences SET ticket_availability='closed',price_details=? WHERE id='edition'",
           )
           .run(
-            JSON.stringify([{ label: "Pass", amount: 120, currency: "EUR" }]),
+            JSON.stringify([
+              {
+                label: "Pass",
+                amount: 120,
+                currency: "EUR",
+                availability: "available",
+                terms: "Full programme",
+                url: "https://example.org/tickets",
+              },
+            ]),
           );
       }
       client
@@ -207,8 +209,6 @@ for (const from of [0, 1]) {
         "occurrences",
         "taxonomy_terms",
         "occurrence_terms",
-        "sources",
-        "source_subjects",
         "external_links",
         "url_aliases",
         "catalog_changes",
@@ -218,7 +218,18 @@ for (const from of [0, 1]) {
         Object.fromEntries(
           tables.map((table) => [
             table,
-            client.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),
+            client
+              .prepare(`SELECT * FROM ${table} ORDER BY rowid`)
+              .all()
+              .map((record) => {
+                const retained = { ...(record as Record<string, unknown>) };
+                if (table === "occurrences") {
+                  delete retained.ticket_availability;
+                } else if (table === "external_links") {
+                  delete retained.source_id;
+                }
+                return retained;
+              }),
           ]),
         );
       const before = snapshot();
@@ -231,13 +242,39 @@ for (const from of [0, 1]) {
       const indexes = () =>
         client
           .prepare(
-            "SELECT name FROM sqlite_schema WHERE type='index' ORDER BY name",
+            "SELECT name FROM sqlite_schema WHERE type='index' AND tbl_name NOT IN ('sources','source_subjects') ORDER BY name",
           )
           .all();
       const beforeIndexes = indexes();
       migrateCatalogConnection(connection);
       expect(snapshot()).toEqual(before);
       expect(indexes()).toEqual(beforeIndexes);
+      expect(
+        client
+          .prepare(
+            "SELECT name FROM sqlite_schema WHERE type='table' AND name IN ('sources','source_subjects')",
+          )
+          .all(),
+      ).toEqual([]);
+      expect(
+        (client.pragma("table_info('occurrences')") as { name: string }[]).map(
+          (column) => column.name,
+        ),
+      ).not.toContain("ticket_availability");
+      expect(
+        (
+          client.pragma("table_info('external_links')") as { name: string }[]
+        ).map((column) => column.name),
+      ).not.toContain("source_id");
+      expect(
+        (
+          client.pragma("foreign_key_list('external_links')") as {
+            table: string;
+          }[]
+        )
+          .map((foreignKey) => foreignKey.table)
+          .sort(),
+      ).toEqual(["events", "occurrences"]);
       const migrations = client
         .prepare("SELECT * FROM __drizzle_migrations")
         .all();

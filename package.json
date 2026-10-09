@@ -28,7 +28,6 @@
     "@mastra/core": "1.74.0",
     "@mastra/libsql": "1.25.1",
     "@mastra/observability": "1.18.4",
-    "@openrouter/ai-sdk-provider": "3.1.0",
     "@tailwindcss/postcss": "4.3.3",
     "better-sqlite3": "13.0.3",
     "cheerio": "1.2.0",

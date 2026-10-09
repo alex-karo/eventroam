@@ -172,6 +172,12 @@ test("actual Mastra request sends a compatible bounded response schema", async (
   vi.stubGlobal(
     "fetch",
     vi.fn(async (_input: unknown, init?: RequestInit) => {
+      expect(String(_input)).toBe(
+        "https://openrouter.ai/api/v1/chat/completions",
+      );
+      expect(new Headers(init?.headers).get("authorization")).toBe(
+        `Bearer ${config.apiKey}`,
+      );
       requests.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
       return new Response(
         JSON.stringify({
@@ -205,11 +211,12 @@ test("actual Mastra request sends a compatible bounded response schema", async (
     client,
     config: {
       ...config,
+      model: "openai/gpt-6-luna",
       serviceTier: loadResearchConfig({
         NODE_ENV: "test",
         OPENROUTER_API_KEY: "test-key",
       }).serviceTier,
-      reasoningEffort: "low",
+      reasoningEffort: "medium",
     },
     readSource: async () => source,
   });
@@ -222,8 +229,11 @@ test("actual Mastra request sends a compatible bounded response schema", async (
     "createOccurrence",
   );
   const request = requests[0];
-  expect(request.reasoning).toEqual({ effort: "low" });
+  expect(request.model).toBe("openai/gpt-6-luna");
+  expect(request.reasoning).toEqual({ effort: "medium" });
   expect(request.service_tier).toBe("flex");
+  expect(request.extraBody).toBeUndefined();
+  expect(request.stream).not.toBe(true);
   expect(result.usage.cachedInputTokens).toBe(6);
   expect(result.usage.reasoningTokens).toBe(12);
   expect(request.plugins).toBeUndefined();
@@ -978,18 +988,27 @@ test.each([400, 429, 503])(
     vi.stubGlobal("fetch", fetchMock);
     const result = await runCatalogResearch(input, {
       client,
-      config,
+      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
       readSource: async () => source,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.outcome).toBe("failed");
+    expect(result.usage).toMatchObject({
+      complete: false,
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedInputTokens: null,
+      reasoningTokens: null,
+      modelCostUsd: null,
+    });
     expect(result.errors).toContainEqual(
       expect.objectContaining({
         code: "model_failed",
         stage: "research",
         diagnostic: expect.objectContaining({
           httpStatus: status,
-          ...(status === 400 ? { providerCode: 1001 } : {}),
+          providerCode: 1001,
+          retryable: status === 429 || status === 503,
         }),
       }),
     );

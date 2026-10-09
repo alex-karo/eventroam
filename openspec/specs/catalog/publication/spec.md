@@ -78,16 +78,16 @@ The catalog SHALL create new subjects as drafts, publish them only through valid
 - **THEN** it can become published again under the same durable identity
 
 ### Requirement: Public details distinguish closed ticket sales
-Public edition details SHALL display known ticket availability beside its category: available as “Available”, sold_out as “Sold out”, and closed as “Ticket sales closed”. Missing/unknown availability SHALL have no status badge. Public payloads SHALL omit edition-wide ticketAvailability; schedule status SHALL remain independent.
+Public edition details SHALL display known ticket availability beside its category: available as “Available”, sold_out as “Sold out”, and closed as “Ticket sales closed”. Missing/unknown availability SHALL have no status badge. Public payloads SHALL omit edition-wide availability; schedule status SHALL remain independent.
 
 #### Scenario: Ticket sales have closed
 - **WHEN** a published edition has a ticket category with availability closed
 - **THEN** only that category shows “Ticket sales closed”, without implying edition-wide closure, cancellation, or sell-out
 
 
-#### Scenario: Categories disagree with the legacy aggregate
-- **WHEN** Early Bird is sold out, Regular is available, and the old occurrence field says sold_out or closed
-- **THEN** details show each category's own state, ignore the old aggregate, and expose no edition-wide availability
+#### Scenario: Categories have different availability
+- **WHEN** Early Bird is sold out and Regular is available
+- **THEN** details show each category's own state and expose no edition-wide availability
 
 #### Scenario: Availability remains unknown
 - **WHEN** a category has no known availability or no variants are stored
