@@ -193,6 +193,8 @@ test("source, link, alias and facet vocabularies are runtime checked", () => {
   for (const kind of linkKinds) {
     validateLinkRecord({ kind });
   }
+  expect(linkKinds).toContain("x");
+  expect(() => validateLinkRecord({ kind: "twitter" })).toThrow();
   validateAliasRecord({ scope: "festivals" });
   for (const facet of facets) {
     validateTaxonomyTerm({ id: "term", facet });

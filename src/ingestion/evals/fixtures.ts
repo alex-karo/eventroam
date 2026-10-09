@@ -71,6 +71,10 @@ export const assertionSchema = z.object({
 });
 export const evalCaseSchema = z.object({
   id: z.string().min(1),
+  todayUtc: z.iso.date().optional(),
+  provenance: z
+    .object({ kind: z.string(), sourceReport: z.string(), note: z.string() })
+    .optional(),
   input: z.object({
     mode: z.enum(["add", "refresh", "check"]),
     name: z.string().optional(),
@@ -89,13 +93,35 @@ export const evalCaseSchema = z.object({
       }),
     )
     .optional(),
-  expectations: z.object({
-    required: z.array(assertionSchema).min(1),
-    forbidden: z.array(assertionSchema).min(1),
-  }),
+  expectations: z
+    .object({
+      required: z.array(assertionSchema),
+      forbidden: z.array(assertionSchema),
+      research: z.object({ status: z.literal("failed") }).optional(),
+    })
+    .superRefine((expectations, ctx) => {
+      if (expectations.research) {
+        if (expectations.required.length || expectations.forbidden.length) {
+          ctx.addIssue({
+            code: "custom",
+            message:
+              "Failed research expectations cannot include change assertions",
+          });
+        }
+      } else if (
+        !expectations.required.length ||
+        !expectations.forbidden.length
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Factual research expectations need required and forbidden assertions",
+        });
+      }
+    }),
 });
 export const evalSuiteSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   todayUtc: z.iso.date(),
   provenance: z.object({
     kind: z.string(),

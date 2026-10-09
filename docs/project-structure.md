@@ -8,7 +8,7 @@ tags: [architecture]
 
 # Eventroam project structure
 
-Status: Implemented core structure · Updated: 2026-10-03
+Status: Implemented core structure · Updated: 2026-10-08
 
 Eventroam is one npm package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. A local Mastra research agent proposes catalog changes through a compact operation adapter and the same writer.
 
@@ -64,7 +64,7 @@ Create additional folders when code needs them. Unit and integration tests live 
 
 ESLint enforces these import boundaries. The writer runs without Next.js. Avoid exports that mix browser-safe contracts with server query implementations.
 
-Within ingestion, `workflow.ts` coordinates context loading, research, candidate preparation, catalog writes, and reporting. `research/context.ts` loads the private catalog context; `research/agent.ts` owns the prompt, model execution, provider diagnostics, and model usage. `sources/session.ts` owns per-run read/search history, caching, and navigation depth, sharing the same budget with the agent. `report.ts` assembles outcomes, changes, source summaries, and combined usage. Shared workflow types live in `contracts.ts` and remain re-exported from the entry point.
+Within ingestion, `workflow.ts` coordinates context loading, research, candidate preparation, catalog writes, and reporting. `research/context.ts` loads the private catalog context; `research/agent.ts` owns the prompt, model execution, provider diagnostics, and model usage. `sources/session.ts` owns per-run read/search history, caching, and navigation depth, sharing the same budget with the agent. `research/contracts.ts` defines the strict result envelope and explained typed facts; `research/prepare.ts` enforces create-only add, grouped-field conversion, complete ticket replacement, and owner/kind link-slot replacement. It keeps explanation mappings separate from write payloads. `report.ts` joins explanations to actual writer changes and assembles research status, catalog outcome, errors/questions, source summaries, retrieval history, and combined usage. Reasons, source summaries, and name-mismatch metadata remain private and do not extend database audit storage. Shared workflow types live in `contracts.ts` and remain re-exported from the entry point.
 
 Discovery loads complete public summaries for the active scope and applies the same filtering rules on direct server entry and in the browser. The map displays the coordinate-bearing subset of list results; moving the map does not fetch or filter inventory. Full details load on selection. See the [discovery contract](../openspec/specs/website/discovery/spec.md) and [catalog records](../openspec/specs/catalog/records/spec.md).
 

@@ -1,0 +1,102 @@
+{
+  "id": "afro-nation-portugal-blocked",
+  "todayUtc": "2026-10-08",
+  "provenance": {
+    "kind": "captured-http-metadata-synthetic-replay",
+    "sourceReport": "/tmp/eventroam-live-ten-20261008/03.json",
+    "note": "Initial catalog facts came from baseline.sqlite in the same capture directory. Five URL, retrieval-time, blocked-outcome and http_403 fields came from the live dry run. Empty Markdown and fixed discovery with no candidates are synthetic deterministic replay; no website or search fallback is used. The live model returned partial with empty data, which this regression expects to reject."
+  },
+  "input": {
+    "mode": "check",
+    "eventId": "festivalnetwork:event:050e6a1b4385550023d3",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "festivalnetwork:event:050e6a1b4385550023d3",
+      "slug": "festivalnetwork-afro-nation-portugal-050e6a1b",
+      "canonicalName": "Afro Nation Portugal",
+      "publicationState": "draft",
+      "links": [
+        {
+          "kind": "other",
+          "url": "https://www.afronation.com/book-tickets-2027",
+          "label": "FestivalNetwork website (unverified)",
+          "official": false
+        }
+      ],
+      "occurrences": [
+        {
+          "id": "festivalnetwork:occurrence:050e6a1b4385550023d3",
+          "occurrenceKey": "source-row",
+          "occurrenceYear": 2027,
+          "startsOn": "2027-06-09",
+          "endsOn": "2027-06-11",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "publicationState": "draft"
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://www.afronation.com/book-tickets-2027",
+      "finalUrl": "https://www.afronation.com/book-tickets-2027",
+      "retrievedAt": "2026-10-08T11:32:56.734Z",
+      "method": "http",
+      "outcome": "blocked",
+      "reason": "http_403",
+      "completeness": "none",
+      "markdownFile": "blocked.md"
+    },
+    {
+      "attemptedUrl": "https://www.afronation.com/",
+      "finalUrl": "https://www.afronation.com/",
+      "retrievedAt": "2026-10-08T11:33:08.365Z",
+      "method": "http",
+      "outcome": "blocked",
+      "reason": "http_403",
+      "completeness": "none",
+      "markdownFile": "blocked.md"
+    },
+    {
+      "attemptedUrl": "https://www.afronation.com/ANP2027",
+      "finalUrl": "https://www.afronation.com/ANP2027",
+      "retrievedAt": "2026-10-08T11:33:08.364Z",
+      "method": "http",
+      "outcome": "blocked",
+      "reason": "http_403",
+      "completeness": "none",
+      "markdownFile": "blocked.md"
+    },
+    {
+      "attemptedUrl": "https://www.afronation.com/terms_and_conditions",
+      "finalUrl": "https://www.afronation.com/terms_and_conditions",
+      "retrievedAt": "2026-10-08T11:33:24.708Z",
+      "method": "http",
+      "outcome": "blocked",
+      "reason": "http_403",
+      "completeness": "none",
+      "markdownFile": "blocked.md"
+    },
+    {
+      "attemptedUrl": "https://www.afronation.com/faqs",
+      "finalUrl": "https://www.afronation.com/faqs",
+      "retrievedAt": "2026-10-08T11:33:24.708Z",
+      "method": "http",
+      "outcome": "blocked",
+      "reason": "http_403",
+      "completeness": "none",
+      "markdownFile": "blocked.md"
+    }
+  ],
+  "expectations": {
+    "required": [],
+    "forbidden": [],
+    "research": { "status": "failed" }
+  }
+}

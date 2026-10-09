@@ -50,6 +50,7 @@ export const linkKinds = [
   "facebook",
   "youtube",
   "tiktok",
+  "x",
   "ticketing",
   "other",
 ] as const;

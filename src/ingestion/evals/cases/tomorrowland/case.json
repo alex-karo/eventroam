@@ -136,8 +136,10 @@
       },
       {
         "owner": "occurrence",
-        "field": "ticket_availability",
-        "value": "sold_out"
+        "field": "price_details",
+        "contains": {
+          "availability": "sold_out"
+        }
       },
       {
         "owner": "event",

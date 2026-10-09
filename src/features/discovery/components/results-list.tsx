@@ -85,9 +85,6 @@ export function ResultsList({
                       {edition.dateState === "provisional" && (
                         <span>Tentative dates</span>
                       )}
-                      {edition.ticketAvailability === "sold_out" && (
-                        <span>Sold out</span>
-                      )}
                       {(edition.latitude === null ||
                         edition.longitude === null) && <span>Not on map</span>}
                       {edition.latitude !== null &&

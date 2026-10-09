@@ -251,26 +251,32 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
           result = await runCatalogResearch(item.input, {
             client: connection.client,
             config,
-            todayUtc: suite.todayUtc,
-            ...fixedSources(item, suite.todayUtc),
+            todayUtc: item.todayUtc ?? suite.todayUtc,
+            ...fixedSources(item, item.todayUtc ?? suite.todayUtc),
           });
-        } catch (error) {
+        } catch {
           result = {
+            schemaVersion: 2,
             mode: item.input.mode,
             outcome: "failed",
+            researchStatus: "failed",
             eventId: item.input.eventId,
+            modelResponse: null,
             operations: [],
             receipts: [],
             references: {},
             changes: [],
             sources: [],
-            gaps: [
+            sourceSummaries: [],
+            errors: [
               {
                 code: "model_failed",
-                detail: "eval_workflow_failed",
-                diagnostic: error instanceof Error ? error.name : "unknown",
+                message: "Evaluation workflow failed",
+                stage: "research",
               },
             ],
+            unresolved: [],
+            eventNameMismatch: null,
             usage: {
               ...createResearchBudget(config.limits).snapshot(),
               inputTokens: 0,
@@ -329,7 +335,10 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     return {
       caseId: input.caseId,
       repetition: input.repetition,
+      fixtureTodayUtc: item.todayUtc ?? suite.todayUtc,
+      fixtureProvenance: item.provenance ?? suite.provenance,
       outcome: result.outcome,
+      researchStatus: result.researchStatus,
       score: scoreCase(item, result),
       usage: result.usage,
       durationMs: result.durationMs,
@@ -340,12 +349,15 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       operations: result.operations,
       references: result.references,
       changes: result.changes,
-      gaps: result.gaps,
+      errors: result.errors,
+      unresolved: result.unresolved,
       sources: result.sources,
+      sourceSummaries: result.sourceSummaries,
+      eventNameMismatch: result.eventNameMismatch,
     };
   });
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     startedAt,
     finishedAt: new Date().toISOString(),
     fixtureTodayUtc: suite.todayUtc,

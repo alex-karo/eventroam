@@ -257,7 +257,6 @@ export function testFixtures(client?: Database.Database) {
         endsOn: "2027-07-01",
         dateState: "confirmed",
         status: "scheduled",
-        ticketAvailability: "unknown",
         countryCode: "PT",
         locality: "Test Valley",
         administrativeArea: null,

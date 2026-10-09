@@ -1,9 +1,10 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { z } from "zod";
-import { researchClaimSchema } from "../research/contracts";
+import { researchCandidateSchema } from "../research/contracts";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { DEFAULT_RESEARCH_LIMITS } from "./budget";
+import { loadResearchConfig } from "./config";
 import { runCatalogResearch } from "../workflow";
 import type { ReadSourceResult } from "../sources/contracts";
 
@@ -21,20 +22,22 @@ const source: ReadSourceResult = {
   links: [],
 };
 const candidate = {
-  eventId,
-  summary: null,
-  eventName: "Provider Fest",
-  editions: [
-    {
-      key: "2027",
-      year: 2027,
-      status: "announced",
-    },
-  ],
-  claims: [],
-  prices: [],
-  links: [],
-  observations: [],
+  status: "success",
+  data: {
+    eventId,
+    eventName: "Provider Fest",
+    sources: [],
+    links: { socials: {} },
+    editions: [
+      {
+        key: "2027",
+        year: { value: 2027, reason: "Shown on the official page." },
+        links: {},
+      },
+    ],
+  },
+  errors: [],
+  unresolved: [],
 };
 const config = {
   apiKey: "test-provider-key",
@@ -51,6 +54,60 @@ const input = {
   actor: "catalog-research",
   initiatedBy: "fixture-owner",
 };
+
+function wireCandidate(
+  request: Record<string, unknown>,
+  value: unknown,
+): unknown {
+  const root = (
+    request.response_format as {
+      json_schema: { schema: Record<string, unknown> };
+    }
+  ).json_schema.schema;
+  const fill = (schema: Record<string, unknown>, part: unknown): unknown => {
+    if (typeof schema.$ref === "string") {
+      const ref = schema.$ref
+        .replace(/^#\//, "")
+        .split("/")
+        .reduce<unknown>(
+          (node, key) => (node as Record<string, unknown>)[key],
+          root,
+        );
+      return fill(ref as Record<string, unknown>, part);
+    }
+    if (Array.isArray(schema.anyOf)) {
+      if (part === null || part === undefined) {
+        return null;
+      }
+      const branch = schema.anyOf.find(
+        (item) => (item as Record<string, unknown>).type !== "null",
+      );
+      return fill(branch as Record<string, unknown>, part);
+    }
+    if (
+      schema.type === "object" &&
+      schema.properties &&
+      typeof schema.properties === "object"
+    ) {
+      const fields = part as Record<string, unknown>;
+      return Object.fromEntries(
+        Object.entries(schema.properties).map(([key, child]) => [
+          key,
+          fields?.[key] === undefined
+            ? null
+            : fill(child as Record<string, unknown>, fields[key]),
+        ]),
+      );
+    }
+    if (schema.type === "array" && Array.isArray(part)) {
+      return part.map((entry) =>
+        fill(schema.items as Record<string, unknown>, entry),
+      );
+    }
+    return part;
+  };
+  return fill(root, value);
+}
 
 function savedSource(client: ReturnType<typeof testDatabase>["client"]) {
   const fx = testFixtures(client);
@@ -127,7 +184,7 @@ test("actual Mastra request sends a compatible bounded response schema", async (
               index: 0,
               message: {
                 role: "assistant",
-                content: JSON.stringify(candidate),
+                content: JSON.stringify(wireCandidate(requests[0], candidate)),
               },
               finish_reason: "stop",
             },
@@ -146,13 +203,19 @@ test("actual Mastra request sends a compatible bounded response schema", async (
   );
   const result = await runCatalogResearch(input, {
     client,
-    config: { ...config, reasoningEffort: "low", serviceTier: "flex" },
+    config: {
+      ...config,
+      serviceTier: loadResearchConfig({
+        NODE_ENV: "test",
+        OPENROUTER_API_KEY: "test-key",
+      }).serviceTier,
+      reasoningEffort: "low",
+    },
     readSource: async () => source,
   });
-  expect(result.modelResponse).toEqual({
-    text: JSON.stringify(candidate),
-    object: candidate,
-  });
+  expect(result.modelResponse?.object).toEqual(
+    wireCandidate(requests[0], candidate),
+  );
   expect(requests).toHaveLength(1);
   expect(result.usage.modelCalls).toBe(1);
   expect(result.operations.map((operation) => operation.kind)).toContain(
@@ -172,6 +235,17 @@ test("actual Mastra request sends a compatible bounded response schema", async (
   };
   expect(responseFormat.type).toBe("json_schema");
   expect(strictSchemaProblems(responseFormat.json_schema.schema)).toEqual([]);
+  const responseProperties = (
+    responseFormat.json_schema.schema as {
+      properties: Record<string, { description?: string }>;
+    }
+  ).properties;
+  expect(responseProperties.status.description).toContain(
+    "Research completion",
+  );
+  expect(responseProperties.unresolved.description).toContain(
+    "unfinished core check",
+  );
   const wireSchema = z.fromJSONSchema(
     responseFormat.json_schema.schema as Parameters<typeof z.fromJSONSchema>[0],
   );
@@ -185,14 +259,25 @@ test("actual Mastra request sends a compatible bounded response schema", async (
     null,
     1,
   ]) {
-    const claim = { editionKey: "2027", field: "scheduleStatus", value };
+    const proposed = {
+      ...candidate,
+      data: {
+        ...candidate.data,
+        editions: [
+          {
+            ...candidate.data.editions[0],
+            scheduleStatus: { value, reason: "Official schedule." },
+          },
+        ],
+      },
+    };
     const valid = ["announced", "scheduled", "postponed", "cancelled"].includes(
       String(value),
     );
-    expect(researchClaimSchema.safeParse(claim).success).toBe(valid);
-    expect(
-      wireSchema.safeParse({ ...candidate, claims: [claim] }).success,
-    ).toBe(valid);
+    expect(researchCandidateSchema.safeParse(proposed).success).toBe(valid);
+    expect(wireSchema.safeParse(wireCandidate(request, proposed)).success).toBe(
+      valid,
+    );
   }
 });
 
@@ -278,10 +363,20 @@ test.each([true, false])(
                       }
                     : {
                         role: "assistant",
-                        content: JSON.stringify({
-                          ...candidate,
-                          eventId: null,
-                        }),
+                        content: JSON.stringify(
+                          wireCandidate(requests[step - 1], {
+                            ...candidate,
+                            data: {
+                              ...candidate.data,
+                              eventId: null,
+                              reason: "This is a distinct festival.",
+                              summary: {
+                                value: "A music festival.",
+                                reason: "Official page describes it.",
+                              },
+                            },
+                          }),
+                        ),
                       },
                 finish_reason: step < 3 ? "tool_calls" : "stop",
               },
@@ -382,7 +477,12 @@ test.each([null, "I will read the linked page before returning the result."])(
                     }
                   : {
                       role: "assistant",
-                      content: JSON.stringify({ ...candidate, editions: [] }),
+                      content: JSON.stringify(
+                        wireCandidate(requests[requests.length - 1], {
+                          ...candidate,
+                          data: { ...candidate.data, editions: [] },
+                        }),
+                      ),
                     },
                 finish_reason: toolCall ? "tool_calls" : "stop",
               },
@@ -425,7 +525,7 @@ test.each([null, "I will read the linked page before returning the result."])(
       [url, linkedUrl],
     );
     expect(result.sources.map((read) => read.finalUrl)).toContain(linkedUrl);
-    expect(result.gaps).toEqual([]);
+    expect(result.errors).toEqual([]);
   },
 );
 
@@ -469,50 +569,197 @@ test.each([
   });
   expect(result.operations).toEqual([]);
   expect(result.receipts).toEqual([]);
-  expect(result.gaps).toEqual(
+  expect(result.errors).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ code: "invalid_candidate" }),
     ]),
   );
 });
 
-test("provider rejection has a safe outcome and never logs raw provider payloads", async () => {
+test("malformed final text at the deadline is retained in a failed research report", async () => {
   const client = testDatabase().client;
   savedSource(client);
-  const secret = "PROVIDER_PRIVATE_SESSION_HEADER";
-  const written: unknown[] = [];
-  for (const name of ["error", "warn", "log", "info", "debug"] as const) {
-    vi.spyOn(console, name).mockImplementation((...parts: unknown[]) => {
-      written.push(...parts);
-    });
-  }
-  const fetchMock = vi.fn(
-    async () =>
-      new Response(JSON.stringify({ error: { message: secret } }), {
-        status: 400,
-        headers: {
-          "content-type": "application/json",
-          "x-private-session": secret,
-        },
-      }),
-  );
-  vi.stubGlobal("fetch", fetchMock);
-  const result = await runCatalogResearch(input, {
-    client,
-    config,
-    readSource: async () => source,
-  });
-  expect(fetchMock).toHaveBeenCalledTimes(1);
-  expect(result.outcome).toBe("failed");
-  expect(result.gaps).toContainEqual(
-    expect.objectContaining({
-      code: "model_failed",
-      detail: "model_failed",
+  const startedAt = Date.now();
+  let clock = startedAt;
+  vi.spyOn(Date, "now").mockImplementation(() => clock);
+  const content = "Final answer was malformed after the research deadline.";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      clock = startedAt + 1_000;
+      return new Response(
+        JSON.stringify({
+          id: "late-invalid-final",
+          object: "chat.completion",
+          created: 1,
+          model: config.model,
+          choices: [
+            {
+              index: 0,
+              message: { role: "assistant", content },
+              finish_reason: "stop",
+            },
+          ],
+          usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
     }),
   );
-  expect(JSON.stringify(result)).not.toContain(secret);
-  expect(JSON.stringify(written)).not.toContain(secret);
-  expect(JSON.stringify(written)).not.toContain(config.apiKey);
+  const result = await runCatalogResearch(input, {
+    client,
+    config: { ...config, limits: { ...config.limits, durationMs: 1_000 } },
+    readSource: async () => source,
+  });
+  expect(result).toMatchObject({
+    outcome: "failed",
+    researchStatus: "failed",
+    operations: [],
+    changes: [],
+  });
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({ code: "limit_reached", stage: "research" }),
+  );
+  expect(result.modelResponse).toEqual({ text: content, object: null });
+});
+
+test.each([400, 429, 503])(
+  "provider HTTP %i has safe diagnostics and no automatic retry",
+  async (status) => {
+    const client = testDatabase().client;
+    savedSource(client);
+    const secret = "PROVIDER_PRIVATE_SESSION_HEADER";
+    const written: unknown[] = [];
+    for (const name of ["error", "warn", "log", "info", "debug"] as const) {
+      vi.spyOn(console, name).mockImplementation((...parts: unknown[]) => {
+        written.push(...parts);
+      });
+    }
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ error: { message: secret, code: 1001 } }),
+          {
+            status,
+            headers: {
+              "content-type": "application/json",
+              "x-private-session": secret,
+            },
+          },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await runCatalogResearch(input, {
+      client,
+      config,
+      readSource: async () => source,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.outcome).toBe("failed");
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: "model_failed",
+        stage: "research",
+        diagnostic: expect.objectContaining({
+          httpStatus: status,
+          ...(status === 400 ? { providerCode: 1001 } : {}),
+        }),
+      }),
+    );
+    expect(JSON.stringify(result)).not.toContain(secret);
+    expect(JSON.stringify(result)).not.toContain(config.apiKey);
+    expect(JSON.stringify(written)).not.toContain(secret);
+    expect(JSON.stringify(written)).not.toContain(config.apiKey);
+    expect(
+      (
+        client.prepare("SELECT count(*) n FROM catalog_changes").get() as {
+          n: number;
+        }
+      ).n,
+    ).toBe(0);
+  },
+);
+
+test("completed tool step usage survives a later provider failure", async () => {
+  const client = testDatabase().client;
+  savedSource(client);
+  const linkedUrl = "https://example.org/dates";
+  const readSource = vi.fn(async (requestedUrl: string) => ({
+    ...source,
+    attemptedUrl: requestedUrl,
+    finalUrl: requestedUrl,
+  }));
+  const fetchMock = vi.fn(async () => {
+    if (fetchMock.mock.calls.length === 1) {
+      return new Response(
+        JSON.stringify({
+          id: "successful-tool-step",
+          object: "chat.completion",
+          created: 1,
+          model: config.model,
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                content: null,
+                tool_calls: [
+                  {
+                    id: "read-linked-page",
+                    type: "function",
+                    function: {
+                      name: "readSource",
+                      arguments: JSON.stringify({ url: linkedUrl }),
+                    },
+                  },
+                ],
+              },
+              finish_reason: "tool_calls",
+            },
+          ],
+          usage: {
+            prompt_tokens: 10,
+            completion_tokens: 20,
+            total_tokens: 30,
+            cost: 0.125,
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
+    return new Response(JSON.stringify({ error: { message: "Unavailable" } }), {
+      status: 503,
+      headers: { "content-type": "application/json" },
+    });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  const result = await runCatalogResearch(input, {
+    client,
+    config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+    readSource,
+  });
+
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(readSource).toHaveBeenCalledTimes(2);
+  expect(result).toMatchObject({
+    outcome: "failed",
+    operations: [],
+    usage: {
+      modelCalls: 2,
+      inputTokens: 10,
+      outputTokens: 20,
+      modelCostUsd: 0.125,
+      cachedInputTokens: null,
+      reasoningTokens: null,
+    },
+  });
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({
+      code: "model_failed",
+      diagnostic: expect.objectContaining({ httpStatus: 503 }),
+    }),
+  );
   expect(
     (
       client.prepare("SELECT count(*) n FROM catalog_changes").get() as {

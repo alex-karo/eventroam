@@ -42,7 +42,7 @@ function publicRows(
       endsOn: occurrences.endsOn,
       dateState: occurrences.dateState,
       status: occurrences.scheduleStatus,
-      ticketAvailability: occurrences.ticketAvailability,
+      priceDetails: occurrences.priceDetails,
       venueName: occurrences.venueName,
       venueAddress: occurrences.venueAddress,
       locality: occurrences.locality,
@@ -166,18 +166,24 @@ function enrich(client: Database.Database, rows: Row[]): PublicOccurrence[] {
     assigned.push(link);
     linksByOccurrence.set(occurrenceId, assigned);
   }
-  return rows.map(({ occurrenceKey, latitude, longitude, ...fields }) => ({
-    ...fields,
-    key: occurrenceKey,
-    year: fields.year!,
-    startsOn: fields.startsOn!,
-    endsOn: fields.endsOn!,
-    dateState: fields.dateState as PublicOccurrence["dateState"],
-    countryCode: fields.countryCode!,
-    hasCoordinates: latitude !== null && longitude !== null,
-    terms: termsByOccurrence.get(fields.id) ?? [],
-    links: linksByOccurrence.get(fields.id) ?? [],
-  }));
+  return rows.map(
+    ({ occurrenceKey, latitude, longitude, priceDetails, ...fields }) => ({
+      ...fields,
+      key: occurrenceKey,
+      year: fields.year!,
+      startsOn: fields.startsOn!,
+      endsOn: fields.endsOn!,
+      dateState: fields.dateState as PublicOccurrence["dateState"],
+      countryCode: fields.countryCode!,
+      hasCoordinates: latitude !== null && longitude !== null,
+      ticketCategories: priceDetails.map(({ label, availability }) => ({
+        label,
+        ...(availability ? { availability } : {}),
+      })),
+      terms: termsByOccurrence.get(fields.id) ?? [],
+      links: linksByOccurrence.get(fields.id) ?? [],
+    }),
+  );
 }
 
 export function publicEditions(

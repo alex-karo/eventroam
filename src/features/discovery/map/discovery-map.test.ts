@@ -16,7 +16,6 @@ test("map features retain approximate labels and exclude unlocated summaries", (
     latitude: 38,
     longitude: -9,
     coordinatePrecision: "locality",
-    ticketAvailability: "sold_out",
   });
   const unlocated = build.summary({
     id: "unlocated",
@@ -35,11 +34,11 @@ test("map features retain approximate labels and exclude unlocated summaries", (
           id: "located",
           name: "Fictional Festival 2027",
           approximate: true,
-          soldOut: true,
         },
       },
     ],
   });
+  expect(JSON.stringify(mapFeatures([located]))).not.toContain("soldOut");
 });
 
 test("map bounds keep dates-line neighbors together and ignore unlocated editions", () => {

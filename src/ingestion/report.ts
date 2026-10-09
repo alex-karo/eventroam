@@ -8,7 +8,8 @@ import type {
 } from "./sources/contracts";
 import {
   RESEARCH_PROMPT_VERSION,
-  type ResearchGap,
+  type ResearchError,
+  type ResearchQuestion,
 } from "./research/contracts";
 import type { prepareResearch } from "./research/prepare";
 import type { ResearchExecution } from "./research/agent";
@@ -20,7 +21,8 @@ type ReportInput = {
   research: ResearchExecution;
   applied: ReturnType<typeof applyCatalogItem> | null;
   writeFailed: boolean;
-  gaps: ResearchGap[];
+  errors: ResearchError[];
+  unresolved: ResearchQuestion[];
   reads: ReadSourceResult[];
   discovery: DiscoverSourcesResult[];
   budget: ResearchBudgetSnapshot;
@@ -35,7 +37,8 @@ export function buildResearchReport({
   research,
   applied,
   writeFailed,
-  gaps,
+  errors,
+  unresolved,
   reads,
   discovery,
   budget,
@@ -51,9 +54,12 @@ export function buildResearchReport({
       field: field.field,
       oldValue: field.oldValue,
       newValue: field.newValue,
+      explanations:
+        prepared?.explanations[change.operationKey]?.[field.field] ?? [],
     })),
   );
-  const modelFailed = !research.ok && research.modelFailed;
+  const researchStatus =
+    !research.ok || !prepared?.candidate ? "failed" : prepared.candidate.status;
   const {
     inputTokens,
     outputTokens,
@@ -65,8 +71,15 @@ export function buildResearchReport({
     .filter((_, index) => receipts[index]?.changed)
     .map((operation) => operation.kind);
   return {
+    schemaVersion: 2,
     mode: input.mode,
-    outcome: researchOutcome({ changedKinds, writeFailed, modelFailed, gaps }),
+    outcome: researchOutcome({
+      changedKinds,
+      writeFailed,
+      researchStatus,
+      skipped: prepared?.skipped ?? false,
+    }),
+    researchStatus,
     eventId: prepared?.matchedEventId ?? references.event ?? input.eventId,
     modelResponse: research.modelResponse ?? null,
     operations,
@@ -74,7 +87,10 @@ export function buildResearchReport({
     references,
     changes,
     sources: reads.map(safeSource),
-    gaps,
+    sourceSummaries: prepared?.candidate?.data?.sources ?? [],
+    errors,
+    unresolved,
+    eventNameMismatch: prepared?.eventNameMismatch ?? null,
     usage: {
       ...budget,
       inputTokens:
@@ -125,16 +141,22 @@ export function buildResearchReport({
 function researchOutcome({
   changedKinds,
   writeFailed,
-  modelFailed,
-  gaps,
+  researchStatus,
+  skipped,
 }: {
   changedKinds: CatalogResearchResult["operations"][number]["kind"][];
   writeFailed: boolean;
-  modelFailed: boolean;
-  gaps: ResearchGap[];
+  researchStatus: CatalogResearchResult["researchStatus"];
+  skipped: boolean;
 }): CatalogResearchResult["outcome"] {
   if (writeFailed) {
     return "failed";
+  }
+  if (researchStatus === "failed") {
+    return "failed";
+  }
+  if (skipped) {
+    return "skipped";
   }
   if (
     changedKinds.includes("publishEvent") ||
@@ -150,12 +172,6 @@ function researchOutcome({
   }
   if (changedKinds.length) {
     return "updated";
-  }
-  if (modelFailed) {
-    return "failed";
-  }
-  if (gaps.some((gap) => gap.code !== "observation")) {
-    return "skipped";
   }
   return "unchanged";
 }

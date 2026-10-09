@@ -23,7 +23,7 @@ An Occurrence SHALL publish only with a year, date pair, country, and venue, loc
 
 ### Requirement: Public pages preserve edition status and uncertainty
 
-The Event page SHALL show its name, summary, selected active edition, and published history; if none is active, it SHALL say so. The Occurrence page SHALL show known dates, status, location, classifications, capacity, price, and official links. Provisional dates SHALL say “Tentative dates.” A published postponed edition SHALL retain its page with “Postponed — new dates TBA” and “Previous dates.” Cancelled editions SHALL retain their pages; sold-out editions SHALL carry a “Sold out” label.
+The Event page SHALL show its name, summary, selected active edition, and published history; if none is active, it SHALL say so. The Occurrence page SHALL show known dates, status, location, classifications, capacity, price, and official links. Provisional dates SHALL say “Tentative dates.” A published postponed edition SHALL retain its page with “Postponed — new dates TBA” and “Previous dates.” Cancelled editions SHALL retain their pages. Ticket availability SHALL appear only beside a named ticket category, never as an edition-wide label.
 
 #### Scenario: A postponed published edition has no replacement dates
 
@@ -78,11 +78,25 @@ The catalog SHALL create new subjects as drafts, publish them only through valid
 - **THEN** it can become published again under the same durable identity
 
 ### Requirement: Public details distinguish closed ticket sales
-Public edition details SHALL display `closed` ticket availability as “Ticket sales closed”, separately from sold-out and cancelled states.
+Public edition details SHALL display known ticket availability beside its category: available as “Available”, sold_out as “Sold out”, and closed as “Ticket sales closed”. Missing/unknown availability SHALL have no status badge. Public payloads SHALL omit edition-wide ticketAvailability; schedule status SHALL remain independent.
 
 #### Scenario: Ticket sales have closed
-- **WHEN** a published Occurrence has ticket availability `closed`
-- **THEN** its details show “Ticket sales closed” without implying cancellation or a sell-out
+- **WHEN** a published edition has a ticket category with availability closed
+- **THEN** only that category shows “Ticket sales closed”, without implying edition-wide closure, cancellation, or sell-out
+
+
+#### Scenario: Categories disagree with the legacy aggregate
+- **WHEN** Early Bird is sold out, Regular is available, and the old occurrence field says sold_out or closed
+- **THEN** details show each category's own state, ignore the old aggregate, and expose no edition-wide availability
+
+#### Scenario: Availability remains unknown
+- **WHEN** a category has no known availability or no variants are stored
+- **THEN** no availability is inferred from base price, dates, or schedule status, and no global badge is shown
+
+#### Scenario: Public category information stays limited
+- **WHEN** an eligible public edition is read
+- **THEN** expose category labels/availability without research reasons, source summaries, audit entries, or other private variant data
+- **AND** existing primary price display and publication gates remain unchanged
 
 ### Requirement: Model-proposed publication uses structural gates
 The system SHALL publish an Occurrence when its stored values satisfy the existing date, location, and scope rules. The same structural rules SHALL apply to every publication operation.

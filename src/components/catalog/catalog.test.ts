@@ -2,33 +2,92 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
 import type { PublicOccurrence } from "@/catalog/read/contracts";
-import { Status, TicketPrice } from "@/components/catalog/catalog";
+import {
+  Status,
+  TicketCategories,
+  TicketPrice,
+  linkLabel,
+} from "@/components/catalog/catalog";
+
+const edition: PublicOccurrence = {
+  id: "edition",
+  eventId: "event",
+  key: "2027",
+  eventSlug: "test-event",
+  eventName: "Test Event",
+  name: null,
+  year: 2027,
+  startsOn: "2027-07-01",
+  endsOn: "2027-07-03",
+  dateState: "confirmed",
+  status: "scheduled",
+  ticketCategories: [],
+  venueName: null,
+  venueAddress: null,
+  locality: "Test Valley",
+  administrativeArea: null,
+  countryCode: "PT",
+  hasCoordinates: false,
+  capacityEstimate: null,
+  priceKind: null,
+  priceCurrency: null,
+  priceMinMinor: null,
+  priceMaxMinor: null,
+  priceCoverage: null,
+  priceQualification: null,
+  terms: [],
+  links: [],
+};
 
 const render = (fields: Partial<PublicOccurrence>) =>
   renderToStaticMarkup(
     createElement(TicketPrice, {
-      edition: {
-        priceKind: null,
-        priceCurrency: null,
-        priceMinMinor: null,
-        priceMaxMinor: null,
-        priceCoverage: null,
-        priceQualification: null,
-        ...fields,
-      } as PublicOccurrence,
+      edition: { ...edition, ...fields },
     }),
   );
 
-test("closed ticket sales stay separate from schedule status and sell-out", () => {
+test("ticket statuses appear only beside named categories", () => {
   const output = renderToStaticMarkup(
     createElement(Status, {
       edition: {
-        status: "scheduled",
-        ticketAvailability: "closed",
-      } as PublicOccurrence,
+        ...edition,
+        ticketCategories: [
+          { label: "Early Bird", availability: "sold_out" },
+          { label: "Regular", availability: "available" },
+          { label: "Last Chance", availability: "closed" },
+          { label: "Unknown", availability: "unknown" },
+          { label: "Unset" },
+        ],
+      },
     }),
   );
-  expect(output).toBe("<p>Scheduled · Ticket sales closed</p>");
+  expect(output).toBe("<p>Scheduled</p>");
+  const categories = renderToStaticMarkup(
+    createElement(TicketCategories, {
+      edition: {
+        ...edition,
+        ticketCategories: [
+          { label: "Early Bird", availability: "sold_out" },
+          { label: "Regular", availability: "available" },
+          { label: "Last Chance", availability: "closed" },
+          { label: "Unknown", availability: "unknown" },
+          { label: "Unset" },
+        ],
+      },
+    }),
+  );
+  expect(categories).toContain("Early Bird · Sold out");
+  expect(categories).toContain("Regular · Available");
+  expect(categories).toContain("Last Chance · Ticket sales closed");
+  expect(categories).toContain("<li>Unknown</li><li>Unset</li>");
+  expect(
+    renderToStaticMarkup(
+      createElement(TicketCategories, {
+        edition,
+      }),
+    ),
+  ).toBe("");
+  expect(linkLabel("x")).toBe("X (Twitter)");
 });
 
 test("Occurrence ticket output scales original-currency minor units", () => {

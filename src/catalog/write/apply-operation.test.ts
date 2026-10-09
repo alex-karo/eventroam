@@ -500,6 +500,49 @@ test("identical link replacement is a no-op and an added link preserves existing
   ).toEqual(existing);
 });
 
+test("X links accept both account domains and reject a twitter kind alias", () => {
+  const client = testDatabase().client;
+  const event = testFixtures(client).event();
+  const written = applyCatalogOperation(client, {
+    kind: "replaceLinks",
+    operationKey: "test:x-links",
+    actor: "owner",
+    owner: { type: "event", id: event.id },
+    expectedVersion: event.version,
+    links: [
+      { kind: "x", url: "https://x.com/eventroam", official: true },
+      { kind: "x", url: "https://twitter.com/eventroam", official: true },
+    ],
+  });
+  expect(written.changed).toBe(true);
+  expect(
+    client
+      .prepare(
+        "SELECT url FROM external_links WHERE event_id=? AND kind='x' ORDER BY url",
+      )
+      .all(event.id),
+  ).toEqual([
+    { url: "https://twitter.com/eventroam" },
+    { url: "https://x.com/eventroam" },
+  ]);
+  expect(() =>
+    applyCatalogOperation(client, {
+      kind: "replaceLinks",
+      operationKey: "test:twitter-alias",
+      actor: "owner",
+      owner: { type: "event", id: event.id },
+      expectedVersion: written.version,
+      links: [
+        {
+          kind: "twitter",
+          url: "https://twitter.com/eventroam",
+          official: true,
+        },
+      ],
+    } as unknown as CatalogOperation),
+  ).toThrow();
+});
+
 test("link replacement audits changes and leaves unchanged links alone", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);

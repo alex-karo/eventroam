@@ -8,7 +8,11 @@ import type {
   ReadSourceResult,
   DiscoverSourcesResult,
 } from "./sources/contracts";
-import type { ResearchGap } from "./research/contracts";
+import type {
+  ResearchError,
+  ResearchQuestion,
+  ResearchStatus,
+} from "./research/contracts";
 
 export type CatalogResearchInput = {
   mode: "add" | "refresh" | "check";
@@ -22,12 +26,14 @@ export type CatalogResearchInput = {
 };
 
 export type CatalogResearchResult = {
+  schemaVersion: 2;
   mode: CatalogResearchInput["mode"];
   outcome:
     "created" | "updated" | "published" | "unchanged" | "skipped" | "failed";
   eventId?: string;
-  /** Final model output before normalization; absent in older reports. */
-  modelResponse?: { text: string | null; object: unknown } | null;
+  researchStatus: ResearchStatus;
+  /** Final model output before normalization. */
+  modelResponse: { text: string | null; object: unknown } | null;
   operations: CatalogOperation[];
   receipts: { id: string; version: number; changed: boolean }[];
   references: Record<string, string>;
@@ -36,6 +42,7 @@ export type CatalogResearchResult = {
     field: string;
     oldValue: unknown;
     newValue: unknown;
+    explanations: string[];
   }[];
   sources: {
     attemptedUrl: string;
@@ -44,7 +51,14 @@ export type CatalogResearchResult = {
     outcome: ReadSourceResult["outcome"];
     reason?: string;
   }[];
-  gaps: ResearchGap[];
+  sourceSummaries: { url: string; information: string }[];
+  errors: ResearchError[];
+  unresolved: ResearchQuestion[];
+  eventNameMismatch: {
+    eventId: string;
+    storedName: string;
+    observedName: string;
+  } | null;
   usage: ReturnType<ResearchBudget["snapshot"]> & {
     inputTokens: number;
     outputTokens: number;

@@ -17,6 +17,7 @@ export type CaseScore = {
     missingRequired: EvalAssertion[];
     violatedForbidden: EvalAssertion[];
     workflowFailed: boolean;
+    expectedFailureMissing: boolean;
   };
 };
 
@@ -33,34 +34,6 @@ function contains(actual: unknown, expected: unknown): boolean {
     );
   }
   return Object.is(actual, expected);
-}
-
-function createdEditionFacts(changes: EvalChange[]) {
-  // Older eval reports retained writer changes but not operations/references.
-  // Pair the accepted create fields by subject to recover only this event's edition.
-  const created = new Map<
-    string,
-    { eventId?: unknown; key?: unknown; year?: unknown }
-  >();
-  for (const change of changes) {
-    if (
-      change.field !== "event_id" &&
-      change.field !== "occurrence_key" &&
-      change.field !== "occurrence_year"
-    ) {
-      continue;
-    }
-    const facts = created.get(change.subject) ?? {};
-    if (change.field === "event_id") {
-      facts.eventId = change.newValue;
-    } else if (change.field === "occurrence_key") {
-      facts.key = change.newValue;
-    } else {
-      facts.year = change.newValue;
-    }
-    created.set(change.subject, facts);
-  }
-  return created;
 }
 
 function expectedSubjects(
@@ -107,22 +80,6 @@ function expectedSubjects(
       : undefined;
     if (id) {
       subjects.add(id);
-    }
-  }
-  const created = createdEditionFacts(result.changes);
-  for (const [subject, facts] of created) {
-    if (
-      facts.eventId !== item.initial.event.id ||
-      typeof facts.key !== "string"
-    ) {
-      continue;
-    }
-    if (
-      (!assertion.editionKey || facts.key === assertion.editionKey) &&
-      (assertion.editionYear === undefined ||
-        facts.year === assertion.editionYear)
-    ) {
-      subjects.add(subject);
     }
   }
   return subjects;
@@ -185,6 +142,11 @@ export function scoreCase(
   item: EvalCase,
   result: CatalogResearchResult,
 ): CaseScore {
+  if (result.schemaVersion !== 2) {
+    throw new Error(
+      `Unsupported catalog report version: ${String(result.schemaVersion)}`,
+    );
+  }
   const required = item.expectations.required.map((assertion) => ({
     assertion,
     matched: assertionMatches(item, result, assertion),
@@ -194,19 +156,68 @@ export function scoreCase(
     matched: assertionMatches(item, result, assertion),
   }));
   const failed =
-    result.outcome === "failed" ||
-    result.gaps.some(
-      (gap) =>
-        gap.code === "invalid_candidate" ||
-        (gap.code === "model_failed" &&
-          ["model_failed", "eval_workflow_failed"].includes(gap.detail ?? "")),
+    result.outcome === "failed" || result.researchStatus === "failed";
+  const expectsFailure = item.expectations.research?.status === "failed";
+  const candidate = result.modelResponse?.object;
+  const declaredFailure =
+    candidate !== null &&
+    typeof candidate === "object" &&
+    "status" in candidate &&
+    candidate.status === "failed" &&
+    "data" in candidate &&
+    candidate.data === null;
+  const unavailable = new Set(
+    result.sources
+      .filter((source) =>
+        ["blocked", "failed", "unsupported"].includes(source.outcome),
+      )
+      .map((source) => source.attemptedUrl),
+  );
+  const sourceFailure = result.errors.some(
+    (error) =>
+      error.stage === "source" &&
+      ["source_blocked", "source_unavailable", "source_unsupported"].includes(
+        error.code,
+      ) &&
+      Boolean(error.url && unavailable.has(error.url)) &&
+      error.message.trim().length > 0,
+  );
+  const expectedFailureMet =
+    expectsFailure &&
+    result.researchStatus === "failed" &&
+    result.outcome === "failed" &&
+    declaredFailure &&
+    result.operations.length === 0 &&
+    result.receipts.length === 0 &&
+    result.changes.length === 0 &&
+    result.sourceSummaries.length === 0 &&
+    Object.keys(result.references).length === 0 &&
+    result.sources.length > 0 &&
+    result.sources.every((source) =>
+      ["blocked", "failed", "unsupported"].includes(source.outcome),
+    ) &&
+    sourceFailure &&
+    !result.errors.some((error) =>
+      [
+        "model_failed",
+        "invalid_candidate",
+        "write_failed",
+        "limit_reached",
+      ].includes(error.code),
     );
-  const completeness = failed
-    ? 0
-    : required.filter((check) => check.matched).length / required.length;
-  const correctness = failed
-    ? 0
-    : 1 - forbidden.filter((check) => check.matched).length / forbidden.length;
+  let completeness = required.length
+    ? required.filter((check) => check.matched).length / required.length
+    : 1;
+  let correctness = forbidden.length
+    ? 1 - forbidden.filter((check) => check.matched).length / forbidden.length
+    : 1;
+  if (expectsFailure) {
+    completeness = Number(expectedFailureMet);
+    correctness = Number(expectedFailureMet);
+  } else if (failed) {
+    completeness = 0;
+    correctness = 0;
+  }
   return {
     correctness,
     completeness,
@@ -220,7 +231,8 @@ export function scoreCase(
       violatedForbidden: forbidden
         .filter((check) => check.matched)
         .map((check) => check.assertion),
-      workflowFailed: failed,
+      workflowFailed: failed && !expectsFailure,
+      expectedFailureMissing: expectsFailure && !expectedFailureMet,
     },
   };
 }
@@ -233,6 +245,9 @@ function describeChecks(
   const score = scoreCase(item, result);
   if (score.reasons.workflowFailed) {
     return "Research workflow failed";
+  }
+  if (score.reasons.expectedFailureMissing) {
+    return "Expected failed research with null data, no writes, and a source failure tied to an unavailable page";
   }
   const failures =
     kind === "required"

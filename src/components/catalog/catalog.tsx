@@ -48,13 +48,40 @@ const statusLabels = {
   scheduled: "Scheduled",
 };
 
+export function linkLabel(kind: string): string {
+  return kind === "x" ? "X (Twitter)" : kind.replaceAll("_", " ");
+}
+
 export function Status({ edition }: Readonly<{ edition: PublicOccurrence }>) {
+  return <p>{statusLabels[edition.status]}</p>;
+}
+
+const availabilityLabels = {
+  available: "Available",
+  sold_out: "Sold out",
+  closed: "Ticket sales closed",
+};
+
+export function TicketCategories({
+  edition,
+}: Readonly<{ edition: PublicOccurrence }>) {
+  if (!edition.ticketCategories.length) {
+    return null;
+  }
   return (
-    <p>
-      {statusLabels[edition.status]}
-      {edition.ticketAvailability === "sold_out" && " · Sold out"}
-      {edition.ticketAvailability === "closed" && " · Ticket sales closed"}
-    </p>
+    <section>
+      <h2>Ticket categories</h2>
+      <ul>
+        {edition.ticketCategories.map((category, index) => (
+          <li key={`${category.label}:${index}`}>
+            {category.label}
+            {category.availability && category.availability !== "unknown" && (
+              <> · {availabilityLabels[category.availability]}</>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

@@ -10,7 +10,7 @@ import { loadResearchContext } from "./research/context";
 import { createSourceSession } from "./sources/session";
 import { researchFestival } from "./research/agent";
 import { prepareResearch } from "./research/prepare";
-import type { ResearchGap } from "./research/contracts";
+import type { ResearchError, ResearchQuestion } from "./research/contracts";
 import { buildResearchReport } from "./report";
 
 export type {
@@ -52,34 +52,39 @@ export async function runCatalogResearch(
     deps,
   );
   let prepared: ReturnType<typeof prepareResearch> | null = null;
-  let gaps: ResearchGap[];
+  let errors: ResearchError[];
+  let unresolved: ResearchQuestion[];
   if (research.ok) {
     prepared = prepareResearch(
       research.candidate,
       context.catalog,
       input,
       context.terms,
+      budget.limits.pages,
     );
-    gaps = prepared.gaps;
+    errors = prepared.errors;
+    unresolved = prepared.unresolved;
   } else {
-    gaps = research.gaps;
+    errors = research.errors;
+    unresolved = [];
   }
   let applied: ReturnType<typeof applyCatalogItem> | null = null;
   let writeFailed = false;
   try {
-    if (prepared?.operations.length) {
+    if (
+      prepared?.candidate?.status !== "failed" &&
+      prepared?.operations.length
+    ) {
       applied = applyCatalogItem(deps.client, prepared.operations, {
         dryRun: input.dryRun ?? true,
       });
     }
-  } catch (error) {
+  } catch {
     writeFailed = true;
-    gaps.push({
+    errors.push({
       code: "write_failed",
-      detail:
-        error instanceof Error
-          ? error.message.slice(0, 200)
-          : "Catalog write failed",
+      stage: "write",
+      message: "Catalog write failed",
     });
   }
   return buildResearchReport({
@@ -89,7 +94,8 @@ export async function runCatalogResearch(
     research,
     applied,
     writeFailed,
-    gaps,
+    errors,
+    unresolved,
     reads: sources.reads,
     discovery: sources.discovery,
     budget: budget.snapshot(),

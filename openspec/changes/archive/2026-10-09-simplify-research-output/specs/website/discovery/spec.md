@@ -8,7 +8,3 @@ Discovery summaries SHALL omit edition-wide ticketAvailability. Result lists, ma
 #### Scenario: Stored aggregate conflicts with category availability
 - **WHEN** an otherwise eligible edition has stored aggregate sold_out or closed
 - **THEN** it remains discoverable without a sales badge, sold-out marker flag, or availability text in its popup
-
-#### Scenario: A visitor opens edition details
-- **WHEN** a result opens its public details
-- **THEN** any availability is associated with a named category under the public-details contract, not a discovery-wide aggregate
