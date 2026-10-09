@@ -158,6 +158,7 @@ export default defineConfig([
   },
   globalIgnores([
     ".next/**",
+    ".mastra/**",
     "out/**",
     "node_modules/**",
     "data/**",

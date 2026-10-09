@@ -7,6 +7,10 @@ import type { CatalogResearchInput, ResearchDependencies } from "../contracts";
 import { ResearchLimitError, type ResearchBudget } from "../runtime/budget";
 import type { ResearchConfig } from "../runtime/config";
 import { createResearchModel } from "../runtime/openrouter";
+import {
+  createResearchTracing,
+  finishResearchTracing,
+} from "../runtime/tracing";
 import type { ReadSourceResult, KnownSourceLink } from "../sources/contracts";
 import type { SourceSession } from "../sources/session";
 import {
@@ -115,6 +119,7 @@ export async function researchFestival(
   );
   let raw: unknown;
   let text: string | null = null;
+  let generationFinishedAt: number | undefined;
   try {
     if (prompt.length > budget.limits.modelInputChars) {
       throw new ResearchLimitError("modelInputChars");
@@ -128,10 +133,15 @@ export async function researchFestival(
         discoverSources: search,
       });
     } else {
+      const tracing = await createResearchTracing(input, config.model);
       const mastra = new Mastra({
         agents: { festivalResearch: agent! },
         logger: false,
+        storage: tracing?.storage,
+        observability: tracing?.observability,
       });
+      // Core sets the observability logger in its constructor; override it afterwards.
+      tracing?.observability.setLogger({ logger: tracing.logger });
       const abort = new AbortController();
       const timeout = setTimeout(
         () => abort.abort(),
@@ -140,6 +150,7 @@ export async function researchFestival(
       let generated;
       try {
         generated = await mastra.getAgent("festivalResearch").generate(prompt, {
+          tracingOptions: tracing?.options,
           structuredOutput: {
             schema: modelOutputSchema(),
             // Mastra also validates intermediate tool-call commentary.
@@ -180,8 +191,10 @@ export async function researchFestival(
           },
         });
       } finally {
+        // Trace cleanup can cross the deadline after generation has already finished.
+        generationFinishedAt = Date.now();
         clearTimeout(timeout);
-        await mastra.shutdown();
+        await finishResearchTracing(mastra, tracing?.diagnose);
       }
       raw = generated.object;
       throwIfProviderRetry(raw, generated.finishReason, providerHttpStatus);
@@ -198,7 +211,11 @@ export async function researchFestival(
       usage.cachedInputTokens = null;
       usage.reasoningTokens = null;
     }
-    const classified = classifyModelError(error, budget.deadline);
+    const classified = classifyModelError(
+      error,
+      budget.deadline,
+      generationFinishedAt,
+    );
     return {
       ok: false,
       usage,
@@ -214,7 +231,7 @@ export async function researchFestival(
       ],
     };
   }
-  if (raw == null && budget.remaining().durationMs === 0) {
+  if (raw == null && (generationFinishedAt ?? Date.now()) >= budget.deadline) {
     usage.complete = false;
     usage.modelCostUsd = null;
     return {
@@ -471,7 +488,11 @@ function serializedResearchLimit(item: Record<string, unknown>) {
   return undefined;
 }
 
-export function classifyModelError(error: unknown, deadline: number) {
+export function classifyModelError(
+  error: unknown,
+  deadline: number,
+  finishedAt = Date.now(),
+) {
   const errorTypes: string[] = [];
   let httpStatus: number | undefined;
   let providerCode: { value: string | number } | undefined;
@@ -501,7 +522,7 @@ export function classifyModelError(error: unknown, deadline: number) {
       typeof item.isRetryable === "boolean" ? item.isRetryable : undefined;
     current = item.cause;
   }
-  if (!limit && Date.now() >= deadline) {
+  if (!limit && finishedAt >= deadline) {
     limit = new ResearchLimitError("time");
   }
   return {

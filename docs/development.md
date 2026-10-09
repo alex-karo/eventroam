@@ -91,6 +91,23 @@ Mastra `runEvals` and custom `createScorer` checks evaluate final catalog change
 
 When reviewing failures or revising cases, check the source context for the exact Event and edition. Known errors include treating a sibling festival as the target, assigning a later announcement to an older edition, using an office address as a venue, and treating a newsletter signup as ticketing. An excerpt's presence on a page does not establish that it supports the proposed fact. Compare model and prompt runs on the same fixtures and assertions, repeat them to expose variability, and rerun after changing retrieval or workflow behavior.
 
+### Local trace inspection
+
+```sh
+CATALOG_TRACING=true npm run catalog -- refresh --event EVENT_ID --report data/research-report.json
+npm run catalog:studio
+```
+
+Open `http://127.0.0.1:4111` in the built-in Browser and select Observability to inspect persisted research traces. Studio registers no agents or workflows and needs neither `OPENROUTER_API_KEY` nor a catalog database. Both commands resolve the default `data/mastra-traces.sqlite` to the same absolute path; the launcher passes that path before Studio changes its working directory. Set `CATALOG_TRACE_DATABASE_PATH` consistently in `.env` or both command environments to override it. `DATABASE_PATH` always refers to the separate catalog database.
+
+Tracing is optional. Unset `CATALOG_TRACING` or set it to `false` to stop recording; existing traces remain viewable. The [ingestion guide](ingestion-process.md#inspect-local-agent-traces) describes retained fields and safe diagnostics. Local files grow with enabled invocations; there is no retention service. Stop both research and Studio before deleting the default trace store:
+
+```sh
+rm -f data/mastra-traces.sqlite data/mastra-traces.sqlite-wal data/mastra-traces.sqlite-shm
+```
+
+For a custom path, delete that store and its matching `-wal`/`-shm` files while processes are stopped. Catalog records and private research reports remain separate.
+
 ### Schema migration and experiment copies
 
 Migration `0002_application_validation` transfers business checks to the application while preserving stored values, indexes, and structural protections. It rebuilds the six affected tables and removes the taxonomy facet-agreement and single-assignment triggers; earlier migrations remain unchanged. Apply it with the matching application release: stop web and writer processes, take a consistent backup, run `npm run db:migrate`, then restart. Restore the backup together with its matching application version if rollback is needed.

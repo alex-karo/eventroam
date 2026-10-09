@@ -21,10 +21,13 @@
     "db:migrate": "tsx commands/catalog-db.ts migrate",
     "db:fixtures": "tsx commands/catalog-db.ts fixtures",
     "catalog": "tsx --env-file-if-exists=.env commands/catalog.ts",
-    "catalog:eval": "tsx --env-file-if-exists=.env commands/catalog-eval.ts"
+    "catalog:eval": "tsx --env-file-if-exists=.env commands/catalog-eval.ts",
+    "catalog:studio": "tsx --env-file-if-exists=.env commands/catalog-studio.ts"
   },
   "dependencies": {
     "@mastra/core": "1.74.0",
+    "@mastra/libsql": "1.25.1",
+    "@mastra/observability": "1.18.4",
     "@openrouter/ai-sdk-provider": "3.1.0",
     "@tailwindcss/postcss": "4.3.3",
     "better-sqlite3": "13.0.3",
@@ -54,6 +57,7 @@
     "eslint-config-next": "16.3.8",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-sonarjs": "4.2.2",
+    "mastra": "1.33.0",
     "mdast-util-from-markdown": "2.1.0",
     "prettier": "3.9.9",
     "tsx": "4.23.15",
