@@ -24,12 +24,12 @@ Website:
 
 ## Approved future changes
 
-- [Minimal research tracing](../openspec/changes/minimal-research-tracing/proposal.md) — implemented optional local research-agent traces and Studio inspection, with accepted persistence/logger risks; pending archive.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
 ## Archived changes
 
+- [Minimal research tracing](../openspec/changes/archive/2026-10-09-minimal-research-tracing/proposal.md) — optional local research-agent traces and Studio inspection, with accepted persistence/logger risks.
 - [Simpler research output](../openspec/changes/archive/2026-10-09-simplify-research-output/proposal.md) — explicit research outcomes, explained facts, replaceable link slots, and ticket-category availability.
 - [Source-backed catalog workflow](../openspec/changes/archive/2026-10-05-source-backed-catalog-workflow/proposal.md) — completed local collection change; its [design](../openspec/changes/archive/2026-10-05-source-backed-catalog-workflow/design.md) records the implementation approach.
 
