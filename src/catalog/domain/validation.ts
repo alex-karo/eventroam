@@ -5,10 +5,7 @@ import {
   scopes,
   dateStates,
   scheduleStatuses,
-  ticketAvailabilities,
   coordinatePrecisions,
-  sourceKinds,
-  sourceAuthorities,
   linkKinds,
   facets,
 } from "./vocabulary";
@@ -25,7 +22,6 @@ const occurrenceStates = z.object({
   publicationState: state,
   dateState: z.enum(dateStates).default("unknown"),
   scheduleStatus: z.enum(scheduleStatuses).default("announced"),
-  ticketAvailability: z.enum(ticketAvailabilities).default("unknown"),
   coordinatePrecision: z.enum(coordinatePrecisions).default("unknown"),
 });
 
@@ -116,10 +112,6 @@ export function validateOccurrenceRecord(r: RecordValues) {
     );
   }
   validateStoredPrice(r);
-}
-export function validateSourceRecord(r: RecordValues) {
-  z.enum(sourceKinds).parse(r.kind);
-  z.enum(sourceAuthorities).parse(r.authority);
 }
 export function validateLinkRecord(r: RecordValues) {
   z.enum(linkKinds).parse(r.kind);

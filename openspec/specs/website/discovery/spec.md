@@ -125,8 +125,8 @@ Name search, filter pickers, applied chips, result count, and Clear all SHALL re
 - **THEN** name search and When and Where remain visible above results, while Music genre, Duration, and Size remain reachable through the filter panel
 
 ### Requirement: Discovery does not display aggregate ticket availability
-Discovery summaries SHALL omit edition-wide ticketAvailability. Result lists, map markers, and popups SHALL NOT display aggregate sold-out/closed indicators or infer them from ticket variants. Availability SHALL remain outside filtering and ordering; schedule status rules SHALL remain unchanged.
+Discovery summaries SHALL omit edition-wide ticket availability. Result lists, map markers, and popups SHALL NOT display aggregate sold-out/closed indicators or infer them from ticket variants. Availability SHALL remain outside filtering and ordering; schedule status rules SHALL remain unchanged.
 
-#### Scenario: Stored aggregate conflicts with category availability
-- **WHEN** an otherwise eligible edition has stored aggregate sold_out or closed
+#### Scenario: Ticket categories have different availability
+- **WHEN** an otherwise eligible edition has sold-out, closed, or available ticket categories
 - **THEN** it remains discoverable without a sales badge, sold-out marker flag, or availability text in its popup

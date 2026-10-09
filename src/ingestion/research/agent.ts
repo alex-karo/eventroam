@@ -331,7 +331,7 @@ Read already inspected pages before calling tools. For add, discover and inspect
 
 Aim for no more than four distinct page attempts, including failed reads. Follow the most relevant visible link for an unresolved identity, programme date, location, or ticket question. Search only when relevant inspected links are absent. Complete the relevant checks within the available budget; unknown optional fields can remain omitted. Do not retry inaccessible pages through a chain of alternatives.
 
-Return data.sources with one brief information summary per useful inspected HTTP(S) page, preferring its final URL. Do not list unread pages as useful sources. Explain each supplied fact in a nonempty reason, including clearing and unchanged checks. Explain Event identity in data.reason only when creating a new Event. Existing eventName is observational and never renames a saved Event. Omitted facts preserve saved values. If a page does not specify a venue, omit venueName or use wire venueName:null; NEVER return venueName:{value:null,reason:"not found"}. Inner value:null is an intentional clearing and requires positive evidence that the saved value became obsolete. Apply the same rule to all nullable facts, dates, coordinates, and ticket blocks. Do not return claims, prices, descriptor status, timeZone, or edition-wide ticketAvailability.
+Return data.sources with one brief information summary per useful inspected HTTP(S) page, preferring its final URL. Do not list unread pages as useful sources. Explain each supplied fact in a nonempty reason, including clearing and unchanged checks. Explain Event identity in data.reason only when creating a new Event. Existing eventName is observational and never renames a saved Event. Omitted facts preserve saved values. If a page does not specify a venue, omit venueName or use wire venueName:null; NEVER return venueName:{value:null,reason:"not found"}. Inner value:null is an intentional clearing and requires positive evidence that the saved value became obsolete. Apply the same rule to all nullable facts, dates, coordinates, and ticket blocks. Do not return claims, prices, descriptor status, timeZone, or edition-wide ticket availability.
 
 Associate each fact with the right edition. Programme dates exclude camping, gates, build and ticket-sale windows. dates.value requires startsOn, endsOn and provisional/confirmed state; coordinates.value requires latitude, longitude and precision. A location move should explicitly clear obsolete coordinates and address when supported. Capacity is planned maximum, not attendance. scheduleStatus is announced/scheduled/postponed/cancelled; cancellation must be explicit. Use only supplied term IDs. classification.add unions terms; classification.remove subtracts them. Omitted fields preserve existing values.
 
@@ -382,10 +382,7 @@ export function modelContext(target: ResearchCatalog[number]) {
       } = edition;
       const rest = Object.fromEntries(
         Object.entries(edition).filter(
-          ([key]) =>
-            key !== "ticketAvailability" &&
-            key !== "priceDetails" &&
-            !key.startsWith("price"),
+          ([key]) => key !== "priceDetails" && !key.startsWith("price"),
         ),
       );
       const qualification = priceQualification

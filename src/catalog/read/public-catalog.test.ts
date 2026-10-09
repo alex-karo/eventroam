@@ -72,9 +72,7 @@ test("upcoming list and active selection use only current public editions", () =
   ]);
   expect(selectActive(event.editions, "2026-10-01")?.key).toBe("2027");
   expect(selectActive(event.editions, "2028-01-01")).toBeNull();
-  expect(JSON.stringify(event)).not.toMatch(
-    /sourceId|operationKey|catalog_changes/,
-  );
+  expect(JSON.stringify(event)).not.toMatch(/operationKey|catalog_changes/);
 });
 
 test("on-demand discovery details obey publication and schedule gates", () => {
@@ -311,9 +309,7 @@ test("complete compact discovery includes history and unlocated editions, exclud
       (s) => s.latitude !== null && s.longitude !== null,
     ),
   ).toHaveLength(1);
-  expect(JSON.stringify(catalog)).not.toMatch(
-    /price|sourceId|venueAddress|summary/,
-  );
+  expect(JSON.stringify(catalog)).not.toMatch(/price|venueAddress|summary/);
   const filters = parseFilters(
     new URLSearchParams(
       "from=2025-07-03&to=2025-07-03&country=PT&durationMin=3",
@@ -473,31 +469,27 @@ test("discovery hides draft and withdrawn parents and editions", () => {
   }
 });
 
-test("public ticket categories show their own availability and hide the stale aggregate and private details", () => {
+test("public ticket categories show their own availability and hide private details", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const { event, occurrences } = fx.publishedEvent();
-  client
-    .prepare(
-      "UPDATE occurrences SET ticket_availability='closed', price_details=? WHERE id=?",
-    )
-    .run(
-      JSON.stringify([
-        {
-          label: "Early Bird",
-          amount: 120,
-          currency: "EUR",
-          availability: "sold_out",
-          terms: "Private terms",
-          url: "https://example.org/offer",
-        },
-        { label: "Regular", availability: "available" },
-        { label: "Late", availability: "closed" },
-        { label: "Mystery", availability: "unknown" },
-        { label: "Unannounced" },
-      ]),
-      occurrences[0].id,
-    );
+  client.prepare("UPDATE occurrences SET price_details=? WHERE id=?").run(
+    JSON.stringify([
+      {
+        label: "Early Bird",
+        amount: 120,
+        currency: "EUR",
+        availability: "sold_out",
+        terms: "Private terms",
+        url: "https://example.org/offer",
+      },
+      { label: "Regular", availability: "available" },
+      { label: "Late", availability: "closed" },
+      { label: "Mystery", availability: "unknown" },
+      { label: "Unannounced" },
+    ]),
+    occurrences[0].id,
+  );
   const detail = publicEvent(client, event.id)!;
   const summaries = publicSummaries(client);
   expect(detail.editions[0].ticketCategories).toEqual([

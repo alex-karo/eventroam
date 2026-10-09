@@ -60,7 +60,6 @@ const occurrenceData = z
     endsOn: localDate.nullable().optional(),
     dateState: z.enum(dateStates).optional(),
     scheduleStatus: z.enum(scheduleStatuses).optional(),
-    ticketAvailability: z.enum(ticketAvailabilities).optional(),
     capacityEstimate: z.number().int().positive().nullable().optional(),
     venueName: z.string().trim().min(1).max(250).nullable().optional(),
     venueAddress: z.string().trim().min(1).max(500).nullable().optional(),
@@ -155,7 +154,6 @@ export const catalogOperationSchema = z.discriminatedUnion("kind", [
             url,
             label: z.string().max(250).nullable().optional(),
             official: z.boolean(),
-            sourceId: z.string().nullable().optional(),
           })
           .strict(),
       )
