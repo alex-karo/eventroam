@@ -52,7 +52,7 @@ const source = z.strictObject({
   attemptedUrl: z.url(),
   finalUrl: z.url(),
   retrievedAt: z.iso.datetime(),
-  method: z.enum(["http", "social_stub"]),
+  method: z.enum(["http", "firecrawl", "social_stub"]),
   outcome: z.enum(["ok", "partial", "unsupported", "blocked", "failed"]),
   reason: z.string().optional(),
   markdown: z.string(),

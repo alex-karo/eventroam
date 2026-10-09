@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createResearchBudget } from "../runtime/budget";
 import { readSource } from "./read-source";
 import { assertPublicUrl, isPublicAddress, UnsafeSourceError } from "./network";
+import { FirecrawlError } from "./firecrawl";
 
 const sourceUrl = "https://festival.example/2027";
 
@@ -15,6 +16,134 @@ function mockResponse(body: string, contentType = "text/html") {
 }
 
 describe("readSource", () => {
+  beforeEach(() => vi.stubEnv("FIRECRAWL_KEY", ""));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("falls back on 403 using the env key, final URL and shared extraction", async () => {
+    vi.stubEnv("FIRECRAWL_KEY", "test-key");
+    const budget = createResearchBudget();
+    const request = mockResponse("Forbidden");
+    request.mockResolvedValueOnce({
+      finalUrl: "https://festival.example/redirected/",
+      status: 403,
+      contentType: "text/html",
+      body: Buffer.from("Forbidden"),
+    });
+    const firecrawlRequest = mockResponse(
+      '<h1>Festival 2027</h1><p>10–12 June</p><a href="/tickets">Tickets</a><script>secret</script>',
+    );
+    const result = await readSource(sourceUrl, {
+      budget,
+      request,
+      firecrawlRequest,
+    });
+    expect(firecrawlRequest).toHaveBeenCalledOnce();
+    expect(firecrawlRequest).toHaveBeenCalledWith(
+      "https://festival.example/redirected/",
+      expect.objectContaining({ apiKey: "test-key", timeoutMs: 30_000 }),
+    );
+    expect(result).toMatchObject({
+      method: "firecrawl",
+      attemptedUrl: sourceUrl,
+      finalUrl: sourceUrl,
+      links: ["https://festival.example/tickets"],
+    });
+    expect(result.markdown).toContain("Festival 2027");
+    expect(result.markdown).not.toContain("secret");
+    expect(budget.snapshot().pages).toBe(2);
+  });
+
+  it.each([200, 401, 429, 500])(
+    "does not fall back on HTTP %i",
+    async (status) => {
+      const request = mockResponse("<p>Festival dates</p>");
+      request.mockResolvedValueOnce({
+        finalUrl: sourceUrl,
+        status,
+        contentType: "text/html",
+        body: Buffer.from("<p>Festival dates</p>"),
+      });
+      const firecrawlRequest = mockResponse("<p>Fallback</p>");
+      await readSource(sourceUrl, {
+        budget: createResearchBudget(),
+        request,
+        firecrawlRequest,
+        firecrawlKey: "test-key",
+      });
+      expect(firecrawlRequest).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps 403 blocked without a key", async () => {
+    const request = mockResponse("Forbidden");
+    request.mockResolvedValueOnce({
+      finalUrl: sourceUrl,
+      status: 403,
+      contentType: "text/html",
+      body: Buffer.from("Forbidden"),
+    });
+    const firecrawlRequest = mockResponse("<p>Fallback</p>");
+    const result = await readSource(sourceUrl, {
+      budget: createResearchBudget(),
+      request,
+      firecrawlRequest,
+    });
+    expect(result).toMatchObject({
+      method: "http",
+      outcome: "blocked",
+      reason: "http_403",
+    });
+    expect(firecrawlRequest).not.toHaveBeenCalled();
+  });
+
+  it("does not start fallback after the page budget is exhausted", async () => {
+    const request = mockResponse("Forbidden");
+    request.mockResolvedValueOnce({
+      finalUrl: sourceUrl,
+      status: 403,
+      contentType: "text/html",
+      body: Buffer.from("Forbidden"),
+    });
+    const firecrawlRequest = mockResponse("<p>Fallback</p>");
+    const result = await readSource(sourceUrl, {
+      budget: createResearchBudget({ pages: 1 }),
+      request,
+      firecrawlRequest,
+      firecrawlKey: "test-key",
+    });
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      reason: "pages_budget_exhausted",
+    });
+    expect(firecrawlRequest).not.toHaveBeenCalled();
+  });
+
+  it("reports fallback failure safely without retrying it", async () => {
+    const request = mockResponse("Forbidden");
+    request.mockResolvedValueOnce({
+      finalUrl: sourceUrl,
+      status: 403,
+      contentType: "text/html",
+      body: Buffer.from("Forbidden"),
+    });
+    const firecrawlRequest = vi
+      .fn()
+      .mockRejectedValue(new FirecrawlError("firecrawl_http_402"));
+    const result = await readSource(sourceUrl, {
+      budget: createResearchBudget(),
+      request,
+      firecrawlRequest,
+      firecrawlKey: "test-key",
+    });
+    expect(result).toMatchObject({
+      method: "firecrawl",
+      outcome: "failed",
+      reason: "firecrawl_http_402",
+      completeness: "none",
+    });
+    expect(firecrawlRequest).toHaveBeenCalledOnce();
+  });
+
   it("passes ordered headings, programme dates, ticket cards and tables as Markdown", async () => {
     const result = await readSource(sourceUrl, {
       budget: createResearchBudget(),
