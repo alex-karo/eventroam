@@ -1,3 +1,4 @@
+import { majorToMinor } from "../research/money";
 import { createScorer } from "@mastra/core/evals";
 import { hasHostFailure } from "../runs";
 import type { CatalogResearchResult } from "../workflow";
@@ -92,7 +93,11 @@ export function assertionMatches(
   assertion: EvalAssertion,
 ): boolean {
   const subjects = expectedSubjects(item, result, assertion);
-  return result.changes.some((change: EvalChange) => {
+  const changes =
+    assertion.state === "effective"
+      ? effectivePrices(item, result)
+      : result.changes;
+  return changes.some((change: EvalChange) => {
     if (!subjects.has(change.subject) || change.field !== assertion.field) {
       return false;
     }
@@ -162,7 +167,10 @@ export function scoreCase(
     result.outcome === "failed" ||
     result.researchStatus === "failed";
   const expectsFailure = item.expectations.research?.status === "failed";
-  const candidate = result.modelResponse?.object;
+  const candidate =
+    "assembledCandidate" in result
+      ? result.assembledCandidate
+      : result.modelResponse?.object;
   const declaredFailure =
     candidate !== null &&
     typeof candidate === "object" &&
@@ -320,4 +328,53 @@ export function createEvalScorers(cases: EvalCase[]) {
       describeChecks(find(run.input ?? { caseId: "" }), run.output, "required"),
     );
   return { correctness, completeness };
+}
+
+/** Effective ticket state includes saved values and successful dry-run diffs, including no-ops. */
+function effectivePrices(
+  item: EvalCase,
+  result: CatalogResearchResult,
+): EvalChange[] {
+  const saved: EvalChange[] = item.initial.event.occurrences.flatMap(
+    (edition) => {
+      const base = edition.tickets?.basePrice;
+      const values: Record<string, unknown> = {
+        price_details: edition.tickets?.variants ?? [],
+        price_kind: base?.kind ?? null,
+        price_currency: base && base.kind !== "free" ? base.currency : null,
+        price_min_minor: effectiveAmount(base, "minAmount"),
+        price_max_minor: effectiveAmount(base, "maxAmount"),
+        price_coverage: base?.coverage ?? null,
+        price_qualification: base?.qualification ?? null,
+      };
+      return Object.entries(values).map(([field, newValue]) => ({
+        subject: edition.id,
+        field,
+        newValue,
+        oldValue: newValue,
+        explanations: [],
+      }));
+    },
+  );
+  const merged = new Map(
+    saved.map((change) => [change.subject + "/" + change.field, change]),
+  );
+  for (const change of result.changes) {
+    merged.set(change.subject + "/" + change.field, change);
+  }
+  return [...merged.values()];
+}
+
+function effectiveAmount(
+  base:
+    | NonNullable<
+        EvalCase["initial"]["event"]["occurrences"][number]["tickets"]
+      >["basePrice"]
+    | undefined,
+  field: "minAmount" | "maxAmount",
+) {
+  if (!base) {
+    return null;
+  }
+  return base.kind === "free" ? 0 : majorToMinor(base[field], base.currency);
 }

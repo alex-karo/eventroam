@@ -21,7 +21,11 @@ import { RunPersistenceError, persistenceFailureReport } from "../runs";
 import { runCatalogResearch, type CatalogResearchResult } from "../workflow";
 import { loadResearchConfig } from "../runtime/config";
 import { createResearchBudget } from "../runtime/budget";
-import { RESEARCH_PROMPT_VERSION } from "../research/contracts";
+import {
+  RESEARCH_PROMPT_VERSION,
+  TICKET_PROMPT_VERSION,
+  ticketBlockSchema,
+} from "../research/contracts";
 import type {
   ReadSourceResult,
   DiscoverSourcesResult,
@@ -29,6 +33,7 @@ import type {
 import type { ReadSourceOptions } from "../sources/read-source";
 import type { DiscoverSourcesOptions } from "../sources/discover-sources";
 import { loadEvalSuite, type EvalCase, type EvalSuite } from "./fixtures";
+import { majorToMinor } from "../research/money";
 import { sourceLinks } from "./source-links";
 import { createEvalScorers, scoreCase } from "./score";
 
@@ -105,6 +110,7 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
                 administrativeArea: edition.administrativeArea,
                 venueName: edition.venueName,
                 venueAddress: edition.venueAddress,
+                ...seedTickets(edition.tickets),
                 createdAt: timestamp,
                 updatedAt: timestamp,
               }),
@@ -353,6 +359,8 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       reasoningEffort: result.reasoningEffort ?? null,
       promptVersion: result.promptVersion,
       modelResponse: result.modelResponse ?? null,
+      assembledCandidate: result.assembledCandidate ?? null,
+      ticketResearch: result.ticketResearch,
       operations: result.operations,
       references: result.references,
       changes: result.changes,
@@ -375,6 +383,9 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     modelVersion: config.model,
     reasoningEffort: config.reasoningEffort ?? null,
     promptVersion: RESEARCH_PROMPT_VERSION,
+    ticketPromptVersion: TICKET_PROMPT_VERSION,
+    limits: config.limits,
+    serviceTier: config.serviceTier ?? null,
     mastra: {
       scores: mastraResult.scores,
       summary: mastraResult.summary,
@@ -390,4 +401,34 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     });
   }
   return report;
+}
+
+function seedAmount(
+  base:
+    | NonNullable<
+        import("./fixtures").EvalCase["initial"]["event"]["occurrences"][number]["tickets"]
+      >["basePrice"]
+    | undefined,
+  field: "minAmount" | "maxAmount",
+) {
+  if (!base) {
+    return null;
+  }
+  return base.kind === "free" ? 0 : majorToMinor(base[field], base.currency);
+}
+
+function seedTickets(
+  value: EvalCase["initial"]["event"]["occurrences"][number]["tickets"],
+) {
+  const tickets = value ? ticketBlockSchema.parse(value) : undefined;
+  const base = tickets?.basePrice;
+  return {
+    priceDetails: tickets?.variants,
+    priceKind: base?.kind,
+    priceCurrency: base && base.kind !== "free" ? base.currency : null,
+    priceMinMinor: seedAmount(base, "minAmount"),
+    priceMaxMinor: seedAmount(base, "maxAmount"),
+    priceCoverage: base?.coverage,
+    priceQualification: base?.qualification,
+  };
 }

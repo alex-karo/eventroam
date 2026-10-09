@@ -938,3 +938,41 @@ test.each(["none", "workflow", "persistence"] as const)(
     expect(stdout.mock.calls.flat().join("")).toContain(result.runId);
   },
 );
+
+test("effective-state ticket assertions catch preservation and no-op values missed by diffs", () => {
+  const item = structuredClone(tomorrowland);
+  const edition = item.initial.event.occurrences[0];
+  edition.tickets = {
+    variants: [{ label: "Saved weekend", amount: 100, currency: "EUR" }],
+    basePrice: {
+      kind: "exact",
+      currency: "EUR",
+      minAmount: 100,
+      maxAmount: 100,
+      coverage: "full_programme",
+    },
+  };
+  const report = result();
+  const assertion = {
+    owner: "occurrence" as const,
+    editionKey: edition.occurrenceKey,
+    field: "price_min_minor",
+    value: 10000,
+    state: "effective" as const,
+  };
+  expect(assertionMatches(item, report, assertion)).toBe(true);
+  expect(
+    assertionMatches(item, report, { ...assertion, state: undefined }),
+  ).toBe(false);
+  report.changes.push({
+    subject: edition.id,
+    field: "price_min_minor",
+    oldValue: 10000,
+    newValue: 12300,
+    explanations: ["Verified price"],
+  });
+  expect(assertionMatches(item, report, assertion)).toBe(false);
+  expect(assertionMatches(item, report, { ...assertion, value: 12300 })).toBe(
+    true,
+  );
+});

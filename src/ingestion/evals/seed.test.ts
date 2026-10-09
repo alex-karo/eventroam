@@ -57,3 +57,42 @@ test("eval data cannot bypass publication and date-state rules", () => {
   item.initial.event.homeScope = null;
   expect(() => seedDatabase(suite, item)).toThrow(/home scope/);
 });
+
+test("validated saved-price fixtures retain original variant and primary units", () => {
+  const suite = loadEvalSuite();
+  const item = structuredClone(suite.cases[0]);
+  item.initial.event.occurrences[0].tickets = {
+    variants: [
+      {
+        label: "Regular",
+        amount: 1.234,
+        currency: "KWD",
+        availability: "closed",
+      },
+    ],
+    basePrice: {
+      kind: "exact",
+      currency: "KWD",
+      minAmount: 1.234,
+      maxAmount: 1.234,
+      coverage: "full_programme",
+    },
+  };
+  const connection = seedDatabase(suite, item);
+  try {
+    const row = connection.client
+      .prepare(
+        "SELECT price_min_minor, price_details FROM occurrences WHERE id = ?",
+      )
+      .get(item.initial.event.occurrences[0].id) as {
+      price_min_minor: number;
+      price_details: string;
+    };
+    expect(row.price_min_minor).toBe(1234);
+    expect(JSON.parse(row.price_details)[0].amount).toBe(1.234);
+  } finally {
+    connection.client.close();
+  }
+  item.initial.event.occurrences[0].tickets.variants[0].amount = 1.2345;
+  expect(() => seedDatabase(suite, item)).toThrow();
+});

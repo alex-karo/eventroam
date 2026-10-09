@@ -143,3 +143,29 @@ export function createResearchBudget(
     }),
   };
 }
+
+/** Main and discovery see only unreserved capacity; all counters/deadlines stay shared. */
+export function reserveTicketCall(budget: ResearchBudget) {
+  let reserved = budget.remaining().modelCalls >= 2 ? 1 : 0;
+  const remaining = () => ({
+    ...budget.remaining(),
+    modelCalls: Math.max(0, budget.remaining().modelCalls - reserved),
+  });
+  const main: ResearchBudget = {
+    ...budget,
+    remaining,
+    consumeModelCall: (chars) => {
+      if (remaining().modelCalls <= 0) {
+        throw new ResearchLimitError("modelCalls");
+      }
+      budget.consumeModelCall(chars);
+    },
+    snapshot: () => ({ ...budget.snapshot(), remaining: remaining() }),
+  };
+  return {
+    main,
+    release: () => {
+      reserved = 0;
+    },
+  };
+}

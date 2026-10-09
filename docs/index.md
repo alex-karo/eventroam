@@ -24,6 +24,7 @@ Website:
 
 ## Approved future changes
 
+- [Isolate ticket research](../openspec/changes/isolate-ticket-research/proposal.md) — implemented specialist interpretation, host assembly and shared budgets; verified and synced, pending archive.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 

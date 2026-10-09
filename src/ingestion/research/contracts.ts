@@ -17,7 +17,7 @@ const url = z
   .url()
   .refine((value) => /^https?:\/\//.test(value), "HTTP(S) URL required");
 const optionalLink = z.union([url, z.literal("")]).optional();
-const fact = <T extends z.ZodType>(value: T) =>
+export const fact = <T extends z.ZodType>(value: T) =>
   z.object({ value, reason: boundedMessage }).strict();
 const nullableText = (max: number) =>
   z.string().trim().min(1).max(max).nullable();
@@ -114,7 +114,7 @@ export const ticketVariantSchema = z
       });
     }
   });
-const ticketBlock = z
+export const ticketBlockSchema = z
   .object({
     variants: z.array(ticketVariantSchema).max(100),
     basePrice: researchBasePriceSchema
@@ -146,7 +146,7 @@ const socialLinks = z
     other: optionalLink,
   })
   .strict();
-const edition = z
+export const editionSchema = z
   .object({
     key: editionKey,
     year: fact(z.number().int().min(1).max(9999)).optional(),
@@ -173,7 +173,7 @@ const edition = z
       })
       .strict()
       .optional(),
-    tickets: fact(ticketBlock).optional(),
+    tickets: fact(ticketBlockSchema).optional(),
     links: z.object({ tickets: optionalLink }).strict(),
   })
   .strict();
@@ -189,7 +189,7 @@ export const researchDataSchema = z
     sources: z.array(z.object({ url, information: boundedMessage }).strict()),
     summary: fact(z.string().max(2000)).optional(),
     links: z.object({ website: optionalLink, socials: socialLinks }).strict(),
-    editions: z.array(edition).max(20),
+    editions: z.array(editionSchema).max(20),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -249,7 +249,7 @@ export const researchCandidateSchema = z
     status: z
       .enum(["success", "partial", "failed"])
       .describe(
-        "Research completion: success when relevant checks are complete even if the next edition announcement lacks details; partial only for useful source findings with an unfinished core check; failed with data:null and a source error when refresh/check has no usable inspected-source findings. Repeating saved/input identity, facts, or URLs is not a finding; verified unchanged facts count. Duplicate add may use a matching supplied catalog identity alone.",
+        "Research completion depends only on identity, relevant edition/dates and location, independently of ticket navigation or interpretation. Ticket-only uncertainty never requires partial. Success when relevant checks are complete even if the next edition announcement lacks details; partial only for useful source findings with an unfinished core check; failed with data:null and a source error when refresh/check has no usable inspected-source findings. Repeating saved/input identity, facts, or URLs is not a finding; verified unchanged facts count. Duplicate add may use a matching supplied catalog identity alone.",
       ),
     data: researchDataSchema.nullable(),
     errors: z.array(modelResearchErrorSchema).max(30),
@@ -316,4 +316,49 @@ export type ResearchError = {
     retryable?: boolean;
   };
 };
-export const RESEARCH_PROMPT_VERSION = "model-direct-v5";
+export const RESEARCH_PROMPT_VERSION = "main-routing-v7";
+
+export const ticketRoutingSchema = z
+  .object({
+    state: z.enum(["inspect", "not_found", "unfinished"]),
+    sourceUrls: z.array(url).max(20),
+    reason: boundedMessage,
+  })
+  .strict()
+  .superRefine((routing, ctx) => {
+    if (routing.state === "inspect" && routing.sourceUrls.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["sourceUrls"],
+        message: "Inspect requires a read source",
+      });
+    }
+  });
+export const mainEditionSchema = editionSchema.omit({ tickets: true }).extend({
+  ticketResearch: ticketRoutingSchema.describe(
+    "Route already inspected pages; inspect/unfinished ticket work does not affect success/partial.",
+  ),
+});
+export const mainDraftSchema = researchCandidateSchema.safeExtend({
+  data: researchDataSchema
+    .safeExtend({ editions: z.array(mainEditionSchema).max(20) })
+    .nullable(),
+});
+export type MainDraft = z.infer<typeof mainDraftSchema>;
+export const ticketBatchSchema = z
+  .object({
+    editions: z
+      .array(
+        z
+          .object({
+            key: editionKey,
+            tickets: fact(ticketBlockSchema).optional(),
+            unresolved: z.array(researchQuestionSchema).max(30),
+          })
+          .strict(),
+      )
+      .max(20),
+  })
+  .strict();
+export type TicketBatch = z.infer<typeof ticketBatchSchema>;
+export const TICKET_PROMPT_VERSION = "ticket-specialist-v2";

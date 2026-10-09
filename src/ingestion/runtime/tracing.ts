@@ -17,7 +17,10 @@ import {
   SamplingStrategyType,
 } from "@mastra/observability";
 import type { CatalogResearchInput } from "../contracts";
-import { RESEARCH_PROMPT_VERSION } from "../research/contracts";
+import {
+  RESEARCH_PROMPT_VERSION,
+  TICKET_PROMPT_VERSION,
+} from "../research/contracts";
 
 type TraceDiagnostic =
   | "trace_initialization_failed"
@@ -223,11 +226,12 @@ export function researchSpanProcessor(
         const tool = ["readSource", "discoverSources"].find(
           (name) => span.entityId === name,
         );
+        const ticket = span.metadata?.promptVersion === TICKET_PROMPT_VERSION;
+        const agentName = ticket ? "Ticket research" : "Festival research";
+        const agentId = ticket ? "ticket-research" : "festival-research";
         span.name =
           projection?.name ??
-          (span.type === "agent_run"
-            ? "Festival research"
-            : (tool ?? span.type));
+          (span.type === "agent_run" ? agentName : (tool ?? span.type));
         const rootId =
           span.type === "generic" && span.entityId === "catalog-research"
             ? "catalog-research"
@@ -235,10 +239,16 @@ export function researchSpanProcessor(
         span.entityId =
           projection?.entityId ??
           rootId ??
-          (span.type === "agent_run" ? "festival-research" : tool);
+          (span.type === "agent_run" ? agentId : tool);
         span.entityName = span.name;
         span.attributes = safe;
-        span.metadata = { ...metadata, ...projection?.metadata };
+        span.metadata = {
+          ...metadata,
+          ...projection?.metadata,
+          promptVersion: ticket
+            ? TICKET_PROMPT_VERSION
+            : metadata.promptVersion,
+        };
         span.input = projection?.input;
         span.output = projection?.output;
         span.requestContext = undefined;
@@ -334,7 +344,11 @@ export async function finishResearchTracing(
   diagnose?: Diagnose,
 ) {
   if (!diagnose) {
-    await mastra.shutdown();
+    try {
+      await mastra.shutdown();
+    } catch {
+      /* Cleanup never replaces results. */
+    }
     return;
   }
   // Core closes storage before observability.shutdown(), so flush explicitly first.

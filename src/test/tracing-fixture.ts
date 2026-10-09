@@ -44,7 +44,7 @@ export async function runTraceFixture(
     limits: {
       ...DEFAULT_RESEARCH_LIMITS,
       modelCalls:
-        scenario === "search" || scenario === "search_failure" ? 3 : 2,
+        scenario === "search" || scenario === "search_failure" ? 4 : 3,
       durationMs: ending === "abort" ? 500 : 30_000,
     },
   };
@@ -124,6 +124,7 @@ export async function runTraceFixture(
           : [],
     };
   }
+  candidate = withTicketRouting(candidate);
   let requests = 0;
   const providerInputs: string[] = [];
   const original = globalThis.fetch;
@@ -314,6 +315,24 @@ export async function runTraceFixture(
     client.close();
     rmSync(directory, { recursive: true, force: true });
   }
+}
+
+function withTicketRouting(value: unknown) {
+  const routed = value as {
+    data?: { editions: Record<string, unknown>[] } | null;
+  };
+  if (routed.data) {
+    for (const edition of routed.data.editions) {
+      Object.assign(edition, {
+        ticketResearch: {
+          state: "not_found",
+          sourceUrls: [],
+          reason: "No ticket information on inspected pages",
+        },
+      });
+    }
+  }
+  return value;
 }
 
 export function readTraceRows(path: string) {

@@ -12,6 +12,7 @@ import type {
   ResearchError,
   ResearchQuestion,
   ResearchStatus,
+  ResearchCandidate,
 } from "./research/contracts";
 
 export type CatalogResearchInput = {
@@ -36,6 +37,11 @@ export type CatalogResearchResult = {
   researchStatus: ResearchStatus;
   /** Final model output before normalization. */
   modelResponse: { text: string | null; object: unknown } | null;
+  assembledCandidate?: ResearchCandidate | null;
+  ticketResearch?: Pick<
+    import("./research/ticket-agent").TicketExecution,
+    "outcome" | "raw" | "usage"
+  >;
   operations: CatalogOperation[];
   receipts: { id: string; version: number; changed: boolean }[];
   references: Record<string, string>;
@@ -89,6 +95,19 @@ export type ResearchDependencies = {
   readSource?: typeof readSource;
   discoverSources?: typeof discoverSources;
   /** Fixture provider receives the same bounded prompt as the real Mastra agent. */
+  generateTickets?: (
+    prompt: string,
+    context: {
+      budget: ResearchBudget;
+      handoff: import("./research/ticket-handoff").TicketHandoff;
+      signal: AbortSignal;
+      onStepFinish: (
+        step: Parameters<
+          typeof import("./research/execution").updateModelUsage
+        >[1],
+      ) => void;
+    },
+  ) => Promise<unknown>;
   generateCandidate?: (
     prompt: string,
     context: {

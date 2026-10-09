@@ -96,6 +96,21 @@ export async function createCatalogRunTrace(
         traceFailure(tracing, code);
       }
     },
+    beginWrite() {
+      state.writeState = "unknown";
+    },
+    written(applied: CatalogItemResult) {
+      state.writeState = applied.operations.some(
+        (operation) => operation.changed,
+      )
+        ? "committed"
+        : "unchanged";
+      update({ applied });
+    },
+    rolledBack() {
+      state.writeState = "rolled_back";
+      this.failed("write_failed");
+    },
     workflowFailed() {
       const codes: Record<string, NonNullable<TraceRunState["errorCode"]>> = {
         context: "context_failed",

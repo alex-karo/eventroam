@@ -1,6 +1,7 @@
+import { wireCandidate } from "@/test/research-wire-fixture";
 import { afterEach, expect, test, vi } from "vitest";
 import { z } from "zod";
-import { researchCandidateSchema } from "../research/contracts";
+import { mainDraftSchema } from "../research/contracts";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { DEFAULT_RESEARCH_LIMITS } from "./budget";
@@ -49,6 +50,11 @@ const candidate = {
     editions: [
       {
         key: "2027",
+        ticketResearch: {
+          state: "not_found",
+          sourceUrls: [],
+          reason: "No ticket information on inspected sources.",
+        },
         year: { value: 2027, reason: "Shown on the official page." },
         links: {},
       },
@@ -72,60 +78,6 @@ const input = {
   actor: "catalog-research",
   initiatedBy: "fixture-owner",
 };
-
-function wireCandidate(
-  request: Record<string, unknown>,
-  value: unknown,
-): unknown {
-  const root = (
-    request.response_format as {
-      json_schema: { schema: Record<string, unknown> };
-    }
-  ).json_schema.schema;
-  const fill = (schema: Record<string, unknown>, part: unknown): unknown => {
-    if (typeof schema.$ref === "string") {
-      const ref = schema.$ref
-        .replace(/^#\//, "")
-        .split("/")
-        .reduce<unknown>(
-          (node, key) => (node as Record<string, unknown>)[key],
-          root,
-        );
-      return fill(ref as Record<string, unknown>, part);
-    }
-    if (Array.isArray(schema.anyOf)) {
-      if (part === null || part === undefined) {
-        return null;
-      }
-      const branch = schema.anyOf.find(
-        (item) => (item as Record<string, unknown>).type !== "null",
-      );
-      return fill(branch as Record<string, unknown>, part);
-    }
-    if (
-      schema.type === "object" &&
-      schema.properties &&
-      typeof schema.properties === "object"
-    ) {
-      const fields = part as Record<string, unknown>;
-      return Object.fromEntries(
-        Object.entries(schema.properties).map(([key, child]) => [
-          key,
-          fields?.[key] === undefined
-            ? null
-            : fill(child as Record<string, unknown>, fields[key]),
-        ]),
-      );
-    }
-    if (schema.type === "array" && Array.isArray(part)) {
-      return part.map((entry) =>
-        fill(schema.items as Record<string, unknown>, entry),
-      );
-    }
-    return part;
-  };
-  return fill(root, value);
-}
 
 function savedSource(client: ReturnType<typeof testDatabase>["client"]) {
   const fx = testFixtures(client);
@@ -302,7 +254,7 @@ test("actual Mastra request sends a compatible bounded response schema", async (
     const valid = ["announced", "scheduled", "postponed", "cancelled"].includes(
       String(value),
     );
-    expect(researchCandidateSchema.safeParse(proposed).success).toBe(valid);
+    expect(mainDraftSchema.safeParse(proposed).success).toBe(valid);
     expect(wireSchema.safeParse(wireCandidate(request, proposed)).success).toBe(
       valid,
     );
@@ -442,7 +394,7 @@ test.each([
         client,
         config: {
           ...config,
-          limits: { ...config.limits, modelCalls: 3 + searchAttempts },
+          limits: { ...config.limits, modelCalls: 4 + searchAttempts },
         },
         discoverSources,
         readSource,
@@ -570,7 +522,7 @@ test.each([null, "I will read the linked page before returning the result."])(
     );
     const result = await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+      config: { ...config, limits: { ...config.limits, modelCalls: 4 } },
       readSource,
     });
     expect(requests).toHaveLength(2);
@@ -708,7 +660,7 @@ test.each(["http", "abort", "context"])(
         ...config,
         limits: {
           ...config.limits,
-          modelCalls: 2,
+          modelCalls: 3,
           durationMs: failure === "abort" ? 500 : 30_000,
           modelInputChars: failure === "context" ? 30_000 : 120_000,
         },
@@ -760,7 +712,7 @@ test.each([undefined, 0, 0.125])(
     );
     const result = await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+      config: { ...config, limits: { ...config.limits, modelCalls: 4 } },
       readSource: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
@@ -793,7 +745,7 @@ test.each([undefined, {}])(
     );
     const result = await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+      config: { ...config, limits: { ...config.limits, modelCalls: 4 } },
       readSource: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
@@ -830,7 +782,7 @@ test.each([
     );
     await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
+      config: { ...config, limits: { ...config.limits, modelCalls: 4 } },
       readSource,
       discoverSources,
     });
@@ -857,7 +809,7 @@ test.each(["readSource", "discoverSources"])(
     vi.stubGlobal("fetch", fetchMock);
     await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
+      config: { ...config, limits: { ...config.limits, modelCalls: 4 } },
       readSource: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
@@ -1006,7 +958,7 @@ test.each([400, 429, 503])(
     vi.stubGlobal("fetch", fetchMock);
     const result = await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
+      config: { ...config, limits: { ...config.limits, modelCalls: 4 } },
       readSource: async () => source,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -1100,7 +1052,7 @@ test("completed tool step usage survives a later provider failure", async () => 
 
   const result = await runCatalogResearch(input, {
     client,
-    config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+    config: { ...config, limits: { ...config.limits, modelCalls: 4 } },
     readSource,
   });
 

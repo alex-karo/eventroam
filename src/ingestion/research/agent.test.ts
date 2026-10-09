@@ -9,6 +9,7 @@ import {
   normalizeWireCandidate,
   promptFor,
 } from "./agent";
+import { savedTickets } from "./saved-tickets";
 import { ResearchLimitError } from "../runtime/budget";
 import { researchCandidateSchema } from "./contracts";
 
@@ -140,7 +141,7 @@ test("required nulls and unknown legacy fields survive normalization for strict 
   }
 });
 
-test("saved prices in model context use major units and omit aggregate availability", () => {
+test("saved prices reconstruct in major units but main context omits money", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
@@ -162,7 +163,7 @@ test("saved prices in model context use major units and omit aggregate availabil
   });
   const catalog = readResearchCatalog(client);
   const context = modelContext(catalog[0]);
-  expect(context.editions[0].tickets).toEqual({
+  expect(savedTickets(catalog[0].editions[0])).toEqual({
     variants: [
       {
         label: "Regular",
@@ -179,6 +180,7 @@ test("saved prices in model context use major units and omit aggregate availabil
       coverage: "full_programme",
     },
   });
+  expect(context.editions[0]).not.toHaveProperty("tickets");
   expect(context.editions[0]).not.toHaveProperty("priceMinMinor");
   expect(context.editions[0]).not.toHaveProperty("ticketAvailability");
   const prompt = JSON.parse(

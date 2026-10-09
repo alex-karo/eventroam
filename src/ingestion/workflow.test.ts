@@ -54,7 +54,7 @@ const runCatalogResearch: typeof executeResearch = async (input, deps) => {
   expect(row.event_id).toBe(persistent ? result.eventId : null);
   return result;
 };
-import type { ResearchCandidate } from "./research/contracts";
+import type { MainDraft, ResearchCandidate } from "./research/contracts";
 import { ResearchLimitError } from "./runtime/budget";
 import type { ReadSourceResult } from "./sources/contracts";
 
@@ -76,7 +76,7 @@ const input = {
   actor: "catalog-research",
   initiatedBy: "fixture-owner",
 };
-function candidate(termIds: string[]): ResearchCandidate {
+function candidate(termIds: string[]): MainDraft {
   return {
     status: "success",
     data: {
@@ -90,6 +90,11 @@ function candidate(termIds: string[]): ResearchCandidate {
       editions: [
         {
           key: "2027",
+          ticketResearch: {
+            state: "not_found",
+            sourceUrls: [],
+            reason: "No ticket information on inspected sources.",
+          },
           year: { value: 2027, reason },
           dates: {
             value: {
@@ -201,7 +206,7 @@ test("discovery shares the run budget and reserves the final model call", async 
     },
   );
   const result = await runCatalogResearch(
-    { ...input, limits: { modelCalls: 3 } },
+    { ...input, limits: { modelCalls: 4 } },
     {
       client,
       discoverSources,
@@ -509,6 +514,11 @@ test("cancellation and grouped clearing explain only changed writer fields", asy
     editions: [
       {
         key: "2027",
+        ticketResearch: {
+          state: "not_found",
+          sourceUrls: [],
+          reason: "No ticket information on inspected sources.",
+        },
         dates: { value: null, reason: "The announced dates were withdrawn." },
         scheduleStatus: {
           value: "cancelled",
@@ -579,6 +589,11 @@ test("taxonomy add/remove reasons combine and ticket block reasons follow actual
     editions: [
       {
         key: "2027",
+        ticketResearch: {
+          state: "not_found",
+          sourceUrls: [],
+          reason: "No ticket information on inspected sources.",
+        },
         links: {},
         classification: {
           add: {
@@ -590,32 +605,49 @@ test("taxonomy add/remove reasons combine and ticket block reasons follow actual
             reason: "The old category no longer applies.",
           },
         },
-        tickets: {
-          value: {
-            variants: [
-              {
-                label: "Weekend",
-                amount: 100.5,
-                currency: "EUR",
-                availability: "available",
-              },
-            ],
-            basePrice: {
-              kind: "exact",
-              currency: "EUR",
-              minAmount: 100.5,
-              maxAmount: 100.5,
-              coverage: "full_programme",
-            },
-          },
-          reason: "The official ticket page lists a weekend pass.",
-        },
       },
     ],
   };
+  proposal.data!.editions[0].ticketResearch = {
+    state: "inspect",
+    sourceUrls: [url],
+    reason,
+  };
+  const tickets = {
+    tickets: {
+      value: {
+        variants: [
+          {
+            label: "Weekend",
+            amount: 100.5,
+            currency: "EUR",
+            availability: "available",
+          },
+        ],
+        basePrice: {
+          kind: "exact",
+          currency: "EUR",
+          minAmount: 100.5,
+          maxAmount: 100.5,
+          coverage: "full_programme",
+        },
+      },
+      reason: "The official ticket page lists a weekend pass.",
+    },
+  };
   const result = await runCatalogResearch(
     { mode: "refresh", eventId: event.id, actor: input.actor },
-    { client, readSource, generateCandidate: async () => proposal },
+    {
+      client,
+      readSource,
+      generateCandidate: async (_prompt, context) => {
+        await context.readSource(url);
+        return proposal;
+      },
+      generateTickets: async () => ({
+        editions: [{ key: "2027", ...tickets, unresolved: [] }],
+      }),
+    },
   );
   expect(result.outcome).toBe("updated");
   expect(result.changes).toContainEqual(

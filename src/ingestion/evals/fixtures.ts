@@ -1,3 +1,4 @@
+import { ticketBlockSchema } from "../research/contracts";
 import {
   publicationStates,
   scopes,
@@ -32,6 +33,7 @@ const occurrence = z.object({
   administrativeArea: z.string().nullable().optional(),
   venueName: z.string().nullable().optional(),
   venueAddress: z.string().nullable().optional(),
+  tickets: ticketBlockSchema.optional(),
   termIds: z.array(z.string()).optional(),
   links: z.array(link).optional(),
 });
@@ -58,6 +60,7 @@ const source = z.strictObject({
 });
 export const assertionSchema = z.object({
   owner: z.enum(["event", "occurrence"]),
+  state: z.literal("effective").optional(),
   editionKey: z.string().optional(),
   editionYear: z.number().int().optional(),
   field: z.string(),

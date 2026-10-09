@@ -432,32 +432,16 @@ export function prepareResearch(
     return result;
   }
   const data = candidate.data!;
-  if (data.sources.length > maxSources) {
-    return invalid(result, "Source summaries exceed the page budget");
-  }
-  const matchedEventId = data.eventId ?? input.eventId;
-  const event = catalog.find((item) => item.id === matchedEventId);
-  if (
-    (matchedEventId && !event) ||
-    (input.eventId && data.eventId && input.eventId !== data.eventId) ||
-    (!event && input.mode !== "add")
-  ) {
-    result.validation.target = "failed";
-    return invalid(result, "Event is outside the requested catalog target");
+  const target = preflightResearch(data, catalog, input, maxSources);
+  if (target.error) {
+    result.validation.target = target.targetValidation;
+    return invalid(result, target.error);
   }
   result.validation.target = "passed";
+  const { event, matchedEventId, eventNameMismatch, skipped } = target;
   result.matchedEventId = matchedEventId;
-  if (!event && !data.reason) {
-    return invalid(result, "data.reason is required for Event creation");
-  }
-  if (event && event.canonicalName.trim() !== data.eventName.trim()) {
-    result.eventNameMismatch = {
-      eventId: event.id,
-      storedName: event.canonicalName,
-      observedName: data.eventName,
-    };
-  }
-  if (input.mode === "add" && event) {
+  result.eventNameMismatch = eventNameMismatch;
+  if (skipped) {
     result.skipped = true;
     return result;
   }
@@ -488,4 +472,64 @@ export function prepareResearch(
     add({ kind: "publishEvent", id: eventRef }, {}, event?.version ?? 1);
   }
   return result;
+}
+
+/** Target checks shared by main preflight and final preparation; creates no operations. */
+export function preflightResearch(
+  data: ResearchData,
+  catalog: ResearchCatalog,
+  input: CatalogResearchInput,
+  maxSources = 20,
+): {
+  error?: string;
+  targetValidation: "passed" | "failed" | "not_run";
+  event?: Event;
+  matchedEventId?: string;
+  eventNameMismatch: EventNameMismatch | null;
+  skipped: boolean;
+} {
+  const invalidTarget = (
+    error: string,
+    targetValidation: "passed" | "failed" | "not_run" = "not_run",
+  ) => ({
+    targetValidation,
+    error,
+    skipped: false,
+    eventNameMismatch: null,
+  });
+  if (data.sources.length > maxSources) {
+    return invalidTarget("Source summaries exceed the page budget");
+  }
+  const matchedEventId = data.eventId ?? input.eventId;
+  const event = catalog.find((item) => item.id === matchedEventId);
+  if (
+    (matchedEventId && !event) ||
+    (input.eventId && data.eventId && input.eventId !== data.eventId) ||
+    (!event && input.mode !== "add")
+  ) {
+    return invalidTarget(
+      "Event is outside the requested catalog target",
+      "failed",
+    );
+  }
+  if (!event && !data.reason) {
+    return invalidTarget(
+      "data.reason is required for Event creation",
+      "passed",
+    );
+  }
+  return {
+    targetValidation: "passed",
+    event,
+    matchedEventId,
+    skipped: input.mode === "add" && !!event,
+    eventNameMismatch:
+      event && event.canonicalName.trim() !== data.eventName.trim()
+        ? {
+            eventId: event.id,
+            storedName: event.canonicalName,
+            observedName: data.eventName,
+          }
+        : null,
+  };
 }

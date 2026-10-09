@@ -8,11 +8,13 @@ import type {
 } from "./sources/contracts";
 import {
   RESEARCH_PROMPT_VERSION,
-  researchCandidateSchema,
+  mainDraftSchema,
   type ResearchError,
   type ResearchQuestion,
 } from "./research/contracts";
 import type { prepareResearch } from "./research/prepare";
+import type { TicketExecution } from "./research/ticket-agent";
+import { skippedTickets } from "./research/ticket-agent";
 import type { ResearchExecution } from "./research/agent";
 
 export type ReportInput = {
@@ -21,6 +23,8 @@ export type ReportInput = {
   config: ResearchConfig;
   prepared: ReturnType<typeof prepareResearch> | null;
   research: ResearchExecution;
+  ticket?: TicketExecution;
+  sourceSummaries?: CatalogResearchResult["sourceSummaries"];
   applied: ReturnType<typeof applyCatalogItem> | null;
   writeFailed: boolean;
   errors: ResearchError[];
@@ -42,9 +46,7 @@ export function buildWorkflowFailureReport(
 ): CatalogResearchResult {
   const report = assembleReport(input);
   if (!input.prepared && input.research.ok) {
-    const candidate = researchCandidateSchema.safeParse(
-      input.research.candidate,
-    );
+    const candidate = mainDraftSchema.safeParse(input.research.candidate);
     if (candidate.success) {
       report.researchStatus = candidate.data.status;
     }
@@ -58,6 +60,8 @@ function assembleReport({
   config,
   prepared,
   research,
+  ticket = skippedTickets(),
+  sourceSummaries,
   applied,
   writeFailed,
   errors,
@@ -83,15 +87,20 @@ function assembleReport({
   );
   const researchStatus =
     !research.ok || !prepared?.candidate ? "failed" : prepared.candidate.status;
-  const {
-    inputTokens,
-    outputTokens,
-    cachedInputTokens,
-    reasoningTokens,
-    modelCostUsd,
-  } = research.usage;
+  const stages = [research.usage, ticket.usage];
+  const inputTokens = stages.reduce((sum, item) => sum + item.inputTokens, 0);
+  const outputTokens = stages.reduce((sum, item) => sum + item.outputTokens, 0);
+  const subtotal = (
+    field: "cachedInputTokens" | "reasoningTokens" | "modelCostUsd",
+  ) =>
+    stages.some((item) => item[field] === null)
+      ? null
+      : stages.reduce((sum, item) => sum + (item[field] ?? 0), 0);
+  const cachedInputTokens = subtotal("cachedInputTokens");
+  const reasoningTokens = subtotal("reasoningTokens");
+  const modelCostUsd = subtotal("modelCostUsd");
   const usageComplete =
-    research.usage.complete &&
+    stages.every((item) => item.complete) &&
     budget.searches === discovery.length &&
     discovery.every((result) => result.usageComplete !== false);
   const changedKinds = operations
@@ -110,12 +119,19 @@ function assembleReport({
     researchStatus,
     eventId: prepared?.matchedEventId ?? references.event ?? input.eventId,
     modelResponse: research.modelResponse ?? null,
+    assembledCandidate: prepared?.candidate ?? null,
+    ticketResearch: {
+      outcome: ticket.outcome,
+      raw: ticket.raw,
+      usage: ticket.usage,
+    },
     operations,
     receipts,
     references,
     changes,
     sources: reads.map(safeSource),
-    sourceSummaries: prepared?.candidate?.data?.sources ?? [],
+    sourceSummaries:
+      sourceSummaries ?? prepared?.candidate?.data?.sources ?? [],
     errors,
     unresolved,
     eventNameMismatch: prepared?.eventNameMismatch ?? null,
