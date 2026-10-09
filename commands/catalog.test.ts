@@ -1,10 +1,15 @@
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import type {
   CatalogResearchResult,
   runCatalogResearch,
 } from "@/ingestion/workflow";
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import * as reportModule from "@/ingestion/report";
+import { RunPersistenceError } from "@/ingestion/runs";
+afterEach(() => vi.restoreAllMocks());
 import { executeCatalogCommand, formatCatalogReport } from "./catalog";
 
 const result = (): CatalogResearchResult => ({
@@ -302,4 +307,206 @@ test("partial and skipped results exit zero; failed research and writes exit non
       stdout: vi.fn(),
     }),
   ).toBe(1);
+});
+
+function fixtureCandidate(eventId: string) {
+  return {
+    status: "success",
+    data: {
+      eventId,
+      eventName: "Fixture Fest",
+      summary: {
+        value: "Updated description",
+        reason: "Official page updated its text",
+      },
+      sources: [],
+      links: { socials: {} },
+      editions: [],
+    },
+    errors: [],
+    unresolved: [],
+  };
+}
+
+test("real CLI stores/exports the same report and prints runId with estimated search cost", async () => {
+  const database = testDatabase();
+  const event = testFixtures().event();
+  const reportPath = join(dirname(database.path), "report.json");
+  const stdout = vi.fn();
+  const args = [
+    "refresh",
+    "--event",
+    event.id,
+    "--database",
+    database.path,
+    "--report",
+    reportPath,
+  ];
+  expect(
+    await executeCatalogCommand([...args, "--json"], {
+      stdout,
+      researchDependencies: {
+        generateCandidate: async () => fixtureCandidate(event.id),
+      },
+    }),
+  ).toBe(0);
+  const report = JSON.parse(stdout.mock.calls[0][0] as string);
+  expect(JSON.parse(readFileSync(reportPath, "utf8"))).toEqual(report);
+  const saved = database.client
+    .prepare("SELECT report_json FROM ingestion_runs WHERE id=?")
+    .get(report.results[0].runId) as { report_json: string };
+  expect(JSON.parse(saved.report_json)).toEqual(report.results[0]);
+  const text = formatCatalogReport(report.results, true);
+  expect(text).toContain(`Run ${report.results[0].runId}:`);
+  expect(text).toContain("estimated search USD: 0");
+});
+
+test.each(["workflow", "persistence"] as const)(
+  "real CLI %s failure preserves useful output and continues independent targets",
+  async (failure) => {
+    const database = testDatabase();
+    const fx = testFixtures();
+    const first = fx.event();
+    const second = fx.event();
+    if (failure === "workflow") {
+      vi.spyOn(reportModule, "buildResearchReport").mockImplementationOnce(
+        () => {
+          throw new Error("SECRET");
+        },
+      );
+    } else {
+      database.client.exec(
+        `CREATE TRIGGER refuse_first_finish BEFORE UPDATE ON ingestion_runs WHEN OLD.event_id='${first.id}' BEGIN SELECT RAISE(ABORT, 'SECRET'); END`,
+      );
+    }
+    const stdout = vi.fn();
+    const code = await executeCatalogCommand(
+      [
+        "check",
+        "--event",
+        first.id,
+        "--event",
+        second.id,
+        "--database",
+        database.path,
+        "--apply",
+        "--json",
+      ],
+      {
+        stdout,
+        researchDependencies: {
+          generateCandidate: async (prompt) =>
+            fixtureCandidate(prompt.includes(first.id) ? first.id : second.id),
+        },
+      },
+    );
+    expect(code).toBe(1);
+    const output = stdout.mock.calls[0][0] as string;
+    expect(output).not.toContain("SECRET");
+    const report = JSON.parse(output);
+    expect(report.results).toHaveLength(2);
+    expect(report.results[0].outcome).not.toBe("failed");
+    expect(report.results[0].receipts.length).toBeGreaterThan(0);
+    expect(report.results[0].runId).not.toBe(report.results[1].runId);
+    expect(
+      database.client
+        .prepare("SELECT summary FROM events WHERE id=?")
+        .get(first.id),
+    ).toEqual({ summary: "Updated description" });
+    if (failure === "persistence") {
+      expect(report.failures).toEqual([
+        {
+          eventId: first.id,
+          code: "run_persistence_failed",
+          runId: report.results[0].runId,
+        },
+      ]);
+      expect(
+        database.client
+          .prepare("SELECT status,report_json FROM ingestion_runs WHERE id=?")
+          .get(report.results[0].runId),
+      ).toEqual({ status: "running", report_json: null });
+    } else {
+      expect(report.results[0].errors).toContainEqual({
+        code: "workflow_failed",
+        stage: "workflow",
+        message: "Ingestion workflow failed",
+      });
+    }
+  },
+);
+
+test("optional file failure keeps the completed run and help/preflight do not start attempts", async () => {
+  const database = testDatabase();
+  const event = testFixtures().event();
+  const stdout = vi.fn();
+  expect(await executeCatalogCommand(["--help"], { stdout })).toBe(0);
+  await expect(
+    executeCatalogCommand(
+      ["check", "--event", "missing", "--database", database.path],
+      { stdout },
+    ),
+  ).rejects.toThrow(/not found/);
+  expect(database.client.prepare("SELECT * FROM ingestion_runs").all()).toEqual(
+    [],
+  );
+  const path = join(database.path, "impossible.json");
+  await expect(
+    executeCatalogCommand(
+      [
+        "refresh",
+        "--event",
+        event.id,
+        "--database",
+        database.path,
+        "--report",
+        path,
+      ],
+      {
+        stdout,
+        researchDependencies: {
+          generateCandidate: async () => fixtureCandidate(event.id),
+        },
+      },
+    ),
+  ).rejects.toThrow();
+  expect(
+    database.client
+      .prepare("SELECT status,report_json FROM ingestion_runs")
+      .get(),
+  ).toMatchObject({ status: "completed", report_json: expect.any(String) });
+});
+
+test("CLI serialization persistence error retains safe available data and correlation", async () => {
+  const database = testDatabase();
+  const event = testFixtures().event();
+  const cycle: Record<string, unknown> = {};
+  cycle.self = cycle;
+  const available = {
+    ...result(),
+    runId: "unfinished",
+    modelResponse: { text: null, object: cycle },
+  };
+  const stdout = vi.fn();
+  expect(
+    await executeCatalogCommand(
+      ["check", "--event", event.id, "--database", database.path, "--json"],
+      {
+        stdout,
+        research: async () => {
+          throw new RunPersistenceError("unfinished", available);
+        },
+      },
+    ),
+  ).toBe(1);
+  const report = JSON.parse(stdout.mock.calls[0][0] as string);
+  expect(report.results[0]).toMatchObject({
+    runId: "unfinished",
+    usage: available.usage,
+    modelResponse: null,
+  });
+  expect(report.failures[0]).toMatchObject({
+    code: "run_persistence_failed",
+    runId: "unfinished",
+  });
 });

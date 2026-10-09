@@ -6,12 +6,15 @@ import {
 } from "../ingestion/runtime/budget";
 import { createSourceSession } from "../ingestion/sources/session";
 
+const runAgent = researchFestival;
+
 export const TRACE_SENTINEL = "PRIVATE_TRACE_CONTENT_SENTINEL";
 
 /** Real Mastra/OpenRouter adapter with an entirely offline provider and source. */
 export async function runTraceFixture(
   ending: "success" | "http" | "abort" = "success",
   injected = false,
+  runId = "trace-fixture-run",
 ) {
   const startedAt = Date.now();
   const config = {
@@ -41,6 +44,9 @@ export async function runTraceFixture(
   let requests = 0;
   const original = globalThis.fetch;
   globalThis.fetch = async (_request, init) => {
+    if (String(init?.body).includes(runId)) {
+      throw new Error("Internal run ID reached provider input");
+    }
     requests++;
     if (requests === 2 && ending === "http") {
       return Response.json(
@@ -119,7 +125,7 @@ export async function runTraceFixture(
     },
   });
   try {
-    const result = await researchFestival(
+    const result = await runAgent(
       {
         mode: "refresh",
         eventId: "trace-fixture",
@@ -132,6 +138,7 @@ export async function runTraceFixture(
       budget,
       config,
       injected ? { generateCandidate: async () => candidate } : {},
+      runId,
     );
     return {
       result,

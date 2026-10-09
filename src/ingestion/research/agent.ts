@@ -50,6 +50,7 @@ export async function researchFestival(
   budget: ResearchBudget,
   config: ResearchConfig,
   deps: Pick<ResearchDependencies, "generateCandidate" | "todayUtc">,
+  runId?: string,
 ): Promise<ResearchExecution> {
   const { catalog, terms, knownLinks } = context;
   const { reads, readSource: read, discoverSources: search } = sources;
@@ -145,7 +146,7 @@ export async function researchFestival(
         discoverSources: search,
       });
     } else {
-      const tracing = await createResearchTracing(input, config.model);
+      const tracing = await createResearchTracing(input, config.model, runId);
       const mastra = new Mastra({
         agents: { festivalResearch: agent! },
         logger: false,

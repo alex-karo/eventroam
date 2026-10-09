@@ -1,4 +1,5 @@
 import { createScorer } from "@mastra/core/evals";
+import { hasHostFailure } from "../runs";
 import type { CatalogResearchResult } from "../workflow";
 import type { EvalAssertion, EvalCase } from "./fixtures";
 
@@ -155,8 +156,11 @@ export function scoreCase(
     assertion,
     matched: assertionMatches(item, result, assertion),
   }));
+  const hostFailed = hasHostFailure(result);
   const failed =
-    result.outcome === "failed" || result.researchStatus === "failed";
+    hostFailed ||
+    result.outcome === "failed" ||
+    result.researchStatus === "failed";
   const expectsFailure = item.expectations.research?.status === "failed";
   const candidate = result.modelResponse?.object;
   const declaredFailure =
@@ -184,6 +188,7 @@ export function scoreCase(
   );
   const expectedFailureMet =
     expectsFailure &&
+    !hostFailed &&
     result.researchStatus === "failed" &&
     result.outcome === "failed" &&
     declaredFailure &&
@@ -231,7 +236,7 @@ export function scoreCase(
       violatedForbidden: forbidden
         .filter((check) => check.matched)
         .map((check) => check.assertion),
-      workflowFailed: failed && !expectsFailure,
+      workflowFailed: hostFailed || (failed && !expectsFailure),
       expectedFailureMissing: expectsFailure && !expectedFailureMet,
     },
   };

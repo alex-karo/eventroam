@@ -22,6 +22,7 @@ type TraceDiagnostic =
   | "trace_sanitization_failed";
 type Diagnose = (code: TraceDiagnostic) => void;
 type TraceMetadata = {
+  runId?: string;
   mode: CatalogResearchInput["mode"];
   eventId?: string;
   model: string;
@@ -221,6 +222,7 @@ export function researchSpanProcessor(
 export async function createResearchTracing(
   input: CatalogResearchInput,
   model: string,
+  runId?: string,
 ) {
   if (process.env.CATALOG_TRACING !== "true") {
     return undefined;
@@ -241,6 +243,7 @@ export async function createResearchTracing(
       throw new Error("Trace storage unavailable");
     }
     const metadata: TraceMetadata = {
+      ...(runId ? { runId } : {}),
       mode: input.mode,
       ...(input.eventId ? { eventId: input.eventId.slice(0, 160) } : {}),
       model: model.slice(0, 160),

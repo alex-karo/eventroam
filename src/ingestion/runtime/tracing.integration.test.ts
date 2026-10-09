@@ -61,8 +61,15 @@ test("offline real agent persists sanitized model/tool relationships and bounded
       "tool_call",
     ]),
   );
+  expect(
+    spans.every(
+      (span) =>
+        JSON.parse(span.metadata as string).runId === "trace-fixture-run",
+    ),
+  ).toBe(true);
   const root = spans.find((span) => !span.parentSpanId)!;
   expect(JSON.parse(root.metadata as string)).toEqual({
+    runId: "trace-fixture-run",
     mode: "refresh",
     eventId: "trace-fixture",
     model: "fixture/provider-model",

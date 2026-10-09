@@ -27,6 +27,8 @@ export type CatalogResearchInput = {
 
 export type CatalogResearchResult = {
   schemaVersion: 2;
+  /** Absent only in historical version 2 reports. */
+  runId?: string;
   mode: CatalogResearchInput["mode"];
   outcome:
     "created" | "updated" | "published" | "unchanged" | "skipped" | "failed";
@@ -68,6 +70,7 @@ export type CatalogResearchResult = {
     reasoningTokens?: number | null;
     modelCostUsd: number | null;
     searchCostUsd: number;
+    searchCostBasis?: "estimate";
   };
   modelVersion: string;
   reasoningEffort?: Exclude<
