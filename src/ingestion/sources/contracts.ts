@@ -5,7 +5,7 @@ export interface ReadSourceResult {
   attemptedUrl: string;
   finalUrl: string;
   retrievedAt: string;
-  method: "http" | "social_stub";
+  method: "http" | "firecrawl" | "social_stub";
   outcome: RetrievalOutcome;
   reason?: string;
   /** Ordered Markdown extracted from the fetched page. */

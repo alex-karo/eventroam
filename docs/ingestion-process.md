@@ -43,6 +43,8 @@ npm run catalog -- check --event EVENT_ID --event ANOTHER_EVENT_ID
 
 For an existing Event, the run first reads a saved official-site link, or another saved link if needed. For `add`, the model discovers a source by festival name. The agent follows relevant links to answer open questions, searches when those links are not enough, and stops once it has useful facts.
 
+When a direct page request returns HTTP 403 and `FIRECRAWL_KEY` is set in `.env`, ingestion tries Firecrawl once for that URL. Its raw HTML goes through the same Markdown extraction. The fallback consumes another page request and respects the remaining run time and response-size limit. Other HTTP errors do not trigger Firecrawl; without a key, 403 remains a blocked source.
+
 ### Choose facts and editions
 
 The model decides which Event and edition each fact belongs to, then returns one result with `status`, `data`, `errors`, and `unresolved`. It can suggest dates, venues, prices, and links, but it cannot write to the catalog. It is instructed not to guess dates, prices, or an unannounced next edition; unknown facts can stay out of the proposal.

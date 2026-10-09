@@ -2,6 +2,7 @@ import type { ResearchBudget } from "../runtime/budget";
 import { ResearchLimitError } from "../runtime/budget";
 import type { ReadSourceResult } from "./contracts";
 import { extractSource } from "./extract";
+import { FirecrawlError, getFirecrawlResponse } from "./firecrawl";
 import {
   getBoundedResponse,
   UnsafeSourceError,
@@ -14,6 +15,8 @@ export interface ReadSourceOptions {
   depth?: number;
   resolver?: LookupHost;
   request?: typeof getBoundedResponse;
+  firecrawlRequest?: typeof getFirecrawlResponse;
+  firecrawlKey?: string;
   now?: () => Date;
 }
 
@@ -50,10 +53,39 @@ function requestReason(error: unknown): string {
   if (error instanceof UnsafeSourceError) {
     return error.message;
   }
+  if (error instanceof FirecrawlError) {
+    return error.message;
+  }
   if (error instanceof Error && SAFE_REQUEST_REASONS.has(error.message)) {
     return error.message;
   }
   return "request_failed";
+}
+
+async function fetchSource(
+  url: string,
+  options: ReadSourceOptions,
+  result: ReadSourceResult,
+): Promise<BoundedResponse> {
+  const response = await (options.request ?? getBoundedResponse)(url, {
+    maxBytes: options.budget.limits.pageBytes,
+    timeoutMs: Math.min(15_000, options.budget.remaining().durationMs),
+    resolver: options.resolver,
+    onRetry: () => options.budget.consumePage(options.depth),
+  });
+  result.finalUrl = response.finalUrl;
+  const apiKey = (options.firecrawlKey ?? process.env.FIRECRAWL_KEY)?.trim();
+  if (response.status !== 403 || !apiKey) {
+    return response;
+  }
+  options.budget.consumePage(options.depth);
+  result.method = "firecrawl";
+  return (options.firecrawlRequest ?? getFirecrawlResponse)(response.finalUrl, {
+    apiKey,
+    maxBytes: options.budget.limits.pageBytes,
+    timeoutMs: Math.min(30_000, options.budget.remaining().durationMs),
+    resolver: options.resolver,
+  });
 }
 
 export async function readSource(
@@ -101,12 +133,7 @@ export async function readSource(
 
   let response: BoundedResponse;
   try {
-    response = await (options.request ?? getBoundedResponse)(parsed.href, {
-      maxBytes: options.budget.limits.pageBytes,
-      timeoutMs: Math.min(15_000, options.budget.remaining().durationMs),
-      resolver: options.resolver,
-      onRetry: () => options.budget.consumePage(options.depth),
-    });
+    response = await fetchSource(parsed.href, options, result);
   } catch (error) {
     return {
       ...result,
