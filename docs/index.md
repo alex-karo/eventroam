@@ -27,6 +27,10 @@ Website:
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
+## Completed changes awaiting archive
+
+- [Durable ingestion run records](../openspec/changes/add-ingestion-run-records/proposal.md) — implemented per-festival start/final history, private reports, and known usage/costs, including dry runs.
+
 ## Archived changes
 
 - [Minimal research tracing](../openspec/changes/archive/2026-10-09-minimal-research-tracing/proposal.md) — optional local research-agent traces and Studio inspection, with accepted persistence/logger risks.

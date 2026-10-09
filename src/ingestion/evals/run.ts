@@ -17,6 +17,7 @@ import {
   occurrences,
   taxonomyTerms,
 } from "@/db/schema";
+import { RunPersistenceError, persistenceFailureReport } from "../runs";
 import { runCatalogResearch, type CatalogResearchResult } from "../workflow";
 import { loadResearchConfig } from "../runtime/config";
 import { createResearchBudget } from "../runtime/budget";
@@ -253,8 +254,12 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
             todayUtc: item.todayUtc ?? suite.todayUtc,
             ...fixedSources(item, item.todayUtc ?? suite.todayUtc),
           });
-        } catch {
-          result = {
+        } catch (error) {
+          const available =
+            error instanceof RunPersistenceError
+              ? persistenceFailureReport(error)
+              : undefined;
+          result = available ?? {
             schemaVersion: 2,
             mode: item.input.mode,
             outcome: "failed",
@@ -285,6 +290,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
               reasoningTokens: null,
               modelCostUsd: null,
               searchCostUsd: 0,
+              searchCostBasis: "estimate",
             },
             modelVersion: config.model,
             reasoningEffort: config.reasoningEffort ?? null,
@@ -337,6 +343,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       repetition: input.repetition,
       fixtureTodayUtc: item.todayUtc ?? suite.todayUtc,
       fixtureProvenance: item.provenance ?? suite.provenance,
+      runId: result.runId,
       outcome: result.outcome,
       researchStatus: result.researchStatus,
       score: scoreCase(item, result),

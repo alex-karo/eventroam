@@ -110,7 +110,7 @@ test("populated catalog migration preserves identities, foreign keys, indexes an
 });
 
 // Exercise the migration from each released schema, with every catalog table populated.
-for (const from of [0, 1, 2]) {
+for (const from of [0, 1, 2, 3]) {
   test(`catalog cleanup migration preserves retained data from 000${from}`, async () => {
     const { testFixtures } = await import("@/test/fixtures");
     const directory = mkdtempSync(
@@ -147,7 +147,7 @@ for (const from of [0, 1, 2]) {
       const edition = { id: "edition" };
       const parentTerm = { id: "parent" };
       const childTerm = { id: "child" };
-      client.exec(`
+      let seedSql = `
         INSERT INTO events(id,slug,canonical_name,home_scope,publication_state,created_at,updated_at)
           VALUES('event','festival','Festival','festivals','published','2026-10-01','2026-10-01');
         INSERT INTO occurrences(id,event_id,occurrence_key,occurrence_year,starts_on,ends_on,date_state,
@@ -167,11 +167,21 @@ for (const from of [0, 1, 2]) {
         INSERT INTO url_aliases(scope,path,event_id,occurrence_id,created_at) VALUES
           ('festivals','/events/festival','event',NULL,'2026-10-01'),
           ('festivals','/events/festival/2027','event','edition','2026-10-01');
-      `);
+      `;
+      if (from === 3) {
+        seedSql = seedSql
+          .replace(
+            /        INSERT INTO sources[\s\S]*?INSERT INTO external_links/,
+            "        INSERT INTO external_links",
+          )
+          .replace("official,source_id,created_at", "official,created_at")
+          .replace("1,'source','2026-10-01'", "1,'2026-10-01'");
+      }
+      client.exec(seedSql);
       if (from >= 1) {
         client
           .prepare(
-            "UPDATE occurrences SET ticket_availability='closed',price_details=? WHERE id='edition'",
+            `UPDATE occurrences SET ${from < 3 ? "ticket_availability='closed'," : ""}price_details=? WHERE id='edition'`,
           )
           .run(
             JSON.stringify([
@@ -242,7 +252,7 @@ for (const from of [0, 1, 2]) {
       const indexes = () =>
         client
           .prepare(
-            "SELECT name FROM sqlite_schema WHERE type='index' AND tbl_name NOT IN ('sources','source_subjects') ORDER BY name",
+            "SELECT name FROM sqlite_schema WHERE type='index' AND tbl_name NOT IN ('sources','source_subjects','ingestion_runs') ORDER BY name",
           )
           .all();
       const beforeIndexes = indexes();

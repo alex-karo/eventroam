@@ -8,13 +8,15 @@ import type {
 } from "./sources/contracts";
 import {
   RESEARCH_PROMPT_VERSION,
+  researchCandidateSchema,
   type ResearchError,
   type ResearchQuestion,
 } from "./research/contracts";
 import type { prepareResearch } from "./research/prepare";
 import type { ResearchExecution } from "./research/agent";
 
-type ReportInput = {
+export type ReportInput = {
+  runId: string;
   input: CatalogResearchInput;
   config: ResearchConfig;
   prepared: ReturnType<typeof prepareResearch> | null;
@@ -30,7 +32,28 @@ type ReportInput = {
   finished: number;
 };
 
-export function buildResearchReport({
+export function buildResearchReport(input: ReportInput): CatalogResearchResult {
+  return assembleReport(input);
+}
+
+/** Uses the same accounting when the normal report boundary fails. */
+export function buildWorkflowFailureReport(
+  input: ReportInput,
+): CatalogResearchResult {
+  const report = assembleReport(input);
+  if (!input.prepared && input.research.ok) {
+    const candidate = researchCandidateSchema.safeParse(
+      input.research.candidate,
+    );
+    if (candidate.success) {
+      report.researchStatus = candidate.data.status;
+    }
+  }
+  return report;
+}
+
+function assembleReport({
+  runId,
   input,
   config,
   prepared,
@@ -76,6 +99,7 @@ export function buildResearchReport({
     .map((operation) => operation.kind);
   return {
     schemaVersion: 2,
+    runId,
     mode: input.mode,
     outcome: researchOutcome({
       changedKinds,
@@ -98,6 +122,7 @@ export function buildResearchReport({
     usage: {
       ...budget,
       complete: usageComplete,
+      searchCostBasis: "estimate",
       inputTokens:
         inputTokens +
         discovery.reduce((sum, result) => sum + result.inputTokens, 0),

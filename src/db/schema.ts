@@ -254,3 +254,59 @@ export const operationReceipts = sqliteTable("operation_receipts", {
   result: text("result", { mode: "json" }).$type<unknown>().notNull(),
   appliedAt: text("applied_at").notNull(),
 });
+
+/** Private attempt history. Event IDs may refer to deleted catalog records. */
+export const ingestionRuns = sqliteTable(
+  "ingestion_runs",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id"),
+    mode: text("mode").notNull(),
+    status: text("status").notNull(),
+    startedAt: text("started_at").notNull(),
+    finishedAt: text("finished_at"),
+    inputJson: text("input_json", { mode: "json" }).$type<unknown>().notNull(),
+    reportJson: text("report_json", { mode: "json" }).$type<unknown>(),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    modelCostUsd: real("model_cost_usd"),
+    searchCostEstimateUsd: real("search_cost_estimate_usd"),
+    durationMs: integer("duration_ms"),
+    usageComplete: integer("usage_complete", { mode: "boolean" }),
+  },
+  (t) => [
+    check("ingestion_runs_mode_ck", sql`length(trim(${t.mode})) > 0`),
+    check(
+      "ingestion_runs_status_ck",
+      sql`${t.status} IN ('running', 'completed', 'failed')`,
+    ),
+    check(
+      "ingestion_runs_input_ck",
+      sql`CASE WHEN json_valid(${t.inputJson}) THEN json_type(${t.inputJson}) IS 'object' AND json_extract(${t.inputJson}, '$.mode') IS ${t.mode} ELSE 0 END`,
+    ),
+    check(
+      "ingestion_runs_report_ck",
+      sql`${t.reportJson} IS NULL OR CASE WHEN json_valid(${t.reportJson}) THEN json_type(${t.reportJson}) IS 'object' AND json_extract(${t.reportJson}, '$.mode') IS ${t.mode} AND json_extract(${t.reportJson}, '$.runId') IS ${t.id} AND json_extract(${t.reportJson}, '$.schemaVersion') IS 2 ELSE 0 END`,
+    ),
+    check(
+      "ingestion_runs_lifecycle_ck",
+      sql`(${t.status} = 'running' AND ${t.finishedAt} IS NULL AND ${t.reportJson} IS NULL AND ${t.inputTokens} IS NULL AND ${t.outputTokens} IS NULL AND ${t.modelCostUsd} IS NULL AND ${t.searchCostEstimateUsd} IS NULL AND ${t.durationMs} IS NULL AND ${t.usageComplete} IS NULL) OR (${t.status} != 'running' AND ${t.finishedAt} IS NOT NULL AND ${t.reportJson} IS NOT NULL AND ${t.inputTokens} IS NOT NULL AND ${t.outputTokens} IS NOT NULL AND ${t.searchCostEstimateUsd} IS NOT NULL AND ${t.durationMs} IS NOT NULL AND ${t.usageComplete} IS NOT NULL)`,
+    ),
+    ...[t.inputTokens, t.outputTokens, t.durationMs].map((column) =>
+      check(
+        `ingestion_runs_${column.name}_ck`,
+        sql`${column} IS NULL OR (typeof(${column}) = 'integer' AND ${column} >= 0)`,
+      ),
+    ),
+    ...[t.modelCostUsd, t.searchCostEstimateUsd].map((column) =>
+      check(
+        `ingestion_runs_${column.name}_ck`,
+        sql`${column} IS NULL OR ${column} >= 0`,
+      ),
+    ),
+    check(
+      "ingestion_runs_complete_ck",
+      sql`${t.usageComplete} IS NULL OR ${t.usageComplete} IN (0, 1)`,
+    ),
+  ],
+);

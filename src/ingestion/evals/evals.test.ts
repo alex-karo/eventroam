@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { runEvals } from "@mastra/core/evals";
 import { Mastra } from "@mastra/core/mastra";
 import { noopLogger } from "@mastra/core/logger";
@@ -10,6 +10,15 @@ import { z } from "zod";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { createResearchBudget } from "../runtime/budget";
 import type { CatalogResearchResult } from "../workflow";
+import * as workflowModule from "../workflow";
+import * as reportModule from "../report";
+import { RunPersistenceError } from "../runs";
+import { executeCatalogEvalCommand } from "../../../commands/catalog-eval";
+const executeResearch = workflowModule.runCatalogResearch;
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
 import { loadEvalSuite, evalCaseSchema, evalSuiteSchema } from "./fixtures";
 import { sourceLinks } from "./source-links";
 import { fixedSources, runCatalogEvals, seedDatabase } from "./run";
@@ -107,6 +116,13 @@ test("failed-source eval requires null data, source diagnosis, and no writes", (
   });
   expect(Number.isNaN(scoreCase(blocked, expected).correctness)).toBe(false);
   for (const invalid of [
+    ...(["workflow_failed", "run_persistence_failed"] as const).map((code) => ({
+      ...expected,
+      errors: [
+        ...expected.errors,
+        { code, stage: "workflow" as const, message: "Host failed" },
+      ],
+    })),
     {
       ...expected,
       researchStatus: "partial" as const,
@@ -798,5 +814,127 @@ test.each(["wacken", "roskilde", "sziget"])(
           a.field === "publication_state",
       ),
     ).toBe(false);
+  },
+);
+
+test.each(["workflow_failed", "run_persistence_failed"] as const)(
+  "ordinary factual acceptance rejects %s despite successful outcomes",
+  (code) => {
+    const report = result();
+    const item = {
+      ...tomorrowland,
+      expectations: { required: [], forbidden: [] },
+    };
+    expect(scoreCase(item, report).passed).toBe(true); // historical version 2, additive fields absent
+    expect(
+      scoreCase(item, {
+        ...report,
+        errors: [{ code, stage: "workflow", message: "Host failed" }],
+      }),
+    ).toMatchObject({
+      passed: false,
+      correctness: 0,
+      completeness: 0,
+      reasons: { workflowFailed: true },
+    });
+  },
+);
+
+test.each(["none", "workflow", "persistence"] as const)(
+  "offline real eval %s retains run data and returns the correct command status",
+  async (failure) => {
+    vi.stubEnv("OPENROUTER_API_KEY", "fixture-key");
+    const failedCandidate = {
+      status: "failed",
+      data: null,
+      errors: [
+        {
+          code: "source_blocked",
+          message: "Official page was blocked",
+          url: blocked.sources[0].attemptedUrl,
+        },
+      ],
+      unresolved: [],
+    };
+    let snapshot: Record<string, unknown> | undefined;
+    vi.spyOn(workflowModule, "runCatalogResearch").mockImplementation(
+      async (input, deps) => {
+        if (failure === "persistence") {
+          deps.client.exec(
+            "CREATE TRIGGER refuse_finish BEFORE UPDATE ON ingestion_runs BEGIN SELECT RAISE(ABORT, 'SECRET'); END",
+          );
+        }
+        try {
+          const report = await executeResearch(input, {
+            ...deps,
+            generateCandidate: async () => failedCandidate,
+          });
+          snapshot = deps.client
+            .prepare("SELECT * FROM ingestion_runs WHERE id=?")
+            .get(report.runId) as Record<string, unknown>;
+          return report;
+        } catch (error) {
+          expect(error).toBeInstanceOf(RunPersistenceError);
+          snapshot = deps.client
+            .prepare("SELECT * FROM ingestion_runs WHERE id=?")
+            .get((error as RunPersistenceError).runId) as Record<
+            string,
+            unknown
+          >;
+          throw error;
+        }
+      },
+    );
+    if (failure === "workflow") {
+      vi.spyOn(reportModule, "buildResearchReport").mockImplementationOnce(
+        () => {
+          throw new Error("SECRET");
+        },
+      );
+    }
+    const reports: Awaited<ReturnType<typeof runCatalogEvals>>[] = [];
+    const stdout = vi.fn();
+    const code = await executeCatalogEvalCommand(["--case", blocked.id], {
+      stdout,
+      runEvals: async (options) => {
+        // No file needed in this test; the command's default path is only metadata.
+        const report = await runCatalogEvals({
+          ...options,
+          reportPath: undefined,
+        });
+        reports.push(report);
+        return report;
+      },
+    });
+    const result = reports[0].results[0];
+    expect(code).toBe(failure === "none" ? 0 : 1);
+    expect(result.runId).toBe(snapshot?.id);
+    expect(result.modelResponse?.object).toEqual(failedCandidate);
+    expect(result.sources).toHaveLength(1);
+    expect(result.usage.searchCostBasis).toBe("estimate");
+    expect(JSON.stringify(result)).not.toContain("SECRET");
+    if (failure !== "none") {
+      expect(
+        result.errors.some(
+          (error) =>
+            error.code ===
+            (failure === "workflow"
+              ? "workflow_failed"
+              : "run_persistence_failed"),
+        ),
+      ).toBe(true);
+    }
+    if (failure === "persistence") {
+      expect(snapshot).toMatchObject({
+        status: "running",
+        report_json: null,
+        input_tokens: null,
+      });
+    } else {
+      expect(JSON.parse(snapshot!.report_json as string).runId).toBe(
+        result.runId,
+      );
+    }
+    expect(stdout.mock.calls.flat().join("")).toContain(result.runId);
   },
 );

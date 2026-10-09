@@ -301,9 +301,11 @@ export type ResearchError = {
     | z.infer<typeof modelResearchErrorSchema>["code"]
     | "model_failed"
     | "invalid_candidate"
-    | "write_failed";
+    | "write_failed"
+    | "workflow_failed"
+    | "run_persistence_failed";
   message: string;
-  stage: "source" | "research" | "validation" | "write";
+  stage: "source" | "research" | "validation" | "write" | "workflow";
   url?: string;
   editionKey?: string;
   field?: string;

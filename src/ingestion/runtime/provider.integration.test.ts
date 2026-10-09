@@ -5,7 +5,25 @@ import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { DEFAULT_RESEARCH_LIMITS } from "./budget";
 import { loadResearchConfig } from "./config";
-import { runCatalogResearch } from "../workflow";
+import { runCatalogResearch as executeResearch } from "../workflow";
+
+const runCatalogResearch: typeof executeResearch = async (input, deps) => {
+  const result = await executeResearch(input, deps);
+  const row = deps.client
+    .prepare("SELECT * FROM ingestion_runs WHERE id=?")
+    .get(result.runId) as Record<string, unknown>;
+  expect(JSON.parse(row.report_json as string)).toEqual(result);
+  expect(row).toMatchObject({
+    input_tokens: result.usage.inputTokens,
+    output_tokens: result.usage.outputTokens,
+    model_cost_usd: result.usage.modelCostUsd,
+    search_cost_estimate_usd: result.usage.searchCostUsd,
+    duration_ms: result.durationMs,
+    usage_complete: Number(result.usage.complete),
+  });
+  expect(result.usage.searchCostBasis).toBe("estimate");
+  return result;
+};
 import type { ReadSourceResult } from "../sources/contracts";
 
 const url = "https://example.org/provider-fixture";

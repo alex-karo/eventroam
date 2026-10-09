@@ -8,6 +8,7 @@ import {
   type CatalogResearchResult,
   type ResearchDependencies,
 } from "@/ingestion/workflow";
+import { RunPersistenceError, hasHostFailure } from "@/ingestion/runs";
 import { parseCatalogOptions, catalogUsage } from "./catalog-options";
 
 function formatTokens(usage: CatalogResearchResult["usage"]) {
@@ -27,7 +28,7 @@ export function formatCatalogReport(
 function formatResult(result: CatalogResearchResult): string[] {
   const mismatch = result.eventNameMismatch;
   return [
-    `${result.outcome} (research ${result.researchStatus}): ${result.eventId ?? "new festival"} (${result.durationMs} ms)`,
+    `Run ${result.runId ?? "unavailable"}: ${result.outcome} (research ${result.researchStatus}): ${result.eventId ?? "new festival"} (${result.durationMs} ms)`,
     ...result.changes.flatMap((change) => [
       `  ${change.subject}.${change.field}: ${JSON.stringify(change.oldValue)} → ${JSON.stringify(change.newValue)}`,
       ...change.explanations.map((explanation) => `    Why: ${explanation}`),
@@ -52,7 +53,7 @@ function formatResult(result: CatalogResearchResult): string[] {
       (question) =>
         `  Unresolved${optionalSuffix(question.editionKey, " [", "]")}${optionalSuffix(question.field, ": ")}: ${question.message}`,
     ),
-    `  Model: ${result.modelVersion}; reasoning: ${result.reasoningEffort ?? "provider default"}; prompt: ${result.promptVersion}; tokens: ${formatTokens(result.usage)}; cached input: ${result.usage.cachedInputTokens ?? "unavailable"}; reasoning tokens: ${result.usage.reasoningTokens ?? "unavailable"}; model USD: ${result.usage.modelCostUsd ?? "unavailable"}; search USD: ${result.usage.searchCostUsd}`,
+    `  Model: ${result.modelVersion}; reasoning: ${result.reasoningEffort ?? "provider default"}; prompt: ${result.promptVersion}; tokens: ${formatTokens(result.usage)}; cached input: ${result.usage.cachedInputTokens ?? "unavailable"}; reasoning tokens: ${result.usage.reasoningTokens ?? "unavailable"}; model USD: ${result.usage.modelCostUsd ?? "unavailable"}; estimated search USD: ${result.usage.searchCostUsd}`,
   ];
 }
 
@@ -77,6 +78,27 @@ function formatModelDiagnostic(
 
 function optionalSuffix(value: string | undefined, before: string, after = "") {
   return value ? before + value + after : "";
+}
+
+type CommandFailure = { eventId?: string; code: string; runId?: string };
+
+function commandFailure(
+  error: unknown,
+  eventId: string | undefined,
+  results: CatalogResearchResult[],
+): CommandFailure {
+  if (error instanceof RunPersistenceError) {
+    if (error.report) {
+      results.push(error.report);
+    }
+    return {
+      eventId,
+      code: "run_persistence_failed",
+      ...(error.runId ? { runId: error.runId } : {}),
+    };
+  }
+  // Provider exceptions may contain request bodies or credentials. Never serialize them.
+  return { eventId, code: "research_failed" };
 }
 
 export async function executeCatalogCommand(
@@ -119,7 +141,7 @@ export async function executeCatalogCommand(
     }
     const targets = options.mode === "add" ? [undefined] : options.eventIds;
     const results: CatalogResearchResult[] = [];
-    const failures: { eventId?: string; code: string }[] = [];
+    const failures: CommandFailure[] = [];
     for (const eventId of targets) {
       try {
         results.push(
@@ -136,9 +158,8 @@ export async function executeCatalogCommand(
             { client: connection.client, ...deps.researchDependencies },
           ),
         );
-      } catch {
-        // Provider exceptions may contain request bodies or credentials. Never serialize them.
-        failures.push({ eventId, code: "research_failed" });
+      } catch (error) {
+        failures.push(commandFailure(error, eventId, results));
       }
     }
     const report = {
@@ -159,11 +180,13 @@ export async function executeCatalogCommand(
         : [
             formatCatalogReport(results, options.dryRun),
             ...failures.map(
-              (f) => `failed: ${f.eventId ?? "new festival"} (${f.code})`,
+              (f) =>
+                `failed: ${f.eventId ?? "new festival"} (${f.code})${optionalSuffix(f.runId, " [run ", "]")}`,
             ),
           ].join("\n"),
     );
-    return failures.length || results.some((r) => r.outcome === "failed")
+    return failures.length ||
+      results.some((r) => r.outcome === "failed" || hasHostFailure(r))
       ? 1
       : 0;
   } finally {
