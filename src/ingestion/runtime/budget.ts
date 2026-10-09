@@ -52,6 +52,7 @@ export interface ResearchBudget {
   consumeSearch(): void;
   consumePage(depth?: number): void;
   consumeModelCall(inputChars?: number): void;
+  refundModelCall(): void;
   remaining(): ResearchBudgetSnapshot["remaining"];
   snapshot(): ResearchBudgetSnapshot;
 }
@@ -128,6 +129,9 @@ export function createResearchBudget(
         throw new ResearchLimitError("modelInputChars");
       }
       consume("modelCalls");
+    },
+    refundModelCall: () => {
+      modelCalls = Math.max(0, modelCalls - 1);
     },
     remaining,
     snapshot: () => ({

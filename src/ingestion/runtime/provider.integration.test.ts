@@ -1101,6 +1101,156 @@ test.each([200, 400, 429, 503])(
   },
 );
 
+function unavailableResponse(status = 200) {
+  return Response.json(
+    {
+      error: {
+        code: 502,
+        message: "Provider unavailable",
+        metadata: { error_type: "provider_unavailable" },
+      },
+    },
+    { status },
+  );
+}
+
+function fastCapacityBackoff() {
+  const delays: number[] = [];
+  const schedule = globalThis.setTimeout;
+  vi.spyOn(globalThis, "setTimeout").mockImplementation(
+    (callback, ms, ...args) => {
+      if (ms === 10_000 || ms === 30_000 || ms === 90_000) {
+        delays.push(ms);
+        return schedule(callback, 0, ...args);
+      }
+      return schedule(callback, ms, ...args);
+    },
+  );
+  return delays;
+}
+
+test.each([
+  { status: 200, recovers: true },
+  { status: 502, recovers: false },
+])(
+  "provider_unavailable retries without spending model calls ($status, recovers: $recovers)",
+  async ({ status, recovers }) => {
+    const client = testDatabase().client;
+    savedSource(client);
+    const delays = fastCapacityBackoff();
+    const bodies: unknown[] = [];
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async (url, init) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return recovers && bodies.length === 4
+          ? finalResponse(stepUsage)(url, init)
+          : unavailableResponse(status);
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await runCatalogResearch(input, {
+      client,
+      config,
+      readSource: async () => source,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(delays).toEqual([10_000, 30_000, 90_000]);
+    expect(bodies[1]).toEqual(bodies[0]);
+    expect(bodies[2]).toEqual(bodies[0]);
+    expect(bodies[3]).toEqual(bodies[0]);
+    expect(result.usage).toMatchObject({
+      modelCalls: recovers ? 1 : 0,
+      inputTokens: recovers ? 10 : 0,
+      outputTokens: recovers ? 20 : 0,
+      complete: false,
+      modelCostUsd: null,
+    });
+    if (recovers) {
+      expect(result.errors).toEqual([]);
+      expect(result.outcome).not.toBe("failed");
+    } else {
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          code: "model_failed",
+          diagnostic: expect.objectContaining({
+            httpStatus: status,
+            providerCode: 502,
+          }),
+        }),
+      );
+    }
+  },
+);
+
+test("provider_unavailable backoff stops at the run deadline", async () => {
+  const client = testDatabase().client;
+  savedSource(client);
+  const fetchMock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(unavailableResponse());
+  vi.stubGlobal("fetch", fetchMock);
+  const result = await runCatalogResearch(input, {
+    client,
+    config: { ...config, limits: { ...config.limits, durationMs: 100 } },
+    readSource: async () => source,
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(result.usage.modelCalls).toBe(0);
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({
+      code: "limit_reached",
+      message: "Research time limit reached",
+    }),
+  );
+});
+
+test("provider_unavailable retries share a run cap and retain completed steps", async () => {
+  const client = testDatabase().client;
+  savedSource(client);
+  const delays = fastCapacityBackoff();
+  const fetchMock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(unavailableResponse())
+    .mockResolvedValueOnce(modelResponse(readCall(), stepUsage))
+    .mockResolvedValueOnce(unavailableResponse())
+    .mockResolvedValueOnce(
+      modelResponse(
+        readCall({ url: "https://example.org/another-page" }),
+        finalStepUsage,
+      ),
+    )
+    .mockImplementation(async () => unavailableResponse());
+  vi.stubGlobal("fetch", fetchMock);
+  const readSource = vi.fn(async (requestedUrl: string) => ({
+    ...source,
+    attemptedUrl: requestedUrl,
+    finalUrl: requestedUrl,
+  }));
+  const result = await runCatalogResearch(input, {
+    client,
+    config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
+    readSource,
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(6);
+  expect(delays).toEqual([10_000, 30_000, 90_000]);
+  expect(readSource).toHaveBeenCalledTimes(3);
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({
+      code: "model_failed",
+      diagnostic: expect.objectContaining({ providerCode: 502 }),
+    }),
+  );
+  expect(result.usage).toMatchObject({
+    modelCalls: 2,
+    inputTokens: 33,
+    outputTokens: 57,
+    cachedInputTokens: 10,
+    reasoningTokens: 21,
+    complete: false,
+    modelCostUsd: null,
+  });
+});
+
 test("completed tool step usage survives a later provider failure", async () => {
   const client = testDatabase().client;
   savedSource(client);
