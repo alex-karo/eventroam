@@ -316,6 +316,7 @@ function result(
     eventNameMismatch: null,
     usage: {
       ...createResearchBudget().snapshot(),
+      complete: true,
       inputTokens: 0,
       outputTokens: 0,
       modelCostUsd: null,

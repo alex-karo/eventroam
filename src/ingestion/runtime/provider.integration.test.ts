@@ -281,9 +281,13 @@ test("actual Mastra request sends a compatible bounded response schema", async (
   }
 });
 
-test.each([true, false])(
-  "add combines discovery and model usage (search details: %s)",
-  async (searchDetails) => {
+test.each([
+  [true, 1],
+  [false, 1],
+  [true, 2],
+] as const)(
+  "add combines discovery and model usage (search details: %s; attempts: %s)",
+  async (searchDetails, searchAttempts) => {
     const client = testDatabase().client;
     const requests: Record<string, unknown>[] = [];
     const readSource = vi.fn(
@@ -309,8 +313,10 @@ test.each([true, false])(
           budget: { consumeSearch: () => void; consumeModelCall: () => void };
         },
       ) => {
-        options.budget.consumeSearch();
-        options.budget.consumeModelCall();
+        for (let attempt = 0; attempt < searchAttempts; attempt += 1) {
+          options.budget.consumeSearch();
+          options.budget.consumeModelCall();
+        }
         return {
           query,
           candidates: [{ url, title: "Provider Fest" }],
@@ -319,6 +325,7 @@ test.each([true, false])(
           searchCostUsd: 0.25,
           inputTokens: 7,
           outputTokens: 9,
+          usageComplete: searchAttempts === 1,
           ...(searchDetails
             ? { cachedInputTokens: 2, reasoningTokens: 3 }
             : {}),
@@ -336,7 +343,7 @@ test.each([true, false])(
           step === 1
             ? {
                 name: "discoverSources",
-                arguments: JSON.stringify({ query: "Provider Fest" }),
+                arguments: JSON.stringify({ query: "  Provider Fest  " }),
               }
             : { name: "readSource", arguments: JSON.stringify({ url }) };
         return new Response(
@@ -382,12 +389,14 @@ test.each([true, false])(
               },
             ],
             usage: {
-              prompt_tokens: 10,
-              completion_tokens: 20,
-              total_tokens: 30,
-              cost: 0.125,
-              prompt_tokens_details: { cached_tokens: 6 },
-              completion_tokens_details: { reasoning_tokens: 12 },
+              prompt_tokens: [10, 17, 31][step - 1],
+              completion_tokens: [20, 29, 43][step - 1],
+              total_tokens: [30, 46, 74][step - 1],
+              cost: [0.125, 0.25, 0.5][step - 1],
+              prompt_tokens_details: { cached_tokens: [6, 3, 10][step - 1] },
+              completion_tokens_details: {
+                reasoning_tokens: [12, 7, 15][step - 1],
+              },
             },
           }),
           { status: 200, headers: { "content-type": "application/json" } },
@@ -403,7 +412,10 @@ test.each([true, false])(
       },
       {
         client,
-        config: { ...config, limits: { ...config.limits, modelCalls: 4 } },
+        config: {
+          ...config,
+          limits: { ...config.limits, modelCalls: 3 + searchAttempts },
+        },
         discoverSources,
         readSource,
       },
@@ -413,19 +425,42 @@ test.each([true, false])(
       requests.every((request) => request.service_tier === undefined),
     ).toBe(true);
     expect(discoverSources).toHaveBeenCalledTimes(1);
+    expect(discoverSources).toHaveBeenCalledWith(
+      "Provider Fest",
+      expect.anything(),
+    );
     expect(readSource).toHaveBeenCalledTimes(1);
     expect(result.usage).toMatchObject({
-      searches: 1,
+      complete: searchAttempts === 1,
+      searches: searchAttempts,
       pages: 1,
-      modelCalls: 4,
-      inputTokens: 37,
-      outputTokens: 69,
-      cachedInputTokens: searchDetails ? 20 : null,
-      reasoningTokens: searchDetails ? 39 : null,
-      modelCostUsd: searchDetails ? 0.5 : null,
+      modelCalls: 3 + searchAttempts,
+      inputTokens: 65,
+      outputTokens: 101,
+      cachedInputTokens: searchDetails ? 21 : null,
+      reasoningTokens: searchDetails ? 37 : null,
+      modelCostUsd: searchDetails && searchAttempts === 1 ? 1 : null,
       searchCostUsd: 0.25,
     });
     expect(requests[2].tools).toBeUndefined();
+    expect(requests[0].tools).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          function: expect.objectContaining({
+            name: "discoverSources",
+            parameters: expect.objectContaining({
+              properties: expect.objectContaining({
+                query: expect.objectContaining({
+                  minLength: 3,
+                  maxLength: 300,
+                  description: expect.any(String),
+                }),
+              }),
+            }),
+          }),
+        }),
+      ]),
+    );
     expect(result.operations.map((operation) => operation.kind)).toContain(
       "createEvent",
     );
@@ -488,13 +523,15 @@ test.each([null, "I will read the linked page before returning the result."])(
               },
             ],
             usage: {
-              prompt_tokens: 10,
-              completion_tokens: 20,
-              total_tokens: 30,
+              prompt_tokens: toolCall ? 10 : 23,
+              completion_tokens: toolCall ? 20 : 37,
+              total_tokens: toolCall ? 30 : 60,
               ...(commentary === null
                 ? {
-                    prompt_tokens_details: { cached_tokens: 6 },
-                    completion_tokens_details: { reasoning_tokens: 12 },
+                    prompt_tokens_details: { cached_tokens: toolCall ? 6 : 4 },
+                    completion_tokens_details: {
+                      reasoning_tokens: toolCall ? 12 : 9,
+                    },
                   }
                 : {}),
             },
@@ -510,9 +547,10 @@ test.each([null, "I will read the linked page before returning the result."])(
     });
     expect(requests).toHaveLength(2);
     expect(result.usage.cachedInputTokens).toBe(
-      commentary === null ? 12 : null,
+      commentary === null ? 10 : null,
     );
-    expect(result.usage.reasoningTokens).toBe(commentary === null ? 24 : null);
+    expect(result.usage.reasoningTokens).toBe(commentary === null ? 21 : null);
+    expect(result.usage).toMatchObject({ inputTokens: 33, outputTokens: 57 });
     expect(requests[0].reasoning).toBeUndefined();
     expect(requests[0].tools).toEqual(
       expect.arrayContaining([
@@ -521,11 +559,300 @@ test.each([null, "I will read the linked page before returning the result."])(
         }),
       ]),
     );
+    const readTool = (
+      requests[0].tools as Array<{
+        function: {
+          name: string;
+          parameters: { properties: { url: unknown } };
+        };
+      }>
+    ).find((tool) => tool.function.name === "readSource");
+    expect(readTool?.function.parameters.properties.url).toMatchObject({
+      type: "string",
+      pattern: "^https?:\\/\\/",
+      description: expect.any(String),
+    });
     expect(readSource.mock.calls.map(([requestedUrl]) => requestedUrl)).toEqual(
       [url, linkedUrl],
     );
     expect(result.sources.map((read) => read.finalUrl)).toContain(linkedUrl);
     expect(result.errors).toEqual([]);
+  },
+);
+
+function modelResponse(
+  message: Record<string, unknown>,
+  usage?: Record<string, unknown>,
+) {
+  return Response.json({
+    id: "usage-fixture",
+    object: "chat.completion",
+    created: 1,
+    model: config.model,
+    choices: [
+      {
+        index: 0,
+        message: { role: "assistant", ...message },
+        finish_reason: message.tool_calls ? "tool_calls" : "stop",
+      },
+    ],
+    ...(usage && { usage }),
+  });
+}
+
+function finalResponse(usage?: Record<string, unknown>): typeof fetch {
+  return async (_input, init) =>
+    modelResponse(
+      {
+        content: JSON.stringify(
+          wireCandidate(JSON.parse(String(init?.body)), candidate),
+        ),
+      },
+      usage,
+    );
+}
+
+const stepUsage = {
+  prompt_tokens: 10,
+  completion_tokens: 20,
+  total_tokens: 30,
+  cost: 0,
+  prompt_tokens_details: { cached_tokens: 6 },
+  completion_tokens_details: { reasoning_tokens: 12 },
+};
+
+const finalStepUsage = {
+  ...stepUsage,
+  prompt_tokens: 23,
+  completion_tokens: 37,
+  total_tokens: 60,
+  prompt_tokens_details: { cached_tokens: 4 },
+  completion_tokens_details: { reasoning_tokens: 9 },
+};
+
+function readCall(
+  args: Record<string, unknown> = { url: "https://example.org/linked-page" },
+) {
+  return {
+    content: null,
+    tool_calls: [
+      {
+        id: "read-step",
+        type: "function",
+        function: { name: "readSource", arguments: JSON.stringify(args) },
+      },
+    ],
+  };
+}
+
+test.each(["http", "abort", "context"])(
+  "retains completed step usage after %s failure",
+  async (failure) => {
+    const client = testDatabase().client;
+    savedSource(client);
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        modelResponse(readCall(), { ...stepUsage, cost: 0.125 }),
+      )
+      .mockImplementation(async (_input, init) => {
+        if (failure !== "abort") {
+          return Response.json(
+            { error: { message: "fixture failure" } },
+            { status: 400 },
+          );
+        }
+        return new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal;
+          if (signal?.aborted) {
+            reject(signal.reason);
+          } else {
+            signal?.addEventListener("abort", () => reject(signal.reason), {
+              once: true,
+            });
+          }
+        });
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await runCatalogResearch(input, {
+      client,
+      config: {
+        ...config,
+        limits: {
+          ...config.limits,
+          modelCalls: 2,
+          durationMs: failure === "abort" ? 500 : 30_000,
+          modelInputChars: failure === "context" ? 30_000 : 120_000,
+        },
+      },
+      readSource: async (requestedUrl) => ({
+        ...source,
+        attemptedUrl: requestedUrl,
+        finalUrl: requestedUrl,
+        markdown:
+          failure === "context" && requestedUrl !== url
+            ? "x".repeat(60_000)
+            : source.markdown,
+      }),
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(failure === "context" ? 1 : 2);
+    expect(result.usage).toMatchObject({
+      inputTokens: 10,
+      outputTokens: 20,
+      cachedInputTokens: 6,
+      reasoningTokens: 12,
+      complete: false,
+      modelCostUsd: null,
+    });
+    expect(result.operations).toEqual([]);
+    if (failure === "context") {
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({ code: "limit_reached" }),
+      );
+    }
+  },
+);
+
+test.each([undefined, 0, 0.125])(
+  "keeps cost %s distinct from an unavailable total",
+  async (cost) => {
+    const client = testDatabase().client;
+    savedSource(client);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(
+          modelResponse(readCall(), {
+            ...stepUsage,
+            cost,
+          }),
+        )
+        .mockImplementationOnce(finalResponse(finalStepUsage)),
+    );
+    const result = await runCatalogResearch(input, {
+      client,
+      config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+      readSource: async (requestedUrl) => ({
+        ...source,
+        attemptedUrl: requestedUrl,
+        finalUrl: requestedUrl,
+      }),
+    });
+    expect(result.usage).toMatchObject({
+      complete: true,
+      inputTokens: 33,
+      outputTokens: 57,
+      cachedInputTokens: 10,
+      reasoningTokens: 21,
+      modelCostUsd: cost ?? null,
+    });
+    expect(result.errors).toEqual([]);
+  },
+);
+
+test.each([undefined, {}])(
+  "a final response without token counts (%s) preserves earlier tokens and marks the total partial",
+  async (usage) => {
+    const client = testDatabase().client;
+    savedSource(client);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(modelResponse(readCall(), stepUsage))
+        .mockImplementationOnce(finalResponse(usage)),
+    );
+    const result = await runCatalogResearch(input, {
+      client,
+      config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+      readSource: async (requestedUrl) => ({
+        ...source,
+        attemptedUrl: requestedUrl,
+        finalUrl: requestedUrl,
+      }),
+    });
+    expect(result.usage).toMatchObject({
+      complete: false,
+      inputTokens: 10,
+      outputTokens: 20,
+      modelCostUsd: null,
+    });
+  },
+);
+
+test.each([
+  ["readSource", { url: "ftp://example.org/page" }],
+  ["discoverSources", { query: "ab" }],
+] as const)(
+  "does not execute %s with invalid arguments",
+  async (name, args) => {
+    const client = testDatabase().client;
+    savedSource(client);
+    const readSource = vi.fn(async () => source);
+    const discoverSources = vi.fn();
+    const call = readCall(args);
+    call.tool_calls[0].function.name = name;
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(modelResponse(call, stepUsage))
+        .mockImplementationOnce(finalResponse(stepUsage)),
+    );
+    await runCatalogResearch(input, {
+      client,
+      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
+      readSource,
+      discoverSources,
+    });
+    expect(readSource).toHaveBeenCalledTimes(1); // Only the host's initial read.
+    expect(discoverSources).not.toHaveBeenCalled();
+  },
+);
+
+test.each(["readSource", "discoverSources"])(
+  "rejects invalid %s output before returning it to the model",
+  async (name) => {
+    const client = testDatabase().client;
+    savedSource(client);
+    const call = readCall(
+      name === "readSource"
+        ? { url: "https://example.org/linked-page" }
+        : { query: "Provider Fest" },
+    );
+    call.tool_calls[0].function.name = name;
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(modelResponse(call, stepUsage))
+      .mockImplementationOnce(finalResponse(stepUsage));
+    vi.stubGlobal("fetch", fetchMock);
+    await runCatalogResearch(input, {
+      client,
+      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
+      readSource: async (requestedUrl) => ({
+        ...source,
+        attemptedUrl: requestedUrl,
+        finalUrl: requestedUrl,
+        completeness: (requestedUrl === url
+          ? "full"
+          : "invalid") as ReadSourceResult["completeness"],
+      }),
+      discoverSources: async (query) => ({
+        query,
+        candidates: [{ url: "ftp://example.org/page", title: "Invalid" }],
+        retrievedAt: source.retrievedAt,
+        inputTokens: 0,
+        outputTokens: 0,
+        modelCostUsd: null,
+        searchCostUsd: 0,
+      }),
+    });
+    const messages = JSON.parse(String(fetchMock.mock.calls[1][1]?.body))
+      .messages as Array<{ role: string; content: string }>;
+    expect(
+      messages.find((message) => message.role === "tool")?.content,
+    ).toContain("Tool output validation failed");
   },
 );
 
@@ -749,7 +1076,8 @@ test("completed tool step usage survives a later provider failure", async () => 
       modelCalls: 2,
       inputTokens: 10,
       outputTokens: 20,
-      modelCostUsd: 0.125,
+      complete: false,
+      modelCostUsd: null,
       cachedInputTokens: null,
       reasoningTokens: null,
     },

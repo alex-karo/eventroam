@@ -1,8 +1,13 @@
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { createResearchBudget, ResearchLimitError } from "../runtime/budget";
 import type { ResearchDependencies } from "../contracts";
 import type { KnownSourceLink, ReadSourceResult } from "./contracts";
 import { createSourceSession } from "./session";
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 const homepage = "https://example.org/";
 const tickets = "https://example.org/tickets";
@@ -106,4 +111,26 @@ test("initial read suppresses only budget limits, leaving other exceptions visib
     "Source adapter failed",
   );
   expect(sources.reads).toEqual([]);
+});
+
+test("does not wait for a search retry that would spend the reserved final call", async () => {
+  vi.useFakeTimers();
+  const fetchMock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(new Response(null, { status: 429 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const budget = createResearchBudget({ modelCalls: 2 });
+  const sources = createSourceSession(
+    budget,
+    { apiKey: "fixture", model: "fixture", limits: budget.limits },
+    [],
+    {},
+  );
+  expect(await sources.discoverSources("Festival tickets")).toMatchObject({
+    candidates: [],
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(0);
+  expect(budget.snapshot()).toMatchObject({ searches: 1, modelCalls: 1 });
+  expect(budget.remaining().modelCalls).toBe(1);
 });

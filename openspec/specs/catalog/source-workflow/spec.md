@@ -133,7 +133,9 @@ The system SHALL report each run's mode (`add`, `refresh`, or `check`) and resul
 - **WHEN** the owner configures a supported reasoning effort
 - **THEN** research and discovery requests send that effort and reports identify the requested setting
 - **AND** omitting the setting explicitly selects `medium`
-- **AND** reports include provider-reported cached input and reasoning token counts as subsets of total input and output, using null when details are unavailable or a generation is interrupted
+- **AND** reports accumulate provider-reported input, output, cached input, and reasoning token counts from completed steps, retaining those counts when a later step fails or is interrupted and using null for unavailable cached input or reasoning details
+- **AND** reports set `usage.complete` to false when a call fails, is interrupted, lacks token usage, or includes unaccounted discovery attempts; the CLI marks the known token counts as partial
+- **AND** reports include a full model cost only when all calls' usage and costs are known, otherwise using null; an explicitly reported zero cost remains zero
 
 #### Scenario: Unchanged recheck
 - **WHEN** a recheck confirms the current accepted facts without changes
