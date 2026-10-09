@@ -1,20 +1,18 @@
 import { expect, test, vi } from "vitest";
-import { asc, eq } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import type Database from "better-sqlite3";
 import { catalogChanges, operationReceipts } from "@/db/schema";
-import { testDatabase } from "@/test/database";
-import { testFixtures } from "@/test/fixtures";
-import { publicEvent } from "@/catalog/read/public-catalog";
 import {
   readResearchCatalog,
   readResearchEvent,
 } from "@/catalog/read/research";
+import { testDatabase } from "@/test/database";
+import { testFixtures } from "@/test/fixtures";
 import { runCatalogResearch } from "./workflow";
 import type { ResearchCandidate } from "./research/contracts";
-import type { ReadSourceResult } from "./sources/contracts";
-import type { ReadSourceOptions } from "./sources/read-source";
 import { ResearchLimitError } from "./runtime/budget";
+import type { ReadSourceResult } from "./sources/contracts";
 
 const url = "https://example.org/example-fest";
 const source: ReadSourceResult = {
@@ -27,40 +25,66 @@ const source: ReadSourceResult = {
   links: [],
   markdown: "Example Fest 2027, July 1–3, Lisbon, Portugal.",
 };
-const candidate = (termIds: string[]): ResearchCandidate => ({
-  eventName: "Example Fest",
-  summary: "An outdoor music festival in Portugal.",
-  editions: [{ key: "2027", year: 2027, status: "announced" }],
-  claims: [
-    { editionKey: "2027", field: "startsOn", value: "2027-07-01" },
-    { editionKey: "2027", field: "endsOn", value: "2027-07-03" },
-    { editionKey: "2027", field: "dateState", value: "confirmed" },
-    { editionKey: "2027", field: "countryCode", value: "PT" },
-    { editionKey: "2027", field: "locality", value: "Lisbon" },
-    { editionKey: "2027", field: "termIds", value: termIds },
-  ],
-  prices: [],
-  links: [{ owner: "event", kind: "official_site", url }],
-  observations: [],
-});
+const reason = "The official page states this for the 2027 festival.";
 const input = {
   mode: "add" as const,
   name: "Example Fest",
   actor: "catalog-research",
   initiatedBy: "fixture-owner",
 };
+function candidate(termIds: string[]): ResearchCandidate {
+  return {
+    status: "success",
+    data: {
+      eventName: "Example Fest",
+      reason: "The official page identifies a distinct festival.",
+      sources: [
+        { url, information: "Official 2027 dates and Lisbon location." },
+      ],
+      summary: { value: "An outdoor music festival in Portugal.", reason },
+      links: { website: url, socials: {} },
+      editions: [
+        {
+          key: "2027",
+          year: { value: 2027, reason },
+          dates: {
+            value: {
+              startsOn: "2027-07-01",
+              endsOn: "2027-07-03",
+              state: "confirmed",
+            },
+            reason,
+          },
+          locality: { value: "Lisbon", reason },
+          countryCode: { value: "PT", reason },
+          classification: { add: { value: termIds, reason } },
+          links: {},
+        },
+      ],
+    },
+    errors: [],
+    unresolved: [],
+  };
+}
 function fixture() {
   const client = testDatabase().client;
   const termIds = testFixtures(client)
     .festivalTerms()
     .map((term) => term.id);
-  const readSource = vi.fn(async (_url: string, options: ReadSourceOptions) => {
-    options.budget.consumePage(options.depth ?? 0);
-    return source;
-  });
+  const readSource = vi.fn(
+    async (
+      _url: string,
+      options: {
+        budget: { consumePage: (depth?: number) => void };
+        depth?: number;
+      },
+    ) => {
+      options.budget.consumePage(options.depth);
+      return source;
+    },
+  );
   return { client, termIds, readSource };
 }
-
 function catalogState(client: Database.Database) {
   const db = drizzle(client);
   return {
@@ -78,11 +102,17 @@ function catalogState(client: Database.Database) {
   };
 }
 
-test("concurrent and repeated failed reads are cached and charged once", async () => {
-  const { client, termIds, readSource } = fixture();
+test("concurrent and repeated failed source reads are cached and charged once", async () => {
+  const { client, readSource } = fixture();
   readSource.mockImplementation(async (_url, options) => {
-    options.budget.consumePage(options.depth ?? 0);
-    return { ...source, outcome: "failed", reason: "http_503" };
+    options.budget.consumePage(options.depth);
+    return {
+      ...source,
+      outcome: "failed",
+      reason: "http_503",
+      markdown: "",
+      completeness: "none",
+    };
   });
   const result = await runCatalogResearch(input, {
     client,
@@ -94,37 +124,38 @@ test("concurrent and repeated failed reads are cached and charged once", async (
       ]);
       expect(reads[0]).toBe(reads[1]);
       expect(await context.readSource(url)).toBe(reads[0]);
-      return candidate(termIds);
+      return candidate([]);
     },
   });
   expect(readSource).toHaveBeenCalledTimes(1);
   expect(result.usage).toMatchObject({ pages: 1, modelCalls: 1 });
   expect(result.sources).toEqual([
-    {
-      attemptedUrl: url,
-      finalUrl: url,
-      retrievedAt: source.retrievedAt,
-      outcome: "failed",
-      reason: "http_503",
-    },
+    expect.objectContaining({ outcome: "failed", reason: "http_503" }),
   ]);
 });
 
 test("discovery shares the run budget and reserves the final model call", async () => {
-  const { client, termIds } = fixture();
-  const discoverSources = vi.fn(async (query, { budget }) => {
-    budget.consumeSearch();
-    budget.consumeModelCall();
-    return {
-      query,
-      candidates: [],
-      retrievedAt: source.retrievedAt,
-      inputTokens: 7,
-      outputTokens: 9,
-      modelCostUsd: 0.1,
-      searchCostUsd: 0.2,
-    };
-  });
+  const { client } = fixture();
+  const discoverSources = vi.fn(
+    async (
+      query: string,
+      options: {
+        budget: { consumeSearch: () => void; consumeModelCall: () => void };
+      },
+    ) => {
+      options.budget.consumeSearch();
+      options.budget.consumeModelCall();
+      return {
+        query,
+        candidates: [],
+        retrievedAt: source.retrievedAt,
+        inputTokens: 7,
+        outputTokens: 9,
+        modelCostUsd: 0.1,
+        searchCostUsd: 0.2,
+      };
+    },
+  );
   const result = await runCatalogResearch(
     { ...input, limits: { modelCalls: 3 } },
     {
@@ -141,7 +172,7 @@ test("discovery shares the run budget and reserves the final model call", async 
           outputTokens: 0,
           searchCostUsd: 0,
         });
-        return candidate(termIds);
+        return candidate([]);
       },
     },
   );
@@ -151,143 +182,55 @@ test("discovery shares the run budget and reserves the final model call", async 
     modelCalls: 2,
     inputTokens: 7,
     outputTokens: 9,
-    cachedInputTokens: null,
-    reasoningTokens: null,
     modelCostUsd: null,
     searchCostUsd: 0.2,
   });
 });
 
-test.each([
-  [
-    new Error("private payload", { cause: new ResearchLimitError("pages") }),
-    "skipped",
-    "limit_reached",
-    "pages",
-    "Error>ResearchLimitError",
-  ],
-  [
-    Object.assign(new Error("private payload"), {
-      statusCode: 429,
-      code: "RateLimited",
-    }),
-    "failed",
-    "model_failed",
-    "model_failed",
-    "Error http_429 RateLimited",
-  ],
-] as const)(
-  "research failures retain safe diagnostics: %s",
-  async (error, outcome, code, detail, diagnostic) => {
-    const { client } = fixture();
-    const result = await runCatalogResearch(input, {
-      client,
-      generateCandidate: async () => {
-        throw error;
-      },
-    });
-    expect(result.outcome).toBe(outcome);
-    expect(result.gaps).toEqual([{ code, detail, diagnostic }]);
-    expect(result.usage).toMatchObject({
-      modelCalls: 1,
-      cachedInputTokens: null,
-      reasoningTokens: null,
-    });
-    expect(result.operations).toEqual([]);
-    expect(JSON.stringify(result)).not.toContain("private payload");
-  },
-);
-
-test.each([
-  [{ modelCalls: 0 }, "modelCalls", 0],
-  [{ modelInputChars: 1 }, "modelInputChars", 0],
-  [{ durationMs: 0 }, "time", 0],
-] as const)(
-  "exhausted budget prevents generation: %s",
-  async (limits, detail, modelCalls) => {
-    const { client } = fixture();
-    const generateCandidate = vi.fn(async () => candidate([]));
-    const result = await runCatalogResearch(
-      { ...input, limits },
-      { client, generateCandidate },
-    );
-    expect(generateCandidate).not.toHaveBeenCalled();
-    expect(result.outcome).toBe("skipped");
-    expect(result.gaps).toContainEqual(
-      expect.objectContaining({ code: "limit_reached", detail }),
-    );
-    expect(result.usage.modelCalls).toBe(modelCalls);
-  },
-);
-
-test("one model answer writes directly; dry run rolls back without a database copy", async () => {
+test("create dry run explains actual changes and rolls back catalog and audit", async () => {
   const { client, termIds, readSource } = fixture();
-  const generateCandidate = vi.fn(async () => candidate(termIds));
   const before = catalogState(client);
-  const serialize = vi.spyOn(client, "serialize");
   const preview = await runCatalogResearch(input, {
     client,
     readSource,
-    generateCandidate: async (prompt, context) => {
-      const promptInput = JSON.parse(prompt);
-      expect(promptInput.inspectedSources).toEqual([]);
-      expect(promptInput).not.toHaveProperty("compact");
-      expect(promptInput.catalog).toEqual([]);
+    generateCandidate: async (_prompt, context) => {
       await context.readSource(url);
-      return generateCandidate();
+      return candidate(termIds);
     },
   });
-  expect(preview.outcome).toBe("published");
-  expect(preview.changes).toContainEqual(
-    expect.objectContaining({ field: "starts_on", newValue: "2027-07-01" }),
-  );
-  expect(catalogState(client)).toEqual(before);
-  expect(serialize).not.toHaveBeenCalled();
-  const applied = await runCatalogResearch(
-    { ...input, dryRun: false },
-    {
-      client,
-      readSource,
-      generateCandidate,
-    },
-  );
-  expect(applied.outcome).toBe("published");
-  expect(generateCandidate).toHaveBeenCalledTimes(2);
-  expect(applied.gaps).toEqual([]);
-  expect(readResearchCatalog(client).map((event) => event.id)).toEqual([
-    applied.eventId,
+  expect(preview).toMatchObject({
+    researchStatus: "success",
+    outcome: "published",
+    errors: [],
+    unresolved: [],
+  });
+  expect(preview.sourceSummaries).toEqual([
+    { url, information: "Official 2027 dates and Lisbon location." },
   ]);
-  const saved = readResearchEvent(client, applied.eventId!)!;
-  expect(saved.editions).toHaveLength(1);
-  const db = drizzle(client);
-  const eventChanges = db
-    .select()
-    .from(catalogChanges)
-    .where(eq(catalogChanges.eventId, saved.id))
-    .all();
-  const editionChanges = db
-    .select()
-    .from(catalogChanges)
-    .where(eq(catalogChanges.occurrenceId, saved.editions[0].id))
-    .all();
-  expect(eventChanges.length).toBeGreaterThan(0);
-  expect(editionChanges.length).toBeGreaterThan(0);
-  for (const change of [...eventChanges, ...editionChanges]) {
-    expect(change).toMatchObject({
-      actor: "catalog-research",
-      initiatedBy: "fixture-owner",
-    });
+  expect(preview.sources).toEqual([
+    expect.objectContaining({ finalUrl: url, outcome: "ok" }),
+  ]);
+  expect(preview.changes).toContainEqual(
+    expect.objectContaining({
+      field: "canonical_name",
+      explanations: ["The official page identifies a distinct festival."],
+    }),
+  );
+  for (const field of [
+    "starts_on",
+    "ends_on",
+    "date_state",
+    "occurrence_year",
+    "locality",
+    "country_code",
+    "terms",
+  ]) {
+    expect(preview.changes).toContainEqual(
+      expect.objectContaining({ field, explanations: [reason] }),
+    );
   }
-  expect(publicEvent(client, applied.eventId!)?.editions[0]).toMatchObject({
-    startsOn: "2027-07-01",
-    endsOn: "2027-07-03",
-    locality: "Lisbon",
-  });
-});
-
-test("rerun preserves identity and omitting facts does not clear them", async () => {
-  const { client, termIds, readSource } = fixture();
-  const first = await runCatalogResearch(
+  expect(catalogState(client)).toEqual(before);
+  const applied = await runCatalogResearch(
     { ...input, dryRun: false },
     {
       client,
@@ -295,200 +238,531 @@ test("rerun preserves identity and omitting facts does not clear them", async ()
       generateCandidate: async () => candidate(termIds),
     },
   );
-  const before = catalogState(client);
-  const editionId = readResearchEvent(client, first.eventId!)!.editions[0].id;
-  const proposed = candidate(termIds);
-  proposed.eventId = first.eventId;
-  proposed.claims = [
-    { editionKey: "2027", field: "ticketAvailability", value: "sold_out" },
-  ];
-  const preview = await runCatalogResearch(
-    {
-      mode: "refresh",
-      eventId: first.eventId,
-      actor: input.actor,
-      initiatedBy: input.initiatedBy,
-    },
-    { client, readSource, generateCandidate: async () => proposed },
-  );
-  expect(preview.outcome).toBe("updated");
-  expect(preview.changes).toEqual([
-    expect.objectContaining({
-      subject: editionId,
-      field: "ticket_availability",
-      oldValue: "unknown",
-      newValue: "sold_out",
-    }),
-  ]);
-  // The rollback covers accepted facts, audit history, and operation receipts.
-  expect(catalogState(client)).toEqual(before);
-  const changed = await runCatalogResearch(
-    {
-      mode: "refresh",
-      eventId: first.eventId,
-      actor: input.actor,
-      initiatedBy: input.initiatedBy,
-      dryRun: false,
-    },
-    { client, readSource, generateCandidate: async () => proposed },
-  );
-  expect(changed.outcome).toBe("updated");
-  expect(changed.eventId).toBe(first.eventId);
-  expect(changed.changes).toEqual(preview.changes);
-  expect(publicEvent(client, first.eventId!)?.editions[0]).toMatchObject({
-    id: editionId,
-    startsOn: "2027-07-01",
-    ticketAvailability: "sold_out",
-  });
-  const after = catalogState(client);
-  expect(after.catalog.map((event) => event.id)).toEqual([first.eventId]);
-  expect(after.catalog[0].editions.map((edition) => edition.id)).toEqual([
-    editionId,
-  ]);
-  const repeat = await runCatalogResearch(
-    {
-      mode: "check",
-      eventId: first.eventId,
-      actor: input.actor,
-      initiatedBy: input.initiatedBy,
-      dryRun: false,
-    },
-    { client, readSource, generateCandidate: async () => proposed },
-  );
-  expect(repeat.outcome).toBe("unchanged");
-  expect(repeat.eventId).toBe(first.eventId);
-  expect(repeat.changes).toEqual([]);
-  const afterRepeat = catalogState(client);
-  expect(afterRepeat.catalog).toEqual(after.catalog);
-  expect(afterRepeat.audit).toEqual(after.audit);
-  expect(afterRepeat.receipts).toHaveLength(after.receipts.length + 2);
+  expect(applied.outcome).toBe("published");
+  expect(readResearchEvent(client, applied.eventId!)?.editions).toHaveLength(1);
   expect(
-    afterRepeat.receipts
-      .filter(
-        (receipt) =>
-          !after.receipts.some(
-            (prior) => prior.operationKey === receipt.operationKey,
-          ),
-      )
-      .map((receipt) => receipt.result),
-  ).toEqual([
-    expect.objectContaining({ changed: false }),
-    expect.objectContaining({ changed: false }),
-  ]);
+    applied.changes.find((change) => change.field === "starts_on")?.newValue,
+  ).toBe("2027-07-01");
 });
 
-test.each(["add", "refresh"] as const)(
-  "invalid %s leaves catalog facts and history unchanged",
-  async (mode) => {
-    const { client, termIds, readSource } = fixture();
-    const first = await runCatalogResearch(
-      { ...input, dryRun: false },
-      { client, readSource, generateCandidate: async () => candidate(termIds) },
-    );
-    expect(first.outcome).toBe("published");
-    const before = catalogState(client);
-    const proposed = candidate(termIds);
-    if (mode === "add") {
-      proposed.eventName = "Another Fest";
-    } else {
-      proposed.eventId = first.eventId;
-      // The summary write succeeds before the invalid edition forces a rollback.
-      proposed.summary = "A proposed replacement description.";
-    }
-    proposed.claims.push({
-      editionKey: "2027",
-      field: "endsOn",
-      value: "2027-06-01",
-    });
-    const result = await runCatalogResearch(
+test("partial no-op keeps questions and source summaries without audit changes", async () => {
+  const { client, readSource } = fixture();
+  const event = testFixtures(client).event({ canonicalName: "Example Fest" });
+  const before = catalogState(client);
+  const proposal = candidate([]);
+  proposal.status = "partial";
+  proposal.data = {
+    eventId: event.id,
+    eventName: "Example Fest",
+    sources: [
+      { url, information: "Page names the festival but omits ticket prices." },
+    ],
+    links: { socials: {} },
+    editions: [],
+  };
+  proposal.unresolved = [
+    { message: "Ticket prices could not be confirmed.", field: "tickets" },
+  ];
+  const result = await runCatalogResearch(
+    { mode: "check", eventId: event.id, actor: input.actor },
+    {
+      client,
+      readSource,
+      generateCandidate: async () => proposal,
+    },
+  );
+  expect(result).toMatchObject({
+    researchStatus: "partial",
+    outcome: "unchanged",
+    changes: [],
+    unresolved: proposal.unresolved,
+  });
+  expect(result.sourceSummaries).toEqual(proposal.data.sources);
+  expect(catalogState(client)).toEqual(before);
+});
+
+test("recovered source failure retains staged error beside successful research", async () => {
+  const { client, readSource } = fixture();
+  readSource.mockImplementation(async (_url, options) => {
+    options.budget.consumePage(options.depth);
+    return {
+      ...source,
+      outcome: "failed",
+      reason: "http_503",
+      markdown: "",
+      completeness: "none",
+    };
+  });
+  const proposal = candidate([]);
+  proposal.errors = [
+    {
+      code: "source_unavailable",
+      message: "The first page returned a temporary error.",
+      url,
+    },
+  ];
+  proposal.data!.sources = [];
+  const result = await runCatalogResearch(input, {
+    client,
+    readSource,
+    generateCandidate: async (_prompt, context) => {
+      await context.readSource(url);
+      return proposal;
+    },
+  });
+  expect(result.researchStatus).toBe("success");
+  expect(result.errors).toContainEqual({
+    code: "source_unavailable",
+    message: "The first page returned a temporary error.",
+    url,
+    stage: "source",
+  });
+  expect(result.sources).toEqual([
+    expect.objectContaining({ outcome: "failed", reason: "http_503" }),
+  ]);
+  expect(result.sourceSummaries).toEqual([]);
+});
+
+test("duplicate add skips every proposed write while retaining research and name mismatch", async () => {
+  const { client, termIds, readSource } = fixture();
+  const event = testFixtures(client).event({ canonicalName: "Example Fest" });
+  const before = catalogState(client);
+  const proposal = candidate(termIds);
+  proposal.data!.eventId = event.id;
+  proposal.data!.eventName = " Example Fest Revised ";
+  const result = await runCatalogResearch(input, {
+    client,
+    readSource,
+    generateCandidate: async () => proposal,
+  });
+  expect(result).toMatchObject({
+    researchStatus: "success",
+    outcome: "skipped",
+    eventId: event.id,
+    operations: [],
+    changes: [],
+  });
+  expect(result.eventNameMismatch).toEqual({
+    eventId: event.id,
+    storedName: "Example Fest",
+    observedName: " Example Fest Revised ",
+  });
+  expect(catalogState(client)).toEqual(before);
+});
+
+test("refresh preserves identity, reports mismatch, and emits no duplicate audit on no-op", async () => {
+  const { client, readSource } = fixture();
+  const event = testFixtures(client).event({ canonicalName: "Example Fest" });
+  const proposal = candidate([]);
+  proposal.data = {
+    eventId: event.id,
+    eventName: "Another Name",
+    sources: [],
+    links: { socials: {} },
+    editions: [],
+    summary: { value: "A changed summary.", reason },
+  };
+  const first = await runCatalogResearch(
+    { mode: "refresh", eventId: event.id, actor: input.actor, dryRun: false },
+    {
+      client,
+      readSource,
+      generateCandidate: async () => proposal,
+    },
+  );
+  expect(first.outcome).toBe("updated");
+  expect(first.changes).toEqual([
+    expect.objectContaining({ field: "summary", explanations: [reason] }),
+  ]);
+  expect(first.eventNameMismatch).toEqual({
+    eventId: event.id,
+    storedName: "Example Fest",
+    observedName: "Another Name",
+  });
+  const before = catalogState(client);
+  const repeat = await runCatalogResearch(
+    { mode: "check", eventId: event.id, actor: input.actor, dryRun: false },
+    {
+      client,
+      readSource,
+      generateCandidate: async () => proposal,
+    },
+  );
+  expect(repeat).toMatchObject({
+    outcome: "unchanged",
+    researchStatus: "success",
+    changes: [],
+  });
+  expect(repeat.eventNameMismatch).toEqual(first.eventNameMismatch);
+  expect(catalogState(client).audit).toEqual(before.audit);
+  expect(readResearchEvent(client, event.id)?.canonicalName).toBe(
+    "Example Fest",
+  );
+});
+
+test("cancellation and grouped clearing explain only changed writer fields", async () => {
+  const { client, readSource } = fixture();
+  const fx = testFixtures(client);
+  const event = fx.event({ canonicalName: "Example Fest" });
+  const edition = fx.occurrence(event, {
+    occurrenceKey: "2027",
+    latitude: 38.72,
+    longitude: -9.14,
+    coordinatePrecision: "approximate",
+  });
+  const proposal = candidate([]);
+  proposal.data = {
+    eventId: event.id,
+    eventName: "Example Fest",
+    sources: [],
+    links: { socials: {} },
+    editions: [
       {
-        ...input,
-        mode,
-        eventId: mode === "refresh" ? first.eventId : undefined,
-        dryRun: false,
+        key: "2027",
+        dates: { value: null, reason: "The announced dates were withdrawn." },
+        scheduleStatus: {
+          value: "cancelled",
+          reason: "The official page explicitly cancels this edition.",
+        },
+        coordinates: {
+          value: null,
+          reason: "The announced location was withdrawn.",
+        },
+        links: {},
       },
+    ],
+  };
+  const result = await runCatalogResearch(
+    { mode: "refresh", eventId: event.id, actor: input.actor },
+    {
+      client,
+      readSource,
+      generateCandidate: async () => proposal,
+    },
+  );
+  expect(result.outcome).toBe("updated");
+  expect(result.changes).toContainEqual(
+    expect.objectContaining({
+      subject: edition.id,
+      field: "schedule_status",
+      newValue: "cancelled",
+      explanations: ["The official page explicitly cancels this edition."],
+    }),
+  );
+  for (const field of ["starts_on", "ends_on", "date_state"]) {
+    expect(result.changes).toContainEqual(
+      expect.objectContaining({
+        subject: edition.id,
+        field,
+        explanations: ["The announced dates were withdrawn."],
+      }),
+    );
+  }
+  for (const field of ["latitude", "longitude", "coordinate_precision"]) {
+    expect(result.changes).toContainEqual(
+      expect.objectContaining({
+        subject: edition.id,
+        field,
+        explanations: ["The announced location was withdrawn."],
+      }),
+    );
+  }
+  expect(
+    result.changes.some((change) => change.field === "canonical_name"),
+  ).toBe(false);
+});
+
+test("taxonomy add/remove reasons combine and ticket block reasons follow actual changes", async () => {
+  const { client, readSource } = fixture();
+  const fx = testFixtures(client);
+  const event = fx.event({ canonicalName: "Example Fest" });
+  const edition = fx.occurrence(event, { occurrenceKey: "2027" });
+  const oldTerm = fx.term();
+  const newTerm = fx.term();
+  fx.assignTerm(edition, oldTerm);
+  const proposal = candidate([]);
+  proposal.data = {
+    eventId: event.id,
+    eventName: "Example Fest",
+    sources: [],
+    links: { socials: {} },
+    editions: [
+      {
+        key: "2027",
+        links: {},
+        classification: {
+          add: {
+            value: [newTerm.id],
+            reason: "The programme now includes this category.",
+          },
+          remove: {
+            value: [oldTerm.id],
+            reason: "The old category no longer applies.",
+          },
+        },
+        tickets: {
+          value: {
+            variants: [
+              {
+                label: "Weekend",
+                amount: 100.5,
+                currency: "EUR",
+                availability: "available",
+              },
+            ],
+            basePrice: {
+              kind: "exact",
+              currency: "EUR",
+              minAmount: 100.5,
+              maxAmount: 100.5,
+              coverage: "full_programme",
+            },
+          },
+          reason: "The official ticket page lists a weekend pass.",
+        },
+      },
+    ],
+  };
+  const result = await runCatalogResearch(
+    { mode: "refresh", eventId: event.id, actor: input.actor },
+    { client, readSource, generateCandidate: async () => proposal },
+  );
+  expect(result.outcome).toBe("updated");
+  expect(result.changes).toContainEqual(
+    expect.objectContaining({
+      subject: edition.id,
+      field: "terms",
+      explanations: [
+        "The programme now includes this category.",
+        "The old category no longer applies.",
+      ],
+    }),
+  );
+  for (const field of [
+    "price_kind",
+    "price_currency",
+    "price_min_minor",
+    "price_max_minor",
+    "price_coverage",
+    "price_details",
+  ]) {
+    expect(result.changes).toContainEqual(
+      expect.objectContaining({
+        subject: edition.id,
+        field,
+        explanations: ["The official ticket page lists a weekend pass."],
+      }),
+    );
+  }
+});
+
+test("writer failure preserves research status, raw output, summaries, and rollback", async () => {
+  const { client, readSource } = fixture();
+  testFixtures(client).event({
+    canonicalName: "Example Fest",
+    slug: "example-fest",
+  });
+  const before = catalogState(client);
+  const proposal = candidate([]);
+  const result = await runCatalogResearch(
+    { ...input, dryRun: false },
+    {
+      client,
+      readSource,
+      generateCandidate: async () => proposal,
+    },
+  );
+  expect(result).toMatchObject({
+    outcome: "failed",
+    researchStatus: "success",
+    changes: [],
+    sourceSummaries: proposal.data!.sources,
+  });
+  expect(result.errors).toContainEqual({
+    code: "write_failed",
+    stage: "write",
+    message: "Catalog write failed",
+  });
+  expect(result.modelResponse).toEqual({ text: null, object: proposal });
+  expect(catalogState(client)).toEqual(before);
+});
+
+test("name mismatch survives a rolled-back refresh write", async () => {
+  const { client, readSource } = fixture();
+  const event = testFixtures(client).event({ canonicalName: "Example Fest" });
+  client.exec(
+    "CREATE TRIGGER block_test_update BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT, 'blocked by test'); END",
+  );
+  const proposal = candidate([]);
+  proposal.data = {
+    eventId: event.id,
+    eventName: "Another Name",
+    sources: [{ url, information: "Official name differs." }],
+    links: { socials: {} },
+    editions: [],
+    summary: { value: "Changed summary", reason },
+  };
+  const result = await runCatalogResearch(
+    { mode: "refresh", eventId: event.id, actor: input.actor, dryRun: false },
+    { client, readSource, generateCandidate: async () => proposal },
+  );
+  expect(result).toMatchObject({
+    outcome: "failed",
+    researchStatus: "success",
+    changes: [],
+    sourceSummaries: proposal.data.sources,
+  });
+  expect(result.eventNameMismatch).toEqual({
+    eventId: event.id,
+    storedName: "Example Fest",
+    observedName: "Another Name",
+  });
+  expect(result.errors).toContainEqual({
+    code: "write_failed",
+    stage: "write",
+    message: "Catalog write failed",
+  });
+  expect(readResearchEvent(client, event.id)?.summary).not.toBe(
+    "Changed summary",
+  );
+});
+
+test("failed research, malformed output, and target mismatch never write", async () => {
+  const { client, readSource } = fixture();
+  const event = testFixtures(client).event({ canonicalName: "Example Fest" });
+  const failed: ResearchCandidate = {
+    status: "failed",
+    data: null,
+    errors: [{ code: "source_blocked", message: "Page blocked the read." }],
+    unresolved: [],
+  };
+  for (const raw of [
+    failed,
+    { ...candidate([]), data: { ...candidate([]).data, eventId: "wrong-id" } },
+    { legacy: "claims" },
+  ]) {
+    const result = await runCatalogResearch(
+      { mode: "refresh", eventId: event.id, actor: input.actor },
       {
         client,
         readSource,
-        generateCandidate: async () => proposed,
+        generateCandidate: async () => raw,
       },
     );
-    expect(result.outcome).toBe("failed");
-    expect(result.gaps).toContainEqual(
-      expect.objectContaining({ code: "write_failed" }),
+    expect(result).toMatchObject({
+      outcome: "failed",
+      researchStatus: "failed",
+      operations: [],
+      changes: [],
+    });
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.sourceSummaries).toEqual([]);
+  }
+});
+
+test.each([
+  ["source", "not-a-url"],
+  ["x", "not-a-url"],
+] as const)(
+  "malformed %s URL %s fails candidate validation after a source read without writing",
+  async (field, malformedUrl) => {
+    const { client, readSource } = fixture();
+    const before = catalogState(client);
+    const proposal = candidate([]);
+    if (field === "source") {
+      proposal.data!.sources[0].url = malformedUrl;
+    } else {
+      proposal.data!.links.socials.x = malformedUrl;
+    }
+
+    const result = await runCatalogResearch(
+      { ...input, dryRun: false },
+      {
+        client,
+        readSource,
+        generateCandidate: async (_prompt, context) => {
+          await context.readSource(url);
+          return proposal;
+        },
+      },
     );
-    expect(result.modelResponse).toEqual({ text: null, object: proposed });
-    expect(result.changes).toEqual([]);
+
+    expect(result).toMatchObject({
+      outcome: "failed",
+      researchStatus: "failed",
+      operations: [],
+      receipts: [],
+      changes: [],
+      sourceSummaries: [],
+    });
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: "invalid_candidate",
+        stage: "validation",
+      }),
+    );
+    expect(result.modelResponse).toEqual({ text: null, object: proposal });
+    expect(readSource).toHaveBeenCalledOnce();
+    expect(result.sources).toEqual([
+      {
+        attemptedUrl: url,
+        finalUrl: url,
+        retrievedAt: source.retrievedAt,
+        outcome: "ok",
+      },
+    ]);
     expect(catalogState(client)).toEqual(before);
   },
 );
 
-test.each(["refresh", "check"] as const)(
-  "%s exposes only its Event and saved links to the model",
-  async (mode) => {
-    const { client, readSource } = fixture();
-    const fx = testFixtures(client);
-    const event = fx.event({ canonicalName: "Example Fest" });
-    fx.event({ canonicalName: "Unrelated Fest" });
-    fx.eventLink(event, { url, kind: "official_site", official: true });
-    const generateCandidate = vi.fn(async (prompt: string) => {
-      const context = JSON.parse(prompt);
-      expect(context.catalog.map((item: { id: string }) => item.id)).toEqual([
-        event.id,
-      ]);
-      expect(context.compact).toEqual(readResearchEvent(client, event.id));
-      expect(context.compact).not.toHaveProperty("changes");
-      expect(context.knownLinks).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ url, owner: "event" }),
-        ]),
-      );
-      expect(context.inspectedSources).toHaveLength(1);
-      return { ...candidate([]), eventId: "wrong-event" };
-    });
-    const result = await runCatalogResearch(
-      {
-        mode,
-        eventId: event.id,
-        actor: input.actor,
-        initiatedBy: input.initiatedBy,
-        dryRun: false,
+test("provider and budget failures keep sanitized errors and empty operations", async () => {
+  const { client } = fixture();
+  for (const error of [
+    new Error("PRIVATE provider request"),
+    new ResearchLimitError("pages"),
+  ]) {
+    const result = await runCatalogResearch(input, {
+      client,
+      generateCandidate: async () => {
+        throw error;
       },
-      { client, readSource, generateCandidate },
+    });
+    expect(result).toMatchObject({
+      outcome: "failed",
+      researchStatus: "failed",
+      operations: [],
+    });
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        stage: "research",
+        code:
+          error instanceof ResearchLimitError
+            ? "limit_reached"
+            : "model_failed",
+      }),
     );
-    expect(readSource).toHaveBeenCalledTimes(1);
-    expect(generateCandidate).toHaveBeenCalledTimes(1);
-    expect(result.outcome).toBe("skipped");
-    expect(result.operations).toEqual([]);
-  },
-);
-
-test("reports preserve raw candidates even when local schema validation rejects them", async () => {
-  const { client, readSource } = fixture();
-  const raw = { eventName: "Bad proposal", summary: null, claims: "invalid" };
-  const output = await runCatalogResearch(input, {
-    client,
-    readSource,
-    generateCandidate: async () => raw,
-  });
-  expect(output.gaps.some((gap) => gap.code === "invalid_candidate")).toBe(
-    true,
-  );
-  expect(output.modelResponse).toEqual({ text: null, object: raw });
-  expect(
-    JSON.parse(JSON.stringify(output)).modelResponse.object.summary,
-  ).toBeNull();
-  expect(output.operations).toEqual([]);
+    expect(JSON.stringify(result)).not.toContain("PRIVATE");
+  }
 });
 
-test("reports use null modelResponse when generation fails before returning output", async () => {
-  const { client, readSource } = fixture();
-  const output = await runCatalogResearch(input, {
-    client,
-    readSource,
-    generateCandidate: async () => {
-      throw new Error("provider failed");
-    },
+test("source summaries respect the run page budget", async () => {
+  const { client } = fixture();
+  const proposal = candidate([]);
+  proposal.data!.sources.push({
+    url: "https://example.org/second",
+    information: "Second source.",
   });
-  expect(output.modelResponse).toBeNull();
+  const result = await runCatalogResearch(
+    { ...input, limits: { pages: 1 } },
+    { client, generateCandidate: async () => proposal },
+  );
+  expect(result).toMatchObject({
+    outcome: "failed",
+    researchStatus: "failed",
+    operations: [],
+    sourceSummaries: [],
+  });
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({ code: "invalid_candidate", stage: "validation" }),
+  );
 });

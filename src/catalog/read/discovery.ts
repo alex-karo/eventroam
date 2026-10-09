@@ -40,7 +40,6 @@ export function publicSummaries(client: Database.Database): DiscoverySummary[] {
       endsOn: occurrences.endsOn,
       dateState: occurrences.dateState,
       status: occurrences.scheduleStatus,
-      ticketAvailability: occurrences.ticketAvailability,
       countryCode: occurrences.countryCode,
       locality: occurrences.locality,
       administrativeArea: occurrences.administrativeArea,

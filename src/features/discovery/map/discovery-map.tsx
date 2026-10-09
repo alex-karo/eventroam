@@ -33,7 +33,6 @@ export function mapFeatures(
         id: summary.id,
         name: summary.name ?? `${summary.eventName} ${summary.year}`,
         approximate: summary.coordinatePrecision !== "exact",
-        soldOut: summary.ticketAvailability === "sold_out",
       },
     })),
   };
@@ -80,7 +79,6 @@ function previewContent(summary: DiscoverySummary) {
   content.append(dates);
   const status = [
     summary.dateState === "provisional" ? "Tentative dates" : "Confirmed dates",
-    summary.ticketAvailability === "sold_out" ? "Sold out" : null,
     summary.coordinatePrecision !== "exact" ? "Approximate location" : null,
   ].filter(Boolean);
   if (status.length) {

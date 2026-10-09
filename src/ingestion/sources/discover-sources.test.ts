@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createResearchBudget } from "../runtime/budget";
+import { loadResearchConfig } from "../runtime/config";
 import { discoverSources } from "./discover-sources";
 
 describe("discoverSources", () => {
@@ -58,7 +59,10 @@ describe("discoverSources", () => {
         apiKey: "test-key",
         model: "provider/model",
         reasoningEffort: "medium",
-        serviceTier: "flex",
+        serviceTier: loadResearchConfig({
+          NODE_ENV: "test",
+          OPENROUTER_API_KEY: "test-key",
+        }).serviceTier,
         limits: budget.limits,
       },
       fetch: fetchMock as typeof fetch,

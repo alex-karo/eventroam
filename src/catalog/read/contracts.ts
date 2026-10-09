@@ -10,7 +10,10 @@ export type PublicOccurrence = {
   endsOn: string;
   dateState: "confirmed" | "provisional";
   status: "announced" | "scheduled" | "postponed" | "cancelled";
-  ticketAvailability: "unknown" | "available" | "sold_out" | "closed";
+  ticketCategories: {
+    label: string;
+    availability?: "unknown" | "available" | "sold_out" | "closed";
+  }[];
   venueName: string | null;
   venueAddress: string | null;
   locality: string | null;
@@ -48,7 +51,6 @@ export type DiscoverySummary = {
   endsOn: string;
   dateState: "confirmed" | "provisional";
   status: "announced" | "scheduled";
-  ticketAvailability: "unknown" | "available" | "sold_out" | "closed";
   countryCode: string;
   locality: string | null;
   administrativeArea: string | null;

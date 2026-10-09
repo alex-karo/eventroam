@@ -473,7 +473,7 @@ test("discovery hides draft and withdrawn parents and editions", () => {
   }
 });
 
-test("closed sales are public while ticket variants and audit history stay private", () => {
+test("public ticket categories show their own availability and hide the stale aggregate and private details", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const { event, occurrences } = fx.publishedEvent();
@@ -483,15 +483,60 @@ test("closed sales are public while ticket variants and audit history stay priva
     )
     .run(
       JSON.stringify([
-        { label: "Private offer", amount: 120, currency: "EUR" },
+        {
+          label: "Early Bird",
+          amount: 120,
+          currency: "EUR",
+          availability: "sold_out",
+          terms: "Private terms",
+          url: "https://example.org/offer",
+        },
+        { label: "Regular", availability: "available" },
+        { label: "Late", availability: "closed" },
+        { label: "Mystery", availability: "unknown" },
+        { label: "Unannounced" },
       ]),
       occurrences[0].id,
     );
   const detail = publicEvent(client, event.id)!;
   const summaries = publicSummaries(client);
-  expect(detail.editions[0].ticketAvailability).toBe("closed");
-  expect(summaries[0].ticketAvailability).toBe("closed");
-  expect(JSON.stringify({ detail, summaries })).not.toMatch(
-    /priceDetails|price_details|Private offer|changedFields|operationKey|retrievedAt/,
+  expect(detail.editions[0].ticketCategories).toEqual([
+    { label: "Early Bird", availability: "sold_out" },
+    { label: "Regular", availability: "available" },
+    { label: "Late", availability: "closed" },
+    { label: "Mystery", availability: "unknown" },
+    { label: "Unannounced" },
+  ]);
+  expect(detail.editions[0].status).toBe("scheduled");
+  expect(summaries).toHaveLength(1);
+  expect(JSON.stringify({ detail, summaries })).not.toContain(
+    "ticketAvailability",
   );
+  expect(JSON.stringify(summaries)).not.toContain("ticketCategories");
+  expect(JSON.stringify({ detail, summaries })).not.toMatch(
+    /priceDetails|price_details|Private terms|example.org\/offer|changedFields|operationKey|retrievedAt/,
+  );
+});
+
+test("X links on either domain inherit by kind and allow an edition override", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const { event, occurrences } = fx.publishedEvent({
+    occurrences: [
+      { occurrenceKey: "2027" },
+      { occurrenceKey: "2028", startsOn: "2028-07-01" },
+    ],
+  });
+  fx.eventLink(event, { kind: "x", url: "https://twitter.com/example" });
+  fx.occurrenceLink(occurrences[1], {
+    kind: "x",
+    url: "https://x.com/example2028",
+  });
+  const [overridden, inherited] = publicEvent(client, event.id)!.editions;
+  expect(overridden.links.filter((link) => link.kind === "x")).toEqual([
+    { kind: "x", url: "https://x.com/example2028", label: null },
+  ]);
+  expect(inherited.links.filter((link) => link.kind === "x")).toEqual([
+    { kind: "x", url: "https://twitter.com/example", label: null },
+  ]);
 });

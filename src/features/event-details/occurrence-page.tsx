@@ -6,6 +6,8 @@ import {
   Location,
   Status,
   TicketPrice,
+  TicketCategories,
+  linkLabel,
 } from "@/components/catalog/catalog";
 
 export function OccurrenceDetailsPage({
@@ -39,6 +41,7 @@ export function OccurrenceDetailsPage({
         </p>
       )}
       <TicketPrice edition={edition} />
+      <TicketCategories edition={edition} />
       {edition.links.length > 0 && (
         <section>
           <h2>Official links</h2>
@@ -46,7 +49,7 @@ export function OccurrenceDetailsPage({
             {edition.links.map((link) => (
               <li key={`${link.kind}:${link.url}`}>
                 <a href={link.url} rel="noopener noreferrer">
-                  {link.label ?? link.kind.replaceAll("_", " ")}
+                  {link.label ?? linkLabel(link.kind)}
                 </a>
               </li>
             ))}

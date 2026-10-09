@@ -1,6 +1,6 @@
 # Eventroam documentation
 
-This is a hand-maintained guide to the project's Markdown knowledge. Main OpenSpec specs describe implemented behavior. Active OpenSpec changes describe approved work that has not been implemented; draft proposals hold unresolved choices. The application and [build progress](service-build-progress.md) show what currently runs. `stable` describes an accepted decision, verified current behavior, or reliable historical record; `draft` marks material still being selected or reviewed. Dated research and legacy specs are background evidence.
+This is a hand-maintained guide to the project's Markdown knowledge. Main OpenSpec specs describe implemented behavior. Active OpenSpec changes describe approved work; completed changes may remain active pending archive. Draft proposals hold unresolved choices. The application and [build progress](service-build-progress.md) show what currently runs. `stable` describes an accepted decision, verified current behavior, or reliable historical record; `draft` marks material still being selected or reviewed. Dated research and legacy specs are background evidence.
 
 For a short introduction to the product, architecture, technology, and local setup, start with the [project README](../README.md).
 
@@ -29,6 +29,7 @@ Website:
 
 ## Archived changes
 
+- [Simpler research output](../openspec/changes/archive/2026-10-09-simplify-research-output/proposal.md) — explicit research outcomes, explained facts, replaceable link slots, and ticket-category availability.
 - [Source-backed catalog workflow](../openspec/changes/archive/2026-10-05-source-backed-catalog-workflow/proposal.md) — completed local collection change; its [design](../openspec/changes/archive/2026-10-05-source-backed-catalog-workflow/design.md) records the implementation approach.
 
 ## Draft proposals and migration record

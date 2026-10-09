@@ -6,6 +6,8 @@ import {
   Location,
   Status,
   TicketPrice,
+  TicketCategories,
+  linkLabel,
 } from "@/components/catalog/catalog";
 
 export function SelectedPreview({
@@ -61,6 +63,7 @@ export function SelectedPreview({
             </p>
           )}
           <TicketPrice edition={detail} />
+          <TicketCategories edition={detail} />
           {detail.links.length > 0 && (
             <>
               <h3>Official links</h3>
@@ -68,7 +71,7 @@ export function SelectedPreview({
                 {detail.links.map((link) => (
                   <li key={`${link.kind}:${link.url}`}>
                     <a href={link.url} rel="noopener noreferrer">
-                      {link.label ?? link.kind.replaceAll("_", " ")}
+                      {link.label ?? linkLabel(link.kind)}
                     </a>
                   </li>
                 ))}

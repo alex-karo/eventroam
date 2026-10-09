@@ -72,7 +72,7 @@ An Occurrence MAY store a bounded price summary as `free`, `exact`, `from`, or `
 - **THEN** it identifies the amount as a package in its original currency and shows the qualification
 
 ### Requirement: Occurrence prices are replaced as a complete block
-The catalog SHALL store ticket variants with their labels, supplied amounts/currencies, conditions, availability, and links. A price update SHALL atomically replace the complete variant list and primary price summary without merging individual variants. The model SHALL choose the base full-programme admission summary or leave it unknown; the host SHALL validate its structure without checking source support. Variant display on the website is outside this change.
+The catalog SHALL store ticket variants with their labels, supplied amounts/currencies, conditions, availability, and links. A price update SHALL atomically replace the complete variant list and primary price summary without merging individual variants. The model SHALL choose the base full-programme admission summary or leave it unknown; the host SHALL validate its structure without checking source support.
 
 #### Scenario: Several ticket variants are collected
 - **WHEN** the model supplies a full-programme pass and a day ticket for the same Occurrence

@@ -10,7 +10,7 @@ import { z } from "zod";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { createResearchBudget } from "../runtime/budget";
 import type { CatalogResearchResult } from "../workflow";
-import { loadEvalSuite, evalCaseSchema } from "./fixtures";
+import { loadEvalSuite, evalCaseSchema, evalSuiteSchema } from "./fixtures";
 import { sourceLinks } from "./source-links";
 import { fixedSources, runCatalogEvals, seedDatabase } from "./run";
 import { assertionMatches, createEvalScorers, scoreCase } from "./score";
@@ -19,6 +19,229 @@ const suite = loadEvalSuite();
 const byId = new Map(suite.cases.map((item) => [item.id, item]));
 const tomorrowland = byId.get("tomorrowland")!;
 const wacken = byId.get("wacken")!;
+const blocked = byId.get("afro-nation-portugal-blocked")!;
+
+test("empty change assertions are reserved for failed research cases", () => {
+  expect(blocked.provenance?.kind).toBe(
+    "captured-http-metadata-synthetic-replay",
+  );
+  expect(blocked.todayUtc).toBe("2026-10-08");
+  expect(
+    evalCaseSchema.safeParse({
+      ...tomorrowland,
+      expectations: { required: [], forbidden: [] },
+    }).success,
+  ).toBe(false);
+  expect(
+    evalCaseSchema.safeParse({
+      ...blocked,
+      expectations: {
+        ...blocked.expectations,
+        required: tomorrowland.expectations.required,
+      },
+    }).success,
+  ).toBe(false);
+});
+
+test("blocked-source fixture replays captured HTTP metadata without fallback", async () => {
+  const source = blocked.sources[0];
+  expect(source).toMatchObject({
+    outcome: "blocked",
+    reason: "http_403",
+    completeness: "none",
+    markdown: "",
+  });
+  const read = await fixedSources(blocked, blocked.todayUtc!).readSource(
+    source.attemptedUrl,
+    { budget: createResearchBudget() } as Parameters<
+      ReturnType<typeof fixedSources>["readSource"]
+    >[1],
+  );
+  expect(read).toMatchObject({ outcome: "blocked", reason: "http_403" });
+});
+
+test("failed-source eval requires null data, source diagnosis, and no writes", () => {
+  const sourceUrl = blocked.sources[0].attemptedUrl;
+  const sourceError = {
+    code: "source_blocked" as const,
+    stage: "source" as const,
+    message: "Official ticket page returned HTTP 403",
+    url: sourceUrl,
+  };
+  const expected: CatalogResearchResult = {
+    ...result(),
+    mode: "check",
+    eventId: blocked.initial.event.id,
+    outcome: "failed",
+    researchStatus: "failed",
+    modelResponse: {
+      text: null,
+      object: {
+        status: "failed",
+        data: null,
+        errors: [
+          {
+            code: "source_blocked",
+            message: sourceError.message,
+            url: sourceUrl,
+          },
+        ],
+        unresolved: [],
+      },
+    },
+    sources: [
+      {
+        attemptedUrl: sourceUrl,
+        finalUrl: sourceUrl,
+        retrievedAt: blocked.sources[0].retrievedAt,
+        outcome: "blocked",
+        reason: "http_403",
+      },
+    ],
+    errors: [sourceError],
+  };
+  expect(scoreCase(blocked, expected)).toMatchObject({
+    correctness: 1,
+    completeness: 1,
+    passed: true,
+  });
+  expect(Number.isNaN(scoreCase(blocked, expected).correctness)).toBe(false);
+  for (const invalid of [
+    {
+      ...expected,
+      researchStatus: "partial" as const,
+      outcome: "unchanged" as const,
+    },
+    {
+      ...expected,
+      researchStatus: "success" as const,
+      outcome: "unchanged" as const,
+    },
+    { ...expected, modelResponse: null },
+    {
+      ...expected,
+      modelResponse: {
+        text: null,
+        object: { status: "partial", data: { editions: [] } },
+      },
+    },
+    {
+      ...expected,
+      modelResponse: {
+        text: null,
+        object: { status: "success", data: { editions: [] } },
+      },
+    },
+    {
+      ...expected,
+      errors: [
+        {
+          code: "model_failed" as const,
+          stage: "research" as const,
+          message: "provider error",
+        },
+      ],
+    },
+    {
+      ...expected,
+      errors: [
+        ...expected.errors,
+        {
+          code: "invalid_candidate" as const,
+          stage: "validation" as const,
+          message: "bad JSON",
+        },
+      ],
+    },
+    {
+      ...expected,
+      errors: [
+        ...expected.errors,
+        {
+          code: "limit_reached" as const,
+          stage: "source" as const,
+          message: "budget exhausted",
+        },
+      ],
+    },
+    {
+      ...expected,
+      operations: [
+        {
+          kind: "publishEvent" as const,
+          id: blocked.initial.event.id,
+          operationKey: "publish",
+          actor: "eval",
+          expectedVersion: 1,
+        },
+      ],
+    },
+    {
+      ...expected,
+      changes: [
+        {
+          subject: blocked.initial.event.id,
+          field: "summary",
+          oldValue: null,
+          newValue: "changed",
+          explanations: [],
+        },
+      ],
+    },
+    {
+      ...expected,
+      sourceSummaries: [{ url: sourceUrl, information: "Unsupported claim" }],
+    },
+  ]) {
+    expect(scoreCase(blocked, invalid).passed).toBe(false);
+  }
+});
+
+test("eval fixtures reject the old schema version", () => {
+  expect(suite.schemaVersion).toBe(2);
+  expect(
+    evalSuiteSchema.safeParse({ ...suite, schemaVersion: 1 }).success,
+  ).toBe(false);
+});
+
+test("eval scorer rejects unsupported result report versions", () => {
+  expect(() =>
+    scoreCase(tomorrowland, {
+      ...result(),
+      schemaVersion: 1,
+    } as unknown as CatalogResearchResult),
+  ).toThrow("Unsupported catalog report version: 1");
+  const missing = { ...result() } as Partial<CatalogResearchResult>;
+  delete missing.schemaVersion;
+  expect(() =>
+    scoreCase(tomorrowland, missing as CatalogResearchResult),
+  ).toThrow("Unsupported catalog report version: undefined");
+});
+
+test("partial research can pass factual assertions while failed research cannot", () => {
+  const official = {
+    subject: tomorrowland.initial.event.id,
+    field: "links",
+    oldValue: [],
+    explanations: [],
+    newValue: [{ kind: "official_site", url: "https://www.tomorrowland.com/" }],
+  };
+  const partial = {
+    ...result([official]),
+    researchStatus: "partial" as const,
+    unresolved: [{ message: "Optional dates unknown." }],
+  };
+  expect(scoreCase(tomorrowland, partial).passed).toBe(true);
+  const failed = scoreCase(tomorrowland, {
+    ...partial,
+    researchStatus: "failed",
+  });
+  expect(failed).toMatchObject({
+    correctness: 0,
+    completeness: 0,
+    passed: false,
+  });
+});
 
 test("existing eval report is rejected before provider setup", async () => {
   const directory = mkdtempSync(join(tmpdir(), "eventroam-eval-report-"));
@@ -39,16 +262,58 @@ test("existing eval report is rejected before provider setup", async () => {
 function result(
   changes: CatalogResearchResult["changes"] = [],
 ): CatalogResearchResult {
+  const created = new Map<
+    string,
+    { eventId?: string; key?: string; year?: number }
+  >();
+  for (const change of changes) {
+    const facts = created.get(change.subject) ?? {};
+    if (change.field === "event_id" && typeof change.newValue === "string") {
+      facts.eventId = change.newValue;
+    }
+    if (
+      change.field === "occurrence_key" &&
+      typeof change.newValue === "string"
+    ) {
+      facts.key = change.newValue;
+    }
+    if (
+      change.field === "occurrence_year" &&
+      typeof change.newValue === "number"
+    ) {
+      facts.year = change.newValue;
+    }
+    created.set(change.subject, facts);
+  }
+  const newEditions = [...created].filter(
+    ([, facts]) => facts.eventId && facts.key,
+  );
   return {
+    schemaVersion: 2,
     mode: "refresh",
     outcome: changes.length ? "updated" : "unchanged",
+    modelResponse: null,
+    researchStatus: "success",
     eventId: tomorrowland.initial.event.id,
-    operations: [],
+    operations: newEditions.map(([subject, facts]) => ({
+      kind: "createOccurrence",
+      eventId: facts.eventId!,
+      tempKey: subject,
+      data: {
+        occurrenceKey: facts.key!,
+        ...(facts.year === undefined ? {} : { occurrenceYear: facts.year }),
+      },
+    })) as CatalogResearchResult["operations"],
     receipts: [],
-    references: {},
+    references: Object.fromEntries(
+      newEditions.map(([subject]) => [subject, subject]),
+    ),
     changes,
     sources: [],
-    gaps: [],
+    sourceSummaries: [],
+    errors: [],
+    unresolved: [],
+    eventNameMismatch: null,
     usage: {
       ...createResearchBudget().snapshot(),
       inputTokens: 0,
@@ -109,6 +374,7 @@ test("gold checks require supported changes and reject sibling links", () => {
     subject: tomorrowland.initial.event.id,
     field: "links",
     oldValue: [],
+    explanations: [],
     newValue: [{ kind: "official_site", url: "https://www.tomorrowland.com/" }],
   };
   expect(scoreCase(tomorrowland, result([official])).passed).toBe(true);
@@ -128,32 +394,42 @@ test("gold checks require supported changes and reject sibling links", () => {
   ).toBe(0);
 });
 
-test("a late model failure cannot pass after an earlier accepted change", () => {
-  const partial = result([
-    {
-      subject: tomorrowland.initial.event.id,
-      field: "links",
-      oldValue: [],
-      newValue: [
-        { kind: "official_site", url: "https://www.tomorrowland.com/" },
-      ],
-    },
+test("Tomorrowland rejects Thailand sell-out on a Belgium ticket variant", () => {
+  const official = {
+    subject: tomorrowland.initial.event.id,
+    field: "links",
+    oldValue: [],
+    explanations: [],
+    newValue: [{ kind: "official_site", url: "https://www.tomorrowland.com/" }],
+  };
+  const soldOut = {
+    subject: tomorrowland.initial.event.occurrences[0].id,
+    field: "price_details",
+    oldValue: [],
+    explanations: [
+      "Tomorrowland Thailand is marked Sold Out on the events page.",
+    ],
+    newValue: [
+      { label: "Belgium day ticket", availability: "unknown" },
+      { label: "Belgium weekend pass", availability: "sold_out" },
+    ],
+  };
+  expect(scoreCase(tomorrowland, result([official]))).toMatchObject({
+    correctness: 1,
+    completeness: 1,
+    passed: true,
+  });
+  const score = scoreCase(tomorrowland, result([official, soldOut]));
+  expect(score.completeness).toBe(1);
+  expect(score.correctness).toBeLessThan(1);
+  expect(score.passed).toBe(false);
+  expect(score.reasons.violatedForbidden).toEqual([
+    expect.objectContaining({
+      owner: "occurrence",
+      field: "price_details",
+      contains: { availability: "sold_out" },
+    }),
   ]);
-  const failed = scoreCase(tomorrowland, {
-    ...partial,
-    gaps: [{ code: "model_failed", detail: "model_failed" }],
-  });
-  expect(failed).toMatchObject({
-    correctness: 0,
-    completeness: 0,
-    passed: false,
-  });
-  expect(
-    scoreCase(tomorrowland, {
-      ...partial,
-      gaps: [{ code: "invalid_candidate" }],
-    }).passed,
-  ).toBe(false);
 });
 
 test("new and existing edition assertions map only to their own subject", () => {
@@ -164,6 +440,7 @@ test("new and existing edition assertions map only to their own subject", () => 
         subject: newId,
         field: "starts_on",
         oldValue: null,
+        explanations: [],
         newValue: "2027-07-28",
       },
     ]),
@@ -203,69 +480,6 @@ test("new and existing edition assertions map only to their own subject", () => 
   ).toBe(true);
 });
 
-test("created edition can be recovered from final writer changes in older reports", () => {
-  const required2027 = wacken.expectations.required.find(
-    (assertion) =>
-      assertion.editionYear === 2027 && assertion.field === "starts_on",
-  )!;
-  const newId = "new-wacken-2027";
-  const writerChanges: CatalogResearchResult["changes"] = [
-    {
-      subject: newId,
-      field: "event_id",
-      oldValue: null,
-      newValue: wacken.initial.event.id,
-    },
-    {
-      subject: newId,
-      field: "occurrence_key",
-      oldValue: null,
-      newValue: "2027",
-    },
-    {
-      subject: newId,
-      field: "starts_on",
-      oldValue: null,
-      newValue: "2027-07-28",
-    },
-  ];
-  writerChanges.push({
-    subject: newId,
-    field: "occurrence_year",
-    oldValue: null,
-    newValue: 2027,
-  });
-  expect(assertionMatches(wacken, result(writerChanges), required2027)).toBe(
-    true,
-  );
-  expect(
-    assertionMatches(
-      wacken,
-      result(
-        writerChanges.map((change) =>
-          change.field === "event_id"
-            ? { ...change, newValue: "another-event" }
-            : change,
-        ),
-      ),
-      required2027,
-    ),
-  ).toBe(false);
-  expect(
-    assertionMatches(
-      wacken,
-      result(
-        writerChanges.map((change) =>
-          change.field === "occurrence_year"
-            ? { ...change, newValue: 2028 }
-            : change,
-        ),
-      ),
-      required2027,
-    ),
-  ).toBe(false);
-});
-
 test("Mastra runEvals scores the final workflow output without model calls", async () => {
   const inputSchema = z.object({ caseId: z.string() });
   const step = createStep({
@@ -278,6 +492,7 @@ test("Mastra runEvals scores the final workflow output without model calls", asy
           subject: tomorrowland.initial.event.id,
           field: "links",
           oldValue: [],
+          explanations: [],
           newValue: [
             { kind: "official_site", url: "https://www.tomorrowland.com/" },
           ],
@@ -343,12 +558,14 @@ test("Roskilde permits missing location but rejects the office address", () => {
       subject,
       field: "event_id",
       oldValue: null,
+      explanations: [],
       newValue: roskilde.initial.event.id,
     },
     {
       subject,
       field: "occurrence_key",
       oldValue: null,
+      explanations: [],
       newValue: "2027",
     },
   ];
@@ -356,6 +573,7 @@ test("Roskilde permits missing location but rejects the office address", () => {
     subject,
     field: "occurrence_year",
     oldValue: null,
+    explanations: [],
     newValue: 2027,
   });
   for (const [country, forbidden] of [
@@ -372,6 +590,7 @@ test("Roskilde permits missing location but rejects the office address", () => {
             subject,
             field: "country_code",
             oldValue: null,
+            explanations: [],
             newValue: country,
           },
         ]),
@@ -383,6 +602,7 @@ test("Roskilde permits missing location but rejects the office address", () => {
     subject,
     field: "venue_address",
     oldValue: null,
+    explanations: [],
     newValue: "Darupvej 19, 4000 Roskilde",
   };
   const office = roskilde.expectations.forbidden.find(
@@ -405,6 +625,7 @@ test("Roskilde permits missing location but rejects the office address", () => {
         assertion.owner === "event" ? roskilde.initial.event.id : subject,
       field: assertion.field,
       oldValue: null,
+      explanations: [],
       newValue:
         assertion.field === "links" ? [assertion.contains] : assertion.value,
     })),
@@ -446,6 +667,7 @@ test.each([
           subject: wacken.initial.event.id,
           field: "links",
           oldValue: [],
+          explanations: [],
           newValue: [{ kind, url }],
         },
       ]),
@@ -461,24 +683,28 @@ test("Wacken permits metal while preserving historical dates", () => {
       subject,
       field: "event_id",
       oldValue: null,
+      explanations: [],
       newValue: wacken.initial.event.id,
     },
     {
       subject,
       field: "occurrence_key",
       oldValue: null,
+      explanations: [],
       newValue: "2027",
     },
     {
       subject,
       field: "occurrence_year",
       oldValue: null,
+      explanations: [],
       newValue: 2027,
     },
     ...wacken.expectations.required.map((assertion) => ({
       subject: assertion.owner === "event" ? wacken.initial.event.id : subject,
       field: assertion.field,
       oldValue: null,
+      explanations: [],
       newValue:
         assertion.field === "links"
           ? [assertion.containsAny![0]]
@@ -488,6 +714,7 @@ test("Wacken permits metal while preserving historical dates", () => {
       subject,
       field: "terms",
       oldValue: [],
+      explanations: [],
       newValue: ["festivalnetwork:term:genre:metal"],
     },
   ]);
@@ -496,6 +723,7 @@ test("Wacken permits metal while preserving historical dates", () => {
     subject: wacken.initial.event.occurrences[0].id,
     field: "terms",
     oldValue: [],
+    explanations: [],
     newValue: ["festivalnetwork:term:genre:metal"],
   });
   expect(scoreCase(wacken, output).passed).toBe(true);
@@ -503,6 +731,7 @@ test("Wacken permits metal while preserving historical dates", () => {
     subject: wacken.initial.event.occurrences[0].id,
     field: "starts_on",
     oldValue: "2026-07-30",
+    explanations: [],
     newValue: "2027-07-28",
   });
   expect(scoreCase(wacken, output).passed).toBe(false);
@@ -523,24 +752,28 @@ test("Wacken allows DE or missing country but rejects another country", () => {
         subject,
         field: "event_id",
         oldValue: null,
+        explanations: [],
         newValue: wacken.initial.event.id,
       },
       {
         subject,
         field: "occurrence_key",
         oldValue: null,
+        explanations: [],
         newValue: "2027",
       },
       {
         subject,
         field: "occurrence_year",
         oldValue: null,
+        explanations: [],
         newValue: 2027,
       },
       {
         subject,
         field: "country_code",
         oldValue: null,
+        explanations: [],
         newValue: value,
       },
     ]);

@@ -14,35 +14,65 @@ export function formatCatalogReport(
   results: CatalogResearchResult[],
   dryRun: boolean,
 ) {
-  const lines = [
+  return [
     dryRun ? "Catalog dry-run — no changes applied" : "Catalog apply",
+    ...results.flatMap(formatResult),
+  ].join("\n");
+}
+
+function formatResult(result: CatalogResearchResult): string[] {
+  const mismatch = result.eventNameMismatch;
+  return [
+    `${result.outcome} (research ${result.researchStatus}): ${result.eventId ?? "new festival"} (${result.durationMs} ms)`,
+    ...result.changes.flatMap((change) => [
+      `  ${change.subject}.${change.field}: ${JSON.stringify(change.oldValue)} → ${JSON.stringify(change.newValue)}`,
+      ...change.explanations.map((explanation) => `    Why: ${explanation}`),
+    ]),
+    ...(mismatch
+      ? [
+          `  Name differs for ${mismatch.eventId}: saved ${JSON.stringify(mismatch.storedName)}, observed ${JSON.stringify(mismatch.observedName)}`,
+        ]
+      : []),
+    ...result.sourceSummaries.map(
+      (summary) => `  Source summary: ${summary.url} — ${summary.information}`,
+    ),
+    ...result.sources.map(
+      (source) =>
+        `  ${source.outcome}: ${source.finalUrl} [${source.retrievedAt}]${optionalSuffix(source.reason, " (", ")")}`,
+    ),
+    ...result.errors.map(
+      (error) =>
+        `  Error (${error.stage}/${error.code})${optionalSuffix(error.editionKey, " [", "]")}${optionalSuffix(error.field, ": ")}: ${error.message}${optionalSuffix(error.diagnostic ? formatModelDiagnostic(error.diagnostic) : undefined, " [", "]")}`,
+    ),
+    ...result.unresolved.map(
+      (question) =>
+        `  Unresolved${optionalSuffix(question.editionKey, " [", "]")}${optionalSuffix(question.field, ": ")}: ${question.message}`,
+    ),
+    `  Model: ${result.modelVersion}; reasoning: ${result.reasoningEffort ?? "provider default"}; prompt: ${result.promptVersion}; tokens: ${result.usage.inputTokens}/${result.usage.outputTokens}; cached input: ${result.usage.cachedInputTokens ?? "unavailable"}; reasoning tokens: ${result.usage.reasoningTokens ?? "unavailable"}; model USD: ${result.usage.modelCostUsd ?? "unavailable"}; search USD: ${result.usage.searchCostUsd}`,
   ];
-  for (const result of results) {
-    lines.push(
-      `${result.outcome}: ${result.eventId ?? "new festival"} (${result.durationMs} ms)`,
-    );
-    for (const change of result.changes) {
-      lines.push(
-        `  ${change.subject}.${change.field}: ${JSON.stringify(change.oldValue)} → ${JSON.stringify(change.newValue)}`,
-      );
-    }
-    for (const source of result.sources) {
-      const reason = source.reason ? ` (${source.reason})` : "";
-      lines.push(
-        `  ${source.outcome}: ${source.finalUrl} [${source.retrievedAt}]${reason}`,
-      );
-    }
-    for (const gap of result.gaps) {
-      const edition = gap.editionKey ? ` [${gap.editionKey}]` : "";
-      const field = gap.field ? `: ${gap.field}` : "";
-      const detail = gap.detail ? ` — ${gap.detail}` : "";
-      lines.push(`  ${gap.code}${edition}${field}${detail}`);
-    }
-    lines.push(
-      `  Model: ${result.modelVersion}; reasoning: ${result.reasoningEffort ?? "provider default"}; prompt: ${result.promptVersion}; tokens: ${result.usage.inputTokens}/${result.usage.outputTokens}; cached input: ${result.usage.cachedInputTokens ?? "unavailable"}; reasoning tokens: ${result.usage.reasoningTokens ?? "unavailable"}; model USD: ${result.usage.modelCostUsd ?? "unavailable"}; search USD: ${result.usage.searchCostUsd}`,
-    );
-  }
-  return lines.join("\n");
+}
+
+function formatModelDiagnostic(
+  diagnostic: NonNullable<
+    CatalogResearchResult["errors"][number]["diagnostic"]
+  >,
+) {
+  return [
+    `type=${diagnostic.errorTypes.join(">")}`,
+    ...(diagnostic.httpStatus !== undefined
+      ? [`http=${diagnostic.httpStatus}`]
+      : []),
+    ...(diagnostic.providerCode !== undefined
+      ? [`code=${diagnostic.providerCode}`]
+      : []),
+    ...(diagnostic.retryable !== undefined
+      ? [`retryable=${diagnostic.retryable}`]
+      : []),
+  ].join(" ");
+}
+
+function optionalSuffix(value: string | undefined, before: string, after = "") {
+  return value ? before + value + after : "";
 }
 
 export async function executeCatalogCommand(
@@ -108,7 +138,7 @@ export async function executeCatalogCommand(
       }
     }
     const report = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       checkedAt: new Date().toISOString(),
       dryRun: options.dryRun,
       results,

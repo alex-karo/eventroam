@@ -31,7 +31,7 @@ npm run catalog -- refresh --event EVENT_ID
 npm run catalog -- check --event EVENT_ID --event ANOTHER_EVENT_ID
 ```
 
-`add` researches a festival by name. `refresh` researches one existing Event. `check` uses the same research process for one or more Events. An Event is the continuing festival; each separate edition is an Occurrence. The database must already exist and be migrated. See the [development guide](development.md#local-catalog-research) for setup and options.
+`add` researches a festival by name and creates it only when new. A recognized existing Event returns `skipped` and its ID without updating facts, links, editions, or publication; use `refresh` or `check` to update it. `refresh` researches one existing Event. `check` uses the same research process for one or more Events. An Event is the continuing festival; each separate edition is an Occurrence. The database must already exist and be migrated. See the [development guide](development.md#local-catalog-research) for setup and options.
 
 ## Load catalog context
 
@@ -45,17 +45,55 @@ For an existing Event, the run first reads a saved official-site link, or anothe
 
 ### Choose facts and editions
 
-The model decides which Event and edition each fact belongs to, then returns one proposal with the facts it found. It can suggest dates, venues, prices, and links, but it cannot write to the catalog. It is instructed not to guess dates, prices, or an unannounced next edition; unknown facts can stay out of the proposal.
+The model decides which Event and edition each fact belongs to, then returns one result with `status`, `data`, `errors`, and `unresolved`. It can suggest dates, venues, prices, and links, but it cannot write to the catalog. It is instructed not to guess dates, prices, or an unannounced next edition; unknown facts can stay out of the proposal.
+
+The result describes research completion, not announcement completeness. `success` means the relevant checks are complete; an announced year/date with no published venue or prices can succeed with omitted fields. After reasonable relevant checks, say “not found on inspected pages” unless explicit evidence supports “not yet announced”; describe those limits in source summaries without inventing or clearing facts.
+
+`partial` requires useful data and a specific unfinished core check plus its cause in `unresolved`: an unrecovered relevant source failure, material conflict, or exhausted budget. Core checks cover identity, the latest completed or next announced edition/dates, location, and published ticket information; duplicate add needs only identity. Missing optional capacity, coordinates, socials, or a completed schedule status does not force partial. A recovered page failure can coexist with success. `failed` uses null data when no usable result exists. For refresh/check, repeating input identity, saved facts, or URLs is not a useful finding: unavailable sources with no usable findings require failed, not an empty partial candidate. Source-verified unchanged facts still count; duplicate-add identity matching remains sufficient. Errors describe execution problems; questions describe what remains unknown.
+
+Each proposed fact has `{ value, reason }`. A reason explains its basis and why a correction supersedes the saved fact; it is required even for clearing or unchanged proposals. Event creation also needs `data.reason`. Existing Event names, aliases, and slugs stay unchanged; a different model `eventName` produces an informational `eventNameMismatch` in the report.
+
+For example, an existing Event check can return:
+
+```json
+{
+  "status": "partial",
+  "data": {
+    "eventId": "EVENT_ID",
+    "eventName": "Example Festival",
+    "sources": [{ "url": "https://example.org/2027", "information": "2027 programme dates; ticket prices require an unavailable booking page." }],
+    "links": { "website": "https://example.org", "socials": {} },
+    "editions": [{
+      "key": "2027",
+      "dates": {
+        "value": { "startsOn": "2027-07-01", "endsOn": "2027-07-03", "state": "confirmed" },
+        "reason": "The organizer confirms the full programme dates, replacing the tentative range."
+      },
+      "links": {}
+    }]
+  },
+  "errors": [{ "code": "source_unavailable", "message": "The booking page could not be read." }],
+  "unresolved": [{ "message": "Could not verify announced 2027 ticket prices because the linked ticket page was inaccessible.", "editionKey": "2027", "field": "tickets" }]
+}
+```
 
 ### Preserve or replace values
 
-Fields the model omits keep their saved values: if it says nothing about a venue, the saved venue stays. A supplied price block replaces all prices for that edition; omitted prices stay as they are.
+Omitted fields preserve saved values. Explicit explained nulls clear only nullable facts. Dates are one complete start/end/state block; coordinates are one latitude/longitude/precision block. Clearing either clears the pair and sets its state or precision to unknown. Saved timezones remain unchanged, including after a move; new editions leave them unset. `scheduleStatus` is announced, scheduled, postponed, or cancelled; cancellation must be explicit. Classification adds terms then removes terms, so removal wins.
+
+A supplied `tickets.value` replaces the complete `{ variants, basePrice }` block; omission preserves it and `{ "variants": [], "basePrice": null }` clears it. Eligibility-based concession tickets (such as youth, student, senior, or resident discounts) stay in variants but never set basePrice, including concession-only free admission. If only concession prices are known, basePrice is null. General-sale discounts are not excluded merely for being cheaper. Availability belongs to each labelled variant, including when its amount is unknown. An availability-only correction must still retain the complete intended ticket block. Inaccessible pages do not justify clearing saved facts.
+
+All model amounts use major units and validated uppercase three-letter currency codes. Amount and currency must appear together. The adapter converts base-price `minAmount/maxAmount` to integer minor units using currency precision: EUR 100.50 → 10050, JPY 1000 → 1000, KWD 1.234 → 1234. Excess precision and unsafe integers fail without rounding. Variant amounts remain in major units. Exact/from bounds match; range maximum exceeds minimum. Free full-programme admission requires neither currency nor amounts; null base price means unknown.
+
+Links have one Event website, optional instagram/facebook/youtube/tiktok/x/other social slots, and one ticket URL per edition. `x` accepts X or Twitter account URLs. The model assigns these directly; no second classifier runs. Each supplied slot replaces that owner's links of the same kind. Omitted or null slots preserve existing links; other owners and kinds are untouched.
+
+`data.sources` describes useful inspected pages once, with URL and information found, including edition context and partial-page limits. It has no direct fact-to-page associations. Source summaries are separate from public links and the host's actual retrieval history.
 
 ## Validate the proposal
 
 The system checks the proposal's shape and target IDs. The writer checks data rules, versions, and publication requirements. It can reject an invalid date, but it cannot tell whether a valid date is factually correct.
 
-Accepted first-version limit: new Event slugs come from their names. If a distinct Event has the same generated slug as an existing Event or reserved alias, its item write fails and the run reports `write_failed` with the conflicting slug. The run does not merge the two Events or choose a fallback slug automatically.
+Accepted first-version limit: new Event slugs come from their names. If a distinct Event has the same generated slug as an existing Event or reserved alias, its item write fails and the run reports `write_failed`; the proposed slug remains visible in its operations. The run does not merge the two Events or choose a fallback slug automatically.
 
 ## Preview or apply
 
@@ -67,6 +105,10 @@ Changes for one Event are saved together or rolled back together. If one propose
 
 ## Review the report
 
-The command reports changes, inspected URLs and retrieval outcomes, and unresolved questions or failures. Successful changes enter private audit history with old and new values; unchanged facts add no entry. Use `--report PATH` to save a private JSON report that also retains the final `modelResponse` before normalization.
+Version 2 reports show `researchStatus` separately from catalog `outcome`, explained old/new changes, staged `errors`, `unresolved` questions, `sourceSummaries`, and technical retrieval history in `sources`. Old report versions are unsupported; there is no legacy `gaps` fallback. Successful changes enter private audit history with old and new values; unchanged facts add no entry. Use `--report PATH` to save a private JSON report that also retains the final `modelResponse` before normalization.
+
+With `--apply`, success and partial results use the atomic writer. Failed research writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research or write failure exits nonzero. A write failure rolls back the entire Event item while retaining research status, raw output, source summaries, and any name mismatch. A partial result with no changes remains visibly partial/unchanged. Automatic retries are not configured.
+
+Reports and explanations are private CLI output/files, not public website data or a separate hosted logging service. Public details expose only ticket category labels and availability; amount/terms/variant URLs and research metadata remain private. Unknown category availability has no badge. Discovery and details never derive a global sold-out/closed label from variants or the old stored aggregate.
 
 The [source workflow specification](../openspec/specs/catalog/source-workflow/spec.md) defines the detailed behavior.
