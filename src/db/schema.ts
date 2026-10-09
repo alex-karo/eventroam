@@ -20,8 +20,6 @@ import {
   coordinatePrecisions,
   priceKinds,
   priceCoverages,
-  sourceKinds,
-  sourceAuthorities,
   linkKinds,
 } from "@/catalog/domain/vocabulary";
 
@@ -87,11 +85,6 @@ export const occurrences = sqliteTable(
     })
       .notNull()
       .default("announced"),
-    ticketAvailability: text("ticket_availability", {
-      enum: ticketAvailabilities,
-    })
-      .notNull()
-      .default("unknown"),
     capacityEstimate: integer("capacity_estimate"),
     publicationState: text("publication_state", { enum: lifecycle })
       .notNull()
@@ -182,46 +175,6 @@ export const occurrenceTerms = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.occurrenceId, t.termId] })],
 );
-export const sources = sqliteTable(
-  "sources",
-  {
-    id: text("id").primaryKey(),
-    canonicalUrl: text("canonical_url").notNull(),
-    kind: text("kind", {
-      enum: sourceKinds,
-    }).notNull(),
-    authority: text("authority", {
-      enum: sourceAuthorities,
-    }).notNull(),
-    platform: text("platform"),
-    externalId: text("external_id"),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-    version: integer("version").notNull().default(1),
-  },
-  (t) => [
-    uniqueIndex("sources_url_uq").on(t.canonicalUrl),
-    uniqueIndex("sources_platform_id_uq").on(t.platform, t.externalId),
-  ],
-);
-export const sourceSubjects = sqliteTable(
-  "source_subjects",
-  {
-    sourceId: text("source_id")
-      .notNull()
-      .references(() => sources.id),
-    eventId: text("event_id").references(() => events.id),
-    occurrenceId: text("occurrence_id").references(() => occurrences.id),
-  },
-  (t) => [
-    check(
-      "source_subjects_owner_ck",
-      sql`(${t.eventId} IS NOT NULL) != (${t.occurrenceId} IS NOT NULL)`,
-    ),
-    uniqueIndex("source_subjects_event_uq").on(t.sourceId, t.eventId),
-    uniqueIndex("source_subjects_occurrence_uq").on(t.sourceId, t.occurrenceId),
-  ],
-);
 export const externalLinks = sqliteTable(
   "external_links",
   {
@@ -234,7 +187,6 @@ export const externalLinks = sqliteTable(
     url: text("url").notNull(),
     label: text("label"),
     official: integer("official", { mode: "boolean" }).notNull(),
-    sourceId: text("source_id").references(() => sources.id),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

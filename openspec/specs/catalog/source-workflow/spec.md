@@ -347,7 +347,7 @@ Research SHALL reject timeZone, preserve saved zones even after relocation, and 
 - **THEN** use the existing UTC fallback without changing date filters
 
 ### Requirement: Ticket availability belongs to each ticket variant
-Only labelled tickets.value.variants SHALL propose availability: unknown/available/sold_out/closed. Edition-level ticketAvailability SHALL be rejected; no edition-wide value SHALL be inferred from variants or exposed publicly. Complete ticket replacement SHALL remain required.
+Only labelled tickets.value.variants SHALL propose availability: unknown/available/sold_out/closed. Edition-level availability proposals SHALL be rejected; no edition-wide value SHALL be inferred from variants or exposed publicly. Complete ticket replacement SHALL remain required.
 
 #### Scenario: Categories have different availability
 - **WHEN** Early Bird is sold out but Regular remains available
@@ -498,7 +498,7 @@ Research SHALL return at most one Event website, one account per supported socia
 - **AND** one ticket URL explicitly assigned to two editions remains on both
 
 ### Requirement: Model failures expose safe technical details
-Host-generated model_failed errors SHALL preserve bounded safe structured diagnostics in CLI text, JSON, and eval reports: recognized error/cause types, HTTP status, provider/network code, and retryability when available. Unknown fields SHALL remain absent or explicitly unknown. Diagnostics SHALL exclude raw exception messages, provider payloads, request/response headers, prompts, and credentials. Research limits SHALL retain precedence over model_failed. Model failures SHALL NOT trigger automatic retries; configured budgets SHALL remain unchanged.
+Host-generated model_failed errors SHALL preserve bounded safe structured diagnostics in CLI text, JSON, and eval reports: recognized error/cause types, HTTP status, provider/network code, and retryability when available. Unknown fields SHALL remain absent or explicitly unknown. Diagnostics SHALL exclude raw exception messages, provider payloads, request/response headers, prompts, and credentials. Research limits SHALL retain precedence over model_failed. Ordinary research SHALL retry only explicit OpenRouter `provider_unavailable` errors, at most three times per run with 10-second, 30-second, and 90-second exponential backoff within the existing deadline. Those unavailable attempts SHALL NOT consume the model-call budget. Other model failures SHALL NOT trigger automatic retries; all other configured budget accounting SHALL remain unchanged. Retries SHALL retain completed steps and SHALL NOT replay their tools or estimate missing usage/cost.
 
 #### Scenario: Provider or network failure
 - **WHEN** a model request fails and safe technical diagnostics are available
@@ -506,7 +506,12 @@ Host-generated model_failed errors SHALL preserve bounded safe structured diagno
 
 #### Scenario: Provider failure produces no final result
 - **WHEN** a provider failure ends research without a final result
-- **THEN** report model_failed with available safe diagnostics, not invalid_candidate, without retrying the request
+- **THEN** report model_failed with available safe diagnostics, not invalid_candidate, after any permitted provider_unavailable retries
+
+#### Scenario: Unavailable provider preserves research capacity
+- **WHEN** OpenRouter explicitly reports provider_unavailable during ordinary research
+- **THEN** exclude that attempt from the model-call budget and retry at most three times with 10-second, 30-second, and 90-second delays, cancellable at the run deadline
+- **AND** retain completed steps, tool results, and known usage; other provider errors are not retried
 
 #### Scenario: A provider failure follows completed work
 - **WHEN** a model request fails after earlier calls have reported usage
@@ -515,3 +520,95 @@ Host-generated model_failed errors SHALL preserve bounded safe structured diagno
 #### Scenario: Unknown or budget failure
 - **WHEN** safe failure details are unavailable or the research budget is exhausted
 - **THEN** diagnostics remain bounded, missing details are not invented, and budget exhaustion remains limit_reached
+
+### Requirement: Local research tracing is optional and independent
+
+The owner SHALL be able to enable research-agent, model, and tool tracing without sampling. Local persistence SHALL be best effort. Tracing SHALL NOT change research decisions, budgets, provider retries, catalog writes, report schema, or exit status. Integration failures SHALL emit bounded application diagnostics independently of research results; additional local LibSQL technical errors and stacks are permitted.
+
+#### Scenario: Tracing is disabled by default
+
+- **WHEN** the owner runs research without enabling tracing
+- **THEN** research creates no trace store or trace records
+
+#### Scenario: An enabled agent uses tools
+
+- **WHEN** a traced research agent calls the model and source tools
+- **THEN** the saved trace shows their parent relationships, operation names, timing, and available technical error status
+- **AND** application metadata includes mode, model, prompt version, and requested Event ID when one was supplied
+
+#### Scenario: Trace persistence fails
+
+- **WHEN** the local trace store cannot initialize or persist data
+- **THEN** a fixed application tracing diagnostic code is emitted in stderr without raw payloads, including when the exporter handles the error internally
+- **AND** LibSQL's private logger may additionally emit original technical errors and stacks in local stderr, without forwarding them into observability storage or research reports
+- **AND** research retains its own result, report format, budgets, and exit status
+
+### Requirement: Exported research traces exclude content payloads
+
+Persisted research spans SHALL exclude prompts, source-page bodies, model responses, tool input/output payloads, credentials, transport headers and bodies, and raw exception messages or stacks. Traces SHALL retain operation identity, timing, relationships, bounded application metadata, and safe technical diagnostics. Existing private research reports SHALL retain their current final-output contract.
+
+#### Scenario: Content appears in multiple span fields
+
+- **WHEN** prompts, pages, model output, or secrets appear in span inputs, outputs, attributes, or error details
+- **THEN** none of that content appears in the persisted trace or its exported JSON
+- **AND** the trace still identifies model and tool operations and their timing
+
+#### Scenario: Span sanitization fails
+
+- **WHEN** sanitization cannot safely prepare a span for export
+- **THEN** that span is dropped and a fixed diagnostic code is emitted without its contents
+- **AND** the unsanitized span is not persisted and research retains its own result
+
+### Requirement: Research tracing does not forward SDK logs
+
+Research tracing SHALL disable forwarding of agent and SDK log events to observability storage. Fixed application tracing diagnostics SHALL remain separate from observability logs and SHALL exclude original log messages and metadata. Additional technical errors and stacks emitted by LibSQL's private logger to local stderr are outside this diagnostic-format guarantee.
+
+#### Scenario: SDK logs contain private content
+
+- **WHEN** an agent or SDK logs a prompt, page body, model response, credential, or raw error during a traced invocation
+- **THEN** the log event is absent from observability storage and its exports
+
+### Requirement: Local traces use best-effort persistence and can be inspected
+
+Enabled tracing SHALL use a dedicated local store separate from the catalog database. Saved spans SHALL remain inspectable after exit through a local browser interface without a hosted account. Normal completion, handled errors, and cooperative aborts SHALL await explicit flush and shutdown attempts. Completeness is not guaranteed when background writes overlap another flush or storage shutdown, or after forced termination.
+
+#### Scenario: Inspect a finished invocation
+
+- **WHEN** an enabled invocation finishes and the owner starts the local trace interface
+- **THEN** its saved trace is available for inspection without rerunning research
+- **AND** opening the interface requires neither a catalog database nor a model API credential
+- **AND** the interface registers no catalog research agents or mutation workflows
+
+#### Scenario: A generation fails or is cooperatively aborted
+
+- **WHEN** an enabled generation throws or returns through its abort cleanup
+- **THEN** an explicit flush of buffered completed and terminal spans is awaited before closing the trace store and before research returns
+- **AND** any cleanup failure does not replace the research result or its original error
+
+#### Scenario: A short invocation finishes before automatic persistence
+
+- **WHEN** a traced invocation finishes while its final spans remain buffered
+- **THEN** after the process exits, its final spans can be read from the trace store by a new process
+
+#### Scenario: Background persistence overlaps another flush or cleanup
+
+- **WHEN** an SDK background write remains in progress while another flush or trace-store shutdown occurs
+- **THEN** the stored trace may have missing spans or missing terminal updates under the accepted best-effort persistence policy
+- **AND** research retains its own result, report format, budgets, retry policy, and exit status
+
+#### Scenario: Flushing fails during cleanup
+
+- **WHEN** flushing pending spans fails
+- **THEN** a fixed diagnostic code is emitted and resource shutdown is still attempted
+- **AND** flush or shutdown errors do not replace the generation result or its original error
+
+#### Scenario: Injected research fixture bypasses the agent
+
+- **WHEN** research uses an injected candidate generator instead of the real agent
+- **THEN** it creates no agent trace or trace store
+
+#### Scenario: Cleanup crosses the research deadline
+
+- **WHEN** the model finishes before its deadline but tracing cleanup finishes after it
+- **THEN** the original model result or provider failure is preserved instead of becoming a research timeout
+- **AND** an actual generation timeout retains its budget-failure classification

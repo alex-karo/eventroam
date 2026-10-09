@@ -150,7 +150,6 @@ function addLinks(
       url: normalizeCatalogUrl(link.url),
       label: link.label,
       official: link.official,
-      sourceId: link.sourceId,
     }));
   const selected = [...replacements].map(([kind, url]) => {
     const saved = previous.find(
@@ -161,7 +160,6 @@ function addLinks(
       url,
       label: saved?.label ?? null,
       official: true,
-      sourceId: saved?.sourceId ?? null,
     };
   });
   add(

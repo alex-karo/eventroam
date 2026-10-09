@@ -35,16 +35,16 @@ test("public reader is read-only and sees committed writes on later reads", () =
   const reader = openReadDatabase(writer.path);
   try {
     expect(
-      reader.client.prepare("SELECT count(*) FROM sources").pluck().get(),
+      reader.client.prepare("SELECT count(*) FROM events").pluck().get(),
     ).toBe(0);
     expect(() =>
       reader.client.exec("CREATE TABLE unexpected (id INTEGER)"),
     ).toThrow(/readonly/i);
     writer.client.exec("BEGIN");
     try {
-      testFixtures(writer.client).source({ id: "committed" });
+      testFixtures(writer.client).event({ id: "committed" });
       expect(
-        reader.client.prepare("SELECT count(*) FROM sources").pluck().get(),
+        reader.client.prepare("SELECT count(*) FROM events").pluck().get(),
       ).toBe(0);
       writer.client.exec("COMMIT");
     } catch (error) {
@@ -52,7 +52,7 @@ test("public reader is read-only and sees committed writes on later reads", () =
       throw error;
     }
     expect(
-      reader.client.prepare("SELECT count(*) FROM sources").pluck().get(),
+      reader.client.prepare("SELECT count(*) FROM events").pluck().get(),
     ).toBe(1);
   } finally {
     reader.client.close();

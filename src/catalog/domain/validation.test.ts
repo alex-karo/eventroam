@@ -3,7 +3,6 @@ import {
   validateEventRecord,
   validateOccurrenceRecord,
   validateStoredPrice,
-  validateSourceRecord,
   validateLinkRecord,
   validateAliasRecord,
   validateTaxonomyTerm,
@@ -13,10 +12,7 @@ import {
   publicationStates,
   dateStates,
   scheduleStatuses,
-  ticketAvailabilities,
   coordinatePrecisions,
-  sourceKinds,
-  sourceAuthorities,
   linkKinds,
   facets,
 } from "./vocabulary";
@@ -60,9 +56,6 @@ test("event defaults, lifecycle and home scope", () => {
 });
 
 test("all supported occurrence statuses and precisions remain valid", () => {
-  for (const ticketAvailability of ticketAvailabilities) {
-    validateOccurrenceRecord({ ticketAvailability });
-  }
   for (const scheduleStatus of scheduleStatuses) {
     validateOccurrenceRecord({ ...dated, scheduleStatus });
   }
@@ -92,7 +85,6 @@ test("all supported occurrence statuses and precisions remain valid", () => {
 
 test.each([
   "publicationState",
-  "ticketAvailability",
   "scheduleStatus",
   "dateState",
   "coordinatePrecision",
@@ -183,13 +175,7 @@ test.each([
   expect(() => validateStoredPrice(record)).toThrow();
 });
 
-test("source, link, alias and facet vocabularies are runtime checked", () => {
-  for (const kind of sourceKinds) {
-    validateSourceRecord({ kind, authority: "official" });
-  }
-  for (const authority of sourceAuthorities) {
-    validateSourceRecord({ kind: "website", authority });
-  }
+test("link, alias and facet vocabularies are runtime checked", () => {
   for (const kind of linkKinds) {
     validateLinkRecord({ kind });
   }
@@ -200,12 +186,6 @@ test("source, link, alias and facet vocabularies are runtime checked", () => {
     validateTaxonomyTerm({ id: "term", facet });
   }
   for (const value of ["future", null, undefined]) {
-    expect(() =>
-      validateSourceRecord({ kind: value, authority: "official" }),
-    ).toThrow();
-    expect(() =>
-      validateSourceRecord({ kind: "website", authority: value }),
-    ).toThrow();
     expect(() => validateLinkRecord({ kind: value })).toThrow();
     expect(() => validateAliasRecord({ scope: value })).toThrow();
   }

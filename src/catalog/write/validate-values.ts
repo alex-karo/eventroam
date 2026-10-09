@@ -6,7 +6,6 @@ import { occurrenceTerms, taxonomyTerms } from "@/db/schema";
 import {
   validateEventRecord,
   validateOccurrenceRecord,
-  validateSourceRecord,
   validateLinkRecord,
   validateAliasRecord,
   validateTaxonomyTerm,
@@ -21,7 +20,6 @@ const termSchema = z.object({
 type ValidatedTable =
   | "events"
   | "occurrences"
-  | "sources"
   | "external_links"
   | "url_aliases"
   | "taxonomy_terms"
@@ -39,9 +37,6 @@ export function validateCatalogValues<T extends Record<string, unknown>>(
       break;
     case "occurrences":
       validateOccurrenceRecord(values);
-      break;
-    case "sources":
-      validateSourceRecord(values);
       break;
     case "external_links":
       validateLinkRecord(values);

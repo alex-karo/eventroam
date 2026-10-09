@@ -173,7 +173,6 @@ test("create audit keeps supplied field order, arrays, and omitted defaults", ()
     "publication_state",
     "date_state",
     "schedule_status",
-    "ticket_availability",
     "coordinate_precision",
     "version",
     "created_at",
@@ -1079,7 +1078,6 @@ test("updates containing only undefined fields are idempotent no-ops", () => {
         dateState: undefined,
         scheduleStatus: undefined,
         coordinatePrecision: undefined,
-        ticketAvailability: undefined,
         price: undefined,
       },
     },
@@ -1213,7 +1211,7 @@ test("merged-record validation rolls back writes, versions, audit and receipts",
   // The new DB intentionally permits unknown statuses. The writer still checks
   // the complete final record, even when the operation only replaces its price.
   client
-    .prepare("UPDATE occurrences SET ticket_availability='future' WHERE id=?")
+    .prepare("UPDATE occurrences SET schedule_status='future' WHERE id=?")
     .run(edition.id);
   const corrupted = snapshot();
   expect(() =>
@@ -1233,4 +1231,59 @@ test("merged-record validation rolls back writes, versions, audit and receipts",
     }),
   ).toThrow();
   expect(snapshot()).toEqual(corrupted);
+});
+
+test("removed occurrence and link fields are rejected without catalog writes", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const event = fx.event();
+  const edition = fx.occurrence(event);
+  const operations = [
+    {
+      kind: "createOccurrence",
+      eventId: event.id,
+      data: { occurrenceKey: "2028", ticketAvailability: "sold_out" },
+    },
+    {
+      kind: "updateOccurrence",
+      id: edition.id,
+      expectedVersion: edition.version,
+      data: { ticketAvailability: "closed" },
+    },
+    {
+      kind: "replaceLinks",
+      owner: { type: "event", id: event.id },
+      expectedVersion: event.version,
+      links: [
+        {
+          kind: "official_site",
+          url: "https://example.org",
+          official: true,
+          sourceId: "source",
+        },
+      ],
+    },
+  ];
+  for (const [index, operation] of operations.entries()) {
+    expect(() =>
+      applyCatalogOperation(client, {
+        ...operation,
+        actor: "owner",
+        operationKey: `removed-field:${index}`,
+      } as CatalogOperation),
+    ).toThrow(/Unrecognized key/);
+  }
+  expect(count(client, "occurrences")).toBe(1);
+  for (const table of [
+    "external_links",
+    "catalog_changes",
+    "operation_receipts",
+  ]) {
+    expect(count(client, table)).toBe(0);
+  }
+  expect(
+    client
+      .prepare("SELECT version FROM occurrences WHERE id=?")
+      .get(edition.id),
+  ).toEqual({ version: edition.version });
 });

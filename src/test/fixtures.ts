@@ -9,8 +9,6 @@ import {
   externalLinks,
   occurrenceTerms,
   occurrences,
-  sourceSubjects,
-  sources,
   taxonomyTerms,
   urlAliases,
 } from "@/db/schema";
@@ -21,14 +19,12 @@ const timestamp = "2026-10-01T12:00:00Z";
 type EventRow = typeof events.$inferSelect;
 type OccurrenceRow = typeof occurrences.$inferSelect;
 type TermRow = typeof taxonomyTerms.$inferSelect;
-type SourceRow = typeof sources.$inferSelect;
 type EventInput = Partial<typeof events.$inferInsert>;
 type OccurrenceInput = Partial<
   Omit<typeof occurrences.$inferInsert, "eventId">
 >;
 type PublishedOccurrenceInput = Omit<OccurrenceInput, "publicationState">;
 type TermInput = Partial<typeof taxonomyTerms.$inferInsert>;
-type SourceInput = Partial<typeof sources.$inferInsert>;
 type LinkInput = Partial<
   Omit<typeof externalLinks.$inferInsert, "eventId" | "occurrenceId">
 >;
@@ -52,12 +48,10 @@ function supplied<T extends object>(overrides: Partial<T>): Partial<T> {
 export function testFixtures(client?: Database.Database) {
   let eventNumber = 0;
   let termNumber = 0;
-  let sourceNumber = 0;
   let linkNumber = 0;
   const usedSlugs = new Set<string>();
   const usedKeys = new Map<string, Set<string>>();
   const usedTermSlugs = new Set<string>();
-  const usedSourceUrls = new Set<string>();
   const usedLinkUrls = new Set<string>();
   const connectionClient = () => client ?? testDatabase().client;
   const db = () => drizzle(connectionClient());
@@ -89,12 +83,12 @@ export function testFixtures(client?: Database.Database) {
     return key;
   }
 
-  function uniqueUrl(kind: "source" | "link") {
-    const used = kind === "source" ? usedSourceUrls : usedLinkUrls;
+  function uniqueUrl() {
+    const used = usedLinkUrls;
     let url: string;
     do {
-      const number = kind === "source" ? ++sourceNumber : ++linkNumber;
-      url = `https://example.org/test-${kind}-${number}`;
+      linkNumber += 1;
+      url = `https://example.org/test-link-${linkNumber}`;
     } while (used.has(url));
     used.add(url);
     return url;
@@ -173,29 +167,11 @@ export function testFixtures(client?: Database.Database) {
       };
     },
 
-    source(overrides: SourceInput = {}): typeof sources.$inferInsert {
-      const canonicalUrl =
-        overrides.canonicalUrl === undefined
-          ? uniqueUrl("source")
-          : overrides.canonicalUrl;
-      usedSourceUrls.add(canonicalUrl);
-      return {
-        id: randomUUID(),
-        canonicalUrl,
-        kind: "website",
-        authority: "official",
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        ...supplied(overrides),
-      };
-    },
-
     link(
       owner: LinkOwner,
       overrides: LinkInput = {},
     ): typeof externalLinks.$inferInsert {
-      const url =
-        overrides.url === undefined ? uniqueUrl("link") : overrides.url;
+      const url = overrides.url === undefined ? uniqueUrl() : overrides.url;
       usedLinkUrls.add(url);
       return {
         id: randomUUID(),
@@ -231,17 +207,6 @@ export function testFixtures(client?: Database.Database) {
       classification: Pick<TermRow, "id">,
     ): typeof occurrenceTerms.$inferInsert {
       return { occurrenceId: edition.id, termId: classification.id };
-    },
-
-    sourceSubject(
-      origin: Pick<SourceRow, "id">,
-      subject: LinkOwner,
-    ): typeof sourceSubjects.$inferInsert {
-      return {
-        sourceId: origin.id,
-        eventId: subject.event?.id,
-        occurrenceId: subject.occurrence?.id,
-      };
     },
 
     summary(overrides: Partial<DiscoverySummary> = {}): DiscoverySummary {
@@ -337,32 +302,6 @@ export function testFixtures(client?: Database.Database) {
             build.occurrenceTerm(edition, classification),
           ),
         )
-        .returning()
-        .get(),
-    );
-  }
-
-  function source(overrides: SourceInput = {}) {
-    return db().transaction(() =>
-      db()
-        .insert(sources)
-        .values(
-          validateCatalogValues(
-            connectionClient(),
-            "sources",
-            build.source(overrides),
-          ),
-        )
-        .returning()
-        .get(),
-    );
-  }
-
-  function sourceSubject(origin: Pick<SourceRow, "id">, subject: LinkOwner) {
-    return db().transaction(() =>
-      db()
-        .insert(sourceSubjects)
-        .values(build.sourceSubject(origin, subject))
         .returning()
         .get(),
     );
@@ -539,8 +478,6 @@ export function testFixtures(client?: Database.Database) {
     occurrence,
     term,
     assignTerm,
-    source,
-    sourceSubject,
     link,
     eventLink: (parent: EventRow, overrides: LinkInput = {}) =>
       link({ event: parent }, overrides),
