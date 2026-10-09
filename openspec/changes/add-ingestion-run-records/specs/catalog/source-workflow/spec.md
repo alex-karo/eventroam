@@ -207,3 +207,16 @@ Run input SHALL include only normalized operation settings and safe configuratio
 #### Scenario: Source pages and model output are separate
 - **WHEN** research reads page bodies and produces a final text/object response
 - **THEN** persist the final modelResponse and safe source summaries/history, without copying source page bodies or the research prompt
+
+### Requirement: Optional research traces correlate without governing run history
+Enabled research spans SHALL retain the host-generated ingestion runId in sanitized metadata. Durable run lifecycle, accounting, and eval acceptance SHALL remain independent of optional best-effort tracing. Run storage SHALL NOT require trace records or derive statistics from spans.
+
+#### Scenario: Enabled agent spans identify the attempt
+- **WHEN** a started ingestion attempt executes the real agent with tracing enabled
+- **THEN** every exported research span retains the same runId as the run row and report after sanitization
+- **AND** the identifier is passed internally without adding it to the research prompt or exposing report contents in traces
+
+#### Scenario: Tracing is absent or fails
+- **WHEN** tracing is disabled, an injected generator bypasses it, or trace initialization/export/cleanup fails or loses spans
+- **THEN** durable run recording still follows the research/catalog result and its report accounting
+- **AND** trace diagnostics alone do not change lifecycle status, usage completeness, command exit status, or eval acceptance, nor become workflow/persistence failures

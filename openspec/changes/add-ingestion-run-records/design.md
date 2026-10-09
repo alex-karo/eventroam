@@ -8,7 +8,7 @@ See [proposal.md](proposal.md) for scope and [the delta](specs/catalog/source-wo
 
 **Goals:** persist each attempt with two short writes, reuse the private report, and expose core statistics for SQL summaries while preserving writer atomicity.
 
-**Non-Goals:** additional registries, per-step writes, recovery, retries, tracing, billing integrations, or model-cost subtotals. Other exclusions are in the proposal.
+**Non-Goals:** additional registries, per-step writes, recovery, changes to provider retries, new tracing spans/services, billing integrations, or model-cost subtotals. Other exclusions are in the proposal.
 
 ## Decisions
 
@@ -75,7 +75,9 @@ Finalization stays outside that catch. Serialization/database/guarded-update fai
 
 Abrupt exit leaves running with unknown result/usage. Reruns create new IDs from current catalog state without modifying earlier rows. Test unfinished rows and reruns through ordinary database/workflow tests; injected finalization failure covers preserved commits. No process-kill test, signals, heartbeats, or recovery is required.
 
-### Catalog-change correlation and eval integration
+### Trace/change correlation and eval integration
+
+Main now has optional agent tracing in a separate LibSQL store; initial reads, preparation, and writes remain outside its spans. Pass the host-generated runId internally from workflow through researchFestival to createResearchTracing, including it in TraceMetadata and generation options. The sanitizer replaces span.metadata, so explicitly retain runId on every exported span. Do not put it in the research prompt or add a caller-supplied ID. Existing spans provide correlation without a trace_id column, extra spans, or exporter changes. Disabled/injected paths still create durable runs without traces. Trace initialization/export/cleanup failures remain diagnostics only: they cannot fail the run or eval, alter usage completeness, or become workflow_failed/run_persistence_failed. Preserve generationFinishedAt for deadline classification; derive statistics from the report, never spans. Missing/deleted traces do not invalidate run history.
 
 Use report_json.operations.operationKey to locate catalog_changes.operation_key. One run has zero or many changes; dry-run leaves no audit rows. A direct catalog_changes.ingestion_run_id is deferred: it would require writer integration inside the item transaction, nullable for manual/historical writes. Consequently, a running attempt without a report may lack change correlation after commit.
 
