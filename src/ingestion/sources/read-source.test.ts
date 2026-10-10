@@ -32,11 +32,28 @@ describe("readSource", () => {
     const firecrawlRequest = mockResponse(
       '<h1>Festival 2027</h1><p>10–12 June</p><a href="/tickets">Tickets</a><script>secret</script>',
     );
+    const log = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn(),
+    };
+    log.child.mockReturnValue(log);
     const result = await readSource(sourceUrl, {
       budget,
       request,
       firecrawlRequest,
+      log,
     });
+    expect(log.warn).toHaveBeenCalledWith(
+      "Blocked source uses Firecrawl fallback",
+      expect.objectContaining({
+        httpStatus: 403,
+        provider: "firecrawl",
+        attemptedUrl: "https://festival.example/redirected/",
+      }),
+    );
     expect(firecrawlRequest).toHaveBeenCalledOnce();
     expect(firecrawlRequest).toHaveBeenCalledWith(
       "https://festival.example/redirected/",

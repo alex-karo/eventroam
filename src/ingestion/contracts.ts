@@ -84,6 +84,8 @@ export type CatalogResearchResult = {
 export type ResearchDependencies = {
   client: Database.Database;
   config?: ResearchConfig;
+  /** Protect the selected optional report destination from observability writes. */
+  reportPath?: string;
   /** Freeze the domain date in reproducible evaluations. */
   todayUtc?: string;
   readSource?: typeof readSource;

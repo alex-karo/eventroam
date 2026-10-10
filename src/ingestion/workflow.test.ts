@@ -15,7 +15,7 @@ import * as contextModule from "./research/context";
 import * as prepareModule from "./research/prepare";
 import * as reportModule from "./report";
 import * as applyModule from "@/catalog/write/apply-operation";
-import * as runTraceModule from "./runtime/run-trace";
+import * as runTraceModule from "./runtime/tracing";
 import { RunPersistenceError } from "./runs";
 import { discoverSources } from "./sources/discover-sources";
 import { DEFAULT_RESEARCH_LIMITS } from "./runtime/budget";

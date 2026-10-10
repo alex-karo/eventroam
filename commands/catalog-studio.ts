@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
-import { traceDatabasePath } from "../src/ingestion/runtime/tracing";
+import { observabilityDatabasePath } from "../src/ingestion/runtime/observability/storage";
 
 // Resolve before the CLI changes its working directory to .mastra/output.
 const root = process.cwd();
@@ -16,7 +16,10 @@ const child = spawn(
   ],
   {
     stdio: "inherit",
-    env: { ...process.env, CATALOG_TRACE_DATABASE_PATH: traceDatabasePath() },
+    env: {
+      ...process.env,
+      CATALOG_OBSERVABILITY_DATABASE_PATH: observabilityDatabasePath(),
+    },
   },
 );
 child.on("error", () => {
