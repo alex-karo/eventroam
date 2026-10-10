@@ -10,14 +10,14 @@ import { join, resolve } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
 import { Mastra } from "@mastra/core/mastra";
 import { SpanType } from "@mastra/core/observability";
-import { LibSQLStore } from "@mastra/libsql";
+import { DuckDBStore } from "@mastra/duckdb";
 import {
-  createResearchTracing,
-  finishResearchTracing,
-  researchSpanProcessor,
-  traceDatabasePath,
-} from "./tracing";
-import { ResearchTraceExporter } from "./tracing";
+  createResearchObservability,
+  finishResearchObservability,
+  ResearchObservabilityExporter,
+} from "./runtime";
+import { researchSpanProcessor } from "../tracing/processor";
+import { observabilityDatabasePath } from "./storage";
 import { readTraceRows } from "@/test/tracing-fixture";
 
 const directories: string[] = [];
@@ -35,11 +35,11 @@ afterEach(() => {
 });
 
 test("tracing defaults off and never opens storage", async () => {
-  const path = join(directory(), "off.sqlite");
+  const path = join(directory(), "off.duckdb");
   vi.stubEnv("CATALOG_TRACING", "false");
-  vi.stubEnv("CATALOG_TRACE_DATABASE_PATH", path);
+  vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", path);
   expect(
-    await createResearchTracing(
+    await createResearchObservability(
       { mode: "add", name: "Fixture", actor: "test", initiatedBy: "test" },
       "fixture/model",
     ),
@@ -49,25 +49,28 @@ test("tracing defaults off and never opens storage", async () => {
 
 test("the shared local path is absolute and cannot select the catalog", () => {
   const cwd = directory();
-  expect(traceDatabasePath({ NODE_ENV: "test" }, cwd)).toBe(
-    resolve(cwd, "data/mastra-traces.sqlite"),
+  expect(observabilityDatabasePath({ NODE_ENV: "test" }, cwd)).toBe(
+    resolve(cwd, "data/mastra-observability.duckdb"),
   );
   expect(
-    traceDatabasePath(
-      { NODE_ENV: "test", CATALOG_TRACE_DATABASE_PATH: "custom/traces.sqlite" },
+    observabilityDatabasePath(
+      {
+        NODE_ENV: "test",
+        CATALOG_OBSERVABILITY_DATABASE_PATH: "custom/observability.duckdb",
+      },
       cwd,
     ),
-  ).toBe(resolve(cwd, "custom/traces.sqlite"));
+  ).toBe(resolve(cwd, "custom/observability.duckdb"));
   const catalog = join(cwd, "catalog.sqlite");
   writeFileSync(catalog, "catalog sentinel");
   const alias = join(cwd, "alias.sqlite");
   symlinkSync(catalog, alias);
   for (const path of [catalog, alias]) {
     expect(() =>
-      traceDatabasePath(
+      observabilityDatabasePath(
         {
           NODE_ENV: "test",
-          CATALOG_TRACE_DATABASE_PATH: path,
+          CATALOG_OBSERVABILITY_DATABASE_PATH: path,
           DATABASE_PATH: catalog,
         },
         cwd,
@@ -78,18 +81,21 @@ test("the shared local path is absolute and cannot select the catalog", () => {
 
 test("asynchronous initialization failure emits a safe diagnostic and falls back", async () => {
   vi.stubEnv("CATALOG_TRACING", "true");
-  vi.stubEnv("CATALOG_TRACE_DATABASE_PATH", join(directory(), "failed.sqlite"));
-  vi.spyOn(LibSQLStore.prototype, "init").mockRejectedValue(
+  vi.stubEnv(
+    "CATALOG_OBSERVABILITY_DATABASE_PATH",
+    join(directory(), "failed.duckdb"),
+  );
+  vi.spyOn(DuckDBStore.prototype, "init").mockRejectedValue(
     new Error("PRIVATE_DATABASE_ERROR"),
   );
   const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
   expect(
-    await createResearchTracing(
+    await createResearchObservability(
       { mode: "add", name: "Fixture", actor: "test", initiatedBy: "test" },
       "fixture/model",
     ),
   ).toBeUndefined();
-  expect(stderr.mock.calls.flat().join("")).toBe(
+  expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
     "trace_initialization_failed\n",
   );
 });
@@ -114,7 +120,7 @@ test.each([false, true])(
       },
     } as unknown as Pick<Mastra, "observability" | "shutdown">;
     await expect(
-      finishResearchTracing(mastra, diagnose),
+      finishResearchObservability(mastra, diagnose),
     ).resolves.toBeUndefined();
     expect(order).toEqual(["flush", "shutdown"]);
     expect(diagnose.mock.calls).toEqual(
@@ -134,7 +140,10 @@ test("sanitization mutates a live span, excludes residual contents and drops on 
   });
   tracing.observability.setLogger({ logger: tracing.logger });
   const instance = tracing.observability.getDefaultInstance()!;
-  const forwardedLogs = vi.spyOn(ResearchTraceExporter.prototype, "onLogEvent");
+  const forwardedLogs = vi.spyOn(
+    ResearchObservabilityExporter.prototype,
+    "onLogEvent",
+  );
   const span = instance.startSpan({
     type: SpanType.AGENT_RUN,
     name: "unsafe root",
@@ -173,13 +182,16 @@ test("sanitization mutates a live span, excludes residual contents and drops on 
   expect(diagnose).toHaveBeenCalledWith("trace_sanitization_failed");
   Object.defineProperty(span, "attributes", { value: {}, writable: true });
   span.end();
-  await finishResearchTracing(mastra, tracing.diagnose);
+  await finishResearchObservability(mastra, tracing.diagnose);
 });
 
 async function enabledTracing() {
   vi.stubEnv("CATALOG_TRACING", "true");
-  vi.stubEnv("CATALOG_TRACE_DATABASE_PATH", join(directory(), "traces.sqlite"));
-  const tracing = await createResearchTracing(
+  vi.stubEnv(
+    "CATALOG_OBSERVABILITY_DATABASE_PATH",
+    join(directory(), "traces.duckdb"),
+  );
+  const tracing = await createResearchObservability(
     {
       mode: "refresh",
       eventId: "fixture-event",
@@ -211,11 +223,13 @@ test("a sanitizer failure in the exporter pipeline persists no unsafe span", asy
     metadata: { secret: "PRIVATE_UNSANITIZED_METADATA" },
   });
   span.end({ output: { text: "PRIVATE_UNSANITIZED_RESPONSE" } });
-  await finishResearchTracing(mastra, tracing.diagnose);
-  const rows = readTraceRows(process.env.CATALOG_TRACE_DATABASE_PATH!);
+  await finishResearchObservability(mastra, tracing.diagnose);
+  const rows = readTraceRows(process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!);
   expect(rows.mastra_ai_spans).toEqual([]);
   expect(JSON.stringify(rows)).not.toContain("PRIVATE_");
-  expect(stderr.mock.calls.flat().join("")).toBe("trace_sanitization_failed\n");
+  expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
+    "trace_sanitization_failed\n",
+  );
 });
 
 test("internally handled exporter write failures and drops emit only fixed codes", async () => {
@@ -235,8 +249,10 @@ test("internally handled exporter write failures and drops emit only fixed codes
     .getDefaultInstance()!
     .startSpan({ type: SpanType.AGENT_RUN, name: "test" });
   span.end();
-  await finishResearchTracing(mastra, tracing.diagnose);
-  expect(stderr.mock.calls.flat().join("")).toBe("trace_export_failed\n");
+  await finishResearchObservability(mastra, tracing.diagnose);
+  expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
+    "trace_export_failed\n",
+  );
 });
 
 test("missing mandatory processor disables tracing before creating a run", async () => {
@@ -246,17 +262,17 @@ test("missing mandatory processor disables tracing before creating a run", async
   );
   vi.stubEnv("CATALOG_TRACING", "true");
   vi.stubEnv(
-    "CATALOG_TRACE_DATABASE_PATH",
-    join(directory(), "unavailable.sqlite"),
+    "CATALOG_OBSERVABILITY_DATABASE_PATH",
+    join(directory(), "unavailable.duckdb"),
   );
   const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
   expect(
-    await createResearchTracing(
+    await createResearchObservability(
       { mode: "add", name: "Fixture", actor: "test" },
       "fixture/model",
     ),
   ).toBeUndefined();
-  expect(stderr.mock.calls.flat().join("")).toBe(
+  expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
     "trace_initialization_failed\n",
   );
 });
@@ -274,11 +290,14 @@ test("unknown spans and start/update/end events retain only the host projection 
   });
   tracing.observability.setLogger({ logger: tracing.logger });
   const exported: string[] = [];
-  const original = ResearchTraceExporter.prototype._exportTracingEvent;
+  const original = ResearchObservabilityExporter.prototype._exportTracingEvent;
   vi.spyOn(
-    ResearchTraceExporter.prototype,
+    ResearchObservabilityExporter.prototype,
     "_exportTracingEvent",
-  ).mockImplementation(async function (this: ResearchTraceExporter, event) {
+  ).mockImplementation(async function (
+    this: ResearchObservabilityExporter,
+    event,
+  ) {
     exported.push(JSON.stringify(event.exportedSpan));
     await original.call(this, event);
   });
@@ -295,9 +314,24 @@ test("unknown spans and start/update/end events retain only the host projection 
     attributes: { inputTokens: 12, secret: "PRIVATE_ATTRIBUTES" } as never,
   });
   span.end({ output: "PRIVATE_FINAL" });
-  await finishResearchTracing(mastra, tracing.diagnose);
+  await finishResearchObservability(mastra, tracing.diagnose);
   expect(exported).toHaveLength(3);
   expect(exported.join("")).not.toContain("PRIVATE_");
-  const rows = readTraceRows(process.env.CATALOG_TRACE_DATABASE_PATH!);
+  const rows = readTraceRows(process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!);
   expect(JSON.stringify(rows)).not.toContain("PRIVATE_");
+});
+
+test("tracing ignores logging level when application logging is disabled", async () => {
+  vi.stubEnv("CATALOG_LOGGING", "false");
+  vi.stubEnv("CATALOG_LOG_LEVEL", "invalid-unused-level");
+  const tracing = await enabledTracing();
+  expect(tracing.traceEnabled).toBe(true);
+  expect(tracing.loggingEnabled).toBe(false);
+  const mastra = new Mastra({
+    logger: false,
+    loggerOptions: { export: false },
+    storage: tracing.storage,
+    observability: tracing.observability,
+  });
+  await finishResearchObservability(mastra, tracing.diagnose);
 });

@@ -9,7 +9,11 @@ import { Observability } from "@mastra/observability";
 import {
   readTraceRows,
   runTraceFixture,
-  TRACE_SENTINEL,
+  TRACE_ERROR,
+  TRACE_CREDENTIAL,
+  TRACE_SOURCE_BODY,
+  TRACE_CANDIDATE,
+  TRACE_TRANSPORT,
   TRACE_PUBLIC_MARKER,
   TRACE_PUBLIC_URL,
 } from "@/test/tracing-fixture";
@@ -18,7 +22,7 @@ const dirs: string[] = [];
 function tracePath() {
   const dir = mkdtempSync(join(tmpdir(), "trace-integration-"));
   dirs.push(dir);
-  return join(dir, "traces.sqlite");
+  return join(dir, "traces.duckdb");
 }
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -29,13 +33,21 @@ afterEach(() => {
 });
 function enable(path: string) {
   vi.stubEnv("CATALOG_TRACING", "true");
-  vi.stubEnv("CATALOG_TRACE_DATABASE_PATH", path);
+  vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", path);
 }
 function spansAt(path: string) {
   const rows = readTraceRows(path);
   const spans = rows.mastra_ai_spans as Record<string, unknown>[];
   expect(spans.length).toBeGreaterThan(0);
-  expect(JSON.stringify(rows)).not.toContain(TRACE_SENTINEL);
+  for (const marker of [
+    TRACE_ERROR,
+    TRACE_CREDENTIAL,
+    TRACE_SOURCE_BODY,
+    TRACE_CANDIDATE,
+    TRACE_TRANSPORT,
+  ]) {
+    expect(JSON.stringify(rows)).not.toContain(marker);
+  }
   expect(
     Object.keys(rows)
       .filter((name) => name.includes("log"))
@@ -54,7 +66,9 @@ test("offline real agent persists sanitized model/tool relationships and bounded
     usage: { complete: true, inputTokens: 20, outputTokens: 40 },
   });
   expect(result.durableReport).toEqual(result.result);
-  expect(JSON.stringify(result.result.modelResponse)).toContain(TRACE_SENTINEL);
+  expect(JSON.stringify(result.result.modelResponse)).toContain(
+    TRACE_CANDIDATE,
+  );
   const spans = spansAt(path);
   expect(spans.map((span) => span.spanType)).toEqual(
     expect.arrayContaining([
@@ -190,7 +204,7 @@ test("tracing initialization failure falls back to identical research", async ()
   const { result, requests } = await runTraceFixture();
   expect(result.researchStatus).toBe("failed");
   expect(requests).toBe(2);
-  expect(stderr.mock.calls.flat().join("")).toBe(
+  expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
     "trace_initialization_failed\n",
   );
   expect(existsSync(path)).toBe(false);
@@ -206,11 +220,11 @@ test.each(["success", "http", "abort"] as const)(
       .spyOn(Mastra.prototype, "shutdown")
       .mockImplementation(async function (this: Mastra) {
         await originalShutdown.call(this);
-        throw new Error(TRACE_SENTINEL);
+        throw new Error(TRACE_ERROR);
       });
     const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
     vi.spyOn(Observability.prototype, "flush").mockRejectedValue(
-      new Error(TRACE_SENTINEL),
+      new Error(TRACE_ERROR),
     );
     const { result, requests } = await runTraceFixture(ending);
     expect(shutdown).toHaveBeenCalledOnce();
@@ -219,10 +233,10 @@ test.each(["success", "http", "abort"] as const)(
       complete: ending === "success",
       inputTokens: ending === "success" ? 20 : 10,
     });
-    const codes = stderr.mock.calls.flat().join("");
+    const codes = stderr.mock.calls.map((call) => call[0]).join("");
     expect(codes).toContain("trace_flush_failed\n");
     expect(codes).toContain("trace_shutdown_failed\n");
-    expect(codes).not.toContain(TRACE_SENTINEL);
+    expect(codes).not.toContain(TRACE_ERROR);
   },
 );
 
@@ -231,7 +245,7 @@ test("short buffered writer exits and a different process can read its final spa
   const env = {
     ...process.env,
     CATALOG_TRACING: "true",
-    CATALOG_TRACE_DATABASE_PATH: path,
+    CATALOG_OBSERVABILITY_DATABASE_PATH: path,
   };
   const script = resolve("src/test/tracing-fixture.ts");
   const writer = await execute(
@@ -247,7 +261,15 @@ test("short buffered writer exits and a different process can read its final spa
     ["--import", "tsx", script, "read"],
     { env },
   );
-  expect(reader.stdout).not.toContain(TRACE_SENTINEL);
+  for (const marker of [
+    TRACE_ERROR,
+    TRACE_CREDENTIAL,
+    TRACE_SOURCE_BODY,
+    TRACE_CANDIDATE,
+    TRACE_TRANSPORT,
+  ]) {
+    expect(reader.stdout).not.toContain(marker);
+  }
   spansAt(path);
 }, 15_000);
 
@@ -426,37 +448,37 @@ test("dry-run with tracing enabled creates no store and retains its durable prev
 test.each(["context", "report", "no_report", "writer"] as const)(
   "%s failures finalize the trace without changing workflow failure behavior",
   async (failure) => {
-    const contextModule = await import("../research/context");
-    const reportModule = await import("../report");
+    const contextModule = await import("../../research/context");
+    const reportModule = await import("../../report");
     const writerModule = await import("@/catalog/write/apply-operation");
     const path = tracePath();
     enable(path);
     if (failure === "context") {
       vi.spyOn(contextModule, "loadResearchContext").mockImplementation(() => {
-        throw new Error(TRACE_SENTINEL);
+        throw new Error(TRACE_ERROR);
       });
     }
     if (failure === "report" || failure === "no_report") {
       vi.spyOn(reportModule, "buildResearchReport").mockImplementation(() => {
-        throw new Error(TRACE_SENTINEL);
+        throw new Error(TRACE_ERROR);
       });
     }
     if (failure === "no_report") {
       vi.spyOn(reportModule, "buildWorkflowFailureReport").mockImplementation(
         () => {
-          throw new Error(TRACE_SENTINEL);
+          throw new Error(TRACE_ERROR);
         },
       );
     }
     if (failure === "writer") {
       vi.spyOn(writerModule, "applyCatalogItem").mockImplementation(() => {
-        throw new Error(TRACE_SENTINEL);
+        throw new Error(TRACE_ERROR);
       });
     }
     if (failure === "no_report") {
       await expect(
         runTraceFixture("success", false, "partial"),
-      ).rejects.toThrow(TRACE_SENTINEL);
+      ).rejects.toThrow(TRACE_ERROR);
     } else {
       await runTraceFixture("success", false, "partial");
     }

@@ -1,3 +1,4 @@
+import { shrinkText, type ResearchLogger } from "../runtime/logging";
 import { Agent } from "@mastra/core/agent";
 import { noopLogger } from "@mastra/core/logger";
 import { Mastra } from "@mastra/core/mastra";
@@ -15,12 +16,10 @@ import {
 import {
   observeTrace,
   traceFailure,
-  type RunTracing,
+  traceText,
+  traceUrl,
 } from "../runtime/tracing";
-import {
-  readProjection,
-  discoveryProjection,
-} from "../runtime/trace-projections";
+import type { RunObservability } from "../runtime/observability/runtime";
 import type { ReadSourceResult, KnownSourceLink } from "../sources/contracts";
 import type { SourceSession } from "../sources/session";
 import {
@@ -56,11 +55,22 @@ export async function researchFestival(
   config: ResearchConfig,
   deps: Pick<ResearchDependencies, "generateCandidate" | "todayUtc">,
   runId?: string,
-  tracing?: RunTracing,
+  tracing?: RunObservability,
 ): Promise<ResearchExecution> {
   const { catalog, terms, knownLinks } = context;
   const { reads, readSource: read, discoverSources: search } = sources;
   let providerError: unknown;
+  const log = tracing?.log;
+  let stepNumber = 0;
+  let attemptNumber = 0;
+  let modelStarted = Date.now();
+  let unavailableAttempts = 0;
+  const modelContext = () => ({
+    stage: "research",
+    step: stepNumber,
+    attempt: attemptNumber,
+  });
+  let modelLog = log?.child(modelContext());
   const sourceTool = createTool({
     id: "readSource",
     description:
@@ -69,16 +79,76 @@ export async function researchFestival(
     outputSchema: readSourceOutputSchema,
     execute: async ({ url }, toolContext) => {
       const span = toolContext?.tracingContext?.currentSpan;
+      const context = {
+        ...modelContext(),
+        stage: "source",
+        ...(span?.isValid ? { traceId: span.traceId, spanId: span.id } : {}),
+        toolCallId: toolContext?.agent?.toolCallId,
+      };
+      const toolLog = log?.child(context);
+      const started = Date.now();
+      toolLog?.info("Tool call started", {
+        tool: "readSource",
+        attemptedUrl: url,
+      });
       try {
         const cached = sources.isReadCached(url);
-        const result = await read(url);
+        const result = await read(url, { ...context, tool: true });
         const bounded = boundedToolSource(result);
-        observeTrace(tracing, span, () =>
-          readProjection(url, result, bounded.truncated, cached),
+        observeTrace(tracing, span, {
+          name: "readSource",
+          input: {
+            attemptedUrl: traceUrl(url).url,
+            urlTruncated: traceUrl(url).truncated,
+          },
+          output: {
+            finalUrl: traceUrl(result.finalUrl).url,
+            urlTruncated: traceUrl(result.finalUrl).truncated,
+            outcome: result.outcome,
+            method: result.method,
+            reason: result.reason,
+            completeness: result.completeness,
+            httpStatus: result.httpStatus,
+            sourceCharacters: result.markdown.length,
+            sourceTruncated: result.sourceTruncated,
+            toolTruncated: bounded.truncated,
+            cached,
+          },
+        });
+        toolLog?.[result.outcome === "ok" ? "info" : "warn"](
+          "Tool call finished",
+          {
+            tool: "readSource",
+            attemptedUrl: url,
+            response: { status: result.httpStatus, url: result.finalUrl },
+            outcome: result.outcome,
+            method: result.method,
+            reason: result.reason,
+            completeness: result.completeness,
+            sourceCharacters: result.markdown.length,
+            sourceTruncated: result.sourceTruncated,
+            toolTruncated: bounded.truncated,
+            cached,
+            durationMs: Date.now() - started,
+            remaining: budget.remaining(),
+          },
         );
         return { ...bounded, remaining: budget.remaining() };
       } catch (error) {
-        observeTrace(tracing, span, () => readProjection(url));
+        toolLog?.warn("Tool call failed", {
+          tool: "readSource",
+          attemptedUrl: url,
+          errorCode: "source_failed",
+          durationMs: Date.now() - started,
+        });
+        observeTrace(tracing, span, {
+          name: "readSource",
+          input: {
+            attemptedUrl: traceUrl(url).url,
+            urlTruncated: traceUrl(url).truncated,
+          },
+          output: { outcome: "failed" },
+        });
         throw error;
       }
     },
@@ -91,18 +161,63 @@ export async function researchFestival(
     outputSchema: discoverSourcesOutputSchema,
     execute: async ({ query }, toolContext) => {
       const span = toolContext?.tracingContext?.currentSpan;
+      const context = {
+        ...modelContext(),
+        stage: "discovery",
+        ...(span?.isValid ? { traceId: span.traceId, spanId: span.id } : {}),
+        toolCallId: toolContext?.agent?.toolCallId,
+      };
+      const toolLog = log?.child(context);
+      const started = Date.now();
+      toolLog?.info("Tool call started", { tool: "discoverSources", query });
       try {
-        const result = await search(query);
-        observeTrace(tracing, span, () =>
-          discoveryProjection(
-            query,
-            sources.wasSearchReserved(result) ? "not_run" : "ok",
-            result,
-          ),
-        );
+        const result = await search(query, { ...context, tool: true });
+        observeTrace(tracing, span, {
+          name: "discoverSources",
+          input: {
+            query: traceText(query, 1200),
+            queryTruncated: Buffer.byteLength(query) > 1200,
+          },
+          output: {
+            status: sources.wasSearchReserved(result) ? "not_run" : "ok",
+            returnedCount: result.candidates.length,
+            retainedCount: Math.min(result.candidates.length, 5),
+            omittedCount: Math.max(0, result.candidates.length - 5),
+            candidates: result.candidates
+              .slice(0, 5)
+              .map(({ url }) => traceUrl(url)),
+          },
+        });
+        toolLog?.info("Tool call finished", {
+          tool: "discoverSources",
+          query,
+          status: sources.wasSearchReserved(result) ? "not_run" : "ok",
+          returnedCount: result.candidates.length,
+          candidates: result.candidates.slice(0, 5).map(({ url }) => ({ url })),
+          inputTokens: result.inputTokens,
+          outputTokens: result.outputTokens,
+          modelCostUsd: result.modelCostUsd,
+          searchCostUsd: result.searchCostUsd,
+          durationMs: Date.now() - started,
+          remaining: budget.remaining(),
+        });
         return { ...result, remaining: budget.remaining() };
       } catch (error) {
-        observeTrace(tracing, span, () => discoveryProjection(query, "failed"));
+        toolLog?.warn("Tool call failed", {
+          tool: "discoverSources",
+          query,
+          ...classifyModelError(error, Infinity).diagnostic,
+          errorCode: "search_failed",
+          durationMs: Date.now() - started,
+        });
+        observeTrace(tracing, span, {
+          name: "discoverSources",
+          input: {
+            query: traceText(query, 1200),
+            queryTruncated: Buffer.byteLength(query) > 1200,
+          },
+          output: { status: "failed", errorCode: "search_failed" },
+        });
         throw error;
       }
     },
@@ -130,15 +245,24 @@ export async function researchFestival(
         errorProcessorDefaults: false,
         maxProcessorRetries: MAX_PROVIDER_UNAVAILABLE_RETRIES,
         errorProcessors: [
-          providerUnavailableRetry(budget, () => {
-            startedSteps -= 1;
-            usage.complete = false;
-            missingCost = true;
-          }),
+          providerUnavailableRetry(
+            budget,
+            () => {
+              unavailableAttempts += 1;
+              startedSteps -= 1;
+              usage.complete = false;
+              missingCost = true;
+            },
+            log,
+          ),
         ],
         tools: { readSource: sourceTool, discoverSources: searchTool },
       });
   if (budget.remaining().modelCalls <= 0) {
+    modelLog?.warn("Research budget exhausted", {
+      budgetKind: "modelCalls",
+      limit: budget.limits.modelCalls,
+    });
     return {
       ok: false,
       usage,
@@ -215,6 +339,33 @@ export async function researchFestival(
             ) {
               completedSteps += 1;
             }
+            modelLog?.info("Model step completed", {
+              finishReason: step.finishReason,
+              durationMs: Date.now() - modelStarted,
+              usage: completedStepUsage(step),
+              commentaryAvailable: !!step.text,
+              reasoningAvailable: !!step.reasoningText,
+              complete:
+                step.finishReason !== "error" && step.finishReason !== "retry",
+            });
+            if (step.text && !isStructuredModelText(step.text)) {
+              modelLog?.info("Model commentary observed at step completion", {
+                text: shrinkText(step.text),
+                originalCharacters: [...step.text].length,
+                truncated: [...step.text].length > 4000,
+                origin: "model-reported",
+                channel: "commentary",
+              });
+            }
+            if (step.reasoningText) {
+              modelLog?.info("Provider reasoning observed at step completion", {
+                text: shrinkText(step.reasoningText),
+                originalCharacters: [...step.reasoningText].length,
+                truncated: [...step.reasoningText].length > 4000,
+                origin: "provider-returned",
+                channel: "reasoning",
+              });
+            }
             updateModelUsage(usage, step);
             missingCost ||= usage.modelCostUsd === null;
           },
@@ -235,6 +386,17 @@ export async function researchFestival(
             const finalCall = budget.remaining().modelCalls <= 1;
             budget.consumeModelCall();
             startedSteps += 1;
+            stepNumber = completedSteps + 1;
+            attemptNumber += 1;
+            modelStarted = Date.now();
+            modelLog = log?.child(modelContext());
+            modelLog?.info("Model step started", {
+              model: config.model,
+              reasoningEffort: config.reasoningEffort,
+              serviceTier: config.serviceTier,
+              outputAllowance: budget.limits.modelOutputTokens,
+              remaining: budget.remaining(),
+            });
             return finalCall
               ? { toolChoice: "none", activeTools: [] }
               : undefined;
@@ -267,6 +429,7 @@ export async function researchFestival(
       budget.deadline,
       generationFinishedAt,
     );
+    logModelFailure(modelLog, classified, unavailableAttempts);
     return {
       ok: false,
       usage,
@@ -284,6 +447,7 @@ export async function researchFestival(
   }
   if (raw == null && (generationFinishedAt ?? Date.now()) >= budget.deadline) {
     traceFailure(tracing, "research_failed");
+    modelLog?.warn("Research budget exhausted", { budgetKind: "time" });
     usage.complete = false;
     usage.modelCostUsd = null;
     return {
@@ -307,6 +471,24 @@ export async function researchFestival(
   };
 }
 
+function logModelFailure(
+  log: ResearchLogger | undefined,
+  classified: ReturnType<typeof classifyModelError>,
+  unavailableAttempts: number,
+) {
+  log?.[classified.limit ? "warn" : "error"](
+    classified.limit
+      ? "Research budget exhausted"
+      : "Model request failed permanently",
+    {
+      ...classified.diagnostic,
+      ...(classified.limit ? { budgetKind: classified.limit.limit } : {}),
+      errorCode: classified.limit ? "limit_reached" : "model_failed",
+      retryExhausted: unavailableAttempts > MAX_PROVIDER_UNAVAILABLE_RETRIES,
+    },
+  );
+}
+
 function throwIfProviderRetry(
   object: unknown,
   finishReason: string | undefined,
@@ -319,37 +501,22 @@ function throwIfProviderRetry(
   }
 }
 
-function updateModelUsage(
-  usage: ModelUsage,
-  step: {
-    usage?: { inputTokens?: number; outputTokens?: number; raw?: unknown };
-  },
-): void {
+type UsageStep = {
+  usage?: { inputTokens?: number; outputTokens?: number; raw?: unknown };
+};
+
+/** Share the selected provider metrics between step logs and run accounting. */
+function completedStepUsage(step: UsageStep): ModelUsage {
   const input = step.usage?.inputTokens;
   const output = step.usage?.outputTokens;
-  // OpenRouter synthesizes zero counts when usage is missing. Read the original
-  // provider payload through Mastra's normalized usage envelopes.
+  // OpenRouter synthesizes zero counts when usage is missing. Inspect the
+  // original usage only to determine completeness, never export it.
   let raw = step.usage?.raw;
   while (raw && typeof raw === "object" && "raw" in raw) {
     raw = raw.raw;
   }
   const rawUsage = raw as
-    | {
-        prompt_tokens?: number;
-        completion_tokens?: number;
-      }
-    | undefined;
-  usage.complete &&=
-    rawUsage?.prompt_tokens != null &&
-    rawUsage?.completion_tokens != null &&
-    input !== undefined &&
-    output !== undefined;
-  if (input === undefined && output === undefined) {
-    usage.modelCostUsd = null;
-    return;
-  }
-  usage.inputTokens += input ?? 0;
-  usage.outputTokens += output ?? 0;
+    { prompt_tokens?: number; completion_tokens?: number } | undefined;
   const providerUsage = (
     step as {
       providerMetadata?: {
@@ -363,21 +530,52 @@ function updateModelUsage(
       };
     }
   ).providerMetadata?.openrouter?.usage;
-  // Provider details retain the difference between missing metrics and zero.
-  const cached = providerUsage?.promptTokensDetails?.cachedTokens;
-  const reasoning = providerUsage?.completionTokensDetails?.reasoningTokens;
+  const observed = input !== undefined || output !== undefined;
+  const cost = providerUsage?.cost;
+  return {
+    complete:
+      rawUsage?.prompt_tokens != null &&
+      rawUsage?.completion_tokens != null &&
+      input !== undefined &&
+      output !== undefined,
+    inputTokens: input ?? 0,
+    outputTokens: output ?? 0,
+    cachedInputTokens: observed
+      ? (providerUsage?.promptTokensDetails?.cachedTokens ?? null)
+      : null,
+    reasoningTokens: observed
+      ? (providerUsage?.completionTokensDetails?.reasoningTokens ?? null)
+      : null,
+    modelCostUsd:
+      observed && cost !== undefined && Number.isFinite(cost) && cost >= 0
+        ? cost
+        : null,
+  };
+}
+
+function updateModelUsage(usage: ModelUsage, step: UsageStep): void {
+  const selected = completedStepUsage(step);
+  usage.complete &&= selected.complete;
+  if (
+    step.usage?.inputTokens === undefined &&
+    step.usage?.outputTokens === undefined
+  ) {
+    usage.modelCostUsd = null;
+    return;
+  }
+  usage.inputTokens += selected.inputTokens;
+  usage.outputTokens += selected.outputTokens;
   usage.cachedInputTokens =
-    usage.cachedInputTokens !== null && cached !== undefined
-      ? usage.cachedInputTokens + cached
+    usage.cachedInputTokens !== null && selected.cachedInputTokens !== null
+      ? usage.cachedInputTokens + selected.cachedInputTokens
       : null;
   usage.reasoningTokens =
-    usage.reasoningTokens !== null && reasoning !== undefined
-      ? usage.reasoningTokens + reasoning
+    usage.reasoningTokens !== null && selected.reasoningTokens !== null
+      ? usage.reasoningTokens + selected.reasoningTokens
       : null;
-  const cost = providerUsage?.cost;
   usage.modelCostUsd =
-    cost !== undefined && Number.isFinite(cost) && cost >= 0
-      ? (usage.modelCostUsd ?? 0) + cost
+    selected.modelCostUsd !== null
+      ? (usage.modelCostUsd ?? 0) + selected.modelCostUsd
       : null;
 }
 
@@ -810,13 +1008,25 @@ export function normalizeWireCandidate(
   );
 }
 
-function agentRuntime(agent: Agent, tracing?: RunTracing) {
-  const mastra = tracing?.mastra ?? new Mastra({ logger: false });
+function agentRuntime(agent: Agent, tracing?: RunObservability) {
+  const mastra =
+    tracing?.mastra ??
+    new Mastra({ logger: false, loggerOptions: { export: false } });
   mastra.addAgent(agent, "festivalResearch");
   return {
     mastra,
     options: tracing?.options,
-    context: tracing ? { currentSpan: tracing.root } : undefined,
+    context: tracing?.root ? { currentSpan: tracing.root } : undefined,
     finish: () => (tracing ? Promise.resolve() : mastra.shutdown()),
   };
+}
+
+/** Structured responses belong in the research result, not commentary logs. */
+function isStructuredModelText(text: string): boolean {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
 }

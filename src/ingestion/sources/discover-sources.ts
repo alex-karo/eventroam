@@ -1,3 +1,4 @@
+import type { ResearchLogger } from "../runtime/logging";
 import { ResearchLimitError, type ResearchBudget } from "../runtime/budget";
 import type { ResearchConfig } from "../runtime/config";
 import type { DiscoverSourcesResult, SourceCandidate } from "./contracts";
@@ -24,6 +25,7 @@ export interface DiscoverSourcesOptions {
   config: ResearchConfig;
   fetch?: typeof fetch;
   now?: () => Date;
+  log?: ResearchLogger;
 }
 
 async function boundedJson(
@@ -141,6 +143,7 @@ async function waitBeforeRetry(
   attempt: number,
   options: DiscoverSourcesOptions,
   retryAfter: string | null = null,
+  httpStatus?: number,
 ): Promise<void> {
   const remaining = options.budget.remaining();
   if (remaining.searches === 0) {
@@ -164,6 +167,12 @@ async function waitBeforeRetry(
   if (delay >= remaining.durationMs) {
     throw new ResearchLimitError("time");
   }
+  options.log?.warn("Provider retry scheduled", {
+    retryAttempt: attempt + 1,
+    delayMs: delay,
+    httpStatus,
+    remaining,
+  });
   await new Promise<void>((resolve) => setTimeout(resolve, delay));
   options.budget.assertTime();
 }
@@ -187,7 +196,12 @@ export async function discoverSources(
     try {
       const response = await requestSearch(normalized, maxResults, options);
       if (!response.ok) {
-        const error = new Error(`search_http_${response.status}`);
+        const error = Object.assign(
+          new Error(`search_http_${response.status}`),
+          {
+            statusCode: response.status,
+          },
+        );
         if (
           (response.status === 429 || response.status >= 500) &&
           attempt < 2
@@ -198,6 +212,7 @@ export async function discoverSources(
             attempt,
             options,
             response.headers.get("retry-after"),
+            response.status,
           );
           continue;
         }
@@ -243,4 +258,18 @@ export async function discoverSources(
     reasoningTokens:
       data.usage?.completion_tokens_details?.reasoning_tokens ?? null,
   };
+}
+
+/** Read only the host-owned HTTP status; never copy exception messages/bodies. */
+export function discoveryHttpStatus(error: unknown): number | undefined {
+  const status =
+    error && typeof error === "object" && "statusCode" in error
+      ? error.statusCode
+      : undefined;
+  return typeof status === "number" &&
+    Number.isInteger(status) &&
+    status >= 100 &&
+    status <= 599
+    ? status
+    : undefined;
 }
