@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   emptyFilters,
   filterSummaries,
@@ -22,6 +22,13 @@ import {
   readDiscoveryLocation,
 } from "@/features/discovery/hooks/discovery-url";
 import { useSelectedEdition } from "@/features/discovery/hooks/use-selected-edition";
+
+import {
+  filterSelections,
+  previewFilters,
+  removeSelection,
+  type FilterSelection,
+} from "@/features/discovery/model/filter-feedback";
 
 type Catalog = { summaries: DiscoverySummary[]; genres: Genre[] };
 type FilterGroup = "when" | "where" | "genre" | "more";
@@ -65,7 +72,16 @@ export function Discovery({
       viewSwitch.current?.querySelector<HTMLElement>("[aria-pressed=true]") ??
       null,
   );
-  const today = new Date(initialNow);
+  const today = useMemo(() => new Date(initialNow), [initialNow]);
+  const chipButtons = useRef(new Map<string, HTMLButtonElement>());
+  const clearButton = useRef<HTMLButtonElement>(null);
+  const preview = useMemo(
+    () =>
+      panel
+        ? previewFilters(catalog.summaries, pending, catalog.genres, today)
+        : null,
+    [panel, catalog.summaries, pending, catalog.genres, today],
+  );
   const panelButton = useRef<HTMLButtonElement>(null);
   const latest = useRef(0);
   const countries = [...new Set(catalog.summaries.map((s) => s.countryCode))];
@@ -179,7 +195,7 @@ export function Discovery({
       return;
     }
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
+      if (event.key !== "Escape" || event.defaultPrevented) {
         return;
       }
       if (panel) {
@@ -198,41 +214,17 @@ export function Discovery({
     : filterSummaries(catalog.summaries, applied, catalog.genres, today);
   const editionLabel = results.length === 1 ? "edition" : "editions";
   const mapped = results.filter(hasMapPoint).length;
-  const active = [
-    applied.q && ["Name", "q"],
-    applied.from && ["When", "date"],
-    (applied.countries.length || applied.place) && ["Where", "where"],
-    applied.genres.length && ["Music genre", "genre"],
-    (applied.durationMin !== null || applied.durationMax !== null) && [
-      "Duration",
-      "duration",
-    ],
-    applied.sizes.length && ["Size", "size"],
-  ].filter(Boolean) as string[][];
-  function remove(group: string) {
-    const next = { ...applied };
-    if (group === "q") {
-      next.q = "";
-    }
-    if (group === "date") {
-      next.from = "";
-      next.to = "";
-    }
-    if (group === "where") {
-      next.countries = [];
-      next.place = "";
-    }
-    if (group === "genre") {
-      next.genres = [];
-    }
-    if (group === "duration") {
-      next.durationMin = null;
-      next.durationMax = null;
-    }
-    if (group === "size") {
-      next.sizes = [];
-    }
-    apply(next);
+  const active = filterSelections(applied, catalog.genres);
+  function remove(selection: FilterSelection) {
+    const index = active.findIndex((item) => item.key === selection.key);
+    const nextFocus = active[index + 1]?.key ?? active[index - 1]?.key;
+    apply(removeSelection(applied, selection));
+    requestAnimationFrame(() =>
+      (nextFocus
+        ? chipButtons.current.get(nextFocus)
+        : clearButton.current
+      )?.focus(),
+    );
   }
   const secondaryGroups =
     Number(applied.durationMin !== null || applied.durationMax !== null) +
@@ -315,6 +307,7 @@ export function Discovery({
         </div>
         {panel && (
           <FilterPanel
+            key={panel}
             group={panel}
             pending={pending}
             setPending={setPending}
@@ -323,35 +316,49 @@ export function Discovery({
             genres={catalog.genres}
             onApply={apply}
             onCancel={closePanel}
-            error={formError}
+            error={preview?.error ?? formError}
+            previewCount={preview?.count ?? null}
           />
         )}
         <div className={`discovery-results-shell view-${view}`}>
           <div className="list-column">
             <div className="results-summary">
-              <strong aria-live="polite">
-                {invalidUrl
-                  ? "Invalid filters"
-                  : `${results.length} ${editionLabel}`}
-              </strong>
-              <span className="results-geography">
-                {mapped} mapped · {results.length - mapped} unlocated
-              </span>
+              <div className="results-total">
+                <strong aria-live="polite">
+                  {invalidUrl
+                    ? "Invalid filters"
+                    : `${results.length} ${editionLabel}`}
+                </strong>
+                <span className="results-geography">
+                  {mapped} mapped · {results.length - mapped} unlocated
+                </span>
+              </div>
               {active.length > 0 && (
                 <div className="chips" aria-label="Applied filters">
-                  {active.map(([label, key]) => (
+                  {active.map((selection) => (
                     <button
                       type="button"
-                      key={key}
-                      onClick={() => remove(key)}
-                      aria-label={`Remove ${label} filter`}
+                      key={selection.key}
+                      ref={(button) => {
+                        if (button) {
+                          chipButtons.current.set(selection.key, button);
+                        } else {
+                          chipButtons.current.delete(selection.key);
+                        }
+                      }}
+                      onClick={() => remove(selection)}
+                      aria-label={`Remove ${selection.label} filter`}
                     >
-                      {label} ×
+                      <span>{selection.label}</span>{" "}
+                      <span aria-hidden="true" className="chip-remove">
+                        ×
+                      </span>
                     </button>
                   ))}
                 </div>
               )}
               <button
+                ref={clearButton}
                 className="clear-filters"
                 type="button"
                 onClick={() => apply(emptyFilters())}
