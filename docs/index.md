@@ -29,7 +29,10 @@ Website:
 
 ## Archived changes
 
-- [Clearer ingestion traces](../openspec/changes/archive/2026-10-09-clarify-ingestion-traces/proposal.md) — readable Event/edition labels, bounded safe source diagnostics, and apply-run outcomes.
+- [Selective research logging](../openspec/changes/archive/2026-10-10-selective-research-logging/proposal.md) — migration to Mastra PinoLogger, explicit logging/tracing fields and durable Studio diagnostics.
+
+- [Clearer ingestion traces](../openspec/changes/archive/2026-10-09-clarify-ingestion-traces/proposal.md) — apply-run trace structure; current logging/tracing simplification belongs to selective research logging.
+
 - [Durable ingestion run records](../openspec/changes/archive/2026-10-09-add-ingestion-run-records/proposal.md) — implemented per-festival start/final history, private reports, and known usage/costs, including dry runs.
 
 - [Minimal research tracing](../openspec/changes/archive/2026-10-09-minimal-research-tracing/proposal.md) — optional local research-agent traces and Studio inspection, with accepted persistence/logger risks.

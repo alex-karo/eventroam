@@ -2,17 +2,15 @@
 
 ## Why
 
-Current traces hide Event/source context and end before validation and catalog writes. Owners need to distinguish technical completion, research completeness, and the actual catalog result.
+Owners need local apply-run traces that identify the Event, source results, validation and catalog write outcome. The first implementation achieved this through generic projection and sanitization layers that are larger than the host facts being recorded. The logging migration also removes any need to calculate log outcomes from a shared trace summary.
 
 ## What Changes
 
-1. Readable Event/edition, mode and result labels in both `name` and `entityName`, with stable primitive IDs and separate edition keys/years for context and committed changes.
-2. Bounded source diagnostics: read URLs, outcome/reason/method/truncation, and existing search queries/candidate URLs. Preserve source URLs up to the length limit. Disable SDK input/output hiding; retain mandatory field allowlisting and exclude SDK/config credentials and full payloads without changing model behavior.
-3. One outer per-Event span from context loading through initial read, research, validation, write/rollback and report construction. Reuse report research/outcome values alongside validation, write disposition and one committed-operation count; keep native technical status and `semanticValidation: not_run`. Preserve the existing report contract.
-
-**BREAKING:** Dry-run creates no traces even when tracing is enabled; its existing reports and durable run records remain available.
-
-Out of scope: report-to-trace correlation, retry instrumentation, full debug payloads, factual validation, changed decisions/budgets/retries, Studio replacement, storage migration, metrics backend and paid ingestion. Preserve opt-in, fail-open tracing and accepted persistence/logger limits.
+- Keep readable Event/edition labels, stable IDs, one apply-run root, source retrieval metadata, and separate research/validation/write outcomes.
+- Build host trace input/output/metadata explicitly from known values with ordinary TypeScript types, reducing intermediate projections and callbacks.
+- Inspect SDK automatic span payloads separately. Suppress sensitive automatic capture at its source where supported, or retain the smallest fail-closed exclusion needed to keep prompts, message history, source bodies, full responses and raw errors out of exported spans.
+- Preserve optional tracing, apply-only gating, runId correlation, local persistence and best-effort flush/shutdown, independently of logging. Dry runs create no spans.
+- Drop the generic whole-projection byte/list enforcement and field allowlists for host-owned values. Producers select and shorten relevant fields. There is no requirement to preserve the prior internal trace payload shape.
 
 ## Capabilities
 
@@ -22,8 +20,8 @@ None.
 
 ### Modified Capabilities
 
-- `catalog/source-workflow`: readable local traces, safe source diagnostics, complete apply-run outcomes.
+- `catalog/source-workflow`: readable, safe local traces with explicit host fields and complete apply-run outcomes.
 
 ## Impact
 
-Changes affect ingestion orchestration, tracing, source hooks, tests and operational docs. Existing dependencies and separate trace storage remain; no database migration. Report schema and readers remain unchanged. Acceptance uses mocked providers and temporary stores. Sync main specs only after implementation.
+Tracing runtime, source hooks, observability tests, and operational docs. Existing historical observability files, report schema, durable run records, and catalog decisions remain unchanged.

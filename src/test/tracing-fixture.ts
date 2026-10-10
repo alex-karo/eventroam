@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +8,7 @@ import { testFixtures } from "./fixtures";
 import { runCatalogResearch } from "../ingestion/workflow";
 import { DEFAULT_RESEARCH_LIMITS } from "../ingestion/runtime/budget";
 import { readSource } from "../ingestion/sources/read-source";
+import { discoverSources } from "../ingestion/sources/discover-sources";
 
 export const TRACE_PUBLIC_MARKER = "PUBLIC_FESTIVAL";
 export const TRACE_PUBLIC_URL = `https://example.org/${TRACE_PUBLIC_MARKER}?token=public-value#programme`;
@@ -20,6 +21,8 @@ export type TraceFixtureScenario =
   | "mistaken"
   | "recovered"
   | "invalid"
+  | "invalid_dates"
+  | "dates"
   | "unchanged"
   | "search"
   | "reserved"
@@ -28,7 +31,11 @@ export type TraceFixtureScenario =
   | "target"
   | "skipped";
 
-export const TRACE_SENTINEL = "PRIVATE_TRACE_CONTENT_SENTINEL";
+export const TRACE_CREDENTIAL = "PRIVATE_CONFIG_CREDENTIAL";
+export const TRACE_SOURCE_BODY = "PRIVATE_SOURCE_BODY";
+export const TRACE_CANDIDATE = "PRIVATE_CANDIDATE_EXPLANATION";
+export const TRACE_TRANSPORT = "PRIVATE_TRANSPORT_ENVELOPE";
+export const TRACE_ERROR = "PRIVATE_EXCEPTION_MESSAGE";
 
 /** Real Mastra/OpenRouter adapter with an entirely offline provider and source. */
 export async function runTraceFixture(
@@ -36,10 +43,17 @@ export async function runTraceFixture(
   injected = false,
   scenario: TraceFixtureScenario = "failed",
   dryRun = false,
+  modelText: {
+    commentary?: string;
+    reasoning?: string;
+    cost?: number;
+    searchStatus?: number;
+    sourceErrorCount?: number;
+  } = {},
 ) {
   const startedAt = Date.now();
   const config = {
-    apiKey: TRACE_SENTINEL,
+    apiKey: TRACE_CREDENTIAL,
     model: "fixture/provider-model",
     limits: {
       ...DEFAULT_RESEARCH_LIMITS,
@@ -55,7 +69,7 @@ export async function runTraceFixture(
     errors: [
       {
         code: "source_unavailable",
-        message: TRACE_SENTINEL,
+        message: TRACE_CANDIDATE,
         url: null,
         editionKey: null,
         field: null,
@@ -89,14 +103,14 @@ export async function runTraceFixture(
   ) {
     candidate = failedCandidate;
   } else if (scenario === "invalid") {
-    candidate = { unsafe: TRACE_SENTINEL };
+    candidate = { unsafe: TRACE_CANDIDATE };
   } else {
     candidate = {
       status: scenario === "partial" ? "partial" : "success",
       data: {
         eventId: scenario === "target" ? "other-event" : event.id,
         eventName: "Model name mismatch",
-        sources: [{ url: TRACE_PUBLIC_URL, information: TRACE_SENTINEL }],
+        sources: [{ url: TRACE_PUBLIC_URL, information: TRACE_CANDIDATE }],
         links: { socials: {} },
         editions:
           scenario === "unchanged"
@@ -105,15 +119,21 @@ export async function runTraceFixture(
                 {
                   key: "2023",
                   links: {},
-                  year: { value: 2023, reason: TRACE_SENTINEL },
+                  year: { value: 2023, reason: TRACE_CANDIDATE },
                   scheduleStatus: {
                     value: "cancelled",
-                    reason: TRACE_SENTINEL,
+                    reason: TRACE_CANDIDATE,
                   },
                 },
               ],
       },
-      errors: [],
+      errors:
+        scenario === "target"
+          ? Array.from({ length: modelText.sourceErrorCount ?? 0 }, () => ({
+              code: "source_unavailable",
+              message: TRACE_CANDIDATE,
+            }))
+          : [],
       unresolved:
         scenario === "partial"
           ? [
@@ -124,6 +144,7 @@ export async function runTraceFixture(
           : [],
     };
   }
+  addFixtureDateScenario(candidate, scenario);
   let requests = 0;
   const providerInputs: string[] = [];
   const original = globalThis.fetch;
@@ -135,7 +156,7 @@ export async function runTraceFixture(
     requests++;
     if (requests === 2 && ending === "http") {
       return Response.json(
-        { error: { message: TRACE_SENTINEL } },
+        { error: { message: TRACE_TRANSPORT } },
         { status: 503 },
       );
     }
@@ -153,7 +174,7 @@ export async function runTraceFixture(
     }
     return Response.json(
       {
-        id: TRACE_SENTINEL,
+        id: TRACE_TRANSPORT,
         object: "chat.completion",
         created: 1,
         model: config.model,
@@ -164,11 +185,14 @@ export async function runTraceFixture(
               requests === 1
                 ? {
                     role: "assistant",
-                    content: null,
+                    content: modelText.commentary ?? null,
+                    ...(modelText.reasoning
+                      ? { reasoning: modelText.reasoning }
+                      : {}),
                     tool_calls: Array.from(
                       { length: scenario === "cached" ? 2 : 1 },
                       (_, index) => ({
-                        id: `${TRACE_SENTINEL}_${index}`,
+                        id: `fixture-tool-${index}`,
                         type: "function",
                         function: {
                           name:
@@ -208,13 +232,13 @@ export async function runTraceFixture(
                 prompt_tokens: 10,
                 completion_tokens: 20,
                 total_tokens: 30,
-                cost: 0,
+                cost: modelText.cost ?? 0,
                 prompt_tokens_details: { cached_tokens: 3 },
                 completion_tokens_details: { reasoning_tokens: 4 },
               },
             }),
       },
-      { headers: { "x-private-header": TRACE_SENTINEL } },
+      { headers: { "x-private-header": TRACE_TRANSPORT } },
     );
   };
   try {
@@ -240,7 +264,7 @@ export async function runTraceFixture(
                 finalUrl: url,
                 status: 200,
                 contentType: "text/plain",
-                body: Buffer.from(`${TRACE_SENTINEL} `.repeat(1_000)),
+                body: Buffer.from(`${TRACE_SOURCE_BODY} `.repeat(5_000)),
               }),
             });
           }
@@ -263,19 +287,32 @@ export async function runTraceFixture(
             sourceTruncated: false,
             markdown:
               scenario === "tool_truncated" && !url.endsWith("/initial")
-                ? `${TRACE_SENTINEL} `.repeat(3_000)
-                : TRACE_SENTINEL,
+                ? `${TRACE_SOURCE_BODY} `.repeat(6_000)
+                : TRACE_SOURCE_BODY,
             links: [],
           };
         },
-        discoverSources: async (query, { budget }) => {
+        discoverSources: async (query, options) => {
+          const { budget } = options;
           if (scenario === "search_failure") {
-            throw new Error(TRACE_SENTINEL);
+            return discoverSources(query, {
+              ...options,
+              fetch: async () =>
+                Response.json(
+                  { error: TRACE_TRANSPORT },
+                  { status: modelText.searchStatus ?? 401 },
+                ),
+            });
           }
           budget.consumeSearch();
           return {
             query,
-            candidates: [{ url: TRACE_PUBLIC_URL, title: TRACE_SENTINEL }],
+            candidates: [
+              {
+                url: TRACE_PUBLIC_URL,
+                title: `${TRACE_PUBLIC_MARKER} programme`,
+              },
+            ],
             retrievedAt: "2026-10-09T00:00:00Z",
             modelCostUsd: null,
             searchCostUsd: 0,
@@ -317,52 +354,21 @@ export async function runTraceFixture(
 }
 
 export function readTraceRows(path: string) {
-  const db = new Database(path, { readonly: true });
-  try {
-    const tables = db
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
-      .all() as { name: string }[];
-    const rows = Object.fromEntries(
-      tables.map(({ name }) => [
-        name,
-        (
-          db
-            .prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`)
-            .all() as Record<string, unknown>[]
-        ).map((row) =>
-          Object.fromEntries(
-            Object.entries(row).map(([key, value]) => {
-              if (!Buffer.isBuffer(value)) {
-                return [key, value];
-              }
-              // Mastra's JSON fields use SQLite JSONB; inspect the decoded content too.
-              try {
-                return [
-                  key,
-                  (
-                    db.prepare("SELECT json(?) value").get(value) as {
-                      value: string;
-                    }
-                  ).value,
-                ];
-              } catch {
-                return [key, value.toString("utf8")];
-              }
-            }),
-          ),
-        ),
-      ]),
-    );
-    return rows;
-  } finally {
-    db.close();
-  }
+  return JSON.parse(
+    execFileSync(
+      process.execPath,
+      ["--import", "tsx", "src/test/read-observability.ts", path],
+      { encoding: "utf8" },
+    ),
+  ) as Record<string, Record<string, unknown>[]>;
 }
 
 if (process.argv[1]?.endsWith("/tracing-fixture.ts")) {
   if (process.argv[2] === "read") {
     process.stdout.write(
-      JSON.stringify(readTraceRows(process.env.CATALOG_TRACE_DATABASE_PATH!)),
+      JSON.stringify(
+        readTraceRows(process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!),
+      ),
     );
   } else {
     runTraceFixture()
@@ -370,6 +376,29 @@ if (process.argv[1]?.endsWith("/tracing-fixture.ts")) {
       .catch(() => {
         process.exitCode = 1;
       });
+  }
+}
+
+function addFixtureDateScenario(
+  candidate: unknown,
+  scenario: TraceFixtureScenario,
+) {
+  if (["dates", "invalid_dates"].includes(scenario)) {
+    (candidate as { data: { editions: unknown[] } }).data.editions = [
+      {
+        key: "2026",
+        links: {},
+        year: { value: 2026, reason: TRACE_CANDIDATE },
+        dates: {
+          value: {
+            startsOn: scenario === "invalid_dates" ? "bad-date" : "2026-07-01",
+            endsOn: "2026-07-03",
+            state: "confirmed",
+          },
+          reason: TRACE_CANDIDATE,
+        },
+      },
+    ];
   }
 }
 

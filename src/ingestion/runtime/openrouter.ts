@@ -2,6 +2,7 @@ import {
   StreamErrorRetryProcessor,
   type ProcessAPIErrorArgs,
 } from "@mastra/core/processors";
+import type { ResearchLogger } from "./logging";
 import type { ResearchBudget } from "./budget";
 import type { ResearchConfig } from "./config";
 
@@ -32,12 +33,14 @@ export function researchProviderOptions(config: ResearchConfig) {
 export function providerUnavailableRetry(
   budget: ResearchBudget,
   onUnavailable: () => void,
+  log?: ResearchLogger,
 ) {
   const retry = new StreamErrorRetryProcessor({
     maxRetries: MAX_PROVIDER_UNAVAILABLE_RETRIES,
     delayMs: ({ retryCount }) => 10_000 * 3 ** retryCount,
     matchers: [isProviderUnavailable],
   });
+  const retryLog = log?.child({ stage: "research" });
   let retries = 0;
   return {
     id: "openrouter-provider-unavailable",
@@ -51,6 +54,12 @@ export function providerUnavailableRetry(
       if (retries >= MAX_PROVIDER_UNAVAILABLE_RETRIES) {
         return;
       }
+      retryLog?.warn("Provider retry scheduled", {
+        providerCode: "provider_unavailable",
+        retryAttempt: retries + 1,
+        delayMs: 10_000 * 3 ** retries,
+        remaining: budget.remaining(),
+      });
       return retry.processAPIError({ ...args, retryCount: retries++ });
     },
   };

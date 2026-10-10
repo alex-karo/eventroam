@@ -1,3 +1,4 @@
+import type { ResearchLogger } from "../runtime/logging";
 import type { ResearchBudget } from "../runtime/budget";
 import { ResearchLimitError } from "../runtime/budget";
 import type { ReadSourceResult } from "./contracts";
@@ -18,6 +19,7 @@ export interface ReadSourceOptions {
   firecrawlRequest?: typeof getFirecrawlResponse;
   firecrawlKey?: string;
   now?: () => Date;
+  log?: ResearchLogger;
 }
 
 function socialHost(hostname: string): boolean {
@@ -74,12 +76,18 @@ async function fetchSource(
     onRetry: () => options.budget.consumePage(options.depth),
   });
   result.finalUrl = response.finalUrl;
+  result.httpStatus = response.status;
   const apiKey = (options.firecrawlKey ?? process.env.FIRECRAWL_KEY)?.trim();
   if (response.status !== 403 || !apiKey) {
     return response;
   }
   options.budget.consumePage(options.depth);
   result.method = "firecrawl";
+  options.log?.warn("Blocked source uses Firecrawl fallback", {
+    attemptedUrl: response.finalUrl,
+    httpStatus: 403,
+    provider: "firecrawl",
+  });
   return (options.firecrawlRequest ?? getFirecrawlResponse)(response.finalUrl, {
     apiKey,
     maxBytes: options.budget.limits.pageBytes,
@@ -150,6 +158,7 @@ export async function readSource(
   }
 
   result.finalUrl = response.finalUrl;
+  result.httpStatus = response.status;
   if (response.body.length > options.budget.limits.pageBytes) {
     return { ...result, outcome: "failed", reason: "oversized_response" };
   }
