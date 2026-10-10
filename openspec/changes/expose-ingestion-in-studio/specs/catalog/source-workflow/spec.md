@@ -75,7 +75,7 @@ Studio SHALL accept add by name and refresh/check by one Event ID. Dry-run SHALL
 - **THEN** reject it before external work or mutation; expose only mode, name, Event ID, dry-run and republish in the form
 
 ### Requirement: Studio runs retain durable lifecycle and bounded results
-Studio SHALL preserve existing durable run/report semantics and expose both run IDs, preview/apply mode, research/catalog/persistence statuses, known Event ID, counts, usage and safe error codes. Complete version-2 reports SHALL remain private in ingestion_runs.
+Studio SHALL preserve existing durable run/report semantics and expose both run IDs, preview/apply mode, research/catalog/persistence statuses, known Event ID, counts, usage and safe error codes. Complete version-2 reports SHALL remain durable in ingestion_runs and MAY appear in local Studio workflow data; public website reads SHALL NOT expose them.
 
 #### Scenario: Failure or cancellation
 - **WHEN** a started attempt fails or is cancelled
@@ -86,8 +86,8 @@ Studio SHALL preserve existing durable run/report semantics and expose both run 
 - **WHEN** the terminal run update fails
 - **THEN** report failed execution with run_persistence_failed and ingestion ID; retain the running row and committed changes without replay
 
-### Requirement: Registered ingestion executions remain isolated and private
-Each execution SHALL own its resources and results. Workflow data/errors SHALL exclude credentials, prompts, pages, raw provider payloads, full model responses and live resources. Existing apply-only tracing and independently configurable application logging SHALL be retained, adding both IDs and safe terminal codes; the workflow SDK logger and automatic log export SHALL remain disabled.
+### Requirement: Registered ingestion executions isolate resources and expose research data
+Each execution SHALL own its resources and results. Native Mastra workflow state SHALL accumulate serializable research context, source reads, model research output, prepared operations, receipts and reports without a second attempt-owned checkpoint. Each workflow step SHALL return its phase result for local Studio inspection. Caller-provided initialState SHALL be rejected; workflow initialization SHALL create state. Workflow data SHALL exclude credentials, configuration containing secrets, prompts, raw provider transport payloads and live resources. Exception messages, stacks and causes SHALL remain sanitized. Existing apply-only tracing and independently configurable application logging SHALL be retained, adding both IDs and safe terminal codes; the workflow SDK logger and automatic log export SHALL remain disabled.
 
 #### Scenario: Overlap or duplicate ID
 - **WHEN** executions overlap or a duplicate active engine ID is submitted
@@ -96,7 +96,7 @@ Each execution SHALL own its resources and results. Workflow data/errors SHALL e
 
 #### Scenario: Inspect execution data
 - **WHEN** graph, transport, stored workflow data or errors are inspected
-- **THEN** only allowed input and bounded projections/diagnostics are present, including error messages, stacks and causes; snapshots are disabled
+- **THEN** research results are inspectable while credentials, live resources and raw exception details are absent; snapshots remain disabled
 
 #### Scenario: Complete tracing
 - **WHEN** a traced attempt terminates, including cancellation or persistence failure

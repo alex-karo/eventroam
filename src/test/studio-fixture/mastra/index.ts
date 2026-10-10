@@ -11,13 +11,48 @@ const sourceUrl = "https://example.org/studio-fixture";
 const scenario = process.env.STUDIO_FIXTURE_SCENARIO ?? "success";
 const observabilityStore = await fixtureStore();
 
-if (scenario.startsWith("agent")) {
+const candidate = {
+  status: "success",
+  data: {
+    eventId,
+    eventName: "Studio Fixture Festival",
+    sources: [{ url: sourceUrl, information: OFFLINE_SENTINEL }],
+    links: { socials: {} },
+    editions: [
+      {
+        key: "2027",
+        year: { value: 2027, reason: OFFLINE_SENTINEL },
+        dates: {
+          value: {
+            startsOn: "2027-07-01",
+            endsOn: "2027-07-03",
+            state: "confirmed",
+          },
+          reason: OFFLINE_SENTINEL,
+        },
+        countryCode: { value: "PT", reason: OFFLINE_SENTINEL },
+        locality: { value: "Lisbon", reason: OFFLINE_SENTINEL },
+        links: {},
+      },
+    ],
+  },
+  errors: [],
+  unresolved: [],
+};
+
+// Keep the real agent/provider adapter for cancellation and tracing; mock only HTTP.
+{
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
-    if (!String(input).includes("openrouter.ai")) {
+    const address = input instanceof Request ? input.url : input;
+    const url = new URL(address);
+    if (url.hostname === "127.0.0.1" || url.hostname === "localhost") {
       return originalFetch(input, init);
     }
-    if (scenario === "agent-cancel") {
+    if (url.hostname !== "openrouter.ai") {
+      throw new Error("Unexpected external request in Studio fixture");
+    }
+    if (scenario === "cancel") {
       await new Promise<void>((resolve, reject) => {
         const timer = setTimeout(resolve, 15_000);
         const signal = init?.signal;
@@ -38,34 +73,6 @@ if (scenario.startsWith("agent")) {
     }
     const body = JSON.parse(String(init?.body)) as {
       response_format?: { json_schema?: { schema?: Record<string, unknown> } };
-    };
-    const candidate = {
-      status: "success",
-      data: {
-        eventId,
-        eventName: "Studio Fixture Festival",
-        sources: [{ url: sourceUrl, information: OFFLINE_SENTINEL }],
-        links: { socials: {} },
-        editions: [
-          {
-            key: "2027",
-            year: { value: 2027, reason: OFFLINE_SENTINEL },
-            dates: {
-              value: {
-                startsOn: "2027-07-01",
-                endsOn: "2027-07-03",
-                state: "confirmed",
-              },
-              reason: OFFLINE_SENTINEL,
-            },
-            countryCode: { value: "PT", reason: OFFLINE_SENTINEL },
-            locality: { value: "Lisbon", reason: OFFLINE_SENTINEL },
-            links: {},
-          },
-        ],
-      },
-      errors: [],
-      unresolved: [],
     };
     return Response.json({
       id: "offline-response",
@@ -96,7 +103,7 @@ if (scenario.startsWith("agent")) {
 
 export const mastra = new Mastra({
   workflows: {
-    "catalog-ingestion": createCatalogIngestionWorkflow(async (input) => {
+    "catalog-ingestion": createCatalogIngestionWorkflow(async () => {
       const path = process.env.DATABASE_PATH;
       if (!path) {
         throw new Error("Fixture catalog unavailable");
@@ -107,7 +114,7 @@ export const mastra = new Mastra({
           client,
           observabilityStore,
           config: {
-            apiKey: OFFLINE_SENTINEL,
+            apiKey: "fixture-api-key",
             model: "fixture/offline-model",
             limits: { ...DEFAULT_RESEARCH_LIMITS, durationMs: 30_000 },
           },
@@ -137,70 +144,6 @@ export const mastra = new Mastra({
               searchCostUsd: 0,
             };
           },
-          ...(scenario.startsWith("agent")
-            ? {}
-            : {
-                generateCandidate: async () => {
-                  if (scenario === "cancel") {
-                    await new Promise((resolve) => setTimeout(resolve, 5_000));
-                  }
-                  if (scenario === "failure") {
-                    return {
-                      status: "failed",
-                      data: null,
-                      errors: [
-                        {
-                          code: "source_unavailable",
-                          message: OFFLINE_SENTINEL,
-                          url: null,
-                          editionKey: null,
-                          field: null,
-                        },
-                      ],
-                      unresolved: [],
-                    };
-                  }
-                  return {
-                    status: scenario === "partial" ? "partial" : "success",
-                    data: {
-                      ...(input.mode === "add" ? {} : { eventId }),
-                      eventName: "Studio Fixture Festival",
-                      sources: [
-                        { url: sourceUrl, information: OFFLINE_SENTINEL },
-                      ],
-                      links: { socials: {} },
-                      editions: [
-                        {
-                          key: "2027",
-                          year: { value: 2027, reason: OFFLINE_SENTINEL },
-                          dates: {
-                            value: {
-                              startsOn: "2027-07-01",
-                              endsOn: "2027-07-03",
-                              state: "confirmed",
-                            },
-                            reason: OFFLINE_SENTINEL,
-                          },
-                          countryCode: {
-                            value: "PT",
-                            reason: OFFLINE_SENTINEL,
-                          },
-                          locality: {
-                            value: "Lisbon",
-                            reason: OFFLINE_SENTINEL,
-                          },
-                          links: {},
-                        },
-                      ],
-                    },
-                    errors: [],
-                    unresolved:
-                      scenario === "partial"
-                        ? [{ message: "Exact venue unknown", field: "venue" }]
-                        : [],
-                  };
-                },
-              }),
         },
         close: () => client.close(),
       };

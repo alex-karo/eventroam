@@ -1120,10 +1120,19 @@ test("tracing-enabled injected workflow stores a durable run without trace stora
   expect(existsSync(path)).toBe(false);
 });
 
-test("the public runner executes the eight Mastra steps in order with safe graph data", async () => {
+test("the public runner accumulates research in native state without runtime resources", async () => {
   const { client, termIds, readSource } = fixture();
   const created = vi.spyOn(Workflow.prototype, "createRun");
-  const starts = vi.spyOn(Run.prototype, "start");
+  const start = Run.prototype.start;
+  const starts = vi.spyOn(Run.prototype, "start").mockImplementation(function (
+    this: Run,
+    options,
+  ) {
+    return start.call(this, {
+      ...options,
+      outputOptions: { includeState: true },
+    });
+  });
   const phases: string[] = [];
   const readInitial = runTraceModule.readInitialWithTrace;
   vi.spyOn(runTraceModule, "readInitialWithTrace").mockImplementation(
@@ -1187,6 +1196,8 @@ test("the public runner executes the eight Mastra steps in order with safe graph
   expect(starts).toHaveBeenCalledOnce();
   const engineResult = (await starts.mock.results[0].value) as {
     status: string;
+    state: { data: import("./contracts").IngestionData };
+    steps: Record<string, { output: { output: unknown } }>;
   };
   expect(engineResult.status).toBe("success");
   const workflow = created.mock.instances[0] as Workflow;
@@ -1216,8 +1227,27 @@ test("the public runner executes the eight Mastra steps in order with safe graph
   for (const privateValue of ["PRIVATE_API_KEY", privatePage, privateOutput]) {
     expect(graph).not.toContain(privateValue);
     expect(JSON.stringify(starts.mock.calls[0])).not.toContain(privateValue);
-    expect(JSON.stringify(engineResult)).not.toContain(privateValue);
   }
+  const stepOutput = (id: string) => engineResult.steps[id].output.output;
+  expect(stepOutput("load-context")).toHaveProperty("catalog");
+  expect(stepOutput("research-festival")).toMatchObject({
+    research: { ok: true, candidate: proposal },
+    reads: [expect.objectContaining({ markdown: privatePage })],
+  });
+  expect(stepOutput("research-festival")).not.toHaveProperty("prepared");
+  expect(stepOutput("prepare-candidate")).toHaveProperty("operations");
+  expect(stepOutput("apply-catalog-item")).toHaveProperty("applied");
+  expect(stepOutput("build-report")).toMatchObject({ outcome: "published" });
+  expect(engineResult.state.data).toMatchObject({
+    research: { ok: true, candidate: proposal },
+    report: { outcome: "published" },
+  });
+  expect(engineResult.state.data.reads[0].markdown).toBe(privatePage);
+  const execution = JSON.stringify(engineResult);
+  expect(execution).toContain(privatePage);
+  expect(execution).toContain(privateOutput);
+  expect(execution).not.toContain("PRIVATE_API_KEY");
+  expect(execution).not.toContain(client.name);
   expect(result.outcome).toBe("published");
   expect(result.modelResponse?.object).toEqual(proposal);
 });
@@ -1458,7 +1488,7 @@ test("duplicate active engine IDs cannot finalize the first attempt", async () =
 });
 
 test("native cancellation waits for active research before finalizing known state", async () => {
-  const { client, termIds } = fixture();
+  const { client, termIds, readSource } = fixture();
   const trace = fakeTrace();
   let entered!: () => void;
   const started = new Promise<void>((resolve) => {
@@ -1471,7 +1501,9 @@ test("native cancellation waits for active research before finalizing known stat
   const workflow = createCatalogIngestionWorkflow(async () => ({
     deps: {
       client,
-      generateCandidate: async () => {
+      readSource,
+      generateCandidate: async (_prompt, context) => {
+        await context.readSource(url);
         entered();
         await hold;
         return candidate(termIds);
@@ -1498,6 +1530,13 @@ test("native cancellation waits for active research before finalizing known stat
   expect(client.prepare("SELECT status FROM ingestion_runs").all()).toEqual([
     { status: "failed" },
   ]);
+  const saved = client
+    .prepare("SELECT report_json FROM ingestion_runs")
+    .get() as { report_json: string };
+  expect(JSON.parse(saved.report_json)).toMatchObject({
+    usage: { pages: 1 },
+    sources: [expect.objectContaining({ attemptedUrl: url })],
+  });
   expect(trace.terminalFailed).toHaveBeenCalledWith("cancelled");
   expect(trace.finish).toHaveBeenCalledOnce();
 });

@@ -1,3 +1,7 @@
+import type { applyCatalogItem } from "@/catalog/write/apply-operation";
+import type { ResearchContext } from "./research/context";
+import type { ResearchExecution } from "./research/agent";
+import type { prepareResearch } from "./research/prepare";
 import type Database from "better-sqlite3";
 import type { DuckDBStore } from "@mastra/duckdb";
 import type { CatalogOperation } from "@/catalog/operations/operation";
@@ -104,3 +108,42 @@ export type ResearchDependencies = {
     },
   ) => Promise<unknown>;
 };
+/** Serializable research accumulated by native Mastra workflow state. */
+export type IngestionData = {
+  context: ResearchContext | null;
+  reads: ReadSourceResult[];
+  discovery: DiscoverSourcesResult[];
+  research: ResearchExecution;
+  prepared: ReturnType<typeof prepareResearch> | null;
+  applied: ReturnType<typeof applyCatalogItem> | null;
+  writeFailed: boolean;
+  errors: ResearchError[];
+  unresolved: ResearchQuestion[];
+  report: CatalogResearchResult | null;
+};
+
+export function createIngestionData(): IngestionData {
+  return {
+    context: null,
+    reads: [],
+    discovery: [],
+    research: {
+      ok: false,
+      errors: [],
+      usage: {
+        complete: false,
+        inputTokens: 0,
+        outputTokens: 0,
+        cachedInputTokens: null,
+        reasoningTokens: null,
+        modelCostUsd: null,
+      },
+    },
+    prepared: null,
+    applied: null,
+    writeFailed: false,
+    errors: [],
+    unresolved: [],
+    report: null,
+  };
+}

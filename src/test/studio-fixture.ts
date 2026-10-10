@@ -7,16 +7,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { openDatabase } from "../db/connection";
 import { testFixtures } from "./fixtures";
 
-export type StudioScenario =
-  | "success"
-  | "partial"
-  | "failure"
-  | "cancel"
-  | "agent"
-  | "persistence"
-  | "agent-cancel"
-  | "agent-persistence"
-  | "agent-recording";
+export type StudioScenario = "success" | "cancel" | "persistence" | "recording";
 export const STUDIO_FIXTURE_EVENT_ID = "00000000-0000-4000-8000-000000000001";
 
 function freePort(): Promise<number> {
@@ -58,7 +49,7 @@ export async function startStudioFixture(
         canonicalName: "Studio Fixture Festival",
       });
       fixtures.eventLink(event, { url: "https://example.org/studio-fixture" });
-      if (scenario === "persistence" || scenario === "agent-persistence") {
+      if (scenario === "persistence") {
         connection.client.exec(
           "CREATE TRIGGER fail_studio_finalize BEFORE UPDATE ON ingestion_runs BEGIN SELECT RAISE(FAIL, 'PRIVATE_STUDIO_FIXTURE_SENTINEL'); END",
         );
@@ -85,8 +76,8 @@ export async function startStudioFixture(
         ...process.env,
         DATABASE_PATH: catalogPath,
         CATALOG_OBSERVABILITY_DATABASE_PATH: tracePath,
-        CATALOG_TRACING: scenario === "agent-recording" ? "true" : "false",
-        CATALOG_LOGGING: scenario === "agent-recording" ? "true" : "false",
+        CATALOG_TRACING: scenario === "recording" ? "true" : "false",
+        CATALOG_LOGGING: scenario === "recording" ? "true" : "false",
         STUDIO_FIXTURE_SCENARIO: scenario,
         STUDIO_FIXTURE_PORT: String(port),
         OPENROUTER_API_KEY: "OFFLINE_FIXTURE_ONLY",

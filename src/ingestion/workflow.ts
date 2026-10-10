@@ -6,8 +6,24 @@ import type {
   CatalogResearchInput,
   CatalogResearchResult,
   ResearchDependencies,
+  IngestionData,
 } from "./contracts";
 import { CatalogAttempt } from "./attempt";
+import { createIngestionData } from "./contracts";
+import { applyCatalogItem } from "@/catalog/write/apply-operation";
+import { loadResearchContext } from "./research/context";
+import { createSourceSession } from "./sources/session";
+import { readInitialWithTrace } from "./runtime/tracing";
+import { researchFestival } from "./research/agent";
+import { prepareResearch } from "./research/prepare";
+import { buildResearchReport } from "./report";
+import {
+  logPreparation,
+  writeDisposition,
+  reportEventId,
+  writeLogFields,
+  attemptedCatalogFields,
+} from "./workflow-logging";
 
 export type {
   CatalogResearchInput,
@@ -39,25 +55,31 @@ export const studioIngestionInputSchema = z
   });
 export type StudioIngestionInput = z.input<typeof studioIngestionInputSchema>;
 
-const idSchema = z.object({ engineRunId: z.string() });
-const contextSchema = idSchema.extend({
-  knownLinkCount: z.number().int().nonnegative(),
-});
-const sourceSchema = contextSchema.extend({
-  readCount: z.number().int().nonnegative(),
-});
-const researchSchema = sourceSchema.extend({
-  researchOk: z.boolean(),
-  searchCount: z.number().int().nonnegative(),
-});
-const preparedSchema = researchSchema.extend({
-  operationCount: z.number().int().nonnegative(),
-});
-const appliedSchema = preparedSchema.extend({
-  changedCount: z.number().int().nonnegative(),
+// Explicit fields expose research data; runtime resources are never included.
+const dataSchema = z.object({
+  context: z.json().nullable(),
+  reads: z.array(z.json()),
+  discovery: z.array(z.json()),
+  research: z.json(),
+  prepared: z.json().nullable(),
+  applied: z.json().nullable(),
   writeFailed: z.boolean(),
-});
-const reportSchema = appliedSchema.extend({
+  errors: z.array(z.json()),
+  unresolved: z.array(z.json()),
+  report: z.json().nullable(),
+}) as unknown as z.ZodType<IngestionData>;
+// State is initialized internally. A broad JSON master schema avoids advertising
+// caller-editable state fields in Studio; each step validates the concrete data.
+const stateSchema = z.object({}).catchall(z.json()) as unknown as z.ZodType<{
+  data?: IngestionData;
+}>;
+const stepStateSchema = z.object({ data: dataSchema });
+const stepSchema = z.object({ engineRunId: z.string(), output: z.json() });
+export const studioIngestionResultSchema = z.strictObject({
+  engineRunId: z.string(),
+  ingestionRunId: z.string(),
+  mode: z.enum(["add", "refresh", "check"]),
+  dryRun: z.boolean(),
   outcome: z.enum([
     "created",
     "updated",
@@ -66,13 +88,6 @@ const reportSchema = appliedSchema.extend({
     "skipped",
     "failed",
   ]),
-});
-export const studioIngestionResultSchema = z.strictObject({
-  engineRunId: z.string(),
-  ingestionRunId: z.string(),
-  mode: z.enum(["add", "refresh", "check"]),
-  dryRun: z.boolean(),
-  outcome: reportSchema.shape.outcome,
   researchStatus: z.enum(["success", "partial", "failed"]),
   persistenceStatus: z.enum(["completed", "failed"]),
   eventId: z.string().nullable(),
@@ -107,27 +122,48 @@ async function safeStep<T>(execute: () => T | Promise<T>): Promise<T> {
   }
 }
 
-async function safePhase<T>(
+function serialize<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+async function finalizeFailure(
   owned: CatalogAttempt,
-  execute: () => T | Promise<T>,
-  fallback: () => T,
-  abortSignal?: AbortSignal,
-): Promise<T> {
-  if (owned.report) {
-    return fallback();
+  data: IngestionData,
+  cancelled = false,
+) {
+  await owned.settle();
+  try {
+    owned.fail(data, cancelled);
+  } catch {
+    /* Finalization records report failures. */
+  }
+  try {
+    await owned.finalize(data);
+  } catch {
+    /* Preserve the engine's safe terminal error. */
+  }
+}
+
+async function safePhase(
+  owned: CatalogAttempt,
+  data: IngestionData,
+  execute: () => unknown | Promise<unknown>,
+  abortSignal: AbortSignal,
+) {
+  if (data.report) {
+    return null;
   }
   try {
     return await execute();
   } catch {
-    if (abortSignal?.aborted) {
+    if (abortSignal.aborted) {
+      // Failed steps discard buffered state updates in the installed engine.
+      // Persist their local accounting before throwing; no private checkpoint.
+      await finalizeFailure(owned, data, true);
       throw new Error("Ingestion cancelled");
     }
-    try {
-      owned.fail();
-      return fallback();
-    } catch {
-      throw new Error("Ingestion workflow failed");
-    }
+    await safeStep(() => owned.fail(data));
+    return null;
   }
 }
 
@@ -182,33 +218,31 @@ export function createCatalogIngestionWorkflow(
     }
     return owned;
   };
-  const release = async (runId: string, owned: CatalogAttempt) => {
-    await owned.cleanup();
+  const release = async (
+    runId: string,
+    owned: CatalogAttempt,
+    report?: CatalogResearchResult,
+  ) => {
+    await owned.cleanup(report);
     if (attempts.get(runId) === owned) {
       attempts.delete(runId);
     }
   };
-  const recover = async (runId: string, cancelled = false) => {
+  const recover = async (
+    runId: string,
+    data: IngestionData,
+    cancelled = false,
+  ) => {
     const owned = attempts.get(runId);
     if (!owned) {
       return;
     }
     try {
       if (!owned.persistenceError && !owned.result) {
-        await owned.settle();
-        try {
-          owned.fail(cancelled);
-        } catch {
-          /* Preserve safe terminal cleanup. */
-        }
-        try {
-          await owned.finalize();
-        } catch {
-          /* Explicit finalization already records this. */
-        }
+        await finalizeFailure(owned, data, cancelled);
       }
     } finally {
-      await release(runId, owned);
+      await release(runId, owned, data.report ?? undefined);
     }
   };
 
@@ -216,142 +250,216 @@ export function createCatalogIngestionWorkflow(
     id: "initialize-run",
     description: "Validate the target and create its durable run",
     inputSchema: studioIngestionInputSchema,
-    outputSchema: idSchema,
+    outputSchema: stepSchema,
     retries: 0,
-    execute: ({ runId }) =>
-      safeStep(() => ({ engineRunId: attempt(runId).engineRunId })),
+    stateSchema: stepStateSchema,
+    execute: ({ runId, setState }) =>
+      safeStep(async () => {
+        await setState({ data: createIngestionData() });
+        return { engineRunId: attempt(runId).engineRunId, output: null };
+      }),
   });
-  const loadContext = createStep({
-    id: "load-context",
-    description: "Load the target and known catalog sources",
-    inputSchema: idSchema,
-    outputSchema: contextSchema,
-    retries: 0,
-    execute: ({ inputData }) => {
-      const owned = attempt(inputData.engineRunId);
-      return safePhase(
-        owned,
-        () => ({ ...inputData, knownLinkCount: owned.loadContext() }),
-        () => ({ ...inputData, knownLinkCount: 0 }),
-      );
-    },
-  });
-  const readInitial = createStep({
-    id: "read-initial-source",
-    description: "Read the initial known source within the run budget",
-    inputSchema: contextSchema,
-    outputSchema: sourceSchema,
-    retries: 0,
-    execute: ({ inputData, abortSignal }) => {
-      const owned = attempt(inputData.engineRunId);
-      return safePhase(
-        owned,
-        async () => ({
-          ...inputData,
-          readCount: await owned.readInitial(abortSignal),
-        }),
-        () => ({ ...inputData, readCount: owned.sources?.reads.length ?? 0 }),
-        abortSignal,
-      );
-    },
-  });
-  const research = createStep({
-    id: "research-festival",
-    description: "Research the festival using bounded source tools",
-    inputSchema: sourceSchema,
-    outputSchema: researchSchema,
-    retries: 0,
-    execute: ({ inputData, abortSignal }) => {
-      const owned = attempt(inputData.engineRunId);
-      return safePhase(
-        owned,
-        async () => {
-          const researchOk = await owned.runResearch(abortSignal);
+  const phase = (
+    id: string,
+    description: string,
+    execute: (
+      owned: CatalogAttempt,
+      data: IngestionData,
+      signal: AbortSignal,
+    ) => unknown | Promise<unknown>,
+  ) =>
+    createStep({
+      id,
+      description,
+      inputSchema: stepSchema,
+      outputSchema: stepSchema,
+      retries: 0,
+      stateSchema: stepStateSchema,
+      execute: async ({ inputData, state, setState, abortSignal }) => {
+        const owned = attempt(inputData.engineRunId);
+        const data = structuredClone(state.data);
+        const output = await safePhase(
+          owned,
+          data,
+          () => execute(owned, data, abortSignal),
+          abortSignal,
+        );
+        try {
+          await setState({ data: serialize(data) });
           return {
-            ...inputData,
-            researchOk,
-            readCount: owned.sources?.reads.length ?? 0,
-            searchCount: owned.sources?.discovery.length ?? 0,
+            engineRunId: owned.engineRunId,
+            output: serialize(output ?? null) as z.infer<
+              ReturnType<typeof z.json>
+            >,
           };
-        },
-        () => ({
-          ...inputData,
-          researchOk: false,
-          readCount: owned.sources?.reads.length ?? 0,
-          searchCount: owned.sources?.discovery.length ?? 0,
-        }),
-        abortSignal,
-      );
+        } catch {
+          // Unserializable state cannot replace the last completed native state.
+          await finalizeFailure(owned, data, abortSignal.aborted);
+          throw new Error("Ingestion workflow failed");
+        }
+      },
+    });
+  const loadContext = phase(
+    "load-context",
+    "Load the target and known catalog sources",
+    (owned, data) => {
+      data.context = loadResearchContext(owned.deps.client, owned.input);
+      owned.trace?.update({ context: data.context, phase: "initial_source" });
+      return data.context;
     },
-  });
-  const prepare = createStep({
-    id: "prepare-candidate",
-    description: "Validate candidate facts and prepare catalog operations",
-    inputSchema: researchSchema,
-    outputSchema: preparedSchema,
-    retries: 0,
-    execute: ({ inputData }) => {
-      const owned = attempt(inputData.engineRunId);
-      return safePhase(
-        owned,
-        () => ({ ...inputData, operationCount: owned.prepare() }),
-        () => ({
-          ...inputData,
-          operationCount: owned.prepared?.operations.length ?? 0,
-        }),
+  );
+  const readInitial = phase(
+    "read-initial-source",
+    "Read the initial known source within the run budget",
+    async (owned, data, signal) => {
+      signal.throwIfAborted();
+      owned.sources = createSourceSession(
+        owned.budget,
+        owned.config,
+        data.context!.knownLinks,
+        owned.deps,
+        owned.trace?.log,
       );
+      data.reads = owned.sources.reads;
+      data.discovery = owned.sources.discovery;
+      await owned.track(readInitialWithTrace(owned.sources, owned.trace));
+      signal.throwIfAborted();
+      return { reads: data.reads, discovery: data.discovery };
     },
-  });
-  const apply = createStep({
-    id: "apply-catalog-item",
-    description: "Apply the item atomically or roll back a dry run",
-    inputSchema: preparedSchema,
-    outputSchema: appliedSchema,
-    retries: 0,
-    execute: ({ inputData, abortSignal }) => {
-      const owned = attempt(inputData.engineRunId);
-      return safePhase(
-        owned,
-        () => ({ ...inputData, ...owned.apply(abortSignal) }),
-        () => ({
-          ...inputData,
-          changedCount:
-            owned.applied?.operations.filter((o) => o.changed).length ?? 0,
-          writeFailed: owned.writeFailed,
-        }),
-        abortSignal,
+  );
+  const research = phase(
+    "research-festival",
+    "Research the festival using bounded source tools",
+    async (owned, data, signal) => {
+      data.reads = owned.sources!.reads;
+      data.discovery = owned.sources!.discovery;
+      owned.trace?.update({ phase: "research" });
+      data.research = await owned.track(
+        researchFestival(
+          owned.input,
+          data.context!,
+          owned.sources!,
+          owned.budget,
+          owned.config,
+          owned.deps,
+          owned.ingestionRunId,
+          owned.trace?.tracing,
+          signal,
+        ),
       );
+      return {
+        research: data.research,
+        reads: data.reads,
+        discovery: data.discovery,
+      };
     },
-  });
-  const buildReport = createStep({
-    id: "build-report",
-    description: "Assemble the private outcome and accounting",
-    inputSchema: appliedSchema,
-    outputSchema: reportSchema,
-    retries: 0,
-    execute: ({ inputData }) => {
-      const owned = attempt(inputData.engineRunId);
-      return safePhase(
-        owned,
-        () => ({ ...inputData, outcome: owned.buildReport() }),
-        () => ({ ...inputData, outcome: owned.report!.outcome }),
-      );
+  );
+  const prepare = phase(
+    "prepare-candidate",
+    "Validate candidate facts and prepare catalog operations",
+    (owned, data) => {
+      owned.trace?.update({ phase: "validation" });
+      if (data.research.ok) {
+        data.prepared = prepareResearch(
+          data.research.candidate,
+          data.context!.catalog,
+          owned.input,
+          data.context!.terms,
+        );
+        owned.trace?.validated(data.prepared);
+        owned.trace?.tracing.setEventId(data.prepared.matchedEventId);
+        logPreparation(owned.trace?.log, data.prepared);
+        data.errors = data.prepared.errors;
+        data.unresolved = data.prepared.unresolved;
+      } else {
+        data.errors = data.research.errors;
+        owned.trace?.failed("research_failed", false);
+      }
+      return data.prepared;
     },
-  });
+  );
+  const apply = phase(
+    "apply-catalog-item",
+    "Apply the item atomically or roll back a dry run",
+    (owned, data, signal) => {
+      owned.trace?.update({ phase: "write" });
+      signal.throwIfAborted();
+      if (
+        !data.prepared?.operations.length ||
+        data.prepared.candidate?.status === "failed"
+      ) {
+        return;
+      }
+      if (owned.trace) {
+        owned.trace.state.writeState = "unknown";
+      }
+      try {
+        data.applied = applyCatalogItem(
+          owned.deps.client,
+          data.prepared.operations,
+          {
+            dryRun: owned.input.dryRun,
+          },
+        );
+        if (owned.trace) {
+          owned.trace.state.writeState = writeDisposition(
+            owned.input,
+            data.applied,
+          );
+        }
+        owned.trace?.tracing.setEventId(
+          reportEventId(owned.input, data.prepared, data.applied),
+        );
+        owned.trace?.update({ applied: data.applied });
+        owned.trace?.log?.info("Catalog write finished", {
+          stage: "write",
+          dryRun: owned.input.dryRun,
+          ...writeLogFields(owned.input, data.applied, false),
+          fields: attemptedCatalogFields(data.prepared.operations),
+        });
+      } catch (error) {
+        if (signal.aborted) {
+          throw error;
+        }
+        data.writeFailed = true;
+        if (owned.trace) {
+          owned.trace.state.writeState = "rolled_back";
+        }
+        owned.trace?.failed("write_failed");
+        data.errors.push({
+          code: "write_failed",
+          stage: "write",
+          message: "Catalog write failed",
+        });
+      }
+      return { applied: data.applied, writeFailed: data.writeFailed };
+    },
+  );
+  const buildReport = phase(
+    "build-report",
+    "Assemble the outcome and accounting",
+    (owned, data) => {
+      owned.trace?.update({ phase: "report" });
+      data.report = buildResearchReport(owned.reportInput(data));
+      return data.report;
+    },
+  );
   const finalize = createStep({
     id: "finalize-run",
     description: "Persist the run and return a bounded summary",
-    inputSchema: reportSchema,
+    inputSchema: stepSchema,
     outputSchema: studioIngestionResultSchema,
     retries: 0,
-    execute: async ({ inputData }) => {
+    stateSchema: stepStateSchema,
+    execute: async ({ inputData, state }) => {
       const owned = attempt(inputData.engineRunId);
+      const data = structuredClone(state.data);
       try {
-        const result = (await owned.finalize())!;
+        const result = (await owned.finalize(data))!;
         return projectSummary(owned, result, "completed");
       } catch {
-        if (owned.persistenceError && owned.report) {
-          const summary = projectSummary(owned, owned.report, "failed");
+        if (owned.persistenceError && data.report) {
+          const summary = projectSummary(owned, data.report, "failed");
           summary.errorCodes = [
             ...summary.errorCodes
               .filter((code) => code !== "run_persistence_failed")
@@ -364,7 +472,7 @@ export function createCatalogIngestionWorkflow(
         }
         throw new Error("Ingestion workflow failed");
       } finally {
-        await release(inputData.engineRunId, owned);
+        await release(inputData.engineRunId, owned, data.report ?? undefined);
       }
     },
   });
@@ -374,6 +482,7 @@ export function createCatalogIngestionWorkflow(
     description: "Research one festival catalog item",
     inputSchema: studioIngestionInputSchema,
     outputSchema: studioIngestionResultSchema,
+    stateSchema,
     retryConfig: { attempts: 0, delay: 0 },
     options: {
       validateInputs: true,
@@ -413,7 +522,7 @@ export function createCatalogIngestionWorkflow(
           }
         } catch (error) {
           if (attempts.get(runId)) {
-            await recover(runId);
+            await recover(runId, createIngestionData());
           } else {
             attempts.delete(runId);
           }
@@ -423,9 +532,13 @@ export function createCatalogIngestionWorkflow(
           throw new Error("Ingestion workflow failed");
         }
       },
-      onFinish: async ({ runId, status }) => {
+      onFinish: async ({ runId, status, state }) => {
         if (status !== "success") {
-          await recover(runId, status === "canceled");
+          await recover(
+            runId,
+            structuredClone(state.data ?? createIngestionData()),
+            status === "canceled",
+          );
         }
       },
     },
@@ -461,8 +574,9 @@ export async function runCatalogResearch(
       shouldPersistSnapshot: () => false,
     });
   } catch {
-    owned.fail();
-    return (await owned.finalize())!;
+    const data = createIngestionData();
+    owned.fail(data);
+    return (await owned.finalize(data))!;
   }
   const inputData = {
     mode: requested.mode,

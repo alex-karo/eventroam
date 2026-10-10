@@ -12,7 +12,7 @@ See proposal.md for motivation. Ingestion currently creates a six-step graph per
 
 ## Decisions
 
-### 1. One graph, one attempt object
+### 1. One graph, explicit step data
 
 Register `catalog-ingestion` with this shared graph:
 
@@ -21,9 +21,9 @@ initialize-run → load-context → read-initial-source → research-festival
   → prepare-candidate → apply-catalog-item → build-report → finalize-run
 ```
 
-Extract existing operations into one server-owned attempt object holding dependencies, budget, source session, trace, intermediate results and report. Steps call its operations. A small workflow-owned registry maps engine run IDs to attempts; it only handles lookup and ownership. Avoid separate lifecycle managers or a generic execution framework.
+Steps read and update serializable context, source reads, research output, prepared operations, receipts and reports in native Mastra workflow state. A server-owned attempt retains only dependencies, budget, source session, trace and terminal resource ownership. The registry maps engine IDs to owned resources; no second accumulated-data checkpoint exists. Each step body owns its phase operation and commits state before returning. Installed Mastra buffers setState until successful step completion. A throwing interrupted phase therefore finalizes its available local data before propagating a safe error; an unserializable state/report uses the same local fallback. Terminal hooks consume their supplied final state for failures/cancellation outside a phase. Preserve existing handled-failure and fatal-error statuses; do not mutate state behind setState.
 
-Admit each invocation before step work. Reject duplicate active IDs; hooks may clean up only their own attempt. Keep resources and private results outside Mastra input/state/output. CLI retains `runCatalogResearch(requested, deps)`, fixture injection and caller-owned connection semantics. Return its full result from the attempt when practical; add a completion channel only if required by the verified API. Retain the catalog-generated ingestion ID separately from the engine ID.
+Admit each invocation before step work. Reject duplicate active IDs; hooks may clean up only their own attempt. Keep credentials, configuration and live resources outside Mastra input/state/output. Research data is inspectable in local Studio. CLI retains `runCatalogResearch(requested, deps)`, fixture injection and caller-owned connection semantics. Return its full result from the attempt when practical; add a completion channel only if required by the verified API. Retain the catalog-generated ingestion ID separately from the engine ID.
 
 ### 2. Explicit persistence, shared cleanup
 
@@ -35,7 +35,9 @@ Compose Mastra's `abortSignal` with the research deadline, propagate cancellatio
 
 ### 3. Small Studio boundary
 
-Use strict input: mode, name/eventId, dryRun=true and republish=false; one target, fixed actor `catalog-research`, environment-provided settings. Return both run IDs, mode, statuses, Event ID, counts, known usage and safe error codes. Full version-2 reports stay in `ingestion_runs`.
+State is server-initialized. The workflow uses a broad JSON-object master schema with no advertised initial-state fields; steps validate their concrete state schema. This avoids Studio treating children of an omitted optional state object as required. The execution guard rejects caller-supplied initialState.
+
+Use strict input: mode, name/eventId, dryRun=true and republish=false; one target, fixed actor `catalog-research`, environment-provided settings. Return both run IDs, mode, statuses, Event ID, counts, known usage and safe error codes. Full version-2 reports remain durable in `ingestion_runs` and are visible in intermediate workflow data.
 
 Load execution dependencies lazily. Resolve catalog and trace paths before Mastra changes working directory; check the catalog exists before opening it. Keep loopback binding and shared trace inspection independent of attempt cleanup.
 
@@ -59,7 +61,7 @@ Keep model-call/page counts, token usage and reported costs as accounting. Updat
 
 - Shared registration leaks state → overlap and duplicate-ID ownership tests.
 - Hooks hide persistence errors → explicit final step and real-server fault injection.
-- Disabled snapshots do not prove privacy → inspect actual transport/storage/traces, including error messages, stacks and causes.
+- Research data is visible in local Studio → inspect transport for accidental credentials/resources; retain safe exception messages, stacks and causes.
 - Cancellation closes resources too early → await active work; test before writing and after commit.
 - Concurrent writes conflict → existing optimistic versions and atomic rollback; no automatic write retry.
 
@@ -70,6 +72,6 @@ No migration or dependency upgrade. Extract the shared attempt, register the gra
 ## API Evidence
 
 - Installed `@mastra/core/dist/docs/references/reference-workflows-workflow.md`: lifecycle, snapshot and restart options.
-- Installed `@mastra/core/dist/workflows/step.d.ts`: runId and abortSignal.
+- Installed `@mastra/core/dist/workflows/step.d.ts`: runId, abortSignal, state and setState; workflow-state docs and installed default-engine source verify buffered updates and final hook state.
 - Installed `@mastra/core/dist/docs/references/docs-server-middleware.md`: route guards.
 - [Workflow reference](https://mastra.ai/reference/workflows/workflow). Installed package definitions take precedence.

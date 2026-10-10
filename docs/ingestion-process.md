@@ -38,7 +38,7 @@ Each festival attempt runs one Mastra workflow with eight sequential steps:
 | `build-report` | Combine research, actual changes, source history, questions, and known usage. |
 | `finalize-run` | Persist the private report, return the bounded summary and release owned resources. |
 
-CLI and local Studio execute this same graph in their own Node process. Each attempt owns its budget, source session, intermediate work and private report. Credentials, pages and model output remain outside workflow state. The final step persists once; terminal hooks recover failures or cancellation that bypass it. Cleanup waits for active work. Finalization failure remains visible without repeating research or writes.
+CLI and local Studio execute this same graph in their own Node process. Native Mastra workflow state accumulates research context, source reads, model output, prepared changes, receipts and reports. Each step returns its own inspectable result; the server-owned attempt retains only budget, source session, connections, trace and terminal lifecycle. Credentials, prompts and live resources never enter workflow data. The final step persists once; terminal hooks recover from their final state. Mastra discards state updates from throwing steps, so an interrupted phase finalizes its available local data before propagating a safe error. Cleanup waits for active work. Finalization failure remains visible without repeating research or writes.
 
 Workflow retries, snapshots and automatic restart are disabled. Per-step execution, resume, restart and time travel are unsupported. Start a fresh attempt against current catalog state after interruption.
 

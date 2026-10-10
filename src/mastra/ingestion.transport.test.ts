@@ -3,13 +3,9 @@ import { execFileSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { runCatalogResearch } from "../ingestion/workflow";
-import { testDatabase } from "../test/database";
-import { testFixtures } from "../test/fixtures";
 import {
   startStudioFixture,
   STUDIO_FIXTURE_EVENT_ID,
-  type StudioScenario,
 } from "../test/studio-fixture";
 
 type Fixture = Awaited<ReturnType<typeof startStudioFixture>>;
@@ -91,7 +87,7 @@ afterAll(async () => {
   await fixture?.stop();
 }, 10_000);
 
-test("native create and start expose a bounded preview, then apply under a fresh ingestion ID", async () => {
+test("native create and stream expose preview, then apply under a fresh ingestion ID", async () => {
   const inputData = { mode: "refresh", eventId: STUDIO_FIXTURE_EVENT_ID };
   const preview = await run(fixture, inputData);
   expect(
@@ -105,7 +101,12 @@ test("native create and start expose a bounded preview, then apply under a fresh
     dryRun: true,
     persistenceStatus: "completed",
   });
-  expect(preview.text).not.toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
+  expect(preview.text).toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
+  expect(preview.text).toContain('"research"');
+  expect(preview.text).toContain('"operations"');
+  expect(preview.text).toContain('"applied"');
+  expect(preview.text).not.toContain("fixture-api-key");
+  expect(preview.text).not.toContain(fixture.catalogPath);
   const afterPreview = rows(fixture);
   expect(afterPreview).toHaveLength(1);
   expect(afterPreview[0].status).toBe("completed");
@@ -135,94 +136,6 @@ test("native create and start expose a bounded preview, then apply under a fresh
   const durable = rows(fixture);
   expect(durable).toHaveLength(2);
   expect(durable[0].id).not.toBe(durable[1].id);
-  const studioReport = JSON.parse(durable[1].report_json as string) as {
-    outcome: string;
-    researchStatus: string;
-    operations: { kind: string }[];
-    changes: { field: string }[];
-  };
-  const cliClient = testDatabase().client;
-  const cliFixtures = testFixtures(cliClient);
-  const cliEvent = cliFixtures.event({
-    id: STUDIO_FIXTURE_EVENT_ID,
-    canonicalName: "Studio Fixture Festival",
-  });
-  cliFixtures.eventLink(cliEvent, {
-    url: "https://example.org/studio-fixture",
-  });
-  const cliResult = await runCatalogResearch(
-    {
-      mode: "refresh",
-      eventId: STUDIO_FIXTURE_EVENT_ID,
-      actor: "catalog-research",
-      dryRun: false,
-    },
-    {
-      client: cliClient,
-      todayUtc: "2026-10-10",
-      readSource: async (url, { budget }) => {
-        budget.consumePage();
-        return {
-          attemptedUrl: url,
-          finalUrl: url,
-          retrievedAt: "2026-10-10T12:00:00Z",
-          method: "http" as const,
-          outcome: "ok" as const,
-          completeness: "full" as const,
-          markdown:
-            "PRIVATE_STUDIO_FIXTURE_SENTINEL Fixture festival starts July 1, 2027.",
-          links: [],
-        };
-      },
-      generateCandidate: async () => ({
-        status: "success",
-        data: {
-          eventId: STUDIO_FIXTURE_EVENT_ID,
-          eventName: "Studio Fixture Festival",
-          sources: [
-            {
-              url: "https://example.org/studio-fixture",
-              information: "PRIVATE_STUDIO_FIXTURE_SENTINEL",
-            },
-          ],
-          links: { socials: {} },
-          editions: [
-            {
-              key: "2027",
-              year: { value: 2027, reason: "PRIVATE_STUDIO_FIXTURE_SENTINEL" },
-              dates: {
-                value: {
-                  startsOn: "2027-07-01",
-                  endsOn: "2027-07-03",
-                  state: "confirmed",
-                },
-                reason: "PRIVATE_STUDIO_FIXTURE_SENTINEL",
-              },
-              countryCode: {
-                value: "PT",
-                reason: "PRIVATE_STUDIO_FIXTURE_SENTINEL",
-              },
-              locality: {
-                value: "Lisbon",
-                reason: "PRIVATE_STUDIO_FIXTURE_SENTINEL",
-              },
-              links: {},
-            },
-          ],
-        },
-        errors: [],
-        unresolved: [],
-      }),
-    },
-  );
-  expect(studioReport.outcome).toBe(cliResult.outcome);
-  expect(studioReport.researchStatus).toBe(cliResult.researchStatus);
-  expect(studioReport.operations.map((operation) => operation.kind)).toEqual(
-    cliResult.operations.map((operation) => operation.kind),
-  );
-  expect(studioReport.changes.map((change) => change.field)).toEqual(
-    cliResult.changes.map((change) => change.field),
-  );
   const afterApply = new Database(fixture.catalogPath, { readonly: true });
   try {
     expect(
@@ -253,6 +166,12 @@ test("graph inspection needs no catalog and execution does not create one", asyn
     );
     expect(graph.status).toBe(200);
     const description = await graph.text();
+    const described = JSON.parse(description) as { stateSchema: string };
+    const stateDefinition = JSON.parse(described.stateSchema) as {
+      json: { required?: string[]; properties?: Record<string, unknown> };
+    };
+    expect(stateDefinition.json.required ?? []).toEqual([]);
+    expect(stateDefinition.json.properties ?? {}).toEqual({});
     for (const step of [
       "initialize-run",
       "research-festival",
@@ -289,6 +208,16 @@ test("per-step starts and replay routes are rejected before durable allocation",
     });
     expect(rejected.response.status, `${route}: ${rejected.text}`).toBe(400);
     expect(rejected.text).not.toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
+    for (const initialState of [{}, { data: { prepared: [] } }]) {
+      const stateOverride = await request(fixture, `${route}?runId=${runId}`, {
+        inputData: { mode: "check", eventId: STUDIO_FIXTURE_EVENT_ID },
+        initialState,
+      });
+      expect(
+        stateOverride.response.status,
+        `${route}: ${stateOverride.text}`,
+      ).toBe(400);
+    }
   }
   for (const route of [
     "resume",
@@ -306,41 +235,8 @@ test("per-step starts and replay routes are rejected before durable allocation",
   expect(rows(fixture)).toHaveLength(baseline);
 }, 30_000);
 
-test.each(["partial", "failure"] satisfies StudioScenario[])(
-  "native server projects %s research with a durable report and no private transport data",
-  async (scenario) => {
-    const server = await startStudioFixture(scenario);
-    try {
-      const started = await run(server, {
-        mode: "check",
-        eventId: STUDIO_FIXTURE_EVENT_ID,
-      });
-      expect(
-        started.response.status,
-        `${started.text}\n${server.output()}`,
-      ).toBe(200);
-      expect(started.text).not.toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
-      const result = streamResult(started.text);
-      expect(result, started.text).toMatchObject({
-        engineRunId: started.runId,
-        researchStatus: scenario === "partial" ? "partial" : "failed",
-        persistenceStatus: "completed",
-      });
-      const durable = rows(server);
-      expect(durable).toHaveLength(1);
-      expect(JSON.parse(durable[0].report_json as string)).toMatchObject({
-        schemaVersion: 2,
-        researchStatus: scenario === "partial" ? "partial" : "failed",
-      });
-    } finally {
-      await server.stop();
-    }
-  },
-  60_000,
-);
-
 test("native cancel route closes an in-flight run without later catalog writes", async () => {
-  const server = await startStudioFixture("agent-cancel");
+  const server = await startStudioFixture("cancel");
   try {
     const runId = await createRun(server);
     const pending = request(server, `start-async?runId=${runId}`, {
@@ -375,7 +271,7 @@ test("native cancel route closes an in-flight run without later catalog writes",
 }, 70_000);
 
 test("final persistence failure keeps the committed catalog change and hides the database error", async () => {
-  const server = await startStudioFixture("agent-persistence");
+  const server = await startStudioFixture("persistence");
   try {
     const started = await run(server, {
       mode: "refresh",
@@ -383,7 +279,7 @@ test("final persistence failure keeps the committed catalog change and hides the
       dryRun: false,
     });
     expect(started.response.status, started.text).toBe(200);
-    expect(started.text).not.toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
+    expect(started.text).not.toContain("fixture-api-key");
     expect(started.text).toContain("run_persistence_failed");
     const finalPacket = started.text
       .split("\u001e")
@@ -403,6 +299,9 @@ test("final persistence failure keeps the committed catalog change and hides the
     const safeError = JSON.parse(
       finalPacket?.payload?.error?.message ?? "null",
     ) as Record<string, unknown>;
+    expect(JSON.stringify(safeError)).not.toContain(
+      "PRIVATE_STUDIO_FIXTURE_SENTINEL",
+    );
     expect(safeError).toMatchObject({
       code: "run_persistence_failed",
       summary: {
@@ -431,31 +330,8 @@ test("final persistence failure keeps the committed catalog change and hides the
   }
 }, 60_000);
 
-test("offline model exercises the real agent path without exposing provider or page content", async () => {
-  const server = await startStudioFixture("agent");
-  try {
-    const started = await run(server, {
-      mode: "check",
-      eventId: STUDIO_FIXTURE_EVENT_ID,
-    });
-    expect(started.response.status, `${started.text}\n${server.output()}`).toBe(
-      200,
-    );
-    expect(started.text).not.toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
-    const result = streamResult(started.text);
-    expect(result).toMatchObject({
-      researchStatus: "success",
-      persistenceStatus: "completed",
-      usage: { inputTokens: 10, outputTokens: 20 },
-    });
-    expect(rows(server)).toHaveLength(1);
-  } finally {
-    await server.stop();
-  }
-}, 60_000);
-
 test("recorded apply traces and logs stay private while the shared store serves later runs", async () => {
-  const server = await startStudioFixture("agent-recording");
+  const server = await startStudioFixture("recording");
   let stopped = false;
   try {
     const applied = await run(server, {

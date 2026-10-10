@@ -8,8 +8,8 @@ Ingestion now uses explicit Mastra steps, but its workflow is constructed inside
 
 - Register a reusable `catalog-ingestion` workflow with visible research and lifecycle steps in local Mastra Studio.
 - Provide an input form for one `add`, `refresh`, or `check` target, defaulting to dry-run and allowing explicit apply.
-- Share one attempt object and phase implementations with the CLI; use a small execution registry and one idempotent cleanup path.
-- Return a bounded result summary and durable ingestion run ID in Studio. Keep complete private reports in the existing catalog run records.
+- Use native Mastra workflow state for accumulated serializable research results; keep only runtime resources in a small execution registry.
+- Return a bounded result summary and durable ingestion run ID in Studio. Expose intermediate research and complete reports in local Studio; retain durable reports in catalog run records.
 - Load execution dependencies lazily so graph and trace inspection still works without model credentials or a catalog database.
 - Preserve atomic writes, trace privacy, accounting and failure behavior; reject per-step execution and workflow replay before allocating attempt resources.
 - Remove the page-count cap and use Mastra agent iteration/time controls for shared CLI/Studio research; retain search/depth/size safeguards, provider retry policy and usage accounting.
