@@ -1,12 +1,20 @@
 import { Mastra } from "@mastra/core/mastra";
 import { createObservabilityStore } from "../ingestion/runtime/observability/storage";
+import { createStudioIngestionWorkflow } from "./ingestion";
+import { ingestionExecutionGuard } from "./ingestion-guard";
 
-// Inspection only: no model credentials, catalog connection, agents or workflows.
+const storage = await studioStore();
+
 export const mastra = new Mastra({
-  storage: await studioStore(),
+  workflows: { "catalog-ingestion": createStudioIngestionWorkflow(storage) },
+  storage,
   logger: false,
   loggerOptions: { export: false },
-  server: { host: "127.0.0.1", port: 4111 },
+  server: {
+    host: "127.0.0.1",
+    port: 4111,
+    middleware: [ingestionExecutionGuard],
+  },
 });
 
 async function studioStore() {

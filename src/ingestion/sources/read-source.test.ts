@@ -113,7 +113,7 @@ describe("readSource", () => {
     expect(firecrawlRequest).not.toHaveBeenCalled();
   });
 
-  it("does not start fallback after the page budget is exhausted", async () => {
+  it("starts fallback after a blocked page without a page cap", async () => {
     const request = mockResponse("Forbidden");
     request.mockResolvedValueOnce({
       finalUrl: sourceUrl,
@@ -123,16 +123,15 @@ describe("readSource", () => {
     });
     const firecrawlRequest = mockResponse("<p>Fallback</p>");
     const result = await readSource(sourceUrl, {
-      budget: createResearchBudget({ pages: 1 }),
+      budget: createResearchBudget(),
       request,
       firecrawlRequest,
       firecrawlKey: "test-key",
     });
     expect(result).toMatchObject({
-      outcome: "blocked",
-      reason: "pages_budget_exhausted",
+      outcome: "ok",
     });
-    expect(firecrawlRequest).not.toHaveBeenCalled();
+    expect(firecrawlRequest).toHaveBeenCalledOnce();
   });
 
   it("reports fallback failure safely without retrying it", async () => {

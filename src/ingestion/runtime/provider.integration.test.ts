@@ -62,7 +62,7 @@ const config = {
   model: "fixture/provider-model",
   limits: {
     ...DEFAULT_RESEARCH_LIMITS,
-    modelCalls: 1,
+    agentSteps: 1,
     modelOutputTokens: 256,
   },
 };
@@ -442,7 +442,7 @@ test.each([
         client,
         config: {
           ...config,
-          limits: { ...config.limits, modelCalls: 3 + searchAttempts },
+          limits: { ...config.limits, agentSteps: 3 + searchAttempts },
         },
         discoverSources,
         readSource,
@@ -470,7 +470,13 @@ test.each([
       modelCostUsd: searchDetails && searchAttempts === 1 ? 1 : null,
       searchCostUsd: 0.25,
     });
-    expect(requests[2].tools).toBeUndefined();
+    expect(requests[2].tools).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          function: expect.objectContaining({ name: "readSource" }),
+        }),
+      ]),
+    );
     expect(requests[0].tools).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -570,7 +576,7 @@ test.each([null, "I will read the linked page before returning the result."])(
     );
     const result = await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+      config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
       readSource,
     });
     expect(requests).toHaveLength(2);
@@ -708,7 +714,7 @@ test.each(["http", "abort", "context"])(
         ...config,
         limits: {
           ...config.limits,
-          modelCalls: 2,
+          agentSteps: 2,
           durationMs: failure === "abort" ? 500 : 30_000,
           modelInputChars: failure === "context" ? 30_000 : 120_000,
         },
@@ -738,8 +744,103 @@ test.each(["http", "abort", "context"])(
         expect.objectContaining({ code: "limit_reached" }),
       );
     }
+    if (failure === "abort") {
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({ code: "limit_reached", stage: "research" }),
+      );
+    }
   },
 );
+
+test("native agent iterations stop repeated tool requests", async () => {
+  const client = testDatabase().client;
+  savedSource(client);
+  const fetchMock = vi.fn<typeof fetch>(async () =>
+    modelResponse(readCall(), stepUsage),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  const result = await runCatalogResearch(input, {
+    client,
+    config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
+    readSource: async (requestedUrl) => ({
+      ...source,
+      attemptedUrl: requestedUrl,
+      finalUrl: requestedUrl,
+    }),
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(result.operations).toEqual([]);
+  expect(result.usage.modelCalls).toBe(fetchMock.mock.calls.length);
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({ code: "limit_reached", stage: "research" }),
+  );
+});
+
+test("provider unavailable retries preserve ordinary agent capacity and call accounting", async () => {
+  const client = testDatabase().client;
+  savedSource(client);
+  const fetchMock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          error: {
+            message: "Temporary provider outage",
+            metadata: { error_type: "provider_unavailable" },
+          },
+        },
+        { status: 503 },
+      ),
+    )
+    .mockImplementation(finalResponse(stepUsage));
+  vi.stubGlobal("fetch", fetchMock);
+  const result = await runCatalogResearch(input, {
+    client,
+    config: { ...config, limits: { ...config.limits, durationMs: 30_000 } },
+    readSource: async () => source,
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(result.usage.modelCalls).toBe(2);
+  expect(result.usage.inputTokens).toBe(10);
+  expect(result.errors).toEqual([]);
+}, 15_000);
+
+test("retry allowance cannot add ordinary agent iterations", async () => {
+  const client = testDatabase().client;
+  savedSource(client);
+  const fetchMock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          error: {
+            message: "Temporary provider outage",
+            metadata: { error_type: "provider_unavailable" },
+          },
+        },
+        { status: 503 },
+      ),
+    )
+    .mockImplementation(async () => modelResponse(readCall(), stepUsage));
+  vi.stubGlobal("fetch", fetchMock);
+  const result = await runCatalogResearch(input, {
+    client,
+    config: {
+      ...config,
+      limits: { ...config.limits, agentSteps: 2, durationMs: 30_000 },
+    },
+    readSource: async (requestedUrl) => ({
+      ...source,
+      attemptedUrl: requestedUrl,
+      finalUrl: requestedUrl,
+    }),
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+  expect(result.usage.modelCalls).toBe(3);
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({ code: "limit_reached" }),
+  );
+}, 15_000);
 
 test.each([undefined, 0, 0.125])(
   "keeps cost %s distinct from an unavailable total",
@@ -760,7 +861,7 @@ test.each([undefined, 0, 0.125])(
     );
     const result = await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+      config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
       readSource: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
@@ -793,7 +894,7 @@ test.each([undefined, {}])(
     );
     const result = await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+      config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
       readSource: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
@@ -830,7 +931,7 @@ test.each([
     );
     await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
+      config: { ...config, limits: { ...config.limits, agentSteps: 3 } },
       readSource,
       discoverSources,
     });
@@ -857,7 +958,7 @@ test.each(["readSource", "discoverSources"])(
     vi.stubGlobal("fetch", fetchMock);
     await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
+      config: { ...config, limits: { ...config.limits, agentSteps: 3 } },
       readSource: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
@@ -1006,7 +1107,7 @@ test.each([400, 429, 503])(
     vi.stubGlobal("fetch", fetchMock);
     const result = await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
+      config: { ...config, limits: { ...config.limits, agentSteps: 3 } },
       readSource: async () => source,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -1100,7 +1201,7 @@ test("completed tool step usage survives a later provider failure", async () => 
 
   const result = await runCatalogResearch(input, {
     client,
-    config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+    config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
     readSource,
   });
 

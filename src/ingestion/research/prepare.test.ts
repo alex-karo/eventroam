@@ -82,23 +82,23 @@ test("failed research and invalid target produce no operations", () => {
   expect(result.validation).toEqual({ structural: "passed", target: "failed" });
 });
 
-test("preparation leaves target validation unreached after structure or source-budget failure", () => {
+test("preparation accepts source summaries beyond the former page cap", () => {
   const malformed = prepareResearch({}, [], input, []);
   expect(malformed.validation).toEqual({
     structural: "failed",
     target: "not_run",
   });
   const proposed = candidate();
-  proposed.data!.sources = [
-    { url: "https://example.org/", information: "Info" },
-  ];
-  const overBudget = prepareResearch(proposed, [], input, [], 0);
+  proposed.data!.sources = Array.from({ length: 21 }, (_, index) => ({
+    url: `https://example.org/source-${index}`,
+    information: "Info",
+  }));
+  const overBudget = prepareResearch(proposed, [], input, []);
   expect(overBudget.validation).toEqual({
     structural: "passed",
-    target: "not_run",
+    target: "passed",
   });
-  expect(overBudget.candidate).toBeNull();
-  expect(overBudget.operations).toEqual([]);
+  expect(overBudget.candidate).not.toBeNull();
 });
 
 test("add with recognized existing ID skips every proposed update and logs name difference", () => {

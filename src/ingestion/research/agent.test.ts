@@ -79,11 +79,11 @@ test("nested research limit takes precedence over model diagnostics", () => {
   const classified = classifyModelError(
     Object.assign(new Error("provider wrapper"), {
       statusCode: 503,
-      cause: new ResearchLimitError("modelCalls"),
+      cause: new ResearchLimitError("searches"),
     }),
     Date.now() + 60_000,
   );
-  expect(classified.limit?.limit).toBe("modelCalls");
+  expect(classified.limit?.limit).toBe("searches");
 });
 
 test("wire normalization omits only declared optional null slots and preserves intentional clearing", () => {

@@ -148,7 +148,7 @@ it("bounds a hanging DNS lookup and a hanging response", async () => {
   expect(requests).toHaveLength(1);
 });
 
-it("retries in Got and charges each retry to the source page budget", async () => {
+it("retries in Got and counts each page attempt", async () => {
   respond = (_request, response) => {
     response.writeHead(requests.length === 1 ? 503 : 200, {
       "retry-after": "0",
@@ -156,7 +156,7 @@ it("retries in Got and charges each retry to the source page budget", async () =
     });
     response.end("Festival 2027 confirmed");
   };
-  const budget = createResearchBudget({ pages: 2 });
+  const budget = createResearchBudget();
   const result = await readSource("http://fixture.example/start", {
     budget,
     resolver,
@@ -167,17 +167,17 @@ it("retries in Got and charges each retry to the source page budget", async () =
   expect(resolver).toHaveBeenCalledTimes(2);
 });
 
-it("stops retries before a request when the page budget is exhausted", async () => {
+it("retries beyond the former page cap", async () => {
   respond = (_request, response) => {
     response.writeHead(503, { "retry-after": "0" });
     response.end();
   };
-  const budget = createResearchBudget({ pages: 1 });
+  const budget = createResearchBudget();
   expect(
     await readSource("http://fixture.example/start", { budget, resolver }),
-  ).toMatchObject({ outcome: "blocked", reason: "pages_budget_exhausted" });
-  expect(requests).toHaveLength(1);
-  expect(budget.snapshot().pages).toBe(1);
+  ).toMatchObject({ outcome: "failed" });
+  expect(requests.length).toBeGreaterThan(1);
+  expect(budget.snapshot().pages).toBe(requests.length);
 });
 
 it("preserves callback errors and checks DNS afresh on retry", async () => {
@@ -185,7 +185,7 @@ it("preserves callback errors and checks DNS afresh on retry", async () => {
     response.writeHead(503, { "retry-after": "0" });
     response.end();
   };
-  const failure = new ResearchLimitError("pages");
+  const failure = new ResearchLimitError("depth");
   await expect(
     load({
       onRetry: () => {
