@@ -34,6 +34,9 @@ export const emptyFilters = (): Filters => ({
   durationMax: null,
   sizes: [],
 });
+export const searchTextLimit = 200;
+export const normalizeSearchText = (value: string) =>
+  value.trim().replace(/\s+/g, " ");
 const datePattern = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 export function validDate(value: string): boolean {
   if (!datePattern.test(value)) {
@@ -59,13 +62,16 @@ export function normalizeFilters(
   const genres = new Set(knownGenres.map((genre) => genre.slug));
   const clean = {
     ...filters,
-    q: filters.q.trim().replace(/\s+/g, " "),
-    place: filters.place.trim().replace(/\s+/g, " "),
+    q: normalizeSearchText(filters.q),
+    place: normalizeSearchText(filters.place),
     countries: unique(filters.countries.map((c) => c.toUpperCase())),
     genres: unique(filters.genres),
     sizes: unique(filters.sizes) as SizeBand[],
   };
-  if (clean.q.length > 200 || clean.place.length > 200) {
+  if (
+    clean.q.length > searchTextLimit ||
+    clean.place.length > searchTextLimit
+  ) {
     errors.push("Search text is too long.");
   }
   if (clean.countries.some((c) => !isAssignedCountryCode(c))) {

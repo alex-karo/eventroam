@@ -1,4 +1,6 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { LocationChoices } from "@/features/discovery/components/location-choices";
+import { sizeLabels } from "@/features/discovery/model/filter-feedback";
 import type { DiscoverySummary, Genre } from "@/catalog/read/contracts";
 import {
   genrePickerTree,
@@ -15,13 +17,6 @@ const groupTitles = {
   more: "Refine your search",
 };
 
-const sizeLabels: Record<SizeBand, string> = {
-  "lt-1000": "Under 1,000",
-  "1000-4999": "1,000–4,999",
-  "5000-19999": "5,000–19,999",
-  "20000-49999": "20,000–49,999",
-  "gte-50000": "50,000+",
-};
 function toggle(values: string[], value: string) {
   return values.includes(value)
     ? values.filter((item) => item !== value)
@@ -74,6 +69,7 @@ export function FilterPanel({
   onApply,
   onCancel,
   error,
+  previewCount,
 }: Readonly<{
   group: "when" | "where" | "genre" | "more";
   pending: Filters;
@@ -84,115 +80,126 @@ export function FilterPanel({
   onApply: (filters: Filters) => void;
   onCancel: () => void;
   error: string | null;
+  previewCount: number | null;
 }>) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [months] = useState(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, offset) => {
+      const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+      const year = start.getFullYear();
+      const month = String(start.getMonth() + 1).padStart(2, "0");
+      const lastDay = new Date(year, start.getMonth() + 1, 0).getDate();
+      return {
+        label: new Intl.DateTimeFormat("en", {
+          month: "short",
+          year: "numeric",
+        }).format(start),
+        from: `${year}-${month}-01`,
+        to: `${year}-${month}-${String(lastDay).padStart(2, "0")}`,
+      };
+    });
+  });
+  const [nativeError, setNativeError] = useState<string | null>(null);
+  function checkNativeInputs() {
+    const invalid =
+      panelRef.current?.querySelector<HTMLInputElement>("input:invalid");
+    const message = invalid
+      ? "Complete or clear the date and duration fields."
+      : null;
+    setNativeError(message);
+    return message;
+  }
+  function setBounds(next: Filters) {
+    // Shortcuts also clear unfinished native editing values, which may expose "".
+    for (const input of panelRef.current?.querySelectorAll<HTMLInputElement>(
+      'input[type="date"], input[type="number"]',
+    ) ?? []) {
+      const field = input.name as "from" | "to" | "durationMin" | "durationMax";
+      input.value = field ? String(next[field] ?? "") : "";
+    }
+    setNativeError(null);
+    setPending(next);
+  }
+  const feedback = nativeError ?? error;
+  const feedbackId = feedback ? "filter-feedback" : undefined;
+  const editionLabel = previewCount === 1 ? "edition" : "editions";
+  const action =
+    feedback || previewCount === null
+      ? "Apply filters"
+      : `Show ${previewCount} ${editionLabel}`;
   return (
-    <div id="filter-panel" className="filter-panel">
+    <div
+      ref={panelRef}
+      id="filter-panel"
+      className="filter-panel"
+      onInputCapture={checkNativeInputs}
+      onKeyUpCapture={checkNativeInputs}
+    >
       <h2>{groupTitles[group]}</h2>
       <div className="filter-fields">
         {group === "when" && (
-          <fieldset>
-            <legend>When</legend>
+          <fieldset aria-describedby={feedbackId}>
+            <legend className="sr-only">When</legend>
             <p>Matches editions that overlap your dates.</p>
-            <label>
-              From{" "}
-              <input
-                type="date"
-                value={pending.from}
-                onChange={(e) =>
-                  setPending({ ...pending, from: e.target.value })
-                }
-              />
-            </label>
-            <label>
-              To{" "}
-              <input
-                type="date"
-                value={pending.to}
-                onChange={(e) => setPending({ ...pending, to: e.target.value })}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => setPending({ ...pending, from: "", to: "" })}
-            >
-              Upcoming and ongoing
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const date = new Date();
-                const day = date.getDay();
-                const offset = day === 0 ? -1 : (6 - day + 7) % 7;
-                date.setDate(date.getDate() + offset);
-                const from = [
-                  date.getFullYear(),
-                  String(date.getMonth() + 1).padStart(2, "0"),
-                  String(date.getDate()).padStart(2, "0"),
-                ].join("-");
-                date.setDate(date.getDate() + 1);
-                const to = [
-                  date.getFullYear(),
-                  String(date.getMonth() + 1).padStart(2, "0"),
-                  String(date.getDate()).padStart(2, "0"),
-                ].join("-");
-                setPending({ ...pending, from, to });
-              }}
-            >
-              This weekend
-            </button>
-            <label>
-              Month{" "}
-              <input
-                type="month"
-                onChange={(e) => {
-                  if (!e.target.value) {
-                    return;
+            <div className="filter-input-pair filter-date-pair">
+              <label>
+                From{" "}
+                <input
+                  type="date"
+                  name="from"
+                  aria-describedby={feedbackId}
+                  value={pending.from}
+                  onChange={(e) =>
+                    setPending({ ...pending, from: e.target.value })
                   }
-                  const [year, month] = e.target.value.split("-").map(Number);
-                  const end = new Date(year, month, 0).getDate();
-                  setPending({
-                    ...pending,
-                    from: `${e.target.value}-01`,
-                    to: `${e.target.value}-${String(end).padStart(2, "0")}`,
-                  });
-                }}
-              />
-            </label>
-          </fieldset>
-        )}
-        {group === "where" && (
-          <fieldset>
-            <legend>Where</legend>
-            <label>
-              Locality or region{" "}
-              <input
-                value={pending.place}
-                onChange={(e) =>
-                  setPending({ ...pending, place: e.target.value })
-                }
-              />
-            </label>
-            <div className="choices">
-              {countries.map((country) => (
-                <label key={country}>
-                  <input
-                    type="checkbox"
-                    checked={pending.countries.includes(country)}
-                    onChange={() =>
-                      setPending({
-                        ...pending,
-                        countries: toggle(pending.countries, country),
-                      })
-                    }
-                  />
-                  {country}
-                </label>
+                />
+              </label>
+              <label>
+                To{" "}
+                <input
+                  type="date"
+                  name="to"
+                  aria-describedby={feedbackId}
+                  value={pending.to}
+                  onChange={(e) =>
+                    setPending({ ...pending, to: e.target.value })
+                  }
+                />
+              </label>
+            </div>
+            <p>Quick month selection</p>
+            <div className="filter-shortcuts" aria-label="Nearby months">
+              {months.map(({ label, from, to }) => (
+                <button
+                  key={from}
+                  type="button"
+                  aria-pressed={pending.from === from && pending.to === to}
+                  onClick={() => setBounds({ ...pending, from, to })}
+                >
+                  {label}
+                </button>
               ))}
             </div>
           </fieldset>
         )}
+        {group === "where" && (
+          <fieldset aria-describedby={feedbackId}>
+            <legend className="sr-only">Where</legend>
+            <LocationChoices
+              pending={pending}
+              onChange={setPending}
+              countries={countries}
+              summaries={summaries}
+              errorId={feedbackId}
+            />
+          </fieldset>
+        )}
         {(group === "genre" || group === "more") && (
-          <fieldset className={group === "more" ? "mobile-genre-field" : ""}>
+          <fieldset
+            aria-describedby={feedbackId}
+            className={group === "more" ? "mobile-genre-field" : ""}
+          >
             <legend>Music genre</legend>
             <GenreChoices
               options={genrePickerTree(summaries, genres, pending.genres)}
@@ -205,41 +212,47 @@ export function FilterPanel({
         )}
         {group === "more" && (
           <>
-            <fieldset>
+            <fieldset aria-describedby={feedbackId}>
               <legend>Duration</legend>
-              <label>
-                Minimum days{" "}
-                <input
-                  type="number"
-                  min="1"
-                  value={pending.durationMin ?? ""}
-                  onChange={(e) =>
-                    setPending({
-                      ...pending,
-                      durationMin: e.target.value
-                        ? Number(e.target.value)
-                        : null,
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Maximum days{" "}
-                <input
-                  type="number"
-                  min="1"
-                  value={pending.durationMax ?? ""}
-                  onChange={(e) =>
-                    setPending({
-                      ...pending,
-                      durationMax: e.target.value
-                        ? Number(e.target.value)
-                        : null,
-                    })
-                  }
-                />
-              </label>
-              <div className="choices">
+              <div className="filter-input-pair">
+                <label>
+                  Minimum days{" "}
+                  <input
+                    type="number"
+                    min="1"
+                    name="durationMin"
+                    aria-describedby={feedbackId}
+                    value={pending.durationMin ?? ""}
+                    onChange={(e) =>
+                      setPending({
+                        ...pending,
+                        durationMin: e.target.value
+                          ? Number(e.target.value)
+                          : null,
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  Maximum days{" "}
+                  <input
+                    type="number"
+                    min="1"
+                    name="durationMax"
+                    aria-describedby={feedbackId}
+                    value={pending.durationMax ?? ""}
+                    onChange={(e) =>
+                      setPending({
+                        ...pending,
+                        durationMax: e.target.value
+                          ? Number(e.target.value)
+                          : null,
+                      })
+                    }
+                  />
+                </label>
+              </div>
+              <div className="choices filter-shortcuts">
                 {[
                   ["1 day", 1, 1],
                   ["2–3 days", 2, 3],
@@ -249,7 +262,7 @@ export function FilterPanel({
                     key={String(label)}
                     type="button"
                     onClick={() =>
-                      setPending({
+                      setBounds({
                         ...pending,
                         durationMin: min as number,
                         durationMax: max as number | null,
@@ -261,7 +274,7 @@ export function FilterPanel({
                 ))}
               </div>
             </fieldset>
-            <fieldset>
+            <fieldset aria-describedby={feedbackId}>
               <legend>Size</legend>
               <p>
                 Estimated attendee capacity. Unknown capacity is included when
@@ -288,14 +301,25 @@ export function FilterPanel({
           </>
         )}
       </div>
-      {error && (
-        <p className="filter-error" role="alert">
-          {error}
+      {feedback && (
+        <p id="filter-feedback" className="filter-error" role="status">
+          {feedback}
         </p>
       )}
+      <span className="sr-only" role="status" aria-live="polite">
+        {feedback ? "Correct filters to preview editions." : action}
+      </span>
       <div className="filter-actions">
-        <button type="button" onClick={() => onApply(pending)}>
-          Apply filters
+        <button
+          type="button"
+          disabled={Boolean(feedback) || previewCount === null}
+          onClick={() => {
+            if (!checkNativeInputs() && !error) {
+              onApply(pending);
+            }
+          }}
+        >
+          {action}
         </button>
         <button type="button" onClick={onCancel}>
           Cancel
