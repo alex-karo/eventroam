@@ -53,6 +53,7 @@ export async function createResearchObservability(
   runId?: string,
   injected = false,
   protectedPaths: string[] = [],
+  sharedStore?: DuckDBStore,
 ) {
   const traceEnabled =
     process.env.CATALOG_TRACING === "true" && !input.dryRun && !injected;
@@ -75,9 +76,13 @@ export async function createResearchObservability(
     if (!["debug", "info", "warn", "error"].includes(level)) {
       throw new Error("Invalid log level");
     }
-    storage = await createObservabilityStore(process.env, protectedPaths);
-    storage.__setLogger(logger);
-    await storage.init();
+    storage =
+      sharedStore ??
+      (await createObservabilityStore(process.env, protectedPaths));
+    if (!sharedStore) {
+      storage.__setLogger(logger);
+      await storage.init();
+    }
     if (!(await storage.getStore("observability"))) {
       throw new Error("Trace storage unavailable");
     }
@@ -122,6 +127,7 @@ export async function createResearchObservability(
       loggingEnabled,
       level: level as ResearchLogLevel,
       storage,
+      sharedStore: !!sharedStore,
       observability,
       logger,
       diagnose,
@@ -130,7 +136,9 @@ export async function createResearchObservability(
   } catch {
     diagnose("trace_initialization_failed");
     try {
-      await boundedCleanup(async () => storage?.close());
+      if (!sharedStore) {
+        await boundedCleanup(async () => storage?.close());
+      }
     } catch {
       diagnose("trace_shutdown_failed");
     }
@@ -165,6 +173,7 @@ export async function createRunObservability(
   runId: string,
   injected = false,
   protectedPaths: string[] = [],
+  sharedStore?: DuckDBStore,
 ) {
   const tracing = await createResearchObservability(
     input,
@@ -172,6 +181,7 @@ export async function createRunObservability(
     runId,
     injected,
     protectedPaths,
+    sharedStore,
   );
   if (!tracing) {
     return undefined;
@@ -233,10 +243,16 @@ export async function createRunObservability(
   } catch {
     tracing.diagnose("trace_initialization_failed");
     if (mastra) {
-      await finishResearchObservability(mastra, tracing.diagnose);
+      if (tracing.sharedStore) {
+        await boundedCleanup(() => tracing.observability.shutdown());
+      } else {
+        await finishResearchObservability(mastra, tracing.diagnose);
+      }
     } else {
       try {
-        await boundedCleanup(() => tracing.storage.close());
+        if (!tracing.sharedStore) {
+          await boundedCleanup(() => tracing.storage.close());
+        }
       } catch {
         tracing.diagnose("trace_shutdown_failed");
       }
@@ -256,7 +272,20 @@ export async function finishRunObservability(tracing?: RunObservability) {
   } catch {
     tracing.diagnose("trace_export_failed");
   }
-  await finishResearchObservability(tracing.mastra, tracing.diagnose);
+  if (tracing.sharedStore) {
+    try {
+      await boundedCleanup(() => tracing.observability.flush());
+    } catch {
+      tracing.diagnose("trace_flush_failed");
+    }
+    try {
+      await boundedCleanup(() => tracing.observability.shutdown());
+    } catch {
+      tracing.diagnose("trace_shutdown_failed");
+    }
+  } else {
+    await finishResearchObservability(tracing.mastra, tracing.diagnose);
+  }
 }
 
 const CLEANUP_DEADLINE_MS = 2000;

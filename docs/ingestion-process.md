@@ -25,20 +25,22 @@ Ingestion finds or refreshes festival facts in the catalog. An owner starts each
 
 ## Workflow steps
 
-Each festival attempt runs one Mastra workflow with six sequential steps:
+Each festival attempt runs one Mastra workflow with eight sequential steps:
 
 | Step | Responsibility |
 | --- | --- |
+| `initialize-run` | Validate input/settings and create the durable attempt before external work. |
 | `load-context` | Load saved Event facts, editions, links, and vocabulary. |
 | `read-initial-source` | Create the shared source session and read its initial saved link when available. |
 | `research-festival` | Run the research agent with the shared source session and budget. |
 | `prepare-candidate` | Validate the result and target, then prepare explained catalog operations. |
 | `apply-catalog-item` | Preview or atomically apply eligible operations; retain write failures for the report. |
 | `build-report` | Combine research, actual changes, source history, questions, and known usage. |
+| `finalize-run` | Persist the private report, return the bounded summary and release owned resources. |
 
-The command validates input and saves the durable running row before starting the graph. After the graph finishes, it saves the final report and closes optional tracing. Unexpected step failures stop later steps; the host builds a failure report from available work, including any committed changes. A finalization failure does not replay research or writes.
+CLI and local Studio execute this same graph in their own Node process. Each attempt owns its budget, source session, intermediate work and private report. Credentials, pages and model output remain outside workflow state. The final step persists once; terminal hooks recover failures or cancellation that bypass it. Cleanup waits for active work. Finalization failure remains visible without repeating research or writes.
 
-Each invocation has its own database dependencies, source session, budget, and partial results. Workflow data contains only safe run and phase summaries; credentials, source pages, and model output remain outside it. Workflow retries and snapshots are disabled. The research agent retains its existing provider retry policy, and an interrupted invocation is rerun as a new attempt against current catalog state. Local Studio continues to inspect saved traces without offering catalog workflow execution.
+Workflow retries, snapshots and automatic restart are disabled. Per-step execution, resume, restart and time travel are unsupported. Start a fresh attempt against current catalog state after interruption.
 
 ## Start a run
 
@@ -48,7 +50,7 @@ npm run catalog -- refresh --event EVENT_ID
 npm run catalog -- check --event EVENT_ID --event ANOTHER_EVENT_ID
 ```
 
-`add` researches a festival by name and creates it only when new. A recognized existing Event returns `skipped` and its ID without updating facts, links, editions, or publication; use `refresh` or `check` to update it. `refresh` researches one existing Event. `check` uses the same research process for one or more Events. An Event is the continuing festival; each separate edition is an Occurrence. The database must already exist and be migrated. See the [development guide](development.md#local-catalog-research) for setup and options.
+`add` researches a festival by name and creates it only when new. A recognized existing Event returns `skipped` and its ID without updating facts, links, editions, or publication; use `refresh` or `check` to update it. `refresh` researches one existing Event. `check` uses the same research process for one or more Events. An Event is the continuing festival; each separate edition is an Occurrence. The database must already exist and be migrated. See the [development guide](development.md#local-catalog-research) for setup and options, or its [Studio instructions](development.md#local-studio-ingestion) for the local workflow form.
 
 ## Load catalog context
 
@@ -148,7 +150,7 @@ Changes for one Event are saved together or rolled back together. If one propose
 
 Version 2 reports show `researchStatus` separately from catalog `outcome`, explained old/new changes, staged `errors`, `unresolved` questions, `sourceSummaries`, and technical retrieval history in `sources`. Old report versions are unsupported; there is no legacy `gaps` fallback. Successful changes enter private audit history with old and new values; unchanged facts add no entry. Every started attempt has a `runId` shared by its private `ingestion_runs` row and output. The final report is saved automatically; use `--report PATH` to export a private JSON report that also retains the final `modelResponse` before normalization.
 
-With `--apply`, success and partial results use the atomic writer. Failed research writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research or write failure exits nonzero. A write failure rolls back the entire Event item while retaining research status, raw output, source summaries, and any name mismatch. A partial result with no changes remains visibly partial/unchanged. Ordinary research retries only explicit OpenRouter `provider_unavailable` errors, at most three times with 10-second, 30-second, and 90-second exponential backoff within the same run deadline. Those unavailable attempts do not consume the model-call budget. Other model errors are not retried; completed research steps and tool results are retained.
+With `--apply`, success and partial results use the atomic writer. Failed research writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research or write failure exits nonzero. A write failure rolls back the entire Event item while retaining research status, raw output, source summaries, and any name mismatch. A partial result with no changes remains visibly partial/unchanged. Ordinary research retries only explicit OpenRouter `provider_unavailable` errors, at most three times with 10-second, 30-second, and 90-second exponential backoff within the same run deadline. A bounded Mastra iteration allowance preserves ordinary research capacity during those unavailable retries; observed request counts still include them. Other model errors are not retried; completed research steps and tool results are retained.
 
 Reports and explanations are private CLI output/files, not public website data or a separate hosted logging service. Public details expose only ticket category labels and availability; amount/terms/variant URLs and research metadata remain private. Unknown category availability has no badge. Discovery and details never derive a global sold-out/closed label from variants.
 

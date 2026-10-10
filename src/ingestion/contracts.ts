@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import type { DuckDBStore } from "@mastra/duckdb";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 import type { ResearchBudget, ResearchLimits } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
@@ -83,6 +84,8 @@ export type CatalogResearchResult = {
 
 export type ResearchDependencies = {
   client: Database.Database;
+  /** Shared local Studio observability store; the caller owns its lifetime. */
+  observabilityStore?: DuckDBStore;
   config?: ResearchConfig;
   /** Protect the selected optional report destination from observability writes. */
   reportPath?: string;

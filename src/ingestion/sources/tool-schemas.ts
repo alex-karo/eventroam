@@ -25,8 +25,6 @@ const count = z.number().int().nonnegative();
 const cost = z.number().nonnegative();
 const remainingSchema = z.object({
   searches: count,
-  pages: count,
-  modelCalls: count,
   durationMs: count,
 });
 

@@ -1,35 +1,13 @@
-import { shrinkText, type ResearchLogger } from "./runtime/logging";
-import type { CatalogOperation } from "@/catalog/operations/operation";
-import { RESEARCH_PROMPT_VERSION } from "./research/contracts";
+import { randomUUID } from "node:crypto";
 import { noopLogger } from "@mastra/core/logger";
 import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
-import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type {
   CatalogResearchInput,
   CatalogResearchResult,
   ResearchDependencies,
 } from "./contracts";
-import { createCatalogRunTrace, readInitialWithTrace } from "./runtime/tracing";
-import { createResearchBudget } from "./runtime/budget";
-import { loadResearchConfig } from "./runtime/config";
-import { loadResearchContext, type ResearchContext } from "./research/context";
-import { createSourceSession, type SourceSession } from "./sources/session";
-import { researchFestival, type ResearchExecution } from "./research/agent";
-import { prepareResearch } from "./research/prepare";
-import type { ResearchError, ResearchQuestion } from "./research/contracts";
-import {
-  buildResearchReport,
-  buildWorkflowFailureReport,
-  type ReportInput,
-} from "./report";
-import {
-  validateRunInvocation,
-  storedRunInput,
-  startIngestionRun,
-  finalizeIngestionRun,
-  RunPersistenceError,
-} from "./runs";
+import { CatalogAttempt } from "./attempt";
 
 export type {
   CatalogResearchInput,
@@ -37,10 +15,32 @@ export type {
   ResearchDependencies,
 } from "./contracts";
 
-// Step results are safe projections. Live resources and the full report stay in
-// this invocation's closure and never enter Mastra's workflow state.
-const runSchema = z.object({ runId: z.uuid() });
-const contextSchema = runSchema.extend({
+export const studioIngestionInputSchema = z
+  .strictObject({
+    mode: z.enum(["add", "refresh", "check"]),
+    name: z.string().trim().min(1).max(500).optional(),
+    eventId: z.string().trim().min(1).max(500).optional(),
+    dryRun: z.boolean().default(true),
+    republish: z.boolean().default(false),
+  })
+  .superRefine((value, context) => {
+    if (value.mode === "add" && (!value.name || value.eventId)) {
+      context.addIssue({
+        code: "custom",
+        message: "add requires a name and no Event ID",
+      });
+    }
+    if (value.mode !== "add" && (!value.eventId || value.name)) {
+      context.addIssue({
+        code: "custom",
+        message: "refresh and check require an Event ID and no name",
+      });
+    }
+  });
+export type StudioIngestionInput = z.input<typeof studioIngestionInputSchema>;
+
+const idSchema = z.object({ engineRunId: z.string() });
+const contextSchema = idSchema.extend({
   knownLinkCount: z.number().int().nonnegative(),
 });
 const sourceSchema = contextSchema.extend({
@@ -57,7 +57,7 @@ const appliedSchema = preparedSchema.extend({
   changedCount: z.number().int().nonnegative(),
   writeFailed: z.boolean(),
 });
-const resultSchema = runSchema.extend({
+const reportSchema = appliedSchema.extend({
   outcome: z.enum([
     "created",
     "updated",
@@ -67,9 +67,39 @@ const resultSchema = runSchema.extend({
     "failed",
   ]),
 });
+export const studioIngestionResultSchema = z.strictObject({
+  engineRunId: z.string(),
+  ingestionRunId: z.string(),
+  mode: z.enum(["add", "refresh", "check"]),
+  dryRun: z.boolean(),
+  outcome: reportSchema.shape.outcome,
+  researchStatus: z.enum(["success", "partial", "failed"]),
+  persistenceStatus: z.enum(["completed", "failed"]),
+  eventId: z.string().nullable(),
+  readCount: z.number().int().nonnegative(),
+  searchCount: z.number().int().nonnegative(),
+  operationCount: z.number().int().nonnegative(),
+  changedCount: z.number().int().nonnegative(),
+  usage: z.strictObject({
+    complete: z.boolean(),
+    inputTokens: z.number(),
+    outputTokens: z.number(),
+    modelCostUsd: z.number().nullable(),
+    searchCostUsd: z.number(),
+  }),
+  errorCodes: z.array(z.string()),
+});
 
-/** Mastra must never receive original exceptions containing source or model data. */
-async function safeStep<T>(execute: () => Promise<T> | T): Promise<T> {
+export type ResolvedCatalogDependencies = {
+  deps: ResearchDependencies;
+  close?: () => unknown | Promise<unknown>;
+};
+export type ResolveCatalogDependencies = (
+  input: StudioIngestionInput,
+) => Promise<ResolvedCatalogDependencies>;
+
+/** A safe engine error has no original error as its cause. */
+async function safeStep<T>(execute: () => T | Promise<T>): Promise<T> {
   try {
     return await execute();
   } catch {
@@ -77,459 +107,383 @@ async function safeStep<T>(execute: () => Promise<T> | T): Promise<T> {
   }
 }
 
+async function safePhase<T>(
+  owned: CatalogAttempt,
+  execute: () => T | Promise<T>,
+  fallback: () => T,
+  abortSignal?: AbortSignal,
+): Promise<T> {
+  if (owned.report) {
+    return fallback();
+  }
+  try {
+    return await execute();
+  } catch {
+    if (abortSignal?.aborted) {
+      throw new Error("Ingestion cancelled");
+    }
+    try {
+      owned.fail();
+      return fallback();
+    } catch {
+      throw new Error("Ingestion workflow failed");
+    }
+  }
+}
+
+function projectSummary(
+  owned: CatalogAttempt,
+  result: CatalogResearchResult,
+  persistenceStatus: "completed" | "failed",
+) {
+  return {
+    engineRunId: owned.engineRunId,
+    ingestionRunId: owned.ingestionRunId,
+    mode: result.mode,
+    dryRun: owned.input.dryRun ?? true,
+    outcome: result.outcome,
+    researchStatus: result.researchStatus,
+    persistenceStatus,
+    eventId: result.eventId ?? null,
+    readCount: result.usage.pages,
+    searchCount: result.usage.searches,
+    operationCount: result.operations.length,
+    changedCount: result.receipts.filter((receipt) => receipt.changed).length,
+    usage: {
+      complete: result.usage.complete,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      modelCostUsd: result.usage.modelCostUsd,
+      searchCostUsd: result.usage.searchCostUsd,
+    },
+    errorCodes:
+      persistenceStatus === "failed"
+        ? [
+            ...result.errors.map((error) => error.code),
+            "run_persistence_failed",
+          ]
+        : result.errors.map((error) => error.code),
+  };
+}
+
+export function createCatalogIngestionWorkflow(
+  resolveDependencies: ResolveCatalogDependencies,
+  options: {
+    cli?: { requested: CatalogResearchInput; deps: ResearchDependencies };
+    preparedAttempt?: CatalogAttempt;
+    onAttempt?: (attempt: CatalogAttempt) => void;
+  } = {},
+) {
+  const attempts = new Map<string, CatalogAttempt | null>();
+  const attempt = (engineRunId: string) => {
+    const owned = attempts.get(engineRunId);
+    if (!owned) {
+      throw new Error("Ingestion attempt unavailable");
+    }
+    return owned;
+  };
+  const release = async (runId: string, owned: CatalogAttempt) => {
+    await owned.cleanup();
+    if (attempts.get(runId) === owned) {
+      attempts.delete(runId);
+    }
+  };
+  const recover = async (runId: string, cancelled = false) => {
+    const owned = attempts.get(runId);
+    if (!owned) {
+      return;
+    }
+    try {
+      if (!owned.persistenceError && !owned.result) {
+        await owned.settle();
+        try {
+          owned.fail(cancelled);
+        } catch {
+          /* Preserve safe terminal cleanup. */
+        }
+        try {
+          await owned.finalize();
+        } catch {
+          /* Explicit finalization already records this. */
+        }
+      }
+    } finally {
+      await release(runId, owned);
+    }
+  };
+
+  const initialize = createStep({
+    id: "initialize-run",
+    description: "Validate the target and create its durable run",
+    inputSchema: studioIngestionInputSchema,
+    outputSchema: idSchema,
+    retries: 0,
+    execute: ({ runId }) =>
+      safeStep(() => ({ engineRunId: attempt(runId).engineRunId })),
+  });
+  const loadContext = createStep({
+    id: "load-context",
+    description: "Load the target and known catalog sources",
+    inputSchema: idSchema,
+    outputSchema: contextSchema,
+    retries: 0,
+    execute: ({ inputData }) => {
+      const owned = attempt(inputData.engineRunId);
+      return safePhase(
+        owned,
+        () => ({ ...inputData, knownLinkCount: owned.loadContext() }),
+        () => ({ ...inputData, knownLinkCount: 0 }),
+      );
+    },
+  });
+  const readInitial = createStep({
+    id: "read-initial-source",
+    description: "Read the initial known source within the run budget",
+    inputSchema: contextSchema,
+    outputSchema: sourceSchema,
+    retries: 0,
+    execute: ({ inputData, abortSignal }) => {
+      const owned = attempt(inputData.engineRunId);
+      return safePhase(
+        owned,
+        async () => ({
+          ...inputData,
+          readCount: await owned.readInitial(abortSignal),
+        }),
+        () => ({ ...inputData, readCount: owned.sources?.reads.length ?? 0 }),
+        abortSignal,
+      );
+    },
+  });
+  const research = createStep({
+    id: "research-festival",
+    description: "Research the festival using bounded source tools",
+    inputSchema: sourceSchema,
+    outputSchema: researchSchema,
+    retries: 0,
+    execute: ({ inputData, abortSignal }) => {
+      const owned = attempt(inputData.engineRunId);
+      return safePhase(
+        owned,
+        async () => {
+          const researchOk = await owned.runResearch(abortSignal);
+          return {
+            ...inputData,
+            researchOk,
+            readCount: owned.sources?.reads.length ?? 0,
+            searchCount: owned.sources?.discovery.length ?? 0,
+          };
+        },
+        () => ({
+          ...inputData,
+          researchOk: false,
+          readCount: owned.sources?.reads.length ?? 0,
+          searchCount: owned.sources?.discovery.length ?? 0,
+        }),
+        abortSignal,
+      );
+    },
+  });
+  const prepare = createStep({
+    id: "prepare-candidate",
+    description: "Validate candidate facts and prepare catalog operations",
+    inputSchema: researchSchema,
+    outputSchema: preparedSchema,
+    retries: 0,
+    execute: ({ inputData }) => {
+      const owned = attempt(inputData.engineRunId);
+      return safePhase(
+        owned,
+        () => ({ ...inputData, operationCount: owned.prepare() }),
+        () => ({
+          ...inputData,
+          operationCount: owned.prepared?.operations.length ?? 0,
+        }),
+      );
+    },
+  });
+  const apply = createStep({
+    id: "apply-catalog-item",
+    description: "Apply the item atomically or roll back a dry run",
+    inputSchema: preparedSchema,
+    outputSchema: appliedSchema,
+    retries: 0,
+    execute: ({ inputData, abortSignal }) => {
+      const owned = attempt(inputData.engineRunId);
+      return safePhase(
+        owned,
+        () => ({ ...inputData, ...owned.apply(abortSignal) }),
+        () => ({
+          ...inputData,
+          changedCount:
+            owned.applied?.operations.filter((o) => o.changed).length ?? 0,
+          writeFailed: owned.writeFailed,
+        }),
+        abortSignal,
+      );
+    },
+  });
+  const buildReport = createStep({
+    id: "build-report",
+    description: "Assemble the private outcome and accounting",
+    inputSchema: appliedSchema,
+    outputSchema: reportSchema,
+    retries: 0,
+    execute: ({ inputData }) => {
+      const owned = attempt(inputData.engineRunId);
+      return safePhase(
+        owned,
+        () => ({ ...inputData, outcome: owned.buildReport() }),
+        () => ({ ...inputData, outcome: owned.report!.outcome }),
+      );
+    },
+  });
+  const finalize = createStep({
+    id: "finalize-run",
+    description: "Persist the run and return a bounded summary",
+    inputSchema: reportSchema,
+    outputSchema: studioIngestionResultSchema,
+    retries: 0,
+    execute: async ({ inputData }) => {
+      const owned = attempt(inputData.engineRunId);
+      try {
+        const result = (await owned.finalize())!;
+        return projectSummary(owned, result, "completed");
+      } catch {
+        if (owned.persistenceError && owned.report) {
+          const summary = projectSummary(owned, owned.report, "failed");
+          summary.errorCodes = [
+            ...summary.errorCodes
+              .filter((code) => code !== "run_persistence_failed")
+              .slice(0, 19),
+            "run_persistence_failed",
+          ];
+          throw new Error(
+            JSON.stringify({ code: "run_persistence_failed", summary }),
+          );
+        }
+        throw new Error("Ingestion workflow failed");
+      } finally {
+        await release(inputData.engineRunId, owned);
+      }
+    },
+  });
+
+  const workflow = createWorkflow({
+    id: "catalog-ingestion",
+    description: "Research one festival catalog item",
+    inputSchema: studioIngestionInputSchema,
+    outputSchema: studioIngestionResultSchema,
+    retryConfig: { attempts: 0, delay: 0 },
+    options: {
+      validateInputs: true,
+      autoRestartActiveRuns: false,
+      shouldPersistSnapshot: () => false,
+      onStart: async ({ runId, getInitData }) => {
+        if (attempts.has(runId)) {
+          throw new Error("Ingestion attempt already active");
+        }
+        attempts.set(runId, null);
+        try {
+          const parsed = studioIngestionInputSchema.parse(getInitData());
+          const resolved = options.cli
+            ? { deps: options.cli.deps }
+            : await resolveDependencies(parsed);
+          let owned: CatalogAttempt;
+          try {
+            owned =
+              options.preparedAttempt ??
+              new CatalogAttempt(
+                runId,
+                options.cli?.requested ?? {
+                  ...parsed,
+                  actor: "catalog-research",
+                },
+                resolved.deps,
+                resolved.close,
+              );
+          } catch (error) {
+            await resolved.close?.();
+            throw error;
+          }
+          attempts.set(runId, owned);
+          options.onAttempt?.(owned);
+          if (!options.preparedAttempt) {
+            await owned.initialize();
+          }
+        } catch (error) {
+          if (attempts.get(runId)) {
+            await recover(runId);
+          } else {
+            attempts.delete(runId);
+          }
+          if (options.cli) {
+            throw error;
+          }
+          throw new Error("Ingestion workflow failed");
+        }
+      },
+      onFinish: async ({ runId, status }) => {
+        if (status !== "success") {
+          await recover(runId, status === "canceled");
+        }
+      },
+    },
+  })
+    .then(initialize)
+    .then(loadContext)
+    .then(readInitial)
+    .then(research)
+    .then(prepare)
+    .then(apply)
+    .then(buildReport)
+    .then(finalize)
+    .commit();
+  workflow.__setLogger(noopLogger);
+  return workflow;
+}
+
 export async function runCatalogResearch(
   requested: CatalogResearchInput,
   deps: ResearchDependencies,
 ): Promise<CatalogResearchResult> {
-  const validated = validateRunInvocation(
-    deps.client,
-    requested,
-    deps.config ??
-      (deps.generateCandidate
-        ? {
-            apiKey: "fixture",
-            model: "fixture",
-            limits: createResearchBudget().limits,
-          }
-        : loadResearchConfig()),
-  );
-  const { input, config } = validated;
-  const budget = createResearchBudget({ ...config.limits, ...input.limits });
-  const started = Date.now();
-  const runId = startIngestionRun(
-    deps.client,
-    storedRunInput(input, config, budget.limits),
-    started,
-    input.mode === "add" ? null : input.eventId!,
-  );
-  const trace = await createCatalogRunTrace(
-    input,
-    config.model,
-    runId,
-    !!deps.generateCandidate,
-    [
-      deps.client.name,
-      `${deps.client.name}-wal`,
-      `${deps.client.name}-shm`,
-      `${deps.client.name}-journal`,
-      ...(deps.reportPath ? [deps.reportPath] : []),
-    ],
-  );
-  const log = trace?.log;
-  log?.info("Research started", {
-    stage: "context",
-    mode: input.mode,
-    dryRun: input.dryRun,
-    eventId: input.eventId,
-    eventName: input.name,
-    model: config.model,
-    promptVersion: RESEARCH_PROMPT_VERSION,
-  });
-  let context: ResearchContext | null = null;
-  let sources: SourceSession | null = null;
-  let research: ResearchExecution = {
-    ok: false,
-    errors: [],
-    usage: {
-      complete: false,
-      inputTokens: 0,
-      outputTokens: 0,
-      cachedInputTokens: null,
-      reasoningTokens: null,
-      modelCostUsd: null,
-    },
-  };
-  let prepared: ReturnType<typeof prepareResearch> | null = null;
-  let applied: ReturnType<typeof applyCatalogItem> | null = null;
-  let writeFailed = false;
-  let errors: ResearchError[] = [];
-  let unresolved: ResearchQuestion[] = [];
-  const reportInput = (): ReportInput => ({
-    runId,
-    input,
-    config,
-    prepared,
-    research,
-    applied,
-    writeFailed,
-    errors,
-    unresolved,
-    reads: sources?.reads ?? [],
-    discovery: sources?.discovery ?? [],
-    budget: budget.snapshot(),
-    started,
-    finished: Date.now(),
-  });
-  let report: CatalogResearchResult | undefined;
-
+  const engineRunId = randomUUID();
+  const owned = new CatalogAttempt(engineRunId, requested, deps);
+  let run;
   try {
-    try {
-      const loadContext = createStep({
-        id: "load-context",
-        description: "Load the target and known catalog sources",
-        inputSchema: runSchema,
-        outputSchema: contextSchema,
-        retries: 0,
-        execute: ({ inputData }) =>
-          safeStep(() => {
-            context = loadResearchContext(deps.client, input);
-            trace?.update({ context, phase: "initial_source" });
-            return { ...inputData, knownLinkCount: context.knownLinks.length };
-          }),
-      });
-      const readInitialSource = createStep({
-        id: "read-initial-source",
-        description: "Read the initial known source within the run budget",
-        inputSchema: contextSchema,
-        outputSchema: sourceSchema,
-        retries: 0,
-        execute: ({ inputData }) =>
-          safeStep(async () => {
-            sources = createSourceSession(
-              budget,
-              config,
-              context!.knownLinks,
-              deps,
-              log,
-            );
-            await readInitialWithTrace(sources, trace);
-            return { ...inputData, readCount: sources.reads.length };
-          }),
-      });
-      const runResearch = createStep({
-        id: "research-festival",
-        description: "Research the festival using bounded source tools",
-        inputSchema: sourceSchema,
-        outputSchema: researchSchema,
-        retries: 0,
-        execute: ({ inputData }) =>
-          safeStep(async () => {
-            trace?.update({ phase: "research" });
-            research = await researchFestival(
-              input,
-              context!,
-              sources!,
-              budget,
-              config,
-              deps,
-              runId,
-              trace?.tracing,
-            );
-            return {
-              ...inputData,
-              researchOk: research.ok,
-              readCount: sources!.reads.length,
-              searchCount: sources!.discovery.length,
-            };
-          }),
-      });
-      const prepareCandidate = createStep({
-        id: "prepare-candidate",
-        description: "Validate candidate facts and prepare catalog operations",
-        inputSchema: researchSchema,
-        outputSchema: preparedSchema,
-        retries: 0,
-        execute: ({ inputData }) =>
-          safeStep(() => {
-            trace?.update({ phase: "validation" });
-            if (research.ok) {
-              prepared = prepareResearch(
-                research.candidate,
-                context!.catalog,
-                input,
-                context!.terms,
-                budget.limits.pages,
-              );
-              trace?.tracing.setEventId(prepared.matchedEventId);
-              trace?.validated(prepared);
-              logPreparation(log, prepared);
-              errors = prepared.errors;
-              unresolved = prepared.unresolved;
-            } else {
-              errors = research.errors;
-              trace?.failed("research_failed", false);
-            }
-            return {
-              ...inputData,
-              operationCount: prepared?.operations.length ?? 0,
-            };
-          }),
-      });
-      const applyItem = createStep({
-        id: "apply-catalog-item",
-        description: "Apply the item atomically or roll back a dry run",
-        inputSchema: preparedSchema,
-        outputSchema: appliedSchema,
-        retries: 0,
-        execute: ({ inputData }) =>
-          safeStep(() => {
-            trace?.update({ phase: "write" });
-            try {
-              if (
-                prepared?.candidate?.status !== "failed" &&
-                prepared?.operations.length
-              ) {
-                if (trace) {
-                  trace.state.writeState = "unknown";
-                }
-                applied = applyCatalogItem(deps.client, prepared.operations, {
-                  dryRun: input.dryRun,
-                });
-                if (trace) {
-                  trace.state.writeState = writeDisposition(input, applied);
-                }
-                trace?.tracing.setEventId(
-                  reportEventId(input, prepared, applied),
-                );
-                trace?.update({ applied });
-                log?.info("Catalog write finished", {
-                  stage: "write",
-                  dryRun: input.dryRun,
-                  ...writeLogFields(input, applied, false),
-                  fields: attemptedCatalogFields(prepared.operations),
-                });
-              }
-            } catch {
-              writeFailed = true;
-              if (trace) {
-                trace.state.writeState = "rolled_back";
-              }
-              trace?.failed("write_failed");
-              errors.push({
-                code: "write_failed",
-                stage: "write",
-                message: "Catalog write failed",
-              });
-            }
-            return {
-              ...inputData,
-              changedCount:
-                applied?.operations.filter((operation) => operation.changed)
-                  .length ?? 0,
-              writeFailed,
-            };
-          }),
-      });
-      const buildReport = createStep({
-        id: "build-report",
-        description: "Assemble the private run outcome and accounting",
-        inputSchema: appliedSchema,
-        outputSchema: resultSchema,
-        retries: 0,
-        execute: ({ inputData }) =>
-          safeStep(() => {
-            trace?.update({ phase: "report" });
-            report = buildResearchReport(reportInput());
-            return { runId: inputData.runId, outcome: report.outcome };
-          }),
-      });
-      const workflow = createWorkflow({
-        id: "catalog-ingestion",
-        description: "Research and apply one festival catalog item",
-        inputSchema: runSchema,
-        outputSchema: resultSchema,
-        retryConfig: { attempts: 0, delay: 0 },
-        options: { shouldPersistSnapshot: () => false },
-      })
-        .then(loadContext)
-        .then(readInitialSource)
-        .then(runResearch)
-        .then(prepareCandidate)
-        .then(applyItem)
-        .then(buildReport)
-        .commit();
-      workflow.__setLogger(noopLogger);
-
-      const run = await workflow.createRun({
-        runId,
-        shouldPersistSnapshot: () => false,
-      });
-      const result = await run.start({ inputData: { runId } });
-      if (result.status !== "success" || !report) {
-        throw new Error("Ingestion workflow failed");
-      }
-    } catch {
-      trace?.workflowFailed();
-      errors = [
-        ...errors,
-        {
-          code: "workflow_failed",
-          stage: "workflow",
-          message: "Ingestion workflow failed",
-        },
-      ];
-      report = buildWorkflowFailureReport(reportInput());
-    }
-    // Writer transactions have finished. Persistence failure cannot re-enter workflow recovery.
-    // Mastra step closures assign these values; TypeScript does not track those writes.
-    const finalPrepared = prepared as ReturnType<typeof prepareResearch> | null;
-    const finalApplied = applied as ReturnType<typeof applyCatalogItem> | null;
-    let persistentEventId = input.eventId ?? null;
-    if (input.mode === "add") {
-      persistentEventId = finalPrepared?.matchedEventId ?? null;
-      if (!input.dryRun) {
-        persistentEventId ??= finalApplied?.references.event ?? null;
-      }
-    }
-    try {
-      const finalized = finalizeIngestionRun(
-        deps.client,
-        runId,
-        report,
-        persistentEventId,
-        Date.now(),
-      );
-      logCompletion(
-        log,
-        finalized,
-        input,
-        finalPrepared,
-        finalApplied,
-        writeFailed,
-      );
-      return finalized;
-    } catch (error) {
-      if (error instanceof RunPersistenceError) {
-        log?.error("Required run finalization failed", {
-          stage: "report",
-          errorCode: "run_persistence_failed",
-          ...writeLogFields(input, finalApplied, writeFailed),
-        });
-      }
-      throw error;
-    }
-  } finally {
-    await trace?.finish(report);
+    await owned.initialize();
+    const workflow = createCatalogIngestionWorkflow(async () => ({ deps }), {
+      cli: { requested, deps },
+      preparedAttempt: owned,
+    });
+    run = await workflow.createRun({
+      runId: engineRunId,
+      shouldPersistSnapshot: () => false,
+    });
+  } catch {
+    owned.fail();
+    return (await owned.finalize())!;
   }
-}
-
-function logPreparation(
-  log: ResearchLogger | undefined,
-  prepared: ReturnType<typeof prepareResearch>,
-) {
-  const accepted = prepared.candidate && prepared.candidate.status !== "failed";
-  log?.[accepted ? "info" : "warn"](
-    accepted ? "Candidate prepared" : "Candidate rejected",
-    {
-      stage: "validation",
-      status: prepared.candidate?.status ?? "invalid",
-      eventId: prepared.matchedEventId,
-      eventName: prepared.candidate?.data?.eventName,
-      editions:
-        prepared.candidate?.data?.editions.map((e) => ({
-          editionKey: e.key,
-          year: e.year?.value ?? null,
-        })) ?? [],
-      operationCount: prepared.operations.length,
-      fields: attemptedCatalogFields(prepared.operations),
-      validation: prepared.validation,
-      errors: [...(prepared.validationIssues ?? []), ...prepared.errors].map(
-        (error) => ({
-          code: error.code,
-          stage: error.stage,
-          ...("message" in error
-            ? { message: shrinkText(error.message, 512) }
-            : { field: error.field }),
-        }),
-      ),
-      unresolved: prepared.unresolved.map((q) => shrinkText(q.message, 512)),
-      unresolvedOrigin: "model-reported",
-    },
-  );
-}
-
-function logCompletion(
-  log: ResearchLogger | undefined,
-  finalized: CatalogResearchResult,
-  input: CatalogResearchInput,
-  prepared: ReturnType<typeof prepareResearch> | null,
-  applied: ReturnType<typeof applyCatalogItem> | null,
-  writeFailed: boolean,
-) {
-  log?.[
-    finalized.outcome === "failed" ||
-    finalized.errors.some((error) => error.code === "workflow_failed")
-      ? "error"
-      : "info"
-  ]("Research finished", {
-    stage: "report",
-    researchStatus: finalized.researchStatus,
-    outcome: finalized.outcome,
-    validation: prepared?.validation,
-    ...writeLogFields(input, applied, writeFailed),
-    errorCodes: finalized.errors.map((error) => error.code),
-    mode: input.mode,
-    dryRun: input.dryRun,
-    eventId: finalized.eventId,
-    durationMs: finalized.durationMs,
-    usage: finalized.usage,
-  });
-}
-
-function reportEventId(
-  input: CatalogResearchInput,
-  prepared: ReturnType<typeof prepareResearch> | null,
-  applied: ReturnType<typeof applyCatalogItem> | null,
-) {
-  let persistentEventId = input.eventId ?? null;
-  if (input.mode === "add") {
-    persistentEventId = prepared?.matchedEventId ?? null;
-    if (!input.dryRun) {
-      persistentEventId ??= applied?.references.event ?? null;
-    }
-  }
-  return persistentEventId;
-}
-
-function writeDisposition(
-  input: CatalogResearchInput,
-  applied: ReturnType<typeof applyCatalogItem>,
-) {
-  return !input.dryRun &&
-    applied.operations.some((operation) => operation.changed)
-    ? "committed"
-    : "unchanged";
-}
-
-function attemptedCatalogFields(operations: CatalogOperation[]): string[] {
-  return [
-    ...new Set(
-      operations.flatMap((operation) => {
-        switch (operation.kind) {
-          case "createEvent":
-          case "updateEvent":
-          case "createOccurrence":
-          case "updateOccurrence":
-            return Object.keys(operation.data);
-          case "replaceLinks":
-            return ["links"];
-          case "replaceTerms":
-            return ["termIds"];
-          case "replacePriceBlock":
-            return ["priceDetails", "basePrice"];
-          default:
-            return ["publicationState"];
-        }
-      }),
-    ),
-  ];
-}
-
-/** The same committed disposition is logged at write, finalization failure and completion. */
-function writeLogFields(
-  input: CatalogResearchInput,
-  applied: ReturnType<typeof applyCatalogItem> | null,
-  writeFailed: boolean,
-) {
-  let writeState = applied ? writeDisposition(input, applied) : "not_attempted";
-  if (writeFailed) {
-    writeState = "rolled_back";
-  }
-  return {
-    writeState,
-    committedOperationCount: input.dryRun
-      ? 0
-      : (applied?.operations.filter((operation) => operation.changed).length ??
-        0),
+  const inputData = {
+    mode: requested.mode,
+    name: requested.name,
+    eventId: requested.eventId,
+    dryRun: requested.dryRun ?? true,
+    republish: requested.republish ?? false,
   };
+  const result = await run.start({ inputData });
+  if (owned.persistenceError) {
+    throw owned.persistenceError;
+  }
+  if (owned.terminalError) {
+    throw owned.terminalError;
+  }
+  if (owned.result) {
+    return owned.result;
+  }
+  throw new Error(
+    result.status === "success"
+      ? "Ingestion result unavailable"
+      : "Ingestion workflow failed",
+  );
 }

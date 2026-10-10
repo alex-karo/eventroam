@@ -155,7 +155,9 @@ export type TraceRunState = {
     | "write_failed"
     | "context_failed"
     | "report_failed"
-    | "workflow_failed";
+    | "workflow_failed"
+    | "cancelled"
+    | "run_persistence_failed";
 };
 export function traceResultLabel(
   state: TraceRunState,
@@ -216,9 +218,7 @@ export function traceReason(reason?: string) {
   return reason &&
     (reasons.has(reason) ||
       /^(?:firecrawl_)?http_[1-5]\d\d$/.test(reason) ||
-      /^(time|pages|depth|searches|modelCalls|modelInputChars)_budget_exhausted$/.test(
-        reason,
-      ))
+      /^(time|depth|searches|modelInputChars)_budget_exhausted$/.test(reason))
     ? traceText(reason, 64)
     : "unknown";
 }

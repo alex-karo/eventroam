@@ -24,7 +24,7 @@ Website:
 
 ## Approved future changes
 
-- [Studio ingestion execution](../openspec/changes/expose-ingestion-in-studio/proposal.md) — planned local graph inspection and execution, with preview defaults and isolated durable runs.
+- [Studio ingestion execution](../openspec/changes/expose-ingestion-in-studio/proposal.md) — implemented local graph inspection and execution, with preview defaults and isolated durable runs; change awaiting archive.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 

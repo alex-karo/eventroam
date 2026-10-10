@@ -35,8 +35,6 @@ const result = (): CatalogResearchResult => ({
     elapsedMs: 0,
     remaining: {
       searches: 3,
-      pages: 20,
-      modelCalls: 10,
       durationMs: 300000,
     },
     inputTokens: 0,

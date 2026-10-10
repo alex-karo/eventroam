@@ -57,7 +57,7 @@ export async function runTraceFixture(
     model: "fixture/provider-model",
     limits: {
       ...DEFAULT_RESEARCH_LIMITS,
-      modelCalls:
+      agentSteps:
         scenario === "search" || scenario === "search_failure" ? 3 : 2,
       durationMs: ending === "abort" ? 500 : 30_000,
     },

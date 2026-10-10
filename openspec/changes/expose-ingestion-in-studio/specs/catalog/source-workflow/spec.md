@@ -22,35 +22,35 @@ The system SHALL start discovery, source checks, and refreshes only through an o
 
 ### Requirement: Local traces use best-effort persistence and can be inspected
 
-Tracing SHALL use a dedicated local store separate from the catalog. Saved spans SHALL be inspectable after exit without a hosted account. Completion, handled errors and cooperative aborts SHALL finalize the run summary/report or failure, end spans, then await flush and shutdown attempts. Overlapping background writes or forced termination may leave incomplete traces.
+Tracing SHALL use the local observability store separate from the catalog and remain inspectable after exit. Completion, handled errors and cooperative aborts SHALL end owned spans and attempt bounded flush and shutdown. Logging and tracing SHALL be independently configurable. Overlapping background writes or forced termination may leave incomplete traces without changing catalog transaction guarantees.
 
-#### Scenario: Inspect a finished invocation
-- **WHEN** the owner opens local trace inspection after a run
-- **THEN** saved traces and the registered ingestion graph are available without rerunning research, opening the catalog, or requiring model credentials; execution dependencies are checked only when the owner starts a workflow
+#### Scenario: Fresh process inspection
+- **WHEN** a completed run releases the store and Studio later opens it
+- **THEN** safe root/source labels, result fields and the registered ingestion graph are visible without model credentials or catalog access; execution dependencies are loaded only when starting a workflow
 
-#### Scenario: A generation fails or is cooperatively aborted
-- **WHEN** the run throws or cooperatively aborts
-- **THEN** end root/owned children and await terminal-span flush before store closure and return, preserving the result/original error
+### Requirement: Model failures expose safe technical details
+Host-generated model_failed errors SHALL preserve bounded safe structured diagnostics in CLI text, JSON, and eval reports: recognized error/cause types, HTTP status, provider/network code, and retryability when available. Unknown fields SHALL remain absent or explicitly unknown. Diagnostics SHALL exclude raw exception messages, provider payloads, request/response headers, prompts, and credentials. Research limits SHALL retain precedence over model_failed. Ordinary research SHALL retry only explicit OpenRouter `provider_unavailable` errors, at most three times per run with 10-second, 30-second, and 90-second exponential backoff within the existing deadline. Unavailable attempts SHALL retain ordinary research capacity through bounded retry allowance. Other model failures SHALL NOT trigger automatic retries; known usage accounting SHALL be retained. Retries SHALL retain completed steps and SHALL NOT replay their tools or estimate missing usage/cost.
 
-#### Scenario: A short invocation finishes before automatic persistence
-- **WHEN** a short run finishes with buffered spans and no overlapping background write
-- **THEN** a fresh process can read final root output, labels and children after exit
+#### Scenario: Provider or network failure
+- **WHEN** a model request fails and safe technical diagnostics are available
+- **THEN** the report preserves that metadata with failed research and no operations, without exposing raw content
 
-#### Scenario: Background persistence overlaps another flush or cleanup
-- **WHEN** background writing overlaps flush/shutdown
-- **THEN** spans or terminal updates may be missing; research/report semantics, budgets, retries and exit status remain unchanged
+#### Scenario: Provider failure produces no final result
+- **WHEN** a provider failure ends research without a final result
+- **THEN** report model_failed with available safe diagnostics, not invalid_candidate, after any permitted provider_unavailable retries
 
-#### Scenario: Flushing fails during cleanup
-- **WHEN** flush fails
-- **THEN** emit a fixed diagnostic and still attempt shutdown; neither failure replaces the result/original error
+#### Scenario: Unavailable provider preserves research capacity
+- **WHEN** OpenRouter explicitly reports provider_unavailable during ordinary research
+- **THEN** retain ordinary research capacity using bounded retry allowance and retry at most three times with 10-second, 30-second, and 90-second delays, cancellable at the run deadline
+- **AND** retain completed steps, tool results, and known usage; other provider errors are not retried
 
-#### Scenario: Injected research fixture bypasses the agent
-- **WHEN** an injected candidate generator bypasses the agent
-- **THEN** create no trace/store; tracing tests exercise the real agent with an offline mock provider and a separate temporary store
+#### Scenario: A provider failure follows completed work
+- **WHEN** a model request fails after earlier calls have reported usage
+- **THEN** the model_failed report retains known input/output tokens and cost without estimating unreported usage
 
-#### Scenario: Cleanup crosses the research deadline
-- **WHEN** generation finishes before its deadline but cleanup crosses it
-- **THEN** preserve the model result/provider error; only actual generation timeout retains budget-failure classification
+#### Scenario: Unknown or budget failure
+- **WHEN** safe failure details are unavailable or the research budget is exhausted
+- **THEN** diagnostics remain bounded, missing details are not invented, and budget exhaustion remains limit_reached
 
 ## ADDED Requirements
 
@@ -87,7 +87,7 @@ Studio SHALL preserve existing durable run/report semantics and expose both run 
 - **THEN** report failed execution with run_persistence_failed and ingestion ID; retain the running row and committed changes without replay
 
 ### Requirement: Registered ingestion executions remain isolated and private
-Each execution SHALL own its resources and results. Workflow data/errors SHALL exclude credentials, prompts, pages, raw provider payloads, full model responses and live resources. Existing sanitized apply-only tracing and silent SDK logging SHALL be retained, adding both IDs and safe terminal codes.
+Each execution SHALL own its resources and results. Workflow data/errors SHALL exclude credentials, prompts, pages, raw provider payloads, full model responses and live resources. Existing apply-only tracing and independently configurable application logging SHALL be retained, adding both IDs and safe terminal codes; the workflow SDK logger and automatic log export SHALL remain disabled.
 
 #### Scenario: Overlap or duplicate ID
 - **WHEN** executions overlap or a duplicate active engine ID is submitted
@@ -103,6 +103,14 @@ Each execution SHALL own its resources and results. Workflow data/errors SHALL e
 - **THEN** finish owned tracing once with both IDs and its safe terminal code; preserve the original result/error and shared inspection store
 - **AND** dry-run creates no research traces
 
+### Requirement: Studio attempts share observability ownership
+
+Studio executions SHALL reuse its initialized DuckDB observability store in the same process. Attempt cleanup SHALL finish owned observations without closing the shared store. Existing independent logging and tracing controls SHALL remain available.
+
+#### Scenario: Inspect after execution
+- **WHEN** a Studio attempt completes, fails or is cancelled
+- **THEN** subsequent attempts and inspection can use the same store; cleanup releases only attempt-owned observations
+
 ### Requirement: Studio execution starts fresh without replaying writes
 Ingestion SHALL disable automatic retries/restart recovery and reject per-step starts, resume, restart and time travel before attempt allocation. Fresh full runs SHALL use new ingestion IDs and current state; forced termination SHALL retain unknown-completion semantics.
 
@@ -113,3 +121,15 @@ Ingestion SHALL disable automatic retries/restart recovery and reject per-step s
 #### Scenario: Rerun after interruption
 - **WHEN** the owner starts a fresh full run
 - **THEN** research current state under a new ingestion ID without modifying or resuming the unfinished attempt
+
+### Requirement: Research uses Mastra agent limits without a page-count cap
+CLI and Studio research SHALL use Mastra iteration and generation-time limits instead of a separate ordinary model-call limiter and generation timer. Page reads SHALL have no count cap. Search/depth/size safeguards, the attempt deadline outside generation and existing retry policy SHALL remain. Counts and known usage SHALL remain reportable, with historical version-2 reports readable.
+
+#### Scenario: Read beyond the old cap
+- **WHEN** research reads additional pages within retained safeguards
+- **THEN** page count alone does not stop retrieval or reject a candidate; prompts do not impose a replacement page target
+
+#### Scenario: Agent exhausts its allowance
+- **WHEN** Mastra exhausts research iterations or generation time without valid output
+- **THEN** report limit_reached with known usage and still finalize the durable attempt
+- **AND** initial reads, discovery and retry waits remain bounded by the attempt deadline

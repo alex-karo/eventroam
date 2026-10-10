@@ -41,9 +41,19 @@ Load execution dependencies lazily. Resolve catalog and trace paths before Mastr
 
 Disable retries, snapshots and automatic restart. Reject resume/restart/time travel and `perStep: true` on every start/stream variant before allocation. Per-step mode can pause after initialization without terminal hooks. Revalidate execution entry so callers cannot bypass initialization.
 
-### 4. Extend existing tracing minimally
+### 4. Preserve existing observability
 
-Keep sanitized apply-only traces and silent SDK logging; prevent registration from adding an unsanitized exporter. Add the two run IDs and a bounded terminal code distinguishing cancellation, workflow failure and persistence failure. Retain existing outcomes and best-effort flush/shutdown behavior; introduce no new span hierarchy. Dry-run progress comes from Studio steps.
+Preserve main’s explicit apply-only trace fields and independently configurable selected Pino application logs. Keep the workflow SDK logger and automatic export disabled; registration adds no unsanitized exporter. Add both run IDs and safe cancellation/workflow/persistence terminal codes. Studio attempts reuse its initialized DuckDB handle: flush/shutdown owned observations without closing shared storage. CLI owns and closes its store as before. Dry-run progress comes from Studio steps; optional application logging remains available.
+
+### 5. Use Mastra for agent limits
+
+Remove the page-count cap from source reads, candidate preparation, prompts and configuration; keep page counts as observations. Retain search-count, traversal-depth, page-byte, search-result and input-context limits. Remove the prompt's separate four-page target so it does not silently retain the removed cap.
+
+Use Mastra `maxSteps` for agent iterations and `modelSettings.timeout.totalMs` for generation, passing the remaining attempt time. Replace the hand-written generation timer while retaining the attempt deadline for initial reads, discovery and retry backoff; final report persistence/cleanup must still run after research expires. Compose owner cancellation with generation cancellation. Native timeout errors remain `limit_reached`, with known usage retained.
+
+Replace the ordinary-call cap with a clearly named agent-step setting. Mastra iterations are not a total request or spending limit: discovery remains separately bounded by searches. Retain the existing provider_unavailable-only retry policy (three bounded backoffs, no tool replay), including capacity allowance for unavailable attempts through the existing retry tracking and a bounded iteration allowance. Do not retain a second general model-call limiter or silently convert capacity failures into loss of ordinary research capacity.
+
+Keep model-call/page counts, token usage and reported costs as accounting. Update configuration, prompt projections, report budget metadata and consumers coherently, preserving version-2 historical report readability; no database migration. Test the real agent loop with an offline provider to verify iteration exhaustion, native timeout classification/usage, unavailable retries and reads beyond the former page cap.
 
 ## Risks / Trade-offs
 

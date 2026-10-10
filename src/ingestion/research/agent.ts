@@ -1,5 +1,6 @@
 import { shrinkText, type ResearchLogger } from "../runtime/logging";
 import { Agent } from "@mastra/core/agent";
+import { isMastraTimeoutError } from "@mastra/core/loop";
 import { noopLogger } from "@mastra/core/logger";
 import { Mastra } from "@mastra/core/mastra";
 import { createTool } from "@mastra/core/tools";
@@ -56,6 +57,7 @@ export async function researchFestival(
   deps: Pick<ResearchDependencies, "generateCandidate" | "todayUtc">,
   runId?: string,
   tracing?: RunObservability,
+  abortSignal?: AbortSignal,
 ): Promise<ResearchExecution> {
   const { catalog, terms, knownLinks } = context;
   const { reads, readSource: read, discoverSources: search } = sources;
@@ -93,7 +95,9 @@ export async function researchFestival(
       });
       try {
         const cached = sources.isReadCached(url);
+        abortSignal?.throwIfAborted();
         const result = await read(url, { ...context, tool: true });
+        abortSignal?.throwIfAborted();
         const bounded = boundedToolSource(result);
         observeTrace(tracing, span, {
           name: "readSource",
@@ -171,7 +175,9 @@ export async function researchFestival(
       const started = Date.now();
       toolLog?.info("Tool call started", { tool: "discoverSources", query });
       try {
+        abortSignal?.throwIfAborted();
         const result = await search(query, { ...context, tool: true });
+        abortSignal?.throwIfAborted();
         observeTrace(tracing, span, {
           name: "discoverSources",
           input: {
@@ -179,7 +185,7 @@ export async function researchFestival(
             queryTruncated: Buffer.byteLength(query) > 1200,
           },
           output: {
-            status: sources.wasSearchReserved(result) ? "not_run" : "ok",
+            status: "ok",
             returnedCount: result.candidates.length,
             retainedCount: Math.min(result.candidates.length, 5),
             omittedCount: Math.max(0, result.candidates.length - 5),
@@ -191,7 +197,7 @@ export async function researchFestival(
         toolLog?.info("Tool call finished", {
           tool: "discoverSources",
           query,
-          status: sources.wasSearchReserved(result) ? "not_run" : "ok",
+          status: "ok",
           returnedCount: result.candidates.length,
           candidates: result.candidates.slice(0, 5).map(({ url }) => ({ url })),
           inputTokens: result.inputTokens,
@@ -258,10 +264,10 @@ export async function researchFestival(
         ],
         tools: { readSource: sourceTool, discoverSources: searchTool },
       });
-  if (budget.remaining().modelCalls <= 0) {
+  if (budget.limits.agentSteps <= 0) {
     modelLog?.warn("Research budget exhausted", {
-      budgetKind: "modelCalls",
-      limit: budget.limits.modelCalls,
+      budgetKind: "agentSteps",
+      limit: budget.limits.agentSteps,
     });
     return {
       ok: false,
@@ -270,7 +276,7 @@ export async function researchFestival(
         {
           code: "limit_reached",
           stage: "research",
-          message: "Model call limit reached",
+          message: "Agent step limit reached",
         },
       ],
     };
@@ -287,10 +293,9 @@ export async function researchFestival(
   let raw: unknown;
   let text: string | null = null;
   let generationFinishedAt: number | undefined;
+  let iterationsExhausted = false;
   try {
-    if (prompt.length > budget.limits.modelInputChars) {
-      throw new ResearchLimitError("modelInputChars");
-    }
+    assertPromptSize(prompt, budget.limits.modelInputChars);
     if (deps.generateCandidate) {
       budget.consumeModelCall();
       raw = await deps.generateCandidate(prompt, {
@@ -304,11 +309,6 @@ export async function researchFestival(
       const { mastra } = runtime;
       // Core sets the observability logger in its constructor; override it afterwards.
       tracing?.observability.setLogger({ logger: tracing.logger });
-      const abort = new AbortController();
-      const timeout = setTimeout(
-        () => abort.abort(),
-        budget.remaining().durationMs,
-      );
       let generated;
       try {
         generated = await mastra.getAgent("festivalResearch").generate(prompt, {
@@ -321,16 +321,18 @@ export async function researchFestival(
             errorStrategy: "warn",
             logger: noopLogger,
           },
-          // Mastra counts retry iterations as steps; the shared budget still
-          // bounds ordinary calls, with capacity-only retries outside it.
-          maxSteps:
-            budget.remaining().modelCalls + MAX_PROVIDER_UNAVAILABLE_RETRIES,
+          // Capacity failures consume Mastra iterations, so reserve retry
+          // iterations while keeping ordinary research capacity intact.
+          maxSteps: budget.limits.agentSteps + MAX_PROVIDER_UNAVAILABLE_RETRIES,
+          stopWhen: ({ steps }: { steps: unknown[] }) =>
+            steps.length - unavailableAttempts >= budget.limits.agentSteps,
           providerOptions: researchProviderOptions(config),
           modelSettings: {
             maxOutputTokens: budget.limits.modelOutputTokens,
             maxRetries: 0,
+            timeout: { totalMs: Math.max(1, budget.remaining().durationMs) },
           },
-          abortSignal: abort.signal,
+          abortSignal,
           onStepFinish: (step) => {
             // Mastra also finishes failed steps without provider usage.
             if (
@@ -377,13 +379,15 @@ export async function researchFestival(
             usage.complete = false;
           },
           prepareStep: ({ messageList, systemMessages }) => {
+            abortSignal?.throwIfAborted();
             const chars =
               JSON.stringify(messageList.get.all.db()).length +
               JSON.stringify(systemMessages).length;
             if (chars > budget.limits.modelInputChars) {
               throw new ResearchLimitError("modelInputChars");
             }
-            const finalCall = budget.remaining().modelCalls <= 1;
+            const finalOrdinaryStep =
+              startedSteps >= budget.limits.agentSteps - 1;
             budget.consumeModelCall();
             startedSteps += 1;
             stepNumber = completedSteps + 1;
@@ -397,7 +401,7 @@ export async function researchFestival(
               outputAllowance: budget.limits.modelOutputTokens,
               remaining: budget.remaining(),
             });
-            return finalCall
+            return finalOrdinaryStep
               ? { toolChoice: "none", activeTools: [] }
               : undefined;
           },
@@ -405,11 +409,17 @@ export async function researchFestival(
       } finally {
         // Trace cleanup can cross the deadline after generation has already finished.
         generationFinishedAt = Date.now();
-        clearTimeout(timeout);
         await runtime.finish();
       }
       raw = generated.object;
       throwIfProviderRetry(raw, generated.finishReason, providerError);
+      iterationsExhausted = isIterationExhausted(
+        raw,
+        generated.finishReason,
+        completedSteps,
+        startedSteps + unavailableAttempts,
+        budget.limits.agentSteps,
+      );
       text = generated.text ?? null;
       usage.complete &&= completedSteps === startedSteps;
       if (!usage.complete || missingCost) {
@@ -441,6 +451,21 @@ export async function researchFestival(
             ? `Research ${classified.limit.limit} limit reached`
             : "Research model failed",
           ...(!classified.limit ? { diagnostic: classified.diagnostic } : {}),
+        },
+      ],
+    };
+  }
+  if (iterationsExhausted) {
+    traceFailure(tracing, "research_failed");
+    return {
+      ok: false,
+      usage,
+      modelResponse: { text, object: raw ?? null },
+      errors: [
+        {
+          code: "limit_reached",
+          stage: "research",
+          message: "Research agent step limit reached",
         },
       ],
     };
@@ -498,6 +523,27 @@ function throwIfProviderRetry(
   // when the provider rejected the only HTTP request.
   if (object == null && finishReason === "retry") {
     throw providerError ?? new Error("Model generation failed");
+  }
+}
+
+function isIterationExhausted(
+  object: unknown,
+  finishReason: string | undefined,
+  completedSteps: number,
+  attemptedSteps: number,
+  agentSteps: number,
+) {
+  return (
+    object == null &&
+    finishReason === "tool-calls" &&
+    (completedSteps >= agentSteps ||
+      attemptedSteps >= agentSteps + MAX_PROVIDER_UNAVAILABLE_RETRIES)
+  );
+}
+
+function assertPromptSize(prompt: string, maxCharacters: number): void {
+  if (prompt.length > maxCharacters) {
+    throw new ResearchLimitError("modelInputChars");
   }
 }
 
@@ -596,7 +642,7 @@ An Event is a recurring festival with its own identity and location, not an umbr
 
 Read already inspected pages before calling tools. For add, discover and inspect a festival source by name. For refresh/check, use the requested eventId and check for the latest completed or next announced edition, even if the saved catalog contains only an earlier year. Select an existing Event for add when it is the same festival; the host then skips creation and makes no updates. Only targeted refresh/check may update an existing Event. Keep parallel same-brand festivals separate. Use the existing edition key for an existing year; create a new edition key for a genuinely announced new year. Do not invent an unannounced edition from a previous year. If an inspected official page explicitly names a new edition and its programme date range, include that edition and supported dates even when a deeper linked page is blocked. A blocked follow-up page leaves only the facts unique to that page unresolved; do not discard facts already visible on the inspected page. Never mark research complete while silently omitting an announced edition discovered during the requested check.
 
-Aim for no more than four distinct page attempts, including failed reads. Follow the most relevant visible link for an unresolved identity, programme date, location, or ticket question. Search only when relevant inspected links are absent. Complete the relevant checks within the available budget; unknown optional fields can remain omitted. Do not retry inaccessible pages through a chain of alternatives.
+Follow the most relevant visible link for an unresolved identity, programme date, location, or ticket question. Search only when relevant inspected links are absent. Complete the relevant checks within the available budget; unknown optional fields can remain omitted. Do not retry inaccessible pages through a chain of alternatives.
 
 Return data.sources with one brief information summary per useful inspected HTTP(S) page, preferring its final URL. Do not list unread pages as useful sources. Explain each supplied fact in a nonempty reason, including clearing and unchanged checks. Explain Event identity in data.reason only when creating a new Event. Existing eventName is observational and never renames a saved Event. Omitted facts preserve saved values. If a page does not specify a venue, omit venueName or use wire venueName:null; NEVER return venueName:{value:null,reason:"not found"}. Inner value:null is an intentional clearing and requires positive evidence that the saved value became obsolete. Apply the same rule to all nullable facts, dates, coordinates, and ticket blocks. Do not return claims, prices, descriptor status, timeZone, or edition-wide ticket availability.
 
@@ -712,20 +758,13 @@ function serializedResearchLimit(item: Record<string, unknown>) {
   if (
     item.name === "ResearchLimitError" &&
     typeof item.limit === "string" &&
-    [
-      "time",
-      "searches",
-      "pages",
-      "depth",
-      "modelCalls",
-      "modelInputChars",
-    ].includes(item.limit)
+    ["time", "searches", "depth", "modelInputChars"].includes(item.limit)
   ) {
     return new ResearchLimitError(item.limit as ResearchLimitError["limit"]);
   }
   if (typeof item.message === "string") {
     const match =
-      /^Research (time|searches|pages|depth|modelCalls|modelInputChars) limit exhausted$/.exec(
+      /^Research (time|searches|depth|modelInputChars) limit exhausted$/.exec(
         item.message,
       );
     if (match) {
@@ -756,7 +795,7 @@ export function classifyModelError(
       break;
     }
     const item = current as Record<string, unknown>;
-    limit ??= serializedResearchLimit(item);
+    limit ??= modelLimitForError(current, item);
     if (typeof item.name === "string") {
       const name = safeErrorName(item.name);
       if (!errorTypes.includes(name)) {
@@ -783,6 +822,12 @@ export function classifyModelError(
       ...(retryable !== undefined ? { retryable } : {}),
     },
   };
+}
+
+function modelLimitForError(error: unknown, item: Record<string, unknown>) {
+  return isMastraTimeoutError(error)
+    ? new ResearchLimitError("time")
+    : serializedResearchLimit(item);
 }
 
 const knownErrorNames = new Set([

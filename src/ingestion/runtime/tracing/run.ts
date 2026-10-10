@@ -1,4 +1,5 @@
 import { SpanType, type AnySpan } from "@mastra/core/observability";
+import type { DuckDBStore } from "@mastra/duckdb";
 import type { CatalogItemResult } from "@/catalog/write/apply-operation";
 import type {
   CatalogResearchInput,
@@ -39,6 +40,8 @@ export async function createCatalogRunTrace(
   runId: string,
   injected: boolean,
   protectedPaths: string[] = [],
+  engineRunId?: string,
+  sharedStore?: DuckDBStore,
 ) {
   const tracing = await createRunObservability(
     input,
@@ -46,6 +49,7 @@ export async function createCatalogRunTrace(
     runId,
     injected,
     protectedPaths,
+    sharedStore,
   );
   if (!tracing) {
     return undefined;
@@ -70,7 +74,11 @@ export async function createCatalogRunTrace(
           mutations,
           traceResultLabel(state, snapshot.report),
         ),
-        metadata: { phase: snapshot.phase },
+        metadata: {
+          phase: snapshot.phase,
+          runId,
+          ...(engineRunId ? { engineRunId } : {}),
+        },
         output: {
           ...(snapshot.report
             ? {
@@ -126,6 +134,9 @@ export async function createCatalogRunTrace(
         report: "report_failed",
       };
       this.failed(codes[snapshot.phase] ?? "workflow_failed");
+    },
+    terminalFailed(code: "cancelled" | "run_persistence_failed") {
+      this.failed(code);
     },
     async finish(report?: CatalogResearchResult) {
       update({ report });
