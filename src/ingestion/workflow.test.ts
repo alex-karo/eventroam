@@ -1,4 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
+import { Run, Workflow } from "@mastra/core/workflows";
 import { asc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import type Database from "better-sqlite3";
@@ -7,12 +8,14 @@ import {
   readResearchCatalog,
   readResearchEvent,
 } from "@/catalog/read/research";
-import { testDatabase } from "@/test/database";
+import { createTestDatabase, testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { runCatalogResearch as executeResearch } from "./workflow";
 import * as contextModule from "./research/context";
 import * as prepareModule from "./research/prepare";
 import * as reportModule from "./report";
+import * as applyModule from "@/catalog/write/apply-operation";
+import * as runTraceModule from "./runtime/run-trace";
 import { RunPersistenceError } from "./runs";
 import { discoverSources } from "./sources/discover-sources";
 import { DEFAULT_RESEARCH_LIMITS } from "./runtime/budget";
@@ -110,8 +113,7 @@ function candidate(termIds: string[]): ResearchCandidate {
     unresolved: [],
   };
 }
-function fixture() {
-  const client = testDatabase().client;
+function fixture(client = testDatabase().client) {
   const termIds = testFixtures(client)
     .festivalTerms()
     .map((term) => term.id);
@@ -943,6 +945,8 @@ test.each(["context", "preparation", "report"] as const)(
   async (stage) => {
     const { client, termIds } = fixture();
     const secret = new Error("SECRET request body/api key");
+    const model = vi.fn(async () => candidate(termIds));
+    const apply = vi.spyOn(applyModule, "applyCatalogItem");
     if (stage === "context") {
       vi.spyOn(contextModule, "loadResearchContext").mockImplementationOnce(
         () => {
@@ -964,7 +968,7 @@ test.each(["context", "preparation", "report"] as const)(
     }
     const result = await runCatalogResearch(
       { ...input, dryRun: false },
-      { client, generateCandidate: async () => candidate(termIds) },
+      { client, generateCandidate: model },
     );
     expect(result.errors).toContainEqual({
       code: "workflow_failed",
@@ -973,6 +977,8 @@ test.each(["context", "preparation", "report"] as const)(
     });
     expect(JSON.stringify(result)).not.toContain("SECRET");
     if (stage === "report") {
+      expect(model).toHaveBeenCalledOnce();
+      expect(apply).toHaveBeenCalledOnce();
       expect(result.outcome).toBe("published");
       expect(result.receipts.length).toBeGreaterThan(0);
       expect(readResearchCatalog(client)).toHaveLength(1);
@@ -1097,4 +1103,228 @@ test("tracing-enabled injected workflow stores a durable run without trace stora
     generateCandidate: async () => candidate([]),
   });
   expect(existsSync(path)).toBe(false);
+});
+
+test("the public runner executes the six Mastra steps in order with safe graph data", async () => {
+  const { client, termIds, readSource } = fixture();
+  const created = vi.spyOn(Workflow.prototype, "createRun");
+  const starts = vi.spyOn(Run.prototype, "start");
+  const phases: string[] = [];
+  const readInitial = runTraceModule.readInitialWithTrace;
+  vi.spyOn(runTraceModule, "readInitialWithTrace").mockImplementation(
+    (...args) => {
+      phases.push("read-initial-source");
+      return readInitial(...args);
+    },
+  );
+  const loadContext = contextModule.loadResearchContext;
+  vi.spyOn(contextModule, "loadResearchContext").mockImplementation(
+    (...args) => {
+      phases.push("load-context");
+      return loadContext(...args);
+    },
+  );
+  const prepare = prepareModule.prepareResearch;
+  vi.spyOn(prepareModule, "prepareResearch").mockImplementation((...args) => {
+    phases.push("prepare-candidate");
+    return prepare(...args);
+  });
+  const apply = applyModule.applyCatalogItem;
+  vi.spyOn(applyModule, "applyCatalogItem").mockImplementation((...args) => {
+    phases.push("apply-catalog-item");
+    return apply(...args);
+  });
+  const buildReport = reportModule.buildResearchReport;
+  vi.spyOn(reportModule, "buildResearchReport").mockImplementation(
+    (...args) => {
+      phases.push("build-report");
+      return buildReport(...args);
+    },
+  );
+  const privatePage = "PRIVATE_PAGE_BODY";
+  const privateOutput = "PRIVATE_MODEL_OUTPUT";
+  const proposal = candidate(termIds);
+  proposal.data!.summary!.value = privateOutput;
+  readSource.mockImplementation(async (_url, options) => {
+    options.budget.consumePage(options.depth);
+    return { ...source, markdown: privatePage };
+  });
+
+  const result = await runCatalogResearch(
+    { ...input, dryRun: false },
+    {
+      client,
+      readSource,
+      config: {
+        apiKey: "PRIVATE_API_KEY",
+        model: "fixture",
+        limits: DEFAULT_RESEARCH_LIMITS,
+      },
+      generateCandidate: async (_prompt, context) => {
+        phases.push("research-festival");
+        await context.readSource(url);
+        return proposal;
+      },
+    },
+  );
+
+  expect(created).toHaveBeenCalledOnce();
+  expect(starts).toHaveBeenCalledOnce();
+  const engineResult = (await starts.mock.results[0].value) as {
+    status: string;
+  };
+  expect(engineResult.status).toBe("success");
+  const workflow = created.mock.instances[0] as Workflow;
+  expect(Object.keys(workflow.steps)).toEqual([
+    "load-context",
+    "read-initial-source",
+    "research-festival",
+    "prepare-candidate",
+    "apply-catalog-item",
+    "build-report",
+  ]);
+  expect(phases).toEqual([
+    "load-context",
+    "read-initial-source",
+    "research-festival",
+    "prepare-candidate",
+    "apply-catalog-item",
+    "build-report",
+  ]);
+  const graph = JSON.stringify(workflow.serializedStepGraph);
+  expect(workflow.retryConfig).toMatchObject({ attempts: 0 });
+  expect((workflow.options.shouldPersistSnapshot as () => boolean)()).toBe(
+    false,
+  );
+  for (const privateValue of ["PRIVATE_API_KEY", privatePage, privateOutput]) {
+    expect(graph).not.toContain(privateValue);
+    expect(JSON.stringify(starts.mock.calls[0])).not.toContain(privateValue);
+    expect(JSON.stringify(engineResult)).not.toContain(privateValue);
+  }
+  expect(result.outcome).toBe("published");
+  expect(result.modelResponse?.object).toEqual(proposal);
+});
+
+test("a failed Mastra step finalizes one failed attempt without retrying research", async () => {
+  const { client } = fixture();
+  const created = vi.spyOn(Workflow.prototype, "createRun");
+  const starts = vi.spyOn(Run.prototype, "start");
+  const loadContext = vi
+    .spyOn(contextModule, "loadResearchContext")
+    .mockImplementationOnce(() => {
+      throw new Error("PRIVATE_CONTEXT_FAILURE");
+    });
+  const model = vi.fn(async () => candidate([]));
+
+  const result = await runCatalogResearch(input, {
+    client,
+    generateCandidate: model,
+  });
+
+  expect(created).toHaveBeenCalledOnce();
+  expect(starts).toHaveBeenCalledOnce();
+  const engineResult = (await starts.mock.results[0].value) as {
+    status: string;
+    error: Error;
+    steps: Record<string, { status: string; error?: Error }>;
+  };
+  expect(engineResult.status).toBe("failed");
+  const failedStep = engineResult.steps["load-context"];
+  expect(failedStep.status).toBe("failed");
+  for (const error of [engineResult.error, failedStep.error]) {
+    expect(error).toBeDefined();
+    expect(error?.message).toBe("Ingestion workflow failed");
+    expect(error?.stack ?? "").not.toContain("PRIVATE_CONTEXT_FAILURE");
+    expect(error?.cause).toBeUndefined();
+  }
+  expect(model).not.toHaveBeenCalled();
+  expect(loadContext).toHaveBeenCalledOnce();
+  expect(result).toMatchObject({ outcome: "failed", researchStatus: "failed" });
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({ code: "workflow_failed", stage: "workflow" }),
+  );
+  expect(JSON.stringify(result)).not.toContain("PRIVATE_CONTEXT_FAILURE");
+  expect(client.prepare("SELECT id FROM ingestion_runs").all()).toHaveLength(1);
+});
+
+test("Mastra run setup failure finalizes one safe failed attempt before external work", async () => {
+  const { client, readSource } = fixture();
+  const created = vi
+    .spyOn(Workflow.prototype, "createRun")
+    .mockRejectedValueOnce(new Error("PRIVATE_MASTRA_SETUP"));
+  const model = vi.fn(async () => candidate([]));
+
+  const result = await runCatalogResearch(input, {
+    client,
+    readSource,
+    generateCandidate: model,
+  });
+
+  expect(created).toHaveBeenCalledOnce();
+  expect(model).not.toHaveBeenCalled();
+  expect(readSource).not.toHaveBeenCalled();
+  expect(result).toMatchObject({ outcome: "failed", researchStatus: "failed" });
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({ code: "workflow_failed", stage: "workflow" }),
+  );
+  expect(JSON.stringify(result)).not.toContain("PRIVATE_MASTRA_SETUP");
+  expect(client.prepare("SELECT id FROM ingestion_runs").all()).toEqual([
+    { id: result.runId },
+  ]);
+});
+
+test("overlapping Mastra runs keep their database and research state separate", async () => {
+  const first = fixture();
+  const second = fixture(createTestDatabase().client);
+  const created = vi.spyOn(Workflow.prototype, "createRun");
+  let entered = 0;
+  let release!: () => void;
+  const bothEntered = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const generator = (name: string, termIds: string[]) => async () => {
+    entered += 1;
+    if (entered === 2) {
+      release();
+    }
+    await bothEntered;
+    const proposal = candidate(termIds);
+    proposal.data!.eventName = name;
+    return proposal;
+  };
+
+  const [firstResult, secondResult] = await Promise.all([
+    runCatalogResearch(
+      { ...input, name: "First Fest", dryRun: false },
+      {
+        client: first.client,
+        generateCandidate: generator("First Fest", first.termIds),
+      },
+    ),
+    runCatalogResearch(
+      { ...input, name: "Second Fest", dryRun: false },
+      {
+        client: second.client,
+        generateCandidate: generator("Second Fest", second.termIds),
+      },
+    ),
+  ]);
+
+  expect(created).toHaveBeenCalledTimes(2);
+  expect(created.mock.instances[0]).not.toBe(created.mock.instances[1]);
+  expect(firstResult.runId).not.toBe(secondResult.runId);
+  expect(firstResult.outcome).toBe("published");
+  expect(secondResult.outcome).toBe("published");
+  expect(
+    readResearchCatalog(first.client).map((event) => event.canonicalName),
+  ).toEqual(["First Fest"]);
+  expect(
+    readResearchCatalog(second.client).map((event) => event.canonicalName),
+  ).toEqual(["Second Fest"]);
+  expect(first.client.prepare("SELECT id FROM ingestion_runs").all()).toEqual([
+    { id: firstResult.runId },
+  ]);
+  expect(second.client.prepare("SELECT id FROM ingestion_runs").all()).toEqual([
+    { id: secondResult.runId },
+  ]);
 });

@@ -23,6 +23,23 @@ Ingestion finds or refreshes festival facts in the catalog. An owner starts each
 6. [Save changes](#save-changes) — write each Event atomically and handle publication.
 7. [Review the report](#review-the-report) — see changes, sources, and unresolved questions.
 
+## Workflow steps
+
+Each festival attempt runs one Mastra workflow with six sequential steps:
+
+| Step | Responsibility |
+| --- | --- |
+| `load-context` | Load saved Event facts, editions, links, and vocabulary. |
+| `read-initial-source` | Create the shared source session and read its initial saved link when available. |
+| `research-festival` | Run the research agent with the shared source session and budget. |
+| `prepare-candidate` | Validate the result and target, then prepare explained catalog operations. |
+| `apply-catalog-item` | Preview or atomically apply eligible operations; retain write failures for the report. |
+| `build-report` | Combine research, actual changes, source history, questions, and known usage. |
+
+The command validates input and saves the durable running row before starting the graph. After the graph finishes, it saves the final report and closes optional tracing. Unexpected step failures stop later steps; the host builds a failure report from available work, including any committed changes. A finalization failure does not replay research or writes.
+
+Each invocation has its own database dependencies, source session, budget, and partial results. Workflow data contains only safe run and phase summaries; credentials, source pages, and model output remain outside it. Workflow retries and snapshots are disabled. The research agent retains its existing provider retry policy, and an interrupted invocation is rerun as a new attempt against current catalog state. Local Studio continues to inspect saved traces without offering catalog workflow execution.
+
 ## Start a run
 
 ```sh
