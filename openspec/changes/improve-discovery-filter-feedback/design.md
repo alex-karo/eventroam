@@ -10,7 +10,7 @@ This design is needed to coordinate presentation, validation, pending state, and
 
 **Goals:** Derive chips and previews from existing filter state, reuse matching and validation, and make location controls discoverable without a second location model.
 
-**Non-Goals:** No new persistence, remote search, geocoding, facet-count engine, matching semantics, toolbar relocation, or modal-sheet architecture. Dates and duration retain their existing controls and defaults. Product scope remains the first three selected research recommendations.
+**Non-Goals:** No new persistence, remote search, geocoding, facet-count engine, matching semantics, toolbar relocation, or modal-sheet architecture. Custom dates and duration retain their existing controls and defaults. Date shortcuts use visible nearby-month buttons.
 
 ## Decisions
 
@@ -45,6 +45,10 @@ Build city/region suggestions from nonempty `locality` and `administrativeArea` 
 Normalize suggestion text using the existing place whitespace rules and omit values longer than the existing 200-character query limit. Share only the small normalization helper or limit needed to avoid duplicating that rule; do not truncate suggestions or change the catalog's 250-character limit. Selecting a suggestion copies only its normalized locality or region text into `pending.place`; the country annotation is context, not a hidden country selection. Identical place text can therefore match several countries, as existing substring semantics permit. Retain free-text entry and do not clear it when countries change. Helper text explains that users can type a city or region and optionally narrow by country.
 
 Use an accessible editable combobox with listbox suggestions: arrow keys navigate, Enter selects without applying, and Escape first dismisses the suggestion list, then a subsequent Escape can dismiss the filter picker. Coordinate that event handling with the existing window Escape listener. Retain text focus on selection. A custom suggestion list allows country context and consistent keyboard behavior that an unqualified native datalist may not provide; no UI library is required.
+
+### 4. Make nearby months visible
+
+Replace the native Month field with six buttons for the visitor’s current local calendar month and next five months, captured when the picker mounts. Label each with English month and year. Clicking a button fills the full inclusive calendar month in pending From/To fields; aria-pressed and tint indicate selection only when both bounds exactly match. Keep preview and explicit Apply/Cancel behavior. Remove This weekend and Upcoming and ongoing buttons; clearing custom dates or removing the date chip still restores default matching. Custom dates cover months outside the shortcuts, and zero-result months retain an honest enabled Show 0 editions action.
 
 ## Risks / Trade-offs
 

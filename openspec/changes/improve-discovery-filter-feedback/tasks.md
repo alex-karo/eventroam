@@ -26,3 +26,7 @@
 - [x] 4.1 Run `npm run type-check`, `npm run lint`, `npm run format:check`, `npm test`, and the desktop/mobile discovery e2e suite; obtain approved execution outside the command sandbox before full Chrome launches on macOS and record outcomes.
 - [x] 4.2 Use the built-in Browser to verify the complete journey: select a date range and Portugal/Spain, inspect a preview, apply, remove Spain, restore with Back, and select a city suggestion; confirm keyboard focus, no horizontal overflow at 320px, preserved map/list state, and usable filter interactions with a representative larger catalog.
 - [x] 4.3 Verify all delta scenarios are covered by tests or recorded browser checks and the main discovery spec matches implemented behavior; run `npm run openspec:validate` and `npm run docs:check` before declaring implementation complete.
+
+## 5. Visible month shortcuts
+
+- [x] 5.1 Replace date shortcuts with six labeled month buttons and selection feedback; verify calendar bounds, year transitions, pending/apply behavior and removal of the old controls in desktop/mobile journeys, sync the main spec and run validation.

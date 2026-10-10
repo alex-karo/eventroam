@@ -24,9 +24,7 @@ Website:
 
 ## Active changes
 
-- [Nearby month buttons](../openspec/changes/simplify-month-shortcuts/proposal.md) — replace the native month field and remove weekend/default-date shortcuts.
-
-- [Clearer discovery filters](../openspec/changes/improve-discovery-filter-feedback/proposal.md) — implemented selected-value chips, pending result counts, and searchable location choices; pending archive.
+- [Clearer discovery filters](../openspec/changes/improve-discovery-filter-feedback/proposal.md) — implemented selected-value chips, pending result counts, searchable location choices, and nearby-month buttons; pending archive.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
