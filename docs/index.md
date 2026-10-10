@@ -24,10 +24,13 @@ Website:
 
 ## Approved future changes
 
+- [Studio ingestion execution](../openspec/changes/expose-ingestion-in-studio/proposal.md) — planned local graph inspection and execution, with preview defaults and isolated durable runs.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
 ## Archived changes
+
+- [Mastra ingestion workflow](../openspec/changes/archive/2026-10-10-use-mastra-ingestion-workflow/proposal.md) — implemented explicit ingestion steps with compatible run lifecycle and reporting.
 
 - [Clearer ingestion traces](../openspec/changes/archive/2026-10-09-clarify-ingestion-traces/proposal.md) — readable Event/edition labels, bounded safe source diagnostics, and apply-run outcomes.
 - [Durable ingestion run records](../openspec/changes/archive/2026-10-09-add-ingestion-run-records/proposal.md) — implemented per-festival start/final history, private reports, and known usage/costs, including dry runs.
