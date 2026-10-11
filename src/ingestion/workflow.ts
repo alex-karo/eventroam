@@ -19,7 +19,8 @@ import { loadResearchContext } from "./research/context";
 import { createSourceSession } from "./tools/session";
 import { readInitialWithTrace } from "./runtime/tracing";
 import { researchFestival } from "./research/agent";
-import { prepareResearch } from "./research/prepare";
+import { prepareEditorPlan, validateResearch } from "./editor/prepare";
+import { editResearch } from "./editor/agent";
 import { buildResearchReport } from "./report";
 import {
   logPreparation,
@@ -69,6 +70,7 @@ const dataSchema = z.object({
   reads: z.array(z.json()),
   discovery: z.array(z.json()),
   research: z.json(),
+  editor: z.json(),
   prepared: z.json().nullable(),
   applied: z.json().nullable(),
   writeFailed: z.boolean(),
@@ -97,6 +99,7 @@ export const studioIngestionResultSchema = z.strictObject({
     "failed",
   ]),
   researchStatus: z.enum(["success", "partial", "failed"]),
+  editorStatus: z.enum(["success", "failed", "not_run"]),
   persistenceStatus: z.enum(["completed", "failed"]),
   eventId: z.string().nullable(),
   scope: z.enum(["full", "current"]).nullable(),
@@ -190,6 +193,7 @@ function projectSummary(
     dryRun: owned.input.dryRun ?? true,
     outcome: result.outcome,
     researchStatus: result.researchStatus,
+    editorStatus: result.editorStatus,
     persistenceStatus,
     eventId: result.eventId ?? null,
     scope: result.scope,
@@ -391,21 +395,19 @@ export function createCatalogIngestionWorkflow(
       };
     },
   );
-  const prepare = phase(
-    "prepare-candidate",
-    "Validate candidate facts and prepare catalog operations",
+  const validate = phase(
+    "validate-research",
+    "Validate research, target, scope and country before editing",
     (owned, data) => {
       owned.trace?.update({ phase: "validation" });
       if (data.research.ok) {
-        data.prepared = prepareResearch(
+        data.prepared = validateResearch(
           data.research.candidate,
           data.context!.catalog,
           owned.input,
-          data.context!.terms,
         );
         owned.trace?.validated(data.prepared);
         owned.trace?.tracing.setEventId(data.prepared.matchedEventId);
-        logPreparation(owned.trace?.log, data.prepared);
         data.errors = data.prepared.errors;
         data.unresolved = data.prepared.unresolved;
       } else {
@@ -413,6 +415,63 @@ export function createCatalogIngestionWorkflow(
         owned.trace?.failed("research_failed", false);
       }
       return data.prepared;
+    },
+  );
+  const edit = phase(
+    "edit-research",
+    "Decide explicit field actions from research and saved state",
+    async (owned, data, signal) => {
+      if (
+        !data.prepared?.candidate ||
+        data.prepared.candidate.status === "failed" ||
+        data.prepared.skipped
+      ) {
+        return data.editor;
+      }
+      owned.trace?.update({ phase: "editor" });
+      data.editor = await owned.track(
+        editResearch(
+          data.prepared.candidate,
+          owned.input,
+          data.context!,
+          owned.budget,
+          owned.config,
+          owned.deps,
+          owned.trace?.tracing,
+          signal,
+        ),
+      );
+      data.errors.push(...data.editor.errors);
+      return data.editor;
+    },
+  );
+  const prepare = phase(
+    "prepare-plan",
+    "Validate editorial actions and convert them to catalog operations",
+    (owned, data) => {
+      if (data.editor.status !== "success" || !data.prepared) {
+        return null;
+      }
+      owned.trace?.update({ phase: "validation" });
+      data.prepared = prepareEditorPlan(
+        data.editor.modelResponse?.object,
+        data.prepared,
+        data.context!.catalog,
+        owned.input,
+        data.context!.terms,
+      );
+      if (data.prepared.errors.some((error) => error.code === "invalid_plan")) {
+        data.editor.status = "failed";
+      }
+      data.errors = data.prepared.errors;
+      data.unresolved = data.prepared.unresolved;
+      owned.trace?.validated(data.prepared);
+      logPreparation(owned.trace?.log, data.prepared);
+      // The normalized plan exists only during preparation; editorResponse is retained once.
+      return {
+        validation: data.prepared.validation,
+        operationCount: data.prepared.operations.length,
+      };
     },
   );
   const apply = phase(
@@ -591,6 +650,8 @@ export function createCatalogIngestionWorkflow(
     .then(loadContext)
     .then(readInitial)
     .then(research)
+    .then(validate)
+    .then(edit)
     .then(prepare)
     .then(apply)
     .then(buildReport)

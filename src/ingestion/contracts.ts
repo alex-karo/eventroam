@@ -1,7 +1,8 @@
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { ResearchContext } from "./research/context";
 import type { ResearchExecution } from "./research/agent";
-import type { prepareResearch } from "./research/prepare";
+import type { prepareEditorPlan } from "./editor/prepare";
+import { emptyEditorExecution, type EditorExecution } from "./editor/agent";
 import type Database from "better-sqlite3";
 import type { DuckDBStore } from "@mastra/duckdb";
 import type { CatalogOperation } from "@/catalog/operations/operation";
@@ -30,9 +31,9 @@ export type CatalogResearchInput = {
 };
 
 export type CatalogResearchResult = {
-  schemaVersion: 4;
+  schemaVersion: 5;
   scope: NonNullable<CatalogResearchInput["scope"]> | null;
-  referenceInstant: string | null;
+  currentDate: string | null;
   limits: ResearchLimits;
   workload: {
     savedEditions: number;
@@ -47,6 +48,9 @@ export type CatalogResearchResult = {
   researchStatus: ResearchStatus;
   /** Final model output before normalization. */
   modelResponse: { text: string | null; object: unknown } | null;
+  editorResponse: { text: string | null; object: unknown } | null;
+  editorStatus: EditorExecution["status"];
+  editorPromptVersion: string;
   operations: CatalogOperation[];
   receipts: { id: string; version: number; changed: boolean }[];
   references: Record<string, string>;
@@ -102,6 +106,10 @@ export type ResearchDependencies = {
   reportPath?: string;
   /** Freeze the domain date in reproducible evaluations. */
   todayUtc?: string;
+  generateEditor?: (
+    prompt: string,
+    context: { budget: ResearchBudget; abortSignal: AbortSignal },
+  ) => Promise<unknown>;
   readSource?: typeof readSource;
   discoverSources?: typeof discoverSources;
   /** Fixture provider receives the same bounded prompt as the real Mastra agent. */
@@ -121,7 +129,8 @@ export type IngestionData = {
   reads: ReadSourceResult[];
   discovery: DiscoverSourcesResult[];
   research: ResearchExecution;
-  prepared: ReturnType<typeof prepareResearch> | null;
+  editor: EditorExecution;
+  prepared: ReturnType<typeof prepareEditorPlan> | null;
   applied: ReturnType<typeof applyCatalogItem> | null;
   writeFailed: boolean;
   errors: ResearchError[];
@@ -146,6 +155,7 @@ export function createIngestionData(): IngestionData {
         modelCostUsd: null,
       },
     },
+    editor: emptyEditorExecution(),
     prepared: null,
     applied: null,
     writeFailed: false,

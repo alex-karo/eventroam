@@ -222,7 +222,7 @@ test("eval fixtures reject the old schema version", () => {
 });
 
 test("eval scorer rejects unsupported result report versions", () => {
-  for (const schemaVersion of [1, 2, 3, undefined]) {
+  for (const schemaVersion of [1, 2, 3, 4, undefined]) {
     expect(() =>
       scoreCase(tomorrowland, {
         ...result(),
@@ -300,9 +300,12 @@ function result(
     ([, facts]) => facts.eventId && facts.key,
   );
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
+    editorResponse: null,
+    editorStatus: "not_run",
+    editorPromptVersion: "catalog-editor-v1",
     scope: null,
-    referenceInstant: null,
+    currentDate: null,
     workload: { savedEditions: 0, returnedEditions: 0 },
     limits: DEFAULT_RESEARCH_LIMITS,
     runId: "eval-fixture-run",

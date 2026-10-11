@@ -111,7 +111,7 @@ test("native create and stream expose preview, then apply under a fresh ingestio
   expect(afterPreview).toHaveLength(1);
   expect(afterPreview[0].status).toBe("completed");
   expect(JSON.parse(afterPreview[0].report_json as string).schemaVersion).toBe(
-    4,
+    5,
   );
   const catalog = new Database(fixture.catalogPath, { readonly: true });
   try {
@@ -309,7 +309,7 @@ test("final persistence failure keeps the committed catalog change and hides the
         mode: "refresh",
         dryRun: false,
         persistenceStatus: "failed",
-        usage: { inputTokens: 10, outputTokens: 20 },
+        usage: { inputTokens: 20, outputTokens: 40 },
       },
     });
     const durable = rows(server);
@@ -344,7 +344,7 @@ test("recorded apply traces and logs stay private while the shared store serves 
     expect(appliedSummary).toMatchObject({
       engineRunId: applied.runId,
       persistenceStatus: "completed",
-      usage: { inputTokens: 10, outputTokens: 20 },
+      usage: { inputTokens: 20, outputTokens: 40 },
     });
     const preview = await run(server, {
       mode: "refresh",

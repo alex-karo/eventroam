@@ -315,13 +315,14 @@ export type ResearchError = {
     | z.infer<typeof modelResearchErrorSchema>["code"]
     | "model_failed"
     | "invalid_candidate"
+    | "invalid_plan"
     | "country_conflict"
     | "country_baseline_conflict"
     | "write_failed"
     | "workflow_failed"
     | "run_persistence_failed";
   message: string;
-  stage: "source" | "research" | "validation" | "write" | "workflow";
+  stage: "source" | "research" | "editor" | "validation" | "write" | "workflow";
   url?: string;
   editionKey?: string;
   field?: string;
@@ -332,4 +333,4 @@ export type ResearchError = {
     retryable?: boolean;
   };
 };
-export const RESEARCH_PROMPT_VERSION = "scoped-refresh-v6";
+export const RESEARCH_PROMPT_VERSION = "editor-findings-v1";

@@ -121,7 +121,7 @@ export async function researchFestival(
     terms,
     budget.remaining(),
     reads,
-    context.referenceInstant,
+    context.currentDate,
   );
   let raw: unknown;
   let text: string | null = null;
@@ -149,7 +149,7 @@ export async function researchFestival(
           structuredOutput: {
             schema: modelOutputSchema(),
             // Mastra also validates intermediate tool-call commentary.
-            // Final candidates still pass strict validation in prepareResearch.
+            // Final candidates still pass strict validation in prepareEditorPlan.
             errorStrategy: "warn",
             logger: noopLogger,
           },

@@ -1,3 +1,4 @@
+import { validateFestivalScope } from "../domain/validation";
 import {
   validateEventRecord,
   validateEditionRecord,
@@ -177,20 +178,7 @@ function validateScope(client: Database.Database, id: string) {
     .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, editionTerms.termId))
     .where(eq(editionTerms.editionId, id))
     .all();
-  const has = (facet: string, slug: string) =>
-    terms.some((t) => t.facet === facet && t.slug === slug);
-  assert(
-    has("format", "openair") || has("format", "mixed-indoor-outdoor"),
-    "Festival scope requires supported open-air format",
-  );
-  assert(
-    has("event_type", "festival") || has("event_type", "gathering"),
-    "Festival scope requires event type",
-  );
-  assert(
-    has("topic", "music") || has("culture", "burning-like"),
-    "Festival scope requires music or burning-like culture",
-  );
+  validateFestivalScope(terms);
 }
 function writeChange(
   client: Database.Database,

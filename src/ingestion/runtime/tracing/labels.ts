@@ -4,7 +4,7 @@ import type {
   CatalogResearchResult,
 } from "../../contracts";
 import type { ResearchCatalog } from "../../research/context";
-import type { PreparedResearch } from "../../research/prepare";
+import type { PreparedPlan } from "../../editor/prepare";
 
 /** A single byte limit, without splitting a Unicode code point. */
 export function traceText(value: string, bytes: number) {
@@ -180,7 +180,7 @@ export function traceResultLabel(
 export function validatedTraceName(
   input: CatalogResearchInput,
   catalog: ResearchCatalog,
-  prepared: PreparedResearch | null,
+  prepared: PreparedPlan | null,
 ) {
   const event = catalog.find(
     (entry) => entry.id === (input.eventId ?? prepared?.matchedEventId),

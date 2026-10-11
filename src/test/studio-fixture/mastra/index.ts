@@ -1,3 +1,4 @@
+import { fixtureEditorForProvider } from "../../ingestion";
 import Database from "better-sqlite3";
 import { Mastra } from "@mastra/core/mastra";
 import { createCatalogIngestionWorkflow } from "../../../ingestion/workflow";
@@ -84,7 +85,11 @@ const candidate = {
           message: {
             role: "assistant",
             content: JSON.stringify(
-              wireFixture(candidate, body.response_format?.json_schema?.schema),
+              fixtureEditorForProvider(body) ??
+                wireFixture(
+                  candidate,
+                  body.response_format?.json_schema?.schema,
+                ),
             ),
           },
           finish_reason: "stop",

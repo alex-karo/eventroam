@@ -14,12 +14,12 @@ export function promptFor(
   terms: { id: string; facet: string; slug: string }[],
   remaining: ReturnType<ResearchBudget["remaining"]>,
   reads: ReadSourceResult[],
-  referenceInstant = new Date().toISOString(),
+  currentDate = new Date().toISOString(),
 ) {
   const target = catalog.find((event) => event.id === input.eventId);
   return JSON.stringify({
     task: researchInstructions,
-    referenceInstant,
+    currentDate,
     mode: input.mode,
     scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
     eventId: input.eventId,

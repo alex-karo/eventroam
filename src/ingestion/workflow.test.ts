@@ -1,3 +1,7 @@
+import {
+  runFixtureResearch as executeResearch,
+  createFixtureIngestionWorkflow as createCatalogIngestionWorkflow,
+} from "@/test/ingestion";
 import { CatalogAttempt } from "./attempt";
 import { createIngestionData } from "./contracts";
 import * as runsModule from "./runs";
@@ -13,13 +17,9 @@ import {
 } from "@/catalog/read/research";
 import { createTestDatabase, testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
-import {
-  createCatalogIngestionWorkflow,
-  studioIngestionInputSchema,
-  runCatalogResearch as executeResearch,
-} from "./workflow";
+import { studioIngestionInputSchema } from "./workflow";
 import * as contextModule from "./research/context";
-import * as prepareModule from "./research/prepare";
+import * as prepareModule from "./editor/prepare";
 import * as reportModule from "./report";
 import * as applyModule from "@/catalog/write/apply-operation";
 import * as runTraceModule from "./runtime/tracing";
@@ -199,7 +199,7 @@ test("concurrent and repeated failed source reads are cached and charged once", 
     },
   });
   expect(readSource).toHaveBeenCalledTimes(1);
-  expect(result.usage).toMatchObject({ pages: 1, modelCalls: 1 });
+  expect(result.usage).toMatchObject({ pages: 1, modelCalls: 2 });
   expect(result.sources).toEqual([
     expect.objectContaining({ outcome: "failed", reason: "http_503" }),
   ]);
@@ -250,7 +250,7 @@ test("discovery shares search limits while model calls remain accounting", async
   expect(discoverSources).toHaveBeenCalledTimes(2);
   expect(result.usage).toMatchObject({
     searches: 2,
-    modelCalls: 3,
+    modelCalls: 4,
     inputTokens: 14,
     outputTokens: 18,
     modelCostUsd: 0.2,
@@ -676,8 +676,7 @@ test("taxonomy add/remove reasons combine and ticket block reasons follow actual
       subject: edition.id,
       field: "terms",
       explanations: [
-        "The programme now includes this category.",
-        "The old category no longer applies.",
+        "The programme now includes this category.; The old category no longer applies.",
       ],
     }),
   );
@@ -802,7 +801,7 @@ test("failed research, malformed output, and target mismatch never write", async
     );
     expect(result).toMatchObject({
       outcome: "failed",
-      researchStatus: "failed",
+      researchStatus: "data" in raw && raw.data !== null ? "success" : "failed",
       operations: [],
       changes: [],
     });
@@ -1035,7 +1034,7 @@ test.each(["context", "preparation", "report"] as const)(
       );
     }
     if (stage === "preparation") {
-      vi.spyOn(prepareModule, "prepareResearch").mockImplementationOnce(() => {
+      vi.spyOn(prepareModule, "validateResearch").mockImplementationOnce(() => {
         throw secret;
       });
     }
@@ -1213,9 +1212,9 @@ test("the public runner accumulates research in native state without runtime res
       return loadContext(...args);
     },
   );
-  const prepare = prepareModule.prepareResearch;
-  vi.spyOn(prepareModule, "prepareResearch").mockImplementation((...args) => {
-    phases.push("prepare-candidate");
+  const prepare = prepareModule.validateResearch;
+  vi.spyOn(prepareModule, "validateResearch").mockImplementation((...args) => {
+    phases.push("validate-research");
     return prepare(...args);
   });
   const apply = applyModule.applyCatalogItem;
@@ -1271,7 +1270,9 @@ test("the public runner accumulates research in native state without runtime res
     "load-context",
     "read-initial-source",
     "research-festival",
-    "prepare-candidate",
+    "validate-research",
+    "edit-research",
+    "prepare-plan",
     "apply-catalog-item",
     "build-report",
     "finalize-run",
@@ -1280,7 +1281,7 @@ test("the public runner accumulates research in native state without runtime res
     "load-context",
     "read-initial-source",
     "research-festival",
-    "prepare-candidate",
+    "validate-research",
     "apply-catalog-item",
     "build-report",
   ]);
@@ -1300,7 +1301,7 @@ test("the public runner accumulates research in native state without runtime res
     reads: [expect.objectContaining({ markdown: privatePage })],
   });
   expect(stepOutput("research-festival")).not.toHaveProperty("prepared");
-  expect(stepOutput("prepare-candidate")).toHaveProperty("operations");
+  expect(stepOutput("prepare-plan")).toHaveProperty("operationCount");
   expect(stepOutput("apply-catalog-item")).toHaveProperty("applied");
   expect(stepOutput("build-report")).toMatchObject({ outcome: "published" });
   expect(engineResult.state.data).toMatchObject({

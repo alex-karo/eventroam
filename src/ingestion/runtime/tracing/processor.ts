@@ -80,14 +80,14 @@ export function researchSpanProcessor(
         const tool = ["readSource", "discoverSources"].find(
           (name) => span.entityId === name,
         );
+        const editor = span.entityId === "festival-editor";
+        const agentName = editor ? "Festival editor" : "Festival research";
+        const agentId = editor ? "festival-editor" : "festival-research";
         span.name =
           explicit?.name ??
-          (span.type === SpanType.AGENT_RUN
-            ? "Festival research"
-            : (tool ?? span.type));
+          (span.type === SpanType.AGENT_RUN ? agentName : (tool ?? span.type));
         if (span.entityId !== "catalog-research") {
-          span.entityId =
-            span.type === SpanType.AGENT_RUN ? "festival-research" : tool;
+          span.entityId = span.type === SpanType.AGENT_RUN ? agentId : tool;
         }
         span.entityType = undefined;
         span.entityName = span.name;

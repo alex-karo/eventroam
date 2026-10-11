@@ -6,7 +6,7 @@ import type {
   CatalogResearchResult,
 } from "../../contracts";
 import type { ResearchContext } from "../../research/context";
-import type { PreparedResearch } from "../../research/prepare";
+import type { PreparedPlan } from "../../editor/prepare";
 import type { SourceSession } from "../../tools/session";
 import {
   createRunObservability,
@@ -29,7 +29,7 @@ import {
 type Snapshot = {
   phase: string;
   context?: ResearchContext;
-  prepared?: PreparedResearch | null;
+  prepared?: PreparedPlan | null;
   applied?: CatalogItemResult | null;
   report?: CatalogResearchResult;
 };
@@ -83,6 +83,7 @@ export async function createCatalogRunTrace(
           ...(snapshot.report
             ? {
                 researchStatus: snapshot.report.researchStatus,
+                editorStatus: snapshot.report.editorStatus,
                 outcome: snapshot.report.outcome,
                 scope: snapshot.report.scope,
                 savedEditionCount: snapshot.report.workload.savedEditions,
@@ -113,7 +114,7 @@ export async function createCatalogRunTrace(
     update,
     state,
     log: tracing.log,
-    validated(prepared: PreparedResearch) {
+    validated(prepared: PreparedPlan) {
       state.structuralValidation = prepared.validation.structural;
       state.targetValidation = prepared.validation.target;
       if (!prepared.candidate) {

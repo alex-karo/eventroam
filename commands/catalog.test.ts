@@ -1,3 +1,4 @@
+import { generateFixtureEditor } from "@/test/ingestion";
 import { DEFAULT_RESEARCH_LIMITS } from "@/ingestion/runtime/budget";
 import { afterEach, expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
@@ -14,9 +15,12 @@ afterEach(() => vi.restoreAllMocks());
 import { executeCatalogCommand, formatCatalogReport } from "./catalog";
 
 const result = (): CatalogResearchResult => ({
-  schemaVersion: 4,
+  schemaVersion: 5,
+  editorResponse: null,
+  editorStatus: "not_run",
+  editorPromptVersion: "catalog-editor-v1",
   scope: null,
-  referenceInstant: null,
+  currentDate: null,
   workload: { savedEditions: 0, returnedEditions: 0 },
   limits: DEFAULT_RESEARCH_LIMITS,
   mode: "refresh",
@@ -147,7 +151,7 @@ test("one festival failure does not stop another or expose provider payloads", a
   expect(text).toContain("research_failed");
   expect(text).not.toContain("SECRET");
   expect(JSON.parse(text).results).toHaveLength(1);
-  expect(JSON.parse(text).schemaVersion).toBe(4);
+  expect(JSON.parse(text).schemaVersion).toBe(5);
 });
 
 test("text report separates research and catalog status, source summaries, errors, questions, and explanations", () => {
@@ -198,7 +202,7 @@ test("text report separates research and catalog status, source summaries, error
     ],
     true,
   );
-  expect(output).toContain("updated (research partial)");
+  expect(output).toContain("updated (research partial, editor not_run)");
   expect(output).toContain("Why: The official page revised its description.");
   expect(output).toContain("Source summary: https://example.org/info");
   expect(output).toContain("ok: https://example.org/info");
@@ -353,6 +357,7 @@ test("real CLI stores/exports the same report and prints runId with estimated se
     await executeCatalogCommand([...args, "--json"], {
       stdout,
       researchDependencies: {
+        generateEditor: generateFixtureEditor,
         generateCandidate: async () => {
           const result = fixtureCandidate(event.id);
           return result;
@@ -405,6 +410,7 @@ test.each(["workflow", "persistence"] as const)(
       {
         stdout,
         researchDependencies: {
+          generateEditor: generateFixtureEditor,
           generateCandidate: async (prompt) => {
             const result = fixtureCandidate(
               prompt.includes(first.id) ? first.id : second.id,
@@ -479,6 +485,7 @@ test("optional file failure keeps the completed run and help/preflight do not st
       {
         stdout,
         researchDependencies: {
+          generateEditor: generateFixtureEditor,
           generateCandidate: async () => {
             const result = fixtureCandidate(event.id);
             return result;

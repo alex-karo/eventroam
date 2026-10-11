@@ -10,7 +10,9 @@ import {
   type ResearchError,
   type ResearchQuestion,
 } from "./research/contracts";
-import type { prepareResearch } from "./research/prepare";
+import type { prepareEditorPlan } from "./editor/prepare";
+import { EDITOR_PROMPT_VERSION } from "./editor/contracts";
+import type { EditorExecution } from "./editor/agent";
 import type { ResearchExecution } from "./research/agent";
 import { sumKnownModelCosts } from "./research/agent/usage";
 
@@ -20,8 +22,9 @@ export type ReportInput = {
   runId: string;
   input: CatalogResearchInput;
   config: ResearchConfig;
-  prepared: ReturnType<typeof prepareResearch> | null;
+  prepared: ReturnType<typeof prepareEditorPlan> | null;
   research: ResearchExecution;
+  editor: EditorExecution;
   applied: ReturnType<typeof applyCatalogItem> | null;
   writeFailed: boolean;
   errors: ResearchError[];
@@ -61,6 +64,7 @@ function assembleReport({
   config,
   prepared,
   research,
+  editor,
   applied,
   writeFailed,
   errors,
@@ -88,26 +92,38 @@ function assembleReport({
     ? researchCandidateSchema.safeParse(research.candidate)
     : null;
   const researchStatus =
-    !research.ok || !prepared?.candidate ? "failed" : prepared.candidate.status;
-  const {
-    inputTokens,
-    outputTokens,
-    cachedInputTokens,
-    reasoningTokens,
-    modelCostUsd,
-  } = research.usage;
+    !research.ok || !finalCandidate?.success
+      ? "failed"
+      : finalCandidate.data.status;
+  const inputTokens = research.usage.inputTokens + editor.usage.inputTokens;
+  const outputTokens = research.usage.outputTokens + editor.usage.outputTokens;
+  const cachedInputTokens =
+    research.usage.cachedInputTokens === null ||
+    editor.usage.cachedInputTokens === null
+      ? null
+      : research.usage.cachedInputTokens + editor.usage.cachedInputTokens;
+  const reasoningTokens =
+    research.usage.reasoningTokens === null ||
+    editor.usage.reasoningTokens === null
+      ? null
+      : research.usage.reasoningTokens + editor.usage.reasoningTokens;
+  const modelCostUsd = sumKnownModelCosts([
+    research.usage.modelCostUsd,
+    editor.usage.modelCostUsd,
+  ]);
   const usageComplete =
     research.usage.complete &&
+    editor.usage.complete &&
     budget.searches === discovery.length &&
     discovery.every((result) => result.usageComplete !== false);
   const changedKinds = operations
     .filter((_, index) => receipts[index]?.changed)
     .map((operation) => operation.kind);
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
-    referenceInstant:
-      input.mode === "refresh" ? (context?.referenceInstant ?? null) : null,
+    currentDate:
+      input.mode === "refresh" ? (context?.currentDate ?? null) : null,
     limits,
     workload: {
       savedEditions:
@@ -122,13 +138,28 @@ function assembleReport({
     mode: input.mode,
     outcome: researchOutcome({
       changedKinds,
-      writeFailed,
+      writeFailed:
+        writeFailed ||
+        editor.status === "failed" ||
+        !!errors.some(
+          (error) =>
+            [
+              "invalid_candidate",
+              "invalid_plan",
+              "country_conflict",
+              "country_baseline_conflict",
+            ].includes(error.code) ||
+            (error.code === "workflow_failed" && !applied),
+        ),
       researchStatus,
       skipped: prepared?.skipped ?? false,
     }),
     researchStatus,
     eventId: prepared?.matchedEventId ?? references.event ?? input.eventId,
     modelResponse: research.modelResponse ?? null,
+    editorResponse: editor.modelResponse,
+    editorStatus: editor.status,
+    editorPromptVersion: EDITOR_PROMPT_VERSION,
     operations,
     receipts,
     references,

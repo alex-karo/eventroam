@@ -2,14 +2,14 @@ import { afterEach, expect, test, vi } from "vitest";
 import { createTestDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { readResearchEvent } from "@/catalog/read/research";
-import {
-  runCatalogResearch,
-  createCatalogIngestionWorkflow,
-  studioIngestionInputSchema,
-} from "./workflow";
+import { studioIngestionInputSchema } from "./workflow";
 import type { ResearchCandidate } from "./research/contracts";
 import type { ResearchDependencies } from "./contracts";
-import { prepareResearch } from "./research/prepare";
+import {
+  prepareEditorialFixture,
+  runFixtureResearch as runCatalogResearch,
+  createFixtureIngestionWorkflow as createCatalogIngestionWorkflow,
+} from "@/test/ingestion";
 const reason = "Inspected official source confirms this fact";
 const url = "https://fixture.example/festival";
 function fixture(countryCode: string | null = "IE") {
@@ -87,7 +87,7 @@ test.each(["full", "current"] as const)(
           expect(parsed).not.toHaveProperty("refresh");
           expect(parsed).not.toHaveProperty("catalog");
           expect(parsed.scope).toBe(scope);
-          expect(parsed.referenceInstant).toBe("2026-10-11T12:00:00.000Z");
+          expect(parsed.currentDate).toBe("2026-10-11T12:00:00.000Z");
           expect(parsed.compact.editions[0]).toMatchObject({
             editionKey: "source-row",
             countryCode: "IE",
@@ -102,7 +102,7 @@ test.each(["full", "current"] as const)(
     expect(result.researchStatus).toBe("success");
     expect(result.modelResponse!.object).toEqual(f.proposal);
     expect(result.scope).toBe(scope);
-    expect(result.referenceInstant).toBe("2026-10-11T12:00:00.000Z");
+    expect(result.currentDate).toBe("2026-10-11T12:00:00.000Z");
     expect(result).not.toHaveProperty("refresh");
     expect(result).not.toHaveProperty("verification");
     expect(result.workload).toEqual({
@@ -145,7 +145,7 @@ test.each(["AU", "GB", null] as const)(
     });
     expect(result).toMatchObject({
       outcome: "failed",
-      researchStatus: "failed",
+      researchStatus: "success",
       operations: [],
       receipts: [],
       modelResponse: { object: f.proposal },
@@ -340,9 +340,7 @@ test("CLI and Studio current previews process a supplied replacement website equ
     returnedEditionCount: 0,
   });
   expect(result.state!.data!.context).not.toHaveProperty("refresh");
-  expect(result.state!.data!.context!.referenceInstant).toBe(
-    cli.referenceInstant,
-  );
+  expect(result.state!.data!.context!.currentDate).toBe(cli.currentDate);
   expect(result.state!.data!.context!.catalog[0].editions).toHaveLength(
     cli.workload.savedEditions,
   );
@@ -374,7 +372,7 @@ test("unchanged country facts cannot evade guards through operation no-ops", () 
   f.proposal.data!.editions = [
     { key: "source-row", countryCode: { value: "IE", reason }, links: {} },
   ];
-  const prepared = prepareResearch(f.proposal, [saved], f.input, []);
+  const prepared = prepareEditorialFixture(f.proposal, [saved], f.input, []);
   expect(prepared.operations).toEqual([]);
   expect(prepared.errors[0].code).toBe("country_baseline_conflict");
 });

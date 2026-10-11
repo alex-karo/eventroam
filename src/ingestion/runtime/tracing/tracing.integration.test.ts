@@ -305,8 +305,8 @@ function normalize(
   const copy = structuredClone(result);
   delete copy.runId;
   copy.durationMs = 0;
-  if (copy.referenceInstant) {
-    copy.referenceInstant = "TIMESTAMP";
+  if (copy.currentDate) {
+    copy.currentDate = "TIMESTAMP";
   }
   for (const change of copy.changes) {
     if (change.field === "created_at" || change.field === "updated_at") {
@@ -395,7 +395,7 @@ test.each([
           : {}),
       });
       expect(traced.result.usage.pages).toBe(2);
-      expect(traced.requests).toBe(2);
+      expect(traced.requests).toBe(3);
     }
     if (
       scenario === "partial" ||

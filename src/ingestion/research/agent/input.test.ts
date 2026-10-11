@@ -199,13 +199,13 @@ test("one frozen instant and saved facts preserve local-day and opaque-key match
       context.terms,
       { searches: 3, durationMs: 300_000 },
       [],
-      context.referenceInstant,
+      context.currentDate,
     ),
   );
   expect(context).not.toHaveProperty("refresh");
   expect(prompt).not.toHaveProperty("refresh");
   expect(prompt).not.toHaveProperty("todayUtc");
-  expect(prompt.referenceInstant).toBe(instant);
+  expect(prompt.currentDate).toBe(instant);
   expect(prompt.scope).toBe("current");
   expect(prompt.compact.editions).toEqual(
     expect.arrayContaining([

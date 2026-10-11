@@ -77,7 +77,7 @@ test("finalization preserves normalized report, zero/unknown values and guards t
   const pending = client
     .prepare("SELECT * FROM ingestion_runs WHERE id=?")
     .get(id);
-  for (const schemaVersion of [2, 3]) {
+  for (const schemaVersion of [2, 3, 4]) {
     expect(() =>
       finalizeIngestionRun(
         client,

@@ -260,12 +260,15 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
               ? persistenceFailureReport(error)
               : undefined;
           result = available ?? {
-            schemaVersion: 4,
+            schemaVersion: 5,
+            editorResponse: null,
+            editorStatus: "not_run",
+            editorPromptVersion: "catalog-editor-v1",
             scope:
               item.input.mode === "refresh"
                 ? (item.input.scope ?? "full")
                 : null,
-            referenceInstant: null,
+            currentDate: null,
             limits: config.limits,
             workload: {
               savedEditions: 0,
@@ -363,6 +366,9 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       reasoningEffort: result.reasoningEffort ?? null,
       promptVersion: result.promptVersion,
       modelResponse: result.modelResponse ?? null,
+      editorResponse: result.editorResponse,
+      editorStatus: result.editorStatus,
+      editorPromptVersion: result.editorPromptVersion,
       operations: result.operations,
       references: result.references,
       changes: result.changes,
@@ -372,13 +378,13 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       sourceSummaries: result.sourceSummaries,
       eventNameMismatch: result.eventNameMismatch,
       scope: result.scope,
-      referenceInstant: result.referenceInstant,
+      currentDate: result.currentDate,
       limits: result.limits,
       workload: result.workload,
     };
   });
   const report = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     startedAt,
     finishedAt: new Date().toISOString(),
     fixtureTodayUtc: suite.todayUtc,

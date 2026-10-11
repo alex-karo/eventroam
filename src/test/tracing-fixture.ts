@@ -1,3 +1,4 @@
+import { fixtureEditorForProvider } from "./ingestion";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -220,11 +221,14 @@ export async function runTraceFixture(
                 : {
                     role: "assistant",
                     content: JSON.stringify(
-                      wireFixture(
-                        candidate,
-                        JSON.parse(String(init?.body)).response_format
-                          ?.json_schema?.schema,
-                      ),
+                      fixtureEditorForProvider(
+                        JSON.parse(String(init?.body)),
+                      ) ??
+                        wireFixture(
+                          candidate,
+                          JSON.parse(String(init?.body)).response_format
+                            ?.json_schema?.schema,
+                        ),
                     ),
                   },
             finish_reason: requests === 1 ? "tool_calls" : "stop",
