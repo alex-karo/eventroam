@@ -19,15 +19,17 @@ Catalog:
 
 Website:
 
-- [Discovery](../openspec/specs/website/discovery/spec.md) — filters, URL state, and the shared map/list result set.
+- [Discovery](../openspec/specs/website/discovery/spec.md) — readable filter selections, pending counts, searchable locations, URL state, and shared map/list results.
 - [Scoped website](../openspec/specs/website/routing/spec.md) — configured hosts, stable detail routes, and scope-root state.
 
-## Approved future changes
+## Active changes
 
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
 ## Archived changes
+
+- [Clearer discovery filters](../openspec/changes/archive/2026-10-11-improve-discovery-filter-feedback/proposal.md) — readable value chips, pending result counts, searchable locations, and nearby-month buttons.
 
 - [Selective research logging](../openspec/changes/archive/2026-10-10-selective-research-logging/proposal.md) — migration to Mastra PinoLogger, explicit logging/tracing fields and durable Studio diagnostics.
 
