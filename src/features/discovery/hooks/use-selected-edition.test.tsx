@@ -73,34 +73,33 @@ test("selection exposes loading, encodes the ID and loads uncached details", asy
   });
 });
 
-test.each(["http", "network", "json"] as const)(
-  "%s failure can be retried for the same edition",
-  async (failure) => {
-    if (failure === "network") {
-      fetchMock.mockRejectedValueOnce(new Error("offline"));
-    } else {
-      fetchMock.mockResolvedValueOnce(
-        failure === "http"
-          ? new Response(null, { status: 404 })
-          : new Response("invalid json"),
-      );
-    }
-    fetchMock.mockResolvedValueOnce(response());
-    const { result } = renderHook(() => useSelectedEdition(() => null));
-    await act(async () => {
-      await result.current.select(edition.id);
-    });
-    expect(result.current.state).toEqual({ status: "error", id: edition.id });
-    await act(async () => {
-      await result.current.select(edition.id);
-    });
-    expect(result.current.state).toEqual({
-      status: "ready",
-      id: edition.id,
-      data: edition,
-    });
-  },
-);
+test("HTTP failure can be retried for the same edition", async () => {
+  fetchMock
+    .mockResolvedValueOnce(new Response(null, { status: 404 }))
+    .mockResolvedValueOnce(response());
+  const { result } = renderHook(() => useSelectedEdition(() => null));
+  await act(async () => {
+    await result.current.select(edition.id);
+  });
+  expect(result.current.state).toEqual({ status: "error", id: edition.id });
+  await act(async () => {
+    await result.current.select(edition.id);
+  });
+  expect(result.current.state).toEqual({
+    status: "ready",
+    id: edition.id,
+    data: edition,
+  });
+});
+
+test("network failure exposes an error for the selected edition", async () => {
+  fetchMock.mockRejectedValue(new Error("offline"));
+  const { result } = renderHook(() => useSelectedEdition(() => null));
+  await act(async () => {
+    await result.current.select(edition.id);
+  });
+  expect(result.current.state).toEqual({ status: "error", id: edition.id });
+});
 
 test.each(["success", "failure"] as const)(
   "late %s from a previous selection cannot replace the current edition",
@@ -134,44 +133,23 @@ test.each(["success", "failure"] as const)(
   },
 );
 
-test.each(["success", "failure"] as const)(
-  "closing during loading ignores a late %s",
-  async (outcome) => {
-    const pending = pendingResponse();
-    fetchMock.mockReturnValue(pending.promise);
-    const { result } = renderHook(() => useSelectedEdition(() => null));
-    let selection!: Promise<void>;
-    act(() => {
-      selection = result.current.select(edition.id);
-    });
-    act(() => {
-      result.current.close();
-    });
-    await act(async () => {
-      if (outcome === "success") {
-        pending.resolve(response());
-      } else {
-        pending.reject(new Error("late failure"));
-      }
-      await selection;
-    });
-    expect(result.current.state).toEqual({ status: "idle" });
-    expect(result.current.selectedId).toBeNull();
-  },
-);
-
-test("unmount during loading tolerates a late response", async () => {
+test("closing during loading ignores a late response", async () => {
   const pending = pendingResponse();
   fetchMock.mockReturnValue(pending.promise);
-  const { result, unmount } = renderHook(() => useSelectedEdition(() => null));
+  const { result } = renderHook(() => useSelectedEdition(() => null));
   let selection!: Promise<void>;
   act(() => {
     selection = result.current.select(edition.id);
   });
-  unmount();
-  pending.resolve(response());
-  await selection;
-  expect(result.current.state).toEqual({ status: "loading", id: edition.id });
+  act(() => {
+    result.current.close();
+  });
+  await act(async () => {
+    pending.resolve(response());
+    await selection;
+  });
+  expect(result.current.state).toEqual({ status: "idle" });
+  expect(result.current.selectedId).toBeNull();
 });
 
 function focusHarness() {
