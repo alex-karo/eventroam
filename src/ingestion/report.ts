@@ -2,10 +2,8 @@ import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
 import type { ResearchBudgetSnapshot } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
-import type {
-  ReadSourceResult,
-  DiscoverSourcesResult,
-} from "./sources/contracts";
+import type { ReadSourceResult } from "./tools/read-source/contracts";
+import type { DiscoverSourcesResult } from "./tools/discover-sources/contracts";
 import {
   RESEARCH_PROMPT_VERSION,
   researchCandidateSchema,
@@ -14,6 +12,7 @@ import {
 } from "./research/contracts";
 import type { prepareResearch } from "./research/prepare";
 import type { ResearchExecution } from "./research/agent";
+import { sumKnownModelCosts } from "./research/agent/usage";
 
 export type ReportInput = {
   runId: string;
@@ -147,16 +146,10 @@ function assembleReport({
               (sum, result) => sum + (result.reasoningTokens ?? 0),
               0,
             ),
-      modelCostUsd:
-        usageComplete &&
-        modelCostUsd !== null &&
-        discovery.every((result) => result.modelCostUsd !== null)
-          ? modelCostUsd +
-            discovery.reduce(
-              (sum, result) => sum + (result.modelCostUsd ?? 0),
-              0,
-            )
-          : null,
+      modelCostUsd: sumKnownModelCosts([
+        modelCostUsd,
+        ...discovery.map((result) => result.modelCostUsd),
+      ]),
       searchCostUsd: discovery.reduce(
         (sum, result) => sum + result.searchCostUsd,
         0,

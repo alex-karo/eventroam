@@ -3,7 +3,7 @@ import {
   assertPublicUrl,
   type BoundedResponse,
   type LookupHost,
-} from "./network";
+} from "../network";
 
 const scrapeResponse = z.object({
   success: z.literal(true),

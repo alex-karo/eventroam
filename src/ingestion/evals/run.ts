@@ -22,12 +22,10 @@ import { runCatalogResearch, type CatalogResearchResult } from "../workflow";
 import { loadResearchConfig } from "../runtime/config";
 import { createResearchBudget } from "../runtime/budget";
 import { RESEARCH_PROMPT_VERSION } from "../research/contracts";
-import type {
-  ReadSourceResult,
-  DiscoverSourcesResult,
-} from "../sources/contracts";
-import type { ReadSourceOptions } from "../sources/read-source";
-import type { DiscoverSourcesOptions } from "../sources/discover-sources";
+import type { ReadSourceResult } from "../tools/read-source/contracts";
+import type { DiscoverSourcesResult } from "../tools/discover-sources/contracts";
+import type { ReadSourceOptions } from "../tools/read-source/read";
+import type { DiscoverSourcesOptions } from "../tools/discover-sources/search";
 import { loadEvalSuite, type EvalCase, type EvalSuite } from "./fixtures";
 import { sourceLinks } from "./source-links";
 import { createEvalScorers, scoreCase } from "./score";

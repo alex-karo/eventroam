@@ -1,7 +1,8 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { createResearchBudget, ResearchLimitError } from "../runtime/budget";
 import type { ResearchDependencies } from "../contracts";
-import type { KnownSourceLink, ReadSourceResult } from "./contracts";
+import type { KnownSourceLink } from "./contracts";
+import type { ReadSourceResult } from "./read-source/contracts";
 import { createSourceSession } from "./session";
 
 afterEach(() => {

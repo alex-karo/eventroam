@@ -6,7 +6,7 @@ import {
   readResearchEvent,
 } from "@/catalog/read/research";
 import type { CatalogResearchInput } from "../contracts";
-import type { KnownSourceLink } from "../sources/contracts";
+import type { KnownSourceLink } from "../tools/contracts";
 
 export function loadResearchContext(
   client: Database.Database,
@@ -46,5 +46,7 @@ export function loadResearchContext(
   ];
   return { catalog, terms, knownLinks };
 }
+
+export type ResearchCatalog = ReturnType<typeof readResearchCatalog>;
 
 export type ResearchContext = ReturnType<typeof loadResearchContext>;

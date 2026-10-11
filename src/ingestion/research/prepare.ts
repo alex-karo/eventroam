@@ -5,7 +5,7 @@ import type {
   CatalogOperationMeta,
   CatalogPrice,
 } from "@/catalog/operations/operation";
-import type { readResearchCatalog } from "@/catalog/read/research";
+import type { ResearchCatalog } from "./context";
 import type { CatalogResearchInput } from "../contracts";
 import {
   researchCandidateSchema,
@@ -16,7 +16,6 @@ import {
 } from "./contracts";
 import { majorToMinor } from "./money";
 
-export type ResearchCatalog = ReturnType<typeof readResearchCatalog>;
 type Event = ResearchCatalog[number];
 type Edition = ResearchData["editions"][number];
 type DraftOperation = CatalogOperation extends infer Op

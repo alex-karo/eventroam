@@ -7,7 +7,7 @@ import type {
 } from "../../contracts";
 import type { ResearchContext } from "../../research/context";
 import type { PreparedResearch } from "../../research/prepare";
-import type { SourceSession } from "../../sources/session";
+import type { SourceSession } from "../../tools/session";
 import {
   createRunObservability,
   finishRunObservability,

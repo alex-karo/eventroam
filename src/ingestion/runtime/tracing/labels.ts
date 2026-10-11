@@ -3,7 +3,8 @@ import type {
   CatalogResearchInput,
   CatalogResearchResult,
 } from "../../contracts";
-import type { ResearchCatalog, PreparedResearch } from "../../research/prepare";
+import type { ResearchCatalog } from "../../research/context";
+import type { PreparedResearch } from "../../research/prepare";
 
 /** A single byte limit, without splitting a Unicode code point. */
 export function traceText(value: string, bytes: number) {

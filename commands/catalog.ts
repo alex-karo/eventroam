@@ -53,7 +53,7 @@ function formatResult(result: CatalogResearchResult): string[] {
       (question) =>
         `  Unresolved${optionalSuffix(question.editionKey, " [", "]")}${optionalSuffix(question.field, ": ")}: ${question.message}`,
     ),
-    `  Model: ${result.modelVersion}; reasoning: ${result.reasoningEffort ?? "provider default"}; prompt: ${result.promptVersion}; tokens: ${formatTokens(result.usage)}; cached input: ${result.usage.cachedInputTokens ?? "unavailable"}; reasoning tokens: ${result.usage.reasoningTokens ?? "unavailable"}; model USD: ${result.usage.modelCostUsd ?? "unavailable"}; estimated search USD: ${result.usage.searchCostUsd}`,
+    `  Model: ${result.modelVersion}; reasoning: ${result.reasoningEffort ?? "provider default"}; prompt: ${result.promptVersion}; tokens: ${formatTokens(result.usage)}; cached input: ${result.usage.cachedInputTokens ?? "unavailable"}; reasoning tokens: ${result.usage.reasoningTokens ?? "unavailable"}; known model USD: ${result.usage.modelCostUsd ?? "unavailable"}; estimated search USD: ${result.usage.searchCostUsd}`,
   ];
 }
 

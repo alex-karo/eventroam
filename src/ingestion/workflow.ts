@@ -12,7 +12,7 @@ import { CatalogAttempt } from "./attempt";
 import { createIngestionData } from "./contracts";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import { loadResearchContext } from "./research/context";
-import { createSourceSession } from "./sources/session";
+import { createSourceSession } from "./tools/session";
 import { readInitialWithTrace } from "./runtime/tracing";
 import { researchFestival } from "./research/agent";
 import { prepareResearch } from "./research/prepare";
@@ -340,7 +340,6 @@ export function createCatalogIngestionWorkflow(
           owned.budget,
           owned.config,
           owned.deps,
-          owned.ingestionRunId,
           owned.trace?.tracing,
           signal,
         ),
