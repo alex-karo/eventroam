@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -49,6 +48,7 @@ export async function runTraceFixture(
     cost?: number;
     searchStatus?: number;
     sourceErrorCount?: number;
+    onAbortRequest?: () => void;
   } = {},
 ) {
   const startedAt = Date.now();
@@ -172,6 +172,7 @@ export async function runTraceFixture(
             once: true,
           });
         }
+        modelText.onAbortRequest?.();
       });
     }
     return Response.json(
@@ -355,23 +356,17 @@ export async function runTraceFixture(
   }
 }
 
-export function readTraceRows(path: string) {
-  return JSON.parse(
-    execFileSync(
-      process.execPath,
-      ["--import", "tsx", "src/test/read-observability.ts", path],
-      { encoding: "utf8" },
-    ),
-  ) as Record<string, Record<string, unknown>[]>;
-}
+export { readTraceRows } from "./read-observability";
 
 if (process.argv[1]?.endsWith("/tracing-fixture.ts")) {
   if (process.argv[2] === "read") {
-    process.stdout.write(
-      JSON.stringify(
-        readTraceRows(process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!),
-      ),
-    );
+    import("./read-observability").then(async ({ readTraceRows }) => {
+      process.stdout.write(
+        JSON.stringify(
+          await readTraceRows(process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!),
+        ),
+      );
+    });
   } else {
     runTraceFixture()
       .then((result) => process.stdout.write(JSON.stringify(result)))

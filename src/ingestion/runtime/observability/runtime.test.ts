@@ -318,7 +318,9 @@ test("a sanitizer failure in the exporter pipeline persists no unsafe span", asy
   });
   span.end({ output: { text: "PRIVATE_UNSANITIZED_RESPONSE" } });
   await finishResearchObservability(mastra, tracing.diagnose);
-  const rows = readTraceRows(process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!);
+  const rows = await readTraceRows(
+    process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!,
+  );
   expect(rows.mastra_ai_spans).toEqual([]);
   expect(JSON.stringify(rows)).not.toContain("PRIVATE_");
   expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
@@ -411,7 +413,9 @@ test("unknown spans and start/update/end events retain only the host projection 
   await finishResearchObservability(mastra, tracing.diagnose);
   expect(exported).toHaveLength(3);
   expect(exported.join("")).not.toContain("PRIVATE_");
-  const rows = readTraceRows(process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!);
+  const rows = await readTraceRows(
+    process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!,
+  );
   expect(JSON.stringify(rows)).not.toContain("PRIVATE_");
 });
 

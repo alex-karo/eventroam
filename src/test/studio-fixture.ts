@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -28,13 +28,14 @@ function freePort(): Promise<number> {
 
 export async function startStudioFixture(
   scenario: StudioScenario = "success",
-  options: { port?: number; root?: string; catalog?: boolean } = {},
+  options: {
+    port?: number;
+    root?: string;
+    catalog?: boolean;
+  } = {},
 ) {
   const root = options.root ?? process.cwd();
   const directory = mkdtempSync(join(tmpdir(), "eventroam-studio-"));
-  for (const file of ["node_modules", "package.json", "tsconfig.json"]) {
-    symlinkSync(resolve(root, file), join(directory, file));
-  }
   const catalogPath = join(directory, "catalog.sqlite");
   const tracePath = join(directory, "observability.duckdb");
   if (options.catalog !== false) {
@@ -62,16 +63,9 @@ export async function startStudioFixture(
   const port = options.port ?? (await freePort());
   const child = spawn(
     process.execPath,
-    [
-      resolve(root, "node_modules/mastra/dist/index.js"),
-      "dev",
-      "--dir",
-      resolve(root, "src/test/studio-fixture/mastra"),
-      "--root",
-      directory,
-    ],
+    ["--import", "tsx", resolve(root, "src/test/studio-fixture/server.ts")],
     {
-      cwd: directory,
+      cwd: root,
       env: {
         ...process.env,
         DATABASE_PATH: catalogPath,
@@ -131,16 +125,25 @@ async function stopStudioFixture(
   directory: string,
   preserve = false,
 ) {
-  if (child.exitCode === null) {
+  if (child.exitCode === null && child.signalCode === null) {
+    const exited = new Promise<void>((resolveExit) =>
+      child.once("exit", () => resolveExit()),
+    );
+    let timer: ReturnType<typeof setTimeout> | undefined;
     child.kill("SIGTERM");
-    await Promise.race([
-      new Promise<void>((resolveExit) =>
-        child.once("exit", () => resolveExit()),
-      ),
-      new Promise<void>((resolveWait) => setTimeout(resolveWait, 3_000)),
-    ]);
-    if (child.exitCode === null) {
-      child.kill("SIGKILL");
+    try {
+      await Promise.race([
+        exited,
+        new Promise<void>((resolveWait) => {
+          timer = setTimeout(resolveWait, 3_000);
+        }),
+      ]);
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGKILL");
+        await exited;
+      }
+    } finally {
+      clearTimeout(timer);
     }
   }
   if (!preserve) {
