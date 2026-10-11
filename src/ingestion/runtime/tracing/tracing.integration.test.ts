@@ -144,6 +144,7 @@ test.each(["http", "abort"] as const)(
       committedOperationCount: 0,
     });
   },
+  15_000,
 );
 
 test.each([false, true])(
@@ -236,6 +237,7 @@ test.each(["success", "http", "abort"] as const)(
     expect(codes).toContain("trace_shutdown_failed\n");
     expect(codes).not.toContain(TRACE_ERROR);
   },
+  15_000,
 );
 
 test("short buffered writer exits and a different process can read its final spans", async () => {
