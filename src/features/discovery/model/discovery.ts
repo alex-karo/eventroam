@@ -239,10 +239,9 @@ export function matchSummary(
   ) {
     return false;
   }
-  const place = [summary.locality, summary.administrativeArea]
-    .filter(Boolean)
-    .join(" ")
-    .toLocaleLowerCase();
+  const place = normalizeSearchText(
+    [summary.locality, summary.administrativeArea].filter(Boolean).join(" "),
+  ).toLocaleLowerCase();
   if (filters.place && !place.includes(filters.place.toLocaleLowerCase())) {
     return false;
   }

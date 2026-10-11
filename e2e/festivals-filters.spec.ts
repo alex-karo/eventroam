@@ -95,7 +95,7 @@ test("combined date, country, place, and name filters survive reload and view sw
   const searchButton = search.getByRole("button", {
     name: "Search festival names",
   });
-  await searchInput.fill("field");
+  await searchInput.fill("no-such-festival");
   await searchButton.click();
   await expect(count(page)).toHaveText("0 editions");
   await searchInput.fill("atlantic");
@@ -436,6 +436,8 @@ test("readable ranges survive reload and dates restore default matching when rem
 test("nearby month buttons fill dates and preserve explicit apply", async ({
   page,
 }) => {
+  const fixedNow = new Date("2026-12-15T12:00:00Z");
+  await page.clock.install({ time: fixedNow });
   await page.goto(year);
   await page.getByRole("button", { name: "When", exact: true }).click();
   const months = page.locator('[aria-label="Nearby months"] button');
@@ -449,7 +451,7 @@ test("nearby month buttons fill dates and preserve explicit apply", async ({
   ).toHaveCount(0);
   const originalUrl = page.url();
   for (let offset = 0; offset < 6; offset++) {
-    const now = new Date();
+    const now = fixedNow;
     const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
     const prefix = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}`;
     const lastDay = new Date(
@@ -472,4 +474,48 @@ test("nearby month buttons fill dates and preserve explicit apply", async ({
   await page.getByRole("button", { name: /^Show \d+ editions?$/ }).click();
   expect(new URL(page.url()).searchParams.get("from")).toBe(from);
   expect(new URL(page.url()).searchParams.get("to")).toBe(to);
+});
+
+test("keyboard suggestions stay visible in a short viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.route("**/api/discovery", async (route) => {
+    const response = await route.fetch();
+    const catalog = await response.json();
+    const source = catalog.summaries.find(
+      (summary: { year: number }) => summary.year === 2027,
+    );
+    await route.fulfill({
+      json: {
+        ...catalog,
+        summaries: Array.from({ length: 10 }, (_, index) => ({
+          ...source,
+          id: `town-${index}`,
+          locality: `Town ${index}`,
+          administrativeArea: null,
+        })),
+      },
+    });
+  });
+  await page.goto(year);
+  await page.getByRole("button", { name: "Where", exact: true }).click();
+  const input = page.getByRole("combobox", { name: "City or region" });
+  await input.fill("Town");
+  await expect(page.getByRole("option")).toHaveCount(10);
+  for (let index = 0; index < 10; index++) {
+    await input.press("ArrowDown");
+  }
+  const selected = page.getByRole("option", { selected: true });
+  await expect(selected).toContainText("Town 9");
+  await expect(selected).toBeInViewport();
+  await expect(input).toBeFocused();
+  const bounds = await selected.boundingBox();
+  const fields = await page.locator(".filter-fields").boundingBox();
+  expect(bounds!.y).toBeGreaterThanOrEqual(fields!.y);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(
+    fields!.y + fields!.height + 1,
+  );
+  await input.press("Enter");
+  await expect(input).toHaveValue("Town 9");
 });

@@ -229,3 +229,25 @@ test("suggestions include history, deduplicate per country, normalize and enforc
     ),
   ).toHaveLength(10);
 });
+
+test("choosing a normalized place suggestion retains its source edition", () => {
+  for (const field of ["locality", "administrativeArea"] as const) {
+    const summary = build.summary({
+      locality: null,
+      administrativeArea: null,
+      [field]: "  Example   Valley  ",
+      startsOn: "2027-07-01",
+      endsOn: "2027-07-03",
+    });
+    const suggestions = placeSuggestions([summary], [], "example");
+    expect(suggestions[0].place).toBe("Example Valley");
+    expect(
+      previewFilters(
+        [summary],
+        { ...emptyFilters(), place: suggestions[0].place },
+        genres,
+        now,
+      ).count,
+    ).toBe(1);
+  }
+});

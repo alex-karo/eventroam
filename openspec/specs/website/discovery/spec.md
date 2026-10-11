@@ -246,7 +246,7 @@ The country picker SHALL display English names for countries represented in the 
 
 ### Requirement: City or region entry suggests catalog values
 
-The location text field SHALL be labeled City or region and suggest nonempty locality and region values from the discovery catalog, narrowed by typed text and pending countries when selected. Suggestions SHALL be keyboard-operable and identify their country context. Choosing one SHALL set the pending place text without applying it or selecting a country. Free text SHALL remain valid, retaining current substring matching and URL representation.
+The location text field SHALL be labeled City or region and suggest nonempty locality and region values from the discovery catalog, narrowed by typed text and pending countries when selected. Suggestions SHALL be keyboard-operable, keep the active keyboard option visible, and identify their country context. Choosing one SHALL set the pending place text without applying it or selecting a country. Free text SHALL remain valid, retaining substring matching and URL representation. Place queries and catalog place text SHALL use the same whitespace normalization when matching.
 
 #### Scenario: Suggestions respect pending countries
 

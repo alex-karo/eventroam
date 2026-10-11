@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { DiscoverySummary } from "@/catalog/read/contracts";
 import type { Filters } from "@/features/discovery/model/discovery";
 import {
@@ -24,12 +24,18 @@ export function LocationChoices({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const listId = useId();
+  const listRef = useRef<HTMLUListElement>(null);
   const choices = countryChoices(countries, pending.countries, search);
   const suggestions = useMemo(
     () => placeSuggestions(summaries, pending.countries, pending.place),
     [summaries, pending.countries, pending.place],
   );
   const expanded = open && suggestions.length > 0;
+  useEffect(() => {
+    if (expanded && active >= 0) {
+      listRef.current?.children[active]?.scrollIntoView({ block: "nearest" });
+    }
+  }, [active, expanded]);
   function choose(place: string) {
     onChange({ ...pending, place });
     setOpen(false);
@@ -89,6 +95,7 @@ export function LocationChoices({
         </p>
         {expanded && (
           <ul
+            ref={listRef}
             className="place-suggestions"
             id={listId}
             role="listbox"
