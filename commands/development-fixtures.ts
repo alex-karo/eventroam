@@ -12,7 +12,7 @@ import {
   urlAliases,
 } from "@/db/schema";
 
-const termIds = ["dev-festival", "dev-outdoor", "dev-music"];
+const termIds = ["dev-festival", "dev-openair", "dev-music"];
 // Fictional events use city-center markers; their dates and links are placeholders.
 const geographicExamples = [
   {
@@ -51,8 +51,12 @@ export function seedDevelopmentFixtures(client: Database.Database) {
   return drizzle(client).transaction((db) => {
     for (const [id, facet, slug, name] of [
       ["dev-festival", "event_type", "festival", "Festival"],
-      ["dev-outdoor", "format", "outdoor", "Outdoor"],
+      ["dev-openair", "format", "openair", "Open-air"],
       ["dev-music", "topic", "music", "Music"],
+      ["dev-snow-sports", "topic", "snow-sports", "Snow sports"],
+      ["dev-surfing", "topic", "surfing", "Surfing"],
+      ["dev-food-and-drink", "topic", "food-and-drink", "Food & drink"],
+      ["dev-topic-outdoor", "topic", "outdoor", "Outdoor activities"],
       ["dev-rock", "genre", "rock", "Rock"],
       ["dev-electronic", "genre", "electronic", "Electronic"],
     ] as const) {

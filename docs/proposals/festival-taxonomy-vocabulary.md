@@ -8,15 +8,15 @@ tags: [taxonomy, festivals]
 
 # Festival taxonomy vocabulary proposal
 
-This draft retains the proposed starter terms and their validation notes. Implemented facet and classification behavior belongs to OpenSpec; the vocabulary remains subject to launch-data validation.
+This draft retains the proposed starter terms and their validation notes. Implemented facet and classification behavior belongs to OpenSpec; the vocabulary remains subject to launch-data validation. Specific term definitions and evidence guidance belong here and in research instructions, not in behavioral specification requirements.
 
-Status: Expected starter vocabulary and assignment policy, version 0.3
+Status: Expected starter vocabulary and assignment policy, version 0.4
 
-Date: 2026-10-03
+Date: 2026-10-11
 
-Basis: The owner accepted the simpler Occurrence-only classification model on 2026-10-01 and added `reenactment`, `wellness`, and `moto` as programme topics on 2026-10-03. Validate the vocabulary against the launch dataset before implementation.
+Basis: The owner accepted the simpler Occurrence-only classification model on 2026-10-01, added `reenactment`, `wellness`, and `moto` as programme topics on 2026-10-03, and added `snow-sports`, `surfing`, `food-and-drink`, and `topic/outdoor` on 2026-10-11, and selected `openair` as the proposed physical-format slug to distinguish it from the activity topic. Validate the vocabulary against the launch dataset before implementation.
 
-Implementation note (2026-10-02): The evidence requirements below are deferred until the catalog database update workflow is built. Current classification writes and publication use the structural rules without source evidence.
+Implementation note (2026-10-11): Fresh development and eval vocabularies include `format/openair` and the four new activity topics. Research prompt `model-direct-v6` includes their evidence rules; publication checks require `openair` or `mixed-indoor-outdoor`. Evidence assessment remains model-led, while writes enforce structural rules. The rest of the starter vocabulary remains subject to launch-data validation.
 
 ## 1 Context and outcome
 
@@ -30,7 +30,7 @@ Facet keys are fixed. New terms within those facets are curated data; a new face
 | --- | --- | --- |
 | `event_type` | What kind of event is this edition? | At most one |
 | `format` | Where is the programme presented? | At most one |
-| `topic` | What substantial programme does it offer? | Multiple |
+| `topic` | What substantial programme or defined participant offering does it offer? | Multiple |
 | `genre` | Which musical styles substantially characterize it? | Multiple |
 | `culture` | Which defined participation model characterizes it? | Multiple; initially one available term |
 
@@ -47,9 +47,11 @@ Choose the type that best matches the organizer's description and programme. A f
 
 | Slug | Label | Assign when |
 | --- | --- | --- |
-| `outdoor` | Outdoor | The core public programme is outdoors. Tents, covered stages, or indoor support facilities do not alone make it mixed. |
+| `openair` | Open-air | The core public programme is outdoors. Tents, covered stages, or indoor support facilities do not alone make it mixed. |
 | `mixed-indoor-outdoor` | Mixed indoor/outdoor | Substantial parts of the public programme occur in both indoor and outdoor spaces. |
 | `indoor` | Indoor | The core public programme is indoors; any outdoor activity is incidental. Useful for internal candidates and recording a change of format. |
+
+Naming note (2026-10-11): `format/openair` replaces the former `format/outdoor` in application publication checks and fresh fixture vocabularies. No migration or existing-data rewrite is included, as requested by the owner. Existing catalogs containing the former format are not upgraded by this change.
 
 Preserve raw source wording. “Hybrid” may mean online plus in-person; an open-air name or photograph alone does not establish the current edition's setting. `indoor` and unknown format do not make an indoor music festival eligible for publication. Use programme/site evidence, not an invented percentage threshold, to judge substantial outdoor activity.
 
@@ -62,8 +64,16 @@ Preserve raw source wording. “Hybrid” may mean online plus in-person; an ope
 | `reenactment` | Historical reenactment | Re-creations of historical events or ways of life, such as living-history camps, period demonstrations, or staged historical encounters, form a substantial advertised programme. |
 | `wellness` | Wellness | Guided well-being practices, such as yoga, meditation, breathwork, or restorative movement, form a substantial advertised programme for attendees. |
 | `moto` | Motorcycling | Motorcycle rides, custom-bike shows, stunt or racing displays, or hands-on riding activities form a substantial advertised programme. |
+| `snow-sports` | Snow sports | Skiing, snowboarding, or other snow sports form a substantial advertised programme or an official festival package includes a ski pass for riding during the edition. Organized lessons or competitions are not required for the included-pass case. |
+| `surfing` | Surfing | Surf competitions, demonstrations, lessons, or organized surfing sessions form a substantial advertised programme or participant offering. |
+| `food-and-drink` | Food & drink | Culinary demonstrations, chef-led sessions, cooking workshops, tastings, or a curated food-and-drink programme form a substantial advertised part of the festival's identity or programme. |
+| `outdoor` | Outdoor activities | Guided hikes, climbing, kayaking, paddling, survival-skills sessions, or comparable outdoor recreation form a substantial advertised programme or organized participant offering. |
 
-Music does not imply arts; decoration alone does not establish an arts programme. Historical costume, fantasy theming, or an isolated demonstration does not establish reenactment; do not infer arts from reenactment without a separately supported artistic programme. A single yoga session, spa service, relaxing setting, or wellness marketing does not establish a substantial wellness programme. Biker attendance, motorcycle parking, a sponsor display, or a single incidental ride does not establish moto. Other workshops and food remain descriptive evidence, not starter terms. None of these additional topics makes an otherwise out-of-scope event eligible for publication.
+Music does not imply arts; decoration alone does not establish an arts programme. Historical costume, fantasy theming, or an isolated demonstration does not establish reenactment; do not infer arts from reenactment without a separately supported artistic programme. A single yoga session, spa service, relaxing setting, or wellness marketing does not establish a substantial wellness programme. Biker attendance, motorcycle parking, a sponsor display, or a single incidental ride does not establish moto.
+
+A ski-resort location, nearby slopes, a ski-pass discount, or a link to buy a separate resort pass does not alone establish snow-sports. An official festival ticket or package that includes a ski pass valid for riding during the edition is sufficient. A beach location, surf imagery, or nearby surf schools does not alone establish surfing. Ordinary food stalls, bars, or one incidental tasting do not establish food-and-drink. Other workshops remain descriptive evidence unless they meet an existing topic's definition. None of these additional topics makes an otherwise out-of-scope event eligible for publication.
+
+`topic/outdoor` describes active outdoor recreation; `format/openair` describes where the core public programme takes place. They have distinct slugs and display labels. Camping, a natural setting, nearby trails, or an isolated walk does not establish the topic. Snow-sports, surfing, and moto do not automatically imply `topic/outdoor`; assign it only for a separately supported recreation programme. It is not their taxonomy parent. An outdoor-activities topic does not by itself establish an open-air programme format or satisfy the publication format gate.
 
 ### Music genres
 
@@ -107,9 +117,9 @@ The term applies to official and independent events when supported. It makes no 
 ## 3 Assignment and normalization rules
 
 1. **Use edition-relevant evidence.** Prefer the official edition page, programme, or organizer account. An enduring official description may support a current edition when it clearly applies; old assignments and aggregator tags alone do not establish that it still does.
-2. **Classify substantial programming.** An explicit central identity or clearly substantial programme section can support a topic; musical styles also require substantial musical programming. One incidental performer, demonstration, or workshop cannot. No lineup-percentage calculation, numeric confidence threshold, or mandatory artist database is required.
+2. **Classify substantial programming.** An explicit central identity or clearly substantial programme section can support a topic; musical styles also require substantial musical programming. A substantial participant offering in an official festival package can also support an activity topic where its definition permits it, including a ski pass for snow-sports. One incidental performer, demonstration, or workshop cannot. No lineup-percentage calculation, numeric confidence threshold, or mandatory artist database is required.
 3. **Keep dimensions independent.** Psytrance does not imply burning-like culture. Reenactment does not imply arts or a music genre; wellness does not imply burning-like culture; moto does not imply rock, sports, or a participatory gathering. Camping does not imply outdoor programming. A gathering need not have music, and missing genre must not exclude a supported non-musical burn.
-4. **Use the exact known term.** Map harmless spelling variants through a small versioned application mapping. Examples: `D&B` and `drum and bass` map to `drum-and-bass`; `psy-trance` maps to `psytrance`; `open air` maps to `outdoor` only when it describes the programme. Ambiguous `EDM`, `indie`, `hybrid`, and `urban` require context. No alias table is needed in v1.
+4. **Use the exact known term.** Map harmless spelling variants through a small versioned application mapping. Examples: `D&B` and `drum and bass` map to `drum-and-bass`; `psy-trance` maps to `psytrance`; `open air` maps to `format/openair` only when it describes the programme setting, never to `topic/outdoor`. Ambiguous `EDM`, `indie`, `hybrid`, `urban`, and an unqualified `outdoor` require facet and source context. No alias table is needed in v1.
 5. **Preserve uncertainty.** If a source only establishes electronic music, do not guess techno. “Multi-genre” is evidence of breadth, not a list of known genres; assign the specific styles supported or leave the facet unset. Do not seed multi-genre as a substitute for unknown.
 6. **Replace only intentionally.** A missing label in a new extraction is not an instruction to delete an accepted assignment. Additions, removals, and complete set replacements use the domain's evidence, conflict, and owner-correction rules. A failed source fetch never clears terms.
 7. **Separate editions.** Copying a prior edition's assignments is allowed only as initial values for a new draft. Publication requires applicable supporting evidence, including when no copied value changes. Updating one edition never changes another or supplies implicit Event defaults.
@@ -122,12 +132,17 @@ Fictional Occurrence examples, not verified real-event records:
 
 | Example and assumed evidence | Event type | Format | Topics | Genres | Culture |
 | --- | --- | --- | --- | --- | --- |
-| Forest Signal: official outdoor festival centered on psytrance | `festival` | `outdoor` | `music` | `psytrance` | Unset |
-| Common Ground Burn: participant-created art and gifting, no music programme | `gathering` | `outdoor` | `arts` | Unset | `burning-like` |
+| Forest Signal: official outdoor festival centered on psytrance | `festival` | `openair` | `music` | `psytrance` | Unset |
+| Common Ground Burn: participant-created art and gifting, no music programme | `gathering` | `openair` | `arts` | Unset | `burning-like` |
 | Valley Weekender: substantial indoor/outdoor stages, rock and jazz | `festival` | `mixed-indoor-outdoor` | `music` | `rock`, `jazz` | Unset |
-| Hearthfield Festival: outdoor live music and a substantial living-history programme | `festival` | `outdoor` | `music`, `reenactment` | Unset | Unset |
-| Quiet Fields Burn: participant-created art and gifting with daily guided meditation and yoga | `gathering` | `outdoor` | `arts`, `wellness` | Unset | `burning-like` |
-| Roadlight Festival: outdoor live music, organized rides, and custom-bike shows | `festival` | `outdoor` | `music`, `moto` | Unset | Unset |
+| Hearthfield Festival: outdoor live music and a substantial living-history programme | `festival` | `openair` | `music`, `reenactment` | Unset | Unset |
+| Quiet Fields Burn: participant-created art and gifting with daily guided meditation and yoga | `gathering` | `openair` | `arts`, `wellness` | Unset | `burning-like` |
+| Roadlight Festival: outdoor live music, organized rides, and custom-bike shows | `festival` | `openair` | `music`, `moto` | Unset | Unset |
+| Alpine Signal: substantial indoor/outdoor music programme and an official festival ticket including a ski pass for the festival dates | `festival` | `mixed-indoor-outdoor` | `music`, `snow-sports` | Unset | Unset |
+| Coastal Pulse: outdoor music festival with a substantial surf competition and lessons programme | `festival` | `openair` | `music`, `surfing` | Unset | Unset |
+| Table & Sound: outdoor music festival with a dedicated chef stage, cooking workshops, and tastings | `festival` | `openair` | `music`, `food-and-drink` | Unset | Unset |
+| Trail Echo: substantial indoor/outdoor music programme plus daily guided hikes, climbing, and kayaking | `festival` | `mixed-indoor-outdoor` | `music`, `outdoor` | Unset | Unset |
+| Resort Beats: outdoor music festival near ski slopes, a beach, and ordinary food stalls, without included activities or a culinary programme | `festival` | `openair` | `music` | Unset | Unset |
 
 ## 5 Public behavior and acceptance
 
@@ -146,5 +161,5 @@ Apply assignment changes and their Occurrence `CatalogChange` atomically under t
 ## 7 Validation and rollout
 
 - Verify unique `(facet, slug)` pairs, configured facets, same-facet parents, and no cycles. Test cardinality, parent matching, aliases, unknown labels, edition isolation, intentional removals, idempotent replacements, rollback, owner corrections, and draft/withdrawn exclusion.
-- Use small attributable saved fixtures; normal tests must not fetch live sites. Before launch, classify roughly 30 varied official-source examples, including non-musical burns, independent gatherings, mixed programmes, substantial versus incidental reenactment, wellness, and moto, missing genres, and styles outside the starter list. Record disagreements and unmapped labels, then refine the vocabulary.
+- Use small attributable saved fixtures; normal tests must not fetch live sites. Before launch, classify roughly 30 varied official-source examples, including non-musical burns, independent gatherings, mixed programmes, substantial versus incidental reenactment, wellness, moto, snow-sports, surfing, food-and-drink, and outdoor activities, included ski passes versus discounts or nearby slopes, outdoor format without outdoor activities and vice versa, missing genres, and styles outside the starter list. Record disagreements and unmapped labels, then refine the vocabulary.
 - Create the two classification tables in reviewed migrations. Load starter terms through a separate idempotent data operation keyed by facet/slug. Imported candidates require refreshed evidence before publication.
