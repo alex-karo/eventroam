@@ -28,6 +28,7 @@ jobs:
       - run: npm ci
       - run: npm run type-check
       - run: npm run lint
+      - run: npm run deps:check
       - run: npm run format:check
       - run: npm run docs:check
       - run: npm run openspec:validate
