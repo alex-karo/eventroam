@@ -1,3 +1,4 @@
+import { createRefreshContext } from "./scope";
 import type Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { taxonomyTerms } from "@/db/schema";
@@ -11,6 +12,7 @@ import type { KnownSourceLink } from "../tools/contracts";
 export function loadResearchContext(
   client: Database.Database,
   input: CatalogResearchInput,
+  referenceInstant = new Date().toISOString(),
 ) {
   const target = input.eventId
     ? readResearchEvent(client, input.eventId)
@@ -44,7 +46,19 @@ export function loadResearchContext(
       })),
     ) ?? []),
   ];
-  return { catalog, terms, knownLinks };
+  return {
+    catalog,
+    terms,
+    knownLinks,
+    refresh:
+      input.mode === "refresh"
+        ? createRefreshContext(
+            input.scope ?? "full",
+            target!.editions,
+            referenceInstant,
+          )
+        : null,
+  };
 }
 
 export type ResearchCatalog = ReturnType<typeof readResearchCatalog>;

@@ -16,7 +16,6 @@ const ENV_LIMITS: Record<keyof ResearchLimits, string> = {
   agentSteps: "CATALOG_MAX_AGENT_STEPS",
   durationMs: "CATALOG_MAX_DURATION_MS",
   pageBytes: "CATALOG_MAX_PAGE_BYTES",
-  modelInputChars: "CATALOG_MAX_MODEL_INPUT_CHARS",
   modelOutputTokens: "CATALOG_MAX_MODEL_OUTPUT_TOKENS",
   searchResults: "CATALOG_MAX_SEARCH_RESULTS",
 };

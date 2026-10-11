@@ -24,7 +24,7 @@ Website:
 
 ## Active changes
 
-- [Scoped refresh](../openspec/changes/scoped-event-refresh/proposal.md) — planned full/current refresh, website recovery, atomic country guards, and report v3; follows the implemented Edition naming change.
+- [Scoped refresh](../openspec/changes/scoped-event-refresh/proposal.md) — implemented full/current refresh, website recovery, atomic country guards, and report v3 with raw findings and writer audit; synchronized and pending archive.
 
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.

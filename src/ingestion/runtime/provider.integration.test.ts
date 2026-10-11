@@ -243,9 +243,8 @@ test("actual Mastra request sends a compatible bounded response schema", async (
   );
   expect(requests).toHaveLength(1);
   expect(result.usage.modelCalls).toBe(1);
-  expect(result.operations.map((operation) => operation.kind)).toContain(
-    "createEdition",
-  );
+  expect(result.researchStatus).toBe("success");
+  expect(result.errors).toEqual([]);
   const request = requests[0];
   expect(request.model).toBe("openai/gpt-6-luna");
   expect(request.reasoning).toEqual({ effort: "medium" });
@@ -611,6 +610,14 @@ test.each([null, "I will read the linked page before returning the result."])(
     );
     expect(result.sources.map((read) => read.finalUrl)).toContain(linkedUrl);
     expect(result.errors).toEqual([]);
+    expect(result.researchStatus).toBe("success");
+    expect(result.refresh).not.toHaveProperty("resolution");
+    expect(
+      (requests[0].tools as Array<{ function: { name: string } }>)
+        .map((t) => t.function.name)
+        .sort(),
+    ).toEqual(["discoverSources", "readSource"]);
+    expect(requests[1].tools).toBeUndefined();
   },
 );
 
@@ -679,7 +686,7 @@ function readCall(
   };
 }
 
-test.each(["http", "abort", "context"])(
+test.each(["http", "abort"])(
   "retains completed step usage after %s failure",
   async (failure) => {
     const client = testDatabase().client;
@@ -716,20 +723,15 @@ test.each(["http", "abort", "context"])(
           ...config.limits,
           agentSteps: 2,
           durationMs: failure === "abort" ? 500 : 30_000,
-          modelInputChars: failure === "context" ? 30_000 : 120_000,
         },
       },
       readSource: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
         finalUrl: requestedUrl,
-        markdown:
-          failure === "context" && requestedUrl !== url
-            ? "x".repeat(60_000)
-            : source.markdown,
       }),
     });
-    expect(fetchMock).toHaveBeenCalledTimes(failure === "context" ? 1 : 2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(result.usage).toMatchObject({
       inputTokens: 10,
       outputTokens: 20,
@@ -739,12 +741,53 @@ test.each(["http", "abort", "context"])(
       modelCostUsd: 0.125,
     });
     expect(result.operations).toEqual([]);
-    if (failure === "context") {
+    if (failure === "abort") {
       expect(result.errors).toContainEqual(
-        expect.objectContaining({ code: "limit_reached" }),
+        expect.objectContaining({ code: "limit_reached", stage: "research" }),
       );
     }
-    if (failure === "abort") {
+  },
+);
+
+test.each([true, false])(
+  "large accumulated context reaches the reserved fifteenth step (final response: %s)",
+  async (returnsFinalResponse) => {
+    const client = testDatabase().client;
+    savedSource(client);
+    const requests: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn<typeof fetch>(async (request, init) => {
+      requests.push(JSON.parse(String(init?.body)));
+      if (requests.length === 15 && returnsFinalResponse) {
+        return finalResponse(stepUsage)(request, init);
+      }
+      const call = readCall();
+      call.tool_calls[0].id = `large-context-${requests.length}`;
+      return modelResponse(call, stepUsage);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await runCatalogResearch(input, {
+      client,
+      config: { ...config, limits: { ...DEFAULT_RESEARCH_LIMITS } },
+      readSource: async (requestedUrl) => ({
+        ...source,
+        attemptedUrl: requestedUrl,
+        finalUrl: requestedUrl,
+        markdown: "x".repeat(80_000),
+      }),
+    });
+    expect(requests).toHaveLength(15);
+    expect(JSON.stringify(requests.at(-1)?.messages).length).toBeGreaterThan(
+      240_000,
+    );
+    expect(requests.slice(0, -1).every((request) => request.tools)).toBe(true);
+    expect(requests.at(-1)?.tools).toBeUndefined();
+    expect(result.usage.modelCalls).toBe(15);
+    expect(result.limits).not.toHaveProperty("modelInputChars");
+    if (returnsFinalResponse) {
+      expect(result.researchStatus).toBe("success");
+      expect(result.errors).toEqual([]);
+    } else {
+      expect(result.operations).toEqual([]);
       expect(result.errors).toContainEqual(
         expect.objectContaining({ code: "limit_reached", stage: "research" }),
       );

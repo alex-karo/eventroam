@@ -1,0 +1,94 @@
+{
+  "id": "scope-full-unfinished-history",
+  "input": {
+    "mode": "refresh",
+    "scope": "full",
+    "eventId": "scope-event-scope-full-unfinished-history",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "provenance": {
+    "kind": "synthetic-scope-regression",
+    "sourceReport": "openspec/changes/scoped-event-refresh/design.md",
+    "note": "Synthetic source facts for model selection/completeness; no live HTTP/search fallback."
+  },
+  "initial": {
+    "event": {
+      "id": "scope-event-scope-full-unfinished-history",
+      "slug": "scope-full-unfinished-history",
+      "canonicalName": "River Festival",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://scope-fixture.example/scope-full-unfinished-history",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "scope-edition-historic-weekend",
+          "editionKey": "historic-weekend",
+          "editionYear": 2025,
+          "startsOn": "2025-06-01",
+          "endsOn": "2025-06-03",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        },
+        {
+          "id": "scope-edition-announced-weekend",
+          "editionKey": "announced-weekend",
+          "editionYear": 2026,
+          "startsOn": "2026-10-10",
+          "endsOn": "2026-10-11",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://scope-fixture.example/scope-full-unfinished-history",
+      "finalUrl": "https://scope-fixture.example/scope-full-unfinished-history",
+      "retrievedAt": "2026-10-03T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    }
+  ],
+  "expectations": {
+    "required": [],
+    "forbidden": [],
+    "research": {
+      "status": "partial",
+      "unresolvedEditionKeys": ["historic-weekend"],
+      "facts": [
+        {
+          "editionKey": "announced-weekend",
+          "field": "dates",
+          "value": {
+            "startsOn": "2026-10-10",
+            "endsOn": "2026-10-11",
+            "state": "confirmed"
+          }
+        }
+      ]
+    }
+  }
+}

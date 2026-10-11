@@ -10,10 +10,10 @@ describe("research budget", () => {
     );
     budget.consumeSearch();
     budget.consumePage(2);
-    budget.consumeModelCall(10);
+    budget.consumeModelCall();
     expect(() => budget.consumeSearch()).toThrow(ResearchLimitError);
     budget.consumePage(2);
-    budget.consumeModelCall(10);
+    budget.consumeModelCall();
     expect(budget.snapshot()).toMatchObject({
       searches: 1,
       pages: 2,

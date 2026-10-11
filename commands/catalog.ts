@@ -132,13 +132,6 @@ export async function executeCatalogCommand(
   }
   const connection = openDatabase(database);
   try {
-    for (const id of options.eventIds) {
-      if (
-        !connection.client.prepare("SELECT id FROM events WHERE id=?").get(id)
-      ) {
-        throw new Error("Event ID not found.");
-      }
-    }
     const targets = options.mode === "add" ? [undefined] : options.eventIds;
     const results: CatalogResearchResult[] = [];
     const failures: CommandFailure[] = [];
@@ -148,6 +141,7 @@ export async function executeCatalogCommand(
           await (deps.research ?? runCatalogResearch)(
             {
               mode: options.mode,
+              scope: options.scope,
               name: options.name,
               eventId,
               actor: "catalog-research",
@@ -167,7 +161,7 @@ export async function executeCatalogCommand(
       }
     }
     const report = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       checkedAt: new Date().toISOString(),
       dryRun: options.dryRun,
       results,

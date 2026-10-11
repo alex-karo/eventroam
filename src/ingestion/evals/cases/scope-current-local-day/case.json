@@ -1,0 +1,84 @@
+{
+  "id": "scope-current-local-day",
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "scope-event-scope-current-local-day",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "provenance": {
+    "kind": "synthetic-scope-regression",
+    "sourceReport": "openspec/changes/scoped-event-refresh/design.md",
+    "note": "Synthetic source facts for model selection/completeness; no live HTTP/search fallback."
+  },
+  "initial": {
+    "event": {
+      "id": "scope-event-scope-current-local-day",
+      "slug": "scope-current-local-day",
+      "canonicalName": "River Festival",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://scope-fixture.example/scope-current-local-day",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "scope-edition-local-weekend",
+          "editionKey": "local-weekend",
+          "editionYear": 2026,
+          "startsOn": "2026-10-04",
+          "endsOn": "2026-10-04",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ],
+          "timeZone": "Pacific/Kiritimati"
+        },
+        {
+          "id": "scope-edition-utc-weekend",
+          "editionKey": "utc-weekend",
+          "editionYear": 2026,
+          "startsOn": "2026-10-04",
+          "endsOn": "2026-10-06",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://scope-fixture.example/scope-current-local-day",
+      "finalUrl": "https://scope-fixture.example/scope-current-local-day",
+      "retrievedAt": "2026-10-03T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    }
+  ],
+  "expectations": {
+    "required": [],
+    "forbidden": [],
+    "research": {
+      "status": "success",
+      "editionKeys": ["local-weekend"]
+    }
+  }
+}

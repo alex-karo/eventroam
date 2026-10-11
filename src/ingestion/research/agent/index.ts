@@ -6,7 +6,7 @@ import type {
   CatalogResearchInput,
   ResearchDependencies,
 } from "../../contracts";
-import { ResearchLimitError, type ResearchBudget } from "../../runtime/budget";
+import type { ResearchBudget } from "../../runtime/budget";
 import type { ResearchConfig } from "../../runtime/config";
 import {
   createResearchModel,
@@ -122,13 +122,13 @@ export async function researchFestival(
     budget.remaining(),
     reads,
     deps.todayUtc,
+    context.refresh,
   );
   let raw: unknown;
   let text: string | null = null;
   let generationFinishedAt: number | undefined;
   let iterationsExhausted = false;
   try {
-    assertPromptSize(prompt, budget.limits.modelInputChars);
     if (deps.generateCandidate) {
       budget.consumeModelCall();
       raw = await deps.generateCandidate(prompt, {
@@ -210,14 +210,8 @@ export async function researchFestival(
           onAbort: () => {
             usage.complete = false;
           },
-          prepareStep: ({ messageList, systemMessages }) => {
+          prepareStep: () => {
             abortSignal?.throwIfAborted();
-            const chars =
-              JSON.stringify(messageList.get.all.db()).length +
-              JSON.stringify(systemMessages).length;
-            if (chars > budget.limits.modelInputChars) {
-              throw new ResearchLimitError("modelInputChars");
-            }
             const finalOrdinaryStep =
               startedSteps >= budget.limits.agentSteps - 1;
             budget.consumeModelCall();
@@ -366,12 +360,6 @@ function isIterationExhausted(
     (completedSteps >= agentSteps ||
       attemptedSteps >= agentSteps + MAX_PROVIDER_UNAVAILABLE_RETRIES)
   );
-}
-
-function assertPromptSize(prompt: string, maxCharacters: number): void {
-  if (prompt.length > maxCharacters) {
-    throw new ResearchLimitError("modelInputChars");
-  }
 }
 
 function agentRuntime(agent: Agent, tracing?: RunObservability) {

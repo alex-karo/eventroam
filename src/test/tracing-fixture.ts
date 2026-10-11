@@ -121,9 +121,9 @@ export async function runTraceFixture(
                 {
                   key: "2023",
                   links: {},
-                  year: { value: 2023, reason: TRACE_CANDIDATE },
+                  year: { value: 2027, reason: TRACE_CANDIDATE },
                   scheduleStatus: {
-                    value: "cancelled",
+                    value: "announced",
                     reason: TRACE_CANDIDATE,
                   },
                 },
@@ -191,28 +191,30 @@ export async function runTraceFixture(
                     ...(modelText.reasoning
                       ? { reasoning: modelText.reasoning }
                       : {}),
-                    tool_calls: Array.from(
-                      { length: scenario === "cached" ? 2 : 1 },
-                      (_, index) => ({
-                        id: `fixture-tool-${index}`,
-                        type: "function",
-                        function: {
-                          name:
-                            scenario === "search" ||
-                            scenario === "reserved" ||
-                            scenario === "search_failure"
-                              ? "discoverSources"
-                              : "readSource",
-                          arguments: JSON.stringify(
-                            scenario === "search" ||
+                    tool_calls: [
+                      ...Array.from(
+                        { length: scenario === "cached" ? 2 : 1 },
+                        (_, index) => ({
+                          id: `fixture-tool-${index}`,
+                          type: "function",
+                          function: {
+                            name:
+                              scenario === "search" ||
                               scenario === "reserved" ||
                               scenario === "search_failure"
-                              ? { query: `Festival ${TRACE_PUBLIC_URL}` }
-                              : { url: TRACE_PUBLIC_URL },
-                          ),
-                        },
-                      }),
-                    ),
+                                ? "discoverSources"
+                                : "readSource",
+                            arguments: JSON.stringify(
+                              scenario === "search" ||
+                                scenario === "reserved" ||
+                                scenario === "search_failure"
+                                ? { query: `Festival ${TRACE_PUBLIC_URL}` }
+                                : { url: TRACE_PUBLIC_URL },
+                            ),
+                          },
+                        }),
+                      ),
+                    ],
                   }
                 : {
                     role: "assistant",
@@ -246,7 +248,7 @@ export async function runTraceFixture(
   try {
     const result = await runCatalogResearch(
       {
-        mode: scenario === "skipped" ? "add" : "check",
+        mode: scenario === "skipped" ? "add" : "refresh",
         ...(scenario === "skipped"
           ? { name: TRACE_PUBLIC_MARKER }
           : { eventId: event.id }),

@@ -1,3 +1,5 @@
+import { countryBaselineConflict } from "./research/scope";
+import { assertRefreshBaseline } from "./research/guards";
 import { randomUUID } from "node:crypto";
 import { noopLogger } from "@mastra/core/logger";
 import { createStep, createWorkflow } from "@mastra/core/workflows";
@@ -33,14 +35,18 @@ export type {
 
 export const studioIngestionInputSchema = z
   .strictObject({
-    mode: z.enum(["add", "refresh", "check"]),
+    mode: z.enum(["add", "refresh"]),
+    scope: z.enum(["full", "current"]).optional(),
     name: z.string().trim().min(1).max(500).optional(),
     eventId: z.string().trim().min(1).max(500).optional(),
     dryRun: z.boolean().default(true),
     republish: z.boolean().default(false),
   })
   .superRefine((value, context) => {
-    if (value.mode === "add" && (!value.name || value.eventId)) {
+    if (
+      value.mode === "add" &&
+      (!value.name || value.eventId || value.scope !== undefined)
+    ) {
       context.addIssue({
         code: "custom",
         message: "add requires a name and no Event ID",
@@ -49,7 +55,7 @@ export const studioIngestionInputSchema = z
     if (value.mode !== "add" && (!value.eventId || value.name)) {
       context.addIssue({
         code: "custom",
-        message: "refresh and check require an Event ID and no name",
+        message: "refresh requires an Event ID and no name",
       });
     }
   });
@@ -78,7 +84,7 @@ const stepSchema = z.json();
 export const studioIngestionResultSchema = z.strictObject({
   engineRunId: z.string(),
   ingestionRunId: z.string(),
-  mode: z.enum(["add", "refresh", "check"]),
+  mode: z.enum(["add", "refresh"]),
   dryRun: z.boolean(),
   outcome: z.enum([
     "created",
@@ -91,6 +97,9 @@ export const studioIngestionResultSchema = z.strictObject({
   researchStatus: z.enum(["success", "partial", "failed"]),
   persistenceStatus: z.enum(["completed", "failed"]),
   eventId: z.string().nullable(),
+  scope: z.enum(["full", "current"]).nullable(),
+  savedEditionCount: z.number().int().nonnegative(),
+  returnedEditionCount: z.number().int().nonnegative(),
   readCount: z.number().int().nonnegative(),
   searchCount: z.number().int().nonnegative(),
   operationCount: z.number().int().nonnegative(),
@@ -181,6 +190,9 @@ function projectSummary(
     researchStatus: result.researchStatus,
     persistenceStatus,
     eventId: result.eventId ?? null,
+    scope: result.refresh?.scope ?? null,
+    savedEditionCount: result.workload.savedEditions,
+    returnedEditionCount: result.workload.returnedEditions,
     readCount: result.usage.pages,
     searchCount: result.usage.searches,
     operationCount: result.operations.length,
@@ -301,7 +313,34 @@ export function createCatalogIngestionWorkflow(
     "load-context",
     "Load the target and known catalog sources",
     (owned, data) => {
-      data.context = loadResearchContext(owned.deps.client, owned.input);
+      data.context = loadResearchContext(
+        owned.deps.client,
+        owned.input,
+        owned.deps.todayUtc
+          ? `${owned.deps.todayUtc}T12:00:00.000Z`
+          : new Date(owned.started).toISOString(),
+      );
+      if (data.context.refresh) {
+        const refresh = data.context.refresh;
+        if (
+          countryBaselineConflict(refresh) ||
+          (refresh.scope === "full" && refresh.savedEditions.length > 20)
+        ) {
+          data.errors = [
+            {
+              code: countryBaselineConflict(refresh)
+                ? "country_baseline_conflict"
+                : "limit_reached",
+              stage: "validation",
+              message: countryBaselineConflict(refresh)
+                ? "Saved Edition countries conflict"
+                : "Refresh assignment exceeds the 20-Edition boundary",
+            },
+          ];
+          data.report = buildResearchReport(owned.reportInput(data));
+          return data.context;
+        }
+      }
       owned.trace?.update({ context: data.context, phase: "initial_source" });
       return data.context;
     },
@@ -362,6 +401,7 @@ export function createCatalogIngestionWorkflow(
           data.context!.catalog,
           owned.input,
           data.context!.terms,
+          data.context!.refresh,
         );
         owned.trace?.validated(data.prepared);
         owned.trace?.tracing.setEventId(data.prepared.matchedEventId);
@@ -396,6 +436,14 @@ export function createCatalogIngestionWorkflow(
           data.prepared.operations,
           {
             dryRun: owned.input.dryRun,
+            beforeApply: data.context?.refresh
+              ? (client) =>
+                  assertRefreshBaseline(
+                    client,
+                    owned.input.eventId!,
+                    data.context!.refresh!,
+                  )
+              : undefined,
           },
         );
         if (owned.trace) {
@@ -563,6 +611,7 @@ export async function runCatalogResearch(
   const run = await safeStep(() => workflow.createRun({ runId: engineRunId }));
   const inputData = {
     mode: requested.mode,
+    scope: requested.scope,
     name: requested.name,
     eventId: requested.eventId,
     dryRun: requested.dryRun ?? true,

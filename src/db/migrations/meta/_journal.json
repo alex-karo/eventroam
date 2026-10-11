@@ -43,6 +43,13 @@
       "when": 1791739304837,
       "tag": "0005_rename-occurrence-to-edition",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791740968849,
+      "tag": "0006_remove-ingestion-report-check",
+      "breakpoints": true
     }
   ]
 }

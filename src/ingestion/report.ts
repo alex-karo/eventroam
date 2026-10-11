@@ -15,6 +15,8 @@ import type { ResearchExecution } from "./research/agent";
 import { sumKnownModelCosts } from "./research/agent/usage";
 
 export type ReportInput = {
+  refresh: import("./research/scope").RefreshContext | null;
+  limits: import("./runtime/budget").ResearchLimits;
   runId: string;
   input: CatalogResearchInput;
   config: ResearchConfig;
@@ -53,6 +55,8 @@ export function buildWorkflowFailureReport(
 
 function assembleReport({
   runId,
+  refresh,
+  limits,
   input,
   config,
   prepared,
@@ -80,6 +84,9 @@ function assembleReport({
         prepared?.explanations[change.operationKey]?.[field.field] ?? [],
     })),
   );
+  const finalCandidate = research.ok
+    ? researchCandidateSchema.safeParse(research.candidate)
+    : null;
   const researchStatus =
     !research.ok || !prepared?.candidate ? "failed" : prepared.candidate.status;
   const {
@@ -97,7 +104,15 @@ function assembleReport({
     .filter((_, index) => receipts[index]?.changed)
     .map((operation) => operation.kind);
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
+    refresh,
+    limits,
+    workload: {
+      savedEditions: refresh?.savedEditions.length ?? 0,
+      returnedEditions: finalCandidate?.success
+        ? (finalCandidate.data.data?.editions.length ?? 0)
+        : 0,
+    },
     runId,
     mode: input.mode,
     outcome: researchOutcome({
@@ -114,7 +129,10 @@ function assembleReport({
     references,
     changes,
     sources: reads.map(safeSource),
-    sourceSummaries: prepared?.candidate?.data?.sources ?? [],
+    sourceSummaries:
+      prepared?.validation.target === "passed" && finalCandidate?.success
+        ? (finalCandidate.data.data?.sources ?? [])
+        : [],
     errors,
     unresolved,
     eventNameMismatch: prepared?.eventNameMismatch ?? null,

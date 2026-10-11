@@ -362,41 +362,67 @@ test("create dry run explains actual changes and rolls back catalog and audit", 
   ).toBe("2027-07-01");
 });
 
-test("partial no-op keeps questions and source summaries without audit changes", async () => {
-  const { client, readSource } = fixture();
-  const event = testFixtures(client).event({ canonicalName: "Example Fest" });
-  const before = catalogState(client);
-  const proposal = candidate([]);
-  proposal.status = "partial";
-  proposal.data = {
-    eventId: event.id,
-    eventName: "Example Fest",
-    sources: [
-      { url, information: "Page names the festival but omits ticket prices." },
-    ],
-    links: { socials: {} },
-    editions: [],
-  };
-  proposal.unresolved = [
-    { message: "Ticket prices could not be confirmed.", field: "tickets" },
-  ];
-  const result = await runCatalogResearch(
-    { mode: "check", eventId: event.id, actor: input.actor },
-    {
-      client,
-      readSource,
-      generateCandidate: async () => proposal,
-    },
-  );
-  expect(result).toMatchObject({
-    researchStatus: "partial",
-    outcome: "unchanged",
-    changes: [],
-    unresolved: proposal.unresolved,
-  });
-  expect(result.sourceSummaries).toEqual(proposal.data.sources);
-  expect(catalogState(client)).toEqual(before);
-});
+test.each([
+  ["full", "partial"],
+  ["current", "success"],
+  ["current", "partial"],
+] as const)(
+  "%s %s with no returned Editions keeps questions and sources without audit changes",
+  async (scope, status) => {
+    const { client, readSource } = fixture();
+    const event = testFixtures(client).event({ canonicalName: "Example Fest" });
+    testFixtures(client).edition(event, {
+      editionKey: "2027",
+      countryCode: "PT",
+    });
+    const before = catalogState(client);
+    const proposal = candidate([]);
+    proposal.status = status;
+    proposal.data = {
+      eventId: event.id,
+      eventName: "Example Fest",
+      sources: [
+        {
+          url,
+          information: "Page names the festival but omits ticket prices.",
+        },
+      ],
+      links: { socials: {} },
+      editions: [],
+    };
+    proposal.unresolved =
+      status === "partial"
+        ? [
+            {
+              message: "Ticket prices could not be confirmed.",
+              field: "tickets",
+            },
+          ]
+        : [];
+    const result = await runCatalogResearch(
+      {
+        mode: "refresh",
+        scope,
+        eventId: event.id,
+        actor: input.actor,
+      },
+      {
+        client,
+        readSource,
+        generateCandidate: async () => proposal,
+      },
+    );
+    expect(result).toMatchObject({
+      researchStatus: status,
+      outcome: "unchanged",
+      changes: [],
+      unresolved: proposal.unresolved,
+    });
+    expect(result.sourceSummaries).toEqual(proposal.data.sources);
+    expect(result.workload).toEqual({ savedEditions: 1, returnedEditions: 0 });
+    expect(catalogState(client)).toEqual(before);
+  },
+);
 
 test("recovered source failure retains staged error beside successful research", async () => {
   const { client, readSource } = fixture();
@@ -498,7 +524,7 @@ test("refresh preserves identity, reports mismatch, and emits no duplicate audit
   });
   const before = catalogState(client);
   const repeat = await runCatalogResearch(
-    { mode: "check", eventId: event.id, actor: input.actor, dryRun: false },
+    { mode: "refresh", eventId: event.id, actor: input.actor, dryRun: false },
     {
       client,
       readSource,
@@ -755,6 +781,14 @@ test("failed research, malformed output, and target mismatch never write", async
   };
   for (const raw of [
     failed,
+    {
+      status: "failed",
+      data: null,
+      errors: [],
+      unresolved: [
+        { message: "Correct festival website could not be verified" },
+      ],
+    },
     { ...candidate([]), data: { ...candidate([]).data, eventId: "wrong-id" } },
     { legacy: "claims" },
   ]) {
@@ -772,7 +806,12 @@ test("failed research, malformed output, and target mismatch never write", async
       operations: [],
       changes: [],
     });
-    expect(result.errors.length).toBeGreaterThan(0);
+    if (raw.unresolved?.length) {
+      expect(result.errors).toEqual([]);
+      expect(result.unresolved).toEqual(raw.unresolved);
+    } else {
+      expect(result.errors.length).toBeGreaterThan(0);
+    }
     expect(result.sourceSummaries).toEqual([]);
   }
 });
@@ -932,6 +971,9 @@ test("running row and safe normalized invocation precede context and model work"
 
 test.each([
   { ...input, mode: "future" },
+  { ...input, mode: "check", eventId: "event" },
+  { ...input, mode: "refresh", eventId: "event", scope: "next" },
+  { ...input, scope: "full" },
   { ...input, name: " " },
   { ...input, actor: "" },
   { ...input, actor: "a".repeat(201) },
@@ -939,16 +981,21 @@ test.each([
   { ...input, mode: "refresh", eventId: "missing" },
   { ...input, limits: { agentSteps: -1 } },
 ])("invalid invocation creates no run before work: %j", async (invalid) => {
-  const { client } = fixture();
+  const { client, readSource } = fixture();
   const model = vi.fn();
+  if (invalid.mode === "check" || "scope" in invalid) {
+    expect(studioIngestionInputSchema.safeParse(invalid).success).toBe(false);
+  }
   await expect(
     executeResearch(invalid as typeof input, {
       client,
+      readSource,
       generateCandidate: model,
     }),
   ).rejects.toThrow();
   expect(client.prepare("SELECT * FROM ingestion_runs").all()).toEqual([]);
   expect(model).not.toHaveBeenCalled();
+  expect(readSource).not.toHaveBeenCalled();
 });
 
 test("invalid config and enclosing transactions create no runs", async () => {
@@ -1103,7 +1150,7 @@ test.each(["update", "serialization"] as const)(
   },
 );
 
-test.each(["refresh", "check"] as const)(
+test.each(["refresh"] as const)(
   "%s starts associated before source/model work and retains dry-run history",
   async (mode) => {
     const { client } = fixture();

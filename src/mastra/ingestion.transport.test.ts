@@ -111,7 +111,7 @@ test("native create and stream expose preview, then apply under a fresh ingestio
   expect(afterPreview).toHaveLength(1);
   expect(afterPreview[0].status).toBe("completed");
   expect(JSON.parse(afterPreview[0].report_json as string).schemaVersion).toBe(
-    2,
+    3,
   );
   const catalog = new Database(fixture.catalogPath, { readonly: true });
   try {
@@ -182,7 +182,7 @@ test("graph inspection needs no catalog and execution does not create one", asyn
     }
     expect(existsSync(server.catalogPath)).toBe(false);
     const started = await run(server, {
-      mode: "check",
+      mode: "refresh",
       eventId: STUDIO_FIXTURE_EVENT_ID,
     });
     expect(started.text).not.toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
@@ -203,14 +203,14 @@ test("per-step starts and replay routes are rejected before durable allocation",
     "streamVNext",
   ]) {
     const rejected = await request(fixture, `${route}?runId=${runId}`, {
-      inputData: { mode: "check", eventId: STUDIO_FIXTURE_EVENT_ID },
+      inputData: { mode: "refresh", eventId: STUDIO_FIXTURE_EVENT_ID },
       perStep: true,
     });
     expect(rejected.response.status, `${route}: ${rejected.text}`).toBe(400);
     expect(rejected.text).not.toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
     for (const initialState of [{}, { data: { prepared: [] } }]) {
       const stateOverride = await request(fixture, `${route}?runId=${runId}`, {
-        inputData: { mode: "check", eventId: STUDIO_FIXTURE_EVENT_ID },
+        inputData: { mode: "refresh", eventId: STUDIO_FIXTURE_EVENT_ID },
         initialState,
       });
       expect(
@@ -347,7 +347,7 @@ test("recorded apply traces and logs stay private while the shared store serves 
       usage: { inputTokens: 10, outputTokens: 20 },
     });
     const preview = await run(server, {
-      mode: "check",
+      mode: "refresh",
       eventId: STUDIO_FIXTURE_EVENT_ID,
     });
     expect(preview.response.status, preview.text).toBe(200);

@@ -227,7 +227,14 @@ export const researchQuestionSchema = z
       "Describe the unknown question. For partial, name the unfinished core check and its cause; merely unpublished or optional details do not require partial.",
     ),
     editionKey: editionKey.optional(),
-    field: z.string().min(1).max(100).optional(),
+    field: z
+      .string()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe(
+        "Optional single field name, at most 100 characters. For a question covering several fields, omit this slot and describe them in message.",
+      ),
   })
   .strict();
 export const modelResearchErrorSchema = z
@@ -241,7 +248,14 @@ export const modelResearchErrorSchema = z
     message: boundedMessage,
     url: url.optional(),
     editionKey: editionKey.optional(),
-    field: z.string().min(1).max(100).optional(),
+    field: z
+      .string()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe(
+        "Optional single field name, at most 100 characters. For an error covering several fields, omit this slot and describe them in message.",
+      ),
   })
   .strict();
 export const researchCandidateSchema = z
@@ -249,7 +263,7 @@ export const researchCandidateSchema = z
     status: z
       .enum(["success", "partial", "failed"])
       .describe(
-        "Research completion: success when relevant checks are complete even if the next edition announcement lacks details; partial only for useful source findings with an unfinished core check; failed with data:null and a source error when refresh/check has no usable inspected-source findings. Repeating saved/input identity, facts, or URLs is not a finding; verified unchanged facts count. Duplicate add may use a matching supplied catalog identity alone.",
+        "Research completion: success when relevant checks are complete even if the selected Edition announcement lacks details; partial only for useful source findings with an unfinished core check; failed with data:null and a source error when refresh has no usable inspected-source findings. Repeating saved/input identity, facts, or URLs is not a finding; verified unchanged facts count. Duplicate add may use a matching supplied catalog identity alone.",
       ),
     data: researchDataSchema.nullable(),
     errors: z.array(modelResearchErrorSchema).max(30),
@@ -301,6 +315,8 @@ export type ResearchError = {
     | z.infer<typeof modelResearchErrorSchema>["code"]
     | "model_failed"
     | "invalid_candidate"
+    | "country_conflict"
+    | "country_baseline_conflict"
     | "write_failed"
     | "workflow_failed"
     | "run_persistence_failed";
@@ -316,4 +332,4 @@ export type ResearchError = {
     retryable?: boolean;
   };
 };
-export const RESEARCH_PROMPT_VERSION = "model-direct-v6";
+export const RESEARCH_PROMPT_VERSION = "scoped-refresh-v2";

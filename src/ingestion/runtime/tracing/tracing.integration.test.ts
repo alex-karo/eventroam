@@ -279,6 +279,9 @@ function normalize(
   const copy = structuredClone(result);
   delete copy.runId;
   copy.durationMs = 0;
+  if (copy.refresh) {
+    copy.refresh.referenceInstant = "TIMESTAMP";
+  }
   for (const change of copy.changes) {
     if (change.field === "created_at" || change.field === "updated_at") {
       change.newValue = "TIMESTAMP";
@@ -367,11 +370,11 @@ test.each([
         editions: {
           context: { entries: [{ editionKey: "2026", year: 2026 }] },
           committed: {
-            entries: [{ editionKey: "2023", year: 2023, role: "created" }],
+            entries: [{ editionKey: "2023", year: 2027, role: "created" }],
           },
         },
       });
-      expect(root.name).toContain("created:2023");
+      expect(root.name).toContain("created:2027");
       expect(root.name).toContain("ctx:2026");
       expect(root.name).not.toContain("Model name mismatch");
       if (scenario === "partial") {

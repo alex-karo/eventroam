@@ -101,6 +101,7 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
                 countryCode: edition.countryCode,
                 locality: edition.locality,
                 administrativeArea: edition.administrativeArea,
+                timeZone: edition.timeZone,
                 venueName: edition.venueName,
                 venueAddress: edition.venueAddress,
                 createdAt: timestamp,
@@ -258,7 +259,13 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
               ? persistenceFailureReport(error)
               : undefined;
           result = available ?? {
-            schemaVersion: 2,
+            schemaVersion: 3,
+            refresh: null,
+            limits: config.limits,
+            workload: {
+              savedEditions: 0,
+              returnedEditions: 0,
+            },
             mode: item.input.mode,
             outcome: "failed",
             researchStatus: "failed",
@@ -325,7 +332,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   const mastraResult = await runEvals({
     target: mastra.getWorkflow("catalogEval"),
     data,
-    scorers: [scorer.correctness, scorer.completeness],
+    scorers: [scorer.correctness, scorer.completeness, scorer.research],
     concurrency: 3,
   });
   const results = data.map(({ input }) => {
@@ -359,10 +366,13 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       sources: result.sources,
       sourceSummaries: result.sourceSummaries,
       eventNameMismatch: result.eventNameMismatch,
+      refresh: result.refresh,
+      limits: result.limits,
+      workload: result.workload,
     };
   });
   const report = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     startedAt,
     finishedAt: new Date().toISOString(),
     fixtureTodayUtc: suite.todayUtc,

@@ -1,4 +1,4 @@
-export type ResearchLimit = "time" | "searches" | "depth" | "modelInputChars";
+export type ResearchLimit = "time" | "searches" | "depth";
 
 export interface ResearchLimits {
   searches: number;
@@ -6,7 +6,6 @@ export interface ResearchLimits {
   agentSteps: number;
   durationMs: number;
   pageBytes: number;
-  modelInputChars: number;
   modelOutputTokens: number;
   searchResults: number;
 }
@@ -14,10 +13,9 @@ export interface ResearchLimits {
 export const DEFAULT_RESEARCH_LIMITS: ResearchLimits = {
   searches: 3,
   depth: 2,
-  agentSteps: 10,
+  agentSteps: 15,
   durationMs: 5 * 60_000,
   pageBytes: 2 * 1024 * 1024,
-  modelInputChars: 120_000,
   modelOutputTokens: 16_000,
   searchResults: 5,
 };
@@ -46,7 +44,7 @@ export interface ResearchBudget {
   assertTime(): void;
   consumeSearch(): void;
   consumePage(depth?: number): void;
-  consumeModelCall(inputChars?: number): void;
+  consumeModelCall(): void;
   remaining(): ResearchBudgetSnapshot["remaining"];
   snapshot(): ResearchBudgetSnapshot;
 }
@@ -103,13 +101,7 @@ export function createResearchBudget(
       assertTime();
       pages += 1;
     },
-    consumeModelCall: (inputChars = 0) => {
-      if (
-        !Number.isSafeInteger(inputChars) ||
-        inputChars > limits.modelInputChars
-      ) {
-        throw new ResearchLimitError("modelInputChars");
-      }
+    consumeModelCall: () => {
       assertTime();
       modelCalls += 1;
     },

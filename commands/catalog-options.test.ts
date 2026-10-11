@@ -47,3 +47,27 @@ test("ambiguous commands fail before opening the database or calling a model", (
   ).toThrow();
   expect(parseCatalogOptions(["--help"])).toEqual({ help: true });
 });
+
+test("refresh batches distinct targets with full/current scope and rejects removed modes", () => {
+  expect(
+    parseCatalogOptions([
+      "refresh",
+      "--event",
+      "a",
+      "--event",
+      "b",
+      "--event",
+      "a",
+    ]),
+  ).toMatchObject({ eventIds: ["a", "b"], scope: "full" });
+  expect(
+    parseCatalogOptions(["refresh", "--event", "a", "--scope", "current"]),
+  ).toMatchObject({ scope: "current" });
+  for (const args of [
+    ["check", "--event", "a"],
+    ["refresh", "--event", "a", "--scope", "next"],
+    ["add", "--name", "Fest", "--scope", "full"],
+  ]) {
+    expect(() => parseCatalogOptions(args)).toThrow();
+  }
+});

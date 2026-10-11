@@ -3,6 +3,7 @@ import type { ResearchBudget } from "../../runtime/budget";
 import type { KnownSourceLink } from "../../tools/contracts";
 import type { ReadSourceResult } from "../../tools/read-source/contracts";
 import type { ResearchCatalog } from "../context";
+import { type RefreshContext } from "../scope";
 import { minorToMajor } from "../money";
 import { researchInstructions } from "./prompt";
 import { boundedToolSource } from "../../tools/read-source/response";
@@ -15,12 +16,39 @@ export function promptFor(
   remaining: ReturnType<ResearchBudget["remaining"]>,
   reads: ReadSourceResult[],
   todayUtc = new Date().toISOString().slice(0, 10),
+  refresh?: RefreshContext | null,
 ) {
   const target = catalog.find((event) => event.id === input.eventId);
   return JSON.stringify({
     task: researchInstructions,
     todayUtc,
     mode: input.mode,
+    refresh: refresh
+      ? {
+          scope: refresh.scope,
+          referenceInstant: refresh.referenceInstant,
+          savedEditions: refresh.savedEditions.map(
+            ({
+              editionKey,
+              editionYear,
+              startsOn,
+              endsOn,
+              scheduleStatus,
+              timeZone,
+            }) => ({
+              key: editionKey,
+              year: editionYear,
+              startsOn,
+              endsOn,
+              scheduleStatus,
+              timeZone,
+            }),
+          ),
+          rules: refresh.rules,
+          countryBaseline: refresh.countryBaseline,
+          fieldRegistry: refresh.fieldRegistry,
+        }
+      : null,
     eventId: input.eventId,
     remaining,
     name: input.name,

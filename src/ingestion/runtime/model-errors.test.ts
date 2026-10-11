@@ -57,7 +57,7 @@ test.each(["step", "total", "firstChunk"] as const)(
   },
 );
 
-test.each(["time", "searches", "depth", "modelInputChars"] as const)(
+test.each(["time", "searches", "depth"] as const)(
   "serialized %s limit survives both retained forms without leaking payloads",
   (limit) => {
     const secret = "PRIVATE_PROVIDER_TOKEN";

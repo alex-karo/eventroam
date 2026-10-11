@@ -7,7 +7,7 @@
     "note": "Initial catalog facts came from baseline.sqlite in the same capture directory. Five URL, retrieval-time, blocked-outcome and http_403 fields came from the live dry run. Empty Markdown and fixed discovery with no candidates are synthetic deterministic replay; no website or search fallback is used. The live model returned partial with empty data, which this regression expects to reject."
   },
   "input": {
-    "mode": "check",
+    "mode": "refresh",
     "eventId": "festivalnetwork:event:050e6a1b4385550023d3",
     "actor": "catalog-research",
     "initiatedBy": "eval",

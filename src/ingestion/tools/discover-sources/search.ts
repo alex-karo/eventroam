@@ -191,7 +191,7 @@ export async function discoverSources(
   let billedSearches = 0;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     options.budget.consumeSearch();
-    options.budget.consumeModelCall(normalized.length + 200);
+    options.budget.consumeModelCall();
     billedSearches += 1;
     try {
       const response = await requestSearch(normalized, maxResults, options);

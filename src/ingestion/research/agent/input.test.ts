@@ -5,6 +5,7 @@ import { readResearchCatalog } from "@/catalog/read/research";
 import { createResearchBudget } from "../../runtime/budget";
 import type { ReadSourceResult } from "../../tools/read-source/contracts";
 import { modelContext, promptFor } from "./input";
+import { researchInstructions } from "./prompt";
 
 const source: ReadSourceResult = {
   attemptedUrl: "https://example.org/announcement",
@@ -63,7 +64,7 @@ test("saved prices in model context use major units and omit aggregate availabil
   expect(context.editions[0]).not.toHaveProperty("priceMinMinor");
   expect(context.editions[0]).not.toHaveProperty("ticketAvailability");
   const prompt = promptFor(
-    { mode: "check", eventId: event.id, actor: "tester" },
+    { mode: "refresh", eventId: event.id, actor: "tester" },
     catalog,
     [
       {
@@ -154,4 +155,12 @@ test("initial sources share the existing prompt content allowance", () => {
     truncated: false,
     completeness: "full",
   });
+});
+
+test("instructions require website verification, failed recovery and full-history coverage", () => {
+  expect(researchInstructions).toContain(
+    "A matching name or search snippet alone is insufficient",
+  );
+  expect(researchInstructions).toContain("failed with data:null");
+  expect(researchInstructions).toContain("EVERY saved Edition");
 });

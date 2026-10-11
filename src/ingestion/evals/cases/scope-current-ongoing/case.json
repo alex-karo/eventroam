@@ -1,0 +1,94 @@
+{
+  "id": "scope-current-ongoing",
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "scope-event-scope-current-ongoing",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "provenance": {
+    "kind": "synthetic-scope-regression",
+    "sourceReport": "openspec/changes/scoped-event-refresh/design.md",
+    "note": "Synthetic source facts for model selection/completeness; no live HTTP/search fallback."
+  },
+  "initial": {
+    "event": {
+      "id": "scope-event-scope-current-ongoing",
+      "slug": "scope-current-ongoing",
+      "canonicalName": "River Festival",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://scope-fixture.example/scope-current-ongoing",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "scope-edition-autumn-weekend",
+          "editionKey": "autumn-weekend",
+          "editionYear": 2026,
+          "startsOn": "2026-10-01",
+          "endsOn": "2026-10-03",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        },
+        {
+          "id": "scope-edition-later-weekend",
+          "editionKey": "later-weekend",
+          "editionYear": 2026,
+          "startsOn": "2026-10-10",
+          "endsOn": "2026-10-11",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://scope-fixture.example/scope-current-ongoing",
+      "finalUrl": "https://scope-fixture.example/scope-current-ongoing",
+      "retrievedAt": "2026-10-03T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    }
+  ],
+  "expectations": {
+    "required": [],
+    "forbidden": [],
+    "research": {
+      "status": "success",
+      "editionKeys": ["autumn-weekend"],
+      "facts": [
+        {
+          "editionKey": "autumn-weekend",
+          "field": "dates",
+          "value": {
+            "startsOn": "2026-10-01",
+            "endsOn": "2026-10-03",
+            "state": "confirmed"
+          }
+        }
+      ]
+    }
+  }
+}

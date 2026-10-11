@@ -9,8 +9,9 @@ Research has missed history and readable ticket information, and confused festiv
 - **BREAKING:** Keep one batch `refresh --event ID [--event ID ...] --scope full|current` (default full); remove `check`.
 - Full rechecks all saved Editions; current rechecks one ongoing or nearest future Edition. Both check Event facts/announcements and may add one missing selected Edition.
 - Recheck filled and empty facts for errors/updates. Recover and inspect the correct festival website; failed recovery or country conflicts veto the whole refresh.
-- Preserve the existing agent output and reason/unresolved semantics. Add assignments, required scope resolution with latest-call validation, returned-fact verification, prompt `scoped-refresh-v1`, and private report v3.
+- Preserve the existing agent output and reason/unresolved semantics. Give the model structured scope/context and selection duties; keep simple host scope bounds and the existing writer audit. Remove the resolver tool/callback/state and mandatory resolution checks. Use prompt `scoped-refresh-v2` and private report v3 without selection/resolution/verification fields or fact counters.
 - Remove the entire DB report check with a history-preserving migration; application consumers validate versions.
+- Remove the application input-character limit and its configuration/report field; default to 15 model steps with a reserved final response.
 
 ## Capabilities
 

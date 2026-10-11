@@ -30,6 +30,7 @@ const edition = z.object({
   countryCode: z.string().nullable().optional(),
   locality: z.string().nullable().optional(),
   administrativeArea: z.string().nullable().optional(),
+  timeZone: z.string().nullable().optional(),
   venueName: z.string().nullable().optional(),
   venueAddress: z.string().nullable().optional(),
   termIds: z.array(z.string()).optional(),
@@ -74,7 +75,8 @@ export const evalCaseSchema = z.object({
     .object({ kind: z.string(), sourceReport: z.string(), note: z.string() })
     .optional(),
   input: z.object({
-    mode: z.enum(["add", "refresh", "check"]),
+    mode: z.enum(["add", "refresh"]),
+    scope: z.enum(["full", "current"]).optional(),
     name: z.string().optional(),
     eventId: z.string().optional(),
     actor: z.string(),
@@ -95,10 +97,26 @@ export const evalCaseSchema = z.object({
     .object({
       required: z.array(assertionSchema),
       forbidden: z.array(assertionSchema),
-      research: z.object({ status: z.literal("failed") }).optional(),
+      research: z
+        .object({
+          status: z.enum(["success", "partial", "failed"]),
+          editionKeys: z.array(z.string()).optional(),
+          facts: z
+            .array(
+              z.object({
+                editionKey: z.string().optional(),
+                field: z.string(),
+                value: z.unknown(),
+              }),
+            )
+            .optional(),
+          unresolvedEditionKeys: z.array(z.string()).optional(),
+          hasUnresolved: z.boolean().optional(),
+        })
+        .optional(),
     })
     .superRefine((expectations, ctx) => {
-      if (expectations.research) {
+      if (expectations.research?.status === "failed") {
         if (expectations.required.length || expectations.forbidden.length) {
           ctx.addIssue({
             code: "custom",
@@ -107,8 +125,8 @@ export const evalCaseSchema = z.object({
           });
         }
       } else if (
-        !expectations.required.length ||
-        !expectations.forbidden.length
+        !expectations.research &&
+        (!expectations.required.length || !expectations.forbidden.length)
       ) {
         ctx.addIssue({
           code: "custom",

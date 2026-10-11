@@ -1,3 +1,4 @@
+import { DEFAULT_RESEARCH_LIMITS } from "@/ingestion/runtime/budget";
 import { afterEach, expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
@@ -13,8 +14,11 @@ afterEach(() => vi.restoreAllMocks());
 import { executeCatalogCommand, formatCatalogReport } from "./catalog";
 
 const result = (): CatalogResearchResult => ({
-  schemaVersion: 2,
-  mode: "check",
+  schemaVersion: 3,
+  refresh: null,
+  workload: { savedEditions: 0, returnedEditions: 0 },
+  limits: DEFAULT_RESEARCH_LIMITS,
+  mode: "refresh",
   outcome: "unchanged",
   modelResponse: null,
   researchStatus: "success",
@@ -72,7 +76,7 @@ test("CLI targets an Event and starts fresh research for dry-run and apply", asy
   fx.edition(event);
   const research = vi.fn<typeof runCatalogResearch>(async () => result());
   const stdout = vi.fn();
-  const args = ["check", "--event", event.id, "--database", database.path];
+  const args = ["refresh", "--event", event.id, "--database", database.path];
   expect(await executeCatalogCommand(args, { research, stdout })).toBe(0);
   expect(
     await executeCatalogCommand([...args, "--apply", "--republish"], {
@@ -125,7 +129,7 @@ test("one festival failure does not stop another or expose provider payloads", a
   const stdout = vi.fn();
   const code = await executeCatalogCommand(
     [
-      "check",
+      "refresh",
       "--event",
       first.id,
       "--event",
@@ -142,7 +146,7 @@ test("one festival failure does not stop another or expose provider payloads", a
   expect(text).toContain("research_failed");
   expect(text).not.toContain("SECRET");
   expect(JSON.parse(text).results).toHaveLength(1);
-  expect(JSON.parse(text).schemaVersion).toBe(2);
+  expect(JSON.parse(text).schemaVersion).toBe(3);
 });
 
 test("text report separates research and catalog status, source summaries, errors, questions, and explanations", () => {
@@ -234,7 +238,7 @@ test("JSON report keeps structured model diagnostic metadata", async () => {
   const event = testFixtures(database.client).event();
   const stdout = vi.fn();
   await executeCatalogCommand(
-    ["check", "--event", event.id, "--database", database.path, "--json"],
+    ["refresh", "--event", event.id, "--database", database.path, "--json"],
     {
       research: async () => ({
         ...result(),
@@ -265,7 +269,7 @@ test("JSON report keeps structured model diagnostic metadata", async () => {
 test("partial and skipped results exit zero; failed research and writes exit nonzero", async () => {
   const database = testDatabase();
   const event = testFixtures(database.client).event();
-  const args = ["check", "--event", event.id, "--database", database.path];
+  const args = ["refresh", "--event", event.id, "--database", database.path];
   for (const outcome of ["unchanged", "skipped"] as const) {
     expect(
       await executeCatalogCommand(args, {
@@ -348,7 +352,10 @@ test("real CLI stores/exports the same report and prints runId with estimated se
     await executeCatalogCommand([...args, "--json"], {
       stdout,
       researchDependencies: {
-        generateCandidate: async () => fixtureCandidate(event.id),
+        generateCandidate: async () => {
+          const result = fixtureCandidate(event.id);
+          return result;
+        },
       },
     }),
   ).toBe(0);
@@ -384,7 +391,7 @@ test.each(["workflow", "persistence"] as const)(
     const stdout = vi.fn();
     const code = await executeCatalogCommand(
       [
-        "check",
+        "refresh",
         "--event",
         first.id,
         "--event",
@@ -397,8 +404,12 @@ test.each(["workflow", "persistence"] as const)(
       {
         stdout,
         researchDependencies: {
-          generateCandidate: async (prompt) =>
-            fixtureCandidate(prompt.includes(first.id) ? first.id : second.id),
+          generateCandidate: async (prompt) => {
+            const result = fixtureCandidate(
+              prompt.includes(first.id) ? first.id : second.id,
+            );
+            return result;
+          },
         },
       },
     );
@@ -443,12 +454,12 @@ test("optional file failure keeps the completed run and help/preflight do not st
   const event = testFixtures().event();
   const stdout = vi.fn();
   expect(await executeCatalogCommand(["--help"], { stdout })).toBe(0);
-  await expect(
-    executeCatalogCommand(
-      ["check", "--event", "missing", "--database", database.path],
+  expect(
+    await executeCatalogCommand(
+      ["refresh", "--event", "missing", "--database", database.path],
       { stdout },
     ),
-  ).rejects.toThrow(/not found/);
+  ).toBe(1);
   expect(database.client.prepare("SELECT * FROM ingestion_runs").all()).toEqual(
     [],
   );
@@ -467,7 +478,10 @@ test("optional file failure keeps the completed run and help/preflight do not st
       {
         stdout,
         researchDependencies: {
-          generateCandidate: async () => fixtureCandidate(event.id),
+          generateCandidate: async () => {
+            const result = fixtureCandidate(event.id);
+            return result;
+          },
         },
       },
     ),
@@ -492,7 +506,7 @@ test("CLI serialization persistence error retains safe available data and correl
   const stdout = vi.fn();
   expect(
     await executeCatalogCommand(
-      ["check", "--event", event.id, "--database", database.path, "--json"],
+      ["refresh", "--event", event.id, "--database", database.path, "--json"],
       {
         stdout,
         research: async () => {
