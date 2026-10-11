@@ -29,6 +29,8 @@ This guide holds implementation and working practices. Implemented behavior belo
 
 ### Application commands
 
+Run `npm run deps:check` to check runtime dependencies in `src/` and `commands/` for circular dependencies, unresolved imports, and production imports of test code. Type-only imports and other dependencies erased by TypeScript compilation are excluded. CI runs the same check.
+
 Use Node.js 26.10.0 and its bundled npm 11.19.1 (see `.node-version` and `package.json`). From the repository root, run `npm ci` for a clean install, then `npm run dev` for the local App Router server. The default SQLite location is `./data/eventroam.sqlite`; copy `.env.example` to `.env.local` only when a different `DATABASE_PATH` is needed. The data directory and local environment files are ignored by Git.
 
 Run `npm run type-check`, `npm run lint`, `npm run format:check`, and `npm test` for local checks. `npm run build` creates the production build, and `npm start` serves it. The SQLite smoke test uses a temporary real database file and verifies Drizzle queries, foreign keys, WAL, and the bounded busy timeout. Run `npm run test:e2e` for the Festivals discovery journeys in desktop Chromium and mobile Chromium. Its launcher creates a fresh temporary SQLite database, runs migrations, loads only fictional development fixtures, and removes the database afterward. The server uses port 3137 and disables Mapbox loading, so the suite checks shared map/list counts and mobile view switching but not live map tiles or marker interaction. Pass Playwright options after `--`, for example `npm run test:e2e -- --project=mobile`. Compose commands will be documented when that workflow is implemented.
