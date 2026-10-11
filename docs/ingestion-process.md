@@ -23,6 +23,25 @@ Ingestion finds or refreshes festival facts in the catalog. An owner starts each
 6. [Save changes](#save-changes) — write each Event atomically and handle publication.
 7. [Review the report](#review-the-report) — see changes, sources, and unresolved questions.
 
+## Workflow steps
+
+Each festival attempt runs one Mastra workflow with eight sequential steps:
+
+| Step | Responsibility |
+| --- | --- |
+| `initialize-run` | Initialize native state after the shared start hook validates settings and creates the durable attempt. |
+| `load-context` | Load saved Event facts, editions, links, and vocabulary. |
+| `read-initial-source` | Create the shared source session and read its initial saved link when available. |
+| `research-festival` | Run the research agent with the shared source session and budget. |
+| `prepare-candidate` | Validate the result and target, then prepare explained catalog operations. |
+| `apply-catalog-item` | Preview or atomically apply eligible operations; retain write failures for the report. |
+| `build-report` | Combine research, actual changes, source history, questions, and known usage. |
+| `finalize-run` | Persist the private report, return the bounded summary and release owned resources. |
+
+CLI and local Studio execute this same graph in their own Node process. Native Mastra workflow state accumulates research context, source reads, model output, prepared changes, receipts and reports. Each step returns its own inspectable result; the server-owned attempt retains only budget, source session, connections, trace and terminal lifecycle. Credentials, prompts and live resources never enter workflow data. The final step persists once; terminal hooks recover from their final state. Mastra discards state updates from throwing steps, so an interrupted phase finalizes its available local data before propagating a safe error. Cleanup waits for active work. Finalization failure remains visible without repeating research or writes.
+
+Workflow retries, snapshots and automatic restart are disabled. Per-step execution, resume, restart and time travel are unsupported. Start a fresh attempt against current catalog state after interruption.
+
 ## Start a run
 
 ```sh
@@ -31,7 +50,7 @@ npm run catalog -- refresh --event EVENT_ID
 npm run catalog -- check --event EVENT_ID --event ANOTHER_EVENT_ID
 ```
 
-`add` researches a festival by name and creates it only when new. A recognized existing Event returns `skipped` and its ID without updating facts, links, editions, or publication; use `refresh` or `check` to update it. `refresh` researches one existing Event. `check` uses the same research process for one or more Events. An Event is the continuing festival; each separate edition is an Occurrence. The database must already exist and be migrated. See the [development guide](development.md#local-catalog-research) for setup and options.
+`add` researches a festival by name and creates it only when new. A recognized existing Event returns `skipped` and its ID without updating facts, links, editions, or publication; use `refresh` or `check` to update it. `refresh` researches one existing Event. `check` uses the same research process for one or more Events. An Event is the continuing festival; each separate edition is an Occurrence. The database must already exist and be migrated. See the [development guide](development.md#local-catalog-research) for setup and options, or its [Studio instructions](development.md#local-studio-ingestion) for the local workflow form.
 
 ## Load catalog context
 
@@ -129,13 +148,13 @@ Changes for one Event are saved together or rolled back together. If one propose
 
 ## Review the report
 
-Version 2 reports show `researchStatus` separately from catalog `outcome`, explained old/new changes, staged `errors`, `unresolved` questions, `sourceSummaries`, and technical retrieval history in `sources`. Old report versions are unsupported; there is no legacy `gaps` fallback. Successful changes enter private audit history with old and new values; unchanged facts add no entry. Every started attempt has a `runId` shared by its private `ingestion_runs` row and output. The final report is saved automatically; use `--report PATH` to export a private JSON report that also retains the final `modelResponse` before normalization.
+Version 2 reports show `researchStatus` separately from catalog `outcome`, explained old/new changes, staged `errors`, `unresolved` questions, `sourceSummaries`, and technical retrieval history in `sources`. Old report versions are unsupported; there is no legacy `gaps` fallback. Successful changes enter private audit history with old and new values; unchanged facts add no entry. CLI and Studio share initialization after Mastra creates its run; a failure before run creation leaves no ingestion history or resources. Every started attempt has a `runId` shared by its private `ingestion_runs` row and output. The final report is saved automatically; use `--report PATH` to export a private JSON report that also retains the final `modelResponse` before normalization.
 
-With `--apply`, success and partial results use the atomic writer. Failed research writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research or write failure exits nonzero. A write failure rolls back the entire Event item while retaining research status, raw output, source summaries, and any name mismatch. A partial result with no changes remains visibly partial/unchanged. Ordinary research retries only explicit OpenRouter `provider_unavailable` errors, at most three times with 10-second, 30-second, and 90-second exponential backoff within the same run deadline. Those unavailable attempts do not consume the model-call budget. Other model errors are not retried; completed research steps and tool results are retained.
+With `--apply`, success and partial results use the atomic writer. Failed research writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research or write failure exits nonzero. A write failure rolls back the entire Event item while retaining research status, raw output, source summaries, and any name mismatch. A partial result with no changes remains visibly partial/unchanged. Ordinary research retries only explicit OpenRouter `provider_unavailable` errors, at most three times with 10-second, 30-second, and 90-second exponential backoff within the same run deadline. A bounded Mastra iteration allowance preserves ordinary research capacity during those unavailable retries; observed request counts still include them. Other model errors are not retried; completed research steps and tool results are retained.
 
 Reports and explanations are private CLI output/files, not public website data or a separate hosted logging service. Public details expose only ticket category labels and availability; amount/terms/variant URLs and research metadata remain private. Unknown category availability has no badge. Discovery and details never derive a global sold-out/closed label from variants.
 
-Token counts retain usage reported by completed model steps even if a later step fails or is interrupted. JSON reports set `usage.complete` to `false` when some usage is unknown; the CLI marks those token counts as `partial`. A full model cost is `null` (`unavailable` in the CLI) unless every call's usage and cost are known. A reported zero cost is preserved as zero. Search cost is a formula-based estimate, marked `usage.searchCostBasis=estimate` and labeled “estimated search USD”; retry attempts may contribute without proof they were billed. HTTP/Firecrawl supply no billed retrieval charges. Reports keep known tokens but discard a partial model-cost subtotal when full cost becomes unknown; completeness does not prove exact all-service spending.
+Token counts retain usage reported by completed model steps even if a later step fails or is interrupted. JSON reports set `usage.complete` to `false` when some token usage or execution accounting is unknown; the CLI marks those token counts as `partial`. `usage.modelCostUsd` sums available provider-reported model costs from research and source discovery, retaining them after failures and when other calls omit costs or token counts. This sum may be partial even when `usage.complete` is `true`; the CLI labels it “known model USD”. It is `null` (`unavailable` in the CLI) only when no model cost was reported. A reported zero cost is preserved as zero. Search cost is a formula-based estimate, marked `usage.searchCostBasis=estimate` and labeled “estimated search USD”; retry attempts may contribute without proof they were billed. HTTP/Firecrawl supply no billed retrieval charges. Neither completeness nor known model cost proves exact all-service spending.
 
 Lifecycle status (`running`, `completed`, `failed`) is separate from research status and catalog outcome. Partial/no-op and skipped attempts complete; research, writer, or unexpected workflow failures finalize failed. A late `workflow_failed` preserves committed outcomes and known accounting, but exits nonzero. A start-write failure aborts before work; a finalization failure reports `run_persistence_failed` with runId/available result and exits nonzero without undoing commits or replaying research. Other check targets continue. Optional report-file failure does not change the finalized row.
 
@@ -161,6 +180,6 @@ Set `CATALOG_LOGGING=true` for selected application events at `CATALOG_LOG_LEVEL
 
 Preparation events include selected identity, edition keys/actual years, proposed field names/counts, validation codes/paths and model-reported unresolved question previews. Write events identify dry-run versus apply, affected IDs/field names and disposition. The “Research finished” message follows successful durable finalization; “Required run finalization failed” includes `errorCode: run_persistence_failed` and preserves the original error and any already committed changes. The final report retains complete values and diffs. Logging never adds model/provider requests or changes budgets/retries. Native Pino JSON on stderr and Studio records carry the selected fields. Completed-step text can follow tool outcomes, and unfinished-step text may be absent. SDK/config credentials are never selected as log arguments. No arbitrary credential redaction is promised for selected model commentary or reasoning; source diagnostic fields are not scanned for token-like public values. Completed commentary may include candidate text, while full provider response envelopes remain excluded.
 
-Run `npm run catalog:studio` to inspect saved logs and traces after research exits. Studio runs on localhost without model credentials or a catalog connection and registers no agents or mutation workflows. See the [development guide](development.md#local-trace-inspection) for commands and cleanup.
+Run `npm run catalog:studio` to inspect saved logs and traces after research exits. Studio inspection needs no model credentials or catalog connection. Its registered `catalog-ingestion` workflow can also execute research against an existing migrated catalog with OpenRouter configuration; preview is the default. See the [development guide](development.md#local-trace-inspection) for commands and cleanup.
 
 The [source workflow specification](../openspec/specs/catalog/source-workflow/spec.md) defines the detailed behavior.

@@ -9,7 +9,7 @@ export const catalogUsage = `Usage: npm run catalog -- <add|refresh|check> [opti
   --database <path>       Existing, migrated SQLite catalog
   --report <path>         Write the private JSON report
   --json                  Print JSON instead of a terminal summary
-  --pages <n> --searches <n> --model-calls <n> --seconds <n>
+  --searches <n> --agent-steps <n> --seconds <n>
   --help`;
 
 export function parseCatalogOptions(args: string[]) {
@@ -27,9 +27,8 @@ export function parseCatalogOptions(args: string[]) {
       database: { type: "string" },
       report: { type: "string" },
       json: { type: "boolean" },
-      pages: { type: "string" },
       searches: { type: "string" },
-      "model-calls": { type: "string" },
+      "agent-steps": { type: "string" },
       seconds: { type: "string" },
     },
   });
@@ -78,17 +77,14 @@ export function parseCatalogOptions(args: string[]) {
 }
 
 function parseLimits(
-  values: Partial<
-    Record<"pages" | "searches" | "model-calls" | "seconds", string>
-  >,
+  values: Partial<Record<"searches" | "agent-steps" | "seconds", string>>,
 ) {
   const limits: Partial<
-    Record<"pages" | "searches" | "modelCalls" | "durationMs", number>
+    Record<"searches" | "agentSteps" | "durationMs", number>
   > = {};
   for (const [flag, key, factor] of [
-    ["pages", "pages", 1],
     ["searches", "searches", 1],
-    ["model-calls", "modelCalls", 1],
+    ["agent-steps", "agentSteps", 1],
     ["seconds", "durationMs", 1000],
   ] as const) {
     if (values[flag] !== undefined) {

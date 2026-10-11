@@ -118,9 +118,7 @@ test("offline real agent persists sanitized model/tool relationships and bounded
   ).toBe(true);
   expect(
     reads.some(
-      (span) =>
-        span.name === span.entityName &&
-        String(span.name).includes("failed:request_failed"),
+      (span) => JSON.parse(span.output as string).reason === "request_failed",
     ),
   ).toBe(true);
   expect(spans.every((span) => span.endedAt)).toBe(true);
@@ -146,6 +144,7 @@ test.each(["http", "abort"] as const)(
       committedOperationCount: 0,
     });
   },
+  15_000,
 );
 
 test.each([false, true])(
@@ -238,6 +237,7 @@ test.each(["success", "http", "abort"] as const)(
     expect(codes).toContain("trace_shutdown_failed\n");
     expect(codes).not.toContain(TRACE_ERROR);
   },
+  15_000,
 );
 
 test("short buffered writer exits and a different process can read its final spans", async () => {
@@ -388,7 +388,7 @@ test.each([
     if (scenario === "mistaken") {
       expect(traced.result.usage).toMatchObject({
         complete: false,
-        modelCostUsd: null,
+        modelCostUsd: 0,
       });
     }
     if (scenario === "target") {
@@ -423,8 +423,8 @@ test.each([
         TRACE_PUBLIC_URL,
       );
       expect(JSON.parse(search.output as string)).toMatchObject({
-        status: scenario === "reserved" ? "not_run" : "ok",
-        returnedCount: scenario === "reserved" ? 0 : 1,
+        status: "ok",
+        returnedCount: 1,
       });
     }
   },

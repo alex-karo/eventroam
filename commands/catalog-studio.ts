@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { observabilityDatabasePath } from "../src/ingestion/runtime/observability/storage";
+import { readDatabaseEnvironment } from "../src/db/env";
 
 // Resolve before the CLI changes its working directory to .mastra/output.
 const root = process.cwd();
@@ -18,6 +19,7 @@ const child = spawn(
     stdio: "inherit",
     env: {
       ...process.env,
+      DATABASE_PATH: resolve(root, readDatabaseEnvironment().DATABASE_PATH),
       CATALOG_OBSERVABILITY_DATABASE_PATH: observabilityDatabasePath(),
     },
   },

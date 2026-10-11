@@ -1,4 +1,8 @@
+import { CatalogAttempt } from "./attempt";
+import { createIngestionData } from "./contracts";
+import * as runsModule from "./runs";
 import { afterEach, expect, test, vi } from "vitest";
+import { Run, Workflow } from "@mastra/core/workflows";
 import { asc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import type Database from "better-sqlite3";
@@ -7,14 +11,21 @@ import {
   readResearchCatalog,
   readResearchEvent,
 } from "@/catalog/read/research";
-import { testDatabase } from "@/test/database";
+import { createTestDatabase, testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
-import { runCatalogResearch as executeResearch } from "./workflow";
+import {
+  createCatalogIngestionWorkflow,
+  studioIngestionInputSchema,
+  runCatalogResearch as executeResearch,
+} from "./workflow";
 import * as contextModule from "./research/context";
 import * as prepareModule from "./research/prepare";
 import * as reportModule from "./report";
+import * as applyModule from "@/catalog/write/apply-operation";
+import * as runTraceModule from "./runtime/tracing";
+import type { CatalogRunTrace } from "./runtime/tracing";
 import { RunPersistenceError } from "./runs";
-import { discoverSources } from "./sources/discover-sources";
+import { discoverSources } from "./tools/discover-sources/search";
 import { DEFAULT_RESEARCH_LIMITS } from "./runtime/budget";
 import { join, dirname } from "node:path";
 import { existsSync } from "node:fs";
@@ -56,7 +67,7 @@ const runCatalogResearch: typeof executeResearch = async (input, deps) => {
 };
 import type { ResearchCandidate } from "./research/contracts";
 import { ResearchLimitError } from "./runtime/budget";
-import type { ReadSourceResult } from "./sources/contracts";
+import type { ReadSourceResult } from "./tools/read-source/contracts";
 
 const url = "https://example.org/example-fest";
 const source: ReadSourceResult = {
@@ -110,8 +121,7 @@ function candidate(termIds: string[]): ResearchCandidate {
     unresolved: [],
   };
 }
-function fixture() {
-  const client = testDatabase().client;
+function fixture(client = testDatabase().client) {
   const termIds = testFixtures(client)
     .festivalTerms()
     .map((term) => term.id);
@@ -128,6 +138,23 @@ function fixture() {
     },
   );
   return { client, termIds, readSource };
+}
+function fakeTrace() {
+  const finish = vi.fn(async () => {});
+  const terminalFailed = vi.fn();
+  const workflowFailed = vi.fn();
+  const trace = {
+    tracing: { root: undefined, diagnose: vi.fn(), setEventId: vi.fn() },
+    state: { writeState: "not_attempted" },
+    update: vi.fn(),
+    validated: vi.fn(),
+    failed: vi.fn(),
+    finish,
+    terminalFailed,
+    workflowFailed,
+  } as unknown as CatalogRunTrace;
+  vi.spyOn(runTraceModule, "createCatalogRunTrace").mockResolvedValue(trace);
+  return { finish, terminalFailed, workflowFailed };
 }
 function catalogState(client: Database.Database) {
   const db = drizzle(client);
@@ -178,7 +205,7 @@ test("concurrent and repeated failed source reads are cached and charged once", 
   ]);
 });
 
-test("discovery shares the run budget and reserves the final model call", async () => {
+test("discovery shares search limits while model calls remain accounting", async () => {
   const { client } = fixture();
   const discoverSources = vi.fn(
     async (
@@ -201,33 +228,33 @@ test("discovery shares the run budget and reserves the final model call", async 
     },
   );
   const result = await runCatalogResearch(
-    { ...input, limits: { modelCalls: 3 } },
+    { ...input, limits: { agentSteps: 3 } },
     {
       client,
       discoverSources,
       generateCandidate: async (_prompt, context) => {
         await context.discoverSources("Example Fest");
-        expect(context.budget.remaining().modelCalls).toBe(1);
+        expect(context.budget.snapshot().modelCalls).toBe(2);
         expect(
           await context.discoverSources("Example Fest tickets"),
         ).toMatchObject({
           candidates: [],
-          inputTokens: 0,
-          outputTokens: 0,
-          searchCostUsd: 0,
+          inputTokens: 7,
+          outputTokens: 9,
+          searchCostUsd: 0.2,
         });
         return candidate([]);
       },
     },
   );
-  expect(discoverSources).toHaveBeenCalledTimes(1);
+  expect(discoverSources).toHaveBeenCalledTimes(2);
   expect(result.usage).toMatchObject({
-    searches: 1,
-    modelCalls: 2,
-    inputTokens: 7,
-    outputTokens: 9,
-    modelCostUsd: null,
-    searchCostUsd: 0.2,
+    searches: 2,
+    modelCalls: 3,
+    inputTokens: 14,
+    outputTokens: 18,
+    modelCostUsd: 0.2,
+    searchCostUsd: 0.4,
   });
 });
 
@@ -809,7 +836,7 @@ test("provider and budget failures keep sanitized errors and empty operations", 
   const { client } = fixture();
   for (const error of [
     new Error("PRIVATE provider request"),
-    new ResearchLimitError("pages"),
+    new ResearchLimitError("depth"),
   ]) {
     const result = await runCatalogResearch(input, {
       client,
@@ -835,7 +862,7 @@ test("provider and budget failures keep sanitized errors and empty operations", 
   }
 });
 
-test("source summaries respect the run page budget", async () => {
+test("source summaries are not capped by the former page limit", async () => {
   const { client } = fixture();
   const proposal = candidate([]);
   proposal.data!.sources.push({
@@ -843,18 +870,11 @@ test("source summaries respect the run page budget", async () => {
     information: "Second source.",
   });
   const result = await runCatalogResearch(
-    { ...input, limits: { pages: 1 } },
+    { ...input },
     { client, generateCandidate: async () => proposal },
   );
-  expect(result).toMatchObject({
-    outcome: "failed",
-    researchStatus: "failed",
-    operations: [],
-    sourceSummaries: [],
-  });
-  expect(result.errors).toContainEqual(
-    expect.objectContaining({ code: "invalid_candidate", stage: "validation" }),
-  );
+  expect(result.researchStatus).toBe("success");
+  expect(result.sourceSummaries).toHaveLength(2);
 });
 
 test("running row and safe normalized invocation precede context and model work", async () => {
@@ -877,21 +897,36 @@ test("running row and safe normalized invocation precede context and model work"
         dryRun: true,
         republish: false,
         model: "fixture",
-        limits: DEFAULT_RESEARCH_LIMITS,
+        limits: { ...DEFAULT_RESEARCH_LIMITS, agentSteps: 3 },
+        actor: "cli-owner",
+        initiatedBy: "cli-request",
+      });
+      expect(input).toMatchObject({
+        actor: "cli-owner",
+        limits: { agentSteps: 3 },
+        initiatedBy: "cli-request",
       });
       return original(client, input);
     });
-  await runCatalogResearch(input, {
-    client,
-    generateCandidate: async (prompt) => {
-      const row = client
-        .prepare("SELECT id,status FROM ingestion_runs")
-        .get() as { id: string; status: string };
-      expect(row.status).toBe("running");
-      expect(prompt).not.toContain(row.id);
-      return candidate([]);
+  await runCatalogResearch(
+    {
+      ...input,
+      actor: "cli-owner",
+      limits: { agentSteps: 3 },
+      initiatedBy: "cli-request",
     },
-  });
+    {
+      client,
+      generateCandidate: async (prompt) => {
+        const row = client
+          .prepare("SELECT id,status FROM ingestion_runs")
+          .get() as { id: string; status: string };
+        expect(row.status).toBe("running");
+        expect(prompt).not.toContain(row.id);
+        return candidate([]);
+      },
+    },
+  );
   expect(context).toHaveBeenCalledOnce();
 });
 
@@ -902,7 +937,7 @@ test.each([
   { ...input, actor: "a".repeat(201) },
   { ...input, initiatedBy: "a".repeat(201) },
   { ...input, mode: "refresh", eventId: "missing" },
-  { ...input, limits: { pages: -1 } },
+  { ...input, limits: { agentSteps: -1 } },
 ])("invalid invocation creates no run before work: %j", async (invalid) => {
   const { client } = fixture();
   const model = vi.fn();
@@ -943,6 +978,8 @@ test.each(["context", "preparation", "report"] as const)(
   async (stage) => {
     const { client, termIds } = fixture();
     const secret = new Error("SECRET request body/api key");
+    const model = vi.fn(async () => candidate(termIds));
+    const apply = vi.spyOn(applyModule, "applyCatalogItem");
     if (stage === "context") {
       vi.spyOn(contextModule, "loadResearchContext").mockImplementationOnce(
         () => {
@@ -964,7 +1001,7 @@ test.each(["context", "preparation", "report"] as const)(
     }
     const result = await runCatalogResearch(
       { ...input, dryRun: false },
-      { client, generateCandidate: async () => candidate(termIds) },
+      { client, generateCandidate: model },
     );
     expect(result.errors).toContainEqual({
       code: "workflow_failed",
@@ -973,6 +1010,8 @@ test.each(["context", "preparation", "report"] as const)(
     });
     expect(JSON.stringify(result)).not.toContain("SECRET");
     if (stage === "report") {
+      expect(model).toHaveBeenCalledOnce();
+      expect(apply).toHaveBeenCalledOnce();
       expect(result.outcome).toBe("published");
       expect(result.receipts.length).toBeGreaterThan(0);
       expect(readResearchCatalog(client)).toHaveLength(1);
@@ -1098,3 +1137,633 @@ test("tracing-enabled injected workflow stores a durable run without trace stora
   });
   expect(existsSync(path)).toBe(false);
 });
+
+test("the public runner accumulates research in native state without runtime resources", async () => {
+  const { client, termIds, readSource } = fixture();
+  const created = vi.spyOn(Workflow.prototype, "createRun");
+  const start = Run.prototype.start;
+  const starts = vi.spyOn(Run.prototype, "start").mockImplementation(function (
+    this: Run,
+    options,
+  ) {
+    return start.call(this, {
+      ...options,
+      outputOptions: { includeState: true },
+    });
+  });
+  const phases: string[] = [];
+  const readInitial = runTraceModule.readInitialWithTrace;
+  vi.spyOn(runTraceModule, "readInitialWithTrace").mockImplementation(
+    (...args) => {
+      phases.push("read-initial-source");
+      return readInitial(...args);
+    },
+  );
+  const loadContext = contextModule.loadResearchContext;
+  vi.spyOn(contextModule, "loadResearchContext").mockImplementation(
+    (...args) => {
+      phases.push("load-context");
+      return loadContext(...args);
+    },
+  );
+  const prepare = prepareModule.prepareResearch;
+  vi.spyOn(prepareModule, "prepareResearch").mockImplementation((...args) => {
+    phases.push("prepare-candidate");
+    return prepare(...args);
+  });
+  const apply = applyModule.applyCatalogItem;
+  vi.spyOn(applyModule, "applyCatalogItem").mockImplementation((...args) => {
+    phases.push("apply-catalog-item");
+    return apply(...args);
+  });
+  const buildReport = reportModule.buildResearchReport;
+  vi.spyOn(reportModule, "buildResearchReport").mockImplementation(
+    (...args) => {
+      phases.push("build-report");
+      return buildReport(...args);
+    },
+  );
+  const privatePage = "PRIVATE_PAGE_BODY";
+  const privateOutput = "PRIVATE_MODEL_OUTPUT";
+  const proposal = candidate(termIds);
+  proposal.data!.summary!.value = privateOutput;
+  readSource.mockImplementation(async (_url, options) => {
+    options.budget.consumePage(options.depth);
+    return { ...source, markdown: privatePage };
+  });
+
+  const result = await runCatalogResearch(
+    { ...input, dryRun: false },
+    {
+      client,
+      readSource,
+      config: {
+        apiKey: "PRIVATE_API_KEY",
+        model: "fixture",
+        limits: DEFAULT_RESEARCH_LIMITS,
+      },
+      generateCandidate: async (_prompt, context) => {
+        phases.push("research-festival");
+        await context.readSource(url);
+        return proposal;
+      },
+    },
+  );
+
+  expect(created).toHaveBeenCalledOnce();
+  expect(starts).toHaveBeenCalledOnce();
+  const engineResult = (await starts.mock.results[0].value) as {
+    status: string;
+    state: { data: import("./contracts").IngestionData };
+    steps: Record<string, { output: unknown }>;
+  };
+  expect(engineResult.status).toBe("success");
+  const workflow = created.mock.instances[0] as Workflow;
+  expect(Object.keys(workflow.steps)).toEqual([
+    "initialize-run",
+    "load-context",
+    "read-initial-source",
+    "research-festival",
+    "prepare-candidate",
+    "apply-catalog-item",
+    "build-report",
+    "finalize-run",
+  ]);
+  expect(phases).toEqual([
+    "load-context",
+    "read-initial-source",
+    "research-festival",
+    "prepare-candidate",
+    "apply-catalog-item",
+    "build-report",
+  ]);
+  const graph = JSON.stringify(workflow.serializedStepGraph);
+  expect(workflow.retryConfig).toMatchObject({ attempts: 0 });
+  expect((workflow.options.shouldPersistSnapshot as () => boolean)()).toBe(
+    false,
+  );
+  for (const privateValue of ["PRIVATE_API_KEY", privatePage, privateOutput]) {
+    expect(graph).not.toContain(privateValue);
+    expect(JSON.stringify(starts.mock.calls[0])).not.toContain(privateValue);
+  }
+  const stepOutput = (id: string) => engineResult.steps[id].output;
+  expect(stepOutput("load-context")).toHaveProperty("catalog");
+  expect(stepOutput("research-festival")).toMatchObject({
+    research: { ok: true, candidate: proposal },
+    reads: [expect.objectContaining({ markdown: privatePage })],
+  });
+  expect(stepOutput("research-festival")).not.toHaveProperty("prepared");
+  expect(stepOutput("prepare-candidate")).toHaveProperty("operations");
+  expect(stepOutput("apply-catalog-item")).toHaveProperty("applied");
+  expect(stepOutput("build-report")).toMatchObject({ outcome: "published" });
+  expect(engineResult.state.data).toMatchObject({
+    research: { ok: true, candidate: proposal },
+    report: { outcome: "published" },
+  });
+  expect(engineResult.state.data.reads[0].markdown).toBe(privatePage);
+  const execution = JSON.stringify(engineResult);
+  expect(execution).toContain(privatePage);
+  expect(execution).toContain(privateOutput);
+  expect(execution).not.toContain("PRIVATE_API_KEY");
+  expect(execution).not.toContain(client.name);
+  expect(result.outcome).toBe("published");
+  expect(result.modelResponse?.object).toEqual(proposal);
+});
+
+test("an unexpected phase failure skips later work and returns a safe failed summary", async () => {
+  const { client } = fixture();
+  const trace = fakeTrace();
+  const created = vi.spyOn(Workflow.prototype, "createRun");
+  const starts = vi.spyOn(Run.prototype, "start");
+  const loadContext = vi
+    .spyOn(contextModule, "loadResearchContext")
+    .mockImplementationOnce(() => {
+      throw new Error("PRIVATE_CONTEXT_FAILURE");
+    });
+  const model = vi.fn(async () => candidate([]));
+
+  const result = await runCatalogResearch(input, {
+    client,
+    generateCandidate: model,
+  });
+
+  expect(created).toHaveBeenCalledOnce();
+  expect(starts).toHaveBeenCalledOnce();
+  const engineResult = (await starts.mock.results[0].value) as {
+    status: string;
+    result: { errorCodes: string[]; outcome: string };
+    steps: Record<string, { status: string }>;
+  };
+  expect(engineResult.status).toBe("success");
+  expect(engineResult.steps["load-context"].status).toBe("success");
+  expect(engineResult.result).toMatchObject({
+    outcome: "failed",
+    errorCodes: ["workflow_failed"],
+  });
+  expect(JSON.stringify(engineResult)).not.toContain("PRIVATE_CONTEXT_FAILURE");
+  expect(model).not.toHaveBeenCalled();
+  expect(loadContext).toHaveBeenCalledOnce();
+  expect(result).toMatchObject({ outcome: "failed", researchStatus: "failed" });
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({ code: "workflow_failed", stage: "workflow" }),
+  );
+  expect(JSON.stringify(result)).not.toContain("PRIVATE_CONTEXT_FAILURE");
+  expect(client.prepare("SELECT id FROM ingestion_runs").all()).toHaveLength(1);
+  expect(trace.workflowFailed).toHaveBeenCalledOnce();
+  expect(trace.finish).toHaveBeenCalledOnce();
+});
+
+test("Mastra run creation failure allocates no durable attempt or resources", async () => {
+  const { client, readSource } = fixture();
+  const initializeTrace = vi.spyOn(runTraceModule, "createCatalogRunTrace");
+  const created = vi
+    .spyOn(Workflow.prototype, "createRun")
+    .mockRejectedValueOnce(new Error("PRIVATE_MASTRA_SETUP"));
+  const model = vi.fn(async () => candidate([]));
+
+  await expect(
+    executeResearch(input, {
+      client,
+      readSource,
+      generateCandidate: model,
+    }),
+  ).rejects.toThrow("Ingestion workflow failed");
+
+  expect(created).toHaveBeenCalledOnce();
+  expect(model).not.toHaveBeenCalled();
+  expect(readSource).not.toHaveBeenCalled();
+  expect(initializeTrace).not.toHaveBeenCalled();
+  expect(client.prepare("SELECT id FROM ingestion_runs").all()).toEqual([]);
+});
+
+test("CLI initialization failure finalizes its admitted attempt with a safe full report", async () => {
+  const { client, readSource } = fixture();
+  const model = vi.fn();
+  vi.spyOn(runTraceModule, "createCatalogRunTrace").mockRejectedValueOnce(
+    new Error("PRIVATE_TRACE_SETUP"),
+  );
+
+  const result = await runCatalogResearch(input, {
+    client,
+    readSource,
+    generateCandidate: model,
+  });
+
+  expect(result).toMatchObject({ outcome: "failed", researchStatus: "failed" });
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({ code: "workflow_failed" }),
+  );
+  expect(JSON.stringify(result)).not.toContain("PRIVATE_TRACE_SETUP");
+  expect(readSource).not.toHaveBeenCalled();
+  expect(model).not.toHaveBeenCalled();
+  const rows = client
+    .prepare("SELECT id,status,report_json FROM ingestion_runs")
+    .all() as { id: string; status: string; report_json: string }[];
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatchObject({ id: result.runId, status: "failed" });
+  expect(JSON.parse(rows[0].report_json)).toEqual(result);
+});
+
+test("overlapping Mastra runs keep their database and research state separate", async () => {
+  const first = fixture();
+  const second = fixture(createTestDatabase().client);
+  const created = vi.spyOn(Workflow.prototype, "createRun");
+  let entered = 0;
+  let release!: () => void;
+  const bothEntered = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const generator = (name: string, termIds: string[]) => async () => {
+    entered += 1;
+    if (entered === 2) {
+      release();
+    }
+    await bothEntered;
+    const proposal = candidate(termIds);
+    proposal.data!.eventName = name;
+    return proposal;
+  };
+
+  const [firstResult, secondResult] = await Promise.all([
+    runCatalogResearch(
+      { ...input, name: "First Fest", dryRun: false },
+      {
+        client: first.client,
+        generateCandidate: generator("First Fest", first.termIds),
+      },
+    ),
+    runCatalogResearch(
+      { ...input, name: "Second Fest", dryRun: false },
+      {
+        client: second.client,
+        generateCandidate: generator("Second Fest", second.termIds),
+      },
+    ),
+  ]);
+
+  expect(created).toHaveBeenCalledTimes(2);
+  expect(created.mock.instances[0]).not.toBe(created.mock.instances[1]);
+  expect(firstResult.runId).not.toBe(secondResult.runId);
+  expect(firstResult.outcome).toBe("published");
+  expect(secondResult.outcome).toBe("published");
+  expect(
+    readResearchCatalog(first.client).map((event) => event.canonicalName),
+  ).toEqual(["First Fest"]);
+  expect(
+    readResearchCatalog(second.client).map((event) => event.canonicalName),
+  ).toEqual(["Second Fest"]);
+  expect(first.client.prepare("SELECT id FROM ingestion_runs").all()).toEqual([
+    { id: firstResult.runId },
+  ]);
+  expect(second.client.prepare("SELECT id FROM ingestion_runs").all()).toEqual([
+    { id: secondResult.runId },
+  ]);
+});
+
+test("one registered graph isolates overlapping previews and applies dry-run defaults", async () => {
+  const first = fixture();
+  const second = fixture(createTestDatabase().client);
+  let entered = 0;
+  let release!: () => void;
+  const bothEntered = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const workflow = createCatalogIngestionWorkflow(async ({ name }) => {
+    const selected = name === "First Fest" ? first : second;
+    return {
+      deps: {
+        client: selected.client,
+        generateCandidate: async () => {
+          if (++entered === 2) {
+            release();
+          }
+          await bothEntered;
+          const proposal = candidate(selected.termIds);
+          proposal.data!.eventName = name!;
+          return proposal;
+        },
+      },
+    };
+  });
+  const [firstRun, secondRun] = await Promise.all([
+    workflow.createRun({ runId: "studio-first" }),
+    workflow.createRun({ runId: "studio-second" }),
+  ]);
+  const [one, two] = await Promise.all([
+    firstRun.start({
+      inputData: studioIngestionInputSchema.parse({
+        mode: "add",
+        name: "First Fest",
+      }),
+    }),
+    secondRun.start({
+      inputData: studioIngestionInputSchema.parse({
+        mode: "add",
+        name: "Second Fest",
+      }),
+    }),
+  ]);
+  expect(one.status).toBe("success");
+  expect(two.status).toBe("success");
+  if (one.status !== "success" || two.status !== "success") {
+    return;
+  }
+  expect(one.result).toMatchObject({
+    engineRunId: "studio-first",
+    dryRun: true,
+    persistenceStatus: "completed",
+  });
+  expect(two.result).toMatchObject({
+    engineRunId: "studio-second",
+    dryRun: true,
+    persistenceStatus: "completed",
+  });
+  expect(one.result.ingestionRunId).not.toBe(two.result.ingestionRunId);
+  expect(readResearchCatalog(first.client)).toEqual([]);
+  expect(readResearchCatalog(second.client)).toEqual([]);
+});
+
+test("duplicate active engine IDs cannot finalize the first attempt", async () => {
+  const { client, termIds } = fixture();
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  let release!: () => void;
+  const hold = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const model = vi.fn(async () => {
+    entered();
+    await hold;
+    return candidate(termIds);
+  });
+  const workflow = createCatalogIngestionWorkflow(async () => ({
+    deps: { client, generateCandidate: model },
+  }));
+  const first = await workflow.createRun({ runId: "shared-engine-id" });
+  const pending = first.start({
+    inputData: studioIngestionInputSchema.parse({
+      mode: "add",
+      name: "Example Fest",
+    }),
+  });
+  await started;
+  const second = await workflow.createRun({ runId: "shared-engine-id" });
+  await expect(
+    second.start({
+      inputData: studioIngestionInputSchema.parse({
+        mode: "add",
+        name: "Example Fest",
+      }),
+    }),
+  ).rejects.toThrow();
+  expect(client.prepare("SELECT status FROM ingestion_runs").all()).toEqual([
+    { status: "running" },
+  ]);
+  release();
+  const result = await pending;
+  expect(result.status).toBe("success");
+  expect(model).toHaveBeenCalledOnce();
+  expect(client.prepare("SELECT status FROM ingestion_runs").all()).toEqual([
+    { status: "completed" },
+  ]);
+});
+
+test("native cancellation waits for active research before finalizing known state", async () => {
+  const { client, termIds, readSource } = fixture();
+  const trace = fakeTrace();
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  let release!: () => void;
+  const hold = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const workflow = createCatalogIngestionWorkflow(async () => ({
+    deps: {
+      client,
+      readSource,
+      generateCandidate: async (_prompt, context) => {
+        await context.readSource(url);
+        entered();
+        await hold;
+        return candidate(termIds);
+      },
+    },
+  }));
+  const run = await workflow.createRun({ runId: "cancel-research" });
+  const pending = run.start({
+    inputData: studioIngestionInputSchema.parse({
+      mode: "add",
+      name: "Example Fest",
+      dryRun: false,
+    }),
+  });
+  await started;
+  const cancel = run.cancel();
+  expect(client.prepare("SELECT status FROM ingestion_runs").all()).toEqual([
+    { status: "running" },
+  ]);
+  release();
+  await cancel;
+  await pending;
+  expect(readResearchCatalog(client)).toEqual([]);
+  expect(client.prepare("SELECT status FROM ingestion_runs").all()).toEqual([
+    { status: "failed" },
+  ]);
+  const saved = client
+    .prepare("SELECT report_json FROM ingestion_runs")
+    .get() as { report_json: string };
+  expect(JSON.parse(saved.report_json)).toMatchObject({
+    usage: { pages: 1 },
+    sources: [expect.objectContaining({ attemptedUrl: url })],
+  });
+  expect(trace.terminalFailed).toHaveBeenCalledWith("cancelled");
+  expect(trace.finish).toHaveBeenCalledOnce();
+});
+
+test("cancellation after a confirmed write preserves the committed catalog", async () => {
+  const { client, termIds } = fixture();
+  const workflow = createCatalogIngestionWorkflow(async () => ({
+    deps: { client, generateCandidate: async () => candidate(termIds) },
+  }));
+  const run = await workflow.createRun({ runId: "cancel-after-write" });
+  let cancellation: Promise<void> | undefined;
+  const original = reportModule.buildResearchReport;
+  vi.spyOn(reportModule, "buildResearchReport").mockImplementation((value) => {
+    cancellation = run.cancel();
+    return original(value);
+  });
+  await run.start({
+    inputData: studioIngestionInputSchema.parse({
+      mode: "add",
+      name: "Example Fest",
+      dryRun: false,
+    }),
+  });
+  await cancellation;
+  expect(readResearchCatalog(client)).toHaveLength(1);
+  const row = client
+    .prepare("SELECT status,report_json FROM ingestion_runs")
+    .get() as { status: string; report_json: string | null };
+  expect(["completed", "failed"]).toContain(row.status);
+  expect(row.report_json).not.toBeNull();
+});
+
+test("registered setup failure finalizes safely and releases its acquired connection once", async () => {
+  const { client } = fixture();
+  const close = vi.fn();
+  vi.spyOn(runTraceModule, "createCatalogRunTrace").mockRejectedValueOnce(
+    new Error("PRIVATE_TRACE_SETUP"),
+  );
+  const workflow = createCatalogIngestionWorkflow(async () => ({
+    deps: { client, generateCandidate: vi.fn() },
+    close,
+  }));
+  const run = await workflow.createRun({ runId: "failed-setup" });
+  const error = await run
+    .start({
+      inputData: studioIngestionInputSchema.parse({
+        mode: "add",
+        name: "Example Fest",
+      }),
+    })
+    .catch((reason: unknown) => reason);
+  expect(String(error)).not.toContain("PRIVATE_TRACE_SETUP");
+  expect(close).toHaveBeenCalledOnce();
+  expect(client.prepare("SELECT status FROM ingestion_runs").all()).toEqual([
+    { status: "failed" },
+  ]);
+});
+
+test("registered final persistence failure exposes a bounded safe summary", async () => {
+  const { client, termIds } = fixture();
+  const trace = fakeTrace();
+  client.exec(
+    "CREATE TRIGGER refuse_finish BEFORE UPDATE ON ingestion_runs BEGIN SELECT RAISE(ABORT, 'PRIVATE_DB_ERROR'); END",
+  );
+  const workflow = createCatalogIngestionWorkflow(async () => ({
+    deps: { client, generateCandidate: async () => candidate(termIds) },
+  }));
+  const run = await workflow.createRun({ runId: "failed-persistence" });
+  const output = run.stream({
+    inputData: studioIngestionInputSchema.parse({
+      mode: "add",
+      name: "Example Fest",
+      dryRun: false,
+    }),
+    outputOptions: { includeState: true },
+  });
+  const chunks = [];
+  for await (const chunk of output.fullStream) {
+    chunks.push(chunk);
+  }
+  const result = await output.result;
+  expect(result.status).toBe("failed");
+  if (result.status !== "failed") {
+    return;
+  }
+  const row = client
+    .prepare("SELECT id,status,report_json FROM ingestion_runs")
+    .get() as {
+    id: string;
+    status: string;
+    report_json: string | null;
+  };
+  const failure = JSON.parse(result.error?.message ?? "") as {
+    code: string;
+    summary: {
+      engineRunId: string;
+      ingestionRunId: string;
+      persistenceStatus: string;
+      outcome: string;
+      usage: { complete: boolean };
+    };
+  };
+  expect(failure).toMatchObject({
+    code: "run_persistence_failed",
+    summary: {
+      engineRunId: "failed-persistence",
+      ingestionRunId: row.id,
+      persistenceStatus: "failed",
+      outcome: "published",
+      usage: { complete: false },
+    },
+  });
+  // Error messages are non-enumerable; JSON.stringify alone misses leaks.
+  const failedStep = result.steps["finalize-run"] as { error?: Error };
+  for (const error of [result.error, failedStep.error]) {
+    expect(error).toBeDefined();
+    expect(error?.message).not.toContain("PRIVATE_DB_ERROR");
+    expect(error?.stack ?? "").not.toContain("PRIVATE_DB_ERROR");
+    expect(error?.cause).toBeUndefined();
+    expect(JSON.parse(error!.message)).toMatchObject(failure);
+  }
+  expect(JSON.stringify(result)).not.toContain("PRIVATE_DB_ERROR");
+  expect(JSON.stringify(chunks)).not.toContain("PRIVATE_DB_ERROR");
+  expect(row).toMatchObject({ status: "running", report_json: null });
+  expect(readResearchCatalog(client)).toHaveLength(1);
+  expect(trace.terminalFailed).toHaveBeenCalledWith("run_persistence_failed");
+  expect(trace.finish).toHaveBeenCalledOnce();
+});
+
+test.each([false, true])(
+  "concurrent and repeated finalization writes and cleans up once (failure=%s)",
+  async (fails) => {
+    const { client } = fixture();
+    const trace = fakeTrace();
+    const close = vi.fn();
+    const persist = vi.spyOn(runsModule, "finalizeIngestionRun");
+    const owned = new CatalogAttempt(
+      "memoized-finalization",
+      input,
+      { client, generateCandidate: vi.fn() },
+      close,
+    );
+    await owned.initialize();
+    if (fails) {
+      client.exec(
+        "CREATE TRIGGER refuse_finish BEFORE UPDATE ON ingestion_runs BEGIN SELECT RAISE(ABORT, 'PRIVATE_PERSISTENCE'); END",
+      );
+    }
+    const results = await Promise.allSettled([
+      owned.finalize(createIngestionData()),
+      owned.finalize(createIngestionData()),
+    ]);
+    const repeated = await owned.finalize(createIngestionData()).then(
+      (value) => ({ status: "fulfilled" as const, value }),
+      (reason: unknown) => ({ status: "rejected" as const, reason }),
+    );
+    expect(persist).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+    expect(trace.finish).toHaveBeenCalledOnce();
+    const first = results[0];
+    if (fails && first.status === "rejected") {
+      expect(first.reason).toBeInstanceOf(RunPersistenceError);
+      expect((results[1] as PromiseRejectedResult).reason).toBe(first.reason);
+      expect((repeated as PromiseRejectedResult).reason).toBe(first.reason);
+      expect(results[1]).toEqual(first);
+      expect(repeated).toEqual(first);
+      expect(
+        client.prepare("SELECT status,report_json FROM ingestion_runs").get(),
+      ).toEqual({ status: "running", report_json: null });
+    } else if (!fails && first.status === "fulfilled") {
+      expect((results[1] as PromiseFulfilledResult<unknown>).value).toBe(
+        first.value,
+      );
+      expect((repeated as PromiseFulfilledResult<unknown>).value).toBe(
+        first.value,
+      );
+      expect(results[1]).toEqual(first);
+      expect(repeated).toEqual(first);
+      const row = client
+        .prepare("SELECT report_json FROM ingestion_runs")
+        .get() as { report_json: string };
+      expect(JSON.parse(row.report_json)).toEqual(first.value);
+    } else {
+      throw new Error("Unexpected finalization outcome");
+    }
+  },
+);

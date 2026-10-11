@@ -84,7 +84,7 @@ The catalog SHALL create new subjects as drafts, publish them only through valid
 - **THEN** it can become published again under the same durable identity
 
 ### Requirement: Public details distinguish closed ticket sales
-Public edition details SHALL display known ticket availability beside its category: available as “Available”, sold_out as “Sold out”, and closed as “Ticket sales closed”. Missing/unknown availability SHALL have no status badge. Public payloads SHALL omit edition-wide availability; schedule status SHALL remain independent.
+Public edition details SHALL display known ticket availability beside its category: available as “Available”, sold_out as “Sold out”, and closed as “Ticket sales closed”. Missing/unknown availability SHALL have no status badge. Public payloads SHALL expose category labels and availability while omitting private research data and edition-wide availability; schedule status SHALL remain independent.
 
 #### Scenario: Ticket sales have closed
 - **WHEN** a published edition has a ticket category with availability closed
@@ -105,15 +105,15 @@ Public edition details SHALL display known ticket availability beside its catego
 - **AND** existing primary price display and publication gates remain unchanged
 
 ### Requirement: Model-proposed publication uses structural gates
-The system SHALL publish an Occurrence when its stored values satisfy the existing date, location, and scope rules. The same structural rules SHALL apply to every publication operation.
+The system SHALL validate model-proposed publication operations against the date, location, and scope gates defined in this spec. The same structural rules SHALL apply to every publication operation; complete stored facts alone SHALL NOT change publication state.
 
 #### Scenario: Draft has structurally complete facts
-- **WHEN** a model-proposed draft has valid programme dates, country, a qualified location, and in-scope taxonomy terms
-- **THEN** it may publish
+- **WHEN** a publication operation targets a model-proposed draft with valid programme dates, country, a qualified location, and in-scope taxonomy terms
+- **THEN** the operation passes the structural publication gates
 
 #### Scenario: Draft lacks a required fact
-- **WHEN** a draft lacks a required date, location, or scope term
-- **THEN** it remains a draft
+- **WHEN** a publication operation targets a draft lacking a required date, location, or scope term
+- **THEN** the operation is rejected and the Occurrence remains a draft
 
 ### Requirement: Public uncertainty follows stored fact precision
 The system SHALL distinguish provisional dates and approximate locations according to stored values while keeping source retrieval times out of public freshness indicators.

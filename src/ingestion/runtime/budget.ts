@@ -1,11 +1,9 @@
-export type ResearchLimit =
-  "time" | "searches" | "pages" | "depth" | "modelCalls" | "modelInputChars";
+export type ResearchLimit = "time" | "searches" | "depth" | "modelInputChars";
 
 export interface ResearchLimits {
   searches: number;
-  pages: number;
   depth: number;
-  modelCalls: number;
+  agentSteps: number;
   durationMs: number;
   pageBytes: number;
   modelInputChars: number;
@@ -15,9 +13,8 @@ export interface ResearchLimits {
 
 export const DEFAULT_RESEARCH_LIMITS: ResearchLimits = {
   searches: 3,
-  pages: 20,
   depth: 2,
-  modelCalls: 10,
+  agentSteps: 10,
   durationMs: 5 * 60_000,
   pageBytes: 2 * 1024 * 1024,
   modelInputChars: 120_000,
@@ -39,8 +36,6 @@ export interface ResearchBudgetSnapshot {
   elapsedMs: number;
   remaining: {
     searches: number;
-    pages: number;
-    modelCalls: number;
     durationMs: number;
   };
 }
@@ -52,7 +47,6 @@ export interface ResearchBudget {
   consumeSearch(): void;
   consumePage(depth?: number): void;
   consumeModelCall(inputChars?: number): void;
-  refundModelCall(): void;
   remaining(): ResearchBudgetSnapshot["remaining"];
   snapshot(): ResearchBudgetSnapshot;
 }
@@ -84,29 +78,16 @@ export function createResearchBudget(
     }
   }
 
-  function consume(kind: "searches" | "pages" | "modelCalls"): void {
+  function consumeSearch(): void {
     assertTime();
-    const used = { searches, pages, modelCalls }[kind];
-    if (used >= limits[kind]) {
-      throw new ResearchLimitError(kind);
+    if (searches >= limits.searches) {
+      throw new ResearchLimitError("searches");
     }
-    switch (kind) {
-      case "searches":
-        searches += 1;
-        break;
-      case "pages":
-        pages += 1;
-        break;
-      case "modelCalls":
-        modelCalls += 1;
-        break;
-    }
+    searches += 1;
   }
 
   const remaining = () => ({
     searches: limits.searches - searches,
-    pages: limits.pages - pages,
-    modelCalls: limits.modelCalls - modelCalls,
     durationMs: Math.max(0, deadline - now()),
   });
 
@@ -114,12 +95,13 @@ export function createResearchBudget(
     limits,
     deadline,
     assertTime,
-    consumeSearch: () => consume("searches"),
+    consumeSearch,
     consumePage: (depth = 0) => {
       if (!Number.isSafeInteger(depth) || depth < 0 || depth > limits.depth) {
         throw new ResearchLimitError("depth");
       }
-      consume("pages");
+      assertTime();
+      pages += 1;
     },
     consumeModelCall: (inputChars = 0) => {
       if (
@@ -128,10 +110,8 @@ export function createResearchBudget(
       ) {
         throw new ResearchLimitError("modelInputChars");
       }
-      consume("modelCalls");
-    },
-    refundModelCall: () => {
-      modelCalls = Math.max(0, modelCalls - 1);
+      assertTime();
+      modelCalls += 1;
     },
     remaining,
     snapshot: () => ({

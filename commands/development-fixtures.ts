@@ -57,6 +57,8 @@ export function seedDevelopmentFixtures(client: Database.Database) {
       ["dev-surfing", "topic", "surfing", "Surfing"],
       ["dev-food-and-drink", "topic", "food-and-drink", "Food & drink"],
       ["dev-topic-outdoor", "topic", "outdoor", "Outdoor activities"],
+      ["dev-rock", "genre", "rock", "Rock"],
+      ["dev-electronic", "genre", "electronic", "Electronic"],
     ] as const) {
       db.insert(taxonomyTerms)
         .values(
@@ -113,6 +115,7 @@ export function seedDevelopmentFixtures(client: Database.Database) {
         typeof occurrences.$inferInsert,
         "id" | "eventId" | "createdAt" | "updatedAt"
       >,
+      genreIds = ["dev-rock"],
     ) {
       const id = randomUUID();
       db.insert(occurrences)
@@ -142,7 +145,7 @@ export function seedDevelopmentFixtures(client: Database.Database) {
           }),
         )
         .run();
-      for (const termId of termIds) {
+      for (const termId of [...termIds, ...genreIds]) {
         db.insert(occurrenceTerms)
           .values(
             validateCatalogValues(client, "occurrence_terms", {
@@ -180,20 +183,24 @@ export function seedDevelopmentFixtures(client: Database.Database) {
       if (!added.created) {
         continue;
       }
-      addOccurrence(added.id, {
-        occurrenceKey: "2027",
-        occurrenceYear: 2027,
-        startsOn: example.startsOn,
-        endsOn: example.endsOn,
-        dateState: "provisional",
-        scheduleStatus: "scheduled",
-        countryCode: example.countryCode,
-        locality: example.locality,
-        latitude: example.latitude,
-        longitude: example.longitude,
-        coordinatePrecision: "locality",
-        publicationState: "published",
-      });
+      addOccurrence(
+        added.id,
+        {
+          occurrenceKey: "2027",
+          occurrenceYear: 2027,
+          startsOn: example.startsOn,
+          endsOn: example.endsOn,
+          dateState: "provisional",
+          scheduleStatus: "scheduled",
+          countryCode: example.countryCode,
+          locality: example.locality,
+          latitude: example.latitude,
+          longitude: example.longitude,
+          coordinatePrecision: "locality",
+          publicationState: "published",
+        },
+        example.countryCode === "PT" ? ["dev-electronic"] : ["dev-rock"],
+      );
       db.insert(externalLinks)
         .values(
           validateCatalogValues(client, "external_links", {

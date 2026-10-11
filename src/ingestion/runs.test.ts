@@ -119,6 +119,46 @@ test("finalization preserves normalized report, zero/unknown values and guards t
   }
 });
 
+test("version-2 reports with historical page and model-call limits remain readable", async () => {
+  const { client } = testDatabase();
+  const report = await runCatalogResearch(
+    { mode: "add", name: "Test", actor: "owner" },
+    {
+      client,
+      generateCandidate: async () => ({
+        status: "failed",
+        data: null,
+        errors: [],
+        unresolved: [],
+      }),
+    },
+  );
+  const id = startIngestionRun(client, settings, Date.now(), null);
+  finalizeIngestionRun(client, id, { ...report, runId: id }, null, Date.now());
+  client
+    .prepare(
+      `UPDATE ingestion_runs SET
+    input_json=json_set(input_json, '$.limits.pages', 20, '$.limits.modelCalls', 10),
+    report_json=json_set(report_json, '$.usage.remaining.pages', 19, '$.usage.remaining.modelCalls', 9)
+    WHERE id=?`,
+    )
+    .run(id);
+  const row = client
+    .prepare("SELECT input_json,report_json FROM ingestion_runs WHERE id=?")
+    .get(id) as {
+    input_json: string;
+    report_json: string;
+  };
+  expect(JSON.parse(row.input_json).limits).toMatchObject({
+    pages: 20,
+    modelCalls: 10,
+  });
+  expect(JSON.parse(row.report_json)).toMatchObject({
+    schemaVersion: 2,
+    usage: { remaining: { pages: 19, modelCalls: 9 } },
+  });
+});
+
 test.each([NaN, Infinity, -1])(
   "invalid cost %s cannot finalize a row",
   async (cost) => {

@@ -2,6 +2,10 @@
 
 Eventroam is a worldwide discovery platform for open-air music festivals and burning-like gatherings. It combines map and list exploration with an AI research agent that finds source information and helps maintain the catalog through validated, owner-initiated updates.
 
+## Project status
+
+Eventroam is under active development and has no production deployment. Backward compatibility is not required at this stage: APIs, database schemas, report formats, and local commands may change without preserving earlier versions.
+
 ## Product idea
 
 An **Event** is a continuing identity; each edition is a separate **Occurrence** with its own dates, location, status, and classifications. This preserves history when plans change.
@@ -53,7 +57,7 @@ npm run db:fixtures
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) for the scope directory or [http://festivals.localhost:3000](http://festivals.localhost:3000) for festival discovery. The fixture command applies migrations and loads fictional records into `./data/eventroam.sqlite`; it is repeatable. Copy `.env.example` to `.env.local` if you need a different database path or want to configure a Mapbox public token and style. Without a token, the list and filters still work.
+Open [http://localhost:3000](http://localhost:3000) for the scope directory or [http://festivals.localhost:3000](http://festivals.localhost:3000) for festival discovery. The fixture command applies migrations and loads fictional records into `./data/eventroam.sqlite`; it is repeatable. Copy `.env.example` to `.env.local` for Next.js settings such as the database path or Mapbox public token and style. Migration and fixture commands read the shell environment; for a custom path use `DATABASE_PATH=./data/custom.sqlite npm run db:fixtures` and the same path in `.env.local`. Without a token, the list and filters still work.
 
 For optional local catalog research, see `npm run catalog -- --help` and the [development guide](docs/development.md#local-catalog-research). This workflow uses an OpenRouter API key in an ignored `.env` file and previews changes unless `--apply` is passed.
 

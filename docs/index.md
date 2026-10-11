@@ -19,10 +19,10 @@ Catalog:
 
 Website:
 
-- [Discovery](../openspec/specs/website/discovery/spec.md) — filters, URL state, and the shared map/list result set.
+- [Discovery](../openspec/specs/website/discovery/spec.md) — readable filter selections, pending counts, searchable locations, URL state, and shared map/list results.
 - [Scoped website](../openspec/specs/website/routing/spec.md) — configured hosts, stable detail routes, and scope-root state.
 
-## Approved future changes
+## Active changes
 
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
@@ -30,16 +30,6 @@ Website:
 ## Archived changes
 
 - [Expanded festival topics](../openspec/changes/archive/2026-10-11-expand-festival-topics/proposal.md) — activity vocabulary, independent topic/format classification, and open-air publication format.
-
-- [Selective research logging](../openspec/changes/archive/2026-10-10-selective-research-logging/proposal.md) — migration to Mastra PinoLogger, explicit logging/tracing fields and durable Studio diagnostics.
-
-- [Clearer ingestion traces](../openspec/changes/archive/2026-10-09-clarify-ingestion-traces/proposal.md) — apply-run trace structure; current logging/tracing simplification belongs to selective research logging.
-
-- [Durable ingestion run records](../openspec/changes/archive/2026-10-09-add-ingestion-run-records/proposal.md) — implemented per-festival start/final history, private reports, and known usage/costs, including dry runs.
-
-- [Minimal research tracing](../openspec/changes/archive/2026-10-09-minimal-research-tracing/proposal.md) — optional local research-agent traces and Studio inspection, with accepted persistence/logger risks.
-- [Simpler research output](../openspec/changes/archive/2026-10-09-simplify-research-output/proposal.md) — explicit research outcomes, explained facts, replaceable link slots, and ticket-category availability.
-- [Source-backed catalog workflow](../openspec/changes/archive/2026-10-05-source-backed-catalog-workflow/proposal.md) — completed local collection change; its [design](../openspec/changes/archive/2026-10-05-source-backed-catalog-workflow/design.md) records the implementation approach.
 
 ## Draft proposals and migration record
 

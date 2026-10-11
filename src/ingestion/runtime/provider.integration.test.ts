@@ -24,7 +24,7 @@ const runCatalogResearch: typeof executeResearch = async (input, deps) => {
   expect(result.usage.searchCostBasis).toBe("estimate");
   return result;
 };
-import type { ReadSourceResult } from "../sources/contracts";
+import type { ReadSourceResult } from "../tools/read-source/contracts";
 
 const url = "https://example.org/provider-fixture";
 const eventId = "provider-fest";
@@ -62,7 +62,7 @@ const config = {
   model: "fixture/provider-model",
   limits: {
     ...DEFAULT_RESEARCH_LIMITS,
-    modelCalls: 1,
+    agentSteps: 1,
     modelOutputTokens: 256,
   },
 };
@@ -442,7 +442,7 @@ test.each([
         client,
         config: {
           ...config,
-          limits: { ...config.limits, modelCalls: 3 + searchAttempts },
+          limits: { ...config.limits, agentSteps: 3 + searchAttempts },
         },
         discoverSources,
         readSource,
@@ -467,10 +467,16 @@ test.each([
       outputTokens: 101,
       cachedInputTokens: searchDetails ? 21 : null,
       reasoningTokens: searchDetails ? 37 : null,
-      modelCostUsd: searchDetails && searchAttempts === 1 ? 1 : null,
+      modelCostUsd: searchDetails ? 1 : 0.875,
       searchCostUsd: 0.25,
     });
-    expect(requests[2].tools).toBeUndefined();
+    expect(requests[2].tools).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          function: expect.objectContaining({ name: "readSource" }),
+        }),
+      ]),
+    );
     expect(requests[0].tools).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -570,7 +576,7 @@ test.each([null, "I will read the linked page before returning the result."])(
     );
     const result = await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+      config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
       readSource,
     });
     expect(requests).toHaveLength(2);
@@ -708,7 +714,7 @@ test.each(["http", "abort", "context"])(
         ...config,
         limits: {
           ...config.limits,
-          modelCalls: 2,
+          agentSteps: 2,
           durationMs: failure === "abort" ? 500 : 30_000,
           modelInputChars: failure === "context" ? 30_000 : 120_000,
         },
@@ -730,7 +736,7 @@ test.each(["http", "abort", "context"])(
       cachedInputTokens: 6,
       reasoningTokens: 12,
       complete: false,
-      modelCostUsd: null,
+      modelCostUsd: 0.125,
     });
     expect(result.operations).toEqual([]);
     if (failure === "context") {
@@ -738,12 +744,115 @@ test.each(["http", "abort", "context"])(
         expect.objectContaining({ code: "limit_reached" }),
       );
     }
+    if (failure === "abort") {
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({ code: "limit_reached", stage: "research" }),
+      );
+    }
   },
 );
 
-test.each([undefined, 0, 0.125])(
-  "keeps cost %s distinct from an unavailable total",
-  async (cost) => {
+test("native agent iterations stop repeated tool requests", async () => {
+  const client = testDatabase().client;
+  savedSource(client);
+  const fetchMock = vi.fn<typeof fetch>(async () =>
+    modelResponse(readCall(), stepUsage),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  const result = await runCatalogResearch(input, {
+    client,
+    config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
+    readSource: async (requestedUrl) => ({
+      ...source,
+      attemptedUrl: requestedUrl,
+      finalUrl: requestedUrl,
+    }),
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(result.operations).toEqual([]);
+  expect(result.usage.modelCalls).toBe(fetchMock.mock.calls.length);
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({ code: "limit_reached", stage: "research" }),
+  );
+});
+
+test("provider unavailable retries preserve ordinary agent capacity and call accounting", async () => {
+  const client = testDatabase().client;
+  savedSource(client);
+  const fetchMock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          error: {
+            message: "Temporary provider outage",
+            metadata: { error_type: "provider_unavailable" },
+          },
+        },
+        { status: 503 },
+      ),
+    )
+    .mockImplementation(finalResponse(stepUsage));
+  vi.stubGlobal("fetch", fetchMock);
+  const result = await runCatalogResearch(input, {
+    client,
+    config: { ...config, limits: { ...config.limits, durationMs: 30_000 } },
+    readSource: async () => source,
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(result.usage.modelCalls).toBe(2);
+  expect(result.usage.inputTokens).toBe(10);
+  expect(result.usage.complete).toBe(false);
+  expect(result.usage.modelCostUsd).toBe(0);
+  expect(result.errors).toEqual([]);
+}, 15_000);
+
+test("retry allowance cannot add ordinary agent iterations", async () => {
+  const client = testDatabase().client;
+  savedSource(client);
+  const fetchMock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          error: {
+            message: "Temporary provider outage",
+            metadata: { error_type: "provider_unavailable" },
+          },
+        },
+        { status: 503 },
+      ),
+    )
+    .mockImplementation(async () => modelResponse(readCall(), stepUsage));
+  vi.stubGlobal("fetch", fetchMock);
+  const result = await runCatalogResearch(input, {
+    client,
+    config: {
+      ...config,
+      limits: { ...config.limits, agentSteps: 2, durationMs: 30_000 },
+    },
+    readSource: async (requestedUrl) => ({
+      ...source,
+      attemptedUrl: requestedUrl,
+      finalUrl: requestedUrl,
+    }),
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+  expect(result.usage.modelCalls).toBe(3);
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({ code: "limit_reached" }),
+  );
+}, 15_000);
+
+test.each([
+  [undefined, 0, 0],
+  [0, 0, 0],
+  [0.125, 0, 0.125],
+  [undefined, undefined, null],
+  [undefined, 0.125, 0.125],
+])(
+  "sums known step costs %s and %s as %s",
+  async (cost, finalCost, expectedCost) => {
     const client = testDatabase().client;
     savedSource(client);
     vi.stubGlobal(
@@ -756,11 +865,13 @@ test.each([undefined, 0, 0.125])(
             cost,
           }),
         )
-        .mockImplementationOnce(finalResponse(finalStepUsage)),
+        .mockImplementationOnce(
+          finalResponse({ ...finalStepUsage, cost: finalCost }),
+        ),
     );
     const result = await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+      config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
       readSource: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
@@ -773,14 +884,47 @@ test.each([undefined, 0, 0.125])(
       outputTokens: 57,
       cachedInputTokens: 10,
       reasoningTokens: 21,
-      modelCostUsd: cost ?? null,
+      modelCostUsd: expectedCost,
     });
     expect(result.errors).toEqual([]);
   },
 );
 
+test("a final step without cost preserves earlier cost and complete token counts", async () => {
+  const client = testDatabase().client;
+  savedSource(client);
+  const withoutCost = { ...finalStepUsage, cost: undefined };
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        modelResponse(readCall(), { ...stepUsage, cost: 0.125 }),
+      )
+      .mockImplementationOnce(finalResponse(withoutCost)),
+  );
+  const result = await runCatalogResearch(input, {
+    client,
+    config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
+    readSource: async (requestedUrl) => ({
+      ...source,
+      attemptedUrl: requestedUrl,
+      finalUrl: requestedUrl,
+    }),
+  });
+  expect(result.usage).toMatchObject({
+    complete: true,
+    inputTokens: 33,
+    outputTokens: 57,
+    cachedInputTokens: 10,
+    reasoningTokens: 21,
+    modelCostUsd: 0.125,
+  });
+  expect(result.errors).toEqual([]);
+});
+
 test.each([undefined, {}])(
-  "a final response without token counts (%s) preserves earlier tokens and marks the total partial",
+  "a final response without token counts (%s) retains known usage and marks tokens partial",
   async (usage) => {
     const client = testDatabase().client;
     savedSource(client);
@@ -793,7 +937,7 @@ test.each([undefined, {}])(
     );
     const result = await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+      config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
       readSource: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
@@ -804,7 +948,7 @@ test.each([undefined, {}])(
       complete: false,
       inputTokens: 10,
       outputTokens: 20,
-      modelCostUsd: null,
+      modelCostUsd: 0,
     });
   },
 );
@@ -830,7 +974,7 @@ test.each([
     );
     await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
+      config: { ...config, limits: { ...config.limits, agentSteps: 3 } },
       readSource,
       discoverSources,
     });
@@ -857,7 +1001,7 @@ test.each(["readSource", "discoverSources"])(
     vi.stubGlobal("fetch", fetchMock);
     await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
+      config: { ...config, limits: { ...config.limits, agentSteps: 3 } },
       readSource: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
@@ -1006,7 +1150,7 @@ test.each([400, 429, 503])(
     vi.stubGlobal("fetch", fetchMock);
     const result = await runCatalogResearch(input, {
       client,
-      config: { ...config, limits: { ...config.limits, modelCalls: 3 } },
+      config: { ...config, limits: { ...config.limits, agentSteps: 3 } },
       readSource: async () => source,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -1100,7 +1244,7 @@ test("completed tool step usage survives a later provider failure", async () => 
 
   const result = await runCatalogResearch(input, {
     client,
-    config: { ...config, limits: { ...config.limits, modelCalls: 2 } },
+    config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
     readSource,
   });
 
@@ -1114,7 +1258,7 @@ test("completed tool step usage survives a later provider failure", async () => 
       inputTokens: 10,
       outputTokens: 20,
       complete: false,
-      modelCostUsd: null,
+      modelCostUsd: 0.125,
       cachedInputTokens: null,
       reasoningTokens: null,
     },

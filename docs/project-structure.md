@@ -8,7 +8,7 @@ tags: [architecture]
 
 # Eventroam project structure
 
-Status: Implemented core structure · Updated: 2026-10-08
+Status: Implemented core structure · Updated: 2026-10-11
 
 Eventroam is one npm package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. A local Mastra research agent proposes catalog changes through a compact operation adapter and the same writer.
 
@@ -41,7 +41,26 @@ src/
 ├── site/
 │   └── server/                # Request adapters; site.ts holds scope and URL rules
 ├── ingestion/                 # Research agent, operation adapter, sources, runtime limits
+│   ├── research/
+│   │   ├── agent/             # Agent implementation and adjacent tests
+│   │   │   ├── index.ts       # Model execution, step policy, callbacks and cleanup
+│   │   │   ├── usage.ts       # Provider usage projection and accumulation
+│   │   │   ├── prompt.ts      # Fixed model instructions
+│   │   │   ├── input.ts       # JSON input, saved context and source projections
+│   │   │   └── wire.ts        # Provider schema and optional-null compatibility
+│   │   ├── context.ts         # Private read context
+│   │   ├── contracts.ts       # Strict research candidate contracts
+│   │   ├── money.ts           # Currency precision conversions
+│   │   └── prepare.ts         # Candidate validation and catalog operations
+│   ├── tools/                 # Read/search capabilities and Mastra adapters
+│   │   ├── read-source/       # Tool, reader, extraction, fallback and contracts
+│   │   ├── discover-sources/  # Tool, search provider and contracts
+│   │   ├── session.ts         # Shared run budget, cache, history and link depth
+│   │   ├── network.ts         # Safe bounded HTTP transport
+│   │   ├── contracts.ts       # Shared schemas and execution context
+│   │   └── index.ts           # Tool composition
 │   └── evals/                 # Captured website cases, Mastra runner and code scorers
+├── mastra/                    # Local Studio workflow and observability registration
 ├── db/                        # Schema, connections, and SQL migrations
 └── test/                      # Temporary databases and data builders
 
@@ -64,11 +83,19 @@ Create additional folders when code needs them. Unit and integration tests live 
 
 ESLint enforces these import boundaries. The writer runs without Next.js. Avoid exports that mix browser-safe contracts with server query implementations.
 
-Within ingestion, `workflow.ts` coordinates context loading, research, candidate preparation, catalog writes, and reporting. `research/context.ts` loads the private catalog context; `research/agent.ts` owns the prompt, model execution, provider diagnostics, and model usage. `sources/session.ts` owns per-run read/search history, caching, and navigation depth, sharing the same budget with the agent. `research/contracts.ts` defines the strict result envelope and explained typed facts; `research/prepare.ts` enforces create-only add, grouped-field conversion, complete ticket replacement, and owner/kind link-slot replacement. It keeps explanation mappings separate from write payloads. `report.ts` joins explanations to actual writer changes and assembles research status, catalog outcome, errors/questions, source summaries, retrieval history, and combined usage. Reasons, source summaries, and name-mismatch metadata remain private and do not extend database audit storage. `runs.ts` owns allowlisted invocation storage and guarded start/final writes, outside catalog item transactions, so preview rollback preserves history. Interrupted/finalization-failed attempts remain running with unknown completion; reruns create new rows. The private run table has nullable Event association and scalar usage/cost/duration projections; migrate before research. `runtime/tracing/run.ts` observes the per-Event apply lifecycle; `runtime/tracing/` builds explicit host input/output/metadata and excludes sensitive SDK-generated payloads before export. Dry-run and injected generators bypass tracing. Shared workflow types live in `contracts.ts` and remain re-exported from the entry point.
+## Ingestion ownership
 
-Research application logging lives in `runtime/logging/` and uses Mastra PinoLogger methods with scoped child context. Producers select plain fields at call sites and shorten selected model text explicitly; they do not pass source Markdown, prompts or full response objects. A small delivery bridge preserves child context and run/trace/span correlation in Studio records because the installed logger exports original arguments separately from native Pino serialization. Logging and tracing share storage ownership in `runtime/observability/`.
+Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `research/prepare.ts` → catalog writer → `report.ts`. Use `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) explains the eight steps and their observable behavior.
 
-Shared observability lives in `runtime/observability/`: storage protects the DuckDB path, the runtime composes optional logging/tracing and owns cleanup, and diagnostics/stderr handling keep observability failures independent of ingestion. Studio imports storage directly. Tracing uses explicit host fields and a narrow SDK-content exclusion; logging does not derive outcomes from trace summaries.
+- `workflow.ts` owns the shared CLI/Studio graph, native serializable state, step results and engine-run-to-attempt lookup. `attempt.ts` owns runtime resources, a memoized finalization promise and idempotent cleanup. Terminal hooks recover paths that bypass the final step without retrying final persistence.
+- `research/context.ts` builds private catalog context and owns its inferred type. `research/agent/index.ts` owns model execution, iteration/deadline policy, retries, usage callbacks and cleanup. Adjacent `prompt.ts`, `input.ts`, `wire.ts` and `usage.ts` own fixed instructions, input/saved-price projection, provider-schema/null adaptation and usage accumulation. `runtime/model-errors.ts` classifies host/provider failures and selects safe diagnostics.
+- `tools/index.ts` composes read/search capabilities. Each tool directory keeps its adapter, implementation, contracts and observations together. `tools/session.ts` owns shared budgets, caching and traversal; `tools/network.ts` provides bounded safe HTTP. Initial reads and eval fixtures reuse the session. `tools/read-source/response.ts` projects source text for the tool and initial prompt.
+- `research/prepare.ts` validates candidates and requested targets, converts prices and proposes atomic operations/publication. The catalog writer validates the resulting committed records. `report.ts` combines research, actual changes and known accounting. `runs.ts` persists durable start/final records outside catalog item transactions, so previews retain history.
+- `runtime/logging/` uses Mastra PinoLogger methods and scoped context. Producers select plain fields and explicitly shorten model text. A small delivery bridge preserves child context and run/trace/span correlation in Studio.
+- `runtime/tracing/run.ts` observes apply attempts through explicit host fields and a narrow SDK-content exclusion. `runtime/observability/` owns DuckDB storage, optional signals, diagnostics and cleanup. Studio lends its initialized store to attempts; attempt cleanup leaves that shared store open.
+- `src/mastra/index.ts` registers local Studio's workflow. Studio opens an existing migrated catalog lazily and closes its owned connection. CLI callers retain injected dependencies and connection ownership. Workflow data contains inspectable research results, while credentials, prompts, provider transport payloads and live resources remain outside it.
+
+## Discovery
 
 Discovery loads complete public summaries for the active scope and applies the same filtering rules on direct server entry and in the browser. The map displays the coordinate-bearing subset of list results; moving the map does not fetch or filter inventory. Full details load on selection. See the [discovery contract](../openspec/specs/website/discovery/spec.md) and [catalog records](../openspec/specs/catalog/records/spec.md).
 
@@ -88,4 +115,4 @@ Release the web application, writer, and schema as one compatible version. For a
 
 Add `src/components/ui/` for common React primitives, and `src/shared/` for small domain-independent utilities. Add more local event-detail components as their roles become concrete.
 
-Open-view freshness and concrete release compatibility checks remain undecided. Collection uses the local TypeScript CLI; server execution and scheduling remain deferred. Production packaging and Docker Compose commands also remain to be implemented. The deployment direction is a single release image containing the Next.js server, separately runnable commands, SQL migrations, and their runtime dependencies; the implementation must verify that each is packaged.
+Open-view freshness and concrete release compatibility checks remain undecided. Collection uses the local TypeScript CLI or loopback Mastra Studio; hosted execution and scheduling remain deferred. Production packaging and Docker Compose commands also remain to be implemented. The deployment direction is a single release image containing the Next.js server, separately runnable commands, SQL migrations, and their runtime dependencies; the implementation must verify that each is packaged.

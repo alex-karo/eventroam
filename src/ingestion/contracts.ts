@@ -1,13 +1,16 @@
+import type { applyCatalogItem } from "@/catalog/write/apply-operation";
+import type { ResearchContext } from "./research/context";
+import type { ResearchExecution } from "./research/agent";
+import type { prepareResearch } from "./research/prepare";
 import type Database from "better-sqlite3";
+import type { DuckDBStore } from "@mastra/duckdb";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 import type { ResearchBudget, ResearchLimits } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
-import type { readSource } from "./sources/read-source";
-import type { discoverSources } from "./sources/discover-sources";
-import type {
-  ReadSourceResult,
-  DiscoverSourcesResult,
-} from "./sources/contracts";
+import type { readSource } from "./tools/read-source/read";
+import type { discoverSources } from "./tools/discover-sources/search";
+import type { ReadSourceResult } from "./tools/read-source/contracts";
+import type { DiscoverSourcesResult } from "./tools/discover-sources/contracts";
 import type {
   ResearchError,
   ResearchQuestion,
@@ -68,6 +71,7 @@ export type CatalogResearchResult = {
     outputTokens: number;
     cachedInputTokens?: number | null;
     reasoningTokens?: number | null;
+    /** Sum of reported model costs; may be partial. Null when none are known. */
     modelCostUsd: number | null;
     searchCostUsd: number;
     searchCostBasis?: "estimate";
@@ -83,6 +87,8 @@ export type CatalogResearchResult = {
 
 export type ResearchDependencies = {
   client: Database.Database;
+  /** Shared local Studio observability store; the caller owns its lifetime. */
+  observabilityStore?: DuckDBStore;
   config?: ResearchConfig;
   /** Protect the selected optional report destination from observability writes. */
   reportPath?: string;
@@ -101,3 +107,42 @@ export type ResearchDependencies = {
     },
   ) => Promise<unknown>;
 };
+/** Serializable research accumulated by native Mastra workflow state. */
+export type IngestionData = {
+  context: ResearchContext | null;
+  reads: ReadSourceResult[];
+  discovery: DiscoverSourcesResult[];
+  research: ResearchExecution;
+  prepared: ReturnType<typeof prepareResearch> | null;
+  applied: ReturnType<typeof applyCatalogItem> | null;
+  writeFailed: boolean;
+  errors: ResearchError[];
+  unresolved: ResearchQuestion[];
+  report: CatalogResearchResult | null;
+};
+
+export function createIngestionData(): IngestionData {
+  return {
+    context: null,
+    reads: [],
+    discovery: [],
+    research: {
+      ok: false,
+      errors: [],
+      usage: {
+        complete: false,
+        inputTokens: 0,
+        outputTokens: 0,
+        cachedInputTokens: null,
+        reasoningTokens: null,
+        modelCostUsd: null,
+      },
+    },
+    prepared: null,
+    applied: null,
+    writeFailed: false,
+    errors: [],
+    unresolved: [],
+    report: null,
+  };
+}

@@ -5,7 +5,7 @@ import type {
   CatalogOperationMeta,
   CatalogPrice,
 } from "@/catalog/operations/operation";
-import type { readResearchCatalog } from "@/catalog/read/research";
+import type { ResearchCatalog } from "./context";
 import type { CatalogResearchInput } from "../contracts";
 import {
   researchCandidateSchema,
@@ -16,7 +16,6 @@ import {
 } from "./contracts";
 import { majorToMinor } from "./money";
 
-export type ResearchCatalog = ReturnType<typeof readResearchCatalog>;
 type Event = ResearchCatalog[number];
 type Edition = ResearchData["editions"][number];
 type DraftOperation = CatalogOperation extends infer Op
@@ -399,7 +398,6 @@ export function prepareResearch(
   catalog: ResearchCatalog,
   input: CatalogResearchInput,
   terms: Term[],
-  maxSources = 20,
 ): PreparedResearch {
   const result: PreparedResearch = {
     validation: { structural: "failed", target: "not_run" },
@@ -438,16 +436,6 @@ export function prepareResearch(
     return result;
   }
   const data = candidate.data!;
-  if (data.sources.length > maxSources) {
-    result.validationIssues = [
-      {
-        code: "source_budget_exceeded",
-        field: "data.sources",
-        stage: "validation",
-      },
-    ];
-    return invalid(result, "Source summaries exceed the page budget");
-  }
   const matchedEventId = data.eventId ?? input.eventId;
   const event = catalog.find((item) => item.id === matchedEventId);
   if (

@@ -63,7 +63,7 @@ Synchronous SQLite calls are acceptable for short local queries and writes at th
 
 ### Repository layout and quality checks
 
-The initial scaffold used `src/domain` and `src/application`; the adopted layout is specified in the [project structure](../project-structure.md). Keep routes in `src/app`, feature UI and pure discovery logic in `src/features`, reusable components in `src/components`, catalog rules and operations in `src/catalog`, request adapters in `src/site/server`, and schema and connections in `src/db`. Put reviewed migrations in `src/db/migrations`; colocate focused tests and add browser journeys in `tests/e2e` when implemented. These are directory responsibilities, not separate packages.
+The initial scaffold used `src/domain` and `src/application`; the adopted layout is specified in the [project structure](../project-structure.md). Keep routes in `src/app`, feature UI and pure discovery logic in `src/features`, reusable components in `src/components`, catalog rules and operations in `src/catalog`, request adapters in `src/site/server`, and schema and connections in `src/db`. Put reviewed migrations in `src/db/migrations`; colocate focused tests and keep the implemented browser journeys in `e2e/`. These are directory responsibilities, not separate packages.
 
 Vitest covers normalization, filter/date boundaries, publication rules, and real persistence transactions. Browser tests cover the desktop combined view, mobile switch, URL restoration, on-demand details, direct SSR entry, missing coordinates, and scope isolation. Test async Server Component behavior through the running app: Next's [Vitest guide](https://nextjs.org/docs/app/guides/testing/vitest) explicitly directs those cases toward end-to-end testing. Use deterministic fixtures and avoid live source sites or map-vendor calls in routine tests.
 
@@ -77,7 +77,7 @@ Review stable release updates as maintenance changes. The Node policy remains la
 
 ## Deferred decisions
 
-- Agent execution, operation transport, command contracts, and AI/scraping tooling wait for the next iteration, per the owner. Do not introduce an agent SDK or command framework now.
+- The original decision deferred agent execution and AI/source tooling. Owner-initiated local research has since been implemented with Mastra, OpenRouter, bounded HTTP reads and optional Firecrawl; its current boundaries are in the [project structure](../project-structure.md#ingestion-ownership) and [source workflow spec](../../openspec/specs/catalog/source-workflow/spec.md). Hosted execution and scheduling remain deferred.
 - The exact Mapbox style, token values, budget limits, and any ingestion geocoder remain open. The v1 locality/country filter can use catalog fields without a geocoding service. Configure the selected style, tokens, attribution, and usage monitoring before public deployment.
 - Production hosting vendor, ingress/TLS tooling, backup destination/schedule, and monitoring service remain deployment decisions. Supporting several scope hostnames does not require a multi-service deployment.
 - Discovery payload schemas are implemented in the application. The confirmed requirement is all summaries with details on selection and no map-area fetching; the current application filters the complete scope summary set in the browser with shared server-rendering rules.

@@ -12,9 +12,8 @@ export const DEFAULT_RESEARCH_MODEL = "openai/gpt-6-luna";
 
 const ENV_LIMITS: Record<keyof ResearchLimits, string> = {
   searches: "CATALOG_MAX_SEARCHES",
-  pages: "CATALOG_MAX_PAGES",
   depth: "CATALOG_MAX_DEPTH",
-  modelCalls: "CATALOG_MAX_MODEL_CALLS",
+  agentSteps: "CATALOG_MAX_AGENT_STEPS",
   durationMs: "CATALOG_MAX_DURATION_MS",
   pageBytes: "CATALOG_MAX_PAGE_BYTES",
   modelInputChars: "CATALOG_MAX_MODEL_INPUT_CHARS",

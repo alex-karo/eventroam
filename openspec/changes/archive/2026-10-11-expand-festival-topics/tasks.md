@@ -16,3 +16,5 @@
 - Lint, formatting, docs:check, openspec:validate, and git diff --check passed.
 - Full type-check reports existing obsolete `gaps` references in four ignored local experiment scripts under data/. Project type-check with data/ excluded passed; those scripts were not edited.
 - No migration files or existing databases were changed. Live model evals and browser tests were not needed for this vocabulary/publication change.
+
+- After integrating updated main: 478 tests passed across 43 files; type-check, lint, formatting, docs:check, openspec:validate, and diff checks passed in the clean temporary worktree. Activity guidance was moved into the refactored agent/prompt.ts module. Checks used the available Node 26.11.1/npm 11.20.0 runtime without changing the repository runtime pins.
