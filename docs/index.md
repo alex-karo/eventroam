@@ -24,11 +24,12 @@ Website:
 
 ## Active changes
 
-- [Clearer discovery filters](../openspec/changes/improve-discovery-filter-feedback/proposal.md) — implemented selected-value chips, pending result counts, searchable location choices, and nearby-month buttons; pending archive.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
 ## Archived changes
+
+- [Clearer discovery filters](../openspec/changes/archive/2026-10-11-improve-discovery-filter-feedback/proposal.md) — readable value chips, pending result counts, searchable locations, and nearby-month buttons.
 
 - [Clearer ingestion traces](../openspec/changes/archive/2026-10-09-clarify-ingestion-traces/proposal.md) — readable Event/edition labels, bounded safe source diagnostics, and apply-run outcomes.
 - [Durable ingestion run records](../openspec/changes/archive/2026-10-09-add-ingestion-run-records/proposal.md) — implemented per-festival start/final history, private reports, and known usage/costs, including dry runs.
