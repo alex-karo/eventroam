@@ -55,7 +55,7 @@ test("populated catalog migration preserves identities, foreign keys, indexes an
       expect(client.pragma("integrity_check", { simple: true })).toBe("ok");
       expect(
         client
-          .prepare("SELECT id,event_id,price_details,version FROM occurrences")
+          .prepare("SELECT id,event_id,price_details,version FROM editions")
           .get(),
       ).toEqual({
         id: "edition-old",
@@ -73,8 +73,8 @@ test("populated catalog migration preserves identities, foreign keys, indexes an
         id: "link-old",
       });
       expect(
-        (client.pragma("index_list('occurrences')") as { name: string }[]).some(
-          (index) => index.name === "occurrences_event_key_uq",
+        (client.pragma("index_list('editions')") as { name: string }[]).some(
+          (index) => index.name === "editions_event_key_uq",
         ),
       ).toBe(true);
       expect(() =>
@@ -92,12 +92,12 @@ test("populated catalog migration preserves identities, foreign keys, indexes an
       expect(() =>
         client
           .prepare(
-            "UPDATE occurrences SET price_details='{}' WHERE id='edition-old'",
+            "UPDATE editions SET price_details='{}' WHERE id='edition-old'",
           )
           .run(),
       ).toThrow();
       expect(
-        (client.pragma("table_info('occurrences')") as { name: string }[]).map(
+        (client.pragma("table_info('editions')") as { name: string }[]).map(
           (column) => column.name,
         ),
       ).not.toContain("ticket_availability");
@@ -110,8 +110,8 @@ test("populated catalog migration preserves identities, foreign keys, indexes an
 });
 
 // Exercise the migration from each released schema, with every catalog table populated.
-for (const from of [0, 1, 2, 3]) {
-  test(`catalog cleanup migration preserves retained data from 000${from}`, async () => {
+for (const from of [0, 1, 2, 3, 4]) {
+  test(`catalog migration preserves retained data from 000${from}`, async () => {
     const { testFixtures } = await import("@/test/fixtures");
     const directory = mkdtempSync(
       join(tmpdir(), "eventroam-validation-migration-"),
@@ -168,7 +168,7 @@ for (const from of [0, 1, 2, 3]) {
           ('festivals','/events/festival','event',NULL,'2026-10-01'),
           ('festivals','/events/festival/2027','event','edition','2026-10-01');
       `;
-      if (from === 3) {
+      if (from >= 3) {
         seedSql = seedSql
           .replace(
             /        INSERT INTO sources[\s\S]*?INSERT INTO external_links/,
@@ -178,6 +178,10 @@ for (const from of [0, 1, 2, 3]) {
           .replace("1,'source','2026-10-01'", "1,'2026-10-01'");
       }
       client.exec(seedSql);
+      client.exec(`UPDATE occurrences SET version=7,display_name='Second weekend',capacity_estimate=9000,
+        venue_name='Park',venue_address='Main Street',administrative_area='Lisbon',latitude=38.72,longitude=-9.14,
+        coordinate_precision='exact',time_zone='Europe/Lisbon';
+        UPDATE events SET version=3,aliases='["Other name"]',summary='Known summary';`);
       if (from >= 1) {
         client
           .prepare(
@@ -204,7 +208,7 @@ for (const from of [0, 1, 2, 3]) {
           "audit",
           event.id,
           1,
-          '[{"field":"summary","oldValue":null,"newValue":"Known"}]',
+          '[{"field":"occurrence_year","oldValue":2026,"newValue":2027}]',
           "op",
           "owner",
           "2026-10-01",
@@ -213,7 +217,12 @@ for (const from of [0, 1, 2, 3]) {
         .prepare(
           "INSERT INTO operation_receipts(operation_key,payload_hash,result,applied_at) VALUES(?,?,?,?)",
         )
-        .run("op", "hash", '{"changed":true}', "2026-10-01");
+        .run(
+          "op",
+          "hash",
+          '{"id":"edition","version":7,"changed":true,"occurrenceKey":"2027"}',
+          "2026-10-01",
+        );
       const tables = [
         "events",
         "occurrences",
@@ -224,12 +233,27 @@ for (const from of [0, 1, 2, 3]) {
         "catalog_changes",
         "operation_receipts",
       ];
+      if (from === 4) {
+        const report =
+          '{"schemaVersion":2,"mode":"refresh","runId":"old-run","operations":[{"kind":"updateOccurrence","data":{"occurrenceYear":2027}}]}';
+        client
+          .prepare(
+            `INSERT INTO ingestion_runs(id,event_id,mode,status,started_at,finished_at,input_json,report_json,input_tokens,output_tokens,search_cost_estimate_usd,duration_ms,usage_complete)
+          VALUES('old-run','event','refresh','completed','2026-10-01','2026-10-01','{"mode":"refresh"}',?,0,0,0,1,1)`,
+          )
+          .run(report);
+        tables.push("ingestion_runs");
+      }
+      const currentName = (name: string) =>
+        name.replaceAll("occurrence", "edition");
       const snapshot = () =>
         Object.fromEntries(
           tables.map((table) => [
-            table,
+            currentName(table),
             client
-              .prepare(`SELECT * FROM ${table} ORDER BY rowid`)
+              .prepare(
+                `SELECT * FROM ${client.prepare("SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?").get(table) ? table : currentName(table)} ORDER BY rowid`,
+              )
               .all()
               .map((record) => {
                 const retained = { ...(record as Record<string, unknown>) };
@@ -238,13 +262,18 @@ for (const from of [0, 1, 2, 3]) {
                 } else if (table === "external_links") {
                   delete retained.source_id;
                 }
-                return retained;
+                return Object.fromEntries(
+                  Object.entries(retained).map(([key, value]) => [
+                    currentName(key),
+                    value,
+                  ]),
+                );
               }),
           ]),
         );
       const before = snapshot();
       if (from === 0) {
-        before.occurrences = before.occurrences.map((record) => ({
+        before.editions = before.editions.map((record) => ({
           ...(record as object),
           price_details: "[]",
         }));
@@ -254,11 +283,27 @@ for (const from of [0, 1, 2, 3]) {
           .prepare(
             "SELECT name FROM sqlite_schema WHERE type='index' AND tbl_name NOT IN ('sources','source_subjects','ingestion_runs') ORDER BY name",
           )
-          .all();
+          .all()
+          .map((row) => ({ name: currentName((row as { name: string }).name) }))
+          .sort((a, b) => a.name.localeCompare(b.name));
       const beforeIndexes = indexes();
       migrateCatalogConnection(connection);
       expect(snapshot()).toEqual(before);
       expect(indexes()).toEqual(beforeIndexes);
+      expect(
+        client
+          .prepare(
+            "SELECT name FROM sqlite_schema WHERE sql LIKE '%occurrence%' AND name != '__drizzle_migrations'",
+          )
+          .all(),
+      ).toEqual([]);
+      if (from === 4) {
+        expect(() =>
+          client.exec(
+            "UPDATE ingestion_runs SET report_json=json_set(report_json,'$.schemaVersion',3) WHERE id='old-run'",
+          ),
+        ).toThrow(/ingestion_runs_report_ck/);
+      }
       expect(
         client
           .prepare(
@@ -267,7 +312,7 @@ for (const from of [0, 1, 2, 3]) {
           .all(),
       ).toEqual([]);
       expect(
-        (client.pragma("table_info('occurrences')") as { name: string }[]).map(
+        (client.pragma("table_info('editions')") as { name: string }[]).map(
           (column) => column.name,
         ),
       ).not.toContain("ticket_availability");
@@ -284,7 +329,7 @@ for (const from of [0, 1, 2, 3]) {
         )
           .map((foreignKey) => foreignKey.table)
           .sort(),
-      ).toEqual(["events", "occurrences"]);
+      ).toEqual(["editions", "events"]);
       const migrations = client
         .prepare("SELECT * FROM __drizzle_migrations")
         .all();
@@ -306,9 +351,9 @@ for (const from of [0, 1, 2, 3]) {
         { name: "catalog_changes_immutable_delete" },
         { name: "catalog_changes_immutable_update" },
         { name: "taxonomy_parent_cycle_update" },
+        { name: "url_aliases_edition_owner_insert" },
         { name: "url_aliases_immutable_delete" },
         { name: "url_aliases_immutable_update" },
-        { name: "url_aliases_occurrence_owner_insert" },
       ]);
       expect(() =>
         client
@@ -329,7 +374,7 @@ for (const from of [0, 1, 2, 3]) {
       expect(() =>
         client
           .prepare(
-            "INSERT INTO url_aliases(scope,path,event_id,occurrence_id,created_at) VALUES('festivals','/wrong-owner',?,?, '2026-10-01')",
+            "INSERT INTO url_aliases(scope,path,event_id,edition_id,created_at) VALUES('festivals','/wrong-owner',?,?, '2026-10-01')",
           )
           .run(other.id, edition.id),
       ).toThrow(/belong/);

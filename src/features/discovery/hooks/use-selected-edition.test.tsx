@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import type { PublicOccurrence } from "@/catalog/read/contracts";
+import type { PublicEdition } from "@/catalog/read/contracts";
 import { testFixtures } from "@/test/fixtures";
 import { useSelectedEdition } from "./use-selected-edition";
 
-const edition: PublicOccurrence = {
+const edition: PublicEdition = {
   ...testFixtures().build.summary({ id: "edition-1" }),
   eventId: "event-1",
   venueAddress: null,

@@ -331,7 +331,7 @@ test("create dry run explains actual changes and rolls back catalog and audit", 
     "starts_on",
     "ends_on",
     "date_state",
-    "occurrence_year",
+    "edition_year",
     "locality",
     "country_code",
     "terms",
@@ -521,8 +521,8 @@ test("cancellation and grouped clearing explain only changed writer fields", asy
   const { client, readSource } = fixture();
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
-  const edition = fx.occurrence(event, {
-    occurrenceKey: "2027",
+  const edition = fx.edition(event, {
+    editionKey: "2027",
     latitude: 38.72,
     longitude: -9.14,
     coordinatePrecision: "approximate",
@@ -593,7 +593,7 @@ test("taxonomy add/remove reasons combine and ticket block reasons follow actual
   const { client, readSource } = fixture();
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
-  const edition = fx.occurrence(event, { occurrenceKey: "2027" });
+  const edition = fx.edition(event, { editionKey: "2027" });
   const oldTerm = fx.term();
   const newTerm = fx.term();
   fx.assignTerm(edition, oldTerm);

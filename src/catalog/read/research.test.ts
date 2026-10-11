@@ -14,7 +14,7 @@ test("private research context retains drafts, links, classification and variant
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Private Festival" });
-  const edition = fx.occurrence(event, { occurrenceKey: "2028" });
+  const edition = fx.edition(event, { editionKey: "2028" });
   fx.festivalTerms();
   fx.assignTerm(edition, { id: "test-festival" });
   fx.eventLink(event, { url: "https://example.org", kind: "official_site" });
@@ -52,7 +52,7 @@ test("private research context retains drafts, links, classification and variant
     drizzle(client)
       .select()
       .from(catalogChanges)
-      .where(eq(catalogChanges.occurrenceId, edition.id))
+      .where(eq(catalogChanges.editionId, edition.id))
       .get(),
   ).toMatchObject({
     actor: "catalog-agent",

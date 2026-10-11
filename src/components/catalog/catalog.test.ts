@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
-import type { PublicOccurrence } from "@/catalog/read/contracts";
+import type { PublicEdition } from "@/catalog/read/contracts";
 import {
   Status,
   TicketCategories,
@@ -9,7 +9,7 @@ import {
   linkLabel,
 } from "@/components/catalog/catalog";
 
-const edition: PublicOccurrence = {
+const edition: PublicEdition = {
   id: "edition",
   eventId: "event",
   key: "2027",
@@ -39,7 +39,7 @@ const edition: PublicOccurrence = {
   links: [],
 };
 
-const render = (fields: Partial<PublicOccurrence>) =>
+const render = (fields: Partial<PublicEdition>) =>
   renderToStaticMarkup(
     createElement(TicketPrice, {
       edition: { ...edition, ...fields },
@@ -90,7 +90,7 @@ test("ticket statuses appear only beside named categories", () => {
   expect(linkLabel("x")).toBe("X (Twitter)");
 });
 
-test("Occurrence ticket output scales original-currency minor units", () => {
+test("Edition ticket output scales original-currency minor units", () => {
   const exact = {
     priceKind: "exact" as const,
     priceCurrency: "EUR",
@@ -105,7 +105,7 @@ test("Occurrence ticket output scales original-currency minor units", () => {
   );
 });
 
-test("Occurrence ticket output preserves from, range, free, coverage and qualification", () => {
+test("Edition ticket output preserves from, range, free, coverage and qualification", () => {
   expect(
     render({
       priceKind: "from",

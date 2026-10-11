@@ -51,11 +51,11 @@ const eventData = z
     summary: z.string().max(2000).nullable().optional(),
   })
   .strict();
-const occurrenceData = z
+const editionData = z
   .object({
-    occurrenceKey: slug,
+    editionKey: slug,
     displayName: z.string().trim().min(1).max(250).nullable().optional(),
-    occurrenceYear: z.number().int().min(1).max(9999).nullable().optional(),
+    editionYear: z.number().int().min(1).max(9999).nullable().optional(),
     startsOn: localDate.nullable().optional(),
     endsOn: localDate.nullable().optional(),
     dateState: z.enum(dateStates).optional(),
@@ -103,15 +103,15 @@ export const catalogOperationSchema = z.discriminatedUnion("kind", [
     data: eventData.partial(),
   }),
   common.extend({
-    kind: z.literal("createOccurrence"),
+    kind: z.literal("createEdition"),
     eventId: z.string().min(1),
-    data: occurrenceData.required({ occurrenceKey: true }),
+    data: editionData.required({ editionKey: true }),
   }),
   common.extend({
-    kind: z.literal("updateOccurrence"),
+    kind: z.literal("updateEdition"),
     id: z.string().min(1),
     expectedVersion: z.number().int().positive(),
-    data: occurrenceData.omit({ occurrenceKey: true, price: true }).partial(),
+    data: editionData.omit({ editionKey: true, price: true }).partial(),
   }),
   common.extend({
     kind: z.literal("publishEvent"),
@@ -119,7 +119,7 @@ export const catalogOperationSchema = z.discriminatedUnion("kind", [
     expectedVersion: z.number().int().positive(),
   }),
   common.extend({
-    kind: z.literal("publishOccurrence"),
+    kind: z.literal("publishEdition"),
     id: z.string().min(1),
     expectedVersion: z.number().int().positive(),
   }),
@@ -129,7 +129,7 @@ export const catalogOperationSchema = z.discriminatedUnion("kind", [
     expectedVersion: z.number().int().positive(),
   }),
   common.extend({
-    kind: z.literal("withdrawOccurrence"),
+    kind: z.literal("withdrawEdition"),
     id: z.string().min(1),
     expectedVersion: z.number().int().positive(),
   }),
@@ -143,7 +143,7 @@ export const catalogOperationSchema = z.discriminatedUnion("kind", [
     kind: z.literal("replaceLinks"),
     owner: z.discriminatedUnion("type", [
       z.object({ type: z.literal("event"), id: z.string().min(1) }),
-      z.object({ type: z.literal("occurrence"), id: z.string().min(1) }),
+      z.object({ type: z.literal("edition"), id: z.string().min(1) }),
     ]),
     expectedVersion: z.number().int().positive(),
     links: z

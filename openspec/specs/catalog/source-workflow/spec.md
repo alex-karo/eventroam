@@ -41,7 +41,7 @@ The system SHALL start discovery, source checks, and refreshes only through an o
 - **AND** the default output allowance is 16,000 tokens per model call, including reasoning, overridable through `CATALOG_MAX_MODEL_OUTPUT_TOKENS`
 
 ### Requirement: Local catalog commands target Events without operator labels
-The local catalog CLI SHALL accept a festival name for `add`, exactly one Event ID for `refresh`, and one or more Event IDs for `check`. It SHALL NOT require an operator name or accept an Occurrence ID as a target. Applied changes SHALL retain the fixed research actor in audit history; the initiating owner MAY be absent.
+The local catalog CLI SHALL accept a festival name for `add`, exactly one Event ID for `refresh`, and one or more Event IDs for `check`. It SHALL NOT require an operator name or accept an Edition ID as a target. Applied changes SHALL retain the fixed research actor in audit history; the initiating owner MAY be absent.
 
 #### Scenario: Add without an operator name
 - **WHEN** a local user starts `add` with a festival name and no operator name
@@ -52,11 +52,11 @@ The local catalog CLI SHALL accept a festival name for `add`, exactly one Event 
 - **THEN** each Event is researched independently with its relevant editions
 
 #### Scenario: Unsupported CLI targets
-- **WHEN** a local user supplies an operator or Occurrence target flag
+- **WHEN** a local user supplies an operator or Edition target flag
 - **THEN** the CLI rejects the unsupported flag before research starts
 
 ### Requirement: Festival addition covers historical and announced editions
-The system SHALL research a new festival's identity, latest completed edition, and next announced edition, collect official links, and produce a short factual English Event description from the model’s source interpretation. Edition-specific facts SHALL remain associated with their own Occurrences. Missing information SHALL remain unknown; an unannounced next edition SHALL NOT be invented from prior-year dates or location.
+The system SHALL research a new festival's identity, latest completed edition, and next announced edition, collect official links, and produce a short factual English Event description from the model’s source interpretation. Edition-specific facts SHALL remain associated with their own Editions. Missing information SHALL remain unknown; an unannounced next edition SHALL NOT be invented from prior-year dates or location.
 
 #### Scenario: Both editions are documented
 - **WHEN** official sources document the latest completed edition and the next announced edition
@@ -64,14 +64,14 @@ The system SHALL research a new festival's identity, latest completed edition, a
 
 #### Scenario: No next edition is announced
 - **WHEN** the inspected sources support a completed edition but no next edition
-- **THEN** the run retains the supported history and reports that no next announcement was found in those sources without creating a forecast Occurrence
+- **THEN** the run retains the supported history and reports that no next announcement was found in those sources without creating a forecast Edition
 
 ### Requirement: Existing events can be validated and refreshed
 The system SHALL support research of existing Event and edition information and apply the model's proposed changes through catalog operations. Missing optional information SHALL NOT block other proposed changes or eligible publication.
 
 #### Scenario: Existing venue changes
-- **WHEN** the model proposes a new venue for an existing Occurrence
-- **THEN** the refresh updates that Occurrence while preserving other editions' locations and reporting unresolved fields
+- **WHEN** the model proposes a new venue for an existing Edition
+- **THEN** the refresh updates that Edition while preserving other editions' locations and reporting unresolved fields
 
 ### Requirement: Known links can be checked for new information
 The system SHALL support checks of known event and edition links for new or changed information, including dates, location, and ticket availability. A page-content change alone SHALL NOT write a catalog change; the model must propose a changed catalog value. Checks MAY use the same collection process as a full refresh; a separate monitoring engine or stored page-diff history is not required.
@@ -105,7 +105,7 @@ For `refresh` and `check`, research SHALL load only the requested Event's privat
 - **THEN** refresh/check may link a new edition to the existing Event; add returns skipped with that Event ID and creates nothing
 
 ### Requirement: Model output is accepted as the research decision
-The model SHALL select the Event, editions, facts, and links from inspected material. The host SHALL accept its factual interpretation without verifying citations, source authority, ticket-link provenance, contradictions, or supersession. Schema validation, result-status consistency, required explanations, and requested Event/Occurrence target checks SHALL still apply.
+The model SHALL select the Event, editions, facts, and links from inspected material. The host SHALL accept its factual interpretation without verifying citations, source authority, ticket-link provenance, contradictions, or supersession. Schema validation, result-status consistency, required explanations, and requested Event/Edition target checks SHALL still apply.
 
 #### Scenario: A source claim is semantically wrong
 - **WHEN** the model returns a structurally valid but mistaken fact
@@ -177,7 +177,7 @@ The system SHALL let the owner inspect a transient diff of proposed catalog chan
 - **AND** its run record and final preview report persist
 
 #### Scenario: Dry-run addition has transient catalog identifiers
-- **WHEN** dry-run previews creating an Event and its Occurrences
+- **WHEN** dry-run previews creating an Event and its Editions
 - **THEN** those catalog rows, versions, audit entries, and receipts are rolled back
 - **AND** the finalized run report retains the preview, including transient identifiers, without requiring those identifiers to reference retained catalog records
 
@@ -185,7 +185,7 @@ The system SHALL let the owner inspect a transient diff of proposed catalog chan
 The system SHALL apply and publish model-proposed, structurally eligible records directly through catalog operations, with atomic audit history and no per-item or batch approval task.
 
 #### Scenario: Complete new festival
-- **WHEN** an owner-initiated run proposes a new in-scope Event and Occurrence with all structurally required publication facts
+- **WHEN** an owner-initiated run proposes a new in-scope Event and Edition with all structurally required publication facts
 - **THEN** the apply operation publishes them, records the changes atomically, and reports stable identifiers
 
 ### Requirement: Interrupted collection can be rerun from current state
@@ -201,7 +201,7 @@ After interruption, a new owner-initiated run SHALL reload the catalog and resea
 - **AND** a new owner-initiated attempt has a different runId and starts from current catalog state
 
 ### Requirement: One research result governs each atomic catalog update
-Research SHALL produce one final structured result. Only valid success or partial data for the requested Event/Occurrence targets SHALL produce catalog operations; omitted values SHALL be preserved. Failed or invalid results SHALL produce no operations or automatic model correction attempts. Catalog updates SHALL enforce structural, version, no-op, and publication rules atomically: an invalid operation SHALL leave the whole item unchanged.
+Research SHALL produce one final structured result. Only valid success or partial data for the requested Event/Edition targets SHALL produce catalog operations; omitted values SHALL be preserved. Failed or invalid results SHALL produce no operations or automatic model correction attempts. Catalog updates SHALL enforce structural, version, no-op, and publication rules atomically: an invalid operation SHALL leave the whole item unchanged.
 
 #### Scenario: A validated proposal violates catalog constraints
 - **WHEN** a proposal passes candidate validation but violates catalog constraints, such as clearing dates while retaining scheduled status
@@ -693,7 +693,7 @@ Run records SHALL expose input_tokens, output_tokens, model_cost_usd, search_cos
 - **THEN** the columns retain those counts and the subtotal, and set usage_complete to false without claiming complete spending
 
 ### Requirement: Eval acceptance distinguishes host failures from expected research failure
-Eval output SHALL preserve runId and available report data when finalization fails and SHALL identify safe host workflow/persistence failures. Those failures SHALL invalidate eval acceptance even when research/catalog outcomes are successful or a source-failure case otherwise meets expectations. Historical version 2 reports lacking additive runId/searchCostBasis fields SHALL remain readable.
+Eval output SHALL preserve runId and available report data when finalization fails and SHALL identify safe host workflow/persistence failures. Those failures SHALL invalidate eval acceptance even when research/catalog outcomes are successful or a source-failure case otherwise meets expectations. New reports SHALL retain version 2 and use the active Edition contract. Reading/scoring historical reports SHALL NOT require compatibility adapters or conversion; those reports are unsupported and SHALL remain stored unchanged.
 
 #### Scenario: A late workflow error follows useful research
 - **WHEN** an eval report retains successful research and a non-failed catalog outcome but contains workflow_failed
@@ -707,6 +707,11 @@ Eval output SHALL preserve runId and available report data when finalization fai
 #### Scenario: Expected source failure also has a host failure
 - **WHEN** a blocked-source case otherwise matches its expected failed research but contains workflow_failed or run_persistence_failed
 - **THEN** it fails eval acceptance; expected source failure alone remains acceptable when all existing criteria hold
+
+#### Scenario: Historical reports remain opaque storage
+- **WHEN** the Edition rename updates active report/eval contracts
+- **THEN** newly generated reports remain version 2 and use Edition operations/fields; old stored report JSON remains unchanged
+- **AND** current consumers are not required to read or score old reports; no adapters or conversion are introduced
 
 ### Requirement: Run records remain private bounded reports
 Run input SHALL include only normalized operation settings and safe configuration metadata. Stored final reports SHALL retain the existing private report contract, including final model output, without storing credentials, environment dumps, prompts, full source pages, provider transport payloads, headers, or raw exception messages. Run records SHALL NOT be exposed through public website reads.
@@ -937,7 +942,7 @@ Ingestion SHALL disable automatic retries/restart recovery and reject per-step s
 - **THEN** research current state under a new ingestion ID without modifying or resuming the unfinished attempt
 
 ### Requirement: Research uses Mastra agent limits without a page-count cap
-CLI and Studio research SHALL use Mastra iteration and generation-time limits instead of a separate ordinary model-call limiter and generation timer. Page reads SHALL have no count cap. Search/depth/size safeguards, the attempt deadline outside generation and existing retry policy SHALL remain. Counts and known usage SHALL remain reportable, with historical version-2 reports readable.
+CLI and Studio research SHALL use Mastra iteration and generation-time limits instead of a separate ordinary model-call limiter and generation timer. Page reads SHALL have no count cap. Search/depth/size safeguards, the attempt deadline outside generation and existing retry policy SHALL remain. Counts and known usage SHALL remain reportable. Active reports SHALL use version 2 with Edition contracts; historical report reading is unsupported and SHALL NOT require conversion.
 
 #### Scenario: Read beyond the old cap
 - **WHEN** research reads additional pages within retained safeguards

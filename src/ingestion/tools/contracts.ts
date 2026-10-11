@@ -25,7 +25,7 @@ export const remainingSchema = z.object({
 
 export type KnownSourceLink = {
   url: string;
-  owner: "event" | "occurrence";
+  owner: "event" | "edition";
   kind: string;
   official: boolean;
   editionKey?: string;

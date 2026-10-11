@@ -117,7 +117,7 @@ test("native create and stream expose preview, then apply under a fresh ingestio
   try {
     expect(
       catalog
-        .prepare("SELECT COUNT(*) count FROM occurrences WHERE event_id=?")
+        .prepare("SELECT COUNT(*) count FROM editions WHERE event_id=?")
         .get(STUDIO_FIXTURE_EVENT_ID),
     ).toEqual({ count: 0 });
   } finally {
@@ -140,7 +140,7 @@ test("native create and stream expose preview, then apply under a fresh ingestio
   try {
     expect(
       afterApply
-        .prepare("SELECT COUNT(*) count FROM occurrences WHERE event_id=?")
+        .prepare("SELECT COUNT(*) count FROM editions WHERE event_id=?")
         .get(STUDIO_FIXTURE_EVENT_ID),
     ).toEqual({ count: 1 });
   } finally {
@@ -259,7 +259,7 @@ test("native cancel route closes an in-flight run without later catalog writes",
     try {
       expect(
         client
-          .prepare("SELECT COUNT(*) count FROM occurrences WHERE event_id=?")
+          .prepare("SELECT COUNT(*) count FROM editions WHERE event_id=?")
           .get(STUDIO_FIXTURE_EVENT_ID),
       ).toEqual({ count: 0 });
     } finally {
@@ -319,7 +319,7 @@ test("final persistence failure keeps the committed catalog change and hides the
     try {
       expect(
         client
-          .prepare("SELECT COUNT(*) count FROM occurrences WHERE event_id=?")
+          .prepare("SELECT COUNT(*) count FROM editions WHERE event_id=?")
           .get(STUDIO_FIXTURE_EVENT_ID),
       ).toEqual({ count: 1 });
     } finally {

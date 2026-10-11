@@ -1,7 +1,7 @@
-import type { PublicOccurrence } from "@/catalog/read/contracts";
+import type { PublicEdition } from "@/catalog/read/contracts";
 import { editionPath } from "@/site/site";
 
-export function Dates({ edition }: Readonly<{ edition: PublicOccurrence }>) {
+export function Dates({ edition }: Readonly<{ edition: PublicEdition }>) {
   const format = (date: string) =>
     new Intl.DateTimeFormat("en", {
       dateStyle: "medium",
@@ -24,7 +24,7 @@ export function Dates({ edition }: Readonly<{ edition: PublicOccurrence }>) {
     </p>
   );
 }
-export function Location({ edition }: Readonly<{ edition: PublicOccurrence }>) {
+export function Location({ edition }: Readonly<{ edition: PublicEdition }>) {
   const place = [
     edition.venueName,
     edition.locality,
@@ -52,7 +52,7 @@ export function linkLabel(kind: string): string {
   return kind === "x" ? "X (Twitter)" : kind.replaceAll("_", " ");
 }
 
-export function Status({ edition }: Readonly<{ edition: PublicOccurrence }>) {
+export function Status({ edition }: Readonly<{ edition: PublicEdition }>) {
   return <p>{statusLabels[edition.status]}</p>;
 }
 
@@ -64,7 +64,7 @@ const availabilityLabels = {
 
 export function TicketCategories({
   edition,
-}: Readonly<{ edition: PublicOccurrence }>) {
+}: Readonly<{ edition: PublicEdition }>) {
   if (!edition.ticketCategories.length) {
     return null;
   }
@@ -85,9 +85,7 @@ export function TicketCategories({
   );
 }
 
-export function TicketPrice({
-  edition,
-}: Readonly<{ edition: PublicOccurrence }>) {
+export function TicketPrice({ edition }: Readonly<{ edition: PublicEdition }>) {
   let price: string | null = null;
   if (edition.priceKind === "free") {
     price = "Free";
@@ -118,9 +116,7 @@ export function TicketPrice({
     </p>
   );
 }
-export function EditionItem({
-  edition,
-}: Readonly<{ edition: PublicOccurrence }>) {
+export function EditionItem({ edition }: Readonly<{ edition: PublicEdition }>) {
   return (
     <li>
       <a href={editionPath(edition.eventSlug, edition.key)}>

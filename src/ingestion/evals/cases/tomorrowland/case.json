@@ -20,11 +20,11 @@
           "official": false
         }
       ],
-      "occurrences": [
+      "editions": [
         {
-          "id": "festivalnetwork:occurrence:1e403c8e3a0cec796f1c",
-          "occurrenceKey": "source-row",
-          "occurrenceYear": 2026,
+          "id": "festivalnetwork:edition:1e403c8e3a0cec796f1c",
+          "editionKey": "source-row",
+          "editionYear": 2026,
           "startsOn": "2026-07-17",
           "endsOn": "2026-07-26",
           "dateState": "confirmed",
@@ -47,11 +47,11 @@
             "official": false
           }
         ],
-        "occurrences": [
+        "editions": [
           {
-            "id": "festivalnetwork:occurrence:1a93da278ad7eb2df52a",
-            "occurrenceKey": "source-row",
-            "occurrenceYear": 2027,
+            "id": "festivalnetwork:edition:1a93da278ad7eb2df52a",
+            "editionKey": "source-row",
+            "editionYear": 2027,
             "startsOn": "2027-03-20",
             "endsOn": "2027-03-27",
             "dateState": "confirmed",
@@ -116,7 +116,7 @@
         "value": "published"
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "publication_state",
         "value": "published"
       },
@@ -128,14 +128,14 @@
         }
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "links",
         "contains": {
           "url": "https://winter.tomorrowland.com/"
         }
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "price_details",
         "contains": {
           "availability": "sold_out"
@@ -163,21 +163,21 @@
         }
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "links",
         "contains": {
           "url": "https://brasil.tomorrowland.com/"
         }
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "links",
         "contains": {
           "url": "https://brasil.tomorrowland.com/en/tickets/"
         }
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "links",
         "contains": {
           "url": "https://thailand.tomorrowland.com/"

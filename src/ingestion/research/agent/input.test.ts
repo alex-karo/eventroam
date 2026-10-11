@@ -24,9 +24,9 @@ test("saved prices in model context use major units and omit aggregate availabil
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ id: "input-fest", canonicalName: "Example Fest" });
-  fx.occurrence(event, {
+  fx.edition(event, {
     id: "input-edition",
-    occurrenceKey: "2027",
+    editionKey: "2027",
     priceKind: "exact",
     priceCurrency: "KWD",
     priceMinMinor: 1234,

@@ -7,8 +7,8 @@ import type { DiscoverySummary } from "@/catalog/read/contracts";
 import {
   events,
   externalLinks,
-  occurrenceTerms,
-  occurrences,
+  editionTerms,
+  editions,
   taxonomyTerms,
   urlAliases,
 } from "@/db/schema";
@@ -17,25 +17,23 @@ import { testDatabase } from "@/test/database";
 const timestamp = "2026-10-01T12:00:00Z";
 
 type EventRow = typeof events.$inferSelect;
-type OccurrenceRow = typeof occurrences.$inferSelect;
+type EditionRow = typeof editions.$inferSelect;
 type TermRow = typeof taxonomyTerms.$inferSelect;
 type EventInput = Partial<typeof events.$inferInsert>;
-type OccurrenceInput = Partial<
-  Omit<typeof occurrences.$inferInsert, "eventId">
->;
-type PublishedOccurrenceInput = Omit<OccurrenceInput, "publicationState">;
+type EditionInput = Partial<Omit<typeof editions.$inferInsert, "eventId">>;
+type PublishedEditionInput = Omit<EditionInput, "publicationState">;
 type TermInput = Partial<typeof taxonomyTerms.$inferInsert>;
 type LinkInput = Partial<
-  Omit<typeof externalLinks.$inferInsert, "eventId" | "occurrenceId">
+  Omit<typeof externalLinks.$inferInsert, "eventId" | "editionId">
 >;
 type AliasInput = Partial<
-  Omit<typeof urlAliases.$inferInsert, "eventId" | "occurrenceId">
+  Omit<typeof urlAliases.$inferInsert, "eventId" | "editionId">
 >;
 type LinkOwner =
-  | { event: EventRow; occurrence?: never }
+  | { event: EventRow; edition?: never }
   | {
       event?: never;
-      occurrence: OccurrenceRow;
+      edition: EditionRow;
     };
 
 function supplied<T extends object>(overrides: Partial<T>): Partial<T> {
@@ -108,21 +106,21 @@ export function testFixtures(client?: Database.Database) {
       };
     },
 
-    occurrence(
+    edition(
       event: Pick<EventRow, "id">,
-      overrides: OccurrenceInput = {},
-    ): typeof occurrences.$inferInsert {
+      overrides: EditionInput = {},
+    ): typeof editions.$inferInsert {
       const startsOn =
         overrides.startsOn === undefined ? "2027-07-01" : overrides.startsOn;
-      let year = overrides.occurrenceYear;
+      let year = overrides.editionYear;
       if (year === undefined) {
         year = startsOn ? Number(startsOn.slice(0, 4)) : null;
       }
       const key =
-        overrides.occurrenceKey === undefined
+        overrides.editionKey === undefined
           ? uniqueKey(event.id, year)
-          : overrides.occurrenceKey;
-      if (overrides.occurrenceKey !== undefined) {
+          : overrides.editionKey;
+      if (overrides.editionKey !== undefined) {
         const used = usedKeys.get(event.id) ?? new Set<string>();
         used.add(key);
         usedKeys.set(event.id, used);
@@ -130,8 +128,8 @@ export function testFixtures(client?: Database.Database) {
       return {
         id: randomUUID(),
         eventId: event.id,
-        occurrenceKey: key,
-        occurrenceYear: year,
+        editionKey: key,
+        editionYear: year,
         startsOn,
         endsOn: overrides.endsOn === undefined ? startsOn : overrides.endsOn,
         dateState: startsOn ? "confirmed" : "unknown",
@@ -176,7 +174,7 @@ export function testFixtures(client?: Database.Database) {
       return {
         id: randomUUID(),
         eventId: owner.event?.id,
-        occurrenceId: owner.occurrence?.id,
+        editionId: owner.edition?.id,
         kind: "official_site",
         url,
         official: true,
@@ -188,30 +186,30 @@ export function testFixtures(client?: Database.Database) {
 
     alias(
       event: EventRow,
-      overrides: AliasInput & { occurrence?: OccurrenceRow } = {},
+      overrides: AliasInput & { edition?: EditionRow } = {},
     ): typeof urlAliases.$inferInsert {
-      const { occurrence, ...values } = overrides;
-      const editionSuffix = occurrence ? `/${occurrence.occurrenceKey}` : "";
+      const { edition, ...values } = overrides;
+      const editionSuffix = edition ? `/${edition.editionKey}` : "";
       return {
         scope: "festivals",
         path: `/events/${event.slug}${editionSuffix}`,
         eventId: event.id,
-        occurrenceId: occurrence?.id,
+        editionId: edition?.id,
         createdAt: timestamp,
         ...supplied(values),
       };
     },
 
-    occurrenceTerm(
-      edition: Pick<OccurrenceRow, "id">,
+    editionTerm(
+      edition: Pick<EditionRow, "id">,
       classification: Pick<TermRow, "id">,
-    ): typeof occurrenceTerms.$inferInsert {
-      return { occurrenceId: edition.id, termId: classification.id };
+    ): typeof editionTerms.$inferInsert {
+      return { editionId: edition.id, termId: classification.id };
     },
 
     summary(overrides: Partial<DiscoverySummary> = {}): DiscoverySummary {
       return {
-        id: "test-occurrence",
+        id: "test-edition",
         eventSlug: "test-event",
         eventName: "Test Event",
         aliases: [],
@@ -253,18 +251,15 @@ export function testFixtures(client?: Database.Database) {
     );
   }
 
-  function occurrence(
-    parent: Pick<EventRow, "id">,
-    overrides: OccurrenceInput = {},
-  ) {
+  function edition(parent: Pick<EventRow, "id">, overrides: EditionInput = {}) {
     return db().transaction(() =>
       db()
-        .insert(occurrences)
+        .insert(editions)
         .values(
           validateCatalogValues(
             connectionClient(),
-            "occurrences",
-            build.occurrence(parent, overrides),
+            "editions",
+            build.edition(parent, overrides),
           ),
         )
         .returning()
@@ -289,17 +284,17 @@ export function testFixtures(client?: Database.Database) {
   }
 
   function assignTerm(
-    edition: Pick<OccurrenceRow, "id">,
+    edition: Pick<EditionRow, "id">,
     classification: Pick<TermRow, "id">,
   ) {
     return db().transaction(() =>
       db()
-        .insert(occurrenceTerms)
+        .insert(editionTerms)
         .values(
           validateCatalogValues(
             connectionClient(),
-            "occurrence_terms",
-            build.occurrenceTerm(edition, classification),
+            "edition_terms",
+            build.editionTerm(edition, classification),
           ),
         )
         .returning()
@@ -325,7 +320,7 @@ export function testFixtures(client?: Database.Database) {
 
   function alias(
     parent: EventRow,
-    overrides: AliasInput & { occurrence?: OccurrenceRow } = {},
+    overrides: AliasInput & { edition?: EditionRow } = {},
   ) {
     return db().transaction(() =>
       db()
@@ -387,17 +382,17 @@ export function testFixtures(client?: Database.Database) {
     });
   }
 
-  function publishedOccurrence(
+  function publishedEdition(
     parent: Pick<EventRow, "id">,
-    overrides: PublishedOccurrenceInput = {},
+    overrides: PublishedEditionInput = {},
   ) {
     return db().transaction(() => {
-      const edition = occurrence(parent, {
+      const published = edition(parent, {
         ...overrides,
         publicationState: "published",
       });
       for (const classification of festivalTerms()) {
-        assignTerm(edition, classification);
+        assignTerm(published, classification);
       }
       const publishedParent = db()
         .select()
@@ -406,11 +401,11 @@ export function testFixtures(client?: Database.Database) {
         .get();
       if (publishedParent?.homeScope) {
         alias(publishedParent, {
-          occurrence: edition,
+          edition: published,
           scope: publishedParent.homeScope,
         });
       }
-      return edition;
+      return published;
     });
   }
 
@@ -440,8 +435,8 @@ export function testFixtures(client?: Database.Database) {
         .run();
       for (const edition of connection
         .select()
-        .from(occurrences)
-        .where(eq(occurrences.eventId, parent.id))
+        .from(editions)
+        .where(eq(editions.eventId, parent.id))
         .all()) {
         if (edition.publicationState !== "published") {
           continue;
@@ -452,7 +447,7 @@ export function testFixtures(client?: Database.Database) {
             validateCatalogValues(
               connectionClient(),
               "url_aliases",
-              build.alias(published, { occurrence: edition }),
+              build.alias(published, { edition: edition }),
             ),
           )
           .onConflictDoNothing()
@@ -465,32 +460,32 @@ export function testFixtures(client?: Database.Database) {
   function publishedEvent(
     data: {
       event?: Omit<EventInput, "publicationState" | "homeScope">;
-      occurrences?: PublishedOccurrenceInput[];
+      editions?: PublishedEditionInput[];
     } = {},
   ) {
     return db().transaction(() => {
       const parent = event(data.event);
-      const editions = (data.occurrences ?? [{}]).map((input) =>
-        publishedOccurrence(parent, input),
+      const editions = (data.editions ?? [{}]).map((input) =>
+        publishedEdition(parent, input),
       );
-      return { event: publishEvent(parent), occurrences: editions };
+      return { event: publishEvent(parent), editions: editions };
     });
   }
 
   return {
     build,
     event,
-    occurrence,
+    edition,
     term,
     assignTerm,
     link,
     eventLink: (parent: EventRow, overrides: LinkInput = {}) =>
       link({ event: parent }, overrides),
-    occurrenceLink: (edition: OccurrenceRow, overrides: LinkInput = {}) =>
-      link({ occurrence: edition }, overrides),
+    editionLink: (edition: EditionRow, overrides: LinkInput = {}) =>
+      link({ edition: edition }, overrides),
     alias,
     festivalTerms,
-    publishedOccurrence,
+    publishedEdition,
     publishEvent,
     publishedEvent,
   };

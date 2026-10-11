@@ -21,15 +21,15 @@ Commands → research workflow → catalog writer → SQLite ← Next.js public 
 ```text
 src/
 ├── app/                       # Next.js routes and page composition
-│   ├── api/discovery/         # Public summary and Occurrence detail endpoints
-│   └── events/[slug]/         # Event and Occurrence pages
+│   ├── api/discovery/         # Public summary and Edition detail endpoints
+│   └── events/[slug]/         # Event and Edition pages
 ├── features/
 │   ├── discovery/             # Discovery UI, filtering model, hooks, and map
 │   │   ├── components/        # Filters, results, selected preview
 │   │   ├── hooks/             # URL state
 │   │   ├── map/               # Mapbox adapter
 │   │   └── model/             # Pure filtering and ordering
-│   └── event-details/         # Event and Occurrence presentation
+│   └── event-details/         # Event and Edition presentation
 ├── components/
 │   ├── catalog/               # Shared dates, location, status, and price views
 │   └── site/                  # Shared site header
@@ -101,7 +101,7 @@ Discovery loads complete public summaries for the active scope and applies the s
 
 ## Routes and scope
 
-The application currently has a root page, Event and Occurrence pages, and two discovery API routes. The root renders an apex directory or Festivals discovery according to the allowed host. Unknown hosts do not expose a default catalog. Detail requests resolve public identity and canonical hosts through `site/server` and `catalog/read`. The [scoped website specification](../openspec/specs/website/routing/spec.md) owns implemented routing behavior; [public site launch](../openspec/changes/public-site-launch/proposal.md) tracks approved metadata work.
+The application currently has a root page, Event and Edition pages, and two discovery API routes. The root renders an apex directory or Festivals discovery according to the allowed host. Unknown hosts do not expose a default catalog. Detail requests resolve public identity and canonical hosts through `site/server` and `catalog/read`. The [scoped website specification](../openspec/specs/website/routing/spec.md) owns implemented routing behavior; [public site launch](../openspec/changes/public-site-launch/proposal.md) tracks approved metadata work.
 
 About and privacy pages, dedicated error pages, robots and sitemap routes, and complete SEO metadata remain future work. Add their files when the behavior is implemented; do not publish placeholder routes.
 

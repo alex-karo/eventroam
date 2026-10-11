@@ -69,7 +69,7 @@ test("CLI targets an Event and starts fresh research for dry-run and apply", asy
   const database = testDatabase();
   const fx = testFixtures();
   const event = fx.event();
-  fx.occurrence(event);
+  fx.edition(event);
   const research = vi.fn<typeof runCatalogResearch>(async () => result());
   const stdout = vi.fn();
   const args = ["check", "--event", event.id, "--database", database.path];
@@ -88,7 +88,7 @@ test("CLI targets an Event and starts fresh research for dry-run and apply", asy
     republish: false,
   });
   expect(research.mock.calls[0][0]).not.toHaveProperty("initiatedBy");
-  expect(research.mock.calls[0][0]).not.toHaveProperty("occurrenceIds");
+  expect(research.mock.calls[0][0]).not.toHaveProperty("editionIds");
   expect(research.mock.calls[1][0]).toMatchObject({
     dryRun: false,
     republish: true,

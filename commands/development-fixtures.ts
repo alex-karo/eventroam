@@ -6,8 +6,8 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import {
   events,
   externalLinks,
-  occurrenceTerms,
-  occurrences,
+  editionTerms,
+  editions,
   taxonomyTerms,
   urlAliases,
 } from "@/db/schema";
@@ -109,18 +109,18 @@ export function seedDevelopmentFixtures(client: Database.Database) {
       return { id, created: true };
     }
 
-    function addOccurrence(
+    function addEdition(
       eventId: string,
       data: Omit<
-        typeof occurrences.$inferInsert,
+        typeof editions.$inferInsert,
         "id" | "eventId" | "createdAt" | "updatedAt"
       >,
       genreIds = ["dev-rock"],
     ) {
       const id = randomUUID();
-      db.insert(occurrences)
+      db.insert(editions)
         .values(
-          validateCatalogValues(client, "occurrences", {
+          validateCatalogValues(client, "editions", {
             id,
             eventId,
             ...data,
@@ -138,18 +138,18 @@ export function seedDevelopmentFixtures(client: Database.Database) {
         .values(
           validateCatalogValues(client, "url_aliases", {
             scope: "festivals",
-            path: `/events/${parent.slug}/${data.occurrenceKey}`,
+            path: `/events/${parent.slug}/${data.editionKey}`,
             eventId,
-            occurrenceId: id,
+            editionId: id,
             createdAt: now,
           }),
         )
         .run();
       for (const termId of [...termIds, ...genreIds]) {
-        db.insert(occurrenceTerms)
+        db.insert(editionTerms)
           .values(
-            validateCatalogValues(client, "occurrence_terms", {
-              occurrenceId: id,
+            validateCatalogValues(client, "edition_terms", {
+              editionId: id,
               termId,
             }),
           )
@@ -164,9 +164,9 @@ export function seedDevelopmentFixtures(client: Database.Database) {
         ["2027", 2027, "2027-07-01", "2027-07-03", "scheduled"],
         ["2026-cancelled", 2026, "2026-07-01", "2026-07-03", "cancelled"],
       ] as const) {
-        addOccurrence(event.id, {
-          occurrenceKey: key,
-          occurrenceYear: year,
+        addEdition(event.id, {
+          editionKey: key,
+          editionYear: year,
           startsOn: start,
           endsOn: end,
           dateState: year === 2027 ? "provisional" : "confirmed",
@@ -183,11 +183,11 @@ export function seedDevelopmentFixtures(client: Database.Database) {
       if (!added.created) {
         continue;
       }
-      addOccurrence(
+      addEdition(
         added.id,
         {
-          occurrenceKey: "2027",
-          occurrenceYear: 2027,
+          editionKey: "2027",
+          editionYear: 2027,
           startsOn: example.startsOn,
           endsOn: example.endsOn,
           dateState: "provisional",

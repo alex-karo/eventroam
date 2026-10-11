@@ -31,8 +31,8 @@ export function promptFor(
       aliases: event.aliases,
       links: event.links.map(({ kind, url }) => ({ kind, url })),
       editions: event.editions.map((edition) => ({
-        key: edition.occurrenceKey,
-        year: edition.occurrenceYear,
+        key: edition.editionKey,
+        year: edition.editionYear,
         countryCode: edition.countryCode,
       })),
     })),

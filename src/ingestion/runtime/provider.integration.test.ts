@@ -245,7 +245,7 @@ test("actual Mastra request sends a compatible bounded response schema", async (
   expect(requests).toHaveLength(1);
   expect(result.usage.modelCalls).toBe(1);
   expect(result.operations.map((operation) => operation.kind)).toContain(
-    "createOccurrence",
+    "createEdition",
   );
   const request = requests[0];
   expect(request.model).toBe("openai/gpt-6-luna");

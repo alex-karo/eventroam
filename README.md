@@ -8,7 +8,7 @@ Eventroam is under active development and has no production deployment. Backward
 
 ## Product idea
 
-An **Event** is a continuing identity; each edition is a separate **Occurrence** with its own dates, location, status, and classifications. This preserves history when plans change.
+An **Event** is a continuing identity; each edition is a separate **Edition** with its own dates, location, status, and classifications. This preserves history when plans change.
 
 Visitors can filter by date, place, genre, duration, and size, share searches through URLs, and open stable event and edition pages. The map and list use the same results; editions without coordinates remain discoverable in the list.
 

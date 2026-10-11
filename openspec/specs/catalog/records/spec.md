@@ -2,27 +2,27 @@
 
 ## Purpose
 
-Define the fixture-backed catalog's durable Event and Occurrence identities, validated writes, and audit history.
+Define the fixture-backed catalog's durable Event and Edition identities, validated writes, and audit history.
 
 ## Requirements
 
 ### Requirement: Events and editions have separate durable identities
 
-The catalog SHALL represent an Event as a durable named identity and each realization as a separate Occurrence. IDs SHALL be opaque and stable. The Event SHALL own its name, aliases, summary, slug, and publication state. The Occurrence SHALL own its edition facts, including dates, status, location, capacity, price, and classifications. Its key SHALL be unique within the Event and SHALL not claim its current dates.
+The catalog SHALL represent an Event as a durable named identity and each realization as a separate Edition. IDs SHALL be opaque and stable. The Event SHALL own its name, aliases, summary, slug, and publication state. The Edition SHALL own its edition facts, including dates, status, location, capacity, price, and classifications. Its key SHALL be unique within the Event and SHALL not claim its current dates.
 
 #### Scenario: A festival holds two separate weekends
 
 - **GIVEN** a festival with two discontinuous programme periods in one year
 - **WHEN** both editions are recorded
-- **THEN** each has its own Occurrence ID and key under the same Event, and the gap is not counted as event days
+- **THEN** each has its own Edition ID and key under the same Event, and the gap is not counted as event days
 
 #### Scenario: An edition moves dates
 
-- **GIVEN** a published Occurrence
+- **GIVEN** a published Edition
 - **WHEN** its accepted dates change
-- **THEN** its Event ID, Occurrence ID, and public key remain stable
+- **THEN** its Event ID, Edition ID, and public key remain stable
 
-### Requirement: Occurrence dates and location are validated as units
+### Requirement: Edition dates and location are validated as units
 
 The catalog SHALL accept start and end as local calendar dates only when both are present and ordered. Absent dates SHALL have `unknown` date state; present dates SHALL have `provisional` or `confirmed` state. `scheduled` SHALL require dates. Latitude and longitude SHALL be present together with a non-`unknown` precision, or both absent with `unknown` precision. Coordinates SHALL be within latitude −90 to 90 and longitude −180 to 180. A stored capacity estimate SHALL be a positive integer.
 
@@ -42,7 +42,7 @@ The application SHALL validate typed catalog operations. Updates SHALL require a
 
 #### Scenario: A stale update is attempted
 
-- **GIVEN** an Occurrence version newer than the operation's expected version
+- **GIVEN** an Edition version newer than the operation's expected version
 - **WHEN** the operation is applied
 - **THEN** it fails without overwriting the newer record or adding an audit entry
 
@@ -53,38 +53,38 @@ The application SHALL validate typed catalog operations. Updates SHALL require a
 
 ### Requirement: Official links are owned and resolved per edition
 
-An ExternalLink SHALL belong to exactly one Event or Occurrence, with a kind, normalized HTTP(S) URL, and official flag. Public Occurrence details SHALL use official links on the Occurrence and inherit official Event links only for kinds not overridden by the Occurrence. Replacing links SHALL be a validated, versioned, audited operation.
+An ExternalLink SHALL belong to exactly one Event or Edition, with a kind, normalized HTTP(S) URL, and official flag. Public Edition details SHALL use official links on the Edition and inherit official Event links only for kinds not overridden by the Edition. Replacing links SHALL be a validated, versioned, audited operation.
 
 #### Scenario: An edition overrides a ticketing link
 
-- **GIVEN** an Event ticketing link and a different Occurrence ticketing link
-- **WHEN** the Occurrence is read publicly
+- **GIVEN** an Event ticketing link and a different Edition ticketing link
+- **WHEN** the Edition is read publicly
 - **THEN** its own ticketing link is used, while other unoverridden official Event link kinds remain available
 
 ### Requirement: Typed ticket price summaries remain qualified
 
-An Occurrence MAY store a bounded price summary as `free`, `exact`, `from`, or `range`, with full-programme, day, or package coverage and optional qualification. Paid amounts SHALL use nonnegative integer minor units and an uppercase three-letter currency; ranges SHALL have an upper amount above the lower. `free` SHALL mean zero for the full programme. Public details SHALL show the original currency, coverage, and qualification when stored. Price SHALL NOT affect discovery matching or order.
+An Edition MAY store a bounded price summary as `free`, `exact`, `from`, or `range`, with full-programme, day, or package coverage and optional qualification. Paid amounts SHALL use nonnegative integer minor units and an uppercase three-letter currency; ranges SHALL have an upper amount above the lower. `free` SHALL mean zero for the full programme. Public details SHALL show the original currency, coverage, and qualification when stored. Price SHALL NOT affect discovery matching or order.
 
 #### Scenario: A package price is shown
 
-- **GIVEN** an Occurrence with a package price and qualification
+- **GIVEN** an Edition with a package price and qualification
 - **WHEN** its public detail page renders
 - **THEN** it identifies the amount as a package in its original currency and shows the qualification
 
-### Requirement: Occurrence prices are replaced as a complete block
-The catalog SHALL store ticket variants with their labels, supplied amounts/currencies, conditions, availability, and links. Updating stored prices SHALL use `replacePriceBlock` with the complete variant list and primary price summary, atomically replacing both without merging individual variants. `updateOccurrence` SHALL reject price fields, including partial primary-summary updates. The model SHALL choose the base full-programme admission summary or leave it unknown; the host SHALL validate its structure without checking source support.
+### Requirement: Edition prices are replaced as a complete block
+The catalog SHALL store ticket variants with their labels, supplied amounts/currencies, conditions, availability, and links. Updating stored prices SHALL use `replacePriceBlock` with the complete variant list and primary price summary, atomically replacing both without merging individual variants. `updateEdition` SHALL reject price fields, including partial primary-summary updates. The model SHALL choose the base full-programme admission summary or leave it unknown; the host SHALL validate its structure without checking source support.
 
 #### Scenario: A legacy partial price update is submitted
-- **GIVEN** an Occurrence with a stored price block
-- **WHEN** an `updateOccurrence` operation supplies `price` to change the primary summary instead of a complete `replacePriceBlock` operation
+- **GIVEN** an Edition with a stored price block
+- **WHEN** an `updateEdition` operation supplies `price` to change the primary summary instead of a complete `replacePriceBlock` operation
 - **THEN** the operation fails without changing the record, version, or audit history
 
 #### Scenario: Several ticket variants are collected
-- **WHEN** the model supplies a full-programme pass and a day ticket for the same Occurrence
+- **WHEN** the model supplies a full-programme pass and a day ticket for the same Edition
 - **THEN** both replace the previous variant list and the base full-programme admission price replaces the primary summary
 
 #### Scenario: Model explicitly clears prices
-- **WHEN** the model explicitly supplies an empty price block for an Occurrence
+- **WHEN** the model explicitly supplies an empty price block for an Edition
 - **THEN** the catalog replaces the variants with an empty list and clears all primary price fields, recording unknown price rather than free admission
 
 #### Scenario: Only day tickets are priced
@@ -115,3 +115,35 @@ Applied field changes SHALL remain immutable and SHALL not appear in public summ
 #### Scenario: Source wording changes without a catalog fact change
 - **WHEN** the model returns the same stored facts after reading changed page wording
 - **THEN** no new catalog change is recorded
+
+### Requirement: Active catalog contracts name Editions
+Active catalog contracts SHALL use Edition terminology, including editionId/editionKey/editionYear, create/update/publish/withdrawEdition operations, and edition link owners. Existing Edition agent/public fields, stable IDs/keys and URL paths SHALL remain unchanged. Old Occurrence operation names and fields SHALL be rejected without aliases.
+
+#### Scenario: An Edition operation is submitted
+- **WHEN** a structurally valid createEdition or updateEdition operation is submitted
+- **THEN** the catalog applies the existing identity, validation, version, audit and publication rules using Edition names
+
+#### Scenario: An old operation name is submitted
+- **WHEN** an active caller submits createOccurrence, updateOccurrence, publishOccurrence, withdrawOccurrence, an occurrence owner, or occurrence-prefixed DTO fields
+- **THEN** validation rejects it before catalog writes
+
+#### Scenario: Public and agent contracts already use Edition
+- **WHEN** catalog internals are renamed
+- **THEN** public editions with id/key/year, agent editions with key/year, questions/errors with editionKey, and actual URLs retain their existing shapes and values
+
+### Requirement: Edition storage migration preserves catalog and history
+The SQLite migration SHALL rename occurrences/occurrence_terms to editions/edition_terms and occurrence_id/key/year columns to edition_id/key/year. It SHALL preserve row values, relationships, validation/ownership rules, versions, publication, immutable audits, receipts and private run history. Historical serialized payloads SHALL remain unchanged.
+
+#### Scenario: A populated legacy catalog is migrated
+- **WHEN** migration runs on a database containing Events, Occurrences, terms, links, aliases, catalog changes, operation receipts and ingestion runs
+- **THEN** the corresponding Edition records retain every ID/key/year and fact, related rows reference the same IDs, and all foreign keys, unique rules and audit protections remain effective
+- **AND** audit JSON, receipt keys/hashes/results and historical run JSON remain byte-for-byte unchanged
+
+#### Scenario: A fresh database or an already migrated database is opened
+- **WHEN** the supported migration command initializes a fresh database or reruns after the Edition migration
+- **THEN** the resulting schema supports the Edition contracts without losing data or repeating applied migrations
+
+#### Scenario: A renamed payload reuses an old operation key
+- **WHEN** a new Edition operation reuses a stored key whose receipt hash belongs to the old serialized payload
+- **THEN** the existing different-payload check rejects it without duplicate writes or rewriting the receipt
+- **AND** new identical Edition payload retries still return their saved result

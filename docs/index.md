@@ -12,9 +12,9 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 Catalog:
 
-- [Catalog records](../openspec/specs/catalog/records/spec.md) — Event/Occurrence identity, validated facts, typed prices, and versioned writes.
+- [Catalog records](../openspec/specs/catalog/records/spec.md) — Event/Edition identity, validated facts, typed prices, and versioned writes.
 - [Publication and details](../openspec/specs/catalog/publication/spec.md) — publication gates, visibility, and public edition presentation.
-- [Occurrence classification](../openspec/specs/catalog/classification/spec.md) — fixed facets, per-edition assignments, and public labels.
+- [Edition classification](../openspec/specs/catalog/classification/spec.md) — fixed facets, per-edition assignments, and public labels.
 - [Source-backed catalog workflow](../openspec/specs/catalog/source-workflow/spec.md) — owner-initiated collection, model-led refresh, and attributable run outcomes.
 
 Website:
@@ -24,10 +24,14 @@ Website:
 
 ## Active changes
 
+- [Scoped refresh](../openspec/changes/scoped-event-refresh/proposal.md) — planned full/current refresh, website recovery, atomic country guards, and report v3; follows the implemented Edition naming change.
+
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
 ## Archived changes
+
+- [Edition naming](../openspec/changes/archive/2026-10-11-rename-occurrence-to-edition/proposal.md) — implemented code/contracts and SQLite rename with preserved data and report v2; historical report compatibility is unsupported.
 
 - [Expanded festival topics](../openspec/changes/archive/2026-10-11-expand-festival-topics/proposal.md) — activity vocabulary, independent topic/format classification, and open-air publication format.
 

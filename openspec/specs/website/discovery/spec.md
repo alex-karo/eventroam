@@ -8,7 +8,7 @@ Define current search, filtering, complete summary delivery, and responsive map/
 
 ### Requirement: Discovery uses a complete public summary set
 
-Discovery SHALL return all public, non-cancelled, non-postponed Occurrence summaries, including history for explicit date searches. Summaries SHALL include names, dates, filter values, location, optional coordinates, and stable edition links. The response SHALL not paginate or use a map viewport. Browser and server rendering SHALL use the same matching rules. Selection SHALL load full details, while direct links work independently of the map.
+Discovery SHALL return all public, non-cancelled, non-postponed Edition summaries, including history for explicit date searches. Summaries SHALL include names, dates, filter values, location, optional coordinates, and stable edition links. The response SHALL not paginate or use a map viewport. Browser and server rendering SHALL use the same matching rules. Selection SHALL load full details, while direct links work independently of the map.
 
 #### Scenario: An older edition matches an explicit date range
 
@@ -22,7 +22,7 @@ Discovery SHALL return all public, non-cancelled, non-postponed Occurrence summa
 
 ### Requirement: Filters match the same edition
 
-Discovery SHALL search Event names, aliases, and edition titles without case sensitivity and require every entered search term after trimming whitespace. It SHALL filter by date overlap, country, locality/region, genre ancestry, duration, and capacity bands. Countries, genres, and bands SHALL OR within groups; groups SHALL AND on one Occurrence. Default dates SHALL select upcoming or ongoing editions in the edition's time zone, with UTC fallback. Unknown capacity SHALL match only unrestricted size. Price and availability SHALL not filter or sort.
+Discovery SHALL search Event names, aliases, and edition titles without case sensitivity and require every entered search term after trimming whitespace. It SHALL filter by date overlap, country, locality/region, genre ancestry, duration, and capacity bands. Countries, genres, and bands SHALL OR within groups; groups SHALL AND on one Edition. Default dates SHALL select upcoming or ongoing editions in the edition's time zone, with UTC fallback. Unknown capacity SHALL match only unrestricted size. Price and availability SHALL not filter or sort.
 
 #### Scenario: Conditions belong to different editions
 
@@ -42,7 +42,7 @@ Discovery SHALL search Event names, aliases, and edition titles without case sen
 
 ### Requirement: Discovery orders matching editions deterministically
 
-Discovery SHALL filter Occurrences before presentation, return one result per matching edition, and order results by start date, Event name, then stable ID.
+Discovery SHALL filter Editions before presentation, return one result per matching edition, and order results by start date, Event name, then stable ID.
 
 #### Scenario: A later edition matches but an earlier one does not
 
@@ -74,7 +74,7 @@ The UI SHALL offer six buttons for the visitor’s current local calendar month 
 
 ### Requirement: Size and duration have deterministic boundaries
 
-Duration SHALL count inclusive programme days from the complete start/end pair. The current size bands SHALL be `lt-1000`, `1000-4999`, `5000-19999`, `20000-49999`, and `gte-50000`, based on the Occurrence's positive capacity estimate. Choosing any size band SHALL exclude unknown capacity; leaving size unrestricted SHALL include it. Results SHALL label capacity as an estimate.
+Duration SHALL count inclusive programme days from the complete start/end pair. The current size bands SHALL be `lt-1000`, `1000-4999`, `5000-19999`, `20000-49999`, and `gte-50000`, based on the Edition's positive capacity estimate. Choosing any size band SHALL exclude unknown capacity; leaving size unrestricted SHALL include it. Results SHALL label capacity as an estimate.
 
 #### Scenario: A capacity is on a band boundary
 

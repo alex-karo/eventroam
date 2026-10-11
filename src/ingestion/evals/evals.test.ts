@@ -287,14 +287,11 @@ function result(
     if (change.field === "event_id" && typeof change.newValue === "string") {
       facts.eventId = change.newValue;
     }
-    if (
-      change.field === "occurrence_key" &&
-      typeof change.newValue === "string"
-    ) {
+    if (change.field === "edition_key" && typeof change.newValue === "string") {
       facts.key = change.newValue;
     }
     if (
-      change.field === "occurrence_year" &&
+      change.field === "edition_year" &&
       typeof change.newValue === "number"
     ) {
       facts.year = change.newValue;
@@ -306,18 +303,19 @@ function result(
   );
   return {
     schemaVersion: 2,
+    runId: "eval-fixture-run",
     mode: "refresh",
     outcome: changes.length ? "updated" : "unchanged",
     modelResponse: null,
     researchStatus: "success",
     eventId: tomorrowland.initial.event.id,
     operations: newEditions.map(([subject, facts]) => ({
-      kind: "createOccurrence",
+      kind: "createEdition",
       eventId: facts.eventId!,
       tempKey: subject,
       data: {
-        occurrenceKey: facts.key!,
-        ...(facts.year === undefined ? {} : { occurrenceYear: facts.year }),
+        editionKey: facts.key!,
+        ...(facts.year === undefined ? {} : { editionYear: facts.year }),
       },
     })) as CatalogResearchResult["operations"],
     receipts: [],
@@ -337,6 +335,7 @@ function result(
       outputTokens: 0,
       modelCostUsd: null,
       searchCostUsd: 0,
+      searchCostBasis: "estimate",
     },
     modelVersion: "test",
     promptVersion: "test",
@@ -420,7 +419,7 @@ test("Tomorrowland rejects Thailand sell-out on a Belgium ticket variant", () =>
     newValue: [{ kind: "official_site", url: "https://www.tomorrowland.com/" }],
   };
   const soldOut = {
-    subject: tomorrowland.initial.event.occurrences[0].id,
+    subject: tomorrowland.initial.event.editions[0].id,
     field: "price_details",
     oldValue: [],
     explanations: [
@@ -442,7 +441,7 @@ test("Tomorrowland rejects Thailand sell-out on a Belgium ticket variant", () =>
   expect(score.passed).toBe(false);
   expect(score.reasons.violatedForbidden).toEqual([
     expect.objectContaining({
-      owner: "occurrence",
+      owner: "edition",
       field: "price_details",
       contains: { availability: "sold_out" },
     }),
@@ -463,13 +462,13 @@ test("new and existing edition assertions map only to their own subject", () => 
     ]),
     operations: [
       {
-        kind: "createOccurrence",
+        kind: "createEdition",
         eventId: wacken.initial.event.id,
-        tempKey: "occ_2027",
-        data: { occurrenceKey: "year-2027", occurrenceYear: 2027 },
+        tempKey: "edition_2027",
+        data: { editionKey: "year-2027", editionYear: 2027 },
       },
     ] as CatalogResearchResult["operations"],
-    references: { occ_2027: newId },
+    references: { edition_2027: newId },
   };
   const required2027 = wacken.expectations.required.find(
     (assertion) => assertion.field === "starts_on",
@@ -488,7 +487,7 @@ test("new and existing edition assertions map only to their own subject", () => 
         changes: [
           {
             ...created.changes[0],
-            subject: wacken.initial.event.occurrences[0].id,
+            subject: wacken.initial.event.editions[0].id,
           },
         ],
       },
@@ -580,7 +579,7 @@ test("Roskilde permits missing location but rejects the office address", () => {
     },
     {
       subject,
-      field: "occurrence_key",
+      field: "edition_key",
       oldValue: null,
       explanations: [],
       newValue: "2027",
@@ -588,7 +587,7 @@ test("Roskilde permits missing location but rejects the office address", () => {
   ];
   base.push({
     subject,
-    field: "occurrence_year",
+    field: "edition_year",
     oldValue: null,
     explanations: [],
     newValue: 2027,
@@ -705,14 +704,14 @@ test("Wacken permits metal while preserving historical dates", () => {
     },
     {
       subject,
-      field: "occurrence_key",
+      field: "edition_key",
       oldValue: null,
       explanations: [],
       newValue: "2027",
     },
     {
       subject,
-      field: "occurrence_year",
+      field: "edition_year",
       oldValue: null,
       explanations: [],
       newValue: 2027,
@@ -737,7 +736,7 @@ test("Wacken permits metal while preserving historical dates", () => {
   ]);
   expect(scoreCase(wacken, output).passed).toBe(true);
   output.changes.push({
-    subject: wacken.initial.event.occurrences[0].id,
+    subject: wacken.initial.event.editions[0].id,
     field: "terms",
     oldValue: [],
     explanations: [],
@@ -745,7 +744,7 @@ test("Wacken permits metal while preserving historical dates", () => {
   });
   expect(scoreCase(wacken, output).passed).toBe(true);
   output.changes.push({
-    subject: wacken.initial.event.occurrences[0].id,
+    subject: wacken.initial.event.editions[0].id,
     field: "starts_on",
     oldValue: "2026-07-30",
     explanations: [],
@@ -774,14 +773,14 @@ test("Wacken allows DE or missing country but rejects another country", () => {
       },
       {
         subject,
-        field: "occurrence_key",
+        field: "edition_key",
         oldValue: null,
         explanations: [],
         newValue: "2027",
       },
       {
         subject,
-        field: "occurrence_year",
+        field: "edition_year",
         oldValue: null,
         explanations: [],
         newValue: 2027,
@@ -825,7 +824,7 @@ test.each(["workflow_failed", "run_persistence_failed"] as const)(
       ...tomorrowland,
       expectations: { required: [], forbidden: [] },
     };
-    expect(scoreCase(item, report).passed).toBe(true); // historical version 2, additive fields absent
+    expect(scoreCase(item, report).passed).toBe(true);
     expect(
       scoreCase(item, {
         ...report,

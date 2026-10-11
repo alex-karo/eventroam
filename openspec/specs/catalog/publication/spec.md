@@ -8,17 +8,17 @@ Define the structural gates and visible behavior of public festival records in t
 
 ### Requirement: Publication enforces edition facts and festival scope
 
-An Occurrence SHALL publish only with a year, date pair, country, and venue, locality, or region. Festival scope SHALL also require the Occurrence's `openair` or `mixed-indoor-outdoor` format; `festival` or `gathering` type; and `music` topic or `burning-like` culture. An Event SHALL publish only after a published Occurrence and SHALL then receive the Festivals home scope. Draft and withdrawn subjects SHALL stay outside public reads.
+An Edition SHALL publish only with a year, date pair, country, and venue, locality, or region. Festival scope SHALL also require the Edition's `openair` or `mixed-indoor-outdoor` format; `festival` or `gathering` type; and `music` topic or `burning-like` culture. An Event SHALL publish only after a published Edition and SHALL then receive the Festivals home scope. Draft and withdrawn subjects SHALL stay outside public reads.
 
 #### Scenario: An edition has only a country
 
 - **WHEN** publication is attempted without a venue, locality, or region
-- **THEN** publication is rejected and the Occurrence remains nonpublic
+- **THEN** publication is rejected and the Edition remains nonpublic
 
 #### Scenario: A non-musical participatory burn is published
 
 - **GIVEN** a dated, located outdoor gathering with `burning-like` culture and no music genre
-- **WHEN** the Occurrence and Event pass publication
+- **WHEN** the Edition and Event pass publication
 - **THEN** the edition is publicly available in the Festivals scope
 
 #### Scenario: Additional topics cannot replace physical format
@@ -29,7 +29,7 @@ An Occurrence SHALL publish only with a year, date pair, country, and venue, loc
 
 ### Requirement: Public pages preserve edition status and uncertainty
 
-The Event page SHALL show its name, summary, selected active edition, and published history; if none is active, it SHALL say so. The Occurrence page SHALL show known dates, status, location, classifications, capacity, price, and official links. Provisional dates SHALL say “Tentative dates.” A published postponed edition SHALL retain its page with “Postponed — new dates TBA” and “Previous dates.” Cancelled editions SHALL retain their pages. Ticket availability SHALL appear only beside a named ticket category, never as an edition-wide label.
+The Event page SHALL show its name, summary, selected active edition, and published history; if none is active, it SHALL say so. The Edition page SHALL show known dates, status, location, classifications, capacity, price, and official links. Provisional dates SHALL say “Tentative dates.” A published postponed edition SHALL retain its page with “Postponed — new dates TBA” and “Previous dates.” Cancelled editions SHALL retain their pages. Ticket availability SHALL appear only beside a named ticket category, never as an edition-wide label.
 
 #### Scenario: A postponed published edition has no replacement dates
 
@@ -43,12 +43,12 @@ The Event page SHALL show its name, summary, selected active edition, and publis
 
 #### Scenario: A visitor navigates without the map
 
-- **WHEN** a visitor follows an ordinary result link to an Occurrence and then to its Event page
+- **WHEN** a visitor follows an ordinary result link to an Edition and then to its Event page
 - **THEN** both pages remain usable without loading the interactive map, and the Event links its other published editions
 
 ### Requirement: Location disclosure is qualified
 
-An Occurrence with a country and supported area MAY be public without coordinates or an exact venue. Public list and detail views SHALL identify an approximate location when the venue is unknown and SHALL identify map location as unavailable when coordinates are absent. A mapped point SHALL use its Occurrence coordinates and precision; an absent point SHALL never be represented with `(0, 0)`.
+An Edition with a country and supported area MAY be public without coordinates or an exact venue. Public list and detail views SHALL identify an approximate location when the venue is unknown and SHALL identify map location as unavailable when coordinates are absent. A mapped point SHALL use its Edition coordinates and precision; an absent point SHALL never be represented with `(0, 0)`.
 
 #### Scenario: An edition has a region but no map point
 
@@ -57,7 +57,7 @@ An Occurrence with a country and supported area MAY be public without coordinate
 
 ### Requirement: Public reads expose only eligible published records
 
-An Occurrence SHALL be public only when it and its Event are published under the Festivals home scope. The Event page SHALL require at least one public Occurrence. Public detail routes SHALL return no content for draft or withdrawn subjects. Published historical, cancelled, and postponed Occurrences SHALL retain detail URLs; cancelled and postponed Occurrences SHALL be absent from discovery summaries.
+An Edition SHALL be public only when it and its Event are published under the Festivals home scope. The Event page SHALL require at least one public Edition. Public detail routes SHALL return no content for draft or withdrawn subjects. Published historical, cancelled, and postponed Editions SHALL retain detail URLs; cancelled and postponed Editions SHALL be absent from discovery summaries.
 
 #### Scenario: A withdrawn edition is requested directly
 
@@ -75,12 +75,12 @@ The catalog SHALL create new subjects as drafts, publish them only through valid
 
 #### Scenario: A withdrawn edition is refreshed
 
-- **WHEN** an ordinary content update is applied to a withdrawn Occurrence
+- **WHEN** an ordinary content update is applied to a withdrawn Edition
 - **THEN** it remains withdrawn and does not become public automatically
 
 #### Scenario: A withdrawn edition is republished
 
-- **WHEN** an explicit publish operation passes current validation for a withdrawn Occurrence
+- **WHEN** an explicit publish operation passes current validation for a withdrawn Edition
 - **THEN** it can become published again under the same durable identity
 
 ### Requirement: Public details distinguish closed ticket sales
@@ -113,11 +113,11 @@ The system SHALL validate model-proposed publication operations against the date
 
 #### Scenario: Draft lacks a required fact
 - **WHEN** a publication operation targets a draft lacking a required date, location, or scope term
-- **THEN** the operation is rejected and the Occurrence remains a draft
+- **THEN** the operation is rejected and the Edition remains a draft
 
 ### Requirement: Public uncertainty follows stored fact precision
 The system SHALL distinguish provisional dates and approximate locations according to stored values while keeping source retrieval times out of public freshness indicators.
 
 #### Scenario: Approximate locality
-- **WHEN** an Occurrence has a locality and country but no exact venue or coordinates
-- **THEN** an otherwise eligible Occurrence can publish with a qualified location and no map point
+- **WHEN** an Edition has a locality and country but no exact venue or coordinates
+- **THEN** an otherwise eligible Edition can publish with a qualified location and no map point

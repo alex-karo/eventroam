@@ -63,16 +63,16 @@ export const events = sqliteTable(
   ],
 );
 
-export const occurrences = sqliteTable(
-  "occurrences",
+export const editions = sqliteTable(
+  "editions",
   {
     id: text("id").primaryKey(),
     eventId: text("event_id")
       .notNull()
       .references(() => events.id),
-    occurrenceKey: text("occurrence_key").notNull(),
+    editionKey: text("edition_key").notNull(),
     displayName: text("display_name"),
-    occurrenceYear: integer("occurrence_year"),
+    editionYear: integer("edition_year"),
     startsOn: text("starts_on"),
     endsOn: text("ends_on"),
     dateState: text("date_state", {
@@ -119,26 +119,26 @@ export const occurrences = sqliteTable(
     updatedAt: text("updated_at").notNull(),
   },
   (t) => [
-    uniqueIndex("occurrences_event_key_uq").on(t.eventId, t.occurrenceKey),
-    index("occurrences_event_idx").on(t.eventId),
-    index("occurrences_date_idx").on(t.startsOn, t.endsOn),
-    index("occurrences_country_idx").on(t.countryCode),
-    index("occurrences_coordinates_idx").on(t.latitude, t.longitude),
+    uniqueIndex("editions_event_key_uq").on(t.eventId, t.editionKey),
+    index("editions_event_idx").on(t.eventId),
+    index("editions_date_idx").on(t.startsOn, t.endsOn),
+    index("editions_country_idx").on(t.countryCode),
+    index("editions_coordinates_idx").on(t.latitude, t.longitude),
     check(
-      "occurrences_dates_ck",
+      "editions_dates_ck",
       sql`((${t.startsOn} IS NULL AND ${t.endsOn} IS NULL) OR (${t.startsOn} IS NOT NULL AND ${t.endsOn} IS NOT NULL AND ${t.endsOn} >= ${t.startsOn}))`,
     ),
     check(
-      "occurrences_location_ck",
+      "editions_location_ck",
       sql`((${t.latitude} IS NULL AND ${t.longitude} IS NULL) OR (${t.latitude} IS NOT NULL AND ${t.longitude} IS NOT NULL AND ${t.latitude} BETWEEN -90 AND 90 AND ${t.longitude} BETWEEN -180 AND 180))`,
     ),
     check(
-      "occurrences_capacity_ck",
+      "editions_capacity_ck",
       sql`${t.capacityEstimate} IS NULL OR ${t.capacityEstimate} > 0`,
     ),
-    check("occurrences_version_ck", sql`${t.version} > 0`),
+    check("editions_version_ck", sql`${t.version} > 0`),
     check(
-      "occurrences_price_details_ck",
+      "editions_price_details_ck",
       sql`json_valid(${t.priceDetails}) AND json_type(${t.priceDetails}) = 'array'`,
     ),
   ],
@@ -163,24 +163,24 @@ export const taxonomyTerms = sqliteTable(
     ),
   ],
 );
-export const occurrenceTerms = sqliteTable(
-  "occurrence_terms",
+export const editionTerms = sqliteTable(
+  "edition_terms",
   {
-    occurrenceId: text("occurrence_id")
+    editionId: text("edition_id")
       .notNull()
-      .references(() => occurrences.id),
+      .references(() => editions.id),
     termId: text("term_id")
       .notNull()
       .references(() => taxonomyTerms.id),
   },
-  (t) => [primaryKey({ columns: [t.occurrenceId, t.termId] })],
+  (t) => [primaryKey({ columns: [t.editionId, t.termId] })],
 );
 export const externalLinks = sqliteTable(
   "external_links",
   {
     id: text("id").primaryKey(),
     eventId: text("event_id").references(() => events.id),
-    occurrenceId: text("occurrence_id").references(() => occurrences.id),
+    editionId: text("edition_id").references(() => editions.id),
     kind: text("kind", {
       enum: linkKinds,
     }).notNull(),
@@ -193,14 +193,10 @@ export const externalLinks = sqliteTable(
   (t) => [
     check(
       "external_links_owner_ck",
-      sql`(${t.eventId} IS NOT NULL) != (${t.occurrenceId} IS NOT NULL)`,
+      sql`(${t.eventId} IS NOT NULL) != (${t.editionId} IS NOT NULL)`,
     ),
     uniqueIndex("external_links_event_uq").on(t.eventId, t.kind, t.url),
-    uniqueIndex("external_links_occurrence_uq").on(
-      t.occurrenceId,
-      t.kind,
-      t.url,
-    ),
+    uniqueIndex("external_links_edition_uq").on(t.editionId, t.kind, t.url),
   ],
 );
 export const urlAliases = sqliteTable(
@@ -211,7 +207,7 @@ export const urlAliases = sqliteTable(
     eventId: text("event_id")
       .notNull()
       .references(() => events.id),
-    occurrenceId: text("occurrence_id").references(() => occurrences.id),
+    editionId: text("edition_id").references(() => editions.id),
     createdAt: text("created_at").notNull(),
   },
   (t) => [primaryKey({ columns: [t.scope, t.path] })],
@@ -221,7 +217,7 @@ export const catalogChanges = sqliteTable(
   {
     id: text("id").primaryKey(),
     eventId: text("event_id").references(() => events.id),
-    occurrenceId: text("occurrence_id").references(() => occurrences.id),
+    editionId: text("edition_id").references(() => editions.id),
     subjectVersion: integer("subject_version").notNull(),
     changedFields: text("changed_fields", { mode: "json" })
       .$type<CatalogFieldChange[]>()
@@ -235,16 +231,16 @@ export const catalogChanges = sqliteTable(
   (t) => [
     check(
       "catalog_changes_subject_ck",
-      sql`(${t.eventId} IS NOT NULL) != (${t.occurrenceId} IS NOT NULL)`,
+      sql`(${t.eventId} IS NOT NULL) != (${t.editionId} IS NOT NULL)`,
     ),
     check("catalog_changes_version_ck", sql`${t.subjectVersion} > 0`),
     uniqueIndex("catalog_changes_event_operation_uq").on(
       t.operationKey,
       t.eventId,
     ),
-    uniqueIndex("catalog_changes_occurrence_operation_uq").on(
+    uniqueIndex("catalog_changes_edition_operation_uq").on(
       t.operationKey,
-      t.occurrenceId,
+      t.editionId,
     ),
   ],
 );

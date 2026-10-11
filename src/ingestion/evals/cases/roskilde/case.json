@@ -20,11 +20,11 @@
           "official": false
         }
       ],
-      "occurrences": [
+      "editions": [
         {
-          "id": "festivalnetwork:occurrence:87b1f34093d76b709011",
-          "occurrenceKey": "source-row",
-          "occurrenceYear": 2026,
+          "id": "festivalnetwork:edition:87b1f34093d76b709011",
+          "editionKey": "source-row",
+          "editionYear": 2026,
           "startsOn": "2026-06-27",
           "endsOn": "2026-07-04",
           "dateState": "confirmed",
@@ -84,19 +84,19 @@
         }
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "starts_on",
         "value": "2027-06-26",
         "editionYear": 2027
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "ends_on",
         "value": "2027-07-03",
         "editionYear": 2027
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "date_state",
         "value": "confirmed",
         "editionYear": 2027
@@ -104,23 +104,23 @@
     ],
     "forbidden": [
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "editionKey": "source-row",
         "field": "starts_on"
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "editionKey": "source-row",
         "field": "ends_on"
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "venue_address",
         "editionYear": 2027,
         "containsText": "Rabalderstræde"
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "country_code",
         "notValue": "DK",
         "editionYear": 2027

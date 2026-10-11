@@ -125,7 +125,7 @@ function catalogBasePrice(
 }
 function addLinks(
   add: AddOperation,
-  owner: { type: "event" | "occurrence"; id: string },
+  owner: { type: "event" | "edition"; id: string },
   previous: Event["links"],
   version: number,
   slots: Record<string, string | undefined>,
@@ -183,7 +183,7 @@ function editionFields(edition: Edition): {
     reasons[fieldName(field)] = [reason];
   };
   if (edition.year) {
-    set("occurrenceYear", edition.year.value, edition.year.reason);
+    set("editionYear", edition.year.value, edition.year.reason);
   }
   if (edition.dates) {
     set(
@@ -298,7 +298,7 @@ function isPublishable(
       return term?.facet === facet && allowed.includes(term.slug);
     });
   return (
-    state.occurrenceYear != null &&
+    state.editionYear != null &&
     state.startsOn != null &&
     state.endsOn != null &&
     state.countryCode != null &&
@@ -320,28 +320,28 @@ function prepareEdition(
   terms: Term[],
 ): boolean {
   const existing = event?.editions.find(
-    (item) => item.occurrenceKey === edition.key,
+    (item) => item.editionKey === edition.key,
   );
-  const id = existing?.id ?? `$occ_${index}`;
+  const id = existing?.id ?? `$edition_${index}`;
   const version = existing?.version ?? 1;
   const { fields, reasons } = editionFields(edition);
   if (!existing) {
     add(
       {
-        kind: "createOccurrence",
+        kind: "createEdition",
         eventId: eventRef,
-        data: { occurrenceKey: edition.key, ...fields },
+        data: { editionKey: edition.key, ...fields },
       },
       reasons,
       undefined,
       id.slice(1),
     );
   } else if (Object.keys(fields).length) {
-    add({ kind: "updateOccurrence", id, data: fields }, reasons, version);
+    add({ kind: "updateEdition", id, data: fields }, reasons, version);
   }
   const nextTerms = prepareTerms(add, edition, existing, id, version);
   prepareTickets(add, edition, id, version);
-  addLinks(add, { type: "occurrence", id }, existing?.links ?? [], version, {
+  addLinks(add, { type: "edition", id }, existing?.links ?? [], version, {
     ticketing: edition.links.tickets,
   });
   const mayPublish =
@@ -352,7 +352,7 @@ function prepareEdition(
     mayPublish &&
     isPublishable({ ...existing, ...fields }, nextTerms, terms)
   ) {
-    add({ kind: "publishOccurrence", id }, {}, version);
+    add({ kind: "publishEdition", id }, {}, version);
     return true;
   }
   return false;
@@ -482,7 +482,7 @@ export function prepareResearch(
     event?.version ?? 1,
     { official_site: data.links.website, ...data.links.socials },
   );
-  const willPublishOccurrence = data.editions
+  const willPublishEdition = data.editions
     .map((edition, index) =>
       prepareEdition(add, edition, index, event, eventRef, input, terms),
     )
@@ -493,7 +493,7 @@ export function prepareResearch(
     (event.publicationState === "withdrawn" && input.republish);
   if (
     eventMayPublish &&
-    (willPublishOccurrence ||
+    (willPublishEdition ||
       event?.editions.some((item) => item.publicationState === "published"))
   ) {
     add({ kind: "publishEvent", id: eventRef }, {}, event?.version ?? 1);

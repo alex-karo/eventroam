@@ -19,7 +19,7 @@ This checklist records the original fixture-backed website build. Owner-initiate
 
 ## 2 Catalog and publication
 
-- [x] Create schemas and migrations for Events, Occurrences, taxonomy, links, and audit history.
+- [x] Create schemas and migrations for Events, Editions, taxonomy, links, and audit history.
 - [x] Add stable IDs, slugs, edition keys, and retained URL aliases.
 - [x] Implement validated internal writes with atomic audit history, version checks, and replay protection.
 - [x] Enforce date, location, publication, and withdrawal rules; keep facts specific to each edition.
@@ -29,7 +29,7 @@ This checklist records the original fixture-backed website build. Owner-initiate
 
 - [x] Build a server-rendered festival list using public records only.
 - [x] Build Event pages with links to published editions and history.
-- [x] Build Occurrence pages with dates, status, qualified location, and official links.
+- [x] Build Edition pages with dates, status, qualified location, and official links.
 - [x] Support direct page visits, stable URLs, and redirects for renamed public addresses.
 - [x] Verify drafts and withdrawn records are absent from public pages and responses.
 

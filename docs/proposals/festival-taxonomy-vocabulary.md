@@ -1,7 +1,7 @@
 ---
 type: Proposal
 title: Festival taxonomy vocabulary proposal
-description: Starter Occurrence vocabulary and assignment policy pending launch-data validation.
+description: Starter Edition vocabulary and assignment policy pending launch-data validation.
 status: draft
 tags: [taxonomy, festivals]
 ---
@@ -14,13 +14,13 @@ Status: Expected starter vocabulary and assignment policy, version 0.4
 
 Date: 2026-10-11
 
-Basis: The owner accepted the simpler Occurrence-only classification model on 2026-10-01, added `reenactment`, `wellness`, and `moto` as programme topics on 2026-10-03, and added `snow-sports`, `surfing`, `food-and-drink`, and `topic/outdoor` on 2026-10-11, and selected `openair` as the proposed physical-format slug to distinguish it from the activity topic. Validate the vocabulary against the launch dataset before implementation.
+Basis: The owner accepted the simpler Edition-only classification model on 2026-10-01, added `reenactment`, `wellness`, and `moto` as programme topics on 2026-10-03, and added `snow-sports`, `surfing`, `food-and-drink`, and `topic/outdoor` on 2026-10-11, and selected `openair` as the proposed physical-format slug to distinguish it from the activity topic. Validate the vocabulary against the launch dataset before implementation.
 
 Implementation note (2026-10-11): Fresh development and eval vocabularies include `format/openair` and the four new activity topics. Research prompt `model-direct-v6` includes their evidence rules; publication checks require `openair` or `mixed-indoor-outdoor`. Evidence assessment remains model-led, while writes enforce structural rules. The rest of the starter vocabulary remains subject to launch-data validation.
 
 ## 1 Context and outcome
 
-This proposal defines starter vocabulary and future evidence rules for classifying each Occurrence. [Occurrence classification](../../openspec/specs/catalog/classification/spec.md) owns implemented facet and assignment behavior, while [publication and details](../../openspec/specs/catalog/publication/spec.md) owns current scope and public visibility. The [rival research](../research/2026-09-19-filters-and-classification.md) informed the vocabulary, but its Event-inheritance proposal is superseded. This proposal does not select public filters or expand the catalog to concerts, conferences, retreats, or club nights.
+This proposal defines starter vocabulary and future evidence rules for classifying each Edition. [Edition classification](../../openspec/specs/catalog/classification/spec.md) owns implemented facet and assignment behavior, while [publication and details](../../openspec/specs/catalog/publication/spec.md) owns current scope and public visibility. The [rival research](../research/2026-09-19-filters-and-classification.md) informed the vocabulary, but its Event-inheritance proposal is superseded. This proposal does not select public filters or expand the catalog to concerts, conferences, retreats, or club nights.
 
 ## 2 Facets and starter terms
 
@@ -124,11 +124,11 @@ The term applies to official and independent events when supported. It makes no 
 6. **Replace only intentionally.** A missing label in a new extraction is not an instruction to delete an accepted assignment. Additions, removals, and complete set replacements use the domain's evidence, conflict, and owner-correction rules. A failed source fetch never clears terms.
 7. **Separate editions.** Copying a prior edition's assignments is allowed only as initial values for a new draft. Publication requires applicable supporting evidence, including when no copied value changes. Updating one edition never changes another or supplies implicit Event defaults.
 
-Canonical term IDs and slugs remain stable. New terms require a deliberate taxonomy-edit operation, not automatic creation from extraction output. New term definitions belong in this file. Preserve a used term's meaning, facet, and parent; semantic changes use new terms and explicit, audited Occurrence reassignments under the domain rules. Display-label corrections preserve meaning and are recorded in the versioned vocabulary definition. No term-audit entity is introduced.
+Canonical term IDs and slugs remain stable. New terms require a deliberate taxonomy-edit operation, not automatic creation from extraction output. New term definitions belong in this file. Preserve a used term's meaning, facet, and parent; semantic changes use new terms and explicit, audited Edition reassignments under the domain rules. Display-label corrections preserve meaning and are recorded in the versioned vocabulary definition. No term-audit entity is introduced.
 
 ## 4 Classification examples
 
-Fictional Occurrence examples, not verified real-event records:
+Fictional Edition examples, not verified real-event records:
 
 | Example and assumed evidence | Event type | Format | Topics | Genres | Culture |
 | --- | --- | --- | --- | --- | --- |
@@ -146,9 +146,9 @@ Fictional Occurrence examples, not verified real-event records:
 
 ## 5 Public behavior and acceptance
 
-The public UI displays human-readable labels and queries stable IDs/slugs. Parent genre filters include descendants. Unknown assignments do not match a positive term selection; leaving a facet unrestricted includes records with no assignment. Apply all selected classification conditions to the same Occurrence. Do not satisfy a genre from one edition and a format from another.
+The public UI displays human-readable labels and queries stable IDs/slugs. Parent genre filters include descendants. Unknown assignments do not match a positive term selection; leaving a facet unrestricted includes records with no assignment. Apply all selected classification conditions to the same Edition. Do not satisfy a genre from one edition and a format from another.
 
-An Event page displays classifications from the specific published Occurrence it presents, selected using the domain's date/status rules. Historical classifications remain attached to their historical edition; drafts never supply public badges. Changing the displayed edition changes its classification summary without changing the Event's identity.
+An Event page displays classifications from the specific published Edition it presents, selected using the domain's date/status rules. Historical classifications remain attached to their historical edition; drafts never supply public badges. Changing the displayed edition changes its classification summary without changing the Event's identity.
 
 The filter interaction spec will choose useful public controls; this vocabulary does not require one for every term. Classification does not replace publication gates for scope, evidence, dates, and location.
 
@@ -156,7 +156,7 @@ The filter interaction spec will choose useful public controls; this vocabulary 
 
 Validated application operations accept term IDs or resolve known `(facet, slug)` pairs. They validate facet cardinality and parent rules before writing. Normal classification writes only attach existing terms; unmatched labels appear in process output rather than silently creating vocabulary.
 
-Apply assignment changes and their Occurrence `CatalogChange` atomically under the existing expected-version and operation-key contract. Accepted changes retain source evidence and actor attribution; unchanged sets create no duplicate assignments or audit entries. Run summaries distinguish applied changes, unmapped labels, source conflicts, and failed retrievals. There is no review entity or per-change approval step.
+Apply assignment changes and their Edition `CatalogChange` atomically under the existing expected-version and operation-key contract. Accepted changes retain source evidence and actor attribution; unchanged sets create no duplicate assignments or audit entries. Run summaries distinguish applied changes, unmapped labels, source conflicts, and failed retrievals. There is no review entity or per-change approval step.
 
 ## 7 Validation and rollout
 

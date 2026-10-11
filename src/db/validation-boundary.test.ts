@@ -6,7 +6,7 @@ test("SQLite accepts removed business rules but retains structural constraints",
   const { client } = testDatabase();
   const fx = testFixtures(client);
   const event = fx.event();
-  const edition = fx.occurrence(event);
+  const edition = fx.edition(event);
   const term = fx.term({ facet: "event_type" });
   const second = fx.term({ facet: "event_type" });
   const link = fx.eventLink(event);
@@ -17,7 +17,7 @@ test("SQLite accepts removed business rules but retains structural constraints",
     .run(event.id);
   client
     .prepare(
-      "UPDATE occurrences SET schedule_status='future',date_state='unknown',coordinate_precision='exact',publication_state='published',country_code=NULL,price_currency='bad' WHERE id=?",
+      "UPDATE editions SET schedule_status='future',date_state='unknown',coordinate_precision='exact',publication_state='published',country_code=NULL,price_currency='bad' WHERE id=?",
     )
     .run(edition.id);
   client
@@ -29,9 +29,7 @@ test("SQLite accepts removed business rules but retains structural constraints",
     )
     .run(event.id);
   client
-    .prepare(
-      "INSERT INTO occurrence_terms(occurrence_id,term_id) VALUES(?,?),(?,?)",
-    )
+    .prepare("INSERT INTO edition_terms(edition_id,term_id) VALUES(?,?),(?,?)")
     .run(edition.id, term.id, edition.id, second.id);
   client
     .prepare("UPDATE taxonomy_terms SET facet='future',parent_id=? WHERE id=?")
@@ -44,12 +42,12 @@ test("SQLite accepts removed business rules but retains structural constraints",
     "capacity_estimate=0",
     "version=0",
     "event_id='missing'",
-    "occurrence_key=NULL",
+    "edition_key=NULL",
     "price_details='{}'",
   ]) {
     expect(() =>
       client
-        .prepare(`UPDATE occurrences SET ${assignment} WHERE id=?`)
+        .prepare(`UPDATE editions SET ${assignment} WHERE id=?`)
         .run(edition.id),
     ).toThrow();
   }
@@ -63,7 +61,7 @@ test("SQLite accepts removed business rules but retains structural constraints",
   ).toThrow();
   expect(() =>
     client
-      .prepare("UPDATE external_links SET occurrence_id=? WHERE id=?")
+      .prepare("UPDATE external_links SET edition_id=? WHERE id=?")
       .run(edition.id, link.id),
   ).toThrow();
   expect(() =>

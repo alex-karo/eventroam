@@ -17,10 +17,10 @@ const link = z.object({
   label: z.string().nullable().optional(),
   official: z.boolean().optional(),
 });
-const occurrence = z.object({
+const edition = z.object({
   id: z.string(),
-  occurrenceKey: z.string(),
-  occurrenceYear: z.number().int().nullable().optional(),
+  editionKey: z.string(),
+  editionYear: z.number().int().nullable().optional(),
   displayName: z.string().nullable().optional(),
   startsOn: z.string().nullable().optional(),
   endsOn: z.string().nullable().optional(),
@@ -44,7 +44,7 @@ const event = z.object({
   homeScope: z.enum(scopes).nullable().optional(),
   publicationState: z.enum(publicationStates).optional(),
   links: z.array(link).optional(),
-  occurrences: z.array(occurrence),
+  editions: z.array(edition),
 });
 const source = z.strictObject({
   attemptedUrl: z.url(),
@@ -57,7 +57,7 @@ const source = z.strictObject({
   completeness: z.enum(["full", "partial", "none"]),
 });
 export const assertionSchema = z.object({
-  owner: z.enum(["event", "occurrence"]),
+  owner: z.enum(["event", "edition"]),
   editionKey: z.string().optional(),
   editionYear: z.number().int().optional(),
   field: z.string(),

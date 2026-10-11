@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { PublicEvent, PublicOccurrence } from "@/catalog/read/contracts";
+import type { PublicEvent, PublicEdition } from "@/catalog/read/contracts";
 import { eventPath, editionPath } from "@/site/site";
 import {
   Dates,
@@ -10,12 +10,12 @@ import {
   linkLabel,
 } from "@/components/catalog/catalog";
 
-export function OccurrenceDetailsPage({
+export function EditionDetailsPage({
   event,
   edition,
 }: Readonly<{
   event: PublicEvent;
-  edition: PublicOccurrence;
+  edition: PublicEdition;
 }>) {
   const siblings = event.editions.filter((o) => o.id !== edition.id);
   return (

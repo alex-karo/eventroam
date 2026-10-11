@@ -30,7 +30,7 @@ export type CatalogResearchInput = {
 
 export type CatalogResearchResult = {
   schemaVersion: 2;
-  /** Absent only in historical version 2 reports. */
+  /** Assigned by the host when an ingestion attempt starts. */
   runId?: string;
   mode: CatalogResearchInput["mode"];
   outcome:

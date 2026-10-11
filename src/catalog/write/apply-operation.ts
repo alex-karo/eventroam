@@ -1,6 +1,6 @@
 import {
   validateEventRecord,
-  validateOccurrenceRecord,
+  validateEditionRecord,
   validateAliasRecord,
   validateTermAssignments,
 } from "@/catalog/domain/validation";
@@ -12,8 +12,8 @@ import {
   catalogChanges,
   events,
   externalLinks,
-  occurrenceTerms,
-  occurrences,
+  editionTerms,
+  editions,
   operationReceipts,
   taxonomyTerms,
   urlAliases,
@@ -31,9 +31,9 @@ import { isAssignedCountryCode } from "@/catalog/domain/country-codes";
 import { normalizeCatalogUrl } from "@/catalog/domain/urls";
 
 type EventRow = typeof events.$inferSelect;
-type OccurrenceRow = typeof occurrences.$inferSelect;
+type EditionRow = typeof editions.$inferSelect;
 type EventValues = typeof events.$inferInsert;
-type OccurrenceValues = typeof occurrences.$inferInsert;
+type EditionValues = typeof editions.$inferInsert;
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
@@ -48,13 +48,13 @@ function eventRow(client: Database.Database, id: string): EventRow {
   assert(found, "events record not found");
   return found;
 }
-function occurrenceRow(client: Database.Database, id: string): OccurrenceRow {
+function editionRow(client: Database.Database, id: string): EditionRow {
   const found = drizzle(client)
     .select()
-    .from(occurrences)
-    .where(eq(occurrences.id, id))
+    .from(editions)
+    .where(eq(editions.id, id))
     .get();
-  assert(found, "occurrences record not found");
+  assert(found, "editions record not found");
   return found;
 }
 function normalizedPriceDetails(details: CatalogPriceDetail[]) {
@@ -92,9 +92,9 @@ function priceColumns(p: CatalogPrice | null) {
     priceQualification: p?.qualification ?? null,
   };
 }
-function occurrenceData<T extends object>(
+function editionData<T extends object>(
   data: T,
-): Omit<T, "price"> & Partial<OccurrenceValues> {
+): Omit<T, "price"> & Partial<EditionValues> {
   // Expanding at price's original position also preserves audit field order.
   const entries: Array<[string, unknown]> = [];
   for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
@@ -110,10 +110,10 @@ function occurrenceData<T extends object>(
     }
   }
   return Object.fromEntries(entries) as Omit<T, "price"> &
-    Partial<OccurrenceValues>;
+    Partial<EditionValues>;
 }
-function validateOccurrence(r: Partial<OccurrenceRow>) {
-  validateOccurrenceRecord(r);
+function validateEdition(r: Partial<EditionRow>) {
+  validateEditionRecord(r);
   if (r.countryCode != null) {
     assert(
       typeof r.countryCode === "string" && isAssignedCountryCode(r.countryCode),
@@ -137,17 +137,17 @@ function setEvent(
   const db = drizzle(client);
   db.update(events).set(values).where(eq(events.id, id)).run();
 }
-function setOccurrence(
+function setEdition(
   client: Database.Database,
   id: string,
-  values: Partial<OccurrenceValues>,
+  values: Partial<EditionValues>,
 ) {
-  validateOccurrence({ ...occurrenceRow(client, id), ...values });
+  validateEdition({ ...editionRow(client, id), ...values });
   const db = drizzle(client);
-  db.update(occurrences).set(values).where(eq(occurrences.id, id)).run();
+  db.update(editions).set(values).where(eq(editions.id, id)).run();
 }
 function diff<T extends object>(
-  table: typeof events | typeof occurrences,
+  table: typeof events | typeof editions,
   old: Partial<T>,
   next: Partial<T>,
 ): CatalogFieldChange[] {
@@ -173,9 +173,9 @@ function diff<T extends object>(
 function validateScope(client: Database.Database, id: string) {
   const terms = drizzle(client)
     .select({ facet: taxonomyTerms.facet, slug: taxonomyTerms.slug })
-    .from(occurrenceTerms)
-    .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, occurrenceTerms.termId))
-    .where(eq(occurrenceTerms.occurrenceId, id))
+    .from(editionTerms)
+    .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, editionTerms.termId))
+    .where(eq(editionTerms.editionId, id))
     .all();
   const has = (facet: string, slug: string) =>
     terms.some((t) => t.facet === facet && t.slug === slug);
@@ -195,7 +195,7 @@ function validateScope(client: Database.Database, id: string) {
 function writeChange(
   client: Database.Database,
   meta: CatalogOperationMeta,
-  subject: "event" | "occurrence",
+  subject: "event" | "edition",
   id: string,
   version: number,
   changes: CatalogFieldChange[],
@@ -208,7 +208,7 @@ function writeChange(
     .values({
       id: changeId,
       eventId: subject === "event" ? id : null,
-      occurrenceId: subject === "occurrence" ? id : null,
+      editionId: subject === "edition" ? id : null,
       subjectVersion: version,
       changedFields: changes,
       operationKey: meta.operationKey,
@@ -224,7 +224,7 @@ function alias(
   scope: string,
   path: string,
   eventId: string,
-  occurrenceId: string | null,
+  editionId: string | null,
   now: string,
 ) {
   validateAliasRecord({ scope });
@@ -232,19 +232,19 @@ function alias(
   const existing = db
     .select({
       eventId: urlAliases.eventId,
-      occurrenceId: urlAliases.occurrenceId,
+      editionId: urlAliases.editionId,
     })
     .from(urlAliases)
     .where(and(eq(urlAliases.scope, scope), eq(urlAliases.path, path)))
     .get();
   assert(
     !existing ||
-      (existing.eventId === eventId && existing.occurrenceId === occurrenceId),
+      (existing.eventId === eventId && existing.editionId === editionId),
     "Public URL is reserved by another identity",
   );
   if (!existing) {
     db.insert(urlAliases)
-      .values({ scope, path, eventId, occurrenceId, createdAt: now })
+      .values({ scope, path, eventId, editionId, createdAt: now })
       .run();
   }
 }
@@ -258,19 +258,19 @@ function reserveEventPaths(
   alias(client, scope, `/events/${event.slug}`, eventId, null, now);
   const children = drizzle(client)
     .select({
-      id: occurrences.id,
-      occurrenceKey: occurrences.occurrenceKey,
-      publicationState: occurrences.publicationState,
+      id: editions.id,
+      editionKey: editions.editionKey,
+      publicationState: editions.publicationState,
     })
-    .from(occurrences)
-    .where(eq(occurrences.eventId, eventId))
+    .from(editions)
+    .where(eq(editions.eventId, eventId))
     .all();
   for (const child of children) {
     if (child.publicationState === "published") {
       alias(
         client,
         scope,
-        `/events/${event.slug}/${child.occurrenceKey}`,
+        `/events/${event.slug}/${child.editionKey}`,
         eventId,
         child.id,
         now,
@@ -278,19 +278,19 @@ function reserveEventPaths(
     }
   }
 }
-function reserveOccurrencePath(
+function reserveEditionPath(
   client: Database.Database,
-  occ: OccurrenceRow,
+  edition: EditionRow,
   now: string,
 ) {
-  const event = eventRow(client, occ.eventId);
+  const event = eventRow(client, edition.eventId);
   if (event.homeScope) {
     alias(
       client,
       event.homeScope,
-      `/events/${event.slug}/${occ.occurrenceKey}`,
+      `/events/${event.slug}/${edition.editionKey}`,
       event.id,
-      occ.id,
+      edition.id,
       now,
     );
   }
@@ -304,14 +304,14 @@ function bumpEvent(
 ) {
   setEvent(client, id, { ...values, version: version + 1, updatedAt: now });
 }
-function bumpOccurrence(
+function bumpEdition(
   client: Database.Database,
   id: string,
   version: number,
-  values: Partial<OccurrenceValues>,
+  values: Partial<EditionValues>,
   now: string,
 ) {
-  setOccurrence(client, id, {
+  setEdition(client, id, {
     ...values,
     version: version + 1,
     updatedAt: now,
@@ -357,15 +357,15 @@ function createEvent(
   return { id, version: 1, changed: true };
 }
 
-function createOccurrence(
+function createEdition(
   client: Database.Database,
-  op: Extract<CatalogOperation, { kind: "createOccurrence" }>,
+  op: Extract<CatalogOperation, { kind: "createEdition" }>,
   now: string,
 ): CatalogOperationResult {
   eventRow(client, op.eventId);
   const db = drizzle(client);
   const id = randomUUID();
-  const data = occurrenceData(op.data);
+  const data = editionData(op.data);
   const record = {
     id,
     eventId: op.eventId,
@@ -377,24 +377,16 @@ function createOccurrence(
     version: 1,
     createdAt: now,
     updatedAt: now,
-  } satisfies OccurrenceValues;
-  validateOccurrence(record);
-  db.insert(occurrences).values(record).run();
-  writeChange(
-    client,
-    op,
-    "occurrence",
-    id,
-    1,
-    diff(occurrences, {}, record),
-    now,
-  );
+  } satisfies EditionValues;
+  validateEdition(record);
+  db.insert(editions).values(record).run();
+  writeChange(client, op, "edition", id, 1, diff(editions, {}, record), now);
   return { id, version: 1, changed: true };
 }
 
 function updateSubject(
   client: Database.Database,
-  op: Extract<CatalogOperation, { kind: "updateEvent" | "updateOccurrence" }>,
+  op: Extract<CatalogOperation, { kind: "updateEvent" | "updateEdition" }>,
   now: string,
 ): CatalogOperationResult {
   const db = drizzle(client);
@@ -432,18 +424,18 @@ function updateSubject(
       now,
     );
   } else {
-    const old = occurrenceRow(client, op.id);
+    const old = editionRow(client, op.id);
     assert(old.version === op.expectedVersion, "Stale subject version");
-    const data = occurrenceData(op.data);
-    const changes = diff(occurrences, old, data);
+    const data = editionData(op.data);
+    const changes = diff(editions, old, data);
     if (!changes.length) {
       return { id: op.id, version: op.expectedVersion, changed: false };
     }
-    bumpOccurrence(client, op.id, op.expectedVersion, data, now);
+    bumpEdition(client, op.id, op.expectedVersion, data, now);
     writeChange(
       client,
       op,
-      "occurrence",
+      "edition",
       op.id,
       op.expectedVersion + 1,
       changes,
@@ -463,10 +455,7 @@ function changePublication(
     CatalogOperation,
     {
       kind:
-        | "publishEvent"
-        | "publishOccurrence"
-        | "withdrawEvent"
-        | "withdrawOccurrence";
+        "publishEvent" | "publishEdition" | "withdrawEvent" | "withdrawEdition";
     }
   >,
   now: string,
@@ -483,16 +472,16 @@ function changePublication(
     if (target === "published") {
       assert(
         drizzle(client)
-          .select({ id: occurrences.id })
-          .from(occurrences)
+          .select({ id: editions.id })
+          .from(editions)
           .where(
             and(
-              eq(occurrences.eventId, op.id),
-              eq(occurrences.publicationState, "published"),
+              eq(editions.eventId, op.id),
+              eq(editions.publicationState, "published"),
             ),
           )
           .get(),
-        "Event publication needs a published occurrence",
+        "Event publication needs a published edition",
       );
       assert(
         old.homeScope == null || old.homeScope === "festivals",
@@ -523,29 +512,29 @@ function changePublication(
       now,
     );
   } else {
-    const old = occurrenceRow(client, op.id);
+    const old = editionRow(client, op.id);
     assert(old.version === op.expectedVersion, "Stale subject version");
     assert(
       old.publicationState !== "draft" || target === "published",
       "Cannot withdraw a draft",
     );
     if (target === "published") {
-      validateOccurrence({ ...old, publicationState: "published" });
+      validateEdition({ ...old, publicationState: "published" });
       validateScope(client, op.id);
     }
-    const values: Partial<OccurrenceValues> = { publicationState: target };
-    const changes = diff(occurrences, old, values);
+    const values: Partial<EditionValues> = { publicationState: target };
+    const changes = diff(editions, old, values);
     if (!changes.length) {
       return { id: op.id, version: op.expectedVersion, changed: false };
     }
     if (target === "published") {
-      reserveOccurrencePath(client, old, now);
+      reserveEditionPath(client, old, now);
     }
-    bumpOccurrence(client, op.id, op.expectedVersion, values, now);
+    bumpEdition(client, op.id, op.expectedVersion, values, now);
     writeChange(
       client,
       op,
-      "occurrence",
+      "edition",
       op.id,
       op.expectedVersion + 1,
       changes,
@@ -564,19 +553,19 @@ function replacePriceBlock(
   op: Extract<CatalogOperation, { kind: "replacePriceBlock" }>,
   now: string,
 ): CatalogOperationResult {
-  const old = occurrenceRow(client, op.id);
+  const old = editionRow(client, op.id);
   assert(old.version === op.expectedVersion, "Stale subject version");
   const details = normalizedPriceDetails(op.priceDetails);
   const data = { ...priceColumns(op.basePrice), priceDetails: details };
-  const changes = diff(occurrences, old, data);
+  const changes = diff(editions, old, data);
   if (!changes.length) {
     return { id: op.id, version: op.expectedVersion, changed: false };
   }
-  bumpOccurrence(client, op.id, op.expectedVersion, data, now);
+  bumpEdition(client, op.id, op.expectedVersion, data, now);
   writeChange(
     client,
     op,
-    "occurrence",
+    "edition",
     op.id,
     op.expectedVersion + 1,
     changes,
@@ -595,7 +584,7 @@ function replaceTerms(
   now: string,
 ): CatalogOperationResult {
   const db = drizzle(client);
-  const old = occurrenceRow(client, op.id);
+  const old = editionRow(client, op.id);
   assert(old.version === op.expectedVersion, "Stale subject version");
   // IDs use a locale-independent order for no-op comparisons and audit history.
   // eslint-disable-next-line sonarjs/no-alphabetical-sort
@@ -626,32 +615,28 @@ function replaceTerms(
     }
   }
   const previous = db
-    .select({ termId: occurrenceTerms.termId })
-    .from(occurrenceTerms)
-    .where(eq(occurrenceTerms.occurrenceId, op.id))
-    .orderBy(asc(occurrenceTerms.termId))
+    .select({ termId: editionTerms.termId })
+    .from(editionTerms)
+    .where(eq(editionTerms.editionId, op.id))
+    .orderBy(asc(editionTerms.termId))
     .all()
     .map((x) => x.termId);
   const changed = JSON.stringify(previous) !== JSON.stringify(ids);
   if (!changed) {
     return { id: op.id, version: op.expectedVersion, changed: false };
   }
-  db.delete(occurrenceTerms)
-    .where(eq(occurrenceTerms.occurrenceId, op.id))
-    .run();
+  db.delete(editionTerms).where(eq(editionTerms.editionId, op.id)).run();
   for (const id of ids) {
-    db.insert(occurrenceTerms)
-      .values({ occurrenceId: op.id, termId: id })
-      .run();
+    db.insert(editionTerms).values({ editionId: op.id, termId: id }).run();
   }
   if (old.publicationState === "published") {
     validateScope(client, op.id);
   }
-  bumpOccurrence(client, op.id, op.expectedVersion, {}, now);
+  bumpEdition(client, op.id, op.expectedVersion, {}, now);
   writeChange(
     client,
     op,
-    "occurrence",
+    "edition",
     op.id,
     op.expectedVersion + 1,
     [{ field: "terms", oldValue: previous, newValue: ids }],
@@ -673,12 +658,10 @@ function replaceLinks(
   const old =
     op.owner.type === "event"
       ? eventRow(client, op.owner.id)
-      : occurrenceRow(client, op.owner.id);
+      : editionRow(client, op.owner.id);
   assert(old.version === op.expectedVersion, "Stale subject version");
   const ownerColumn =
-    op.owner.type === "event"
-      ? externalLinks.eventId
-      : externalLinks.occurrenceId;
+    op.owner.type === "event" ? externalLinks.eventId : externalLinks.editionId;
   const normalize = (links: typeof op.links) =>
     links
       .map((l) => ({
@@ -731,7 +714,7 @@ function replaceLinks(
         .values({
           id: randomUUID(),
           eventId: op.owner.type === "event" ? op.owner.id : null,
-          occurrenceId: op.owner.type === "occurrence" ? op.owner.id : null,
+          editionId: op.owner.type === "edition" ? op.owner.id : null,
           kind: link.kind,
           url: link.url,
           label: link.label,
@@ -757,7 +740,7 @@ function replaceLinks(
   if (op.owner.type === "event") {
     bumpEvent(client, op.owner.id, op.expectedVersion, {}, now);
   } else {
-    bumpOccurrence(client, op.owner.id, op.expectedVersion, {}, now);
+    bumpEdition(client, op.owner.id, op.expectedVersion, {}, now);
   }
   writeChange(
     client,
@@ -783,15 +766,15 @@ function applyOperation(
   switch (op.kind) {
     case "createEvent":
       return createEvent(client, op, now);
-    case "createOccurrence":
-      return createOccurrence(client, op, now);
+    case "createEdition":
+      return createEdition(client, op, now);
     case "updateEvent":
-    case "updateOccurrence":
+    case "updateEdition":
       return updateSubject(client, op, now);
     case "publishEvent":
-    case "publishOccurrence":
+    case "publishEdition":
     case "withdrawEvent":
-    case "withdrawOccurrence":
+    case "withdrawEdition":
       return changePublication(client, op, now);
     case "replacePriceBlock":
       return replacePriceBlock(client, op, now);

@@ -174,12 +174,10 @@ test("refresh maps grouped facts and reasons while preserving saved name", () =>
     [],
   );
   expect(prepared.errors).toEqual([]);
-  const update = prepared.operations.find(
-    (op) => op.kind === "updateOccurrence",
-  );
+  const update = prepared.operations.find((op) => op.kind === "updateEdition");
   expect(update).toMatchObject({
     data: {
-      occurrenceYear: 2027,
+      editionYear: 2027,
       startsOn: "2027-06-10",
       endsOn: "2027-06-12",
       dateState: "confirmed",
@@ -206,9 +204,9 @@ test("complete nullable groups clear both components and preserve zone", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
-  fx.occurrence(event, {
-    occurrenceKey: "2027",
-    occurrenceYear: 2027,
+  fx.edition(event, {
+    editionKey: "2027",
+    editionYear: 2027,
     startsOn: "2027-06-10",
     endsOn: "2027-06-12",
     dateState: "confirmed",
@@ -234,9 +232,7 @@ test("complete nullable groups clear both components and preserve zone", () => {
     { ...input, mode: "check", eventId: event.id },
     [],
   );
-  const op = prepared.operations.find(
-    (item) => item.kind === "updateOccurrence",
-  );
+  const op = prepared.operations.find((item) => item.kind === "updateEdition");
   expect(op).toMatchObject({
     data: {
       startsOn: null,
@@ -257,9 +253,9 @@ test("supplied link slots replace only matching owner/kind; equivalent sole URL 
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
-  const edition = fx.occurrence(event, {
-    occurrenceKey: "2027",
-    occurrenceYear: 2027,
+  const edition = fx.edition(event, {
+    editionKey: "2027",
+    editionYear: 2027,
   });
   fx.eventLink(event, {
     kind: "official_site",
@@ -276,7 +272,7 @@ test("supplied link slots replace only matching owner/kind; equivalent sole URL 
     url: "https://instagram.com/example",
     official: true,
   });
-  fx.occurrenceLink(edition, {
+  fx.editionLink(edition, {
     kind: "ticketing",
     url: "https://tickets.example/",
     official: true,
@@ -371,7 +367,7 @@ test("classification removals win over additions", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
-  const edition = fx.occurrence(event, { occurrenceKey: "2027" });
+  const edition = fx.edition(event, { editionKey: "2027" });
   const old = fx.term({ slug: "old" });
   const newTerm = fx.term({ slug: "new" });
   fx.assignTerm(edition, old);
@@ -405,8 +401,8 @@ test("omitted tickets and independent facts preserve saved values after relocati
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
-  fx.occurrence(event, {
-    occurrenceKey: "2027",
+  fx.edition(event, {
+    editionKey: "2027",
     venueName: "Old Field",
     locality: "Old City",
     timeZone: "Europe/Lisbon",
@@ -443,15 +439,15 @@ test("same ticket URL can be assigned to two editions independently", () => {
   const prepared = prepareResearch(proposed, [], input, []);
   const links = prepared.operations.filter((op) => op.kind === "replaceLinks");
   expect(links).toHaveLength(2);
-  expect(links.map((op) => op.owner.id)).toEqual(["$occ_0", "$occ_1"]);
+  expect(links.map((op) => op.owner.id)).toEqual(["$edition_0", "$edition_1"]);
 });
 
 test("writer rejection rolls back a supplied link replacement", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
-  fx.occurrence(event, {
-    occurrenceKey: "2027",
+  fx.edition(event, {
+    editionKey: "2027",
     startsOn: "2027-06-10",
     endsOn: "2027-06-12",
     scheduleStatus: "scheduled",
@@ -496,9 +492,7 @@ test("explicit cancellation updates schedule without renaming Event identity", (
     { ...input, mode: "check", eventId },
     [],
   );
-  const op = prepared.operations.find(
-    (item) => item.kind === "updateOccurrence",
-  )!;
+  const op = prepared.operations.find((item) => item.kind === "updateEdition")!;
   expect(op).toMatchObject({ data: { scheduleStatus: "cancelled" } });
   expect(prepared.explanations[op.operationKey].schedule_status).toEqual([
     "Organizer cancelled this edition",
@@ -558,9 +552,9 @@ test.each([
     ];
     const prepared = prepareResearch(proposed, [], input, terms);
     expect(prepared.errors).toEqual([]);
-    expect(
-      prepared.operations.some((op) => op.kind === "publishOccurrence"),
-    ).toBe(publishable);
+    expect(prepared.operations.some((op) => op.kind === "publishEdition")).toBe(
+      publishable,
+    );
     applyCatalogItem(client, prepared.operations);
     const [saved] = readResearchCatalog(client);
     const edition = saved.editions[0];
@@ -572,7 +566,7 @@ test.each([
       expect(() =>
         applyCatalogItem(client, [
           {
-            kind: "publishOccurrence",
+            kind: "publishEdition",
             operationKey: "test:activity-publication",
             actor: "owner",
             id: edition.id,

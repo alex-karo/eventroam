@@ -4,8 +4,8 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import {
   events,
   externalLinks,
-  occurrenceTerms,
-  occurrences,
+  editionTerms,
+  editions,
   taxonomyTerms,
 } from "@/db/schema";
 
@@ -18,28 +18,28 @@ export function readResearchEvent(client: Database.Database, eventId: string) {
   if (!event) {
     return null;
   }
-  const editions = db
+  const savedEditions = db
     .select()
-    .from(occurrences)
-    .where(eq(occurrences.eventId, eventId))
-    .orderBy(asc(occurrences.occurrenceYear), asc(occurrences.id))
+    .from(editions)
+    .where(eq(editions.eventId, eventId))
+    .orderBy(asc(editions.editionYear), asc(editions.id))
     .all();
-  const linksFor = (owner: { type: "event" | "occurrence"; id: string }) =>
+  const linksFor = (owner: { type: "event" | "edition"; id: string }) =>
     db
       .select()
       .from(externalLinks)
       .where(
         owner.type === "event"
           ? eq(externalLinks.eventId, owner.id)
-          : eq(externalLinks.occurrenceId, owner.id),
+          : eq(externalLinks.editionId, owner.id),
       )
       .all();
   return {
     ...event,
     links: linksFor({ type: "event", id: event.id }),
-    editions: editions.map((edition) => ({
+    editions: savedEditions.map((edition) => ({
       ...edition,
-      links: linksFor({ type: "occurrence", id: edition.id }),
+      links: linksFor({ type: "edition", id: edition.id }),
       terms: db
         .select({
           id: taxonomyTerms.id,
@@ -48,9 +48,9 @@ export function readResearchEvent(client: Database.Database, eventId: string) {
           name: taxonomyTerms.name,
           parentId: taxonomyTerms.parentId,
         })
-        .from(occurrenceTerms)
-        .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, occurrenceTerms.termId))
-        .where(eq(occurrenceTerms.occurrenceId, edition.id))
+        .from(editionTerms)
+        .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, editionTerms.termId))
+        .where(eq(editionTerms.editionId, edition.id))
         .all(),
     })),
   };
