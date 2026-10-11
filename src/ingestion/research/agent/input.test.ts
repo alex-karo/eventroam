@@ -166,7 +166,7 @@ test("instructions require website verification, failed recovery and full-histor
   expect(researchInstructions).toContain("EVERY saved Edition");
 });
 
-test("one frozen instant and the catalog preserve local-day and opaque-key matching inputs", () => {
+test("one frozen instant and saved facts preserve local-day and opaque-key matching inputs", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event();

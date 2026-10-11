@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { readResearchEvent } from "@/catalog/read/research";
+import { readResearchCountryBaseline } from "@/catalog/read/research";
 import type { ResearchCandidate, ResearchError } from "./contracts";
 import type { ResearchCatalog } from "./context";
 import type { CatalogResearchInput } from "../contracts";
@@ -81,15 +81,16 @@ export function assertRefreshBaseline(
   eventId: string,
   saved: SavedEditions,
 ) {
-  const current = readResearchEvent(client, eventId);
-  const baseline = (rows: SavedEditions) =>
+  const current = readResearchCountryBaseline(client, eventId);
+  const baseline = (
+    rows: Pick<SavedEditions[number], "id" | "countryCode">[],
+  ) =>
     rows
       .map((e) => `${e.id}:${e.countryCode?.toUpperCase() ?? ""}`)
       .sort((a, b) => a.localeCompare(b));
   if (
     !current ||
-    JSON.stringify(baseline(current.editions)) !==
-      JSON.stringify(baseline(saved))
+    JSON.stringify(baseline(current)) !== JSON.stringify(baseline(saved))
   ) {
     throw new Error("Refresh country baseline changed during research");
   }

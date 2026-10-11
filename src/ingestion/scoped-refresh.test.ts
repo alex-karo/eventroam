@@ -85,6 +85,7 @@ test.each(["full", "current"] as const)(
         generateCandidate: async (prompt) => {
           const parsed = JSON.parse(prompt);
           expect(parsed).not.toHaveProperty("refresh");
+          expect(parsed).not.toHaveProperty("catalog");
           expect(parsed.scope).toBe(scope);
           expect(parsed.referenceInstant).toBe("2026-10-11T12:00:00.000Z");
           expect(parsed.compact.editions[0]).toMatchObject({

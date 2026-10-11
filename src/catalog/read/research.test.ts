@@ -8,7 +8,27 @@ import { catalogChanges } from "@/db/schema";
 import {
   readResearchCatalog,
   readResearchEvent,
+  readResearchCountryBaseline,
 } from "@/catalog/read/research";
+
+test("country baseline distinguishes missing Events from empty ones and scopes saved countries to the target", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const target = fx.event();
+  const other = fx.event();
+  const otherEdition = fx.edition(other, { countryCode: "IE" });
+
+  expect(readResearchCountryBaseline(client, "missing-event")).toBeNull();
+  expect(readResearchCountryBaseline(client, target.id)).toEqual([]);
+  expect(readResearchCountryBaseline(client, other.id)).toEqual([
+    { id: otherEdition.id, countryCode: "IE" },
+  ]);
+
+  const unknown = fx.edition(target, { countryCode: null });
+  expect(readResearchCountryBaseline(client, target.id)).toEqual([
+    { id: unknown.id, countryCode: null },
+  ]);
+});
 
 test("private research context retains drafts, links, classification and variants while audit retains attribution", () => {
   const client = testDatabase().client;

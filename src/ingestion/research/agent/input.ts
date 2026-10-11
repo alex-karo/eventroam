@@ -26,17 +26,20 @@ export function promptFor(
     remaining,
     name: input.name,
     knownLinks,
-    catalog: catalog.map((event) => ({
-      id: event.id,
-      name: event.canonicalName,
-      aliases: event.aliases,
-      links: event.links.map(({ kind, url }) => ({ kind, url })),
-      editions: event.editions.map((edition) => ({
-        key: edition.editionKey,
-        year: edition.editionYear,
-        countryCode: edition.countryCode,
-      })),
-    })),
+    catalog:
+      input.mode === "add"
+        ? catalog.map((event) => ({
+            id: event.id,
+            name: event.canonicalName,
+            aliases: event.aliases,
+            links: event.links.map(({ kind, url }) => ({ kind, url })),
+            editions: event.editions.map((edition) => ({
+              key: edition.editionKey,
+              year: edition.editionYear,
+              countryCode: edition.countryCode,
+            })),
+          }))
+        : undefined,
     compact: target ? modelContext(target) : null,
     terms,
     inspectedSources: reads.map((read) =>
