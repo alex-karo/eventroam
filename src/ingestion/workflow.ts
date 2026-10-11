@@ -240,7 +240,7 @@ export function createCatalogIngestionWorkflow(
       return;
     }
     try {
-      if (!owned.persistenceError && !owned.result) {
+      if (!owned.finalization) {
         await finalizeFailure(owned, data, cancelled);
       }
     } finally {
@@ -453,10 +453,10 @@ export function createCatalogIngestionWorkflow(
       const owned = attempt(runId);
       const data = structuredClone(state.data);
       try {
-        const result = (await owned.finalize(data))!;
+        const result = await owned.finalize(data);
         return projectSummary(owned, result, "completed");
       } catch {
-        if (owned.persistenceError && data.report) {
+        if (data.report) {
           const summary = projectSummary(owned, data.report, "failed");
           summary.errorCodes = [
             ...summary.errorCodes
@@ -579,14 +579,8 @@ export async function runCatalogResearch(
   if (!owned) {
     throw new Error("Ingestion attempt unavailable");
   }
-  if (owned.persistenceError) {
-    throw owned.persistenceError;
-  }
-  if (owned.terminalError) {
-    throw owned.terminalError;
-  }
-  if (owned.result) {
-    return owned.result;
+  if (owned.finalization) {
+    return owned.finalization;
   }
   throw new Error(
     result?.status === "success"

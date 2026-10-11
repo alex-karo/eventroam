@@ -8,7 +8,11 @@ import { createResearchBudget, type ResearchBudget } from "./runtime/budget";
 import { loadResearchConfig, type ResearchConfig } from "./runtime/config";
 import { createCatalogRunTrace, type CatalogRunTrace } from "./runtime/tracing";
 import { RESEARCH_PROMPT_VERSION } from "./research/contracts";
-import { logCompletion, writeLogFields } from "./workflow-logging";
+import {
+  logCompletion,
+  writeLogFields,
+  reportEventId,
+} from "./workflow-logging";
 import { RunPersistenceError } from "./runs";
 import type { SourceSession } from "./sources/session";
 import {
@@ -32,11 +36,8 @@ export class CatalogAttempt {
   readonly ingestionRunId: string;
   trace?: CatalogRunTrace;
   sources: SourceSession | null = null;
-  result?: CatalogResearchResult;
-  persistenceError?: unknown;
-  terminalError?: unknown;
+  finalization?: Promise<CatalogResearchResult>;
   private cleanupPromise?: Promise<void>;
-  private finalized = false;
   private active: Promise<unknown> | undefined;
 
   constructor(
@@ -134,7 +135,7 @@ export class CatalogAttempt {
   }
 
   fail(data: IngestionData, cancelled = false) {
-    if (this.finalized || data.report) {
+    if (this.finalization || data.report) {
       return;
     }
     if (cancelled) {
@@ -150,68 +151,52 @@ export class CatalogAttempt {
     data.report = buildWorkflowFailureReport(this.reportInput(data));
   }
 
-  async finalize(data: IngestionData) {
-    if (this.finalized) {
-      if (this.terminalError) {
-        throw this.terminalError;
-      }
-      return this.result;
-    }
-    try {
-      data.report ??= buildResearchReport(this.reportInput(data));
-    } catch (error) {
-      this.terminalError = error;
-      this.finalized = true;
-      this.trace?.workflowFailed();
-      await this.cleanup(data.report ?? undefined);
-      throw error;
-    }
-    this.finalized = true;
-    try {
-      let eventId = this.input.eventId ?? null;
-      if (this.input.mode === "add") {
-        eventId = data.prepared?.matchedEventId ?? null;
-        if (!this.input.dryRun) {
-          eventId ??= data.applied?.references.event ?? null;
+  finalize(data: IngestionData): Promise<CatalogResearchResult> {
+    this.finalization ??= Promise.resolve().then(async () => {
+      try {
+        data.report ??= buildResearchReport(this.reportInput(data));
+        const result = finalizeIngestionRun(
+          this.deps.client,
+          this.ingestionRunId,
+          data.report,
+          reportEventId(this.input, data.prepared, data.applied),
+          Date.now(),
+        );
+        logCompletion(
+          this.trace?.log,
+          result,
+          this.input,
+          data.prepared,
+          data.applied,
+          data.writeFailed,
+        );
+        return result;
+      } catch (error) {
+        if (data.report) {
+          this.trace?.terminalFailed("run_persistence_failed");
+          if (error instanceof RunPersistenceError) {
+            this.trace?.log?.error("Required run finalization failed", {
+              stage: "report",
+              errorCode: "run_persistence_failed",
+              ...writeLogFields(this.input, data.applied, data.writeFailed),
+            });
+          }
+        } else {
+          this.trace?.workflowFailed();
         }
+        throw error;
+      } finally {
+        await this.cleanup(data.report ?? undefined);
       }
-      this.result = finalizeIngestionRun(
-        this.deps.client,
-        this.ingestionRunId,
-        data.report,
-        eventId,
-        Date.now(),
-      );
-      logCompletion(
-        this.trace?.log,
-        this.result,
-        this.input,
-        data.prepared,
-        data.applied,
-        data.writeFailed,
-      );
-      return this.result;
-    } catch (error) {
-      this.persistenceError = error;
-      this.trace?.terminalFailed("run_persistence_failed");
-      if (error instanceof RunPersistenceError) {
-        this.trace?.log?.error("Required run finalization failed", {
-          stage: "report",
-          errorCode: "run_persistence_failed",
-          ...writeLogFields(this.input, data.applied, data.writeFailed),
-        });
-      }
-      throw error;
-    } finally {
-      await this.cleanup(data.report ?? undefined);
-    }
+    });
+    return this.finalization;
   }
 
   async cleanup(report?: CatalogResearchResult) {
     this.cleanupPromise ??= (async () => {
       await this.settle();
       try {
-        await this.trace?.finish(report ?? this.result);
+        await this.trace?.finish(report);
       } catch {
         // Observability is optional; cleanup cannot replace a durable outcome.
       }

@@ -24,11 +24,12 @@ Website:
 
 ## Approved future changes
 
-- [Studio ingestion execution](../openspec/changes/expose-ingestion-in-studio/proposal.md) — implemented local graph inspection and execution, with preview defaults and isolated durable runs; change awaiting archive.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
 ## Archived changes
+
+- [Studio ingestion execution](../openspec/changes/archive/2026-10-11-expose-ingestion-in-studio/proposal.md) — shared CLI/Studio execution, native workflow state, preview defaults and isolated durable runs.
 
 - [Mastra ingestion workflow](../openspec/changes/archive/2026-10-10-use-mastra-ingestion-workflow/proposal.md) — implemented explicit ingestion steps with compatible run lifecycle and reporting.
 

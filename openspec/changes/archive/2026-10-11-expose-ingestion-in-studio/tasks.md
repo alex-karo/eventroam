@@ -42,6 +42,11 @@
 - [x] 7.2 Unify CLI/Studio initialization without preparedAttempt while preserving full CLI invocation validation, typed results/errors and lifecycle guarantees; failures before Mastra run creation allocate no ingestion history or resources.
 - [x] 7.3 Verify engine and real transport behavior, update architecture documentation/specs and run required checks.
 
+## 8. Terminal ownership simplification
+
+- [x] 8.1 Reuse reportEventId and memoize finalization once, replacing redundant terminal result/error flags while preserving report, persistence, cancellation and cleanup contracts.
+- [x] 8.2 Verify lifecycle regressions and update architecture documentation; run required checks.
+
 ## Verification evidence
 
 - Latest main merged at `4a64ca0`; its Pino logging and DuckDB tracing remain intact.
@@ -54,5 +59,6 @@
 - Native-state engine and real-server transport tests passed (45 + 6), including partial-work cancellation, cyclic report serialization failure and rejection of caller initialState on all start/stream routes. Full offline suite remains 435 tests across 39 files passed.
 - Built-in Browser verified the optional-object initial-state form regression, then the broad JSON master/narrow step schema workaround: untouched initial state and valid refresh preview completed all eight steps. The served master schema advertises no named or required state fields; state is initialized and validated by steps.
 - An anonymized verified Studio optional-object form bug was reported through the Mastra skill feedback endpoint (HTTP 201).
-- Shared-entry simplification: CLI and Studio initialize through one onStart path after engine run creation; earlier failures allocate no ingestion history/resources. Native runId replaces forwarded envelopes and steps return direct results. Focused engine tests passed (46), real transport tests passed (6), and the independent full suite passed (436 tests across 39 files). Type-check, lint, formatting, docs and strict OpenSpec checks passed. Workflow/attempt/contracts decreased from 978 to 971 lines; no finalization-promise refactor was made.
-- Main source-workflow spec synced. Change remains active for a separate archive operation.
+- Shared-entry simplification: CLI and Studio initialize through one onStart path after engine run creation; earlier failures allocate no ingestion history/resources. Native runId replaces forwarded envelopes and steps return direct results. Focused engine tests passed (46), real transport tests passed (6), and the independent full suite passed (436 tests across 39 files). Type-check, lint, formatting, docs and strict OpenSpec checks passed. Workflow/attempt/contracts decreased from 978 to 971 lines.
+- Terminal simplification: reused reportEventId and replaced finalized/result/persistenceError/terminalError with one memoized finalization promise. Concurrent/repeated success and failure tests prove one terminal write, one cleanup and the original report/error, including no persistence retry. Focused tests passed (48 engine + 6 real transport); independent full suite passed (438 tests across 39 files). Type-check, lint, formatting, docs and strict OpenSpec validation passed. Attempt/workflow/contracts decreased from 971 to 950 lines (attempt 226 to 211).
+- Main source-workflow spec synced and verified against all ten delta requirements. Change archived on 2026-10-11 after all 23 tasks were completed.

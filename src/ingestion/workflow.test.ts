@@ -1,3 +1,6 @@
+import { CatalogAttempt } from "./attempt";
+import { createIngestionData } from "./contracts";
+import * as runsModule from "./runs";
 import { afterEach, expect, test, vi } from "vitest";
 import { Run, Workflow } from "@mastra/core/workflows";
 import { asc } from "drizzle-orm";
@@ -1705,3 +1708,62 @@ test("registered final persistence failure exposes a bounded safe summary", asyn
   expect(trace.terminalFailed).toHaveBeenCalledWith("run_persistence_failed");
   expect(trace.finish).toHaveBeenCalledOnce();
 });
+
+test.each([false, true])(
+  "concurrent and repeated finalization writes and cleans up once (failure=%s)",
+  async (fails) => {
+    const { client } = fixture();
+    const trace = fakeTrace();
+    const close = vi.fn();
+    const persist = vi.spyOn(runsModule, "finalizeIngestionRun");
+    const owned = new CatalogAttempt(
+      "memoized-finalization",
+      input,
+      { client, generateCandidate: vi.fn() },
+      close,
+    );
+    await owned.initialize();
+    if (fails) {
+      client.exec(
+        "CREATE TRIGGER refuse_finish BEFORE UPDATE ON ingestion_runs BEGIN SELECT RAISE(ABORT, 'PRIVATE_PERSISTENCE'); END",
+      );
+    }
+    const results = await Promise.allSettled([
+      owned.finalize(createIngestionData()),
+      owned.finalize(createIngestionData()),
+    ]);
+    const repeated = await owned.finalize(createIngestionData()).then(
+      (value) => ({ status: "fulfilled" as const, value }),
+      (reason: unknown) => ({ status: "rejected" as const, reason }),
+    );
+    expect(persist).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+    expect(trace.finish).toHaveBeenCalledOnce();
+    const first = results[0];
+    if (fails && first.status === "rejected") {
+      expect(first.reason).toBeInstanceOf(RunPersistenceError);
+      expect((results[1] as PromiseRejectedResult).reason).toBe(first.reason);
+      expect((repeated as PromiseRejectedResult).reason).toBe(first.reason);
+      expect(results[1]).toEqual(first);
+      expect(repeated).toEqual(first);
+      expect(
+        client.prepare("SELECT status,report_json FROM ingestion_runs").get(),
+      ).toEqual({ status: "running", report_json: null });
+    } else if (!fails && first.status === "fulfilled") {
+      expect((results[1] as PromiseFulfilledResult<unknown>).value).toBe(
+        first.value,
+      );
+      expect((repeated as PromiseFulfilledResult<unknown>).value).toBe(
+        first.value,
+      );
+      expect(results[1]).toEqual(first);
+      expect(repeated).toEqual(first);
+      const row = client
+        .prepare("SELECT report_json FROM ingestion_runs")
+        .get() as { report_json: string };
+      expect(JSON.parse(row.report_json)).toEqual(first.value);
+    } else {
+      throw new Error("Unexpected finalization outcome");
+    }
+  },
+);
