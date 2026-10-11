@@ -9,7 +9,13 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "commands/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}", "commands/**/*.test.{ts,tsx}"],
     setupFiles: ["./src/test/setup.ts"],
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}", "commands/**/*.{ts,tsx}"],
+      exclude: ["src/test/**", "**/*.test.{ts,tsx}", "**/*.d.ts"],
+      reporter: ["text", "html", "json-summary"],
+    },
   },
 });

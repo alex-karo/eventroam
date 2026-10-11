@@ -40,6 +40,8 @@ npm run openspec:validate
 
 `npm start` serves the built application. `npm run test:e2e` runs desktop and mobile discovery journeys against a temporary fixture database on port 3137. Mapbox loading is disabled, so this suite does not verify live tiles or marker interaction. Pass Playwright options after `--`, for example `npm run test:e2e -- --project=mobile`.
 
+Run `npm run test:coverage` for unit and integration coverage of application and command TypeScript, including unimported files. E2E, test helpers, declaration files, and child-process coverage from Studio and tracing fixtures are excluded. Reports go to ignored `coverage/`; CI publishes totals and retains the HTML `test-coverage` artifact for 14 days. Coverage thresholds are not enforced. React tests use a per-file `// @vitest-environment jsdom` directive and React Testing Library; other tests use Node.
+
 Use the built-in Browser for local UI verification. On macOS, obtain approved execution outside the command sandbox before launching full Chrome through a shell or test runner, including headless mode.
 
 Tests live beside their implementation. Use `testDatabase()` for a fresh migrated temporary database and `testFixtures()` from `src/test/fixtures.ts` for typed builders and inserts. Cleanup is automatic. `fx.build.*` creates objects without storing them; `fx.publishedEvent(...)` creates a complete public scenario. Omitted fields receive defaults, explicit `null` is preserved, and `undefined` overrides are ignored. Set values that affect the scenario or assertions. Tests do not load development fixtures or fetch live source pages; direct SQL is appropriate for testing database constraints or deliberately invalid data.
