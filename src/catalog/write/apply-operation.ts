@@ -833,11 +833,15 @@ export type CatalogItemResult = {
 export function applyCatalogItem(
   client: Database.Database,
   operations: CatalogOperation[],
-  options: { dryRun?: boolean } = {},
+  options: {
+    dryRun?: boolean;
+    beforeApply?: (client: Database.Database) => void;
+  } = {},
 ): CatalogItemResult {
   assert(operations.length > 0, "Catalog item needs an operation");
   const run = (working: Database.Database) =>
     working.transaction(() => {
+      options.beforeApply?.(working);
       const references: Record<string, string> = {};
       const results: CatalogOperationResult[] = [];
       const itemVersions = new Map<string, number>();

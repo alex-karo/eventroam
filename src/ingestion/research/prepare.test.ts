@@ -229,7 +229,7 @@ test("complete nullable groups clear both components and preserve zone", () => {
   const prepared = prepareResearch(
     proposed,
     readResearchCatalog(client),
-    { ...input, mode: "check", eventId: event.id },
+    { ...input, mode: "refresh", eventId: event.id },
     [],
   );
   const op = prepared.operations.find((item) => item.kind === "updateEdition");
@@ -249,67 +249,122 @@ test("complete nullable groups clear both components and preserve zone", () => {
   expect(saved.startsOn).toBeNull();
 });
 
-test("supplied link slots replace only matching owner/kind; equivalent sole URL is a no-op", () => {
-  const client = testDatabase().client;
-  const fx = testFixtures(client);
-  const event = fx.event({ canonicalName: "Example Fest" });
-  const edition = fx.edition(event, {
-    editionKey: "2027",
-    editionYear: 2027,
-  });
-  fx.eventLink(event, {
-    kind: "official_site",
-    url: "https://old.example/",
-    official: true,
-  });
-  fx.eventLink(event, {
-    kind: "official_site",
-    url: "https://old2.example/",
-    official: true,
-  });
-  fx.eventLink(event, {
-    kind: "instagram",
-    url: "https://instagram.com/example",
-    official: true,
-  });
-  fx.editionLink(edition, {
-    kind: "ticketing",
-    url: "https://tickets.example/",
-    official: true,
-  });
-  const proposed = candidate();
-  proposed.data!.eventId = event.id;
-  proposed.data!.links.website = "https://new.example/";
-  const prepared = prepareResearch(
-    proposed,
-    readResearchCatalog(client),
-    { ...input, mode: "refresh", eventId: event.id },
-    [],
-  );
-  applyCatalogItem(client, prepared.operations);
-  const saved = readResearchCatalog(client)[0];
-  expect(
-    saved.links
-      .filter((link) => link.kind === "official_site")
-      .map((link) => link.url),
-  ).toEqual(["https://new.example/"]);
-  expect(saved.links.filter((link) => link.kind === "instagram")).toHaveLength(
-    1,
-  );
-  expect(
-    saved.editions[0].links.filter((link) => link.kind === "ticketing"),
-  ).toHaveLength(1);
-  proposed.data!.links.website = "https://NEW.example:443/#fragment";
-  const repeat = prepareResearch(
-    proposed,
-    readResearchCatalog(client),
-    { ...input, mode: "check", eventId: event.id },
-    [],
-  );
-  expect(repeat.operations.filter((op) => op.kind === "replaceLinks")).toEqual(
-    [],
-  );
-});
+test.each([
+  { owner: "event", multiple: false },
+  { owner: "event", multiple: true },
+  { owner: "edition", multiple: false },
+  { owner: "edition", multiple: true },
+] as const)(
+  "$owner supplied link slot replaces all matching links, preserves other slots and normalizes equivalent URLs (multiple=$multiple)",
+  ({ owner, multiple }) => {
+    const client = testDatabase().client;
+    const fx = testFixtures(client);
+    const event = fx.event({ canonicalName: "Example Fest" });
+    const edition = fx.edition(event, {
+      editionKey: "2027",
+      editionYear: 2027,
+    });
+    const website = "https://site.example/";
+    const tickets = "https://tickets.example/";
+    const instagram = "https://instagram.com/example";
+    fx.eventLink(event, {
+      kind: "official_site",
+      url: website,
+      official: true,
+    });
+    fx.eventLink(event, { kind: "instagram", url: instagram, official: true });
+    fx.editionLink(edition, {
+      kind: "ticketing",
+      url: tickets,
+      official: true,
+    });
+    if (multiple) {
+      if (owner === "event") {
+        fx.eventLink(event, {
+          kind: "official_site",
+          url: "https://other.example/",
+          official: true,
+        });
+      } else {
+        fx.editionLink(edition, {
+          kind: "ticketing",
+          url: "https://other.example/",
+          official: true,
+        });
+      }
+    }
+    const proposed = candidate();
+    proposed.data!.eventId = event.id;
+    if (owner === "event") {
+      proposed.data!.links.website = "https://SITE.example:443/#fragment";
+    } else {
+      proposed.data!.editions[0].links.tickets =
+        "https://TICKETS.example:443/#fragment";
+    }
+    const refreshInput = {
+      ...input,
+      mode: "refresh" as const,
+      eventId: event.id,
+    };
+    const prepared = prepareResearch(
+      proposed,
+      readResearchCatalog(client),
+      refreshInput,
+      [],
+    );
+    expect(prepared.errors).toEqual([]);
+    expect(
+      prepared.operations.filter((op) => op.kind === "replaceLinks"),
+    ).toHaveLength(multiple ? 1 : 0);
+    if (multiple) {
+      applyCatalogItem(client, prepared.operations);
+    }
+    const saved = readResearchCatalog(client)[0];
+    expect(
+      saved.links
+        .filter((link) => link.kind === "official_site")
+        .map((link) => link.url),
+    ).toEqual([website]);
+    expect(
+      saved.links
+        .filter((link) => link.kind === "instagram")
+        .map((link) => link.url),
+    ).toEqual([instagram]);
+    expect(
+      saved.editions[0].links
+        .filter((link) => link.kind === "ticketing")
+        .map((link) => link.url),
+    ).toEqual([tickets]);
+    if (owner === "event") {
+      proposed.data!.links.website = "https://new.example/";
+    } else {
+      proposed.data!.editions[0].links.tickets = "https://new.example/";
+    }
+    const changed = prepareResearch(
+      proposed,
+      readResearchCatalog(client),
+      refreshInput,
+      [],
+    );
+    applyCatalogItem(client, changed.operations);
+    const updated = readResearchCatalog(client)[0];
+    const updatedLinks =
+      owner === "event" ? updated.links : updated.editions[0].links;
+    expect(
+      updatedLinks
+        .filter(
+          (link) =>
+            link.kind === (owner === "event" ? "official_site" : "ticketing"),
+        )
+        .map((link) => link.url),
+    ).toEqual(["https://new.example/"]);
+    expect(
+      updated.links
+        .filter((link) => link.kind === "instagram")
+        .map((link) => link.url),
+    ).toEqual([instagram]);
+  },
+);
 
 test("base prices convert major to minor and variants retain major", () => {
   for (const [currency, amount, expected] of [
@@ -340,6 +395,71 @@ test("base prices convert major to minor and variants retain major", () => {
       priceDetails: [{ amount }],
     });
   }
+});
+
+test("reordered qualified ticket variants and an equivalent base price produce no audit changes", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const event = fx.event({ canonicalName: "Example Fest" });
+  const variants = [
+    {
+      label: "Weekend package",
+      amount: 120,
+      currency: "EUR",
+      terms: "Camping included",
+      availability: "available" as const,
+    },
+    {
+      label: "Child day",
+      amount: 0,
+      currency: "EUR",
+      terms: "Under 12; one day",
+      availability: "available" as const,
+    },
+    {
+      label: "Upgrade",
+      amount: 20,
+      currency: "EUR",
+      terms: "Requires weekend ticket",
+      availability: "sold_out" as const,
+    },
+  ].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  fx.edition(event, {
+    editionKey: "2027",
+    priceKind: "exact",
+    priceCurrency: "EUR",
+    priceMinMinor: 12000,
+    priceMaxMinor: 12000,
+    priceCoverage: "full_programme",
+    priceDetails: variants,
+  });
+  const proposed = candidate();
+  proposed.data!.editions[0].tickets = {
+    value: {
+      variants: [...variants].reverse(),
+      basePrice: {
+        kind: "exact",
+        currency: "EUR",
+        minAmount: 120,
+        maxAmount: 120,
+        coverage: "full_programme",
+      },
+    },
+    reason: "Official shop confirms all ticket categories",
+  };
+  const prepared = prepareResearch(
+    proposed,
+    readResearchCatalog(client),
+    { ...input, mode: "refresh", eventId: event.id },
+    [],
+  );
+  expect(prepared.errors).toEqual([]);
+  const applied = applyCatalogItem(client, prepared.operations);
+  expect(applied.changes).toEqual([]);
+  expect(readResearchCatalog(client)[0].editions[0].priceDetails).toEqual(
+    variants,
+  );
+  expect(client.prepare("SELECT * FROM catalog_changes").all()).toEqual([]);
 });
 
 test("creation needs identity reason; existing refresh does not", () => {
@@ -410,6 +530,14 @@ test("omitted tickets and independent facts preserve saved values after relocati
   });
   const proposed = candidate();
   proposed.data!.eventId = event.id;
+  proposed.status = "partial";
+  proposed.unresolved = [
+    {
+      editionKey: "2027",
+      field: "tickets",
+      message: "Unread shop category; cannot replace complete block",
+    },
+  ];
   proposed.data!.editions[0].venueName = {
     value: "New Field",
     reason: "Organizer moved venues",
@@ -422,6 +550,7 @@ test("omitted tickets and independent facts preserve saved values after relocati
   );
   applyCatalogItem(client, prepared.operations);
   const saved = readResearchCatalog(client)[0].editions[0];
+  expect(prepared.unresolved).toEqual(proposed.unresolved);
   expect(saved.venueName).toBe("New Field");
   expect(saved.locality).toBe("Old City");
   expect(saved.timeZone).toBe("Europe/Lisbon");
@@ -489,7 +618,7 @@ test("explicit cancellation updates schedule without renaming Event identity", (
   const prepared = prepareResearch(
     proposed,
     readResearchCatalog(client),
-    { ...input, mode: "check", eventId },
+    { ...input, mode: "refresh", eventId },
     [],
   );
   const op = prepared.operations.find((item) => item.kind === "updateEdition")!;

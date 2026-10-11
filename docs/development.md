@@ -40,6 +40,8 @@ npm run docs:check
 npm run openspec:validate
 ```
 
+CI validates main OpenSpec specs with `npm exec -- openspec validate --specs --strict`, allowing active changes to start with a proposal only. `npm run openspec:validate` also validates active changes and requires their delta specs to be ready.
+
 `npm start` serves the built application. `npm run test:e2e` runs desktop and mobile discovery journeys against a temporary fixture database on port 3137. Mapbox loading is disabled, so this suite does not verify live tiles or marker interaction. Pass Playwright options after `--`, for example `npm run test:e2e -- --project=mobile`.
 
 Run `npm run test:coverage` for unit and integration coverage of application and command TypeScript, including unimported files. E2E, test helpers, declaration files, and child-process coverage from Studio and tracing fixtures are excluded. Reports go to ignored `coverage/`; CI publishes totals and retains the HTML `test-coverage` artifact for 14 days. Coverage thresholds are not enforced. React tests use a per-file `// @vitest-environment jsdom` directive and React Testing Library; other tests use Node.
@@ -73,12 +75,12 @@ Set `OPENROUTER_API_KEY` in `.env`. The selected database must exist and be migr
 ```sh
 npm run catalog -- add --name "Festival name" --database data/research.sqlite
 npm run catalog -- refresh --event EVENT_ID --database data/research.sqlite --report data/refresh.json
-npm run catalog -- check --event EVENT_ID --database data/research.sqlite --apply
+npm run catalog -- refresh --event EVENT_ID --database data/research.sqlite --apply
 ```
 
-`add` creates new Events; use `refresh` or `check` for existing ones. Preview is the default and still needs a writable database: catalog changes roll back, while the private run report persists. `--apply` starts fresh research rather than applying a saved preview. Use `--republish` to permit withdrawn records to publish again.
+`add` creates new Events; use `refresh` for existing ones. Preview is the default and still needs a writable database: catalog changes roll back, while the private run report persists. `--apply` starts fresh research rather than applying a saved preview. Use `--republish` to permit withdrawn records to publish again.
 
-The defaults are `openai/gpt-6-luna`, medium reasoning, and Flex routing. Set `OPENROUTER_MODEL`, `OPENROUTER_REASONING_EFFORT`, or `OPENROUTER_SERVICE_TIER=standard` to override them. Flex can have higher latency and capacity errors. Optional `FIRECRAWL_KEY` enables a fallback for HTTP 403 responses. Defaults and all `CATALOG_MAX_*` safeguards are in `.env.example`; CLI overrides include `--searches`, `--agent-steps`, and `--seconds`. Limits bound work, not exact spending.
+The defaults are `openai/gpt-6-luna`, medium reasoning, and Flex routing. Set `OPENROUTER_MODEL`, `OPENROUTER_REASONING_EFFORT`, or `OPENROUTER_SERVICE_TIER=standard` to override them. Flex can have higher latency and capacity errors. Optional `FIRECRAWL_KEY` enables a fallback for HTTP 403 responses. Research permits 15 ordinary model steps by default, reserving the last for a final response; override this with `--agent-steps` or `CATALOG_MAX_AGENT_STEPS`. There is no application limit on total input context characters. Defaults and remaining `CATALOG_MAX_*` safeguards are in `.env.example`; CLI overrides also include `--searches` and `--seconds`. Limits bound work, not exact spending.
 
 The [ingestion guide](ingestion-process.md) explains source handling, fact selection, previews, publication, and reports. Research is model-led and can make factual mistakes. Inspect the report before deciding on an apply run. After interruption, start a fresh run against current state; already committed changes remain.
 
@@ -91,7 +93,7 @@ npm run catalog:eval
 npm run catalog:eval -- --case sziget --repeat 3 --model openai/gpt-6-luna
 ```
 
-Reports default to `data/catalog-evals/`; `--report PATH` selects an output file. Failed assertions or host workflow/persistence failures produce exit code 1. Evals measure required facts and forbidden claims; they are not an apply gate. Compare models or prompts on the same fixtures and repeat runs to expose variability.
+Reports default to `data/catalog-evals/`; `--report PATH` selects an output file. Failed assertions or host workflow/persistence failures produce exit code 1. Evals measure required changes and forbidden claims. Seven synthetic scope cases additionally score temporal selection and research completeness, including unchanged saved history, independently of mutations. Together with six captured-source cases, the default suite has 13 cases; fixture schema 2 is independent of report v3. They are not an apply gate. Compare models or prompts on the same fixtures and repeat runs to expose variability.
 
 Cases and expectations live in `src/ingestion/evals/cases/`. When refreshing captured pages, review their expected results too. Check that facts belong to the intended festival and edition, especially venue versus office addresses and ticket links versus signup forms.
 
@@ -104,10 +106,10 @@ Run `npm run catalog:studio`, open `http://127.0.0.1:4111` in the built-in Brows
 ```
 
 ```json
-{ "mode": "refresh", "eventId": "EVENT_ID", "dryRun": false, "republish": false }
+{ "mode": "refresh", "eventId": "EVENT_ID", "scope": "full", "dryRun": false, "republish": false }
 ```
 
-Studio accepts one Event per `check`. Preview is the default. Inspect intermediate results and the final report in the workflow view. Use native cancellation while a run is active; after interruption, start a fresh run. Per-step execution, resume, restart, and time travel are unsupported. See the [workflow steps](ingestion-process.md#workflow-steps) for the shared CLI/Studio lifecycle.
+Studio accepts one Event per refresh, with optional `scope: "full"|"current"` (default full). Add rejects scope and check is unsupported. Preview is the default. Inspect intermediate results and the final report in the workflow view. Use native cancellation while a run is active; after interruption, start a fresh run. Per-step execution, resume, restart, and time travel are unsupported. See the [workflow steps](ingestion-process.md#workflow-steps) for the shared CLI/Studio lifecycle.
 
 ### Local trace inspection
 
@@ -129,3 +131,5 @@ Observability is best effort; incomplete or missing traces do not replace the du
 Production packaging and Docker Compose are not implemented. See [production readiness](../openspec/changes/production-readiness/proposal.md) and the [Mapbox deployment gate](mapbox-deployment-gate.md) for planned work.
 
 `/Users/karo/projects/eventmap` is a read-only product reference. Do not modify it or copy its implementation wholesale; follow this project's specs and dependency choices.
+
+Migration `0006_remove-ingestion-report-check` removes the entire database report check while preserving run rows and historical JSON. Migrate before writing report v3; current application finalization/evals reject v2. Stop readers/writers and back up SQLite before migration; downgrade by restoring matching code and the backup. Refresh supports repeated `--event` and `--scope full|current`; each Event has an independent atomic attempt.

@@ -18,7 +18,8 @@ import type {
 } from "./research/contracts";
 
 export type CatalogResearchInput = {
-  mode: "add" | "refresh" | "check";
+  mode: "add" | "refresh";
+  scope?: "full" | "current";
   name?: string;
   eventId?: string;
   actor: string;
@@ -29,7 +30,14 @@ export type CatalogResearchInput = {
 };
 
 export type CatalogResearchResult = {
-  schemaVersion: 2;
+  schemaVersion: 3;
+  scope: NonNullable<CatalogResearchInput["scope"]> | null;
+  referenceInstant: string | null;
+  limits: ResearchLimits;
+  workload: {
+    savedEditions: number;
+    returnedEditions: number;
+  };
   /** Assigned by the host when an ingestion attempt starts. */
   runId?: string;
   mode: CatalogResearchInput["mode"];

@@ -105,6 +105,8 @@ export class CatalogAttempt {
       input: this.input,
       config: this.config,
       prepared: data.prepared,
+      context: data.context,
+      limits: this.budget.limits,
       research: data.research,
       applied: data.applied,
       writeFailed: data.writeFailed,

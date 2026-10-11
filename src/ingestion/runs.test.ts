@@ -74,6 +74,21 @@ test("finalization preserves normalized report, zero/unknown values and guards t
     runId: id,
     usage: { ...report.usage, inputTokens: 10, modelCostUsd: 0 },
   };
+  const pending = client
+    .prepare("SELECT * FROM ingestion_runs WHERE id=?")
+    .get(id);
+  expect(() =>
+    finalizeIngestionRun(
+      client,
+      id,
+      { ...final, schemaVersion: 2 } as never,
+      null,
+      Date.now(),
+    ),
+  ).toThrow();
+  expect(
+    client.prepare("SELECT * FROM ingestion_runs WHERE id=?").get(id),
+  ).toEqual(pending);
   const normalized = finalizeIngestionRun(client, id, final, null, Date.now());
   const row = client
     .prepare("SELECT * FROM ingestion_runs WHERE id=?")
@@ -102,13 +117,17 @@ test("finalization preserves normalized report, zero/unknown values and guards t
   expect(
     client.prepare("SELECT * FROM ingestion_runs WHERE id=?").get(id),
   ).toEqual(row);
+  expect(() =>
+    client
+      .prepare("UPDATE ingestion_runs SET report_json='[]' WHERE id=?")
+      .run(id),
+  ).not.toThrow();
   for (const [column, value] of [
     ["input_tokens", -1],
     ["input_tokens", 1.5],
     ["model_cost_usd", -1],
     ["duration_ms", -1],
     ["usage_complete", 2],
-    ["report_json", "[]"],
     ["finished_at", null],
   ] as const) {
     expect(() =>

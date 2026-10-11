@@ -1,0 +1,99 @@
+{
+  "id": "scope-full-history",
+  "input": {
+    "mode": "refresh",
+    "scope": "full",
+    "eventId": "scope-event-scope-full-history",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "provenance": {
+    "kind": "synthetic-scope-regression",
+    "sourceReport": "openspec/changes/archive/2026-10-11-scoped-event-refresh/design.md",
+    "note": "Synthetic source facts for model selection/completeness; no live HTTP/search fallback."
+  },
+  "initial": {
+    "event": {
+      "id": "scope-event-scope-full-history",
+      "slug": "scope-full-history",
+      "canonicalName": "River Festival",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://scope-fixture.example/scope-full-history",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "scope-edition-historic-weekend",
+          "editionKey": "historic-weekend",
+          "editionYear": 2025,
+          "startsOn": "2025-06-01",
+          "endsOn": "2025-06-03",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        },
+        {
+          "id": "scope-edition-announced-weekend",
+          "editionKey": "announced-weekend",
+          "editionYear": 2026,
+          "startsOn": "2026-10-10",
+          "endsOn": "2026-10-11",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://scope-fixture.example/scope-full-history",
+      "finalUrl": "https://scope-fixture.example/scope-full-history",
+      "retrievedAt": "2026-10-03T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    }
+  ],
+  "expectations": {
+    "required": [],
+    "forbidden": [],
+    "research": {
+      "status": "success",
+      "editionKeys": ["historic-weekend", "announced-weekend"],
+      "facts": [
+        {
+          "editionKey": "historic-weekend",
+          "field": "venueName",
+          "value": "River Grounds"
+        },
+        {
+          "editionKey": "historic-weekend",
+          "field": "dates",
+          "value": {
+            "startsOn": "2025-06-01",
+            "endsOn": "2025-06-03",
+            "state": "confirmed"
+          }
+        }
+      ]
+    }
+  }
+}

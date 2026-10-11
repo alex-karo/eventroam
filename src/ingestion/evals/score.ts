@@ -1,4 +1,6 @@
 import { createScorer } from "@mastra/core/evals";
+import { normalizeWireCandidate } from "../research/agent/wire";
+import { researchCandidateSchema } from "../research/contracts";
 import { hasHostFailure } from "../runs";
 import type { CatalogResearchResult } from "../workflow";
 import type { EvalAssertion, EvalCase } from "./fixtures";
@@ -12,6 +14,10 @@ export type CaseScore = {
   correctness: number;
   completeness: number;
   passed: boolean;
+  research: {
+    score: number;
+    checks: { description: string; matched: boolean }[];
+  } | null;
   required: AssertionResult[];
   forbidden: AssertionResult[];
   reasons: {
@@ -139,11 +145,85 @@ export function assertionMatches(
   });
 }
 
+function scoreResearch(
+  item: EvalCase,
+  result: CatalogResearchResult,
+): CaseScore["research"] {
+  const expected = item.expectations.research;
+  if (!expected || expected.status === "failed") {
+    return null;
+  }
+  const parsed = researchCandidateSchema.safeParse(
+    normalizeWireCandidate(result.modelResponse?.object),
+  );
+  const keys = parsed.success
+    ? (parsed.data.data?.editions
+        .map((e) => e.key)
+        .sort((a, b) => a.localeCompare(b)) ?? [])
+    : null;
+  const checks = [
+    {
+      description: `researchStatus=${expected.status}`,
+      matched:
+        result.researchStatus === expected.status &&
+        parsed.success &&
+        parsed.data.status === expected.status,
+    },
+  ];
+  if (expected.editionKeys) {
+    checks.push({
+      description: `returned Edition keys=${JSON.stringify(expected.editionKeys)}`,
+      matched:
+        keys !== null &&
+        JSON.stringify(keys) ===
+          JSON.stringify(
+            [...expected.editionKeys].sort((a, b) => a.localeCompare(b)),
+          ),
+    });
+  }
+  for (const fact of expected.facts ?? []) {
+    const data = parsed.success ? parsed.data.data : null;
+    const target = fact.editionKey
+      ? data?.editions.find((e) => e.key === fact.editionKey)
+      : data;
+    const proposed = target && (target as Record<string, unknown>)[fact.field];
+    checks.push({
+      description: `returned ${fact.editionKey ?? "event"}.${fact.field}`,
+      matched: Boolean(
+        proposed &&
+        typeof proposed === "object" &&
+        "value" in proposed &&
+        contains(proposed.value, fact.value),
+      ),
+    });
+  }
+  for (const key of expected.unresolvedEditionKeys ?? []) {
+    checks.push({
+      description: `unfinished ${key}`,
+      matched: result.unresolved.some(
+        (q) => q.editionKey === key && q.message.trim().length > 0,
+      ),
+    });
+  }
+  if (expected.hasUnresolved !== undefined) {
+    checks.push({
+      description: `has unresolved questions=${expected.hasUnresolved}`,
+      matched:
+        result.unresolved.some((q) => q.message.trim().length > 0) ===
+        expected.hasUnresolved,
+    });
+  }
+  return {
+    score: checks.filter((c) => c.matched).length / checks.length,
+    checks,
+  };
+}
+
 export function scoreCase(
   item: EvalCase,
   result: CatalogResearchResult,
 ): CaseScore {
-  if (result.schemaVersion !== 2) {
+  if (result.schemaVersion !== 3) {
     throw new Error(
       `Unsupported catalog report version: ${String(result.schemaVersion)}`,
     );
@@ -223,10 +303,15 @@ export function scoreCase(
     completeness = 0;
     correctness = 0;
   }
+  const research = scoreResearch(item, result);
   return {
     correctness,
     completeness,
-    passed: correctness === 1 && completeness === 1,
+    research,
+    passed:
+      correctness === 1 &&
+      completeness === 1 &&
+      (!research || research.score === 1),
     required,
     forbidden,
     reasons: {
@@ -319,5 +404,25 @@ export function createEvalScorers(cases: EvalCase[]) {
     .generateReason(({ run }) =>
       describeChecks(find(run.input ?? { caseId: "" }), run.output, "required"),
     );
-  return { correctness, completeness };
+  const research = createScorer<{ caseId: string }, CatalogResearchResult>({
+    id: "research-completeness",
+    description:
+      "Annotated final selection, returned unchanged facts and unfinished research checks; independent of catalog mutations",
+  })
+    .generateScore(
+      ({ run }) =>
+        scoreCase(find(run.input ?? { caseId: "" }), run.output).research
+          ?.score ?? 1,
+    )
+    .generateReason(({ run }) => {
+      const checks = scoreCase(find(run.input ?? { caseId: "" }), run.output)
+        .research?.checks;
+      return checks
+        ? checks
+            .filter((c) => !c.matched)
+            .map((c) => c.description)
+            .join("; ") || "All research assertions satisfied"
+        : "No separate research annotations for this case";
+    });
+  return { correctness, completeness, research };
 }

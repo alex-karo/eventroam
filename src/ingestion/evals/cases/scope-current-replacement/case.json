@@ -1,0 +1,115 @@
+{
+  "id": "scope-current-replacement",
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "scope-event-scope-current-replacement",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "provenance": {
+    "kind": "synthetic-scope-regression",
+    "sourceReport": "openspec/changes/archive/2026-10-11-scoped-event-refresh/design.md",
+    "note": "Synthetic source facts for model selection/completeness; no live HTTP/search fallback."
+  },
+  "initial": {
+    "event": {
+      "id": "scope-event-scope-current-replacement",
+      "slug": "scope-current-replacement",
+      "canonicalName": "River Festival",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://scope-fixture.example/scope-current-replacement",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "scope-edition-cancelled-weekend",
+          "editionKey": "cancelled-weekend",
+          "editionYear": 2026,
+          "startsOn": "2026-10-04",
+          "endsOn": "2026-10-05",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        },
+        {
+          "id": "scope-edition-replacement-weekend",
+          "editionKey": "replacement-weekend",
+          "editionYear": 2026,
+          "startsOn": "2026-10-20",
+          "endsOn": "2026-10-21",
+          "dateState": "confirmed",
+          "scheduleStatus": "cancelled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        },
+        {
+          "id": "scope-edition-later-weekend",
+          "editionKey": "later-weekend",
+          "editionYear": 2026,
+          "startsOn": "2026-10-25",
+          "endsOn": "2026-10-26",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://scope-fixture.example/scope-current-replacement",
+      "finalUrl": "https://scope-fixture.example/scope-current-replacement",
+      "retrievedAt": "2026-10-03T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    }
+  ],
+  "expectations": {
+    "required": [],
+    "forbidden": [],
+    "research": {
+      "status": "success",
+      "editionKeys": ["replacement-weekend"],
+      "facts": [
+        {
+          "editionKey": "replacement-weekend",
+          "field": "dates",
+          "value": {
+            "startsOn": "2026-10-06",
+            "endsOn": "2026-10-07",
+            "state": "confirmed"
+          }
+        },
+        {
+          "editionKey": "replacement-weekend",
+          "field": "scheduleStatus",
+          "value": "scheduled"
+        }
+      ]
+    }
+  }
+}

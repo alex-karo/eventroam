@@ -110,7 +110,7 @@ test("populated catalog migration preserves identities, foreign keys, indexes an
 });
 
 // Exercise the migration from each released schema, with every catalog table populated.
-for (const from of [0, 1, 2, 3, 4]) {
+for (const from of [0, 1, 2, 3, 4, 5]) {
   test(`catalog migration preserves retained data from 000${from}`, async () => {
     const { testFixtures } = await import("@/test/fixtures");
     const directory = mkdtempSync(
@@ -177,15 +177,18 @@ for (const from of [0, 1, 2, 3, 4]) {
           .replace("official,source_id,created_at", "official,created_at")
           .replace("1,'source','2026-10-01'", "1,'2026-10-01'");
       }
+      if (from >= 5) {
+        seedSql = seedSql.replaceAll("occurrence", "edition");
+      }
       client.exec(seedSql);
-      client.exec(`UPDATE occurrences SET version=7,display_name='Second weekend',capacity_estimate=9000,
+      client.exec(`UPDATE ${from >= 5 ? "editions" : "occurrences"} SET version=7,display_name='Second weekend',capacity_estimate=9000,
         venue_name='Park',venue_address='Main Street',administrative_area='Lisbon',latitude=38.72,longitude=-9.14,
         coordinate_precision='exact',time_zone='Europe/Lisbon';
         UPDATE events SET version=3,aliases='["Other name"]',summary='Known summary';`);
       if (from >= 1) {
         client
           .prepare(
-            `UPDATE occurrences SET ${from < 3 ? "ticket_availability='closed'," : ""}price_details=? WHERE id='edition'`,
+            `UPDATE ${from >= 5 ? "editions" : "occurrences"} SET ${from < 3 ? "ticket_availability='closed'," : ""}price_details=? WHERE id='edition'`,
           )
           .run(
             JSON.stringify([
@@ -233,7 +236,7 @@ for (const from of [0, 1, 2, 3, 4]) {
         "catalog_changes",
         "operation_receipts",
       ];
-      if (from === 4) {
+      if (from >= 4) {
         const report =
           '{"schemaVersion":2,"mode":"refresh","runId":"old-run","operations":[{"kind":"updateOccurrence","data":{"occurrenceYear":2027}}]}';
         client
@@ -297,12 +300,15 @@ for (const from of [0, 1, 2, 3, 4]) {
           )
           .all(),
       ).toEqual([]);
-      if (from === 4) {
+      if (from >= 4) {
         expect(() =>
           client.exec(
             "UPDATE ingestion_runs SET report_json=json_set(report_json,'$.schemaVersion',3) WHERE id='old-run'",
           ),
-        ).toThrow(/ingestion_runs_report_ck/);
+        ).not.toThrow();
+        client.exec(
+          "UPDATE ingestion_runs SET report_json=json_set(report_json,'$.schemaVersion',2) WHERE id='old-run'",
+        );
       }
       expect(
         client

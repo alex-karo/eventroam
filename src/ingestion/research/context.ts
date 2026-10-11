@@ -11,6 +11,7 @@ import type { KnownSourceLink } from "../tools/contracts";
 export function loadResearchContext(
   client: Database.Database,
   input: CatalogResearchInput,
+  referenceInstant = new Date().toISOString(),
 ) {
   const target = input.eventId
     ? readResearchEvent(client, input.eventId)
@@ -44,7 +45,12 @@ export function loadResearchContext(
       })),
     ) ?? []),
   ];
-  return { catalog, terms, knownLinks };
+  return {
+    catalog,
+    terms,
+    knownLinks,
+    referenceInstant,
+  };
 }
 
 export type ResearchCatalog = ReturnType<typeof readResearchCatalog>;

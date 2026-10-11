@@ -216,7 +216,7 @@ export function traceReason(reason?: string) {
   return reason &&
     (reasons.has(reason) ||
       /^(?:firecrawl_)?http_[1-5]\d\d$/.test(reason) ||
-      /^(time|depth|searches|modelInputChars)_budget_exhausted$/.test(reason))
+      /^(time|depth|searches)_budget_exhausted$/.test(reason))
     ? traceText(reason, 64)
     : "unknown";
 }

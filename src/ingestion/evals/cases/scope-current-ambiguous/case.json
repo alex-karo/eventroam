@@ -1,0 +1,84 @@
+{
+  "id": "scope-current-ambiguous",
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "scope-event-scope-current-ambiguous",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "provenance": {
+    "kind": "synthetic-scope-regression",
+    "sourceReport": "openspec/changes/archive/2026-10-11-scoped-event-refresh/design.md",
+    "note": "Synthetic source facts for model selection/completeness; no live HTTP/search fallback."
+  },
+  "initial": {
+    "event": {
+      "id": "scope-event-scope-current-ambiguous",
+      "slug": "scope-current-ambiguous",
+      "canonicalName": "River Festival",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://scope-fixture.example/scope-current-ambiguous",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "scope-edition-overlap-one",
+          "editionKey": "overlap-one",
+          "editionYear": 2026,
+          "startsOn": "2026-10-02",
+          "endsOn": "2026-10-04",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        },
+        {
+          "id": "scope-edition-overlap-two",
+          "editionKey": "overlap-two",
+          "editionYear": 2026,
+          "startsOn": "2026-10-03",
+          "endsOn": "2026-10-05",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://scope-fixture.example/scope-current-ambiguous",
+      "finalUrl": "https://scope-fixture.example/scope-current-ambiguous",
+      "retrievedAt": "2026-10-03T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    }
+  ],
+  "expectations": {
+    "required": [],
+    "forbidden": [],
+    "research": {
+      "status": "partial",
+      "editionKeys": [],
+      "hasUnresolved": true
+    }
+  }
+}

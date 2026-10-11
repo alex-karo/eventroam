@@ -31,7 +31,7 @@ test("UTF-8 bounds preserve code points and explicit omissions, with explicit om
     omitted: 20,
   });
 });
-test.each(["add", "refresh", "check"] as const)(
+test.each(["add", "refresh", "refresh"] as const)(
   "%s label reserves terminal result and mode while retaining nonyear keys",
   (mode) => {
     const label = runTraceLabel(
@@ -62,7 +62,7 @@ test("canonical identity, context snapshots and effective years follow writer re
   fixtures.event({ canonicalName: "Unrelated" });
   const catalog = readResearchCatalog(client);
   const input = {
-    mode: "check" as const,
+    mode: "refresh" as const,
     eventId: event.id,
     name: "Wrong",
     actor: "test",

@@ -1,0 +1,90 @@
+{
+  "id": "scope-current-stable-key",
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "scope-event-scope-current-stable-key",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "provenance": {
+    "kind": "synthetic-scope-regression",
+    "sourceReport": "openspec/changes/archive/2026-10-11-scoped-event-refresh/design.md",
+    "note": "Synthetic source facts for model selection/completeness; no live HTTP/search fallback."
+  },
+  "initial": {
+    "event": {
+      "id": "scope-event-scope-current-stable-key",
+      "slug": "scope-current-stable-key",
+      "canonicalName": "River Festival",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://scope-fixture.example/scope-current-stable-key",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "scope-edition-imported-weekend",
+          "editionKey": "imported-weekend",
+          "editionYear": 2025,
+          "startsOn": "2026-10-04",
+          "endsOn": "2026-10-05",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        },
+        {
+          "id": "scope-edition-second-weekend",
+          "editionKey": "second-weekend",
+          "editionYear": 2026,
+          "startsOn": "2026-10-11",
+          "endsOn": "2026-10-12",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://scope-fixture.example/scope-current-stable-key",
+      "finalUrl": "https://scope-fixture.example/scope-current-stable-key",
+      "retrievedAt": "2026-10-03T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    }
+  ],
+  "expectations": {
+    "required": [],
+    "forbidden": [],
+    "research": {
+      "status": "success",
+      "editionKeys": ["imported-weekend"],
+      "facts": [
+        {
+          "editionKey": "imported-weekend",
+          "field": "year",
+          "value": 2026
+        }
+      ]
+    }
+  }
+}

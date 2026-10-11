@@ -16,7 +16,8 @@ const limitsSchema = z.object(
   ) as Record<keyof ResearchLimits, z.ZodOptional<z.ZodNumber>>,
 );
 const invocationSchema = z.object({
-  mode: z.enum(["add", "refresh", "check"]),
+  mode: z.enum(["add", "refresh"]),
+  scope: z.enum(["full", "current"]).optional(),
   name: nonempty.optional(),
   eventId: nonempty.optional(),
   actor: nonempty.max(200),
@@ -46,7 +47,7 @@ export function validateRunInvocation(
   }
   const parsed = invocationSchema.parse(input);
   if (parsed.mode === "add") {
-    if (!parsed.name || parsed.eventId) {
+    if (parsed.scope !== undefined || !parsed.name || parsed.eventId) {
       throw new Error("add requires a name and no Event ID");
     }
   } else if (
@@ -56,13 +57,17 @@ export function validateRunInvocation(
     throw new Error("Event ID not found");
   }
   return {
-    input: parsed,
+    input: {
+      ...parsed,
+      ...(parsed.mode === "refresh" ? { scope: parsed.scope ?? "full" } : {}),
+    },
     config: configSchema.parse(config) as ResearchConfig,
   };
 }
 
 export type StoredRunInput = {
   mode: string;
+  scope?: "full" | "current";
   name?: string;
   eventId?: string;
   actor: string;
@@ -83,6 +88,7 @@ export function storedRunInput(
 ): StoredRunInput {
   return {
     mode: input.mode,
+    ...(input.mode === "refresh" ? { scope: input.scope ?? "full" } : {}),
     ...(input.name ? { name: input.name } : {}),
     ...(input.eventId ? { eventId: input.eventId } : {}),
     actor: input.actor,
@@ -175,7 +181,11 @@ export function finalizeIngestionRun(
   finished: number,
 ): CatalogResearchResult {
   try {
-    if (client.inTransaction || report.runId !== runId) {
+    if (
+      client.inTransaction ||
+      report.schemaVersion !== 3 ||
+      report.runId !== runId
+    ) {
       throw new Error();
     }
     const json = JSON.stringify(report);

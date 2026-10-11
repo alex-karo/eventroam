@@ -14,6 +14,7 @@ import {
   type ResearchError,
   type ResearchQuestion,
 } from "./contracts";
+import { validateRefresh } from "./guards";
 import { majorToMinor } from "./money";
 
 type Event = ResearchCatalog[number];
@@ -471,6 +472,14 @@ export function prepareResearch(
   if (input.mode === "add" && event) {
     result.skipped = true;
     return result;
+  }
+  if (input.mode === "refresh") {
+    const error = validateRefresh(candidate, event!.editions, input.scope);
+    if (error) {
+      result.candidate = null;
+      result.errors.push(error);
+      return result;
+    }
   }
   const add = adder(result, input);
   const eventRef = event?.id ?? "$event";

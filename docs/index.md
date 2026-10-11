@@ -24,13 +24,13 @@ Website:
 
 ## Active changes
 
-- [Scoped refresh](../openspec/changes/scoped-event-refresh/proposal.md) — planned full/current refresh, website recovery, atomic country guards, and report v3; follows the implemented Edition naming change.
-
+- [Narrow current refresh](../openspec/changes/narrow-current-refresh/proposal.md) — proposal only: Edition-focused current research and taxonomy reuse through model instructions/context, with unchanged downstream checks.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
 ## Archived changes
 
+- [Scoped refresh](../openspec/changes/archive/2026-10-11-scoped-event-refresh/proposal.md) — full/current model-led refresh, website recovery, atomic country guards, and report v3 with raw findings and writer audit.
 - [Edition naming](../openspec/changes/archive/2026-10-11-rename-occurrence-to-edition/proposal.md) — implemented code/contracts and SQLite rename with preserved data and report v2; historical report compatibility is unsupported.
 
 - [Expanded festival topics](../openspec/changes/archive/2026-10-11-expand-festival-topics/proposal.md) — activity vocabulary, independent topic/format classification, and open-air publication format.

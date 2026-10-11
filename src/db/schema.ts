@@ -281,10 +281,6 @@ export const ingestionRuns = sqliteTable(
       sql`CASE WHEN json_valid(${t.inputJson}) THEN json_type(${t.inputJson}) IS 'object' AND json_extract(${t.inputJson}, '$.mode') IS ${t.mode} ELSE 0 END`,
     ),
     check(
-      "ingestion_runs_report_ck",
-      sql`${t.reportJson} IS NULL OR CASE WHEN json_valid(${t.reportJson}) THEN json_type(${t.reportJson}) IS 'object' AND json_extract(${t.reportJson}, '$.mode') IS ${t.mode} AND json_extract(${t.reportJson}, '$.runId') IS ${t.id} AND json_extract(${t.reportJson}, '$.schemaVersion') IS 2 ELSE 0 END`,
-    ),
-    check(
       "ingestion_runs_lifecycle_ck",
       sql`(${t.status} = 'running' AND ${t.finishedAt} IS NULL AND ${t.reportJson} IS NULL AND ${t.inputTokens} IS NULL AND ${t.outputTokens} IS NULL AND ${t.modelCostUsd} IS NULL AND ${t.searchCostEstimateUsd} IS NULL AND ${t.durationMs} IS NULL AND ${t.usageComplete} IS NULL) OR (${t.status} != 'running' AND ${t.finishedAt} IS NOT NULL AND ${t.reportJson} IS NOT NULL AND ${t.inputTokens} IS NOT NULL AND ${t.outputTokens} IS NOT NULL AND ${t.searchCostEstimateUsd} IS NOT NULL AND ${t.durationMs} IS NOT NULL AND ${t.usageComplete} IS NOT NULL)`,
     ),

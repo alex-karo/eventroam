@@ -1,9 +1,8 @@
 import { parseArgs } from "node:util";
 
-export const catalogUsage = `Usage: npm run catalog -- <add|refresh|check> [options]
+export const catalogUsage = `Usage: npm run catalog -- <add|refresh> [options]
   add      --name <festival>
-  refresh  --event <Event ID>
-  check    --event <Event ID> ...
+  refresh  --event <Event ID> ... [--scope full|current] (default full)
   --dry-run (default) | --apply
   --republish             Explicitly allow withdrawn records to publish
   --database <path>       Existing, migrated SQLite catalog
@@ -20,6 +19,7 @@ export function parseCatalogOptions(args: string[]) {
     options: {
       help: { type: "boolean" },
       name: { type: "string" },
+      scope: { type: "string" },
       event: { type: "string", multiple: true },
       "dry-run": { type: "boolean" },
       apply: { type: "boolean" },
@@ -36,8 +36,8 @@ export function parseCatalogOptions(args: string[]) {
     return { help: true as const };
   }
   const [mode] = positionals;
-  if (positionals.length !== 1 || !["add", "refresh", "check"].includes(mode)) {
-    throw new Error("Choose add, refresh, or check.");
+  if (positionals.length !== 1 || !["add", "refresh"].includes(mode)) {
+    throw new Error("Choose add or refresh.");
   }
   if (values.apply && values["dry-run"]) {
     throw new Error("Choose either --apply or --dry-run.");
@@ -57,14 +57,21 @@ export function parseCatalogOptions(args: string[]) {
     if (!eventIds.length) {
       throw new Error("Provide --event.");
     }
-    if (mode === "refresh" && eventIds.length !== 1) {
-      throw new Error("refresh requires one --event.");
-    }
+  }
+  if (
+    values.scope !== undefined &&
+    (mode === "add" || !["full", "current"].includes(values.scope))
+  ) {
+    throw new Error("--scope requires refresh and full or current.");
   }
   const limits = parseLimits(values);
   return {
     help: false as const,
-    mode: mode as "add" | "refresh" | "check",
+    mode: mode as "add" | "refresh",
+    scope:
+      mode === "refresh"
+        ? ((values.scope ?? "full") as "full" | "current")
+        : undefined,
     name: values.name?.trim(),
     eventIds,
     dryRun: !values.apply,

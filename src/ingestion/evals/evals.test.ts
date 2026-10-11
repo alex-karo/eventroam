@@ -1,3 +1,4 @@
+import { DEFAULT_RESEARCH_LIMITS } from "@/ingestion/runtime/budget";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,7 +31,7 @@ const tomorrowland = byId.get("tomorrowland")!;
 const wacken = byId.get("wacken")!;
 const blocked = byId.get("afro-nation-portugal-blocked")!;
 
-test("empty change assertions are reserved for failed research cases", () => {
+test("empty change assertions need explicit research expectations", () => {
   expect(blocked.provenance?.kind).toBe(
     "captured-http-metadata-synthetic-replay",
   );
@@ -79,7 +80,7 @@ test("failed-source eval requires null data, source diagnosis, and no writes", (
   };
   const expected: CatalogResearchResult = {
     ...result(),
-    mode: "check",
+    mode: "refresh",
     eventId: blocked.initial.event.id,
     outcome: "failed",
     researchStatus: "failed",
@@ -302,7 +303,11 @@ function result(
     ([, facts]) => facts.eventId && facts.key,
   );
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
+    scope: null,
+    referenceInstant: null,
+    workload: { savedEditions: 0, returnedEditions: 0 },
+    limits: DEFAULT_RESEARCH_LIMITS,
     runId: "eval-fixture-run",
     mode: "refresh",
     outcome: changes.length ? "updated" : "unchanged",
@@ -937,3 +942,168 @@ test.each(["none", "workflow", "persistence"] as const)(
     expect(stdout.mock.calls.flat().join("")).toContain(result.runId);
   },
 );
+
+test("full-history eval checks unchanged raw facts independently of mutations", () => {
+  const item = byId.get("scope-full-history")!;
+  const raw = {
+    status: "success",
+    errors: [],
+    unresolved: [],
+    data: {
+      eventId: item.initial.event.id,
+      eventName: item.initial.event.canonicalName,
+      sources: [],
+      links: { socials: {} },
+      editions: item.initial.event.editions.map((e) => ({
+        key: e.editionKey,
+        links: {},
+      })),
+    },
+  };
+  const report: CatalogResearchResult = {
+    ...result(),
+    eventId: item.initial.event.id,
+    modelResponse: { text: null, object: raw },
+  };
+  expect(scoreCase(item, report)).toMatchObject({
+    correctness: 1,
+    completeness: 1,
+    passed: false,
+  });
+  const editions = raw.data.editions.map((e) => ({
+    ...e,
+    ...Object.fromEntries(
+      item.expectations
+        .research!.facts!.filter((f) => f.editionKey === e.key)
+        .map((f) => [
+          f.field,
+          { value: f.value, reason: "Verified on archive" },
+        ]),
+    ),
+  }));
+  const complete = {
+    ...report,
+    modelResponse: {
+      text: null,
+      object: { ...raw, data: { ...raw.data, editions } },
+    },
+  };
+  expect(scoreCase(item, complete)).toMatchObject({
+    passed: true,
+    research: { score: 1 },
+  });
+  const wire = {
+    ...complete,
+    modelResponse: {
+      text: null,
+      object: {
+        ...raw,
+        data: {
+          ...raw.data,
+          reason: null,
+          summary: null,
+          links: {
+            website: null,
+            socials: {
+              instagram: null,
+              facebook: null,
+              youtube: null,
+              tiktok: null,
+              x: null,
+              other: null,
+            },
+          },
+          editions: editions.map((e) => ({
+            ...e,
+            year: null,
+            displayName: null,
+            links: { tickets: null },
+          })),
+        },
+      },
+    },
+  };
+  expect(scoreCase(item, wire).passed).toBe(true);
+  expect(
+    scoreCase(item, {
+      ...complete,
+      modelResponse: {
+        text: null,
+        object: {
+          status: "failed",
+          data: null,
+          errors: [{ code: "source_blocked", message: "blocked" }],
+          unresolved: [],
+        },
+      },
+    }).passed,
+  ).toBe(false);
+
+  expect(
+    scoreCase(item, {
+      ...complete,
+      modelResponse: {
+        text: null,
+        object: { ...raw, data: { ...raw.data, editions: [editions[1]] } },
+      },
+    }).passed,
+  ).toBe(false);
+});
+
+test("unfinished-history eval requires the historical question despite no mutations", () => {
+  const item = byId.get("scope-full-unfinished-history")!;
+  const dates = item.expectations.research!.facts![0].value;
+  const report: CatalogResearchResult = {
+    ...result(),
+    researchStatus: "partial",
+    eventId: item.initial.event.id,
+    unresolved: [{ message: "Ticket details unavailable" }],
+    modelResponse: {
+      text: null,
+      object: {
+        status: "partial",
+        errors: [],
+        unresolved: [{ message: "Ticket details unavailable" }],
+        data: {
+          eventId: item.initial.event.id,
+          eventName: item.initial.event.canonicalName,
+          sources: [],
+          links: { socials: {} },
+          editions: [
+            {
+              key: "announced-weekend",
+              dates: { value: dates, reason: "Announcement" },
+              links: {},
+            },
+          ],
+        },
+      },
+    },
+  };
+  expect(scoreCase(item, report).passed).toBe(false);
+  expect(
+    scoreCase(item, {
+      ...report,
+      unresolved: [
+        {
+          editionKey: "historic-weekend",
+          message: "Historical archive was blocked",
+        },
+      ],
+    }).passed,
+  ).toBe(true);
+});
+
+test("scope fixtures retain local time zones in temporary catalog context", () => {
+  const item = byId.get("scope-current-local-day")!;
+  const connection = seedDatabase(suite, item);
+  try {
+    expect(
+      readResearchCatalog(connection.client)[0].editions.find(
+        (e) => e.editionKey === "local-weekend",
+      )?.timeZone,
+    ).toBe("Pacific/Kiritimati");
+  } finally {
+    connection.client.close();
+  }
+});

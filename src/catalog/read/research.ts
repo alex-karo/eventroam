@@ -11,6 +11,28 @@ import {
 
 export type ResearchEvent = NonNullable<ReturnType<typeof readResearchEvent>>;
 
+/** Only the fields used by the atomic refresh country guard; null means no Event. */
+export function readResearchCountryBaseline(
+  client: Database.Database,
+  eventId: string,
+) {
+  const db = drizzle(client);
+  if (
+    !db
+      .select({ id: events.id })
+      .from(events)
+      .where(eq(events.id, eventId))
+      .get()
+  ) {
+    return null;
+  }
+  return db
+    .select({ id: editions.id, countryCode: editions.countryCode })
+    .from(editions)
+    .where(eq(editions.eventId, eventId))
+    .all();
+}
+
 /** Private management context; includes drafts and accepted facts. Never use in public routes. */
 export function readResearchEvent(client: Database.Database, eventId: string) {
   const db = drizzle(client);

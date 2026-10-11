@@ -68,6 +68,13 @@
     "roskilde/case.json",
     "sziget/case.json",
     "glastonbury/case.json",
-    "afro-nation-portugal/case.json"
+    "afro-nation-portugal/case.json",
+    "scope-current-ongoing/case.json",
+    "scope-current-local-day/case.json",
+    "scope-current-stable-key/case.json",
+    "scope-current-replacement/case.json",
+    "scope-current-ambiguous/case.json",
+    "scope-full-history/case.json",
+    "scope-full-unfinished-history/case.json"
   ]
 }

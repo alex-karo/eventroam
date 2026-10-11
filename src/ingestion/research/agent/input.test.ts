@@ -5,6 +5,8 @@ import { readResearchCatalog } from "@/catalog/read/research";
 import { createResearchBudget } from "../../runtime/budget";
 import type { ReadSourceResult } from "../../tools/read-source/contracts";
 import { modelContext, promptFor } from "./input";
+import { researchInstructions } from "./prompt";
+import { loadResearchContext } from "../context";
 
 const source: ReadSourceResult = {
   attemptedUrl: "https://example.org/announcement",
@@ -63,7 +65,7 @@ test("saved prices in model context use major units and omit aggregate availabil
   expect(context.editions[0]).not.toHaveProperty("priceMinMinor");
   expect(context.editions[0]).not.toHaveProperty("ticketAvailability");
   const prompt = promptFor(
-    { mode: "check", eventId: event.id, actor: "tester" },
+    { mode: "refresh", eventId: event.id, actor: "tester" },
     catalog,
     [
       {
@@ -76,7 +78,7 @@ test("saved prices in model context use major units and omit aggregate availabil
     [{ id: "music", facet: "topic", slug: "music" }],
     createResearchBudget({}, () => 0).remaining(),
     [source],
-    "2026-10-08",
+    "2026-10-08T12:00:00.000Z",
   );
   expect(JSON.parse(prompt).compact).not.toBeNull();
   expect(JSON.parse(prompt).remaining).toEqual({
@@ -101,7 +103,7 @@ test.each([
         [],
         { searches: 2, durationMs: 1_000 },
         [{ ...source, markdown }],
-        "2026-10-08",
+        "2026-10-08T12:00:00.000Z",
       ),
     );
     expect(prompt.inspectedSources).toEqual([
@@ -137,7 +139,7 @@ test("initial sources share the existing prompt content allowance", () => {
       [],
       { searches: 2, durationMs: 1_000 },
       reads,
-      "2026-10-08",
+      "2026-10-08T12:00:00.000Z",
     ),
   );
   expect(prompt.inspectedSources[0]).toMatchObject({
@@ -154,4 +156,70 @@ test("initial sources share the existing prompt content allowance", () => {
     truncated: false,
     completeness: "full",
   });
+});
+
+test("instructions require website verification, failed recovery and full-history coverage", () => {
+  expect(researchInstructions).toContain(
+    "A matching name or search snippet alone is insufficient",
+  );
+  expect(researchInstructions).toContain("failed with data:null");
+  expect(researchInstructions).toContain("EVERY saved Edition");
+});
+
+test("one frozen instant and saved facts preserve local-day and opaque-key matching inputs", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const event = fx.event();
+  fx.edition(event, {
+    editionKey: "imported-weekend",
+    editionYear: 2026,
+    startsOn: "2026-10-10",
+    endsOn: "2026-10-11",
+    timeZone: "America/Los_Angeles",
+    countryCode: "IE",
+  });
+  fx.edition(event, {
+    editionKey: "second-weekend",
+    editionYear: 2026,
+    countryCode: null,
+  });
+  const input = {
+    mode: "refresh" as const,
+    scope: "current" as const,
+    eventId: event.id,
+    actor: "tester",
+  };
+  const instant = "2026-10-12T05:00:00.000Z";
+  const context = loadResearchContext(client, input, instant);
+  const prompt = JSON.parse(
+    promptFor(
+      input,
+      context.catalog,
+      context.knownLinks,
+      context.terms,
+      { searches: 3, durationMs: 300_000 },
+      [],
+      context.referenceInstant,
+    ),
+  );
+  expect(context).not.toHaveProperty("refresh");
+  expect(prompt).not.toHaveProperty("refresh");
+  expect(prompt).not.toHaveProperty("todayUtc");
+  expect(prompt.referenceInstant).toBe(instant);
+  expect(prompt.scope).toBe("current");
+  expect(prompt.compact.editions).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        editionKey: "imported-weekend",
+        endsOn: "2026-10-11",
+        timeZone: "America/Los_Angeles",
+        countryCode: "IE",
+      }),
+      expect.objectContaining({
+        editionKey: "second-weekend",
+        editionYear: 2026,
+        countryCode: null,
+      }),
+    ]),
+  );
 });
