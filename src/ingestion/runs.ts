@@ -183,7 +183,7 @@ export function finalizeIngestionRun(
   try {
     if (
       client.inTransaction ||
-      report.schemaVersion !== 3 ||
+      report.schemaVersion !== 4 ||
       report.runId !== runId
     ) {
       throw new Error();

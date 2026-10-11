@@ -3,7 +3,7 @@ import { testFixtures } from "@/test/fixtures";
 
 const { build } = testFixtures();
 import {
-  capacityBand,
+  sizeBand,
   durationDays,
   emptyFilters,
   filterSummaries,
@@ -88,7 +88,7 @@ test("genre ancestry, aliases, AND across groups, OR within groups, unknowns", (
     endsOn: "2027-07-03",
     countryCode: "PT",
     locality: "Example Valley",
-    capacityEstimate: 5000,
+    sizeEstimate: 5000,
     genres: ["psytrance"],
   });
   const filters = {
@@ -109,24 +109,24 @@ test("genre ancestry, aliases, AND across groups, OR within groups, unknowns", (
     matchSummary(summary, { ...filters, countries: ["DE"] }, genres, now),
   ).toBe(false);
   expect(
-    matchSummary({ ...summary, capacityEstimate: null }, filters, genres, now),
+    matchSummary({ ...summary, sizeEstimate: null }, filters, genres, now),
   ).toBe(false);
   expect(
     matchSummary(
-      { ...summary, capacityEstimate: null, genres: [] },
+      { ...summary, sizeEstimate: null, genres: [] },
       emptyFilters(),
       genres,
       now,
     ),
   ).toBe(true);
-  expect(capacityBand(999)).toBe("lt-1000");
-  expect(capacityBand(1000)).toBe("1000-4999");
-  expect(capacityBand(4999)).toBe("1000-4999");
-  expect(capacityBand(5000)).toBe("5000-19999");
-  expect(capacityBand(19999)).toBe("5000-19999");
-  expect(capacityBand(20000)).toBe("20000-49999");
-  expect(capacityBand(49999)).toBe("20000-49999");
-  expect(capacityBand(50000)).toBe("gte-50000");
+  expect(sizeBand(999)).toBe("lt-1000");
+  expect(sizeBand(1000)).toBe("1000-4999");
+  expect(sizeBand(4999)).toBe("1000-4999");
+  expect(sizeBand(5000)).toBe("5000-19999");
+  expect(sizeBand(19999)).toBe("5000-19999");
+  expect(sizeBand(20000)).toBe("20000-49999");
+  expect(sizeBand(49999)).toBe("20000-49999");
+  expect(sizeBand(50000)).toBe("gte-50000");
 });
 
 test("matching stays on one edition and ordering is stable", () => {

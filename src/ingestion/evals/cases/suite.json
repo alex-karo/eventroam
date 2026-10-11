@@ -75,6 +75,10 @@
     "scope-current-replacement/case.json",
     "scope-current-ambiguous/case.json",
     "scope-full-history/case.json",
-    "scope-full-unfinished-history/case.json"
+    "scope-full-unfinished-history/case.json",
+    "size-participants/case.json",
+    "size-historical/case.json",
+    "size-repeat-admissions/case.json",
+    "size-unknown/case.json"
   ]
 }

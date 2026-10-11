@@ -29,7 +29,7 @@ An Edition SHALL publish only with a year, date pair, country, and venue, locali
 
 ### Requirement: Public pages preserve edition status and uncertainty
 
-The Event page SHALL show its name, summary, selected active edition, and published history; if none is active, it SHALL say so. The Edition page SHALL show known dates, status, location, classifications, capacity, price, and official links. Provisional dates SHALL say “Tentative dates.” A published postponed edition SHALL retain its page with “Postponed — new dates TBA” and “Previous dates.” Cancelled editions SHALL retain their pages. Ticket availability SHALL appear only beside a named ticket category, never as an edition-wide label.
+The Event page SHALL show its name, summary, selected active edition, and published history; if none is active, it SHALL say so. The Edition page SHALL show known dates, status, location, classifications, estimated size, price, and official links. Provisional dates SHALL say “Tentative dates.” A published postponed edition SHALL retain its page with “Postponed — new dates TBA” and “Previous dates.” Cancelled editions SHALL retain their pages. Ticket availability SHALL appear only beside a named ticket category, never as an edition-wide label.
 
 #### Scenario: A postponed published edition has no replacement dates
 
@@ -121,3 +121,11 @@ The system SHALL distinguish provisional dates and approximate locations accordi
 #### Scenario: Approximate locality
 - **WHEN** an Edition has a locality and country but no exact venue or coordinates
 - **THEN** an otherwise eligible Edition can publish with a qualified location and no map point
+
+### Requirement: Public details present estimated festival size
+
+Edition pages and selected previews SHALL display known size as “Estimated size: <number> people”, using English number formatting. Unknown size SHALL have no numeric label.
+
+#### Scenario: Known and unknown size
+- **WHEN** a public Edition detail is displayed
+- **THEN** sizeEstimate of 8000 displays “Estimated size: 8,000 people”; null omits the size label

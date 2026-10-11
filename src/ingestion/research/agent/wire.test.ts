@@ -85,3 +85,30 @@ test("required nulls and unknown legacy fields survive normalization for strict 
     ).toBe(false);
   }
 });
+
+test("size wire values preserve reasoned numbers and clearing, omit absence and reject capacity", () => {
+  for (const sizeEstimate of [
+    null,
+    { value: 8000, reason: "Approximate participants" },
+    { value: null, reason: "Estimate withdrawn" },
+  ]) {
+    const item = raw();
+    Object.assign(item.data.editions[0], { sizeEstimate });
+    const parsed = researchCandidateSchema.parse(normalizeWireCandidate(item));
+    expect(parsed.data!.editions[0].sizeEstimate).toEqual(
+      sizeEstimate ?? undefined,
+    );
+  }
+  for (const fields of [
+    { capacityEstimate: null },
+    { capacityEstimate: { value: 8000, reason: "Old contract" } },
+    { sizeEstimate: { value: 0, reason: "Invalid" } },
+    { sizeEstimate: { value: 8000, reason: "" } },
+  ]) {
+    const item = raw();
+    Object.assign(item.data.editions[0], fields);
+    expect(
+      researchCandidateSchema.safeParse(normalizeWireCandidate(item)).success,
+    ).toBe(false);
+  }
+});

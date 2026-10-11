@@ -110,7 +110,7 @@ test("populated catalog migration preserves identities, foreign keys, indexes an
 });
 
 // Exercise the migration from each released schema, with every catalog table populated.
-for (const from of [0, 1, 2, 3, 4, 5]) {
+for (const from of [0, 1, 2, 3, 4, 5, 6]) {
   test(`catalog migration preserves retained data from 000${from}`, async () => {
     const { testFixtures } = await import("@/test/fixtures");
     const directory = mkdtempSync(
@@ -211,7 +211,7 @@ for (const from of [0, 1, 2, 3, 4, 5]) {
           "audit",
           event.id,
           1,
-          '[{"field":"occurrence_year","oldValue":2026,"newValue":2027}]',
+          '[{"field":"occurrence_year","oldValue":2026,"newValue":2027},{"field":"capacity_estimate","oldValue":8000,"newValue":9000}]',
           "op",
           "owner",
           "2026-10-01",
@@ -223,7 +223,7 @@ for (const from of [0, 1, 2, 3, 4, 5]) {
         .run(
           "op",
           "hash",
-          '{"id":"edition","version":7,"changed":true,"occurrenceKey":"2027"}',
+          '{"id":"edition","version":7,"changed":true,"occurrenceKey":"2027","capacityEstimate":9000}',
           "2026-10-01",
         );
       const tables = [
@@ -238,7 +238,7 @@ for (const from of [0, 1, 2, 3, 4, 5]) {
       ];
       if (from >= 4) {
         const report =
-          '{"schemaVersion":2,"mode":"refresh","runId":"old-run","operations":[{"kind":"updateOccurrence","data":{"occurrenceYear":2027}}]}';
+          '{"schemaVersion":2,"mode":"refresh","runId":"old-run","operations":[{"kind":"updateOccurrence","data":{"occurrenceYear":2027,"capacityEstimate":9000}}]}';
         client
           .prepare(
             `INSERT INTO ingestion_runs(id,event_id,mode,status,started_at,finished_at,input_json,report_json,input_tokens,output_tokens,search_cost_estimate_usd,duration_ms,usage_complete)
@@ -248,7 +248,9 @@ for (const from of [0, 1, 2, 3, 4, 5]) {
         tables.push("ingestion_runs");
       }
       const currentName = (name: string) =>
-        name.replaceAll("occurrence", "edition");
+        name
+          .replaceAll("occurrence", "edition")
+          .replaceAll("capacity_estimate", "size_estimate");
       const snapshot = () =>
         Object.fromEntries(
           tables.map((table) => [

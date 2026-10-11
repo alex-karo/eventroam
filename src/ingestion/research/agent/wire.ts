@@ -72,7 +72,7 @@ const optionalNullPaths = new Set([
     "administrativeArea",
     "countryCode",
     "coordinates",
-    "capacityEstimate",
+    "sizeEstimate",
     "classification",
     "tickets",
   ].map((field) => `data.editions.*.${field}`),

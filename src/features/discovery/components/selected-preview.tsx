@@ -57,9 +57,9 @@ export function SelectedPreview({
               Classification: {detail.terms.map((term) => term.name).join(", ")}
             </p>
           )}
-          {detail.capacityEstimate !== null && (
+          {detail.sizeEstimate !== null && (
             <p>
-              Estimated capacity: {detail.capacityEstimate.toLocaleString("en")}
+              Estimated size: {detail.sizeEstimate.toLocaleString("en")} people
             </p>
           )}
           <TicketPrice edition={detail} />

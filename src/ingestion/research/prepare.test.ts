@@ -706,3 +706,44 @@ test.each([
     }
   },
 );
+
+test("research size survives context, preparation, writer and omission", () => {
+  const { client, eventId } = create();
+  const proposed = candidate();
+  proposed.data!.eventId = eventId;
+  proposed.data!.editions[0].sizeEstimate = {
+    value: 8000,
+    reason: "2026 participant count supports this edition estimate",
+  };
+  const refresh = { ...input, mode: "refresh" as const, eventId };
+  const prepared = prepareResearch(
+    proposed,
+    readResearchCatalog(client),
+    refresh,
+    [],
+  );
+  expect(prepared.errors).toEqual([]);
+  applyCatalogItem(client, prepared.operations);
+  expect(readResearchCatalog(client)[0].editions[0].sizeEstimate).toBe(8000);
+  delete proposed.data!.editions[0].sizeEstimate;
+  const omitted = prepareResearch(
+    proposed,
+    readResearchCatalog(client),
+    refresh,
+    [],
+  );
+  expect(omitted.operations).toEqual([]);
+  expect(readResearchCatalog(client)[0].editions[0].sizeEstimate).toBe(8000);
+  proposed.data!.editions[0].sizeEstimate = {
+    value: null,
+    reason: "Organizer explicitly withdrew its participant estimate",
+  };
+  const cleared = prepareResearch(
+    proposed,
+    readResearchCatalog(client),
+    refresh,
+    [],
+  );
+  applyCatalogItem(client, cleared.operations);
+  expect(readResearchCatalog(client)[0].editions[0].sizeEstimate).toBeNull();
+});

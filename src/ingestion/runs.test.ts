@@ -77,18 +77,20 @@ test("finalization preserves normalized report, zero/unknown values and guards t
   const pending = client
     .prepare("SELECT * FROM ingestion_runs WHERE id=?")
     .get(id);
-  expect(() =>
-    finalizeIngestionRun(
-      client,
-      id,
-      { ...final, schemaVersion: 2 } as never,
-      null,
-      Date.now(),
-    ),
-  ).toThrow();
-  expect(
-    client.prepare("SELECT * FROM ingestion_runs WHERE id=?").get(id),
-  ).toEqual(pending);
+  for (const schemaVersion of [2, 3]) {
+    expect(() =>
+      finalizeIngestionRun(
+        client,
+        id,
+        { ...final, schemaVersion } as never,
+        null,
+        Date.now(),
+      ),
+    ).toThrow();
+    expect(
+      client.prepare("SELECT * FROM ingestion_runs WHERE id=?").get(id),
+    ).toEqual(pending);
+  }
   const normalized = finalizeIngestionRun(client, id, final, null, Date.now());
   const row = client
     .prepare("SELECT * FROM ingestion_runs WHERE id=?")

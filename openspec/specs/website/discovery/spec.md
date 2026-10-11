@@ -22,7 +22,7 @@ Discovery SHALL return all public, non-cancelled, non-postponed Edition summarie
 
 ### Requirement: Filters match the same edition
 
-Discovery SHALL search Event names, aliases, and edition titles without case sensitivity and require every entered search term after trimming whitespace. It SHALL filter by date overlap, country, locality/region, genre ancestry, duration, and capacity bands. Countries, genres, and bands SHALL OR within groups; groups SHALL AND on one Edition. Default dates SHALL select upcoming or ongoing editions in the edition's time zone, with UTC fallback. Unknown capacity SHALL match only unrestricted size. Price and availability SHALL not filter or sort.
+Discovery SHALL search Event names, aliases, and edition titles without case sensitivity and require every entered search term after trimming whitespace. It SHALL filter by date overlap, country, locality/region, genre ancestry, duration, and size bands. Countries, genres, and bands SHALL OR within groups; groups SHALL AND on one Edition. Default dates SHALL select upcoming or ongoing editions in the edition's time zone, with UTC fallback. Unknown size SHALL match only unrestricted size. Price and availability SHALL not filter or sort.
 
 #### Scenario: Conditions belong to different editions
 
@@ -74,11 +74,11 @@ The UI SHALL offer six buttons for the visitor’s current local calendar month 
 
 ### Requirement: Size and duration have deterministic boundaries
 
-Duration SHALL count inclusive programme days from the complete start/end pair. The current size bands SHALL be `lt-1000`, `1000-4999`, `5000-19999`, `20000-49999`, and `gte-50000`, based on the Edition's positive capacity estimate. Choosing any size band SHALL exclude unknown capacity; leaving size unrestricted SHALL include it. Results SHALL label capacity as an estimate.
+Duration SHALL count inclusive programme days from the complete start/end pair. The current size bands SHALL be `lt-1000`, `1000-4999`, `5000-19999`, `20000-49999`, and `gte-50000`, based on the Edition's positive size estimate. Choosing any size band SHALL exclude unknown size; leaving size unrestricted SHALL include it. Results SHALL label size as an estimate.
 
-#### Scenario: A capacity is on a band boundary
+#### Scenario: A size estimate is on a band boundary
 
-- **WHEN** capacity is exactly 1,000, 5,000, 20,000, or 50,000
+- **WHEN** size is exactly 1,000, 5,000, 20,000, or 50,000
 - **THEN** it enters the band beginning at that value
 
 ### Requirement: Applied filter URLs are validated and restorable
@@ -138,7 +138,7 @@ Discovery summaries SHALL omit edition-wide ticket availability. Result lists, m
 
 ### Requirement: Applied selections display readable values
 
-Applied chips SHALL show each selected country, genre, and size band separately, and one chip each for a name query, city/region query, date range, and duration range. Labels SHALL use English country names, genre names, readable capacity bounds, and date bounds with years. Duration labels SHALL support one-sided bounds. Only applied values SHALL appear; each removal control SHALL identify its value accessibly.
+Applied chips SHALL show each selected country, genre, and size band separately, and one chip each for a name query, city/region query, date range, and duration range. Labels SHALL use English country names, genre names, readable size bounds, and date bounds with years. Duration labels SHALL support one-sided bounds. Only applied values SHALL appear; each removal control SHALL identify its value accessibly.
 
 #### Scenario: Multiple location selections are applied
 
@@ -276,3 +276,15 @@ The location text field SHALL be labeled City or region and suggest nonempty loc
 - **WHEN** a visitor navigates suggestions with the keyboard and confirms one
 - **THEN** its place text is entered without submitting the picker
 - **AND** dismissing the suggestion list preserves the typed text
+
+### Requirement: Discovery uses estimated festival size
+
+Discovery SHALL use sizeEstimate for its existing size bands and thresholds. The Size filter SHALL explain approximate participant numbers; list results SHALL qualify known size as an estimate in people. Unrestricted size SHALL include unknowns; any selected band SHALL exclude them. Size URLs, readable chips, and all other matching rules SHALL remain unchanged.
+
+#### Scenario: Size filtering
+- **WHEN** a size band is selected
+- **THEN** estimates on 1000, 5000, 20000, or 50000 enter the band beginning at that value; unknown size is excluded
+
+#### Scenario: Unrestricted size
+- **WHEN** no size band is selected
+- **THEN** Editions with unknown size remain eligible and show no numeric size

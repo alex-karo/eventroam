@@ -126,7 +126,7 @@ The model SHALL interpret inspected material and propose facts and links within 
 - **THEN** the stored price block is preserved
 
 ### Requirement: Runs report attributable outcomes
-The system SHALL report each run's mode (`add` or `refresh`) and resulting record outcome (`created`, `updated`, `published`, `unchanged`, `skipped`, or `failed`), with stable catalog identifiers where a record exists. Reports SHALL include the run's proposed or applied old/new values, factual explanations, and inspected source URLs. Refresh reports SHALL also include top-level scope/referenceInstant and saved/returned Edition counts, without a separate refresh-context payload, and retain returned facts, including unchanged findings, in the raw model response, plus existing unresolved questions and source summaries, even when nothing changes. Omitted facts SHALL NOT receive inferred not_found/unfinished outcomes or confirmations. Reports SHALL NOT include a separate verification array or returned-fact counters; actual changes SHALL use the existing writer audit. They SHALL separately identify research status, execution errors with stages, and unresolved questions; a catalog mutation outcome SHALL NOT stand in for research completion. Source-check results SHALL identify the inspected URL, UTC check time, and outcome, distinguishing unsupported retrieval from successful checks and failures. CLI/eval reports SHALL use version 3. Failed research/writing SHALL exit nonzero; partial alone SHALL exit zero. Reports SHALL NOT require persistent source identifiers. Every started attempt SHALL retain its durable runId and final report in ingestion_runs, including failures, previews, and no-ops; exported reports SHALL match stored reports.
+The system SHALL report each run's mode (`add` or `refresh`) and resulting record outcome (`created`, `updated`, `published`, `unchanged`, `skipped`, or `failed`), with stable catalog identifiers where a record exists. Reports SHALL include the run's proposed or applied old/new values, factual explanations, and inspected source URLs. Refresh reports SHALL also include top-level scope/referenceInstant and saved/returned Edition counts, without a separate refresh-context payload, and retain returned facts, including unchanged findings, in the raw model response, plus existing unresolved questions and source summaries, even when nothing changes. Omitted facts SHALL NOT receive inferred not_found/unfinished outcomes or confirmations. Reports SHALL NOT include a separate verification array or returned-fact counters; actual changes SHALL use the existing writer audit. They SHALL separately identify research status, execution errors with stages, and unresolved questions; a catalog mutation outcome SHALL NOT stand in for research completion. Source-check results SHALL identify the inspected URL, UTC check time, and outcome, distinguishing unsupported retrieval from successful checks and failures. CLI/eval reports SHALL use version 4. Failed research/writing SHALL exit nonzero; partial alone SHALL exit zero. Reports SHALL NOT require persistent source identifiers. Every started attempt SHALL retain its durable runId and final report in ingestion_runs, including failures, previews, and no-ops; exported reports SHALL match stored reports.
 
 #### Scenario: Preserve the final model response
 - **WHEN** a model generation returns a final response
@@ -167,11 +167,11 @@ The system SHALL report each run's mode (`add` or `refresh`) and resulting recor
 #### Scenario: Only the new report contract is supported
 - **WHEN** a consumer receives an unsupported report version
 - **THEN** it rejects that version explicitly, without legacy gaps fallback or automatic conversion
-- **AND** new reports use version 3 and do not emit gaps
+- **AND** new reports use version 4 and do not emit gaps
 
 #### Scenario: Report compatibility is owned by application code
 - **WHEN** the private run-table migration removes ingestion_runs_report_ck
-- **THEN** existing rows and report JSON remain unchanged, including historical version-2 reports
+- **THEN** existing rows and report JSON remain unchanged, including historical version-2/version-3 reports
 - **AND** application finalization validates the active report version and run correspondence; database report storage does not restrict report versions
 
 #### Scenario: Saved output correlates with the database
@@ -268,7 +268,7 @@ Research SHALL return `status`, `data`, `errors`, and `unresolved`. Success/part
 - **AND** missing optional data after a completed relevant check does not count as unfinished research; an unattempted assigned optional-field check does
 
 #### Scenario: Optional unknowns do not force partial
-- **WHEN** all assigned checks are complete but capacity, precise coordinates, socials, a completed schedule status, or a future Edition announcement are unavailable
+- **WHEN** all assigned checks are complete but size, precise coordinates, socials, a completed schedule status, or a future Edition announcement are unavailable
 - **THEN** success may retain optional questions; never invent facts or a completed status, or change stored values just to fill missing fields
 
 #### Scenario: Failed research needs no invented candidate
@@ -736,7 +736,7 @@ Run records SHALL expose input_tokens, output_tokens, model_cost_usd, search_cos
 - **THEN** the columns retain those counts and the subtotal, and set usage_complete to false without claiming complete spending
 
 ### Requirement: Eval acceptance distinguishes host failures from expected research failure
-Eval output SHALL preserve runId and available report data when finalization fails and SHALL identify safe host workflow/persistence failures. Those failures SHALL invalidate eval acceptance even when research/catalog outcomes are successful or a source-failure case otherwise meets expectations. New version-3 consumers SHALL reject historical version-2 reports explicitly; existing rows/files SHALL remain unchanged.
+Eval output SHALL preserve runId and available report data when finalization fails and SHALL identify safe host workflow/persistence failures. Those failures SHALL invalidate eval acceptance even when research/catalog outcomes are successful or a source-failure case otherwise meets expectations. New version-4 consumers SHALL reject historical version-2/version-3 reports explicitly; existing rows/files SHALL remain unchanged.
 
 #### Scenario: A late workflow error follows useful research
 - **WHEN** an eval report retains successful research and a non-failed catalog outcome but contains workflow_failed
@@ -752,8 +752,8 @@ Eval output SHALL preserve runId and available report data when finalization fai
 - **THEN** it fails eval acceptance; expected source failure alone remains acceptable when all existing criteria hold
 
 #### Scenario: Historical reports remain opaque storage
-- **WHEN** scoped refresh replaces the prerequisite's active Edition report v2 with v3
-- **THEN** newly generated reports use v3 and old stored report JSON remains unchanged
+- **WHEN** scoped refresh replaces the prerequisite's active Edition report v2/v3 with v4
+- **THEN** newly generated reports use v4 and old stored report JSON remains unchanged
 - **AND** historical report reading/scoring remains unsupported; no compatibility adapters or conversion are introduced
 
 ### Requirement: Run records remain private bounded reports
@@ -941,7 +941,7 @@ Studio SHALL accept add by name and refresh by one Event ID with scope full or c
 - **THEN** reject it before external work or mutation; expose mode, name, Event ID, refresh scope, dry-run and republish in the form
 
 ### Requirement: Studio runs retain durable lifecycle and bounded results
-CLI and Studio SHALL share initialization after Mastra creates its engine run. Failure before engine run creation SHALL allocate no ingestion history or attempt resources. Studio SHALL preserve existing durable run/report semantics and expose both run IDs, preview/apply mode, research/catalog/persistence statuses, known Event ID, counts, usage, safe error codes, and refresh scope/saved-Edition/returned-Edition counts. Complete version-3 reports SHALL remain durable in ingestion_runs and MAY appear in local Studio workflow data; public website reads SHALL NOT expose them.
+CLI and Studio SHALL share initialization after Mastra creates its engine run. Failure before engine run creation SHALL allocate no ingestion history or attempt resources. Studio SHALL preserve existing durable run/report semantics and expose both run IDs, preview/apply mode, research/catalog/persistence statuses, known Event ID, counts, usage, safe error codes, and refresh scope/saved-Edition/returned-Edition counts. Complete version-4 reports SHALL remain durable in ingestion_runs and MAY appear in local Studio workflow data; public website reads SHALL NOT expose them.
 
 #### Scenario: Failure or cancellation
 - **WHEN** a started attempt fails or is cancelled
@@ -994,7 +994,7 @@ Ingestion SHALL disable automatic retries/restart recovery and reject per-step s
 - **THEN** research current state under a new ingestion ID without modifying or resuming the unfinished attempt
 
 ### Requirement: Research uses Mastra agent limits without a page-count cap
-CLI and Studio research SHALL use Mastra iteration and generation-time limits instead of a separate ordinary model-call limiter and generation timer. Ordinary model steps SHALL default to 15, with a configurable step allowance and the last step reserved for a final response. The application SHALL NOT impose an input-context character limit or expose such a limit in current configuration or reports. Page reads SHALL have no count cap. Search/depth/source-size/output safeguards, the attempt deadline outside generation and existing retry policy SHALL remain. Counts and known usage SHALL remain reportable. Version-3 consumers SHALL reject historical version-2 reports explicitly without rewriting or converting them. Research SHALL use one shared budget for the complete assignment and follow relevant ticket/information pages and alternate-language sources. Exhaustion SHALL leave unfinished checks visible; size limits SHALL NOT silently truncate targets.
+CLI and Studio research SHALL use Mastra iteration and generation-time limits instead of a separate ordinary model-call limiter and generation timer. Ordinary model steps SHALL default to 15, with a configurable step allowance and the last step reserved for a final response. The application SHALL NOT impose an input-context character limit or expose such a limit in current configuration or reports. Page reads SHALL have no count cap. Search/depth/source-size/output safeguards, the attempt deadline outside generation and existing retry policy SHALL remain. Counts and known usage SHALL remain reportable. Version-4 consumers SHALL reject historical version-2/version-3 reports explicitly without rewriting or converting them. Research SHALL use one shared budget for the complete assignment and follow relevant ticket/information pages and alternate-language sources. Exhaustion SHALL leave unfinished checks visible; size limits SHALL NOT silently truncate targets.
 
 #### Scenario: Large accumulated model context
 - **WHEN** research accumulates more than 240,000 input characters while steps and time remain
@@ -1210,3 +1210,23 @@ Refresh SHALL give the model selection rules in its prompt, with scope and the r
 - **WHEN** a private report or Studio exposes scope and saved/returned counts
 - **THEN** it exposes no host-certified selected/none-found/unresolved outcome or separate confirmed/changed fact report
 - **AND** separate eval assertions check ongoing-first/local-date choice, ambiguity, stable keys and unfinished historical research
+
+### Requirement: Research estimates festival size from participant evidence
+
+Research SHALL explain each size estimate's basis in its fact reason. Relevant historical attendance MAY inform an upcoming Edition. Unsupported numbers, maximum occupancy alone, and repeated daily admissions without a supported participant interpretation SHALL NOT establish size. Missing size after completed checks SHALL NOT alone require partial.
+
+#### Scenario: Attendance and capacity differ
+- **WHEN** sources support roughly 8000 participants and maximum occupancy of 20000
+- **THEN** research proposes sizeEstimate of 8000 with its basis explained
+
+#### Scenario: Historical or insufficient evidence
+- **WHEN** current participant numbers are unavailable
+- **THEN** research may use relevant historical attendance with an explained basis; otherwise it omits sizeEstimate, preserving saved values
+
+### Requirement: Size contracts use report version 4
+
+Current ingestion and eval reports SHALL use version 4 with sizeEstimate facts and operations. Consumers SHALL reject historical versions without conversion. Stored historical reports SHALL remain unchanged.
+
+#### Scenario: Report version boundary
+- **WHEN** a report is generated or consumed after the size-contract change
+- **THEN** new reports use version 4; version-2/version-3 reports are explicitly unsupported and remain unchanged in storage

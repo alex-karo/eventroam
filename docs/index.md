@@ -24,6 +24,7 @@ Website:
 
 ## Active changes
 
+- [Estimated festival size](../openspec/changes/estimate-festival-size/proposal.md) — implemented: approximate participant scale, report v4, ingestion guidance, and public wording; pending archive.
 - [Narrow current refresh](../openspec/changes/narrow-current-refresh/proposal.md) — proposal only: Edition-focused current research and taxonomy reuse through model instructions/context, with unchanged downstream checks.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.

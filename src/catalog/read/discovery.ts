@@ -43,7 +43,7 @@ export function publicSummaries(client: Database.Database): DiscoverySummary[] {
       longitude: editions.longitude,
       coordinatePrecision: editions.coordinatePrecision,
       timeZone: editions.timeZone,
-      capacityEstimate: editions.capacityEstimate,
+      sizeEstimate: editions.sizeEstimate,
     })
     .from(editions)
     .innerJoin(events, eq(events.id, editions.eventId))

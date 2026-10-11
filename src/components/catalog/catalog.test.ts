@@ -28,7 +28,7 @@ const edition: PublicEdition = {
   administrativeArea: null,
   countryCode: "PT",
   hasCoordinates: false,
-  capacityEstimate: null,
+  sizeEstimate: null,
   priceKind: null,
   priceCurrency: null,
   priceMinMinor: null,

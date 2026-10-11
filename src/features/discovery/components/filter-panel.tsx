@@ -277,8 +277,8 @@ export function FilterPanel({
             <fieldset aria-describedby={feedbackId}>
               <legend>Size</legend>
               <p>
-                Estimated attendee capacity. Unknown capacity is included when
-                Size is unrestricted.
+                Approximate number of participants. Unknown size is included
+                when Size is unrestricted.
               </p>
               <div className="choices">
                 {sizeBands.map((band) => (

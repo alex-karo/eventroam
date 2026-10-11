@@ -35,9 +35,9 @@ export function EditionDetailsPage({
           <p>{edition.terms.map((term) => term.name).join(", ")}</p>
         </section>
       )}
-      {edition.capacityEstimate !== null && (
+      {edition.sizeEstimate !== null && (
         <p>
-          Estimated capacity: {edition.capacityEstimate.toLocaleString("en")}
+          Estimated size: {edition.sizeEstimate.toLocaleString("en")} people
         </p>
       )}
       <TicketPrice edition={edition} />

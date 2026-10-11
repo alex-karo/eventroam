@@ -228,7 +228,7 @@ export function testFixtures(client?: Database.Database) {
         longitude: null,
         coordinatePrecision: "unknown",
         timeZone: null,
-        capacityEstimate: null,
+        sizeEstimate: null,
         genres: [],
         ...supplied(overrides),
       };

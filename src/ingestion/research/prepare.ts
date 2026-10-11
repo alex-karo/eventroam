@@ -224,7 +224,7 @@ function editionFields(edition: Edition): {
     "locality",
     "administrativeArea",
     "countryCode",
-    "capacityEstimate",
+    "sizeEstimate",
   ] as const) {
     const fact = edition[field];
     if (fact) {

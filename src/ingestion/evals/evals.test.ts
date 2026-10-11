@@ -221,19 +221,22 @@ test("eval fixtures reject the old schema version", () => {
   ).toBe(false);
 });
 
-test("eval scorer rejects unsupported result report versions", () => {
-  expect(() =>
-    scoreCase(tomorrowland, {
-      ...result(),
-      schemaVersion: 1,
-    } as unknown as CatalogResearchResult),
-  ).toThrow("Unsupported catalog report version: 1");
-  const missing = { ...result() } as Partial<CatalogResearchResult>;
-  delete missing.schemaVersion;
-  expect(() =>
-    scoreCase(tomorrowland, missing as CatalogResearchResult),
-  ).toThrow("Unsupported catalog report version: undefined");
-});
+test.each([1, 2, 3])(
+  "eval scorer rejects unsupported result report version %s",
+  (schemaVersion) => {
+    expect(() =>
+      scoreCase(tomorrowland, {
+        ...result(),
+        schemaVersion,
+      } as unknown as CatalogResearchResult),
+    ).toThrow(`Unsupported catalog report version: ${schemaVersion}`);
+    const missing = { ...result() } as Partial<CatalogResearchResult>;
+    delete missing.schemaVersion;
+    expect(() =>
+      scoreCase(tomorrowland, missing as CatalogResearchResult),
+    ).toThrow("Unsupported catalog report version: undefined");
+  },
+);
 
 test("partial research can pass factual assertions while failed research cannot", () => {
   const official = {
@@ -303,7 +306,7 @@ function result(
     ([, facts]) => facts.eventId && facts.key,
   );
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     scope: null,
     referenceInstant: null,
     workload: { savedEditions: 0, returnedEditions: 0 },
@@ -1107,3 +1110,35 @@ test("scope fixtures retain local time zones in temporary catalog context", () =
     connection.client.close();
   }
 });
+
+test.each(["size-repeat-admissions", "size-unknown"])(
+  "%s rejects unsupported size changes including clearing",
+  (id) => {
+    const item = byId.get(id)!;
+    const subject = item.initial.event.editions[0].id;
+    for (const newValue of [null, 20000, 24000, 8000]) {
+      const changed = {
+        ...result(),
+        changes: [
+          {
+            subject,
+            field: "size_estimate",
+            oldValue: 6000,
+            newValue,
+            explanations: ["Unsupported size change"],
+          },
+        ],
+      };
+      expect(
+        item.expectations.forbidden.some((assertion) =>
+          assertionMatches(item, changed, assertion),
+        ),
+      ).toBe(true);
+    }
+    expect(
+      item.expectations.forbidden.some((assertion) =>
+        assertionMatches(item, result(), assertion),
+      ),
+    ).toBe(false);
+  },
+);

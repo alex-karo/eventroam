@@ -50,7 +50,7 @@ function publicRows(
       countryCode: editions.countryCode,
       latitude: editions.latitude,
       longitude: editions.longitude,
-      capacityEstimate: editions.capacityEstimate,
+      sizeEstimate: editions.sizeEstimate,
       priceKind: editions.priceKind,
       priceCurrency: editions.priceCurrency,
       priceMinMinor: editions.priceMinMinor,
