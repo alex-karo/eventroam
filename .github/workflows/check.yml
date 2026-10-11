@@ -31,7 +31,8 @@ jobs:
       - run: npm run deps:check
       - run: npm run format:check
       - run: npm run docs:check
-      - run: npm run openspec:validate
+      - name: Validate implemented OpenSpec specs
+        run: npm exec -- openspec validate --specs --strict
       - run: npm run test:coverage
       - name: Coverage summary
         if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
