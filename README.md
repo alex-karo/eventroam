@@ -49,7 +49,7 @@ Behavior is specified in [OpenSpec](openspec/specs/). Active changes describe ap
 
 ## Run locally
 
-Use Node.js **26.10.0** and npm **11.19.1** (see `.node-version` and `package.json`). From the repository root:
+Use Node.js **26.11.1** and npm **11.20.0** (see `.node-version` and `package.json`). From the repository root:
 
 ```sh
 npm ci
