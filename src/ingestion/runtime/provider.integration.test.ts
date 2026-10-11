@@ -180,6 +180,7 @@ function strictSchemaProblems(value: unknown, path: string = "$"): string[] {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -245,6 +246,9 @@ test("actual Mastra request sends a compatible bounded response schema", async (
   expect(result.usage.modelCalls).toBe(1);
   expect(result.researchStatus).toBe("success");
   expect(result.errors).toEqual([]);
+  expect(result.operations.map((operation) => operation.kind)).toContain(
+    "createEdition",
+  );
   const request = requests[0];
   expect(request.model).toBe("openai/gpt-6-luna");
   expect(request.reasoning).toEqual({ effort: "medium" });
@@ -837,11 +841,19 @@ test("provider unavailable retries preserve ordinary agent capacity and call acc
     )
     .mockImplementation(finalResponse(stepUsage));
   vi.stubGlobal("fetch", fetchMock);
-  const result = await runCatalogResearch(input, {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  const timer = vi.spyOn(globalThis, "setTimeout");
+  const pending = runCatalogResearch(input, {
     client,
     config: { ...config, limits: { ...config.limits, durationMs: 30_000 } },
     readSource: async () => source,
   });
+  // Wait for the SDK to schedule its real backoff, then advance only that delay.
+  await vi.waitFor(() => {
+    expect(timer.mock.calls.some(([, delay]) => delay === 10_000)).toBe(true);
+  });
+  await vi.advanceTimersByTimeAsync(10_000);
+  const result = await pending;
   expect(fetchMock).toHaveBeenCalledTimes(2);
   expect(result.usage.modelCalls).toBe(2);
   expect(result.usage.inputTokens).toBe(10);
@@ -868,7 +880,9 @@ test("retry allowance cannot add ordinary agent iterations", async () => {
     )
     .mockImplementation(async () => modelResponse(readCall(), stepUsage));
   vi.stubGlobal("fetch", fetchMock);
-  const result = await runCatalogResearch(input, {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  const timer = vi.spyOn(globalThis, "setTimeout");
+  const pending = runCatalogResearch(input, {
     client,
     config: {
       ...config,
@@ -880,6 +894,12 @@ test("retry allowance cannot add ordinary agent iterations", async () => {
       finalUrl: requestedUrl,
     }),
   });
+  // Wait for the SDK to schedule its real backoff, then advance only that delay.
+  await vi.waitFor(() => {
+    expect(timer.mock.calls.some(([, delay]) => delay === 10_000)).toBe(true);
+  });
+  await vi.advanceTimersByTimeAsync(10_000);
+  const result = await pending;
   expect(fetchMock).toHaveBeenCalledTimes(3);
   expect(result.usage.modelCalls).toBe(3);
   expect(result.errors).toContainEqual(
@@ -891,6 +911,7 @@ test.each([
   [undefined, 0, 0],
   [0, 0, 0],
   [0.125, 0, 0.125],
+  [0.125, undefined, 0.125],
   [undefined, undefined, null],
   [undefined, 0.125, 0.125],
 ])(
@@ -932,39 +953,6 @@ test.each([
     expect(result.errors).toEqual([]);
   },
 );
-
-test("a final step without cost preserves earlier cost and complete token counts", async () => {
-  const client = testDatabase().client;
-  savedSource(client);
-  const withoutCost = { ...finalStepUsage, cost: undefined };
-  vi.stubGlobal(
-    "fetch",
-    vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        modelResponse(readCall(), { ...stepUsage, cost: 0.125 }),
-      )
-      .mockImplementationOnce(finalResponse(withoutCost)),
-  );
-  const result = await runCatalogResearch(input, {
-    client,
-    config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
-    readSource: async (requestedUrl) => ({
-      ...source,
-      attemptedUrl: requestedUrl,
-      finalUrl: requestedUrl,
-    }),
-  });
-  expect(result.usage).toMatchObject({
-    complete: true,
-    inputTokens: 33,
-    outputTokens: 57,
-    cachedInputTokens: 10,
-    reasoningTokens: 21,
-    modelCostUsd: 0.125,
-  });
-  expect(result.errors).toEqual([]);
-});
 
 test.each([undefined, {}])(
   "a final response without token counts (%s) retains known usage and marks tokens partial",
