@@ -45,6 +45,7 @@ export type PreparedResearch = {
   candidate: ResearchCandidate | null;
   operations: CatalogOperation[];
   errors: ResearchError[];
+  validationIssues?: { code: string; field: string; stage: "validation" }[];
   unresolved: ResearchQuestion[];
   matchedEventId?: string;
   skipped: boolean;
@@ -412,6 +413,11 @@ export function prepareResearch(
   };
   const parsed = researchCandidateSchema.safeParse(raw);
   if (!parsed.success) {
+    result.validationIssues = parsed.error.issues.map((issue) => ({
+      code: issue.code,
+      field: issue.path.join(".") || "$",
+      stage: "validation",
+    }));
     return invalid(
       result,
       parsed.error.issues
@@ -433,6 +439,13 @@ export function prepareResearch(
   }
   const data = candidate.data!;
   if (data.sources.length > maxSources) {
+    result.validationIssues = [
+      {
+        code: "source_budget_exceeded",
+        field: "data.sources",
+        stage: "validation",
+      },
+    ];
     return invalid(result, "Source summaries exceed the page budget");
   }
   const matchedEventId = data.eventId ?? input.eventId;
@@ -443,11 +456,21 @@ export function prepareResearch(
     (!event && input.mode !== "add")
   ) {
     result.validation.target = "failed";
+    result.validationIssues = [
+      { code: "invalid_target", field: "data.eventId", stage: "validation" },
+    ];
     return invalid(result, "Event is outside the requested catalog target");
   }
   result.validation.target = "passed";
   result.matchedEventId = matchedEventId;
   if (!event && !data.reason) {
+    result.validationIssues = [
+      {
+        code: "missing_creation_reason",
+        field: "data.reason",
+        stage: "validation",
+      },
+    ];
     return invalid(result, "data.reason is required for Event creation");
   }
   if (event && event.canonicalName.trim() !== data.eventName.trim()) {

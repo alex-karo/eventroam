@@ -155,7 +155,11 @@ export async function executeCatalogCommand(
               republish: options.republish,
               limits: options.limits,
             },
-            { client: connection.client, ...deps.researchDependencies },
+            {
+              client: connection.client,
+              ...deps.researchDependencies,
+              reportPath,
+            },
           ),
         );
       } catch (error) {

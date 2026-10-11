@@ -7,8 +7,17 @@ afterEach(() => vi.useRealTimers());
 
 function searchWith(fetchMock: typeof fetch, durationMs = 30_000) {
   const budget = createResearchBudget({ durationMs });
+  const log = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn(),
+  };
+  log.child.mockReturnValue(log);
   return {
     budget,
+    log,
     run: discoverSources("  Festival 2027  ", {
       budget,
       config: {
@@ -17,6 +26,7 @@ function searchWith(fetchMock: typeof fetch, durationMs = 30_000) {
         limits: budget.limits,
       },
       fetch: fetchMock,
+      log,
     }),
   };
 }
@@ -116,7 +126,7 @@ describe("discoverSources", () => {
       .mockResolvedValueOnce(
         Response.json({ usage: { prompt_tokens: 10, completion_tokens: 2 } }),
       );
-    const { run, budget } = searchWith(fetchMock);
+    const { run, budget, log } = searchWith(fetchMock);
     await vi.advanceTimersByTimeAsync(499);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
@@ -131,6 +141,13 @@ describe("discoverSources", () => {
       usageComplete: false,
     });
     expect(budget.snapshot()).toMatchObject({ searches: 3, modelCalls: 3 });
+    expect(log.warn.mock.calls.map((call) => call[1].delayMs)).toEqual([
+      500, 1000,
+    ]);
+    expect(log.warn.mock.calls[0][1]).toMatchObject({
+      httpStatus: 429,
+      retryAttempt: 1,
+    });
   });
 
   it.each(["2", "Fri, 09 Oct 2026 12:00:02 GMT", "invalid"])(

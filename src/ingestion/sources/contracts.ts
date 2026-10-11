@@ -10,6 +10,8 @@ export interface ReadSourceResult {
   reason?: string;
   /** Host-only extractor observation; never part of model tool output. */
   sourceTruncated?: boolean;
+  /** Host-only retrieval diagnostic, excluded from model tool output. */
+  httpStatus?: number;
   /** Ordered Markdown extracted from the fetched page. */
   markdown: string;
   links: string[];

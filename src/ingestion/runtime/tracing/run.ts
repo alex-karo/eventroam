@@ -1,25 +1,29 @@
 import { SpanType, type AnySpan } from "@mastra/core/observability";
 import type { CatalogItemResult } from "@/catalog/write/apply-operation";
-import type { CatalogResearchInput, CatalogResearchResult } from "../contracts";
-import type { ResearchContext } from "../research/context";
-import type { PreparedResearch } from "../research/prepare";
-import type { SourceSession } from "../sources/session";
+import type {
+  CatalogResearchInput,
+  CatalogResearchResult,
+} from "../../contracts";
+import type { ResearchContext } from "../../research/context";
+import type { PreparedResearch } from "../../research/prepare";
+import type { SourceSession } from "../../sources/session";
 import {
-  createRunTracing,
-  finishRunTracing,
-  observeTrace,
-  traceFailure,
-} from "./tracing";
+  createRunObservability,
+  finishRunObservability,
+} from "../observability/runtime";
+import { observeTrace, traceFailure } from "./spans";
 import {
+  boundedEditions,
   contextEditions,
   committedEditions,
   validatedTraceName,
   runTraceLabel,
-  terminalProjection,
   traceResultLabel,
-  readProjection,
   type TraceRunState,
-} from "./trace-projections";
+  traceText,
+  traceUrl,
+  traceReason,
+} from "./labels";
 
 type Snapshot = {
   phase: string;
@@ -28,16 +32,21 @@ type Snapshot = {
   applied?: CatalogItemResult | null;
   report?: CatalogResearchResult;
 };
-/** Owns only trace observations; workflow results and error handling stay with the caller. */
+/** Owns optional research observations and their host state; workflow results and error handling stay with the caller. */
 export async function createCatalogRunTrace(
   input: CatalogResearchInput,
   model: string,
   runId: string,
   injected: boolean,
+  protectedPaths: string[] = [],
 ) {
-  const tracing = injected
-    ? undefined
-    : await createRunTracing(input, model, runId);
+  const tracing = await createRunObservability(
+    input,
+    model,
+    runId,
+    injected,
+    protectedPaths,
+  );
   if (!tracing) {
     return undefined;
   }
@@ -49,11 +58,11 @@ export async function createCatalogRunTrace(
   };
   const update = (values: Partial<Snapshot> = {}) => {
     Object.assign(snapshot, values);
-    observeTrace(tracing, tracing.root, () => {
+    try {
       const catalog = snapshot.context?.catalog ?? [];
       const editions = contextEditions(catalog, input.eventId);
       const mutations = committedEditions(snapshot.applied ?? null, catalog);
-      return {
+      observeTrace(tracing, tracing.root, {
         name: runTraceLabel(
           validatedTraceName(input, catalog, snapshot.prepared ?? null),
           input.mode,
@@ -61,23 +70,38 @@ export async function createCatalogRunTrace(
           mutations,
           traceResultLabel(state, snapshot.report),
         ),
-        entityId: "catalog-research",
         metadata: { phase: snapshot.phase },
-        output: terminalProjection(
-          state,
-          snapshot.report,
-          snapshot.applied ?? null,
-          editions,
-          mutations,
-        ),
-      };
-    });
+        output: {
+          ...(snapshot.report
+            ? {
+                researchStatus: snapshot.report.researchStatus,
+                outcome: snapshot.report.outcome,
+              }
+            : {}),
+          ...state,
+          semanticValidation: "not_run",
+          committedOperationCount:
+            state.writeState === "unknown"
+              ? null
+              : (snapshot.applied?.operations.filter(
+                  (operation) => operation.changed,
+                ).length ?? 0),
+          editions: {
+            context: boundedEditions(editions),
+            committed: boundedEditions(mutations),
+          },
+        },
+      });
+    } catch {
+      tracing.diagnose("trace_export_failed");
+    }
   };
   update();
   return {
     tracing,
     update,
     state,
+    log: tracing.log,
     validated(prepared: PreparedResearch) {
       state.structuralValidation = prepared.validation.structural;
       state.targetValidation = prepared.validation.target;
@@ -105,7 +129,7 @@ export async function createCatalogRunTrace(
     },
     async finish(report?: CatalogResearchResult) {
       update({ report });
-      await finishRunTracing(tracing);
+      await finishRunObservability(tracing);
     },
   };
 }
@@ -120,7 +144,7 @@ export async function readInitialWithTrace(
   let span: AnySpan | undefined;
   if (trace && sources.initialUrl) {
     try {
-      span = trace.tracing.root.createChildSpan({
+      span = trace.tracing.root?.createChildSpan({
         type: SpanType.GENERIC,
         name: "readSource",
         entityId: "readSource",
@@ -130,14 +154,48 @@ export async function readInitialWithTrace(
     }
   }
   try {
-    await sources.readInitialSource();
+    await sources.readInitialSource({
+      stage: "initial_source",
+      traceId: span?.traceId,
+      spanId: span?.id,
+    });
   } catch (error) {
     traceFailure(trace?.tracing, "source_failed", span);
     throw error;
   } finally {
-    observeTrace(trace?.tracing, span, () =>
-      readProjection(sources.initialUrl, sources.reads[0], false),
-    );
+    if (span && trace && sources.initialUrl) {
+      try {
+        const read = sources.reads[0];
+        const attemptedUrl = traceUrl(sources.initialUrl);
+        const finalUrl = read ? traceUrl(read.finalUrl) : undefined;
+        observeTrace(trace?.tracing, span, {
+          name: traceText(
+            `readSource · ${sources.initialUrl} · ${read?.outcome ?? "failed"}:${traceReason(read?.reason)}`,
+            512,
+          ),
+          input: {
+            attemptedUrl: attemptedUrl.url,
+            urlTruncated: attemptedUrl.truncated,
+          },
+          output: {
+            ...(finalUrl
+              ? { finalUrl: finalUrl.url, urlTruncated: finalUrl.truncated }
+              : {}),
+            outcome: read?.outcome ?? "failed",
+            reason: traceReason(read?.reason),
+            method: read?.method ?? "unknown",
+            completeness: read?.completeness ?? "unknown",
+            sourceTruncated:
+              read?.sourceTruncated ??
+              (read?.reason === "source_content_truncated" ? true : "unknown"),
+            toolTruncated: false,
+            cached: false,
+          },
+        });
+      } catch {
+        trace.tracing.diagnose("trace_export_failed");
+      }
+    }
     try {
       span?.end();
     } catch {

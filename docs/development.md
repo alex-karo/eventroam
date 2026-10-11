@@ -93,20 +93,52 @@ When reviewing failures or revising cases, check the source context for the exac
 
 ### Local trace inspection
 
+Close Studio before research; DuckDB requires exclusive process ownership of its file.
+
 ```sh
-CATALOG_TRACING=true npm run catalog -- refresh --event EVENT_ID --report data/research-report.json
+CATALOG_LOGGING=true CATALOG_TRACING=true npm run catalog -- refresh --event EVENT_ID --apply --report data/research-report.json
 npm run catalog:studio
 ```
 
-Open `http://127.0.0.1:4111` in the built-in Browser and select Observability to inspect persisted research traces. Studio registers no agents or workflows and needs neither `OPENROUTER_API_KEY` nor a catalog database. Both commands resolve the default `data/mastra-traces.sqlite` to the same absolute path; the launcher passes that path before Studio changes its working directory. Set `CATALOG_TRACE_DATABASE_PATH` consistently in `.env` or both command environments to override it. `DATABASE_PATH` always refers to the separate catalog database.
+Open `http://127.0.0.1:4111` in the built-in Browser and select Observability → Logs or Traces. Studio has no agents, mutation workflows, model credentials or catalog connection. Research and the launcher resolve `CATALOG_OBSERVABILITY_DATABASE_PATH` (default `data/mastra-observability.duckdb`) to the same absolute path. The catalog remains SQLite. The old `CATALOG_TRACE_DATABASE_PATH` no longer selects recording or inspection; historical SQLite files are left untouched and have no legacy inspection route.
 
-Tracing records apply runs only; dry-run and injected generators create no spans/store. One root covers context, initial retrieval, agent, validation, writing and report construction. Its Event/year/mode/result label and bounded source diagnostics survive reloading. Completed spans use the supported insert-only strategy; open or interrupted spans may be absent. Tracing is optional. Unset `CATALOG_TRACING` or set it to `false` to stop recording; existing traces remain viewable. The [ingestion guide](ingestion-process.md#inspect-local-agent-traces) describes retained fields and safe diagnostics. Local files grow with enabled invocations; there is no retention service. Stop both research and Studio before deleting the default trace store:
+`CATALOG_LOGGING=true` enables selected application events independently of `CATALOG_TRACING=true`. Both default off. `CATALOG_LOG_LEVEL` supports `debug`, `info` (default), `warn`, and `error`; the same threshold controls stored events and native Pino JSON on stderr. Stdout and private v2 reports retain their existing format. Trace eligibility remains apply-only with a real agent. Dry runs and injected generators create no spans; logging can still record their host lifecycle. If neither signal is eligible, no observability store is created. Every event uses the durable report/ingestion runId. Initialization or file-lock failure emits a fixed diagnostic and continues research without recording; close the other owner and retry only when you intentionally want a new research run. Never delete a lock held by a running process. Parallel eval cases need separate per-process observability paths if recording is required.
 
-```sh
-rm -f data/mastra-traces.sqlite data/mastra-traces.sqlite-wal data/mastra-traces.sqlite-shm
+When logging is enabled, the same native PinoLogger is passed to Mastra with runId and known eventId context. For add runs, subsequent logs acquire eventId after an existing match or a committed creation; dry-run creation IDs are not bound. SDK diagnostics use stderr at the configured level; `loggerOptions.export` remains false, so only explicitly bridged application events reach Studio. With logging disabled, Mastra logging remains disabled.
+
+Logs use Mastra PinoLogger's ordinary debug/info/warn/error methods and scoped `child({...})` context. Producers pass plain objects with selected fields, such as source character count and response status/URL. They do not pass source Markdown, prompts/history, full responses, transport data, SDK objects or raw errors. Selected completed-step commentary and provider-returned reasoning use explicit `shrinkText(text)` at a 4,000 Unicode-code-point default; producers may record original length and a truncation flag. There is no per-event payload schema, runtime field allowlist, recursive sanitizer or whole-record 8 KiB cap. Debug events follow the same producer selection rule. Studio and native stderr JSON receive the selected fields. The [ingestion guide](ingestion-process.md#inspect-local-agent-traces) describes examples and trace fields.
+
+Step text is observed through `onStepFinish`, once per channel, with step/attempt and origin. It may appear after tool results. Unfinished steps may have no text; unavailable reasoning is not reconstructed. Tool results contain selected source character counts and retrieval metadata only. Complete final values, explanations and diffs remain in the private report. Log producers calculate straightforward write dispositions and counts when emitted, without depending on a trace summary.
+
+Trace labels, explicit source fields and terminal validation/write outcomes survive DuckDB's supported event-sourced export. The owner ends spans, then attempts flush and shutdown, each bounded to two seconds. Recording remains best effort: overlapping background work, failed cleanup or forced termination can lose events. Closed stderr pipes and asynchronous output errors disable further progress/diagnostic writes to that stream while research and durable finalization continue. Required durable run storage still controls success; a run-finalization failure logs “Required run finalization failed” with `errorCode: run_persistence_failed`, preserves a confirmed catalog commit and rethrows the original error.
+
+For native run selection after Studio closes, use the installed store API in a TypeScript script executed with `tsx`:
+
+```ts
+import { DuckDBStore } from "@mastra/duckdb";
+async function inspect() {
+  const store = new DuckDBStore({ path: "/absolute/path/mastra-observability.duckdb" });
+  await store.init();
+  try {
+    const domain = (await store.getStore("observability"))!;
+    const page = await domain.listLogs({
+      filters: { runId: "RUN_ID" },
+      pagination: { page: 0, perPage: 100 },
+    });
+    console.log(page.logs.filter(log => log.message === "Model commentary observed at step completion"));
+    // Increment page until pagination.hasMore is false. Message/field selection is a client filter.
+  } finally { await store.close(); }
+}
+void inspect();
 ```
 
-For a custom path, delete that store and its matching `-wal`/`-shm` files while processes are stopped. Catalog records and private research reports remain separate.
+Studio exposes severity and trace filters; selected step/attempt fields and runId appear in record details. Use its running API or the stopped-process store recipe for run selection; do not open another writer against the live Studio file. Local files have no automatic retention. Stop research and Studio before deleting a disposable observability store:
+
+```sh
+rm -f data/mastra-observability.duckdb data/mastra-observability.duckdb.wal
+```
+
+For a custom path, delete that DuckDB file and its `.wal` while processes are stopped. Catalog records, historical SQLite traces and research reports are separate.
 
 ### Durable ingestion runs
 
