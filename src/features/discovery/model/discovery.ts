@@ -194,20 +194,20 @@ export function durationDays(start: string, end: string): number {
     ) + 1
   );
 }
-export function capacityBand(capacity: number | null): SizeBand | null {
-  if (capacity === null || capacity <= 0) {
+export function sizeBand(size: number | null): SizeBand | null {
+  if (size === null || size <= 0) {
     return null;
   }
-  if (capacity < 1000) {
+  if (size < 1000) {
     return "lt-1000";
   }
-  if (capacity < 5000) {
+  if (size < 5000) {
     return "1000-4999";
   }
-  if (capacity < 20000) {
+  if (size < 20000) {
     return "5000-19999";
   }
-  if (capacity < 50000) {
+  if (size < 50000) {
     return "20000-49999";
   }
   return "gte-50000";
@@ -275,7 +275,7 @@ export function matchSummary(
   }
   if (
     filters.sizes.length &&
-    !filters.sizes.includes(capacityBand(summary.capacityEstimate) as SizeBand)
+    !filters.sizes.includes(sizeBand(summary.sizeEstimate) as SizeBand)
   ) {
     return false;
   }

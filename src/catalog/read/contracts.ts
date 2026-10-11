@@ -20,7 +20,7 @@ export type PublicEdition = {
   administrativeArea: string | null;
   countryCode: string;
   hasCoordinates: boolean;
-  capacityEstimate: number | null;
+  sizeEstimate: number | null;
   priceKind: string | null;
   priceCurrency: string | null;
   priceMinMinor: number | null;
@@ -59,6 +59,6 @@ export type DiscoverySummary = {
   longitude: number | null;
   coordinatePrecision: string;
   timeZone: string | null;
-  capacityEstimate: number | null;
+  sizeEstimate: number | null;
   genres: string[];
 };

@@ -75,6 +75,7 @@
     "scope-current-replacement/case.json",
     "scope-current-ambiguous/case.json",
     "scope-full-history/case.json",
-    "scope-full-unfinished-history/case.json"
+    "scope-full-unfinished-history/case.json",
+    "size-evidence/case.json"
   ]
 }

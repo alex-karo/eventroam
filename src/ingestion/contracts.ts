@@ -30,7 +30,7 @@ export type CatalogResearchInput = {
 };
 
 export type CatalogResearchResult = {
-  schemaVersion: 3;
+  schemaVersion: 4;
   scope: NonNullable<CatalogResearchInput["scope"]> | null;
   referenceInstant: string | null;
   limits: ResearchLimits;

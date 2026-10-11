@@ -14,7 +14,7 @@ afterEach(() => vi.restoreAllMocks());
 import { executeCatalogCommand, formatCatalogReport } from "./catalog";
 
 const result = (): CatalogResearchResult => ({
-  schemaVersion: 3,
+  schemaVersion: 4,
   scope: null,
   referenceInstant: null,
   workload: { savedEditions: 0, returnedEditions: 0 },
@@ -147,7 +147,7 @@ test("one festival failure does not stop another or expose provider payloads", a
   expect(text).toContain("research_failed");
   expect(text).not.toContain("SECRET");
   expect(JSON.parse(text).results).toHaveLength(1);
-  expect(JSON.parse(text).schemaVersion).toBe(3);
+  expect(JSON.parse(text).schemaVersion).toBe(4);
 });
 
 test("text report separates research and catalog status, source summaries, errors, questions, and explanations", () => {

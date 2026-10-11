@@ -165,7 +165,7 @@ const edition = z
         .nullable(),
     ).optional(),
     coordinates: fact(coordinateBlock.nullable()).optional(),
-    capacityEstimate: fact(z.number().int().positive().nullable()).optional(),
+    sizeEstimate: fact(z.number().int().positive().nullable()).optional(),
     classification: z
       .object({
         add: fact(z.array(z.string().min(1)).max(50)).optional(),
@@ -332,4 +332,4 @@ export type ResearchError = {
     retryable?: boolean;
   };
 };
-export const RESEARCH_PROMPT_VERSION = "scoped-refresh-v4";
+export const RESEARCH_PROMPT_VERSION = "scoped-refresh-v6";

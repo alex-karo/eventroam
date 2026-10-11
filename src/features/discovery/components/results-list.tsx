@@ -78,8 +78,8 @@ export function ResultsList({
                         </>
                       )}{" "}
                       · {durationDays(edition.startsOn, edition.endsOn)} days
-                      {edition.capacityEstimate !== null &&
-                        ` · Est. ${edition.capacityEstimate.toLocaleString("en")} people`}
+                      {edition.sizeEstimate !== null &&
+                        ` · Est. ${edition.sizeEstimate.toLocaleString("en")} people`}
                     </span>
                     <span className="edition-statuses">
                       {edition.dateState === "provisional" && (

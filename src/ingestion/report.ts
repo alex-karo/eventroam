@@ -104,7 +104,7 @@ function assembleReport({
     .filter((_, index) => receipts[index]?.changed)
     .map((operation) => operation.kind);
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
     referenceInstant:
       input.mode === "refresh" ? (context?.referenceInstant ?? null) : null,

@@ -102,6 +102,7 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
                 locality: edition.locality,
                 administrativeArea: edition.administrativeArea,
                 timeZone: edition.timeZone,
+                sizeEstimate: edition.sizeEstimate,
                 venueName: edition.venueName,
                 venueAddress: edition.venueAddress,
                 createdAt: timestamp,
@@ -259,7 +260,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
               ? persistenceFailureReport(error)
               : undefined;
           result = available ?? {
-            schemaVersion: 3,
+            schemaVersion: 4,
             scope:
               item.input.mode === "refresh"
                 ? (item.input.scope ?? "full")
@@ -377,7 +378,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     };
   });
   const report = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     startedAt,
     finishedAt: new Date().toISOString(),
     fixtureTodayUtc: suite.todayUtc,

@@ -222,17 +222,14 @@ test("eval fixtures reject the old schema version", () => {
 });
 
 test("eval scorer rejects unsupported result report versions", () => {
-  expect(() =>
-    scoreCase(tomorrowland, {
-      ...result(),
-      schemaVersion: 1,
-    } as unknown as CatalogResearchResult),
-  ).toThrow("Unsupported catalog report version: 1");
-  const missing = { ...result() } as Partial<CatalogResearchResult>;
-  delete missing.schemaVersion;
-  expect(() =>
-    scoreCase(tomorrowland, missing as CatalogResearchResult),
-  ).toThrow("Unsupported catalog report version: undefined");
+  for (const schemaVersion of [1, 2, 3, undefined]) {
+    expect(() =>
+      scoreCase(tomorrowland, {
+        ...result(),
+        schemaVersion,
+      } as unknown as CatalogResearchResult),
+    ).toThrow(`Unsupported catalog report version: ${schemaVersion}`);
+  }
 });
 
 test("partial research can pass factual assertions while failed research cannot", () => {
@@ -303,7 +300,7 @@ function result(
     ([, facts]) => facts.eventId && facts.key,
   );
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     scope: null,
     referenceInstant: null,
     workload: { savedEditions: 0, returnedEditions: 0 },
@@ -1106,4 +1103,37 @@ test("scope fixtures retain local time zones in temporary catalog context", () =
   } finally {
     connection.client.close();
   }
+});
+
+test("size evidence eval rejects unsupported replacements and clearing", () => {
+  const item = byId.get("size-evidence")!;
+  for (const editionKey of ["repeat-admissions", "unknown"]) {
+    const subject = item.initial.event.editions.find(
+      (e) => e.editionKey === editionKey,
+    )!.id;
+    for (const newValue of [null, 20000, 24000, 8000]) {
+      const changed = {
+        ...result(),
+        changes: [
+          {
+            subject,
+            field: "size_estimate",
+            oldValue: 6000,
+            newValue,
+            explanations: ["Unsupported size change"],
+          },
+        ],
+      };
+      expect(
+        item.expectations.forbidden.some((assertion) =>
+          assertionMatches(item, changed, assertion),
+        ),
+      ).toBe(true);
+    }
+  }
+  expect(
+    item.expectations.forbidden.some((assertion) =>
+      assertionMatches(item, result(), assertion),
+    ),
+  ).toBe(false);
 });

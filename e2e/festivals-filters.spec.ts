@@ -146,7 +146,7 @@ test("Cancel discards pending edits; Apply and browser history restore them", as
   await expectViews(page, testInfo);
 });
 
-test("duration and unknown capacity produce honest empty states and Clear all resets", async ({
+test("duration and unknown size produce honest empty states and Clear all resets", async ({
   page,
 }, testInfo) => {
   await page.goto(year);

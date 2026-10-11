@@ -31,6 +31,7 @@ const edition = z.object({
   locality: z.string().nullable().optional(),
   administrativeArea: z.string().nullable().optional(),
   timeZone: z.string().nullable().optional(),
+  sizeEstimate: z.number().int().positive().nullable().optional(),
   venueName: z.string().nullable().optional(),
   venueAddress: z.string().nullable().optional(),
   termIds: z.array(z.string()).optional(),

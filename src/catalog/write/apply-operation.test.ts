@@ -279,14 +279,14 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
     actor: "owner",
     id: old.id,
     expectedVersion: old.version,
-    data: { capacityEstimate: 1200 },
+    data: { sizeEstimate: 1200 },
   };
   const applied = applyCatalogOperation(client, op);
   expect(applied.changed).toBe(true);
   expect(applyCatalogOperation(client, op)).toEqual(applied);
   expect(count(client, "catalog_changes")).toBe(1);
   expect(() =>
-    applyCatalogOperation(client, { ...op, data: { capacityEstimate: 1300 } }),
+    applyCatalogOperation(client, { ...op, data: { sizeEstimate: 1300 } }),
   ).toThrow(/different payload/);
   expect(() =>
     applyCatalogOperation(client, { ...op, operationKey: "test:stale" }),
@@ -552,7 +552,7 @@ test("new Event slug collision identifies the slug", () => {
   ).toThrow(/Event slug "same-festival" is already used by another Event/);
 });
 
-test("typed price, capacity, coordinates, and area rules reject unsupported values", () => {
+test("typed price, size, coordinates, and area rules reject unsupported values", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event();
@@ -599,14 +599,30 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
       data: { countryCode: null },
     }),
   ).toThrow(/country/);
+  const before = client.prepare("SELECT * FROM editions").all();
+  for (const sizeEstimate of [0, -1, 1.5, "8000"]) {
+    expect(() =>
+      applyCatalogOperation(client, {
+        kind: "updateEdition",
+        operationKey: "test:invalid-size",
+        actor: "owner",
+        id: edition.id,
+        expectedVersion: edition.version,
+        data: { sizeEstimate },
+      } as never),
+    ).toThrow();
+  }
+  expect(client.prepare("SELECT * FROM editions").all()).toEqual(before);
+  expect(count(client, "catalog_changes")).toBe(0);
+  expect(count(client, "operation_receipts")).toBe(0);
   const changed = applyCatalogItem(client, [
     {
       kind: "updateEdition",
-      operationKey: "test:capacity",
+      operationKey: "test:size",
       actor: "owner",
       id: edition.id,
       expectedVersion: edition.version,
-      data: { capacityEstimate: 1200 },
+      data: { sizeEstimate: 1200 },
     },
     {
       kind: "replacePriceBlock",
@@ -1002,19 +1018,19 @@ test("audit records attribution and receipts reject changed payloads", () => {
   );
   const operation: CatalogOperation = {
     kind: "updateEdition",
-    operationKey: "audit:capacity",
+    operationKey: "audit:size",
     actor: "catalog-agent",
     initiatedBy: "owner",
     id: edition.id,
     expectedVersion: edition.version,
-    data: { capacityEstimate: 1200 },
+    data: { sizeEstimate: 1200 },
   };
   const applied = applyCatalogOperation(client, operation);
   expect(applied.changed).toBe(true);
   expect(
     client
       .prepare(
-        "SELECT actor,initiated_by,changed_fields FROM catalog_changes WHERE operation_key='audit:capacity'",
+        "SELECT actor,initiated_by,changed_fields FROM catalog_changes WHERE operation_key='audit:size'",
       )
       .get(),
   ).toEqual({
@@ -1022,7 +1038,7 @@ test("audit records attribution and receipts reject changed payloads", () => {
     initiated_by: "owner",
     changed_fields: JSON.stringify([
       {
-        field: "capacity_estimate",
+        field: "size_estimate",
         oldPresent: true,
         oldValue: null,
         newValue: 1200,
@@ -1033,7 +1049,7 @@ test("audit records attribution and receipts reject changed payloads", () => {
   expect(() =>
     applyCatalogOperation(client, {
       ...operation,
-      data: { capacityEstimate: 1300 },
+      data: { sizeEstimate: 1300 },
     }),
   ).toThrow(/different payload/);
   expect(() =>
@@ -1051,11 +1067,11 @@ test("item applies successive operations with the latest subject version", () =>
   const results = applyCatalogItem(client, [
     {
       kind: "updateEdition",
-      operationKey: "versions:capacity",
+      operationKey: "versions:size",
       actor: "owner",
       id: edition.id,
       expectedVersion: edition.version,
-      data: { capacityEstimate: 1200 },
+      data: { sizeEstimate: 1200 },
     },
     {
       kind: "updateEdition",
@@ -1073,12 +1089,12 @@ test("item applies successive operations with the latest subject version", () =>
   expect(
     client
       .prepare(
-        "SELECT version,capacity_estimate,venue_name FROM editions WHERE id=?",
+        "SELECT version,size_estimate,venue_name FROM editions WHERE id=?",
       )
       .get(edition.id),
   ).toEqual({
     version: edition.version + 2,
-    capacity_estimate: 1200,
+    size_estimate: 1200,
     venue_name: "New field",
   });
 });
@@ -1444,6 +1460,12 @@ test("removed edition and link fields are rejected without catalog writes", () =
   const event = fx.event();
   const edition = fx.edition(event);
   const operations = [
+    {
+      kind: "updateEdition",
+      id: edition.id,
+      expectedVersion: edition.version,
+      data: { capacityEstimate: 8000 },
+    },
     {
       kind: "createEdition",
       eventId: event.id,

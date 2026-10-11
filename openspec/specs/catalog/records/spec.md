@@ -8,7 +8,7 @@ Define the fixture-backed catalog's durable Event and Edition identities, valida
 
 ### Requirement: Events and editions have separate durable identities
 
-The catalog SHALL represent an Event as a durable named identity and each realization as a separate Edition. IDs SHALL be opaque and stable. The Event SHALL own its name, aliases, summary, slug, and publication state. The Edition SHALL own its edition facts, including dates, status, location, capacity, price, and classifications. Its key SHALL be unique within the Event and SHALL not claim its current dates.
+The catalog SHALL represent an Event as a durable named identity and each realization as a separate Edition. IDs SHALL be opaque and stable. The Event SHALL own its name, aliases, summary, slug, and publication state. The Edition SHALL own its edition facts, including dates, status, location, estimated size, price, and classifications. Its key SHALL be unique within the Event and SHALL not claim its current dates.
 
 #### Scenario: A festival holds two separate weekends
 
@@ -24,7 +24,7 @@ The catalog SHALL represent an Event as a durable named identity and each realiz
 
 ### Requirement: Edition dates and location are validated as units
 
-The catalog SHALL accept start and end as local calendar dates only when both are present and ordered. Absent dates SHALL have `unknown` date state; present dates SHALL have `provisional` or `confirmed` state. `scheduled` SHALL require dates. Latitude and longitude SHALL be present together with a non-`unknown` precision, or both absent with `unknown` precision. Coordinates SHALL be within latitude −90 to 90 and longitude −180 to 180. A stored capacity estimate SHALL be a positive integer.
+The catalog SHALL accept start and end as local calendar dates only when both are present and ordered. Absent dates SHALL have `unknown` date state; present dates SHALL have `provisional` or `confirmed` state. `scheduled` SHALL require dates. Latitude and longitude SHALL be present together with a non-`unknown` precision, or both absent with `unknown` precision. Coordinates SHALL be within latitude −90 to 90 and longitude −180 to 180. A stored size estimate SHALL be a positive integer.
 
 #### Scenario: A partial date or coordinate is submitted
 
@@ -147,3 +147,19 @@ The SQLite migration SHALL rename occurrences/occurrence_terms to editions/editi
 - **WHEN** a new Edition operation reuses a stored key whose receipt hash belongs to the old serialized payload
 - **THEN** the existing different-payload check rejects it without duplicate writes or rewriting the receipt
 - **AND** new identical Edition payload retries still return their saved result
+
+### Requirement: Edition size represents approximate participant scale
+
+An Edition SHALL expose optional `sizeEstimate`: a positive integer estimate of festival size in people, or null when unknown. It SHALL replace `capacityEstimate` in active catalog, research, and public contracts without aliases. Size SHALL describe participant scale rather than maximum occupancy or exact attendance, and SHALL remain optional for publication.
+
+#### Scenario: Size validation
+- **WHEN** an Edition write supplies a size
+- **THEN** positive integers and null are accepted; zero, negatives, fractions, and the obsolete capacityEstimate field are rejected
+
+### Requirement: Size migration preserves development catalog history
+
+The size-field migration SHALL preserve numeric estimates, IDs, relationships, versions, publication, and immutable audit/receipt/run payloads. Migrated estimates SHALL remain approximate development data subject to rechecking under the new semantics.
+
+#### Scenario: Catalog migration
+- **WHEN** the supported migration initializes, upgrades, or reopens a database
+- **THEN** the size contract is available without losing stored facts, rewriting historical payloads, or repeating applied migrations

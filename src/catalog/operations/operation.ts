@@ -60,7 +60,7 @@ const editionData = z
     endsOn: localDate.nullable().optional(),
     dateState: z.enum(dateStates).optional(),
     scheduleStatus: z.enum(scheduleStatuses).optional(),
-    capacityEstimate: z.number().int().positive().nullable().optional(),
+    sizeEstimate: z.number().int().positive().nullable().optional(),
     venueName: z.string().trim().min(1).max(250).nullable().optional(),
     venueAddress: z.string().trim().min(1).max(500).nullable().optional(),
     locality: z.string().trim().min(1).max(250).nullable().optional(),

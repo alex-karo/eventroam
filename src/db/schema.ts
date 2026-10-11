@@ -85,7 +85,7 @@ export const editions = sqliteTable(
     })
       .notNull()
       .default("announced"),
-    capacityEstimate: integer("capacity_estimate"),
+    sizeEstimate: integer("size_estimate"),
     publicationState: text("publication_state", { enum: lifecycle })
       .notNull()
       .default("draft"),
@@ -133,8 +133,9 @@ export const editions = sqliteTable(
       sql`((${t.latitude} IS NULL AND ${t.longitude} IS NULL) OR (${t.latitude} IS NOT NULL AND ${t.longitude} IS NOT NULL AND ${t.latitude} BETWEEN -90 AND 90 AND ${t.longitude} BETWEEN -180 AND 180))`,
     ),
     check(
+      // Historical constraint name retained by the column-rename migration.
       "editions_capacity_ck",
-      sql`${t.capacityEstimate} IS NULL OR ${t.capacityEstimate} > 0`,
+      sql`${t.sizeEstimate} IS NULL OR ${t.sizeEstimate} > 0`,
     ),
     check("editions_version_ck", sql`${t.version} > 0`),
     check(
