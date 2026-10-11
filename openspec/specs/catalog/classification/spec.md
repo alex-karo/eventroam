@@ -18,7 +18,7 @@ The catalog SHALL assign existing TaxonomyTerms to Occurrences, never to Events.
 
 ### Requirement: Taxonomy terms have stable curated identities
 
-A TaxonomyTerm SHALL have a stable ID, facet, slug, display name, and optional same-facet parent. `(facet, slug)` SHALL be unique; a term SHALL NOT parent itself or form an ancestry cycle. Assignment operations SHALL reference existing term IDs and reject unknown IDs, duplicate IDs, redundant assigned parent terms, or excess single-valued facet terms. Terms SHALL not be created implicitly from labels supplied to an Occurrence write.
+A TaxonomyTerm SHALL have a stable ID, facet, slug, display name, and optional same-facet parent. `(facet, slug)` SHALL be unique; a term SHALL NOT parent itself or form an ancestry cycle. Assignment operations SHALL reference existing term IDs and reject unknown IDs, duplicate IDs, an assigned ancestor together with its descendant at any depth, or excess single-valued facet terms. Terms SHALL not be created implicitly from labels supplied to an Occurrence write.
 
 #### Scenario: An unknown extracted label is submitted as an assignment
 
@@ -34,6 +34,12 @@ A TaxonomyTerm SHALL have a stable ID, facet, slug, display name, and optional s
 
 - **WHEN** a term is assigned itself or one of its descendants as parent
 - **THEN** the catalog rejects that parent change
+
+#### Scenario: An assignment contains an ancestor and descendant
+
+- **GIVEN** a taxonomy term descends from another term through one or more parent relationships
+- **WHEN** a replacement assigns both terms to the same Occurrence
+- **THEN** the replacement fails without changing its assignments, version, or audit history
 
 ### Requirement: Genre ancestry controls discovery matches
 
@@ -61,12 +67,22 @@ The Event page SHALL show classifications from its selected published Occurrence
 - **THEN** its classification labels replace the prior edition's summary without changing Event identity
 
 ### Requirement: Model-proposed classification is edition-specific
-The model SHALL associate classification additions and removals with a specific Occurrence. The host SHALL apply those proposals while preserving classifications on sibling editions and Event defaults. Omitted term claims SHALL preserve current assignments.
+The model SHALL associate classification additions and removals with a specific Occurrence. The host SHALL apply those proposals only to that Occurrence, preserving sibling editions' classifications and assigning no classifications or defaults to the Event. Omitted term claims SHALL preserve current assignments.
 
 #### Scenario: A later extraction omits a known term
 - **WHEN** a model answer does not mention a previously accepted genre
 - **THEN** the run preserves that assignment
 
 #### Scenario: Model removes an edition term
-- **WHEN** the model explicitly proposes `removeTermIds` for an Occurrence
-- **THEN** the writer removes those terms from that Occurrence only
+- **WHEN** the model explicitly proposes removing an assigned term from a specific Occurrence
+- **THEN** the writer removes that assignment from that Occurrence only, preserving sibling editions' assignments
+
+### Requirement: Topics remain independent of physical format
+
+Topic assignments SHALL describe programme content or participant offerings independently of the physical format. A topic assignment SHALL NOT substitute for a format assignment required by publication rules. Specific topic definitions and assignment guidance SHALL remain curated vocabulary rather than fixed specification requirements.
+
+#### Scenario: Additional topics without an eligible format
+
+- **GIVEN** an edition with additional topic assignments but no eligible physical format
+- **WHEN** publication is attempted
+- **THEN** those topics do not satisfy the publication format gate

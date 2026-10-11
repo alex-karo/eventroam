@@ -29,7 +29,7 @@ test("development fixtures remain repeatable and bypass audit", () => {
 test("a taxonomy validation failure rolls back the entire development seed", () => {
   const { client } = testDatabase();
   // A previously supplied term conflicts with the fixture's single-valued facets.
-  testFixtures(client).term({ id: "dev-outdoor", facet: "event_type" });
+  testFixtures(client).term({ id: "dev-openair", facet: "event_type" });
   const before = tables.map((table) =>
     client.prepare(`SELECT * FROM ${table}`).all(),
   );

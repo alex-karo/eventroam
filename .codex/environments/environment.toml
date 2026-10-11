@@ -3,4 +3,9 @@ version = 1
 name = "eventroam"
 
 [setup]
-script = "ln -s \"$CODEX_SOURCE_TREE_PATH/.env\" \"$CODEX_WORKTREE_PATH/.env\""
+script = """
+set -e
+cd "$CODEX_WORKTREE_PATH"
+ln -s "$CODEX_SOURCE_TREE_PATH/.env" "$CODEX_WORKTREE_PATH/.env"
+npm ci
+"""

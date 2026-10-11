@@ -12,6 +12,10 @@ import { Mastra } from "@mastra/core/mastra";
 import { SpanType } from "@mastra/core/observability";
 import { DuckDBStore } from "@mastra/duckdb";
 import {
+  DefaultObservabilityInstance,
+  Observability,
+} from "@mastra/observability";
+import {
   createResearchObservability,
   createRunObservability,
   finishResearchObservability,
@@ -76,6 +80,66 @@ test("a registered run leaves its caller-owned observability store open", async 
     await store.close();
   }
 });
+
+test.each(["rejection", "timeout"] as const)(
+  "shared-store initialization failure survives cleanup %s",
+  async (failure) => {
+    vi.stubEnv("CATALOG_LOGGING", "false");
+    vi.stubEnv("CATALOG_TRACING", "true");
+    vi.stubEnv(
+      "CATALOG_OBSERVABILITY_DATABASE_PATH",
+      join(directory(), "failed-shared.duckdb"),
+    );
+    const store = await createObservabilityStore();
+    await store.init();
+    const close = vi.spyOn(store, "close");
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    // Root creation happens after Mastra takes the shared store. A failure here
+    // must disable optional observations without failing the ingestion attempt.
+    vi.spyOn(
+      DefaultObservabilityInstance.prototype,
+      "startSpan",
+    ).mockImplementation(() => {
+      throw new Error("PRIVATE_INITIALIZATION_ERROR");
+    });
+    const originalShutdown = Observability.prototype.shutdown;
+    const shutdown = vi
+      .spyOn(Observability.prototype, "shutdown")
+      .mockImplementation(() =>
+        failure === "rejection"
+          ? Promise.reject(new Error("PRIVATE_SHUTDOWN_ERROR"))
+          : new Promise<void>(() => {}),
+      );
+    try {
+      await expect(
+        createRunObservability(
+          {
+            mode: "add",
+            name: "Fixture",
+            actor: "catalog-research",
+            dryRun: false,
+          },
+          "fixture/model",
+          "failed-shared-run",
+          false,
+          [],
+          store,
+        ),
+      ).resolves.toBeUndefined();
+      expect(shutdown).toHaveBeenCalledOnce();
+      expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
+        "trace_initialization_failed\ntrace_shutdown_failed\n",
+      );
+      expect(close).not.toHaveBeenCalled();
+      expect(await store.getStore("observability")).toBeTruthy();
+    } finally {
+      if (shutdown.mock.instances[0]) {
+        await originalShutdown.call(shutdown.mock.instances[0]);
+      }
+      await store.close();
+    }
+  },
+);
 
 test("the shared local path is absolute and cannot select the catalog", () => {
   const cwd = directory();

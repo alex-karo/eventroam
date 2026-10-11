@@ -8,7 +8,7 @@ Define the structural gates and visible behavior of public festival records in t
 
 ### Requirement: Publication enforces edition facts and festival scope
 
-An Occurrence SHALL publish only with a year, date pair, country, and venue, locality, or region. Festival scope SHALL also require the Occurrence's `outdoor` or `mixed-indoor-outdoor` format; `festival` or `gathering` type; and `music` topic or `burning-like` culture. An Event SHALL publish only after a published Occurrence and SHALL then receive the Festivals home scope. Draft and withdrawn subjects SHALL stay outside public reads.
+An Occurrence SHALL publish only with a year, date pair, country, and venue, locality, or region. Festival scope SHALL also require the Occurrence's `openair` or `mixed-indoor-outdoor` format; `festival` or `gathering` type; and `music` topic or `burning-like` culture. An Event SHALL publish only after a published Occurrence and SHALL then receive the Festivals home scope. Draft and withdrawn subjects SHALL stay outside public reads.
 
 #### Scenario: An edition has only a country
 
@@ -20,6 +20,12 @@ An Occurrence SHALL publish only with a year, date pair, country, and venue, loc
 - **GIVEN** a dated, located outdoor gathering with `burning-like` culture and no music genre
 - **WHEN** the Occurrence and Event pass publication
 - **THEN** the edition is publicly available in the Festivals scope
+
+#### Scenario: Additional topics cannot replace physical format
+
+- **GIVEN** a dated, located festival with music and additional topic assignments but no openair or mixed-indoor-outdoor format
+- **WHEN** publication is attempted
+- **THEN** publication is rejected
 
 ### Requirement: Public pages preserve edition status and uncertainty
 
@@ -78,7 +84,7 @@ The catalog SHALL create new subjects as drafts, publish them only through valid
 - **THEN** it can become published again under the same durable identity
 
 ### Requirement: Public details distinguish closed ticket sales
-Public edition details SHALL display known ticket availability beside its category: available as “Available”, sold_out as “Sold out”, and closed as “Ticket sales closed”. Missing/unknown availability SHALL have no status badge. Public payloads SHALL omit edition-wide availability; schedule status SHALL remain independent.
+Public edition details SHALL display known ticket availability beside its category: available as “Available”, sold_out as “Sold out”, and closed as “Ticket sales closed”. Missing/unknown availability SHALL have no status badge. Public payloads SHALL expose category labels and availability while omitting private research data and edition-wide availability; schedule status SHALL remain independent.
 
 #### Scenario: Ticket sales have closed
 - **WHEN** a published edition has a ticket category with availability closed
@@ -99,15 +105,15 @@ Public edition details SHALL display known ticket availability beside its catego
 - **AND** existing primary price display and publication gates remain unchanged
 
 ### Requirement: Model-proposed publication uses structural gates
-The system SHALL publish an Occurrence when its stored values satisfy the existing date, location, and scope rules. The same structural rules SHALL apply to every publication operation.
+The system SHALL validate model-proposed publication operations against the date, location, and scope gates defined in this spec. The same structural rules SHALL apply to every publication operation; complete stored facts alone SHALL NOT change publication state.
 
 #### Scenario: Draft has structurally complete facts
-- **WHEN** a model-proposed draft has valid programme dates, country, a qualified location, and in-scope taxonomy terms
-- **THEN** it may publish
+- **WHEN** a publication operation targets a model-proposed draft with valid programme dates, country, a qualified location, and in-scope taxonomy terms
+- **THEN** the operation passes the structural publication gates
 
 #### Scenario: Draft lacks a required fact
-- **WHEN** a draft lacks a required date, location, or scope term
-- **THEN** it remains a draft
+- **WHEN** a publication operation targets a draft lacking a required date, location, or scope term
+- **THEN** the operation is rejected and the Occurrence remains a draft
 
 ### Requirement: Public uncertainty follows stored fact precision
 The system SHALL distinguish provisional dates and approximate locations according to stored values while keeping source retrieval times out of public freshness indicators.

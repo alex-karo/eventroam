@@ -26,16 +26,40 @@
       "name": "Festival"
     },
     {
-      "id": "validation:outdoor",
+      "id": "validation:openair",
       "facet": "format",
-      "slug": "outdoor",
-      "name": "Outdoor"
+      "slug": "openair",
+      "name": "Open-air"
     },
     {
       "id": "validation:music",
       "facet": "topic",
       "slug": "music",
       "name": "Music"
+    },
+    {
+      "id": "validation:topic:snow-sports",
+      "facet": "topic",
+      "slug": "snow-sports",
+      "name": "Snow sports"
+    },
+    {
+      "id": "validation:topic:surfing",
+      "facet": "topic",
+      "slug": "surfing",
+      "name": "Surfing"
+    },
+    {
+      "id": "validation:topic:food-and-drink",
+      "facet": "topic",
+      "slug": "food-and-drink",
+      "name": "Food & drink"
+    },
+    {
+      "id": "validation:topic:outdoor",
+      "facet": "topic",
+      "slug": "outdoor",
+      "name": "Outdoor activities"
     }
   ],
   "cases": [

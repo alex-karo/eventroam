@@ -24,12 +24,12 @@ Use one Next.js application, one package, and one dependency lockfile. Use the N
 
 ### Runtime and dependency baseline
 
-Versions below were checked on 2026-10-01 against official documentation and publisher package metadata. The application now pins and builds with this baseline. Recheck releases and peer dependencies during upgrades.
+Dependency versions below were checked on 2026-10-01 against official documentation and publisher package metadata. On 2026-10-11, the owner selected Node.js 26.11.1; the locally installed release supplies npm 11.20.0. Recheck releases and peer dependencies during upgrades.
 
 | Area | Selection | Reason and source |
 | --- | --- | --- |
-| Runtime | **Node.js 26.10.0** | Latest non-prerelease **Current** release observed. The same official page lists 24.21.0 as latest LTS; the owner requested latest stable, so select Current. [Node download](https://nodejs.org/en/download/current) |
-| Package manager | **npm 11.19.1**, bundled with Node.js 26.10.0 | Use the package manager supplied by the selected Node release for this single-package application. Commit its lockfile and use clean installs in local, CI, and Docker workflows. [Node release archive](https://nodejs.org/en/download/archive/v26.10.0), [npm ci](https://docs.npmjs.com/cli/commands/npm-ci/) |
+| Runtime | **Node.js 26.11.1** | Owner-selected exact **Current** release for local development and CI. [Node download](https://nodejs.org/en/download/current) |
+| Package manager | **npm 11.20.0**, bundled with Node.js 26.11.1 | Use the package manager supplied by the selected Node release for this single-package application. Commit its lockfile and use clean installs in local, CI, and Docker workflows. [Node release archive](https://nodejs.org/en/download/archive/v26.11.1), [npm ci](https://docs.npmjs.com/cli/commands/npm-ci/) |
 | Web framework | **Next.js 16.3.8**, App Router, built-in Turbopack | Covers server rendering, routing, metadata, and read endpoints in the existing single-app direction. Node requirement is >=20.9. [Installation](https://nextjs.org/docs/app/getting-started/installation), [package metadata](https://registry.npmjs.org/next/16.3.8) |
 | UI runtime | **React and React DOM 19.3.0** | Matching stable versions satisfy Next's declared React peer range. App Router manages its framework-integrated React implementation; do not independently opt into React canary packages. [React metadata](https://registry.npmjs.org/react/19.3.0), [React DOM metadata](https://registry.npmjs.org/react-dom/19.3.0) |
 | Language | **TypeScript 6.0.3**, strict mode | A compatible stable compiler for the selected lint toolchain. TypeScript 7.0.2 is newer, but the current TypeScript ESLint parser declares <6.1 support. [Compiler metadata](https://registry.npmjs.org/typescript/6.0.3), [parser metadata](https://registry.npmjs.org/@typescript-eslint/parser/8.71.0) |
@@ -63,7 +63,7 @@ Synchronous SQLite calls are acceptable for short local queries and writes at th
 
 ### Repository layout and quality checks
 
-The initial scaffold used `src/domain` and `src/application`; the adopted layout is specified in the [project structure](../project-structure.md). Keep routes in `src/app`, feature UI and pure discovery logic in `src/features`, reusable components in `src/components`, catalog rules and operations in `src/catalog`, request adapters in `src/site/server`, and schema and connections in `src/db`. Put reviewed migrations in `src/db/migrations`; colocate focused tests and add browser journeys in `tests/e2e` when implemented. These are directory responsibilities, not separate packages.
+The initial scaffold used `src/domain` and `src/application`; the adopted layout is specified in the [project structure](../project-structure.md). Keep routes in `src/app`, feature UI and pure discovery logic in `src/features`, reusable components in `src/components`, catalog rules and operations in `src/catalog`, request adapters in `src/site/server`, and schema and connections in `src/db`. Put reviewed migrations in `src/db/migrations`; colocate focused tests and keep the implemented browser journeys in `e2e/`. These are directory responsibilities, not separate packages.
 
 Vitest covers normalization, filter/date boundaries, publication rules, and real persistence transactions. Browser tests cover the desktop combined view, mobile switch, URL restoration, on-demand details, direct SSR entry, missing coordinates, and scope isolation. Test async Server Component behavior through the running app: Next's [Vitest guide](https://nextjs.org/docs/app/guides/testing/vitest) explicitly directs those cases toward end-to-end testing. Use deterministic fixtures and avoid live source sites or map-vendor calls in routine tests.
 
@@ -71,13 +71,13 @@ The repository now has canonical scripts for development, type checking, ESLint,
 
 ### Pinning and upgrades
 
-Pin Node in the repository runtime file, package-manager metadata, CI, and Docker configuration. Declare `npm@11.19.1` in `packageManager`, verify the installed npm version from the pinned Node release, save direct dependencies at exact versions, commit `package-lock.json`, and use `npm ci` in CI and container builds. Pin the production image digest and update it deliberately for runtime/base-image fixes.
+Pin Node in the repository runtime file, package-manager metadata, CI, and Docker configuration. Declare `npm@11.20.0` in `packageManager`, verify the installed npm version from the pinned Node release, save direct dependencies at exact versions, commit `package-lock.json`, and use `npm ci` in CI and container builds. Pin the production image digest and update it deliberately for runtime/base-image fixes.
 
 Review stable release updates as maintenance changes. The Node policy remains latest non-prerelease stable, including the Current line; upgrading is a reviewed change with a clean install, native SQLite check, type/lint checks, relevant tests, and production build. Never float `latest` in a production image or install prerelease packages to satisfy a tutorial. Update Next/React and Drizzle/Kit as compatible sets; record a reason when a dependency remains on an older compatible stable version, as TypeScript and ESLint do here.
 
 ## Deferred decisions
 
-- Agent execution, operation transport, command contracts, and AI/scraping tooling wait for the next iteration, per the owner. Do not introduce an agent SDK or command framework now.
+- The original decision deferred agent execution and AI/source tooling. Owner-initiated local research has since been implemented with Mastra, OpenRouter, bounded HTTP reads and optional Firecrawl; its current boundaries are in the [project structure](../project-structure.md#ingestion-ownership) and [source workflow spec](../../openspec/specs/catalog/source-workflow/spec.md). Hosted execution and scheduling remain deferred.
 - The exact Mapbox style, token values, budget limits, and any ingestion geocoder remain open. The v1 locality/country filter can use catalog fields without a geocoding service. Configure the selected style, tokens, attribution, and usage monitoring before public deployment.
 - Production hosting vendor, ingress/TLS tooling, backup destination/schedule, and monitoring service remain deployment decisions. Supporting several scope hostnames does not require a multi-service deployment.
 - Discovery payload schemas are implemented in the application. The confirmed requirement is all summaries with details on selection and no map-area fetching; the current application filters the complete scope summary set in the browser with shared server-rendering rules.

@@ -59,7 +59,9 @@ export async function runTraceFixture(
       ...DEFAULT_RESEARCH_LIMITS,
       agentSteps:
         scenario === "search" || scenario === "search_failure" ? 3 : 2,
-      durationMs: ending === "abort" ? 500 : 30_000,
+      // This includes workflow/observability startup and the first model step.
+      // Leave CI with coverage enough time to reach the hanging second request.
+      durationMs: ending === "abort" ? 5_000 : 30_000,
     },
   };
 

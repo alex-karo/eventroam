@@ -43,4 +43,4 @@ Eventroam's first release is one deployable application with a relational catalo
 
 ## Deferred decisions
 
-This ADR does not select the SQLite Node driver, exact SQLite/runtime version, backup schedule or destination, production host, or a future spatial extension. Those choices belong in implementation and operations specs when the application is scaffolded.
+This ADR does not select the SQLite Node driver or exact runtime version; [ADR 002](002-runtime-and-tooling.md) and `package.json` now record the implemented driver/runtime baseline. Backup schedule and destination, production host, and a future spatial extension remain deferred.

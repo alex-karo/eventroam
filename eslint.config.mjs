@@ -161,6 +161,7 @@ export default defineConfig([
     ".mastra/**",
     "out/**",
     "node_modules/**",
+    "coverage/**",
     "data/**",
     "next-env.d.ts",
     // Vendored Mastra skill helper; preserve the upstream file and its digest.
