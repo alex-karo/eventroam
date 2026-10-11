@@ -332,4 +332,4 @@ export type ResearchError = {
     retryable?: boolean;
   };
 };
-export const RESEARCH_PROMPT_VERSION = "scoped-refresh-v5";
+export const RESEARCH_PROMPT_VERSION = "scoped-refresh-v6";

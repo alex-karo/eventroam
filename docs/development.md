@@ -93,7 +93,7 @@ npm run catalog:eval
 npm run catalog:eval -- --case sziget --repeat 3 --model openai/gpt-6-luna
 ```
 
-Reports default to `data/catalog-evals/`; `--report PATH` selects an output file. Failed assertions or host workflow/persistence failures produce exit code 1. Evals measure required changes and forbidden claims. Seven synthetic scope cases additionally score temporal selection and research completeness, including unchanged saved history, independently of mutations. Together with six captured-source cases, the default suite has 17 cases, including four participant-size cases; fixture schema 2 is independent of report v4. They are not an apply gate. Compare models or prompts on the same fixtures and repeat runs to expose variability.
+Reports default to `data/catalog-evals/`; `--report PATH` selects an output file. Failed assertions or host workflow/persistence failures produce exit code 1. Evals measure required changes and forbidden claims. Seven synthetic scope cases additionally score temporal selection and research completeness, including unchanged saved history, independently of mutations. Together with six captured-source cases, the default suite has 14 cases, including one full-refresh case covering four participant-size situations; fixture schema 2 is independent of report v4. They are not an apply gate. Compare models or prompts on the same fixtures and repeat runs to expose variability.
 
 Cases and expectations live in `src/ingestion/evals/cases/`. When refreshing captured pages, review their expected results too. Check that facts belong to the intended festival and edition, especially venue versus office addresses and ticket links versus signup forms.
 

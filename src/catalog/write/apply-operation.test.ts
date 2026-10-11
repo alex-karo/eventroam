@@ -599,6 +599,22 @@ test("typed price, size, coordinates, and area rules reject unsupported values",
       data: { countryCode: null },
     }),
   ).toThrow(/country/);
+  const before = client.prepare("SELECT * FROM editions").all();
+  for (const sizeEstimate of [0, -1, 1.5, "8000"]) {
+    expect(() =>
+      applyCatalogOperation(client, {
+        kind: "updateEdition",
+        operationKey: "test:invalid-size",
+        actor: "owner",
+        id: edition.id,
+        expectedVersion: edition.version,
+        data: { sizeEstimate },
+      } as never),
+    ).toThrow();
+  }
+  expect(client.prepare("SELECT * FROM editions").all()).toEqual(before);
+  expect(count(client, "catalog_changes")).toBe(0);
+  expect(count(client, "operation_receipts")).toBe(0);
   const changed = applyCatalogItem(client, [
     {
       kind: "updateEdition",
@@ -1445,6 +1461,12 @@ test("removed edition and link fields are rejected without catalog writes", () =
   const edition = fx.edition(event);
   const operations = [
     {
+      kind: "updateEdition",
+      id: edition.id,
+      expectedVersion: edition.version,
+      data: { capacityEstimate: 8000 },
+    },
+    {
       kind: "createEdition",
       eventId: event.id,
       data: { editionKey: "2028", ticketAvailability: "sold_out" },
@@ -1490,46 +1512,3 @@ test("removed edition and link fields are rejected without catalog writes", () =
     client.prepare("SELECT version FROM editions WHERE id=?").get(edition.id),
   ).toEqual({ version: edition.version });
 });
-
-test.each([0, -1, 1.5, "8000", { capacityEstimate: 8000 }])(
-  "invalid or obsolete size %j leaves catalog unchanged",
-  (value) => {
-    const { client } = testDatabase();
-    const fx = testFixtures(client);
-    const edition = fx.edition(fx.event(), { sizeEstimate: 7000 });
-    const before = client.prepare("SELECT * FROM editions").all();
-    expect(() =>
-      applyCatalogOperation(client, {
-        operationKey: "invalid:size",
-        actor: "owner",
-        kind: "updateEdition",
-        id: edition.id,
-        expectedVersion: 1,
-        data: typeof value === "object" ? value : { sizeEstimate: value },
-      } as never),
-    ).toThrow();
-    expect(client.prepare("SELECT * FROM editions").all()).toEqual(before);
-    expect(count(client, "catalog_changes")).toBe(0);
-    expect(count(client, "operation_receipts")).toBe(0);
-  },
-);
-
-test.each([1, 8000, null])(
-  "catalog saves optional participant size %s",
-  (sizeEstimate) => {
-    const { client } = testDatabase();
-    const fx = testFixtures(client);
-    const edition = fx.edition(fx.event(), { sizeEstimate: 7000 });
-    applyCatalogOperation(client, {
-      operationKey: "valid:size",
-      actor: "owner",
-      kind: "updateEdition",
-      id: edition.id,
-      expectedVersion: 1,
-      data: { sizeEstimate },
-    });
-    expect(client.prepare("SELECT size_estimate FROM editions").get()).toEqual({
-      size_estimate: sizeEstimate,
-    });
-  },
-);

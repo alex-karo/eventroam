@@ -221,22 +221,16 @@ test("eval fixtures reject the old schema version", () => {
   ).toBe(false);
 });
 
-test.each([1, 2, 3])(
-  "eval scorer rejects unsupported result report version %s",
-  (schemaVersion) => {
+test("eval scorer rejects unsupported result report versions", () => {
+  for (const schemaVersion of [1, 2, 3, undefined]) {
     expect(() =>
       scoreCase(tomorrowland, {
         ...result(),
         schemaVersion,
       } as unknown as CatalogResearchResult),
     ).toThrow(`Unsupported catalog report version: ${schemaVersion}`);
-    const missing = { ...result() } as Partial<CatalogResearchResult>;
-    delete missing.schemaVersion;
-    expect(() =>
-      scoreCase(tomorrowland, missing as CatalogResearchResult),
-    ).toThrow("Unsupported catalog report version: undefined");
-  },
-);
+  }
+});
 
 test("partial research can pass factual assertions while failed research cannot", () => {
   const official = {
@@ -1111,11 +1105,12 @@ test("scope fixtures retain local time zones in temporary catalog context", () =
   }
 });
 
-test.each(["size-repeat-admissions", "size-unknown"])(
-  "%s rejects unsupported size changes including clearing",
-  (id) => {
-    const item = byId.get(id)!;
-    const subject = item.initial.event.editions[0].id;
+test("size evidence eval rejects unsupported replacements and clearing", () => {
+  const item = byId.get("size-evidence")!;
+  for (const editionKey of ["repeat-admissions", "unknown"]) {
+    const subject = item.initial.event.editions.find(
+      (e) => e.editionKey === editionKey,
+    )!.id;
     for (const newValue of [null, 20000, 24000, 8000]) {
       const changed = {
         ...result(),
@@ -1135,10 +1130,10 @@ test.each(["size-repeat-admissions", "size-unknown"])(
         ),
       ).toBe(true);
     }
-    expect(
-      item.expectations.forbidden.some((assertion) =>
-        assertionMatches(item, result(), assertion),
-      ),
-    ).toBe(false);
-  },
-);
+  }
+  expect(
+    item.expectations.forbidden.some((assertion) =>
+      assertionMatches(item, result(), assertion),
+    ),
+  ).toBe(false);
+});
