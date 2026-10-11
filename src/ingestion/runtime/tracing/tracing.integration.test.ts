@@ -305,8 +305,8 @@ function normalize(
   const copy = structuredClone(result);
   delete copy.runId;
   copy.durationMs = 0;
-  if (copy.refresh) {
-    copy.refresh.referenceInstant = "TIMESTAMP";
+  if (copy.referenceInstant) {
+    copy.referenceInstant = "TIMESTAMP";
   }
   for (const change of copy.changes) {
     if (change.field === "created_at" || change.field === "updated_at") {

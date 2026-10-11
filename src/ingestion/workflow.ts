@@ -1,5 +1,7 @@
-import { countryBaselineConflict } from "./research/scope";
-import { assertRefreshBaseline } from "./research/guards";
+import {
+  assertRefreshBaseline,
+  countryBaselineConflict,
+} from "./research/guards";
 import { randomUUID } from "node:crypto";
 import { noopLogger } from "@mastra/core/logger";
 import { createStep, createWorkflow } from "@mastra/core/workflows";
@@ -190,7 +192,7 @@ function projectSummary(
     researchStatus: result.researchStatus,
     persistenceStatus,
     eventId: result.eventId ?? null,
-    scope: result.refresh?.scope ?? null,
+    scope: result.scope,
     savedEditionCount: result.workload.savedEditions,
     returnedEditionCount: result.workload.returnedEditions,
     readCount: result.usage.pages,
@@ -320,19 +322,18 @@ export function createCatalogIngestionWorkflow(
           ? `${owned.deps.todayUtc}T12:00:00.000Z`
           : new Date(owned.started).toISOString(),
       );
-      if (data.context.refresh) {
-        const refresh = data.context.refresh;
+      if (owned.input.mode === "refresh") {
+        const saved = data.context.catalog[0].editions;
+        const conflicting = countryBaselineConflict(saved);
         if (
-          countryBaselineConflict(refresh) ||
-          (refresh.scope === "full" && refresh.savedEditions.length > 20)
+          conflicting ||
+          ((owned.input.scope ?? "full") === "full" && saved.length > 20)
         ) {
           data.errors = [
             {
-              code: countryBaselineConflict(refresh)
-                ? "country_baseline_conflict"
-                : "limit_reached",
+              code: conflicting ? "country_baseline_conflict" : "limit_reached",
               stage: "validation",
-              message: countryBaselineConflict(refresh)
+              message: conflicting
                 ? "Saved Edition countries conflict"
                 : "Refresh assignment exceeds the 20-Edition boundary",
             },
@@ -401,7 +402,6 @@ export function createCatalogIngestionWorkflow(
           data.context!.catalog,
           owned.input,
           data.context!.terms,
-          data.context!.refresh,
         );
         owned.trace?.validated(data.prepared);
         owned.trace?.tracing.setEventId(data.prepared.matchedEventId);
@@ -436,14 +436,15 @@ export function createCatalogIngestionWorkflow(
           data.prepared.operations,
           {
             dryRun: owned.input.dryRun,
-            beforeApply: data.context?.refresh
-              ? (client) =>
-                  assertRefreshBaseline(
-                    client,
-                    owned.input.eventId!,
-                    data.context!.refresh!,
-                  )
-              : undefined,
+            beforeApply:
+              owned.input.mode === "refresh"
+                ? (client) =>
+                    assertRefreshBaseline(
+                      client,
+                      owned.input.eventId!,
+                      data.context!.catalog[0].editions,
+                    )
+                : undefined,
           },
         );
         if (owned.trace) {

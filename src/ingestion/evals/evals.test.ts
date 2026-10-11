@@ -304,7 +304,8 @@ function result(
   );
   return {
     schemaVersion: 3,
-    refresh: null,
+    scope: null,
+    referenceInstant: null,
     workload: { savedEditions: 0, returnedEditions: 0 },
     limits: DEFAULT_RESEARCH_LIMITS,
     runId: "eval-fixture-run",

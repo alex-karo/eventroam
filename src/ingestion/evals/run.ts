@@ -260,7 +260,11 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
               : undefined;
           result = available ?? {
             schemaVersion: 3,
-            refresh: null,
+            scope:
+              item.input.mode === "refresh"
+                ? (item.input.scope ?? "full")
+                : null,
+            referenceInstant: null,
             limits: config.limits,
             workload: {
               savedEditions: 0,
@@ -366,7 +370,8 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       sources: result.sources,
       sourceSummaries: result.sourceSummaries,
       eventNameMismatch: result.eventNameMismatch,
-      refresh: result.refresh,
+      scope: result.scope,
+      referenceInstant: result.referenceInstant,
       limits: result.limits,
       workload: result.workload,
     };

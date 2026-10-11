@@ -15,7 +15,6 @@ import {
   type ResearchQuestion,
 } from "./contracts";
 import { validateRefresh } from "./guards";
-import type { RefreshContext } from "./scope";
 import { majorToMinor } from "./money";
 
 type Event = ResearchCatalog[number];
@@ -400,7 +399,6 @@ export function prepareResearch(
   catalog: ResearchCatalog,
   input: CatalogResearchInput,
   terms: Term[],
-  refresh?: RefreshContext | null,
 ): PreparedResearch {
   const result: PreparedResearch = {
     validation: { structural: "failed", target: "not_run" },
@@ -476,10 +474,7 @@ export function prepareResearch(
     return result;
   }
   if (input.mode === "refresh") {
-    if (!refresh) {
-      return invalid(result, "Refresh scope context is missing");
-    }
-    const error = validateRefresh(candidate, refresh);
+    const error = validateRefresh(candidate, event!.editions, input.scope);
     if (error) {
       result.candidate = null;
       result.errors.push(error);

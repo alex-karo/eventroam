@@ -10,7 +10,6 @@ import {
 import type { ResearchCandidate } from "./research/contracts";
 import type { ResearchDependencies } from "./contracts";
 import { prepareResearch } from "./research/prepare";
-import { createRefreshContext } from "./research/scope";
 const reason = "Inspected official source confirms this fact";
 const url = "https://fixture.example/festival";
 function fixture(countryCode: string | null = "IE") {
@@ -22,6 +21,7 @@ function fixture(countryCode: string | null = "IE") {
     editionYear: 2026,
     startsOn: "2026-06-01",
     endsOn: "2026-06-03",
+    timeZone: "America/Los_Angeles",
     countryCode,
   });
   fx.eventLink(event, { url, kind: "official_site" });
@@ -67,7 +67,7 @@ function noWrites(client: ReturnType<typeof fixture>["client"]) {
 }
 afterEach(() => vi.restoreAllMocks());
 test.each(["full", "current"] as const)(
-  "%s passes refresh context and persists workload in a dry-run report",
+  "%s passes scope and the catalog snapshot without a separate refresh object",
   async (scope) => {
     const f = fixture();
     f.proposal.data!.editions = [
@@ -84,18 +84,25 @@ test.each(["full", "current"] as const)(
         ...f.deps,
         generateCandidate: async (prompt) => {
           const parsed = JSON.parse(prompt);
-          expect(parsed.refresh.fieldRegistry.event).toContain("summary");
-          expect(parsed.refresh.countryBaseline[0].countryCode).toBe("IE");
+          expect(parsed).not.toHaveProperty("refresh");
+          expect(parsed.scope).toBe(scope);
+          expect(parsed.referenceInstant).toBe("2026-10-11T12:00:00.000Z");
+          expect(parsed.compact.editions[0]).toMatchObject({
+            editionKey: "source-row",
+            countryCode: "IE",
+            startsOn: "2026-06-01",
+            endsOn: "2026-06-03",
+            timeZone: "America/Los_Angeles",
+          });
           return f.proposal;
         },
       },
     );
     expect(result.researchStatus).toBe("success");
     expect(result.modelResponse!.object).toEqual(f.proposal);
-    expect(result.refresh!.savedEditions.map((e) => e.editionKey)).toEqual([
-      "source-row",
-    ]);
-    expect(result.refresh).not.toHaveProperty("resolution");
+    expect(result.scope).toBe(scope);
+    expect(result.referenceInstant).toBe("2026-10-11T12:00:00.000Z");
+    expect(result).not.toHaveProperty("refresh");
     expect(result).not.toHaveProperty("verification");
     expect(result.workload).toEqual({
       savedEditions: 1,
@@ -201,9 +208,9 @@ test("conflicting saved countries and oversized history fail before any external
     expect(result.errors[0].code).toBe(
       oversized ? "limit_reached" : "country_baseline_conflict",
     );
-    expect(result.refresh).not.toHaveProperty("resolution");
+    expect(result).not.toHaveProperty("refresh");
     expect(result).not.toHaveProperty("verification");
-    expect(result.refresh!.savedEditions.length).toBe(oversized ? 21 : 2);
+    expect(result.workload.savedEditions).toBe(oversized ? 21 : 2);
   }
 });
 test.each(["country", "sibling", "remove"] as const)(
@@ -288,7 +295,7 @@ test("current updates the returned Edition only; full permits a historical Editi
     },
   });
   expect(full.outcome).toBe("updated");
-  expect(full.refresh!.savedEditions).toHaveLength(2);
+  expect(full.workload.savedEditions).toBe(2);
   expect(
     readResearchEvent(f.client, f.event.id)!.editions.find(
       (e) => e.id === f.old.id,
@@ -331,7 +338,13 @@ test("CLI and Studio current previews process a supplied replacement website equ
     savedEditionCount: 1,
     returnedEditionCount: 0,
   });
-  expect(result.state!.data!.context!.refresh!).toEqual(cli.refresh!);
+  expect(result.state!.data!.context).not.toHaveProperty("refresh");
+  expect(result.state!.data!.context!.referenceInstant).toBe(
+    cli.referenceInstant,
+  );
+  expect(result.state!.data!.context!.catalog[0].editions).toHaveLength(
+    cli.workload.savedEditions,
+  );
   expect(result.state!.data!.report!.operations.map((o) => o.kind)).toEqual(
     cli.operations.map((o) => o.kind),
   );
@@ -355,17 +368,12 @@ test("CLI and Studio current previews process a supplied replacement website equ
 });
 test("unchanged country facts cannot evade guards through operation no-ops", () => {
   const f = fixture();
-  const saved = readResearchEvent(f.client, f.event.id)!;
   f.fx.edition(f.event, { editionKey: "sibling", countryCode: "AU" });
-  const context = createRefreshContext(
-    "full",
-    readResearchEvent(f.client, f.event.id)!.editions,
-    "2026-10-11T12:00:00Z",
-  );
+  const saved = readResearchEvent(f.client, f.event.id)!;
   f.proposal.data!.editions = [
     { key: "source-row", countryCode: { value: "IE", reason }, links: {} },
   ];
-  const prepared = prepareResearch(f.proposal, [saved], f.input, [], context);
+  const prepared = prepareResearch(f.proposal, [saved], f.input, []);
   expect(prepared.operations).toEqual([]);
   expect(prepared.errors[0].code).toBe("country_baseline_conflict");
 });
@@ -404,7 +412,7 @@ test("full rejects a new Edition when the complete saved/new union exceeds 20", 
   });
   expect(generate).toHaveBeenCalledOnce();
   expect(result.errors[0].code).toBe("limit_reached");
-  expect(result.refresh!.savedEditions).toHaveLength(20);
+  expect(result.workload.savedEditions).toBe(20);
   expect(result.operations).toEqual([]);
   noWrites(f.client);
 });
@@ -425,7 +433,7 @@ test("current retains all saved context without imposing a full-history limit or
     { ...f.deps, generateCandidate: async () => f.proposal },
   );
   expect(result.outcome).toBe("updated");
-  expect(result.refresh!.savedEditions).toHaveLength(21);
+  expect(result.workload.savedEditions).toBe(21);
   expect(result.workload.returnedEditions).toBe(1);
-  expect(result.refresh).not.toHaveProperty("selection");
+  expect(result).not.toHaveProperty("refresh");
 });

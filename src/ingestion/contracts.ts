@@ -19,7 +19,7 @@ import type {
 
 export type CatalogResearchInput = {
   mode: "add" | "refresh";
-  scope?: import("./research/scope").RefreshScope;
+  scope?: "full" | "current";
   name?: string;
   eventId?: string;
   actor: string;
@@ -31,7 +31,8 @@ export type CatalogResearchInput = {
 
 export type CatalogResearchResult = {
   schemaVersion: 3;
-  refresh: import("./research/scope").RefreshContext | null;
+  scope: NonNullable<CatalogResearchInput["scope"]> | null;
+  referenceInstant: string | null;
   limits: ResearchLimits;
   workload: {
     savedEditions: number;

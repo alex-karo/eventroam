@@ -121,8 +121,7 @@ export async function researchFestival(
     terms,
     budget.remaining(),
     reads,
-    deps.todayUtc,
-    context.refresh,
+    context.referenceInstant,
   );
   let raw: unknown;
   let text: string | null = null;

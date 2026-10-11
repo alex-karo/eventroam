@@ -615,7 +615,7 @@ test.each([null, "I will read the linked page before returning the result."])(
     expect(result.sources.map((read) => read.finalUrl)).toContain(linkedUrl);
     expect(result.errors).toEqual([]);
     expect(result.researchStatus).toBe("success");
-    expect(result.refresh).not.toHaveProperty("resolution");
+    expect(result).not.toHaveProperty("refresh");
     expect(
       (requests[0].tools as Array<{ function: { name: string } }>)
         .map((t) => t.function.name)

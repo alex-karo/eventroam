@@ -15,7 +15,7 @@ import type { ResearchExecution } from "./research/agent";
 import { sumKnownModelCosts } from "./research/agent/usage";
 
 export type ReportInput = {
-  refresh: import("./research/scope").RefreshContext | null;
+  context: import("./research/context").ResearchContext | null;
   limits: import("./runtime/budget").ResearchLimits;
   runId: string;
   input: CatalogResearchInput;
@@ -55,7 +55,7 @@ export function buildWorkflowFailureReport(
 
 function assembleReport({
   runId,
-  refresh,
+  context,
   limits,
   input,
   config,
@@ -105,10 +105,15 @@ function assembleReport({
     .map((operation) => operation.kind);
   return {
     schemaVersion: 3,
-    refresh,
+    scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
+    referenceInstant:
+      input.mode === "refresh" ? (context?.referenceInstant ?? null) : null,
     limits,
     workload: {
-      savedEditions: refresh?.savedEditions.length ?? 0,
+      savedEditions:
+        input.mode === "refresh"
+          ? (context?.catalog[0]?.editions.length ?? 0)
+          : 0,
       returnedEditions: finalCandidate?.success
         ? (finalCandidate.data.data?.editions.length ?? 0)
         : 0,

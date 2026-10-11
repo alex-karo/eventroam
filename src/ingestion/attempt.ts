@@ -105,7 +105,7 @@ export class CatalogAttempt {
       input: this.input,
       config: this.config,
       prepared: data.prepared,
-      refresh: data.context?.refresh ?? null,
+      context: data.context,
       limits: this.budget.limits,
       research: data.research,
       applied: data.applied,

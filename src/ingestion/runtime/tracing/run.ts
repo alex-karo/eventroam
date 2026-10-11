@@ -84,7 +84,7 @@ export async function createCatalogRunTrace(
             ? {
                 researchStatus: snapshot.report.researchStatus,
                 outcome: snapshot.report.outcome,
-                scope: snapshot.report.refresh?.scope ?? null,
+                scope: snapshot.report.scope,
                 savedEditionCount: snapshot.report.workload.savedEditions,
                 returnedEditionCount: snapshot.report.workload.returnedEditions,
               }

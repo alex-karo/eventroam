@@ -1,4 +1,3 @@
-import { createRefreshContext } from "./scope";
 import { expect, test } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
@@ -6,16 +5,8 @@ import { readResearchCatalog } from "@/catalog/read/research";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput } from "../contracts";
 import type { ResearchCandidate } from "./contracts";
-import { prepareResearch as prepare } from "./prepare";
+import { prepareResearch } from "./prepare";
 
-const prepareResearch: typeof prepare = (raw, catalog, input, terms) => {
-  const event = catalog.find((e) => e.id === input.eventId);
-  const refresh =
-    input.mode === "refresh" && event
-      ? createRefreshContext("full", event.editions, "2026-10-11T12:00:00Z")
-      : null;
-  return prepare(raw, catalog, input, terms, refresh);
-};
 const input: CatalogResearchInput = {
   mode: "add",
   name: "Example Fest",

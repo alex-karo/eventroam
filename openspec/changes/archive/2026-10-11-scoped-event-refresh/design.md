@@ -14,10 +14,10 @@ Use one final research result, without an extra selection tool, callback, checkp
 | --- | --- |
 | Agent output / provider wire | Unchanged `{status,data,errors,unresolved}`. Facts remain `{value,reason}`; Edition descriptors use `key`, typed `year`, existing tickets/classification/links. Existing reason/unresolved and wire-null semantics remain. No selection/identity output. |
 | CLI / Studio / stored input | `add|refresh`; remove `check`. Repeated distinct Event IDs, `scope: "full"|"current"` (default full); Studio defaults to one-Event preview. Reject invalid scope and add+scope before resource/history allocation. |
-| Research context / tools | `refresh: {scope,referenceInstant,savedEditions,fieldRegistry,rules,countryBaseline}`. Saved rows retain stable keys, dates and timeZone. `rules` contains host-authored research instructions, not findings. Remove `resolveRefreshScope`, its input/output schemas and injected callback. Only source-reading/discovery tools remain. |
+| Research context / tools | Use `input.scope`, one `referenceInstant` in the existing research context and its catalog snapshot. Saved rows retain stable keys, dates, timeZone and countries. Keep rules in the prompt and supported fields in the output schema; remove the refresh object/factory/field registry and duplicated country baseline. Remove `resolveRefreshScope`, its input/output schemas and injected callback. Only source-reading/discovery tools remain. |
 | Host validation | Keep schema/target checks; current returns at most one Edition, full returns at most one key absent from saved Editions, with at most 20 total targets (including mandatory full history). Do not validate temporal choice or infer completeness from omitted facts. |
 | Research limits | Remove `modelInputChars` from limits/configuration/reports and `CATALOG_MAX_MODEL_INPUT_CHARS` from environment settings. Default `agentSteps` becomes 15; existing step overrides and final-response reservation remain. |
-| Private reports / consumers | v3 contains static refresh context, effective limits and workload. Remove resolution, resolved assignment, selection/exclusions, verification and returnedFacts/verifiedFactCount. Count saved and returned Editions without claiming they were selected or checked. Preserve raw model response, run IDs, outcomes, questions, sources and accounting. |
+| Private reports / consumers | v3 contains top-level `scope: "full"|"current"|null`, `referenceInstant: string|null`, effective limits and workload. Scope is null for add; referenceInstant is null for add or unavailable context. Remove `refresh` and its duplicated saved rows/rules/registry/baseline. Remove resolution, resolved assignment, selection/exclusions, verification and returnedFacts/verifiedFactCount. Count saved and returned Editions without claiming they were selected or checked. Preserve raw model response, run IDs, outcomes, questions, sources and accounting. |
 | Studio / observability | Show scope and saved/returned Edition counts; remove selection fields, resolver tool events and labels. Retain both run IDs and existing safe metadata. |
 | Storage | Migration removes the entire DB report check; application readers validate current v3. No historical report conversion or compatibility layer. Existing catalog/audit/run payloads and opaque IDs are not rewritten. |
 
@@ -25,7 +25,7 @@ Use one final research result, without an extra selection tool, callback, checkp
 
 ### 1. One model-led refresh
 
-Flow: durable run → scope/context/country baseline → initial read → research → schema/scope/country guards → atomic apply → report/finalize. Static context and the prompt both state:
+Flow: durable run → catalog snapshot/reference instant → initial read → research → schema/scope/country guards → atomic apply → report/finalize. The prompt states these rules using input scope and the saved catalog:
 
 - Full rechecks every saved Edition, including history/farther future, plus at most one source-supported missing current Edition. Current rechecks Event facts and at most one ongoing or nearest future Edition. Both check filled/missing supported fields and announcements.
 - Choose ongoing first, otherwise nearest future; dates include the local final day using saved timeZone or UTC fallback. Saved dates/statuses are leads, not source proof.
@@ -39,7 +39,7 @@ There is no mandatory intermediate call, recorded selection or final-response co
 
 If a website belongs to another festival, discard its facts, find the correct site and inspect its association. Name/snippet alone is insufficient. Continue after verified recovery; otherwise return failed/null with existing errors/unresolved and zero operations.
 
-Capture every saved Edition ID/country (uppercase/null). Conflicting known baselines fail before external calls. Any known sibling constrains all returned country facts, including new/unchanged/null values. Conflicts veto all writes. Reread the complete ID/country set inside outer atomic apply; any change aborts all operations. Retain expected versions, preview rollback, independent durable finalization and no write replay after persistence failure.
+Use every saved Edition ID/country (uppercase/null) from the existing catalog snapshot. Conflicting known baselines fail before external calls. Any known sibling constrains all returned country facts, including new/unchanged/null values. Conflicts veto all writes. Reread the complete ID/country set inside outer atomic apply; any change aborts all operations. Retain expected versions, preview rollback, independent durable finalization and no write replay after persistence failure.
 
 ### 3. Existing facts and honest reports
 
@@ -47,7 +47,7 @@ Omitted facts preserve values; inner null clears only nullable facts with positi
 
 Returned facts, including unchanged values, remain in the raw model response. The existing writer produces changes and attributable audit entries for actual mutations; no separate confirmed/changed comparison, normalized old/new verification, checkedAt or replacement mechanism is added. Preserve typed ticket baseline, full-programme coverage and complete qualified categories; omit replacements that would erase unverified categories.
 
-Workload counts describe static saved context and final proposals. They do not certify selection or completeness. Reports retain model status/questions/source summaries even on no-op/failure.
+Workload counts describe the saved catalog and final proposals. They do not certify selection or completeness. Reports retain model status/questions/source summaries even on no-op/failure.
 
 ### 4. Shared limits
 
@@ -62,4 +62,4 @@ Keep one Event budget, caching, retries and final-step reservation. Remove appli
 
 ## Migration Plan
 
-Remove the intermediate resolver protocol, update affected tests and current v3 consumers together, then sync the owning spec/docs. Keep the existing report-check-removal migration and historical JSON untouched. Verify CLI/Studio parity, provider final-step behavior, scoped bounds, atomic rollback, model selection/completeness evals and the normal project checks. No owner database execution or deployment.
+Remove the intermediate resolver protocol and separate refresh context, update affected tests and current v3 consumers together, then sync the owning spec/docs. Keep the existing report-check-removal migration and historical JSON untouched. Verify CLI/Studio parity, provider final-step behavior, scoped bounds, atomic rollback, model selection/completeness evals and the normal project checks. No owner database execution or deployment.
