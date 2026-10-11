@@ -881,7 +881,7 @@ Studio SHALL accept add by name and refresh/check by one Event ID. Dry-run SHALL
 - **THEN** reject it before external work or mutation; expose only mode, name, Event ID, dry-run and republish in the form
 
 ### Requirement: Studio runs retain durable lifecycle and bounded results
-Studio SHALL preserve existing durable run/report semantics and expose both run IDs, preview/apply mode, research/catalog/persistence statuses, known Event ID, counts, usage and safe error codes. Complete version-2 reports SHALL remain durable in ingestion_runs and MAY appear in local Studio workflow data; public website reads SHALL NOT expose them.
+CLI and Studio SHALL share initialization after Mastra creates its engine run. Failure before engine run creation SHALL allocate no ingestion history or attempt resources. Studio SHALL preserve existing durable run/report semantics and expose both run IDs, preview/apply mode, research/catalog/persistence statuses, known Event ID, counts, usage and safe error codes. Complete version-2 reports SHALL remain durable in ingestion_runs and MAY appear in local Studio workflow data; public website reads SHALL NOT expose them.
 
 #### Scenario: Failure or cancellation
 - **WHEN** a started attempt fails or is cancelled

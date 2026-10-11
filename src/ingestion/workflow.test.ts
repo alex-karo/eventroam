@@ -894,21 +894,36 @@ test("running row and safe normalized invocation precede context and model work"
         dryRun: true,
         republish: false,
         model: "fixture",
-        limits: DEFAULT_RESEARCH_LIMITS,
+        limits: { ...DEFAULT_RESEARCH_LIMITS, agentSteps: 3 },
+        actor: "cli-owner",
+        initiatedBy: "cli-request",
+      });
+      expect(input).toMatchObject({
+        actor: "cli-owner",
+        limits: { agentSteps: 3 },
+        initiatedBy: "cli-request",
       });
       return original(client, input);
     });
-  await runCatalogResearch(input, {
-    client,
-    generateCandidate: async (prompt) => {
-      const row = client
-        .prepare("SELECT id,status FROM ingestion_runs")
-        .get() as { id: string; status: string };
-      expect(row.status).toBe("running");
-      expect(prompt).not.toContain(row.id);
-      return candidate([]);
+  await runCatalogResearch(
+    {
+      ...input,
+      actor: "cli-owner",
+      limits: { agentSteps: 3 },
+      initiatedBy: "cli-request",
     },
-  });
+    {
+      client,
+      generateCandidate: async (prompt) => {
+        const row = client
+          .prepare("SELECT id,status FROM ingestion_runs")
+          .get() as { id: string; status: string };
+        expect(row.status).toBe("running");
+        expect(prompt).not.toContain(row.id);
+        return candidate([]);
+      },
+    },
+  );
   expect(context).toHaveBeenCalledOnce();
 });
 
@@ -1197,7 +1212,7 @@ test("the public runner accumulates research in native state without runtime res
   const engineResult = (await starts.mock.results[0].value) as {
     status: string;
     state: { data: import("./contracts").IngestionData };
-    steps: Record<string, { output: { output: unknown } }>;
+    steps: Record<string, { output: unknown }>;
   };
   expect(engineResult.status).toBe("success");
   const workflow = created.mock.instances[0] as Workflow;
@@ -1228,7 +1243,7 @@ test("the public runner accumulates research in native state without runtime res
     expect(graph).not.toContain(privateValue);
     expect(JSON.stringify(starts.mock.calls[0])).not.toContain(privateValue);
   }
-  const stepOutput = (id: string) => engineResult.steps[id].output.output;
+  const stepOutput = (id: string) => engineResult.steps[id].output;
   expect(stepOutput("load-context")).toHaveProperty("catalog");
   expect(stepOutput("research-festival")).toMatchObject({
     research: { ok: true, candidate: proposal },
@@ -1295,12 +1310,35 @@ test("an unexpected phase failure skips later work and returns a safe failed sum
   expect(trace.finish).toHaveBeenCalledOnce();
 });
 
-test("Mastra run setup failure finalizes one safe failed attempt before external work", async () => {
+test("Mastra run creation failure allocates no durable attempt or resources", async () => {
   const { client, readSource } = fixture();
+  const initializeTrace = vi.spyOn(runTraceModule, "createCatalogRunTrace");
   const created = vi
     .spyOn(Workflow.prototype, "createRun")
     .mockRejectedValueOnce(new Error("PRIVATE_MASTRA_SETUP"));
   const model = vi.fn(async () => candidate([]));
+
+  await expect(
+    executeResearch(input, {
+      client,
+      readSource,
+      generateCandidate: model,
+    }),
+  ).rejects.toThrow("Ingestion workflow failed");
+
+  expect(created).toHaveBeenCalledOnce();
+  expect(model).not.toHaveBeenCalled();
+  expect(readSource).not.toHaveBeenCalled();
+  expect(initializeTrace).not.toHaveBeenCalled();
+  expect(client.prepare("SELECT id FROM ingestion_runs").all()).toEqual([]);
+});
+
+test("CLI initialization failure finalizes its admitted attempt with a safe full report", async () => {
+  const { client, readSource } = fixture();
+  const model = vi.fn();
+  vi.spyOn(runTraceModule, "createCatalogRunTrace").mockRejectedValueOnce(
+    new Error("PRIVATE_TRACE_SETUP"),
+  );
 
   const result = await runCatalogResearch(input, {
     client,
@@ -1308,17 +1346,19 @@ test("Mastra run setup failure finalizes one safe failed attempt before external
     generateCandidate: model,
   });
 
-  expect(created).toHaveBeenCalledOnce();
-  expect(model).not.toHaveBeenCalled();
-  expect(readSource).not.toHaveBeenCalled();
   expect(result).toMatchObject({ outcome: "failed", researchStatus: "failed" });
   expect(result.errors).toContainEqual(
-    expect.objectContaining({ code: "workflow_failed", stage: "workflow" }),
+    expect.objectContaining({ code: "workflow_failed" }),
   );
-  expect(JSON.stringify(result)).not.toContain("PRIVATE_MASTRA_SETUP");
-  expect(client.prepare("SELECT id FROM ingestion_runs").all()).toEqual([
-    { id: result.runId },
-  ]);
+  expect(JSON.stringify(result)).not.toContain("PRIVATE_TRACE_SETUP");
+  expect(readSource).not.toHaveBeenCalled();
+  expect(model).not.toHaveBeenCalled();
+  const rows = client
+    .prepare("SELECT id,status,report_json FROM ingestion_runs")
+    .all() as { id: string; status: string; report_json: string }[];
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatchObject({ id: result.runId, status: "failed" });
+  expect(JSON.parse(rows[0].report_json)).toEqual(result);
 });
 
 test("overlapping Mastra runs keep their database and research state separate", async () => {

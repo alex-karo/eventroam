@@ -29,7 +29,7 @@ Each festival attempt runs one Mastra workflow with eight sequential steps:
 
 | Step | Responsibility |
 | --- | --- |
-| `initialize-run` | Validate input/settings and create the durable attempt before external work. |
+| `initialize-run` | Initialize native state after the shared start hook validates settings and creates the durable attempt. |
 | `load-context` | Load saved Event facts, editions, links, and vocabulary. |
 | `read-initial-source` | Create the shared source session and read its initial saved link when available. |
 | `research-festival` | Run the research agent with the shared source session and budget. |
@@ -148,7 +148,7 @@ Changes for one Event are saved together or rolled back together. If one propose
 
 ## Review the report
 
-Version 2 reports show `researchStatus` separately from catalog `outcome`, explained old/new changes, staged `errors`, `unresolved` questions, `sourceSummaries`, and technical retrieval history in `sources`. Old report versions are unsupported; there is no legacy `gaps` fallback. Successful changes enter private audit history with old and new values; unchanged facts add no entry. Every started attempt has a `runId` shared by its private `ingestion_runs` row and output. The final report is saved automatically; use `--report PATH` to export a private JSON report that also retains the final `modelResponse` before normalization.
+Version 2 reports show `researchStatus` separately from catalog `outcome`, explained old/new changes, staged `errors`, `unresolved` questions, `sourceSummaries`, and technical retrieval history in `sources`. Old report versions are unsupported; there is no legacy `gaps` fallback. Successful changes enter private audit history with old and new values; unchanged facts add no entry. CLI and Studio share initialization after Mastra creates its run; a failure before run creation leaves no ingestion history or resources. Every started attempt has a `runId` shared by its private `ingestion_runs` row and output. The final report is saved automatically; use `--report PATH` to export a private JSON report that also retains the final `modelResponse` before normalization.
 
 With `--apply`, success and partial results use the atomic writer. Failed research writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research or write failure exits nonzero. A write failure rolls back the entire Event item while retaining research status, raw output, source summaries, and any name mismatch. A partial result with no changes remains visibly partial/unchanged. Ordinary research retries only explicit OpenRouter `provider_unavailable` errors, at most three times with 10-second, 30-second, and 90-second exponential backoff within the same run deadline. A bounded Mastra iteration allowance preserves ordinary research capacity during those unavailable retries; observed request counts still include them. Other model errors are not retried; completed research steps and tool results are retained.
 

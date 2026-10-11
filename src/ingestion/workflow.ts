@@ -74,7 +74,7 @@ const stateSchema = z.object({}).catchall(z.json()) as unknown as z.ZodType<{
   data?: IngestionData;
 }>;
 const stepStateSchema = z.object({ data: dataSchema });
-const stepSchema = z.object({ engineRunId: z.string(), output: z.json() });
+const stepSchema = z.json();
 export const studioIngestionResultSchema = z.strictObject({
   engineRunId: z.string(),
   ingestionRunId: z.string(),
@@ -202,13 +202,15 @@ function projectSummary(
   };
 }
 
+type CliInvocation = {
+  requested: CatalogResearchInput;
+  deps: ResearchDependencies;
+  owned?: CatalogAttempt;
+};
+
 export function createCatalogIngestionWorkflow(
   resolveDependencies: ResolveCatalogDependencies,
-  options: {
-    cli?: { requested: CatalogResearchInput; deps: ResearchDependencies };
-    preparedAttempt?: CatalogAttempt;
-    onAttempt?: (attempt: CatalogAttempt) => void;
-  } = {},
+  options: { cli?: CliInvocation } = {},
 ) {
   const attempts = new Map<string, CatalogAttempt | null>();
   const attempt = (engineRunId: string) => {
@@ -256,7 +258,8 @@ export function createCatalogIngestionWorkflow(
     execute: ({ runId, setState }) =>
       safeStep(async () => {
         await setState({ data: createIngestionData() });
-        return { engineRunId: attempt(runId).engineRunId, output: null };
+        attempt(runId);
+        return null;
       }),
   });
   const phase = (
@@ -275,8 +278,8 @@ export function createCatalogIngestionWorkflow(
       outputSchema: stepSchema,
       retries: 0,
       stateSchema: stepStateSchema,
-      execute: async ({ inputData, state, setState, abortSignal }) => {
-        const owned = attempt(inputData.engineRunId);
+      execute: async ({ runId, state, setState, abortSignal }) => {
+        const owned = attempt(runId);
         const data = structuredClone(state.data);
         const output = await safePhase(
           owned,
@@ -286,12 +289,7 @@ export function createCatalogIngestionWorkflow(
         );
         try {
           await setState({ data: serialize(data) });
-          return {
-            engineRunId: owned.engineRunId,
-            output: serialize(output ?? null) as z.infer<
-              ReturnType<typeof z.json>
-            >,
-          };
+          return serialize(output ?? null) as z.infer<typeof stepSchema>;
         } catch {
           // Unserializable state cannot replace the last completed native state.
           await finalizeFailure(owned, data, abortSignal.aborted);
@@ -451,8 +449,8 @@ export function createCatalogIngestionWorkflow(
     outputSchema: studioIngestionResultSchema,
     retries: 0,
     stateSchema: stepStateSchema,
-    execute: async ({ inputData, state }) => {
-      const owned = attempt(inputData.engineRunId);
+    execute: async ({ runId, state }) => {
+      const owned = attempt(runId);
       const data = structuredClone(state.data);
       try {
         const result = (await owned.finalize(data))!;
@@ -472,7 +470,7 @@ export function createCatalogIngestionWorkflow(
         }
         throw new Error("Ingestion workflow failed");
       } finally {
-        await release(inputData.engineRunId, owned, data.report ?? undefined);
+        await release(runId, owned, data.report ?? undefined);
       }
     },
   });
@@ -500,26 +498,24 @@ export function createCatalogIngestionWorkflow(
             : await resolveDependencies(parsed);
           let owned: CatalogAttempt;
           try {
-            owned =
-              options.preparedAttempt ??
-              new CatalogAttempt(
-                runId,
-                options.cli?.requested ?? {
-                  ...parsed,
-                  actor: "catalog-research",
-                },
-                resolved.deps,
-                resolved.close,
-              );
+            owned = new CatalogAttempt(
+              runId,
+              options.cli?.requested ?? {
+                ...parsed,
+                actor: "catalog-research",
+              },
+              resolved.deps,
+              resolved.close,
+            );
           } catch (error) {
             await resolved.close?.();
             throw error;
           }
           attempts.set(runId, owned);
-          options.onAttempt?.(owned);
-          if (!options.preparedAttempt) {
-            await owned.initialize();
+          if (options.cli) {
+            options.cli.owned = owned;
           }
+          await owned.initialize();
         } catch (error) {
           if (attempts.get(runId)) {
             await recover(runId, createIngestionData());
@@ -561,23 +557,11 @@ export async function runCatalogResearch(
   deps: ResearchDependencies,
 ): Promise<CatalogResearchResult> {
   const engineRunId = randomUUID();
-  const owned = new CatalogAttempt(engineRunId, requested, deps);
-  let run;
-  try {
-    await owned.initialize();
-    const workflow = createCatalogIngestionWorkflow(async () => ({ deps }), {
-      cli: { requested, deps },
-      preparedAttempt: owned,
-    });
-    run = await workflow.createRun({
-      runId: engineRunId,
-      shouldPersistSnapshot: () => false,
-    });
-  } catch {
-    const data = createIngestionData();
-    owned.fail(data);
-    return (await owned.finalize(data))!;
-  }
+  const cli: CliInvocation = { requested, deps };
+  const workflow = createCatalogIngestionWorkflow(async () => ({ deps }), {
+    cli,
+  });
+  const run = await safeStep(() => workflow.createRun({ runId: engineRunId }));
   const inputData = {
     mode: requested.mode,
     name: requested.name,
@@ -585,7 +569,16 @@ export async function runCatalogResearch(
     dryRun: requested.dryRun ?? true,
     republish: requested.republish ?? false,
   };
-  const result = await run.start({ inputData });
+  const result = await run.start({ inputData }).catch((error: unknown) => {
+    if (!cli.owned) {
+      throw error;
+    }
+    return undefined;
+  });
+  const owned = cli.owned;
+  if (!owned) {
+    throw new Error("Ingestion attempt unavailable");
+  }
   if (owned.persistenceError) {
     throw owned.persistenceError;
   }
@@ -596,7 +589,7 @@ export async function runCatalogResearch(
     return owned.result;
   }
   throw new Error(
-    result.status === "success"
+    result?.status === "success"
       ? "Ingestion result unavailable"
       : "Ingestion workflow failed",
   );
