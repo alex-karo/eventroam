@@ -24,6 +24,8 @@ Open `http://localhost:3000` for the scope directory or `http://festivals.localh
 
 Copy `.env.example` to `.env.local` for Next.js settings. A Mapbox token is optional locally; the list and filters work without one. Migration and fixture commands read the shell environment, not `.env.local`. For a custom database, run `DATABASE_PATH=./data/custom.sqlite npm run db:fixtures` and set the same path in `.env.local`. Catalog research, eval, and Studio commands load `.env`. Keep credentials in ignored local env files.
 
+Codex worktrees use `.codex/environments/environment.toml` to link the source checkout’s `.env` and run `npm ci` in the new worktree. The setup requires the pinned Node.js and npm versions to be available on `PATH`.
+
 ## Checks and tests
 
 Run the checks relevant to your change:
