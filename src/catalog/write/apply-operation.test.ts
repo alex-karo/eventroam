@@ -254,7 +254,7 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
     actor: "owner",
     id: draft.id,
     expectedVersion: updated.version,
-    termIds: ["test-festival", "test-outdoor", "test-music"],
+    termIds: ["test-festival", "test-openair", "test-music"],
   });
   const published = applyCatalogOperation(client, {
     kind: "publishOccurrence",
@@ -617,7 +617,7 @@ test("item dry run rolls back dependent creates and publication", () => {
       actor: "owner",
       id: "$edition",
       expectedVersion: 1,
-      termIds: ["test-festival", "test-outdoor", "test-music"],
+      termIds: ["test-festival", "test-openair", "test-music"],
     },
     {
       kind: "publishOccurrence",

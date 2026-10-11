@@ -799,18 +799,18 @@ test("Wacken allows DE or missing country but rejects another country", () => {
 });
 
 test.each(["wacken", "roskilde", "sziget"])(
-  "%s permits optional outdoor and structurally gated publication",
+  "%s permits optional openair and structurally gated publication",
   (id) => {
     const item = byId.get(id)!;
     expect(
       item.expectations.required.some(
-        (a) => a.contains === "validation:outdoor",
+        (a) => a.contains === "validation:openair",
       ),
     ).toBe(false);
     expect(
       item.expectations.forbidden.some(
         (a) =>
-          a.contains === "validation:outdoor" ||
+          a.contains === "validation:openair" ||
           a.field === "publication_state",
       ),
     ).toBe(false);

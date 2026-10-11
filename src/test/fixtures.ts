@@ -350,7 +350,12 @@ export function testFixtures(client?: Database.Database) {
         slug: "festival",
         name: "Festival",
       },
-      { id: "test-outdoor", facet: "format", slug: "outdoor", name: "Outdoor" },
+      {
+        id: "test-openair",
+        facet: "format",
+        slug: "openair",
+        name: "Open-air",
+      },
       { id: "test-music", facet: "topic", slug: "music", name: "Music" },
     ] as const;
     return db().transaction((connection) => {

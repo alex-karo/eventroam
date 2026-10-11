@@ -178,8 +178,8 @@ function validateScope(client: Database.Database, id: string) {
   const has = (facet: string, slug: string) =>
     terms.some((t) => t.facet === facet && t.slug === slug);
   assert(
-    has("format", "outdoor") || has("format", "mixed-indoor-outdoor"),
-    "Festival scope requires supported outdoor format",
+    has("format", "openair") || has("format", "mixed-indoor-outdoor"),
+    "Festival scope requires supported open-air format",
   );
   assert(
     has("event_type", "festival") || has("event_type", "gathering"),

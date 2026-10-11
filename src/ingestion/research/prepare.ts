@@ -306,7 +306,7 @@ function isPublishable(
     (state.venueName != null ||
       state.locality != null ||
       state.administrativeArea != null) &&
-    hasScope("format", ["outdoor", "mixed-indoor-outdoor"]) &&
+    hasScope("format", ["openair", "mixed-indoor-outdoor"]) &&
     hasScope("event_type", ["festival", "gathering"]) &&
     (hasScope("topic", ["music"]) || hasScope("culture", ["burning-like"]))
   );

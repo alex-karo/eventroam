@@ -29,6 +29,8 @@ Website:
 
 ## Archived changes
 
+- [Expanded festival topics](../openspec/changes/archive/2026-10-11-expand-festival-topics/proposal.md) — activity vocabulary, independent topic/format classification, and open-air publication format.
+
 - [Selective research logging](../openspec/changes/archive/2026-10-10-selective-research-logging/proposal.md) — migration to Mastra PinoLogger, explicit logging/tracing fields and durable Studio diagnostics.
 
 - [Clearer ingestion traces](../openspec/changes/archive/2026-10-09-clarify-ingestion-traces/proposal.md) — apply-run trace structure; current logging/tracing simplification belongs to selective research logging.

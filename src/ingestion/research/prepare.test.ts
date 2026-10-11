@@ -509,3 +509,77 @@ test("explicit cancellation updates schedule without renaming Event identity", (
   expect(saved.aliases).toEqual(original.aliases);
   expect(saved.slug).toBe(original.slug);
 });
+
+test.each([
+  ["openair", true, true],
+  ["mixed-indoor-outdoor", true, true],
+  ["indoor", true, false],
+  ["outdoor", true, false],
+  [null, true, false],
+  ["openair", false, false],
+] as const)(
+  "research and writer agree on format %s with music=%s despite the outdoor activity topic",
+  (format, music, publishable) => {
+    const client = testDatabase().client;
+    const fx = testFixtures(client);
+    const terms = [
+      fx.term({ facet: "event_type", slug: "festival" }),
+      fx.term({ facet: "topic", slug: "outdoor" }),
+    ];
+    if (format) {
+      terms.push(fx.term({ facet: "format", slug: format }));
+    }
+    if (music) {
+      terms.push(fx.term({ facet: "topic", slug: "music" }));
+    }
+    const proposed = candidate();
+    proposed.data!.editions = [
+      {
+        key: "2027",
+        year: { value: 2027, reason: "Official edition year" },
+        dates: {
+          value: {
+            startsOn: "2027-06-10",
+            endsOn: "2027-06-12",
+            state: "confirmed",
+          },
+          reason: "Official programme dates",
+        },
+        countryCode: { value: "PT", reason: "Official venue" },
+        locality: { value: "Lisbon", reason: "Official venue" },
+        classification: {
+          add: {
+            value: terms.map((term) => term.id),
+            reason: "Official programme and activity offerings",
+          },
+        },
+        links: {},
+      },
+    ];
+    const prepared = prepareResearch(proposed, [], input, terms);
+    expect(prepared.errors).toEqual([]);
+    expect(
+      prepared.operations.some((op) => op.kind === "publishOccurrence"),
+    ).toBe(publishable);
+    applyCatalogItem(client, prepared.operations);
+    const [saved] = readResearchCatalog(client);
+    const edition = saved.editions[0];
+    expect(edition.publicationState).toBe(publishable ? "published" : "draft");
+    expect(edition.terms.map((term) => term.id).sort()).toEqual(
+      terms.map((term) => term.id).sort(),
+    );
+    if (!publishable) {
+      expect(() =>
+        applyCatalogItem(client, [
+          {
+            kind: "publishOccurrence",
+            operationKey: "test:activity-publication",
+            actor: "owner",
+            id: edition.id,
+            expectedVersion: edition.version,
+          },
+        ]),
+      ).toThrow(music ? /format/ : /music or burning-like/);
+    }
+  },
+);
