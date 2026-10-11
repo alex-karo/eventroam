@@ -47,4 +47,6 @@ export function loadResearchContext(
   return { catalog, terms, knownLinks };
 }
 
+export type ResearchCatalog = ReturnType<typeof readResearchCatalog>;
+
 export type ResearchContext = ReturnType<typeof loadResearchContext>;

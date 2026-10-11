@@ -29,6 +29,8 @@ Website:
 
 ## Archived changes
 
+- [Clearer research boundaries](../openspec/changes/archive/2026-10-11-clarify-research-boundaries/proposal.md) — behavior-preserving catalog refresh refactor; agent execution, input, wire transformations and safe diagnostics are grouped under `research/agent/`, with model instructions in `prompt.ts`. Verification evidence lives in its tasks.
+
 - [Studio ingestion execution](../openspec/changes/archive/2026-10-11-expose-ingestion-in-studio/proposal.md) — shared CLI/Studio execution, native workflow state, preview defaults and isolated durable runs.
 
 - [Mastra ingestion workflow](../openspec/changes/archive/2026-10-10-use-mastra-ingestion-workflow/proposal.md) — implemented explicit ingestion steps with compatible run lifecycle and reporting.
