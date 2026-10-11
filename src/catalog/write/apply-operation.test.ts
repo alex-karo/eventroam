@@ -13,6 +13,98 @@ const count = (
 ) =>
   (client.prepare(`SELECT count(*) n FROM ${table}`).get() as { n: number }).n;
 
+test("term replacement rejects assigned ancestors at every depth atomically", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const event = fx.event();
+  const edition = fx.occurrence(event);
+  const sibling = fx.occurrence(event);
+  const electronic = fx.term({ facet: "genre", slug: "electronic" });
+  const trance = fx.term({
+    facet: "genre",
+    slug: "trance",
+    parentId: electronic.id,
+  });
+  const psytrance = fx.term({
+    facet: "genre",
+    slug: "psytrance",
+    parentId: trance.id,
+  });
+  fx.assignTerm(edition, psytrance);
+  fx.assignTerm(sibling, electronic);
+  const snapshot = () => ({
+    occurrences: client.prepare("SELECT * FROM occurrences").all(),
+    assignments: client.prepare("SELECT * FROM occurrence_terms").all(),
+    changes: client.prepare("SELECT * FROM catalog_changes").all(),
+    receipts: client.prepare("SELECT * FROM operation_receipts").all(),
+  });
+  const before = snapshot();
+  for (const ancestor of [trance, electronic]) {
+    expect(() =>
+      applyCatalogOperation(client, {
+        kind: "replaceTerms",
+        operationKey: `terms:ancestor:${ancestor.id}`,
+        actor: "owner",
+        id: edition.id,
+        expectedVersion: edition.version,
+        termIds: [ancestor.id, psytrance.id],
+      }),
+    ).toThrow(/redundant ancestor/);
+    expect(snapshot()).toEqual(before);
+  }
+  const noOp = applyCatalogOperation(client, {
+    kind: "replaceTerms",
+    operationKey: "terms:descendant-only",
+    actor: "owner",
+    id: edition.id,
+    expectedVersion: edition.version,
+    termIds: [psytrance.id],
+  });
+  expect(noOp.changed).toBe(false);
+});
+
+test("ordinary occurrence updates reject legacy price fields without altering a saved price block", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const edition = fx.occurrence(fx.event(), {
+    priceKind: "exact",
+    priceCurrency: "EUR",
+    priceMinMinor: 10000,
+    priceMaxMinor: 10000,
+    priceCoverage: "full_programme",
+    priceDetails: [{ label: "Regular", amount: 100, currency: "EUR" }],
+  });
+  const snapshot = () => ({
+    occurrences: client.prepare("SELECT * FROM occurrences").all(),
+    changes: client.prepare("SELECT * FROM catalog_changes").all(),
+    receipts: client.prepare("SELECT * FROM operation_receipts").all(),
+  });
+  const before = snapshot();
+  for (const price of [
+    null,
+    undefined,
+    {
+      kind: "exact",
+      currency: "EUR",
+      minMinor: 20000,
+      maxMinor: 20000,
+      coverage: "full_programme",
+    },
+  ]) {
+    expect(() =>
+      applyCatalogOperation(client, {
+        kind: "updateOccurrence",
+        operationKey: "price:legacy-update",
+        actor: "owner",
+        id: edition.id,
+        expectedVersion: edition.version,
+        data: { displayName: "Must not change", price },
+      } as CatalogOperation),
+    ).toThrow(/Unrecognized key/);
+    expect(snapshot()).toEqual(before);
+  }
+});
+
 test("postponement preserves previous dates and only changes its edition", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
@@ -365,19 +457,18 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
   });
   expect(() =>
     applyCatalogOperation(client, {
-      kind: "updateOccurrence",
+      kind: "replacePriceBlock",
       operationKey: "test:bad-price",
       actor: "owner",
       id: edition.id,
       expectedVersion: edition.version,
-      data: {
-        price: {
-          kind: "range",
-          currency: "EUR",
-          minMinor: 5000,
-          maxMinor: 4000,
-          coverage: "full_programme",
-        },
+      priceDetails: [],
+      basePrice: {
+        kind: "range",
+        currency: "EUR",
+        minMinor: 5000,
+        maxMinor: 4000,
+        coverage: "full_programme",
       },
     }),
   ).toThrow();
@@ -401,15 +492,23 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
       data: { countryCode: null },
     }),
   ).toThrow(/country/);
-  const changed = applyCatalogOperation(client, {
-    kind: "updateOccurrence",
-    operationKey: "test:price",
-    actor: "owner",
-    id: edition.id,
-    expectedVersion: edition.version,
-    data: {
-      capacityEstimate: 1200,
-      price: {
+  const changed = applyCatalogItem(client, [
+    {
+      kind: "updateOccurrence",
+      operationKey: "test:capacity",
+      actor: "owner",
+      id: edition.id,
+      expectedVersion: edition.version,
+      data: { capacityEstimate: 1200 },
+    },
+    {
+      kind: "replacePriceBlock",
+      operationKey: "test:price",
+      actor: "owner",
+      id: edition.id,
+      expectedVersion: edition.version,
+      priceDetails: [],
+      basePrice: {
         kind: "from",
         currency: "EUR",
         minMinor: 6500,
@@ -418,8 +517,12 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
         qualification: "Early tier; fees unknown",
       },
     },
-  });
-  expect(changed.changed).toBe(true);
+  ]);
+  expect(changed.operations.every((result) => result.changed)).toBe(true);
+  expect(changed.operations.map((result) => result.version)).toEqual([
+    edition.version + 1,
+    edition.version + 2,
+  ]);
   expect(
     client
       .prepare(
@@ -438,7 +541,7 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
       operationKey: "test:unassigned-country",
       actor: "owner",
       id: edition.id,
-      expectedVersion: changed.version,
+      expectedVersion: changed.operations[1].version,
       data: { countryCode: "ZZ" },
     }),
   ).toThrow(/ISO 3166-1/);
@@ -1078,7 +1181,6 @@ test("updates containing only undefined fields are idempotent no-ops", () => {
         dateState: undefined,
         scheduleStatus: undefined,
         coordinatePrecision: undefined,
-        price: undefined,
       },
     },
   ] satisfies CatalogOperation[];
@@ -1115,7 +1217,6 @@ test("partial updates preserve undefined fields and audit only actual changes", 
     data: {
       displayName: "Updated edition",
       dateState: undefined,
-      price: undefined,
     },
   });
   expect(changed).toEqual({
@@ -1145,7 +1246,7 @@ test("partial updates preserve undefined fields and audit only actual changes", 
   });
 });
 
-test("an explicit null clears every stored price field", () => {
+test("an explicit empty price block clears variants and every stored price field", () => {
   const { client } = testDatabase();
   const fx = testFixtures(client);
   const edition = fx.occurrence(fx.event(), {
@@ -1155,19 +1256,21 @@ test("an explicit null clears every stored price field", () => {
     priceMaxMinor: 12000,
     priceCoverage: "full_programme",
     priceQualification: "Fees included",
+    priceDetails: [{ label: "Regular", amount: 120, currency: "EUR" }],
   });
   applyCatalogOperation(client, {
-    kind: "updateOccurrence",
+    kind: "replacePriceBlock",
     operationKey: "undefined:clear-price",
     actor: "test",
     id: edition.id,
     expectedVersion: edition.version,
-    data: { price: null },
+    basePrice: null,
+    priceDetails: [],
   });
   expect(
     client
       .prepare(
-        "SELECT price_kind, price_currency, price_min_minor, price_max_minor, price_coverage, price_qualification FROM occurrences WHERE id=?",
+        "SELECT price_kind, price_currency, price_min_minor, price_max_minor, price_coverage, price_qualification, price_details FROM occurrences WHERE id=?",
       )
       .get(edition.id),
   ).toEqual({
@@ -1177,6 +1280,7 @@ test("an explicit null clears every stored price field", () => {
     price_max_minor: null,
     price_coverage: null,
     price_qualification: null,
+    price_details: "[]",
   });
 });
 

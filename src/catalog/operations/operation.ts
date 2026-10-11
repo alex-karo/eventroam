@@ -111,7 +111,7 @@ export const catalogOperationSchema = z.discriminatedUnion("kind", [
     kind: z.literal("updateOccurrence"),
     id: z.string().min(1),
     expectedVersion: z.number().int().positive(),
-    data: occurrenceData.omit({ occurrenceKey: true }).partial(),
+    data: occurrenceData.omit({ occurrenceKey: true, price: true }).partial(),
   }),
   common.extend({
     kind: z.literal("publishEvent"),

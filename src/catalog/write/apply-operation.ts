@@ -92,7 +92,7 @@ function priceColumns(p: CatalogPrice | null) {
     priceQualification: p?.qualification ?? null,
   };
 }
-function occurrenceData<T extends { price?: CatalogPrice | null }>(
+function occurrenceData<T extends object>(
   data: T,
 ): Omit<T, "price"> & Partial<OccurrenceValues> {
   // Expanding at price's original position also preserves audit field order.
@@ -102,7 +102,9 @@ function occurrenceData<T extends { price?: CatalogPrice | null }>(
       continue;
     }
     if (key === "price") {
-      entries.push(...Object.entries(priceColumns(data.price ?? null)));
+      entries.push(
+        ...Object.entries(priceColumns((value as CatalogPrice | null) ?? null)),
+      );
     } else {
       entries.push([key, value]);
     }
@@ -599,7 +601,7 @@ function replaceTerms(
   // eslint-disable-next-line sonarjs/no-alphabetical-sort
   const ids = [...new Set(op.termIds)].sort();
   assert(ids.length === op.termIds.length, "Duplicate term ID");
-  const terms = ids.map((id) =>
+  const knownTerms = new Map(
     db
       .select({
         id: taxonomyTerms.id,
@@ -607,14 +609,20 @@ function replaceTerms(
         parentId: taxonomyTerms.parentId,
       })
       .from(taxonomyTerms)
-      .where(eq(taxonomyTerms.id, id))
-      .get(),
+      .all()
+      .map((term) => [term.id, term]),
   );
+  const terms = ids.map((id) => knownTerms.get(id));
   assert(terms.every(Boolean), "Unknown taxonomy term");
   validateTermAssignments(terms.filter((term) => term !== undefined));
   for (const t of terms) {
-    if (t?.parentId) {
-      assert(!ids.includes(t.parentId), "Do not assign redundant parent genre");
+    let parentId = t?.parentId;
+    const seen = new Set<string>();
+    while (parentId) {
+      assert(!seen.has(parentId), "Taxonomy parent cycle");
+      seen.add(parentId);
+      assert(!ids.includes(parentId), "Do not assign redundant ancestor term");
+      parentId = knownTerms.get(parentId)?.parentId;
     }
   }
   const previous = db
