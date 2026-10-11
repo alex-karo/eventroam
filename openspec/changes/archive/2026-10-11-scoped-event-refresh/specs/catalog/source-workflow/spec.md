@@ -1,6 +1,6 @@
 # Source-backed catalog workflow delta
 
-Unchanged requirements remain governed by the main source-workflow spec. Terminology-only updates follow the [Edition contract migration](../../../../archive/2026-10-11-rename-occurrence-to-edition/specs/catalog/records/spec.md); this delta lists behavior changes.
+Unchanged requirements remain governed by the main source-workflow spec. Terminology-only updates follow the [Edition contract migration](../../../../2026-10-11-rename-occurrence-to-edition/specs/catalog/records/spec.md); this delta lists behavior changes.
 
 ## MODIFIED Requirements
 

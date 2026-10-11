@@ -2,7 +2,7 @@
 
 ## Context
 
-Baseline: main `00eb481`. Catalog/SQLite use Occurrence; agent/public contracts already use Edition. This change renames the existing code and storage. [Scoped refresh](../../scoped-event-refresh/proposal.md) depends on it and owns all later research/report behavior changes.
+Baseline: main `00eb481`. Catalog/SQLite use Occurrence; agent/public contracts already use Edition. This change renames the existing code and storage. [Scoped refresh](../2026-10-11-scoped-event-refresh/proposal.md) depends on it and owns all later research/report behavior changes.
 
 ## Goals / Non-Goals
 

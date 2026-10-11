@@ -1,6 +1,6 @@
 # Tasks
 
-**Prerequisite:** [rename-occurrence-to-edition](../archive/2026-10-11-rename-occurrence-to-edition/tasks.md), implemented and synchronized in the worktree. Exact mappings: [contracts](design.md#contract-changes). Acceptance cases: [refresh delta](specs/catalog/source-workflow/spec.md). Use offline providers and temporary databases. Model-led refresh and verification removal are implemented and validated. Earlier review/evals remain historical evidence in build progress.
+**Prerequisite:** [rename-occurrence-to-edition](../2026-10-11-rename-occurrence-to-edition/tasks.md), implemented and synchronized in the worktree. Exact mappings: [contracts](design.md#contract-changes). Acceptance cases: [refresh delta](specs/catalog/source-workflow/spec.md). Use offline providers and temporary databases. Model-led refresh and verification removal are implemented and validated. Earlier review/evals remain historical evidence in build progress.
 
 ## 1. Refresh contracts and assignment
 

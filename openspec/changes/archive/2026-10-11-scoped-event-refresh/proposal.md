@@ -25,6 +25,6 @@ None.
 
 ## Impact
 
-**Depends on:** [rename-occurrence-to-edition](../archive/2026-10-11-rename-occurrence-to-edition/proposal.md), implemented and synchronized in the worktree. Edition code/SQL naming and its migration belong to that change.
+**Depends on:** [rename-occurrence-to-edition](../2026-10-11-rename-occurrence-to-edition/proposal.md), implemented and synchronized in the worktree. Edition code/SQL naming and its migration belong to that change.
 
 Update CLI/Studio, research context/tools, workflow state, reports/evals, and current operating docs. Reuse the shared Mastra workflow, budgets, durable lifecycle, and atomic writer. Existing agent/public shapes, IDs/keys and URLs remain unchanged; historical reports retain their original payloads. Paid ingestion, owner-database execution, and deployment are outside the plan. Exact refresh contracts: [design](design.md#contract-changes).

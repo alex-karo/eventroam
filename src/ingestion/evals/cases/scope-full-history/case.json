@@ -10,7 +10,7 @@
   },
   "provenance": {
     "kind": "synthetic-scope-regression",
-    "sourceReport": "openspec/changes/scoped-event-refresh/design.md",
+    "sourceReport": "openspec/changes/archive/2026-10-11-scoped-event-refresh/design.md",
     "note": "Synthetic source facts for model selection/completeness; no live HTTP/search fallback."
   },
   "initial": {
