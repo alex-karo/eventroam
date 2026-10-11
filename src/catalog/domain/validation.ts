@@ -18,7 +18,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 const state = z.enum(publicationStates).default("draft");
 const scope = z.enum(scopes);
-const occurrenceStates = z.object({
+const editionStates = z.object({
   publicationState: state,
   dateState: z.enum(dateStates).default("unknown"),
   scheduleStatus: z.enum(scheduleStatuses).default("announced"),
@@ -63,8 +63,8 @@ export function validateStoredPrice(r: RecordValues) {
   });
 }
 
-export function validateOccurrenceRecord(r: RecordValues) {
-  const states = occurrenceStates.parse(r);
+export function validateEditionRecord(r: RecordValues) {
+  const states = editionStates.parse(r);
   assert(
     (r.startsOn == null) === (r.endsOn == null),
     "Date pair is incomplete",
@@ -84,7 +84,7 @@ export function validateOccurrenceRecord(r: RecordValues) {
   );
   assert(
     states.scheduleStatus !== "scheduled" || r.startsOn != null,
-    "Scheduled occurrence needs dates",
+    "Scheduled edition needs dates",
   );
   assert(
     (r.latitude == null) === (r.longitude == null),
@@ -100,7 +100,7 @@ export function validateOccurrenceRecord(r: RecordValues) {
   z.number().min(-180).max(180).nullish().parse(r.longitude);
   if (states.publicationState === "published") {
     assert(
-      r.startsOn != null && r.endsOn != null && r.occurrenceYear != null,
+      r.startsOn != null && r.endsOn != null && r.editionYear != null,
       "Publication needs supported dates and year",
     );
     assert(

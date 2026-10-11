@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requestSite } from "@/site/server/public-request";
-import { publicOccurrenceById } from "@/catalog/read/public-catalog";
+import { publicEditionById } from "@/catalog/read/public-catalog";
 import { openReadDatabase } from "@/db/connection";
 
 export async function GET(
@@ -14,7 +14,7 @@ export async function GET(
   const { id } = await params;
   const { client } = openReadDatabase();
   try {
-    const edition = publicOccurrenceById(client, id);
+    const edition = publicEditionById(client, id);
     if (!edition) {
       return NextResponse.json({ error: "Edition not found" }, { status: 404 });
     }

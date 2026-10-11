@@ -20,11 +20,11 @@
           "official": false
         }
       ],
-      "occurrences": [
+      "editions": [
         {
-          "id": "festivalnetwork:occurrence:792d44feb71838d4b28b",
-          "occurrenceKey": "source-row",
-          "occurrenceYear": 2026,
+          "id": "festivalnetwork:edition:792d44feb71838d4b28b",
+          "editionKey": "source-row",
+          "editionYear": 2026,
           "startsOn": "2026-07-30",
           "endsOn": "2026-08-01",
           "dateState": "confirmed",
@@ -85,19 +85,19 @@
         ]
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "starts_on",
         "value": "2027-07-28",
         "editionYear": 2027
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "ends_on",
         "value": "2027-07-31",
         "editionYear": 2027
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "date_state",
         "value": "confirmed",
         "editionYear": 2027
@@ -105,18 +105,18 @@
     ],
     "forbidden": [
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "country_code",
         "editionYear": 2027,
         "notValue": "DE"
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "editionKey": "source-row",
         "field": "starts_on"
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "editionKey": "source-row",
         "field": "ends_on"
       }

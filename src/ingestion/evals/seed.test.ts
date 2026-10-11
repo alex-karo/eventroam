@@ -15,7 +15,7 @@ test("invalid eval assignments roll back all seed rows before closing the databa
   const originalType = suite.terms.find(
     (term) => term.facet === "event_type" && term.id !== "extra-type",
   )!;
-  item.initial.event.occurrences[0].termIds = [originalType.id, "extra-type"];
+  item.initial.event.editions[0].termIds = [originalType.id, "extra-type"];
   const counts: number[] = [];
   const close = Database.prototype.close;
   const spy = vi
@@ -24,8 +24,8 @@ test("invalid eval assignments roll back all seed rows before closing the databa
       for (const table of [
         "taxonomy_terms",
         "events",
-        "occurrences",
-        "occurrence_terms",
+        "editions",
+        "edition_terms",
         "external_links",
       ]) {
         counts.push(
@@ -45,9 +45,9 @@ test("invalid eval assignments roll back all seed rows before closing the databa
 test("eval data cannot bypass publication and date-state rules", () => {
   const suite = loadEvalSuite();
   const item = structuredClone(suite.cases[0]);
-  item.initial.event.occurrences[0] = {
+  item.initial.event.editions[0] = {
     id: "bad-edition",
-    occurrenceKey: "2027",
+    editionKey: "2027",
     startsOn: "2027-01-01",
     endsOn: "2027-01-02",
     dateState: "unknown",

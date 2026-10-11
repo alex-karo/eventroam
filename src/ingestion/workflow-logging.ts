@@ -101,8 +101,8 @@ export function attemptedCatalogFields(
         switch (operation.kind) {
           case "createEvent":
           case "updateEvent":
-          case "createOccurrence":
-          case "updateOccurrence":
+          case "createEdition":
+          case "updateEdition":
             return Object.keys(operation.data);
           case "replaceLinks":
             return ["links"];

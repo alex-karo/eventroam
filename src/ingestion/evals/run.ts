@@ -13,8 +13,8 @@ import { migrateCatalogConnection } from "@/db/migrate";
 import {
   events,
   externalLinks,
-  occurrenceTerms,
-  occurrences,
+  editionTerms,
+  editions,
   taxonomyTerms,
 } from "@/db/schema";
 import { RunPersistenceError, persistenceFailureReport } from "../runs";
@@ -80,14 +80,14 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
             )
             .run();
         }
-        for (const edition of initial.occurrences) {
-          db.insert(occurrences)
+        for (const edition of initial.editions) {
+          db.insert(editions)
             .values(
-              validateCatalogValues(connection.client, "occurrences", {
+              validateCatalogValues(connection.client, "editions", {
                 id: edition.id,
                 eventId: initial.id,
-                occurrenceKey: edition.occurrenceKey,
-                occurrenceYear: edition.occurrenceYear,
+                editionKey: edition.editionKey,
+                editionYear: edition.editionYear,
                 displayName: edition.displayName,
                 startsOn: edition.startsOn,
                 endsOn: edition.endsOn,
@@ -109,10 +109,10 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
             )
             .run();
           for (const termId of edition.termIds ?? []) {
-            db.insert(occurrenceTerms)
+            db.insert(editionTerms)
               .values(
-                validateCatalogValues(connection.client, "occurrence_terms", {
-                  occurrenceId: edition.id,
+                validateCatalogValues(connection.client, "edition_terms", {
+                  editionId: edition.id,
                   termId,
                 }),
               )
@@ -123,7 +123,7 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
               .values(
                 validateCatalogValues(connection.client, "external_links", {
                   id: `eval-link-${edition.id}-${link.kind}-${link.url}`,
-                  occurrenceId: edition.id,
+                  editionId: edition.id,
                   kind: link.kind,
                   url: link.url,
                   label: link.label,

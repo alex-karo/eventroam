@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import type { PublicOccurrence } from "@/catalog/read/contracts";
+import type { PublicEdition } from "@/catalog/read/contracts";
 
 export type DetailState =
   | { status: "idle" }
   | { status: "loading" | "error"; id: string }
-  | { status: "ready"; id: string; data: PublicOccurrence };
+  | { status: "ready"; id: string; data: PublicEdition };
 
 export function useSelectedEdition(fallbackFocus: () => HTMLElement | null) {
   const [state, setState] = useState<DetailState>({ status: "idle" });
@@ -43,7 +43,7 @@ export function useSelectedEdition(fallbackFocus: () => HTMLElement | null) {
       if (!response.ok) {
         throw new Error("Detail unavailable");
       }
-      const next = (await response.json()) as PublicOccurrence;
+      const next = (await response.json()) as PublicEdition;
       if (request === requestGeneration.current) {
         setState({ status: "ready", id, data: next });
       }

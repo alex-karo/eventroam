@@ -37,10 +37,10 @@ export function loadResearchContext(
     ...(target?.editions.flatMap((edition) =>
       edition.links.map(({ url, kind, official }) => ({
         url,
-        owner: "occurrence" as const,
+        owner: "edition" as const,
         kind,
         official,
-        editionKey: edition.occurrenceKey,
+        editionKey: edition.editionKey,
       })),
     ) ?? []),
   ];

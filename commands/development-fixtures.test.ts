@@ -5,9 +5,9 @@ import { seedDevelopmentFixtures } from "./development-fixtures";
 
 const tables = [
   "events",
-  "occurrences",
+  "editions",
   "taxonomy_terms",
-  "occurrence_terms",
+  "edition_terms",
   "external_links",
   "url_aliases",
 ];

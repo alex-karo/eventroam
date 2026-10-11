@@ -6,21 +6,21 @@ test("builders preserve explicit null and do not insert data", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.build.event({ summary: null, canonicalName: undefined });
-  const undated = fx.build.occurrence(event, { startsOn: null });
+  const undated = fx.build.edition(event, { startsOn: null });
 
   expect(event.canonicalName).toBe("Test Field Days");
   expect(event.summary).toBeNull();
   expect(undated).toMatchObject({
     startsOn: null,
     endsOn: null,
-    occurrenceYear: null,
+    editionYear: null,
     dateState: "unknown",
     scheduleStatus: "announced",
   });
   expect(client.prepare("SELECT count(*) FROM events").pluck().get()).toBe(0);
 
   const stored = fx.event({ summary: null });
-  const draft = fx.occurrence(stored, { startsOn: null });
+  const draft = fx.edition(stored, { startsOn: null });
   expect(stored.summary).toBeNull();
   expect(draft.startsOn).toBeNull();
   expect(draft.endsOn).toBeNull();
@@ -29,31 +29,28 @@ test("builders preserve explicit null and do not insert data", () => {
 test("scenario helpers create distinct public records and typed relationships", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
-  const first = fx.publishedEvent({ occurrences: [{}, {}] });
+  const first = fx.publishedEvent({ editions: [{}, {}] });
   const second = fx.publishedEvent();
-  const [edition, sibling] = first.occurrences;
+  const [edition, sibling] = first.editions;
 
   expect(first.event.slug).not.toBe(second.event.slug);
-  expect([edition.occurrenceKey, sibling.occurrenceKey]).toEqual([
-    "2027",
-    "2027-2",
-  ]);
+  expect([edition.editionKey, sibling.editionKey]).toEqual(["2027", "2027-2"]);
   expect(
     client
-      .prepare("SELECT path FROM url_aliases WHERE occurrence_id=?")
+      .prepare("SELECT path FROM url_aliases WHERE edition_id=?")
       .get(sibling.id),
   ).toMatchObject({ path: `/events/${first.event.slug}/2027-2` });
   expect(
     client
-      .prepare("SELECT count(*) FROM occurrence_terms WHERE occurrence_id=?")
+      .prepare("SELECT count(*) FROM edition_terms WHERE edition_id=?")
       .pluck()
       .get(edition.id),
   ).toBe(3);
 
-  const link = fx.occurrenceLink(edition, {
+  const link = fx.editionLink(edition, {
     kind: "ticketing",
   });
-  expect(link.occurrenceId).toBe(edition.id);
+  expect(link.editionId).toBe(edition.id);
   expect(link.eventId).toBeNull();
   expect(
     client.prepare("SELECT count(*) FROM catalog_changes").pluck().get(),
@@ -69,13 +66,13 @@ test("scenario publication reuses terms created through the low-level API", () =
     name: "Festival",
   });
 
-  const { occurrences } = fx.publishedEvent();
+  const { editions } = fx.publishedEvent();
   expect(
     client
       .prepare(
-        "SELECT term_id FROM occurrence_terms WHERE occurrence_id=? AND term_id=?",
+        "SELECT term_id FROM edition_terms WHERE edition_id=? AND term_id=?",
       )
-      .get(occurrences[0].id, festival.id),
+      .get(editions[0].id, festival.id),
   ).toMatchObject({ term_id: festival.id });
 });
 
@@ -103,13 +100,13 @@ test("a failed published scenario rolls back every related insert", () => {
   const fx = testFixtures(client);
 
   expect(() =>
-    fx.publishedEvent({ occurrences: [{}, { startsOn: null }] }),
+    fx.publishedEvent({ editions: [{}, { startsOn: null }] }),
   ).toThrow();
   for (const table of [
     "events",
-    "occurrences",
+    "editions",
     "taxonomy_terms",
-    "occurrence_terms",
+    "edition_terms",
     "url_aliases",
   ]) {
     expect(client.prepare(`SELECT count(*) FROM ${table}`).pluck().get()).toBe(
@@ -122,13 +119,13 @@ test("fixture writes validate links, aliases, prices and taxonomy before inserti
   const { client } = testDatabase();
   const fx = testFixtures(client);
   const event = fx.event();
-  const edition = fx.occurrence(event);
+  const edition = fx.edition(event);
   const parent = fx.term({ facet: "genre" });
   expect(() =>
     fx.eventLink(event, { kind: "future" as "official_site" }),
   ).toThrow();
   expect(() => fx.alias(event, { scope: "future" })).toThrow();
-  expect(() => fx.occurrence(event, { priceCurrency: "EUR" })).toThrow(/price/);
+  expect(() => fx.edition(event, { priceCurrency: "EUR" })).toThrow(/price/);
   expect(() => fx.term({ facet: "topic", parentId: parent.id })).toThrow(
     /same facet/,
   );
@@ -142,9 +139,7 @@ test("fixture writes validate links, aliases, prices and taxonomy before inserti
     );
   }
   expect(
-    client.prepare("SELECT count(*) FROM occurrence_terms").pluck().get(),
+    client.prepare("SELECT count(*) FROM edition_terms").pluck().get(),
   ).toBe(1);
-  expect(client.prepare("SELECT count(*) FROM occurrences").pluck().get()).toBe(
-    1,
-  );
+  expect(client.prepare("SELECT count(*) FROM editions").pluck().get()).toBe(1);
 });

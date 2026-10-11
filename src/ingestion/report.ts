@@ -72,7 +72,7 @@ function assembleReport({
   const references = applied?.references ?? {};
   const changes = (applied?.changes ?? []).flatMap((change) =>
     change.changedFields.map((field) => ({
-      subject: change.occurrenceId ?? change.eventId ?? "",
+      subject: change.editionId ?? change.eventId ?? "",
       field: field.field,
       oldValue: field.oldValue,
       newValue: field.newValue,
@@ -184,13 +184,13 @@ function researchOutcome({
   }
   if (
     changedKinds.includes("publishEvent") ||
-    changedKinds.includes("publishOccurrence")
+    changedKinds.includes("publishEdition")
   ) {
     return "published";
   }
   if (
     changedKinds.includes("createEvent") ||
-    changedKinds.includes("createOccurrence")
+    changedKinds.includes("createEdition")
   ) {
     return "created";
   }

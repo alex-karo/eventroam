@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { PublicEvent, PublicOccurrence } from "@/catalog/read/contracts";
+import type { PublicEvent, PublicEdition } from "@/catalog/read/contracts";
 import { editionPath } from "@/site/site";
 import {
   Dates,
@@ -13,7 +13,7 @@ export function EventDetailsPage({
   active,
 }: Readonly<{
   event: PublicEvent;
-  active: PublicOccurrence | null;
+  active: PublicEdition | null;
 }>) {
   return (
     <main className="catalog">

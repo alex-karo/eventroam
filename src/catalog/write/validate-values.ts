@@ -2,10 +2,10 @@ import type Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { z } from "zod";
-import { occurrenceTerms, taxonomyTerms } from "@/db/schema";
+import { editionTerms, taxonomyTerms } from "@/db/schema";
 import {
   validateEventRecord,
-  validateOccurrenceRecord,
+  validateEditionRecord,
   validateLinkRecord,
   validateAliasRecord,
   validateTaxonomyTerm,
@@ -19,11 +19,11 @@ const termSchema = z.object({
 });
 type ValidatedTable =
   | "events"
-  | "occurrences"
+  | "editions"
   | "external_links"
   | "url_aliases"
   | "taxonomy_terms"
-  | "occurrence_terms";
+  | "edition_terms";
 
 /** Validate seed values without changing defaults or nulls. Call inside the write transaction. */
 export function validateCatalogValues<T extends Record<string, unknown>>(
@@ -35,8 +35,8 @@ export function validateCatalogValues<T extends Record<string, unknown>>(
     case "events":
       validateEventRecord(values);
       break;
-    case "occurrences":
-      validateOccurrenceRecord(values);
+    case "editions":
+      validateEditionRecord(values);
       break;
     case "external_links":
       validateLinkRecord(values);
@@ -63,9 +63,9 @@ export function validateCatalogValues<T extends Record<string, unknown>>(
       validateTaxonomyTerm(term, parent, children);
       break;
     }
-    case "occurrence_terms": {
-      const { occurrenceId, termId } = z
-        .object({ occurrenceId: z.string(), termId: z.string() })
+    case "edition_terms": {
+      const { editionId, termId } = z
+        .object({ editionId: z.string(), termId: z.string() })
         .parse(values);
       const db = drizzle(client);
       const term = db
@@ -78,9 +78,9 @@ export function validateCatalogValues<T extends Record<string, unknown>>(
       }
       const assigned = db
         .select({ id: taxonomyTerms.id, facet: taxonomyTerms.facet })
-        .from(occurrenceTerms)
-        .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, occurrenceTerms.termId))
-        .where(eq(occurrenceTerms.occurrenceId, occurrenceId))
+        .from(editionTerms)
+        .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, editionTerms.termId))
+        .where(eq(editionTerms.editionId, editionId))
         .all();
       validateTermAssignments([...assigned, term]);
       break;

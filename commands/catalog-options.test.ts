@@ -34,7 +34,7 @@ test("ambiguous commands fail before opening the database or calling a model", (
     ["check", "--event", "id", "--model-calls", "4"],
     ["check"],
     ["refresh"],
-    ["check", "--occurrence", "edition-id"],
+    ["check", "--edition", "edition-id"],
     ["add", "--name", "Test", "--event", "id"],
     ["check", "--event", "id", "--apply", "--dry-run"],
     ["check", "--event", "id", "--agent-steps", "-1"],

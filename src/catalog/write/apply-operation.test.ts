@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { expect, test } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
@@ -13,12 +14,119 @@ const count = (
 ) =>
   (client.prepare(`SELECT count(*) n FROM ${table}`).get() as { n: number }).n;
 
+test("old Occurrence operation names, owners and fields fail before writes", () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  const event = fx.event();
+  const edition = fx.edition(event);
+  const snapshot = () =>
+    [
+      "events",
+      "editions",
+      "external_links",
+      "catalog_changes",
+      "operation_receipts",
+    ].map((table) => client.prepare(`SELECT * FROM ${table}`).all());
+  const before = snapshot();
+  for (const payload of [
+    {
+      kind: "createOccurrence",
+      eventId: event.id,
+      data: { occurrenceKey: "2028" },
+    },
+    ...["updateOccurrence", "publishOccurrence", "withdrawOccurrence"].map(
+      (kind) => ({
+        kind,
+        id: edition.id,
+        expectedVersion: 1,
+        ...(kind === "updateOccurrence" ? { data: {} } : {}),
+      }),
+    ),
+    {
+      kind: "replaceLinks",
+      owner: { type: "occurrence", id: edition.id },
+      expectedVersion: 1,
+      links: [],
+    },
+    {
+      kind: "createEdition",
+      eventId: event.id,
+      data: { occurrenceKey: "2028" },
+    },
+    {
+      kind: "updateEdition",
+      id: edition.id,
+      expectedVersion: 1,
+      data: { occurrenceYear: 2028 },
+    },
+    {
+      kind: "updateEdition",
+      occurrenceId: edition.id,
+      expectedVersion: 1,
+      data: {},
+    },
+  ]) {
+    expect(() =>
+      applyCatalogOperation(client, {
+        operationKey: "old-contract",
+        actor: "owner",
+        ...payload,
+      } as CatalogOperation),
+    ).toThrow();
+    expect(snapshot()).toEqual(before);
+  }
+});
+
+test("renamed payload cannot reuse a historical receipt and Edition retries replay", () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  const edition = fx.edition(fx.event());
+  const legacy = {
+    operationKey: "historical-update",
+    actor: "owner",
+    kind: "updateOccurrence",
+    id: edition.id,
+    expectedVersion: 1,
+    data: { occurrenceYear: 2028 },
+  };
+  const hash = createHash("sha256")
+    .update(JSON.stringify(legacy))
+    .digest("hex");
+  const savedResult = '{"id":"old-edition","version":2,"changed":true}';
+  client
+    .prepare("INSERT INTO operation_receipts VALUES(?,?,?,?)")
+    .run(legacy.operationKey, hash, savedResult, "2026-10-01");
+  const operation: CatalogOperation = {
+    operationKey: legacy.operationKey,
+    actor: "owner",
+    kind: "updateEdition",
+    id: edition.id,
+    expectedVersion: 1,
+    data: { editionYear: 2028 },
+  };
+  const receipt = client.prepare("SELECT * FROM operation_receipts").get();
+  expect(() => applyCatalogOperation(client, operation)).toThrow(
+    /different payload/,
+  );
+  expect(client.prepare("SELECT * FROM operation_receipts").get()).toEqual(
+    receipt,
+  );
+  expect(count(client, "catalog_changes")).toBe(0);
+  expect(
+    client.prepare("SELECT version FROM editions WHERE id=?").get(edition.id),
+  ).toEqual({ version: 1 });
+  const current = { ...operation, operationKey: "edition-update" };
+  const result = applyCatalogOperation(client, current);
+  expect(applyCatalogOperation(client, current)).toEqual(result);
+  expect(count(client, "catalog_changes")).toBe(1);
+});
+
 test("term replacement rejects assigned ancestors at every depth atomically", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event();
-  const edition = fx.occurrence(event);
-  const sibling = fx.occurrence(event);
+  const edition = fx.edition(event);
+  const sibling = fx.edition(event);
   const electronic = fx.term({ facet: "genre", slug: "electronic" });
   const trance = fx.term({
     facet: "genre",
@@ -33,8 +141,8 @@ test("term replacement rejects assigned ancestors at every depth atomically", ()
   fx.assignTerm(edition, psytrance);
   fx.assignTerm(sibling, electronic);
   const snapshot = () => ({
-    occurrences: client.prepare("SELECT * FROM occurrences").all(),
-    assignments: client.prepare("SELECT * FROM occurrence_terms").all(),
+    editions: client.prepare("SELECT * FROM editions").all(),
+    assignments: client.prepare("SELECT * FROM edition_terms").all(),
     changes: client.prepare("SELECT * FROM catalog_changes").all(),
     receipts: client.prepare("SELECT * FROM operation_receipts").all(),
   });
@@ -63,10 +171,10 @@ test("term replacement rejects assigned ancestors at every depth atomically", ()
   expect(noOp.changed).toBe(false);
 });
 
-test("ordinary occurrence updates reject legacy price fields without altering a saved price block", () => {
+test("ordinary edition updates reject legacy price fields without altering a saved price block", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
-  const edition = fx.occurrence(fx.event(), {
+  const edition = fx.edition(fx.event(), {
     priceKind: "exact",
     priceCurrency: "EUR",
     priceMinMinor: 10000,
@@ -75,7 +183,7 @@ test("ordinary occurrence updates reject legacy price fields without altering a 
     priceDetails: [{ label: "Regular", amount: 100, currency: "EUR" }],
   });
   const snapshot = () => ({
-    occurrences: client.prepare("SELECT * FROM occurrences").all(),
+    editions: client.prepare("SELECT * FROM editions").all(),
     changes: client.prepare("SELECT * FROM catalog_changes").all(),
     receipts: client.prepare("SELECT * FROM operation_receipts").all(),
   });
@@ -93,7 +201,7 @@ test("ordinary occurrence updates reject legacy price fields without altering a 
   ]) {
     expect(() =>
       applyCatalogOperation(client, {
-        kind: "updateOccurrence",
+        kind: "updateEdition",
         operationKey: "price:legacy-update",
         actor: "owner",
         id: edition.id,
@@ -109,17 +217,17 @@ test("postponement preserves previous dates and only changes its edition", () =>
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event();
-  const edition = fx.publishedOccurrence(event, {
-    occurrenceKey: "2027",
+  const edition = fx.publishedEdition(event, {
+    editionKey: "2027",
     startsOn: "2027-07-01",
     endsOn: "2027-07-03",
   });
-  const other = fx.publishedOccurrence(event, {
-    occurrenceKey: "2025",
+  const other = fx.publishedEdition(event, {
+    editionKey: "2025",
     startsOn: "2025-07-01",
   });
   const result = applyCatalogOperation(client, {
-    kind: "updateOccurrence",
+    kind: "updateEdition",
     operationKey: "test:postpone",
     actor: "owner",
     id: edition.id,
@@ -130,7 +238,7 @@ test("postponement preserves previous dates and only changes its edition", () =>
   expect(
     client
       .prepare(
-        "SELECT starts_on,ends_on,schedule_status FROM occurrences WHERE id=?",
+        "SELECT starts_on,ends_on,schedule_status FROM editions WHERE id=?",
       )
       .get(edition.id),
   ).toMatchObject({
@@ -141,7 +249,7 @@ test("postponement preserves previous dates and only changes its edition", () =>
   expect(
     (
       client
-        .prepare("SELECT version FROM occurrences WHERE id=?")
+        .prepare("SELECT version FROM editions WHERE id=?")
         .get(other.id) as { version: number }
     ).version,
   ).toBe(other.version);
@@ -151,13 +259,13 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event();
-  const old = fx.publishedOccurrence(event, {
+  const old = fx.publishedEdition(event, {
     startsOn: "2027-07-01",
     endsOn: "2027-07-03",
   });
   expect(() =>
     applyCatalogOperation(client, {
-      kind: "updateOccurrence",
+      kind: "updateEdition",
       operationKey: "test:invalid",
       actor: "owner",
       id: old.id,
@@ -166,7 +274,7 @@ test("invalid changes roll back, stale writes fail, replay is idempotent and pay
     }),
   ).toThrow();
   const op = {
-    kind: "updateOccurrence" as const,
+    kind: "updateEdition" as const,
     operationKey: "test:valid",
     actor: "owner",
     id: old.id,
@@ -199,12 +307,12 @@ test("create audit keeps supplied field order, arrays, and omitted defaults", ()
     },
   });
   const edition = applyCatalogOperation(client, {
-    kind: "createOccurrence",
-    operationKey: "audit:create-occurrence",
+    kind: "createEdition",
+    operationKey: "audit:create-edition",
     actor: "owner",
     eventId: event.id,
     data: {
-      occurrenceKey: "2028",
+      editionKey: "2028",
       displayName: null,
       price: {
         kind: "free",
@@ -249,11 +357,11 @@ test("create audit keeps supplied field order, arrays, and omitted defaults", ()
       (change) => !change.oldPresent && change.oldValue === null,
     ),
   ).toBe(true);
-  const occurrenceFields = fields("audit:create-occurrence");
-  expect(occurrenceFields.map((change) => change.field)).toEqual([
+  const editionFields = fields("audit:create-edition");
+  expect(editionFields.map((change) => change.field)).toEqual([
     "id",
     "event_id",
-    "occurrence_key",
+    "edition_key",
     "display_name",
     "locality",
     "price_kind",
@@ -271,11 +379,10 @@ test("create audit keeps supplied field order, arrays, and omitted defaults", ()
     "updated_at",
   ]);
   expect(
-    occurrenceFields.find((change) => change.field === "display_name")
-      ?.newValue,
+    editionFields.find((change) => change.field === "display_name")?.newValue,
   ).toBeNull();
   expect(
-    occurrenceFields.every(
+    editionFields.every(
       (change) => !change.oldPresent && change.oldValue === null,
     ),
   ).toBe(true);
@@ -298,12 +405,12 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
   const event = fx.event({ slug: "test-field-days" });
   fx.festivalTerms();
   const draft = applyCatalogOperation(client, {
-    kind: "createOccurrence",
+    kind: "createEdition",
     operationKey: "test:draft",
     actor: "owner",
     eventId: event.id,
     data: {
-      occurrenceKey: "2028",
+      editionKey: "2028",
       dateState: "unknown",
       countryCode: "PT",
       locality: "Example Valley",
@@ -311,7 +418,7 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
   });
   expect(() =>
     applyCatalogOperation(client, {
-      kind: "publishOccurrence",
+      kind: "publishEdition",
       operationKey: "test:publish-undated",
       actor: "owner",
       id: draft.id,
@@ -319,13 +426,13 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
     }),
   ).toThrow(/Publication needs/);
   let updated = applyCatalogOperation(client, {
-    kind: "updateOccurrence",
+    kind: "updateEdition",
     operationKey: "test:dates",
     actor: "owner",
     id: draft.id,
     expectedVersion: draft.version,
     data: {
-      occurrenceYear: 2028,
+      editionYear: 2028,
       startsOn: "2028-07-01",
       endsOn: "2028-07-03",
       dateState: "provisional",
@@ -333,7 +440,7 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
   });
   expect(() =>
     applyCatalogOperation(client, {
-      kind: "publishOccurrence",
+      kind: "publishEdition",
       operationKey: "test:publish-no-terms",
       actor: "owner",
       id: draft.id,
@@ -349,7 +456,7 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
     termIds: ["test-festival", "test-openair", "test-music"],
   });
   const published = applyCatalogOperation(client, {
-    kind: "publishOccurrence",
+    kind: "publishEdition",
     operationKey: "test:publish",
     actor: "owner",
     id: draft.id,
@@ -358,7 +465,7 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
   expect(published.changed).toBe(true);
   fx.publishEvent(event);
   const withdrawn = applyCatalogOperation(client, {
-    kind: "withdrawOccurrence",
+    kind: "withdrawEdition",
     operationKey: "test:withdraw",
     actor: "owner",
     id: draft.id,
@@ -367,7 +474,7 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
   expect(withdrawn.changed).toBe(true);
   expect(
     client
-      .prepare("SELECT path FROM url_aliases WHERE occurrence_id=?")
+      .prepare("SELECT path FROM url_aliases WHERE edition_id=?")
       .get(draft.id),
   ).toMatchObject({ path: "/events/test-field-days/2028" });
 });
@@ -376,16 +483,16 @@ test("publication accepts structurally complete editions with saved links", () =
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event();
-  const edition = fx.occurrence(event);
+  const edition = fx.edition(event);
   for (const term of fx.festivalTerms()) {
     fx.assignTerm(edition, term);
   }
-  fx.occurrenceLink(edition, {
+  fx.editionLink(edition, {
     kind: "ticketing",
     url: "https://example.org/2027/tickets#offers",
   });
   const operation: CatalogOperation = {
-    kind: "publishOccurrence",
+    kind: "publishEdition",
     operationKey: "publish:with-link",
     actor: "catalog-agent",
     initiatedBy: "owner",
@@ -409,7 +516,7 @@ test("published event rename reserves old and new paths, including editions", ()
   const fx = testFixtures(client);
   const { event } = fx.publishedEvent({
     event: { slug: "test-field-days" },
-    occurrences: [{ occurrenceKey: "2027" }],
+    editions: [{ editionKey: "2027" }],
   });
   const id = event.id;
   const aliasesBefore = count(client, "url_aliases");
@@ -449,7 +556,7 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event();
-  const edition = fx.publishedOccurrence(event, {
+  const edition = fx.publishedEdition(event, {
     countryCode: "PT",
     latitude: null,
     longitude: null,
@@ -474,7 +581,7 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
   ).toThrow();
   expect(() =>
     applyCatalogOperation(client, {
-      kind: "updateOccurrence",
+      kind: "updateEdition",
       operationKey: "test:bad-coordinates",
       actor: "owner",
       id: edition.id,
@@ -484,7 +591,7 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
   ).toThrow(/Coordinate pair/);
   expect(() =>
     applyCatalogOperation(client, {
-      kind: "updateOccurrence",
+      kind: "updateEdition",
       operationKey: "test:bad-area",
       actor: "owner",
       id: edition.id,
@@ -494,7 +601,7 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
   ).toThrow(/country/);
   const changed = applyCatalogItem(client, [
     {
-      kind: "updateOccurrence",
+      kind: "updateEdition",
       operationKey: "test:capacity",
       actor: "owner",
       id: edition.id,
@@ -525,19 +632,15 @@ test("typed price, capacity, coordinates, and area rules reject unsupported valu
   ]);
   expect(
     client
-      .prepare(
-        "SELECT price_currency,price_min_minor FROM occurrences WHERE id=?",
-      )
+      .prepare("SELECT price_currency,price_min_minor FROM editions WHERE id=?")
       .get(edition.id),
   ).toMatchObject({ price_currency: "EUR", price_min_minor: 6500 });
   expect(() =>
-    client
-      .prepare("UPDATE occurrences SET latitude=1 WHERE id=?")
-      .run(edition.id),
+    client.prepare("UPDATE editions SET latitude=1 WHERE id=?").run(edition.id),
   ).toThrow();
   expect(() =>
     applyCatalogOperation(client, {
-      kind: "updateOccurrence",
+      kind: "updateEdition",
       operationKey: "test:unassigned-country",
       actor: "owner",
       id: edition.id,
@@ -699,14 +802,14 @@ test("item dry run rolls back dependent creates and publication", () => {
       data: { slug: "item-festival", canonicalName: "Item Festival" },
     },
     {
-      kind: "createOccurrence",
+      kind: "createEdition",
       tempKey: "edition",
       operationKey: "item:edition",
       actor: "owner",
       eventId: "$event",
       data: {
-        occurrenceKey: "2028",
-        occurrenceYear: 2028,
+        editionKey: "2028",
+        editionYear: 2028,
         startsOn: "2028-07-01",
         endsOn: "2028-07-03",
         dateState: "confirmed",
@@ -723,7 +826,7 @@ test("item dry run rolls back dependent creates and publication", () => {
       termIds: ["test-festival", "test-openair", "test-music"],
     },
     {
-      kind: "publishOccurrence",
+      kind: "publishEdition",
       operationKey: "item:publish-edition",
       actor: "owner",
       id: "$edition",
@@ -739,7 +842,7 @@ test("item dry run rolls back dependent creates and publication", () => {
   ];
   const before = [
     "events",
-    "occurrences",
+    "editions",
     "catalog_changes",
     "operation_receipts",
   ].map((table) => count(client, table));
@@ -755,7 +858,7 @@ test("item dry run rolls back dependent creates and publication", () => {
   ]);
   expect(preview.changes).toHaveLength(5);
   expect(
-    ["events", "occurrences", "catalog_changes", "operation_receipts"].map(
+    ["events", "editions", "catalog_changes", "operation_receipts"].map(
       (table) => count(client, table),
     ),
   ).toEqual(before);
@@ -781,7 +884,7 @@ test("item rollback and complete price replacement preserve atomic state", () =>
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event();
-  const edition = fx.publishedOccurrence(event);
+  const edition = fx.publishedEdition(event);
   const first = applyCatalogOperation(client, {
     kind: "replacePriceBlock",
     operationKey: "price:first",
@@ -845,9 +948,7 @@ test("item rollback and complete price replacement preserve atomic state", () =>
   });
   expect(noOp.changed).toBe(false);
   const state = client
-    .prepare(
-      "SELECT price_details,price_kind,version FROM occurrences WHERE id=?",
-    )
+    .prepare("SELECT price_details,price_kind,version FROM editions WHERE id=?")
     .get(edition.id);
   expect(() =>
     applyCatalogItem(client, [
@@ -861,7 +962,7 @@ test("item rollback and complete price replacement preserve atomic state", () =>
         basePrice: null,
       },
       {
-        kind: "updateOccurrence",
+        kind: "updateEdition",
         operationKey: "item:bad",
         actor: "owner",
         id: edition.id,
@@ -873,7 +974,7 @@ test("item rollback and complete price replacement preserve atomic state", () =>
   expect(
     client
       .prepare(
-        "SELECT price_details,price_kind,version FROM occurrences WHERE id=?",
+        "SELECT price_details,price_kind,version FROM editions WHERE id=?",
       )
       .get(edition.id),
   ).toEqual(state);
@@ -889,18 +990,18 @@ test("item rollback and complete price replacement preserve atomic state", () =>
   expect(cleared.changed).toBe(true);
   expect(
     client
-      .prepare("SELECT price_details,price_kind FROM occurrences WHERE id=?")
+      .prepare("SELECT price_details,price_kind FROM editions WHERE id=?")
       .get(edition.id),
   ).toEqual({ price_details: "[]", price_kind: null });
 });
 
 test("audit records attribution and receipts reject changed payloads", () => {
   const client = testDatabase().client;
-  const edition = testFixtures(client).publishedOccurrence(
+  const edition = testFixtures(client).publishedEdition(
     testFixtures(client).event(),
   );
   const operation: CatalogOperation = {
-    kind: "updateOccurrence",
+    kind: "updateEdition",
     operationKey: "audit:capacity",
     actor: "catalog-agent",
     initiatedBy: "owner",
@@ -946,10 +1047,10 @@ test("audit records attribution and receipts reject changed payloads", () => {
 test("item applies successive operations with the latest subject version", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
-  const edition = fx.publishedOccurrence(fx.event());
+  const edition = fx.publishedEdition(fx.event());
   const results = applyCatalogItem(client, [
     {
-      kind: "updateOccurrence",
+      kind: "updateEdition",
       operationKey: "versions:capacity",
       actor: "owner",
       id: edition.id,
@@ -957,7 +1058,7 @@ test("item applies successive operations with the latest subject version", () =>
       data: { capacityEstimate: 1200 },
     },
     {
-      kind: "updateOccurrence",
+      kind: "updateEdition",
       operationKey: "versions:venue",
       actor: "owner",
       id: edition.id,
@@ -972,7 +1073,7 @@ test("item applies successive operations with the latest subject version", () =>
   expect(
     client
       .prepare(
-        "SELECT version,capacity_estimate,venue_name FROM occurrences WHERE id=?",
+        "SELECT version,capacity_estimate,venue_name FROM editions WHERE id=?",
       )
       .get(edition.id),
   ).toEqual({
@@ -985,7 +1086,7 @@ test("item applies successive operations with the latest subject version", () =>
 test("price variants validate amount and currency together and preserve audit values", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
-  const edition = fx.publishedOccurrence(fx.event());
+  const edition = fx.publishedEdition(fx.event());
   const base: CatalogOperation = {
     kind: "replacePriceBlock",
     operationKey: "price:invalid",
@@ -1052,7 +1153,7 @@ test("price variants validate amount and currency together and preserve audit va
 test("price removal records old and new values without requiring a note", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
-  const edition = fx.publishedOccurrence(fx.event());
+  const edition = fx.publishedEdition(fx.event());
   const added = applyCatalogOperation(client, {
     kind: "replacePriceBlock",
     operationKey: "price:seed",
@@ -1113,7 +1214,7 @@ test.each([
       dateState: "unknown" as const,
       scheduleStatus: undefined,
     },
-    error: /Scheduled occurrence needs dates/,
+    error: /Scheduled edition needs dates/,
   },
   {
     name: "coordinate precision",
@@ -1125,20 +1226,20 @@ test.each([
   ({ data, error }) => {
     const { client } = testDatabase();
     const fx = testFixtures(client);
-    const edition = fx.occurrence(fx.event(), {
+    const edition = fx.edition(fx.event(), {
       latitude: 38,
       longitude: -9,
       coordinatePrecision: "exact",
     });
     const snapshot = () => ({
-      occurrences: client.prepare("SELECT * FROM occurrences").all(),
+      editions: client.prepare("SELECT * FROM editions").all(),
       changes: client.prepare("SELECT * FROM catalog_changes").all(),
       receipts: client.prepare("SELECT * FROM operation_receipts").all(),
     });
     const before = snapshot();
     expect(() =>
       applyCatalogOperation(client, {
-        kind: "updateOccurrence",
+        kind: "updateEdition",
         operationKey: "invalid:undefined",
         actor: "test",
         id: edition.id,
@@ -1154,10 +1255,10 @@ test("updates containing only undefined fields are idempotent no-ops", () => {
   const { client } = testDatabase();
   const fx = testFixtures(client);
   const event = fx.event();
-  const edition = fx.occurrence(event);
+  const edition = fx.edition(event);
   const snapshot = () => ({
     events: client.prepare("SELECT * FROM events").all(),
-    occurrences: client.prepare("SELECT * FROM occurrences").all(),
+    editions: client.prepare("SELECT * FROM editions").all(),
     changes: client.prepare("SELECT * FROM catalog_changes").all(),
   });
   const before = snapshot();
@@ -1171,8 +1272,8 @@ test("updates containing only undefined fields are idempotent no-ops", () => {
       data: { slug: undefined, aliases: undefined, summary: undefined },
     },
     {
-      kind: "updateOccurrence",
-      operationKey: "undefined:occurrence",
+      kind: "updateEdition",
+      operationKey: "undefined:edition",
       actor: "test",
       id: edition.id,
       expectedVersion: edition.version,
@@ -1201,7 +1302,7 @@ test("updates containing only undefined fields are idempotent no-ops", () => {
 test("partial updates preserve undefined fields and audit only actual changes", () => {
   const { client } = testDatabase();
   const fx = testFixtures(client);
-  const edition = fx.occurrence(fx.event(), {
+  const edition = fx.edition(fx.event(), {
     priceKind: "exact",
     priceCurrency: "EUR",
     priceMinMinor: 12000,
@@ -1209,7 +1310,7 @@ test("partial updates preserve undefined fields and audit only actual changes", 
     priceCoverage: "full_programme",
   });
   const changed = applyCatalogOperation(client, {
-    kind: "updateOccurrence",
+    kind: "updateEdition",
     operationKey: "undefined:mixed",
     actor: "test",
     id: edition.id,
@@ -1236,7 +1337,7 @@ test("partial updates preserve undefined fields and audit only actual changes", 
   expect(
     client
       .prepare(
-        "SELECT date_state, price_kind, price_min_minor FROM occurrences WHERE id=?",
+        "SELECT date_state, price_kind, price_min_minor FROM editions WHERE id=?",
       )
       .get(edition.id),
   ).toEqual({
@@ -1249,7 +1350,7 @@ test("partial updates preserve undefined fields and audit only actual changes", 
 test("an explicit empty price block clears variants and every stored price field", () => {
   const { client } = testDatabase();
   const fx = testFixtures(client);
-  const edition = fx.occurrence(fx.event(), {
+  const edition = fx.edition(fx.event(), {
     priceKind: "exact",
     priceCurrency: "EUR",
     priceMinMinor: 12000,
@@ -1270,7 +1371,7 @@ test("an explicit empty price block clears variants and every stored price field
   expect(
     client
       .prepare(
-        "SELECT price_kind, price_currency, price_min_minor, price_max_minor, price_coverage, price_qualification, price_details FROM occurrences WHERE id=?",
+        "SELECT price_kind, price_currency, price_min_minor, price_max_minor, price_coverage, price_qualification, price_details FROM editions WHERE id=?",
       )
       .get(edition.id),
   ).toEqual({
@@ -1288,9 +1389,9 @@ test("merged-record validation rolls back writes, versions, audit and receipts",
   const { client } = testDatabase();
   const fx = testFixtures(client);
   const parent = fx.event();
-  const edition = fx.occurrence(parent);
+  const edition = fx.edition(parent);
   const snapshot = () => ({
-    occurrences: client.prepare("SELECT * FROM occurrences").all(),
+    editions: client.prepare("SELECT * FROM editions").all(),
     changes: client.prepare("SELECT * FROM catalog_changes").all(),
     receipts: client.prepare("SELECT * FROM operation_receipts").all(),
   });
@@ -1302,7 +1403,7 @@ test("merged-record validation rolls back writes, versions, audit and receipts",
   ]) {
     expect(() =>
       applyCatalogOperation(client, {
-        kind: "updateOccurrence",
+        kind: "updateEdition",
         operationKey: "invalid:merged",
         actor: "test",
         id: edition.id,
@@ -1315,7 +1416,7 @@ test("merged-record validation rolls back writes, versions, audit and receipts",
   // The new DB intentionally permits unknown statuses. The writer still checks
   // the complete final record, even when the operation only replaces its price.
   client
-    .prepare("UPDATE occurrences SET schedule_status='future' WHERE id=?")
+    .prepare("UPDATE editions SET schedule_status='future' WHERE id=?")
     .run(edition.id);
   const corrupted = snapshot();
   expect(() =>
@@ -1337,19 +1438,19 @@ test("merged-record validation rolls back writes, versions, audit and receipts",
   expect(snapshot()).toEqual(corrupted);
 });
 
-test("removed occurrence and link fields are rejected without catalog writes", () => {
+test("removed edition and link fields are rejected without catalog writes", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event();
-  const edition = fx.occurrence(event);
+  const edition = fx.edition(event);
   const operations = [
     {
-      kind: "createOccurrence",
+      kind: "createEdition",
       eventId: event.id,
-      data: { occurrenceKey: "2028", ticketAvailability: "sold_out" },
+      data: { editionKey: "2028", ticketAvailability: "sold_out" },
     },
     {
-      kind: "updateOccurrence",
+      kind: "updateEdition",
       id: edition.id,
       expectedVersion: edition.version,
       data: { ticketAvailability: "closed" },
@@ -1377,7 +1478,7 @@ test("removed occurrence and link fields are rejected without catalog writes", (
       } as CatalogOperation),
     ).toThrow(/Unrecognized key/);
   }
-  expect(count(client, "occurrences")).toBe(1);
+  expect(count(client, "editions")).toBe(1);
   for (const table of [
     "external_links",
     "catalog_changes",
@@ -1386,8 +1487,6 @@ test("removed occurrence and link fields are rejected without catalog writes", (
     expect(count(client, table)).toBe(0);
   }
   expect(
-    client
-      .prepare("SELECT version FROM occurrences WHERE id=?")
-      .get(edition.id),
+    client.prepare("SELECT version FROM editions WHERE id=?").get(edition.id),
   ).toEqual({ version: edition.version });
 });

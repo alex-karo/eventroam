@@ -1,4 +1,4 @@
-export type PublicOccurrence = {
+export type PublicEdition = {
   id: string;
   eventId: string;
   key: string;
@@ -35,7 +35,7 @@ export type PublicEvent = {
   slug: string;
   name: string;
   summary: string | null;
-  editions: PublicOccurrence[];
+  editions: PublicEdition[];
 };
 
 export type Genre = { slug: string; name: string; parentSlug: string | null };

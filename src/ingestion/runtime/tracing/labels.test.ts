@@ -55,9 +55,9 @@ test("canonical identity, context snapshots and effective years follow writer re
   const { client } = testDatabase();
   const fixtures = testFixtures(client);
   const event = fixtures.event({ canonicalName: "Canonical Festival" });
-  const edition = fixtures.occurrence(event, {
-    occurrenceKey: "2026",
-    occurrenceYear: 2026,
+  const edition = fixtures.edition(event, {
+    editionKey: "2026",
+    editionYear: 2026,
   });
   fixtures.event({ canonicalName: "Unrelated" });
   const catalog = readResearchCatalog(client);
@@ -71,20 +71,20 @@ test("canonical identity, context snapshots and effective years follow writer re
   const context = contextEditions(catalog, event.id);
   const applied = applyCatalogItem(client, [
     {
-      kind: "updateOccurrence",
+      kind: "updateEdition",
       id: edition.id,
       expectedVersion: edition.version,
-      data: { occurrenceYear: 2027 },
+      data: { editionYear: 2027 },
       operationKey: "trace-year",
       actor: "test",
     },
   ]);
   expect(context).toEqual([
-    { occurrenceId: edition.id, editionKey: "2026", year: 2026 },
+    { editionId: edition.id, editionKey: "2026", year: 2026 },
   ]);
   expect(committedEditions(applied, catalog)).toEqual([
     {
-      occurrenceId: edition.id,
+      editionId: edition.id,
       editionKey: "2026",
       year: 2027,
       role: "updated",

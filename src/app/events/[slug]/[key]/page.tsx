@@ -1,8 +1,8 @@
 import { requestDetail } from "@/site/server/public-request";
 import { editionPath } from "@/site/site";
-import { OccurrenceDetailsPage } from "@/features/event-details/occurrence-page";
+import { EditionDetailsPage } from "@/features/event-details/edition-page";
 
-export default async function OccurrencePage({
+export default async function EditionPage({
   params,
 }: Readonly<{
   params: Promise<{ slug: string; key: string }>;
@@ -12,5 +12,5 @@ export default async function OccurrencePage({
   if (!edition) {
     return null;
   }
-  return <OccurrenceDetailsPage event={event} edition={edition} />;
+  return <EditionDetailsPage event={event} edition={edition} />;
 }

@@ -45,34 +45,34 @@ function expectedSubjects(
   if (assertion.owner === "event") {
     return new Set([item.initial.event.id]);
   }
-  const editions = item.initial.event.occurrences;
+  const editions = item.initial.event.editions;
   const subjects = new Set(
     editions
       .filter(
         (edition) =>
           (!assertion.editionKey ||
-            edition.occurrenceKey === assertion.editionKey) &&
+            edition.editionKey === assertion.editionKey) &&
           (assertion.editionYear === undefined ||
-            edition.occurrenceYear === assertion.editionYear),
+            edition.editionYear === assertion.editionYear),
       )
       .map((edition) => edition.id),
   );
   for (const operation of result.operations) {
     if (
-      operation.kind !== "createOccurrence" ||
+      operation.kind !== "createEdition" ||
       operation.eventId !== item.initial.event.id
     ) {
       continue;
     }
     if (
       assertion.editionKey &&
-      operation.data.occurrenceKey !== assertion.editionKey
+      operation.data.editionKey !== assertion.editionKey
     ) {
       continue;
     }
     if (
       assertion.editionYear !== undefined &&
-      operation.data.occurrenceYear !== assertion.editionYear
+      operation.data.editionYear !== assertion.editionYear
     ) {
       continue;
     }

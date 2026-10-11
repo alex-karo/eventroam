@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import {
   validateEventRecord,
-  validateOccurrenceRecord,
+  validateEditionRecord,
   validateStoredPrice,
   validateLinkRecord,
   validateAliasRecord,
@@ -25,7 +25,7 @@ const dated = {
 const published = {
   ...dated,
   publicationState: "published",
-  occurrenceYear: 2027,
+  editionYear: 2027,
   countryCode: "PT",
   locality: "Lisbon",
 };
@@ -55,32 +55,32 @@ test("event defaults, lifecycle and home scope", () => {
   }
 });
 
-test("all supported occurrence statuses and precisions remain valid", () => {
+test("all supported edition statuses and precisions remain valid", () => {
   for (const scheduleStatus of scheduleStatuses) {
-    validateOccurrenceRecord({ ...dated, scheduleStatus });
+    validateEditionRecord({ ...dated, scheduleStatus });
   }
   for (const dateState of dateStates) {
-    validateOccurrenceRecord(
+    validateEditionRecord(
       dateState === "unknown" ? { dateState } : { ...dated, dateState },
     );
   }
   for (const coordinatePrecision of coordinatePrecisions) {
-    validateOccurrenceRecord(
+    validateEditionRecord(
       coordinatePrecision === "unknown"
         ? { coordinatePrecision }
         : { coordinatePrecision, latitude: 38, longitude: -9 },
     );
   }
   for (const publicationState of publicationStates) {
-    validateOccurrenceRecord({ ...published, publicationState });
+    validateEditionRecord({ ...published, publicationState });
   }
-  validateOccurrenceRecord({
+  validateEditionRecord({
     startsOn: null,
     endsOn: null,
     latitude: null,
     longitude: null,
   });
-  validateOccurrenceRecord({ startsOn: undefined, dateState: undefined });
+  validateEditionRecord({ startsOn: undefined, dateState: undefined });
 });
 
 test.each([
@@ -90,7 +90,7 @@ test.each([
   "coordinatePrecision",
 ])("%s rejects unknown values and explicit null", (field) => {
   for (const value of ["future", null]) {
-    expect(() => validateOccurrenceRecord({ [field]: value })).toThrow();
+    expect(() => validateEditionRecord({ [field]: value })).toThrow();
   }
 });
 
@@ -104,16 +104,16 @@ test.each([
   { latitude: 38, longitude: -9 },
   { latitude: 38, coordinatePrecision: "exact" },
   { latitude: 91, longitude: 0, coordinatePrecision: "exact" },
-  { ...published, occurrenceYear: null },
+  { ...published, editionYear: null },
   { ...published, countryCode: null },
   { ...published, locality: null },
-])("inconsistent occurrence is rejected: %j", (record) => {
-  expect(() => validateOccurrenceRecord(record)).toThrow();
+])("inconsistent edition is rejected: %j", (record) => {
+  expect(() => validateEditionRecord(record)).toThrow();
 });
 
-test("published occurrences can use a venue, locality or region", () => {
+test("published editions can use a venue, locality or region", () => {
   for (const field of ["venueName", "locality", "administrativeArea"]) {
-    validateOccurrenceRecord({
+    validateEditionRecord({
       ...published,
       locality: null,
       [field]: "Known area",

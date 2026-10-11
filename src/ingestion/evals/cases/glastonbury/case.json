@@ -20,11 +20,11 @@
           "official": false
         }
       ],
-      "occurrences": [
+      "editions": [
         {
-          "id": "festivalnetwork:occurrence:2d90837f6b8f1217f50c",
-          "occurrenceKey": "source-row",
-          "occurrenceYear": 2027,
+          "id": "festivalnetwork:edition:2d90837f6b8f1217f50c",
+          "editionKey": "source-row",
+          "editionYear": 2027,
           "startsOn": "2027-06-23",
           "endsOn": "2027-06-27",
           "dateState": "confirmed",
@@ -64,7 +64,7 @@
         "value": "published"
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "publication_state",
         "value": "published"
       },
@@ -77,7 +77,7 @@
         }
       },
       {
-        "owner": "occurrence",
+        "owner": "edition",
         "field": "links",
         "contains": {
           "url": "https://glastonbury.seetickets.com/mailinglist/subscribe",

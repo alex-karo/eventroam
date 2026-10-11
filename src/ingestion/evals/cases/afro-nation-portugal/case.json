@@ -27,11 +27,11 @@
           "official": false
         }
       ],
-      "occurrences": [
+      "editions": [
         {
-          "id": "festivalnetwork:occurrence:050e6a1b4385550023d3",
-          "occurrenceKey": "source-row",
-          "occurrenceYear": 2027,
+          "id": "festivalnetwork:edition:050e6a1b4385550023d3",
+          "editionKey": "source-row",
+          "editionYear": 2027,
           "startsOn": "2027-06-09",
           "endsOn": "2027-06-11",
           "dateState": "confirmed",

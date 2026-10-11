@@ -28,7 +28,7 @@ export function traceUrl(value: string) {
   };
 }
 export type TraceEdition = {
-  occurrenceId?: string;
+  editionId?: string;
   editionKey: string;
   year: number | null;
   role?: "created" | "updated";
@@ -36,8 +36,8 @@ export type TraceEdition = {
 export function boundedEditions(editions: TraceEdition[]) {
   return {
     entries: editions.slice(0, 10).map((edition) => ({
-      ...(edition.occurrenceId
-        ? { occurrenceId: traceText(edition.occurrenceId, 160) }
+      ...(edition.editionId
+        ? { editionId: traceText(edition.editionId, 160) }
         : {}),
       editionKey: traceText(edition.editionKey, 160),
       year: edition.year,
@@ -54,9 +54,9 @@ export function contextEditions(
     catalog
       .find((event) => event.id === eventId)
       ?.editions.map((edition) => ({
-        occurrenceId: edition.id,
-        editionKey: edition.occurrenceKey,
-        year: edition.occurrenceYear,
+        editionId: edition.id,
+        editionKey: edition.editionKey,
+        year: edition.editionYear,
       })) ?? []
   );
 }
@@ -75,9 +75,9 @@ export function committedEditions(
           [
             edition.id,
             {
-              occurrenceId: edition.id,
-              editionKey: edition.occurrenceKey,
-              year: edition.occurrenceYear,
+              editionId: edition.id,
+              editionKey: edition.editionKey,
+              year: edition.editionYear,
             },
           ] as const,
       ),
@@ -85,24 +85,21 @@ export function committedEditions(
   );
   const touched = new Map<string, TraceEdition>();
   for (const change of applied.changes) {
-    const id = change.occurrenceId;
+    const id = change.editionId;
     if (!id) {
       continue;
     }
     const prior = touched.get(id) ??
-      editions.get(id) ?? { occurrenceId: id, editionKey: "?", year: null };
+      editions.get(id) ?? { editionId: id, editionKey: "?", year: null };
     const entry: TraceEdition = {
       ...prior,
       role: editions.has(id) ? "updated" : "created",
     };
     for (const field of change.changedFields) {
-      if (
-        field.field === "occurrence_key" &&
-        typeof field.newValue === "string"
-      ) {
+      if (field.field === "edition_key" && typeof field.newValue === "string") {
         entry.editionKey = field.newValue;
       }
-      if (field.field === "occurrence_year") {
+      if (field.field === "edition_year") {
         entry.year = typeof field.newValue === "number" ? field.newValue : null;
       }
     }

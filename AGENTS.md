@@ -7,7 +7,7 @@ The project is under active development and has no production deployment. Backwa
 Start at the [documentation index](docs/index.md), then read only the documents relevant to the task. Main OpenSpec specs describe implemented behavior and are grouped by `catalog/` and `website/`; active changes describe approved future work, with matching domain paths in their delta specs; [draft proposals](docs/proposals/) hold unresolved choices.
 
 - Records and writes: [catalog records](openspec/specs/catalog/records/spec.md) and [publication and details](openspec/specs/catalog/publication/spec.md).
-- Classification: [Occurrence classification](openspec/specs/catalog/classification/spec.md); the [starter vocabulary](docs/proposals/festival-taxonomy-vocabulary.md) remains a draft.
+- Classification: [Edition classification](openspec/specs/catalog/classification/spec.md); the [starter vocabulary](docs/proposals/festival-taxonomy-vocabulary.md) remains a draft.
 - Map, list, or filters: [discovery](openspec/specs/website/discovery/spec.md).
 - Routes or scope hosts: [scoped website](openspec/specs/website/routing/spec.md).
 - Local source workflows: [source-backed catalog workflow](openspec/specs/catalog/source-workflow/spec.md) and [ingestion guide](docs/ingestion-process.md).

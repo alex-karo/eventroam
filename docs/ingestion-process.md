@@ -50,7 +50,7 @@ npm run catalog -- refresh --event EVENT_ID
 npm run catalog -- check --event EVENT_ID --event ANOTHER_EVENT_ID
 ```
 
-`add` researches a festival by name and creates it only when new. A recognized existing Event returns `skipped` and its ID without updating facts, links, editions, or publication; use `refresh` or `check` to update it. `refresh` researches one existing Event. `check` uses the same research process for one or more Events. An Event is the continuing festival; each separate edition is an Occurrence. The database must already exist and be migrated. See the [development guide](development.md#local-catalog-research) for setup and options, or its [Studio instructions](development.md#local-studio-ingestion) for the local workflow form.
+`add` researches a festival by name and creates it only when new. A recognized existing Event returns `skipped` and its ID without updating facts, links, editions, or publication; use `refresh` or `check` to update it. `refresh` researches one existing Event. `check` uses the same research process for one or more Events. An Event is the continuing festival; each separate edition is an Edition. The database must already exist and be migrated. See the [development guide](development.md#local-catalog-research) for setup and options, or its [Studio instructions](development.md#local-studio-ingestion) for the local workflow form.
 
 ## Load catalog context
 

@@ -17,7 +17,7 @@ The application SHALL use one shared catalog with an allowlisted host mapping. T
 
 ### Requirement: Public record routes are stable and scoped
 
-The Festivals host SHALL use `/events/{eventSlug}` and `/events/{eventSlug}/{occurrenceKey}` for public records. Discovery SHALL occupy the scope root, without alternate map/list/filter paths. Slugs and keys SHALL be lowercase URL-safe segments. Published old paths SHALL remain reserved aliases that redirect after a rename; date or venue moves SHALL preserve keys. Public records reached from the apex SHALL redirect to the configured Festivals origin.
+The Festivals host SHALL use `/events/{eventSlug}` and `/events/{eventSlug}/{editionKey}` for public records. Discovery SHALL occupy the scope root, without alternate map/list/filter paths. Slugs and keys SHALL be lowercase URL-safe segments. Published old paths SHALL remain reserved aliases that redirect after a rename; date or venue moves SHALL preserve keys. Public records reached from the apex SHALL redirect to the configured Festivals origin.
 
 #### Scenario: A published Event is renamed
 
@@ -26,7 +26,7 @@ The Festivals host SHALL use `/events/{eventSlug}` and `/events/{eventSlug}/{occ
 
 #### Scenario: A visitor opens a draft path
 
-- **WHEN** the referenced Event or Occurrence is not public
+- **WHEN** the referenced Event or Edition is not public
 - **THEN** the route returns no public detail page even if an alias exists
 
 ### Requirement: Discovery state remains on the scope root

@@ -16,13 +16,13 @@ import { alias, unionAll } from "drizzle-orm/sqlite-core";
 import {
   events,
   externalLinks,
-  occurrenceTerms,
-  occurrences,
+  editionTerms,
+  editions,
   taxonomyTerms,
   urlAliases,
 } from "@/db/schema";
 
-import type { PublicEvent, PublicOccurrence } from "@/catalog/read/contracts";
+import type { PublicEvent, PublicEdition } from "@/catalog/read/contracts";
 
 function publicRows(
   client: Database.Database,
@@ -31,55 +31,55 @@ function publicRows(
 ) {
   return drizzle(client)
     .select({
-      id: occurrences.id,
-      eventId: occurrences.eventId,
-      occurrenceKey: occurrences.occurrenceKey,
+      id: editions.id,
+      eventId: editions.eventId,
+      editionKey: editions.editionKey,
       eventSlug: events.slug,
       eventName: events.canonicalName,
-      name: occurrences.displayName,
-      year: occurrences.occurrenceYear,
-      startsOn: occurrences.startsOn,
-      endsOn: occurrences.endsOn,
-      dateState: occurrences.dateState,
-      status: occurrences.scheduleStatus,
-      priceDetails: occurrences.priceDetails,
-      venueName: occurrences.venueName,
-      venueAddress: occurrences.venueAddress,
-      locality: occurrences.locality,
-      administrativeArea: occurrences.administrativeArea,
-      countryCode: occurrences.countryCode,
-      latitude: occurrences.latitude,
-      longitude: occurrences.longitude,
-      capacityEstimate: occurrences.capacityEstimate,
-      priceKind: occurrences.priceKind,
-      priceCurrency: occurrences.priceCurrency,
-      priceMinMinor: occurrences.priceMinMinor,
-      priceMaxMinor: occurrences.priceMaxMinor,
-      priceCoverage: occurrences.priceCoverage,
-      priceQualification: occurrences.priceQualification,
+      name: editions.displayName,
+      year: editions.editionYear,
+      startsOn: editions.startsOn,
+      endsOn: editions.endsOn,
+      dateState: editions.dateState,
+      status: editions.scheduleStatus,
+      priceDetails: editions.priceDetails,
+      venueName: editions.venueName,
+      venueAddress: editions.venueAddress,
+      locality: editions.locality,
+      administrativeArea: editions.administrativeArea,
+      countryCode: editions.countryCode,
+      latitude: editions.latitude,
+      longitude: editions.longitude,
+      capacityEstimate: editions.capacityEstimate,
+      priceKind: editions.priceKind,
+      priceCurrency: editions.priceCurrency,
+      priceMinMinor: editions.priceMinMinor,
+      priceMaxMinor: editions.priceMaxMinor,
+      priceCoverage: editions.priceCoverage,
+      priceQualification: editions.priceQualification,
     })
-    .from(occurrences)
-    .innerJoin(events, eq(events.id, occurrences.eventId))
+    .from(editions)
+    .innerJoin(events, eq(events.id, editions.eventId))
     .where(
       and(
         eq(events.publicationState, "published"),
         eq(events.homeScope, "festivals"),
-        eq(occurrences.publicationState, "published"),
-        isNotNull(occurrences.startsOn),
-        isNotNull(occurrences.endsOn),
+        eq(editions.publicationState, "published"),
+        isNotNull(editions.startsOn),
+        isNotNull(editions.endsOn),
         condition,
       ),
     )
     .orderBy(
-      newestFirst ? desc(occurrences.startsOn) : asc(occurrences.startsOn),
-      asc(occurrences.id),
+      newestFirst ? desc(editions.startsOn) : asc(editions.startsOn),
+      asc(editions.id),
     )
     .all();
 }
 
 type Row = ReturnType<typeof publicRows>[number];
 
-function enrich(client: Database.Database, rows: Row[]): PublicOccurrence[] {
+function enrich(client: Database.Database, rows: Row[]): PublicEdition[] {
   if (!rows.length) {
     return [];
   }
@@ -87,15 +87,15 @@ function enrich(client: Database.Database, rows: Row[]): PublicOccurrence[] {
   const ids = rows.map((row) => row.id);
   const terms = db
     .select({
-      occurrenceId: occurrenceTerms.occurrenceId,
+      editionId: editionTerms.editionId,
       facet: taxonomyTerms.facet,
       name: taxonomyTerms.name,
     })
-    .from(occurrenceTerms)
-    .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, occurrenceTerms.termId))
+    .from(editionTerms)
+    .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, editionTerms.termId))
     .where(
       inArray(
-        occurrenceTerms.occurrenceId,
+        editionTerms.editionId,
         sql`(SELECT value FROM json_each(${JSON.stringify(ids)}))`,
       ),
     )
@@ -105,18 +105,18 @@ function enrich(client: Database.Database, rows: Row[]): PublicOccurrence[] {
       asc(taxonomyTerms.id),
     )
     .all();
-  const termsByOccurrence = new Map<string, PublicOccurrence["terms"]>();
-  for (const { occurrenceId, ...term } of terms) {
-    const assigned = termsByOccurrence.get(occurrenceId) ?? [];
+  const termsByEdition = new Map<string, PublicEdition["terms"]>();
+  for (const { editionId, ...term } of terms) {
+    const assigned = termsByEdition.get(editionId) ?? [];
     assigned.push(term);
-    termsByOccurrence.set(occurrenceId, assigned);
+    termsByEdition.set(editionId, assigned);
   }
   const selected = db
-    .select({ id: occurrences.id, eventId: occurrences.eventId })
-    .from(occurrences)
+    .select({ id: editions.id, eventId: editions.eventId })
+    .from(editions)
     .where(
       inArray(
-        occurrences.id,
+        editions.id,
         sql`(SELECT value FROM json_each(${JSON.stringify(ids)}))`,
       ),
     )
@@ -124,17 +124,17 @@ function enrich(client: Database.Database, rows: Row[]): PublicOccurrence[] {
   const own = alias(externalLinks, "own");
   const editionLinks = db
     .select({
-      occurrenceId: selected.id,
+      editionId: selected.id,
       kind: externalLinks.kind,
       url: externalLinks.url,
       label: externalLinks.label,
     })
     .from(selected)
-    .innerJoin(externalLinks, eq(externalLinks.occurrenceId, selected.id))
+    .innerJoin(externalLinks, eq(externalLinks.editionId, selected.id))
     .where(eq(externalLinks.official, true));
   const inheritedLinks = db
     .select({
-      occurrenceId: selected.id,
+      editionId: selected.id,
       kind: externalLinks.kind,
       url: externalLinks.url,
       label: externalLinks.label,
@@ -150,7 +150,7 @@ function enrich(client: Database.Database, rows: Row[]): PublicOccurrence[] {
             .from(own)
             .where(
               and(
-                eq(own.occurrenceId, selected.id),
+                eq(own.editionId, selected.id),
                 eq(own.kind, externalLinks.kind),
               ),
             ),
@@ -160,28 +160,28 @@ function enrich(client: Database.Database, rows: Row[]): PublicOccurrence[] {
   const links = unionAll(editionLinks, inheritedLinks)
     .all()
     .sort((a, b) => a.kind.localeCompare(b.kind) || a.url.localeCompare(b.url));
-  const linksByOccurrence = new Map<string, PublicOccurrence["links"]>();
-  for (const { occurrenceId, ...link } of links) {
-    const assigned = linksByOccurrence.get(occurrenceId) ?? [];
+  const linksByEdition = new Map<string, PublicEdition["links"]>();
+  for (const { editionId, ...link } of links) {
+    const assigned = linksByEdition.get(editionId) ?? [];
     assigned.push(link);
-    linksByOccurrence.set(occurrenceId, assigned);
+    linksByEdition.set(editionId, assigned);
   }
   return rows.map(
-    ({ occurrenceKey, latitude, longitude, priceDetails, ...fields }) => ({
+    ({ editionKey, latitude, longitude, priceDetails, ...fields }) => ({
       ...fields,
-      key: occurrenceKey,
+      key: editionKey,
       year: fields.year!,
       startsOn: fields.startsOn!,
       endsOn: fields.endsOn!,
-      dateState: fields.dateState as PublicOccurrence["dateState"],
+      dateState: fields.dateState as PublicEdition["dateState"],
       countryCode: fields.countryCode!,
       hasCoordinates: latitude !== null && longitude !== null,
       ticketCategories: priceDetails.map(({ label, availability }) => ({
         label,
         ...(availability ? { availability } : {}),
       })),
-      terms: termsByOccurrence.get(fields.id) ?? [],
-      links: linksByOccurrence.get(fields.id) ?? [],
+      terms: termsByEdition.get(fields.id) ?? [],
+      links: linksByEdition.get(fields.id) ?? [],
     }),
   );
 }
@@ -189,7 +189,7 @@ function enrich(client: Database.Database, rows: Row[]): PublicOccurrence[] {
 export function publicEditions(
   client: Database.Database,
   eventId: string,
-): PublicOccurrence[] {
+): PublicEdition[] {
   return client.transaction(() =>
     enrich(client, publicRows(client, eq(events.id, eventId), true)),
   )();
@@ -224,16 +224,16 @@ export function publicEvent(
   })();
 }
 
-export function publicOccurrenceById(
+export function publicEditionById(
   client: Database.Database,
   id: string,
-): PublicOccurrence | null {
+): PublicEdition | null {
   return client.transaction(() => {
     const row = publicRows(
       client,
       and(
-        eq(occurrences.id, id),
-        notInArray(occurrences.scheduleStatus, ["cancelled", "postponed"]),
+        eq(editions.id, id),
+        notInArray(editions.scheduleStatus, ["cancelled", "postponed"]),
       ),
     )[0];
     return row ? enrich(client, [row])[0] : null;
@@ -241,15 +241,15 @@ export function publicOccurrenceById(
 }
 
 export function selectActive(
-  editions: PublicOccurrence[],
+  editions: PublicEdition[],
   today: string,
-): PublicOccurrence | null {
+): PublicEdition | null {
   const eligible = editions.filter(
     (o) =>
       o.status !== "cancelled" && o.status !== "postponed" && o.endsOn >= today,
   );
   eligible.sort((a, b) => {
-    const rank = (o: PublicOccurrence) => (o.startsOn <= today ? 0 : 1);
+    const rank = (o: PublicEdition) => (o.startsOn <= today ? 0 : 1);
     return (
       rank(a) - rank(b) ||
       a.startsOn.localeCompare(b.startsOn) ||
@@ -264,7 +264,7 @@ export function resolvePublicPath(
   path: string,
 ): {
   event: PublicEvent;
-  edition: PublicOccurrence | null;
+  edition: PublicEdition | null;
   redirect: boolean;
 } | null {
   const canonical =
@@ -278,7 +278,7 @@ export function resolvePublicPath(
     const stored = drizzle(client)
       .select({
         eventId: urlAliases.eventId,
-        occurrenceId: urlAliases.occurrenceId,
+        editionId: urlAliases.editionId,
       })
       .from(urlAliases)
       .where(and(eq(urlAliases.scope, "festivals"), eq(urlAliases.path, path)))
@@ -291,10 +291,10 @@ export function resolvePublicPath(
     if (!event) {
       return null;
     }
-    const edition = stored.occurrenceId
-      ? (event.editions.find((o) => o.id === stored.occurrenceId) ?? null)
+    const edition = stored.editionId
+      ? (event.editions.find((o) => o.id === stored.editionId) ?? null)
       : null;
-    if (stored.occurrenceId && !edition) {
+    if (stored.editionId && !edition) {
       return null;
     }
     const editionSuffix = edition ? `/${edition.key}` : "";

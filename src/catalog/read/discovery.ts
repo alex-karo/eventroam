@@ -2,12 +2,7 @@ import type Database from "better-sqlite3";
 import { and, asc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { alias } from "drizzle-orm/sqlite-core";
-import {
-  events,
-  occurrenceTerms,
-  occurrences,
-  taxonomyTerms,
-} from "@/db/schema";
+import { events, editionTerms, editions, taxonomyTerms } from "@/db/schema";
 import type { DiscoverySummary, Genre } from "@/catalog/read/contracts";
 
 export function discoveryGenres(client: Database.Database): Genre[] {
@@ -29,58 +24,58 @@ export function publicSummaries(client: Database.Database): DiscoverySummary[] {
   const db = drizzle(client);
   const rows = db
     .select({
-      id: occurrences.id,
+      id: editions.id,
       eventSlug: events.slug,
       eventName: events.canonicalName,
       aliases: events.aliases,
-      name: occurrences.displayName,
-      year: occurrences.occurrenceYear,
-      occurrenceKey: occurrences.occurrenceKey,
-      startsOn: occurrences.startsOn,
-      endsOn: occurrences.endsOn,
-      dateState: occurrences.dateState,
-      status: occurrences.scheduleStatus,
-      countryCode: occurrences.countryCode,
-      locality: occurrences.locality,
-      administrativeArea: occurrences.administrativeArea,
-      venueName: occurrences.venueName,
-      latitude: occurrences.latitude,
-      longitude: occurrences.longitude,
-      coordinatePrecision: occurrences.coordinatePrecision,
-      timeZone: occurrences.timeZone,
-      capacityEstimate: occurrences.capacityEstimate,
+      name: editions.displayName,
+      year: editions.editionYear,
+      editionKey: editions.editionKey,
+      startsOn: editions.startsOn,
+      endsOn: editions.endsOn,
+      dateState: editions.dateState,
+      status: editions.scheduleStatus,
+      countryCode: editions.countryCode,
+      locality: editions.locality,
+      administrativeArea: editions.administrativeArea,
+      venueName: editions.venueName,
+      latitude: editions.latitude,
+      longitude: editions.longitude,
+      coordinatePrecision: editions.coordinatePrecision,
+      timeZone: editions.timeZone,
+      capacityEstimate: editions.capacityEstimate,
     })
-    .from(occurrences)
-    .innerJoin(events, eq(events.id, occurrences.eventId))
+    .from(editions)
+    .innerJoin(events, eq(events.id, editions.eventId))
     .where(
       and(
         eq(events.publicationState, "published"),
         eq(events.homeScope, "festivals"),
-        eq(occurrences.publicationState, "published"),
-        isNotNull(occurrences.startsOn),
-        isNotNull(occurrences.endsOn),
-        notInArray(occurrences.scheduleStatus, ["cancelled", "postponed"]),
+        eq(editions.publicationState, "published"),
+        isNotNull(editions.startsOn),
+        isNotNull(editions.endsOn),
+        notInArray(editions.scheduleStatus, ["cancelled", "postponed"]),
       ),
     )
     .orderBy(
-      asc(occurrences.startsOn),
+      asc(editions.startsOn),
       asc(events.canonicalName),
-      asc(occurrences.id),
+      asc(editions.id),
     )
     .all();
-  const genresByOccurrence = new Map<string, string[]>();
+  const genresByEdition = new Map<string, string[]>();
   if (rows.length) {
     const classifications = db
       .select({
-        occurrenceId: occurrenceTerms.occurrenceId,
+        editionId: editionTerms.editionId,
         slug: taxonomyTerms.slug,
       })
-      .from(occurrenceTerms)
-      .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, occurrenceTerms.termId))
+      .from(editionTerms)
+      .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, editionTerms.termId))
       .where(
         and(
           inArray(
-            occurrenceTerms.occurrenceId,
+            editionTerms.editionId,
             sql`(SELECT value FROM json_each(${JSON.stringify(rows.map((row) => row.id))}))`,
           ),
           eq(taxonomyTerms.facet, "genre"),
@@ -88,16 +83,16 @@ export function publicSummaries(client: Database.Database): DiscoverySummary[] {
       )
       .orderBy(asc(taxonomyTerms.slug))
       .all();
-    for (const { occurrenceId, slug } of classifications) {
-      const genres = genresByOccurrence.get(occurrenceId) ?? [];
+    for (const { editionId, slug } of classifications) {
+      const genres = genresByEdition.get(editionId) ?? [];
       genres.push(slug);
-      genresByOccurrence.set(occurrenceId, genres);
+      genresByEdition.set(editionId, genres);
     }
   }
-  return rows.map(({ occurrenceKey, ...row }) => ({
+  return rows.map(({ editionKey, ...row }) => ({
     ...row,
-    key: occurrenceKey,
-    genres: genresByOccurrence.get(row.id) ?? [],
+    key: editionKey,
+    genres: genresByEdition.get(row.id) ?? [],
   })) as DiscoverySummary[];
 }
 

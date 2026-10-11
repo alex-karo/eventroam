@@ -87,7 +87,7 @@ export async function runTraceFixture(
     id: "trace-fixture",
     canonicalName: TRACE_PUBLIC_MARKER,
   });
-  fixtures.occurrence(event, { occurrenceYear: 2026, occurrenceKey: "2026" });
+  fixtures.edition(event, { editionYear: 2026, editionKey: "2026" });
   fixtures.link(
     { event },
     {
@@ -337,7 +337,7 @@ export async function runTraceFixture(
       .get(result.runId) as { report_json: string };
     const effects = client
       .prepare(
-        "SELECT occurrence_key,occurrence_year,schedule_status FROM occurrences ORDER BY occurrence_key",
+        "SELECT edition_key,edition_year,schedule_status FROM editions ORDER BY edition_key",
       )
       .all();
     return {
