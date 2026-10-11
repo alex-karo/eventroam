@@ -1,6 +1,8 @@
 # Eventroam
 
-Eventroam is an English-language worldwide event catalog. The first scope covers open-air music festivals and burning-like gatherings. The current Next.js app uses fictional development fixtures; ingestion and public deployment are deferred.
+Eventroam is an English-language worldwide event catalog. The first scope covers open-air music festivals and burning-like gatherings. The current Next.js app uses fictional development fixtures. Owner-initiated local ingestion is implemented; hosted ingestion and public deployment are deferred.
+
+The project is under active development and has no production deployment. Backward compatibility is not required at this stage. Prefer clear current contracts; do not add compatibility layers or preserve obsolete APIs, schemas, report formats, or commands solely for earlier versions. Keep code, tests, specs, and documentation aligned when changing a contract.
 
 Start at the [documentation index](docs/index.md), then read only the documents relevant to the task. Main OpenSpec specs describe implemented behavior and are grouped by `catalog/` and `website/`; active changes describe approved future work, with matching domain paths in their delta specs; [draft proposals](docs/proposals/) hold unresolved choices.
 
@@ -8,7 +10,8 @@ Start at the [documentation index](docs/index.md), then read only the documents 
 - Classification: [Occurrence classification](openspec/specs/catalog/classification/spec.md); the [starter vocabulary](docs/proposals/festival-taxonomy-vocabulary.md) remains a draft.
 - Map, list, or filters: [discovery](openspec/specs/website/discovery/spec.md).
 - Routes or scope hosts: [scoped website](openspec/specs/website/routing/spec.md).
-- Future source workflows, public discovery metadata, and deployment: [active OpenSpec changes](openspec/changes/).
+- Local source workflows: [source-backed catalog workflow](openspec/specs/catalog/source-workflow/spec.md) and [ingestion guide](docs/ingestion-process.md).
+- Future public discovery metadata and deployment: [active OpenSpec changes](openspec/changes/).
 - Code layout or commands: [project structure](docs/project-structure.md) and [development guide](docs/development.md).
 - Technology rationale: [decisions](docs/index.md#decisions). Deployment: [Mapbox gate](docs/mapbox-deployment-gate.md).
 
