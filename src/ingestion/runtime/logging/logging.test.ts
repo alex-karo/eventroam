@@ -61,7 +61,7 @@ test("Mastra uses Pino for SDK diagnostics without exporting them to Studio", as
     runId: "sdk-pino",
     component: "fixture",
   });
-  const rows = readTraceRows(file).mastra_logs;
+  const rows = (await readTraceRows(file)).mastra_logs;
   expect(rows).toHaveLength(1);
   expect(rows[0].message).toBe("Application event");
 });
@@ -104,7 +104,7 @@ test("Pino children persist selected context, severity and trace correlation in 
     expect(nativeLine.match(new RegExp(`"${key}":`, "g"))).toHaveLength(1);
   }
 
-  const rows = readTraceRows(file).mastra_logs;
+  const rows = (await readTraceRows(file)).mastra_logs;
   expect(rows).toHaveLength(2);
   expect(rows.find((row) => row.message === "Source fetched")).toMatchObject({
     message: "Source fetched",
@@ -146,7 +146,7 @@ test.each([undefined, "known-event"])(
     child.info("After resolution");
     run.mastra.getLogger().info("SDK after resolution");
     await finishRunObservability(run);
-    const rows = readTraceRows(file).mastra_logs;
+    const rows = (await readTraceRows(file)).mastra_logs;
     expect(
       (
         rows.find((row) => row.message === "Before resolution")?.data as Record<
@@ -188,7 +188,7 @@ test("level filtering and logging-only mode produce untraced records", async () 
   run.log!.info("Filtered info", { value: 2 });
   run.log!.warn("Retained warn", { value: 3 });
   await finishRunObservability(run);
-  const rows = readTraceRows(file);
+  const rows = await readTraceRows(file);
   expect(rows.mastra_ai_spans).toHaveLength(0);
   expect(rows.mastra_logs).toHaveLength(1);
   expect(rows.mastra_logs[0]).toMatchObject({
@@ -210,7 +210,7 @@ test("unexpected logger payload getter failures do not interrupt ingestion", asy
   expect(() => run.log!.info("Broken event", fields)).not.toThrow();
   run.log!.info("Following event", { ok: true });
   await finishRunObservability(run);
-  const rows = readTraceRows(file).mastra_logs;
+  const rows = (await readTraceRows(file)).mastra_logs;
   expect(rows).toHaveLength(1);
   expect(rows[0].message).toBe("Following event");
 });
@@ -227,7 +227,7 @@ test("real research stores selected completed model text without source bodies o
     commentary: "C".repeat(4_100),
     reasoning: "R".repeat(4_200),
   });
-  const rows = readTraceRows(file);
+  const rows = await readTraceRows(file);
   expect(
     rows.mastra_logs.some((row) => row.runId === result.result.runId),
   ).toBe(true);
@@ -291,7 +291,7 @@ test("finalization failure logs the already committed catalog write", async () =
   await expect(runTraceFixture("success", false, "partial")).rejects.toThrow(
     runs.RunPersistenceError,
   );
-  const rows = readTraceRows(file).mastra_logs;
+  const rows = (await readTraceRows(file)).mastra_logs;
   const committed = rows.find(
     (row) => row.message === "Catalog write finished",
   );
@@ -325,7 +325,7 @@ test("enabled application logging excludes unmarked SDK logs", async () => {
   );
   run.log!.info("Selected application event", { stage: "research" });
   await finishRunObservability(run);
-  const rows = readTraceRows(file).mastra_logs;
+  const rows = (await readTraceRows(file)).mastra_logs;
   expect(rows).toHaveLength(1);
   expect(rows[0].message).toBe("Selected application event");
   expect(JSON.stringify(rows)).not.toContain("PRIVATE_SDK");
@@ -347,7 +347,7 @@ test("native Pino delivery failure does not prevent Studio delivery", async () =
     run.log!.info("Still persisted", { stage: "research" }),
   ).not.toThrow();
   await finishRunObservability(run);
-  expect(readTraceRows(file).mastra_logs[0]).toMatchObject({
+  expect((await readTraceRows(file)).mastra_logs[0]).toMatchObject({
     message: "Still persisted",
     runId: "native-failure",
   });
@@ -370,7 +370,7 @@ test.each([
     const file = database();
     enable(file, dryRun);
     const result = await runTraceFixture("success", false, scenario, dryRun);
-    const rows = readTraceRows(file);
+    const rows = await readTraceRows(file);
     expect(rows.mastra_ai_spans).toHaveLength(0);
     const toolLogs = rows.mastra_logs.filter(
       (row) =>

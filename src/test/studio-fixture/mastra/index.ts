@@ -9,7 +9,6 @@ export const OFFLINE_SENTINEL = "PRIVATE_STUDIO_FIXTURE_SENTINEL";
 const eventId = "00000000-0000-4000-8000-000000000001";
 const sourceUrl = "https://example.org/studio-fixture";
 const scenario = process.env.STUDIO_FIXTURE_SCENARIO ?? "success";
-const observabilityStore = await fixtureStore();
 
 const candidate = {
   status: "success",
@@ -101,63 +100,66 @@ const candidate = {
   };
 }
 
-export const mastra = new Mastra({
-  workflows: {
-    "catalog-ingestion": createCatalogIngestionWorkflow(async () => {
-      const path = process.env.DATABASE_PATH;
-      if (!path) {
-        throw new Error("Fixture catalog unavailable");
-      }
-      const client = new Database(path, { fileMustExist: true });
-      return {
-        deps: {
-          client,
-          observabilityStore,
-          config: {
-            apiKey: "fixture-api-key",
-            model: "fixture/offline-model",
-            limits: { ...DEFAULT_RESEARCH_LIMITS, durationMs: 30_000 },
+export async function createFixtureMastra() {
+  const observabilityStore = await fixtureStore();
+  return new Mastra({
+    workflows: {
+      "catalog-ingestion": createCatalogIngestionWorkflow(async () => {
+        const path = process.env.DATABASE_PATH;
+        if (!path) {
+          throw new Error("Fixture catalog unavailable");
+        }
+        const client = new Database(path, { fileMustExist: true });
+        return {
+          deps: {
+            client,
+            observabilityStore,
+            config: {
+              apiKey: "fixture-api-key",
+              model: "fixture/offline-model",
+              limits: { ...DEFAULT_RESEARCH_LIMITS, durationMs: 30_000 },
+            },
+            todayUtc: "2026-10-10",
+            readSource: async (url, { budget }) => {
+              budget.consumePage();
+              return {
+                attemptedUrl: url,
+                finalUrl: url,
+                retrievedAt: "2026-10-10T12:00:00Z",
+                method: "http" as const,
+                outcome: "ok" as const,
+                completeness: "full" as const,
+                markdown: `${OFFLINE_SENTINEL} Fixture festival starts July 1, 2027.`,
+                links: [],
+              };
+            },
+            discoverSources: async (query, { budget }) => {
+              budget.consumeSearch();
+              return {
+                query,
+                candidates: [],
+                retrievedAt: "2026-10-10T12:00:00Z",
+                inputTokens: 0,
+                outputTokens: 0,
+                modelCostUsd: null,
+                searchCostUsd: 0,
+              };
+            },
           },
-          todayUtc: "2026-10-10",
-          readSource: async (url, { budget }) => {
-            budget.consumePage();
-            return {
-              attemptedUrl: url,
-              finalUrl: url,
-              retrievedAt: "2026-10-10T12:00:00Z",
-              method: "http" as const,
-              outcome: "ok" as const,
-              completeness: "full" as const,
-              markdown: `${OFFLINE_SENTINEL} Fixture festival starts July 1, 2027.`,
-              links: [],
-            };
-          },
-          discoverSources: async (query, { budget }) => {
-            budget.consumeSearch();
-            return {
-              query,
-              candidates: [],
-              retrievedAt: "2026-10-10T12:00:00Z",
-              inputTokens: 0,
-              outputTokens: 0,
-              modelCostUsd: null,
-              searchCostUsd: 0,
-            };
-          },
-        },
-        close: () => client.close(),
-      };
-    }),
-  },
-  storage: observabilityStore,
-  logger: false,
-  loggerOptions: { export: false },
-  server: {
-    host: "127.0.0.1",
-    port: Number(process.env.STUDIO_FIXTURE_PORT ?? 4111),
-    middleware: [ingestionExecutionGuard],
-  },
-});
+          close: () => client.close(),
+        };
+      }),
+    },
+    storage: observabilityStore,
+    logger: false,
+    loggerOptions: { export: false },
+    server: {
+      host: "127.0.0.1",
+      port: Number(process.env.STUDIO_FIXTURE_PORT ?? 4111),
+      middleware: [ingestionExecutionGuard],
+    },
+  });
+}
 
 async function fixtureStore() {
   const store = await createObservabilityStore();

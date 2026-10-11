@@ -1,6 +1,6 @@
 import { DuckDBStore } from "@mastra/duckdb";
-async function main() {
-  const storage = new DuckDBStore({ path: process.argv[2] });
+export async function readTraceRows(path: string) {
+  const storage = new DuckDBStore({ path });
   await storage.init();
   try {
     const domain = (await storage.getStore("observability"))!;
@@ -15,26 +15,26 @@ async function main() {
     const logs = await domain.listLogs({
       pagination: { page: 0, perPage: 100 },
     });
-    process.stdout.write(
-      JSON.stringify({
-        mastra_ai_spans: spans.map((span) =>
-          Object.fromEntries(
-            Object.entries(span).map(([key, value]) => [
-              key,
-              value &&
-              ["metadata", "attributes", "input", "output", "error"].includes(
-                key,
-              )
-                ? JSON.stringify(value)
-                : value,
-            ]),
-          ),
+    return {
+      mastra_ai_spans: spans.map((span) =>
+        Object.fromEntries(
+          Object.entries(span).map(([key, value]) => [
+            key,
+            value &&
+            ["metadata", "attributes", "input", "output", "error"].includes(key)
+              ? JSON.stringify(value)
+              : value,
+          ]),
         ),
-        mastra_logs: logs.logs,
-      }),
-    );
+      ),
+      mastra_logs: logs.logs,
+    };
   } finally {
     await storage.close();
   }
 }
-void main();
+if (process.argv[1]?.endsWith("/read-observability.ts")) {
+  readTraceRows(process.argv[2]).then((rows) =>
+    process.stdout.write(JSON.stringify(rows)),
+  );
+}
