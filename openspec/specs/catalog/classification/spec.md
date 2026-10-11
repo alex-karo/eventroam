@@ -61,7 +61,7 @@ The Event page SHALL show classifications from its selected published Occurrence
 - **THEN** its classification labels replace the prior edition's summary without changing Event identity
 
 ### Requirement: Model-proposed classification is edition-specific
-The model SHALL associate classification additions and removals with a specific Occurrence. The host SHALL apply those proposals while preserving classifications on sibling editions and Event defaults. Omitted term claims SHALL preserve current assignments.
+The model SHALL associate classification additions and removals with a specific Occurrence. The host SHALL apply those proposals only to that Occurrence, preserving sibling editions' classifications and assigning no classifications or defaults to the Event. Omitted term claims SHALL preserve current assignments.
 
 #### Scenario: A later extraction omits a known term
 - **WHEN** a model answer does not mention a previously accepted genre

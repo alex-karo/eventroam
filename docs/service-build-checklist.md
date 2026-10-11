@@ -8,7 +8,7 @@ tags: [progress, development]
 
 # Service build checklist
 
-Build the catalog service using development fixtures. Parsing, crawling, imports, agent workflows, public-content/SEO completion, and production deployment are deferred. The completed fixture-backed behavior is now recorded in [main OpenSpec specs](../openspec/specs/); deferred approved work is in [active changes](../openspec/changes/).
+This checklist records the original fixture-backed website build. Owner-initiated local research and agent workflows have since been implemented; see the [ingestion guide](ingestion-process.md) and [build progress](service-build-progress.md). Legacy imports, hosted ingestion, scheduling, public-content/SEO completion, and production deployment remain deferred. The completed fixture-backed behavior is now recorded in [main OpenSpec specs](../openspec/specs/); deferred approved work is in [active changes](../openspec/changes/).
 
 ## 1 Application foundation
 

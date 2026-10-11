@@ -135,7 +135,7 @@ The system SHALL report each run's mode (`add`, `refresh`, or `check`) and resul
 - **AND** omitting the setting explicitly selects `medium`
 - **AND** reports accumulate provider-reported input, output, cached input, and reasoning token counts from completed steps, retaining those counts when a later step fails or is interrupted and using null for unavailable cached input or reasoning details
 - **AND** reports set `usage.complete` to false when a call fails, is interrupted, lacks token usage, or includes unaccounted discovery attempts; the CLI marks the known token counts as partial
-- **AND** reports include a full model cost only when all calls' usage and costs are known, otherwise using null; an explicitly reported zero cost remains zero
+- **AND** reports sum known provider-reported model costs without estimating missing charges; modelCostUsd is null only when no cost is known, and an explicitly reported zero remains zero
 
 #### Scenario: Unchanged recheck
 - **WHEN** a recheck confirms the current accepted facts without changes
@@ -189,7 +189,7 @@ The system SHALL apply and publish model-proposed, structurally eligible records
 - **THEN** the apply operation publishes them, records the changes atomically, and reports stable identifiers
 
 ### Requirement: Interrupted collection can be rerun from current state
-After interruption, a new owner-initiated run SHALL reload the catalog and research again with new operation keys. Committed changes SHALL remain; incomplete item transactions SHALL roll back. Existing writer receipt idempotency SHALL remain supported. An attempt stopped before finalization SHALL remain running with no finish time or final report; this SHALL NOT be treated as proof of success or failure. Reruns SHALL create new run records without changing earlier records. Automatic run recovery and a history-viewing command are outside this change.
+After interruption, a new owner-initiated run SHALL reload the catalog and research again with new operation keys. Committed changes SHALL remain; incomplete item transactions SHALL roll back. Existing writer receipt idempotency SHALL remain supported. An attempt stopped before finalization SHALL remain running with no finish time or final report; this SHALL NOT be treated as proof of success or failure. Reruns SHALL create new run records without changing earlier records. Automatic run recovery and a history-viewing command remain outside the current scope.
 
 #### Scenario: Owner reruns after interruption
 - **WHEN** a run stops after one festival is committed and the owner starts it again
@@ -635,7 +635,7 @@ Each run record SHALL have nullable event_id for an existing requested/matched E
 - **AND** failed research before Event resolution also leaves event_id null
 
 ### Requirement: Stored run statistics retain accounting limits
-Final run reports SHALL retain existing duration, model/prompt configuration, budgets, token usage, provider-reported model cost, estimated search cost, and completeness metadata. New reports SHALL mark searchCostBasis as estimate. Unknown accounting SHALL remain unknown. Stored runs SHALL NOT add token subsets to totals, invent usage/retrieval charges, or claim exact spending. Partial model-cost subtotals absent from the existing final report are outside this change.
+Final run reports SHALL retain duration, model/prompt configuration, budgets, token usage, known provider-reported model cost, estimated search cost, and token-completeness metadata. Model cost SHALL sum known charges, remaining null only when none are known. Reports SHALL mark searchCostBasis as estimate and SHALL NOT add token subsets to totals, invent missing charges, or claim exact spending.
 
 #### Scenario: All reported statistics survive storage
 - **WHEN** completed research and discovery return usage, model costs, and search-cost estimates
@@ -649,8 +649,16 @@ Final run reports SHALL retain existing duration, model/prompt configuration, bu
 
 #### Scenario: A later call fails after known usage
 - **WHEN** some calls report usage and a later call fails or lacks accounting
-- **THEN** the final report preserves known input/output counts, sets usage.complete to false, and keeps full modelCostUsd null when not fully known
+- **THEN** the final report preserves known input/output counts and model-cost subtotals without estimating missing accounting; usage.complete is false when token accounting is incomplete
 - **AND** unavailable cached-input/reasoning details remain null; available search estimates are retained without being presented as provider-reported charges or complete spending
+
+#### Scenario: A later call omits cost but reports token counts
+- **WHEN** an earlier call reports a model cost and a later call reports complete token counts without a cost
+- **THEN** modelCostUsd retains the earlier known cost and usage.complete describes token completeness independently of cost availability
+
+#### Scenario: No model cost is known
+- **WHEN** no completed call reports a model cost
+- **THEN** modelCostUsd is null rather than zero
 
 #### Scenario: Retrieval has no billed-cost metadata
 - **WHEN** HTTP or Firecrawl retrieval does not supply billing metadata
@@ -669,7 +677,7 @@ Failure to save a running row SHALL abort that attempt before research. Failure 
 - **AND** catalog changes remain committed and the row remains running without a finish time or final report
 
 ### Requirement: Core run statistics are queryable as columns
-Run records SHALL expose input_tokens, output_tokens, model_cost_usd, search_cost_estimate_usd, duration_ms, and usage_complete as nullable scalar columns. They SHALL start null and be finalized atomically from the same final report. Known incomplete counts SHALL retain a false completeness flag; unknown model cost SHALL remain null. Projected values SHALL be nonnegative, and completeness SHALL be boolean when set.
+Run records SHALL expose input_tokens, output_tokens, model_cost_usd, search_cost_estimate_usd, duration_ms, and usage_complete as nullable scalar columns. They SHALL start null and be finalized atomically from the same final report. Incomplete token counts SHALL retain a false completeness flag; model_cost_usd SHALL retain known cost subtotals or null when none are known. Projected values SHALL be nonnegative, and completeness SHALL be boolean when set.
 
 #### Scenario: Final statistics match the report
 - **WHEN** an attempt is finalized, successfully or with a caught failure
@@ -681,8 +689,8 @@ Run records SHALL expose input_tokens, output_tokens, model_cost_usd, search_cos
 - **THEN** all six statistic columns remain null along with finish time and report_json, without claiming zero usage or cost
 
 #### Scenario: A finalized report has incomplete accounting
-- **WHEN** a final report contains known token counts but incomplete usage and unknown full model cost
-- **THEN** the columns retain those counts, set usage_complete to false, and leave model_cost_usd null
+- **WHEN** a final report contains known token counts, incomplete token accounting, and a known model-cost subtotal
+- **THEN** the columns retain those counts and the subtotal, and set usage_complete to false without claiming complete spending
 
 ### Requirement: Eval acceptance distinguishes host failures from expected research failure
 Eval output SHALL preserve runId and available report data when finalization fails and SHALL identify safe host workflow/persistence failures. Those failures SHALL invalidate eval acceptance even when research/catalog outcomes are successful or a source-failure case otherwise meets expectations. Historical version 2 reports lacking additive runId/searchCostBasis fields SHALL remain readable.
