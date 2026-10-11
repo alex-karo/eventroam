@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createResearchBudget } from "../runtime/budget";
-import { readSource } from "./read-source";
-import { assertPublicUrl, isPublicAddress, UnsafeSourceError } from "./network";
+import { createResearchBudget } from "../../runtime/budget";
+import { readSource } from "./read";
+import {
+  assertPublicUrl,
+  isPublicAddress,
+  UnsafeSourceError,
+} from "../network";
 import { FirecrawlError } from "./firecrawl";
 
 const sourceUrl = "https://festival.example/2027";

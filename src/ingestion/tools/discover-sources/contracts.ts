@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sourceUrlSchema, remainingSchema } from "../contracts";
 
 export const searchQuerySchema = z
   .string()
@@ -9,36 +10,12 @@ export const searchQuerySchema = z
     "A specific festival or edition question, 3–300 characters after trimming.",
   );
 
-const sourceUrlSchema = z
-  .url({ protocol: /^https?$/ })
-  .regex(/^https?:\/\//)
-  .describe(
-    "An absolute HTTP/HTTPS URL of a public page, without credentials. Private addresses and unsafe redirects are blocked.",
-  );
-
-export const readSourceInputSchema = z.object({ url: sourceUrlSchema });
 export const discoverSourcesInputSchema = z.object({
   query: searchQuerySchema,
 });
 
 const count = z.number().int().nonnegative();
 const cost = z.number().nonnegative();
-const remainingSchema = z.object({
-  searches: count,
-  durationMs: count,
-});
-
-export const readSourceOutputSchema = z.object({
-  attemptedUrl: sourceUrlSchema,
-  finalUrl: sourceUrlSchema,
-  retrievedAt: z.iso.datetime(),
-  outcome: z.enum(["ok", "partial", "unsupported", "blocked", "failed"]),
-  reason: z.string().optional(),
-  markdown: z.string(),
-  truncated: z.boolean(),
-  completeness: z.enum(["full", "partial", "none"]),
-  remaining: remainingSchema,
-});
 
 export const discoverSourcesOutputSchema = z.object({
   query: searchQuerySchema,
@@ -53,3 +30,22 @@ export const discoverSourcesOutputSchema = z.object({
   usageComplete: z.boolean().optional(),
   remaining: remainingSchema,
 });
+
+export interface SourceCandidate {
+  url: string;
+  title: string;
+}
+
+export interface DiscoverSourcesResult {
+  query: string;
+  candidates: SourceCandidate[];
+  retrievedAt: string;
+  modelCostUsd: number | null;
+  searchCostUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** False when attempts or provider token counts are unaccounted for. */
+  usageComplete?: boolean;
+  cachedInputTokens?: number | null;
+  reasoningTokens?: number | null;
+}

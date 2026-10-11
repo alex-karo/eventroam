@@ -1,5 +1,5 @@
 import { isMastraTimeoutError } from "@mastra/core/loop";
-import { ResearchLimitError } from "../../runtime/budget";
+import { ResearchLimitError } from "./budget";
 
 function serializedResearchLimit(item: Record<string, unknown>) {
   if (

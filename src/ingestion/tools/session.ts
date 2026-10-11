@@ -2,13 +2,14 @@ import type { ResearchLogger } from "../runtime/logging";
 import { ResearchLimitError, type ResearchBudget } from "../runtime/budget";
 import type { ResearchConfig } from "../runtime/config";
 import type { ResearchDependencies } from "../contracts";
-import { readSource } from "./read-source";
-import { discoverSources, discoveryHttpStatus } from "./discover-sources";
-import type {
-  ReadSourceResult,
-  DiscoverSourcesResult,
-  KnownSourceLink,
-} from "./contracts";
+import { readSource } from "./read-source/read";
+import {
+  discoverSources,
+  discoveryHttpStatus,
+} from "./discover-sources/search";
+import type { ReadSourceResult } from "./read-source/contracts";
+import type { DiscoverSourcesResult } from "./discover-sources/contracts";
+import type { KnownSourceLink } from "./contracts";
 
 export type SourceLogContext = {
   stage?: string;

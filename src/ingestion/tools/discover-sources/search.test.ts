@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createResearchBudget } from "../runtime/budget";
-import { loadResearchConfig } from "../runtime/config";
-import { discoverSources } from "./discover-sources";
+import { createResearchBudget } from "../../runtime/budget";
+import { loadResearchConfig } from "../../runtime/config";
+import { discoverSources } from "./search";
 
 afterEach(() => vi.useRealTimers());
 

@@ -1,3 +1,20 @@
+import { z } from "zod";
+import { sourceUrlSchema, remainingSchema } from "../contracts";
+
+export const readSourceInputSchema = z.object({ url: sourceUrlSchema });
+
+export const readSourceOutputSchema = z.object({
+  attemptedUrl: sourceUrlSchema,
+  finalUrl: sourceUrlSchema,
+  retrievedAt: z.iso.datetime(),
+  outcome: z.enum(["ok", "partial", "unsupported", "blocked", "failed"]),
+  reason: z.string().optional(),
+  markdown: z.string(),
+  truncated: z.boolean(),
+  completeness: z.enum(["full", "partial", "none"]),
+  remaining: remainingSchema,
+});
+
 export type RetrievalOutcome =
   "ok" | "partial" | "unsupported" | "blocked" | "failed";
 
@@ -18,30 +35,3 @@ export interface ReadSourceResult {
   /** Whether the fetched source was sufficiently readable to support absence claims. */
   completeness: "full" | "partial" | "none";
 }
-
-export interface SourceCandidate {
-  url: string;
-  title: string;
-}
-
-export interface DiscoverSourcesResult {
-  query: string;
-  candidates: SourceCandidate[];
-  retrievedAt: string;
-  modelCostUsd: number | null;
-  searchCostUsd: number;
-  inputTokens: number;
-  outputTokens: number;
-  /** False when attempts or provider token counts are unaccounted for. */
-  usageComplete?: boolean;
-  cachedInputTokens?: number | null;
-  reasoningTokens?: number | null;
-}
-
-export type KnownSourceLink = {
-  url: string;
-  owner: "event" | "occurrence";
-  kind: string;
-  official: boolean;
-  editionKey?: string;
-};

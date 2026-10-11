@@ -7,7 +7,7 @@ import {
   UnsafeSourceError,
   type LookupHost,
 } from "./network";
-import { readSource } from "./read-source";
+import { readSource } from "./read-source/read";
 
 const publicAddress = { address: "8.8.8.8", family: 4 };
 const resolver = vi.fn<LookupHost>(async () => [publicAddress]);

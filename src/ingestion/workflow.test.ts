@@ -25,7 +25,7 @@ import * as applyModule from "@/catalog/write/apply-operation";
 import * as runTraceModule from "./runtime/tracing";
 import type { CatalogRunTrace } from "./runtime/tracing";
 import { RunPersistenceError } from "./runs";
-import { discoverSources } from "./sources/discover-sources";
+import { discoverSources } from "./tools/discover-sources/search";
 import { DEFAULT_RESEARCH_LIMITS } from "./runtime/budget";
 import { join, dirname } from "node:path";
 import { existsSync } from "node:fs";
@@ -67,7 +67,7 @@ const runCatalogResearch: typeof executeResearch = async (input, deps) => {
 };
 import type { ResearchCandidate } from "./research/contracts";
 import { ResearchLimitError } from "./runtime/budget";
-import type { ReadSourceResult } from "./sources/contracts";
+import type { ReadSourceResult } from "./tools/read-source/contracts";
 
 const url = "https://example.org/example-fest";
 const source: ReadSourceResult = {
@@ -253,7 +253,7 @@ test("discovery shares search limits while model calls remain accounting", async
     modelCalls: 3,
     inputTokens: 14,
     outputTokens: 18,
-    modelCostUsd: null,
+    modelCostUsd: 0.2,
     searchCostUsd: 0.4,
   });
 });

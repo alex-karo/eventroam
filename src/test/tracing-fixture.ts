@@ -7,8 +7,8 @@ import { openDatabase } from "../db/connection";
 import { testFixtures } from "./fixtures";
 import { runCatalogResearch } from "../ingestion/workflow";
 import { DEFAULT_RESEARCH_LIMITS } from "../ingestion/runtime/budget";
-import { readSource } from "../ingestion/sources/read-source";
-import { discoverSources } from "../ingestion/sources/discover-sources";
+import { readSource } from "../ingestion/tools/read-source/read";
+import { discoverSources } from "../ingestion/tools/discover-sources/search";
 
 export const TRACE_PUBLIC_MARKER = "PUBLIC_FESTIVAL";
 export const TRACE_PUBLIC_URL = `https://example.org/${TRACE_PUBLIC_MARKER}?token=public-value#programme`;

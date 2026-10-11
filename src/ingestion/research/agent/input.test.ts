@@ -3,7 +3,7 @@ import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { createResearchBudget } from "../../runtime/budget";
-import type { ReadSourceResult } from "../../sources/contracts";
+import type { ReadSourceResult } from "../../tools/read-source/contracts";
 import { modelContext, promptFor } from "./input";
 
 const source: ReadSourceResult = {

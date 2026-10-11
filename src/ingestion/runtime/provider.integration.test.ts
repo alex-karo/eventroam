@@ -24,7 +24,7 @@ const runCatalogResearch: typeof executeResearch = async (input, deps) => {
   expect(result.usage.searchCostBasis).toBe("estimate");
   return result;
 };
-import type { ReadSourceResult } from "../sources/contracts";
+import type { ReadSourceResult } from "../tools/read-source/contracts";
 
 const url = "https://example.org/provider-fixture";
 const eventId = "provider-fest";
@@ -467,7 +467,7 @@ test.each([
       outputTokens: 101,
       cachedInputTokens: searchDetails ? 21 : null,
       reasoningTokens: searchDetails ? 37 : null,
-      modelCostUsd: searchDetails && searchAttempts === 1 ? 1 : null,
+      modelCostUsd: searchDetails ? 1 : 0.875,
       searchCostUsd: 0.25,
     });
     expect(requests[2].tools).toEqual(
@@ -736,7 +736,7 @@ test.each(["http", "abort", "context"])(
       cachedInputTokens: 6,
       reasoningTokens: 12,
       complete: false,
-      modelCostUsd: null,
+      modelCostUsd: 0.125,
     });
     expect(result.operations).toEqual([]);
     if (failure === "context") {
@@ -802,6 +802,8 @@ test("provider unavailable retries preserve ordinary agent capacity and call acc
   expect(fetchMock).toHaveBeenCalledTimes(2);
   expect(result.usage.modelCalls).toBe(2);
   expect(result.usage.inputTokens).toBe(10);
+  expect(result.usage.complete).toBe(false);
+  expect(result.usage.modelCostUsd).toBe(0);
   expect(result.errors).toEqual([]);
 }, 15_000);
 
@@ -842,9 +844,15 @@ test("retry allowance cannot add ordinary agent iterations", async () => {
   );
 }, 15_000);
 
-test.each([undefined, 0, 0.125])(
-  "keeps cost %s distinct from an unavailable total",
-  async (cost) => {
+test.each([
+  [undefined, 0, 0],
+  [0, 0, 0],
+  [0.125, 0, 0.125],
+  [undefined, undefined, null],
+  [undefined, 0.125, 0.125],
+])(
+  "sums known step costs %s and %s as %s",
+  async (cost, finalCost, expectedCost) => {
     const client = testDatabase().client;
     savedSource(client);
     vi.stubGlobal(
@@ -857,7 +865,9 @@ test.each([undefined, 0, 0.125])(
             cost,
           }),
         )
-        .mockImplementationOnce(finalResponse(finalStepUsage)),
+        .mockImplementationOnce(
+          finalResponse({ ...finalStepUsage, cost: finalCost }),
+        ),
     );
     const result = await runCatalogResearch(input, {
       client,
@@ -874,14 +884,47 @@ test.each([undefined, 0, 0.125])(
       outputTokens: 57,
       cachedInputTokens: 10,
       reasoningTokens: 21,
-      modelCostUsd: cost ?? null,
+      modelCostUsd: expectedCost,
     });
     expect(result.errors).toEqual([]);
   },
 );
 
+test("a final step without cost preserves earlier cost and complete token counts", async () => {
+  const client = testDatabase().client;
+  savedSource(client);
+  const withoutCost = { ...finalStepUsage, cost: undefined };
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        modelResponse(readCall(), { ...stepUsage, cost: 0.125 }),
+      )
+      .mockImplementationOnce(finalResponse(withoutCost)),
+  );
+  const result = await runCatalogResearch(input, {
+    client,
+    config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
+    readSource: async (requestedUrl) => ({
+      ...source,
+      attemptedUrl: requestedUrl,
+      finalUrl: requestedUrl,
+    }),
+  });
+  expect(result.usage).toMatchObject({
+    complete: true,
+    inputTokens: 33,
+    outputTokens: 57,
+    cachedInputTokens: 10,
+    reasoningTokens: 21,
+    modelCostUsd: 0.125,
+  });
+  expect(result.errors).toEqual([]);
+});
+
 test.each([undefined, {}])(
-  "a final response without token counts (%s) preserves earlier tokens and marks the total partial",
+  "a final response without token counts (%s) retains known usage and marks tokens partial",
   async (usage) => {
     const client = testDatabase().client;
     savedSource(client);
@@ -905,7 +948,7 @@ test.each([undefined, {}])(
       complete: false,
       inputTokens: 10,
       outputTokens: 20,
-      modelCostUsd: null,
+      modelCostUsd: 0,
     });
   },
 );
@@ -1215,7 +1258,7 @@ test("completed tool step usage survives a later provider failure", async () => 
       inputTokens: 10,
       outputTokens: 20,
       complete: false,
-      modelCostUsd: null,
+      modelCostUsd: 0.125,
       cachedInputTokens: null,
       reasoningTokens: null,
     },

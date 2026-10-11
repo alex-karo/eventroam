@@ -54,11 +54,15 @@ test("CLI marks partial tokens and renders unknown cost separately from zero", (
   partial.usage.outputTokens = 20;
   const text = formatCatalogReport([partial], true);
   expect(text).toContain("tokens: 10/20 (partial)");
-  expect(text).toContain("model USD: unavailable");
+  expect(text).toContain("known model USD: unavailable");
+  partial.usage.modelCostUsd = 0.125;
+  expect(formatCatalogReport([partial], true)).toContain(
+    "known model USD: 0.125;",
+  );
   partial.usage.complete = true;
   partial.usage.modelCostUsd = 0;
   expect(formatCatalogReport([partial], true)).toContain("tokens: 10/20;");
-  expect(formatCatalogReport([partial], true)).toContain("model USD: 0;");
+  expect(formatCatalogReport([partial], true)).toContain("known model USD: 0;");
 });
 
 test("CLI targets an Event and starts fresh research for dry-run and apply", async () => {

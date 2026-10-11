@@ -14,7 +14,7 @@ import {
   reportEventId,
 } from "./workflow-logging";
 import { RunPersistenceError } from "./runs";
-import type { SourceSession } from "./sources/session";
+import type { SourceSession } from "./tools/session";
 import {
   buildResearchReport,
   buildWorkflowFailureReport,

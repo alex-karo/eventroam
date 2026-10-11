@@ -7,12 +7,10 @@ import type { DuckDBStore } from "@mastra/duckdb";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 import type { ResearchBudget, ResearchLimits } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
-import type { readSource } from "./sources/read-source";
-import type { discoverSources } from "./sources/discover-sources";
-import type {
-  ReadSourceResult,
-  DiscoverSourcesResult,
-} from "./sources/contracts";
+import type { readSource } from "./tools/read-source/read";
+import type { discoverSources } from "./tools/discover-sources/search";
+import type { ReadSourceResult } from "./tools/read-source/contracts";
+import type { DiscoverSourcesResult } from "./tools/discover-sources/contracts";
 import type {
   ResearchError,
   ResearchQuestion,
@@ -73,6 +71,7 @@ export type CatalogResearchResult = {
     outputTokens: number;
     cachedInputTokens?: number | null;
     reasoningTokens?: number | null;
+    /** Sum of reported model costs; may be partial. Null when none are known. */
     modelCostUsd: number | null;
     searchCostUsd: number;
     searchCostBasis?: "estimate";

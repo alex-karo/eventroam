@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { MastraTimeoutError } from "@mastra/core/loop";
-import { classifyModelError } from "./errors";
-import { ResearchLimitError } from "../../runtime/budget";
+import { classifyModelError } from "./model-errors";
+import { ResearchLimitError } from "./budget";
 
 test("nested model errors retain only bounded diagnostic metadata", () => {
   const secret = "PRIVATE_PROVIDER_TOKEN";

@@ -386,7 +386,7 @@ test.each([
     if (scenario === "mistaken") {
       expect(traced.result.usage).toMatchObject({
         complete: false,
-        modelCostUsd: null,
+        modelCostUsd: 0,
       });
     }
     if (scenario === "target") {

@@ -1,12 +1,11 @@
 import type { CatalogResearchInput } from "../../contracts";
 import type { ResearchBudget } from "../../runtime/budget";
-import type {
-  KnownSourceLink,
-  ReadSourceResult,
-} from "../../sources/contracts";
+import type { KnownSourceLink } from "../../tools/contracts";
+import type { ReadSourceResult } from "../../tools/read-source/contracts";
 import type { ResearchCatalog } from "../context";
 import { minorToMajor } from "../money";
 import { researchInstructions } from "./prompt";
+import { boundedToolSource } from "../../tools/read-source/response";
 
 export function promptFor(
   input: CatalogResearchInput,
@@ -90,31 +89,5 @@ export function modelContext(target: ResearchCatalog[number]) {
       }
       return { ...rest, tickets: { variants: priceDetails, basePrice } };
     }),
-  };
-}
-
-function safeSource(read: ReadSourceResult) {
-  return {
-    attemptedUrl: read.attemptedUrl,
-    finalUrl: read.finalUrl,
-    retrievedAt: read.retrievedAt,
-    outcome: read.outcome,
-    ...(read.reason ? { reason: read.reason } : {}),
-  };
-}
-
-export function boundedToolSource(read: ReadSourceResult, maxChars = 80_000) {
-  const markdownBudget = Math.max(1_000, maxChars - 300);
-  let markdown = read.markdown;
-  if (markdown.length > markdownBudget) {
-    const boundary = markdown.lastIndexOf("\n\n", markdownBudget);
-    markdown = markdown.slice(0, boundary > 0 ? boundary : markdownBudget);
-  }
-  return {
-    ...safeSource(read),
-    markdown,
-    truncated: markdown.length < read.markdown.length,
-    completeness:
-      markdown.length < read.markdown.length ? "partial" : read.completeness,
   };
 }
