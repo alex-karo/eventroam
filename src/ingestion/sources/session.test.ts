@@ -74,26 +74,27 @@ test("saved and discovered URLs start at depth zero; followed links keep their d
   });
 });
 
-test("discovery cannot spend the reserved final call during a retry", async () => {
-  const budget = createResearchBudget({ modelCalls: 2 });
+test("discovery calls share search limits without reserving model capacity", async () => {
+  const budget = createResearchBudget({ searches: 2 });
   const config = { apiKey: "fixture", model: "fixture", limits: budget.limits };
   const sources = createSourceSession(budget, config, [], {
-    discoverSources: async (_query, options) => {
+    discoverSources: async (query, options) => {
       options.budget.consumeSearch();
       options.budget.consumeModelCall();
-      options.budget.consumeSearch();
-      options.budget.consumeModelCall();
-      throw new Error("Must not reach the second provider request");
+      return {
+        query,
+        candidates: [],
+        retrievedAt: new Date().toISOString(),
+        modelCostUsd: null,
+        searchCostUsd: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+      };
     },
   });
-  expect(await sources.discoverSources("Festival")).toMatchObject({
-    candidates: [],
-    modelCostUsd: null,
-    searchCostUsd: 0,
-  });
-  expect(sources.discovery).toEqual([]);
-  expect(budget.snapshot()).toMatchObject({ searches: 2, modelCalls: 1 });
-  expect(budget.remaining().modelCalls).toBe(1);
+  await sources.discoverSources("Festival");
+  await sources.discoverSources("Festival tickets");
+  expect(budget.snapshot()).toMatchObject({ searches: 2, modelCalls: 2 });
 });
 
 test("initial read suppresses only budget limits, leaving other exceptions visible", async () => {
@@ -101,7 +102,7 @@ test("initial read suppresses only budget limits, leaving other exceptions visib
   const config = { apiKey: "fixture", model: "fixture", limits: budget.limits };
   const readSource = vi
     .fn<NonNullable<ResearchDependencies["readSource"]>>()
-    .mockRejectedValueOnce(new ResearchLimitError("pages"))
+    .mockRejectedValueOnce(new ResearchLimitError("depth"))
     .mockRejectedValueOnce(new Error("Source adapter failed"));
   const sources = createSourceSession(budget, config, knownLinks, {
     readSource,
@@ -111,28 +112,6 @@ test("initial read suppresses only budget limits, leaving other exceptions visib
     "Source adapter failed",
   );
   expect(sources.reads).toEqual([]);
-});
-
-test("does not wait for a search retry that would spend the reserved final call", async () => {
-  vi.useFakeTimers();
-  const fetchMock = vi
-    .fn<typeof fetch>()
-    .mockResolvedValue(new Response(null, { status: 429 }));
-  vi.stubGlobal("fetch", fetchMock);
-  const budget = createResearchBudget({ modelCalls: 2 });
-  const sources = createSourceSession(
-    budget,
-    { apiKey: "fixture", model: "fixture", limits: budget.limits },
-    [],
-    {},
-  );
-  expect(await sources.discoverSources("Festival tickets")).toMatchObject({
-    candidates: [],
-  });
-  expect(fetchMock).toHaveBeenCalledTimes(1);
-  expect(vi.getTimerCount()).toBe(0);
-  expect(budget.snapshot()).toMatchObject({ searches: 1, modelCalls: 1 });
-  expect(budget.remaining().modelCalls).toBe(1);
 });
 
 test("cache observations belong to each call, including concurrent duplicates and redirect aliases", async () => {

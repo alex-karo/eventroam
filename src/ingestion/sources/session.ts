@@ -31,7 +31,6 @@ export function createSourceSession(
   const inFlight = new Map<string, Promise<ReadSourceResult>>();
   const depthByUrl = new Map<string, number>();
   const discovery: DiscoverSourcesResult[] = [];
-  const reservedSearches = new WeakSet<DiscoverSourcesResult>();
   const read = async (
     url: string,
     operation: SourceLogContext & { tool?: boolean } = {},
@@ -152,45 +151,14 @@ export function createSourceSession(
       }
       return result;
     };
-    const reservedResult = () => {
-      const result = {
-        query,
-        candidates: [],
-        retrievedAt: new Date().toISOString(),
-        modelCostUsd: null,
-        searchCostUsd: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-      };
-      reservedSearches.add(result);
-      return finished(result, "not_run");
-    };
-    if (budget.remaining().modelCalls <= 1) {
-      return reservedResult();
-    }
     let result: DiscoverSourcesResult;
     try {
       result = await (deps.discoverSources ?? discoverSources)(query, {
-        budget: {
-          ...budget,
-          remaining: () => ({
-            ...budget.remaining(),
-            modelCalls: Math.max(0, budget.remaining().modelCalls - 1),
-          }),
-          consumeModelCall: (inputChars) => {
-            if (budget.remaining().modelCalls <= 1) {
-              throw new ResearchLimitError("modelCalls");
-            }
-            budget.consumeModelCall(inputChars);
-          },
-        },
+        budget,
         config,
         log: operationLog,
       });
     } catch (error) {
-      if (error instanceof ResearchLimitError && error.limit === "modelCalls") {
-        return reservedResult();
-      }
       if (!operation.tool) {
         operationLog?.warn("Source discovery finished", {
           query,
@@ -238,8 +206,6 @@ export function createSourceSession(
     discoverSources: search,
     readInitialSource,
     initialUrl,
-    wasSearchReserved: (result: DiscoverSourcesResult) =>
-      reservedSearches.has(result),
     isReadCached: (url: string) => {
       const key = new URL(url).toString();
       return (

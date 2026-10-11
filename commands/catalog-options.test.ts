@@ -3,12 +3,18 @@ import { parseCatalogOptions } from "./catalog-options";
 
 test("commands default to dry-run and retain bounded overrides", () => {
   expect(
-    parseCatalogOptions(["refresh", "--event", "event-id", "--pages", "4"]),
+    parseCatalogOptions([
+      "refresh",
+      "--event",
+      "event-id",
+      "--agent-steps",
+      "4",
+    ]),
   ).toMatchObject({
     mode: "refresh",
     dryRun: true,
     eventIds: ["event-id"],
-    limits: { pages: 4 },
+    limits: { agentSteps: 4 },
     republish: false,
   });
   expect(
@@ -24,12 +30,14 @@ test("commands default to dry-run and retain bounded overrides", () => {
 
 test("ambiguous commands fail before opening the database or calling a model", () => {
   for (const args of [
+    ["check", "--event", "id", "--pages", "4"],
+    ["check", "--event", "id", "--model-calls", "4"],
     ["check"],
     ["refresh"],
     ["check", "--occurrence", "edition-id"],
     ["add", "--name", "Test", "--event", "id"],
     ["check", "--event", "id", "--apply", "--dry-run"],
-    ["check", "--event", "id", "--pages", "-1"],
+    ["check", "--event", "id", "--agent-steps", "-1"],
     ["add", "--name", "Test", "--url", "https://example.org"],
   ]) {
     expect(() => parseCatalogOptions(args)).toThrow();

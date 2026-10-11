@@ -149,9 +149,6 @@ async function waitBeforeRetry(
   if (remaining.searches === 0) {
     throw new ResearchLimitError("searches");
   }
-  if (remaining.modelCalls === 0) {
-    throw new ResearchLimitError("modelCalls");
-  }
   const now = (options.now?.() ?? new Date()).getTime();
   const seconds =
     retryAfter !== null && /^\d+(?:\.\d+)?$/.test(retryAfter.trim())

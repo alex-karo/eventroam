@@ -13,11 +13,13 @@ import { SpanType } from "@mastra/core/observability";
 import { DuckDBStore } from "@mastra/duckdb";
 import {
   createResearchObservability,
+  createRunObservability,
   finishResearchObservability,
+  finishRunObservability,
   ResearchObservabilityExporter,
 } from "./runtime";
 import { researchSpanProcessor } from "../tracing/processor";
-import { observabilityDatabasePath } from "./storage";
+import { createObservabilityStore, observabilityDatabasePath } from "./storage";
 import { readTraceRows } from "@/test/tracing-fixture";
 
 const directories: string[] = [];
@@ -45,6 +47,34 @@ test("tracing defaults off and never opens storage", async () => {
     ),
   ).toBeUndefined();
   expect(existsSync(path)).toBe(false);
+});
+
+test("a registered run leaves its caller-owned observability store open", async () => {
+  vi.stubEnv("CATALOG_LOGGING", "true");
+  vi.stubEnv("CATALOG_TRACING", "false");
+  vi.stubEnv(
+    "CATALOG_OBSERVABILITY_DATABASE_PATH",
+    join(directory(), "shared.duckdb"),
+  );
+  const store = await createObservabilityStore();
+  await store.init();
+  const close = vi.spyOn(store, "close");
+  try {
+    const run = await createRunObservability(
+      { mode: "add", name: "Fixture", actor: "catalog-research", dryRun: true },
+      "fixture/model",
+      "shared-run",
+      true,
+      [],
+      store,
+    );
+    expect(run).toBeDefined();
+    await finishRunObservability(run);
+    expect(close).not.toHaveBeenCalled();
+    expect(await store.getStore("observability")).toBeTruthy();
+  } finally {
+    await store.close();
+  }
 });
 
 test("the shared local path is absolute and cannot select the catalog", () => {

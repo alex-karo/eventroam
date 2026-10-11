@@ -48,7 +48,7 @@ export function providerUnavailableRetry(
       if (!isProviderUnavailable(args.error)) {
         return;
       }
-      budget.refundModelCall();
+      budget.assertTime();
       onUnavailable();
       // Mastra resets retryCount after a successful step; cap the entire run.
       if (retries >= MAX_PROVIDER_UNAVAILABLE_RETRIES) {

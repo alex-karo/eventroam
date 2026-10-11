@@ -29,6 +29,9 @@ Website:
 
 ## Archived changes
 
+- [Studio ingestion execution](../openspec/changes/archive/2026-10-11-expose-ingestion-in-studio/proposal.md) — shared CLI/Studio execution, native workflow state, preview defaults and isolated durable runs.
+
+- [Mastra ingestion workflow](../openspec/changes/archive/2026-10-10-use-mastra-ingestion-workflow/proposal.md) — implemented explicit ingestion steps with compatible run lifecycle and reporting.
 - [Clearer discovery filters](../openspec/changes/archive/2026-10-11-improve-discovery-filter-feedback/proposal.md) — readable value chips, pending result counts, searchable locations, and nearby-month buttons.
 
 - [Selective research logging](../openspec/changes/archive/2026-10-10-selective-research-logging/proposal.md) — migration to Mastra PinoLogger, explicit logging/tracing fields and durable Studio diagnostics.
