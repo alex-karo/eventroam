@@ -244,7 +244,7 @@ export async function createRunObservability(
     tracing.diagnose("trace_initialization_failed");
     if (mastra) {
       if (tracing.sharedStore) {
-        await boundedCleanup(() => tracing.observability.shutdown());
+        await shutdownSharedObservability(tracing);
       } else {
         await finishResearchObservability(mastra, tracing.diagnose);
       }
@@ -278,13 +278,20 @@ export async function finishRunObservability(tracing?: RunObservability) {
     } catch {
       tracing.diagnose("trace_flush_failed");
     }
-    try {
-      await boundedCleanup(() => tracing.observability.shutdown());
-    } catch {
-      tracing.diagnose("trace_shutdown_failed");
-    }
+    await shutdownSharedObservability(tracing);
   } else {
     await finishResearchObservability(tracing.mastra, tracing.diagnose);
+  }
+}
+
+async function shutdownSharedObservability(tracing: {
+  observability: Observability;
+  diagnose: Diagnose;
+}) {
+  try {
+    await boundedCleanup(() => tracing.observability.shutdown());
+  } catch {
+    tracing.diagnose("trace_shutdown_failed");
   }
 }
 
