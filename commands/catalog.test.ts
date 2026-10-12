@@ -104,6 +104,29 @@ test("CLI targets an Event and starts fresh research for dry-run and apply", asy
   });
 });
 
+test("CLI exits nonzero for validation rejection after successful research", async () => {
+  const database = testDatabase();
+  const fx = testFixtures();
+  const event = fx.event();
+  const rejected = {
+    ...result(),
+    outcome: "failed" as const,
+    errors: [
+      {
+        code: "limit_reached" as const,
+        stage: "validation" as const,
+        message: "Full refresh exceeds the Edition limit",
+      },
+    ],
+  };
+  expect(
+    await executeCatalogCommand(
+      ["refresh", "--event", event.id, "--database", database.path],
+      { research: async () => rejected, stdout: vi.fn() },
+    ),
+  ).toBe(1);
+});
+
 test("add starts without a named owner and retains the research actor", async () => {
   const database = testDatabase();
   const research = vi.fn<typeof runCatalogResearch>(async () => result());

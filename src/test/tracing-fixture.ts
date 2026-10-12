@@ -21,6 +21,7 @@ export type TraceFixtureScenario =
   | "mistaken"
   | "recovered"
   | "invalid"
+  | "invalid_editor"
   | "invalid_dates"
   | "dates"
   | "unchanged"
@@ -157,6 +158,9 @@ export async function runTraceFixture(
     }
     providerInputs.push(String(init?.body));
     requests++;
+    const editorCandidate = fixtureEditorForProvider(
+      JSON.parse(String(init?.body)),
+    );
     if (requests === 2 && ending === "http") {
       return Response.json(
         { error: { message: TRACE_TRANSPORT } },
@@ -221,9 +225,15 @@ export async function runTraceFixture(
                 : {
                     role: "assistant",
                     content: JSON.stringify(
-                      fixtureEditorForProvider(
-                        JSON.parse(String(init?.body)),
-                      ) ??
+                      (editorCandidate && scenario === "invalid_editor"
+                        ? {
+                            ...editorCandidate,
+                            event: {
+                              target: { eventId: "other-event" },
+                              fields: {},
+                            },
+                          }
+                        : editorCandidate) ??
                         wireFixture(
                           candidate,
                           JSON.parse(String(init?.body)).response_format

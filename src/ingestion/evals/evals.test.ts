@@ -31,6 +31,37 @@ const tomorrowland = byId.get("tomorrowland")!;
 const wacken = byId.get("wacken")!;
 const blocked = byId.get("afro-nation-portugal-blocked")!;
 
+test.each(["editor-wrong-year", "editor-day-ticket", "editor-valid-update"])(
+  "%s forbids clearing saved historical dates as well as replacing them",
+  (id) => {
+    const item = byId.get(id)!;
+    const saved = item.initial.event.editions.find(
+      (edition) => edition.editionKey === "source-row",
+    )!;
+    for (const field of ["starts_on", "ends_on"]) {
+      for (const newValue of [null, "2027-01-01"]) {
+        const changed = {
+          ...result(),
+          changes: [
+            {
+              subject: saved.id,
+              field,
+              oldValue: "2026-01-01",
+              newValue,
+              explanations: [],
+            },
+          ],
+        };
+        expect(
+          item.expectations.forbidden.some((assertion) =>
+            assertionMatches(item, changed, assertion),
+          ),
+        ).toBe(true);
+      }
+    }
+  },
+);
+
 test("empty change assertions need explicit research expectations", () => {
   expect(blocked.provenance?.kind).toBe(
     "captured-http-metadata-synthetic-replay",

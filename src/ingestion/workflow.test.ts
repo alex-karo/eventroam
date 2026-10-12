@@ -148,6 +148,7 @@ function fakeTrace() {
     state: { writeState: "not_attempted" },
     update: vi.fn(),
     validated: vi.fn(),
+    editorValidated: vi.fn(),
     failed: vi.fn(),
     finish,
     terminalFailed,

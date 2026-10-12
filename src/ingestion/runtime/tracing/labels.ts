@@ -144,8 +144,10 @@ export function runTraceLabel(
 export type TraceWriteState =
   "committed" | "rolled_back" | "unchanged" | "not_attempted" | "unknown";
 export type TraceRunState = {
+  // These two checks describe research; editor actions are checked separately.
   structuralValidation: "passed" | "failed" | "not_run";
   targetValidation: "passed" | "failed" | "not_run";
+  editorPlanValidation: "passed" | "failed" | "not_run";
   writeState: TraceWriteState;
   errorCode?:
     | "validation_failed"

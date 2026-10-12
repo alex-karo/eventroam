@@ -411,6 +411,9 @@ test("full rejects a new Edition when the complete saved/new union exceeds 20", 
   });
   expect(generate).toHaveBeenCalledOnce();
   expect(result.errors[0].code).toBe("limit_reached");
+  expect(result.outcome).toBe("failed");
+  expect(result.researchStatus).toBe("success");
+  expect(result.editorStatus).toBe("not_run");
   expect(result.workload.savedEditions).toBe(20);
   expect(result.operations).toEqual([]);
   noWrites(f.client);

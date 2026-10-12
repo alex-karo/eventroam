@@ -1,0 +1,2663 @@
+{
+  "schemaVersion": 5,
+  "startedAt": "2026-10-11T23:48:24.786Z",
+  "finishedAt": "2026-10-11T23:54:16.636Z",
+  "fixtureTodayUtc": "2026-10-03",
+  "fixtureSha256": "a97360c941c8fb0e047be69ccffdedb8fd17d9d2cd88cb64eaf9edb12619e994",
+  "fixtureProvenance": {
+    "kind": "captured",
+    "sourceReport": "docs/research/2026-10-03-source-workflow-validation.md#five-additional-deepseek-refresh-dry-runs",
+    "note": "The original five cases used homepages fetched on 2026-10-03; continuous Markdown produced by the production reader. Follow-up pages were captured via readSource with rendering disabled. Those cases store at most four pages including each homepage: Tomorrowland 3, Wacken 3, Roskilde 4, Sziget 4, Glastonbury 1. Empty responses, navigation-only new pages, and redirects back to the homepage were excluded. Original Sziget tickets retains its partial HTTP outcome; travel supports Budapest, Hungary. Their expectations are unchanged from the preceding Sziget-expanded suite. Capture timestamps and outcomes are stored per source. Fixtures store page content once; traversal/provenance links are derived from Markdown during replay. No live website/search fallback during evals. Roskilde ticket-sale news was replaced on 2026-10-04 with an HTTP-only contact-page capture distinguishing venue and office addresses; its location expectations were revised accordingly. The Afro Nation Portugal case has its own 2026-10-08 capture date and provenance."
+  },
+  "modelVersion": "openai/gpt-6-luna",
+  "reasoningEffort": "medium",
+  "promptVersion": "editor-findings-v1",
+  "mastra": {
+    "scores": {
+      "catalog-correctness": 0.6,
+      "catalog-completeness": 0.6,
+      "research-completeness": 1
+    },
+    "summary": {
+      "totalItems": 5
+    }
+  },
+  "results": [
+    {
+      "caseId": "editor-wrong-year",
+      "repetition": 1,
+      "fixtureTodayUtc": "2026-10-03",
+      "fixtureProvenance": {
+        "kind": "captured-source-editor-regression",
+        "sourceReport": "src/ingestion/evals/cases/wacken/case.json",
+        "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
+      },
+      "runId": "6041dbbf-eba2-4937-8f9c-39dea660baa9",
+      "outcome": "failed",
+      "researchStatus": "partial",
+      "score": {
+        "correctness": 0,
+        "completeness": 0,
+        "research": null,
+        "passed": false,
+        "required": [
+          {
+            "assertion": {
+              "owner": "event",
+              "field": "links",
+              "containsAny": [
+                {
+                  "url": "https://www.wacken.com/de/",
+                  "kind": "official_site"
+                },
+                {
+                  "url": "https://www.wacken.com/en/",
+                  "kind": "official_site"
+                },
+                {
+                  "url": "https://www.wacken.com/",
+                  "kind": "official_site"
+                }
+              ]
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "starts_on",
+              "value": "2027-07-28"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "ends_on",
+              "value": "2027-07-31"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "date_state",
+              "value": "confirmed"
+            },
+            "matched": false
+          }
+        ],
+        "forbidden": [
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "country_code",
+              "notValue": "DE"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "starts_on"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "ends_on"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "starts_on",
+              "value": null
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "ends_on",
+              "value": null
+            },
+            "matched": false
+          }
+        ],
+        "reasons": {
+          "missingRequired": [
+            {
+              "owner": "event",
+              "field": "links",
+              "containsAny": [
+                {
+                  "url": "https://www.wacken.com/de/",
+                  "kind": "official_site"
+                },
+                {
+                  "url": "https://www.wacken.com/en/",
+                  "kind": "official_site"
+                },
+                {
+                  "url": "https://www.wacken.com/",
+                  "kind": "official_site"
+                }
+              ]
+            },
+            {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "starts_on",
+              "value": "2027-07-28"
+            },
+            {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "ends_on",
+              "value": "2027-07-31"
+            },
+            {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "date_state",
+              "value": "confirmed"
+            }
+          ],
+          "violatedForbidden": [],
+          "workflowFailed": true,
+          "expectedFailureMissing": false
+        }
+      },
+      "usage": {
+        "searches": 3,
+        "pages": 7,
+        "modelCalls": 6,
+        "elapsedMs": 174688,
+        "remaining": {
+          "searches": 0,
+          "durationMs": 125312
+        },
+        "complete": false,
+        "searchCostBasis": "estimate",
+        "inputTokens": 61242,
+        "outputTokens": 4735,
+        "cachedInputTokens": null,
+        "reasoningTokens": null,
+        "modelCostUsd": 0.002256535,
+        "searchCostUsd": 0
+      },
+      "durationMs": 174688,
+      "modelVersion": "openai/gpt-6-luna",
+      "reasoningEffort": "medium",
+      "promptVersion": "editor-findings-v1",
+      "modelResponse": {
+        "text": "{\"status\":\"partial\",\"data\":{\"eventId\":\"festivalnetwork:event:792d44feb71838d4b28b\",\"eventName\":\"Wacken Open Air\",\"reason\":null,\"sources\":[{\"url\":\"https://www.wacken.com/de/\",\"information\":\"The official Wacken Open Air site identifies the festival, links to its official YouTube channel and 2027 ticketing, and reports on the 2026 edition. Its homepage gives 28–31 July 2027 and describes four days of concerts.\"},{\"url\":\"https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/\",\"information\":\"Official 2027 ticket overview lists the Louder ticket at €364 plus a €2 fee, the age-restricted Younger ticket at €279 plus a €2 fee, and The Pit ticket at €1,399; it describes The Pit upgrade separately.\"}],\"summary\":{\"value\":\"Wacken Open Air is a metal festival featuring four days of concerts.\",\"reason\":\"The official site describes the W:O:A as a metal community and the 2027 festival as four days of concerts.\"},\"links\":{\"website\":\"https://www.wacken.com/de/\",\"socials\":{\"instagram\":null,\"facebook\":null,\"youtube\":\"https://www.youtube.com/channel/UCvQT6N9nu2BJ-lJuMg1jEZQ\",\"tiktok\":null,\"x\":null,\"other\":null}},\"editions\":[{\"key\":\"source-row\",\"year\":{\"value\":2026,\"reason\":\"The official homepage identifies W:O:A 2026 and reports that its 35th-anniversary edition had an official aftermovie; the year is verified, but the saved dates could not be rechecked.\"},\"dates\":null,\"scheduleStatus\":null,\"displayName\":null,\"venueName\":null,\"venueAddress\":null,\"locality\":null,\"administrativeArea\":null,\"countryCode\":null,\"coordinates\":null,\"sizeEstimate\":null,\"classification\":null,\"tickets\":null,\"links\":{\"tickets\":null}},{\"key\":\"2027\",\"year\":{\"value\":2027,\"reason\":\"The official homepage and 2027 ticket overview identify the upcoming Wacken Open Air edition as 2027.\"},\"dates\":{\"value\":{\"startsOn\":\"2027-07-28\",\"endsOn\":\"2027-07-31\",\"state\":\"confirmed\"},\"reason\":\"The official homepage and ticket overview both display the festival dates as 28–31 July 2027.\"},\"scheduleStatus\":{\"value\":\"scheduled\",\"reason\":\"The official site lists specific 2027 festival dates and offers edition-specific tickets.\"},\"displayName\":null,\"venueName\":null,\"venueAddress\":null,\"locality\":null,\"administrativeArea\":null,\"countryCode\":null,\"coordinates\":null,\"sizeEstimate\":null,\"classification\":{\"add\":{\"value\":[\"validation:festival\",\"validation:openair\",\"validation:music\",\"festivalnetwork:term:genre:metal\"],\"reason\":\"The official site presents Wacken Open Air as a festival, promotes four days of concerts, and identifies its metal community.\"},\"remove\":null},\"tickets\":{\"value\":{\"variants\":[{\"label\":\"Louder Ticket\",\"amount\":364,\"currency\":\"EUR\",\"terms\":\"Plus €2 ticket fee.\",\"availability\":null,\"url\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets\"},{\"label\":\"Younger Ticket\",\"amount\":279,\"currency\":\"EUR\",\"terms\":\"Age-restricted ticket for attendees up to and including 25 years old; plus €2 ticket fee.\",\"availability\":null,\"url\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets\"},{\"label\":\"The Pit Ticket\",\"amount\":1399,\"currency\":\"EUR\",\"terms\":\"Premium ticket with additional camping, catering, shuttle and other services.\",\"availability\":null,\"url\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets\"}],\"basePrice\":{\"kind\":\"exact\",\"currency\":\"EUR\",\"minAmount\":364,\"maxAmount\":364,\"coverage\":\"full_programme\",\"qualification\":\"Louder Ticket price; €2 ticket fee extra.\"}},\"reason\":\"The official ticket overview publishes these ticket categories and prices. The Younger Ticket is age-restricted and excluded from the full-programme base price; ticket availability was not verified.\"},\"links\":{\"tickets\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets\"}}]},\"errors\":[{\"code\":\"source_blocked\",\"message\":\"Relevant official history, contact, aftermovie, and campground pages could not be inspected.\",\"url\":\"https://www.wacken.com/de/historie/\",\"editionKey\":null,\"field\":null},{\"code\":\"source_blocked\",\"message\":\"Relevant official history, contact, aftermovie, and campground pages could not be inspected.\",\"url\":\"https://www.wacken.com/de/kontakt/\",\"editionKey\":null,\"field\":null},{\"code\":\"source_blocked\",\"message\":\"Relevant official history, contact, aftermovie, and campground pages could not be inspected.\",\"url\":\"https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/\",\"editionKey\":\"source-row\",\"field\":null},{\"code\":\"source_blocked\",\"message\":\"Relevant official history, contact, aftermovie, and campground pages could not be inspected.\",\"url\":\"https://www.wacken.com/de/camping-travel/woa-campground/\",\"editionKey\":\"2027\",\"field\":null}],\"unresolved\":[{\"message\":\"The full-scope check of the saved 2026 edition remains incomplete: its saved dates and venue/location could not be verified using the accessible official pages. The relevant official history and aftermovie pages were blocked. The accessible sources also did not establish the 2027 venue or location; the relevant campground page was blocked.\",\"editionKey\":\"source-row\",\"field\":null}]}",
+        "object": {
+          "status": "partial",
+          "data": {
+            "eventId": "festivalnetwork:event:792d44feb71838d4b28b",
+            "eventName": "Wacken Open Air",
+            "reason": null,
+            "sources": [
+              {
+                "url": "https://www.wacken.com/de/",
+                "information": "The official Wacken Open Air site identifies the festival, links to its official YouTube channel and 2027 ticketing, and reports on the 2026 edition. Its homepage gives 28–31 July 2027 and describes four days of concerts."
+              },
+              {
+                "url": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
+                "information": "Official 2027 ticket overview lists the Louder ticket at €364 plus a €2 fee, the age-restricted Younger ticket at €279 plus a €2 fee, and The Pit ticket at €1,399; it describes The Pit upgrade separately."
+              }
+            ],
+            "summary": {
+              "value": "Wacken Open Air is a metal festival featuring four days of concerts.",
+              "reason": "The official site describes the W:O:A as a metal community and the 2027 festival as four days of concerts."
+            },
+            "links": {
+              "website": "https://www.wacken.com/de/",
+              "socials": {
+                "instagram": null,
+                "facebook": null,
+                "youtube": "https://www.youtube.com/channel/UCvQT6N9nu2BJ-lJuMg1jEZQ",
+                "tiktok": null,
+                "x": null,
+                "other": null
+              }
+            },
+            "editions": [
+              {
+                "key": "source-row",
+                "year": {
+                  "value": 2026,
+                  "reason": "The official homepage identifies W:O:A 2026 and reports that its 35th-anniversary edition had an official aftermovie; the year is verified, but the saved dates could not be rechecked."
+                },
+                "dates": null,
+                "scheduleStatus": null,
+                "displayName": null,
+                "venueName": null,
+                "venueAddress": null,
+                "locality": null,
+                "administrativeArea": null,
+                "countryCode": null,
+                "coordinates": null,
+                "sizeEstimate": null,
+                "classification": null,
+                "tickets": null,
+                "links": {
+                  "tickets": null
+                }
+              },
+              {
+                "key": "2027",
+                "year": {
+                  "value": 2027,
+                  "reason": "The official homepage and 2027 ticket overview identify the upcoming Wacken Open Air edition as 2027."
+                },
+                "dates": {
+                  "value": {
+                    "startsOn": "2027-07-28",
+                    "endsOn": "2027-07-31",
+                    "state": "confirmed"
+                  },
+                  "reason": "The official homepage and ticket overview both display the festival dates as 28–31 July 2027."
+                },
+                "scheduleStatus": {
+                  "value": "scheduled",
+                  "reason": "The official site lists specific 2027 festival dates and offers edition-specific tickets."
+                },
+                "displayName": null,
+                "venueName": null,
+                "venueAddress": null,
+                "locality": null,
+                "administrativeArea": null,
+                "countryCode": null,
+                "coordinates": null,
+                "sizeEstimate": null,
+                "classification": {
+                  "add": {
+                    "value": [
+                      "validation:festival",
+                      "validation:openair",
+                      "validation:music",
+                      "festivalnetwork:term:genre:metal"
+                    ],
+                    "reason": "The official site presents Wacken Open Air as a festival, promotes four days of concerts, and identifies its metal community."
+                  },
+                  "remove": null
+                },
+                "tickets": {
+                  "value": {
+                    "variants": [
+                      {
+                        "label": "Louder Ticket",
+                        "amount": 364,
+                        "currency": "EUR",
+                        "terms": "Plus €2 ticket fee.",
+                        "availability": null,
+                        "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets"
+                      },
+                      {
+                        "label": "Younger Ticket",
+                        "amount": 279,
+                        "currency": "EUR",
+                        "terms": "Age-restricted ticket for attendees up to and including 25 years old; plus €2 ticket fee.",
+                        "availability": null,
+                        "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets"
+                      },
+                      {
+                        "label": "The Pit Ticket",
+                        "amount": 1399,
+                        "currency": "EUR",
+                        "terms": "Premium ticket with additional camping, catering, shuttle and other services.",
+                        "availability": null,
+                        "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets"
+                      }
+                    ],
+                    "basePrice": {
+                      "kind": "exact",
+                      "currency": "EUR",
+                      "minAmount": 364,
+                      "maxAmount": 364,
+                      "coverage": "full_programme",
+                      "qualification": "Louder Ticket price; €2 ticket fee extra."
+                    }
+                  },
+                  "reason": "The official ticket overview publishes these ticket categories and prices. The Younger Ticket is age-restricted and excluded from the full-programme base price; ticket availability was not verified."
+                },
+                "links": {
+                  "tickets": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets"
+                }
+              }
+            ]
+          },
+          "errors": [
+            {
+              "code": "source_blocked",
+              "message": "Relevant official history, contact, aftermovie, and campground pages could not be inspected.",
+              "url": "https://www.wacken.com/de/historie/",
+              "editionKey": null,
+              "field": null
+            },
+            {
+              "code": "source_blocked",
+              "message": "Relevant official history, contact, aftermovie, and campground pages could not be inspected.",
+              "url": "https://www.wacken.com/de/kontakt/",
+              "editionKey": null,
+              "field": null
+            },
+            {
+              "code": "source_blocked",
+              "message": "Relevant official history, contact, aftermovie, and campground pages could not be inspected.",
+              "url": "https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/",
+              "editionKey": "source-row",
+              "field": null
+            },
+            {
+              "code": "source_blocked",
+              "message": "Relevant official history, contact, aftermovie, and campground pages could not be inspected.",
+              "url": "https://www.wacken.com/de/camping-travel/woa-campground/",
+              "editionKey": "2027",
+              "field": null
+            }
+          ],
+          "unresolved": [
+            {
+              "message": "The full-scope check of the saved 2026 edition remains incomplete: its saved dates and venue/location could not be verified using the accessible official pages. The relevant official history and aftermovie pages were blocked. The accessible sources also did not establish the 2027 venue or location; the relevant campground page was blocked.",
+              "editionKey": "source-row",
+              "field": null
+            }
+          ]
+        }
+      },
+      "editorResponse": null,
+      "editorStatus": "failed",
+      "editorPromptVersion": "catalog-editor-v1",
+      "operations": [],
+      "references": {},
+      "changes": [],
+      "errors": [
+        {
+          "code": "source_blocked",
+          "message": "Relevant official history, contact, aftermovie, and campground pages could not be inspected.",
+          "url": "https://www.wacken.com/de/historie/",
+          "stage": "source"
+        },
+        {
+          "code": "source_blocked",
+          "message": "Relevant official history, contact, aftermovie, and campground pages could not be inspected.",
+          "url": "https://www.wacken.com/de/kontakt/",
+          "stage": "source"
+        },
+        {
+          "code": "source_blocked",
+          "message": "Relevant official history, contact, aftermovie, and campground pages could not be inspected.",
+          "url": "https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/",
+          "editionKey": "source-row",
+          "stage": "source"
+        },
+        {
+          "code": "source_blocked",
+          "message": "Relevant official history, contact, aftermovie, and campground pages could not be inspected.",
+          "url": "https://www.wacken.com/de/camping-travel/woa-campground/",
+          "editionKey": "2027",
+          "stage": "source"
+        },
+        {
+          "code": "model_failed",
+          "stage": "editor",
+          "message": "Editor generation failed",
+          "diagnostic": {
+            "errorTypes": [
+              "AI_APICallError"
+            ],
+            "httpStatus": 200,
+            "providerCode": 502,
+            "retryable": false
+          }
+        }
+      ],
+      "unresolved": [
+        {
+          "message": "The full-scope check of the saved 2026 edition remains incomplete: its saved dates and venue/location could not be verified using the accessible official pages. The relevant official history and aftermovie pages were blocked. The accessible sources also did not establish the 2027 venue or location; the relevant campground page was blocked.",
+          "editionKey": "source-row"
+        }
+      ],
+      "sources": [
+        {
+          "attemptedUrl": "https://www.wacken.com/",
+          "finalUrl": "https://www.wacken.com/de/",
+          "retrievedAt": "2026-10-03T16:33:58.662Z",
+          "outcome": "ok"
+        },
+        {
+          "attemptedUrl": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
+          "finalUrl": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
+          "retrievedAt": "2026-10-03T23:49:31.171Z",
+          "outcome": "ok"
+        },
+        {
+          "attemptedUrl": "https://www.wacken.com/de/historie/",
+          "finalUrl": "https://www.wacken.com/de/historie/",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://www.wacken.com/de/kontakt/",
+          "finalUrl": "https://www.wacken.com/de/kontakt/",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets",
+          "finalUrl": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/",
+          "finalUrl": "https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://www.wacken.com/de/camping-travel/woa-campground/",
+          "finalUrl": "https://www.wacken.com/de/camping-travel/woa-campground/",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        }
+      ],
+      "sourceSummaries": [
+        {
+          "url": "https://www.wacken.com/de/",
+          "information": "The official Wacken Open Air site identifies the festival, links to its official YouTube channel and 2027 ticketing, and reports on the 2026 edition. Its homepage gives 28–31 July 2027 and describes four days of concerts."
+        },
+        {
+          "url": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
+          "information": "Official 2027 ticket overview lists the Louder ticket at €364 plus a €2 fee, the age-restricted Younger ticket at €279 plus a €2 fee, and The Pit ticket at €1,399; it describes The Pit upgrade separately."
+        }
+      ],
+      "eventNameMismatch": null,
+      "scope": "full",
+      "currentDate": "2026-10-03T12:00:00.000Z",
+      "limits": {
+        "searches": 3,
+        "depth": 2,
+        "agentSteps": 15,
+        "durationMs": 300000,
+        "pageBytes": 2097152,
+        "modelOutputTokens": 16000,
+        "searchResults": 5
+      },
+      "workload": {
+        "savedEditions": 1,
+        "returnedEditions": 2
+      }
+    },
+    {
+      "caseId": "editor-day-ticket",
+      "repetition": 1,
+      "fixtureTodayUtc": "2026-10-03",
+      "fixtureProvenance": {
+        "kind": "captured-source-editor-regression",
+        "sourceReport": "src/ingestion/evals/cases/roskilde/case.json",
+        "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
+      },
+      "runId": "4fdebe85-90a5-4566-b53b-e214c59ec760",
+      "outcome": "created",
+      "researchStatus": "partial",
+      "score": {
+        "correctness": 1,
+        "completeness": 1,
+        "research": null,
+        "passed": true,
+        "required": [
+          {
+            "assertion": {
+              "owner": "event",
+              "field": "links",
+              "contains": {
+                "url": "https://www.roskilde-festival.dk/",
+                "kind": "official_site"
+              }
+            },
+            "matched": true
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "starts_on",
+              "value": "2027-06-26"
+            },
+            "matched": true
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "ends_on",
+              "value": "2027-07-03"
+            },
+            "matched": true
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "date_state",
+              "value": "confirmed"
+            },
+            "matched": true
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "price_min_minor",
+              "value": 265000
+            },
+            "matched": true
+          }
+        ],
+        "forbidden": [
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "starts_on"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "ends_on"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "venue_address",
+              "containsText": "Rabalderstræde"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "country_code",
+              "notValue": "DK"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "price_min_minor",
+              "value": 153000
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "starts_on",
+              "value": null
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "ends_on",
+              "value": null
+            },
+            "matched": false
+          }
+        ],
+        "reasons": {
+          "missingRequired": [],
+          "violatedForbidden": [],
+          "workflowFailed": false,
+          "expectedFailureMissing": false
+        }
+      },
+      "usage": {
+        "searches": 3,
+        "pages": 6,
+        "modelCalls": 6,
+        "elapsedMs": 238852,
+        "remaining": {
+          "searches": 0,
+          "durationMs": 61148
+        },
+        "complete": true,
+        "searchCostBasis": "estimate",
+        "inputTokens": 53951,
+        "outputTokens": 7075,
+        "cachedInputTokens": null,
+        "reasoningTokens": null,
+        "modelCostUsd": 0.0027427125,
+        "searchCostUsd": 0
+      },
+      "durationMs": 238852,
+      "modelVersion": "openai/gpt-6-luna",
+      "reasoningEffort": "medium",
+      "promptVersion": "editor-findings-v1",
+      "modelResponse": {
+        "text": "{\n  \"status\": \"partial\",\n  \"data\": {\n    \"eventId\": \"festivalnetwork:event:87b1f34093d76b709011\",\n    \"eventName\": \"Roskilde Festival\",\n    \"reason\": null,\n    \"sources\": [\n      {\n        \"url\": \"https://www.roskilde-festival.dk/\",\n        \"information\": \"The official Roskilde Festival homepage identifies the festival and displays 26 June–3 July 2027; it also reports that ticket sales and the first programme announcement for 2027 are underway.\"\n      },\n      {\n        \"url\": \"https://www.roskilde-festival.dk/billetter\",\n        \"information\": \"The official ticket page lists 2027 full-festival, two-day and single-day ticket prices, with purchase links.\"\n      }\n    ],\n    \"summary\": null,\n    \"links\": {\n      \"website\": \"https://www.roskilde-festival.dk/\",\n      \"socials\": {\n        \"instagram\": null,\n        \"facebook\": null,\n        \"youtube\": null,\n        \"tiktok\": null,\n        \"x\": null,\n        \"other\": null\n      }\n    },\n    \"editions\": [\n      {\n        \"key\": \"2027\",\n        \"year\": {\n          \"value\": 2027,\n          \"reason\": \"The official homepage and ticket page identify the upcoming edition as Roskilde Festival 2027.\"\n        },\n        \"dates\": {\n          \"value\": {\n            \"startsOn\": \"2027-06-26\",\n            \"endsOn\": \"2027-07-03\",\n            \"state\": \"confirmed\"\n          },\n          \"reason\": \"The official homepage displays 26 June–3 July 2027, and the ticket page describes the full festival ticket as covering all eight days.\"\n        },\n        \"scheduleStatus\": {\n          \"value\": \"scheduled\",\n          \"reason\": \"The official site lists dates, has opened ticket sales, and is announcing the programme for the 2027 festival.\"\n        },\n        \"displayName\": null,\n        \"venueName\": null,\n        \"venueAddress\": null,\n        \"locality\": null,\n        \"administrativeArea\": null,\n        \"countryCode\": null,\n        \"coordinates\": null,\n        \"sizeEstimate\": null,\n        \"classification\": {\n          \"add\": {\n            \"value\": [\n              \"validation:festival\",\n              \"validation:music\"\n            ],\n            \"reason\": \"The official pages identify it as a festival, describe music as part of the festival, and report announced music acts for 2027.\"\n          },\n          \"remove\": null\n        },\n        \"tickets\": {\n          \"value\": {\n            \"variants\": [\n              {\n                \"label\": \"Partoutbillet (all eight days)\",\n                \"amount\": 2650,\n                \"currency\": \"DKK\",\n                \"terms\": \"Price includes ticket fee.\",\n                \"availability\": \"unknown\",\n                \"url\": \"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09\"\n              },\n              {\n                \"label\": \"Todagesbillet (two-day ticket)\",\n                \"amount\": 2230,\n                \"currency\": \"DKK\",\n                \"terms\": \"Price includes ticket fee; choose two days.\",\n                \"availability\": \"unknown\",\n                \"url\": \"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=7g0tvpp\"\n              },\n              {\n                \"label\": \"Wednesday day ticket\",\n                \"amount\": 1530,\n                \"currency\": \"DKK\",\n                \"terms\": \"Price includes ticket fee.\",\n                \"availability\": \"unknown\",\n                \"url\": \"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=2rrklcf\"\n              },\n              {\n                \"label\": \"Thursday day ticket\",\n                \"amount\": 1530,\n                \"currency\": \"DKK\",\n                \"terms\": \"Price includes ticket fee.\",\n                \"availability\": \"unknown\",\n                \"url\": \"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=pjkf5p5\"\n              },\n              {\n                \"label\": \"Friday day ticket\",\n                \"amount\": 1530,\n                \"currency\": \"DKK\",\n                \"terms\": \"Price includes ticket fee.\",\n                \"availability\": \"unknown\",\n                \"url\": \"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=n9tcbkm\"\n              },\n              {\n                \"label\": \"Saturday day ticket\",\n                \"amount\": 1530,\n                \"currency\": \"DKK\",\n                \"terms\": \"Price includes ticket fee.\",\n                \"availability\": \"unknown\",\n                \"url\": \"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=9rdr0dv\"\n              }\n            ],\n            \"basePrice\": {\n              \"kind\": \"exact\",\n              \"currency\": \"DKK\",\n              \"minAmount\": 2650,\n              \"maxAmount\": 2650,\n              \"coverage\": \"full_programme\",\n              \"qualification\": \"Full-festival ticket; price includes ticket fee.\"\n            }\n          },\n          \"reason\": \"The official ticket page publishes these 2027 ticket categories and prices. The full-festival ticket covers all eight days; availability and other ticket details could not be checked in the linked shop.\"\n        }\n      ,\n        \"links\": {\n          \"tickets\": \"https://www.roskilde-festival.dk/billetter\"\n        }\n      }\n    ]\n  },\n  \"errors\": [\n    {\n      \"code\": \"source_blocked\",\n      \"message\": \"The linked programme page could not be inspected; 2027 venue and location details remain unchecked.\",\n      \"url\": \"https://www.roskilde-festival.dk/program\",\n      \"editionKey\": \"2027\",\n      \"field\": \"venueName\"\n    },\n    {\n      \"code\": \"source_blocked\",\n      \"message\": \"The official practical-information page was blocked, so the 2027 location details could not be verified there.\",\n      \"url\": \"https://faq.roskilde-festival.dk/hc/da/categories/10127594054813-Roskilde-Festival\",\n      \"editionKey\": \"2027\",\n      \"field\": \"locality\"\n    },\n    {\n      \"code\": \"source_blocked\",\n      \"message\": \"The ticket shop could not be inspected; availability, concessions and any additional ticket categories remain unchecked.\",\n      \"url\": \"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09\",\n      \"editionKey\": \"2027\",\n      \"field\": \"tickets\"\n    }\n  ],\n  \"unresolved\": [\n    {\n      \"message\": \"Full-scope revalidation of the saved 2026 edition—including its dates, status, location, tickets and other edition facts—could not be completed: discovery returned no relevant historical source to inspect.\",\n      \"editionKey\": \"source-row\"\n    ,\n      \"field\": null\n    },\n    {\n      \"message\": \"For 2027, venue and location details remain unverified because the relevant programme and practical-information pages were blocked. Ticket availability, concessions and completeness of ticket categories also remain unchecked because the linked shop was blocked.\",\n      \"editionKey\": \"2027\"\n    ,\n      \"field\": null\n    }\n  ]\n}",
+        "object": {
+          "status": "partial",
+          "data": {
+            "eventId": "festivalnetwork:event:87b1f34093d76b709011",
+            "eventName": "Roskilde Festival",
+            "reason": null,
+            "sources": [
+              {
+                "url": "https://www.roskilde-festival.dk/",
+                "information": "The official Roskilde Festival homepage identifies the festival and displays 26 June–3 July 2027; it also reports that ticket sales and the first programme announcement for 2027 are underway."
+              },
+              {
+                "url": "https://www.roskilde-festival.dk/billetter",
+                "information": "The official ticket page lists 2027 full-festival, two-day and single-day ticket prices, with purchase links."
+              }
+            ],
+            "summary": null,
+            "links": {
+              "website": "https://www.roskilde-festival.dk/",
+              "socials": {
+                "instagram": null,
+                "facebook": null,
+                "youtube": null,
+                "tiktok": null,
+                "x": null,
+                "other": null
+              }
+            },
+            "editions": [
+              {
+                "key": "2027",
+                "year": {
+                  "value": 2027,
+                  "reason": "The official homepage and ticket page identify the upcoming edition as Roskilde Festival 2027."
+                },
+                "dates": {
+                  "value": {
+                    "startsOn": "2027-06-26",
+                    "endsOn": "2027-07-03",
+                    "state": "confirmed"
+                  },
+                  "reason": "The official homepage displays 26 June–3 July 2027, and the ticket page describes the full festival ticket as covering all eight days."
+                },
+                "scheduleStatus": {
+                  "value": "scheduled",
+                  "reason": "The official site lists dates, has opened ticket sales, and is announcing the programme for the 2027 festival."
+                },
+                "displayName": null,
+                "venueName": null,
+                "venueAddress": null,
+                "locality": null,
+                "administrativeArea": null,
+                "countryCode": null,
+                "coordinates": null,
+                "sizeEstimate": null,
+                "classification": {
+                  "add": {
+                    "value": [
+                      "validation:festival",
+                      "validation:music"
+                    ],
+                    "reason": "The official pages identify it as a festival, describe music as part of the festival, and report announced music acts for 2027."
+                  },
+                  "remove": null
+                },
+                "tickets": {
+                  "value": {
+                    "variants": [
+                      {
+                        "label": "Partoutbillet (all eight days)",
+                        "amount": 2650,
+                        "currency": "DKK",
+                        "terms": "Price includes ticket fee.",
+                        "availability": "unknown",
+                        "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09"
+                      },
+                      {
+                        "label": "Todagesbillet (two-day ticket)",
+                        "amount": 2230,
+                        "currency": "DKK",
+                        "terms": "Price includes ticket fee; choose two days.",
+                        "availability": "unknown",
+                        "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=7g0tvpp"
+                      },
+                      {
+                        "label": "Wednesday day ticket",
+                        "amount": 1530,
+                        "currency": "DKK",
+                        "terms": "Price includes ticket fee.",
+                        "availability": "unknown",
+                        "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=2rrklcf"
+                      },
+                      {
+                        "label": "Thursday day ticket",
+                        "amount": 1530,
+                        "currency": "DKK",
+                        "terms": "Price includes ticket fee.",
+                        "availability": "unknown",
+                        "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=pjkf5p5"
+                      },
+                      {
+                        "label": "Friday day ticket",
+                        "amount": 1530,
+                        "currency": "DKK",
+                        "terms": "Price includes ticket fee.",
+                        "availability": "unknown",
+                        "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=n9tcbkm"
+                      },
+                      {
+                        "label": "Saturday day ticket",
+                        "amount": 1530,
+                        "currency": "DKK",
+                        "terms": "Price includes ticket fee.",
+                        "availability": "unknown",
+                        "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=9rdr0dv"
+                      }
+                    ],
+                    "basePrice": {
+                      "kind": "exact",
+                      "currency": "DKK",
+                      "minAmount": 2650,
+                      "maxAmount": 2650,
+                      "coverage": "full_programme",
+                      "qualification": "Full-festival ticket; price includes ticket fee."
+                    }
+                  },
+                  "reason": "The official ticket page publishes these 2027 ticket categories and prices. The full-festival ticket covers all eight days; availability and other ticket details could not be checked in the linked shop."
+                },
+                "links": {
+                  "tickets": "https://www.roskilde-festival.dk/billetter"
+                }
+              }
+            ]
+          },
+          "errors": [
+            {
+              "code": "source_blocked",
+              "message": "The linked programme page could not be inspected; 2027 venue and location details remain unchecked.",
+              "url": "https://www.roskilde-festival.dk/program",
+              "editionKey": "2027",
+              "field": "venueName"
+            },
+            {
+              "code": "source_blocked",
+              "message": "The official practical-information page was blocked, so the 2027 location details could not be verified there.",
+              "url": "https://faq.roskilde-festival.dk/hc/da/categories/10127594054813-Roskilde-Festival",
+              "editionKey": "2027",
+              "field": "locality"
+            },
+            {
+              "code": "source_blocked",
+              "message": "The ticket shop could not be inspected; availability, concessions and any additional ticket categories remain unchecked.",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09",
+              "editionKey": "2027",
+              "field": "tickets"
+            }
+          ],
+          "unresolved": [
+            {
+              "message": "Full-scope revalidation of the saved 2026 edition—including its dates, status, location, tickets and other edition facts—could not be completed: discovery returned no relevant historical source to inspect.",
+              "editionKey": "source-row",
+              "field": null
+            },
+            {
+              "message": "For 2027, venue and location details remain unverified because the relevant programme and practical-information pages were blocked. Ticket availability, concessions and completeness of ticket categories also remain unchecked because the linked shop was blocked.",
+              "editionKey": "2027",
+              "field": null
+            }
+          ]
+        }
+      },
+      "editorResponse": {
+        "text": "{\"event\":{\"target\":{\"eventId\":\"festivalnetwork:event:87b1f34093d76b709011\"},\"fields\":{\"summary\":null,\"links\":{\"website\":{\"action\":\"set\",\"value\":\"https://www.roskilde-festival.dk/\",\"reason\":\"The official festival homepage identifies Roskilde Festival and provides its 2027 edition information.\"},\"socials\":null}}},\"editions\":[{\"target\":{\"editionKey\":\"source-row\"},\"fields\":{ \"year\":null,\"dates\":null,\"coordinates\":null,\"scheduleStatus\":null,\"displayName\":null,\"venueName\":null,\"venueAddress\":null,\"locality\":null,\"administrativeArea\":null,\"countryCode\":null,\"sizeEstimate\":null,\"tickets\":null,\"classification\":null,\"links\":null}},{\"target\":{\"create\":{\"editionKey\":\"2027\"},\"reason\":\"Official Roskilde Festival pages identify a 2027 edition with confirmed dates, ticket sales, and programme announcements.\"},\"fields\":{\"year\":{\"action\":\"set\",\"value\":2027,\"reason\":\"The official homepage and ticket page identify the upcoming edition as Roskilde Festival 2027.\"},\"dates\":{\"action\":\"set\",\"value\":{\"startsOn\":\"2027-06-26\",\"endsOn\":\"2027-07-03\",\"state\":\"confirmed\"},\"reason\":\"The official homepage displays 26 June–3 July 2027, and the full-festival ticket covers all eight days.\"},\"coordinates\":null,\"scheduleStatus\":{\"action\":\"set\",\"value\":\"scheduled\",\"reason\":\"The official site lists dates, has opened ticket sales, and is announcing the 2027 programme.\"},\"displayName\":null,\"venueName\":null,\"venueAddress\":null,\"locality\":null,\"administrativeArea\":null,\"countryCode\":null,\"sizeEstimate\":null,\"tickets\":{\"action\":\"set\",\"value\":{\"variants\":[{\"label\":\"Partoutbillet (all eight days)\",\"amount\":2650,\"currency\":\"DKK\",\"terms\":\"Price includes ticket fee.\",\"availability\":\"unknown\",\"url\":\"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09\"},{\"label\":\"Todagesbillet (two-day ticket)\",\"amount\":2230,\"currency\":\"DKK\",\"terms\":\"Price includes ticket fee; choose two days.\",\"availability\":\"unknown\",\"url\":\"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=7g0tvpp\"},{\"label\":\"Wednesday day ticket\",\"amount\":1530,\"currency\":\"DKK\",\"terms\":\"Price includes ticket fee.\",\"availability\":\"unknown\",\"url\":\"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=2rrklcf\"},{\"label\":\"Thursday day ticket\",\"amount\":1530,\"currency\":\"DKK\",\"terms\":\"Price includes ticket fee.\",\"availability\":\"unknown\",\"url\":\"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=pjkf5p5\"},{\"label\":\"Friday day ticket\",\"amount\":1530,\"currency\":\"DKK\",\"terms\":\"Price includes ticket fee.\",\"availability\":\"unknown\",\"url\":\"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=n9tcbkm\"},{\"label\":\"Saturday day ticket\",\"amount\":1530,\"currency\":\"DKK\",\"terms\":\"Price includes ticket fee.\",\"availability\":\"unknown\",\"url\":\"https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=9rdr0dv\"}],\"basePrice\":{\"kind\":\"exact\",\"currency\":\"DKK\",\"minAmount\":2650,\"maxAmount\":2650,\"coverage\":\"full_programme\",\"qualification\":\"Full-festival ticket; price includes ticket fee.\"}},\"reason\":\"The official ticket page lists these 2027 categories and prices. The all-eight-day full-festival ticket supports the full-programme base price; availability and the complete range of offers could not be checked in the blocked shop.\"},\"classification\":{\"action\":\"set\",\"value\":[\"validation:festival\",\"validation:music\"],\"reason\":\"Official pages identify the event as a festival and describe music and 2027 music acts.\"},\"links\":{\"tickets\":{\"action\":\"set\",\"value\":\"https://www.roskilde-festival.dk/billetter\",\"reason\":\"The official festival site links to its 2027 ticket information page.\"}}}}],\"unresolved\":[{\"message\":\"Full-scope revalidation of the saved 2026 edition—including its dates, status, location, tickets, and other edition facts—could not be completed because discovery returned no relevant historical source to inspect.\",\"editionKey\":\"source-row\",\"field\":null},{\"message\":\"For 2027, venue and location details remain unverified because the relevant programme and practical-information pages were blocked.\",\"editionKey\":\"2027\",\"field\":\"locality\"},{\"message\":\"For 2027, ticket availability, concessions, and whether the listed categories are complete remain unchecked because the linked ticket shop was blocked.\",\"editionKey\":\"2027\",\"field\":\"tickets\"}]}",
+        "object": {
+          "event": {
+            "target": {
+              "eventId": "festivalnetwork:event:87b1f34093d76b709011"
+            },
+            "fields": {
+              "summary": null,
+              "links": {
+                "website": {
+                  "action": "set",
+                  "value": "https://www.roskilde-festival.dk/",
+                  "reason": "The official festival homepage identifies Roskilde Festival and provides its 2027 edition information."
+                },
+                "socials": null
+              }
+            }
+          },
+          "editions": [
+            {
+              "target": {
+                "editionKey": "source-row"
+              },
+              "fields": {
+                "year": null,
+                "dates": null,
+                "coordinates": null,
+                "scheduleStatus": null,
+                "displayName": null,
+                "venueName": null,
+                "venueAddress": null,
+                "locality": null,
+                "administrativeArea": null,
+                "countryCode": null,
+                "sizeEstimate": null,
+                "tickets": null,
+                "classification": null,
+                "links": null
+              }
+            },
+            {
+              "target": {
+                "create": {
+                  "editionKey": "2027"
+                },
+                "reason": "Official Roskilde Festival pages identify a 2027 edition with confirmed dates, ticket sales, and programme announcements."
+              },
+              "fields": {
+                "year": {
+                  "action": "set",
+                  "value": 2027,
+                  "reason": "The official homepage and ticket page identify the upcoming edition as Roskilde Festival 2027."
+                },
+                "dates": {
+                  "action": "set",
+                  "value": {
+                    "startsOn": "2027-06-26",
+                    "endsOn": "2027-07-03",
+                    "state": "confirmed"
+                  },
+                  "reason": "The official homepage displays 26 June–3 July 2027, and the full-festival ticket covers all eight days."
+                },
+                "coordinates": null,
+                "scheduleStatus": {
+                  "action": "set",
+                  "value": "scheduled",
+                  "reason": "The official site lists dates, has opened ticket sales, and is announcing the 2027 programme."
+                },
+                "displayName": null,
+                "venueName": null,
+                "venueAddress": null,
+                "locality": null,
+                "administrativeArea": null,
+                "countryCode": null,
+                "sizeEstimate": null,
+                "tickets": {
+                  "action": "set",
+                  "value": {
+                    "variants": [
+                      {
+                        "label": "Partoutbillet (all eight days)",
+                        "amount": 2650,
+                        "currency": "DKK",
+                        "terms": "Price includes ticket fee.",
+                        "availability": "unknown",
+                        "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09"
+                      },
+                      {
+                        "label": "Todagesbillet (two-day ticket)",
+                        "amount": 2230,
+                        "currency": "DKK",
+                        "terms": "Price includes ticket fee; choose two days.",
+                        "availability": "unknown",
+                        "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=7g0tvpp"
+                      },
+                      {
+                        "label": "Wednesday day ticket",
+                        "amount": 1530,
+                        "currency": "DKK",
+                        "terms": "Price includes ticket fee.",
+                        "availability": "unknown",
+                        "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=2rrklcf"
+                      },
+                      {
+                        "label": "Thursday day ticket",
+                        "amount": 1530,
+                        "currency": "DKK",
+                        "terms": "Price includes ticket fee.",
+                        "availability": "unknown",
+                        "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=pjkf5p5"
+                      },
+                      {
+                        "label": "Friday day ticket",
+                        "amount": 1530,
+                        "currency": "DKK",
+                        "terms": "Price includes ticket fee.",
+                        "availability": "unknown",
+                        "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=n9tcbkm"
+                      },
+                      {
+                        "label": "Saturday day ticket",
+                        "amount": 1530,
+                        "currency": "DKK",
+                        "terms": "Price includes ticket fee.",
+                        "availability": "unknown",
+                        "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=9rdr0dv"
+                      }
+                    ],
+                    "basePrice": {
+                      "kind": "exact",
+                      "currency": "DKK",
+                      "minAmount": 2650,
+                      "maxAmount": 2650,
+                      "coverage": "full_programme",
+                      "qualification": "Full-festival ticket; price includes ticket fee."
+                    }
+                  },
+                  "reason": "The official ticket page lists these 2027 categories and prices. The all-eight-day full-festival ticket supports the full-programme base price; availability and the complete range of offers could not be checked in the blocked shop."
+                },
+                "classification": {
+                  "action": "set",
+                  "value": [
+                    "validation:festival",
+                    "validation:music"
+                  ],
+                  "reason": "Official pages identify the event as a festival and describe music and 2027 music acts."
+                },
+                "links": {
+                  "tickets": {
+                    "action": "set",
+                    "value": "https://www.roskilde-festival.dk/billetter",
+                    "reason": "The official festival site links to its 2027 ticket information page."
+                  }
+                }
+              }
+            }
+          ],
+          "unresolved": [
+            {
+              "message": "Full-scope revalidation of the saved 2026 edition—including its dates, status, location, tickets, and other edition facts—could not be completed because discovery returned no relevant historical source to inspect.",
+              "editionKey": "source-row",
+              "field": null
+            },
+            {
+              "message": "For 2027, venue and location details remain unverified because the relevant programme and practical-information pages were blocked.",
+              "editionKey": "2027",
+              "field": "locality"
+            },
+            {
+              "message": "For 2027, ticket availability, concessions, and whether the listed categories are complete remain unchecked because the linked ticket shop was blocked.",
+              "editionKey": "2027",
+              "field": "tickets"
+            }
+          ]
+        }
+      },
+      "editorStatus": "success",
+      "editorPromptVersion": "catalog-editor-v1",
+      "operations": [
+        {
+          "kind": "replaceLinks",
+          "owner": {
+            "type": "event",
+            "id": "festivalnetwork:event:87b1f34093d76b709011"
+          },
+          "links": [
+            {
+              "kind": "other",
+              "url": "https://www.roskilde-festival.dk/",
+              "label": "FestivalNetwork website (unverified)",
+              "official": false
+            },
+            {
+              "kind": "official_site",
+              "url": "https://www.roskilde-festival.dk/",
+              "label": null,
+              "official": true
+            }
+          ],
+          "expectedVersion": 1,
+          "operationKey": "8fb7607d-e267-4db3-aa82-fd2fa29c1c35",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "createEdition",
+          "eventId": "festivalnetwork:event:87b1f34093d76b709011",
+          "data": {
+            "editionKey": "2027",
+            "editionYear": 2027,
+            "startsOn": "2027-06-26",
+            "endsOn": "2027-07-03",
+            "dateState": "confirmed",
+            "scheduleStatus": "scheduled"
+          },
+          "tempKey": "edition_1",
+          "operationKey": "6dacc83d-f709-440b-8705-b0aa8401ecd7",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "replaceTerms",
+          "id": "$edition_1",
+          "termIds": [
+            "validation:festival",
+            "validation:music"
+          ],
+          "expectedVersion": 1,
+          "operationKey": "564c29be-2e5e-4d4e-84b4-32a1e841220c",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "replacePriceBlock",
+          "id": "$edition_1",
+          "priceDetails": [
+            {
+              "label": "Partoutbillet (all eight days)",
+              "amount": 2650,
+              "currency": "DKK",
+              "terms": "Price includes ticket fee.",
+              "availability": "unknown",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09"
+            },
+            {
+              "label": "Todagesbillet (two-day ticket)",
+              "amount": 2230,
+              "currency": "DKK",
+              "terms": "Price includes ticket fee; choose two days.",
+              "availability": "unknown",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=7g0tvpp"
+            },
+            {
+              "label": "Wednesday day ticket",
+              "amount": 1530,
+              "currency": "DKK",
+              "terms": "Price includes ticket fee.",
+              "availability": "unknown",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=2rrklcf"
+            },
+            {
+              "label": "Thursday day ticket",
+              "amount": 1530,
+              "currency": "DKK",
+              "terms": "Price includes ticket fee.",
+              "availability": "unknown",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=pjkf5p5"
+            },
+            {
+              "label": "Friday day ticket",
+              "amount": 1530,
+              "currency": "DKK",
+              "terms": "Price includes ticket fee.",
+              "availability": "unknown",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=n9tcbkm"
+            },
+            {
+              "label": "Saturday day ticket",
+              "amount": 1530,
+              "currency": "DKK",
+              "terms": "Price includes ticket fee.",
+              "availability": "unknown",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=9rdr0dv"
+            }
+          ],
+          "basePrice": {
+            "kind": "exact",
+            "currency": "DKK",
+            "minMinor": 265000,
+            "maxMinor": 265000,
+            "coverage": "full_programme",
+            "qualification": "Full-festival ticket; price includes ticket fee."
+          },
+          "expectedVersion": 1,
+          "operationKey": "59ec2469-dddb-432c-9f78-5a91e3f86d82",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "replaceLinks",
+          "owner": {
+            "type": "edition",
+            "id": "$edition_1"
+          },
+          "links": [
+            {
+              "kind": "ticketing",
+              "url": "https://www.roskilde-festival.dk/billetter",
+              "label": null,
+              "official": true
+            }
+          ],
+          "expectedVersion": 1,
+          "operationKey": "ff9bc824-14e3-41f3-8610-386bf47b392b",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        }
+      ],
+      "references": {
+        "edition_1": "38653a1f-0901-423d-81a3-d9054d774d58"
+      },
+      "changes": [
+        {
+          "subject": "festivalnetwork:event:87b1f34093d76b709011",
+          "field": "links",
+          "oldValue": [
+            {
+              "kind": "other",
+              "url": "https://www.roskilde-festival.dk/",
+              "label": "FestivalNetwork website (unverified)",
+              "official": false
+            }
+          ],
+          "newValue": [
+            {
+              "kind": "official_site",
+              "url": "https://www.roskilde-festival.dk/",
+              "label": null,
+              "official": true
+            },
+            {
+              "kind": "other",
+              "url": "https://www.roskilde-festival.dk/",
+              "label": "FestivalNetwork website (unverified)",
+              "official": false
+            }
+          ],
+          "explanations": [
+            "The official festival homepage identifies Roskilde Festival and provides its 2027 edition information."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "id",
+          "oldValue": null,
+          "newValue": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "explanations": []
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "event_id",
+          "oldValue": null,
+          "newValue": "festivalnetwork:event:87b1f34093d76b709011",
+          "explanations": []
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "edition_key",
+          "oldValue": null,
+          "newValue": "2027",
+          "explanations": [
+            "Official Roskilde Festival pages identify a 2027 edition with confirmed dates, ticket sales, and programme announcements."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "edition_year",
+          "oldValue": null,
+          "newValue": 2027,
+          "explanations": [
+            "The official homepage and ticket page identify the upcoming edition as Roskilde Festival 2027."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "starts_on",
+          "oldValue": null,
+          "newValue": "2027-06-26",
+          "explanations": [
+            "The official homepage displays 26 June–3 July 2027, and the full-festival ticket covers all eight days."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "ends_on",
+          "oldValue": null,
+          "newValue": "2027-07-03",
+          "explanations": [
+            "The official homepage displays 26 June–3 July 2027, and the full-festival ticket covers all eight days."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "date_state",
+          "oldValue": null,
+          "newValue": "confirmed",
+          "explanations": [
+            "The official homepage displays 26 June–3 July 2027, and the full-festival ticket covers all eight days."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "schedule_status",
+          "oldValue": null,
+          "newValue": "scheduled",
+          "explanations": [
+            "The official site lists dates, has opened ticket sales, and is announcing the 2027 programme."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "publication_state",
+          "oldValue": null,
+          "newValue": "draft",
+          "explanations": []
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "coordinate_precision",
+          "oldValue": null,
+          "newValue": "unknown",
+          "explanations": []
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "version",
+          "oldValue": null,
+          "newValue": 1,
+          "explanations": []
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "created_at",
+          "oldValue": null,
+          "newValue": "2026-10-11T23:52:23.723Z",
+          "explanations": []
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "updated_at",
+          "oldValue": null,
+          "newValue": "2026-10-11T23:52:23.723Z",
+          "explanations": []
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "terms",
+          "oldValue": [],
+          "newValue": [
+            "validation:festival",
+            "validation:music"
+          ],
+          "explanations": [
+            "Official pages identify the event as a festival and describe music and 2027 music acts."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "price_kind",
+          "oldValue": null,
+          "newValue": "exact",
+          "explanations": [
+            "The official ticket page lists these 2027 categories and prices. The all-eight-day full-festival ticket supports the full-programme base price; availability and the complete range of offers could not be checked in the blocked shop."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "price_currency",
+          "oldValue": null,
+          "newValue": "DKK",
+          "explanations": [
+            "The official ticket page lists these 2027 categories and prices. The all-eight-day full-festival ticket supports the full-programme base price; availability and the complete range of offers could not be checked in the blocked shop."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "price_min_minor",
+          "oldValue": null,
+          "newValue": 265000,
+          "explanations": [
+            "The official ticket page lists these 2027 categories and prices. The all-eight-day full-festival ticket supports the full-programme base price; availability and the complete range of offers could not be checked in the blocked shop."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "price_max_minor",
+          "oldValue": null,
+          "newValue": 265000,
+          "explanations": [
+            "The official ticket page lists these 2027 categories and prices. The all-eight-day full-festival ticket supports the full-programme base price; availability and the complete range of offers could not be checked in the blocked shop."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "price_coverage",
+          "oldValue": null,
+          "newValue": "full_programme",
+          "explanations": [
+            "The official ticket page lists these 2027 categories and prices. The all-eight-day full-festival ticket supports the full-programme base price; availability and the complete range of offers could not be checked in the blocked shop."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "price_qualification",
+          "oldValue": null,
+          "newValue": "Full-festival ticket; price includes ticket fee.",
+          "explanations": [
+            "The official ticket page lists these 2027 categories and prices. The all-eight-day full-festival ticket supports the full-programme base price; availability and the complete range of offers could not be checked in the blocked shop."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "price_details",
+          "oldValue": [],
+          "newValue": [
+            {
+              "label": "Friday day ticket",
+              "amount": 1530,
+              "currency": "DKK",
+              "terms": "Price includes ticket fee.",
+              "availability": "unknown",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=n9tcbkm"
+            },
+            {
+              "label": "Partoutbillet (all eight days)",
+              "amount": 2650,
+              "currency": "DKK",
+              "terms": "Price includes ticket fee.",
+              "availability": "unknown",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09"
+            },
+            {
+              "label": "Saturday day ticket",
+              "amount": 1530,
+              "currency": "DKK",
+              "terms": "Price includes ticket fee.",
+              "availability": "unknown",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=9rdr0dv"
+            },
+            {
+              "label": "Thursday day ticket",
+              "amount": 1530,
+              "currency": "DKK",
+              "terms": "Price includes ticket fee.",
+              "availability": "unknown",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=pjkf5p5"
+            },
+            {
+              "label": "Todagesbillet (two-day ticket)",
+              "amount": 2230,
+              "currency": "DKK",
+              "terms": "Price includes ticket fee; choose two days.",
+              "availability": "unknown",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=7g0tvpp"
+            },
+            {
+              "label": "Wednesday day ticket",
+              "amount": 1530,
+              "currency": "DKK",
+              "terms": "Price includes ticket fee.",
+              "availability": "unknown",
+              "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=2rrklcf"
+            }
+          ],
+          "explanations": [
+            "The official ticket page lists these 2027 categories and prices. The all-eight-day full-festival ticket supports the full-programme base price; availability and the complete range of offers could not be checked in the blocked shop."
+          ]
+        },
+        {
+          "subject": "38653a1f-0901-423d-81a3-d9054d774d58",
+          "field": "links",
+          "oldValue": [],
+          "newValue": [
+            {
+              "kind": "ticketing",
+              "url": "https://www.roskilde-festival.dk/billetter",
+              "label": null,
+              "official": true
+            }
+          ],
+          "explanations": [
+            "The official festival site links to its 2027 ticket information page."
+          ]
+        }
+      ],
+      "errors": [
+        {
+          "code": "source_blocked",
+          "message": "The linked programme page could not be inspected; 2027 venue and location details remain unchecked.",
+          "url": "https://www.roskilde-festival.dk/program",
+          "editionKey": "2027",
+          "field": "venueName",
+          "stage": "source"
+        },
+        {
+          "code": "source_blocked",
+          "message": "The official practical-information page was blocked, so the 2027 location details could not be verified there.",
+          "url": "https://faq.roskilde-festival.dk/hc/da/categories/10127594054813-Roskilde-Festival",
+          "editionKey": "2027",
+          "field": "locality",
+          "stage": "source"
+        },
+        {
+          "code": "source_blocked",
+          "message": "The ticket shop could not be inspected; availability, concessions and any additional ticket categories remain unchecked.",
+          "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09",
+          "editionKey": "2027",
+          "field": "tickets",
+          "stage": "source"
+        }
+      ],
+      "unresolved": [
+        {
+          "message": "Full-scope revalidation of the saved 2026 edition—including its dates, status, location, tickets and other edition facts—could not be completed: discovery returned no relevant historical source to inspect.",
+          "editionKey": "source-row"
+        },
+        {
+          "message": "For 2027, venue and location details remain unverified because the relevant programme and practical-information pages were blocked. Ticket availability, concessions and completeness of ticket categories also remain unchecked because the linked shop was blocked.",
+          "editionKey": "2027"
+        },
+        {
+          "message": "Full-scope revalidation of the saved 2026 edition—including its dates, status, location, tickets, and other edition facts—could not be completed because discovery returned no relevant historical source to inspect.",
+          "editionKey": "source-row"
+        },
+        {
+          "message": "For 2027, venue and location details remain unverified because the relevant programme and practical-information pages were blocked.",
+          "editionKey": "2027",
+          "field": "locality"
+        },
+        {
+          "message": "For 2027, ticket availability, concessions, and whether the listed categories are complete remain unchecked because the linked ticket shop was blocked.",
+          "editionKey": "2027",
+          "field": "tickets"
+        }
+      ],
+      "sources": [
+        {
+          "attemptedUrl": "https://www.roskilde-festival.dk/",
+          "finalUrl": "https://www.roskilde-festival.dk/",
+          "retrievedAt": "2026-10-03T16:33:58.662Z",
+          "outcome": "ok"
+        },
+        {
+          "attemptedUrl": "https://www.roskilde-festival.dk/billetter",
+          "finalUrl": "https://www.roskilde-festival.dk/billetter",
+          "retrievedAt": "2026-10-03T23:49:31.905Z",
+          "outcome": "ok"
+        },
+        {
+          "attemptedUrl": "https://www.roskilde-festival.dk/nyheder/rf27-de-foerste-18-navne-er-klar",
+          "finalUrl": "https://www.roskilde-festival.dk/nyheder/rf27-de-foerste-18-navne-er-klar",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://www.roskilde-festival.dk/program",
+          "finalUrl": "https://www.roskilde-festival.dk/program",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09",
+          "finalUrl": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://faq.roskilde-festival.dk/hc/da/categories/10127594054813-Roskilde-Festival",
+          "finalUrl": "https://faq.roskilde-festival.dk/hc/da/categories/10127594054813-Roskilde-Festival",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        }
+      ],
+      "sourceSummaries": [
+        {
+          "url": "https://www.roskilde-festival.dk/",
+          "information": "The official Roskilde Festival homepage identifies the festival and displays 26 June–3 July 2027; it also reports that ticket sales and the first programme announcement for 2027 are underway."
+        },
+        {
+          "url": "https://www.roskilde-festival.dk/billetter",
+          "information": "The official ticket page lists 2027 full-festival, two-day and single-day ticket prices, with purchase links."
+        }
+      ],
+      "eventNameMismatch": null,
+      "scope": "full",
+      "currentDate": "2026-10-03T12:00:00.000Z",
+      "limits": {
+        "searches": 3,
+        "depth": 2,
+        "agentSteps": 15,
+        "durationMs": 300000,
+        "pageBytes": 2097152,
+        "modelOutputTokens": 16000,
+        "searchResults": 5
+      },
+      "workload": {
+        "savedEditions": 1,
+        "returnedEditions": 1
+      }
+    },
+    {
+      "caseId": "editor-clear",
+      "repetition": 1,
+      "fixtureTodayUtc": "2026-10-03",
+      "fixtureProvenance": {
+        "kind": "captured-source-editor-regression",
+        "sourceReport": "src/ingestion/evals/cases/roskilde/case.json",
+        "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
+      },
+      "runId": "56785775-7807-49a0-9c0f-e16d2df14495",
+      "outcome": "updated",
+      "researchStatus": "partial",
+      "score": {
+        "correctness": 1,
+        "completeness": 1,
+        "research": null,
+        "passed": true,
+        "required": [
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "venue_address",
+              "value": null
+            },
+            "matched": true
+          }
+        ],
+        "forbidden": [
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "country_code",
+              "notValue": "DK"
+            },
+            "matched": false
+          }
+        ],
+        "reasons": {
+          "missingRequired": [],
+          "violatedForbidden": [],
+          "workflowFailed": false,
+          "expectedFailureMissing": false
+        }
+      },
+      "usage": {
+        "searches": 3,
+        "pages": 7,
+        "modelCalls": 7,
+        "elapsedMs": 134532,
+        "remaining": {
+          "searches": 0,
+          "durationMs": 165468
+        },
+        "complete": true,
+        "searchCostBasis": "estimate",
+        "inputTokens": 57746,
+        "outputTokens": 3573,
+        "cachedInputTokens": null,
+        "reasoningTokens": null,
+        "modelCostUsd": 0.001729865,
+        "searchCostUsd": 0
+      },
+      "durationMs": 134532,
+      "modelVersion": "openai/gpt-6-luna",
+      "reasoningEffort": "medium",
+      "promptVersion": "editor-findings-v1",
+      "modelResponse": {
+        "text": "{\"status\":\"partial\",\"data\":{\"eventId\":\"festivalnetwork:event:87b1f34093d76b709011\",\"eventName\":\"Roskilde Festival\",\"reason\":null,\"sources\":[{\"url\":\"https://www.roskilde-festival.dk/\",\"information\":\"The official Roskilde Festival homepage identifies the festival, displays 26 June–3 July 2027, describes eight festival days, and links to RF27 ticket sales.\"},{\"url\":\"https://www.roskilde-festival.dk/kontakt\",\"information\":\"The official contact page identifies Rabalderstræde 7, 4, 4000 Roskilde as the festival’s secretariat office, not a festival venue.\"}],\"summary\":null,\"links\":{\"website\":\"https://www.roskilde-festival.dk/\",\"socials\":{ \"instagram\":null,\"facebook\":null,\"youtube\":null,\"tiktok\":null,\"x\":null,\"other\":null}},\"editions\":[{\"key\":\"source-row\",\"year\":{\"value\":2027,\"reason\":\"The official homepage labels the upcoming festival RF27 and displays its dates.\"},\"dates\":{\"value\":{\"startsOn\":\"2027-06-26\",\"endsOn\":\"2027-07-03\",\"state\":\"confirmed\"},\"reason\":\"The official homepage displays 26/6–3/7 2027 and describes eight festival days.\"},\"scheduleStatus\":{\"value\":\"scheduled\",\"reason\":\"The official homepage promotes RF27 ticket sales for the upcoming edition.\"},\"displayName\":{\"value\":\"RF27\",\"reason\":\"The official homepage and its news listings refer to the 2027 edition as RF27.\"},\"venueName\":null,\"venueAddress\":{\"value\":null,\"reason\":\"The contact page explicitly labels the saved address, Rabalderstræde 7, 4, as the Secretariat office; it is not identified as the festival venue.\"},\"locality\":null,\"administrativeArea\":null,\"countryCode\":null,\"coordinates\":null,\"sizeEstimate\":null,\"classification\":null,\"tickets\":null,\"links\":{\"tickets\":\"https://www.roskilde-festival.dk/billetter\"}}]},\"errors\":[{\"code\":\"source_blocked\",\"message\":\"The linked official ticket page could not be inspected, so ticket categories, prices, and availability could not be checked.\",\"url\":\"https://www.roskilde-festival.dk/billetter\",\"editionKey\":\"source-row\",\"field\":\"tickets\"},{\"code\":\"source_blocked\",\"message\":\"The official practical-information page was inaccessible; the festival venue could not be verified.\",\"url\":\"https://faq.roskilde-festival.dk/hc/da\",\"editionKey\":\"source-row\",\"field\":\"venueName\"},{\"code\":\"source_blocked\",\"message\":\"The official programme page could not be inspected for further edition details.\",\"url\":\"https://www.roskilde-festival.dk/program\",\"editionKey\":\"source-row\",\"field\":null}],\"unresolved\":[{\"message\":\"The RF27 ticket page was blocked, leaving ticket categories, prices, and availability unchecked.\",\"editionKey\":\"source-row\",\"field\":\"tickets\"},{\"message\":\"The actual festival venue and its location could not be verified from the accessible pages; the saved address is identified as the secretariat office.\",\"editionKey\":\"source-row\",\"field\":\"venueName\"}]}",
+        "object": {
+          "status": "partial",
+          "data": {
+            "eventId": "festivalnetwork:event:87b1f34093d76b709011",
+            "eventName": "Roskilde Festival",
+            "reason": null,
+            "sources": [
+              {
+                "url": "https://www.roskilde-festival.dk/",
+                "information": "The official Roskilde Festival homepage identifies the festival, displays 26 June–3 July 2027, describes eight festival days, and links to RF27 ticket sales."
+              },
+              {
+                "url": "https://www.roskilde-festival.dk/kontakt",
+                "information": "The official contact page identifies Rabalderstræde 7, 4, 4000 Roskilde as the festival’s secretariat office, not a festival venue."
+              }
+            ],
+            "summary": null,
+            "links": {
+              "website": "https://www.roskilde-festival.dk/",
+              "socials": {
+                "instagram": null,
+                "facebook": null,
+                "youtube": null,
+                "tiktok": null,
+                "x": null,
+                "other": null
+              }
+            },
+            "editions": [
+              {
+                "key": "source-row",
+                "year": {
+                  "value": 2027,
+                  "reason": "The official homepage labels the upcoming festival RF27 and displays its dates."
+                },
+                "dates": {
+                  "value": {
+                    "startsOn": "2027-06-26",
+                    "endsOn": "2027-07-03",
+                    "state": "confirmed"
+                  },
+                  "reason": "The official homepage displays 26/6–3/7 2027 and describes eight festival days."
+                },
+                "scheduleStatus": {
+                  "value": "scheduled",
+                  "reason": "The official homepage promotes RF27 ticket sales for the upcoming edition."
+                },
+                "displayName": {
+                  "value": "RF27",
+                  "reason": "The official homepage and its news listings refer to the 2027 edition as RF27."
+                },
+                "venueName": null,
+                "venueAddress": {
+                  "value": null,
+                  "reason": "The contact page explicitly labels the saved address, Rabalderstræde 7, 4, as the Secretariat office; it is not identified as the festival venue."
+                },
+                "locality": null,
+                "administrativeArea": null,
+                "countryCode": null,
+                "coordinates": null,
+                "sizeEstimate": null,
+                "classification": null,
+                "tickets": null,
+                "links": {
+                  "tickets": "https://www.roskilde-festival.dk/billetter"
+                }
+              }
+            ]
+          },
+          "errors": [
+            {
+              "code": "source_blocked",
+              "message": "The linked official ticket page could not be inspected, so ticket categories, prices, and availability could not be checked.",
+              "url": "https://www.roskilde-festival.dk/billetter",
+              "editionKey": "source-row",
+              "field": "tickets"
+            },
+            {
+              "code": "source_blocked",
+              "message": "The official practical-information page was inaccessible; the festival venue could not be verified.",
+              "url": "https://faq.roskilde-festival.dk/hc/da",
+              "editionKey": "source-row",
+              "field": "venueName"
+            },
+            {
+              "code": "source_blocked",
+              "message": "The official programme page could not be inspected for further edition details.",
+              "url": "https://www.roskilde-festival.dk/program",
+              "editionKey": "source-row",
+              "field": null
+            }
+          ],
+          "unresolved": [
+            {
+              "message": "The RF27 ticket page was blocked, leaving ticket categories, prices, and availability unchecked.",
+              "editionKey": "source-row",
+              "field": "tickets"
+            },
+            {
+              "message": "The actual festival venue and its location could not be verified from the accessible pages; the saved address is identified as the secretariat office.",
+              "editionKey": "source-row",
+              "field": "venueName"
+            }
+          ]
+        }
+      },
+      "editorResponse": {
+        "text": "{\"event\":{\"target\":{\"eventId\":\"festivalnetwork:event:87b1f34093d76b709011\"},\"fields\":{\"summary\":null,\"links\":{\"website\":{\"action\":\"set\",\"value\":\"https://www.roskilde-festival.dk/\",\"reason\":\"The official festival homepage identifies Roskilde Festival.\"},\"socials\":null}}},\"editions\":[{\"target\":{\"editionKey\":\"source-row\"},\"fields\":{\"year\":{\"action\":\"set\",\"value\":2027,\"reason\":\"The official homepage identifies the upcoming edition as RF27.\"},\"dates\":{\"action\":\"set\",\"value\":{\"startsOn\":\"2027-06-26\",\"endsOn\":\"2027-07-03\",\"state\":\"confirmed\"},\"reason\":\"The official homepage displays these dates for the 2027 festival.\"},\"coordinates\":null,\"scheduleStatus\":{\"action\":\"set\",\"value\":\"scheduled\",\"reason\":\"The official homepage promotes ticket sales for the upcoming RF27 edition.\"},\"displayName\":{\"action\":\"set\",\"value\":\"RF27\",\"reason\":\"The official homepage refers to the 2027 edition as RF27.\"},\"venueName\":null,\"venueAddress\":{\"action\":\"clear\",\"reason\":\"The official contact page identifies the saved address as the secretariat office, not the festival venue.\"},\"locality\":null,\"administrativeArea\":null,\"countryCode\":null,\"sizeEstimate\":null,\"tickets\":{\"action\":\"keep\",\"reason\":\"The official ticket page could not be inspected, so ticket categories, prices, and availability remain unchecked.\"},\"classification\":null,\"links\":{\"tickets\":{\"action\":\"set\",\"value\":\"https://www.roskilde-festival.dk/billetter\",\"reason\":\"The official homepage links to this page for RF27 ticket sales.\"}}}}],\"unresolved\":[{\"message\":\"Ticket categories, prices, and availability could not be checked because the official RF27 ticket page was blocked.\",\"editionKey\":\"source-row\",\"field\":\"tickets\"},{\"message\":\"The actual festival venue and its location remain unverified; the accessible contact page identifies the saved address as a secretariat office, not the festival venue.\",\"editionKey\":\"source-row\",\"field\":\"venueName\"}]}",
+        "object": {
+          "event": {
+            "target": {
+              "eventId": "festivalnetwork:event:87b1f34093d76b709011"
+            },
+            "fields": {
+              "summary": null,
+              "links": {
+                "website": {
+                  "action": "set",
+                  "value": "https://www.roskilde-festival.dk/",
+                  "reason": "The official festival homepage identifies Roskilde Festival."
+                },
+                "socials": null
+              }
+            }
+          },
+          "editions": [
+            {
+              "target": {
+                "editionKey": "source-row"
+              },
+              "fields": {
+                "year": {
+                  "action": "set",
+                  "value": 2027,
+                  "reason": "The official homepage identifies the upcoming edition as RF27."
+                },
+                "dates": {
+                  "action": "set",
+                  "value": {
+                    "startsOn": "2027-06-26",
+                    "endsOn": "2027-07-03",
+                    "state": "confirmed"
+                  },
+                  "reason": "The official homepage displays these dates for the 2027 festival."
+                },
+                "coordinates": null,
+                "scheduleStatus": {
+                  "action": "set",
+                  "value": "scheduled",
+                  "reason": "The official homepage promotes ticket sales for the upcoming RF27 edition."
+                },
+                "displayName": {
+                  "action": "set",
+                  "value": "RF27",
+                  "reason": "The official homepage refers to the 2027 edition as RF27."
+                },
+                "venueName": null,
+                "venueAddress": {
+                  "action": "clear",
+                  "reason": "The official contact page identifies the saved address as the secretariat office, not the festival venue."
+                },
+                "locality": null,
+                "administrativeArea": null,
+                "countryCode": null,
+                "sizeEstimate": null,
+                "tickets": {
+                  "action": "keep",
+                  "reason": "The official ticket page could not be inspected, so ticket categories, prices, and availability remain unchecked."
+                },
+                "classification": null,
+                "links": {
+                  "tickets": {
+                    "action": "set",
+                    "value": "https://www.roskilde-festival.dk/billetter",
+                    "reason": "The official homepage links to this page for RF27 ticket sales."
+                  }
+                }
+              }
+            }
+          ],
+          "unresolved": [
+            {
+              "message": "Ticket categories, prices, and availability could not be checked because the official RF27 ticket page was blocked.",
+              "editionKey": "source-row",
+              "field": "tickets"
+            },
+            {
+              "message": "The actual festival venue and its location remain unverified; the accessible contact page identifies the saved address as a secretariat office, not the festival venue.",
+              "editionKey": "source-row",
+              "field": "venueName"
+            }
+          ]
+        }
+      },
+      "editorStatus": "success",
+      "editorPromptVersion": "catalog-editor-v1",
+      "operations": [
+        {
+          "kind": "replaceLinks",
+          "owner": {
+            "type": "event",
+            "id": "festivalnetwork:event:87b1f34093d76b709011"
+          },
+          "links": [
+            {
+              "kind": "other",
+              "url": "https://www.roskilde-festival.dk/",
+              "label": "FestivalNetwork website (unverified)",
+              "official": false
+            },
+            {
+              "kind": "official_site",
+              "url": "https://www.roskilde-festival.dk/",
+              "label": null,
+              "official": true
+            }
+          ],
+          "expectedVersion": 1,
+          "operationKey": "f4676750-6c2d-4c84-993a-707d68f1633b",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "updateEdition",
+          "id": "festivalnetwork:edition:87b1f34093d76b709011",
+          "data": {
+            "editionYear": 2027,
+            "startsOn": "2027-06-26",
+            "endsOn": "2027-07-03",
+            "dateState": "confirmed",
+            "scheduleStatus": "scheduled",
+            "displayName": "RF27",
+            "venueAddress": null
+          },
+          "expectedVersion": 1,
+          "operationKey": "6d1bc517-019a-4110-816b-ed80a70d4033",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "replaceLinks",
+          "owner": {
+            "type": "edition",
+            "id": "festivalnetwork:edition:87b1f34093d76b709011"
+          },
+          "links": [
+            {
+              "kind": "ticketing",
+              "url": "https://www.roskilde-festival.dk/billetter",
+              "label": null,
+              "official": true
+            }
+          ],
+          "expectedVersion": 1,
+          "operationKey": "70b675c9-b71e-46a5-a32b-a8e23919c369",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        }
+      ],
+      "references": {},
+      "changes": [
+        {
+          "subject": "festivalnetwork:event:87b1f34093d76b709011",
+          "field": "links",
+          "oldValue": [
+            {
+              "kind": "other",
+              "url": "https://www.roskilde-festival.dk/",
+              "label": "FestivalNetwork website (unverified)",
+              "official": false
+            }
+          ],
+          "newValue": [
+            {
+              "kind": "official_site",
+              "url": "https://www.roskilde-festival.dk/",
+              "label": null,
+              "official": true
+            },
+            {
+              "kind": "other",
+              "url": "https://www.roskilde-festival.dk/",
+              "label": "FestivalNetwork website (unverified)",
+              "official": false
+            }
+          ],
+          "explanations": [
+            "The official festival homepage identifies Roskilde Festival."
+          ]
+        },
+        {
+          "subject": "festivalnetwork:edition:87b1f34093d76b709011",
+          "field": "display_name",
+          "oldValue": null,
+          "newValue": "RF27",
+          "explanations": [
+            "The official homepage refers to the 2027 edition as RF27."
+          ]
+        },
+        {
+          "subject": "festivalnetwork:edition:87b1f34093d76b709011",
+          "field": "venue_address",
+          "oldValue": "Rabalderstræde 7, 4.",
+          "newValue": null,
+          "explanations": [
+            "The official contact page identifies the saved address as the secretariat office, not the festival venue."
+          ]
+        },
+        {
+          "subject": "festivalnetwork:edition:87b1f34093d76b709011",
+          "field": "links",
+          "oldValue": [],
+          "newValue": [
+            {
+              "kind": "ticketing",
+              "url": "https://www.roskilde-festival.dk/billetter",
+              "label": null,
+              "official": true
+            }
+          ],
+          "explanations": [
+            "The official homepage links to this page for RF27 ticket sales."
+          ]
+        }
+      ],
+      "errors": [
+        {
+          "code": "source_blocked",
+          "message": "The linked official ticket page could not be inspected, so ticket categories, prices, and availability could not be checked.",
+          "url": "https://www.roskilde-festival.dk/billetter",
+          "editionKey": "source-row",
+          "field": "tickets",
+          "stage": "source"
+        },
+        {
+          "code": "source_blocked",
+          "message": "The official practical-information page was inaccessible; the festival venue could not be verified.",
+          "url": "https://faq.roskilde-festival.dk/hc/da",
+          "editionKey": "source-row",
+          "field": "venueName",
+          "stage": "source"
+        },
+        {
+          "code": "source_blocked",
+          "message": "The official programme page could not be inspected for further edition details.",
+          "url": "https://www.roskilde-festival.dk/program",
+          "editionKey": "source-row",
+          "stage": "source"
+        }
+      ],
+      "unresolved": [
+        {
+          "message": "The RF27 ticket page was blocked, leaving ticket categories, prices, and availability unchecked.",
+          "editionKey": "source-row",
+          "field": "tickets"
+        },
+        {
+          "message": "The actual festival venue and its location could not be verified from the accessible pages; the saved address is identified as the secretariat office.",
+          "editionKey": "source-row",
+          "field": "venueName"
+        },
+        {
+          "message": "Ticket categories, prices, and availability could not be checked because the official RF27 ticket page was blocked.",
+          "editionKey": "source-row",
+          "field": "tickets"
+        },
+        {
+          "message": "The actual festival venue and its location remain unverified; the accessible contact page identifies the saved address as a secretariat office, not the festival venue.",
+          "editionKey": "source-row",
+          "field": "venueName"
+        }
+      ],
+      "sources": [
+        {
+          "attemptedUrl": "https://www.roskilde-festival.dk/",
+          "finalUrl": "https://www.roskilde-festival.dk/",
+          "retrievedAt": "2026-10-03T16:33:58.662Z",
+          "outcome": "ok"
+        },
+        {
+          "attemptedUrl": "https://www.roskilde-festival.dk/nyheder/rf27-de-foerste-18-navne-er-klar",
+          "finalUrl": "https://www.roskilde-festival.dk/nyheder/rf27-de-foerste-18-navne-er-klar",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://www.roskilde-festival.dk/billetter",
+          "finalUrl": "https://www.roskilde-festival.dk/billetter",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://www.roskilde-festival.dk/kontakt",
+          "finalUrl": "https://www.roskilde-festival.dk/kontakt",
+          "retrievedAt": "2026-10-04T00:50:16.361Z",
+          "outcome": "partial",
+          "reason": "Captured contact page cut off after the office address"
+        },
+        {
+          "attemptedUrl": "https://faq.roskilde-festival.dk/hc/da",
+          "finalUrl": "https://faq.roskilde-festival.dk/hc/da",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://www.roskilde-festival.dk/program",
+          "finalUrl": "https://www.roskilde-festival.dk/program",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://www.roskilde-festival.dk/nyheder/goer-dig-klar-til-at-koebe-billet-til-roskilde-festival-2027",
+          "finalUrl": "https://www.roskilde-festival.dk/nyheder/goer-dig-klar-til-at-koebe-billet-til-roskilde-festival-2027",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        }
+      ],
+      "sourceSummaries": [
+        {
+          "url": "https://www.roskilde-festival.dk/",
+          "information": "The official Roskilde Festival homepage identifies the festival, displays 26 June–3 July 2027, describes eight festival days, and links to RF27 ticket sales."
+        },
+        {
+          "url": "https://www.roskilde-festival.dk/kontakt",
+          "information": "The official contact page identifies Rabalderstræde 7, 4, 4000 Roskilde as the festival’s secretariat office, not a festival venue."
+        }
+      ],
+      "eventNameMismatch": null,
+      "scope": "current",
+      "currentDate": "2026-10-03T12:00:00.000Z",
+      "limits": {
+        "searches": 3,
+        "depth": 2,
+        "agentSteps": 15,
+        "durationMs": 300000,
+        "pageBytes": 2097152,
+        "modelOutputTokens": 16000,
+        "searchResults": 5
+      },
+      "workload": {
+        "savedEditions": 1,
+        "returnedEditions": 1
+      }
+    },
+    {
+      "caseId": "editor-unavailable",
+      "repetition": 1,
+      "fixtureTodayUtc": "2026-10-03",
+      "fixtureProvenance": {
+        "kind": "captured-source-editor-regression",
+        "sourceReport": "src/ingestion/evals/cases/glastonbury/case.json",
+        "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
+      },
+      "runId": "87901311-73d5-4bac-9d6d-fd374c0278fe",
+      "outcome": "failed",
+      "researchStatus": "failed",
+      "score": {
+        "correctness": 1,
+        "completeness": 1,
+        "research": null,
+        "passed": true,
+        "required": [],
+        "forbidden": [],
+        "reasons": {
+          "missingRequired": [],
+          "violatedForbidden": [],
+          "workflowFailed": false,
+          "expectedFailureMissing": false
+        }
+      },
+      "usage": {
+        "searches": 3,
+        "pages": 1,
+        "modelCalls": 4,
+        "elapsedMs": 31017,
+        "remaining": {
+          "searches": 0,
+          "durationMs": 268983
+        },
+        "complete": true,
+        "searchCostBasis": "estimate",
+        "inputTokens": 21801,
+        "outputTokens": 366,
+        "cachedInputTokens": null,
+        "reasoningTokens": null,
+        "modelCostUsd": 0.00022927750000000002,
+        "searchCostUsd": 0
+      },
+      "durationMs": 31017,
+      "modelVersion": "openai/gpt-6-luna",
+      "reasoningEffort": "medium",
+      "promptVersion": "editor-findings-v1",
+      "modelResponse": {
+        "text": "{\"status\":\"failed\",\"data\":null,\"errors\":[{\"code\":\"source_unavailable\",\"message\":\"The saved Glastonbury Festival website could not be read, and source discovery returned no candidate pages to inspect.\",\"url\":\"https://www.glastonburyfestivals.co.uk/\",\"editionKey\":null,\"field\":null}],\"unresolved\":[{\"message\":\"Could not verify the correct official website or research Glastonbury Festival’s historical and announced editions, including the saved 2027 edition.\",\"editionKey\":null,\"field\":null}]}",
+        "object": {
+          "status": "failed",
+          "data": null,
+          "errors": [
+            {
+              "code": "source_unavailable",
+              "message": "The saved Glastonbury Festival website could not be read, and source discovery returned no candidate pages to inspect.",
+              "url": "https://www.glastonburyfestivals.co.uk/",
+              "editionKey": null,
+              "field": null
+            }
+          ],
+          "unresolved": [
+            {
+              "message": "Could not verify the correct official website or research Glastonbury Festival’s historical and announced editions, including the saved 2027 edition.",
+              "editionKey": null,
+              "field": null
+            }
+          ]
+        }
+      },
+      "editorResponse": null,
+      "editorStatus": "not_run",
+      "editorPromptVersion": "catalog-editor-v1",
+      "operations": [],
+      "references": {},
+      "changes": [],
+      "errors": [
+        {
+          "code": "source_unavailable",
+          "message": "The saved Glastonbury Festival website could not be read, and source discovery returned no candidate pages to inspect.",
+          "url": "https://www.glastonburyfestivals.co.uk/",
+          "stage": "source"
+        }
+      ],
+      "unresolved": [
+        {
+          "message": "Could not verify the correct official website or research Glastonbury Festival’s historical and announced editions, including the saved 2027 edition."
+        }
+      ],
+      "sources": [
+        {
+          "attemptedUrl": "https://www.glastonburyfestivals.co.uk/",
+          "finalUrl": "https://www.glastonburyfestivals.co.uk/",
+          "retrievedAt": "2026-10-03T16:33:58.662Z",
+          "outcome": "failed",
+          "reason": "Injected source unavailable"
+        }
+      ],
+      "sourceSummaries": [],
+      "eventNameMismatch": null,
+      "scope": "full",
+      "currentDate": "2026-10-03T12:00:00.000Z",
+      "limits": {
+        "searches": 3,
+        "depth": 2,
+        "agentSteps": 15,
+        "durationMs": 300000,
+        "pageBytes": 2097152,
+        "modelOutputTokens": 16000,
+        "searchResults": 5
+      },
+      "workload": {
+        "savedEditions": 1,
+        "returnedEditions": 0
+      }
+    },
+    {
+      "caseId": "editor-valid-update",
+      "repetition": 1,
+      "fixtureTodayUtc": "2026-10-03",
+      "fixtureProvenance": {
+        "kind": "captured-source-editor-regression",
+        "sourceReport": "src/ingestion/evals/cases/sziget/case.json",
+        "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
+      },
+      "runId": "6c91a7f1-7d94-4768-bc82-6afc26d8af8f",
+      "outcome": "failed",
+      "researchStatus": "partial",
+      "score": {
+        "correctness": 0,
+        "completeness": 0,
+        "research": null,
+        "passed": false,
+        "required": [
+          {
+            "assertion": {
+              "owner": "event",
+              "field": "links",
+              "containsAny": [
+                {
+                  "url": "https://szigetfestival.com/en/",
+                  "kind": "official_site"
+                },
+                {
+                  "url": "https://www.szigetfestival.com/",
+                  "kind": "official_site"
+                }
+              ]
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "starts_on",
+              "value": "2027-08-10"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "ends_on",
+              "value": "2027-08-14"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "date_state",
+              "value": "confirmed"
+            },
+            "matched": false
+          }
+        ],
+        "forbidden": [
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "starts_on"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "ends_on"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "starts_on",
+              "value": null
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "ends_on",
+              "value": null
+            },
+            "matched": false
+          }
+        ],
+        "reasons": {
+          "missingRequired": [
+            {
+              "owner": "event",
+              "field": "links",
+              "containsAny": [
+                {
+                  "url": "https://szigetfestival.com/en/",
+                  "kind": "official_site"
+                },
+                {
+                  "url": "https://www.szigetfestival.com/",
+                  "kind": "official_site"
+                }
+              ]
+            },
+            {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "starts_on",
+              "value": "2027-08-10"
+            },
+            {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "ends_on",
+              "value": "2027-08-14"
+            },
+            {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "date_state",
+              "value": "confirmed"
+            }
+          ],
+          "violatedForbidden": [],
+          "workflowFailed": true,
+          "expectedFailureMissing": false
+        }
+      },
+      "usage": {
+        "searches": 3,
+        "pages": 8,
+        "modelCalls": 8,
+        "elapsedMs": 186126,
+        "remaining": {
+          "searches": 0,
+          "durationMs": 113874
+        },
+        "complete": false,
+        "searchCostBasis": "estimate",
+        "inputTokens": 113473,
+        "outputTokens": 4524,
+        "cachedInputTokens": null,
+        "reasoningTokens": null,
+        "modelCostUsd": 0.002405985,
+        "searchCostUsd": 0
+      },
+      "durationMs": 186126,
+      "modelVersion": "openai/gpt-6-luna",
+      "reasoningEffort": "medium",
+      "promptVersion": "editor-findings-v1",
+      "modelResponse": {
+        "text": "{\"status\":\"partial\",\"data\":{\"eventId\":\"festivalnetwork:event:a22324dcf0078266ed4e\",\"eventName\":\"Sziget Festival\",\"reason\":null,\"sources\":[{\"url\":\"https://szigetfestival.com/en/\",\"information\":\"Official Sziget homepage identifies the 2027 edition, gives its dates as 10–14 August 2027, and lists a 5-day Pass (€349), 21&Under 5-day Pass (€279), and VIP 5-day Pass (€569), each before handling fees.\"},{\"url\":\"https://szigetfestival.com/en/festival-info\",\"information\":\"Official FAQ confirms Sziget Festival 2027 runs 10–14 August and says artists will be announced later. It references Sziget 2026 in cashless-payment information, but the inspected page does not verify the 2026 programme dates or ticket categories.\"},{\"url\":\"https://szigetfestival.com/en/travel/\",\"information\":\"Official travel page says Sziget takes place on Óbuda Island in Budapest and gives the address Május 9. park, Budapest, Hungary, 1033.\"},{\"url\":\"https://szigetfestival.com/en/tickets\",\"information\":\"Official ticket page describes tickets, passes, accommodation and camping, but the inspected page did not render its ticket listings.\"}],\"summary\":null,\"links\":{\"website\":\"https://szigetfestival.com/en/\",\"socials\":{ \"instagram\":null,\"facebook\":null,\"youtube\":null,\"tiktok\":null,\"x\":null,\"other\":null}},\"editions\":[{\"key\":\"source-row\",\"year\":{\"value\":2026,\"reason\":\"The official FAQ refers to Sziget Festival 2026 in its cashless-payment information; the inspected pages do not independently confirm the saved programme dates.\"},\"dates\":null,\"scheduleStatus\":null,\"displayName\":null,\"venueName\":null,\"venueAddress\":null,\"locality\":null,\"administrativeArea\":null,\"countryCode\":null,\"coordinates\":null,\"sizeEstimate\":null,\"classification\":null,\"tickets\":null,\"links\":{\"tickets\":null}},{\"key\":\"2027\",\"year\":{\"value\":2027,\"reason\":\"The official homepage and FAQ identify the upcoming edition as Sziget 2027.\"},\"dates\":{\"value\":{\"startsOn\":\"2027-08-10\",\"endsOn\":\"2027-08-14\",\"state\":\"confirmed\"},\"reason\":\"The official homepage and FAQ both give the festival dates as 10–14 August 2027.\"},\"scheduleStatus\":{\"value\":\"scheduled\",\"reason\":\"The official homepage says Sziget returns on 10–14 August 2027, and the FAQ confirms those dates.\"},\"displayName\":null,\"venueName\":{\"value\":\"Óbuda Island\",\"reason\":\"The official travel page identifies Óbuda Island as the location of Sziget Festival.\"},\"venueAddress\":{\"value\":\"Május 9. park, Budapest, Hungary, 1033\",\"reason\":\"The official travel page gives this as the festival’s official address.\"},\"locality\":{\"value\":\"Budapest\",\"reason\":\"The official travel page places Óbuda Island in Budapest.\"},\"administrativeArea\":null,\"countryCode\":{\"value\":\"HU\",\"reason\":\"The official travel page names Hungary in the festival address.\"},\"coordinates\":null,\"sizeEstimate\":null,\"classification\":{\"add\":{\"value\":[\"validation:festival\",\"validation:music\"],\"reason\":\"The official pages identify Sziget as a festival and describe its music programme, artists and performances.\"},\"remove\":null},\"tickets\":{\"value\":{\"variants\":[{\"label\":\"5-day Pass\",\"amount\":349,\"currency\":\"EUR\",\"terms\":\"Handling fee additional.\",\"availability\":\"unknown\",\"url\":null},{\"label\":\"21&Under 5-day Pass\",\"amount\":279,\"currency\":\"EUR\",\"terms\":\"For eligible attendees aged 21 and under; handling fee additional.\",\"availability\":\"unknown\",\"url\":null},{\"label\":\"VIP 5-day Pass\",\"amount\":569,\"currency\":\"EUR\",\"terms\":\"Handling fee additional.\",\"availability\":\"unknown\",\"url\":null}],\"basePrice\":{\"kind\":\"exact\",\"currency\":\"EUR\",\"minAmount\":349,\"maxAmount\":349,\"coverage\":\"full_programme\",\"qualification\":\"5-day Pass; online handling fee additional.\"}},\"reason\":\"The official homepage publishes these three pass categories and prices. Its links direct visitors to check all ticket types, but the official ticket listings and linked purchase pages did not yield a complete, readable category list.\"},\"links\":{\"tickets\":\"https://szigetfestival.com/en/tickets\"}}]},\"errors\":[{\"code\":\"source_blocked\",\"message\":\"The official ticket page did not render its listings, and linked 2027 ticket-shop pages could not be inspected; the full ticket-category and availability check remains unfinished.\",\"url\":\"https://szigetfestival.com/en/tickets\",\"editionKey\":\"2027\",\"field\":\"tickets\"}],\"unresolved\":[{\"message\":\"The saved 2026 edition still needs a source confirming its programme dates and historical ticket details; inspected official pages mention the year but do not establish those facts.\",\"editionKey\":\"source-row\",\"field\":\"dates\"},{\"message\":\"The complete 2027 ticket offering and category availability could not be checked because the official listings did not render and linked shop pages were blocked.\",\"editionKey\":\"2027\",\"field\":\"tickets\"}] }",
+        "object": {
+          "status": "partial",
+          "data": {
+            "eventId": "festivalnetwork:event:a22324dcf0078266ed4e",
+            "eventName": "Sziget Festival",
+            "reason": null,
+            "sources": [
+              {
+                "url": "https://szigetfestival.com/en/",
+                "information": "Official Sziget homepage identifies the 2027 edition, gives its dates as 10–14 August 2027, and lists a 5-day Pass (€349), 21&Under 5-day Pass (€279), and VIP 5-day Pass (€569), each before handling fees."
+              },
+              {
+                "url": "https://szigetfestival.com/en/festival-info",
+                "information": "Official FAQ confirms Sziget Festival 2027 runs 10–14 August and says artists will be announced later. It references Sziget 2026 in cashless-payment information, but the inspected page does not verify the 2026 programme dates or ticket categories."
+              },
+              {
+                "url": "https://szigetfestival.com/en/travel/",
+                "information": "Official travel page says Sziget takes place on Óbuda Island in Budapest and gives the address Május 9. park, Budapest, Hungary, 1033."
+              },
+              {
+                "url": "https://szigetfestival.com/en/tickets",
+                "information": "Official ticket page describes tickets, passes, accommodation and camping, but the inspected page did not render its ticket listings."
+              }
+            ],
+            "summary": null,
+            "links": {
+              "website": "https://szigetfestival.com/en/",
+              "socials": {
+                "instagram": null,
+                "facebook": null,
+                "youtube": null,
+                "tiktok": null,
+                "x": null,
+                "other": null
+              }
+            },
+            "editions": [
+              {
+                "key": "source-row",
+                "year": {
+                  "value": 2026,
+                  "reason": "The official FAQ refers to Sziget Festival 2026 in its cashless-payment information; the inspected pages do not independently confirm the saved programme dates."
+                },
+                "dates": null,
+                "scheduleStatus": null,
+                "displayName": null,
+                "venueName": null,
+                "venueAddress": null,
+                "locality": null,
+                "administrativeArea": null,
+                "countryCode": null,
+                "coordinates": null,
+                "sizeEstimate": null,
+                "classification": null,
+                "tickets": null,
+                "links": {
+                  "tickets": null
+                }
+              },
+              {
+                "key": "2027",
+                "year": {
+                  "value": 2027,
+                  "reason": "The official homepage and FAQ identify the upcoming edition as Sziget 2027."
+                },
+                "dates": {
+                  "value": {
+                    "startsOn": "2027-08-10",
+                    "endsOn": "2027-08-14",
+                    "state": "confirmed"
+                  },
+                  "reason": "The official homepage and FAQ both give the festival dates as 10–14 August 2027."
+                },
+                "scheduleStatus": {
+                  "value": "scheduled",
+                  "reason": "The official homepage says Sziget returns on 10–14 August 2027, and the FAQ confirms those dates."
+                },
+                "displayName": null,
+                "venueName": {
+                  "value": "Óbuda Island",
+                  "reason": "The official travel page identifies Óbuda Island as the location of Sziget Festival."
+                },
+                "venueAddress": {
+                  "value": "Május 9. park, Budapest, Hungary, 1033",
+                  "reason": "The official travel page gives this as the festival’s official address."
+                },
+                "locality": {
+                  "value": "Budapest",
+                  "reason": "The official travel page places Óbuda Island in Budapest."
+                },
+                "administrativeArea": null,
+                "countryCode": {
+                  "value": "HU",
+                  "reason": "The official travel page names Hungary in the festival address."
+                },
+                "coordinates": null,
+                "sizeEstimate": null,
+                "classification": {
+                  "add": {
+                    "value": [
+                      "validation:festival",
+                      "validation:music"
+                    ],
+                    "reason": "The official pages identify Sziget as a festival and describe its music programme, artists and performances."
+                  },
+                  "remove": null
+                },
+                "tickets": {
+                  "value": {
+                    "variants": [
+                      {
+                        "label": "5-day Pass",
+                        "amount": 349,
+                        "currency": "EUR",
+                        "terms": "Handling fee additional.",
+                        "availability": "unknown",
+                        "url": null
+                      },
+                      {
+                        "label": "21&Under 5-day Pass",
+                        "amount": 279,
+                        "currency": "EUR",
+                        "terms": "For eligible attendees aged 21 and under; handling fee additional.",
+                        "availability": "unknown",
+                        "url": null
+                      },
+                      {
+                        "label": "VIP 5-day Pass",
+                        "amount": 569,
+                        "currency": "EUR",
+                        "terms": "Handling fee additional.",
+                        "availability": "unknown",
+                        "url": null
+                      }
+                    ],
+                    "basePrice": {
+                      "kind": "exact",
+                      "currency": "EUR",
+                      "minAmount": 349,
+                      "maxAmount": 349,
+                      "coverage": "full_programme",
+                      "qualification": "5-day Pass; online handling fee additional."
+                    }
+                  },
+                  "reason": "The official homepage publishes these three pass categories and prices. Its links direct visitors to check all ticket types, but the official ticket listings and linked purchase pages did not yield a complete, readable category list."
+                },
+                "links": {
+                  "tickets": "https://szigetfestival.com/en/tickets"
+                }
+              }
+            ]
+          },
+          "errors": [
+            {
+              "code": "source_blocked",
+              "message": "The official ticket page did not render its listings, and linked 2027 ticket-shop pages could not be inspected; the full ticket-category and availability check remains unfinished.",
+              "url": "https://szigetfestival.com/en/tickets",
+              "editionKey": "2027",
+              "field": "tickets"
+            }
+          ],
+          "unresolved": [
+            {
+              "message": "The saved 2026 edition still needs a source confirming its programme dates and historical ticket details; inspected official pages mention the year but do not establish those facts.",
+              "editionKey": "source-row",
+              "field": "dates"
+            },
+            {
+              "message": "The complete 2027 ticket offering and category availability could not be checked because the official listings did not render and linked shop pages were blocked.",
+              "editionKey": "2027",
+              "field": "tickets"
+            }
+          ]
+        }
+      },
+      "editorResponse": null,
+      "editorStatus": "failed",
+      "editorPromptVersion": "catalog-editor-v1",
+      "operations": [],
+      "references": {},
+      "changes": [],
+      "errors": [
+        {
+          "code": "source_blocked",
+          "message": "The official ticket page did not render its listings, and linked 2027 ticket-shop pages could not be inspected; the full ticket-category and availability check remains unfinished.",
+          "url": "https://szigetfestival.com/en/tickets",
+          "editionKey": "2027",
+          "field": "tickets",
+          "stage": "source"
+        },
+        {
+          "code": "model_failed",
+          "stage": "editor",
+          "message": "Editor generation failed",
+          "diagnostic": {
+            "errorTypes": [
+              "AI_APICallError"
+            ],
+            "httpStatus": 200,
+            "providerCode": 502,
+            "retryable": false
+          }
+        }
+      ],
+      "unresolved": [
+        {
+          "message": "The saved 2026 edition still needs a source confirming its programme dates and historical ticket details; inspected official pages mention the year but do not establish those facts.",
+          "editionKey": "source-row",
+          "field": "dates"
+        },
+        {
+          "message": "The complete 2027 ticket offering and category availability could not be checked because the official listings did not render and linked shop pages were blocked.",
+          "editionKey": "2027",
+          "field": "tickets"
+        }
+      ],
+      "sources": [
+        {
+          "attemptedUrl": "https://www.szigetfestival.com/",
+          "finalUrl": "https://szigetfestival.com/en/",
+          "retrievedAt": "2026-10-03T16:33:58.662Z",
+          "outcome": "ok"
+        },
+        {
+          "attemptedUrl": "https://szigetfestival.com/en/tickets",
+          "finalUrl": "https://szigetfestival.com/en/tickets",
+          "retrievedAt": "2026-10-03T23:16:38.705Z",
+          "outcome": "partial",
+          "reason": "renders_budget_exhausted"
+        },
+        {
+          "attemptedUrl": "https://szigetfestival.com/en/festival-info",
+          "finalUrl": "https://szigetfestival.com/en/festival-info",
+          "retrievedAt": "2026-10-03T23:49:32.520Z",
+          "outcome": "ok"
+        },
+        {
+          "attemptedUrl": "https://szigetfestival.com/en/experience",
+          "finalUrl": "https://szigetfestival.com/en/experience",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://szi.gt/5daypass_2027",
+          "finalUrl": "https://szi.gt/5daypass_2027",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://szi.gt/21andUnderPass_2027",
+          "finalUrl": "https://szi.gt/21andUnderPass_2027",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://szi.gt/VIP_5day_2027",
+          "finalUrl": "https://szi.gt/VIP_5day_2027",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://szigetfestival.com/en/travel",
+          "finalUrl": "https://szigetfestival.com/en/travel/",
+          "retrievedAt": "2026-10-03T23:14:50.663Z",
+          "outcome": "ok"
+        }
+      ],
+      "sourceSummaries": [
+        {
+          "url": "https://szigetfestival.com/en/",
+          "information": "Official Sziget homepage identifies the 2027 edition, gives its dates as 10–14 August 2027, and lists a 5-day Pass (€349), 21&Under 5-day Pass (€279), and VIP 5-day Pass (€569), each before handling fees."
+        },
+        {
+          "url": "https://szigetfestival.com/en/festival-info",
+          "information": "Official FAQ confirms Sziget Festival 2027 runs 10–14 August and says artists will be announced later. It references Sziget 2026 in cashless-payment information, but the inspected page does not verify the 2026 programme dates or ticket categories."
+        },
+        {
+          "url": "https://szigetfestival.com/en/travel/",
+          "information": "Official travel page says Sziget takes place on Óbuda Island in Budapest and gives the address Május 9. park, Budapest, Hungary, 1033."
+        },
+        {
+          "url": "https://szigetfestival.com/en/tickets",
+          "information": "Official ticket page describes tickets, passes, accommodation and camping, but the inspected page did not render its ticket listings."
+        }
+      ],
+      "eventNameMismatch": null,
+      "scope": "full",
+      "currentDate": "2026-10-03T12:00:00.000Z",
+      "limits": {
+        "searches": 3,
+        "depth": 2,
+        "agentSteps": 15,
+        "durationMs": 300000,
+        "pageBytes": 2097152,
+        "modelOutputTokens": 16000,
+        "searchResults": 5
+      },
+      "workload": {
+        "savedEditions": 1,
+        "returnedEditions": 2
+      }
+    }
+  ]
+}

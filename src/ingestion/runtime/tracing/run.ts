@@ -58,6 +58,7 @@ export async function createCatalogRunTrace(
   const state: TraceRunState = {
     structuralValidation: "not_run",
     targetValidation: "not_run",
+    editorPlanValidation: "not_run",
     writeState: "not_attempted",
   };
   const update = (values: Partial<Snapshot> = {}) => {
@@ -123,6 +124,17 @@ export async function createCatalogRunTrace(
         state.errorCode = "research_failed";
       } else {
         state.writeState = "unchanged";
+      }
+      update({ prepared });
+    },
+    editorValidated(prepared: PreparedPlan) {
+      const rejected = prepared.errors.some(
+        (error) => error.code === "invalid_plan",
+      );
+      state.editorPlanValidation = rejected ? "failed" : "passed";
+      if (rejected) {
+        state.errorCode = "validation_failed";
+        state.writeState = "not_attempted";
       }
       update({ prepared });
     },

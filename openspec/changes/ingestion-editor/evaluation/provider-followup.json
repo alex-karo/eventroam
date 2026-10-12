@@ -1,0 +1,2030 @@
+{
+  "schemaVersion": 5,
+  "startedAt": "2026-10-11T23:55:14.301Z",
+  "finishedAt": "2026-10-12T00:00:00.096Z",
+  "fixtureTodayUtc": "2026-10-03",
+  "fixtureSha256": "a97360c941c8fb0e047be69ccffdedb8fd17d9d2cd88cb64eaf9edb12619e994",
+  "fixtureProvenance": {
+    "kind": "captured",
+    "sourceReport": "docs/research/2026-10-03-source-workflow-validation.md#five-additional-deepseek-refresh-dry-runs",
+    "note": "The original five cases used homepages fetched on 2026-10-03; continuous Markdown produced by the production reader. Follow-up pages were captured via readSource with rendering disabled. Those cases store at most four pages including each homepage: Tomorrowland 3, Wacken 3, Roskilde 4, Sziget 4, Glastonbury 1. Empty responses, navigation-only new pages, and redirects back to the homepage were excluded. Original Sziget tickets retains its partial HTTP outcome; travel supports Budapest, Hungary. Their expectations are unchanged from the preceding Sziget-expanded suite. Capture timestamps and outcomes are stored per source. Fixtures store page content once; traversal/provenance links are derived from Markdown during replay. No live website/search fallback during evals. Roskilde ticket-sale news was replaced on 2026-10-04 with an HTTP-only contact-page capture distinguishing venue and office addresses; its location expectations were revised accordingly. The Afro Nation Portugal case has its own 2026-10-08 capture date and provenance."
+  },
+  "modelVersion": "openai/gpt-6-luna",
+  "reasoningEffort": "medium",
+  "promptVersion": "editor-findings-v1",
+  "mastra": {
+    "scores": {
+      "catalog-correctness": 1,
+      "catalog-completeness": 1,
+      "research-completeness": 1
+    },
+    "summary": {
+      "totalItems": 2
+    }
+  },
+  "results": [
+    {
+      "caseId": "editor-wrong-year",
+      "repetition": 1,
+      "fixtureTodayUtc": "2026-10-03",
+      "fixtureProvenance": {
+        "kind": "captured-source-editor-regression",
+        "sourceReport": "src/ingestion/evals/cases/wacken/case.json",
+        "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
+      },
+      "runId": "470a0920-4cf0-4307-9b05-2f84609357fc",
+      "outcome": "created",
+      "researchStatus": "partial",
+      "score": {
+        "correctness": 1,
+        "completeness": 1,
+        "research": null,
+        "passed": true,
+        "required": [
+          {
+            "assertion": {
+              "owner": "event",
+              "field": "links",
+              "containsAny": [
+                {
+                  "url": "https://www.wacken.com/de/",
+                  "kind": "official_site"
+                },
+                {
+                  "url": "https://www.wacken.com/en/",
+                  "kind": "official_site"
+                },
+                {
+                  "url": "https://www.wacken.com/",
+                  "kind": "official_site"
+                }
+              ]
+            },
+            "matched": true
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "starts_on",
+              "value": "2027-07-28"
+            },
+            "matched": true
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "ends_on",
+              "value": "2027-07-31"
+            },
+            "matched": true
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "date_state",
+              "value": "confirmed"
+            },
+            "matched": true
+          }
+        ],
+        "forbidden": [
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "country_code",
+              "notValue": "DE"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "starts_on"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "ends_on"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "starts_on",
+              "value": null
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "ends_on",
+              "value": null
+            },
+            "matched": false
+          }
+        ],
+        "reasons": {
+          "missingRequired": [],
+          "violatedForbidden": [],
+          "workflowFailed": false,
+          "expectedFailureMissing": false
+        }
+      },
+      "usage": {
+        "searches": 3,
+        "pages": 6,
+        "modelCalls": 9,
+        "elapsedMs": 285700,
+        "remaining": {
+          "searches": 0,
+          "durationMs": 14300
+        },
+        "complete": false,
+        "searchCostBasis": "estimate",
+        "inputTokens": 75651,
+        "outputTokens": 6171,
+        "cachedInputTokens": null,
+        "reasoningTokens": null,
+        "modelCostUsd": 0.0022644774999999997,
+        "searchCostUsd": 0
+      },
+      "durationMs": 285701,
+      "modelVersion": "openai/gpt-6-luna",
+      "reasoningEffort": "medium",
+      "promptVersion": "editor-findings-v1",
+      "modelResponse": {
+        "text": "{\"status\":\"partial\",\"data\":{\"eventId\":\"festivalnetwork:event:792d44feb71838d4b28b\",\"eventName\":\"Wacken Open Air\",\"reason\":null,\"sources\":[{\"url\":\"https://www.wacken.com/de/\",\"information\":\"The official Wacken Open Air page identifies the festival, links its 2027 ticket information, and displays the 2027 dates as 28–31 July. It also lists a 2026 aftermovie announcement, but does not establish the saved 2026 edition’s dates or venue details.\"},{\"url\":\"https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/\",\"information\":\"The official 2027 ticket overview gives the 28–31 July dates, prices for the Louder, Younger, and The Pit tickets, and the The Pit upgrade. It says the earlier ticket phases have ended; ticket availability and the complete ticket-shop details were not verified.\"}],\"summary\":null,\"links\":{\"website\":\"https://www.wacken.com/de/\",\"socials\":{ \"instagram\":null,\"facebook\":null,\"youtube\":null,\"tiktok\":null,\"x\":null,\"other\":null}},\"editions\":[{\"key\":\"2027\",\"year\":{\"value\":2027,\"reason\":\"The official Wacken page identifies the 2027 edition.\"},\"dates\":{\"value\":{\"startsOn\":\"2027-07-28\",\"endsOn\":\"2027-07-31\",\"state\":\"confirmed\"},\"reason\":\"The official Wacken page displays 28–31 July 2027, and the ticket overview describes four festival days.\"},\"scheduleStatus\":{\"value\":\"announced\",\"reason\":\"The official website is promoting the 2027 edition and its ticket sales.\"},\"displayName\":{\"value\":\"Wacken Open Air 2027\",\"reason\":\"The official ticket overview identifies this edition as Wacken Open Air 2027.\"},\"venueName\":null,\"venueAddress\":null,\"locality\":null,\"administrativeArea\":null,\"countryCode\":null,\"coordinates\":null,\"sizeEstimate\":null,\"classification\":{\"add\":{\"value\":[\"validation:festival\",\"festivalnetwork:term:genre:metal\",\"validation:music\"],\"reason\":\"The official ticket overview calls it a festival and describes four days of concerts for the metal community.\"},\"remove\":null},\"tickets\":{\"value\":{\"variants\":[{\"label\":\"Younger-Ticket\",\"amount\":279,\"currency\":\"EUR\",\"terms\":\"For attendees up to and including 25 years old at the start of the festival; plus a €2 ticket fee.\",\"availability\":\"unknown\",\"url\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802\"},{\"label\":\"The Pit-Ticket\",\"amount\":1399,\"currency\":\"EUR\",\"terms\":\"The Pit package ticket.\",\"availability\":\"unknown\",\"url\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802\"},{\"label\":\"The Pit Upgrade\",\"amount\":1049,\"currency\":\"EUR\",\"terms\":\"Upgrade for holders of a W:O:A 2027 ticket; not a standalone full-programme ticket.\",\"availability\":\"unknown\",\"url\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802\"}],\"basePrice\":{\"kind\":\"exact\",\"currency\":\"EUR\",\"minAmount\":364,\"maxAmount\":364,\"coverage\":\"full_programme\",\"qualification\":\"Louder-Ticket advertised price; €2 ticket fee additional.\"}},\"reason\":\"The official ticket overview lists the Louder-Ticket at €364 plus a €2 ticket fee, the Younger-Ticket at €279 plus a €2 fee, The Pit-Ticket at €1,399, and The Pit Upgrade at €1,049. Availability and details from the ticket shop remain unverified.\"},\"links\":{\"tickets\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817\"}}]},\"errors\":[{\"code\":\"source_blocked\",\"message\":\"The official 2026 aftermovie page could not be inspected, leaving the saved 2026 edition’s historical facts unchecked.\",\"url\":\"https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/\",\"editionKey\":\"source-row\",\"field\":null},{\"code\":\"source_blocked\",\"message\":\"The linked 2027 ticket shop could not be inspected for ticket categories and availability.\",\"url\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets\",\"editionKey\":\"2027\",\"field\":\"tickets\"}],\"unresolved\":[{\"message\":\"Full-scope checks of the saved 2026 edition—including its dates, venue/location and ticket facts—remain unfinished because the relevant historical page was blocked and discovery found no usable alternative.\",\"editionKey\":\"source-row\",\"field\":null},{\"message\":\"Check the 2027 ticket shop for current availability and whether it lists additional relevant ticket categories or terms beyond the official overview.\",\"editionKey\":\"2027\",\"field\":\"tickets\"}]}",
+        "object": {
+          "status": "partial",
+          "data": {
+            "eventId": "festivalnetwork:event:792d44feb71838d4b28b",
+            "eventName": "Wacken Open Air",
+            "reason": null,
+            "sources": [
+              {
+                "url": "https://www.wacken.com/de/",
+                "information": "The official Wacken Open Air page identifies the festival, links its 2027 ticket information, and displays the 2027 dates as 28–31 July. It also lists a 2026 aftermovie announcement, but does not establish the saved 2026 edition’s dates or venue details."
+              },
+              {
+                "url": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
+                "information": "The official 2027 ticket overview gives the 28–31 July dates, prices for the Louder, Younger, and The Pit tickets, and the The Pit upgrade. It says the earlier ticket phases have ended; ticket availability and the complete ticket-shop details were not verified."
+              }
+            ],
+            "summary": null,
+            "links": {
+              "website": "https://www.wacken.com/de/",
+              "socials": {
+                "instagram": null,
+                "facebook": null,
+                "youtube": null,
+                "tiktok": null,
+                "x": null,
+                "other": null
+              }
+            },
+            "editions": [
+              {
+                "key": "2027",
+                "year": {
+                  "value": 2027,
+                  "reason": "The official Wacken page identifies the 2027 edition."
+                },
+                "dates": {
+                  "value": {
+                    "startsOn": "2027-07-28",
+                    "endsOn": "2027-07-31",
+                    "state": "confirmed"
+                  },
+                  "reason": "The official Wacken page displays 28–31 July 2027, and the ticket overview describes four festival days."
+                },
+                "scheduleStatus": {
+                  "value": "announced",
+                  "reason": "The official website is promoting the 2027 edition and its ticket sales."
+                },
+                "displayName": {
+                  "value": "Wacken Open Air 2027",
+                  "reason": "The official ticket overview identifies this edition as Wacken Open Air 2027."
+                },
+                "venueName": null,
+                "venueAddress": null,
+                "locality": null,
+                "administrativeArea": null,
+                "countryCode": null,
+                "coordinates": null,
+                "sizeEstimate": null,
+                "classification": {
+                  "add": {
+                    "value": [
+                      "validation:festival",
+                      "festivalnetwork:term:genre:metal",
+                      "validation:music"
+                    ],
+                    "reason": "The official ticket overview calls it a festival and describes four days of concerts for the metal community."
+                  },
+                  "remove": null
+                },
+                "tickets": {
+                  "value": {
+                    "variants": [
+                      {
+                        "label": "Younger-Ticket",
+                        "amount": 279,
+                        "currency": "EUR",
+                        "terms": "For attendees up to and including 25 years old at the start of the festival; plus a €2 ticket fee.",
+                        "availability": "unknown",
+                        "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+                      },
+                      {
+                        "label": "The Pit-Ticket",
+                        "amount": 1399,
+                        "currency": "EUR",
+                        "terms": "The Pit package ticket.",
+                        "availability": "unknown",
+                        "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+                      },
+                      {
+                        "label": "The Pit Upgrade",
+                        "amount": 1049,
+                        "currency": "EUR",
+                        "terms": "Upgrade for holders of a W:O:A 2027 ticket; not a standalone full-programme ticket.",
+                        "availability": "unknown",
+                        "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+                      }
+                    ],
+                    "basePrice": {
+                      "kind": "exact",
+                      "currency": "EUR",
+                      "minAmount": 364,
+                      "maxAmount": 364,
+                      "coverage": "full_programme",
+                      "qualification": "Louder-Ticket advertised price; €2 ticket fee additional."
+                    }
+                  },
+                  "reason": "The official ticket overview lists the Louder-Ticket at €364 plus a €2 ticket fee, the Younger-Ticket at €279 plus a €2 fee, The Pit-Ticket at €1,399, and The Pit Upgrade at €1,049. Availability and details from the ticket shop remain unverified."
+                },
+                "links": {
+                  "tickets": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817"
+                }
+              }
+            ]
+          },
+          "errors": [
+            {
+              "code": "source_blocked",
+              "message": "The official 2026 aftermovie page could not be inspected, leaving the saved 2026 edition’s historical facts unchecked.",
+              "url": "https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/",
+              "editionKey": "source-row",
+              "field": null
+            },
+            {
+              "code": "source_blocked",
+              "message": "The linked 2027 ticket shop could not be inspected for ticket categories and availability.",
+              "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets",
+              "editionKey": "2027",
+              "field": "tickets"
+            }
+          ],
+          "unresolved": [
+            {
+              "message": "Full-scope checks of the saved 2026 edition—including its dates, venue/location and ticket facts—remain unfinished because the relevant historical page was blocked and discovery found no usable alternative.",
+              "editionKey": "source-row",
+              "field": null
+            },
+            {
+              "message": "Check the 2027 ticket shop for current availability and whether it lists additional relevant ticket categories or terms beyond the official overview.",
+              "editionKey": "2027",
+              "field": "tickets"
+            }
+          ]
+        }
+      },
+      "editorResponse": {
+        "text": "{\"event\":{\"target\":{\"eventId\":\"festivalnetwork:event:792d44feb71838d4b28b\"},\"fields\":{\"summary\":null,\"links\":{\"website\":{\"action\":\"set\",\"value\":\"https://www.wacken.com/de/\",\"reason\":\"The official Wacken website identifies the festival and promotes its editions.\"},\"socials\":null}}},\"editions\":[{\"target\":{\"editionKey\":\"source-row\"},\"fields\":{ \"year\":{\"action\":\"keep\",\"reason\":\"The saved 2026 edition's historical facts were not verified; the blocked source does not support changing its saved year.\"},\"dates\":{\"action\":\"keep\",\"reason\":\"The 2026 dates could not be checked against usable historical evidence.\"},\"coordinates\":{\"action\":\"keep\",\"reason\":\"The saved edition's location and coordinates remain unchecked because the historical page was blocked.\"},\"scheduleStatus\":{\"action\":\"keep\",\"reason\":\"No evidence verifies or disproves the saved 2026 schedule status.\"},\"displayName\":{\"action\":\"keep\",\"reason\":\"No verified evidence supports changing the saved edition display name.\"},\"venueName\":{\"action\":\"keep\",\"reason\":\"The historical venue details remain unchecked.\"},\"venueAddress\":{\"action\":\"keep\",\"reason\":\"The historical venue details remain unchecked.\"},\"locality\":{\"action\":\"keep\",\"reason\":\"The historical location details remain unchecked.\"},\"administrativeArea\":{\"action\":\"keep\",\"reason\":\"The historical location details remain unchecked.\"},\"countryCode\":{\"action\":\"keep\",\"reason\":\"The saved country is preserved; the historical source did not verify a replacement.\"},\"sizeEstimate\":{\"action\":\"keep\",\"reason\":\"No supported participant-size evidence was found.\"},\"tickets\":{\"action\":\"keep\",\"reason\":\"Historical ticket facts remain unchecked because the relevant source was blocked.\"},\"classification\":{\"action\":\"keep\",\"reason\":\"No evidence supports changing the saved edition classification.\"},\"links\":{\"tickets\":{\"action\":\"keep\",\"reason\":\"No verified historical ticket link association was established.\"}}}},{\"target\":{\"create\":{\"editionKey\":\"2027\"},\"reason\":\"Official Wacken pages identify and promote the 2027 edition.\"},\"fields\":{\"year\":{\"action\":\"set\",\"value\":2027,\"reason\":\"The official pages identify the edition as Wacken Open Air 2027.\"},\"dates\":{\"action\":\"set\",\"value\":{\"startsOn\":\"2027-07-28\",\"endsOn\":\"2027-07-31\",\"state\":\"confirmed\"},\"reason\":\"The official page and ticket overview give the confirmed dates as 28–31 July 2027.\"},\"coordinates\":null,\"scheduleStatus\":{\"action\":\"set\",\"value\":\"announced\",\"reason\":\"The official website promotes the 2027 edition and its ticket sales.\"},\"displayName\":{\"action\":\"set\",\"value\":\"Wacken Open Air 2027\",\"reason\":\"The official ticket overview identifies the edition by this name.\"},\"venueName\":null,\"venueAddress\":null,\"locality\":null,\"administrativeArea\":null,\"countryCode\":null,\"sizeEstimate\":null,\"tickets\":{\"action\":\"set\",\"value\":{\"variants\":[{\"label\":\"Louder-Ticket\",\"amount\":364,\"currency\":\"EUR\",\"terms\":\"Advertised ticket price; €2 ticket fee additional.\",\"availability\":\"unknown\",\"url\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802\"},{\"label\":\"Younger-Ticket\",\"amount\":279,\"currency\":\"EUR\",\"terms\":\"For attendees up to and including 25 years old at the start of the festival; plus a €2 ticket fee.\",\"availability\":\"unknown\",\"url\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802\"},{\"label\":\"The Pit-Ticket\",\"amount\":1399,\"currency\":\"EUR\",\"terms\":\"The Pit package ticket.\",\"availability\":\"unknown\",\"url\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802\"},{\"label\":\"The Pit Upgrade\",\"amount\":1049,\"currency\":\"EUR\",\"terms\":\"Upgrade for holders of a W:O:A 2027 ticket; not a standalone full-programme ticket.\",\"availability\":\"unknown\",\"url\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802\"}],\"basePrice\":{\"kind\":\"exact\",\"currency\":\"EUR\",\"minAmount\":364,\"maxAmount\":364,\"coverage\":\"full_programme\",\"qualification\":\"Louder-Ticket advertised price; €2 ticket fee additional.\"}},\"reason\":\"The official overview lists the Louder-Ticket at €364, the age-restricted Younger-Ticket at €279, The Pit-Ticket at €1,399, and a €1,049 upgrade. Ticket-shop availability and further details remain unverified.\"},\"classification\":{\"action\":\"set\",\"value\":[\"validation:festival\",\"festivalnetwork:term:genre:metal\",\"validation:music\"],\"reason\":\"The official overview describes a four-day festival with concerts for the metal community.\"},\"links\":{\"tickets\":{\"action\":\"set\",\"value\":\"https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817\",\"reason\":\"The official ticket overview links this ticket-shop page for Wacken Open Air 2027.\"}}}}],\"unresolved\":[{\"message\":\"Full-scope checks of the saved 2026 edition—including its dates, venue/location, and ticket facts—remain unfinished because the relevant historical page was blocked and no usable alternative was found.\",\"editionKey\":\"source-row\",\"field\":\"dates\"},{\"message\":\"Check the 2027 ticket shop for current availability and whether it lists additional relevant ticket categories or terms beyond the official overview.\",\"editionKey\":\"2027\",\"field\":\"tickets\"}]}",
+        "object": {
+          "event": {
+            "target": {
+              "eventId": "festivalnetwork:event:792d44feb71838d4b28b"
+            },
+            "fields": {
+              "summary": null,
+              "links": {
+                "website": {
+                  "action": "set",
+                  "value": "https://www.wacken.com/de/",
+                  "reason": "The official Wacken website identifies the festival and promotes its editions."
+                },
+                "socials": null
+              }
+            }
+          },
+          "editions": [
+            {
+              "target": {
+                "editionKey": "source-row"
+              },
+              "fields": {
+                "year": {
+                  "action": "keep",
+                  "reason": "The saved 2026 edition's historical facts were not verified; the blocked source does not support changing its saved year."
+                },
+                "dates": {
+                  "action": "keep",
+                  "reason": "The 2026 dates could not be checked against usable historical evidence."
+                },
+                "coordinates": {
+                  "action": "keep",
+                  "reason": "The saved edition's location and coordinates remain unchecked because the historical page was blocked."
+                },
+                "scheduleStatus": {
+                  "action": "keep",
+                  "reason": "No evidence verifies or disproves the saved 2026 schedule status."
+                },
+                "displayName": {
+                  "action": "keep",
+                  "reason": "No verified evidence supports changing the saved edition display name."
+                },
+                "venueName": {
+                  "action": "keep",
+                  "reason": "The historical venue details remain unchecked."
+                },
+                "venueAddress": {
+                  "action": "keep",
+                  "reason": "The historical venue details remain unchecked."
+                },
+                "locality": {
+                  "action": "keep",
+                  "reason": "The historical location details remain unchecked."
+                },
+                "administrativeArea": {
+                  "action": "keep",
+                  "reason": "The historical location details remain unchecked."
+                },
+                "countryCode": {
+                  "action": "keep",
+                  "reason": "The saved country is preserved; the historical source did not verify a replacement."
+                },
+                "sizeEstimate": {
+                  "action": "keep",
+                  "reason": "No supported participant-size evidence was found."
+                },
+                "tickets": {
+                  "action": "keep",
+                  "reason": "Historical ticket facts remain unchecked because the relevant source was blocked."
+                },
+                "classification": {
+                  "action": "keep",
+                  "reason": "No evidence supports changing the saved edition classification."
+                },
+                "links": {
+                  "tickets": {
+                    "action": "keep",
+                    "reason": "No verified historical ticket link association was established."
+                  }
+                }
+              }
+            },
+            {
+              "target": {
+                "create": {
+                  "editionKey": "2027"
+                },
+                "reason": "Official Wacken pages identify and promote the 2027 edition."
+              },
+              "fields": {
+                "year": {
+                  "action": "set",
+                  "value": 2027,
+                  "reason": "The official pages identify the edition as Wacken Open Air 2027."
+                },
+                "dates": {
+                  "action": "set",
+                  "value": {
+                    "startsOn": "2027-07-28",
+                    "endsOn": "2027-07-31",
+                    "state": "confirmed"
+                  },
+                  "reason": "The official page and ticket overview give the confirmed dates as 28–31 July 2027."
+                },
+                "coordinates": null,
+                "scheduleStatus": {
+                  "action": "set",
+                  "value": "announced",
+                  "reason": "The official website promotes the 2027 edition and its ticket sales."
+                },
+                "displayName": {
+                  "action": "set",
+                  "value": "Wacken Open Air 2027",
+                  "reason": "The official ticket overview identifies the edition by this name."
+                },
+                "venueName": null,
+                "venueAddress": null,
+                "locality": null,
+                "administrativeArea": null,
+                "countryCode": null,
+                "sizeEstimate": null,
+                "tickets": {
+                  "action": "set",
+                  "value": {
+                    "variants": [
+                      {
+                        "label": "Louder-Ticket",
+                        "amount": 364,
+                        "currency": "EUR",
+                        "terms": "Advertised ticket price; €2 ticket fee additional.",
+                        "availability": "unknown",
+                        "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+                      },
+                      {
+                        "label": "Younger-Ticket",
+                        "amount": 279,
+                        "currency": "EUR",
+                        "terms": "For attendees up to and including 25 years old at the start of the festival; plus a €2 ticket fee.",
+                        "availability": "unknown",
+                        "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+                      },
+                      {
+                        "label": "The Pit-Ticket",
+                        "amount": 1399,
+                        "currency": "EUR",
+                        "terms": "The Pit package ticket.",
+                        "availability": "unknown",
+                        "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+                      },
+                      {
+                        "label": "The Pit Upgrade",
+                        "amount": 1049,
+                        "currency": "EUR",
+                        "terms": "Upgrade for holders of a W:O:A 2027 ticket; not a standalone full-programme ticket.",
+                        "availability": "unknown",
+                        "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+                      }
+                    ],
+                    "basePrice": {
+                      "kind": "exact",
+                      "currency": "EUR",
+                      "minAmount": 364,
+                      "maxAmount": 364,
+                      "coverage": "full_programme",
+                      "qualification": "Louder-Ticket advertised price; €2 ticket fee additional."
+                    }
+                  },
+                  "reason": "The official overview lists the Louder-Ticket at €364, the age-restricted Younger-Ticket at €279, The Pit-Ticket at €1,399, and a €1,049 upgrade. Ticket-shop availability and further details remain unverified."
+                },
+                "classification": {
+                  "action": "set",
+                  "value": [
+                    "validation:festival",
+                    "festivalnetwork:term:genre:metal",
+                    "validation:music"
+                  ],
+                  "reason": "The official overview describes a four-day festival with concerts for the metal community."
+                },
+                "links": {
+                  "tickets": {
+                    "action": "set",
+                    "value": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817",
+                    "reason": "The official ticket overview links this ticket-shop page for Wacken Open Air 2027."
+                  }
+                }
+              }
+            }
+          ],
+          "unresolved": [
+            {
+              "message": "Full-scope checks of the saved 2026 edition—including its dates, venue/location, and ticket facts—remain unfinished because the relevant historical page was blocked and no usable alternative was found.",
+              "editionKey": "source-row",
+              "field": "dates"
+            },
+            {
+              "message": "Check the 2027 ticket shop for current availability and whether it lists additional relevant ticket categories or terms beyond the official overview.",
+              "editionKey": "2027",
+              "field": "tickets"
+            }
+          ]
+        }
+      },
+      "editorStatus": "success",
+      "editorPromptVersion": "catalog-editor-v1",
+      "operations": [
+        {
+          "kind": "replaceLinks",
+          "owner": {
+            "type": "event",
+            "id": "festivalnetwork:event:792d44feb71838d4b28b"
+          },
+          "links": [
+            {
+              "kind": "other",
+              "url": "https://www.wacken.com/",
+              "label": "FestivalNetwork website (unverified)",
+              "official": false
+            },
+            {
+              "kind": "official_site",
+              "url": "https://www.wacken.com/de/",
+              "label": null,
+              "official": true
+            }
+          ],
+          "expectedVersion": 1,
+          "operationKey": "c11325aa-44dc-433c-bf32-bc12c3d33691",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "createEdition",
+          "eventId": "festivalnetwork:event:792d44feb71838d4b28b",
+          "data": {
+            "editionKey": "2027",
+            "editionYear": 2027,
+            "startsOn": "2027-07-28",
+            "endsOn": "2027-07-31",
+            "dateState": "confirmed",
+            "scheduleStatus": "announced",
+            "displayName": "Wacken Open Air 2027"
+          },
+          "tempKey": "edition_1",
+          "operationKey": "60ba9533-fc27-48b1-9ca6-2857211fc8f6",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "replaceTerms",
+          "id": "$edition_1",
+          "termIds": [
+            "validation:festival",
+            "festivalnetwork:term:genre:metal",
+            "validation:music"
+          ],
+          "expectedVersion": 1,
+          "operationKey": "afe79f98-d7d7-440c-8f3c-7208d48194a7",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "replacePriceBlock",
+          "id": "$edition_1",
+          "priceDetails": [
+            {
+              "label": "Louder-Ticket",
+              "amount": 364,
+              "currency": "EUR",
+              "terms": "Advertised ticket price; €2 ticket fee additional.",
+              "availability": "unknown",
+              "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+            },
+            {
+              "label": "Younger-Ticket",
+              "amount": 279,
+              "currency": "EUR",
+              "terms": "For attendees up to and including 25 years old at the start of the festival; plus a €2 ticket fee.",
+              "availability": "unknown",
+              "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+            },
+            {
+              "label": "The Pit-Ticket",
+              "amount": 1399,
+              "currency": "EUR",
+              "terms": "The Pit package ticket.",
+              "availability": "unknown",
+              "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+            },
+            {
+              "label": "The Pit Upgrade",
+              "amount": 1049,
+              "currency": "EUR",
+              "terms": "Upgrade for holders of a W:O:A 2027 ticket; not a standalone full-programme ticket.",
+              "availability": "unknown",
+              "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+            }
+          ],
+          "basePrice": {
+            "kind": "exact",
+            "currency": "EUR",
+            "minMinor": 36400,
+            "maxMinor": 36400,
+            "coverage": "full_programme",
+            "qualification": "Louder-Ticket advertised price; €2 ticket fee additional."
+          },
+          "expectedVersion": 1,
+          "operationKey": "8a48705d-1883-43b9-afc5-61df8be06bd1",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "replaceLinks",
+          "owner": {
+            "type": "edition",
+            "id": "$edition_1"
+          },
+          "links": [
+            {
+              "kind": "ticketing",
+              "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817",
+              "label": null,
+              "official": true
+            }
+          ],
+          "expectedVersion": 1,
+          "operationKey": "550bc790-334f-43c6-be37-201ce9ac240e",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        }
+      ],
+      "references": {
+        "edition_1": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8"
+      },
+      "changes": [
+        {
+          "subject": "festivalnetwork:event:792d44feb71838d4b28b",
+          "field": "links",
+          "oldValue": [
+            {
+              "kind": "other",
+              "url": "https://www.wacken.com/",
+              "label": "FestivalNetwork website (unverified)",
+              "official": false
+            }
+          ],
+          "newValue": [
+            {
+              "kind": "official_site",
+              "url": "https://www.wacken.com/de/",
+              "label": null,
+              "official": true
+            },
+            {
+              "kind": "other",
+              "url": "https://www.wacken.com/",
+              "label": "FestivalNetwork website (unverified)",
+              "official": false
+            }
+          ],
+          "explanations": [
+            "The official Wacken website identifies the festival and promotes its editions."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "id",
+          "oldValue": null,
+          "newValue": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "explanations": []
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "event_id",
+          "oldValue": null,
+          "newValue": "festivalnetwork:event:792d44feb71838d4b28b",
+          "explanations": []
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "edition_key",
+          "oldValue": null,
+          "newValue": "2027",
+          "explanations": [
+            "Official Wacken pages identify and promote the 2027 edition."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "display_name",
+          "oldValue": null,
+          "newValue": "Wacken Open Air 2027",
+          "explanations": [
+            "The official ticket overview identifies the edition by this name."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "edition_year",
+          "oldValue": null,
+          "newValue": 2027,
+          "explanations": [
+            "The official pages identify the edition as Wacken Open Air 2027."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "starts_on",
+          "oldValue": null,
+          "newValue": "2027-07-28",
+          "explanations": [
+            "The official page and ticket overview give the confirmed dates as 28–31 July 2027."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "ends_on",
+          "oldValue": null,
+          "newValue": "2027-07-31",
+          "explanations": [
+            "The official page and ticket overview give the confirmed dates as 28–31 July 2027."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "date_state",
+          "oldValue": null,
+          "newValue": "confirmed",
+          "explanations": [
+            "The official page and ticket overview give the confirmed dates as 28–31 July 2027."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "schedule_status",
+          "oldValue": null,
+          "newValue": "announced",
+          "explanations": [
+            "The official website promotes the 2027 edition and its ticket sales."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "publication_state",
+          "oldValue": null,
+          "newValue": "draft",
+          "explanations": []
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "coordinate_precision",
+          "oldValue": null,
+          "newValue": "unknown",
+          "explanations": []
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "version",
+          "oldValue": null,
+          "newValue": 1,
+          "explanations": []
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "created_at",
+          "oldValue": null,
+          "newValue": "2026-10-12T00:00:00.085Z",
+          "explanations": []
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "updated_at",
+          "oldValue": null,
+          "newValue": "2026-10-12T00:00:00.085Z",
+          "explanations": []
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "terms",
+          "oldValue": [],
+          "newValue": [
+            "festivalnetwork:term:genre:metal",
+            "validation:festival",
+            "validation:music"
+          ],
+          "explanations": [
+            "The official overview describes a four-day festival with concerts for the metal community."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "price_kind",
+          "oldValue": null,
+          "newValue": "exact",
+          "explanations": [
+            "The official overview lists the Louder-Ticket at €364, the age-restricted Younger-Ticket at €279, The Pit-Ticket at €1,399, and a €1,049 upgrade. Ticket-shop availability and further details remain unverified."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "price_currency",
+          "oldValue": null,
+          "newValue": "EUR",
+          "explanations": [
+            "The official overview lists the Louder-Ticket at €364, the age-restricted Younger-Ticket at €279, The Pit-Ticket at €1,399, and a €1,049 upgrade. Ticket-shop availability and further details remain unverified."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "price_min_minor",
+          "oldValue": null,
+          "newValue": 36400,
+          "explanations": [
+            "The official overview lists the Louder-Ticket at €364, the age-restricted Younger-Ticket at €279, The Pit-Ticket at €1,399, and a €1,049 upgrade. Ticket-shop availability and further details remain unverified."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "price_max_minor",
+          "oldValue": null,
+          "newValue": 36400,
+          "explanations": [
+            "The official overview lists the Louder-Ticket at €364, the age-restricted Younger-Ticket at €279, The Pit-Ticket at €1,399, and a €1,049 upgrade. Ticket-shop availability and further details remain unverified."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "price_coverage",
+          "oldValue": null,
+          "newValue": "full_programme",
+          "explanations": [
+            "The official overview lists the Louder-Ticket at €364, the age-restricted Younger-Ticket at €279, The Pit-Ticket at €1,399, and a €1,049 upgrade. Ticket-shop availability and further details remain unverified."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "price_qualification",
+          "oldValue": null,
+          "newValue": "Louder-Ticket advertised price; €2 ticket fee additional.",
+          "explanations": [
+            "The official overview lists the Louder-Ticket at €364, the age-restricted Younger-Ticket at €279, The Pit-Ticket at €1,399, and a €1,049 upgrade. Ticket-shop availability and further details remain unverified."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "price_details",
+          "oldValue": [],
+          "newValue": [
+            {
+              "label": "Louder-Ticket",
+              "amount": 364,
+              "currency": "EUR",
+              "terms": "Advertised ticket price; €2 ticket fee additional.",
+              "availability": "unknown",
+              "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+            },
+            {
+              "label": "The Pit Upgrade",
+              "amount": 1049,
+              "currency": "EUR",
+              "terms": "Upgrade for holders of a W:O:A 2027 ticket; not a standalone full-programme ticket.",
+              "availability": "unknown",
+              "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+            },
+            {
+              "label": "The Pit-Ticket",
+              "amount": 1399,
+              "currency": "EUR",
+              "terms": "The Pit package ticket.",
+              "availability": "unknown",
+              "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+            },
+            {
+              "label": "Younger-Ticket",
+              "amount": 279,
+              "currency": "EUR",
+              "terms": "For attendees up to and including 25 years old at the start of the festival; plus a €2 ticket fee.",
+              "availability": "unknown",
+              "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+            }
+          ],
+          "explanations": [
+            "The official overview lists the Louder-Ticket at €364, the age-restricted Younger-Ticket at €279, The Pit-Ticket at €1,399, and a €1,049 upgrade. Ticket-shop availability and further details remain unverified."
+          ]
+        },
+        {
+          "subject": "e98ca4d5-87fc-4400-889e-a77ad9a9c6b8",
+          "field": "links",
+          "oldValue": [],
+          "newValue": [
+            {
+              "kind": "ticketing",
+              "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817",
+              "label": null,
+              "official": true
+            }
+          ],
+          "explanations": [
+            "The official ticket overview links this ticket-shop page for Wacken Open Air 2027."
+          ]
+        }
+      ],
+      "errors": [
+        {
+          "code": "source_blocked",
+          "message": "The official 2026 aftermovie page could not be inspected, leaving the saved 2026 edition’s historical facts unchecked.",
+          "url": "https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/",
+          "editionKey": "source-row",
+          "stage": "source"
+        },
+        {
+          "code": "source_blocked",
+          "message": "The linked 2027 ticket shop could not be inspected for ticket categories and availability.",
+          "url": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets",
+          "editionKey": "2027",
+          "field": "tickets",
+          "stage": "source"
+        }
+      ],
+      "unresolved": [
+        {
+          "message": "Full-scope checks of the saved 2026 edition—including its dates, venue/location and ticket facts—remain unfinished because the relevant historical page was blocked and discovery found no usable alternative.",
+          "editionKey": "source-row"
+        },
+        {
+          "message": "Check the 2027 ticket shop for current availability and whether it lists additional relevant ticket categories or terms beyond the official overview.",
+          "editionKey": "2027",
+          "field": "tickets"
+        },
+        {
+          "message": "Full-scope checks of the saved 2026 edition—including its dates, venue/location, and ticket facts—remain unfinished because the relevant historical page was blocked and no usable alternative was found.",
+          "editionKey": "source-row",
+          "field": "dates"
+        },
+        {
+          "message": "Check the 2027 ticket shop for current availability and whether it lists additional relevant ticket categories or terms beyond the official overview.",
+          "editionKey": "2027",
+          "field": "tickets"
+        }
+      ],
+      "sources": [
+        {
+          "attemptedUrl": "https://www.wacken.com/",
+          "finalUrl": "https://www.wacken.com/de/",
+          "retrievedAt": "2026-10-03T16:33:58.662Z",
+          "outcome": "ok"
+        },
+        {
+          "attemptedUrl": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
+          "finalUrl": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
+          "retrievedAt": "2026-10-03T23:49:31.171Z",
+          "outcome": "ok"
+        },
+        {
+          "attemptedUrl": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets",
+          "finalUrl": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://www.wacken.com/de/historie/",
+          "finalUrl": "https://www.wacken.com/de/historie/",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/",
+          "finalUrl": "https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://www.wacken.com/en/tickets-shop/ticket-overview-2027/",
+          "finalUrl": "https://www.wacken.com/en/tickets-shop/ticket-overview-2027/",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        }
+      ],
+      "sourceSummaries": [
+        {
+          "url": "https://www.wacken.com/de/",
+          "information": "The official Wacken Open Air page identifies the festival, links its 2027 ticket information, and displays the 2027 dates as 28–31 July. It also lists a 2026 aftermovie announcement, but does not establish the saved 2026 edition’s dates or venue details."
+        },
+        {
+          "url": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
+          "information": "The official 2027 ticket overview gives the 28–31 July dates, prices for the Louder, Younger, and The Pit tickets, and the The Pit upgrade. It says the earlier ticket phases have ended; ticket availability and the complete ticket-shop details were not verified."
+        }
+      ],
+      "eventNameMismatch": null,
+      "scope": "full",
+      "currentDate": "2026-10-03T12:00:00.000Z",
+      "limits": {
+        "searches": 3,
+        "depth": 2,
+        "agentSteps": 15,
+        "durationMs": 300000,
+        "pageBytes": 2097152,
+        "modelOutputTokens": 16000,
+        "searchResults": 5
+      },
+      "workload": {
+        "savedEditions": 1,
+        "returnedEditions": 1
+      }
+    },
+    {
+      "caseId": "editor-valid-update",
+      "repetition": 1,
+      "fixtureTodayUtc": "2026-10-03",
+      "fixtureProvenance": {
+        "kind": "captured-source-editor-regression",
+        "sourceReport": "src/ingestion/evals/cases/sziget/case.json",
+        "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
+      },
+      "runId": "6711b9ad-7c75-47b5-bc3f-2a799f83e08a",
+      "outcome": "created",
+      "researchStatus": "partial",
+      "score": {
+        "correctness": 1,
+        "completeness": 1,
+        "research": null,
+        "passed": true,
+        "required": [
+          {
+            "assertion": {
+              "owner": "event",
+              "field": "links",
+              "containsAny": [
+                {
+                  "url": "https://szigetfestival.com/en/",
+                  "kind": "official_site"
+                },
+                {
+                  "url": "https://www.szigetfestival.com/",
+                  "kind": "official_site"
+                }
+              ]
+            },
+            "matched": true
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "starts_on",
+              "value": "2027-08-10"
+            },
+            "matched": true
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "ends_on",
+              "value": "2027-08-14"
+            },
+            "matched": true
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionYear": 2027,
+              "field": "date_state",
+              "value": "confirmed"
+            },
+            "matched": true
+          }
+        ],
+        "forbidden": [
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "starts_on"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "ends_on"
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "starts_on",
+              "value": null
+            },
+            "matched": false
+          },
+          {
+            "assertion": {
+              "owner": "edition",
+              "editionKey": "source-row",
+              "field": "ends_on",
+              "value": null
+            },
+            "matched": false
+          }
+        ],
+        "reasons": {
+          "missingRequired": [],
+          "violatedForbidden": [],
+          "workflowFailed": false,
+          "expectedFailureMissing": false
+        }
+      },
+      "usage": {
+        "searches": 3,
+        "pages": 9,
+        "modelCalls": 7,
+        "elapsedMs": 272925,
+        "remaining": {
+          "searches": 0,
+          "durationMs": 27075
+        },
+        "complete": true,
+        "searchCostBasis": "estimate",
+        "inputTokens": 103149,
+        "outputTokens": 7531,
+        "cachedInputTokens": null,
+        "reasoningTokens": null,
+        "modelCostUsd": 0.0035181599999999998,
+        "searchCostUsd": 0
+      },
+      "durationMs": 272925,
+      "modelVersion": "openai/gpt-6-luna",
+      "reasoningEffort": "medium",
+      "promptVersion": "editor-findings-v1",
+      "modelResponse": {
+        "text": "{\"status\":\"partial\",\"data\":{\"eventId\":\"festivalnetwork:event:a22324dcf0078266ed4e\",\"eventName\":\"Sziget Festival\",\"reason\":null,\"sources\":[{\"url\":\"https://szigetfestival.com/en/\",\"information\":\"The official Sziget homepage identifies the festival, announces its 10–14 August 2027 return, and lists 5-day, 21&Under, and VIP pass prices. It also describes 2026 as a festival that has ended.\"},{\"url\":\"https://szigetfestival.com/en/festival-info\",\"information\":\"The official FAQ confirms 2027 dates of 10–14 August and says performers will be announced later. It references the 2026 festival, but does not establish its exact programme dates or a full ticket price list.\"},{\"url\":\"https://szigetfestival.com/en/travel/\",\"information\":\"The official travel page says Sziget takes place on Óbuda Island and gives the official address as Május 9. park, Budapest, Hungary, 1033.\"},{\"url\":\"https://szigetfestival.com/en/tickets\",\"information\":\"The official ticket page was inspected, but its ticket catalogue did not render in the available read; the homepage supplies some 2027 pass prices, not a complete list.\"}],\"summary\":null,\"links\":{\"website\":\"https://szigetfestival.com/en/\",\"socials\":{ \"instagram\":null,\"facebook\":null,\"youtube\":null,\"tiktok\":null,\"x\":null,\"other\":null}},\"editions\":[{\"key\":\"source-row\",\"year\":{\"value\":2026,\"reason\":\"The official site refers to Sziget 2026 and describes that festival as over.\"},\"dates\":null,\"scheduleStatus\":{\"value\":\"scheduled\",\"reason\":\"The official homepage describes the 2026 festival as having taken place and being over; it does not report cancellation or postponement. Retained the scheduled category because the available status choices have no completed state.\"},\"displayName\":null,\"venueName\":null,\"venueAddress\":null,\"locality\":null,\"administrativeArea\":null,\"countryCode\":null,\"coordinates\":null,\"sizeEstimate\":null,\"classification\":null,\"tickets\":null,\"links\":{ \"tickets\":null}},{\"key\":\"2027\",\"year\":{\"value\":2027,\"reason\":\"The official homepage and FAQ explicitly identify the upcoming edition as Sziget 2027.\"},\"dates\":{\"value\":{\"startsOn\":\"2027-08-10\",\"endsOn\":\"2027-08-14\",\"state\":\"confirmed\"},\"reason\":\"The official homepage gives 10–14 August 2027; the FAQ independently confirms those dates and describes them as Tuesday through Saturday.\"},\"scheduleStatus\":{\"value\":\"announced\",\"reason\":\"The official site announces Sziget’s return on 10–14 August 2027.\"},\"displayName\":null,\"venueName\":{\"value\":\"Óbuda Island\",\"reason\":\"The official travel page identifies Óbuda Island as the Sziget Festival site.\"},\"venueAddress\":{\"value\":\"Május 9. park, Budapest, Hungary, 1033\",\"reason\":\"The official travel page gives this as Sziget’s official address.\"},\"locality\":{\"value\":\"Budapest\",\"reason\":\"The official travel page places the festival on Óbuda Island in Budapest.\"},\"administrativeArea\":null,\"countryCode\":{\"value\":\"HU\",\"reason\":\"The official travel page gives the location as Budapest, Hungary.\"},\"coordinates\":null,\"sizeEstimate\":null,\"classification\":{\"add\":{\"value\":[\"validation:festival\",\"validation:music\"],\"reason\":\"The official site identifies Sziget as a festival and describes its programme as music-focused.\"},\"remove\":null},\"tickets\":{\"value\":{\"variants\":[{\"label\":\"5-day Pass\",\"amount\":349,\"currency\":\"EUR\",\"terms\":\"€23 online handling fee in addition.\",\"availability\":\"unknown\",\"url\":\"https://szi.gt/5daypass_2027\"},{\"label\":\"21&Under 5-day Pass\",\"amount\":279,\"currency\":\"EUR\",\"terms\":\"For attendees 21 and under; €18 online handling fee in addition.\",\"availability\":\"unknown\",\"url\":\"https://szi.gt/21andUnderPass_2027\"},{\"label\":\"VIP 5-day Pass\",\"amount\":569,\"currency\":\"EUR\",\"terms\":\"€37 online handling fee in addition.\",\"availability\":\"unknown\",\"url\":\"https://szi.gt/VIP_5day_2027\"}],\"basePrice\":{\"kind\":\"exact\",\"currency\":\"EUR\",\"minAmount\":349,\"maxAmount\":349,\"coverage\":\"full_programme\",\"qualification\":null}},\"reason\":\"The official homepage lists these three 5-day pass prices. The 21&Under pass is eligibility-restricted; the regular 5-day pass is the lowest listed full-programme price. Availability and the complete set of ticket categories could not be confirmed from the ticket page.\"},\"links\":{\"tickets\":\"https://szigetfestival.com/en/tickets\"}}]},\"errors\":[],\"unresolved\":[{\"message\":\"The 2026 edition’s exact programme dates and edition-specific venue/location could not be verified from the inspected official pages or source discovery; the saved dates and location therefore remain unchecked.\",\"editionKey\":\"source-row\",\"field\":\"dates\"},{\"message\":\"The saved 2026 ticket block could not be verified. The official pages inspected did not provide a complete historical ticket price/category record.\",\"editionKey\":\"source-row\",\"field\":\"tickets\"},{\"message\":\"The complete 2027 ticket category list and ticket availability remain unverified because the official ticket page did not render its catalogue.\",\"editionKey\":\"2027\",\"field\":\"tickets\"}]}",
+        "object": {
+          "status": "partial",
+          "data": {
+            "eventId": "festivalnetwork:event:a22324dcf0078266ed4e",
+            "eventName": "Sziget Festival",
+            "reason": null,
+            "sources": [
+              {
+                "url": "https://szigetfestival.com/en/",
+                "information": "The official Sziget homepage identifies the festival, announces its 10–14 August 2027 return, and lists 5-day, 21&Under, and VIP pass prices. It also describes 2026 as a festival that has ended."
+              },
+              {
+                "url": "https://szigetfestival.com/en/festival-info",
+                "information": "The official FAQ confirms 2027 dates of 10–14 August and says performers will be announced later. It references the 2026 festival, but does not establish its exact programme dates or a full ticket price list."
+              },
+              {
+                "url": "https://szigetfestival.com/en/travel/",
+                "information": "The official travel page says Sziget takes place on Óbuda Island and gives the official address as Május 9. park, Budapest, Hungary, 1033."
+              },
+              {
+                "url": "https://szigetfestival.com/en/tickets",
+                "information": "The official ticket page was inspected, but its ticket catalogue did not render in the available read; the homepage supplies some 2027 pass prices, not a complete list."
+              }
+            ],
+            "summary": null,
+            "links": {
+              "website": "https://szigetfestival.com/en/",
+              "socials": {
+                "instagram": null,
+                "facebook": null,
+                "youtube": null,
+                "tiktok": null,
+                "x": null,
+                "other": null
+              }
+            },
+            "editions": [
+              {
+                "key": "source-row",
+                "year": {
+                  "value": 2026,
+                  "reason": "The official site refers to Sziget 2026 and describes that festival as over."
+                },
+                "dates": null,
+                "scheduleStatus": {
+                  "value": "scheduled",
+                  "reason": "The official homepage describes the 2026 festival as having taken place and being over; it does not report cancellation or postponement. Retained the scheduled category because the available status choices have no completed state."
+                },
+                "displayName": null,
+                "venueName": null,
+                "venueAddress": null,
+                "locality": null,
+                "administrativeArea": null,
+                "countryCode": null,
+                "coordinates": null,
+                "sizeEstimate": null,
+                "classification": null,
+                "tickets": null,
+                "links": {
+                  "tickets": null
+                }
+              },
+              {
+                "key": "2027",
+                "year": {
+                  "value": 2027,
+                  "reason": "The official homepage and FAQ explicitly identify the upcoming edition as Sziget 2027."
+                },
+                "dates": {
+                  "value": {
+                    "startsOn": "2027-08-10",
+                    "endsOn": "2027-08-14",
+                    "state": "confirmed"
+                  },
+                  "reason": "The official homepage gives 10–14 August 2027; the FAQ independently confirms those dates and describes them as Tuesday through Saturday."
+                },
+                "scheduleStatus": {
+                  "value": "announced",
+                  "reason": "The official site announces Sziget’s return on 10–14 August 2027."
+                },
+                "displayName": null,
+                "venueName": {
+                  "value": "Óbuda Island",
+                  "reason": "The official travel page identifies Óbuda Island as the Sziget Festival site."
+                },
+                "venueAddress": {
+                  "value": "Május 9. park, Budapest, Hungary, 1033",
+                  "reason": "The official travel page gives this as Sziget’s official address."
+                },
+                "locality": {
+                  "value": "Budapest",
+                  "reason": "The official travel page places the festival on Óbuda Island in Budapest."
+                },
+                "administrativeArea": null,
+                "countryCode": {
+                  "value": "HU",
+                  "reason": "The official travel page gives the location as Budapest, Hungary."
+                },
+                "coordinates": null,
+                "sizeEstimate": null,
+                "classification": {
+                  "add": {
+                    "value": [
+                      "validation:festival",
+                      "validation:music"
+                    ],
+                    "reason": "The official site identifies Sziget as a festival and describes its programme as music-focused."
+                  },
+                  "remove": null
+                },
+                "tickets": {
+                  "value": {
+                    "variants": [
+                      {
+                        "label": "5-day Pass",
+                        "amount": 349,
+                        "currency": "EUR",
+                        "terms": "€23 online handling fee in addition.",
+                        "availability": "unknown",
+                        "url": "https://szi.gt/5daypass_2027"
+                      },
+                      {
+                        "label": "21&Under 5-day Pass",
+                        "amount": 279,
+                        "currency": "EUR",
+                        "terms": "For attendees 21 and under; €18 online handling fee in addition.",
+                        "availability": "unknown",
+                        "url": "https://szi.gt/21andUnderPass_2027"
+                      },
+                      {
+                        "label": "VIP 5-day Pass",
+                        "amount": 569,
+                        "currency": "EUR",
+                        "terms": "€37 online handling fee in addition.",
+                        "availability": "unknown",
+                        "url": "https://szi.gt/VIP_5day_2027"
+                      }
+                    ],
+                    "basePrice": {
+                      "kind": "exact",
+                      "currency": "EUR",
+                      "minAmount": 349,
+                      "maxAmount": 349,
+                      "coverage": "full_programme",
+                      "qualification": null
+                    }
+                  },
+                  "reason": "The official homepage lists these three 5-day pass prices. The 21&Under pass is eligibility-restricted; the regular 5-day pass is the lowest listed full-programme price. Availability and the complete set of ticket categories could not be confirmed from the ticket page."
+                },
+                "links": {
+                  "tickets": "https://szigetfestival.com/en/tickets"
+                }
+              }
+            ]
+          },
+          "errors": [],
+          "unresolved": [
+            {
+              "message": "The 2026 edition’s exact programme dates and edition-specific venue/location could not be verified from the inspected official pages or source discovery; the saved dates and location therefore remain unchecked.",
+              "editionKey": "source-row",
+              "field": "dates"
+            },
+            {
+              "message": "The saved 2026 ticket block could not be verified. The official pages inspected did not provide a complete historical ticket price/category record.",
+              "editionKey": "source-row",
+              "field": "tickets"
+            },
+            {
+              "message": "The complete 2027 ticket category list and ticket availability remain unverified because the official ticket page did not render its catalogue.",
+              "editionKey": "2027",
+              "field": "tickets"
+            }
+          ]
+        }
+      },
+      "editorResponse": {
+        "text": "{\n  \"event\": {\n    \"target\": {\n      \"eventId\": \"festivalnetwork:event:a22324dcf0078266ed4e\"\n    },\n    \"fields\": {\n      \"summary\": null,\n      \"links\": {\n        \"website\": {\n          \"action\": \"set\",\n          \"value\": \"https://szigetfestival.com/en/\",\n          \"reason\": \"The official Sziget homepage identifies the festival and announces its 2027 return.\"\n        }\n      ,\n        \"socials\": null\n      }\n    }\n  },\n  \"editions\": [\n    {\n      \"target\": {\n        \"editionKey\": \"source-row\"\n      },\n      \"fields\": {\n        \"year\": null,\n        \"dates\": null,\n        \"coordinates\": null,\n        \"scheduleStatus\": null,\n        \"displayName\": null,\n        \"venueName\": null,\n        \"venueAddress\": null,\n        \"locality\": null,\n        \"administrativeArea\": null,\n        \"countryCode\": null,\n        \"sizeEstimate\": null,\n        \"tickets\": null,\n        \"classification\": null,\n        \"links\": null\n      }\n    },\n    {\n      \"target\": {\n        \"create\": {\n          \"editionKey\": \"2027\"\n        },\n        \"reason\": \"Official Sziget pages announce the 2027 edition for 10–14 August and identify its location and ticket offers.\"\n      },\n      \"fields\": {\n        \"year\": {\n          \"action\": \"set\",\n          \"value\": 2027,\n          \"reason\": \"The official homepage and FAQ explicitly identify the upcoming edition as Sziget 2027.\"\n        },\n        \"dates\": {\n          \"action\": \"set\",\n          \"value\": {\n            \"startsOn\": \"2027-08-10\",\n            \"endsOn\": \"2027-08-14\",\n            \"state\": \"confirmed\"\n          },\n          \"reason\": \"The official homepage and FAQ confirm the dates as 10–14 August 2027.\"\n        },\n        \"coordinates\": null,\n        \"scheduleStatus\": {\n          \"action\": \"set\",\n          \"value\": \"announced\",\n          \"reason\": \"The official site announces Sziget’s return on 10–14 August 2027.\"\n        },\n        \"displayName\": null,\n        \"venueName\": {\n          \"action\": \"set\",\n          \"value\": \"Óbuda Island\",\n          \"reason\": \"The official travel page identifies Óbuda Island as the festival site.\"\n        },\n        \"venueAddress\": {\n          \"action\": \"set\",\n          \"value\": \"Május 9. park, Budapest, Hungary, 1033\",\n          \"reason\": \"The official travel page gives this as Sziget’s official address.\"\n        },\n        \"locality\": {\n          \"action\": \"set\",\n          \"value\": \"Budapest\",\n          \"reason\": \"The official travel page places the festival in Budapest.\"\n        },\n        \"administrativeArea\": null,\n        \"countryCode\": {\n          \"action\": \"set\",\n          \"value\": \"HU\",\n          \"reason\": \"The official travel page gives the location as Budapest, Hungary.\"\n        },\n        \"sizeEstimate\": null,\n        \"tickets\": {\n          \"action\": \"set\",\n          \"value\": {\n            \"variants\": [\n              {\n                \"label\": \"5-day Pass\",\n                \"amount\": 349,\n                \"currency\": \"EUR\",\n                \"terms\": \"€23 online handling fee in addition.\",\n                \"availability\": \"unknown\",\n                \"url\": \"https://szi.gt/5daypass_2027\"\n              },\n              {\n                \"label\": \"21&Under 5-day Pass\",\n                \"amount\": 279,\n                \"currency\": \"EUR\",\n                \"terms\": \"For attendees 21 and under; €18 online handling fee in addition.\",\n                \"availability\": \"unknown\",\n                \"url\": \"https://szi.gt/21andUnderPass_2027\"\n              },\n              {\n                \"label\": \"VIP 5-day Pass\",\n                \"amount\": 569,\n                \"currency\": \"EUR\",\n                \"terms\": \"€37 online handling fee in addition.\",\n                \"availability\": \"unknown\",\n                \"url\": \"https://szi.gt/VIP_5day_2027\"\n              }\n            ],\n            \"basePrice\": {\n              \"kind\": \"exact\",\n              \"currency\": \"EUR\",\n              \"minAmount\": 349,\n              \"maxAmount\": 349,\n              \"coverage\": \"full_programme\",\n              \"qualification\": null\n            }\n          },\n          \"reason\": \"The official homepage lists these 5-day pass prices. The standard pass supports the full-programme base price; the age-restricted pass is retained as a variant. Availability is unknown.\"\n        },\n        \"classification\": {\n          \"action\": \"set\",\n          \"value\": [\n            \"validation:festival\",\n            \"validation:music\"\n          ],\n          \"reason\": \"The official site identifies Sziget as a festival and describes its programme as music-focused.\"\n        },\n        \"links\": {\n          \"tickets\": {\n            \"action\": \"set\",\n            \"value\": \"https://szigetfestival.com/en/tickets\",\n            \"reason\": \"The official site identifies this as its ticket page.\"\n          }\n        }\n      }\n    }\n  ],\n  \"unresolved\": [\n    {\n      \"message\": \"The 2026 edition’s exact programme dates and edition-specific venue/location could not be verified from the inspected official pages; its saved dates and location remain unchecked.\",\n      \"editionKey\": \"source-row\",\n      \"field\": \"dates\"\n    },\n    {\n      \"message\": \"The saved 2026 ticket block could not be verified; the inspected official pages did not provide a complete historical ticket price and category record.\",\n      \"editionKey\": \"source-row\",\n      \"field\": \"tickets\"\n    },\n    {\n      \"message\": \"The complete 2027 ticket category list and ticket availability remain unverified because the official ticket catalogue did not render.\",\n      \"editionKey\": \"2027\",\n      \"field\": \"tickets\"\n    }\n  ]\n}",
+        "object": {
+          "event": {
+            "target": {
+              "eventId": "festivalnetwork:event:a22324dcf0078266ed4e"
+            },
+            "fields": {
+              "summary": null,
+              "links": {
+                "website": {
+                  "action": "set",
+                  "value": "https://szigetfestival.com/en/",
+                  "reason": "The official Sziget homepage identifies the festival and announces its 2027 return."
+                },
+                "socials": null
+              }
+            }
+          },
+          "editions": [
+            {
+              "target": {
+                "editionKey": "source-row"
+              },
+              "fields": {
+                "year": null,
+                "dates": null,
+                "coordinates": null,
+                "scheduleStatus": null,
+                "displayName": null,
+                "venueName": null,
+                "venueAddress": null,
+                "locality": null,
+                "administrativeArea": null,
+                "countryCode": null,
+                "sizeEstimate": null,
+                "tickets": null,
+                "classification": null,
+                "links": null
+              }
+            },
+            {
+              "target": {
+                "create": {
+                  "editionKey": "2027"
+                },
+                "reason": "Official Sziget pages announce the 2027 edition for 10–14 August and identify its location and ticket offers."
+              },
+              "fields": {
+                "year": {
+                  "action": "set",
+                  "value": 2027,
+                  "reason": "The official homepage and FAQ explicitly identify the upcoming edition as Sziget 2027."
+                },
+                "dates": {
+                  "action": "set",
+                  "value": {
+                    "startsOn": "2027-08-10",
+                    "endsOn": "2027-08-14",
+                    "state": "confirmed"
+                  },
+                  "reason": "The official homepage and FAQ confirm the dates as 10–14 August 2027."
+                },
+                "coordinates": null,
+                "scheduleStatus": {
+                  "action": "set",
+                  "value": "announced",
+                  "reason": "The official site announces Sziget’s return on 10–14 August 2027."
+                },
+                "displayName": null,
+                "venueName": {
+                  "action": "set",
+                  "value": "Óbuda Island",
+                  "reason": "The official travel page identifies Óbuda Island as the festival site."
+                },
+                "venueAddress": {
+                  "action": "set",
+                  "value": "Május 9. park, Budapest, Hungary, 1033",
+                  "reason": "The official travel page gives this as Sziget’s official address."
+                },
+                "locality": {
+                  "action": "set",
+                  "value": "Budapest",
+                  "reason": "The official travel page places the festival in Budapest."
+                },
+                "administrativeArea": null,
+                "countryCode": {
+                  "action": "set",
+                  "value": "HU",
+                  "reason": "The official travel page gives the location as Budapest, Hungary."
+                },
+                "sizeEstimate": null,
+                "tickets": {
+                  "action": "set",
+                  "value": {
+                    "variants": [
+                      {
+                        "label": "5-day Pass",
+                        "amount": 349,
+                        "currency": "EUR",
+                        "terms": "€23 online handling fee in addition.",
+                        "availability": "unknown",
+                        "url": "https://szi.gt/5daypass_2027"
+                      },
+                      {
+                        "label": "21&Under 5-day Pass",
+                        "amount": 279,
+                        "currency": "EUR",
+                        "terms": "For attendees 21 and under; €18 online handling fee in addition.",
+                        "availability": "unknown",
+                        "url": "https://szi.gt/21andUnderPass_2027"
+                      },
+                      {
+                        "label": "VIP 5-day Pass",
+                        "amount": 569,
+                        "currency": "EUR",
+                        "terms": "€37 online handling fee in addition.",
+                        "availability": "unknown",
+                        "url": "https://szi.gt/VIP_5day_2027"
+                      }
+                    ],
+                    "basePrice": {
+                      "kind": "exact",
+                      "currency": "EUR",
+                      "minAmount": 349,
+                      "maxAmount": 349,
+                      "coverage": "full_programme",
+                      "qualification": null
+                    }
+                  },
+                  "reason": "The official homepage lists these 5-day pass prices. The standard pass supports the full-programme base price; the age-restricted pass is retained as a variant. Availability is unknown."
+                },
+                "classification": {
+                  "action": "set",
+                  "value": [
+                    "validation:festival",
+                    "validation:music"
+                  ],
+                  "reason": "The official site identifies Sziget as a festival and describes its programme as music-focused."
+                },
+                "links": {
+                  "tickets": {
+                    "action": "set",
+                    "value": "https://szigetfestival.com/en/tickets",
+                    "reason": "The official site identifies this as its ticket page."
+                  }
+                }
+              }
+            }
+          ],
+          "unresolved": [
+            {
+              "message": "The 2026 edition’s exact programme dates and edition-specific venue/location could not be verified from the inspected official pages; its saved dates and location remain unchecked.",
+              "editionKey": "source-row",
+              "field": "dates"
+            },
+            {
+              "message": "The saved 2026 ticket block could not be verified; the inspected official pages did not provide a complete historical ticket price and category record.",
+              "editionKey": "source-row",
+              "field": "tickets"
+            },
+            {
+              "message": "The complete 2027 ticket category list and ticket availability remain unverified because the official ticket catalogue did not render.",
+              "editionKey": "2027",
+              "field": "tickets"
+            }
+          ]
+        }
+      },
+      "editorStatus": "success",
+      "editorPromptVersion": "catalog-editor-v1",
+      "operations": [
+        {
+          "kind": "replaceLinks",
+          "owner": {
+            "type": "event",
+            "id": "festivalnetwork:event:a22324dcf0078266ed4e"
+          },
+          "links": [
+            {
+              "kind": "other",
+              "url": "https://www.szigetfestival.com/",
+              "label": "FestivalNetwork website (unverified)",
+              "official": false
+            },
+            {
+              "kind": "official_site",
+              "url": "https://szigetfestival.com/en/",
+              "label": null,
+              "official": true
+            }
+          ],
+          "expectedVersion": 1,
+          "operationKey": "ef946563-b32a-41bc-9a68-97c388378d14",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "createEdition",
+          "eventId": "festivalnetwork:event:a22324dcf0078266ed4e",
+          "data": {
+            "editionKey": "2027",
+            "editionYear": 2027,
+            "startsOn": "2027-08-10",
+            "endsOn": "2027-08-14",
+            "dateState": "confirmed",
+            "scheduleStatus": "announced",
+            "venueName": "Óbuda Island",
+            "venueAddress": "Május 9. park, Budapest, Hungary, 1033",
+            "locality": "Budapest",
+            "countryCode": "HU"
+          },
+          "tempKey": "edition_1",
+          "operationKey": "e83f5f93-ca93-4709-915f-08a9319c6bd7",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "replaceTerms",
+          "id": "$edition_1",
+          "termIds": [
+            "validation:festival",
+            "validation:music"
+          ],
+          "expectedVersion": 1,
+          "operationKey": "b9047de4-669f-4757-a061-1e469710df4e",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "replacePriceBlock",
+          "id": "$edition_1",
+          "priceDetails": [
+            {
+              "label": "5-day Pass",
+              "amount": 349,
+              "currency": "EUR",
+              "terms": "€23 online handling fee in addition.",
+              "availability": "unknown",
+              "url": "https://szi.gt/5daypass_2027"
+            },
+            {
+              "label": "21&Under 5-day Pass",
+              "amount": 279,
+              "currency": "EUR",
+              "terms": "For attendees 21 and under; €18 online handling fee in addition.",
+              "availability": "unknown",
+              "url": "https://szi.gt/21andUnderPass_2027"
+            },
+            {
+              "label": "VIP 5-day Pass",
+              "amount": 569,
+              "currency": "EUR",
+              "terms": "€37 online handling fee in addition.",
+              "availability": "unknown",
+              "url": "https://szi.gt/VIP_5day_2027"
+            }
+          ],
+          "basePrice": {
+            "kind": "exact",
+            "currency": "EUR",
+            "minMinor": 34900,
+            "maxMinor": 34900,
+            "coverage": "full_programme"
+          },
+          "expectedVersion": 1,
+          "operationKey": "fb3bd60c-b31e-40e6-bc0a-6c1f5da4c408",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        },
+        {
+          "kind": "replaceLinks",
+          "owner": {
+            "type": "edition",
+            "id": "$edition_1"
+          },
+          "links": [
+            {
+              "kind": "ticketing",
+              "url": "https://szigetfestival.com/en/tickets",
+              "label": null,
+              "official": true
+            }
+          ],
+          "expectedVersion": 1,
+          "operationKey": "e63910d4-be4b-49c2-bfd6-3961a63fe202",
+          "actor": "catalog-research",
+          "initiatedBy": "eval"
+        }
+      ],
+      "references": {
+        "edition_1": "5c4af6ed-25db-47b4-8625-bfc343647b9f"
+      },
+      "changes": [
+        {
+          "subject": "festivalnetwork:event:a22324dcf0078266ed4e",
+          "field": "links",
+          "oldValue": [
+            {
+              "kind": "other",
+              "url": "https://www.szigetfestival.com/",
+              "label": "FestivalNetwork website (unverified)",
+              "official": false
+            }
+          ],
+          "newValue": [
+            {
+              "kind": "official_site",
+              "url": "https://szigetfestival.com/en/",
+              "label": null,
+              "official": true
+            },
+            {
+              "kind": "other",
+              "url": "https://www.szigetfestival.com/",
+              "label": "FestivalNetwork website (unverified)",
+              "official": false
+            }
+          ],
+          "explanations": [
+            "The official Sziget homepage identifies the festival and announces its 2027 return."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "id",
+          "oldValue": null,
+          "newValue": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "explanations": []
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "event_id",
+          "oldValue": null,
+          "newValue": "festivalnetwork:event:a22324dcf0078266ed4e",
+          "explanations": []
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "edition_key",
+          "oldValue": null,
+          "newValue": "2027",
+          "explanations": [
+            "Official Sziget pages announce the 2027 edition for 10–14 August and identify its location and ticket offers."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "edition_year",
+          "oldValue": null,
+          "newValue": 2027,
+          "explanations": [
+            "The official homepage and FAQ explicitly identify the upcoming edition as Sziget 2027."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "starts_on",
+          "oldValue": null,
+          "newValue": "2027-08-10",
+          "explanations": [
+            "The official homepage and FAQ confirm the dates as 10–14 August 2027."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "ends_on",
+          "oldValue": null,
+          "newValue": "2027-08-14",
+          "explanations": [
+            "The official homepage and FAQ confirm the dates as 10–14 August 2027."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "date_state",
+          "oldValue": null,
+          "newValue": "confirmed",
+          "explanations": [
+            "The official homepage and FAQ confirm the dates as 10–14 August 2027."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "schedule_status",
+          "oldValue": null,
+          "newValue": "announced",
+          "explanations": [
+            "The official site announces Sziget’s return on 10–14 August 2027."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "venue_name",
+          "oldValue": null,
+          "newValue": "Óbuda Island",
+          "explanations": [
+            "The official travel page identifies Óbuda Island as the festival site."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "venue_address",
+          "oldValue": null,
+          "newValue": "Május 9. park, Budapest, Hungary, 1033",
+          "explanations": [
+            "The official travel page gives this as Sziget’s official address."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "locality",
+          "oldValue": null,
+          "newValue": "Budapest",
+          "explanations": [
+            "The official travel page places the festival in Budapest."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "country_code",
+          "oldValue": null,
+          "newValue": "HU",
+          "explanations": [
+            "The official travel page gives the location as Budapest, Hungary."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "publication_state",
+          "oldValue": null,
+          "newValue": "draft",
+          "explanations": []
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "coordinate_precision",
+          "oldValue": null,
+          "newValue": "unknown",
+          "explanations": []
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "version",
+          "oldValue": null,
+          "newValue": 1,
+          "explanations": []
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "created_at",
+          "oldValue": null,
+          "newValue": "2026-10-11T23:59:47.306Z",
+          "explanations": []
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "updated_at",
+          "oldValue": null,
+          "newValue": "2026-10-11T23:59:47.306Z",
+          "explanations": []
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "terms",
+          "oldValue": [],
+          "newValue": [
+            "validation:festival",
+            "validation:music"
+          ],
+          "explanations": [
+            "The official site identifies Sziget as a festival and describes its programme as music-focused."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "price_kind",
+          "oldValue": null,
+          "newValue": "exact",
+          "explanations": [
+            "The official homepage lists these 5-day pass prices. The standard pass supports the full-programme base price; the age-restricted pass is retained as a variant. Availability is unknown."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "price_currency",
+          "oldValue": null,
+          "newValue": "EUR",
+          "explanations": [
+            "The official homepage lists these 5-day pass prices. The standard pass supports the full-programme base price; the age-restricted pass is retained as a variant. Availability is unknown."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "price_min_minor",
+          "oldValue": null,
+          "newValue": 34900,
+          "explanations": [
+            "The official homepage lists these 5-day pass prices. The standard pass supports the full-programme base price; the age-restricted pass is retained as a variant. Availability is unknown."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "price_max_minor",
+          "oldValue": null,
+          "newValue": 34900,
+          "explanations": [
+            "The official homepage lists these 5-day pass prices. The standard pass supports the full-programme base price; the age-restricted pass is retained as a variant. Availability is unknown."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "price_coverage",
+          "oldValue": null,
+          "newValue": "full_programme",
+          "explanations": [
+            "The official homepage lists these 5-day pass prices. The standard pass supports the full-programme base price; the age-restricted pass is retained as a variant. Availability is unknown."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "price_details",
+          "oldValue": [],
+          "newValue": [
+            {
+              "label": "21&Under 5-day Pass",
+              "amount": 279,
+              "currency": "EUR",
+              "terms": "For attendees 21 and under; €18 online handling fee in addition.",
+              "availability": "unknown",
+              "url": "https://szi.gt/21andUnderPass_2027"
+            },
+            {
+              "label": "5-day Pass",
+              "amount": 349,
+              "currency": "EUR",
+              "terms": "€23 online handling fee in addition.",
+              "availability": "unknown",
+              "url": "https://szi.gt/5daypass_2027"
+            },
+            {
+              "label": "VIP 5-day Pass",
+              "amount": 569,
+              "currency": "EUR",
+              "terms": "€37 online handling fee in addition.",
+              "availability": "unknown",
+              "url": "https://szi.gt/VIP_5day_2027"
+            }
+          ],
+          "explanations": [
+            "The official homepage lists these 5-day pass prices. The standard pass supports the full-programme base price; the age-restricted pass is retained as a variant. Availability is unknown."
+          ]
+        },
+        {
+          "subject": "5c4af6ed-25db-47b4-8625-bfc343647b9f",
+          "field": "links",
+          "oldValue": [],
+          "newValue": [
+            {
+              "kind": "ticketing",
+              "url": "https://szigetfestival.com/en/tickets",
+              "label": null,
+              "official": true
+            }
+          ],
+          "explanations": [
+            "The official site identifies this as its ticket page."
+          ]
+        }
+      ],
+      "errors": [],
+      "unresolved": [
+        {
+          "message": "The 2026 edition’s exact programme dates and edition-specific venue/location could not be verified from the inspected official pages or source discovery; the saved dates and location therefore remain unchecked.",
+          "editionKey": "source-row",
+          "field": "dates"
+        },
+        {
+          "message": "The saved 2026 ticket block could not be verified. The official pages inspected did not provide a complete historical ticket price/category record.",
+          "editionKey": "source-row",
+          "field": "tickets"
+        },
+        {
+          "message": "The complete 2027 ticket category list and ticket availability remain unverified because the official ticket page did not render its catalogue.",
+          "editionKey": "2027",
+          "field": "tickets"
+        },
+        {
+          "message": "The 2026 edition’s exact programme dates and edition-specific venue/location could not be verified from the inspected official pages; its saved dates and location remain unchecked.",
+          "editionKey": "source-row",
+          "field": "dates"
+        },
+        {
+          "message": "The saved 2026 ticket block could not be verified; the inspected official pages did not provide a complete historical ticket price and category record.",
+          "editionKey": "source-row",
+          "field": "tickets"
+        },
+        {
+          "message": "The complete 2027 ticket category list and ticket availability remain unverified because the official ticket catalogue did not render.",
+          "editionKey": "2027",
+          "field": "tickets"
+        }
+      ],
+      "sources": [
+        {
+          "attemptedUrl": "https://www.szigetfestival.com/",
+          "finalUrl": "https://szigetfestival.com/en/",
+          "retrievedAt": "2026-10-03T16:33:58.662Z",
+          "outcome": "ok"
+        },
+        {
+          "attemptedUrl": "https://szigetfestival.com/en/tickets",
+          "finalUrl": "https://szigetfestival.com/en/tickets",
+          "retrievedAt": "2026-10-03T23:16:38.705Z",
+          "outcome": "partial",
+          "reason": "renders_budget_exhausted"
+        },
+        {
+          "attemptedUrl": "https://szigetfestival.com/en/festival-info",
+          "finalUrl": "https://szigetfestival.com/en/festival-info",
+          "retrievedAt": "2026-10-03T23:49:32.520Z",
+          "outcome": "ok"
+        },
+        {
+          "attemptedUrl": "https://szigetfestival.com/en/experience",
+          "finalUrl": "https://szigetfestival.com/en/experience",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://szigetfestival.com/en/stages",
+          "finalUrl": "https://szigetfestival.com/en/stages",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://szigetfestival.com/en/travel",
+          "finalUrl": "https://szigetfestival.com/en/travel/",
+          "retrievedAt": "2026-10-03T23:14:50.663Z",
+          "outcome": "ok"
+        },
+        {
+          "attemptedUrl": "https://szi.gt/5daypass_2027",
+          "finalUrl": "https://szi.gt/5daypass_2027",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://szigetfestival.com/en/greensziget",
+          "finalUrl": "https://szigetfestival.com/en/greensziget",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        },
+        {
+          "attemptedUrl": "https://szigetfestival.com/hu/jegyek",
+          "finalUrl": "https://szigetfestival.com/hu/jegyek",
+          "retrievedAt": "2026-10-03T00:00:00.000Z",
+          "outcome": "blocked",
+          "reason": "not_in_eval_fixture"
+        }
+      ],
+      "sourceSummaries": [
+        {
+          "url": "https://szigetfestival.com/en/",
+          "information": "The official Sziget homepage identifies the festival, announces its 10–14 August 2027 return, and lists 5-day, 21&Under, and VIP pass prices. It also describes 2026 as a festival that has ended."
+        },
+        {
+          "url": "https://szigetfestival.com/en/festival-info",
+          "information": "The official FAQ confirms 2027 dates of 10–14 August and says performers will be announced later. It references the 2026 festival, but does not establish its exact programme dates or a full ticket price list."
+        },
+        {
+          "url": "https://szigetfestival.com/en/travel/",
+          "information": "The official travel page says Sziget takes place on Óbuda Island and gives the official address as Május 9. park, Budapest, Hungary, 1033."
+        },
+        {
+          "url": "https://szigetfestival.com/en/tickets",
+          "information": "The official ticket page was inspected, but its ticket catalogue did not render in the available read; the homepage supplies some 2027 pass prices, not a complete list."
+        }
+      ],
+      "eventNameMismatch": null,
+      "scope": "full",
+      "currentDate": "2026-10-03T12:00:00.000Z",
+      "limits": {
+        "searches": 3,
+        "depth": 2,
+        "agentSteps": 15,
+        "durationMs": 300000,
+        "pageBytes": 2097152,
+        "modelOutputTokens": 16000,
+        "searchResults": 5
+      },
+      "workload": {
+        "savedEditions": 1,
+        "returnedEditions": 2
+      }
+    }
+  ]
+}

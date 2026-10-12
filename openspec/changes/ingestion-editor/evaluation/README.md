@@ -25,8 +25,29 @@ After the final price-preservation/completion prompt fixes, both previously fail
 | wrong-year | 2027 dates written; saved 2026 dates preserved | 0.002958 | 244.6 |
 | day-ticket | 2027 full-programme DKK 2,650 written; day price excluded | 0.002389 | 189.9 |
 
-The full five-case set was not rerun after those last prompt fixes. Do not present the mixed runs as a paired 5/5 result. Wrong-year remains close to the 300-second deadline; the extra agent still increases latency/cost.
+A later full five-case rerun passed 5/5 on the committed prompt fixes ([raw report](final-full-rerun.json)). Historical dates were also checked directly because review found bare forbidden assertions missed null clears. Known model subtotal was $0.010456 versus $0.006869 baseline (1.52×); per-case durations were 17.8–271.9 seconds. This is a separate smoke run, not a replacement for the original paired score.
 
 Raw evidence (large details kept separately): [baseline](baseline.json), [initial editor run](after-initial.json), [first targeted fixes](after-corrections.json), [paired run after main](after-main.json), [final two-case follow-up](final-targeted.json).
 
 One run per case is a smoke check, not statistical evidence. Follow-up runs are explicitly separate rather than substituted into the paired score. Model costs are known provider subtotals, not guaranteed total service charges. Captured pages replay locally, with no live website/search fallback; model generation is live. The baseline predates main's size contract; these five cases do not assess participant-size semantics.
+
+## Review fixes and strengthened assertions
+
+The three historical-date cases now explicitly forbid null clears as well as changed dates; required writes were not relaxed. Host fixes correct validation-rejection outcome, attribute editor validation separately in trace, and retain typed Edition patches.
+
+The complete post-review run passed **3/5** ([raw report](after-review.json)). Wrong-year and valid-update both failed during editor generation with provider code 502 (HTTP envelope 200), with no operations or forbidden changes; research had completed with partial findings. These were provider failures, not timeouts or stricter assertion failures. The remaining three cases passed.
+
+| Case | Pass | Seconds | Known model USD |
+| --- | --- | --- | --- |
+| editor-wrong-year | false | 174.7 | 0.002257 |
+| editor-day-ticket | true | 238.9 | 0.002743 |
+| editor-clear | true | 134.5 | 0.001730 |
+| editor-unavailable | true | 31.0 | 0.000229 |
+| editor-valid-update | false | 186.1 | 0.002406 |
+
+A separate diagnostic rerun passed **2/2** for wrong-year and valid-update ([raw report](provider-followup.json)); it does not replace the full 3/5 result or add retry behavior to ingestion.
+
+| Diagnostic follow-up | Pass | Seconds | Known model USD |
+| --- | --- | --- | --- |
+| editor-wrong-year | true | 285.7 | 0.002264 |
+| editor-valid-update | true | 272.9 | 0.003518 |

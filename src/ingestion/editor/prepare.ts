@@ -33,6 +33,10 @@ type DraftOperation = CatalogOperation extends infer Op
   : never;
 type Term = { id: string; facet: string; slug: string };
 type Reasons = Record<string, string[]>;
+type EditionPatch = Extract<
+  CatalogOperation,
+  { kind: "updateEdition" }
+>["data"];
 type AddOperation = (
   draft: DraftOperation,
   reasons?: Reasons,
@@ -276,9 +280,13 @@ function linksToOperations(
   );
 }
 function fieldsToValues(fields: EditionPlan["fields"]) {
-  const values: Record<string, unknown> = {};
+  const values: EditionPatch = {};
   const reasons: Reasons = {};
-  const set = (field: string, value: unknown, action: { reason: string }) => {
+  const set = <K extends keyof EditionPatch>(
+    field: K,
+    value: EditionPatch[K],
+    action: { reason: string },
+  ) => {
     values[field] = value;
     reasons[fieldName(field)] = [action.reason];
   };
@@ -301,18 +309,23 @@ function fieldsToValues(fields: EditionPlan["fields"]) {
       fields.coordinates!,
     );
   }
+  if (fields.scheduleStatus?.action === "set") {
+    set("scheduleStatus", fields.scheduleStatus.value, fields.scheduleStatus);
+  }
+  const size = valueOf(fields.sizeEstimate);
+  if (size !== undefined) {
+    set("sizeEstimate", size, fields.sizeEstimate!);
+  }
   for (const field of [
-    "scheduleStatus",
     "displayName",
     "venueName",
     "venueAddress",
     "locality",
     "administrativeArea",
     "countryCode",
-    "sizeEstimate",
   ] as const) {
     const action = fields[field];
-    const value = valueOf<unknown>(action);
+    const value = valueOf(action);
     if (value !== undefined) {
       set(field, value, action!);
     }

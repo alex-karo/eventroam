@@ -331,6 +331,7 @@ test.each([
   "mistaken",
   "recovered",
   "invalid",
+  "invalid_editor",
   "unchanged",
   "search",
   "reserved",
@@ -455,6 +456,21 @@ test.each([
         errorCode: "validation_failed",
         committedOperationCount: 0,
       });
+    }
+    if (scenario === "invalid_editor") {
+      expect(output).toMatchObject({
+        researchStatus: "success",
+        editorStatus: "failed",
+        outcome: "failed",
+        structuralValidation: "passed",
+        targetValidation: "passed",
+        editorPlanValidation: "failed",
+        writeState: "not_attempted",
+        errorCode: "validation_failed",
+        committedOperationCount: 0,
+      });
+      expect(traced.result.operations).toEqual([]);
+      expect(root.name).toContain("invalid");
     }
     if (scenario === "unchanged") {
       expect(output.writeState).toBe("unchanged");

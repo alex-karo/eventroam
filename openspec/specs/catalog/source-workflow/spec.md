@@ -791,7 +791,7 @@ Source spans SHALL record explicitly selected read URLs, outcome/reason/method/c
 
 ### Requirement: One catalog-run trace covers the final result
 
-Each eligible apply trace SHALL begin before context and initial retrieval, parent research/editor/source work, and end after validation, write/rollback and report construction or failure. Root host fields SHALL be explicit ordinary objects with independent structuralValidation, targetValidation, editorStatus (success, failed or not_run), without a claim of independent source verification, writeState, known committedOperationCount, and report researchStatus/outcome when available. No logging producer SHALL depend on a trace summary to calculate its own straightforward outcome fields.
+Each eligible apply trace SHALL begin before context and initial retrieval, parent research/editor/source work, and end after validation, write/rollback and report construction or failure. Root host fields SHALL be explicit ordinary objects with independent research structuralValidation/targetValidation, editorPlanValidation (passed, failed or not_run), editorStatus (success, failed or not_run), without a claim of independent source verification, writeState, known committedOperationCount, and report researchStatus/outcome when available. Rejected editor plans SHALL retain the research checks and expose failed editorPlanValidation with not_attempted writes. No logging producer SHALL depend on a trace summary to calculate its own straightforward outcome fields.
 
 #### Scenario: Report construction fails after a commit
 - **WHEN** a confirmed write succeeds but report construction fails

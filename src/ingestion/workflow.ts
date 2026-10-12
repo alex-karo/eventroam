@@ -465,7 +465,7 @@ export function createCatalogIngestionWorkflow(
       }
       data.errors = data.prepared.errors;
       data.unresolved = data.prepared.unresolved;
-      owned.trace?.validated(data.prepared);
+      owned.trace?.editorValidated(data.prepared);
       logPreparation(owned.trace?.log, data.prepared);
       // The normalized plan exists only during preparation; editorResponse is retained once.
       return {

@@ -136,6 +136,18 @@
         "editionYear": 2027,
         "field": "price_min_minor",
         "value": 153000
+      },
+      {
+        "owner": "edition",
+        "editionKey": "source-row",
+        "field": "starts_on",
+        "value": null
+      },
+      {
+        "owner": "edition",
+        "editionKey": "source-row",
+        "field": "ends_on",
+        "value": null
       }
     ]
   },

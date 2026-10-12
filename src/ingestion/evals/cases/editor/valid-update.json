@@ -119,6 +119,18 @@
         "owner": "edition",
         "editionKey": "source-row",
         "field": "ends_on"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "source-row",
+        "field": "starts_on",
+        "value": null
+      },
+      {
+        "owner": "edition",
+        "editionKey": "source-row",
+        "field": "ends_on",
+        "value": null
       }
     ]
   },
