@@ -30,7 +30,6 @@ export function createSourceSession(
 ) {
   const reads: ReadSourceResult[] = [];
   const inFlight = new Map<string, Promise<ReadSourceResult>>();
-  const depthByUrl = new Map<string, number>();
   const discovery: DiscoverSourcesResult[] = [];
   const read = async (
     url: string,
@@ -39,9 +38,8 @@ export function createSourceSession(
     const started = Date.now();
     const context = { stage: "source", ...operation };
     const operationLog = log?.child(context);
-    const depth = depthByUrl.get(new URL(url).toString()) ?? 1;
     if (!operation.tool) {
-      operationLog?.info("Reading source", { attemptedUrl: url, depth });
+      operationLog?.info("Reading source", { attemptedUrl: url });
     }
     const finished = (result: ReadSourceResult, cached: boolean) => {
       if (result.reason?.endsWith("_budget_exhausted")) {
@@ -63,7 +61,6 @@ export function createSourceSession(
             sourceCharacters: result.markdown.length,
             sourceTruncated: result.sourceTruncated,
             cached,
-            depth,
             durationMs: Date.now() - started,
             remaining: budget.remaining(),
           },
@@ -93,15 +90,9 @@ export function createSourceSession(
     const request = (async () => {
       const result = await (deps.readSource ?? readSource)(key, {
         budget,
-        depth,
         log: operationLog,
       });
       reads.push(result);
-      for (const url of result.links) {
-        if (!depthByUrl.has(url)) {
-          depthByUrl.set(url, Math.min(depth + 1, budget.limits.depth + 1));
-        }
-      }
       return result;
     })();
     inFlight.set(key, request);
@@ -175,16 +166,8 @@ export function createSourceSession(
       throw error;
     }
     discovery.push(result);
-    for (const lead of result.candidates) {
-      if (!depthByUrl.has(lead.url)) {
-        depthByUrl.set(lead.url, 0);
-      }
-    }
     return finished(result, "ok");
   };
-  for (const { url } of knownLinks) {
-    depthByUrl.set(new URL(url).toString(), 0);
-  }
   const initialUrl =
     knownLinks.find((link) => link.kind === "official_site")?.url ??
     knownLinks.find((link) => link.official)?.url ??

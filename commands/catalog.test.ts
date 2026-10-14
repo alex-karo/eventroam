@@ -18,7 +18,7 @@ const result = (): CatalogResearchResult => ({
   schemaVersion: 5,
   editorResponse: null,
   editorStatus: "not_run",
-  editorPromptVersion: "catalog-editor-v1",
+  editorPromptVersion: "catalog-editor-v5",
   scope: null,
   currentDate: null,
   workload: { savedEditions: 0, returnedEditions: 0 },
@@ -44,7 +44,7 @@ const result = (): CatalogResearchResult => ({
     elapsedMs: 0,
     remaining: {
       searches: 3,
-      durationMs: 300000,
+      durationMs: DEFAULT_RESEARCH_LIMITS.durationMs,
     },
     inputTokens: 0,
     outputTokens: 0,

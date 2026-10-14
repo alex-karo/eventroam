@@ -96,7 +96,10 @@ export const ticketVariantSchema = z
   })
   .strict()
   .superRefine((value, ctx) => {
-    if ((value.amount === undefined) !== (value.currency === undefined)) {
+    if (
+      value.amount !== 0 &&
+      (value.amount === undefined) !== (value.currency === undefined)
+    ) {
       ctx.addIssue({
         code: "custom",
         message: "Amount and currency must be supplied together",
@@ -166,13 +169,7 @@ const edition = z
     ).optional(),
     coordinates: fact(coordinateBlock.nullable()).optional(),
     sizeEstimate: fact(z.number().int().positive().nullable()).optional(),
-    classification: z
-      .object({
-        add: fact(z.array(z.string().min(1)).max(50)).optional(),
-        remove: fact(z.array(z.string().min(1)).max(50)).optional(),
-      })
-      .strict()
-      .optional(),
+    classification: fact(z.array(z.string().min(1)).max(50)).optional(),
     tickets: fact(ticketBlock).optional(),
     links: z.object({ tickets: optionalLink }).strict(),
   })
@@ -316,6 +313,7 @@ export type ResearchError = {
     | "model_failed"
     | "invalid_candidate"
     | "invalid_plan"
+    | "editor_rejected"
     | "country_conflict"
     | "country_baseline_conflict"
     | "write_failed"
@@ -333,4 +331,4 @@ export type ResearchError = {
     retryable?: boolean;
   };
 };
-export const RESEARCH_PROMPT_VERSION = "editor-findings-v1";
+export const RESEARCH_PROMPT_VERSION = "editor-findings-v2";

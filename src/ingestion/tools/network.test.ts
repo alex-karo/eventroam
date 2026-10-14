@@ -185,7 +185,7 @@ it("preserves callback errors and checks DNS afresh on retry", async () => {
     response.writeHead(503, { "retry-after": "0" });
     response.end();
   };
-  const failure = new ResearchLimitError("depth");
+  const failure = new ResearchLimitError("time");
   await expect(
     load({
       onRetry: () => {

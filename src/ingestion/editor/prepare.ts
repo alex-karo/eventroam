@@ -1,8 +1,11 @@
 import {
   editorPlanSchema,
-  type EditorPlan,
-  type EditionPlan,
+  eventFieldsSchema,
+  editionFieldsSchema,
+  type ResolvedEditorPlan as EditorPlan,
+  type EditorPlan as RawEditorPlan,
 } from "./contracts";
+import type { z } from "zod";
 import { normalizeEditorWire } from "./wire";
 import { isEditionPublishable } from "@/catalog/domain/validation";
 import { createHash, randomUUID } from "node:crypto";
@@ -24,6 +27,7 @@ import {
 import { validateRefresh } from "../research/guards";
 import { majorToMinor } from "../research/money";
 
+type EditionPlan = EditorPlan["editions"][number];
 type Event = ResearchCatalog[number];
 type Edition = ResearchData["editions"][number];
 type DraftOperation = CatalogOperation extends infer Op
@@ -351,6 +355,13 @@ export function prepareEditorPlan(
   terms: Term[],
 ): PreparedPlan {
   const result = structuredClone(validated);
+  if (
+    !result.candidate ||
+    result.candidate.status === "failed" ||
+    result.skipped
+  ) {
+    return result;
+  }
   const parsed = editorPlanSchema.safeParse(normalizeEditorWire(raw));
   if (!parsed.success) {
     return planInvalid(
@@ -359,7 +370,21 @@ export function prepareEditorPlan(
       "Invalid editorial plan structure",
     );
   }
-  const plan: EditorPlan = parsed.data;
+  if (parsed.data.status === "rejected") {
+    result.validation.target = "failed";
+    result.operations = [];
+    result.errors.push({
+      code: "editor_rejected",
+      stage: "editor",
+      message: parsed.data.reason,
+    });
+    return result;
+  }
+  const resolved = resolveEditorFields(parsed.data, result.candidate.data!);
+  if (!resolved.ok) {
+    return planInvalid(result, resolved.issue.field, resolved.issue.message);
+  }
+  const plan = resolved.plan;
   result.unresolved.push(...plan.unresolved);
   if (!plan.event) {
     if (input.mode !== "add") {
@@ -425,6 +450,269 @@ export function prepareEditorPlan(
     add({ kind: "publishEvent", id: eventRef }, {}, event?.version ?? 1);
   }
   return result;
+}
+
+type AcceptAction = { action: "accept" };
+type KeepAction = { action: "keep"; reason: string };
+type SetAction<T> = { action: "set"; value: T; reason: string };
+
+class FieldIssue extends Error {
+  constructor(
+    readonly field: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+// Action contracts put the set branch first; reuse its value validation for accept.
+type ActionValueSchema<T> = {
+  unwrap(): {
+    options: readonly [{ shape: { value: z.ZodType<T> } }, ...unknown[]];
+  };
+};
+
+function resolveAction<T>(
+  action: SetAction<T> | KeepAction | AcceptAction | undefined,
+  finding: unknown,
+  schema: ActionValueSchema<T>,
+  path: string,
+): SetAction<T> | KeepAction | undefined;
+function resolveAction<T>(
+  action: FieldAction<T> | AcceptAction | undefined,
+  finding: unknown,
+  schema: ActionValueSchema<T>,
+  path: string,
+): FieldAction<T> | undefined;
+function resolveAction<T>(
+  action: FieldAction<T> | AcceptAction | undefined,
+  finding: unknown,
+  schema: ActionValueSchema<T>,
+  path: string,
+): FieldAction<T> | undefined {
+  if (!action || action.action === "keep") {
+    return action;
+  }
+  if (finding === undefined) {
+    throw new FieldIssue(
+      path,
+      "Editorial mutation requires a structured finding for the same field and Edition",
+    );
+  }
+  if (action.action !== "accept") {
+    return action;
+  }
+  const wrapped =
+    finding && typeof finding === "object" && "value" in finding
+      ? finding
+      : {
+          value: finding,
+          reason: "Accepted officially associated research link",
+        };
+  const value = schema.unwrap().options[0].shape.value.safeParse(wrapped.value);
+  if (
+    wrapped.value == null ||
+    !value.success ||
+    !("reason" in wrapped) ||
+    typeof wrapped.reason !== "string"
+  ) {
+    throw new FieldIssue(
+      path,
+      "Accept requires a non-null same-field research value valid for the editor contract",
+    );
+  }
+  return { action: "set", value: value.data, reason: wrapped.reason };
+}
+
+/** Resolve and check support together; only concrete typed actions reach conversion. */
+function resolveEditorFields(
+  plan: RawEditorPlan,
+  data: ResearchData,
+): { ok: true; plan: EditorPlan } | { ok: false; issue: FieldIssue } {
+  try {
+    const eventFields = eventFieldsSchema.shape;
+    const editionFields = editionFieldsSchema.shape;
+    const links = eventFields.links.unwrap().shape;
+    const socials = links.socials.unwrap().shape;
+    const socialActions = plan.event?.fields.links?.socials;
+    const r = resolveAction;
+    return {
+      ok: true,
+      plan: {
+        ...plan,
+        event: plan.event
+          ? {
+              ...plan.event,
+              fields: {
+                summary: r(
+                  plan.event.fields.summary,
+                  data.summary,
+                  eventFields.summary,
+                  "event.fields.summary",
+                ),
+                links: plan.event.fields.links
+                  ? {
+                      website: r(
+                        plan.event.fields.links.website,
+                        data.links.website,
+                        links.website,
+                        "event.fields.links.website",
+                      ),
+                      socials: socialActions
+                        ? {
+                            instagram: r(
+                              socialActions.instagram,
+                              data.links.socials.instagram,
+                              socials.instagram,
+                              "event.fields.links.socials.instagram",
+                            ),
+                            facebook: r(
+                              socialActions.facebook,
+                              data.links.socials.facebook,
+                              socials.facebook,
+                              "event.fields.links.socials.facebook",
+                            ),
+                            youtube: r(
+                              socialActions.youtube,
+                              data.links.socials.youtube,
+                              socials.youtube,
+                              "event.fields.links.socials.youtube",
+                            ),
+                            tiktok: r(
+                              socialActions.tiktok,
+                              data.links.socials.tiktok,
+                              socials.tiktok,
+                              "event.fields.links.socials.tiktok",
+                            ),
+                            x: r(
+                              socialActions.x,
+                              data.links.socials.x,
+                              socials.x,
+                              "event.fields.links.socials.x",
+                            ),
+                            other: r(
+                              socialActions.other,
+                              data.links.socials.other,
+                              socials.other,
+                              "event.fields.links.socials.other",
+                            ),
+                          }
+                        : undefined,
+                    }
+                  : undefined,
+              },
+            }
+          : null,
+        editions: plan.editions.map((edition, index) => {
+          const key =
+            "editionKey" in edition.target
+              ? edition.target.editionKey
+              : edition.target.create.editionKey;
+          const finding = data.editions.find((item) => item.key === key);
+          const fields = edition.fields;
+          const path = `editions.${index}.fields`;
+          return {
+            ...edition,
+            fields: {
+              year: r(
+                fields.year,
+                finding?.year,
+                editionFields.year,
+                `${path}.year`,
+              ),
+              dates: r(
+                fields.dates,
+                finding?.dates,
+                editionFields.dates,
+                `${path}.dates`,
+              ),
+              coordinates: r(
+                fields.coordinates,
+                finding?.coordinates,
+                editionFields.coordinates,
+                `${path}.coordinates`,
+              ),
+              scheduleStatus: r(
+                fields.scheduleStatus,
+                finding?.scheduleStatus,
+                editionFields.scheduleStatus,
+                `${path}.scheduleStatus`,
+              ),
+              displayName: r(
+                fields.displayName,
+                finding?.displayName,
+                editionFields.displayName,
+                `${path}.displayName`,
+              ),
+              venueName: r(
+                fields.venueName,
+                finding?.venueName,
+                editionFields.venueName,
+                `${path}.venueName`,
+              ),
+              venueAddress: r(
+                fields.venueAddress,
+                finding?.venueAddress,
+                editionFields.venueAddress,
+                `${path}.venueAddress`,
+              ),
+              locality: r(
+                fields.locality,
+                finding?.locality,
+                editionFields.locality,
+                `${path}.locality`,
+              ),
+              administrativeArea: r(
+                fields.administrativeArea,
+                finding?.administrativeArea,
+                editionFields.administrativeArea,
+                `${path}.administrativeArea`,
+              ),
+              countryCode: r(
+                fields.countryCode,
+                finding?.countryCode,
+                editionFields.countryCode,
+                `${path}.countryCode`,
+              ),
+              sizeEstimate: r(
+                fields.sizeEstimate,
+                finding?.sizeEstimate,
+                editionFields.sizeEstimate,
+                `${path}.sizeEstimate`,
+              ),
+              tickets: r(
+                fields.tickets,
+                finding?.tickets,
+                editionFields.tickets,
+                `${path}.tickets`,
+              ),
+              classification: r(
+                fields.classification,
+                finding?.classification,
+                editionFields.classification,
+                `${path}.classification`,
+              ),
+              links: fields.links
+                ? {
+                    tickets: r(
+                      fields.links.tickets,
+                      finding?.links.tickets,
+                      editionFields.links.unwrap().shape.tickets,
+                      `${path}.links.tickets`,
+                    ),
+                  }
+                : undefined,
+            },
+          };
+        }),
+      },
+    };
+  } catch (error) {
+    if (error instanceof FieldIssue) {
+      return { ok: false, issue: error };
+    }
+    throw error;
+  }
 }
 
 function validateEditionTargets(

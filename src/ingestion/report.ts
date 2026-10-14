@@ -148,6 +148,7 @@ function assembleReport({
               "invalid_candidate",
               "invalid_plan",
               "country_conflict",
+              "editor_rejected",
               "country_baseline_conflict",
             ].includes(error.code) ||
             (error.code === "workflow_failed" && !applied),

@@ -80,5 +80,6 @@
     "kind": "captured-source-editor-regression",
     "sourceReport": "src/ingestion/evals/cases/roskilde/case.json",
     "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
-  }
+  },
+  "researchHandoffFile": "clear.research.json"
 }

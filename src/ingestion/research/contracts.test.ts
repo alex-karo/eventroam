@@ -1,5 +1,9 @@
 import { expect, test } from "vitest";
-import { researchCandidateSchema, type ResearchCandidate } from "./contracts";
+import {
+  researchCandidateSchema,
+  ticketVariantSchema,
+  type ResearchCandidate,
+} from "./contracts";
 import { majorToMinor, minorToMajor } from "./money";
 
 const candidate = (): ResearchCandidate => ({
@@ -64,6 +68,33 @@ test("envelope keeps research completion separate from diagnostics", () => {
   ).toBe(false);
 });
 
+test("classification requires a complete list and one bounded reason", () => {
+  for (const classification of [
+    { value: ["music", "camping"], reason: "a".repeat(500) },
+    { value: [], reason: "All saved categories explicitly refuted" },
+  ]) {
+    const value = candidate();
+    value.data!.editions[0] = { key: "2027", links: {}, classification };
+    expect(valid(value)).toBe(true);
+  }
+  for (const classification of [
+    { add: { value: ["music"], reason: "Legacy patch" } },
+    { value: ["music"], reason: "a".repeat(501) },
+    { value: null, reason: "Cannot refute individual terms with null" },
+  ]) {
+    const value = candidate();
+    expect(
+      valid({
+        ...value,
+        data: {
+          ...value.data,
+          editions: [{ key: "2027", links: {}, classification }],
+        },
+      }),
+    ).toBe(false);
+  }
+});
+
 test("strict named facts require reasons and complete groups", () => {
   const value = candidate();
   value.data!.editions[0] = {
@@ -84,8 +115,8 @@ test("strict named facts require reasons and complete groups", () => {
     venueAddress: { value: null, reason: "Old address was withdrawn" },
     scheduleStatus: { value: "cancelled", reason: "Official cancellation" },
     classification: {
-      add: { value: ["music"], reason: "Programme is music" },
-      remove: { value: ["old"], reason: "Old classification obsolete" },
+      value: ["music"],
+      reason: "Music programme replaces obsolete category",
     },
   };
   expect(valid(value)).toBe(true);
@@ -346,3 +377,17 @@ test("money uses currency exponents and rejects excess precision or unsafe units
     ).toBe(false);
   }
 });
+
+test.each([
+  [{ label: "Free admission", amount: 0 }, true],
+  [{ label: "Free admission", amount: 0, currency: "EUR" }, true],
+  [{ label: "Unknown price" }, true],
+  [{ label: "Paid ticket", amount: 10 }, false],
+  [{ label: "Currency only", currency: "EUR" }, false],
+  [{ label: "Free admission", amount: 0, currency: "ZZZ" }, false],
+])(
+  "free variant contract accepts zero without guessing currency: %j",
+  (variant, valid) => {
+    expect(ticketVariantSchema.safeParse(variant).success).toBe(valid);
+  },
+);

@@ -10,6 +10,13 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { researchCandidateSchema } from "../research/contracts";
+
+const researchHandoffSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  provenance: z.string().min(1),
+  candidate: researchCandidateSchema,
+});
 
 const link = z.object({
   kind: z.enum(linkKinds),
@@ -71,6 +78,7 @@ export const assertionSchema = z.object({
 });
 export const evalCaseSchema = z.object({
   id: z.string().min(1),
+  researchHandoff: researchHandoffSchema.optional(),
   todayUtc: z.iso.date().optional(),
   provenance: z
     .object({ kind: z.string(), sourceReport: z.string(), note: z.string() })
@@ -160,6 +168,7 @@ export type EvalSuite = z.infer<typeof evalSuiteSchema>;
 export type EvalAssertion = z.infer<typeof assertionSchema>;
 
 const caseFileSchema = evalCaseSchema.extend({
+  researchHandoffFile: z.string().min(1).optional(),
   sources: z.array(
     source.omit({ markdown: true }).extend({ markdownFile: z.string().min(1) }),
   ),
@@ -183,6 +192,16 @@ export function loadEvalSuite(
       );
       return {
         ...item,
+        researchHandoff: item.researchHandoffFile
+          ? researchHandoffSchema.parse(
+              JSON.parse(
+                readFileSync(
+                  resolve(dirname(absolutePath), item.researchHandoffFile),
+                  "utf8",
+                ),
+              ),
+            )
+          : undefined,
         sources: item.sources.map(({ markdownFile, ...metadata }) => ({
           ...metadata,
           markdown: readFileSync(

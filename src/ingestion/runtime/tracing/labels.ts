@@ -150,6 +150,7 @@ export type TraceRunState = {
   editorPlanValidation: "passed" | "failed" | "not_run";
   writeState: TraceWriteState;
   errorCode?:
+    | "editor_rejected"
     | "validation_failed"
     | "research_failed"
     | "write_failed"
@@ -171,6 +172,9 @@ export function traceResultLabel(
   }
   if (state.errorCode === "validation_failed") {
     return "invalid";
+  }
+  if (state.errorCode === "editor_rejected") {
+    return "editor-rejected";
   }
   if (state.errorCode) {
     return "failed";
@@ -218,7 +222,7 @@ export function traceReason(reason?: string) {
   return reason &&
     (reasons.has(reason) ||
       /^(?:firecrawl_)?http_[1-5]\d\d$/.test(reason) ||
-      /^(time|depth|searches)_budget_exhausted$/.test(reason))
+      /^(time|searches)_budget_exhausted$/.test(reason))
     ? traceText(reason, 64)
     : "unknown";
 }

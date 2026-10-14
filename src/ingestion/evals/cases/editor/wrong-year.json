@@ -138,5 +138,6 @@
     "kind": "captured-source-editor-regression",
     "sourceReport": "src/ingestion/evals/cases/wacken/case.json",
     "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
-  }
+  },
+  "researchHandoffFile": "wrong-year.research.json"
 }

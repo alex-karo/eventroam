@@ -1,4 +1,5 @@
 import { DEFAULT_RESEARCH_LIMITS } from "@/ingestion/runtime/budget";
+import { generateFixtureEditor } from "@/test/ingestion";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,6 +31,61 @@ const byId = new Map(suite.cases.map((item) => [item.id, item]));
 const tomorrowland = byId.get("tomorrowland")!;
 const wacken = byId.get("wacken")!;
 const blocked = byId.get("afro-nation-portugal-blocked")!;
+
+test("editor-only rejects cases without handoffs before provider setup", async () => {
+  await expect(
+    runCatalogEvals({ editorOnly: true, caseIds: [tomorrowland.id] }),
+  ).rejects.toThrow("Editor-only eval requires a research handoff");
+});
+
+test("editor-only CLI replays captured research through preparation and writer without network", async () => {
+  vi.stubEnv("OPENROUTER_API_KEY", "fixture-key");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => {
+      throw new Error("Live network forbidden");
+    }),
+  );
+  const execute = vi
+    .spyOn(workflowModule, "runCatalogResearch")
+    .mockImplementation((input, deps) => {
+      expect(deps?.generateCandidate).toBeTypeOf("function");
+      return executeResearch(input, {
+        ...deps,
+        generateEditor: generateFixtureEditor,
+      });
+    });
+  const reports: Awaited<ReturnType<typeof runCatalogEvals>>[] = [];
+  try {
+    const code = await executeCatalogEvalCommand(["--editor-only"], {
+      stdout: vi.fn(),
+      runEvals: async (options) => {
+        const report = await runCatalogEvals({
+          ...options,
+          reportPath: undefined,
+        });
+        reports.push(report);
+        return report;
+      },
+    });
+    expect(code).toBe(0);
+    expect(execute).toHaveBeenCalledTimes(5);
+    expect(fetch).not.toHaveBeenCalled();
+    const report = reports[0];
+    expect(report.evaluationMode).toBe("editor-only");
+    expect(report.results.every((item) => item.score.passed)).toBe(true);
+    for (const row of report.results) {
+      const handoff = byId.get(row.caseId)!.researchHandoff!;
+      expect(row.modelResponse?.object).toEqual(handoff.candidate);
+      expect(row.researchHandoff).toMatchObject({
+        provenance: handoff.provenance,
+        sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
+    }
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
 
 test.each(["editor-wrong-year", "editor-day-ticket", "editor-valid-update"])(
   "%s forbids clearing saved historical dates as well as replacing them",
@@ -334,7 +390,7 @@ function result(
     schemaVersion: 5,
     editorResponse: null,
     editorStatus: "not_run",
-    editorPromptVersion: "catalog-editor-v1",
+    editorPromptVersion: "catalog-editor-v5",
     scope: null,
     currentDate: null,
     workload: { savedEditions: 0, returnedEditions: 0 },

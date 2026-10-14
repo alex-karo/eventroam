@@ -24,8 +24,9 @@ export function fixtureEditorPlan(
   const action = (fact: { value: unknown; reason: string }) =>
     fact.value === null
       ? { action: "clear" as const, reason: fact.reason }
-      : { action: "set" as const, ...fact };
+      : { action: "accept" as const };
   return {
+    status: "ready",
     event: {
       target: saved
         ? { eventId: saved.id }
@@ -61,10 +62,7 @@ export function fixtureEditorPlan(
       },
     },
     editions: data.editions.map(({ key, classification, links, ...facts }) => {
-      const old = (
-        saved?.editions as unknown as
-          ResearchCatalog[number]["editions"] | undefined
-      )?.find((edition) => edition.editionKey === key);
+      const old = saved?.editions.find((edition) => edition.editionKey === key);
       return {
         target: old
           ? { editionKey: key }
@@ -76,23 +74,7 @@ export function fixtureEditorPlan(
           ...Object.fromEntries(
             Object.entries(facts).map(([name, fact]) => [name, action(fact)]),
           ),
-          ...(classification
-            ? {
-                classification: {
-                  action: "set",
-                  value: [
-                    ...new Set([
-                      ...(old?.terms.map((term) => term.id) ?? []),
-                      ...(classification.add?.value ?? []),
-                    ]),
-                  ].filter((id) => !classification.remove?.value.includes(id)),
-                  reason:
-                    [classification.add?.reason, classification.remove?.reason]
-                      .filter(Boolean)
-                      .join("; ") || "Fixture classification",
-                },
-              }
-            : {}),
+          ...(classification ? { classification: action(classification) } : {}),
           links: links.tickets
             ? {
                 tickets: {
@@ -106,7 +88,7 @@ export function fixtureEditorPlan(
       };
     }),
     unresolved: [],
-  } as EditorPlan;
+  };
 }
 export const generateFixtureEditor: NonNullable<
   ResearchDependencies["generateEditor"]
@@ -156,9 +138,9 @@ export function fixtureEditorForProvider(
   body: Record<string, unknown>,
 ): unknown {
   const format = body.response_format as
-    | { json_schema?: { schema?: { properties?: Record<string, unknown> } } }
-    | undefined;
-  if (!format?.json_schema?.schema?.properties?.event) {
+    { json_schema?: { schema?: Record<string, unknown> } } | undefined;
+  const schema = format?.json_schema?.schema;
+  if (!(schema?.properties as Record<string, unknown> | undefined)?.event) {
     return undefined;
   }
   const messages = body.messages as {
@@ -173,10 +155,7 @@ export function fixtureEditorForProvider(
       ? content
       : content.map((part) => part.text ?? "").join("");
   const { research, catalog } = JSON.parse(prompt);
-  return editorWireFixture(
-    fixtureEditorPlan(research, catalog),
-    format.json_schema.schema,
-  );
+  return editorWireFixture(fixtureEditorPlan(research, catalog), schema!);
 }
 
 function editorWireFixture(

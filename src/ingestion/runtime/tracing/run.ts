@@ -128,12 +128,16 @@ export async function createCatalogRunTrace(
       update({ prepared });
     },
     editorValidated(prepared: PreparedPlan) {
-      const rejected = prepared.errors.some(
-        (error) => error.code === "invalid_plan",
+      const rejection = prepared.errors.find(
+        (error) =>
+          error.code === "invalid_plan" || error.code === "editor_rejected",
       );
-      state.editorPlanValidation = rejected ? "failed" : "passed";
-      if (rejected) {
-        state.errorCode = "validation_failed";
+      state.editorPlanValidation = rejection ? "failed" : "passed";
+      if (rejection) {
+        state.errorCode =
+          rejection.code === "editor_rejected"
+            ? "editor_rejected"
+            : "validation_failed";
         state.writeState = "not_attempted";
       }
       update({ prepared });

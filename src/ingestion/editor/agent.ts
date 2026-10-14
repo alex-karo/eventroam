@@ -5,7 +5,6 @@ import type { CatalogResearchInput, ResearchDependencies } from "../contracts";
 import type { ResearchContext } from "../research/context";
 import type { ResearchCandidate, ResearchError } from "../research/contracts";
 import { modelContext } from "../research/agent/input";
-import { modelOutputSchema } from "../research/agent/wire";
 import { updateModelUsage, type ModelUsage } from "../research/agent/usage";
 import type { ResearchBudget } from "../runtime/budget";
 import type { ResearchConfig } from "../runtime/config";
@@ -15,7 +14,7 @@ import {
   researchProviderOptions,
 } from "../runtime/openrouter";
 import type { RunObservability } from "../runtime/observability/runtime";
-import { editorPlanSchema } from "./contracts";
+import { editorModelOutputSchema } from "./wire";
 import { editorInstructions } from "./prompt";
 
 export type EditorExecution = {
@@ -120,7 +119,7 @@ export async function editResearch(
             ? { currentSpan: tracing.root }
             : undefined,
           structuredOutput: {
-            schema: modelOutputSchema(editorPlanSchema),
+            schema: editorModelOutputSchema(),
             errorStrategy: "warn",
             logger: noopLogger,
           },

@@ -76,8 +76,6 @@ const optionalNullPaths = new Set([
     "classification",
     "tickets",
   ].map((field) => `data.editions.*.${field}`),
-  "data.editions.*.classification.add",
-  "data.editions.*.classification.remove",
   "data.editions.*.links.tickets",
   ...["amount", "currency", "terms", "availability", "url"].map(
     (field) => `data.editions.*.tickets.value.variants.*.${field}`,

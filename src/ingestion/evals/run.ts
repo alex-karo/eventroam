@@ -21,6 +21,7 @@ import { RunPersistenceError, persistenceFailureReport } from "../runs";
 import { runCatalogResearch, type CatalogResearchResult } from "../workflow";
 import { loadResearchConfig } from "../runtime/config";
 import { createResearchBudget } from "../runtime/budget";
+import { EDITOR_PROMPT_VERSION } from "../editor/contracts";
 import { RESEARCH_PROMPT_VERSION } from "../research/contracts";
 import type { ReadSourceResult } from "../tools/read-source/contracts";
 import type { DiscoverSourcesResult } from "../tools/discover-sources/contracts";
@@ -161,7 +162,7 @@ export function fixedSources(item: EvalCase, todayUtc: string) {
       url: string,
       options: ReadSourceOptions,
     ): Promise<ReadSourceResult> => {
-      options.budget.consumePage(options.depth ?? 0);
+      options.budget.consumePage();
       const source = byUrl.get(new URL(url).toString());
       return source
         ? structuredClone(source)
@@ -198,6 +199,7 @@ export function fixedSources(item: EvalCase, todayUtc: string) {
 }
 
 export type EvalOptions = {
+  editorOnly?: boolean;
   caseIds?: string[];
   model?: string;
   repeat?: number;
@@ -207,14 +209,21 @@ export type EvalOptions = {
 
 export async function runCatalogEvals(options: EvalOptions = {}) {
   const suite = options.suite ?? loadEvalSuite();
-  const selected = suite.cases.filter(
-    (item) => !options.caseIds?.length || options.caseIds.includes(item.id),
+  const selected = suite.cases.filter((item) =>
+    options.caseIds?.length
+      ? options.caseIds.includes(item.id)
+      : !options.editorOnly || !!item.researchHandoff,
   );
   if (
     !selected.length ||
     options.caseIds?.some((id) => !suite.cases.some((item) => item.id === id))
   ) {
     throw new Error("Unknown or empty eval case selection");
+  }
+  if (options.editorOnly && selected.some((item) => !item.researchHandoff)) {
+    throw new Error(
+      "Editor-only eval requires a research handoff for every selected case",
+    );
   }
   const repeat = options.repeat ?? 1;
   if (!Number.isSafeInteger(repeat) || repeat < 1 || repeat > 20) {
@@ -253,6 +262,12 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
             config,
             todayUtc: item.todayUtc ?? suite.todayUtc,
             ...fixedSources(item, item.todayUtc ?? suite.todayUtc),
+            ...(options.editorOnly
+              ? {
+                  generateCandidate: async () =>
+                    structuredClone(item.researchHandoff!.candidate),
+                }
+              : {}),
           });
         } catch (error) {
           const available =
@@ -263,7 +278,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
             schemaVersion: 5,
             editorResponse: null,
             editorStatus: "not_run",
-            editorPromptVersion: "catalog-editor-v1",
+            editorPromptVersion: EDITOR_PROMPT_VERSION,
             scope:
               item.input.mode === "refresh"
                 ? (item.input.scope ?? "full")
@@ -356,6 +371,14 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       repetition: input.repetition,
       fixtureTodayUtc: item.todayUtc ?? suite.todayUtc,
       fixtureProvenance: item.provenance ?? suite.provenance,
+      researchHandoff: options.editorOnly
+        ? {
+            provenance: item.researchHandoff!.provenance,
+            sha256: createHash("sha256")
+              .update(JSON.stringify(item.researchHandoff))
+              .digest("hex"),
+          }
+        : null,
       runId: result.runId,
       outcome: result.outcome,
       researchStatus: result.researchStatus,
@@ -385,6 +408,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   });
   const report = {
     schemaVersion: 5,
+    evaluationMode: options.editorOnly ? "editor-only" : "pipeline",
     startedAt,
     finishedAt: new Date().toISOString(),
     fixtureTodayUtc: suite.todayUtc,

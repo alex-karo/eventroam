@@ -81,6 +81,9 @@
     "editor/clear.json",
     "editor/unavailable.json",
     "editor/valid-update.json",
-    "size-evidence/case.json"
+    "size-evidence/case.json",
+    "source-regressions/known-offers.json",
+    "source-regressions/stale-language.json",
+    "source-regressions/homonym.json"
   ]
 }

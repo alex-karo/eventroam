@@ -22,6 +22,7 @@ export type TraceFixtureScenario =
   | "recovered"
   | "invalid"
   | "invalid_editor"
+  | "rejected_editor"
   | "invalid_dates"
   | "dates"
   | "unchanged"
@@ -110,7 +111,9 @@ export async function runTraceFixture(
     candidate = { unsafe: TRACE_CANDIDATE };
   } else {
     candidate = {
-      status: scenario === "partial" ? "partial" : "success",
+      status: ["partial", "rejected_editor"].includes(scenario)
+        ? "partial"
+        : "success",
       data: {
         eventId: scenario === "target" ? "other-event" : event.id,
         eventName: "Model name mismatch",
@@ -138,14 +141,13 @@ export async function runTraceFixture(
               message: TRACE_CANDIDATE,
             }))
           : [],
-      unresolved:
-        scenario === "partial"
-          ? [
-              {
-                message: "Current edition blocked",
-              },
-            ]
-          : [],
+      unresolved: ["partial", "rejected_editor"].includes(scenario)
+        ? [
+            {
+              message: "Current edition blocked",
+            },
+          ]
+        : [],
     };
   }
   addFixtureDateScenario(candidate, scenario);
@@ -158,9 +160,18 @@ export async function runTraceFixture(
     }
     providerInputs.push(String(init?.body));
     requests++;
-    const editorCandidate = fixtureEditorForProvider(
+    let editorCandidate = fixtureEditorForProvider(
       JSON.parse(String(init?.body)),
     );
+    if (editorCandidate && scenario === "rejected_editor") {
+      editorCandidate = {
+        status: "rejected",
+        reason: "Research concerns a different same-name festival",
+        event: null,
+        editions: [],
+        unresolved: [],
+      };
+    }
     if (requests === 2 && ending === "http") {
       return Response.json(
         { error: { message: TRACE_TRANSPORT } },

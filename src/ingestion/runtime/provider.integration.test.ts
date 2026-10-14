@@ -325,11 +325,10 @@ test.each([
       async (
         requestedUrl: string,
         options: {
-          budget: { consumePage: (depth?: number) => void };
-          depth?: number;
+          budget: { consumePage: () => void };
         },
       ) => {
-        options.budget.consumePage(options.depth);
+        options.budget.consumePage();
         return {
           ...source,
           attemptedUrl: requestedUrl,

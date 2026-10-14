@@ -483,7 +483,7 @@ test("creation needs identity reason; existing refresh does not", () => {
   ).toEqual([]);
 });
 
-test("classification removals win over additions", () => {
+test("classification finding replaces explicitly refuted assignments", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
@@ -494,8 +494,8 @@ test("classification removals win over additions", () => {
   const proposed = candidate();
   proposed.data!.eventId = event.id;
   proposed.data!.editions[0].classification = {
-    add: { value: [newTerm.id, old.id], reason: "New classification" },
-    remove: { value: [old.id], reason: "Old classification obsolete" },
+    value: [newTerm.id],
+    reason: "New classification replaces explicitly refuted old classification",
   };
   const prepared = prepareEditorialFixture(
     proposed,
@@ -508,7 +508,7 @@ test("classification removals win over additions", () => {
   ).toMatchObject({ termIds: [newTerm.id] });
   const termsOp = prepared.operations.find((op) => op.kind === "replaceTerms")!;
   expect(prepared.explanations[termsOp.operationKey].terms).toEqual([
-    "New classification; Old classification obsolete",
+    "New classification replaces explicitly refuted old classification",
   ]);
   applyCatalogItem(client, prepared.operations);
   expect(
@@ -670,10 +670,8 @@ test.each([
         countryCode: { value: "PT", reason: "Official venue" },
         locality: { value: "Lisbon", reason: "Official venue" },
         classification: {
-          add: {
-            value: terms.map((term) => term.id),
-            reason: "Official programme and activity offerings",
-          },
+          value: terms.map((term) => term.id),
+          reason: "Official programme and activity offerings",
         },
         links: {},
       },

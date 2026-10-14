@@ -4,27 +4,30 @@ import {
   researchQuestionSchema,
 } from "../research/contracts";
 
-export const EDITOR_PROMPT_VERSION = "catalog-editor-v1";
+export const EDITOR_PROMPT_VERSION = "catalog-editor-v5";
 const reason = z.string().trim().min(1).max(500);
 const keep = z.strictObject({ action: z.literal("keep"), reason });
+const accept = z.strictObject({ action: z.literal("accept") });
 const clear = z.strictObject({ action: z.literal("clear"), reason });
 function action<T extends z.ZodType>(value: T) {
   return z.discriminatedUnion("action", [
     z.strictObject({ action: z.literal("set"), value, reason }),
     keep,
+    accept,
   ]);
 }
 function clearable<T extends z.ZodType>(value: T) {
   return z.discriminatedUnion("action", [
     z.strictObject({ action: z.literal("set"), value, reason }),
     keep,
+    accept,
     clear,
   ]);
 }
 const facts = researchDataSchema.shape.editions.element.shape;
 const text = (max: number) => z.string().trim().min(1).max(max);
 const link = clearable(z.url().refine((url) => /^https?:\/\//.test(url)));
-const eventFields = z.strictObject({
+export const eventFieldsSchema = z.strictObject({
   summary: clearable(text(2000)).optional(),
   links: z
     .strictObject({
@@ -56,7 +59,7 @@ const eventFields = z.strictObject({
     })
     .optional(),
 });
-const editionFields = z.strictObject({
+export const editionFieldsSchema = z.strictObject({
   year: action(facts.year.unwrap().shape.value).optional(),
   dates: clearable(facts.dates.unwrap().shape.value.unwrap()).optional(),
   coordinates: clearable(
@@ -76,15 +79,15 @@ const editionFields = z.strictObject({
   ).optional(),
   tickets: clearable(facts.tickets.unwrap().shape.value).optional(),
   classification: clearable(
-    z
-      .array(z.string().min(1))
-      .max(50)
-      .refine((ids) => new Set(ids).size === ids.length),
+    facts.classification
+      .unwrap()
+      .shape.value.refine((ids) => new Set(ids).size === ids.length),
   ).optional(),
   links: z.strictObject({ tickets: link.optional() }).optional(),
 });
-export const editorPlanSchema = z
+export const readyEditorPlanSchema = z
   .strictObject({
+    status: z.literal("ready"),
     event: z
       .strictObject({
         target: z.union([
@@ -94,7 +97,7 @@ export const editorPlanSchema = z
             reason,
           }),
         ]),
-        fields: eventFields,
+        fields: eventFieldsSchema,
       })
       .nullable(),
     editions: z
@@ -107,7 +110,7 @@ export const editorPlanSchema = z
               reason,
             }),
           ]),
-          fields: editionFields,
+          fields: editionFieldsSchema,
         }),
       )
       .max(20),
@@ -134,6 +137,21 @@ export const editorPlanSchema = z
       });
     }
   });
-export type EditorPlan = z.infer<typeof editorPlanSchema>;
+export const editorPlanSchema = z.discriminatedUnion("status", [
+  readyEditorPlanSchema,
+  z.strictObject({ status: z.literal("rejected"), reason }),
+]);
+export type EditorOutput = z.infer<typeof editorPlanSchema>;
+export type EditorPlan = z.infer<typeof readyEditorPlanSchema>;
 export type EventPlan = NonNullable<EditorPlan["event"]>;
 export type EditionPlan = EditorPlan["editions"][number];
+
+/** Transient plan after all accept actions have been replaced with validated sets. */
+type Resolved<T> = T extends { action: "accept" }
+  ? never
+  : T extends readonly (infer Item)[]
+    ? Resolved<Item>[]
+    : T extends object
+      ? { [K in keyof T]: Resolved<T[K]> }
+      : T;
+export type ResolvedEditorPlan = Resolved<EditorPlan>;

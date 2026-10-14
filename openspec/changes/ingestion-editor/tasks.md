@@ -22,3 +22,37 @@
 
 - [x] 4.1 Run focused tests, type-check, lint, dependency and applicable formatting checks; confirm CLI/Studio parity and removal of the old mutation path.
 - [x] 4.2 Reconcile intervening scope changes, sync the main spec after implementation and run docs/OpenSpec checks; distinguish unrelated incomplete proposals.
+
+## 5. Live-run corrections
+
+- [x] 5.1 Add typed ready/rejected editor output and block whole-item editorial rejection and reject editorial mutations without same-field/same-Edition structured findings; cover the Soma regression and identity recovery guidance, with final identity decisions owned by editor.
+- [x] 5.2 Accept free ticket variants with zero amount and omitted currency through research, editor and persistence; retain positive-price validation and cover the Rise regression.
+- [x] 5.3 Align contracts/specs and run regression, type, lint, docs and OpenSpec checks.
+
+## 6. Context and focused evaluation
+
+- [x] 6.1 Project catalog facts explicitly for both agents, retaining identity, temporal, link, classification and complete ticket context while excluding database administration fields.
+- [x] 6.2 Add editor-only eval replay from captured research handoffs using existing injection and runner; distinguish this mode from full-pipeline evaluation, add fixtures/tests and document the command. Live replay passed all five cases; provider transport uses an object root with strict local ready/rejected validation.
+
+## 7. Accept and editorial transformations
+
+- [x] 7.1 Add accept to named field actions and resolve same-owner/same-Edition research values before operations, including complete blocks, classification patches and strict missing/null/invalid-value rejection; preserve raw response and writer boundary.
+- [x] 7.2 Document editorial URL/text/list rules, keyed Edition semantics and contracts; run regression, provider/editor-only eval and applicable checks, and sync the owning spec.
+
+## 8. Uniform findings and preparation
+
+- [x] 8.1 Replace research classification patches with a complete Finding<TermId[]>; update prompts, replay fixtures and contracts, and cover retained/new/refuted terms and bounded reasons.
+- [x] 8.2 Resolve accept and guard supported mutations in one typed pass, without whole-plan reparsing or a resolved-plan assertion; preserve atomic rejection, raw report and writer operations.
+- [x] 8.3 Align owning specs and docs; run regression and live evals with applicable type/lint/docs/OpenSpec checks.
+
+## 9. Provider schema alignment
+
+- [x] 9.1 Reuse required ready-field schemas in provider output, use empty lists for rejection placeholders and keep invalid ready nulls rejected; cover array contracts and replay the two failed ten-festival responses with fresh editor generations.
+
+## 10. Source traversal simplification
+
+- [x] 10.1 Remove the source-link depth limit, tracking, configuration and diagnostics; retain deadline/search/agent-step/size safeguards and read accounting, cover longer link chains and deadline exhaustion, and align specs/docs with applicable checks.
+
+## 11. Balanced review corrections
+
+- [x] 11.1 Correct editor-rejection logging and persisted trace validation/result labels without changing successful generation semantics; strengthen stale-language date-state and known-offer availability eval assertions with regression coverage, and run applicable checks.

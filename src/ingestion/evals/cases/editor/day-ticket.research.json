@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "provenance": "Captured editor-day-ticket research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract",
+  "candidate": {
+    "status": "partial",
+    "data": {
+      "eventId": "festivalnetwork:event:87b1f34093d76b709011",
+      "eventName": "Roskilde Festival",
+      "sources": [
+        {
+          "url": "https://www.roskilde-festival.dk/",
+          "information": "Official festival homepage displays dates 26 June–3 July 2027 and links to the festival’s ticket, programme and contact pages."
+        },
+        {
+          "url": "https://www.roskilde-festival.dk/billetter",
+          "information": "Official 2027 ticket page lists an eight-day full festival ticket for DKK 2,650, a two-day ticket for DKK 2,230, and Wednesday, Thursday, Friday and Saturday day tickets for DKK 1,530 each; each price includes the ticket fee."
+        },
+        {
+          "url": "https://www.roskilde-festival.dk/kontakt",
+          "information": "Official contact page identifies the festival address during the festival as Festivalpladsen, Darupvej 19, 4000 Roskilde, and links the festival’s Instagram and Facebook accounts. It separately labels Rabalderstræde 7 as the secretariat office."
+        }
+      ],
+      "links": {
+        "website": "https://www.roskilde-festival.dk/",
+        "socials": {
+          "instagram": "https://instagram.com/roskildefestival",
+          "facebook": "https://www.facebook.com/orangefeeling/"
+        }
+      },
+      "editions": [
+        {
+          "key": "rf27",
+          "year": {
+            "value": 2027,
+            "reason": "The official homepage displays the 2027 edition dates, and the official ticket page describes its full festival ticket as covering all eight days."
+          },
+          "dates": {
+            "value": {
+              "startsOn": "2027-06-26",
+              "endsOn": "2027-07-03",
+              "state": "confirmed"
+            },
+            "reason": "The official homepage displays 26 June–3 July 2027."
+          },
+          "scheduleStatus": {
+            "value": "scheduled",
+            "reason": "The official site displays confirmed 2027 dates and is selling tickets for the edition."
+          },
+          "displayName": {
+            "value": "Roskilde Festival 2027",
+            "reason": "The official homepage identifies the event as Roskilde Festival and displays the 2027 dates."
+          },
+          "venueName": {
+            "value": "Festivalpladsen",
+            "reason": "The official contact page labels Festivalpladsen, Darupvej 19 as the festival address during the festival, distinguishing it from the secretariat office."
+          },
+          "venueAddress": {
+            "value": "Darupvej 19, 4000 Roskilde",
+            "reason": "The official contact page gives Darupvej 19, 4000 Roskilde as the address during the festival."
+          },
+          "locality": {
+            "value": "Roskilde",
+            "reason": "The official festival address during the festival is given as Darupvej 19, 4000 Roskilde."
+          },
+          "countryCode": {
+            "value": "DK",
+            "reason": "The official festival address is in Roskilde, Denmark."
+          },
+          "classification": {
+            "value": ["validation:festival", "validation:music"],
+            "reason": "The official site presents Roskilde Festival as a festival with music; its 2027 homepage announcement names music performers."
+          },
+          "tickets": {
+            "value": {
+              "variants": [
+                {
+                  "label": "Two-day ticket",
+                  "amount": 2230,
+                  "currency": "DKK",
+                  "terms": "Price includes ticket fee.",
+                  "availability": "unknown",
+                  "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=7g0tvpp"
+                },
+                {
+                  "label": "Wednesday day ticket",
+                  "amount": 1530,
+                  "currency": "DKK",
+                  "terms": "Price includes ticket fee.",
+                  "availability": "unknown",
+                  "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=2rrklcf"
+                },
+                {
+                  "label": "Thursday day ticket",
+                  "amount": 1530,
+                  "currency": "DKK",
+                  "terms": "Price includes ticket fee.",
+                  "availability": "unknown",
+                  "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=pjkf5p5"
+                },
+                {
+                  "label": "Friday day ticket",
+                  "amount": 1530,
+                  "currency": "DKK",
+                  "terms": "Price includes ticket fee.",
+                  "availability": "unknown",
+                  "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=n9tcbkm"
+                },
+                {
+                  "label": "Saturday day ticket",
+                  "amount": 1530,
+                  "currency": "DKK",
+                  "terms": "Price includes ticket fee.",
+                  "availability": "unknown",
+                  "url": "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=9rdr0dv"
+                }
+              ],
+              "basePrice": {
+                "kind": "exact",
+                "currency": "DKK",
+                "minAmount": 2650,
+                "maxAmount": 2650,
+                "coverage": "full_programme",
+                "qualification": "Eight-day full festival ticket; price includes ticket fee."
+              }
+            },
+            "reason": "The official ticket page lists the eight-day full ticket at DKK 2,650, the two-day ticket at DKK 2,230 and four day-ticket options at DKK 1,530 each. It provides purchase links but does not establish each ticket category’s availability."
+          },
+          "links": {
+            "tickets": "https://www.roskilde-festival.dk/billetter"
+          }
+        }
+      ]
+    },
+    "errors": [
+      {
+        "code": "source_blocked",
+        "message": "The official programme page could not be inspected; the 2026 programme and historical edition details remain unchecked.",
+        "url": "https://www.roskilde-festival.dk/program",
+        "editionKey": "source-row"
+      }
+    ],
+    "unresolved": [
+      {
+        "message": "Full refresh requires checking the saved 2026 edition, including its dates/status, venue/location, classification and ticket block. Discovery returned no usable historical 2026 source, and the linked official programme page was blocked, so those edition checks could not be completed.",
+        "editionKey": "source-row"
+      }
+    ]
+  }
+}

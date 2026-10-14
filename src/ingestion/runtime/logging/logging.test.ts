@@ -220,6 +220,49 @@ test("explicit model text shortening respects Unicode code points", () => {
   expect(shrinkText("abc", 2)).toBe("ab");
 });
 
+test("editor rejection logs a warning and persists a rejected trace after partial research", async () => {
+  const file = database();
+  enable(file, true);
+  const { result, durableReport } = await runTraceFixture(
+    "success",
+    false,
+    "rejected_editor",
+  );
+  expect(result).toMatchObject({
+    researchStatus: "partial",
+    editorStatus: "success",
+    outcome: "failed",
+    operations: [],
+    changes: [],
+  });
+  expect(durableReport).toEqual(result);
+  const rows = await readTraceRows(file);
+  expect(
+    rows.mastra_logs.find((row) => row.message === "Editorial plan rejected"),
+  ).toMatchObject({
+    level: "warn",
+    data: {
+      operationCount: 0,
+      errors: [expect.objectContaining({ code: "editor_rejected" })],
+    },
+  });
+  expect(
+    rows.mastra_logs.some((row) => row.message === "Editorial plan prepared"),
+  ).toBe(false);
+  const root = rows.mastra_ai_spans.find((span) => !span.parentSpanId)!;
+  expect(JSON.parse(root.output as string)).toMatchObject({
+    structuralValidation: "passed",
+    targetValidation: "passed",
+    editorPlanValidation: "failed",
+    editorStatus: "success",
+    writeState: "not_attempted",
+    errorCode: "editor_rejected",
+    committedOperationCount: 0,
+  });
+  expect(root.name).toContain("editor-rejected");
+  expect(root.name).not.toContain("partial");
+});
+
 test("real research stores selected completed model text without source bodies or prompts", async () => {
   const file = database();
   enable(file, true);

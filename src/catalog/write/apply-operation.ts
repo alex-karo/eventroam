@@ -63,7 +63,12 @@ function normalizedPriceDetails(details: CatalogPriceDetail[]) {
     label: detail.label,
     ...(detail.amount === undefined
       ? {}
-      : { amount: detail.amount, currency: detail.currency }),
+      : {
+          amount: detail.amount,
+          ...(detail.currency === undefined
+            ? {}
+            : { currency: detail.currency }),
+        }),
     ...(detail.terms === undefined ? {} : { terms: detail.terms }),
     ...(detail.availability === undefined
       ? {}

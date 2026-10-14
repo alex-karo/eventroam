@@ -112,7 +112,7 @@ function candidate(termIds: string[]): ResearchCandidate {
           },
           locality: { value: "Lisbon", reason },
           countryCode: { value: "PT", reason },
-          classification: { add: { value: termIds, reason } },
+          classification: { value: termIds, reason },
           links: {},
         },
       ],
@@ -129,11 +129,10 @@ function fixture(client = testDatabase().client) {
     async (
       _url: string,
       options: {
-        budget: { consumePage: (depth?: number) => void };
-        depth?: number;
+        budget: { consumePage: () => void };
       },
     ) => {
-      options.budget.consumePage(options.depth);
+      options.budget.consumePage();
       return source;
     },
   );
@@ -177,7 +176,7 @@ function catalogState(client: Database.Database) {
 test("concurrent and repeated failed source reads are cached and charged once", async () => {
   const { client, readSource } = fixture();
   readSource.mockImplementation(async (_url, options) => {
-    options.budget.consumePage(options.depth);
+    options.budget.consumePage();
     return {
       ...source,
       outcome: "failed",
@@ -428,7 +427,7 @@ test.each([
 test("recovered source failure retains staged error beside successful research", async () => {
   const { client, readSource } = fixture();
   readSource.mockImplementation(async (_url, options) => {
-    options.budget.consumePage(options.depth);
+    options.budget.consumePage();
     return {
       ...source,
       outcome: "failed",
@@ -616,7 +615,7 @@ test("cancellation and grouped clearing explain only changed writer fields", asy
   ).toBe(false);
 });
 
-test("taxonomy add/remove reasons combine and ticket block reasons follow actual changes", async () => {
+test("complete classification and ticket reasons follow actual changes", async () => {
   const { client, readSource } = fixture();
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
@@ -635,14 +634,9 @@ test("taxonomy add/remove reasons combine and ticket block reasons follow actual
         key: "2027",
         links: {},
         classification: {
-          add: {
-            value: [newTerm.id],
-            reason: "The programme now includes this category.",
-          },
-          remove: {
-            value: [oldTerm.id],
-            reason: "The old category no longer applies.",
-          },
+          value: [newTerm.id],
+          reason:
+            "New programme category replaces the explicitly refuted old category.",
         },
         tickets: {
           value: {
@@ -677,7 +671,7 @@ test("taxonomy add/remove reasons combine and ticket block reasons follow actual
       subject: edition.id,
       field: "terms",
       explanations: [
-        "The programme now includes this category.; The old category no longer applies.",
+        "New programme category replaces the explicitly refuted old category.",
       ],
     }),
   );
@@ -875,7 +869,7 @@ test("provider and budget failures keep sanitized errors and empty operations", 
   const { client } = fixture();
   for (const error of [
     new Error("PRIVATE provider request"),
-    new ResearchLimitError("depth"),
+    new ResearchLimitError("time"),
   ]) {
     const result = await runCatalogResearch(input, {
       client,
@@ -1235,7 +1229,7 @@ test("the public runner accumulates research in native state without runtime res
   const proposal = candidate(termIds);
   proposal.data!.summary!.value = privateOutput;
   readSource.mockImplementation(async (_url, options) => {
-    options.budget.consumePage(options.depth);
+    options.budget.consumePage();
     return { ...source, markdown: privatePage };
   });
 

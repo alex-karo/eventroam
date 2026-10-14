@@ -11,7 +11,7 @@ export function logPreparation(
   const accepted =
     prepared.candidate &&
     prepared.candidate.status !== "failed" &&
-    !prepared.errors.some((error) => error.code === "invalid_plan");
+    prepared.validation.target === "passed";
   log?.[accepted ? "info" : "warn"](
     accepted ? "Editorial plan prepared" : "Editorial plan rejected",
     {
