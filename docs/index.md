@@ -24,13 +24,13 @@ Website:
 
 ## Active changes
 
-- [Ingestion editor](../openspec/changes/ingestion-editor/proposal.md) — implemented research/editor separation with explicit field actions, simpler write preparation and focused quality evaluation.
 - [Narrow current refresh](../openspec/changes/narrow-current-refresh/proposal.md) — proposal only: Edition-focused current research and taxonomy reuse through model instructions/context, with unchanged downstream checks.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
 ## Archived changes
 
+- [Ingestion editor](../openspec/changes/archive/2026-10-15-ingestion-editor/proposal.md) — research/editor separation with explicit field actions, simpler write preparation and focused quality evaluation.
 - [Estimated festival size](../openspec/changes/archive/2026-10-11-estimate-festival-size/proposal.md) — approximate participant scale, report v4, ingestion guidance, and public wording.
 
 - [Scoped refresh](../openspec/changes/archive/2026-10-11-scoped-event-refresh/proposal.md) — full/current model-led refresh, website recovery, atomic country guards, and report v3 with raw findings and writer audit.
