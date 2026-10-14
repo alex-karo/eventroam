@@ -1245,7 +1245,8 @@ test("the public runner accumulates research in native state without runtime res
       },
       generateCandidate: async (_prompt, context) => {
         phases.push("research-festival");
-        await context.readSource(url);
+        expect((await context.readSource(url)).markdown).toBe(privatePage);
+        expect(context.reads[0].markdown).toBe(privatePage);
         return proposal;
       },
     },
@@ -1293,7 +1294,7 @@ test("the public runner accumulates research in native state without runtime res
   expect(stepOutput("load-context")).toHaveProperty("catalog");
   expect(stepOutput("research-festival")).toMatchObject({
     research: { ok: true, candidate: proposal },
-    reads: [expect.objectContaining({ markdown: privatePage })],
+    reads: [expect.objectContaining({ attemptedUrl: url, outcome: "ok" })],
   });
   expect(stepOutput("research-festival")).not.toHaveProperty("prepared");
   expect(stepOutput("prepare-plan")).toHaveProperty("operationCount");
@@ -1303,9 +1304,9 @@ test("the public runner accumulates research in native state without runtime res
     research: { ok: true, candidate: proposal },
     report: { outcome: "published" },
   });
-  expect(engineResult.state.data.reads[0].markdown).toBe(privatePage);
+  expect(engineResult.state.data.reads[0]).not.toHaveProperty("markdown");
   const execution = JSON.stringify(engineResult);
-  expect(execution).toContain(privatePage);
+  expect(execution).not.toContain(privatePage);
   expect(execution).toContain(privateOutput);
   expect(execution).not.toContain("PRIVATE_API_KEY");
   expect(execution).not.toContain(client.name);

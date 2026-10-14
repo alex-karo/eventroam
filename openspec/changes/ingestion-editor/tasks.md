@@ -22,3 +22,7 @@ Implementation details and case coverage are defined in [design](design.md) and 
 ## 4. Editor identity simplification
 
 - [x] 4.1 Remove editor Event IDs/names and nested target/create unions; derive Event identity from validated input/research and resolve Editions by key, retaining creation reasons and matching-research requirements. Align contracts/prompts/fixtures/specs/docs and verify scope/country/clear/identity guards with regression tests and applicable checks.
+
+## 5. Source inspection correction
+
+- [x] 5.1 Exclude page Markdown from workflow state and phase outputs while retaining research access and failure/cancellation accounting; align documentation and verify native state and Studio transport regressions.

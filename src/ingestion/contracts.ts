@@ -10,7 +10,10 @@ import type { ResearchBudget, ResearchLimits } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
 import type { readSource } from "./tools/read-source/read";
 import type { discoverSources } from "./tools/discover-sources/search";
-import type { ReadSourceResult } from "./tools/read-source/contracts";
+import type {
+  ReadSourceResult,
+  SourceReadMetadata,
+} from "./tools/read-source/contracts";
 import type { DiscoverSourcesResult } from "./tools/discover-sources/contracts";
 import type {
   ResearchError,
@@ -126,7 +129,7 @@ export type ResearchDependencies = {
 /** Serializable research accumulated by native Mastra workflow state. */
 export type IngestionData = {
   context: ResearchContext | null;
-  reads: ReadSourceResult[];
+  reads: SourceReadMetadata[];
   discovery: DiscoverSourcesResult[];
   research: ResearchExecution;
   editor: EditorExecution;

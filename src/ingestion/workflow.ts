@@ -17,6 +17,10 @@ import { createIngestionData } from "./contracts";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import { loadResearchContext } from "./research/context";
 import { createSourceSession } from "./tools/session";
+import type {
+  ReadSourceResult,
+  SourceReadMetadata,
+} from "./tools/read-source/contracts";
 import { readInitialWithTrace } from "./runtime/tracing";
 import { researchFestival } from "./research/agent";
 import { prepareEditorPlan, validateResearch } from "./editor/prepare";
@@ -138,6 +142,21 @@ async function safeStep<T>(execute: () => T | Promise<T>): Promise<T> {
 
 function serialize<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function sourceReadMetadata(read: ReadSourceResult): SourceReadMetadata {
+  return {
+    attemptedUrl: read.attemptedUrl,
+    finalUrl: read.finalUrl,
+    retrievedAt: read.retrievedAt,
+    method: read.method,
+    outcome: read.outcome,
+    reason: read.reason,
+    sourceTruncated: read.sourceTruncated,
+    httpStatus: read.httpStatus,
+    links: read.links,
+    completeness: read.completeness,
+  };
 }
 
 async function finalizeFailure(
@@ -302,7 +321,18 @@ export function createCatalogIngestionWorkflow(
         const output = await safePhase(
           owned,
           data,
-          () => execute(owned, data, abortSignal),
+          async () => {
+            try {
+              return await execute(owned, data, abortSignal);
+            } finally {
+              // Capture requests even when a phase fails or is cancelled,
+              // before failure finalization reads the local accounting.
+              if (owned.sources) {
+                data.reads = owned.sources.reads.map(sourceReadMetadata);
+                data.discovery = owned.sources.discovery;
+              }
+            }
+          },
           abortSignal,
         );
         try {
@@ -362,19 +392,18 @@ export function createCatalogIngestionWorkflow(
         owned.deps,
         owned.trace?.log,
       );
-      data.reads = owned.sources.reads;
-      data.discovery = owned.sources.discovery;
       await owned.track(readInitialWithTrace(owned.sources, owned.trace));
       signal.throwIfAborted();
-      return { reads: data.reads, discovery: data.discovery };
+      return {
+        reads: owned.sources.reads.map(sourceReadMetadata),
+        discovery: owned.sources.discovery,
+      };
     },
   );
   const research = phase(
     "research-festival",
     "Research the festival using bounded source tools",
     async (owned, data, signal) => {
-      data.reads = owned.sources!.reads;
-      data.discovery = owned.sources!.discovery;
       owned.trace?.update({ phase: "research" });
       data.research = await owned.track(
         researchFestival(
@@ -390,8 +419,8 @@ export function createCatalogIngestionWorkflow(
       );
       return {
         research: data.research,
-        reads: data.reads,
-        discovery: data.discovery,
+        reads: owned.sources!.reads.map(sourceReadMetadata),
+        discovery: owned.sources!.discovery,
       };
     },
   );

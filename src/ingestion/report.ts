@@ -2,7 +2,7 @@ import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
 import type { ResearchBudgetSnapshot } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
-import type { ReadSourceResult } from "./tools/read-source/contracts";
+import type { SourceReadMetadata } from "./tools/read-source/contracts";
 import type { DiscoverSourcesResult } from "./tools/discover-sources/contracts";
 import {
   RESEARCH_PROMPT_VERSION,
@@ -29,7 +29,7 @@ export type ReportInput = {
   writeFailed: boolean;
   errors: ResearchError[];
   unresolved: ResearchQuestion[];
-  reads: ReadSourceResult[];
+  reads: SourceReadMetadata[];
   discovery: DiscoverSourcesResult[];
   budget: ResearchBudgetSnapshot;
   started: number;
@@ -256,7 +256,7 @@ function researchOutcome({
   return "unchanged";
 }
 
-function safeSource(read: ReadSourceResult) {
+function safeSource(read: SourceReadMetadata) {
   return {
     attemptedUrl: read.attemptedUrl,
     finalUrl: read.finalUrl,

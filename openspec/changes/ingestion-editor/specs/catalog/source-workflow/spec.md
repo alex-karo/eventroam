@@ -403,6 +403,7 @@ Executions SHALL isolate their resources/results and expose inspectable phase re
 #### Scenario: Inspect execution data
 - **WHEN** graph, transport, stored workflow data or errors are inspected
 - **THEN** research results are inspectable while credentials, live resources and raw exception details are absent
+- **AND** source reads retain retrieval metadata without page Markdown in workflow state or phase outputs, including after failure or cancellation
 
 #### Scenario: Complete tracing
 - **WHEN** a traced attempt terminates, including cancellation or persistence failure

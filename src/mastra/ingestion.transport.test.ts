@@ -102,6 +102,8 @@ test("native create and stream expose preview, then apply under a fresh ingestio
     persistenceStatus: "completed",
   });
   expect(preview.text).toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
+  expect(preview.text).not.toContain("PRIVATE_STUDIO_PAGE_BODY");
+  expect(preview.text).not.toContain('"markdown"');
   expect(preview.text).toContain('"research"');
   expect(preview.text).toContain('"operations"');
   expect(preview.text).toContain('"applied"');

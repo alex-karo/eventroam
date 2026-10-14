@@ -134,7 +134,8 @@ export async function createFixtureMastra() {
                 method: "http" as const,
                 outcome: "ok" as const,
                 completeness: "full" as const,
-                markdown: `${OFFLINE_SENTINEL} Fixture festival starts July 1, 2027.`,
+                markdown:
+                  "PRIVATE_STUDIO_PAGE_BODY Fixture festival starts July 1, 2027.",
                 links: [],
               };
             },
