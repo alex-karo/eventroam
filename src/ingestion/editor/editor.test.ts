@@ -643,6 +643,7 @@ test.each(["add", "refresh"] as const)(
       modelResponse: { object: f.research },
       editorResponse: { object: rejection },
     });
+    expect(result.sourceSummaries).toEqual(f.research.data!.sources);
     expect(result.errors).toContainEqual({
       code: "editor_rejected",
       stage: "editor",

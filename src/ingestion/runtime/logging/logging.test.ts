@@ -238,7 +238,7 @@ test.each([
         operationCount: 0,
         validation: {
           structural: "passed",
-          target: scenario === "rejected_editor" ? "failed" : "passed",
+          target: "passed",
         },
         errors: expect.arrayContaining([expect.objectContaining({ code })]),
       },

@@ -381,7 +381,6 @@ export function prepareEditorPlan(
     );
   }
   if (parsed.data.status === "rejected") {
-    result.validation.target = "failed";
     result.operations = [];
     result.errors.push({
       code: "editor_rejected",
