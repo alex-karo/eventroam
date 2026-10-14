@@ -72,7 +72,7 @@ An Edition MAY store a bounded price summary as `free`, `exact`, `from`, or `ran
 - **THEN** it identifies the amount as a package in its original currency and shows the qualification
 
 ### Requirement: Edition prices are replaced as a complete block
-The catalog SHALL store ticket variants with their labels, supplied amounts/currencies, conditions, availability, and links. Updating stored prices SHALL use `replacePriceBlock` with the complete variant list and primary price summary, atomically replacing both without merging individual variants. `updateEdition` SHALL reject price fields, including partial primary-summary updates. The model SHALL choose the base full-programme admission summary or leave it unknown; the host SHALL validate its structure without checking source support.
+The catalog SHALL store ticket variants with their labels, supplied amounts/currencies, conditions, availability, and links. A zero-amount free variant MAY omit currency; positive amounts SHALL require currency and a currency SHALL require an amount. A free eligibility-restricted variant SHALL NOT imply free full-programme admission. Updating stored prices SHALL use `replacePriceBlock` with the complete variant list and primary price summary, atomically replacing both without merging individual variants. `updateEdition` SHALL reject price fields, including partial primary-summary updates. The model SHALL choose the base full-programme admission summary or leave it unknown; the host SHALL validate its structure without checking source support.
 
 #### Scenario: A legacy partial price update is submitted
 - **GIVEN** an Edition with a stored price block
@@ -94,6 +94,11 @@ The catalog SHALL store ticket variants with their labels, supplied amounts/curr
 #### Scenario: Recheck only changes variant order
 - **WHEN** the model returns the same price block with variants in a different order
 - **THEN** normalization produces no catalog change
+
+#### Scenario: A free concession has no stated currency
+- **WHEN** a complete price block includes a free personal-assistant variant with amount zero and no currency
+- **THEN** preserve zero without inventing a currency, and retain the independent base-price summary
+- **AND** a positive amount without currency or a currency without amount is rejected
 
 ### Requirement: Ticket availability represents closed sales
 Each named ticket variant MAY store availability as `unknown`, `available`, `sold_out`, or `closed`. `closed` SHALL mean sales for that category have ended or are closed, without asserting an edition-wide sell-out or cancellation. Availability SHALL be stored only inside the ticket variant list, without an edition-wide aggregate.

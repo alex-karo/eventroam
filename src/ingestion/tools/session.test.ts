@@ -29,13 +29,19 @@ const page = (url: string): ReadSourceResult => ({
   links: [],
 });
 
-test("saved and discovered URLs start at depth zero; followed links keep their depth", async () => {
-  const budget = createResearchBudget({ depth: 0 });
+test("long linked-page chains share accounting, caching and the deadline", async () => {
+  let current = 0;
+  const budget = createResearchBudget({}, () => current);
   const config = { apiKey: "fixture", model: "fixture", limits: budget.limits };
+  const chain = Array.from(
+    { length: 5 },
+    (_, index) => `${homepage}step/${index}`,
+  );
   const readSource = vi.fn<NonNullable<ResearchDependencies["readSource"]>>(
     async (url, options) => {
-      options.budget.consumePage(options.depth);
-      return { ...page(url), links: [checkout] };
+      options.budget.consumePage();
+      const next = url === homepage ? chain[0] : chain[chain.indexOf(url) + 1];
+      return { ...page(url), links: next ? [next] : [] };
     },
   );
   const sources = createSourceSession(budget, config, knownLinks, {
@@ -55,24 +61,26 @@ test("saved and discovered URLs start at depth zero; followed links keep their d
     },
   });
   await sources.readInitialSource();
-  expect(sources.reads[0].attemptedUrl).toBe(homepage);
   await sources.readSource(tickets);
-  await expect(sources.readSource(checkout)).rejects.toMatchObject({
-    limit: "depth",
-  });
+  for (const url of chain) {
+    expect(sources.reads.some((read) => read.links.includes(url))).toBe(true);
+    expect(await sources.readSource(url)).toMatchObject({ outcome: "ok" });
+  }
   await sources.discoverSources("Festival tickets");
   await sources.readSource(discovered);
-  expect(readSource.mock.calls.map(([, options]) => options.depth)).toEqual([
-    0, 0, 1, 0,
-  ]);
-  expect(
-    readSource.mock.calls.every(([, options]) => options.budget === budget),
-  ).toBe(true);
+  const count = readSource.mock.calls.length;
+  await sources.readSource(chain[4]);
+  expect(readSource).toHaveBeenCalledTimes(count);
   expect(budget.snapshot()).toMatchObject({
-    pages: 3,
+    pages: 8,
     searches: 1,
     modelCalls: 1,
   });
+  current = budget.deadline;
+  await expect(sources.readSource(checkout)).rejects.toMatchObject({
+    limit: "time",
+  });
+  expect(budget.snapshot().pages).toBe(8);
 });
 
 test("discovery calls share search limits without reserving model capacity", async () => {
@@ -103,7 +111,7 @@ test("initial read suppresses only budget limits, leaving other exceptions visib
   const config = { apiKey: "fixture", model: "fixture", limits: budget.limits };
   const readSource = vi
     .fn<NonNullable<ResearchDependencies["readSource"]>>()
-    .mockRejectedValueOnce(new ResearchLimitError("depth"))
+    .mockRejectedValueOnce(new ResearchLimitError("time"))
     .mockRejectedValueOnce(new Error("Source adapter failed"));
   const sources = createSourceSession(budget, config, knownLinks, {
     readSource,

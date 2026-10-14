@@ -11,7 +11,7 @@ import type { KnownSourceLink } from "../tools/contracts";
 export function loadResearchContext(
   client: Database.Database,
   input: CatalogResearchInput,
-  referenceInstant = new Date().toISOString(),
+  currentDate = new Date().toISOString(),
 ) {
   const target = input.eventId
     ? readResearchEvent(client, input.eventId)
@@ -49,7 +49,7 @@ export function loadResearchContext(
     catalog,
     terms,
     knownLinks,
-    referenceInstant,
+    currentDate,
   };
 }
 

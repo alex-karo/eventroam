@@ -1,8 +1,7 @@
-export type ResearchLimit = "time" | "searches" | "depth";
+export type ResearchLimit = "time" | "searches";
 
 export interface ResearchLimits {
   searches: number;
-  depth: number;
   agentSteps: number;
   durationMs: number;
   pageBytes: number;
@@ -12,9 +11,8 @@ export interface ResearchLimits {
 
 export const DEFAULT_RESEARCH_LIMITS: ResearchLimits = {
   searches: 3,
-  depth: 2,
   agentSteps: 15,
-  durationMs: 5 * 60_000,
+  durationMs: 10 * 60_000,
   pageBytes: 2 * 1024 * 1024,
   modelOutputTokens: 16_000,
   searchResults: 5,
@@ -43,7 +41,7 @@ export interface ResearchBudget {
   readonly deadline: number;
   assertTime(): void;
   consumeSearch(): void;
-  consumePage(depth?: number): void;
+  consumePage(): void;
   consumeModelCall(): void;
   remaining(): ResearchBudgetSnapshot["remaining"];
   snapshot(): ResearchBudgetSnapshot;
@@ -94,10 +92,7 @@ export function createResearchBudget(
     deadline,
     assertTime,
     consumeSearch,
-    consumePage: (depth = 0) => {
-      if (!Number.isSafeInteger(depth) || depth < 0 || depth > limits.depth) {
-        throw new ResearchLimitError("depth");
-      }
+    consumePage: () => {
       assertTime();
       pages += 1;
     },

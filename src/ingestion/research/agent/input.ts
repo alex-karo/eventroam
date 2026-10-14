@@ -14,12 +14,12 @@ export function promptFor(
   terms: { id: string; facet: string; slug: string }[],
   remaining: ReturnType<ResearchBudget["remaining"]>,
   reads: ReadSourceResult[],
-  referenceInstant = new Date().toISOString(),
+  currentDate = new Date().toISOString(),
 ) {
   const target = catalog.find((event) => event.id === input.eventId);
   return JSON.stringify({
     task: researchInstructions,
-    referenceInstant,
+    currentDate,
     mode: input.mode,
     scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
     eventId: input.eventId,
@@ -50,7 +50,13 @@ export function promptFor(
 
 export function modelContext(target: ResearchCatalog[number]) {
   return {
-    ...target,
+    id: target.id,
+    canonicalName: target.canonicalName,
+    aliases: target.aliases,
+    summary: target.summary,
+    homeScope: target.homeScope,
+    publicationState: target.publicationState,
+    links: modelLinks(target.links),
     editions: target.editions.map((edition) => {
       const {
         priceKind,
@@ -61,11 +67,6 @@ export function modelContext(target: ResearchCatalog[number]) {
         priceQualification,
         priceDetails,
       } = edition;
-      const rest = Object.fromEntries(
-        Object.entries(edition).filter(
-          ([key]) => key !== "priceDetails" && !key.startsWith("price"),
-        ),
-      );
       const qualification = priceQualification
         ? { qualification: priceQualification }
         : {};
@@ -91,7 +92,43 @@ export function modelContext(target: ResearchCatalog[number]) {
           ...qualification,
         };
       }
-      return { ...rest, tickets: { variants: priceDetails, basePrice } };
+      return {
+        editionKey: edition.editionKey,
+        editionYear: edition.editionYear,
+        displayName: edition.displayName,
+        startsOn: edition.startsOn,
+        endsOn: edition.endsOn,
+        dateState: edition.dateState,
+        scheduleStatus: edition.scheduleStatus,
+        publicationState: edition.publicationState,
+        venueName: edition.venueName,
+        venueAddress: edition.venueAddress,
+        locality: edition.locality,
+        administrativeArea: edition.administrativeArea,
+        countryCode: edition.countryCode,
+        latitude: edition.latitude,
+        longitude: edition.longitude,
+        coordinatePrecision: edition.coordinatePrecision,
+        timeZone: edition.timeZone,
+        sizeEstimate: edition.sizeEstimate,
+        links: modelLinks(edition.links),
+        terms: edition.terms.map(({ id, facet, slug, name }) => ({
+          id,
+          facet,
+          slug,
+          name,
+        })),
+        tickets: { variants: priceDetails, basePrice },
+      };
     }),
   };
+}
+
+function modelLinks(links: ResearchCatalog[number]["links"]) {
+  return links.map(({ kind, url, label, official }) => ({
+    kind,
+    url,
+    label,
+    official,
+  }));
 }

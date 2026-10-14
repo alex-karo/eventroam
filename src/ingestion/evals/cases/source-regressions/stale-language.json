@@ -1,0 +1,153 @@
+{
+  "id": "source-stale-language-other-programme",
+  "todayUtc": "2026-10-14",
+  "provenance": {
+    "kind": "synthetic-source-regression",
+    "sourceReport": "data/source-workflow-validation/2026-10-13-editor-ten/comparison.md",
+    "note": "Fictional sources isolate stale-language and wrong-festival ticket failures. Saved Event is explicitly Snow Meadow Student; International is a separate festival under the same brand. No live website/search fallback."
+  },
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "source-stale-language-other-programme",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "source-stale-language-other-programme",
+      "slug": "source-stale-language-other-programme",
+      "canonicalName": "Snow Meadow Student",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://snow-meadow.example/",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "source-stale-language-other-programme-edition",
+          "editionKey": "2027",
+          "editionYear": 2027,
+          "startsOn": "2027-01-23",
+          "endsOn": "2027-01-30",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "FR",
+          "termIds": [],
+          "displayName": "Student",
+          "locality": "Les Orres"
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://snow-meadow.example/",
+      "finalUrl": "https://snow-meadow.example/",
+      "retrievedAt": "2026-10-14T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "snow-home.md"
+    },
+    {
+      "attemptedUrl": "https://snow-meadow.example/en/student/booking",
+      "finalUrl": "https://snow-meadow.example/en/student/booking",
+      "retrievedAt": "2026-10-14T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "snow-stale.md"
+    },
+    {
+      "attemptedUrl": "https://snow-meadow.example/hu/student/booking",
+      "finalUrl": "https://snow-meadow.example/hu/student/booking",
+      "retrievedAt": "2026-10-14T12:00:00Z",
+      "method": "http",
+      "outcome": "partial",
+      "completeness": "partial",
+      "markdownFile": "snow-current.md",
+      "reason": "javascript_required"
+    },
+    {
+      "attemptedUrl": "https://snow-meadow.example/international/prices",
+      "finalUrl": "https://snow-meadow.example/international/prices",
+      "retrievedAt": "2026-10-14T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "snow-other.md"
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "links",
+        "contains": {
+          "kind": "ticketing",
+          "url": "https://snow-meadow.example/hu/student/booking"
+        }
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "starts_on"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "ends_on"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_details"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_min_minor"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "starts_on",
+        "value": null
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "ends_on",
+        "value": null
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "date_state"
+      }
+    ],
+    "research": {
+      "status": "partial",
+      "editionKeys": ["2027"],
+      "hasUnresolved": true,
+      "facts": [
+        {
+          "editionKey": "2027",
+          "field": "dates",
+          "value": {
+            "startsOn": "2027-01-23",
+            "endsOn": "2027-01-30",
+            "state": "confirmed"
+          }
+        }
+      ]
+    }
+  }
+}

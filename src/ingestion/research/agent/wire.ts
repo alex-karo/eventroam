@@ -3,7 +3,7 @@ import { researchCandidateSchema } from "../contracts";
 
 // OpenRouter's strict response_format accepts shape rather than Zod's optional
 // properties or validation keywords. Strict Zod validation still runs locally.
-export function modelOutputSchema() {
+export function modelOutputSchema(output: z.ZodType = researchCandidateSchema) {
   const stripped = new Set([
     "$schema",
     "format",
@@ -49,7 +49,7 @@ export function modelOutputSchema() {
     }
     return result;
   };
-  const schema = z.toJSONSchema(researchCandidateSchema);
+  const schema = z.toJSONSchema(output);
   return clean(schema) as typeof schema;
 }
 
@@ -76,8 +76,6 @@ const optionalNullPaths = new Set([
     "classification",
     "tickets",
   ].map((field) => `data.editions.*.${field}`),
-  "data.editions.*.classification.add",
-  "data.editions.*.classification.remove",
   "data.editions.*.links.tickets",
   ...["amount", "currency", "terms", "availability", "url"].map(
     (field) => `data.editions.*.tickets.value.variants.*.${field}`,

@@ -10,10 +10,10 @@ tags: [architecture]
 
 Status: Implemented core structure · Updated: 2026-10-11
 
-Eventroam is one npm package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. A local Mastra research agent proposes catalog changes through a compact operation adapter and the same writer.
+Eventroam is one npm package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. A local Mastra research agent collects findings; a tool-free editor chooses explicit actions for a typed adapter and the same writer.
 
 ```text
-Commands → research workflow → catalog writer → SQLite ← Next.js public reads
+Commands → research → editor → typed adapter → catalog writer → SQLite ← Next.js public reads
 ```
 
 ## Current directories
@@ -40,7 +40,7 @@ src/
 │   └── write/                 # Transactions, publication, audit
 ├── site/
 │   └── server/                # Request adapters; site.ts holds scope and URL rules
-├── ingestion/                 # Research agent, operation adapter, sources, runtime limits
+├── ingestion/                 # Research/editor agents, typed adapter, sources and limits
 │   ├── research/
 │   │   ├── agent/             # Agent implementation and adjacent tests
 │   │   │   ├── index.ts       # Model execution, step policy, callbacks and cleanup
@@ -50,12 +50,12 @@ src/
 │   │   │   └── wire.ts        # Provider schema and optional-null compatibility
 │   │   ├── context.ts         # Private read context
 │   │   ├── contracts.ts       # Strict research candidate contracts
-│   │   ├── money.ts           # Currency precision conversions
-│   │   └── prepare.ts         # Candidate validation and catalog operations
+│   │   └── money.ts           # Currency precision conversions
+│   ├── editor/                # Typed plans, tool-free agent and operation conversion
 │   ├── tools/                 # Read/search capabilities and Mastra adapters
 │   │   ├── read-source/       # Tool, reader, extraction, fallback and contracts
 │   │   ├── discover-sources/  # Tool, search provider and contracts
-│   │   ├── session.ts         # Shared run budget, cache, history and link depth
+│   │   ├── session.ts         # Shared run budget, cache and read history
 │   │   ├── network.ts         # Safe bounded HTTP transport
 │   │   ├── contracts.ts       # Shared schemas and execution context
 │   │   └── index.ts           # Tool composition
@@ -78,20 +78,20 @@ Create additional folders when code needs them. Unit and integration tests live 
 - **Routes and presentation:** `app → features → components`. Routes resolve request parameters and site context, load public data, and compose features. Shared components do not import features.
 - **Public reads:** `app/site server → catalog/read → db`. Queries enforce publication rules and load composite responses in short read transactions. Web requests open existing SQLite databases read-only. Browser code imports public contracts and pure rules, never database queries or row types.
 - **Catalog writes:** `commands → catalog/write → db`. The writer validates operations and applies versions, publication changes, audit records, and operation receipts in transactions. Collection uses grouped operations with rollback-based dry-run, versions, and atomic item commits.
-- **Collection:** `commands → ingestion → catalog/read (private context), catalog/write`. Source adapters and OpenRouter remain outside Next.js. The research agent has only read/search tools; the model interprets sources and selects identity; the adapter checks the candidate schema and requested targets, then passes model-selected facts to the writer for atomic apply. Private reports persist in `ingestion_runs`, with optional JSON file export; SQLite also stores catalog facts, public links, classifications, URL aliases, audit changes, and operation receipts.
+- **Collection:** `commands → ingestion → catalog/read (private context), catalog/write`. Source adapters and OpenRouter remain outside Next.js. The research agent has only read/search tools; the model interprets sources and selects identity; research validation checks findings and targets; the editor compares supplied evidence with saved state, then the adapter passes explicit actions to the writer for atomic apply. Private reports persist in `ingestion_runs`, with optional JSON file export; SQLite also stores catalog facts, public links, classifications, URL aliases, audit changes, and operation receipts.
 - **Pure logic:** `catalog/domain`, `catalog/operations`, and `features/discovery/model` have no React, Next.js, or storage dependency.
 
 ESLint enforces these import boundaries. The writer runs without Next.js. Avoid exports that mix browser-safe contracts with server query implementations.
 
 ## Ingestion ownership
 
-Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `research/prepare.ts` → catalog writer → `report.ts`. Use `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) explains the eight steps and their observable behavior.
+Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `editor/agent.ts` → `editor/prepare.ts` → catalog writer → `report.ts`. Use `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) explains the ten steps and their observable behavior.
 
 - `workflow.ts` owns the shared CLI/Studio graph, native serializable state, step results and engine-run-to-attempt lookup. `attempt.ts` owns runtime resources, a memoized finalization promise and idempotent cleanup. Terminal hooks recover paths that bypass the final step without retrying final persistence.
 - `research/context.ts` builds private catalog context and owns its inferred type. `research/agent/index.ts` owns model execution, iteration/deadline policy, retries, usage callbacks and cleanup. Adjacent `prompt.ts`, `input.ts`, `wire.ts` and `usage.ts` own fixed instructions, input/saved-price projection, provider-schema/null adaptation and usage accumulation. `runtime/model-errors.ts` classifies host/provider failures and selects safe diagnostics.
-- `research/context.ts` loads the catalog snapshot and one reference instant; model rules live in `research/agent/prompt.ts`. Scope comes from the invocation input. `research/guards.ts` checks simple scope bounds and countries directly from saved Editions, including the baseline reread inside atomic apply. No separate refresh context or field registry is maintained. Returned facts stay in the raw model response; actual mutations use the existing writer audit.
-- `tools/index.ts` composes read/search capabilities. Each tool directory keeps its adapter, implementation, contracts and observations together. `tools/session.ts` owns shared budgets, caching and traversal; `tools/network.ts` provides bounded safe HTTP. Initial reads and eval fixtures reuse the session. `tools/read-source/response.ts` projects source text for the tool and initial prompt.
-- `research/prepare.ts` validates candidates and requested targets, converts prices and proposes atomic operations/publication. The catalog writer validates the resulting committed records. `report.ts` combines research, actual changes and known accounting. `runs.ts` persists durable start/final records outside catalog item transactions, so previews retain history.
+- `research/context.ts` loads the catalog snapshot and one frozen currentDate; model rules live in `research/agent/prompt.ts`. Scope comes from the invocation input. `research/guards.ts` checks simple scope bounds and countries directly from saved Editions, including the baseline reread inside atomic apply. No separate refresh context or field registry is maintained. Returned facts stay in the raw model response; actual mutations use the existing writer audit.
+- `tools/index.ts` composes read/search capabilities. Each tool directory keeps its adapter, implementation, contracts and observations together. `tools/session.ts` owns shared budgets, caching and read history; `tools/network.ts` provides bounded safe HTTP. Initial reads and eval fixtures reuse the session. `tools/read-source/response.ts` projects source text for the tool and initial prompt.
+- `editor/prepare.ts` checks findings/plan targets, converts typed actions and prices into operations and proposes eligible publication. The catalog writer validates the resulting committed records. `report.ts` combines research/editor output, actual changes and known accounting. `runs.ts` persists durable start/final records outside catalog item transactions, so previews retain history.
 - `runtime/logging/` uses Mastra PinoLogger methods and scoped context. Producers select plain fields and explicitly shorten model text. A small delivery bridge preserves child context and run/trace/span correlation in Studio.
 - `runtime/tracing/run.ts` observes apply attempts through explicit host fields and a narrow SDK-content exclusion. `runtime/observability/` owns DuckDB storage, optional signals, diagnostics and cleanup. Studio lends its initialized store to attempts; attempt cleanup leaves that shared store open.
 - `src/mastra/index.ts` registers local Studio's workflow. Studio opens an existing migrated catalog lazily and closes its owned connection. CLI callers retain injected dependencies and connection ownership. Workflow data contains inspectable research results, while credentials, prompts, provider transport payloads and live resources remain outside it.

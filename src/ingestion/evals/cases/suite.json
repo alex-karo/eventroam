@@ -76,6 +76,14 @@
     "scope-current-ambiguous/case.json",
     "scope-full-history/case.json",
     "scope-full-unfinished-history/case.json",
-    "size-evidence/case.json"
+    "editor/wrong-year.json",
+    "editor/day-ticket.json",
+    "editor/clear.json",
+    "editor/unavailable.json",
+    "editor/valid-update.json",
+    "size-evidence/case.json",
+    "source-regressions/known-offers.json",
+    "source-regressions/stale-language.json",
+    "source-regressions/homonym.json"
   ]
 }

@@ -4,8 +4,8 @@ import { testFixtures } from "@/test/fixtures";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput } from "../contracts";
-import type { ResearchCandidate } from "./contracts";
-import { prepareResearch } from "./prepare";
+import type { ResearchCandidate } from "../research/contracts";
+import { prepareEditorialFixture } from "@/test/ingestion";
 
 const input: CatalogResearchInput = {
   mode: "add",
@@ -28,7 +28,7 @@ const candidate = (): ResearchCandidate => ({
 const create = () => {
   const client = testDatabase().client;
   const proposed = candidate();
-  const prepared = prepareResearch(proposed, [], input, []);
+  const prepared = prepareEditorialFixture(proposed, [], input, []);
   const applied = applyCatalogItem(client, prepared.operations);
   return { client, eventId: applied.references.event };
 };
@@ -44,7 +44,7 @@ test.each([
     const client = testDatabase().client;
     const proposed = candidate();
     proposed.data!.eventName = eventName;
-    const prepared = prepareResearch(proposed, [], input, []);
+    const prepared = prepareEditorialFixture(proposed, [], input, []);
     expect(prepared.errors).toEqual([]);
     applyCatalogItem(client, prepared.operations);
     const [saved] = readResearchCatalog(client);
@@ -60,7 +60,7 @@ test("failed research and invalid target produce no operations", () => {
     errors: [{ code: "source_blocked", message: "Page unavailable" }],
     unresolved: [],
   };
-  const preparedFailed = prepareResearch(failed, [], input, []);
+  const preparedFailed = prepareEditorialFixture(failed, [], input, []);
   expect(preparedFailed.operations).toEqual([]);
   expect(preparedFailed.validation).toEqual({
     structural: "passed",
@@ -69,7 +69,7 @@ test("failed research and invalid target produce no operations", () => {
   const { client, eventId } = create();
   const proposed = candidate();
   proposed.data!.eventId = "wrong";
-  const result = prepareResearch(
+  const result = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
     { ...input, mode: "refresh", eventId },
@@ -83,7 +83,7 @@ test("failed research and invalid target produce no operations", () => {
 });
 
 test("preparation accepts source summaries beyond the former page cap", () => {
-  const malformed = prepareResearch({}, [], input, []);
+  const malformed = prepareEditorialFixture({}, [], input, []);
   expect(malformed.validation).toEqual({
     structural: "failed",
     target: "not_run",
@@ -93,7 +93,7 @@ test("preparation accepts source summaries beyond the former page cap", () => {
     url: `https://example.org/source-${index}`,
     information: "Info",
   }));
-  const overBudget = prepareResearch(proposed, [], input, []);
+  const overBudget = prepareEditorialFixture(proposed, [], input, []);
   expect(overBudget.validation).toEqual({
     structural: "passed",
     target: "passed",
@@ -125,7 +125,7 @@ test("add with recognized existing ID skips every proposed update and logs name 
       },
     ],
   };
-  const result = prepareResearch(
+  const result = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
     input,
@@ -167,7 +167,7 @@ test("refresh maps grouped facts and reasons while preserving saved name", () =>
       links: {},
     },
   ];
-  const prepared = prepareResearch(
+  const prepared = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
     { ...input, mode: "refresh", eventId },
@@ -226,7 +226,7 @@ test("complete nullable groups clear both components and preserve zone", () => {
       links: {},
     },
   ];
-  const prepared = prepareResearch(
+  const prepared = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
     { ...input, mode: "refresh", eventId: event.id },
@@ -306,7 +306,7 @@ test.each([
       mode: "refresh" as const,
       eventId: event.id,
     };
-    const prepared = prepareResearch(
+    const prepared = prepareEditorialFixture(
       proposed,
       readResearchCatalog(client),
       refreshInput,
@@ -315,7 +315,7 @@ test.each([
     expect(prepared.errors).toEqual([]);
     expect(
       prepared.operations.filter((op) => op.kind === "replaceLinks"),
-    ).toHaveLength(multiple ? 1 : 0);
+    ).toHaveLength(1);
     if (multiple) {
       applyCatalogItem(client, prepared.operations);
     }
@@ -340,7 +340,7 @@ test.each([
     } else {
       proposed.data!.editions[0].links.tickets = "https://new.example/";
     }
-    const changed = prepareResearch(
+    const changed = prepareEditorialFixture(
       proposed,
       readResearchCatalog(client),
       refreshInput,
@@ -386,7 +386,7 @@ test("base prices convert major to minor and variants retain major", () => {
       },
       reason: "Official ticket price",
     };
-    const prepared = prepareResearch(proposed, [], input, []);
+    const prepared = prepareEditorialFixture(proposed, [], input, []);
     const op = prepared.operations.find(
       (item) => item.kind === "replacePriceBlock",
     );
@@ -447,7 +447,7 @@ test("reordered qualified ticket variants and an equivalent base price produce n
     },
     reason: "Official shop confirms all ticket categories",
   };
-  const prepared = prepareResearch(
+  const prepared = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
     { ...input, mode: "refresh", eventId: event.id },
@@ -462,28 +462,7 @@ test("reordered qualified ticket variants and an equivalent base price produce n
   expect(client.prepare("SELECT * FROM catalog_changes").all()).toEqual([]);
 });
 
-test("creation needs identity reason; existing refresh does not", () => {
-  const proposed = candidate();
-  delete proposed.data!.reason;
-  const missingReason = prepareResearch(proposed, [], input, []);
-  expect(missingReason.errors[0].code).toBe("invalid_candidate");
-  expect(missingReason.validation).toEqual({
-    structural: "passed",
-    target: "passed",
-  });
-  const { client, eventId } = create();
-  proposed.data!.eventId = eventId;
-  expect(
-    prepareResearch(
-      proposed,
-      readResearchCatalog(client),
-      { ...input, mode: "refresh", eventId },
-      [],
-    ).errors,
-  ).toEqual([]);
-});
-
-test("classification removals win over additions", () => {
+test("classification finding replaces explicitly refuted assignments", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
@@ -494,10 +473,10 @@ test("classification removals win over additions", () => {
   const proposed = candidate();
   proposed.data!.eventId = event.id;
   proposed.data!.editions[0].classification = {
-    add: { value: [newTerm.id, old.id], reason: "New classification" },
-    remove: { value: [old.id], reason: "Old classification obsolete" },
+    value: [newTerm.id],
+    reason: "New classification replaces explicitly refuted old classification",
   };
-  const prepared = prepareResearch(
+  const prepared = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
     { ...input, mode: "refresh", eventId: event.id },
@@ -508,8 +487,7 @@ test("classification removals win over additions", () => {
   ).toMatchObject({ termIds: [newTerm.id] });
   const termsOp = prepared.operations.find((op) => op.kind === "replaceTerms")!;
   expect(prepared.explanations[termsOp.operationKey].terms).toEqual([
-    "New classification",
-    "Old classification obsolete",
+    "New classification replaces explicitly refuted old classification",
   ]);
   applyCatalogItem(client, prepared.operations);
   expect(
@@ -542,7 +520,7 @@ test("omitted tickets and independent facts preserve saved values after relocati
     value: "New Field",
     reason: "Organizer moved venues",
   };
-  const prepared = prepareResearch(
+  const prepared = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
     { ...input, mode: "refresh", eventId: event.id },
@@ -565,7 +543,7 @@ test("same ticket URL can be assigned to two editions independently", () => {
     { key: "2027", links: { tickets: "https://tickets.example/all" } },
     { key: "2028", links: { tickets: "https://tickets.example/all" } },
   ];
-  const prepared = prepareResearch(proposed, [], input, []);
+  const prepared = prepareEditorialFixture(proposed, [], input, []);
   const links = prepared.operations.filter((op) => op.kind === "replaceLinks");
   expect(links).toHaveLength(2);
   expect(links.map((op) => op.owner.id)).toEqual(["$edition_0", "$edition_1"]);
@@ -593,7 +571,7 @@ test("writer rejection rolls back a supplied link replacement", () => {
     value: null,
     reason: "Official dates withdrawn",
   };
-  const prepared = prepareResearch(
+  const prepared = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
     { ...input, mode: "refresh", eventId: event.id },
@@ -615,7 +593,7 @@ test("explicit cancellation updates schedule without renaming Event identity", (
     value: "cancelled",
     reason: "Organizer cancelled this edition",
   };
-  const prepared = prepareResearch(
+  const prepared = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
     { ...input, mode: "refresh", eventId },
@@ -671,15 +649,13 @@ test.each([
         countryCode: { value: "PT", reason: "Official venue" },
         locality: { value: "Lisbon", reason: "Official venue" },
         classification: {
-          add: {
-            value: terms.map((term) => term.id),
-            reason: "Official programme and activity offerings",
-          },
+          value: terms.map((term) => term.id),
+          reason: "Official programme and activity offerings",
         },
         links: {},
       },
     ];
-    const prepared = prepareResearch(proposed, [], input, terms);
+    const prepared = prepareEditorialFixture(proposed, [], input, terms);
     expect(prepared.errors).toEqual([]);
     expect(prepared.operations.some((op) => op.kind === "publishEdition")).toBe(
       publishable,
@@ -716,7 +692,7 @@ test("research size survives context, preparation, writer and omission", () => {
     reason: "2026 participant count supports this edition estimate",
   };
   const refresh = { ...input, mode: "refresh" as const, eventId };
-  const prepared = prepareResearch(
+  const prepared = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
     refresh,
@@ -726,19 +702,21 @@ test("research size survives context, preparation, writer and omission", () => {
   applyCatalogItem(client, prepared.operations);
   expect(readResearchCatalog(client)[0].editions[0].sizeEstimate).toBe(8000);
   delete proposed.data!.editions[0].sizeEstimate;
-  const omitted = prepareResearch(
+  const omitted = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
     refresh,
     [],
   );
-  expect(omitted.operations).toEqual([]);
+  expect(omitted.operations.every((op) => op.kind === "replaceLinks")).toBe(
+    true,
+  );
   expect(readResearchCatalog(client)[0].editions[0].sizeEstimate).toBe(8000);
   proposed.data!.editions[0].sizeEstimate = {
     value: null,
     reason: "Organizer explicitly withdrew its participant estimate",
   };
-  const cleared = prepareResearch(
+  const cleared = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
     refresh,

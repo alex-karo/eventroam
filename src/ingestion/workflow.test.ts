@@ -1,3 +1,7 @@
+import {
+  runFixtureResearch as executeResearch,
+  createFixtureIngestionWorkflow as createCatalogIngestionWorkflow,
+} from "@/test/ingestion";
 import { CatalogAttempt } from "./attempt";
 import { createIngestionData } from "./contracts";
 import * as runsModule from "./runs";
@@ -13,13 +17,9 @@ import {
 } from "@/catalog/read/research";
 import { createTestDatabase, testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
-import {
-  createCatalogIngestionWorkflow,
-  studioIngestionInputSchema,
-  runCatalogResearch as executeResearch,
-} from "./workflow";
+import { studioIngestionInputSchema } from "./workflow";
 import * as contextModule from "./research/context";
-import * as prepareModule from "./research/prepare";
+import * as prepareModule from "./editor/prepare";
 import * as reportModule from "./report";
 import * as applyModule from "@/catalog/write/apply-operation";
 import * as runTraceModule from "./runtime/tracing";
@@ -112,7 +112,7 @@ function candidate(termIds: string[]): ResearchCandidate {
           },
           locality: { value: "Lisbon", reason },
           countryCode: { value: "PT", reason },
-          classification: { add: { value: termIds, reason } },
+          classification: { value: termIds, reason },
           links: {},
         },
       ],
@@ -129,11 +129,10 @@ function fixture(client = testDatabase().client) {
     async (
       _url: string,
       options: {
-        budget: { consumePage: (depth?: number) => void };
-        depth?: number;
+        budget: { consumePage: () => void };
       },
     ) => {
-      options.budget.consumePage(options.depth);
+      options.budget.consumePage();
       return source;
     },
   );
@@ -148,6 +147,7 @@ function fakeTrace() {
     state: { writeState: "not_attempted" },
     update: vi.fn(),
     validated: vi.fn(),
+    editorValidated: vi.fn(),
     failed: vi.fn(),
     finish,
     terminalFailed,
@@ -176,7 +176,7 @@ function catalogState(client: Database.Database) {
 test("concurrent and repeated failed source reads are cached and charged once", async () => {
   const { client, readSource } = fixture();
   readSource.mockImplementation(async (_url, options) => {
-    options.budget.consumePage(options.depth);
+    options.budget.consumePage();
     return {
       ...source,
       outcome: "failed",
@@ -199,7 +199,7 @@ test("concurrent and repeated failed source reads are cached and charged once", 
     },
   });
   expect(readSource).toHaveBeenCalledTimes(1);
-  expect(result.usage).toMatchObject({ pages: 1, modelCalls: 1 });
+  expect(result.usage).toMatchObject({ pages: 1, modelCalls: 2 });
   expect(result.sources).toEqual([
     expect.objectContaining({ outcome: "failed", reason: "http_503" }),
   ]);
@@ -250,7 +250,7 @@ test("discovery shares search limits while model calls remain accounting", async
   expect(discoverSources).toHaveBeenCalledTimes(2);
   expect(result.usage).toMatchObject({
     searches: 2,
-    modelCalls: 3,
+    modelCalls: 4,
     inputTokens: 14,
     outputTokens: 18,
     modelCostUsd: 0.2,
@@ -427,7 +427,7 @@ test.each([
 test("recovered source failure retains staged error beside successful research", async () => {
   const { client, readSource } = fixture();
   readSource.mockImplementation(async (_url, options) => {
-    options.budget.consumePage(options.depth);
+    options.budget.consumePage();
     return {
       ...source,
       outcome: "failed",
@@ -615,7 +615,7 @@ test("cancellation and grouped clearing explain only changed writer fields", asy
   ).toBe(false);
 });
 
-test("taxonomy add/remove reasons combine and ticket block reasons follow actual changes", async () => {
+test("complete classification and ticket reasons follow actual changes", async () => {
   const { client, readSource } = fixture();
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
@@ -634,14 +634,9 @@ test("taxonomy add/remove reasons combine and ticket block reasons follow actual
         key: "2027",
         links: {},
         classification: {
-          add: {
-            value: [newTerm.id],
-            reason: "The programme now includes this category.",
-          },
-          remove: {
-            value: [oldTerm.id],
-            reason: "The old category no longer applies.",
-          },
+          value: [newTerm.id],
+          reason:
+            "New programme category replaces the explicitly refuted old category.",
         },
         tickets: {
           value: {
@@ -676,8 +671,7 @@ test("taxonomy add/remove reasons combine and ticket block reasons follow actual
       subject: edition.id,
       field: "terms",
       explanations: [
-        "The programme now includes this category.",
-        "The old category no longer applies.",
+        "New programme category replaces the explicitly refuted old category.",
       ],
     }),
   );
@@ -802,7 +796,7 @@ test("failed research, malformed output, and target mismatch never write", async
     );
     expect(result).toMatchObject({
       outcome: "failed",
-      researchStatus: "failed",
+      researchStatus: "data" in raw && raw.data !== null ? "success" : "failed",
       operations: [],
       changes: [],
     });
@@ -875,7 +869,7 @@ test("provider and budget failures keep sanitized errors and empty operations", 
   const { client } = fixture();
   for (const error of [
     new Error("PRIVATE provider request"),
-    new ResearchLimitError("depth"),
+    new ResearchLimitError("time"),
   ]) {
     const result = await runCatalogResearch(input, {
       client,
@@ -1035,7 +1029,7 @@ test.each(["context", "preparation", "report"] as const)(
       );
     }
     if (stage === "preparation") {
-      vi.spyOn(prepareModule, "prepareResearch").mockImplementationOnce(() => {
+      vi.spyOn(prepareModule, "validateResearch").mockImplementationOnce(() => {
         throw secret;
       });
     }
@@ -1213,9 +1207,9 @@ test("the public runner accumulates research in native state without runtime res
       return loadContext(...args);
     },
   );
-  const prepare = prepareModule.prepareResearch;
-  vi.spyOn(prepareModule, "prepareResearch").mockImplementation((...args) => {
-    phases.push("prepare-candidate");
+  const prepare = prepareModule.validateResearch;
+  vi.spyOn(prepareModule, "validateResearch").mockImplementation((...args) => {
+    phases.push("validate-research");
     return prepare(...args);
   });
   const apply = applyModule.applyCatalogItem;
@@ -1235,7 +1229,7 @@ test("the public runner accumulates research in native state without runtime res
   const proposal = candidate(termIds);
   proposal.data!.summary!.value = privateOutput;
   readSource.mockImplementation(async (_url, options) => {
-    options.budget.consumePage(options.depth);
+    options.budget.consumePage();
     return { ...source, markdown: privatePage };
   });
 
@@ -1251,7 +1245,8 @@ test("the public runner accumulates research in native state without runtime res
       },
       generateCandidate: async (_prompt, context) => {
         phases.push("research-festival");
-        await context.readSource(url);
+        expect((await context.readSource(url)).markdown).toBe(privatePage);
+        expect(context.reads[0].markdown).toBe(privatePage);
         return proposal;
       },
     },
@@ -1271,7 +1266,9 @@ test("the public runner accumulates research in native state without runtime res
     "load-context",
     "read-initial-source",
     "research-festival",
-    "prepare-candidate",
+    "validate-research",
+    "edit-research",
+    "prepare-plan",
     "apply-catalog-item",
     "build-report",
     "finalize-run",
@@ -1280,7 +1277,7 @@ test("the public runner accumulates research in native state without runtime res
     "load-context",
     "read-initial-source",
     "research-festival",
-    "prepare-candidate",
+    "validate-research",
     "apply-catalog-item",
     "build-report",
   ]);
@@ -1297,19 +1294,19 @@ test("the public runner accumulates research in native state without runtime res
   expect(stepOutput("load-context")).toHaveProperty("catalog");
   expect(stepOutput("research-festival")).toMatchObject({
     research: { ok: true, candidate: proposal },
-    reads: [expect.objectContaining({ markdown: privatePage })],
+    reads: [expect.objectContaining({ attemptedUrl: url, outcome: "ok" })],
   });
   expect(stepOutput("research-festival")).not.toHaveProperty("prepared");
-  expect(stepOutput("prepare-candidate")).toHaveProperty("operations");
+  expect(stepOutput("prepare-plan")).toHaveProperty("operationCount");
   expect(stepOutput("apply-catalog-item")).toHaveProperty("applied");
   expect(stepOutput("build-report")).toMatchObject({ outcome: "published" });
   expect(engineResult.state.data).toMatchObject({
     research: { ok: true, candidate: proposal },
     report: { outcome: "published" },
   });
-  expect(engineResult.state.data.reads[0].markdown).toBe(privatePage);
+  expect(engineResult.state.data.reads[0]).not.toHaveProperty("markdown");
   const execution = JSON.stringify(engineResult);
-  expect(execution).toContain(privatePage);
+  expect(execution).not.toContain(privatePage);
   expect(execution).toContain(privateOutput);
   expect(execution).not.toContain("PRIVATE_API_KEY");
   expect(execution).not.toContain(client.name);

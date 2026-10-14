@@ -28,7 +28,7 @@ export function formatCatalogReport(
 function formatResult(result: CatalogResearchResult): string[] {
   const mismatch = result.eventNameMismatch;
   return [
-    `Run ${result.runId ?? "unavailable"}: ${result.outcome} (research ${result.researchStatus}): ${result.eventId ?? "new festival"} (${result.durationMs} ms)`,
+    `Run ${result.runId ?? "unavailable"}: ${result.outcome} (research ${result.researchStatus}, editor ${result.editorStatus}): ${result.eventId ?? "new festival"} (${result.durationMs} ms)`,
     ...result.changes.flatMap((change) => [
       `  ${change.subject}.${change.field}: ${JSON.stringify(change.oldValue)} → ${JSON.stringify(change.newValue)}`,
       ...change.explanations.map((explanation) => `    Why: ${explanation}`),
@@ -161,7 +161,7 @@ export async function executeCatalogCommand(
       }
     }
     const report = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       checkedAt: new Date().toISOString(),
       dryRun: options.dryRun,
       results,

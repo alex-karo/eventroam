@@ -2,14 +2,14 @@ import { afterEach, expect, test, vi } from "vitest";
 import { createTestDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { readResearchEvent } from "@/catalog/read/research";
-import {
-  runCatalogResearch,
-  createCatalogIngestionWorkflow,
-  studioIngestionInputSchema,
-} from "./workflow";
+import { studioIngestionInputSchema } from "./workflow";
 import type { ResearchCandidate } from "./research/contracts";
 import type { ResearchDependencies } from "./contracts";
-import { prepareResearch } from "./research/prepare";
+import {
+  prepareEditorialFixture,
+  runFixtureResearch as runCatalogResearch,
+  createFixtureIngestionWorkflow as createCatalogIngestionWorkflow,
+} from "@/test/ingestion";
 const reason = "Inspected official source confirms this fact";
 const url = "https://fixture.example/festival";
 function fixture(countryCode: string | null = "IE") {
@@ -87,7 +87,7 @@ test.each(["full", "current"] as const)(
           expect(parsed).not.toHaveProperty("refresh");
           expect(parsed).not.toHaveProperty("catalog");
           expect(parsed.scope).toBe(scope);
-          expect(parsed.referenceInstant).toBe("2026-10-11T12:00:00.000Z");
+          expect(parsed.currentDate).toBe("2026-10-11T12:00:00.000Z");
           expect(parsed.compact.editions[0]).toMatchObject({
             editionKey: "source-row",
             countryCode: "IE",
@@ -102,7 +102,7 @@ test.each(["full", "current"] as const)(
     expect(result.researchStatus).toBe("success");
     expect(result.modelResponse!.object).toEqual(f.proposal);
     expect(result.scope).toBe(scope);
-    expect(result.referenceInstant).toBe("2026-10-11T12:00:00.000Z");
+    expect(result.currentDate).toBe("2026-10-11T12:00:00.000Z");
     expect(result).not.toHaveProperty("refresh");
     expect(result).not.toHaveProperty("verification");
     expect(result.workload).toEqual({
@@ -125,27 +125,37 @@ test.each(["full", "current"] as const)(
     expect(JSON.parse(stored.input_json).scope).toBe(scope);
   },
 );
-test.each(["AU", "GB", null] as const)(
-  "new Edition country %s conflicting with saved history vetoes all writes",
-  async (country) => {
+test.each([
+  ["new-2027", "AU"],
+  ["new-2027", "GB"],
+  ["new-2027", null],
+  ["source-row", "GB"],
+] as const)(
+  "Edition %s country %s conflict blocks all writes and editor generation",
+  async (editionKey, country) => {
     const f = fixture();
+    const before = readResearchEvent(f.client, f.event.id);
+    const generateEditor = vi.fn();
     f.proposal.data!.links.website = "https://correct.fixture.example/";
     f.proposal.data!.editions = [
       {
-        key: "new-2027",
+        key: editionKey,
         countryCode: { value: country, reason },
         links: { tickets: "https://tickets.fixture.example/" },
       },
     ];
     const result = await runCatalogResearch(f.input, {
       ...f.deps,
+      generateEditor,
       generateCandidate: async () => {
         return f.proposal;
       },
     });
     expect(result).toMatchObject({
       outcome: "failed",
-      researchStatus: "failed",
+      researchStatus: "success",
+      editorStatus: "not_run",
+      changes: [],
       operations: [],
       receipts: [],
       modelResponse: { object: f.proposal },
@@ -155,10 +165,12 @@ test.each(["AU", "GB", null] as const)(
       expect.objectContaining({
         code: "country_conflict",
         stage: "validation",
-        editionKey: "new-2027",
+        editionKey,
+        field: "countryCode",
       }),
     );
-    expect(readResearchEvent(f.client, f.event.id)!.summary).toBe("Saved");
+    expect(generateEditor).not.toHaveBeenCalled();
+    expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
     noWrites(f.client);
     expect(f.client.prepare("SELECT status FROM ingestion_runs").get()).toEqual(
       { status: "failed" },
@@ -340,9 +352,7 @@ test("CLI and Studio current previews process a supplied replacement website equ
     returnedEditionCount: 0,
   });
   expect(result.state!.data!.context).not.toHaveProperty("refresh");
-  expect(result.state!.data!.context!.referenceInstant).toBe(
-    cli.referenceInstant,
-  );
+  expect(result.state!.data!.context!.currentDate).toBe(cli.currentDate);
   expect(result.state!.data!.context!.catalog[0].editions).toHaveLength(
     cli.workload.savedEditions,
   );
@@ -374,7 +384,7 @@ test("unchanged country facts cannot evade guards through operation no-ops", () 
   f.proposal.data!.editions = [
     { key: "source-row", countryCode: { value: "IE", reason }, links: {} },
   ];
-  const prepared = prepareResearch(f.proposal, [saved], f.input, []);
+  const prepared = prepareEditorialFixture(f.proposal, [saved], f.input, []);
   expect(prepared.operations).toEqual([]);
   expect(prepared.errors[0].code).toBe("country_baseline_conflict");
 });
@@ -413,6 +423,9 @@ test("full rejects a new Edition when the complete saved/new union exceeds 20", 
   });
   expect(generate).toHaveBeenCalledOnce();
   expect(result.errors[0].code).toBe("limit_reached");
+  expect(result.outcome).toBe("failed");
+  expect(result.researchStatus).toBe("success");
+  expect(result.editorStatus).toBe("not_run");
   expect(result.workload.savedEditions).toBe(20);
   expect(result.operations).toEqual([]);
   noWrites(f.client);

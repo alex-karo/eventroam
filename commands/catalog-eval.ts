@@ -9,9 +9,13 @@ function parseArgs(args: string[]): EvalOptions {
     const arg = args[index];
     if (arg === "--help" || arg === "-h") {
       process.stdout.write(
-        "Usage: npm run catalog:eval -- [--case ID] [--model OPENROUTER_MODEL] [--repeat N] [--report PATH]\nRuns fixed-source Mastra catalog evals against the configured OpenRouter model.\n",
+        "Usage: npm run catalog:eval -- [--editor-only] [--case ID] [--model OPENROUTER_MODEL] [--repeat N] [--report PATH]\nRuns fixed-source Mastra catalog evals; editor-only replays saved research handoffs.\n",
       );
       process.exit(0);
+    }
+    if (arg === "--editor-only") {
+      options.editorOnly = true;
+      continue;
     }
     if (!["--case", "--model", "--repeat", "--report"].includes(arg)) {
       throw new Error(`Unknown eval option: ${arg}`);
@@ -77,7 +81,7 @@ if (
       let message = error instanceof Error ? error.name : "unknown error";
       if (
         error instanceof Error &&
-        /^(OPENROUTER_API_KEY is required|OPENROUTER_MODEL must not enable automatic web search|OPENROUTER_REASONING_EFFORT is invalid|Unknown eval option:|Missing value for|Unknown or empty eval case selection|repeat must be|Eval report already exists:)/.test(
+        /^(OPENROUTER_API_KEY is required|OPENROUTER_MODEL must not enable automatic web search|OPENROUTER_REASONING_EFFORT is invalid|Unknown eval option:|Missing value for|Unknown or empty eval case selection|Editor-only eval requires|repeat must be|Eval report already exists:)/.test(
           error.message,
         )
       ) {

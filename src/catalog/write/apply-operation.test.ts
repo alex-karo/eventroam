@@ -1512,3 +1512,35 @@ test("removed edition and link fields are rejected without catalog writes", () =
     client.prepare("SELECT version FROM editions WHERE id=?").get(edition.id),
   ).toEqual({ version: edition.version });
 });
+
+test("free variants persist zero without currency and retain an idempotent receipt", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const edition = fx.publishedEdition(fx.event());
+  const op: CatalogOperation = {
+    kind: "replacePriceBlock",
+    operationKey: "free-concession",
+    actor: "owner",
+    id: edition.id,
+    expectedVersion: edition.version,
+    priceDetails: [{ label: "Personal assistant", amount: 0 }],
+    basePrice: null,
+  };
+  const applied = applyCatalogOperation(client, op);
+  expect(applied.changed).toBe(true);
+  const row = client
+    .prepare("SELECT price_details, price_kind FROM editions WHERE id=?")
+    .get(edition.id) as { price_details: string; price_kind: string | null };
+  expect(JSON.parse(row.price_details)).toEqual([
+    { label: "Personal assistant", amount: 0 },
+  ]);
+  expect(row.price_kind).toBeNull();
+  expect(applyCatalogOperation(client, op)).toEqual(applied);
+  expect(() =>
+    applyCatalogOperation(client, {
+      ...op,
+      operationKey: "currency-only",
+      priceDetails: [{ label: "Unknown", currency: "EUR" }],
+    }),
+  ).toThrow(/Amount and currency/);
+});

@@ -220,6 +220,35 @@ test("explicit model text shortening respects Unicode code points", () => {
   expect(shrinkText("abc", 2)).toBe("ab");
 });
 
+test.each([
+  ["rejected_editor", "editor_rejected"],
+  ["invalid_editor", "invalid_plan"],
+] as const)(
+  "%s logs rejection rather than a prepared plan",
+  async (scenario, code) => {
+    const file = database();
+    enable(file, true);
+    await runTraceFixture("success", false, scenario);
+    const rows = await readTraceRows(file);
+    expect(
+      rows.mastra_logs.find((row) => row.message === "Editorial plan rejected"),
+    ).toMatchObject({
+      level: "warn",
+      data: {
+        operationCount: 0,
+        validation: {
+          structural: "passed",
+          target: "passed",
+        },
+        errors: expect.arrayContaining([expect.objectContaining({ code })]),
+      },
+    });
+    expect(
+      rows.mastra_logs.some((row) => row.message === "Editorial plan prepared"),
+    ).toBe(false);
+  },
+);
+
 test("real research stores selected completed model text without source bodies or prompts", async () => {
   const file = database();
   enable(file, true);

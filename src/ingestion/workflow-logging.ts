@@ -2,15 +2,22 @@ import { shrinkText, type ResearchLogger } from "./runtime/logging";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
-import { prepareResearch } from "./research/prepare";
+import { prepareEditorPlan } from "./editor/prepare";
 
 export function logPreparation(
   log: ResearchLogger | undefined,
-  prepared: ReturnType<typeof prepareResearch>,
+  prepared: ReturnType<typeof prepareEditorPlan>,
 ) {
-  const accepted = prepared.candidate && prepared.candidate.status !== "failed";
+  const accepted =
+    prepared.candidate &&
+    prepared.candidate.status !== "failed" &&
+    prepared.validation.target === "passed" &&
+    !prepared.errors.some(
+      (error) =>
+        error.code === "invalid_plan" || error.code === "editor_rejected",
+    );
   log?.[accepted ? "info" : "warn"](
-    accepted ? "Candidate prepared" : "Candidate rejected",
+    accepted ? "Editorial plan prepared" : "Editorial plan rejected",
     {
       stage: "validation",
       status: prepared.candidate?.status ?? "invalid",
@@ -43,7 +50,7 @@ export function logCompletion(
   log: ResearchLogger | undefined,
   finalized: CatalogResearchResult,
   input: CatalogResearchInput,
-  prepared: ReturnType<typeof prepareResearch> | null,
+  prepared: ReturnType<typeof prepareEditorPlan> | null,
   applied: ReturnType<typeof applyCatalogItem> | null,
   writeFailed: boolean,
 ) {
@@ -55,6 +62,7 @@ export function logCompletion(
   ]("Research finished", {
     stage: "report",
     researchStatus: finalized.researchStatus,
+    editorStatus: finalized.editorStatus,
     outcome: finalized.outcome,
     validation: prepared?.validation,
     ...writeLogFields(input, applied, writeFailed),
@@ -69,7 +77,7 @@ export function logCompletion(
 
 export function reportEventId(
   input: CatalogResearchInput,
-  prepared: ReturnType<typeof prepareResearch> | null,
+  prepared: ReturnType<typeof prepareEditorPlan> | null,
   applied: ReturnType<typeof applyCatalogItem> | null,
 ) {
   let persistentEventId = input.eventId ?? null;

@@ -67,14 +67,14 @@ The Event page SHALL show classifications from its selected published Edition on
 - **THEN** its classification labels replace the prior edition's summary without changing Event identity
 
 ### Requirement: Model-proposed classification is edition-specific
-The model SHALL associate classification additions and removals with a specific Edition. The host SHALL apply those proposals only to that Edition, preserving sibling editions' classifications and assigning no classifications or defaults to the Event. Omitted term claims SHALL preserve current assignments.
+Research SHALL associate a complete classification finding with a specific Edition, retaining unchallenged saved terms. The editor SHALL accept or correct the complete list. The host SHALL replace assignments only for that Edition, preserving sibling editions' classifications and assigning no classifications or defaults to the Event. An omitted classification field SHALL preserve current assignments.
 
 #### Scenario: A later extraction omits a known term
-- **WHEN** a model answer does not mention a previously accepted genre
-- **THEN** the run preserves that assignment
+- **WHEN** new evidence does not mention or refute a previously accepted genre
+- **THEN** research retains it in any proposed complete list, or omits the classification field to preserve assignments
 
 #### Scenario: Model removes an edition term
-- **WHEN** the model explicitly proposes removing an assigned term from a specific Edition
+- **WHEN** research explicitly refutes an assigned term and editor approves a complete list excluding it for a specific Edition
 - **THEN** the writer removes that assignment from that Edition only, preserving sibling editions' assignments
 
 ### Requirement: Topics remain independent of physical format

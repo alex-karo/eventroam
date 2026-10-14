@@ -5,12 +5,12 @@ function serializedResearchLimit(item: Record<string, unknown>) {
   if (
     item.name === "ResearchLimitError" &&
     typeof item.limit === "string" &&
-    ["time", "searches", "depth"].includes(item.limit)
+    ["time", "searches"].includes(item.limit)
   ) {
     return new ResearchLimitError(item.limit as ResearchLimitError["limit"]);
   }
   if (typeof item.message === "string") {
-    const match = /^Research (time|searches|depth) limit exhausted$/.exec(
+    const match = /^Research (time|searches) limit exhausted$/.exec(
       item.message,
     );
     if (match) {

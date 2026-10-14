@@ -4,7 +4,7 @@ import type {
   CatalogResearchResult,
 } from "../../contracts";
 import type { ResearchCatalog } from "../../research/context";
-import type { PreparedResearch } from "../../research/prepare";
+import type { PreparedPlan } from "../../editor/prepare";
 
 /** A single byte limit, without splitting a Unicode code point. */
 export function traceText(value: string, bytes: number) {
@@ -144,10 +144,13 @@ export function runTraceLabel(
 export type TraceWriteState =
   "committed" | "rolled_back" | "unchanged" | "not_attempted" | "unknown";
 export type TraceRunState = {
+  // These two checks describe research; editor actions are checked separately.
   structuralValidation: "passed" | "failed" | "not_run";
   targetValidation: "passed" | "failed" | "not_run";
+  editorPlanValidation: "passed" | "failed" | "not_run";
   writeState: TraceWriteState;
   errorCode?:
+    | "editor_rejected"
     | "validation_failed"
     | "research_failed"
     | "write_failed"
@@ -170,6 +173,9 @@ export function traceResultLabel(
   if (state.errorCode === "validation_failed") {
     return "invalid";
   }
+  if (state.errorCode === "editor_rejected") {
+    return "editor-rejected";
+  }
   if (state.errorCode) {
     return "failed";
   }
@@ -180,7 +186,7 @@ export function traceResultLabel(
 export function validatedTraceName(
   input: CatalogResearchInput,
   catalog: ResearchCatalog,
-  prepared: PreparedResearch | null,
+  prepared: PreparedPlan | null,
 ) {
   const event = catalog.find(
     (entry) => entry.id === (input.eventId ?? prepared?.matchedEventId),
@@ -216,7 +222,7 @@ export function traceReason(reason?: string) {
   return reason &&
     (reasons.has(reason) ||
       /^(?:firecrawl_)?http_[1-5]\d\d$/.test(reason) ||
-      /^(time|depth|searches)_budget_exhausted$/.test(reason))
+      /^(time|searches)_budget_exhausted$/.test(reason))
     ? traceText(reason, 64)
     : "unknown";
 }

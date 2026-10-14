@@ -13,7 +13,6 @@ import {
 
 export interface ReadSourceOptions {
   budget: ResearchBudget;
-  depth?: number;
   resolver?: LookupHost;
   request?: typeof getBoundedResponse;
   firecrawlRequest?: typeof getFirecrawlResponse;
@@ -73,7 +72,7 @@ async function fetchSource(
     maxBytes: options.budget.limits.pageBytes,
     timeoutMs: Math.min(15_000, options.budget.remaining().durationMs),
     resolver: options.resolver,
-    onRetry: () => options.budget.consumePage(options.depth),
+    onRetry: () => options.budget.consumePage(),
   });
   result.finalUrl = response.finalUrl;
   result.httpStatus = response.status;
@@ -81,7 +80,7 @@ async function fetchSource(
   if (response.status !== 403 || !apiKey) {
     return response;
   }
-  options.budget.consumePage(options.depth);
+  options.budget.consumePage();
   result.method = "firecrawl";
   options.log?.warn("Blocked source uses Firecrawl fallback", {
     attemptedUrl: response.finalUrl,
@@ -103,7 +102,7 @@ export async function readSource(
   const at = (options.now?.() ?? new Date()).toISOString();
   const result = baseResult(inputUrl, at);
   try {
-    options.budget.consumePage(options.depth);
+    options.budget.consumePage();
   } catch (error) {
     if (error instanceof ResearchLimitError) {
       return {

@@ -155,3 +155,35 @@ export function validateTermAssignments(terms: readonly TaxonomyTerm[]) {
     );
   }
 }
+
+/** The same scope gate is used by ingestion publication and the writer. */
+export function validateFestivalScope(
+  terms: readonly { facet: string; slug: string }[],
+) {
+  const has = (facet: string, slug: string) =>
+    terms.some((term) => term.facet === facet && term.slug === slug);
+  assert(
+    has("format", "openair") || has("format", "mixed-indoor-outdoor"),
+    "Festival scope requires supported open-air format",
+  );
+  assert(
+    has("event_type", "festival") || has("event_type", "gathering"),
+    "Festival scope requires event type",
+  );
+  assert(
+    has("topic", "music") || has("culture", "burning-like"),
+    "Festival scope requires music or burning-like culture",
+  );
+}
+export function isEditionPublishable(
+  record: Record<string, unknown>,
+  terms: readonly { facet: string; slug: string }[],
+) {
+  try {
+    validateEditionRecord({ ...record, publicationState: "published" });
+    validateFestivalScope(terms);
+    return true;
+  } catch {
+    return false;
+  }
+}

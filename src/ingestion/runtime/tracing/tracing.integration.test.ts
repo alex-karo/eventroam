@@ -305,8 +305,8 @@ function normalize(
   const copy = structuredClone(result);
   delete copy.runId;
   copy.durationMs = 0;
-  if (copy.referenceInstant) {
-    copy.referenceInstant = "TIMESTAMP";
+  if (copy.currentDate) {
+    copy.currentDate = "TIMESTAMP";
   }
   for (const change of copy.changes) {
     if (change.field === "created_at" || change.field === "updated_at") {
@@ -331,6 +331,8 @@ test.each([
   "mistaken",
   "recovered",
   "invalid",
+  "invalid_editor",
+  "rejected_editor",
   "unchanged",
   "search",
   "reserved",
@@ -395,7 +397,7 @@ test.each([
           : {}),
       });
       expect(traced.result.usage.pages).toBe(2);
-      expect(traced.requests).toBe(2);
+      expect(traced.requests).toBe(3);
     }
     if (
       scenario === "partial" ||
@@ -455,6 +457,29 @@ test.each([
         errorCode: "validation_failed",
         committedOperationCount: 0,
       });
+    }
+    if (scenario === "invalid_editor" || scenario === "rejected_editor") {
+      const rejected = scenario === "rejected_editor";
+      expect(output).toMatchObject({
+        researchStatus: rejected ? "partial" : "success",
+        editorStatus: rejected ? "success" : "failed",
+        outcome: "failed",
+        structuralValidation: "passed",
+        targetValidation: "passed",
+        editorPlanValidation: "failed",
+        writeState: "not_attempted",
+        errorCode: rejected ? "editor_rejected" : "validation_failed",
+        committedOperationCount: 0,
+      });
+      expect(traced.result).toMatchObject({
+        operations: [],
+        changes: [],
+        receipts: [],
+      });
+      expect(root.name).toContain(rejected ? "editor-rejected" : "invalid");
+      if (rejected) {
+        expect(root.name).not.toContain("partial");
+      }
     }
     if (scenario === "unchanged") {
       expect(output.writeState).toBe("unchanged");

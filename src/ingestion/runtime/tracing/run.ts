@@ -6,7 +6,7 @@ import type {
   CatalogResearchResult,
 } from "../../contracts";
 import type { ResearchContext } from "../../research/context";
-import type { PreparedResearch } from "../../research/prepare";
+import type { PreparedPlan } from "../../editor/prepare";
 import type { SourceSession } from "../../tools/session";
 import {
   createRunObservability,
@@ -29,7 +29,7 @@ import {
 type Snapshot = {
   phase: string;
   context?: ResearchContext;
-  prepared?: PreparedResearch | null;
+  prepared?: PreparedPlan | null;
   applied?: CatalogItemResult | null;
   report?: CatalogResearchResult;
 };
@@ -58,6 +58,7 @@ export async function createCatalogRunTrace(
   const state: TraceRunState = {
     structuralValidation: "not_run",
     targetValidation: "not_run",
+    editorPlanValidation: "not_run",
     writeState: "not_attempted",
   };
   const update = (values: Partial<Snapshot> = {}) => {
@@ -83,6 +84,7 @@ export async function createCatalogRunTrace(
           ...(snapshot.report
             ? {
                 researchStatus: snapshot.report.researchStatus,
+                editorStatus: snapshot.report.editorStatus,
                 outcome: snapshot.report.outcome,
                 scope: snapshot.report.scope,
                 savedEditionCount: snapshot.report.workload.savedEditions,
@@ -113,7 +115,7 @@ export async function createCatalogRunTrace(
     update,
     state,
     log: tracing.log,
-    validated(prepared: PreparedResearch) {
+    validated(prepared: PreparedPlan) {
       state.structuralValidation = prepared.validation.structural;
       state.targetValidation = prepared.validation.target;
       if (!prepared.candidate) {
@@ -122,6 +124,21 @@ export async function createCatalogRunTrace(
         state.errorCode = "research_failed";
       } else {
         state.writeState = "unchanged";
+      }
+      update({ prepared });
+    },
+    editorValidated(prepared: PreparedPlan) {
+      const rejection = prepared.errors.find(
+        (error) =>
+          error.code === "invalid_plan" || error.code === "editor_rejected",
+      );
+      state.editorPlanValidation = rejection ? "failed" : "passed";
+      if (rejection) {
+        state.errorCode =
+          rejection.code === "editor_rejected"
+            ? "editor_rejected"
+            : "validation_failed";
+        state.writeState = "not_attempted";
       }
       update({ prepared });
     },

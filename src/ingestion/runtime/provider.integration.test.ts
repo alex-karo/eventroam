@@ -5,7 +5,7 @@ import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { DEFAULT_RESEARCH_LIMITS } from "./budget";
 import { loadResearchConfig } from "./config";
-import { runCatalogResearch as executeResearch } from "../workflow";
+import { runFixtureResearch as executeResearch } from "@/test/ingestion";
 
 const runCatalogResearch: typeof executeResearch = async (input, deps) => {
   const result = await executeResearch(input, deps);
@@ -243,7 +243,7 @@ test("actual Mastra request sends a compatible bounded response schema", async (
     wireCandidate(requests[0], candidate),
   );
   expect(requests).toHaveLength(1);
-  expect(result.usage.modelCalls).toBe(1);
+  expect(result.usage.modelCalls).toBe(2);
   expect(result.researchStatus).toBe("success");
   expect(result.errors).toEqual([]);
   expect(result.operations.map((operation) => operation.kind)).toContain(
@@ -255,8 +255,8 @@ test("actual Mastra request sends a compatible bounded response schema", async (
   expect(request.service_tier).toBe("flex");
   expect(request.extraBody).toBeUndefined();
   expect(request.stream).not.toBe(true);
-  expect(result.usage.cachedInputTokens).toBe(6);
-  expect(result.usage.reasoningTokens).toBe(12);
+  expect(result.usage.cachedInputTokens).toBe(null);
+  expect(result.usage.reasoningTokens).toBe(null);
   expect(request.plugins).toBeUndefined();
   expect(request.tools).toBeUndefined();
   expect(request.max_tokens ?? request.max_completion_tokens).toBe(256);
@@ -325,11 +325,10 @@ test.each([
       async (
         requestedUrl: string,
         options: {
-          budget: { consumePage: (depth?: number) => void };
-          depth?: number;
+          budget: { consumePage: () => void };
         },
       ) => {
-        options.budget.consumePage(options.depth);
+        options.budget.consumePage();
         return {
           ...source,
           attemptedUrl: requestedUrl,
@@ -462,14 +461,14 @@ test.each([
     );
     expect(readSource).toHaveBeenCalledTimes(1);
     expect(result.usage).toMatchObject({
-      complete: searchAttempts === 1,
+      complete: false,
       searches: searchAttempts,
       pages: 1,
-      modelCalls: 3 + searchAttempts,
+      modelCalls: 4 + searchAttempts,
       inputTokens: 65,
       outputTokens: 101,
-      cachedInputTokens: searchDetails ? 21 : null,
-      reasoningTokens: searchDetails ? 37 : null,
+      cachedInputTokens: null,
+      reasoningTokens: null,
       modelCostUsd: searchDetails ? 1 : 0.875,
       searchCostUsd: 0.25,
     });
@@ -583,10 +582,8 @@ test.each([null, "I will read the linked page before returning the result."])(
       readSource,
     });
     expect(requests).toHaveLength(2);
-    expect(result.usage.cachedInputTokens).toBe(
-      commentary === null ? 10 : null,
-    );
-    expect(result.usage.reasoningTokens).toBe(commentary === null ? 21 : null);
+    expect(result.usage.cachedInputTokens).toBe(null);
+    expect(result.usage.reasoningTokens).toBe(null);
     expect(result.usage).toMatchObject({ inputTokens: 33, outputTokens: 57 });
     expect(requests[0].reasoning).toBeUndefined();
     expect(requests[0].tools).toEqual(
@@ -785,7 +782,7 @@ test.each([true, false])(
     );
     expect(requests.slice(0, -1).every((request) => request.tools)).toBe(true);
     expect(requests.at(-1)?.tools).toBeUndefined();
-    expect(result.usage.modelCalls).toBe(15);
+    expect(result.usage.modelCalls).toBe(returnsFinalResponse ? 16 : 15);
     expect(result.limits).not.toHaveProperty("modelInputChars");
     if (returnsFinalResponse) {
       expect(result.researchStatus).toBe("success");
@@ -855,7 +852,7 @@ test("provider unavailable retries preserve ordinary agent capacity and call acc
   await vi.advanceTimersByTimeAsync(10_000);
   const result = await pending;
   expect(fetchMock).toHaveBeenCalledTimes(2);
-  expect(result.usage.modelCalls).toBe(2);
+  expect(result.usage.modelCalls).toBe(3);
   expect(result.usage.inputTokens).toBe(10);
   expect(result.usage.complete).toBe(false);
   expect(result.usage.modelCostUsd).toBe(0);
@@ -943,11 +940,11 @@ test.each([
       }),
     });
     expect(result.usage).toMatchObject({
-      complete: true,
+      complete: false,
       inputTokens: 33,
       outputTokens: 57,
-      cachedInputTokens: 10,
-      reasoningTokens: 21,
+      cachedInputTokens: null,
+      reasoningTokens: null,
       modelCostUsd: expectedCost,
     });
     expect(result.errors).toEqual([]);

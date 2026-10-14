@@ -35,3 +35,6 @@ export interface ReadSourceResult {
   /** Whether the fetched source was sufficiently readable to support absence claims. */
   completeness: "full" | "partial" | "none";
 }
+
+/** Inspectable retrieval metadata; page text stays in the source session. */
+export type SourceReadMetadata = Omit<ReadSourceResult, "markdown">;

@@ -38,7 +38,9 @@ const priceDetail = z
   })
   .strict()
   .refine(
-    (value) => (value.amount === undefined) === (value.currency === undefined),
+    (value) =>
+      value.amount === 0 ||
+      (value.amount === undefined) === (value.currency === undefined),
     {
       message: "Amount and currency must be supplied together",
     },

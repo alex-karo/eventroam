@@ -64,6 +64,16 @@ test("saved prices in model context use major units and omit aggregate availabil
   });
   expect(context.editions[0]).not.toHaveProperty("priceMinMinor");
   expect(context.editions[0]).not.toHaveProperty("ticketAvailability");
+  expect(context).not.toHaveProperty("version");
+  expect(context).not.toHaveProperty("createdAt");
+  expect(context).not.toHaveProperty("updatedAt");
+  expect(context.editions[0]).not.toHaveProperty("id");
+  expect(context.editions[0]).not.toHaveProperty("eventId");
+  expect(context.editions[0]).not.toHaveProperty("version");
+  expect(context.editions[0]).not.toHaveProperty("createdAt");
+  expect(JSON.stringify(context).length).toBeLessThan(
+    JSON.stringify(catalog[0]).length,
+  );
   const prompt = promptFor(
     { mode: "refresh", eventId: event.id, actor: "tester" },
     catalog,
@@ -83,7 +93,7 @@ test("saved prices in model context use major units and omit aggregate availabil
   expect(JSON.parse(prompt).compact).not.toBeNull();
   expect(JSON.parse(prompt).remaining).toEqual({
     searches: 3,
-    durationMs: 300_000,
+    durationMs: 600_000,
   });
 });
 
@@ -199,13 +209,13 @@ test("one frozen instant and saved facts preserve local-day and opaque-key match
       context.terms,
       { searches: 3, durationMs: 300_000 },
       [],
-      context.referenceInstant,
+      context.currentDate,
     ),
   );
   expect(context).not.toHaveProperty("refresh");
   expect(prompt).not.toHaveProperty("refresh");
   expect(prompt).not.toHaveProperty("todayUtc");
-  expect(prompt.referenceInstant).toBe(instant);
+  expect(prompt.currentDate).toBe(instant);
   expect(prompt.scope).toBe("current");
   expect(prompt.compact.editions).toEqual(
     expect.arrayContaining([

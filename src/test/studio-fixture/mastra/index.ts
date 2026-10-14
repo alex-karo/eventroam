@@ -1,3 +1,4 @@
+import { fixtureEditorForProvider } from "../../ingestion";
 import Database from "better-sqlite3";
 import { Mastra } from "@mastra/core/mastra";
 import { createCatalogIngestionWorkflow } from "../../../ingestion/workflow";
@@ -84,7 +85,11 @@ const candidate = {
           message: {
             role: "assistant",
             content: JSON.stringify(
-              wireFixture(candidate, body.response_format?.json_schema?.schema),
+              fixtureEditorForProvider(body) ??
+                wireFixture(
+                  candidate,
+                  body.response_format?.json_schema?.schema,
+                ),
             ),
           },
           finish_reason: "stop",
@@ -129,7 +134,8 @@ export async function createFixtureMastra() {
                 method: "http" as const,
                 outcome: "ok" as const,
                 completeness: "full" as const,
-                markdown: `${OFFLINE_SENTINEL} Fixture festival starts July 1, 2027.`,
+                markdown:
+                  "PRIVATE_STUDIO_PAGE_BODY Fixture festival starts July 1, 2027.",
                 links: [],
               };
             },

@@ -23,7 +23,7 @@ The source reader SHALL retrieve public pages through bounded HTTP requests and 
 - **THEN** the reader blocks the request before connecting to that destination
 
 ### Requirement: Collection runs are owner initiated
-The system SHALL start discovery, source checks, and refreshes only through an owner-initiated local operation in the first version. Model calls SHALL use OpenRouter. Owner-initiated execution through the loopback Mastra Studio server is supported alongside the local CLI. Legacy import, hosted collection services, and unattended scheduling remain outside scope.
+The system SHALL start discovery, source checks, and refreshes only through an owner-initiated local operation. The owner SHALL be able to execute runs through the local CLI or loopback Studio without a deployed collection server. Legacy import, hosted collection services, and unattended scheduling SHALL remain outside scope.
 
 #### Scenario: No unattended refresh
 - **WHEN** no owner starts a run
@@ -31,7 +31,7 @@ The system SHALL start discovery, source checks, and refreshes only through an o
 
 #### Scenario: Owner starts a local run
 - **WHEN** the owner initiates a collection run locally
-- **THEN** the run can complete without a deployed collection server and uses OpenRouter for any model calls
+- **THEN** the run can complete through CLI or loopback Studio without a deployed collection server
 
 #### Scenario: Default research model
 
@@ -93,7 +93,7 @@ The system SHALL preserve stored Facebook and Instagram links for catalog displa
 - **THEN** it processes the website, retains the Instagram link, and reports Instagram retrieval as unsupported without blocking other model-proposed facts
 
 ### Requirement: Candidate matching respects enduring Event identity
-The model SHALL use linked URLs, available official IDs, canonical URLs, name, geography, and Edition facts to select an Event without requiring a separate source registry. It SHALL keep parallel festivals under one brand as separate Events while preserving one Event when a festival relocates between years. Saved URLs SHALL be research leads, not proof of identity. The host SHALL enforce requested targets and the country guard without independently adjudicating source authority or ambiguous identities.
+The model SHALL use linked URLs, available official IDs, canonical URLs, name, geography, and Edition facts to select an Event. It SHALL keep parallel festivals under one brand as separate Events while preserving one Event when a festival relocates between years. Saved URLs SHALL be research leads, not proof of identity. The host SHALL enforce requested targets and the country guard without independently adjudicating source authority or ambiguous identities.
 
 For `refresh`, research SHALL load only the requested Event's private context.
 
@@ -111,33 +111,33 @@ For `refresh`, research SHALL load only the requested Event's private context.
 - **AND** a cross-country relocation fails the whole refresh even with official continuity; duplicate add still returns skipped with the existing Event ID and creates nothing
 
 ### Requirement: Model output is accepted as the research decision
-The model SHALL interpret inspected material and propose facts and links within the requested assignment. The host SHALL enforce schema, assignment target boundaries, simple scope bounds, country conflicts, explanations, and target checks. Outside these explicit checks, it SHALL accept factual interpretation without verifying citations, source authority, ticket-link provenance, other contradictions, or supersession.
+Research SHALL interpret inspected material as findings within the requested assignment. A separate editor SHALL compare those findings with saved state and produce the only actionable plan. The host SHALL enforce schema, assignment target boundaries, simple scope bounds, country conflicts, explanations, and target checks. Outside these explicit checks, host code SHALL accept the editor's factual decisions without independently verifying citations, source authority, ticket-link provenance, other contradictions, or supersession. Research findings alone SHALL NOT authorize writes.
 
 #### Scenario: A source claim is semantically wrong
-- **WHEN** the model returns a structurally valid but mistaken fact that passes assignment and country checks
-- **THEN** the host does not perform a second semantic check and the model eval can flag the resulting change
+- **WHEN** a finding supplies a date whose evidence concerns another Edition
+- **THEN** the editor keeps the saved date and explains the mismatch; evals assess correctness rather than treating schema validity as proof
 
 #### Scenario: Inspected sources conflict
 - **WHEN** the model proposes an in-scope, structurally valid fact despite a conflict between inspected sources, without violating the country guard
-- **THEN** the host applies the proposal without dropping the field for lack of confirmation
+- **THEN** the editor selects a replacement only when supplied evidence supports it, otherwise preserves the field with an unresolved question; independent supported changes may proceed
 
 #### Scenario: Model omits a price block
 - **WHEN** the model omits the tickets block after a failed source read
 - **THEN** the stored price block is preserved
 
 ### Requirement: Runs report attributable outcomes
-The system SHALL report each run's mode (`add` or `refresh`) and resulting record outcome (`created`, `updated`, `published`, `unchanged`, `skipped`, or `failed`), with stable catalog identifiers where a record exists. Reports SHALL include the run's proposed or applied old/new values, factual explanations, and inspected source URLs. Refresh reports SHALL also include top-level scope/referenceInstant and saved/returned Edition counts, without a separate refresh-context payload, and retain returned facts, including unchanged findings, in the raw model response, plus existing unresolved questions and source summaries, even when nothing changes. Omitted facts SHALL NOT receive inferred not_found/unfinished outcomes or confirmations. Reports SHALL NOT include a separate verification array or returned-fact counters; actual changes SHALL use the existing writer audit. They SHALL separately identify research status, execution errors with stages, and unresolved questions; a catalog mutation outcome SHALL NOT stand in for research completion. Source-check results SHALL identify the inspected URL, UTC check time, and outcome, distinguishing unsupported retrieval from successful checks and failures. CLI/eval reports SHALL use version 4. Failed research/writing SHALL exit nonzero; partial alone SHALL exit zero. Reports SHALL NOT require persistent source identifiers. Every started attempt SHALL retain its durable runId and final report in ingestion_runs, including failures, previews, and no-ops; exported reports SHALL match stored reports.
+The system SHALL report each run's mode (`add` or `refresh`) and resulting record outcome (`created`, `updated`, `published`, `unchanged`, `skipped`, or `failed`), with stable catalog identifiers where a record exists. Reports SHALL include the run's proposed or applied old/new values, factual explanations, and inspected source URLs. Refresh reports SHALL also include top-level scope/currentDate and saved/returned Edition counts, and retain returned facts, including unchanged findings, in the raw model response, plus existing unresolved questions and source summaries, even when nothing changes. Omitted facts SHALL NOT receive inferred not_found/unfinished outcomes or confirmations. Reports SHALL NOT include a separate verification array or returned-fact counters; actual changes SHALL match the catalog audit. They SHALL separately identify research status, execution errors with stages, and unresolved questions; a catalog mutation outcome SHALL NOT stand in for research completion. Source-check results SHALL identify the inspected URL, UTC check time, and outcome, distinguishing unsupported retrieval from successful checks and failures. CLI/eval reports SHALL use version 5. Failed research/editing/writing SHALL exit nonzero; partial alone SHALL exit zero. Reports SHALL NOT require persistent source identifiers. Every started attempt SHALL retain its durable runId and final report in private run history, including failures, previews, and no-ops; exported reports SHALL match stored reports.
 
 #### Scenario: Preserve the final model response
 - **WHEN** a model generation returns a final response
-- **THEN** private research and eval reports retain its final text and unnormalized structured object in `modelResponse`, separately from catalog operations
-- **AND** the response remains available when candidate validation or writing fails
-- **AND** unavailable responses or components are recorded as null, without copying prompts, page bodies, or transport metadata
+- **THEN** private research and eval reports retain research final text and unnormalized structured object in `modelResponse`, and editor equivalents in `editorResponse`, separately from catalog operations
+- **AND** both available responses remain available when editing, plan validation or writing fails
+- **AND** unavailable responses or components are recorded as null, without copying prompts, full page bodies, or transport metadata; concise returned evidence remains available
 
 #### Scenario: Reasoning configuration and token accounting
 
 - **WHEN** the owner configures a supported reasoning effort
-- **THEN** research and discovery requests send that effort and reports identify the requested setting
+- **THEN** research, editor and discovery requests send that effort and reports identify the requested setting
 - **AND** omitting the setting explicitly selects `medium`
 - **AND** reports accumulate provider-reported input, output, cached input, and reasoning token counts from completed steps, retaining those counts when a later step fails or is interrupted and using null for unavailable cached input or reasoning details
 - **AND** reports set `usage.complete` to false when a call fails, is interrupted, lacks token usage, or includes unaccounted discovery attempts; the CLI marks the known token counts as partial
@@ -157,7 +157,7 @@ The system SHALL report each run's mode (`add` or `refresh`) and resulting recor
 - **AND** the dry run retains no catalog fact, version, audit, or receipt changes; its ingestion run and final preview report persist
 
 #### Scenario: Research succeeds but writing fails
-- **WHEN** the writer rejects valid research operations
+- **WHEN** the writer rejects operations from a valid editorial plan
 - **THEN** preserve research status, report write-stage error/outcome failed, and commit no catalog changes; retain the failed ingestion run
 
 #### Scenario: Partial no-op remains visible
@@ -167,17 +167,34 @@ The system SHALL report each run's mode (`add` or `refresh`) and resulting recor
 #### Scenario: Only the new report contract is supported
 - **WHEN** a consumer receives an unsupported report version
 - **THEN** it rejects that version explicitly, without legacy gaps fallback or automatic conversion
-- **AND** new reports use version 4 and do not emit gaps
+- **AND** new reports use version 5 and do not emit gaps
 
-#### Scenario: Report compatibility is owned by application code
-- **WHEN** the private run-table migration removes ingestion_runs_report_ck
-- **THEN** existing rows and report JSON remain unchanged, including historical version-2/version-3 reports
-- **AND** application finalization validates the active report version and run correspondence; database report storage does not restrict report versions
+#### Scenario: Historical reports survive a report-contract update
+- **WHEN** the active report contract changes
+- **THEN** stored historical report JSON remains unchanged, including version-2/version-3 reports
+- **AND** new final reports conform to the active version and their run; unsupported historical versions are rejected explicitly by consumers
 
 #### Scenario: Saved output correlates with the database
 - **WHEN** an attempt finishes and the owner requests JSON output or a --report file
 - **THEN** its runId and report content match the stored final report
 - **AND** optional file-export failure does not change the finalized run record
+
+#### Scenario: Editor outcome is separate from research completion
+- **WHEN** usable research succeeds but editing fails or returns an invalid plan
+- **THEN** retain research status/findings, editorStatus=failed, a staged error, catalog outcome failed and known usage, with no writes and a nonzero exit
+
+#### Scenario: Explicit decisions survive a no-op
+- **WHEN** the editor returns a valid plan with explicit keep actions
+- **THEN** retain the plan and reasons once in the structured editor response, without a separate serialized validated plan, synthetic audit changes or a field-verification ledger
+- **AND** editorStatus is success; skipped editing is not_run and missing output is null
+
+#### Scenario: Invalid editor output has one retained representation
+- **WHEN** an editor returns a structured object that fails plan validation
+- **THEN** preserve that object once in editorResponse with validation errors and failed editor status, without creating a second plan copy or applying operations
+
+#### Scenario: Costs include both agents once
+- **WHEN** research, editor and discovery have reported usage
+- **THEN** totals include each reported charge/token count once and preserve unknown/partial accounting semantics, including after editor failure
 
 ### Requirement: Dry runs preview changes without applying them
 The system SHALL let the owner inspect a transient diff of proposed catalog changes before an apply run. Dry-run SHALL use a transaction on the catalog database and roll it back without retained catalog record, version, audit, or receipt changes; it SHALL NOT create a database copy. The ingestion run record and final preview report SHALL persist outside that rollback.
@@ -193,11 +210,21 @@ The system SHALL let the owner inspect a transient diff of proposed catalog chan
 - **AND** the finalized run report retains the preview, including transient identifiers, without requiring those identifiers to reference retained catalog records
 
 ### Requirement: Eligible apply runs publish without review queues
-The system SHALL apply and publish model-proposed, structurally eligible records directly through catalog operations, with atomic audit history and no per-item or batch approval task.
+The system SHALL apply and publish editor-planned, structurally eligible records through catalog operations, with atomic audit history and no per-item or batch approval task.
 
 #### Scenario: Complete new festival
-- **WHEN** an owner-initiated run proposes a new in-scope Event and Edition with all structurally required publication facts
+- **WHEN** an owner-initiated run produces a valid editorial plan creating an in-scope Event and Edition with all structurally required publication facts
 - **THEN** the apply operation publishes them, records the changes atomically, and reports stable identifiers
+
+#### Scenario: Kept draft content can still publish
+- **WHEN** a valid plan updates Event summary and keeps or omits all content fields of an addressed eligible draft Edition
+- **THEN** code publishes that Edition and its Event if eligible, while preserving the Edition content
+- **AND** keep on an Event field does not veto child publication; unaddressed Editions are not automatically added as publication targets
+
+#### Scenario: Kept withdrawn content requires republish permission
+- **WHEN** a valid plan addresses a withdrawn Edition without changing its content
+- **THEN** it remains withdrawn unless republish permission is supplied and publication gates pass
+- **AND** dry-run previews the same publication decisions without retained writes
 
 ### Requirement: Interrupted collection can be rerun from current state
 After interruption, a new owner-initiated run SHALL reload the catalog and research again with new operation keys. Committed changes SHALL remain; incomplete item transactions SHALL roll back. Existing writer receipt idempotency SHALL remain supported. An attempt stopped before finalization SHALL remain running with no finish time or final report; this SHALL NOT be treated as proof of success or failure. Reruns SHALL create new run records without changing earlier records. Automatic run recovery and a history-viewing command remain outside the current scope.
@@ -212,10 +239,10 @@ After interruption, a new owner-initiated run SHALL reload the catalog and resea
 - **AND** a new owner-initiated attempt has a different runId and starts from current catalog state
 
 ### Requirement: One research result governs each atomic catalog update
-Research SHALL produce one final structured result. Only valid success or partial data for the requested assignment that passes country guards SHALL produce catalog operations; omitted values SHALL be preserved. Failed or invalid results SHALL produce no operations or automatic model correction attempts. Catalog updates SHALL enforce structural, version, no-op, and publication rules atomically: an invalid operation SHALL leave the whole item unchanged.
+Research SHALL produce one final findings result. Only validated usable success/partial findings that pass country guards SHALL enter editing. Only a valid editorial plan for the requested assignment SHALL produce catalog operations; omitted values SHALL be preserved. Failed or invalid research or editing SHALL produce no operations or automatic model correction attempts. Catalog updates SHALL enforce structural, version, no-op, and publication rules atomically: an invalid operation SHALL leave the whole item unchanged.
 
 #### Scenario: A validated proposal violates catalog constraints
-- **WHEN** a proposal passes candidate validation but violates catalog constraints, such as clearing dates while retaining scheduled status
+- **WHEN** an editorial plan passes plan validation but violates catalog constraints, such as clearing dates while retaining scheduled status
 - **THEN** the whole item remains unchanged and the run reports write_failed while preserving research status
 
 #### Scenario: Research needs a more specific page
@@ -233,7 +260,7 @@ Research SHALL produce one final structured result. Only valid success or partia
 #### Scenario: Intermediate commentary is not a catalog proposal
 - **WHEN** research returns commentary while still requesting source information
 - **THEN** commentary produces no catalog operations; research may continue within its budget
-- **AND** only the final result that passes schema and target validation can produce operations
+- **AND** only the final editorial plan that passes schema and target validation can produce operations
 
 ### Requirement: Add creates new Events without updating existing ones
 Add SHALL create a new Event or skip a recognized existing Event. A duplicate SHALL return catalog outcome skipped and the existing ID, with no operations or publication changes. Research status/diagnostics SHALL remain visible; skipped alone SHALL exit zero. Existing-record updates SHALL require targeted refresh.
@@ -304,57 +331,10 @@ Errors SHALL carry a code and bounded message, with optional URL/target. Questio
 - **WHEN** execution fails or exhausts its limit without valid final output
 - **THEN** the host reports failure with an error and null data; intermediate/malformed facts are not written
 
-### Requirement: Edition proposals use named typed fields
-Editions SHALL use unique `key` descriptors and typed `year` facts, with named `{ value, reason }` facts, complete `tickets`, and `classification` patches. Add and refresh SHALL retain the existing proposal shape: return supported named facts as `{value, reason}`, omit unknown/unverified facts, and explain them through model-authored unresolved questions. New per-field status unions, not_found/unfinished finding objects, and a separate identity field SHALL NOT be introduced. Existing fact reason and unresolved semantics SHALL remain unchanged: data.reason is required only for creation, and partial results still require an unfinished-check question. Omission alone SHALL NOT cause host-derived partial status or a per-field completion outcome. Add SHALL retain its existing proposal form and descriptors. Ownership SHALL follow the enclosing Edition. Omission SHALL preserve values; explicit null SHALL clear only nullable facts. Legacy generic claims/prices SHALL be rejected.
 
-#### Scenario: Facts for two editions remain separate
-- **WHEN** venue and ticket proposals concern different Editions
-- **THEN** each is nested and applied only within its Edition, without repeated key
-
-#### Scenario: Typed fields replace generic field names
-- **WHEN** output contains wrong types, unknown properties, claims, top-level/Edition prices, or nested priceDetails
-- **THEN** strict validation rejects it before writing
-
-#### Scenario: A partial field update preserves other facts
-- **WHEN** venueName changes, locality is omitted, and venueAddress explicitly has an explained null value
-- **THEN** preserve locality and clear only the address
-
-#### Scenario: Optional wire null differs from explicit clearing
-- **WHEN** optional fact wrappers are null on the wire
-- **THEN** omit them; preserve inner value nulls for nullable facts and reject them otherwise
-
-#### Scenario: Prices remain a complete replacement
-- **WHEN** tickets.value supplies variants and basePrice
-- **THEN** replace stored variants and base price atomically; empty variants plus null basePrice clears, omission preserves, and null/incomplete blocks fail validation
-
-#### Scenario: Classification remains an additive and subtractive patch
-- **WHEN** explained classification.add/remove arrays are supplied
-- **THEN** union additions then subtract removals; removal wins and omitted/empty sides preserve other terms
-
-#### Scenario: Schedule status has one source
-- **WHEN** research establishes cancellation
-- **THEN** propose explained scheduleStatus=cancelled; reject the legacy descriptor status field
-
-#### Scenario: Omitted schedule status preserves existing behavior
-- **WHEN** scheduleStatus is omitted
-- **THEN** preserve stored status or the creation default; historical research needs no completed status
-
-#### Scenario: Refresh retains the existing proposal shape
-- **WHEN** refresh returns a supported country or ticket fact
-- **THEN** the fact uses the existing value/reason shape and existing nullable-fact, complete-ticket, classification-patch, and link-slot rules
-- **AND** no parallel findings or field-status payload is returned
-
-#### Scenario: Unknown or unverified values have no placeholder
-- **WHEN** inspected sources do not establish a value or its check is unfinished
-- **THEN** omit that fact and describe the limitation in an existing unresolved entry with optional editionKey/field
-- **AND** do not repeat a saved value or use inner value:null as a substitute for absent evidence
-
-#### Scenario: New field-status variants are rejected
-- **WHEN** a fact contains a not_found/unfinished status object instead of the existing value/reason shape
-- **THEN** strict schema validation rejects the result before operations
 
 ### Requirement: Dates and coordinates are complete grouped facts
-Dates SHALL group startsOn/endsOn/state; coordinates SHALL group latitude/longitude/precision, each with one reason. Supplied blocks SHALL replace all components; omission SHALL preserve them; null SHALL clear the pair and set state/precision to unknown.
+Dates SHALL group startsOn/endsOn/state; coordinates SHALL group latitude/longitude/precision, each with one reason. Editor accept/set actions SHALL replace all components; keep or omission SHALL preserve them; clear SHALL clear the pair and set state/precision to unknown.
 
 #### Scenario: Date correction carries the complete range
 - **WHEN** either date changes
@@ -369,7 +349,7 @@ Dates SHALL group startsOn/endsOn/state; coordinates SHALL group latitude/longit
 - **THEN** reject the candidate before writing
 
 #### Scenario: Clear a complete group
-- **WHEN** dates.value or coordinates.value is explicitly null with a reason
+- **WHEN** dates or coordinates has a clear action with a reason and supporting research evidence
 - **THEN** clear both components and set state/precision to unknown; omitted groups remain unchanged
 
 #### Scenario: Clearing dates respects catalog constraints
@@ -388,7 +368,7 @@ Research SHALL reject timeZone, preserve saved zones even after relocation, and 
 - **THEN** use the existing UTC fallback without changing date filters
 
 ### Requirement: Ticket availability belongs to each ticket variant
-Only labelled tickets.value.variants SHALL propose availability: unknown/available/sold_out/closed. Edition-level availability proposals SHALL be rejected; no Edition-wide value SHALL be inferred from variants or exposed publicly. Complete ticket replacement SHALL remain required. Assigned ticket checks SHALL cover published amounts, eligibility, coverage, and availability; qualified offers SHALL retain their qualifications and base-price eligibility. Incomplete extraction SHALL NOT discard unverified saved categories.
+Only labelled ticket variants in findings and complete editorial replacements SHALL carry availability: unknown/available/sold_out/closed. Edition-level availability proposals SHALL be rejected; no Edition-wide value SHALL be inferred from variants or exposed publicly. Complete ticket replacement SHALL remain required. Assigned ticket checks SHALL cover published amounts, eligibility, coverage, and availability; qualified offers SHALL retain their qualifications and base-price eligibility. Incomplete extraction SHALL NOT discard unverified saved categories.
 
 #### Scenario: Categories have different availability
 - **WHEN** Early Bird is sold out but Regular remains available
@@ -400,7 +380,7 @@ Only labelled tickets.value.variants SHALL propose availability: unknown/availab
 
 #### Scenario: Availability-only correction preserves the complete intended price block
 - **WHEN** one variant's availability changes
-- **THEN** supply the complete intended variants/basePrice with a reason, or omit the block and report uncertainty; never implicitly delete other variants through a partial replacement
+- **THEN** the editor supplies complete intended variants/basePrice with a reason and evidence, or keeps the block and reports uncertainty; never implicitly delete other variants through a partial replacement
 
 #### Scenario: Closed category does not imply cancellation
 - **WHEN** category sales ended without sell-out evidence
@@ -412,11 +392,11 @@ Only labelled tickets.value.variants SHALL propose availability: unknown/availab
 - **AND** price omission despite readable relevant content leaves the ticket check unfinished rather than complete
 
 #### Scenario: Only part of a saved ticket block can be verified
-- **WHEN** research cannot establish a complete intended replacement without accidentally dropping unverified saved categories
-- **THEN** it omits the ticket mutation, preserves the saved block, and reports the incomplete check
+- **WHEN** supplied ticket findings are incomplete
+- **THEN** the editor preserves unchallenged saved categories when it can construct a supported complete replacement; otherwise it keeps the saved block and reports the incomplete check
 
 ### Requirement: Proposed facts explain their basis
-Named facts, tickets, classification sides, and descriptions SHALL carry a reason explaining the value/correction. Event identity SHALL require one only for creation. Reasons SHALL remain private without source references or new semantic verification; old values SHALL come from the catalog.
+Research findings and explicit editorial actions SHALL carry reasons. Set/clear actions and creation SHALL explain their basis in supplied research and saved state without repeating source URLs; source references SHALL remain in research. Event identity SHALL require one only for creation. Reasons and evidence SHALL remain private without claiming independent host verification; old values SHALL come from the catalog.
 
 #### Scenario: Checking a known Event needs no identity explanation
 - **WHEN** research resolves an existing Event, including a skipped duplicate add
@@ -424,15 +404,15 @@ Named facts, tickets, classification sides, and descriptions SHALL carry a reaso
 
 #### Scenario: Creation requires an identity explanation
 - **WHEN** research proposes creating a new Event
-- **THEN** require data.reason before operations; reasons never bypass target checks or authorize reassignment
+- **THEN** require an editorial creation reason and evidence before operations; reasons never bypass target checks or authorize reassignment
 
 #### Scenario: Venue changes
 - **WHEN** a venue move is proposed
-- **THEN** report its explanation with actual old/new values, without a fact-to-page reference
+- **THEN** report its explanation with actual old/new values, with its reason; supporting source references remain in the research result
 
 #### Scenario: Clearing needs a factual basis
-- **WHEN** a nullable fact or ticket block is explicitly cleared
-- **THEN** require a reason; failed reads/missing partial-page content do not authorize clearing
+- **WHEN** a nullable field or clearable block has a clear action
+- **THEN** require a reason and source-backed grounds for removing the saved value; failed reads/missing partial-page content do not authorize clearing
 
 #### Scenario: Aggregate changes retain multiple explanations
 - **WHEN** multiple explained proposals contribute to a catalog change or one grouped proposal changes several facts
@@ -480,11 +460,11 @@ For an existing Event, eventName SHALL NOT rename it or change aliases/slug. The
 - **THEN** eventNameMismatch is null
 
 ### Requirement: Source summaries describe useful inspected pages
-Non-null data SHALL include sources entries `{ url, information }`, unique by normalized HTTP(S) URL, describing actual page information and edition context. Facts SHALL NOT reference entries by URL/ID/index. Summaries SHALL remain private and distinct from public links and retrieval history.
+Non-null research data SHALL include sources unique by normalized HTTP(S) URL, with existing information text carrying relevant source statements or short excerpts, Edition context and material limitations/conflicts; no separate evidence collection is required. Evidence for findings, Event identity and public-link association SHALL remain in `sources[].information`; named fact wrappers SHALL retain only value/reason without per-field source references. Editorial actions SHALL carry reasons without duplicating source references. Summaries SHALL remain private and distinct from public links and retrieval history.
 
 #### Scenario: One page supplies several facts
 - **WHEN** a page covers multiple topics/editions
-- **THEN** include one combined contextual summary without repeating its URL on facts
+- **THEN** include one combined contextual summary that multiple research findings can reference
 
 #### Scenario: An unread destination is not an informative source
 - **WHEN** a destination is unread or failed without useful content
@@ -495,11 +475,11 @@ Non-null data SHALL include sources entries `{ url, information }`, unique by no
 - **THEN** summarize dates and limitations without claiming prices were read; retrieval remains partial
 
 #### Scenario: Shared summaries survive no-op or write failure
-- **WHEN** valid research changes nothing or writing fails
+- **WHEN** valid research produces no changes, editing fails or writing fails
 - **THEN** retain summaries independently of changes and separately from retrieval outcomes
 
 ### Requirement: Research returns bounded official links with structural ownership
-Research SHALL return at most one Event website, one account per supported social key, and one ticket URL per edition. The researching model SHALL determine officiality/association; their position in the result SHALL determine ownership.
+Research SHALL return at most one Event website, one account per supported social key, and one ticket URL per edition. Research SHALL provide evidence of officiality/association and the editor SHALL decide set/clear/keep for the same owner/kind slots; their position in the result SHALL determine ownership.
 
 #### Scenario: Festival website and social accounts
 - **WHEN** official website/accounts are found
@@ -526,16 +506,16 @@ Research SHALL return at most one Event website, one account per supported socia
 - **THEN** retain them as sources, not miscellaneous public links
 
 #### Scenario: Preserve omitted link slots
-- **WHEN** a slot is omitted, wire-null, or socials is empty
+- **WHEN** an editorial slot is omitted, wire-null, or explicitly kept
 - **THEN** preserve its saved links; inaccessible pages alone never delete them
 
 #### Scenario: Replace a supplied link slot
-- **WHEN** research supplies a new URL for an owner/kind slot
+- **WHEN** the editor sets a new URL for an owner/kind slot
 - **THEN** replace all previous links in that slot with the selected URL, preserving other kinds/owners and public inheritance
 - **AND** invalid replacements fail atomically without deleting the old links
 
 #### Scenario: Reject malformed link proposals
-- **WHEN** links are non-HTTP(S), socials is an array, keys are unknown, slots are non-string, or targets invalid
+- **WHEN** links are non-HTTP(S), socials is an array, keys are unknown, set values are not strings or clear/keep actions contain values, or targets invalid
 - **THEN** reject the candidate before writing
 
 #### Scenario: Malformed URLs preserve the failure report
@@ -546,6 +526,11 @@ Research SHALL return at most one Event website, one account per supported socia
 - **WHEN** a slot already contains exactly its proposed normalized URL
 - **THEN** the replacement is a no-op; multiple old links collapse to one when explicitly replaced
 - **AND** one ticket URL explicitly assigned to two editions remains on both
+
+#### Scenario: Clear a disproven link
+- **WHEN** supplied evidence establishes that a saved link is no longer associated with its owner and the editor clears that slot
+- **THEN** remove only that owner's links of that kind, preserving other slots and owners
+- **AND** inaccessible destinations alone do not authorize clearing; empty-string deletion sentinels are rejected
 
 ### Requirement: Model failures expose safe technical details
 Host-generated model_failed errors SHALL preserve bounded safe structured diagnostics in CLI text, JSON, and eval reports: recognized error/cause types, HTTP status, provider/network code, and retryability when available. Unknown fields SHALL remain absent or explicitly unknown. Diagnostics SHALL exclude raw exception messages, provider payloads, request/response headers, prompts, and credentials. Research limits SHALL retain precedence over model_failed. Ordinary research SHALL retry only explicit OpenRouter `provider_unavailable` errors, at most three times per run with 10-second, 30-second, and 90-second exponential backoff within the existing deadline. Unavailable attempts SHALL retain ordinary research capacity through bounded retry allowance. Other model failures SHALL NOT trigger automatic retries; known usage accounting SHALL be retained. Retries SHALL retain completed steps and SHALL NOT replay their tools or estimate missing usage/cost.
@@ -588,8 +573,7 @@ The owner SHALL be able to enable apply-run tracing independently of application
 - **THEN** ingestion retains its original result/error and cleanup phases are still attempted with fixed content-free diagnostics
 
 ### Requirement: Exported research traces exclude content payloads
-
-Host-owned span input/output/metadata SHALL contain only explicitly selected values. SDK-generated spans SHALL suppress automatic sensitive content at its source where supported; otherwise a minimal fail-closed exclusion SHALL remove prompts, message history, source bodies, full responses, transport payloads and raw errors before persistence. Safe host-owned fields, identity, timing, technical status and relationships SHALL remain visible. No generic recursive field allowlist or whole-projection byte cap is required for host-owned objects.
+Stored traces SHALL exclude prompts, message history, source bodies, full responses, transport payloads and raw errors, including automatically generated content. Safe identity, timing, technical status and relationships SHALL remain inspectable. Exclusion failures SHALL NOT permit sensitive content to persist.
 
 #### Scenario: Automatic model span captures messages
 - **WHEN** the SDK attempts to attach prompts or model history to a span
@@ -600,8 +584,7 @@ Host-owned span input/output/metadata SHALL contain only explicitly selected val
 - **THEN** its explicit status, URL, method and completeness remain after reopen without the source body
 
 ### Requirement: Research tracing does not forward SDK logs
-
-Enabling tracing or application logging SHALL NOT forward unrestricted SDK-generated logs. The exporter SHALL admit selected application Pino events through a narrow source distinction and exclude SDK logs by default. Sensitive SDK span payloads SHALL be suppressed at their source where supported or excluded by the smallest necessary fail-closed export mechanism.
+Enabling tracing or application logging SHALL NOT persist unrestricted SDK-generated logs. Stored observability records SHALL exclude prompts, message history, source bodies, full responses and raw errors while retaining safe application events and trace metadata.
 
 #### Scenario: SDK generated content
 - **WHEN** the SDK creates an automatic log or span containing a prompt, message history, source body, or full response
@@ -613,7 +596,7 @@ Tracing SHALL use the local observability store separate from the catalog and re
 
 #### Scenario: Fresh process inspection
 - **WHEN** a completed run releases the store and Studio later opens it
-- **THEN** safe root/source labels, result fields and the registered ingestion graph are visible without model credentials or catalog access; execution dependencies are loaded only when starting a workflow
+- **THEN** safe root/source labels, result fields and the registered ingestion graph are visible without model credentials or catalog access; inspection alone starts no execution
 
 ### Requirement: Every festival attempt has a durable lifecycle
 After input and configuration validation, the system SHALL persist a running record in the selected catalog database before context/source/model work. Each attempt SHALL have a unique ID, UTC start time, safe normalized input (including defaulted full/current scope for refresh), and required nonempty text mode, fixed at start and equal to mode in input and final report JSON. Finalization SHALL update the same record with UTC finish time and private report. Lifecycle status SHALL be separate from research status and catalog outcome.
@@ -630,7 +613,7 @@ After input and configuration validation, the system SHALL persist a running rec
 
 #### Scenario: Storage accepts evolving mode names
 - **WHEN** the application introduces another supported invocation mode
-- **THEN** run storage accepts its nonempty text name without a table migration or closed-list enum/type/constraint
+- **THEN** run history retains the supported mode name and allows it to be queried before a final report exists
 - **AND** command validation remains responsible for deciding which workflows can execute
 
 #### Scenario: Multiple targets have independent attempts
@@ -662,7 +645,7 @@ After input and configuration validation, the system SHALL persist a running rec
 - **AND** catalog facts, publication, audits, and operation receipts remain unchanged
 
 ### Requirement: Run records identify their associated Event when known
-Each run record SHALL have nullable event_id for an existing requested/matched Event or one committed by the attempt. Refresh SHALL set it at start; add SHALL start with null and resolve it at finalization. Rolled-back creation identifiers SHALL remain only in the report. Event association SHALL NOT require a foreign key or imply successful mutation.
+Each run record SHALL have nullable event_id for an existing requested/matched Event or one committed by the attempt. Refresh SHALL set it at start; add SHALL start with null and resolve it at finalization. Rolled-back creation identifiers SHALL remain only in the report. Event association SHALL NOT imply successful mutation.
 
 #### Scenario: Targeted attempt starts with its Event association
 - **WHEN** a validated refresh attempt starts
@@ -704,7 +687,7 @@ Final run reports SHALL retain duration, model/prompt configuration, budgets, to
 - **THEN** modelCostUsd is null rather than zero
 
 #### Scenario: Retrieval has no billed-cost metadata
-- **WHEN** HTTP or Firecrawl retrieval does not supply billing metadata
+- **WHEN** source retrieval does not supply billing metadata
 - **THEN** retain available source outcomes and page counters without inventing a retrieval charge or interpreting missing charges as free service
 
 ### Requirement: Run persistence failures are visible without replaying work
@@ -736,7 +719,7 @@ Run records SHALL expose input_tokens, output_tokens, model_cost_usd, search_cos
 - **THEN** the columns retain those counts and the subtotal, and set usage_complete to false without claiming complete spending
 
 ### Requirement: Eval acceptance distinguishes host failures from expected research failure
-Eval output SHALL preserve runId and available report data when finalization fails and SHALL identify safe host workflow/persistence failures. Those failures SHALL invalidate eval acceptance even when research/catalog outcomes are successful or a source-failure case otherwise meets expectations. New version-4 consumers SHALL reject historical version-2/version-3 reports explicitly; existing rows/files SHALL remain unchanged.
+Eval output SHALL preserve runId and available report data when finalization fails and SHALL identify safe host workflow/persistence failures. Those failures SHALL invalidate eval acceptance even when research/catalog outcomes are successful or a source-failure case otherwise meets expectations. New version-5 consumers SHALL reject historical version-2, version-3 and version-4 reports explicitly; existing rows/files SHALL remain unchanged.
 
 #### Scenario: A late workflow error follows useful research
 - **WHEN** an eval report retains successful research and a non-failed catalog outcome but contains workflow_failed
@@ -752,8 +735,8 @@ Eval output SHALL preserve runId and available report data when finalization fai
 - **THEN** it fails eval acceptance; expected source failure alone remains acceptable when all existing criteria hold
 
 #### Scenario: Historical reports remain opaque storage
-- **WHEN** scoped refresh replaces the prerequisite's active Edition report v2/v3 with v4
-- **THEN** newly generated reports use v4 and old stored report JSON remains unchanged
+- **WHEN** editorial ingestion replaces active report v4 with v5
+- **THEN** newly generated reports use v5 and old stored report JSON remains unchanged
 - **AND** historical report reading/scoring remains unsupported; no compatibility adapters or conversion are introduced
 
 ### Requirement: Run records remain private bounded reports
@@ -793,8 +776,7 @@ Trace labels SHALL identify the Event, mode, context Editions and confirmed comm
 - **THEN** final labels distinguish `ctx:2026` from `created:2027` and retain the research outcome
 
 ### Requirement: Source diagnostics retain only bounded safe projections
-
-Source spans SHALL record explicitly selected read URLs, outcome/reason/method/completeness and source/tool truncation where known; discovery spans SHALL record selected query and candidate URLs/counts. Producers SHALL select and shorten useful fields without a generic projection framework. Technical completion SHALL not imply retrieval success. Full source text and response envelopes SHALL be excluded.
+Source diagnostics SHALL retain bounded read URLs, outcome/reason/method/completeness and known truncation; discovery diagnostics SHALL retain bounded query and candidate URLs/counts. Technical completion SHALL NOT imply retrieval success. Full source text and response envelopes SHALL be excluded.
 
 #### Scenario: Retrieval fails without throwing
 - **WHEN** a source tool returns failed/request_failed under normal SDK completion
@@ -805,8 +787,12 @@ Source spans SHALL record explicitly selected read URLs, outcome/reason/method/c
 - **THEN** its components are preserved within any call-site shortening applied, without rewriting the request
 
 ### Requirement: One catalog-run trace covers the final result
+Each eligible apply trace SHALL cover research, editing and the final write/report outcome. It SHALL expose research structural/target validation, editor plan validation/status, writeState, known committedOperationCount and available report status/outcome. Editorial rejection SHALL preserve research checks and report failed plan validation with not_attempted writes. Unavailable results SHALL NOT be invented.
 
-Each eligible apply trace SHALL begin before context and initial retrieval, parent research/source work, and end after validation, write/rollback and report construction or failure. Root host fields SHALL be explicit ordinary objects with independent structuralValidation, targetValidation, semanticValidation=not_run, writeState, known committedOperationCount, and report researchStatus/outcome when available. No logging producer SHALL depend on a trace summary to calculate its own straightforward outcome fields.
+#### Scenario: Editorial rejection remains visible in diagnostics
+- **WHEN** usable partial research is followed by an explicit editor rejection
+- **THEN** preparation logs a warning for the rejected plan and the final trace label identifies editor rejection rather than partial completion
+- **AND** retain research validation, editorStatus=success, failed editorPlanValidation, not_attempted writes and zero committed operations
 
 #### Scenario: Report construction fails after a commit
 - **WHEN** a confirmed write succeeds but report construction fails
@@ -821,8 +807,7 @@ Write state SHALL remain committed, rolled_back, unchanged, not_attempted or unk
 - **THEN** the root records rolled_back and zero confirmed changed operations without claiming successful mutation
 
 ### Requirement: Research logging is optional and independent
-
-The owner SHALL be able to enable local application logging independently of tracing. Logging SHALL be disabled by default and use configurable debug/info/warn/error levels. It SHALL use Mastra PinoLogger with ordinary level methods and child context. Logging failures SHALL produce fixed content-free diagnostics and SHALL NOT change research decisions, budgets, retries, catalog writes, report fields, durable run lifecycle/accounting, eval acceptance, or exit status.
+Local application logging SHALL be independently configurable from tracing, disabled by default, and support debug/info/warn/error levels. Logging failures SHALL produce fixed content-free diagnostics without changing research decisions, budgets, retries, catalog writes, reports, durable run lifecycle/accounting, eval acceptance or exit status.
 
 #### Scenario: Logging without tracing
 - **WHEN** logging is enabled and tracing is disabled, including a dry run or injected candidate generator
@@ -837,22 +822,20 @@ The owner SHALL be able to enable local application logging independently of tra
 - **THEN** ingestion retains its original result or error and attempts independent cleanup with a fixed diagnostic
 
 ### Requirement: Research events have readable full-run context
+Stored application logs SHALL include a short message, severity, durable runId and useful run/source context. Real trace/span identifiers SHALL be retained when available and SHALL NOT be invented when tracing is disabled. The runId SHALL match the ingestion record and report.
 
-Each stored application log SHALL have a short message, severity, durable runId, and useful selected context. Producers MAY include a stable event code and sequence for filtering. Scoped child context SHALL survive persistence. Real trace and span identifiers SHALL be present when available and SHALL NOT be invented when tracing is disabled. The runId SHALL match the ingestion row and report.
-
-#### Scenario: Child context persists
-- **WHEN** a source logger is created from a run logger with `child({...})`
+#### Scenario: Source context persists
+- **WHEN** a source event is logged within a run
 - **THEN** Studio's saved log details include the run and source context, severity, and any real trace/span correlation after reopen
 
-#### Scenario: Mastra uses the shared Pino logger
+#### Scenario: Local runtime diagnostics respect logging configuration
 - **WHEN** application logging is enabled
-- **THEN** Mastra uses the shared native PinoLogger with runId context for SDK diagnostics on stderr at the configured level
-- **AND** automatic SDK log export remains disabled and explicitly bridged application records are saved once
-- **AND** disabling application logging leaves the Mastra logger disabled
+- **THEN** runtime diagnostics on stderr use the configured level and runId context, while selected stored application records appear once
+- **AND** unrestricted automatic runtime logs are not persisted; disabling logging suppresses those stderr diagnostics
 
 #### Scenario: Event identity becomes known
 - **WHEN** an input eventId is known, an existing event is matched, or a new event is committed
-- **THEN** subsequent application logs, including existing child loggers, and Mastra diagnostics include eventId in their context
+- **THEN** subsequent application logs and runtime diagnostics include eventId in their context
 - **AND** earlier logs are unchanged and transient dry-run creation IDs are not bound as eventId
 
 #### Scenario: SDK emits its own log
@@ -860,8 +843,7 @@ Each stored application log SHALL have a short message, severity, durable runId,
 - **THEN** the research exporter does not admit it merely because application logging is enabled
 
 ### Requirement: Research logs cover actionable execution events
-
-Enabled logging SHALL describe selected source retrieval, discovery, model steps, completed commentary and returned reasoning, tool calls/results, retry and terminal errors, budget limits, candidate preparation, write outcomes, and run completion. Producers SHALL calculate straightforward status/count fields where emitted, independently of a shared trace summary. Successful completion SHALL follow durable finalization. Logging SHALL NOT replay work or change generation settings.
+Enabled logging SHALL describe selected source retrieval, discovery, model steps, completed commentary and returned reasoning, tool calls/results, retries, errors, budget limits, plan validation, write outcomes and run completion. Status/count fields SHALL reflect the observed phase; successful completion SHALL follow durable finalization. Logging SHALL NOT replay work or change generation settings.
 
 #### Scenario: Source was fetched
 - **WHEN** a source returns Markdown
@@ -873,27 +855,25 @@ Enabled logging SHALL describe selected source retrieval, discovery, model steps
 - **THEN** the log distinguishes preview from committed writes and retains selected counts without claiming a commit
 
 ### Requirement: Research log payloads are selected by event
-
-Log producers SHALL pass plain objects with explicit useful fields. They SHALL NOT pass full prompts, message history, source Markdown or excerpts, full provider responses, transport headers/bodies, SDK objects, catalog snapshots, or raw exception objects. Selected model commentary and returned reasoning MAY be logged after explicit shortening. No runtime field allowlist, recursive payload processor, per-event payload type or callback, event-message registry, or whole-record 8 KiB cap is required. Native Pino serializers, mixins, child bindings, and redact settings SHALL NOT be relied upon to protect or populate the separately exported observability arguments.
+Logs SHALL contain only useful diagnostic fields. They SHALL exclude full prompts, message history, source Markdown or excerpts, full provider responses, transport headers/bodies, catalog snapshots and raw exception objects. Selected model commentary and returned reasoning MAY be logged with explicit shortening metadata. Debug logging SHALL obey the same exclusions.
 
 #### Scenario: Producer selects nested response fields
 - **WHEN** an HTTP response is useful for diagnosis
-- **THEN** the producer passes a new plain object with status and URL rather than the response envelope
+- **THEN** the saved log includes selected status and URL without the response envelope
 
 #### Scenario: Debug logging is selected
 - **WHEN** debug events are enabled
-- **THEN** they follow the same call-site selection rule without unrestricted payload forwarding
+- **THEN** they follow the same content exclusions without unrestricted payload forwarding
 
 ### Requirement: Model commentary and returned reasoning remain distinct
-
-Completed-step commentary and provider-returned textual reasoning SHALL be logged as separate, labelled channels when available. Their selected text SHALL be shortened explicitly through `shrinkText(text)`, whose default limit is 4,000 Unicode code points. Each selected text event SHALL include original length and a truncation flag; retained length MAY be included. No 8 KiB serialized-record fit is required. Logging SHALL NOT collect streaming fragments, infer withheld reasoning, or duplicate final structured results.
+Completed-step commentary and provider-returned textual reasoning SHALL be logged as separate labelled channels when available, each limited by default to 4,000 Unicode code points. Text events SHALL include original length and a truncation flag. Logging SHALL NOT collect streaming fragments, infer withheld reasoning or duplicate final structured results.
 
 #### Scenario: Long completed text
 - **WHEN** a completed step returns more than 4,000 Unicode code points in either selected channel
 - **THEN** that channel logs at most its first 4,000 code points with visible shortening metadata
 
 #### Scenario: Interrupted step
-- **WHEN** a step ends before its completion callback
+- **WHEN** a model step is interrupted before completion
 - **THEN** it may have no text event; earlier completed-step events remain eligible for persistence
 
 ### Requirement: Tool events preserve calls and useful selected results
@@ -905,19 +885,17 @@ Observed tool starts and outcomes SHALL retain call identity, tool name, step/at
 - **THEN** the paired events retain the tool-call ID, selected URL/status and source character count, with no source body
 
 ### Requirement: Local research logs remain inspectable after exit
-
-Enabled logs SHALL persist in the local DuckDB observability store and be readable in Mastra Studio after exit. Stored severity, runId and available trace/span IDs SHALL support inspection and correlation. CLI stdout and private reports SHALL retain their contracts. Pending writes SHALL receive bounded best-effort flush and shutdown attempts.
+Enabled logs SHALL remain readable locally in Studio after exit, with severity, runId and available trace/span IDs for inspection and correlation. CLI stdout and private reports SHALL retain their contracts. Pending log persistence SHALL receive bounded best-effort completion attempts.
 
 #### Scenario: Inspect saved logs
 - **WHEN** the owner opens Studio after a completed run
 - **THEN** selected events and scoped context are visible without rerunning research or accessing model credentials
 
 ### Requirement: Observability storage has explicit local ownership
-
-Application logs and eligible traces SHALL share a local DuckDB store separate from the catalog. Recording and Studio SHALL use it sequentially when the backend requires exclusive process access. Existing historical files SHALL remain untouched; no conversion or legacy inspection is required.
+Application logs and eligible traces SHALL remain in local storage separate from the catalog. Contention with another process SHALL produce a bounded diagnostic without disrupting ingestion or taking ownership from that process. Existing historical files SHALL remain untouched; legacy conversion and inspection SHALL remain unsupported.
 
 #### Scenario: Another process owns the store
-- **WHEN** the recording run cannot open DuckDB
+- **WHEN** another process prevents opening the local observability store
 - **THEN** it emits a bounded diagnostic and continues ingestion without taking ownership from that process
 
 ### Requirement: Local Studio exposes an executable ingestion graph
@@ -941,7 +919,7 @@ Studio SHALL accept add by name and refresh by one Event ID with scope full or c
 - **THEN** reject it before external work or mutation; expose mode, name, Event ID, refresh scope, dry-run and republish in the form
 
 ### Requirement: Studio runs retain durable lifecycle and bounded results
-CLI and Studio SHALL share initialization after Mastra creates its engine run. Failure before engine run creation SHALL allocate no ingestion history or attempt resources. Studio SHALL preserve existing durable run/report semantics and expose both run IDs, preview/apply mode, research/catalog/persistence statuses, known Event ID, counts, usage, safe error codes, and refresh scope/saved-Edition/returned-Edition counts. Complete version-4 reports SHALL remain durable in ingestion_runs and MAY appear in local Studio workflow data; public website reads SHALL NOT expose them.
+CLI and Studio SHALL expose equivalent durable run/report outcomes. Studio SHALL expose both run IDs, preview/apply mode, research/editor/catalog/persistence statuses, known Event ID, counts, usage, safe error codes and refresh scope/saved/returned Edition counts. Version-5 reports SHALL remain durable and private, inspectable locally and excluded from public website reads. Failed starts SHALL NOT allocate ingestion history.
 
 #### Scenario: Failure or cancellation
 - **WHEN** a started attempt fails or is cancelled
@@ -953,16 +931,21 @@ CLI and Studio SHALL share initialization after Mastra creates its engine run. F
 - **THEN** report failed execution with run_persistence_failed and ingestion ID; retain the running row and committed changes without replay
 
 ### Requirement: Registered ingestion executions isolate resources and expose research data
-Each execution SHALL own its resources and results. Native Mastra workflow state SHALL accumulate one serializable catalog research context with a frozen reference instant and existing research result, source reads, model research output, prepared operations, receipts and reports without a separate refresh-context object or second attempt-owned checkpoint. Input SHALL supply scope; country guards SHALL use the saved catalog snapshot. Each workflow step SHALL return its phase result for local Studio inspection. Caller-provided initialState SHALL be rejected; workflow initialization SHALL create state. Workflow data SHALL exclude credentials, configuration containing secrets, prompts, raw provider transport payloads and live resources. Exception messages, stacks and causes SHALL remain sanitized. Existing apply-only tracing and independently configurable application logging SHALL be retained, adding both IDs and safe terminal codes; the workflow SDK logger and automatic log export SHALL remain disabled.
+Executions SHALL isolate their resources/results and expose inspectable phase results: research, source reads, model/editor output, operations, receipts and reports. They SHALL share one frozen currentDate and the requested scope. Inspection SHALL exclude credentials, prompts, source bodies, raw provider payloads, live resources and unsanitized exception details. Existing tracing/logging controls and safe run correlation SHALL remain available.
 
 #### Scenario: Overlap or duplicate ID
 - **WHEN** executions overlap or a duplicate active engine ID is submitted
 - **THEN** keep attempts isolated and reject the duplicate before work
 - **AND** rejected execution hooks cannot finalize or release the original attempt
 
+#### Scenario: Supplied execution state is unsupported
+- **WHEN** a caller supplies initialState instead of starting a fresh execution
+- **THEN** reject the input before allocating attempt resources or performing source/model work
+
 #### Scenario: Inspect execution data
 - **WHEN** graph, transport, stored workflow data or errors are inspected
-- **THEN** research results are inspectable while credentials, live resources and raw exception details are absent; snapshots remain disabled
+- **THEN** research results are inspectable while credentials, live resources and raw exception details are absent
+- **AND** source reads retain retrieval metadata without page Markdown in workflow state or phase outputs, including after failure or cancellation
 
 #### Scenario: Complete tracing
 - **WHEN** a traced attempt terminates, including cancellation or persistence failure
@@ -972,11 +955,10 @@ Each execution SHALL own its resources and results. Native Mastra workflow state
 #### Scenario: Studio and CLI share scope behavior
 - **WHEN** either entry point refreshes the same target with the same scope and injected evidence
 - **THEN** scope bounds, returned facts, host rejection, and catalog operations agree
-- **AND** native state exposes serializable phase data without credentials, live resources, caller-supplied checkpoints, or a second attempt-owned copy
+- **AND** phase results are inspectable without credentials or live resources
 
 ### Requirement: Studio attempts share observability ownership
-
-Studio executions SHALL reuse its initialized DuckDB observability store in the same process. Attempt cleanup SHALL finish owned observations without closing the shared store. Existing independent logging and tracing controls SHALL remain available.
+Finishing or cleaning up a Studio attempt SHALL leave local observability available for later attempts and inspection. Logging and tracing SHALL remain independently configurable.
 
 #### Scenario: Inspect after execution
 - **WHEN** a Studio attempt completes, fails or is cancelled
@@ -993,8 +975,8 @@ Ingestion SHALL disable automatic retries/restart recovery and reject per-step s
 - **WHEN** the owner starts a fresh full run
 - **THEN** research current state under a new ingestion ID without modifying or resuming the unfinished attempt
 
-### Requirement: Research uses Mastra agent limits without a page-count cap
-CLI and Studio research SHALL use Mastra iteration and generation-time limits instead of a separate ordinary model-call limiter and generation timer. Ordinary model steps SHALL default to 15, with a configurable step allowance and the last step reserved for a final response. The application SHALL NOT impose an input-context character limit or expose such a limit in current configuration or reports. Page reads SHALL have no count cap. Search/depth/source-size/output safeguards, the attempt deadline outside generation and existing retry policy SHALL remain. Counts and known usage SHALL remain reportable. Version-4 consumers SHALL reject historical version-2/version-3 reports explicitly without rewriting or converting them. Research SHALL use one shared budget for the complete assignment and follow relevant ticket/information pages and alternate-language sources. Exhaustion SHALL leave unfinished checks visible; size limits SHALL NOT silently truncate targets.
+### Requirement: Research respects a shared budget without a page-count cap
+Research SHALL use one shared deadline and configurable agent-step allowance for the complete assignment, defaulting to 15 steps. Page reads SHALL have no count or link-depth cap; application configuration/reports SHALL expose no input-character or source-depth limit. Search/source-size/output safeguards SHALL remain. Exhaustion SHALL report known usage and unfinished checks; oversized assignments SHALL fail explicitly without silently truncating targets.
 
 #### Scenario: Large accumulated model context
 - **WHEN** research accumulates more than 240,000 input characters while steps and time remain
@@ -1006,13 +988,13 @@ CLI and Studio research SHALL use Mastra iteration and generation-time limits in
 - **THEN** page count alone does not stop retrieval or reject a candidate; prompts do not impose a replacement page target
 
 #### Scenario: Agent exhausts its allowance
-- **WHEN** Mastra exhausts research iterations or generation time without valid output
+- **WHEN** research exhausts its step allowance or generation time without valid output
 - **THEN** report limit_reached with known usage and still finalize the durable attempt
 - **AND** initial reads, discovery and retry waits remain bounded by the attempt deadline
 
 #### Scenario: Scope resolution shares the Event budget
 - **WHEN** announcement/selection research and assigned field research run for one Event
-- **THEN** they share one bounded research session and budget without per-Edition subruns or an intermediate selection tool
+- **THEN** they share one bounded research session and budget without independent per-Edition budgets
 
 #### Scenario: An assignment exceeds supported size
 - **WHEN** the complete assignment cannot fit supported schema or context limits
@@ -1032,8 +1014,13 @@ CLI and Studio research SHALL use Mastra iteration and generation-time limits in
 - **THEN** its report retains the complete assignment and the model-authored questions identifying unfinished fields and Editions; omitted values receive no inferred completion state
 - **AND** useful valid results may remain partial; a run without a usable valid final result remains failed
 
+#### Scenario: Follow a longer relevant link chain
+- **WHEN** research follows more than two successive links to reach a relevant ticket or information page while time and steps remain
+- **THEN** source retrieval proceeds without a depth-budget rejection, retaining request accounting and caching
+- **AND** deadline exhaustion still blocks uncached reads and retries
+
 ### Requirement: Refresh scope fixes the mandatory verification assignment
-Refresh SHALL supply scope from input, one frozen reference instant and the saved catalog with stable Edition keys/dates/time zones. The prompt SHALL state research rules; the existing output schema SHALL define supported fields. No separate refresh-context object, duplicated country baseline or field registry SHALL be required. Full scope SHALL cover every saved Edition plus the selected current or nearest future Edition when missing. Current scope SHALL cover at most one ongoing or nearest future Edition selected by the model. Both SHALL research announcements automatically and verify Event summary and shared links. Source association SHALL remain model interpretation without a separate identity output or declaration gate. Filled values SHALL receive the same verification duty as empty values.
+Refresh SHALL supply scope, one frozen currentDate and saved Edition keys/dates/time zones. Full scope SHALL cover every saved Edition plus the selected current/nearest future Edition when missing; current scope SHALL cover at most one ongoing/nearest future Edition. Both SHALL check announcements, Event summary and shared links, verifying populated and missing fields equally. Catalog context alone SHALL NOT establish source association or completed verification.
 
 #### Scenario: A new announcement cannot substitute for saved history
 - **WHEN** full refresh targets an Event with a saved 2026 Edition and discovers the nearest announced Edition in 2027
@@ -1122,7 +1109,7 @@ Research SHALL match an announced Edition to existing keys before proposing crea
 - **THEN** research uses their identities and programme context to match the selected Edition, not year equality alone
 
 ### Requirement: An unrelated website triggers discovery of the correct website
-The refresh prompt SHALL instruct the model to search for and inspect the correct festival website when a saved or candidate site belongs to another Event. Recovery SHALL use the shared budget before returning failure. Unrelated facts SHALL NOT become target proposals. Research SHALL continue after verifying a replacement site's association; inability to find and verify a correct website SHALL return failed with null data, an explanation in existing errors/unresolved, and zero operations.
+The refresh prompt SHALL instruct the model to search for and inspect the correct festival website when a saved or candidate site belongs to another Event. Recovery SHALL use the shared budget before returning failure. Unrelated facts SHALL NOT become target proposals. Research SHALL continue after verifying a replacement site's association. If useful target findings remain while identity is unresolved, research SHALL return partial with the contradiction in sources/unresolved; if no usable target findings remain, it SHALL return failed with null data and existing error/question diagnostics. The editor SHALL reject the whole item when a material identity contradiction remains unresolved, preventing all writes and publication.
 
 #### Scenario: A wrong website can be replaced
 - **WHEN** the saved site belongs to a namesake and discovery finds an inspectable website supported as belonging to the targeted festival
@@ -1133,11 +1120,18 @@ The refresh prompt SHALL instruct the model to search for and inspect the correc
 #### Scenario: Search results alone do not confirm a replacement
 - **WHEN** a search finds a matching festival name but inspection does not establish the website's association with the target
 - **THEN** the model continues recovery within its remaining budget instead of treating the name or snippet as verified identity
-- **AND** if no correct website can be verified, research returns failed with null data and explains the failure in existing errors/unresolved; no links, facts, publication, audits, or receipts change
+- **AND** if no correct website can be verified, research returns partial with useful target findings and the unresolved identity contradiction, or failed with null data when no usable target findings remain; a material unresolved identity contradiction prevents all writes and publication
 
 #### Scenario: Website recovery exhausts the budget
-- **WHEN** the website is unrelated and search/time/depth/size/agent limits are exhausted before a correct website is verified
-- **THEN** research returns failed with null data and existing error/question diagnostics, reports the recovery limitation, and produces no operations rather than partial updates
+- **WHEN** the website is unrelated and search/time/size/agent limits are exhausted before a correct website is verified
+- **THEN** research reports the recovery limitation in existing error/question diagnostics and returns partial if useful target findings remain, otherwise failed with null data
+- **AND** no writes or publication occur unless the editor completes and accepts a valid plan without a material unresolved identity contradiction
+
+#### Scenario: Useful partial findings retain an unresolved identity conflict
+- **WHEN** research has useful target findings but a material contradiction about festival identity remains unresolved
+- **THEN** research returns partial, retaining those findings and the contradiction in sources/unresolved
+- **AND** the editor rejects the whole item with a reason; the report preserves the findings and rejection, records successful editor generation and a failed item, and contains zero operations, changes and receipts
+- **AND** catalog content and publication remain unchanged
 
 #### Scenario: A recovered website still conflicts with the saved country
 - **WHEN** the correct website is verified but its matched Edition facts conflict with the saved country baseline
@@ -1149,11 +1143,11 @@ The refresh prompt SHALL instruct the model to search for and inspect the correc
 - **AND** supplied facts retain their reasons, and partial results retain model-authored unresolved questions
 
 ### Requirement: Country conflicts veto the whole Event refresh
-The host SHALL compare researched in-scope countries with the pre-run Event's known Edition countries before generating operations. A differing known country, explicit clearing of a known country, or conflicting saved country baselines SHALL fail the whole Event refresh with a validation diagnostic. No links, Editions, publication changes, audits, or receipts SHALL be committed. Another year or strong source evidence SHALL NOT create an exception.
+The host SHALL compare researched in-scope countries with the pre-run Event's known Edition countries before editing, and validate editorial country actions before generating operations. A differing known country, explicit clearing of a known country, or conflicting saved country baselines SHALL fail the whole Event refresh with a validation diagnostic. No links, Editions, publication changes, audits, or receipts SHALL be committed. Another year or strong source evidence SHALL NOT create an exception.
 
 #### Scenario: A wrong saved website identifies another country
 - **WHEN** a saved country is IE and researched matched facts propose AU, alongside links and tickets
-- **THEN** researchStatus and catalog outcome are failed, operations are empty, and a country_conflict error identifies the saved and observed countries and Edition keys
+- **THEN** catalog outcome is failed while researchStatus retains research completion, operations are empty, and a country_conflict error identifies the saved and observed countries and Edition keys
 - **AND** raw model output and retrieval diagnostics remain available; no fact is salvaged for writing
 
 #### Scenario: The original country is itself incorrect
@@ -1175,9 +1169,9 @@ The host SHALL compare researched in-scope countries with the pre-run Event's kn
 - **AND** omission does not become country verification; no country is inferred solely from another proposed record
 
 #### Scenario: Clearing or omitting a country cannot hide a conflict
-- **WHEN** research explicitly clears a known country or returns a differing country fact, including facts that produce no final catalog diff
+- **WHEN** research returns an explained countryCode.value:null finding for a known country, returns a differing country fact, or the editor attempts to clear that country, including facts that produce no final catalog diff
 - **THEN** the host rejects the whole refresh
-- **AND** the guard checks every returned country fact before operation/diff derivation; questions and omitted fields do not invent countries
+- **AND** the guard checks every returned country finding before editing and operation/diff derivation; editor keep/omission cannot hide a research conflict, and questions or omitted fields do not invent countries
 
 #### Scenario: Country could not be verified
 - **WHEN** useful in-scope findings exist but the country check is unfinished and no contradictory country finding exists
@@ -1194,22 +1188,199 @@ The host SHALL compare researched in-scope countries with the pre-run Event's kn
 - **THEN** no operations commit using the stale country decision; the run fails and requires a new refresh
 
 ### Requirement: Refresh selection uses the existing final result
-Refresh SHALL give the model selection rules in its prompt, with scope and the reference instant alongside the existing catalog input. The host SHALL enforce schema, simple scope bounds and country guards without a separate resolver tool, injected callback, recorded selection or required intermediate protocol. Temporal choice and research completeness SHALL be assessed through evals; catalog context SHALL NOT certify either.
+Research and editor SHALL receive the same scope, frozen currentDate and saved catalog context. Final findings and the editorial plan SHALL satisfy schema, scope and country constraints; changing a temporal finding before final output SHALL NOT require confirmation of an earlier selection. Reports SHALL retain explanations and unfinished checks without certifying temporal correctness or completeness from catalog context alone.
 
-#### Scenario: Final result needs no intermediate selection call
-- **WHEN** a refresh returns valid success/partial proposals within scope bounds and country guards
-- **THEN** no missing-resolution check rejects them
+#### Scenario: Valid final findings determine the assignment
+- **WHEN** a refresh returns valid success/partial findings and a valid plan within scope bounds and country guards
+- **THEN** the item is eligible for application without separately confirmed selection metadata
 - **AND** existing reason/unresolved semantics govern explanations and unfinished checks
 
 #### Scenario: Final evidence changes a temporal finding
 - **WHEN** later inspected evidence changes dates, status or matching before final output
-- **THEN** the model incorporates it in the final result without re-resolution
+- **THEN** research incorporates it in the final findings and the editor uses that evidence
 - **AND** host validation does not compare it with an earlier model decision
 
 #### Scenario: Context is a task rather than proof
 - **WHEN** a private report or Studio exposes scope and saved/returned counts
 - **THEN** it exposes no host-certified selected/none-found/unresolved outcome or separate confirmed/changed fact report
 - **AND** separate eval assertions check ongoing-first/local-date choice, ambiguity, stable keys and unfinished historical research
+
+### Requirement: Research findings and editorial actions use named typed fields
+Research SHALL retain named Edition fields, stable keys and value/reason wrappers, with clarified null semantics and evidence in existing source summaries. The editor SHALL return named typed field actions: accept, set, clear or keep. Omission SHALL preserve state without claiming verification. Ownership SHALL follow the enclosing Edition. Generic patch paths, implicit null/empty-string mutation proposals and classification add/remove instructions SHALL NOT be accepted as editorial plans.
+
+#### Scenario: Research reuses existing compound fields
+- **WHEN** research returns classification or ticket information
+- **THEN** use a complete classification value/reason finding preserving unchallenged saved terms and the complete ticket block as editor input, without directly generating mutations
+- **AND** partial ticket information remains in source summaries/unresolved entries when no complete research block is available; the editor supplies a complete replacement or keeps the saved block
+
+#### Scenario: Facts for two editions remain separate
+- **WHEN** venue and ticket findings concern different Editions
+- **THEN** findings and actions remain under their respective Edition keys
+
+#### Scenario: Typed fields replace generic field names
+- **WHEN** a plan contains unknown fields, wrong value types or arbitrary patch paths
+- **THEN** reject the entire plan before writing
+
+#### Scenario: A partial field update preserves other facts
+- **WHEN** venueName uses set, locality is omitted and venueAddress uses clear with evidence
+- **THEN** update the venue, preserve locality and clear only the address
+
+#### Scenario: Missing actions cannot clear values
+- **WHEN** a field is omitted or its optional wire slot is null
+- **THEN** preserve the saved value without claiming it was reviewed
+- **AND** set with null or an empty-string deletion sentinel is rejected; clearing requires a clear action
+
+#### Scenario: Prices remain a complete replacement
+- **WHEN** the editor sets tickets
+- **THEN** require complete intended variants and basePrice; clear empties the block and keep preserves it
+- **AND** incomplete replacements fail before writing
+
+#### Scenario: Classification has one intended result
+- **WHEN** the editor changes classification
+- **THEN** set supplies complete intended term IDs, preserving unchallenged saved terms; clear removes assignments only where catalog rules permit
+- **AND** invalid terms or publication state reject the whole item
+
+#### Scenario: Schedule status has one source
+- **WHEN** research establishes cancellation
+- **THEN** the editor can set scheduleStatus=cancelled with evidence; reject legacy descriptor status
+
+#### Scenario: Omitted schedule status preserves existing behavior
+- **WHEN** scheduleStatus is omitted
+- **THEN** preserve stored status or the creation default; historical research needs no completed status
+
+#### Scenario: Add and refresh share one editorial shape
+- **WHEN** either mode produces a plan
+- **THEN** named field actions use the same typed contract, with creation restricted by mode and assignment
+
+#### Scenario: Unknown or unverified values have no placeholder
+- **WHEN** sources do not establish a value or a check is unfinished
+- **THEN** research omits that value and describes limitations in unresolved questions
+- **AND** the editor keeps or omits the field rather than treating saved values as new evidence
+
+#### Scenario: No field-completion ledger is required
+- **WHEN** a field is absent from findings or the plan
+- **THEN** the host does not infer not_found, unfinished or verified status for it
+
+#### Scenario: Editorial mutations require structured findings
+- **WHEN** editor sets or clears an Event or Edition field, including a link slot or replacement block
+- **THEN** the host requires a structured finding for the same owner, Edition key and field; source summaries and unresolved text alone do not authorize it
+- **AND** reject the entire plan when that finding is absent; keep or omission remains permitted for saved Editions without findings
+
+#### Scenario: Editor rejects a festival identity conflict
+- **WHEN** editor assesses research and saved catalog context and returns `status:rejected` with a reason, including a wrong-festival identity conflict
+- **THEN** the host performs no writes or publication and retains the rejection reason and output
+- **AND** editor generation is successful while the item outcome is failed, in both add and refresh
+- **AND** research uses saved location as recovery leads and passes evidence/contradictions to editor without deciding the whole-item identity veto
+
+#### Scenario: Editor output separates a plan from rejection
+- **WHEN** the editor returns a typed output
+- **THEN** it SHALL contain either `status:ready` with event, editions and unresolved, or `status:rejected` with a nonempty reason only
+- **AND** missing status or rejected output containing actions fails validation
+
+
+### Requirement: Research distinguishes disproven values from unknown information
+Research SHALL omit unknown or unverified fields. A finding with value:null SHALL mean an existing value is disproven and no replacement is known, and SHALL include a reason and supporting evidence in source summaries. It SHALL NOT itself authorize clearing. Missing content and retrieval failure SHALL NOT be encoded as such a finding.
+
+#### Scenario: Saved venue is disproven
+- **WHEN** a source explicitly says the saved venue is no longer used but names no replacement
+- **THEN** research may return venueName with value:null, a reason and supporting evidence in source summaries
+- **AND** the editor separately decides whether to clear it, subject to catalog rules
+
+#### Scenario: Country is disproven before editing
+- **WHEN** research returns an explained countryCode.value:null finding for a known saved country
+- **THEN** the country guard rejects the whole refresh before calling the editor, retaining findings and diagnostics without writes
+
+#### Scenario: Country is not found
+- **WHEN** useful findings exist but research cannot verify the country
+- **THEN** omit the country finding and report the unfinished check; preserve the saved country without claiming confirmation
+- **AND** omission alone does not trigger the country-conflict guard
+
+### Requirement: Editing is a bounded tool-free stage
+Usable validated research SHALL be followed by at most one editor generation using existing model configuration and the attempt deadline. The editor SHALL receive supplied evidence, relevant saved state, vocabulary and assignment without retrieval/search tools. It SHALL NOT retry, request further research or enter a correction loop. Failed research, country preflight rejection and duplicate add SHALL skip editing.
+
+#### Scenario: Missing evidence cannot trigger more research
+- **WHEN** the editor lacks evidence to decide a field
+- **THEN** preserve that field and record uncertainty without a source or search request
+
+#### Scenario: Editor call fails or has no time remaining
+- **WHEN** generation fails, is cancelled or the deadline expires before a valid plan exists
+- **THEN** no writes occur; retain findings, editor failure and known usage without retry or fallback to research mutations
+
+#### Scenario: A duplicate add is recognized
+- **WHEN** validated research matches an existing Event during add
+- **THEN** return skipped without an editor request, mutations or publication changes
+
+### Requirement: Editorial plans describe explicit catalog actions
+The editor SHALL return either `status:ready` with event, editions and unresolved, or `status:rejected` with a nonempty reason only. A rejected item SHALL perform no writes or publication. A ready editorial plan SHALL identify Editions by editionKey and use accept/set/clear/keep for named typed fields or complete blocks. The host SHALL derive the Event from the validated assignment/research and resolve existing versus new Editions from saved keys. New entities SHALL require a creation reason; new Edition keys SHALL have matching research. Event IDs/names and nested target/create objects SHALL NOT be accepted in editor output. It SHALL NOT require overall apply/keep or existing-target update/keep decisions. Accept SHALL inherit the same-field research reason where present; link slots SHALL use a research-link acceptance explanation; other actions SHALL have reasons grounded in supplied research and saved state, without repeated source URLs or evidence-reference arrays. Entity deletion, reassignment, arbitrary field paths and low-level write metadata SHALL NOT be accepted. Omitted fields SHALL remain unchanged.
+
+#### Scenario: Event identity is fixed outside editing
+- **WHEN** editor returns a ready Event plan
+- **THEN** refresh uses the validated requested Event and add uses research eventName
+- **AND** reject editor Event IDs/names or nested target/create objects rather than adapting an obsolete plan
+
+#### Scenario: Edition keys resolve creation or update
+- **WHEN** editor addresses an editionKey with field actions
+- **THEN** update the matching saved Edition or create a new one only with matching research and a nonempty creation reason
+- **AND** Event creation also requires a reason; existing entities do not need a creation reason
+- **AND** omitted Editions remain untouched and scope, country, new-entity clear and publication guards remain enforced
+
+#### Scenario: Keep the whole proposal
+- **WHEN** the editor finds no supported content changes and keeps or omits all fields
+- **THEN** create no content mutations but still evaluate publication for addressed Editions and their owning Event
+- **AND** report unchanged only if neither content nor publication changes; publication-only changes report published
+
+#### Scenario: Editor declines Event creation
+- **WHEN** add research passes validation but the editor finds insufficient grounds to create the Event
+- **THEN** return event:null, editions:[] and an explanation in unresolved; report skipped without content or publication writes
+- **AND** reject a null Event target for refresh or a null Event combined with Edition plans
+
+#### Scenario: Considered Edition is preserved
+- **WHEN** the editor considers an existing Edition and decides to preserve all its content
+- **THEN** return its editionKey with fields:{} (or optional explanatory keep actions), retaining its eligibility for publication evaluation
+
+#### Scenario: Entire Edition is omitted
+- **WHEN** an Edition is absent from the editorial plan
+- **THEN** do not process it or evaluate its publication, even if it exists in the supplied catalog context
+
+#### Scenario: Editorial questions reuse research question types
+- **WHEN** the editor reports unresolved questions or explains declined creation
+- **THEN** use the existing ResearchQuestion shape: message with optional editionKey and field, rather than a separate string-only format
+
+#### Scenario: Supported change alongside uncertainty
+- **WHEN** evidence supports new dates but ticket information is inaccessible
+- **THEN** the editor may set dates and keep tickets with a question, applying the valid plan atomically
+
+#### Scenario: An old value is explicitly withdrawn
+- **WHEN** an inspected organizer statement establishes that the saved venue is no longer used and no replacement is known
+- **THEN** the editor can clear venueName with that evidence, subject to remaining catalog/publication constraints
+
+#### Scenario: Preserve old data after failed retrieval
+- **WHEN** a page fails or does not mention a saved value
+- **THEN** absence alone does not permit clearing; the editor keeps or omits the field
+
+#### Scenario: Invalid action combinations fail together
+- **WHEN** a field keep action contains a value, set lacks a typed value, clear includes a value, a required field is cleared, or a target is invalid
+- **THEN** reject the whole plan rather than silently dropping invalid actions
+
+#### Scenario: Replacement blocks preserve saved entries without new citations
+- **WHEN** the editor combines supported research findings with unchanged saved ticket variants or classification terms
+- **THEN** its complete replacement and reason need no repeated source references for those entries
+- **AND** research retains references for new findings; preserving saved entries does not claim they were freshly verified
+
+#### Scenario: Catalog protection remains deterministic
+- **WHEN** a plan violates versions, country constraints, domain invariants or publication requirements
+- **THEN** no catalog item changes commit; reasons cannot bypass those checks
+
+### Requirement: Editorial quality is evaluated against actual writes
+Ingestion evals SHALL assess final catalog changes and preserved valid facts as well as findings. They SHALL detect wrong-Edition updates, incorrect ticket coverage/eligibility, unsupported clearing, lost valid updates and unsafe changes after unavailable sources. Results SHALL include existing total run cost and duration; a second model call or zero writes SHALL NOT itself count as correctness.
+
+#### Scenario: An editor prevents a plausible wrong update
+- **WHEN** research evidence gives a day-ticket price or a previous year's date
+- **THEN** the case checks that the full-programme price or current Edition date is not overwritten
+
+#### Scenario: Conservatism loses a valid change
+- **WHEN** the editor keeps a value despite clear evidence supporting a required update
+- **THEN** the eval records the missing valid update rather than treating no writes as automatically correct
 
 ### Requirement: Research estimates festival size from participant evidence
 
@@ -1223,10 +1394,41 @@ Research SHALL explain each size estimate's basis in its fact reason. Relevant h
 - **WHEN** current participant numbers are unavailable
 - **THEN** research may use relevant historical attendance with an explained basis; otherwise it omits sizeEstimate, preserving saved values
 
-### Requirement: Size contracts use report version 4
+### Requirement: Model catalog context excludes storage administration
+Research and editor SHALL receive an explicit projection of catalog identity and facts, preserving all saved Edition keys, temporal and location clues, links, classification and complete tickets. Database versions, timestamps, Edition/link storage IDs and ownership foreign keys SHALL remain host-only. This projection SHALL NOT narrow current/full assignments or remove saved facts needed for preservation.
 
-Current ingestion and eval reports SHALL use version 4 with sizeEstimate facts and operations. Consumers SHALL reject historical versions without conversion. Stored historical reports SHALL remain unchanged.
+#### Scenario: Compact shared catalog input
+- **WHEN** research or editor receives a saved catalog record
+- **THEN** its model input retains identity, temporal, link and ticket context without database administration fields
+- **AND** the host retains the full snapshot for guards and transactional writes
 
-#### Scenario: Report version boundary
-- **WHEN** a report is generated or consumed after the size-contract change
-- **THEN** new reports use version 4; version-2/version-3 reports are explicitly unsupported and remain unchanged in storage
+### Requirement: Editor-only evaluation replays research findings
+Editor-only evaluation SHALL replay captured, validated research findings against saved fixture state without live research or source discovery. Output SHALL identify editor-only versus pipeline mode and handoff provenance/hash, and assess actual catalog writes. Replayed research SHALL NOT be presented as newly incurred provider charges or complete end-to-end accounting.
+
+#### Scenario: Evaluate editing without new research
+- **WHEN** an editor-only eval selects a case with a captured handoff
+- **THEN** editor receives those findings and saved fixture context, while existing assertions score the actual resulting writes
+- **AND** the report labels the mode and handoff provenance/hash
+
+#### Scenario: Missing handoff
+- **WHEN** an explicitly selected editor-only case has no handoff
+- **THEN** fail before provider generation rather than silently running live research
+
+### Requirement: Editorial acceptance resolves supported research values
+Editor actions SHALL support accept without duplicated value/reason, set with an explained supported transformation, clear where permitted, and keep. An accept action SHALL use only a compatible non-null finding for the same owner, Edition key and field, retaining its explanation. Missing/null findings or incompatible values SHALL invalidate the whole plan. Arrays and blocks, including classification, SHALL be complete replacements. Research SHALL preserve unchallenged saved terms in its complete classification finding; editor SHALL check preservation before accepting or setting that list. Omitted Editions SHALL remain untouched; new Edition creation SHALL require an addressed key, matching research and a reason; deletion SHALL remain unsupported. Editor instructions SHALL permit supported URL/text/list normalization without inventing facts or removing meaningful URL components. The report SHALL retain the original editor response once.
+
+#### Scenario: Accept an Edition field
+- **WHEN** editor accepts dates for a keyed Edition
+- **THEN** only that Edition's complete research dates and reason govern the catalog update
+
+#### Scenario: Acceptance has no usable finding
+- **WHEN** an accepted field is absent, null or incompatible with its editor value contract
+- **THEN** no operations are generated for the item
+
+#### Scenario: Accept classification changes
+- **WHEN** editor accepts a complete research classification finding containing retained and newly supported terms
+- **THEN** the resulting classification uses that complete list and reason without implicit merging
+
+#### Scenario: Replace a list or preserve an Edition
+- **WHEN** editor sets a complete list and omits another saved Edition
+- **THEN** the list is replaced without merging and the omitted Edition remains untouched

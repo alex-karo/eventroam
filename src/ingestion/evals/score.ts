@@ -223,7 +223,7 @@ export function scoreCase(
   item: EvalCase,
   result: CatalogResearchResult,
 ): CaseScore {
-  if (result.schemaVersion !== 4) {
+  if (result.schemaVersion !== 5) {
     throw new Error(
       `Unsupported catalog report version: ${String(result.schemaVersion)}`,
     );
