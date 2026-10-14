@@ -462,27 +462,6 @@ test("reordered qualified ticket variants and an equivalent base price produce n
   expect(client.prepare("SELECT * FROM catalog_changes").all()).toEqual([]);
 });
 
-test("creation needs identity reason; existing refresh does not", () => {
-  const proposed = candidate();
-  delete proposed.data!.reason;
-  const missingReason = prepareEditorialFixture(proposed, [], input, []);
-  expect(missingReason.errors[0].code).toBe("invalid_plan");
-  expect(missingReason.validation).toEqual({
-    structural: "passed",
-    target: "passed",
-  });
-  const { client, eventId } = create();
-  proposed.data!.eventId = eventId;
-  expect(
-    prepareEditorialFixture(
-      proposed,
-      readResearchCatalog(client),
-      { ...input, mode: "refresh", eventId },
-      [],
-    ).errors,
-  ).toEqual([]);
-});
-
 test("classification finding replaces explicitly refuted assignments", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);

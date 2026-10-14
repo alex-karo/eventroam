@@ -57,12 +57,13 @@ type EditorPlan = {
 };
 
 type EventPlan = {
-  target: { eventId: EventId } | { create: NewEventIdentity; reason: string };
+  reason?: string; // Required when creating the Event.
   fields: EventFieldActions;
 };
 
 type EditionPlan = {
-  target: { editionKey: EditionKey } | { create: NewEditionIdentity; reason: string };
+  editionKey: EditionKey;
+  reason?: string; // Required for a key absent from the saved catalog.
   fields: EditionFieldActions;
 };
 
@@ -79,7 +80,7 @@ type ClearableAction<T> = Action<T> | { action: "clear"; reason: string };
 // No arbitrary field paths; clear is available only where permitted.
 ```
 
-Creation follows add/refresh limits. To decline Event creation in add, return `event: null`, `editions: []` and an explanation in `unresolved`: report skipped without writes. Refresh requires its existing Event target. Omitted fields preserve content without claiming verification; `keep` adds an explanation when useful. Dates/coordinates are grouped; tickets/classification are complete intended replacements preserving unchallenged saved entries. Clear empties the corresponding block where allowed. Links address owner/kind slots.
+Creation follows add/refresh limits. To decline Event creation in add, return `event: null`, `editions: []` and an explanation in `unresolved`: report skipped without writes. Refresh uses the Event fixed by the validated assignment; add creates it with the research eventName. Editor does not return Event IDs or names. Edition keys resolve against the saved catalog: saved keys update, new keys create only with matching research and a creation reason. Event creation also requires a reason. Nested target/create objects are invalid. Omitted fields preserve content without claiming verification; `keep` adds an explanation when useful. Dates/coordinates are grouped; tickets/classification are complete intended replacements preserving unchallenged saved entries. Clear empties the corresponding block where allowed. Links address owner/kind slots.
 
 Input excludes research conversations/full pages. Output excludes overall apply/keep, existing-target update/keep, duplicate source references, generated IDs, operation keys, versions and publication commands. Technical failures are host-reported.
 
@@ -95,13 +96,23 @@ Code owns IDs, slugs, versions, operation keys, money/URL conversion and publica
 
 ### Publication
 
-For a valid plan, evaluate addressed Editions and their owning Event; do not sweep unrelated Editions. Return a considered but preserved Edition with its target and `fields: {}`. An Edition omitted entirely is not processed, including for publication. Kept content can publish when eligible. Withdrawn records still require `republish`; clear cannot bypass publication constraints. Publication-only changes report published, otherwise no changes report unchanged. Dry-run previews the same operations without retaining writes.
+For a valid plan, evaluate addressed Editions and their owning Event; do not sweep unrelated Editions. Return a considered but preserved Edition with its editionKey and `fields: {}`. An Edition omitted entirely is not processed, including for publication. Kept content can publish when eligible. Withdrawn records still require `republish`; clear cannot bypass publication constraints. Publication-only changes report published, otherwise no changes report unchanged. Dry-run previews the same operations without retaining writes.
 
 ### Reporting
 
 Report v5 keeps research output and `editorResponse` once; its structured object is the plan. Retain invalid output with validation errors, never a second serialized validated-plan copy or silently corrected decision. A parsed plan may exist transiently for execution.
 
 Keep `editorStatus` (success/failed/not_run), staged errors and existing writer diffs. Editor failure preserves research status/known usage but fails the run without writes. Missing responses are null. Add editor usage to existing totals; retain shared configuration and editor prompt version, without per-agent metrics. Correct stale diagnostic labels and preserve content exclusions; defer expanded observability. No database migration or old-report compatibility adapter.
+
+### Runtime and storage decisions
+
+Keep OpenRouter model transport and the local CLI/loopback Mastra Studio entry points. Mastra owns agent iteration and generation-time limits; reserve the last allowed step for final output. The existing deadline still bounds source/discovery work and retry waits. Avoid a second ordinary-call limiter or generation timer.
+
+Initialize each attempt after engine run creation. Use one serializable native workflow state for phase results and the frozen currentDate, rejecting caller-provided initialState. Keep country checks against the saved catalog snapshot without a separate refresh-context object, field registry, selection resolver or attempt-owned checkpoint. Load execution dependencies only when executing, so inspection stays independent of credentials/catalog access.
+
+Use the shared Mastra PinoLogger with child run/source context and explicitly selected application records; disable automatic SDK log export. Producers select bounded fields directly, and `shrinkText` limits selected commentary/reasoning to 4,000 Unicode code points. Suppress sensitive automatic span content at its source or fail closed at export. A generic projection framework, recursive payload processor and event registry add no required behavior.
+
+Keep local logs/traces in DuckDB separate from the catalog. Recording and inspection use sequential access when required; Studio owns its shared store, while attempts finish only their owned observations. Current private run storage uses ingestion_runs with an open text mode and nullable Event association without a foreign key. The existing migration removes ingestion_runs_report_ck; application finalization validates the active report and run correspondence without rewriting historical JSON.
 
 ### Quality check
 
@@ -136,7 +147,7 @@ Strict model providers require an object root for editor transport. The provider
 
 `accept` resolves only the same owner/Edition key/field to a non-null research value; missing or refuted findings invalidate the whole plan. Preparation inherits the finding reason (link acceptance uses an explicit research-link explanation), validates the resolved field against the editor contract, and then generates existing operations. One typed pass resolves actions and checks same-field support; it returns a valid concrete plan or a field issue, without reparsing the whole plan or asserting a resolved plan type. Writer receives only concrete operations. Report retains the original editor response once.
 
-Array/block accept copies the complete finding; set replaces the complete value without automatic merging. Classification follows the same complete-value rule; research preserves unchallenged saved terms, and editor checks preservation or supplies a corrected complete list. Editions are keyed decisions, never an array replacement: omitted Editions are untouched, creation is explicit, deletion is unsupported.
+Array/block accept copies the complete finding; set replaces the complete value without automatic merging. Classification follows the same complete-value rule; research preserves unchallenged saved terms, and editor checks preservation or supplies a corrected complete list. Editions are keyed decisions, never an array replacement: omitted Editions are untouched, new addressed keys require matching research and a creation reason, deletion is unsupported.
 
 Editor set may transform supported findings, not invent facts. URL edits may remove clearly tracking parameters or select a supplied official URL, but must preserve semantic parameters and cannot invent domain/path changes or confuse official-site and ticket slots. Text may be rewritten without changing facts; dates/location/prices may be normalized without guessing missing parts. Lists may be deduplicated and assembled from supported findings and unchallenged saved entries. These semantic decisions belong to editor instructions, not another host evidence checker.
 

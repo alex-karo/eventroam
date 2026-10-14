@@ -18,7 +18,7 @@ const result = (): CatalogResearchResult => ({
   schemaVersion: 5,
   editorResponse: null,
   editorStatus: "not_run",
-  editorPromptVersion: "catalog-editor-v5",
+  editorPromptVersion: "catalog-editor-v6",
   scope: null,
   currentDate: null,
   workload: { savedEditions: 0, returnedEditions: 0 },
@@ -102,29 +102,6 @@ test("CLI targets an Event and starts fresh research for dry-run and apply", asy
     dryRun: false,
     republish: true,
   });
-});
-
-test("CLI exits nonzero for validation rejection after successful research", async () => {
-  const database = testDatabase();
-  const fx = testFixtures();
-  const event = fx.event();
-  const rejected = {
-    ...result(),
-    outcome: "failed" as const,
-    errors: [
-      {
-        code: "limit_reached" as const,
-        stage: "validation" as const,
-        message: "Full refresh exceeds the Edition limit",
-      },
-    ],
-  };
-  expect(
-    await executeCatalogCommand(
-      ["refresh", "--event", event.id, "--database", database.path],
-      { research: async () => rejected, stdout: vi.fn() },
-    ),
-  ).toBe(1);
 });
 
 test("add starts without a named owner and retains the research actor", async () => {
@@ -294,7 +271,7 @@ test("JSON report keeps structured model diagnostic metadata", async () => {
   });
 });
 
-test("partial and skipped results exit zero; failed research and writes exit nonzero", async () => {
+test("partial and skipped results exit zero; research, validation and write failures exit nonzero", async () => {
   const database = testDatabase();
   const event = testFixtures(database.client).event();
   const args = ["refresh", "--event", event.id, "--database", database.path];
@@ -311,36 +288,23 @@ test("partial and skipped results exit zero; failed research and writes exit non
       }),
     ).toBe(0);
   }
-  expect(
-    await executeCatalogCommand(args, {
-      research: async () => ({
-        ...result(),
-        outcome: "failed",
-        researchStatus: "success",
-        errors: [
-          {
-            code: "write_failed",
-            stage: "write",
-            message: "Catalog write failed",
-          },
-        ],
+  for (const [stage, code, researchStatus] of [
+    ["research", "model_failed", "failed"],
+    ["validation", "limit_reached", "success"],
+    ["write", "write_failed", "success"],
+  ] as const) {
+    expect(
+      await executeCatalogCommand(args, {
+        research: async () => ({
+          ...result(),
+          outcome: "failed",
+          researchStatus,
+          errors: [{ code, stage, message: "Item failed" }],
+        }),
+        stdout: vi.fn(),
       }),
-      stdout: vi.fn(),
-    }),
-  ).toBe(1);
-  expect(
-    await executeCatalogCommand(args, {
-      research: async () => ({
-        ...result(),
-        outcome: "failed",
-        researchStatus: "failed",
-        errors: [
-          { code: "model_failed", stage: "research", message: "Model failed" },
-        ],
-      }),
-      stdout: vi.fn(),
-    }),
-  ).toBe(1);
+    ).toBe(1);
+  }
 });
 
 function fixtureCandidate(eventId: string) {

@@ -28,12 +28,7 @@ export function fixtureEditorPlan(
   return {
     status: "ready",
     event: {
-      target: saved
-        ? { eventId: saved.id }
-        : {
-            create: { canonicalName: data.eventName },
-            reason: data.reason ?? "",
-          },
+      ...(!saved ? { reason: data.reason ?? "" } : {}),
       fields: {
         ...(data.summary ? { summary: action(data.summary) } : {}),
         links: {
@@ -64,12 +59,8 @@ export function fixtureEditorPlan(
     editions: data.editions.map(({ key, classification, links, ...facts }) => {
       const old = saved?.editions.find((edition) => edition.editionKey === key);
       return {
-        target: old
-          ? { editionKey: key }
-          : {
-              create: { editionKey: key },
-              reason: "Fixture identifies distinct Edition",
-            },
+        editionKey: key,
+        ...(!old ? { reason: "Fixture identifies distinct Edition" } : {}),
         fields: {
           ...Object.fromEntries(
             Object.entries(facts).map(([name, fact]) => [name, action(fact)]),

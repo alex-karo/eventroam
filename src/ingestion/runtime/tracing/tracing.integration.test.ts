@@ -332,6 +332,7 @@ test.each([
   "recovered",
   "invalid",
   "invalid_editor",
+  "rejected_editor",
   "unchanged",
   "search",
   "reserved",
@@ -457,20 +458,28 @@ test.each([
         committedOperationCount: 0,
       });
     }
-    if (scenario === "invalid_editor") {
+    if (scenario === "invalid_editor" || scenario === "rejected_editor") {
+      const rejected = scenario === "rejected_editor";
       expect(output).toMatchObject({
-        researchStatus: "success",
-        editorStatus: "failed",
+        researchStatus: rejected ? "partial" : "success",
+        editorStatus: rejected ? "success" : "failed",
         outcome: "failed",
         structuralValidation: "passed",
         targetValidation: "passed",
         editorPlanValidation: "failed",
         writeState: "not_attempted",
-        errorCode: "validation_failed",
+        errorCode: rejected ? "editor_rejected" : "validation_failed",
         committedOperationCount: 0,
       });
-      expect(traced.result.operations).toEqual([]);
-      expect(root.name).toContain("invalid");
+      expect(traced.result).toMatchObject({
+        operations: [],
+        changes: [],
+        receipts: [],
+      });
+      expect(root.name).toContain(rejected ? "editor-rejected" : "invalid");
+      if (rejected) {
+        expect(root.name).not.toContain("partial");
+      }
     }
     if (scenario === "unchanged") {
       expect(output.writeState).toBe("unchanged");

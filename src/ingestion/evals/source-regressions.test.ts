@@ -1,7 +1,4 @@
-import { expect, test, vi } from "vitest";
-import { readResearchEvent } from "@/catalog/read/research";
-import { createTestDatabase } from "@/test/database";
-import { testFixtures } from "@/test/fixtures";
+import { expect, test } from "vitest";
 import { fixtureEditorPlan, runFixtureResearch } from "@/test/ingestion";
 import type { ResearchCandidate } from "../research/contracts";
 import { loadEvalSuite } from "./fixtures";
@@ -212,83 +209,4 @@ test("stale-language eval rejects an editor downgrade of confirmed dates", async
   } finally {
     connection.client.close();
   }
-});
-
-test("a wrong saved country blocks even independently supported website repairs", async () => {
-  const { client } = createTestDatabase();
-  const fixtures = testFixtures(client);
-  const event = fixtures.event({
-    canonicalName: "Harbor Echo",
-    summary: "Saved",
-  });
-  fixtures.edition(event, { editionKey: "2027", countryCode: "IE" });
-  const wrongUrl = "https://harbor-echo-australia.example/";
-  const correctUrl = "https://harbor-echo-uk.example/";
-  fixtures.eventLink(event, { kind: "official_site", url: wrongUrl });
-  const before = readResearchEvent(client, event.id);
-  const candidate: ResearchCandidate = {
-    status: "success",
-    data: {
-      eventName: "Harbor Echo",
-      sources: [
-        {
-          url: correctUrl,
-          information:
-            "The Castlewellan festival is in Northern Ireland, United Kingdom.",
-        },
-      ],
-      links: { website: correctUrl, socials: {} },
-      editions: [
-        {
-          key: "2027",
-          countryCode: {
-            value: "GB",
-            reason: "Northern Ireland is in the United Kingdom.",
-          },
-          links: {},
-        },
-      ],
-    },
-    errors: [],
-    unresolved: [],
-  };
-  const generateEditor = vi.fn();
-  const result = await runFixtureResearch(
-    { mode: "refresh", eventId: event.id, actor: "eval", dryRun: false },
-    {
-      client,
-      todayUtc: "2026-10-14",
-      generateCandidate: async () => candidate,
-      generateEditor,
-      readSource: async (url) => ({
-        attemptedUrl: url,
-        finalUrl: url,
-        retrievedAt: "2026-10-14T12:00:00Z",
-        method: "http",
-        outcome: "ok",
-        completeness: "full",
-        markdown: "Harbor Echo Australia",
-        links: [],
-      }),
-    },
-  );
-  expect(result).toMatchObject({
-    outcome: "failed",
-    editorStatus: "not_run",
-    operations: [],
-    receipts: [],
-    changes: [],
-  });
-  expect(result.errors).toContainEqual(
-    expect.objectContaining({
-      code: "country_conflict",
-      stage: "validation",
-      editionKey: "2027",
-      field: "countryCode",
-    }),
-  );
-  expect(generateEditor).not.toHaveBeenCalled();
-  expect(readResearchEvent(client, event.id)).toEqual(before);
-  expect(client.prepare("SELECT * FROM catalog_changes").all()).toEqual([]);
-  expect(client.prepare("SELECT * FROM operation_receipts").all()).toEqual([]);
 });

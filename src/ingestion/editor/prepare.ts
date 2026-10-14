@@ -82,6 +82,16 @@ function slug(value: string): string {
     `event-${createHash("sha256").update(value.normalize("NFKC")).digest("hex").slice(0, 12)}`
   );
 }
+function mayPublish(
+  record: Pick<Event, "publicationState"> | undefined,
+  republish: boolean | undefined,
+): boolean {
+  return (
+    !record ||
+    record.publicationState === "draft" ||
+    (record.publicationState === "withdrawn" && !!republish)
+  );
+}
 function fieldName(value: string): string {
   return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
@@ -398,18 +408,11 @@ export function prepareEditorPlan(
     return result;
   }
   const event = catalog.find((item) => item.id === result.matchedEventId);
-  const target = plan.event.target;
-  if (
-    event
-      ? !("eventId" in target) || target.eventId !== event.id
-      : input.mode !== "add" ||
-        !("create" in target) ||
-        target.create.canonicalName !== result.candidate?.data?.eventName
-  ) {
+  if (!event && !plan.event.reason) {
     return planInvalid(
       result,
-      "event.target",
-      "Event target does not match research assignment",
+      "event.reason",
+      "New Event requires a creation reason",
     );
   }
   if (!event && hasClear(plan.event.fields)) {
@@ -431,7 +434,7 @@ export function prepareEditorPlan(
   }
   const add = adder(result, input);
   const eventRef = event?.id ?? "$event";
-  prepareEvent(plan.event, event, eventRef, add);
+  prepareEvent(plan.event, event, result.candidate.data!.eventName, add);
   let willPublishEdition = false;
   for (const [index, edition] of plan.editions.entries()) {
     if (prepareEdition(edition, index, event, eventRef, input, terms, add)) {
@@ -439,9 +442,7 @@ export function prepareEditorPlan(
     }
   }
   if (
-    (!event ||
-      event.publicationState === "draft" ||
-      (event.publicationState === "withdrawn" && input.republish)) &&
+    mayPublish(event, input.republish) &&
     (willPublishEdition ||
       event?.editions.some(
         (edition) => edition.publicationState === "published",
@@ -524,18 +525,48 @@ function resolveAction<T>(
   return { action: "set", value: value.data, reason: wrapped.reason };
 }
 
+type FieldValue<Action> = Action extends SetAction<infer Value> ? Value : never;
+
+/** Bind each action to the same named finding, schema and error path. */
+function fieldResolver<
+  Fields extends Record<
+    string,
+    FieldAction<unknown> | AcceptAction | undefined
+  >,
+>(
+  fields: Fields,
+  findings: Partial<Record<keyof Fields, unknown>> | undefined,
+  schemas: { [K in keyof Fields]: ActionValueSchema<FieldValue<Fields[K]>> },
+  path: string,
+) {
+  return <K extends keyof Fields & string>(key: K) =>
+    // resolveAction preserves concrete actions and validates accepted values.
+    resolveAction(
+      fields[key],
+      findings?.[key],
+      schemas[key],
+      `${path}.${key}`,
+    ) as Exclude<Fields[K], AcceptAction>;
+}
+
 /** Resolve and check support together; only concrete typed actions reach conversion. */
 function resolveEditorFields(
   plan: RawEditorPlan,
   data: ResearchData,
 ): { ok: true; plan: EditorPlan } | { ok: false; issue: FieldIssue } {
   try {
-    const eventFields = eventFieldsSchema.shape;
-    const editionFields = editionFieldsSchema.shape;
-    const links = eventFields.links.unwrap().shape;
-    const socials = links.socials.unwrap().shape;
-    const socialActions = plan.event?.fields.links?.socials;
-    const r = resolveAction;
+    const eventSchema = eventFieldsSchema.shape;
+    const linkSchema = eventSchema.links.unwrap().shape;
+    const eventLinks = plan.event?.fields.links;
+    const socialActions = eventLinks?.socials;
+    const resolveSocial = socialActions
+      ? fieldResolver(
+          socialActions,
+          data.links.socials,
+          linkSchema.socials.unwrap().shape,
+          "event.fields.links.socials",
+        )
+      : undefined;
     return {
       ok: true,
       plan: {
@@ -544,58 +575,28 @@ function resolveEditorFields(
           ? {
               ...plan.event,
               fields: {
-                summary: r(
+                summary: resolveAction(
                   plan.event.fields.summary,
                   data.summary,
-                  eventFields.summary,
+                  eventSchema.summary,
                   "event.fields.summary",
                 ),
-                links: plan.event.fields.links
+                links: eventLinks
                   ? {
-                      website: r(
-                        plan.event.fields.links.website,
+                      website: resolveAction(
+                        eventLinks.website,
                         data.links.website,
-                        links.website,
+                        linkSchema.website,
                         "event.fields.links.website",
                       ),
-                      socials: socialActions
+                      socials: resolveSocial
                         ? {
-                            instagram: r(
-                              socialActions.instagram,
-                              data.links.socials.instagram,
-                              socials.instagram,
-                              "event.fields.links.socials.instagram",
-                            ),
-                            facebook: r(
-                              socialActions.facebook,
-                              data.links.socials.facebook,
-                              socials.facebook,
-                              "event.fields.links.socials.facebook",
-                            ),
-                            youtube: r(
-                              socialActions.youtube,
-                              data.links.socials.youtube,
-                              socials.youtube,
-                              "event.fields.links.socials.youtube",
-                            ),
-                            tiktok: r(
-                              socialActions.tiktok,
-                              data.links.socials.tiktok,
-                              socials.tiktok,
-                              "event.fields.links.socials.tiktok",
-                            ),
-                            x: r(
-                              socialActions.x,
-                              data.links.socials.x,
-                              socials.x,
-                              "event.fields.links.socials.x",
-                            ),
-                            other: r(
-                              socialActions.other,
-                              data.links.socials.other,
-                              socials.other,
-                              "event.fields.links.socials.other",
-                            ),
+                            instagram: resolveSocial("instagram"),
+                            facebook: resolveSocial("facebook"),
+                            youtube: resolveSocial("youtube"),
+                            tiktok: resolveSocial("tiktok"),
+                            x: resolveSocial("x"),
+                            other: resolveSocial("other"),
                           }
                         : undefined,
                     }
@@ -604,100 +605,39 @@ function resolveEditorFields(
             }
           : null,
         editions: plan.editions.map((edition, index) => {
-          const key =
-            "editionKey" in edition.target
-              ? edition.target.editionKey
-              : edition.target.create.editionKey;
-          const finding = data.editions.find((item) => item.key === key);
-          const fields = edition.fields;
+          const finding = data.editions.find(
+            (item) => item.key === edition.editionKey,
+          );
+          const { links, ...fields } = edition.fields;
           const path = `editions.${index}.fields`;
+          const resolve = fieldResolver(
+            fields,
+            finding,
+            editionFieldsSchema.shape,
+            path,
+          );
           return {
             ...edition,
             fields: {
-              year: r(
-                fields.year,
-                finding?.year,
-                editionFields.year,
-                `${path}.year`,
-              ),
-              dates: r(
-                fields.dates,
-                finding?.dates,
-                editionFields.dates,
-                `${path}.dates`,
-              ),
-              coordinates: r(
-                fields.coordinates,
-                finding?.coordinates,
-                editionFields.coordinates,
-                `${path}.coordinates`,
-              ),
-              scheduleStatus: r(
-                fields.scheduleStatus,
-                finding?.scheduleStatus,
-                editionFields.scheduleStatus,
-                `${path}.scheduleStatus`,
-              ),
-              displayName: r(
-                fields.displayName,
-                finding?.displayName,
-                editionFields.displayName,
-                `${path}.displayName`,
-              ),
-              venueName: r(
-                fields.venueName,
-                finding?.venueName,
-                editionFields.venueName,
-                `${path}.venueName`,
-              ),
-              venueAddress: r(
-                fields.venueAddress,
-                finding?.venueAddress,
-                editionFields.venueAddress,
-                `${path}.venueAddress`,
-              ),
-              locality: r(
-                fields.locality,
-                finding?.locality,
-                editionFields.locality,
-                `${path}.locality`,
-              ),
-              administrativeArea: r(
-                fields.administrativeArea,
-                finding?.administrativeArea,
-                editionFields.administrativeArea,
-                `${path}.administrativeArea`,
-              ),
-              countryCode: r(
-                fields.countryCode,
-                finding?.countryCode,
-                editionFields.countryCode,
-                `${path}.countryCode`,
-              ),
-              sizeEstimate: r(
-                fields.sizeEstimate,
-                finding?.sizeEstimate,
-                editionFields.sizeEstimate,
-                `${path}.sizeEstimate`,
-              ),
-              tickets: r(
-                fields.tickets,
-                finding?.tickets,
-                editionFields.tickets,
-                `${path}.tickets`,
-              ),
-              classification: r(
-                fields.classification,
-                finding?.classification,
-                editionFields.classification,
-                `${path}.classification`,
-              ),
-              links: fields.links
+              year: resolve("year"),
+              dates: resolve("dates"),
+              coordinates: resolve("coordinates"),
+              scheduleStatus: resolve("scheduleStatus"),
+              displayName: resolve("displayName"),
+              venueName: resolve("venueName"),
+              venueAddress: resolve("venueAddress"),
+              locality: resolve("locality"),
+              administrativeArea: resolve("administrativeArea"),
+              countryCode: resolve("countryCode"),
+              sizeEstimate: resolve("sizeEstimate"),
+              tickets: resolve("tickets"),
+              classification: resolve("classification"),
+              links: links
                 ? {
-                    tickets: r(
-                      fields.links.tickets,
+                    tickets: resolveAction(
+                      links.tickets,
                       finding?.links.tickets,
-                      editionFields.links.unwrap().shape.tickets,
+                      editionFieldsSchema.shape.links.unwrap().shape.tickets,
                       `${path}.links.tickets`,
                     ),
                   }
@@ -725,7 +665,9 @@ function validateEditionTargets(
   const savedKeys = new Set(
     event?.editions.map((edition) => edition.editionKey),
   );
-  const newTargets = editions.filter((edition) => "create" in edition.target);
+  const newTargets = editions.filter(
+    (edition) => !savedKeys.has(edition.editionKey),
+  );
   if (
     input.mode === "refresh" &&
     ((input.scope === "current" && editions.length > 1) ||
@@ -742,22 +684,21 @@ function validateEditionTargets(
     (edition) => edition.countryCode,
   )?.countryCode;
   for (const edition of editions) {
-    const key =
-      "editionKey" in edition.target
-        ? edition.target.editionKey
-        : edition.target.create.editionKey;
-    const creating = "create" in edition.target;
+    const key = edition.editionKey;
+    const creating = !savedKeys.has(key);
     if (
-      creating
-        ? savedKeys.has(key) ||
-          !result.candidate?.data?.editions.some(
-            (finding) => finding.key === key,
-          )
-        : !savedKeys.has(key)
+      creating &&
+      !result.candidate!.data!.editions.some((finding) => finding.key === key)
     ) {
       return {
-        field: "editions.target",
-        message: "Edition target is outside the assignment",
+        field: "editions.editionKey",
+        message: "New Edition key is outside research assignment",
+      };
+    }
+    if (creating && !edition.reason) {
+      return {
+        field: "editions.reason",
+        message: "New Edition requires a creation reason",
       };
     }
     if (creating && hasClear(edition.fields)) {
@@ -787,23 +728,23 @@ function validateEditionTargets(
 function prepareEvent(
   plan: NonNullable<EditorPlan["event"]>,
   event: Event | undefined,
-  eventRef: string,
+  canonicalName: string,
   add: AddOperation,
 ) {
-  const target = plan.target;
+  const eventRef = event?.id ?? "$event";
   const summary = valueOf(plan.fields.summary);
-  if ("create" in target) {
+  if (!event) {
     add(
       {
         kind: "createEvent",
         data: {
-          slug: slug(target.create.canonicalName),
-          canonicalName: target.create.canonicalName,
+          slug: slug(canonicalName),
+          canonicalName,
           ...(summary === undefined ? {} : { summary }),
         },
       },
       {
-        canonical_name: [target.reason],
+        canonical_name: [plan.reason!],
         ...(summary === undefined
           ? {}
           : { summary: [plan.fields.summary!.reason] }),
@@ -815,7 +756,7 @@ function prepareEvent(
     add(
       { kind: "updateEvent", id: eventRef, data: { summary } },
       { summary: [plan.fields.summary!.reason] },
-      event!.version,
+      event.version,
     );
   }
   linksToOperations(
@@ -839,10 +780,7 @@ function prepareEdition(
   terms: Term[],
   add: AddOperation,
 ): boolean {
-  const key =
-    "editionKey" in edition.target
-      ? edition.target.editionKey
-      : edition.target.create.editionKey;
+  const key = edition.editionKey;
   const saved = event?.editions.find((item) => item.editionKey === key);
   const id = saved?.id ?? `$edition_${index}`;
   const version = saved?.version ?? 1;
@@ -856,7 +794,7 @@ function prepareEdition(
       },
       {
         ...reasons,
-        edition_key: [(edition.target as { reason: string }).reason],
+        edition_key: [edition.reason!],
       },
       undefined,
       id.slice(1),
@@ -903,12 +841,8 @@ function prepareEdition(
   linksToOperations(add, { type: "edition", id }, saved?.links ?? [], version, {
     ticketing: edition.fields.links?.tickets,
   });
-  const mayPublish =
-    !saved ||
-    saved.publicationState === "draft" ||
-    (saved.publicationState === "withdrawn" && input.republish);
   if (
-    mayPublish &&
+    mayPublish(saved, input.republish) &&
     isEditionPublishable(
       { ...saved, ...values },
       terms.filter((term) => nextTerms.includes(term.id)),

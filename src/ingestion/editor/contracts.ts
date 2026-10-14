@@ -4,7 +4,7 @@ import {
   researchQuestionSchema,
 } from "../research/contracts";
 
-export const EDITOR_PROMPT_VERSION = "catalog-editor-v5";
+export const EDITOR_PROMPT_VERSION = "catalog-editor-v6";
 const reason = z.string().trim().min(1).max(500);
 const keep = z.strictObject({ action: z.literal("keep"), reason });
 const accept = z.strictObject({ action: z.literal("accept") });
@@ -90,26 +90,15 @@ export const readyEditorPlanSchema = z
     status: z.literal("ready"),
     event: z
       .strictObject({
-        target: z.union([
-          z.strictObject({ eventId: z.string().min(1) }),
-          z.strictObject({
-            create: z.strictObject({ canonicalName: text(250) }),
-            reason,
-          }),
-        ]),
+        reason: reason.optional(),
         fields: eventFieldsSchema,
       })
       .nullable(),
     editions: z
       .array(
         z.strictObject({
-          target: z.union([
-            z.strictObject({ editionKey: facts.key }),
-            z.strictObject({
-              create: z.strictObject({ editionKey: facts.key }),
-              reason,
-            }),
-          ]),
+          editionKey: facts.key,
+          reason: reason.optional(),
           fields: editionFieldsSchema,
         }),
       )
@@ -117,11 +106,7 @@ export const readyEditorPlanSchema = z
     unresolved: z.array(researchQuestionSchema).max(30),
   })
   .superRefine((plan, ctx) => {
-    const keys = plan.editions.map((edition) =>
-      "editionKey" in edition.target
-        ? edition.target.editionKey
-        : edition.target.create.editionKey,
-    );
+    const keys = plan.editions.map((edition) => edition.editionKey);
     if (new Set(keys).size !== keys.length) {
       ctx.addIssue({
         code: "custom",

@@ -125,20 +125,28 @@ test.each(["full", "current"] as const)(
     expect(JSON.parse(stored.input_json).scope).toBe(scope);
   },
 );
-test.each(["AU", "GB", null] as const)(
-  "new Edition country %s conflicting with saved history vetoes all writes",
-  async (country) => {
+test.each([
+  ["new-2027", "AU"],
+  ["new-2027", "GB"],
+  ["new-2027", null],
+  ["source-row", "GB"],
+] as const)(
+  "Edition %s country %s conflict blocks all writes and editor generation",
+  async (editionKey, country) => {
     const f = fixture();
+    const before = readResearchEvent(f.client, f.event.id);
+    const generateEditor = vi.fn();
     f.proposal.data!.links.website = "https://correct.fixture.example/";
     f.proposal.data!.editions = [
       {
-        key: "new-2027",
+        key: editionKey,
         countryCode: { value: country, reason },
         links: { tickets: "https://tickets.fixture.example/" },
       },
     ];
     const result = await runCatalogResearch(f.input, {
       ...f.deps,
+      generateEditor,
       generateCandidate: async () => {
         return f.proposal;
       },
@@ -146,6 +154,8 @@ test.each(["AU", "GB", null] as const)(
     expect(result).toMatchObject({
       outcome: "failed",
       researchStatus: "success",
+      editorStatus: "not_run",
+      changes: [],
       operations: [],
       receipts: [],
       modelResponse: { object: f.proposal },
@@ -155,10 +165,12 @@ test.each(["AU", "GB", null] as const)(
       expect.objectContaining({
         code: "country_conflict",
         stage: "validation",
-        editionKey: "new-2027",
+        editionKey,
+        field: "countryCode",
       }),
     );
-    expect(readResearchEvent(f.client, f.event.id)!.summary).toBe("Saved");
+    expect(generateEditor).not.toHaveBeenCalled();
+    expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
     noWrites(f.client);
     expect(f.client.prepare("SELECT status FROM ingestion_runs").get()).toEqual(
       { status: "failed" },

@@ -30,6 +30,8 @@ const editionFields = Object.keys(
 );
 const optional = new Set([
   "reason",
+  "event.reason",
+  "editions.*.reason",
   ...eventFields.map((field) => `event.fields.${field}`),
   ...editionFields.map((field) => `editions.*.fields.${field}`),
   "event.fields.links.website",

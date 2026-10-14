@@ -390,7 +390,7 @@ function result(
     schemaVersion: 5,
     editorResponse: null,
     editorStatus: "not_run",
-    editorPromptVersion: "catalog-editor-v5",
+    editorPromptVersion: "catalog-editor-v6",
     scope: null,
     currentDate: null,
     workload: { savedEditions: 0, returnedEditions: 0 },

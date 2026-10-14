@@ -101,19 +101,17 @@ type Action<T> =
   | { action: "clear" | "keep"; reason: string };
 // clear is allowed only on clearable fields; set never accepts null.
 type EditorPlan = {
-  event: { target: { eventId: string } | {
-    create: { canonicalName: string }; reason: string
-  }; fields: EventActions } | null;
-  editions: { target: { editionKey: string } | {
-    create: { editionKey: string }; reason: string
-  }; fields: EditionActions }[];
+  event: { fields: EventActions; reason?: string } | null;
+  editions: {
+    editionKey: string; fields: EditionActions; reason?: string
+  }[]; // reason is required for new Event/Edition creation.
   unresolved: ResearchQuestion[];
 };
 // Actions use named fields. Omission preserves values.
 // A considered Edition can use fields:{}; an omitted Edition is not processed.
 ```
 
-One editor serves add and refresh. It receives supplied research and saved state, has no tools, and makes at most one generation under the shared deadline/configuration without retries or correction loops. Failed/invalid research, country rejection and duplicate add skip it. Add may decline creation with `event:null`, no Editions and an unresolved reason; refresh requires its existing Event target. Invalid editing writes nothing and preserves research output/status.
+One editor serves add and refresh. It receives supplied research and saved state, has no tools, and makes at most one generation under the shared deadline/configuration without retries or correction loops. Failed/invalid research, country rejection and duplicate add skip it. Add may decline creation with `event:null`, no Editions and an unresolved reason; refresh uses the Event fixed by validated input; add uses research eventName. Editor returns no Event IDs/names or nested target/create objects. Edition keys resolve against saved state: existing keys update, new keys require matching research and a creation reason. Invalid editing writes nothing and preserves research output/status.
 
 ### Choose the refresh target
 
@@ -193,4 +191,4 @@ Editor returns either `status:ready` with a plan or `status:rejected` with a rea
 
 ### Accepting research values
 
-Editor can use `accept` to take a non-null same-field research value without repeating it, or `set` with a complete value/reason for a supported editorial transformation. Preparation resolves acceptance before writer operations and inherits the finding explanation; invalid/missing findings reject the whole plan. URL edits preserve meaningful components; text rewrites and list deduplication must preserve supported facts. Complete lists/blocks replace existing values without merging. Classification acceptance copies the complete research list, including unchallenged saved terms; editor checks preservation before accepting. Editions remain keyed decisions: omitted Editions are untouched and creation is explicit.
+Editor can use `accept` to take a non-null same-field research value without repeating it, or `set` with a complete value/reason for a supported editorial transformation. Preparation resolves acceptance before writer operations and inherits the finding explanation; invalid/missing findings reject the whole plan. URL edits preserve meaningful components; text rewrites and list deduplication must preserve supported facts. Complete lists/blocks replace existing values without merging. Classification acceptance copies the complete research list, including unchallenged saved terms; editor checks preservation before accepting. Editions remain keyed decisions: omitted Editions are untouched; a new addressed key requires matching research and a creation reason.
