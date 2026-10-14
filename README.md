@@ -6,6 +6,10 @@ Eventroam is a worldwide discovery platform for open-air music festivals and bur
 
 Eventroam is under active development and has no production deployment. Backward compatibility is not required at this stage: APIs, database schemas, report formats, and local commands may change without preserving earlier versions.
 
+## License
+
+Eventroam is proprietary. All rights are reserved; use, copying, modification, and distribution of the original repository materials require prior written permission from the relevant copyright holders, subject to applicable law and hosting-service terms. See [LICENSE](LICENSE). Third-party materials retain their own licenses and terms.
+
 ## Product idea
 
 An **Event** is a continuing identity; each edition is a separate **Edition** with its own dates, location, status, and classifications. This preserves history when plans change.
