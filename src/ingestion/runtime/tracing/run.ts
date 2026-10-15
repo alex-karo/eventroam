@@ -177,8 +177,8 @@ export async function readInitialWithTrace(
     try {
       span = trace.tracing.root?.createChildSpan({
         type: SpanType.GENERIC,
-        name: "readSource",
-        entityId: "readSource",
+        name: "readPage",
+        entityId: "readPage",
       });
     } catch {
       trace.tracing.diagnose("trace_export_failed");
@@ -201,7 +201,7 @@ export async function readInitialWithTrace(
         const finalUrl = read ? traceUrl(read.finalUrl) : undefined;
         observeTrace(trace?.tracing, span, {
           name: traceText(
-            `readSource · ${sources.initialUrl} · ${read?.outcome ?? "failed"}:${traceReason(read?.reason)}`,
+            `readPage · ${sources.initialUrl} · ${read?.outcome ?? "failed"}:${traceReason(read?.reason)}`,
             512,
           ),
           input: {

@@ -1,6 +1,6 @@
 import type { ResearchToolContext } from "./contracts";
-import { createReadSourceTool } from "./read-source/tool";
-import { createDiscoverSourcesTool } from "./discover-sources/tool";
+import { createReadPageTool } from "./read-page/tool";
+import { createSearchWebTool } from "./search-web/tool";
 
 export function createResearchTools(
   sources: ResearchToolContext["sources"],
@@ -11,7 +11,7 @@ export function createResearchTools(
 ) {
   const context = { sources, budget, modelContext, tracing, abortSignal };
   return {
-    readSource: createReadSourceTool(context),
-    discoverSources: createDiscoverSourcesTool(context),
+    readPage: createReadPageTool(context),
+    searchWeb: createSearchWebTool(context),
   };
 }

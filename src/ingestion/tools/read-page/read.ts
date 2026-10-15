@@ -1,7 +1,7 @@
 import type { ResearchLogger } from "../../runtime/logging";
 import type { ResearchBudget } from "../../runtime/budget";
 import { ResearchLimitError } from "../../runtime/budget";
-import type { ReadSourceResult } from "./contracts";
+import type { ReadPageResult } from "./contracts";
 import { extractSource } from "./extract";
 import { FirecrawlError, getFirecrawlResponse } from "./firecrawl";
 import {
@@ -11,7 +11,7 @@ import {
   type LookupHost,
 } from "../network";
 
-export interface ReadSourceOptions {
+export interface ReadPageOptions {
   budget: ResearchBudget;
   resolver?: LookupHost;
   request?: typeof getBoundedResponse;
@@ -27,7 +27,7 @@ function socialHost(hostname: string): boolean {
   );
 }
 
-function baseResult(url: string, at: string): ReadSourceResult {
+function baseResult(url: string, at: string): ReadPageResult {
   return {
     attemptedUrl: url,
     finalUrl: url,
@@ -65,8 +65,8 @@ function requestReason(error: unknown): string {
 
 async function fetchSource(
   url: string,
-  options: ReadSourceOptions,
-  result: ReadSourceResult,
+  options: ReadPageOptions,
+  result: ReadPageResult,
 ): Promise<BoundedResponse> {
   const response = await (options.request ?? getBoundedResponse)(url, {
     maxBytes: options.budget.limits.pageBytes,
@@ -95,10 +95,10 @@ async function fetchSource(
   });
 }
 
-export async function readSource(
+export async function readPage(
   inputUrl: string,
-  options: ReadSourceOptions,
-): Promise<ReadSourceResult> {
+  options: ReadPageOptions,
+): Promise<ReadPageResult> {
   const at = (options.now?.() ?? new Date()).toISOString();
   const result = baseResult(inputUrl, at);
   try {

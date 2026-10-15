@@ -1,24 +1,24 @@
 import { createTool } from "@mastra/core/tools";
 import { observeTrace, traceUrl } from "../../runtime/tracing";
 import type { ResearchToolContext } from "../contracts";
-import { readSourceInputSchema, readSourceOutputSchema } from "./contracts";
+import { readPageInputSchema, readPageOutputSchema } from "./contracts";
 import { boundedToolSource } from "./response";
 
-export function createReadSourceTool({
+export function createReadPageTool({
   sources,
   budget,
   modelContext,
   tracing,
   abortSignal,
 }: ResearchToolContext) {
-  const { readSource: read } = sources;
+  const { readPage: read } = sources;
   const log = tracing?.log;
   return createTool({
-    id: "readSource",
+    id: "readPage",
     description:
       "Read a specific public page to resolve a missing or conflicting festival fact. Choose a relevant inspected link or discovered URL. Returns Markdown and remaining budget; repeated URLs return cached content, including failures. No writes.",
-    inputSchema: readSourceInputSchema,
-    outputSchema: readSourceOutputSchema,
+    inputSchema: readPageInputSchema,
+    outputSchema: readPageOutputSchema,
     execute: async ({ url }, toolContext) => {
       const span = toolContext?.tracingContext?.currentSpan;
       const context = {
@@ -30,7 +30,7 @@ export function createReadSourceTool({
       const toolLog = log?.child(context);
       const started = Date.now();
       toolLog?.info("Tool call started", {
-        tool: "readSource",
+        tool: "readPage",
         attemptedUrl: url,
       });
       try {
@@ -40,7 +40,7 @@ export function createReadSourceTool({
         abortSignal?.throwIfAborted();
         const bounded = boundedToolSource(result);
         observeTrace(tracing, span, {
-          name: "readSource",
+          name: "readPage",
           input: {
             attemptedUrl: traceUrl(url).url,
             urlTruncated: traceUrl(url).truncated,
@@ -62,7 +62,7 @@ export function createReadSourceTool({
         toolLog?.[result.outcome === "ok" ? "info" : "warn"](
           "Tool call finished",
           {
-            tool: "readSource",
+            tool: "readPage",
             attemptedUrl: url,
             response: { status: result.httpStatus, url: result.finalUrl },
             outcome: result.outcome,
@@ -80,13 +80,13 @@ export function createReadSourceTool({
         return { ...bounded, remaining: budget.remaining() };
       } catch (error) {
         toolLog?.warn("Tool call failed", {
-          tool: "readSource",
+          tool: "readPage",
           attemptedUrl: url,
           errorCode: "source_failed",
           durationMs: Date.now() - started,
         });
         observeTrace(tracing, span, {
-          name: "readSource",
+          name: "readPage",
           input: {
             attemptedUrl: traceUrl(url).url,
             urlTruncated: traceUrl(url).truncated,

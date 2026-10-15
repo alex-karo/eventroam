@@ -3,12 +3,12 @@ import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { createResearchBudget } from "../../runtime/budget";
-import type { ReadSourceResult } from "../../tools/read-source/contracts";
+import type { ReadPageResult } from "../../tools/read-page/contracts";
 import { modelContext, promptFor } from "./input";
 import { researchInstructions } from "./prompt";
 import { loadResearchContext } from "../context";
 
-const source: ReadSourceResult = {
+const source: ReadPageResult = {
   attemptedUrl: "https://example.org/announcement",
   finalUrl: "https://example.org/2027",
   retrievedAt: "2026-10-08T12:00:00Z",
@@ -231,5 +231,20 @@ test("one frozen instant and saved facts preserve local-day and opaque-key match
         countryCode: null,
       }),
     ]),
+  );
+});
+
+test("search permissions belong to the tool, including conditional add discovery", () => {
+  expect(researchInstructions).toContain(
+    "Follow relevant known links first. Use searchWeb only under its stated conditions.",
+  );
+  expect(researchInstructions).toContain(
+    "use searchWeb to find one when none is known",
+  );
+  expect(researchInstructions).not.toContain(
+    "Search only when relevant inspected links are absent",
+  );
+  expect(researchInstructions).not.toContain(
+    "discard its facts, search for the correct",
   );
 });

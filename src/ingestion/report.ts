@@ -2,8 +2,8 @@ import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
 import type { ResearchBudgetSnapshot } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
-import type { SourceReadMetadata } from "./tools/read-source/contracts";
-import type { DiscoverSourcesResult } from "./tools/discover-sources/contracts";
+import type { SourceReadMetadata } from "./tools/read-page/contracts";
+import type { SearchWebResult } from "./tools/search-web/contracts";
 import {
   RESEARCH_PROMPT_VERSION,
   researchCandidateSchema,
@@ -30,7 +30,7 @@ export type ReportInput = {
   errors: ResearchError[];
   unresolved: ResearchQuestion[];
   reads: SourceReadMetadata[];
-  discovery: DiscoverSourcesResult[];
+  discovery: SearchWebResult[];
   budget: ResearchBudgetSnapshot;
   started: number;
   finished: number;

@@ -7,7 +7,7 @@ import {
   UnsafeSourceError,
   type LookupHost,
 } from "./network";
-import { readSource } from "./read-source/read";
+import { readPage } from "./read-page/read";
 
 const publicAddress = { address: "8.8.8.8", family: 4 };
 const resolver = vi.fn<LookupHost>(async () => [publicAddress]);
@@ -157,7 +157,7 @@ it("retries in Got and counts each page attempt", async () => {
     response.end("Festival 2027 confirmed");
   };
   const budget = createResearchBudget();
-  const result = await readSource("http://fixture.example/start", {
+  const result = await readPage("http://fixture.example/start", {
     budget,
     resolver,
   });
@@ -174,7 +174,7 @@ it("retries beyond the former page cap", async () => {
   };
   const budget = createResearchBudget();
   expect(
-    await readSource("http://fixture.example/start", { budget, resolver }),
+    await readPage("http://fixture.example/start", { budget, resolver }),
   ).toMatchObject({ outcome: "failed" });
   expect(requests.length).toBeGreaterThan(1);
   expect(budget.snapshot().pages).toBe(requests.length);

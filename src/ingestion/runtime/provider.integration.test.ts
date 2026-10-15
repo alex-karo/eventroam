@@ -24,11 +24,11 @@ const runCatalogResearch: typeof executeResearch = async (input, deps) => {
   expect(result.usage.searchCostBasis).toBe("estimate");
   return result;
 };
-import type { ReadSourceResult } from "../tools/read-source/contracts";
+import type { ReadPageResult } from "../tools/read-page/contracts";
 
 const url = "https://example.org/provider-fixture";
 const eventId = "provider-fest";
-const source: ReadSourceResult = {
+const source: ReadPageResult = {
   attemptedUrl: url,
   finalUrl: url,
   retrievedAt: "2026-10-03T12:00:00.000Z",
@@ -237,7 +237,7 @@ test("actual Mastra request sends a compatible bounded response schema", async (
       }).serviceTier,
       reasoningEffort: "medium",
     },
-    readSource: async () => source,
+    readPage: async () => source,
   });
   expect(result.modelResponse?.object).toEqual(
     wireCandidate(requests[0], candidate),
@@ -321,7 +321,7 @@ test.each([
   async (searchDetails, searchAttempts) => {
     const client = testDatabase().client;
     const requests: Record<string, unknown>[] = [];
-    const readSource = vi.fn(
+    const readPage = vi.fn(
       async (
         requestedUrl: string,
         options: {
@@ -336,7 +336,7 @@ test.each([
         };
       },
     );
-    const discoverSources = vi.fn(
+    const searchWeb = vi.fn(
       async (
         query: string,
         options: {
@@ -349,7 +349,7 @@ test.each([
         }
         return {
           query,
-          candidates: [{ url, title: "Provider Fest" }],
+          candidates: [{ url, title: "Provider Fest", highlights: [] }],
           retrievedAt: source.retrievedAt,
           modelCostUsd: searchDetails ? 0.125 : null,
           searchCostUsd: 0.25,
@@ -372,10 +372,10 @@ test.each([
         const toolCall =
           step === 1
             ? {
-                name: "discoverSources",
+                name: "searchWeb",
                 arguments: JSON.stringify({ query: "  Provider Fest  " }),
               }
-            : { name: "readSource", arguments: JSON.stringify({ url }) };
+            : { name: "readPage", arguments: JSON.stringify({ url }) };
         return new Response(
           JSON.stringify({
             id: `add-step-${step}`,
@@ -446,20 +446,17 @@ test.each([
           ...config,
           limits: { ...config.limits, agentSteps: 3 + searchAttempts },
         },
-        discoverSources,
-        readSource,
+        searchWeb,
+        readPage,
       },
     );
     expect(requests).toHaveLength(3);
     expect(
       requests.every((request) => request.service_tier === undefined),
     ).toBe(true);
-    expect(discoverSources).toHaveBeenCalledTimes(1);
-    expect(discoverSources).toHaveBeenCalledWith(
-      "Provider Fest",
-      expect.anything(),
-    );
-    expect(readSource).toHaveBeenCalledTimes(1);
+    expect(searchWeb).toHaveBeenCalledTimes(1);
+    expect(searchWeb).toHaveBeenCalledWith("Provider Fest", expect.anything());
+    expect(readPage).toHaveBeenCalledTimes(1);
     expect(result.usage).toMatchObject({
       complete: false,
       searches: searchAttempts,
@@ -475,7 +472,7 @@ test.each([
     expect(requests[2].tools).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          function: expect.objectContaining({ name: "readSource" }),
+          function: expect.objectContaining({ name: "readPage" }),
         }),
       ]),
     );
@@ -483,7 +480,7 @@ test.each([
       expect.arrayContaining([
         expect.objectContaining({
           function: expect.objectContaining({
-            name: "discoverSources",
+            name: "searchWeb",
             parameters: expect.objectContaining({
               properties: expect.objectContaining({
                 query: expect.objectContaining({
@@ -510,7 +507,7 @@ test.each([null, "I will read the linked page before returning the result."])(
     savedSource(client);
     const linkedUrl = "https://example.org/dates";
     const requests: Record<string, unknown>[] = [];
-    const readSource = vi.fn(async (requestedUrl: string) => ({
+    const readPage = vi.fn(async (requestedUrl: string) => ({
       ...source,
       attemptedUrl: requestedUrl,
       finalUrl: requestedUrl,
@@ -540,7 +537,7 @@ test.each([null, "I will read the linked page before returning the result."])(
                           id: "read-linked-page",
                           type: "function",
                           function: {
-                            name: "readSource",
+                            name: "readPage",
                             arguments: JSON.stringify({ url: linkedUrl }),
                           },
                         },
@@ -579,7 +576,7 @@ test.each([null, "I will read the linked page before returning the result."])(
     const result = await runCatalogResearch(input, {
       client,
       config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
-      readSource,
+      readPage,
     });
     expect(requests).toHaveLength(2);
     expect(result.usage.cachedInputTokens).toBe(null);
@@ -589,7 +586,7 @@ test.each([null, "I will read the linked page before returning the result."])(
     expect(requests[0].tools).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          function: expect.objectContaining({ name: "readSource" }),
+          function: expect.objectContaining({ name: "readPage" }),
         }),
       ]),
     );
@@ -600,15 +597,16 @@ test.each([null, "I will read the linked page before returning the result."])(
           parameters: { properties: { url: unknown } };
         };
       }>
-    ).find((tool) => tool.function.name === "readSource");
+    ).find((tool) => tool.function.name === "readPage");
     expect(readTool?.function.parameters.properties.url).toMatchObject({
       type: "string",
       pattern: "^https?:\\/\\/",
       description: expect.any(String),
     });
-    expect(readSource.mock.calls.map(([requestedUrl]) => requestedUrl)).toEqual(
-      [url, linkedUrl],
-    );
+    expect(readPage.mock.calls.map(([requestedUrl]) => requestedUrl)).toEqual([
+      url,
+      linkedUrl,
+    ]);
     expect(result.sources.map((read) => read.finalUrl)).toContain(linkedUrl);
     expect(result.errors).toEqual([]);
     expect(result.researchStatus).toBe("success");
@@ -617,7 +615,7 @@ test.each([null, "I will read the linked page before returning the result."])(
       (requests[0].tools as Array<{ function: { name: string } }>)
         .map((t) => t.function.name)
         .sort(),
-    ).toEqual(["discoverSources", "readSource"]);
+    ).toEqual(["readPage", "searchWeb"]);
     expect(requests[1].tools).toBeUndefined();
   },
 );
@@ -681,7 +679,7 @@ function readCall(
       {
         id: "read-step",
         type: "function",
-        function: { name: "readSource", arguments: JSON.stringify(args) },
+        function: { name: "readPage", arguments: JSON.stringify(args) },
       },
     ],
   };
@@ -726,7 +724,7 @@ test.each(["http", "abort"])(
           durationMs: failure === "abort" ? 500 : 30_000,
         },
       },
-      readSource: async (requestedUrl) => ({
+      readPage: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
         finalUrl: requestedUrl,
@@ -769,7 +767,7 @@ test.each([true, false])(
     const result = await runCatalogResearch(input, {
       client,
       config: { ...config, limits: { ...DEFAULT_RESEARCH_LIMITS } },
-      readSource: async (requestedUrl) => ({
+      readPage: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
         finalUrl: requestedUrl,
@@ -806,7 +804,7 @@ test("native agent iterations stop repeated tool requests", async () => {
   const result = await runCatalogResearch(input, {
     client,
     config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
-    readSource: async (requestedUrl) => ({
+    readPage: async (requestedUrl) => ({
       ...source,
       attemptedUrl: requestedUrl,
       finalUrl: requestedUrl,
@@ -843,7 +841,7 @@ test("provider unavailable retries preserve ordinary agent capacity and call acc
   const pending = runCatalogResearch(input, {
     client,
     config: { ...config, limits: { ...config.limits, durationMs: 30_000 } },
-    readSource: async () => source,
+    readPage: async () => source,
   });
   // Wait for the SDK to schedule its real backoff, then advance only that delay.
   await vi.waitFor(() => {
@@ -885,7 +883,7 @@ test("retry allowance cannot add ordinary agent iterations", async () => {
       ...config,
       limits: { ...config.limits, agentSteps: 2, durationMs: 30_000 },
     },
-    readSource: async (requestedUrl) => ({
+    readPage: async (requestedUrl) => ({
       ...source,
       attemptedUrl: requestedUrl,
       finalUrl: requestedUrl,
@@ -933,7 +931,7 @@ test.each([
     const result = await runCatalogResearch(input, {
       client,
       config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
-      readSource: async (requestedUrl) => ({
+      readPage: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
         finalUrl: requestedUrl,
@@ -966,7 +964,7 @@ test.each([undefined, {}])(
     const result = await runCatalogResearch(input, {
       client,
       config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
-      readSource: async (requestedUrl) => ({
+      readPage: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
         finalUrl: requestedUrl,
@@ -982,15 +980,15 @@ test.each([undefined, {}])(
 );
 
 test.each([
-  ["readSource", { url: "ftp://example.org/page" }],
-  ["discoverSources", { query: "ab" }],
+  ["readPage", { url: "ftp://example.org/page" }],
+  ["searchWeb", { query: "ab" }],
 ] as const)(
   "does not execute %s with invalid arguments",
   async (name, args) => {
     const client = testDatabase().client;
     savedSource(client);
-    const readSource = vi.fn(async () => source);
-    const discoverSources = vi.fn();
+    const readPage = vi.fn(async () => source);
+    const searchWeb = vi.fn();
     const call = readCall(args);
     call.tool_calls[0].function.name = name;
     vi.stubGlobal(
@@ -1003,21 +1001,21 @@ test.each([
     await runCatalogResearch(input, {
       client,
       config: { ...config, limits: { ...config.limits, agentSteps: 3 } },
-      readSource,
-      discoverSources,
+      readPage,
+      searchWeb,
     });
-    expect(readSource).toHaveBeenCalledTimes(1); // Only the host's initial read.
-    expect(discoverSources).not.toHaveBeenCalled();
+    expect(readPage).toHaveBeenCalledTimes(1); // Only the host's initial read.
+    expect(searchWeb).not.toHaveBeenCalled();
   },
 );
 
-test.each(["readSource", "discoverSources"])(
+test.each(["readPage", "searchWeb"])(
   "rejects invalid %s output before returning it to the model",
   async (name) => {
     const client = testDatabase().client;
     savedSource(client);
     const call = readCall(
-      name === "readSource"
+      name === "readPage"
         ? { url: "https://example.org/linked-page" }
         : { query: "Provider Fest" },
     );
@@ -1030,17 +1028,19 @@ test.each(["readSource", "discoverSources"])(
     await runCatalogResearch(input, {
       client,
       config: { ...config, limits: { ...config.limits, agentSteps: 3 } },
-      readSource: async (requestedUrl) => ({
+      readPage: async (requestedUrl) => ({
         ...source,
         attemptedUrl: requestedUrl,
         finalUrl: requestedUrl,
         completeness: (requestedUrl === url
           ? "full"
-          : "invalid") as ReadSourceResult["completeness"],
+          : "invalid") as ReadPageResult["completeness"],
       }),
-      discoverSources: async (query) => ({
+      searchWeb: async (query) => ({
         query,
-        candidates: [{ url: "ftp://example.org/page", title: "Invalid" }],
+        candidates: [
+          { url: "ftp://example.org/page", title: "Invalid", highlights: [] },
+        ],
         retrievedAt: source.retrievedAt,
         inputTokens: 0,
         outputTokens: 0,
@@ -1092,7 +1092,7 @@ test.each([
   const result = await runCatalogResearch(input, {
     client,
     config,
-    readSource: async () => source,
+    readPage: async () => source,
   });
   expect(result.operations).toEqual([]);
   expect(result.receipts).toEqual([]);
@@ -1136,7 +1136,7 @@ test("malformed final text at the deadline is retained in a failed research repo
   const result = await runCatalogResearch(input, {
     client,
     config: { ...config, limits: { ...config.limits, durationMs: 1_000 } },
-    readSource: async () => source,
+    readPage: async () => source,
   });
   expect(result).toMatchObject({
     outcome: "failed",
@@ -1179,7 +1179,7 @@ test.each([400, 429, 503])(
     const result = await runCatalogResearch(input, {
       client,
       config: { ...config, limits: { ...config.limits, agentSteps: 3 } },
-      readSource: async () => source,
+      readPage: async () => source,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.outcome).toBe("failed");
@@ -1220,7 +1220,7 @@ test("completed tool step usage survives a later provider failure", async () => 
   const client = testDatabase().client;
   savedSource(client);
   const linkedUrl = "https://example.org/dates";
-  const readSource = vi.fn(async (requestedUrl: string) => ({
+  const readPage = vi.fn(async (requestedUrl: string) => ({
     ...source,
     attemptedUrl: requestedUrl,
     finalUrl: requestedUrl,
@@ -1244,7 +1244,7 @@ test("completed tool step usage survives a later provider failure", async () => 
                     id: "read-linked-page",
                     type: "function",
                     function: {
-                      name: "readSource",
+                      name: "readPage",
                       arguments: JSON.stringify({ url: linkedUrl }),
                     },
                   },
@@ -1273,11 +1273,11 @@ test("completed tool step usage survives a later provider failure", async () => 
   const result = await runCatalogResearch(input, {
     client,
     config: { ...config, limits: { ...config.limits, agentSteps: 2 } },
-    readSource,
+    readPage,
   });
 
   expect(fetchMock).toHaveBeenCalledTimes(2);
-  expect(readSource).toHaveBeenCalledTimes(2);
+  expect(readPage).toHaveBeenCalledTimes(2);
   expect(result).toMatchObject({
     outcome: "failed",
     operations: [],

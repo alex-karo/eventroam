@@ -125,7 +125,7 @@ export async function createFixtureMastra() {
               limits: { ...DEFAULT_RESEARCH_LIMITS, durationMs: 30_000 },
             },
             todayUtc: "2026-10-10",
-            readSource: async (url, { budget }) => {
+            readPage: async (url, { budget }) => {
               budget.consumePage();
               return {
                 attemptedUrl: url,
@@ -139,7 +139,7 @@ export async function createFixtureMastra() {
                 links: [],
               };
             },
-            discoverSources: async (query, { budget }) => {
+            searchWeb: async (query, { budget }) => {
               budget.consumeSearch();
               return {
                 query,

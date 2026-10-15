@@ -30,6 +30,8 @@ Website:
 
 ## Archived changes
 
+- [Focused source search](../openspec/changes/archive/2026-10-15-direct-exa-discovery/proposal.md) — clearer tools, bounded highlights and exceptional-use conditions with the existing OpenRouter Exa mode.
+
 - [Ingestion editor](../openspec/changes/archive/2026-10-15-ingestion-editor/proposal.md) — research/editor separation with explicit field actions, simpler write preparation and focused quality evaluation.
 - [Estimated festival size](../openspec/changes/archive/2026-10-11-estimate-festival-size/proposal.md) — approximate participant scale, report v4, ingestion guidance, and public wording.
 

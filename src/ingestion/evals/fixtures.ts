@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { toolUseExpectationSchema } from "./tool-use";
 import { researchCandidateSchema } from "../research/contracts";
 
 const researchHandoffSchema = z.strictObject({
@@ -97,13 +98,20 @@ export const evalCaseSchema = z.object({
   discoveries: z
     .array(
       z.object({
-        query: z.string(),
-        candidates: z.array(z.object({ url: z.url(), title: z.string() })),
+        queryPattern: z.string(),
+        candidates: z.array(
+          z.object({
+            url: z.url(),
+            title: z.string(),
+            highlights: z.array(z.string().min(1).max(2000)).max(1),
+          }),
+        ),
       }),
     )
     .optional(),
   expectations: z
     .object({
+      toolUse: toolUseExpectationSchema.optional(),
       required: z.array(assertionSchema),
       forbidden: z.array(assertionSchema),
       research: z

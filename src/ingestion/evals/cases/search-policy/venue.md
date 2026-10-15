@@ -1,0 +1,2 @@
+# Castlewellan Grounds: confirmed Harbor Echo booking
+This is the official venue announcement from Castlewellan Grounds, Festival Lane, Castlewellan, Northern Ireland, United Kingdom. Harbor Echo's outdoor music festival is booked here for 23–30 January 2027, with free full-programme admission and no booking required. This independently confirms the organiser's January programme dates. The festival is NOT booked for 1–3 February 2027; that headline is incorrect. The official organiser website is https://harborechofestival.co.uk/.

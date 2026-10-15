@@ -25,7 +25,7 @@ import * as applyModule from "@/catalog/write/apply-operation";
 import * as runTraceModule from "./runtime/tracing";
 import type { CatalogRunTrace } from "./runtime/tracing";
 import { RunPersistenceError } from "./runs";
-import { discoverSources } from "./tools/discover-sources/search";
+import { searchWeb } from "./tools/search-web/search";
 import { DEFAULT_RESEARCH_LIMITS } from "./runtime/budget";
 import { join, dirname } from "node:path";
 import { existsSync } from "node:fs";
@@ -67,10 +67,10 @@ const runCatalogResearch: typeof executeResearch = async (input, deps) => {
 };
 import type { ResearchCandidate } from "./research/contracts";
 import { ResearchLimitError } from "./runtime/budget";
-import type { ReadSourceResult } from "./tools/read-source/contracts";
+import type { ReadPageResult } from "./tools/read-page/contracts";
 
 const url = "https://example.org/example-fest";
-const source: ReadSourceResult = {
+const source: ReadPageResult = {
   attemptedUrl: url,
   finalUrl: url,
   retrievedAt: "2026-10-03T12:00:00Z",
@@ -125,7 +125,7 @@ function fixture(client = testDatabase().client) {
   const termIds = testFixtures(client)
     .festivalTerms()
     .map((term) => term.id);
-  const readSource = vi.fn(
+  const readPage = vi.fn(
     async (
       _url: string,
       options: {
@@ -136,7 +136,7 @@ function fixture(client = testDatabase().client) {
       return source;
     },
   );
-  return { client, termIds, readSource };
+  return { client, termIds, readPage };
 }
 function fakeTrace() {
   const finish = vi.fn(async () => {});
@@ -174,8 +174,8 @@ function catalogState(client: Database.Database) {
 }
 
 test("concurrent and repeated failed source reads are cached and charged once", async () => {
-  const { client, readSource } = fixture();
-  readSource.mockImplementation(async (_url, options) => {
+  const { client, readPage } = fixture();
+  readPage.mockImplementation(async (_url, options) => {
     options.budget.consumePage();
     return {
       ...source,
@@ -187,18 +187,18 @@ test("concurrent and repeated failed source reads are cached and charged once", 
   });
   const result = await runCatalogResearch(input, {
     client,
-    readSource,
+    readPage,
     generateCandidate: async (_prompt, context) => {
       const reads = await Promise.all([
-        context.readSource(url),
-        context.readSource(url),
+        context.readPage(url),
+        context.readPage(url),
       ]);
       expect(reads[0]).toBe(reads[1]);
-      expect(await context.readSource(url)).toBe(reads[0]);
+      expect(await context.readPage(url)).toBe(reads[0]);
       return candidate([]);
     },
   });
-  expect(readSource).toHaveBeenCalledTimes(1);
+  expect(readPage).toHaveBeenCalledTimes(1);
   expect(result.usage).toMatchObject({ pages: 1, modelCalls: 2 });
   expect(result.sources).toEqual([
     expect.objectContaining({ outcome: "failed", reason: "http_503" }),
@@ -207,7 +207,7 @@ test("concurrent and repeated failed source reads are cached and charged once", 
 
 test("discovery shares search limits while model calls remain accounting", async () => {
   const { client } = fixture();
-  const discoverSources = vi.fn(
+  const searchWeb = vi.fn(
     async (
       query: string,
       options: {
@@ -231,13 +231,11 @@ test("discovery shares search limits while model calls remain accounting", async
     { ...input, limits: { agentSteps: 3 } },
     {
       client,
-      discoverSources,
+      searchWeb,
       generateCandidate: async (_prompt, context) => {
-        await context.discoverSources("Example Fest");
+        await context.searchWeb("Example Fest");
         expect(context.budget.snapshot().modelCalls).toBe(2);
-        expect(
-          await context.discoverSources("Example Fest tickets"),
-        ).toMatchObject({
+        expect(await context.searchWeb("Example Fest tickets")).toMatchObject({
           candidates: [],
           inputTokens: 7,
           outputTokens: 9,
@@ -247,7 +245,7 @@ test("discovery shares search limits while model calls remain accounting", async
       },
     },
   );
-  expect(discoverSources).toHaveBeenCalledTimes(2);
+  expect(searchWeb).toHaveBeenCalledTimes(2);
   expect(result.usage).toMatchObject({
     searches: 2,
     modelCalls: 4,
@@ -273,10 +271,10 @@ test("real discovery retries retain their estimated cost in the durable report",
       { ...input, limits: { searchResults: 12 } },
       {
         client,
-        discoverSources: (query, options) =>
-          discoverSources(query, { ...options, fetch: fetchMock }),
+        searchWeb: (query, options) =>
+          searchWeb(query, { ...options, fetch: fetchMock }),
         generateCandidate: async (_prompt, context) => {
-          await context.discoverSources("Example Fest");
+          await context.searchWeb("Example Fest");
           return candidate([]);
         },
       },
@@ -299,13 +297,13 @@ test("real discovery retries retain their estimated cost in the durable report",
 });
 
 test("create dry run explains actual changes and rolls back catalog and audit", async () => {
-  const { client, termIds, readSource } = fixture();
+  const { client, termIds, readPage } = fixture();
   const before = catalogState(client);
   const preview = await runCatalogResearch(input, {
     client,
-    readSource,
+    readPage,
     generateCandidate: async (_prompt, context) => {
-      await context.readSource(url);
+      await context.readPage(url);
       return candidate(termIds);
     },
   });
@@ -350,7 +348,7 @@ test("create dry run explains actual changes and rolls back catalog and audit", 
     { ...input, dryRun: false },
     {
       client,
-      readSource,
+      readPage,
       generateCandidate: async () => candidate(termIds),
     },
   );
@@ -369,7 +367,7 @@ test.each([
 ] as const)(
   "%s %s with no returned Editions keeps questions and sources without audit changes",
   async (scope, status) => {
-    const { client, readSource } = fixture();
+    const { client, readPage } = fixture();
     const event = testFixtures(client).event({ canonicalName: "Example Fest" });
     testFixtures(client).edition(event, {
       editionKey: "2027",
@@ -408,7 +406,7 @@ test.each([
       },
       {
         client,
-        readSource,
+        readPage,
         generateCandidate: async () => proposal,
       },
     );
@@ -425,8 +423,8 @@ test.each([
 );
 
 test("recovered source failure retains staged error beside successful research", async () => {
-  const { client, readSource } = fixture();
-  readSource.mockImplementation(async (_url, options) => {
+  const { client, readPage } = fixture();
+  readPage.mockImplementation(async (_url, options) => {
     options.budget.consumePage();
     return {
       ...source,
@@ -447,9 +445,9 @@ test("recovered source failure retains staged error beside successful research",
   proposal.data!.sources = [];
   const result = await runCatalogResearch(input, {
     client,
-    readSource,
+    readPage,
     generateCandidate: async (_prompt, context) => {
-      await context.readSource(url);
+      await context.readPage(url);
       return proposal;
     },
   });
@@ -467,7 +465,7 @@ test("recovered source failure retains staged error beside successful research",
 });
 
 test("duplicate add skips every proposed write while retaining research and name mismatch", async () => {
-  const { client, termIds, readSource } = fixture();
+  const { client, termIds, readPage } = fixture();
   const event = testFixtures(client).event({ canonicalName: "Example Fest" });
   const before = catalogState(client);
   const proposal = candidate(termIds);
@@ -475,7 +473,7 @@ test("duplicate add skips every proposed write while retaining research and name
   proposal.data!.eventName = " Example Fest Revised ";
   const result = await runCatalogResearch(input, {
     client,
-    readSource,
+    readPage,
     generateCandidate: async () => proposal,
   });
   expect(result).toMatchObject({
@@ -494,7 +492,7 @@ test("duplicate add skips every proposed write while retaining research and name
 });
 
 test("refresh preserves identity, reports mismatch, and emits no duplicate audit on no-op", async () => {
-  const { client, readSource } = fixture();
+  const { client, readPage } = fixture();
   const event = testFixtures(client).event({ canonicalName: "Example Fest" });
   const proposal = candidate([]);
   proposal.data = {
@@ -509,7 +507,7 @@ test("refresh preserves identity, reports mismatch, and emits no duplicate audit
     { mode: "refresh", eventId: event.id, actor: input.actor, dryRun: false },
     {
       client,
-      readSource,
+      readPage,
       generateCandidate: async () => proposal,
     },
   );
@@ -527,7 +525,7 @@ test("refresh preserves identity, reports mismatch, and emits no duplicate audit
     { mode: "refresh", eventId: event.id, actor: input.actor, dryRun: false },
     {
       client,
-      readSource,
+      readPage,
       generateCandidate: async () => proposal,
     },
   );
@@ -544,7 +542,7 @@ test("refresh preserves identity, reports mismatch, and emits no duplicate audit
 });
 
 test("cancellation and grouped clearing explain only changed writer fields", async () => {
-  const { client, readSource } = fixture();
+  const { client, readPage } = fixture();
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
   const edition = fx.edition(event, {
@@ -579,7 +577,7 @@ test("cancellation and grouped clearing explain only changed writer fields", asy
     { mode: "refresh", eventId: event.id, actor: input.actor },
     {
       client,
-      readSource,
+      readPage,
       generateCandidate: async () => proposal,
     },
   );
@@ -616,7 +614,7 @@ test("cancellation and grouped clearing explain only changed writer fields", asy
 });
 
 test("complete classification and ticket reasons follow actual changes", async () => {
-  const { client, readSource } = fixture();
+  const { client, readPage } = fixture();
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
   const edition = fx.edition(event, { editionKey: "2027" });
@@ -663,7 +661,7 @@ test("complete classification and ticket reasons follow actual changes", async (
   };
   const result = await runCatalogResearch(
     { mode: "refresh", eventId: event.id, actor: input.actor },
-    { client, readSource, generateCandidate: async () => proposal },
+    { client, readPage, generateCandidate: async () => proposal },
   );
   expect(result.outcome).toBe("updated");
   expect(result.changes).toContainEqual(
@@ -694,7 +692,7 @@ test("complete classification and ticket reasons follow actual changes", async (
 });
 
 test("writer failure preserves research status, raw output, summaries, and rollback", async () => {
-  const { client, readSource } = fixture();
+  const { client, readPage } = fixture();
   testFixtures(client).event({
     canonicalName: "Example Fest",
     slug: "example-fest",
@@ -705,7 +703,7 @@ test("writer failure preserves research status, raw output, summaries, and rollb
     { ...input, dryRun: false },
     {
       client,
-      readSource,
+      readPage,
       generateCandidate: async () => proposal,
     },
   );
@@ -725,7 +723,7 @@ test("writer failure preserves research status, raw output, summaries, and rollb
 });
 
 test("name mismatch survives a rolled-back refresh write", async () => {
-  const { client, readSource } = fixture();
+  const { client, readPage } = fixture();
   const event = testFixtures(client).event({ canonicalName: "Example Fest" });
   client.exec(
     "CREATE TRIGGER block_test_update BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT, 'blocked by test'); END",
@@ -741,7 +739,7 @@ test("name mismatch survives a rolled-back refresh write", async () => {
   };
   const result = await runCatalogResearch(
     { mode: "refresh", eventId: event.id, actor: input.actor, dryRun: false },
-    { client, readSource, generateCandidate: async () => proposal },
+    { client, readPage, generateCandidate: async () => proposal },
   );
   expect(result).toMatchObject({
     outcome: "failed",
@@ -765,7 +763,7 @@ test("name mismatch survives a rolled-back refresh write", async () => {
 });
 
 test("failed research, malformed output, and target mismatch never write", async () => {
-  const { client, readSource } = fixture();
+  const { client, readPage } = fixture();
   const event = testFixtures(client).event({ canonicalName: "Example Fest" });
   const failed: ResearchCandidate = {
     status: "failed",
@@ -790,7 +788,7 @@ test("failed research, malformed output, and target mismatch never write", async
       { mode: "refresh", eventId: event.id, actor: input.actor },
       {
         client,
-        readSource,
+        readPage,
         generateCandidate: async () => raw,
       },
     );
@@ -816,7 +814,7 @@ test.each([
 ] as const)(
   "malformed %s URL %s fails candidate validation after a source read without writing",
   async (field, malformedUrl) => {
-    const { client, readSource } = fixture();
+    const { client, readPage } = fixture();
     const before = catalogState(client);
     const proposal = candidate([]);
     if (field === "source") {
@@ -829,9 +827,9 @@ test.each([
       { ...input, dryRun: false },
       {
         client,
-        readSource,
+        readPage,
         generateCandidate: async (_prompt, context) => {
-          await context.readSource(url);
+          await context.readPage(url);
           return proposal;
         },
       },
@@ -852,7 +850,7 @@ test.each([
       }),
     );
     expect(result.modelResponse).toEqual({ text: null, object: proposal });
-    expect(readSource).toHaveBeenCalledOnce();
+    expect(readPage).toHaveBeenCalledOnce();
     expect(result.sources).toEqual([
       {
         attemptedUrl: url,
@@ -975,7 +973,7 @@ test.each([
   { ...input, mode: "refresh", eventId: "missing" },
   { ...input, limits: { agentSteps: -1 } },
 ])("invalid invocation creates no run before work: %j", async (invalid) => {
-  const { client, readSource } = fixture();
+  const { client, readPage } = fixture();
   const model = vi.fn();
   if (invalid.mode === "check" || "scope" in invalid) {
     expect(studioIngestionInputSchema.safeParse(invalid).success).toBe(false);
@@ -983,13 +981,13 @@ test.each([
   await expect(
     executeResearch(invalid as typeof input, {
       client,
-      readSource,
+      readPage,
       generateCandidate: model,
     }),
   ).rejects.toThrow();
   expect(client.prepare("SELECT * FROM ingestion_runs").all()).toEqual([]);
   expect(model).not.toHaveBeenCalled();
-  expect(readSource).not.toHaveBeenCalled();
+  expect(readPage).not.toHaveBeenCalled();
 });
 
 test("invalid config and enclosing transactions create no runs", async () => {
@@ -1180,7 +1178,7 @@ test("tracing-enabled injected workflow stores a durable run without trace stora
 });
 
 test("the public runner accumulates research in native state without runtime resources", async () => {
-  const { client, termIds, readSource } = fixture();
+  const { client, termIds, readPage } = fixture();
   const created = vi.spyOn(Workflow.prototype, "createRun");
   const start = Run.prototype.start;
   const starts = vi.spyOn(Run.prototype, "start").mockImplementation(function (
@@ -1228,7 +1226,7 @@ test("the public runner accumulates research in native state without runtime res
   const privateOutput = "PRIVATE_MODEL_OUTPUT";
   const proposal = candidate(termIds);
   proposal.data!.summary!.value = privateOutput;
-  readSource.mockImplementation(async (_url, options) => {
+  readPage.mockImplementation(async (_url, options) => {
     options.budget.consumePage();
     return { ...source, markdown: privatePage };
   });
@@ -1237,7 +1235,7 @@ test("the public runner accumulates research in native state without runtime res
     { ...input, dryRun: false },
     {
       client,
-      readSource,
+      readPage,
       config: {
         apiKey: "PRIVATE_API_KEY",
         model: "fixture",
@@ -1245,7 +1243,7 @@ test("the public runner accumulates research in native state without runtime res
       },
       generateCandidate: async (_prompt, context) => {
         phases.push("research-festival");
-        expect((await context.readSource(url)).markdown).toBe(privatePage);
+        expect((await context.readPage(url)).markdown).toBe(privatePage);
         expect(context.reads[0].markdown).toBe(privatePage);
         return proposal;
       },
@@ -1358,7 +1356,7 @@ test("an unexpected phase failure skips later work and returns a safe failed sum
 });
 
 test("Mastra run creation failure allocates no durable attempt or resources", async () => {
-  const { client, readSource } = fixture();
+  const { client, readPage } = fixture();
   const initializeTrace = vi.spyOn(runTraceModule, "createCatalogRunTrace");
   const created = vi
     .spyOn(Workflow.prototype, "createRun")
@@ -1368,20 +1366,20 @@ test("Mastra run creation failure allocates no durable attempt or resources", as
   await expect(
     executeResearch(input, {
       client,
-      readSource,
+      readPage,
       generateCandidate: model,
     }),
   ).rejects.toThrow("Ingestion workflow failed");
 
   expect(created).toHaveBeenCalledOnce();
   expect(model).not.toHaveBeenCalled();
-  expect(readSource).not.toHaveBeenCalled();
+  expect(readPage).not.toHaveBeenCalled();
   expect(initializeTrace).not.toHaveBeenCalled();
   expect(client.prepare("SELECT id FROM ingestion_runs").all()).toEqual([]);
 });
 
 test("CLI initialization failure finalizes its admitted attempt with a safe full report", async () => {
-  const { client, readSource } = fixture();
+  const { client, readPage } = fixture();
   const model = vi.fn();
   vi.spyOn(runTraceModule, "createCatalogRunTrace").mockRejectedValueOnce(
     new Error("PRIVATE_TRACE_SETUP"),
@@ -1389,7 +1387,7 @@ test("CLI initialization failure finalizes its admitted attempt with a safe full
 
   const result = await runCatalogResearch(input, {
     client,
-    readSource,
+    readPage,
     generateCandidate: model,
   });
 
@@ -1398,7 +1396,7 @@ test("CLI initialization failure finalizes its admitted attempt with a safe full
     expect.objectContaining({ code: "workflow_failed" }),
   );
   expect(JSON.stringify(result)).not.toContain("PRIVATE_TRACE_SETUP");
-  expect(readSource).not.toHaveBeenCalled();
+  expect(readPage).not.toHaveBeenCalled();
   expect(model).not.toHaveBeenCalled();
   const rows = client
     .prepare("SELECT id,status,report_json FROM ingestion_runs")
@@ -1575,7 +1573,7 @@ test("duplicate active engine IDs cannot finalize the first attempt", async () =
 });
 
 test("native cancellation waits for active research before finalizing known state", async () => {
-  const { client, termIds, readSource } = fixture();
+  const { client, termIds, readPage } = fixture();
   const trace = fakeTrace();
   let entered!: () => void;
   const started = new Promise<void>((resolve) => {
@@ -1588,9 +1586,9 @@ test("native cancellation waits for active research before finalizing known stat
   const workflow = createCatalogIngestionWorkflow(async () => ({
     deps: {
       client,
-      readSource,
+      readPage,
       generateCandidate: async (_prompt, context) => {
-        await context.readSource(url);
+        await context.readPage(url);
         entered();
         await hold;
         return candidate(termIds);

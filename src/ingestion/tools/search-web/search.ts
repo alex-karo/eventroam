@@ -3,13 +3,13 @@ import { ResearchLimitError, type ResearchBudget } from "../../runtime/budget";
 import type { ResearchConfig } from "../../runtime/config";
 import {
   searchQuerySchema,
-  type DiscoverSourcesResult,
+  type SearchWebResult,
   type SourceCandidate,
 } from "./contracts";
 
 interface Citation {
   type?: unknown;
-  url_citation?: { url?: unknown; title?: unknown };
+  url_citation?: { url?: unknown; title?: unknown; content?: unknown };
 }
 
 interface SearchResponse {
@@ -23,7 +23,7 @@ interface SearchResponse {
   };
 }
 
-export interface DiscoverSourcesOptions {
+export interface SearchWebOptions {
   budget: ResearchBudget;
   config: ResearchConfig;
   fetch?: typeof fetch;
@@ -68,7 +68,7 @@ async function boundedJson(
 function requestSearch(
   query: string,
   maxResults: number,
-  options: DiscoverSourcesOptions,
+  options: SearchWebOptions,
 ) {
   const signal = AbortSignal.timeout(
     Math.min(20_000, options.budget.remaining().durationMs),
@@ -125,8 +125,12 @@ function sourceCandidates(
       if (candidates.some((candidate) => candidate.url === url.href)) {
         continue;
       }
+      const content = annotation.url_citation?.content;
+      const excerpt =
+        typeof content === "string" ? content.trim().slice(0, 2000) : "";
       candidates.push({
         url: url.href,
+        highlights: excerpt ? [excerpt] : [],
         title:
           typeof annotation.url_citation?.title === "string"
             ? annotation.url_citation.title.slice(0, 300)
@@ -144,7 +148,7 @@ function sourceCandidates(
 
 async function waitBeforeRetry(
   attempt: number,
-  options: DiscoverSourcesOptions,
+  options: SearchWebOptions,
   retryAfter: string | null = null,
   httpStatus?: number,
 ): Promise<void> {
@@ -177,10 +181,10 @@ async function waitBeforeRetry(
   options.budget.assertTime();
 }
 
-export async function discoverSources(
+export async function searchWeb(
   query: string,
-  options: DiscoverSourcesOptions,
-): Promise<DiscoverSourcesResult> {
+  options: SearchWebOptions,
+): Promise<SearchWebResult> {
   const normalized = searchQuerySchema.parse(query);
   const maxResults = Math.min(
     Math.max(1, options.budget.limits.searchResults),

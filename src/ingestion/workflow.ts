@@ -18,9 +18,9 @@ import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import { loadResearchContext } from "./research/context";
 import { createSourceSession } from "./tools/session";
 import type {
-  ReadSourceResult,
+  ReadPageResult,
   SourceReadMetadata,
-} from "./tools/read-source/contracts";
+} from "./tools/read-page/contracts";
 import { readInitialWithTrace } from "./runtime/tracing";
 import { researchFestival } from "./research/agent";
 import { prepareEditorPlan, validateResearch } from "./editor/prepare";
@@ -144,7 +144,7 @@ function serialize<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function sourceReadMetadata(read: ReadSourceResult): SourceReadMetadata {
+function sourceReadMetadata(read: ReadPageResult): SourceReadMetadata {
   return {
     attemptedUrl: read.attemptedUrl,
     finalUrl: read.finalUrl,
