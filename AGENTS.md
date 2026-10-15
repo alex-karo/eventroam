@@ -16,3 +16,7 @@ Start at the [documentation index](docs/index.md), then read only the documents 
 - Technology rationale: [decisions](docs/index.md#decisions). Deployment: [Mapbox gate](docs/mapbox-deployment-gate.md).
 
 Use current OpenSpec specs and accepted decisions for implemented behavior; check code and progress docs for exact implementation status. Do not treat active changes or draft proposals as completed behavior. Dated research and [legacy specs](docs/archive/legacy-specs/) are background evidence. For behavior changes, use the standard OpenSpec change workflow and update the owning spec when implementation is complete. Update the documentation index if the document set changes. Run `npm run openspec:validate` for OpenSpec edits and `npm run docs:check` for documentation edits.
+
+## Database validation
+
+Keep business validation and extensible vocabularies in application code. Do not add SQL CHECK constraints or business-validation triggers. SQLite owns keys, uniqueness, `NOT NULL`, and the existing audit/URL-alias immutability protections. Reuse operation validators and validate related state within the write transaction; fixture loaders and normal test helpers must use applicable shared validation. Prefer existing operation guarantees over duplicate storage-row schemas. Keep schema changes aligned with [ADR 001](docs/decisions/001-sqlite-and-drizzle.md) and [storage integrity](openspec/specs/operations/storage-integrity/spec.md).

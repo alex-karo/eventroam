@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 
-test("SQLite accepts removed business rules but retains structural constraints", () => {
+test("SQLite accepts value rules while retaining relational integrity", () => {
   const { client } = testDatabase();
   const fx = testFixtures(client);
   const event = fx.event();
@@ -41,10 +41,15 @@ test("SQLite accepts removed business rules but retains structural constraints",
     "latitude=91,longitude=0",
     "size_estimate=0",
     "version=0",
-    "event_id='missing'",
-    "edition_key=NULL",
     "price_details='{}'",
   ]) {
+    expect(() =>
+      client
+        .prepare(`UPDATE editions SET ${assignment} WHERE id=?`)
+        .run(edition.id),
+    ).not.toThrow();
+  }
+  for (const assignment of ["event_id='missing'", "edition_key=NULL"]) {
     expect(() =>
       client
         .prepare(`UPDATE editions SET ${assignment} WHERE id=?`)
@@ -53,26 +58,49 @@ test("SQLite accepts removed business rules but retains structural constraints",
   }
   expect(() =>
     client.prepare("UPDATE events SET version=0 WHERE id=?").run(event.id),
-  ).toThrow();
+  ).not.toThrow();
   expect(() =>
     client
       .prepare("UPDATE external_links SET event_id=NULL WHERE id=?")
       .run(link.id),
-  ).toThrow();
+  ).not.toThrow();
   expect(() =>
     client
       .prepare("UPDATE external_links SET edition_id=? WHERE id=?")
       .run(edition.id, link.id),
-  ).toThrow();
+  ).not.toThrow();
   expect(() =>
     client
       .prepare("UPDATE taxonomy_terms SET parent_id=id WHERE id=?")
       .run(term.id),
-  ).toThrow();
+  ).not.toThrow();
   expect(() =>
     client
       .prepare("INSERT INTO events SELECT * FROM events WHERE id=?")
       .run(event.id),
   ).toThrow();
   expect(client.pragma("foreign_key_check")).toEqual([]);
+});
+
+test("fresh schema has no CHECK constraints and retains exactly four history triggers", () => {
+  const { client } = testDatabase();
+  expect(
+    client
+      .prepare(
+        "SELECT name FROM sqlite_schema WHERE type='table' AND upper(sql) LIKE '%CHECK%'",
+      )
+      .all(),
+  ).toEqual([]);
+  expect(
+    client
+      .prepare(
+        "SELECT name FROM sqlite_schema WHERE type='trigger' ORDER BY name",
+      )
+      .all(),
+  ).toEqual([
+    { name: "catalog_changes_immutable_delete" },
+    { name: "catalog_changes_immutable_update" },
+    { name: "url_aliases_immutable_delete" },
+    { name: "url_aliases_immutable_update" },
+  ]);
 });

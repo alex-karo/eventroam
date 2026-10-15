@@ -17,6 +17,10 @@ Catalog:
 - [Edition classification](../openspec/specs/catalog/classification/spec.md) — fixed facets, per-edition assignments, and public labels.
 - [Source-backed catalog workflow](../openspec/specs/catalog/source-workflow/spec.md) — owner-initiated collection, model-led refresh, and attributable run outcomes.
 
+Operations:
+
+- [Storage integrity](../openspec/specs/operations/storage-integrity/spec.md) — application-owned validation, retained database protections, and data-preserving migrations.
+
 Website:
 
 - [Discovery](../openspec/specs/website/discovery/spec.md) — readable filter selections, pending counts, searchable locations, URL state, and shared map/list results.
@@ -24,6 +28,7 @@ Website:
 
 ## Active changes
 
+- [Application-owned database validation](../openspec/changes/move-database-validation-to-code/proposal.md) — implemented transfer of value and relationship checks into shared code, with a persistent repository policy for future schema changes; awaiting archive.
 - [Narrow current refresh](../openspec/changes/narrow-current-refresh/proposal.md) — proposal only: Edition-focused current research and taxonomy reuse through model instructions/context, with unchanged downstream checks.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
