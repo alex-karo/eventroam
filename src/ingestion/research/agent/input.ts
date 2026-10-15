@@ -4,7 +4,7 @@ import type { KnownSourceLink } from "../../tools/contracts";
 import type { ReadPageResult } from "../../tools/read-page/contracts";
 import type { ResearchCatalog } from "../context";
 import { minorToMajor } from "../money";
-import { researchInstructions } from "./prompt";
+import { researchInstructionsFor } from "./prompt";
 import { boundedToolSource } from "../../tools/read-page/response";
 
 export function promptFor(
@@ -22,7 +22,7 @@ export function promptFor(
       ? currentModelContext
       : modelContext;
   return JSON.stringify({
-    task: researchInstructions,
+    task: researchInstructionsFor(input),
     currentDate,
     mode: input.mode,
     scope: input.mode === "refresh" ? (input.scope ?? "full") : null,

@@ -5,7 +5,7 @@ import { readResearchCatalog } from "@/catalog/read/research";
 import { createResearchBudget } from "../../runtime/budget";
 import type { ReadPageResult } from "../../tools/read-page/contracts";
 import { modelContext, promptFor } from "./input";
-import { researchInstructions } from "./prompt";
+import type { CatalogResearchInput } from "../../contracts";
 import { loadResearchContext } from "../context";
 
 const source: ReadPageResult = {
@@ -168,14 +168,6 @@ test("initial sources share the existing prompt content allowance", () => {
   });
 });
 
-test("instructions require website verification, failed recovery and full-history coverage", () => {
-  expect(researchInstructions).toContain(
-    "A matching name or search snippet alone is insufficient",
-  );
-  expect(researchInstructions).toContain("failed with data:null");
-  expect(researchInstructions).toContain("EVERY saved Edition");
-});
-
 test("one frozen instant and saved facts preserve local-day and opaque-key matching inputs", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
@@ -231,21 +223,6 @@ test("one frozen instant and saved facts preserve local-day and opaque-key match
         countryCode: null,
       }),
     ]),
-  );
-});
-
-test("search permissions belong to the tool, including conditional add discovery", () => {
-  expect(researchInstructions).toContain(
-    "Follow relevant known links first. Use searchWeb only under its stated conditions.",
-  );
-  expect(researchInstructions).toContain(
-    "use searchWeb to find one when none is known",
-  );
-  expect(researchInstructions).not.toContain(
-    "Search only when relevant inspected links are absent",
-  );
-  expect(researchInstructions).not.toContain(
-    "discard its facts, search for the correct",
   );
 });
 
@@ -351,27 +328,73 @@ test("current narrows research only, preserving complete matching and replacemen
   expect(catalog).toEqual(before);
 });
 
-test("instructions narrow current duties without changing full/add research", () => {
-  expect(researchInstructions).toContain(
-    "Current MUST omit Event summary and shared-link findings",
+function assignment(input: CatalogResearchInput) {
+  return JSON.parse(
+    promptFor(input, [], [], [], { searches: 3, durationMs: 600_000 }, []),
   );
-  expect(researchInstructions).toContain(
-    "Current mandatory checks are announcements/selection",
-  );
-  expect(researchInstructions).toContain(
-    "opportunistic: return supported encountered facts",
-  );
-  expect(researchInstructions).toContain("reason names the donor editionKey");
-  expect(researchInstructions).toContain(
-    "Date/year proximity alone does not establish comparability",
-  );
-  expect(researchInstructions).toContain(
-    "Do not search for or inspect replacement websites",
-  );
-  expect(researchInstructions).toContain(
-    "Full checks Event summary/shared links and EVERY saved Edition",
-  );
-  expect(researchInstructions).toContain(
-    "For add, inspect a known official source",
+}
+
+test.each([
+  { mode: "add", name: "New", actor: "tester" },
+  { mode: "refresh", scope: "full", eventId: "saved", actor: "tester" },
+  { mode: "refresh", scope: "current", eventId: "saved", actor: "tester" },
+  { mode: "refresh", eventId: "saved", actor: "tester" },
+] satisfies CatalogResearchInput[])(
+  "serialized research input selects only its assignment: %j",
+  (input) => {
+    const prompt = assignment(input);
+    const mode =
+      input.mode === "add"
+        ? "add"
+        : input.scope === "current"
+          ? "refresh/current"
+          : "refresh/full";
+    for (const candidate of ["add", "refresh/full", "refresh/current"]) {
+      expect(prompt.task.includes(`Assignment: ${candidate}.`)).toBe(
+        candidate === mode,
+      );
+    }
+    expect(prompt.scope).toBe(
+      input.mode === "add" ? null : (input.scope ?? "full"),
+    );
+    expect(prompt.task).toContain("For every unknown nullable fact");
+    expect(prompt.task).toContain(
+      "Follow relevant known links first. Use searchWeb only under its stated conditions.",
+    );
+    expect(prompt.task).toContain(
+      "tickets.value is one complete findings block",
+    );
+    if (mode === "refresh/current") {
+      expect(prompt.task).toContain(
+        "Do not search for or inspect replacement websites",
+      );
+      expect(prompt.task).toContain("can succeed with editions:[]");
+      expect(prompt.task).toContain("reason names the donor editionKey");
+      expect(prompt.task).not.toContain("Full checks");
+      expect(prompt.task).not.toContain(
+        "recover wrong websites within this run",
+      );
+    } else {
+      expect(prompt.task).not.toContain(
+        "Do not search for or inspect replacement websites",
+      );
+      expect(prompt.task).not.toContain("can succeed with editions:[]");
+      expect(prompt.task).not.toContain("Current MUST omit");
+      if (mode === "refresh/full") {
+        expect(prompt.task).toContain("EVERY saved Edition");
+        expect(prompt.task).toContain("recover wrong websites within this run");
+        expect(prompt.task).not.toContain("Select an existing Event for add");
+      } else {
+        expect(prompt.task).toContain("Select an existing Event for add");
+        expect(prompt.task).not.toContain("Full scope only");
+      }
+    }
+  },
+);
+
+test("omitted refresh scope uses exactly the explicit full instructions", () => {
+  const input = { mode: "refresh" as const, eventId: "saved", actor: "tester" };
+  expect(assignment(input).task).toBe(
+    assignment({ ...input, scope: "full" }).task,
   );
 });

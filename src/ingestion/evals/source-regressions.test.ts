@@ -180,6 +180,23 @@ test("stale-language eval rejects an editor downgrade of confirmed dates", async
   try {
     const baseline = await runFixtureResearch(item.input, deps);
     expect(scoreCase(item, baseline).passed).toBe(true);
+    expect(baseline.researchStatus).toBe("partial");
+    expect(candidate.data!.editions[0].tickets).toBeUndefined();
+    expect(baseline.changes).toContainEqual(
+      expect.objectContaining({
+        field: "links",
+        newValue: expect.arrayContaining([
+          expect.objectContaining({
+            url: "https://snow-meadow.example/hu/student/booking",
+          }),
+        ]),
+      }),
+    );
+    const missingLink = {
+      ...baseline,
+      changes: baseline.changes.filter((change) => change.field !== "links"),
+    };
+    expect(scoreCase(item, missingLink).passed).toBe(false);
     const downgraded = await runFixtureResearch(item.input, {
       ...deps,
       generateEditor: async (prompt) => {

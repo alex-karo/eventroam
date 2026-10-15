@@ -1,0 +1,166 @@
+{
+  "id": "editor-unknown-currency",
+  "todayUtc": "2026-10-14",
+  "provenance": {
+    "kind": "captured-research-editor-regression",
+    "sourceReport": "data/catalog-evals/narrow-current-verify-2026-10-15T11-47-11-170Z.json",
+    "note": "Exact research handoff from the unknown-currency editor failure; original fictional source fixtures retained."
+  },
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "source-known-offers-blocked-checkout",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "source-known-offers-blocked-checkout",
+      "slug": "source-known-offers-blocked-checkout",
+      "canonicalName": "Sound Trail",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://sound-trail.example/",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "source-known-offers-blocked-checkout-edition",
+          "editionKey": "2027",
+          "editionYear": 2027,
+          "startsOn": "2027-01-23",
+          "endsOn": "2027-01-30",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "GB",
+          "termIds": []
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://sound-trail.example/",
+      "finalUrl": "https://sound-trail.example/",
+      "retrievedAt": "2026-10-14T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "../source-regressions/offers.md"
+    },
+    {
+      "attemptedUrl": "https://sound-trail.example/checkout",
+      "finalUrl": "https://sound-trail.example/checkout",
+      "retrievedAt": "2026-10-14T12:00:00Z",
+      "method": "http",
+      "outcome": "blocked",
+      "completeness": "none",
+      "markdownFile": "../source-regressions/empty.md",
+      "reason": "http_401"
+    },
+    {
+      "attemptedUrl": "https://sound-trail.example/extras",
+      "finalUrl": "https://sound-trail.example/extras",
+      "retrievedAt": "2026-10-14T12:00:00Z",
+      "method": "http",
+      "outcome": "failed",
+      "completeness": "none",
+      "markdownFile": "../source-regressions/empty.md",
+      "reason": "firecrawl_http_429"
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_details",
+        "contains": {
+          "label": "Three-concert pass",
+          "amount": 9.99,
+          "currency": "GBP"
+        }
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_details",
+        "contains": {
+          "label": "Stay package",
+          "amount": 899,
+          "currency": "GBP"
+        }
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_details",
+        "contains": {
+          "label": "All-programme pass"
+        }
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_min_minor"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_currency"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_details",
+        "contains": {
+          "amount": 615.35
+        }
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_details",
+        "contains": {
+          "currency": "USD"
+        }
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_details",
+        "containsAny": [
+          {
+            "availability": "available"
+          },
+          {
+            "availability": "sold_out"
+          },
+          {
+            "availability": "closed"
+          }
+        ]
+      }
+    ],
+    "research": {
+      "status": "partial",
+      "editionKeys": ["2027"],
+      "hasUnresolved": true,
+      "facts": [
+        {
+          "editionKey": "2027",
+          "field": "tickets",
+          "value": {
+            "basePrice": null
+          }
+        }
+      ]
+    }
+  },
+  "researchHandoffFile": "unknown-currency.research.json"
+}

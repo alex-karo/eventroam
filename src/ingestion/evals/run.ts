@@ -237,7 +237,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   const selected = suite.cases.filter((item) =>
     options.caseIds?.length
       ? options.caseIds.includes(item.id)
-      : !options.editorOnly || !!item.researchHandoff,
+      : Boolean(options.editorOnly) === Boolean(item.researchHandoff),
   );
   if (
     !selected.length ||
@@ -248,6 +248,11 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   if (options.editorOnly && selected.some((item) => !item.researchHandoff)) {
     throw new Error(
       "Editor-only eval requires a research handoff for every selected case",
+    );
+  }
+  if (!options.editorOnly && selected.some((item) => item.researchHandoff)) {
+    throw new Error(
+      "Pipeline eval does not accept research handoffs; use --editor-only",
     );
   }
   const repeat = options.repeat ?? 1;

@@ -25,7 +25,7 @@ None.
 
 ## Impact
 
-Research prompt/input and the editor current-assignment clause, adjacent tests, eval fixtures/scoring and ingestion documentation. Keep schemas, editor protocol, report v5, guards, preparation, writer and the 15-step default unchanged. Semantic scope adherence remains model-owned and evaluated from raw findings and actual writes.
+Research prompt/input and the editor scope/recovery clauses, search-tool guidance, adjacent tests, eval fixtures/scoring and ingestion documentation. Keep schemas, editor protocol, report v5, guards, preparation, writer and the 15-step default unchanged. Semantic scope adherence remains model-owned and evaluated from raw findings and actual writes.
 
 ## Out of Scope
 

@@ -103,6 +103,8 @@
     "narrow-current/noncomparable.json",
     "narrow-current/none.json",
     "narrow-current/partial-tickets.json",
-    "narrow-current/identity-conflict.json"
+    "narrow-current/identity-conflict.json",
+    "editor/recovered-website.json",
+    "editor/unknown-currency.json"
   ]
 }

@@ -93,22 +93,7 @@
     }
   ],
   "expectations": {
-    "required": [
-      {
-        "owner": "event",
-        "field": "links",
-        "containsAny": [
-          {
-            "kind": "official_site",
-            "url": "https://www.tomorrowland.com/"
-          },
-          {
-            "kind": "official_site",
-            "url": "https://belgium.tomorrowland.com/"
-          }
-        ]
-      }
-    ],
+    "required": [],
     "forbidden": [
       {
         "owner": "event",
@@ -183,6 +168,10 @@
           "url": "https://thailand.tomorrowland.com/"
         }
       }
-    ]
+    ],
+    "research": {
+      "status": "partial",
+      "hasUnresolved": true
+    }
   }
 }

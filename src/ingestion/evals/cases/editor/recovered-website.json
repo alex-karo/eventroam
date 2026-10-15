@@ -1,0 +1,93 @@
+{
+  "todayUtc": "2026-10-15",
+  "provenance": {
+    "kind": "captured-research-editor-regression",
+    "sourceReport": "data/catalog-evals/narrow-current-main-merge.json",
+    "note": "Exact failed search-wrong-official research, normalized from provider wire output. Correct GB replacement must be accepted despite the saved Australian namesake URL."
+  },
+  "input": {
+    "mode": "refresh",
+    "scope": "full",
+    "eventId": "search-policy-event",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "search-policy-event",
+      "slug": "search-policy-event",
+      "canonicalName": "Harbor Echo",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://harborechoaustralia.com/",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "search-policy-edition",
+          "editionKey": "2027",
+          "editionYear": 2027,
+          "startsOn": "2027-01-23",
+          "endsOn": "2027-01-30",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "GB",
+          "locality": "Castlewellan",
+          "venueName": "Castlewellan Grounds",
+          "termIds": []
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://harborechofestival.co.uk/",
+      "finalUrl": "https://harborechofestival.co.uk/",
+      "retrievedAt": "2026-10-15T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "../search-policy/official.md"
+    },
+    {
+      "attemptedUrl": "https://harborechoaustralia.com/",
+      "finalUrl": "https://harborechoaustralia.com/",
+      "retrievedAt": "2026-10-15T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "../search-policy/wrong.md"
+    },
+    {
+      "attemptedUrl": "https://harborechofestival.co.uk/programme",
+      "finalUrl": "https://harborechofestival.co.uk/programme",
+      "retrievedAt": "2026-10-15T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "../search-policy/official.md"
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "event",
+        "field": "links",
+        "contains": {
+          "kind": "official_site",
+          "url": "https://harborechofestival.co.uk/"
+        }
+      }
+    ],
+    "forbidden": [],
+    "research": {
+      "status": "success",
+      "editionKeys": ["2027"]
+    }
+  },
+  "id": "editor-recovered-website",
+  "researchHandoffFile": "recovered-website.research.json"
+}

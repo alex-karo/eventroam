@@ -87,6 +87,10 @@
           {
             "url": "https://www.szigetfestival.com/",
             "kind": "official_site"
+          },
+          {
+            "url": "https://szigetfestival.com/",
+            "kind": "official_site"
           }
         ]
       },

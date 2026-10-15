@@ -21,3 +21,14 @@
 - [x] 3.1 Run `npm test`, type-check, lint and dependency checks; verify runtime schemas, editor context, guards, preparation, writer and budgets are unchanged apart from the approved editor-prompt clarification and prompt version labels.
 - [x] 3.2 Run focused full-pipeline evals with `--repeat 3` and existing scope cases; retain reports/cost/duration and verify findings plus writes. Leave incomplete if provider access is unavailable.
 - [x] 3.3 After verification, sync owning specs and update progress/index; run `npm run openspec:validate` and `npm run docs:check` before archive.
+
+## 4. Full recovery follow-up
+
+- [x] 4.1 Clarify research/editor recovery evidence, saved-history assignment and search completion; capture the failed research as an editor replay without changing schemas, guards or strict search/write assertions.
+- [x] 4.2 Run repeated recovery, scope and search-policy evals plus integration checks; retain failed evidence and update synchronized specs and verification docs.
+- [x] 4.3 Accept partial Tomorrowland research without a mandatory inaccessible website replacement; clarify editor non-null acceptance and preservation of unknown findings; repeat both cases and replay the captured malformed research, keeping schemas and guards unchanged.
+- [x] 4.4 Select shared rules plus only the active add/full/current research assignment; test serialized mode isolation and default-full behavior, and repeat full-history/recovery plus current-stop/selection/reuse evals without relaxing expectations. Retain earlier scope-confusion failures.
+
+- [x] 4.5 Clarify that confirmed Edition booking links remain findings when prices or checkout are unavailable; accept the owner-approved Sziget root and language-path URL variants in the eval, verify targeted checks, and retain previous failures.
+
+- [x] 4.6 Preserve unknown-currency amounts in notes rather than numeric editor fields; capture the failed handoff, partition eval modes by handoff presence, reject incompatible selections, and verify focused tests and model replays.

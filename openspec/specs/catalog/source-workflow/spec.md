@@ -509,6 +509,11 @@ Research SHALL return at most one Event website, one account per supported socia
 - **WHEN** an organizer identifies an Edition ticket page
 - **THEN** attach it only to that Edition.
 
+#### Scenario: Confirmed ticket link has unavailable prices
+
+- **WHEN** an inspected official source establishes a booking URL for the selected Edition but checkout, prices or availability cannot be inspected
+- **THEN** return the confirmed URL as an Edition ticket-link finding independently of the ticket-price block; retain unfinished ticket checks in unresolved and partial status when required
+
 #### Scenario: Ticket ownership is uncertain
 - **WHEN** ticket ownership is unverified
 - **THEN** omit with a question; never assign to Event or an uncertain Edition.
@@ -1035,9 +1040,17 @@ Research SHALL use one shared deadline and configurable agent-step allowance for
 ### Requirement: Refresh scope fixes the mandatory verification assignment
 Refresh SHALL supply scope, one frozen currentDate and saved Edition keys/dates/time zones. Full scope SHALL cover every saved Edition plus the selected current/nearest future Edition when missing; current scope SHALL cover at most one ongoing/nearest future Edition. Both SHALL check announcements. Full SHALL verify populated and missing Event summary/shared links and all supported Edition fields. Current SHALL omit Event summary/shared-link findings and require selected-Edition dates, schedule status, location, tickets and classification assessment; size, precise coordinates and detailed address SHALL be opportunistic. Current SHALL trust identity/shared links established by a prior full run, without re-auditing them or requiring persisted run-history proof; fresh Edition findings SHALL still require inspected evidence. Full SHALL verify source association. Catalog context alone SHALL NOT establish completed Edition verification.
 
+#### Scenario: Research receives only the selected assignment
+- **WHEN** research starts for add, full refresh or current refresh
+- **THEN** combine shared evidence/output rules with only that assignment; default refresh uses full. Full excludes current-only identity-stop and empty-selection completion exceptions; shared refresh matching/selection rules remain available to both refresh scopes.
+
 #### Scenario: A new announcement cannot substitute for saved history
 - **WHEN** full finds nearest 2027 while 2026 is saved
 - **THEN** retain every assigned 2026 check and add 2027; model completeness is evaluated, never inferred from omissions.
+
+#### Scenario: Full does not require discovering unsaved history
+- **WHEN** full completes saved-Edition checks and announcement/selection research
+- **THEN** do not search solely for unsaved historical Editions or missing facts; a resolved recovery issue no longer authorizes search, even if the original URL remains wrong or inaccessible after a usable official replacement is inspected.
 
 #### Scenario: Current scope preserves history
 - **WHEN** current selects saved 2027 while 2026 exists
@@ -1131,6 +1144,10 @@ The full-refresh prompt SHALL instruct the model to inspect relevant known links
 - **WHEN** a saved namesake site is replaced by an inspected, verified target website
 - **THEN** continue research; full proposes the explained Event link. Apply accepted changes atomically under guards; discard namesake facts even across countries.
 
+#### Scenario: The saved URL is the incorrect association
+- **WHEN** inspected full-recovery evidence explains the wrong saved website and establishes the target using independent saved country/location/venue clues
+- **THEN** the editor may accept the structured replacement finding; the old URL alone does not establish a remaining identity contradiction. Matching names alone remain insufficient.
+
 #### Scenario: Search results alone do not confirm a replacement
 - **WHEN** full inspection cannot establish a discovered website’s association
 - **THEN** continue recovery within budget; return partial with useful target findings or failed/null otherwise. Unresolved material identity blocks writes/publication.
@@ -1149,7 +1166,7 @@ The full-refresh prompt SHALL instruct the model to inspect relevant known links
 
 #### Scenario: Website recovery uses the existing result contract
 - **WHEN** verified recovery yields usable findings
-- **THEN** require no new identity field or existing-Event data.reason; retain fact reasons and partial unresolved questions.
+- **THEN** explain the wrong association and target match in existing source summaries/fact reasons; require no new identity field or existing-Event data.reason, and retain partial unresolved questions.
 
 #### Scenario: Current stops at an identity contradiction
 - **WHEN** current inspects a saved site that clearly belongs to another festival

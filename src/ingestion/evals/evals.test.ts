@@ -31,11 +31,68 @@ const byId = new Map(suite.cases.map((item) => [item.id, item]));
 const tomorrowland = byId.get("tomorrowland")!;
 const wacken = byId.get("wacken")!;
 const blocked = byId.get("afro-nation-portugal-blocked")!;
+const requiredLinkCase = {
+  ...tomorrowland,
+  expectations: {
+    required: [
+      {
+        owner: "event" as const,
+        field: "links",
+        contains: {
+          kind: "official_site",
+          url: "https://www.tomorrowland.com/",
+        },
+      },
+    ],
+    forbidden: tomorrowland.expectations.forbidden,
+  },
+};
 
 test("editor-only rejects cases without handoffs before provider setup", async () => {
   await expect(
     runCatalogEvals({ editorOnly: true, caseIds: [tomorrowland.id] }),
   ).rejects.toThrow("Editor-only eval requires a research handoff");
+});
+
+test.each([
+  { editorOnly: false, caseIds: ["editor-clear"] },
+  { editorOnly: false, caseIds: ["tomorrowland", "editor-recovered-website"] },
+  { editorOnly: true, caseIds: ["editor-clear", "tomorrowland"] },
+])("rejects incompatible explicit eval selection: %j", async (options) => {
+  vi.stubEnv("OPENROUTER_API_KEY", "");
+  await expect(runCatalogEvals(options)).rejects.toThrow(
+    options.editorOnly
+      ? "Editor-only eval requires"
+      : "Pipeline eval does not accept",
+  );
+});
+
+test("default pipeline excludes captured handoffs and retains full recovery", async () => {
+  vi.stubEnv("OPENROUTER_API_KEY", "fixture-key");
+  vi.spyOn(workflowModule, "runCatalogResearch").mockImplementation(
+    (input, deps) =>
+      executeResearch(input, {
+        ...deps,
+        generateCandidate: async () => ({
+          status: "failed",
+          data: null,
+          errors: [],
+          unresolved: [{ message: "Injected offline selection test" }],
+        }),
+      }),
+  );
+  const report = await runCatalogEvals({ reportPath: undefined });
+  expect(report.evaluationMode).toBe("pipeline");
+  expect(report.results.map((row) => row.caseId).sort()).toEqual(
+    suite.cases
+      .filter((item) => !item.researchHandoff)
+      .map((item) => item.id)
+      .sort(),
+  );
+  expect(
+    report.results.some((row) => row.caseId === "search-wrong-official"),
+  ).toBe(true);
+  expect(report.results.every((row) => !row.researchHandoff)).toBe(true);
 });
 
 test("editor-only CLI replays captured research through preparation and writer without network", async () => {
@@ -69,7 +126,7 @@ test("editor-only CLI replays captured research through preparation and writer w
       },
     });
     expect(code).toBe(0);
-    expect(execute).toHaveBeenCalledTimes(5);
+    expect(execute).toHaveBeenCalledTimes(7);
     expect(fetch).not.toHaveBeenCalled();
     const report = reports[0];
     expect(report.evaluationMode).toBe("editor-only");
@@ -134,7 +191,7 @@ test("empty change assertions need explicit research expectations", () => {
       ...blocked,
       expectations: {
         ...blocked.expectations,
-        required: tomorrowland.expectations.required,
+        required: requiredLinkCase.expectations.required,
       },
     }).success,
   ).toBe(false);
@@ -332,8 +389,8 @@ test("partial research can pass factual assertions while failed research cannot"
     researchStatus: "partial" as const,
     unresolved: [{ message: "Optional dates unknown." }],
   };
-  expect(scoreCase(tomorrowland, partial).passed).toBe(true);
-  const failed = scoreCase(tomorrowland, {
+  expect(scoreCase(requiredLinkCase, partial).passed).toBe(true);
+  const failed = scoreCase(requiredLinkCase, {
     ...partial,
     researchStatus: "failed",
   });
@@ -476,7 +533,7 @@ test("fixed source adapter uses captured pages and blocks unknown URLs without n
 });
 
 test("gold checks require supported changes and reject sibling links", () => {
-  expect(scoreCase(tomorrowland, result()).completeness).toBe(0);
+  expect(scoreCase(requiredLinkCase, result()).completeness).toBe(0);
   const official = {
     subject: tomorrowland.initial.event.id,
     field: "links",
@@ -484,7 +541,7 @@ test("gold checks require supported changes and reject sibling links", () => {
     explanations: [],
     newValue: [{ kind: "official_site", url: "https://www.tomorrowland.com/" }],
   };
-  expect(scoreCase(tomorrowland, result([official])).passed).toBe(true);
+  expect(scoreCase(requiredLinkCase, result([official])).passed).toBe(true);
   const winter = {
     ...official,
     newValue: [
@@ -492,12 +549,12 @@ test("gold checks require supported changes and reject sibling links", () => {
       { kind: "official_site", url: "https://winter.tomorrowland.com/" },
     ],
   };
-  const score = scoreCase(tomorrowland, result([winter]));
+  const score = scoreCase(requiredLinkCase, result([winter]));
   expect(score.completeness).toBe(1);
   expect(score.correctness).toBeLessThan(1);
   expect(score.passed).toBe(false);
   expect(
-    scoreCase(tomorrowland, { ...result(), outcome: "failed" }).correctness,
+    scoreCase(requiredLinkCase, { ...result(), outcome: "failed" }).correctness,
   ).toBe(0);
 });
 
@@ -521,12 +578,12 @@ test("Tomorrowland rejects Thailand sell-out on a Belgium ticket variant", () =>
       { label: "Belgium weekend pass", availability: "sold_out" },
     ],
   };
-  expect(scoreCase(tomorrowland, result([official]))).toMatchObject({
+  expect(scoreCase(requiredLinkCase, result([official]))).toMatchObject({
     correctness: 1,
     completeness: 1,
     passed: true,
   });
-  const score = scoreCase(tomorrowland, result([official, soldOut]));
+  const score = scoreCase(requiredLinkCase, result([official, soldOut]));
   expect(score.completeness).toBe(1);
   expect(score.correctness).toBeLessThan(1);
   expect(score.passed).toBe(false);
@@ -1552,4 +1609,41 @@ test("current identity-conflict eval requires a diagnosed stop without recovery 
   ]) {
     expect(scoreCase(item, invalid).passed).toBe(false);
   }
+});
+
+test("Tomorrowland permits partial preservation when its destination is unavailable", () => {
+  const unresolved = [
+    {
+      message: "Belgium destination is unavailable; preserve unverified facts.",
+    },
+  ];
+  const partial = {
+    ...result(),
+    researchStatus: "partial" as const,
+    unresolved,
+    modelResponse: {
+      text: null,
+      object: {
+        status: "partial",
+        data: {
+          eventName: "Tomorrowland",
+          links: { socials: {} },
+          sources: [
+            {
+              url: "https://www.tomorrowland.com/",
+              information:
+                "Official portal links to the unavailable Belgium site.",
+            },
+          ],
+          editions: [],
+        },
+        errors: [],
+        unresolved,
+      },
+    },
+  };
+  expect(scoreCase(tomorrowland, partial).passed).toBe(true);
+  expect(
+    scoreCase(tomorrowland, { ...partial, outcome: "failed" }).passed,
+  ).toBe(false);
 });

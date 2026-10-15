@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "provenance": "Exact normalized source-known-offers-blocked-checkout research from narrow-current-verify-2026-10-15T11-47-11-170Z.json; preserves unknown-currency amount in terms.",
+  "candidate": {
+    "status": "partial",
+    "data": {
+      "eventId": "source-known-offers-blocked-checkout",
+      "eventName": "Sound Trail",
+      "sources": [
+        {
+          "url": "https://sound-trail.example/",
+          "information": "Official page identifies Sound Trail as a music festival at Meadow Grounds, York, UK, with confirmed 23–30 January 2027 programme dates. It lists three ticket offers; checkout and extras pages are linked for more offers."
+        }
+      ],
+      "links": {
+        "socials": {}
+      },
+      "editions": [
+        {
+          "key": "2027",
+          "year": {
+            "value": 2027,
+            "reason": "The official page is titled “Sound Trail 2027” and gives programme dates in January 2027."
+          },
+          "dates": {
+            "value": {
+              "startsOn": "2027-01-23",
+              "endsOn": "2027-01-30",
+              "state": "confirmed"
+            },
+            "reason": "The official page explicitly states that 23–30 January 2027 are confirmed programme dates."
+          },
+          "scheduleStatus": {
+            "value": "scheduled",
+            "reason": "The official page confirms the programme dates for the upcoming festival; this is consistent with the saved scheduled status."
+          },
+          "venueName": {
+            "value": "Meadow Grounds",
+            "reason": "The official page names Meadow Grounds as the festival venue."
+          },
+          "locality": {
+            "value": "York",
+            "reason": "The official page locates the festival in York."
+          },
+          "countryCode": {
+            "value": "GB",
+            "reason": "The official page identifies the location as York, United Kingdom."
+          },
+          "classification": {
+            "value": ["validation:festival", "validation:music"],
+            "reason": "The official page describes Sound Trail as a music festival. No specific music genre or substantial outdoor programme is established by the inspected page."
+          },
+          "tickets": {
+            "value": {
+              "variants": [
+                {
+                  "label": "Three-concert pass",
+                  "amount": 9.99,
+                  "currency": "GBP",
+                  "terms": "Access to three paid concerts of the holder’s choice; does not cover the full programme. Other activities are free.",
+                  "availability": "unknown",
+                  "url": "https://sound-trail.example/checkout"
+                },
+                {
+                  "label": "Stay package",
+                  "amount": 899,
+                  "currency": "GBP",
+                  "terms": "Includes lodging and the Three-concert pass only; does not include full-programme admission.",
+                  "availability": "unknown",
+                  "url": "https://sound-trail.example/checkout"
+                },
+                {
+                  "label": "All-programme pass",
+                  "terms": "The page gives a price of $615.35 but provides no country or currency code; the currency cannot be established.",
+                  "availability": "unknown",
+                  "url": "https://sound-trail.example/checkout"
+                }
+              ],
+              "basePrice": null
+            },
+            "reason": "The official page publishes these three offers and prices for the first two. The all-programme pass is a full-programme offer, but its currency is unspecified, so no reliable base price can be reported. The page says availability is not stated; checkout and extras are linked for remaining categories and offers, but could not be inspected."
+          },
+          "links": {
+            "tickets": "https://sound-trail.example/checkout"
+          }
+        }
+      ]
+    },
+    "errors": [
+      {
+        "code": "source_blocked",
+        "message": "The official checkout page could not be inspected (HTTP 401); it is linked as the source for remaining ticket categories and availability.",
+        "url": "https://sound-trail.example/checkout",
+        "editionKey": "2027",
+        "field": "tickets"
+      },
+      {
+        "code": "source_unavailable",
+        "message": "The official extras page could not be inspected (HTTP 429); it is linked as a source of additional offers.",
+        "url": "https://sound-trail.example/extras",
+        "editionKey": "2027",
+        "field": "tickets"
+      }
+    ],
+    "unresolved": [
+      {
+        "message": "What additional ticket categories and offers are listed on the linked checkout and extras pages, and what are their availability states? Those relevant official pages could not be inspected.",
+        "editionKey": "2027",
+        "field": "tickets"
+      }
+    ]
+  }
+}
