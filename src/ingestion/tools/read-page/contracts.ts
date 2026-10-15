@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { sourceUrlSchema, remainingSchema } from "../contracts";
 
-export const readSourceInputSchema = z.object({ url: sourceUrlSchema });
+export const readPageInputSchema = z.object({ url: sourceUrlSchema });
 
-export const readSourceOutputSchema = z.object({
+export const readPageOutputSchema = z.object({
   attemptedUrl: sourceUrlSchema,
   finalUrl: sourceUrlSchema,
   retrievedAt: z.iso.datetime(),
@@ -18,7 +18,7 @@ export const readSourceOutputSchema = z.object({
 export type RetrievalOutcome =
   "ok" | "partial" | "unsupported" | "blocked" | "failed";
 
-export interface ReadSourceResult {
+export interface ReadPageResult {
   attemptedUrl: string;
   finalUrl: string;
   retrievedAt: string;
@@ -37,4 +37,4 @@ export interface ReadSourceResult {
 }
 
 /** Inspectable retrieval metadata; page text stays in the source session. */
-export type SourceReadMetadata = Omit<ReadSourceResult, "markdown">;
+export type SourceReadMetadata = Omit<ReadPageResult, "markdown">;

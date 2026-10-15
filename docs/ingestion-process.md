@@ -27,18 +27,18 @@ Ingestion finds or refreshes festival facts in the catalog. An owner starts each
 
 Each festival attempt runs one Mastra workflow with ten sequential steps:
 
-| Step | Responsibility |
-| --- | --- |
-| `initialize-run` | Initialize native state after the shared start hook validates settings and creates the durable attempt. |
-| `load-context` | Load saved Event facts, editions, links, and vocabulary. |
-| `read-initial-source` | Create the shared source session and read its initial saved link when available. |
-| `research-festival` | Run the research agent with the shared source session and budget. |
-| `validate-research` | Check findings, targets, scope and country before editing. |
-| `edit-research` | Run one tool-free editor to choose explicit actions. |
-| `prepare-plan` | Validate the plan and convert typed actions into operations. |
-| `apply-catalog-item` | Preview or atomically apply eligible operations; retain write failures for the report. |
-| `build-report` | Combine research/editor output, actual changes, source history, questions, and known usage. |
-| `finalize-run` | Persist the private report, return the bounded summary and release owned resources. |
+| Step                  | Responsibility                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------- |
+| `initialize-run`      | Initialize native state after the shared start hook validates settings and creates the durable attempt. |
+| `load-context`        | Load saved Event facts, editions, links, and vocabulary.                                                |
+| `read-initial-source` | Create the shared source session and read its initial saved link when available.                        |
+| `research-festival`   | Run the research agent with the shared source session and budget.                                       |
+| `validate-research`   | Check findings, targets, scope and country before editing.                                              |
+| `edit-research`       | Run one tool-free editor to choose explicit actions.                                                    |
+| `prepare-plan`        | Validate the plan and convert typed actions into operations.                                            |
+| `apply-catalog-item`  | Preview or atomically apply eligible operations; retain write failures for the report.                  |
+| `build-report`        | Combine research/editor output, actual changes, source history, questions, and known usage.             |
+| `finalize-run`        | Persist the private report, return the bounded summary and release owned resources.                     |
 
 CLI and local Studio execute this same graph in their own Node process. Native Mastra workflow state accumulates research context, source-read metadata, model output, prepared changes, receipts and reports. Page Markdown stays in the in-memory source session for research and is excluded from workflow state and step outputs. Each step returns its own inspectable result; the server-owned attempt retains only budget, source session, connections, trace and terminal lifecycle. Credentials, prompts and live resources never enter workflow data. The final step persists once; terminal hooks recover from their final state. Mastra discards state updates from throwing steps, so an interrupted phase finalizes its available local data before propagating a safe error. Cleanup waits for active work. Finalization failure remains visible without repeating research or writes.
 
@@ -62,7 +62,7 @@ npm run catalog -- refresh --event EVENT_ID --event ANOTHER_EVENT_ID --scope cur
 
 ### Find and read sources
 
-For an existing Event, the run first reads a saved official-site link, or another saved link if needed. For `add`, the model discovers a source by festival name. The agent follows relevant links to answer open questions, searches when those links are not enough, and stops once it has useful facts.
+For an existing Event, the run first reads a saved official-site link, or another saved link if needed. The agent uses `readPage` to follow relevant known links and prior results first. `searchWeb` is reserved for an unknown, inaccessible or wrong official source, or a material identity/date conflict with the original Event or other sources. Missing announcements or optional facts alone do not justify search. For `add`, discovery is needed only when no official source is known. Search candidates include bounded highlights as selection leads; their pages must be inspected before using facts. OpenRouter’s Exa plugin and default search mode remain in use.
 
 When a direct page request returns HTTP 403 and `FIRECRAWL_KEY` is set in `.env`, ingestion tries Firecrawl once for that URL. Its raw HTML goes through the same Markdown extraction. The fallback consumes another page request and respects the remaining run time and response-size limit. Other HTTP errors do not trigger Firecrawl; without a key, 403 remains a blocked source.
 
@@ -91,9 +91,12 @@ type Finding<T> = { value: T; reason: string };
 type ResearchClassification = Finding<TermId[]>; // Complete intended list.
 
 type EditorInput = {
-  research: ResearchResult; catalog: SavedEvent | null;
-  vocabulary: Term[]; mode: "add" | "refresh";
-  scope: "full" | "current" | null; currentDate: string;
+  research: ResearchResult;
+  catalog: SavedEvent | null;
+  vocabulary: Term[];
+  mode: "add" | "refresh";
+  scope: "full" | "current" | null;
+  currentDate: string;
 };
 type Action<T> =
   | { action: "accept" } // Copy the same-field research value/reason.
@@ -103,7 +106,9 @@ type Action<T> =
 type EditorPlan = {
   event: { fields: EventActions; reason?: string } | null;
   editions: {
-    editionKey: string; fields: EditionActions; reason?: string
+    editionKey: string;
+    fields: EditionActions;
+    reason?: string;
   }[]; // reason is required for new Event/Edition creation.
   unresolved: ResearchQuestion[];
 };

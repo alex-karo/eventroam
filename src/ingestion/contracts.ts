@@ -8,13 +8,13 @@ import type { DuckDBStore } from "@mastra/duckdb";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 import type { ResearchBudget, ResearchLimits } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
-import type { readSource } from "./tools/read-source/read";
-import type { discoverSources } from "./tools/discover-sources/search";
+import type { readPage } from "./tools/read-page/read";
+import type { searchWeb } from "./tools/search-web/search";
 import type {
-  ReadSourceResult,
+  ReadPageResult,
   SourceReadMetadata,
-} from "./tools/read-source/contracts";
-import type { DiscoverSourcesResult } from "./tools/discover-sources/contracts";
+} from "./tools/read-page/contracts";
+import type { SearchWebResult } from "./tools/search-web/contracts";
 import type {
   ResearchError,
   ResearchQuestion,
@@ -68,7 +68,7 @@ export type CatalogResearchResult = {
     attemptedUrl: string;
     finalUrl: string;
     retrievedAt: string;
-    outcome: ReadSourceResult["outcome"];
+    outcome: ReadPageResult["outcome"];
     reason?: string;
   }[];
   sourceSummaries: { url: string; information: string }[];
@@ -113,16 +113,16 @@ export type ResearchDependencies = {
     prompt: string,
     context: { budget: ResearchBudget; abortSignal: AbortSignal },
   ) => Promise<unknown>;
-  readSource?: typeof readSource;
-  discoverSources?: typeof discoverSources;
+  readPage?: typeof readPage;
+  searchWeb?: typeof searchWeb;
   /** Fixture provider receives the same bounded prompt as the real Mastra agent. */
   generateCandidate?: (
     prompt: string,
     context: {
       budget: ResearchBudget;
-      reads: ReadSourceResult[];
-      readSource: (url: string) => Promise<ReadSourceResult>;
-      discoverSources: (query: string) => Promise<DiscoverSourcesResult>;
+      reads: ReadPageResult[];
+      readPage: (url: string) => Promise<ReadPageResult>;
+      searchWeb: (query: string) => Promise<SearchWebResult>;
     },
   ) => Promise<unknown>;
 };
@@ -130,7 +130,7 @@ export type ResearchDependencies = {
 export type IngestionData = {
   context: ResearchContext | null;
   reads: SourceReadMetadata[];
-  discovery: DiscoverSourcesResult[];
+  discovery: SearchWebResult[];
   research: ResearchExecution;
   editor: EditorExecution;
   prepared: ReturnType<typeof prepareEditorPlan> | null;

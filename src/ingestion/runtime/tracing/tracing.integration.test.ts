@@ -12,6 +12,7 @@ import {
   TRACE_ERROR,
   TRACE_CREDENTIAL,
   TRACE_SOURCE_BODY,
+  TRACE_HIGHLIGHT,
   TRACE_CANDIDATE,
   TRACE_TRANSPORT,
   TRACE_PUBLIC_MARKER,
@@ -73,6 +74,7 @@ async function spansAt(path: string) {
     TRACE_ERROR,
     TRACE_CREDENTIAL,
     TRACE_SOURCE_BODY,
+    TRACE_HIGHLIGHT,
     TRACE_CANDIDATE,
     TRACE_TRANSPORT,
   ]) {
@@ -137,7 +139,7 @@ test("offline real agent persists sanitized model/tool relationships and bounded
     committedOperationCount: 0,
   });
   expect(JSON.parse(root.metadata as string).runId).toBe(result.result.runId);
-  const reads = spans.filter((span) => span.entityId === "readSource");
+  const reads = spans.filter((span) => span.entityId === "readPage");
   expect(reads).toHaveLength(2);
   expect(
     reads.some((span) => JSON.stringify(span).includes(TRACE_PUBLIC_URL)),
@@ -291,6 +293,7 @@ test("short buffered writer exits and a different process can read its final spa
     TRACE_ERROR,
     TRACE_CREDENTIAL,
     TRACE_SOURCE_BODY,
+    TRACE_HIGHLIGHT,
     TRACE_CANDIDATE,
     TRACE_TRANSPORT,
   ]) {
@@ -374,8 +377,7 @@ test.each([
     });
     if (scenario === "cached") {
       const reads = spans.filter(
-        (span) =>
-          span.entityId === "readSource" && span.spanType === "tool_call",
+        (span) => span.entityId === "readPage" && span.spanType === "tool_call",
       );
       expect(reads).toHaveLength(2);
       expect(
@@ -386,8 +388,7 @@ test.each([
     }
     if (scenario === "truncated" || scenario === "tool_truncated") {
       const read = spans.find(
-        (span) =>
-          span.entityId === "readSource" && span.spanType === "tool_call",
+        (span) => span.entityId === "readPage" && span.spanType === "tool_call",
       )!;
       expect(JSON.parse(read.output as string)).toMatchObject({
         sourceTruncated: scenario === "truncated",
@@ -485,7 +486,7 @@ test.each([
       expect(output.writeState).toBe("unchanged");
     }
     if (scenario === "search" || scenario === "reserved") {
-      const search = spans.find((span) => span.entityId === "discoverSources")!;
+      const search = spans.find((span) => span.entityId === "searchWeb")!;
       expect(JSON.parse(search.input as string).query).toContain(
         TRACE_PUBLIC_URL,
       );
@@ -585,7 +586,7 @@ test("thrown discovery retains safe query and a fixed code", async () => {
   enable(path);
   await runTraceFixture("success", false, "search_failure");
   const search = (await spansAt(path)).find(
-    (span) => span.entityId === "discoverSources",
+    (span) => span.entityId === "searchWeb",
   )!;
   expect(JSON.parse(search.output as string)).toMatchObject({
     status: "failed",

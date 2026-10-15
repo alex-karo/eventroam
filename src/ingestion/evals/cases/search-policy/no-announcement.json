@@ -1,0 +1,68 @@
+{
+  "todayUtc": "2026-10-15",
+  "provenance": {
+    "kind": "synthetic-search-policy",
+    "sourceReport": "openspec/changes/direct-exa-discovery/design.md",
+    "note": "Fictional sources isolate search selection; no live website/search fallback."
+  },
+  "input": {
+    "mode": "refresh",
+    "scope": "full",
+    "eventId": "search-policy-event",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "search-policy-event",
+      "slug": "search-policy-event",
+      "canonicalName": "Harbor Echo",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://harborechofestival.co.uk/",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "search-policy-edition",
+          "editionKey": "2026",
+          "editionYear": 2026,
+          "startsOn": "2026-01-23",
+          "endsOn": "2026-01-30",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "GB",
+          "locality": "Castlewellan",
+          "venueName": "Castlewellan Grounds",
+          "termIds": []
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://harborechofestival.co.uk/",
+      "finalUrl": "https://harborechofestival.co.uk/",
+      "retrievedAt": "2026-10-15T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "completed.md"
+    }
+  ],
+  "expectations": {
+    "required": [],
+    "forbidden": [],
+    "research": {
+      "status": "success",
+      "editionKeys": ["2026"]
+    },
+    "toolUse": {
+      "maxSearches": 0
+    }
+  },
+  "id": "search-no-announcement"
+}

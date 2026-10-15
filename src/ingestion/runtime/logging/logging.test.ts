@@ -13,6 +13,7 @@ import {
   TRACE_CANDIDATE,
   TRACE_CREDENTIAL,
   TRACE_SOURCE_BODY,
+  TRACE_HIGHLIGHT,
   TRACE_TRANSPORT,
 } from "@/test/tracing-fixture";
 import { shrinkText } from "./text";
@@ -299,6 +300,7 @@ test("real research stores selected completed model text without source bodies o
     TRACE_CANDIDATE,
     TRACE_CREDENTIAL,
     TRACE_SOURCE_BODY,
+    TRACE_HIGHLIGHT,
     TRACE_TRANSPORT,
   ]) {
     expect(stored).not.toContain(secret);

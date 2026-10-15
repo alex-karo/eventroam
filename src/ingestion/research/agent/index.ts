@@ -44,7 +44,7 @@ export async function researchFestival(
   abortSignal?: AbortSignal,
 ): Promise<ResearchExecution> {
   const { catalog, terms, knownLinks } = context;
-  const { reads, readSource: read, discoverSources: search } = sources;
+  const { reads, readPage: read, searchWeb: search } = sources;
   let providerError: unknown;
   const log = tracing?.log;
   let stepNumber = 0;
@@ -133,8 +133,8 @@ export async function researchFestival(
       raw = await deps.generateCandidate(prompt, {
         budget,
         reads,
-        readSource: read,
-        discoverSources: search,
+        readPage: read,
+        searchWeb: search,
       });
     } else {
       const runtime = agentRuntime(agent!, tracing);

@@ -1,11 +1,11 @@
 import type { CatalogResearchInput } from "../../contracts";
 import type { ResearchBudget } from "../../runtime/budget";
 import type { KnownSourceLink } from "../../tools/contracts";
-import type { ReadSourceResult } from "../../tools/read-source/contracts";
+import type { ReadPageResult } from "../../tools/read-page/contracts";
 import type { ResearchCatalog } from "../context";
 import { minorToMajor } from "../money";
 import { researchInstructions } from "./prompt";
-import { boundedToolSource } from "../../tools/read-source/response";
+import { boundedToolSource } from "../../tools/read-page/response";
 
 export function promptFor(
   input: CatalogResearchInput,
@@ -13,7 +13,7 @@ export function promptFor(
   knownLinks: KnownSourceLink[],
   terms: { id: string; facet: string; slug: string }[],
   remaining: ReturnType<ResearchBudget["remaining"]>,
-  reads: ReadSourceResult[],
+  reads: ReadPageResult[],
   currentDate = new Date().toISOString(),
 ) {
   const target = catalog.find((event) => event.id === input.eventId);

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createResearchBudget } from "../../runtime/budget";
-import { readSource } from "./read";
+import { readPage } from "./read";
 import {
   assertPublicUrl,
   isPublicAddress,
@@ -19,7 +19,7 @@ function mockResponse(body: string, contentType = "text/html") {
   }));
 }
 
-describe("readSource", () => {
+describe("readPage", () => {
   beforeEach(() => vi.stubEnv("FIRECRAWL_KEY", ""));
   afterEach(() => vi.unstubAllEnvs());
 
@@ -44,7 +44,7 @@ describe("readSource", () => {
       child: vi.fn(),
     };
     log.child.mockReturnValue(log);
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget,
       request,
       firecrawlRequest,
@@ -85,7 +85,7 @@ describe("readSource", () => {
         body: Buffer.from("<p>Festival dates</p>"),
       });
       const firecrawlRequest = mockResponse("<p>Fallback</p>");
-      await readSource(sourceUrl, {
+      await readPage(sourceUrl, {
         budget: createResearchBudget(),
         request,
         firecrawlRequest,
@@ -104,7 +104,7 @@ describe("readSource", () => {
       body: Buffer.from("Forbidden"),
     });
     const firecrawlRequest = mockResponse("<p>Fallback</p>");
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request,
       firecrawlRequest,
@@ -126,7 +126,7 @@ describe("readSource", () => {
       body: Buffer.from("Forbidden"),
     });
     const firecrawlRequest = mockResponse("<p>Fallback</p>");
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request,
       firecrawlRequest,
@@ -149,7 +149,7 @@ describe("readSource", () => {
     const firecrawlRequest = vi
       .fn()
       .mockRejectedValue(new FirecrawlError("firecrawl_http_402"));
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request,
       firecrawlRequest,
@@ -165,7 +165,7 @@ describe("readSource", () => {
   });
 
   it("passes ordered headings, programme dates, ticket cards and tables as Markdown", async () => {
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request:
         mockResponse(`<html><head><title>Festival programme</title></head><body>
@@ -195,7 +195,7 @@ describe("readSource", () => {
   });
 
   it("keeps a festival card link in page order, as in captured homepages", async () => {
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(`<html><body><section>
         <a href="/winter"><div><img src="/large-poster.jpg" alt="">
@@ -216,7 +216,7 @@ describe("readSource", () => {
   });
 
   it("keeps datetime in linked cards and excludes hidden/script text from their labels", async () => {
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(`<html><body>
         <a href="/programme"><article><h2>Festival programme</h2>
@@ -231,7 +231,7 @@ describe("readSource", () => {
   });
 
   it("retains long Markdown links when the whole page fits the bound", async () => {
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(`<html><body><p>First announcement</p>
         <a href="/tickets?${"x".repeat(2_000)}">Ticket page</a>
@@ -245,7 +245,7 @@ describe("readSource", () => {
 
   it("retains ordinary paragraphs longer than the old block limit", async () => {
     const paragraph = `This edition has ${"a detailed programme ".repeat(100)}and more.`;
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(`<html><body><p>${paragraph}</p></body></html>`),
     });
@@ -254,7 +254,7 @@ describe("readSource", () => {
   });
 
   it("bounds total Markdown at a natural boundary and marks the read partial", async () => {
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(
         `${"Festival programme details. ".repeat(3_200)}\n\nLater announcement`,
@@ -273,7 +273,7 @@ describe("readSource", () => {
 
   it("does not cut a Markdown link when it crosses the total bound", async () => {
     const prefix = `${"Programme. ".repeat(7_000)} `;
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(
         `<html><body><p>${prefix}<a href="/tickets?${"x".repeat(8_000)}">Tickets</a></p></body></html>`,
@@ -289,7 +289,7 @@ describe("readSource", () => {
   });
 
   it("extracts continuous text, structured event data, timestamps and ticket links", async () => {
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       now: () => new Date("2026-10-03T12:00:00Z"),
       request: mockResponse(`
@@ -314,7 +314,7 @@ describe("readSource", () => {
   });
 
   it("keeps a date shown only in a header anchor and organizer text in the footer", async () => {
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(`<html><body>
         <header><nav><a href="/2027"><span>7TH-10TH</span><span>JULY2027</span></a></nav></header>
@@ -328,7 +328,7 @@ describe("readSource", () => {
   });
 
   it("traverses JSON-LD graph nodes for edition facts and organizer identity", async () => {
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(
         JSON.stringify({
@@ -353,7 +353,7 @@ describe("readSource", () => {
   });
 
   it("keeps JSON-LD location and organizer properties under distinct paths", async () => {
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(
         JSON.stringify({
@@ -371,7 +371,7 @@ describe("readSource", () => {
 
   it("preserves social URLs without claiming their content was read", async () => {
     const request = mockResponse("should never be fetched");
-    const result = await readSource("https://www.instagram.com/festival/", {
+    const result = await readPage("https://www.instagram.com/festival/", {
       budget: createResearchBudget(),
       request,
     });
@@ -386,7 +386,7 @@ describe("readSource", () => {
   });
 
   it("reports sparse JavaScript pages as partial without executing scripts", async () => {
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(
         "<html><body><main>Loading festival details</main><script src='/app.js'></script></body></html>",
@@ -402,7 +402,7 @@ describe("readSource", () => {
   });
 
   it("ignores long navigation when assessing a JavaScript page", async () => {
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(
         `<html><body><header><nav>${"Festival navigation ".repeat(30)}</nav></header><main id="root"></main><script src="/app.js"></script></body></html>`,
@@ -417,12 +417,12 @@ describe("readSource", () => {
   });
 
   it("rejects oversized and unsupported responses", async () => {
-    const oversized = await readSource(sourceUrl, {
+    const oversized = await readPage(sourceUrl, {
       budget: createResearchBudget({ pageBytes: 2 }),
       request: mockResponse("too large"),
     });
     expect(oversized.reason).toBe("oversized_response");
-    const pdf = await readSource(sourceUrl, {
+    const pdf = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse("%PDF", "application/pdf"),
     });
@@ -430,7 +430,7 @@ describe("readSource", () => {
   });
 
   it("returns a safe reason without exposing a URL in a network error", async () => {
-    const result = await readSource(sourceUrl, {
+    const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: vi
         .fn()

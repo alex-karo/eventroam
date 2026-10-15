@@ -23,13 +23,15 @@ import { loadResearchConfig } from "../runtime/config";
 import { createResearchBudget } from "../runtime/budget";
 import { EDITOR_PROMPT_VERSION } from "../editor/contracts";
 import { RESEARCH_PROMPT_VERSION } from "../research/contracts";
-import type { ReadSourceResult } from "../tools/read-source/contracts";
-import type { DiscoverSourcesResult } from "../tools/discover-sources/contracts";
-import type { ReadSourceOptions } from "../tools/read-source/read";
-import type { DiscoverSourcesOptions } from "../tools/discover-sources/search";
+import type { ReadPageResult } from "../tools/read-page/contracts";
+import type { SearchWebResult } from "../tools/search-web/contracts";
+import type { ReadPageOptions } from "../tools/read-page/read";
+import type { SearchWebOptions } from "../tools/search-web/search";
 import { loadEvalSuite, type EvalCase, type EvalSuite } from "./fixtures";
 import { sourceLinks } from "./source-links";
 import { createEvalScorers, scoreCase } from "./score";
+
+import type { EvalToolCall } from "./tool-use";
 
 const timestamp = "2026-10-03T00:00:00.000Z";
 
@@ -147,8 +149,12 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
   }
 }
 
-export function fixedSources(item: EvalCase, todayUtc: string) {
-  const byUrl = new Map<string, ReadSourceResult>();
+export function fixedSources(
+  item: EvalCase,
+  todayUtc: string,
+  calls: EvalToolCall[] = [],
+) {
+  const byUrl = new Map<string, ReadPageResult>();
   for (const source of item.sources) {
     const read = {
       ...source,
@@ -158,10 +164,11 @@ export function fixedSources(item: EvalCase, todayUtc: string) {
     byUrl.set(new URL(source.finalUrl).toString(), read);
   }
   return {
-    readSource: async (
+    readPage: async (
       url: string,
-      options: ReadSourceOptions,
-    ): Promise<ReadSourceResult> => {
+      options: ReadPageOptions,
+    ): Promise<ReadPageResult> => {
+      calls.push({ tool: "readPage", url });
       options.budget.consumePage();
       const source = byUrl.get(new URL(url).toString());
       return source
@@ -178,16 +185,18 @@ export function fixedSources(item: EvalCase, todayUtc: string) {
             completeness: "none",
           };
     },
-    discoverSources: async (
+    searchWeb: async (
       query: string,
-      options: DiscoverSourcesOptions,
-    ): Promise<DiscoverSourcesResult> => {
+      options: SearchWebOptions,
+    ): Promise<SearchWebResult> => {
+      calls.push({ tool: "searchWeb", query });
       options.budget.consumeSearch();
       return {
         query,
         candidates:
-          item.discoveries?.find((discovery) => discovery.query === query)
-            ?.candidates ?? [],
+          item.discoveries?.find((discovery) =>
+            new RegExp(discovery.queryPattern, "i").test(query),
+          )?.candidates ?? [],
         retrievedAt: `${todayUtc}T00:00:00.000Z`,
         modelCostUsd: 0,
         searchCostUsd: 0,
@@ -236,7 +245,10 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     ...process.env,
     ...(options.model ? { OPENROUTER_MODEL: options.model } : {}),
   });
-  const scorer = createEvalScorers(selected);
+  const toolCalls = new Map<string, EvalToolCall[]>();
+  const callsFor = (input: { caseId: string; repetition?: number }) =>
+    toolCalls.get(`${input.caseId}/${input.repetition ?? 1}`) ?? [];
+  const scorer = createEvalScorers(selected, callsFor);
   const byId = new Map(selected.map((item) => [item.id, item]));
   const outputs = new Map<string, CatalogResearchResult>();
   const inputSchema = z.object({
@@ -252,6 +264,8 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       if (!item) {
         throw new Error(`Unknown eval case: ${inputData.caseId}`);
       }
+      const calls: EvalToolCall[] = [];
+      toolCalls.set(`${inputData.caseId}/${inputData.repetition}`, calls);
       const connection = seedDatabase(suite, item);
       try {
         let result: CatalogResearchResult;
@@ -261,7 +275,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
             client: connection.client,
             config,
             todayUtc: item.todayUtc ?? suite.todayUtc,
-            ...fixedSources(item, item.todayUtc ?? suite.todayUtc),
+            ...fixedSources(item, item.todayUtc ?? suite.todayUtc, calls),
             ...(options.editorOnly
               ? {
                   generateCandidate: async () =>
@@ -355,7 +369,12 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   const mastraResult = await runEvals({
     target: mastra.getWorkflow("catalogEval"),
     data,
-    scorers: [scorer.correctness, scorer.completeness, scorer.research],
+    scorers: [
+      scorer.correctness,
+      scorer.completeness,
+      scorer.research,
+      scorer.toolUse,
+    ],
     concurrency: 3,
   });
   const results = data.map(({ input }) => {
@@ -382,7 +401,8 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       runId: result.runId,
       outcome: result.outcome,
       researchStatus: result.researchStatus,
-      score: scoreCase(item, result),
+      score: scoreCase(item, result, callsFor(input)),
+      toolCalls: callsFor(input),
       usage: result.usage,
       durationMs: result.durationMs,
       modelVersion: result.modelVersion,

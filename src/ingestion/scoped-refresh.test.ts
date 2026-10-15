@@ -25,7 +25,7 @@ function fixture(countryCode: string | null = "IE") {
     countryCode,
   });
   fx.eventLink(event, { url, kind: "official_site" });
-  const read = vi.fn<NonNullable<ResearchDependencies["readSource"]>>(
+  const read = vi.fn<NonNullable<ResearchDependencies["readPage"]>>(
     async (requested, options) => {
       options.budget.consumePage();
       return {
@@ -40,7 +40,7 @@ function fixture(countryCode: string | null = "IE") {
       };
     },
   );
-  const deps = { client, readSource: read, todayUtc: "2026-10-11" };
+  const deps = { client, readPage: read, todayUtc: "2026-10-11" };
   const input = {
     mode: "refresh" as const,
     eventId: event.id,
@@ -324,7 +324,7 @@ test("CLI and Studio current previews process a supplied replacement website equ
       _p: string,
       c: Parameters<NonNullable<ResearchDependencies["generateCandidate"]>>[1],
     ) => {
-      await c.readSource("https://correct.fixture.example/");
+      await c.readPage("https://correct.fixture.example/");
       return f.proposal;
     },
   };

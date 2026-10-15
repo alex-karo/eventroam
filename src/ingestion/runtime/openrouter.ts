@@ -8,7 +8,7 @@ import type { ResearchConfig } from "./config";
 
 export const MAX_PROVIDER_UNAVAILABLE_RETRIES = 3;
 
-/** Ordinary model calls have no web plugin. Discovery is isolated in discoverSources. */
+/** Ordinary model calls have no web plugin. Discovery is isolated in searchWeb. */
 export function createResearchModel(config: ResearchConfig) {
   return {
     id: `openrouter/${config.model}` as const,
