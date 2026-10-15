@@ -28,13 +28,13 @@ Website:
 
 ## Active changes
 
-- [Application-owned database validation](../openspec/changes/move-database-validation-to-code/proposal.md) — implemented transfer of value and relationship checks into shared code, with a persistent repository policy for future schema changes; awaiting archive.
 - [Narrow current refresh](../openspec/changes/narrow-current-refresh/proposal.md) — proposal only: Edition-focused current research and taxonomy reuse through model instructions/context, with unchanged downstream checks.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
 ## Archived changes
 
+- [Application-owned database validation](../openspec/changes/archive/2026-10-15-move-database-validation-to-code/proposal.md) — application-owned value and relationship checks, retained database integrity protections, and a persistent policy for future schema changes.
 - [Ingestion editor](../openspec/changes/archive/2026-10-15-ingestion-editor/proposal.md) — research/editor separation with explicit field actions, simpler write preparation and focused quality evaluation.
 - [Estimated festival size](../openspec/changes/archive/2026-10-11-estimate-festival-size/proposal.md) — approximate participant scale, report v4, ingestion guidance, and public wording.
 
