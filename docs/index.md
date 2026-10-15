@@ -24,7 +24,7 @@ Website:
 
 ## Active changes
 
-- [Narrow current refresh](../openspec/changes/narrow-current-refresh/proposal.md) — proposal only: Edition-focused current research and taxonomy reuse through model instructions/context, with unchanged downstream checks.
+- [Narrow current refresh](../openspec/changes/narrow-current-refresh/proposal.md) — implemented and verified; current trusts the full baseline, updates one Edition and stops on identity contradictions. Main specs synchronized; awaiting archive.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 

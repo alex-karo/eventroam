@@ -17,6 +17,10 @@ export function promptFor(
   currentDate = new Date().toISOString(),
 ) {
   const target = catalog.find((event) => event.id === input.eventId);
+  const project =
+    input.mode === "refresh" && input.scope === "current"
+      ? currentModelContext
+      : modelContext;
   return JSON.stringify({
     task: researchInstructions,
     currentDate,
@@ -40,7 +44,7 @@ export function promptFor(
             })),
           }))
         : undefined,
-    compact: target ? modelContext(target) : null,
+    compact: target ? project(target) : null,
     terms,
     inspectedSources: reads.map((read) =>
       boundedToolSource(read, Math.floor(80_000 / Math.max(1, reads.length))),
@@ -131,4 +135,35 @@ function modelLinks(links: ResearchCatalog[number]["links"]) {
     label,
     official,
   }));
+}
+
+/** Current research keeps every matching key; only the editor sees omitted facts. */
+function currentModelContext(target: ResearchCatalog[number]) {
+  const saved = modelContext(target);
+  return {
+    id: saved.id,
+    canonicalName: saved.canonicalName,
+    aliases: saved.aliases,
+    links: saved.links,
+    editions: saved.editions.map((edition) => ({
+      editionKey: edition.editionKey,
+      editionYear: edition.editionYear,
+      displayName: edition.displayName,
+      startsOn: edition.startsOn,
+      endsOn: edition.endsOn,
+      dateState: edition.dateState,
+      scheduleStatus: edition.scheduleStatus,
+      timeZone: edition.timeZone,
+      venueName: edition.venueName,
+      locality: edition.locality,
+      administrativeArea: edition.administrativeArea,
+      countryCode: edition.countryCode,
+      latitude: edition.latitude,
+      longitude: edition.longitude,
+      coordinatePrecision: edition.coordinatePrecision,
+      links: edition.links,
+      terms: edition.terms,
+      tickets: edition.tickets,
+    })),
+  };
 }

@@ -35,6 +35,21 @@ import type { EvalToolCall } from "./tool-use";
 
 const timestamp = "2026-10-03T00:00:00.000Z";
 
+function ticketColumns(
+  tickets: EvalCase["initial"]["event"]["editions"][number]["tickets"],
+) {
+  const base = tickets?.basePrice;
+  return {
+    priceDetails: tickets?.priceDetails,
+    priceKind: base?.kind,
+    priceCurrency: base && "currency" in base ? base.currency : null,
+    priceMinMinor: base?.minMinor,
+    priceMaxMinor: base?.maxMinor,
+    priceCoverage: base?.coverage,
+    priceQualification: base?.qualification,
+  };
+}
+
 export function seedDatabase(suite: EvalSuite, item: EvalCase) {
   const connection = openDatabase(":memory:");
   try {
@@ -108,6 +123,7 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
                 sizeEstimate: edition.sizeEstimate,
                 venueName: edition.venueName,
                 venueAddress: edition.venueAddress,
+                ...ticketColumns(edition.tickets),
                 createdAt: timestamp,
                 updatedAt: timestamp,
               }),

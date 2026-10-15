@@ -1133,3 +1133,37 @@ test("add derives Event identity from research and requires a creation reason", 
     expect(rejected.errors.at(-1)?.code).toBe("invalid_plan");
   }
 });
+
+test("current editor preserves history by omitting preservation-only plan entries", () => {
+  const f = fixture();
+  const history = f.fx.edition(f.event, {
+    editionKey: "2026",
+    editionYear: 2026,
+    countryCode: "PT",
+    venueName: "Historical venue",
+  });
+  f.catalog[0] = readResearchEvent(f.client, f.event.id)!;
+  const before = f.catalog[0].editions.find((e) => e.id === history.id);
+  f.research.data!.editions[0].venueName = { value: "New venue", reason };
+  const plan = {
+    ...f.plan,
+    editions: [
+      { editionKey: "2027", fields: { venueName: { action: "accept" } } },
+    ],
+  };
+  const invalid = prepare(f, {
+    ...plan,
+    editions: [...plan.editions, { editionKey: "2026", fields: {} }],
+  });
+  expect(invalid.errors.at(-1)?.message).toBe(
+    "Editorial plan exceeds refresh scope bounds",
+  );
+  const prepared = prepare(f, plan);
+  expect(prepared.errors).toEqual([]);
+  applyCatalogItem(f.client, prepared.operations);
+  const after = readResearchEvent(f.client, f.event.id)!;
+  expect(after.editions.find((e) => e.id === history.id)).toEqual(before);
+  expect(after.editions.find((e) => e.id === f.edition.id)?.venueName).toBe(
+    "New venue",
+  );
+});

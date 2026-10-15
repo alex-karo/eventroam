@@ -60,6 +60,12 @@
       "facet": "topic",
       "slug": "outdoor",
       "name": "Outdoor activities"
+    },
+    {
+      "id": "validation:mixed",
+      "facet": "format",
+      "slug": "mixed-indoor-outdoor",
+      "name": "Indoor and outdoor"
     }
   ],
   "cases": [
@@ -90,6 +96,13 @@
     "search-policy/unknown-official.json",
     "search-policy/inaccessible-official.json",
     "search-policy/wrong-official.json",
-    "search-policy/date-conflict.json"
+    "search-policy/date-conflict.json",
+    "narrow-current/stable.json",
+    "narrow-current/reuse.json",
+    "narrow-current/changed.json",
+    "narrow-current/noncomparable.json",
+    "narrow-current/none.json",
+    "narrow-current/partial-tickets.json",
+    "narrow-current/identity-conflict.json"
   ]
 }

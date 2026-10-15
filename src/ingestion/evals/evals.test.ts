@@ -1322,3 +1322,234 @@ test.each([
     ).toBe(passed);
   },
 );
+
+test.each([
+  undefined,
+  null,
+  { value: null, reason: "Disproven" },
+  { value: "Unwanted Event finding", reason: "Source" },
+])(
+  "raw absent-field scoring rejects findings even without writes (%j)",
+  (summary) => {
+    const item = structuredClone(byId.get("scope-current-ongoing")!);
+    item.expectations.research = {
+      status: "success",
+      absentFields: [{ field: "summary" }, { field: "links.website" }],
+    };
+    const raw = {
+      status: "success",
+      errors: [],
+      unresolved: [],
+      data: {
+        eventName: item.initial.event.canonicalName,
+        sources: [],
+        links: { socials: {}, website: null },
+        editions: [],
+        summary,
+      },
+    };
+    const report = {
+      ...result(),
+      eventId: item.initial.event.id,
+      modelResponse: { text: null, object: raw },
+    };
+    const score = scoreCase(item, report);
+    expect(score.correctness).toBe(1);
+    expect(score.completeness).toBe(1);
+    expect(score.passed).toBe(summary == null);
+    Object.assign(raw.data.links, { website: "https://unwanted.example/" });
+    expect(scoreCase(item, report).passed).toBe(false);
+  },
+);
+
+test("absent-field scoring requires a valid candidate and the addressed Edition", () => {
+  const item = structuredClone(byId.get("scope-current-ongoing")!);
+  item.expectations.research = {
+    status: "success",
+    absentFields: [{ editionKey: "missing", field: "tickets" }],
+  };
+  expect(scoreCase(item, result()).passed).toBe(false);
+  const raw = {
+    status: "success",
+    errors: [],
+    unresolved: [],
+    data: {
+      eventName: "River Festival",
+      sources: [],
+      links: { socials: {} },
+      editions: [],
+    },
+  };
+  expect(
+    scoreCase(item, { ...result(), modelResponse: { text: null, object: raw } })
+      .passed,
+  ).toBe(false);
+});
+
+test.each(suite.cases.filter((item) => item.id.startsWith("narrow-current-")))(
+  "$id has a valid complete baseline and rejects missing mandatory updates",
+  (item) => {
+    const db = seedDatabase(suite, item);
+    try {
+      expect(readResearchCatalog(db.client)).toHaveLength(1);
+      const score = scoreCase(item, result());
+      expect(score.research?.score).toBeLessThan(1);
+      if (item.expectations.required.length) {
+        expect(score.reasons.missingRequired).toEqual(
+          item.expectations.required,
+        );
+      }
+      expect(item.expectations.research?.absentFields).toContainEqual({
+        field: "summary",
+      });
+    } finally {
+      db.client.close();
+    }
+  },
+);
+
+test("new-Edition scoring accepts a distinct key and rejects the historical donor key", () => {
+  const item = byId.get("narrow-current-noncomparable")!;
+  const facts = item.expectations.research!.facts!;
+  const report = result();
+  const edition = {
+    key: "spring-2027",
+    year: { value: 2027, reason: "New annual announcement" },
+    dates: {
+      value: {
+        startsOn: "2027-06-04",
+        endsOn: "2027-06-05",
+        state: "confirmed",
+      },
+      reason: "Confirmed dates",
+    },
+    classification: {
+      value: facts
+        .filter((f) => f.field === "classification")
+        .map((f) => f.value),
+      reason: "Continuity with spring-2026",
+    },
+    links: {},
+  };
+  report.modelResponse = {
+    text: "",
+    object: {
+      status: "success",
+      errors: [],
+      unresolved: [],
+      data: {
+        eventName: item.initial.event.canonicalName,
+        sources: [
+          {
+            url: item.sources[0].finalUrl,
+            information: "Official announcement",
+          },
+        ],
+        links: { socials: {} },
+        editions: [edition],
+      },
+    },
+  };
+  expect(scoreCase(item, report).research?.score).toBe(1);
+  edition.key = "spring-2026";
+  expect(scoreCase(item, report).research?.score).toBeLessThan(1);
+  edition.key = "spring-2027";
+  edition.dates.value.startsOn = "2027-07-04";
+  expect(scoreCase(item, report).research?.score).toBeLessThan(1);
+});
+
+test("no-target scoring rejects incidental publication writes", () => {
+  const item = byId.get("narrow-current-none")!;
+  const report = result();
+  report.modelResponse = {
+    text: "",
+    object: {
+      status: "success",
+      errors: [],
+      unresolved: [],
+      data: {
+        eventName: item.initial.event.canonicalName,
+        sources: [
+          {
+            url: item.sources[0].finalUrl,
+            information: "No upcoming announcement",
+          },
+        ],
+        links: { socials: {} },
+        editions: [],
+      },
+    },
+  };
+  expect(scoreCase(item, report).passed).toBe(true);
+  report.changes.push({
+    subject: item.initial.event.editions[0].id,
+    field: "publication_state",
+    oldValue: "draft",
+    newValue: "published",
+    explanations: [],
+  });
+  expect(scoreCase(item, report).passed).toBe(false);
+});
+
+test("current identity-conflict eval requires a diagnosed stop without recovery or editing", () => {
+  const item = byId.get("current-identity-contradiction")!;
+  const question = {
+    field: "identity",
+    message:
+      "Saved site is an Australian namesake, not this UK festival; run full.",
+  };
+  const failed: CatalogResearchResult = {
+    ...result(),
+    outcome: "failed",
+    researchStatus: "failed",
+    editorStatus: "not_run",
+    modelResponse: {
+      text: null,
+      object: {
+        status: "failed",
+        data: null,
+        errors: [],
+        unresolved: [question],
+      },
+    },
+    unresolved: [question],
+    sources: [
+      {
+        attemptedUrl: item.sources[0].attemptedUrl,
+        finalUrl: item.sources[0].finalUrl,
+        retrievedAt: item.sources[0].retrievedAt,
+        outcome: "ok",
+      },
+    ],
+  };
+  expect(scoreCase(item, failed).passed).toBe(true);
+  for (const invalid of [
+    { ...failed, unresolved: [] },
+    { ...failed, usage: { ...failed.usage, searches: 1 } },
+    { ...failed, unresolved: [{ message: "No prices found" }] },
+    { ...failed, editorStatus: "success" as const },
+    {
+      ...failed,
+      sources: [
+        ...failed.sources,
+        {
+          ...failed.sources[0],
+          attemptedUrl: "https://harbor-echo-uk.example/",
+        },
+      ],
+    },
+    {
+      ...failed,
+      errors: [
+        {
+          code: "model_failed" as const,
+          stage: "research" as const,
+          message: "Provider error",
+        },
+      ],
+    },
+    { ...failed, modelResponse: null },
+  ]) {
+    expect(scoreCase(item, invalid).passed).toBe(false);
+  }
+});

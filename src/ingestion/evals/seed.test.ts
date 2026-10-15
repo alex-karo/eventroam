@@ -1,6 +1,8 @@
 import Database from "better-sqlite3";
 import { expect, test, vi } from "vitest";
-import { loadEvalSuite } from "./fixtures";
+import { readResearchCatalog } from "@/catalog/read/research";
+import { modelContext } from "../research/agent/input";
+import { evalCaseSchema, loadEvalSuite } from "./fixtures";
 import { seedDatabase } from "./run";
 
 test("invalid eval assignments roll back all seed rows before closing the database", () => {
@@ -57,3 +59,74 @@ test("eval data cannot bypass publication and date-state rules", () => {
   item.initial.event.homeScope = null;
   expect(() => seedDatabase(suite, item)).toThrow(/home scope/);
 });
+
+test.each(["paid", "free", "unknown"] as const)(
+  "eval seeds complete %s ticket baselines",
+  (kind) => {
+    const suite = loadEvalSuite();
+    const item = structuredClone(suite.cases[0]);
+    const tickets = {
+      priceDetails: [
+        {
+          label: "Regular",
+          amount: 1.234,
+          currency: "KWD",
+          availability: "sold_out" as const,
+          terms: "Full programme; booking fee included",
+        },
+        {
+          label: "Student",
+          amount: 0,
+          terms: "Student ID",
+          availability: "available" as const,
+        },
+      ],
+      basePrice:
+        kind === "paid"
+          ? {
+              kind: "exact" as const,
+              currency: "KWD",
+              minMinor: 1234,
+              maxMinor: 1234,
+              coverage: "full_programme" as const,
+              qualification: "Booking fee included",
+            }
+          : kind === "free"
+            ? {
+                kind: "free" as const,
+                minMinor: 0 as const,
+                maxMinor: 0 as const,
+                coverage: "full_programme" as const,
+              }
+            : null,
+    };
+    item.initial.event.editions[0].tickets = tickets;
+    const validated = evalCaseSchema.parse(item);
+    const connection = seedDatabase(suite, validated);
+    try {
+      const catalog = readResearchCatalog(connection.client);
+      const saved = catalog[0].editions[0];
+      expect(saved.priceDetails).toEqual(tickets.priceDetails);
+      expect(saved.priceKind).toBe(tickets.basePrice?.kind ?? null);
+      const model = modelContext(catalog[0]).editions[0].tickets;
+      expect(model.variants).toEqual(tickets.priceDetails);
+      expect(model.basePrice).toEqual(
+        kind === "paid"
+          ? {
+              kind: "exact",
+              currency: "KWD",
+              minAmount: 1.234,
+              maxAmount: 1.234,
+              coverage: "full_programme",
+              qualification: "Booking fee included",
+            }
+          : kind === "free"
+            ? { kind: "free", coverage: "full_programme" }
+            : null,
+      );
+      expect(suite.schemaVersion).toBe(2);
+    } finally {
+      connection.client.close();
+    }
+  },
+);

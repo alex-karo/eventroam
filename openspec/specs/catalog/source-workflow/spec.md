@@ -290,39 +290,43 @@ Add SHALL create a new Event or skip a recognized existing Event. A duplicate SH
 - **THEN** supported updates apply only to that target; unknown or mismatched IDs are rejected
 
 ### Requirement: Research results distinguish completion from catalog mutation
-Research SHALL return `status`, `data`, `errors`, and `unresolved`. Success/partial SHALL contain data; failure SHALL contain null data and produce no operations. Status SHALL describe research completeness independently of catalog changes or announcement completeness. Refresh completeness SHALL cover current-selection research, and every assigned Event/Edition field check. Add SHALL retain its historical and announced Edition research; duplicate add needs only identity. Partial SHALL require a useful result and a specific unfinished required check with its cause in unresolved.
+Research SHALL return `status`, `data`, `errors`, and `unresolved`. Success/partial SHALL contain data; failure SHALL contain null data and produce no operations. Status SHALL describe research completeness independently of catalog changes or announcement completeness. Refresh completeness SHALL cover announcement/selection research and the mandatory checks for its scope. Current SHALL NOT require Event field checks, historical verification or separate opportunistic-field research; full SHALL retain every assigned Event/Edition field check. Add SHALL retain its historical and announced Edition research; duplicate add needs only identity. Partial SHALL require a useful result and a specific unfinished required check with its cause in unresolved.
 
 #### Scenario: Successful check changes nothing
-- **WHEN** inspected material completes the requested check
-- **THEN** status is `success`, even with no changes; empty changes alone do not prove completion
+- **WHEN** inspected material completes the assignment
+- **THEN** return success even without changes; no writes alone do not prove completion.
 
 #### Scenario: The next edition is only partly announced
-- **WHEN** reasonable relevant checks find an announced Edition and dates but no published venue or prices
-- **THEN** success may contain the known facts and omit missing fields, preserving saved values and describing announcement limits in source summaries
-- **AND** use “not found on inspected pages” unless evidence supports “not yet announced”
+- **WHEN** relevant checks find announced dates but no venue/prices
+- **THEN** success may omit missing fields, preserving saved values; say “not found on inspected pages” unless evidence supports “not yet announced”.
 
 #### Scenario: A core check remains unfinished
-- **WHEN** a relevant source failure is not recovered, a material conflict remains, or the budget ends before an assigned check finishes, but valid final data exists
-- **THEN** return partial with the specific unfinished check and its cause; valid facts remain applicable and omitted fields preserve stored data
-- **AND** missing optional data after a completed relevant check does not count as unfinished research; an unattempted assigned optional-field check does
+- **WHEN** a mandatory check remains blocked, conflicted or unattempted with useful findings
+- **THEN** return partial with the unfinished question/cause and preserve omitted values; completed unknowns and current opportunistic fields do not force partial.
 
 #### Scenario: Optional unknowns do not force partial
-- **WHEN** all assigned checks are complete but size, precise coordinates, socials, a completed schedule status, or a future Edition announcement are unavailable
-- **THEN** success may retain optional questions; never invent facts or a completed status, or change stored values just to fill missing fields
+- **WHEN** assigned checks complete without optional facts or a future announcement
+- **THEN** success may retain questions; never invent facts/completed status or change values to fill gaps.
 
 #### Scenario: Failed research needs no invented candidate
-- **WHEN** no usable result exists
-- **THEN** status is `failed`, data is null, and at least one error/question explains it
-- **AND** a valid failure response is accepted and the report preserves failed status with null data
+- **WHEN** no usable result remains
+- **THEN** return failed/null with an error/question; accept and retain that failure in the report.
 
 #### Scenario: Repeated input is not a research finding
-- **WHEN** refresh cannot obtain usable source findings and only the supplied identity, saved facts, or URLs remain
-- **THEN** return failed with null data and a source-failure explanation, not partial with an empty candidate shell
-- **AND** source-verified unchanged findings still qualify for success/partial according to completed checks; duplicate-add identity matching remains sufficient
+- **WHEN** only supplied identity/facts/URLs remain after unusable refresh reads
+- **THEN** return failed/null with source diagnostics; source-verified unchanged facts qualify, and duplicate add still needs only identity.
 
 #### Scenario: Inconsistent result is rejected
-- **WHEN** failed data is non-null, success/partial data is null, partial has no question, or failure has no diagnostics
-- **THEN** validation rejects the result before operations
+- **WHEN** failed has data, success/partial lacks data, partial lacks a question or failure lacks diagnostics
+- **THEN** reject before operations.
+
+#### Scenario: Current finds no eligible Edition
+- **WHEN** useful inspected announcement sources establish no eligible Edition
+- **THEN** current may succeed with editions empty and useful summaries, omitting Event findings; no usable inspected sources still requires failed/null.
+
+#### Scenario: Current selection remains ambiguous
+- **WHEN** useful sources leave overlapping/tied candidates or uncertain matching
+- **THEN** return partial with no Edition and a selection question, never several arbitrary targets or Event findings.
 
 ### Requirement: Execution errors and unanswered questions are separate
 Errors SHALL carry a code and bounded message, with optional URL/target. Questions SHALL carry a bounded message and optional editionKey/field, without code/blocking. Runtime failures SHALL be host-reported without exposing credentials or provider payloads. Ordinary unanswered questions SHALL NOT veto independent valid facts. A country conflict SHALL be a host validation failure for the whole Event, not merely an unanswered question.
@@ -491,58 +495,55 @@ Non-null research data SHALL include sources unique by normalized HTTP(S) URL, w
 - **THEN** retain summaries independently of changes and separately from retrieval outcomes
 
 ### Requirement: Research returns bounded official links with structural ownership
-Research SHALL return at most one Event website, one account per supported social key, and one ticket URL per edition. Research SHALL provide evidence of officiality/association and the editor SHALL decide set/clear/keep for the same owner/kind slots; their position in the result SHALL determine ownership.
+Research SHALL return at most one Event website, one account per supported social key, and one ticket URL per edition. Research SHALL provide evidence of officiality/association and the editor SHALL decide set/clear/keep for the same owner/kind slots; their position in the result SHALL determine ownership. Current refresh SHALL omit Event website/social findings while retaining selected-Edition ticket-link findings and source/identity diagnostics; add and full SHALL retain Event-link research.
 
 #### Scenario: Festival website and social accounts
-- **WHEN** official website/accounts are found
-- **THEN** place them in Event links; socials permits instagram/facebook/youtube/tiktok/x/other URL slots, with other restricted to additional social platforms
+- **WHEN** add/full finds official website/accounts
+- **THEN** use Event website/social slots; supported keys are instagram/facebook/youtube/tiktok/x/other, with other restricted to another social platform.
 
 #### Scenario: X and Twitter share one social slot
-- **WHEN** an official x.com/twitter.com account is identified
-- **THEN** use socials.x and catalog kind x, labelled X (Twitter); reject a separate twitter key and do not rewrite/reclassify saved URLs
+- **WHEN** add/full identifies x.com/twitter.com
+- **THEN** use socials.x/catalog x, labelled X (Twitter); reject twitter keys and preserve saved URL spelling/classification.
 
 #### Scenario: Edition-specific tickets
-- **WHEN** an organizer identifies an edition's ticket page
-- **THEN** attach it only to that edition, not others sharing the Event
+- **WHEN** an organizer identifies an Edition ticket page
+- **THEN** attach it only to that Edition.
 
 #### Scenario: Ticket ownership is uncertain
-- **WHEN** ticket ownership cannot be established
-- **THEN** omit it with a question rather than assigning it to the Event or an uncertain edition
+- **WHEN** ticket ownership is unverified
+- **THEN** omit with a question; never assign to Event or an uncertain Edition.
 
 #### Scenario: Social destination cannot be fetched
-- **WHEN** an inspected official page links an account whose retrieval is unsupported
-- **THEN** the account can still be collected; unsupported retrieval does not invalidate it
+- **WHEN** add/full finds an official account whose retrieval is unsupported
+- **THEN** retain the supported link despite unsupported retrieval.
 
 #### Scenario: Evidence pages are not public link categories
 - **WHEN** programme/FAQ/travel/news pages supply evidence
-- **THEN** retain them as sources, not miscellaneous public links
+- **THEN** retain them as sources, never miscellaneous public links.
 
 #### Scenario: Preserve omitted link slots
-- **WHEN** an editorial slot is omitted, wire-null, or explicitly kept
-- **THEN** preserve its saved links; inaccessible pages alone never delete them
+- **WHEN** a slot is omitted, outer-null or kept
+- **THEN** preserve saved links; inaccessible pages never authorize deletion.
 
 #### Scenario: Replace a supplied link slot
-- **WHEN** the editor sets a new URL for an owner/kind slot
-- **THEN** replace all previous links in that slot with the selected URL, preserving other kinds/owners and public inheritance
-- **AND** invalid replacements fail atomically without deleting the old links
+- **WHEN** editor sets an owner/kind URL
+- **THEN** replace all links in that slot, preserving other slots and inheritance; invalid replacement fails atomically without deletion.
 
 #### Scenario: Reject malformed link proposals
-- **WHEN** links are non-HTTP(S), socials is an array, keys are unknown, set values are not strings or clear/keep actions contain values, or targets invalid
-- **THEN** reject the candidate before writing
+- **WHEN** URLs are non-HTTP(S), socials is an array, keys/targets are invalid, set is non-string or clear/keep carries values
+- **THEN** reject before writing.
 
 #### Scenario: Malformed URLs preserve the failure report
-- **WHEN** source summaries or the X/Twitter slot contain a malformed URL
-- **THEN** the run reports invalid_candidate, retains the raw response and retrieval history, and produces no catalog operations
+- **WHEN** source summaries or X/Twitter contain malformed URLs
+- **THEN** report invalid_candidate, retain raw output/read history and produce no operations.
 
 #### Scenario: Equivalent and shared URLs
-- **WHEN** a slot already contains exactly its proposed normalized URL
-- **THEN** the replacement is a no-op; multiple old links collapse to one when explicitly replaced
-- **AND** one ticket URL explicitly assigned to two editions remains on both
+- **WHEN** a slot contains exactly one link with the proposed normalized URL
+- **THEN** make no change; explicit replacement collapses multiple old links, and an explicitly shared ticket URL remains on both Editions.
 
 #### Scenario: Clear a disproven link
-- **WHEN** supplied evidence establishes that a saved link is no longer associated with its owner and the editor clears that slot
-- **THEN** remove only that owner's links of that kind, preserving other slots and owners
-- **AND** inaccessible destinations alone do not authorize clearing; empty-string deletion sentinels are rejected
+- **WHEN** affirmative evidence disproves ownership and editor clears the slot
+- **THEN** remove only that owner/kind. Inaccessibility never authorizes clearing; reject empty-string deletion sentinels.
 
 ### Requirement: Model failures expose safe technical details
 Host-generated model_failed errors SHALL preserve bounded safe structured diagnostics in CLI text, JSON, and eval reports: recognized error/cause types, HTTP status, provider/network code, and retryability when available. Unknown fields SHALL remain absent or explicitly unknown. Diagnostics SHALL exclude raw exception messages, provider payloads, request/response headers, prompts, and credentials. Research limits SHALL retain precedence over model_failed. Ordinary research SHALL retry only explicit OpenRouter `provider_unavailable` errors, at most three times per run with 10-second, 30-second, and 90-second exponential backoff within the existing deadline. Unavailable attempts SHALL retain ordinary research capacity through bounded retry allowance. Other model failures SHALL NOT trigger automatic retries; known usage accounting SHALL be retained. Retries SHALL retain completed steps and SHALL NOT replay their tools or estimate missing usage/cost.
@@ -1032,32 +1033,35 @@ Research SHALL use one shared deadline and configurable agent-step allowance for
 - **AND** deadline exhaustion still blocks uncached reads and retries
 
 ### Requirement: Refresh scope fixes the mandatory verification assignment
-Refresh SHALL supply scope, one frozen currentDate and saved Edition keys/dates/time zones. Full scope SHALL cover every saved Edition plus the selected current/nearest future Edition when missing; current scope SHALL cover at most one ongoing/nearest future Edition. Both SHALL check announcements, Event summary and shared links, verifying populated and missing fields equally. Catalog context alone SHALL NOT establish source association or completed verification.
+Refresh SHALL supply scope, one frozen currentDate and saved Edition keys/dates/time zones. Full scope SHALL cover every saved Edition plus the selected current/nearest future Edition when missing; current scope SHALL cover at most one ongoing/nearest future Edition. Both SHALL check announcements. Full SHALL verify populated and missing Event summary/shared links and all supported Edition fields. Current SHALL omit Event summary/shared-link findings and require selected-Edition dates, schedule status, location, tickets and classification assessment; size, precise coordinates and detailed address SHALL be opportunistic. Current SHALL trust identity/shared links established by a prior full run, without re-auditing them or requiring persisted run-history proof; fresh Edition findings SHALL still require inspected evidence. Full SHALL verify source association. Catalog context alone SHALL NOT establish completed Edition verification.
 
 #### Scenario: A new announcement cannot substitute for saved history
-- **WHEN** full refresh targets an Event with a saved 2026 Edition and discovers the nearest announced Edition in 2027
-- **THEN** the assignment retains every requested 2026 field and adds the selected 2027 Edition
-- **AND** the prompt requires research of saved 2026 even when 2027 is found; field-level completeness remains the model decision checked by offline evals rather than inferred from omitted values
+- **WHEN** full finds nearest 2027 while 2026 is saved
+- **THEN** retain every assigned 2026 check and add 2027; model completeness is evaluated, never inferred from omissions.
 
 #### Scenario: Current scope preserves history
-- **WHEN** current refresh selects an existing 2027 Edition while 2026 is stored
-- **THEN** only 2027 Edition facts and Event-level facts may change
-- **AND** 2026 remains available as identity and country context without being a field-update target
+- **WHEN** current selects saved 2027 while 2026 exists
+- **THEN** return only 2027 findings and editor plan entries; omit Event summary/shared links. Keep 2026 as matching/country/reuse context, never an update target or preservation-only plan entry.
 
 #### Scenario: A farther future Edition already exists
-- **WHEN** full refresh loads both the nearest and a farther future saved Edition
-- **THEN** both saved Editions remain mandatory targets
-- **AND** current refresh covers only the selected nearest one
+- **WHEN** nearest and farther-future Editions are saved
+- **THEN** full checks both; current checks only its selected Edition.
 
 #### Scenario: No Editions have been saved
-- **WHEN** an existing Event has no Editions
-- **THEN** either scope researches the current or nearest future announcement and may create the selected supported Edition
-- **AND** an unknown Event ID fails before research; adding a new Event still requires add
+- **WHEN** the target Event has no Editions
+- **THEN** either scope may research/create one supported selected Edition; unknown Event IDs fail before research and new Events require add.
 
 #### Scenario: A proposed mutation is outside the assignment
-- **WHEN** current proposes more than one Edition, or full proposes more than one new key or exceeds the 20-target union
-- **THEN** the host rejects the proposal before any operations
-- **AND** temporal correctness and completeness remain model decisions assessed through evals
+- **WHEN** current returns multiple Editions, or full exceeds one new key or the 20-target union
+- **THEN** reject before operations; temporal correctness/completeness remain model decisions assessed by evals.
+
+#### Scenario: Opportunistic current fields do not require separate research
+- **WHEN** current completes mandatory checks without separate size/coordinate/address research
+- **THEN** omission does not force partial; return supported encountered facts. Full still checks all assigned fields.
+
+#### Scenario: Event facts appear on a current source
+- **WHEN** current inspects a changed description or social account
+- **THEN** omit Event summary/shared-link findings; retain eventName, source summaries and identity diagnostics.
 
 ### Requirement: Current selection prioritizes an ongoing Edition
 The model SHALL select at most one current target: an ongoing Edition first, otherwise the nearest future Edition supported by inspected material. Start and end dates SHALL be inclusive local dates using the saved time zone or UTC fallback. Saved dates and statuses SHALL be rechecked as leads, not accepted as selection proof. Ambiguous selection SHALL be reported explicitly without arbitrary tie-breaking or silently researching several targets.
@@ -1121,54 +1125,48 @@ Research SHALL match an announced Edition to existing keys before proposing crea
 - **THEN** research uses their identities and programme context to match the selected Edition, not year equality alone
 
 ### Requirement: An unrelated website triggers discovery of the correct website
-
-The refresh prompt SHALL instruct the model to inspect relevant known links and prior results first when a saved or candidate site belongs to another Event. Search SHALL be allowed if those links cannot establish the correct source or leave a material identity/date conflict with the original event information or other inspected sources. A replacement site SHALL require inspection. Recovery SHALL use the shared budget before returning failure. Unrelated facts SHALL NOT become target proposals. Research SHALL continue after verifying a replacement site's association. If useful target findings remain while identity is unresolved, research SHALL return partial with the contradiction in sources/unresolved; if no usable target findings remain, it SHALL return failed with null data and existing error/question diagnostics. The editor SHALL reject the whole item when a material identity contradiction remains unresolved, preventing all writes and publication.
+The full-refresh prompt SHALL instruct the model to inspect relevant known links and prior results first when a saved or candidate site belongs to another Event. Search SHALL be allowed if those links cannot establish the correct source or leave a material identity/date conflict. A replacement site SHALL require inspection. Full recovery SHALL use the shared budget before returning failure. Current SHALL trust the prior full identity/link baseline; a material identity contradiction SHALL stop current with failed/null and an unresolved identity question requesting full, without recovery or writes. Current SHALL diagnose unavailable sources without searching for replacement websites. Unrelated facts SHALL NOT become target proposals. Research SHALL continue after verifying a replacement site's association. In full scope, if useful target findings remain while identity is unresolved, research SHALL return partial with the contradiction in sources/unresolved; if no usable target findings remain, it SHALL return failed with null data and existing error/question diagnostics. The editor SHALL reject the whole item when a material identity contradiction remains unresolved, preventing all writes and publication.
 
 #### Scenario: A wrong website can be replaced
-
-- **WHEN** the saved site belongs to a namesake and discovery finds an inspectable website supported as belonging to the targeted festival
-- **THEN** the model verifies that association, returns an explained replacement Event website proposal, and continues its full/current assignment
-- **AND** the replacement and other accepted changes apply atomically only if all guards pass
-- **AND** the rejected site's facts remain diagnostic context rather than target proposals, including when the namesake is in another country
+- **WHEN** a saved namesake site is replaced by an inspected, verified target website
+- **THEN** continue research; full proposes the explained Event link. Apply accepted changes atomically under guards; discard namesake facts even across countries.
 
 #### Scenario: Search results alone do not confirm a replacement
-
-- **WHEN** a search finds a matching festival name but inspection does not establish the website's association with the target
-- **THEN** the model continues recovery within its remaining budget instead of treating the name or snippet as verified identity
-- **AND** if no correct website can be verified, research returns partial with useful target findings and the unresolved identity contradiction, or failed with null data when no usable target findings remain; a material unresolved identity contradiction prevents all writes and publication
+- **WHEN** full inspection cannot establish a discovered website’s association
+- **THEN** continue recovery within budget; return partial with useful target findings or failed/null otherwise. Unresolved material identity blocks writes/publication.
 
 #### Scenario: Website recovery exhausts the budget
-
-- **WHEN** the website is unrelated and search/time/size/agent limits are exhausted before a correct website is verified
-- **THEN** research reports the recovery limitation in existing error/question diagnostics and returns partial if useful target findings remain, otherwise failed with null data
-- **AND** no writes or publication occur unless the editor completes and accepts a valid plan without a material unresolved identity contradiction
+- **WHEN** full recovery limits prevent verifying the correct website
+- **THEN** report the recovery limitation; return partial with useful findings or failed/null otherwise. Writes require completed editing and no material identity contradiction.
 
 #### Scenario: Useful partial findings retain an unresolved identity conflict
-
-- **WHEN** research has useful target findings but a material contradiction about festival identity remains unresolved
-- **THEN** research returns partial, retaining those findings and the contradiction in sources/unresolved
-- **AND** the editor rejects the whole item with a reason; the report preserves the findings and rejection, records successful editor generation and a failed item, and contains zero operations, changes and receipts
-- **AND** catalog content and publication remain unchanged
+- **WHEN** full research retains useful findings and a material identity contradiction
+- **THEN** research returns partial and editor rejects with a reason. Preserve findings/rejection, successful editor generation and failed item; operations/changes/receipts are empty and content/publication unchanged.
 
 #### Scenario: A recovered website still conflicts with the saved country
-
-- **WHEN** the correct website is verified but its matched Edition facts conflict with the saved country baseline
-- **THEN** the existing whole-Event country guard still fails refresh, including the website replacement
+- **WHEN** verified replacement facts conflict with the country baseline
+- **THEN** fail the whole refresh, including any full-scope website correction.
 
 #### Scenario: Website recovery uses the existing result contract
+- **WHEN** verified recovery yields usable findings
+- **THEN** require no new identity field or existing-Event data.reason; retain fact reasons and partial unresolved questions.
 
-- **WHEN** the model finds and inspects the correct website and returns useful valid findings
-- **THEN** refresh does not require a separate identity field or data.reason for the existing Event
-- **AND** supplied facts retain their reasons, and partial results retain model-authored unresolved questions
+#### Scenario: Current stops at an identity contradiction
+- **WHEN** current inspects a saved site that clearly belongs to another festival
+- **THEN** discard its facts, return failed/null with an identity question requesting full, and perform no replacement-site discovery, editing or writes. Preserve Event links and all Editions.
+
+#### Scenario: Current uses an established baseline
+- **WHEN** current starts after full established Event identity and shared links
+- **THEN** trust that baseline without repeating identity/link validation; inspect sources for the selected Edition and retain all existing country/scope/write guards. Do not add a database flag or run-history requirement.
 
 #### Scenario: Known link resolves the wrong website
 
-- **WHEN** a saved site belongs to another Event but an inspected known link establishes the correct festival website without an unresolved material identity/date conflict
+- **WHEN** full finds that a saved site belongs to another Event but an inspected known link establishes the correct festival website without an unresolved material identity/date conflict
 - **THEN** research uses that website without searching solely to recover the wrong site
 
 #### Scenario: Known links conflict with the original event
 
-- **WHEN** inspected known links leave a material identity or date discrepancy with the original event information
+- **WHEN** full inspected known links leave a material identity or date discrepancy with the original event information
 - **THEN** instructions allow search to resolve the discrepancy rather than treating the known links as sufficient
 - **AND** unrelated facts remain diagnostic context and existing country/editor guards still apply
 
@@ -1218,22 +1216,19 @@ The host SHALL compare researched in-scope countries with the pre-run Event's kn
 - **THEN** no operations commit using the stale country decision; the run fails and requires a new refresh
 
 ### Requirement: Refresh selection uses the existing final result
-Research and editor SHALL receive the same scope, frozen currentDate and saved catalog context. Final findings and the editorial plan SHALL satisfy schema, scope and country constraints; changing a temporal finding before final output SHALL NOT require confirmation of an earlier selection. Reports SHALL retain explanations and unfinished checks without certifying temporal correctness or completeness from catalog context alone.
+Research and editor SHALL receive the same scope and frozen currentDate, with their respective catalog-fact projections. Final findings and the editorial plan SHALL satisfy schema, scope and country constraints; changing a temporal finding before final output SHALL NOT require confirmation of an earlier selection. Reports SHALL retain explanations and unfinished checks without certifying temporal correctness or completeness from catalog context alone.
 
 #### Scenario: Valid final findings determine the assignment
-- **WHEN** a refresh returns valid success/partial findings and a valid plan within scope bounds and country guards
-- **THEN** the item is eligible for application without separately confirmed selection metadata
-- **AND** existing reason/unresolved semantics govern explanations and unfinished checks
+- **WHEN** success/partial findings and plan pass schema/scope/country checks
+- **THEN** allow application without separate selection confirmation; existing reason/unresolved rules apply.
 
 #### Scenario: Final evidence changes a temporal finding
-- **WHEN** later inspected evidence changes dates, status or matching before final output
-- **THEN** research incorporates it in the final findings and the editor uses that evidence
-- **AND** host validation does not compare it with an earlier model decision
+- **WHEN** later evidence changes dates/status/matching before final output
+- **THEN** incorporate it in final findings/editor assessment; host does not compare with an earlier selection.
 
 #### Scenario: Context is a task rather than proof
-- **WHEN** a private report or Studio exposes scope and saved/returned counts
-- **THEN** it exposes no host-certified selected/none-found/unresolved outcome or separate confirmed/changed fact report
-- **AND** separate eval assertions check ongoing-first/local-date choice, ambiguity, stable keys and unfinished historical research
+- **WHEN** reports/Studio exposes scope and saved/returned counts
+- **THEN** emit no certified selection outcome or separate fact-verification report; evals check temporal choice, ambiguity, keys and unfinished history.
 
 ### Requirement: Research findings and editorial actions use named typed fields
 Research SHALL retain named Edition fields, stable keys and value/reason wrappers, with clarified null semantics and evidence in existing source summaries. The editor SHALL return named typed field actions: accept, set, clear or keep. Omission SHALL preserve state without claiming verification. Ownership SHALL follow the enclosing Edition. Generic patch paths, implicit null/empty-string mutation proposals and classification add/remove instructions SHALL NOT be accepted as editorial plans.
@@ -1300,13 +1295,12 @@ Research SHALL retain named Edition fields, stable keys and value/reason wrapper
 - **WHEN** editor assesses research and saved catalog context and returns `status:rejected` with a reason, including a wrong-festival identity conflict
 - **THEN** the host performs no writes or publication and retains the rejection reason and output
 - **AND** editor generation is successful while the item outcome is failed, in both add and refresh
-- **AND** research uses saved location as recovery leads and passes evidence/contradictions to editor without deciding the whole-item identity veto
+- **AND** full research uses saved location as recovery leads and passes unresolved identity evidence to the editor; current instead stops with failed/null on a material identity contradiction before editing
 
 #### Scenario: Editor output separates a plan from rejection
 - **WHEN** the editor returns a typed output
 - **THEN** it SHALL contain either `status:ready` with event, editions and unresolved, or `status:rejected` with a nonempty reason only
 - **AND** missing status or rejected output containing actions fails validation
-
 
 ### Requirement: Research distinguishes disproven values from unknown information
 Research SHALL omit unknown or unverified fields. A finding with value:null SHALL mean an existing value is disproven and no replacement is known, and SHALL include a reason and supporting evidence in source summaries. It SHALL NOT itself authorize clearing. Missing content and retrieval failure SHALL NOT be encoded as such a finding.
@@ -1425,12 +1419,19 @@ Research SHALL explain each size estimate's basis in its fact reason. Relevant h
 - **THEN** research may use relevant historical attendance with an explained basis; otherwise it omits sizeEstimate, preserving saved values
 
 ### Requirement: Model catalog context excludes storage administration
-Research and editor SHALL receive an explicit projection of catalog identity and facts, preserving all saved Edition keys, temporal and location clues, links, classification and complete tickets. Database versions, timestamps, Edition/link storage IDs and ownership foreign keys SHALL remain host-only. This projection SHALL NOT narrow current/full assignments or remove saved facts needed for preservation.
+Research and editor SHALL receive explicit projections of catalog identity and facts. Full research and the editor SHALL retain the existing complete fact projection. Current research SHALL omit Event summary/publication metadata and nonessential historical detail while retaining every saved Edition key, temporal/country and matching clues, links, classification and complete tickets. Database versions, timestamps, Edition/link storage IDs and ownership foreign keys SHALL remain host-only. Projection SHALL NOT preselect a current target, remove facts needed for matching or safe replacement, or narrow the editor preservation context.
 
 #### Scenario: Compact shared catalog input
-- **WHEN** research or editor receives a saved catalog record
-- **THEN** its model input retains identity, temporal, link and ticket context without database administration fields
-- **AND** the host retains the full snapshot for guards and transactional writes
+- **WHEN** research/editor receives saved context
+- **THEN** retain identity/temporal/link/ticket facts without storage administration; host keeps its full snapshot for guards/writes.
+
+#### Scenario: Compact current research does not narrow editing
+- **WHEN** current research/editor receives the same snapshot
+- **THEN** research omits Event summary/publication metadata and may omit Edition size/address, retaining all keys, temporal/country/matching clues, links, terms and complete tickets. Editor keeps the full fact projection.
+
+#### Scenario: Historical and farther-future keys remain matchable
+- **WHEN** saved dates are wrong or multiple weekends share a year
+- **THEN** retain every saved key/matching clue without host preselection; saved context is a lead, never fresh evidence.
 
 ### Requirement: Editor-only evaluation replays research findings
 Editor-only evaluation SHALL replay captured, validated research findings against saved fixture state without live research or source discovery. Output SHALL identify editor-only versus pipeline mode and handoff provenance/hash, and assess actual catalog writes. Replayed research SHALL NOT be presented as newly incurred provider charges or complete end-to-end accounting.

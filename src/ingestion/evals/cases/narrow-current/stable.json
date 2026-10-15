@@ -1,0 +1,130 @@
+{
+  "id": "narrow-current-stable",
+  "todayUtc": "2026-10-14",
+  "provenance": {
+    "kind": "synthetic-current-regression",
+    "sourceReport": "openspec/changes/narrow-current-refresh/design.md",
+    "note": "Synthetic official announcements isolate scope and continuity decisions; no live source fallback."
+  },
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "narrow-current-stable",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "narrow-current-stable",
+      "slug": "narrow-current-stable",
+      "canonicalName": "River Festival",
+      "summary": "Saved description",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://narrow-fixture.example/stable",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "narrow-2027",
+          "editionKey": "2027",
+          "editionYear": 2027,
+          "startsOn": "2027-06-04",
+          "endsOn": "2027-06-05",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "Old Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music",
+            "festivalnetwork:term:genre:electronic"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://narrow-fixture.example/stable",
+      "finalUrl": "https://narrow-fixture.example/stable",
+      "retrievedAt": "2026-10-14T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "stable.md"
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "venue_name",
+        "value": "New Grounds"
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "event",
+        "field": "summary"
+      },
+      {
+        "owner": "event",
+        "field": "links"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "terms"
+      }
+    ],
+    "research": {
+      "status": "success",
+      "editionKeys": ["2027"],
+      "facts": [],
+      "absentFields": [
+        {
+          "field": "summary"
+        },
+        {
+          "field": "links.website"
+        },
+        {
+          "field": "links.socials.instagram"
+        },
+        {
+          "editionKey": "2027",
+          "field": "sizeEstimate"
+        },
+        {
+          "editionKey": "2027",
+          "field": "venueAddress"
+        },
+        {
+          "editionKey": "2027",
+          "field": "coordinates"
+        },
+        {
+          "field": "links.socials.facebook"
+        },
+        {
+          "field": "links.socials.youtube"
+        },
+        {
+          "field": "links.socials.tiktok"
+        },
+        {
+          "field": "links.socials.x"
+        },
+        {
+          "field": "links.socials.other"
+        }
+      ]
+    }
+  }
+}

@@ -451,3 +451,137 @@ test("current retains all saved context without imposing a full-history limit or
   expect(result.workload.returnedEditions).toBe(1);
   expect(result).not.toHaveProperty("refresh");
 });
+
+test.each(["success", "partial"] as const)(
+  "current %s with no selected Edition preserves catalog and reports inspected findings",
+  async (status) => {
+    const f = fixture();
+    delete f.proposal.data!.summary;
+    f.proposal.status = status;
+    f.proposal.data!.sources[0].information =
+      status === "success"
+        ? "Official target website: no ongoing or future Edition announced on inspected pages"
+        : "Official target website: two future announcements have unresolved ordering";
+    f.proposal.unresolved =
+      status === "partial"
+        ? [
+            {
+              message:
+                "Which announced weekend starts first? Dates remain unknown.",
+            },
+          ]
+        : [];
+    const before = readResearchEvent(f.client, f.event.id);
+    const result = await runCatalogResearch(
+      { ...f.input, scope: "current" },
+      {
+        ...f.deps,
+        generateCandidate: async () => f.proposal,
+      },
+    );
+    expect(result).toMatchObject({
+      researchStatus: status,
+      editorStatus: "success",
+      outcome: "unchanged",
+      operations: [],
+      changes: [],
+      modelResponse: { object: f.proposal },
+    });
+    expect(result.sourceSummaries).toEqual(f.proposal.data!.sources);
+    expect(result.unresolved).toEqual(f.proposal.unresolved);
+    expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
+    noWrites(f.client);
+  },
+);
+
+test("current identity contradiction stops before editing and preserves the catalog", async () => {
+  const f = fixture();
+  const before = readResearchEvent(f.client, f.event.id);
+  const candidate = {
+    status: "failed",
+    data: null,
+    errors: [],
+    unresolved: [
+      {
+        field: "identity",
+        message:
+          "Saved site belongs to a namesake in another country; run full to recover the correct website.",
+      },
+    ],
+  };
+  const result = await runCatalogResearch(
+    { ...f.input, scope: "current" },
+    {
+      ...f.deps,
+      generateCandidate: async () => candidate,
+      generateEditor: async () => {
+        throw new Error("Failed research must not reach editing");
+      },
+    },
+  );
+  expect(result).toMatchObject({
+    outcome: "failed",
+    researchStatus: "failed",
+    editorStatus: "not_run",
+    operations: [],
+    changes: [],
+    modelResponse: { object: candidate },
+  });
+  expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
+  noWrites(f.client);
+});
+
+test.each([true, false])(
+  "new current Edition inherits taxonomy only from an explicit finding (%s)",
+  async (reuse) => {
+    const f = fixture();
+    const terms = f.fx.festivalTerms();
+    for (const term of terms) {
+      f.fx.assignTerm(f.old, term);
+    }
+    const before = readResearchEvent(f.client, f.event.id)!;
+    delete f.proposal.data!.summary;
+    f.proposal.data!.editions = [
+      {
+        key: "new-2027",
+        year: { value: 2027, reason },
+        countryCode: { value: "IE", reason },
+        dates: {
+          value: {
+            startsOn: "2027-06-01",
+            endsOn: "2027-06-03",
+            state: "confirmed",
+          },
+          reason,
+        },
+        venueName: { value: "Festival grounds", reason },
+        ...(reuse
+          ? {
+              classification: {
+                value: terms.map((t) => t.id),
+                reason:
+                  "Reuse source-row: inspected 2027 announcement confirms the same outdoor music programme.",
+              },
+            }
+          : {}),
+        links: {},
+      },
+    ];
+    const result = await runCatalogResearch(
+      { ...f.input, scope: "current" },
+      { ...f.deps, generateCandidate: async () => f.proposal },
+    );
+    expect(result.errors).toEqual([]);
+    const saved = readResearchEvent(f.client, f.event.id)!;
+    const created = saved.editions.find((e) => e.editionKey === "new-2027")!;
+    expect(created.terms.map((t) => t.id).sort()).toEqual(
+      reuse ? terms.map((t) => t.id).sort() : [],
+    );
+    expect(created.publicationState).toBe(reuse ? "published" : "draft");
+    expect(saved.editions.find((e) => e.id === f.old.id)).toEqual(
+      before.editions[0],
+    );
+    expect(saved.summary).toBe("Saved");
+    expect(result.modelResponse!.object).toEqual(f.proposal);
+  },
+);

@@ -1,0 +1,65 @@
+{
+  "id": "current-identity-contradiction",
+  "todayUtc": "2026-10-14",
+  "provenance": {
+    "kind": "synthetic-source-regression",
+    "sourceReport": "data/source-workflow-validation/2026-10-13-editor-ten/comparison.md",
+    "note": "Fictional sources isolate observed failure patterns; not captured website content. No live website/search fallback."
+  },
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "source-homonym-wrong-saved-website",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "source-homonym-wrong-saved-website",
+      "slug": "source-homonym-wrong-saved-website",
+      "canonicalName": "Harbor Echo",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://harbor-echo-australia.example/",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "source-homonym-wrong-saved-website-edition",
+          "editionKey": "2027",
+          "editionYear": 2027,
+          "startsOn": "2027-01-23",
+          "endsOn": "2027-01-30",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "GB",
+          "termIds": [],
+          "locality": "Castlewellan",
+          "venueName": "Castlewellan Grounds"
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://harbor-echo-australia.example/",
+      "finalUrl": "https://harbor-echo-australia.example/",
+      "retrievedAt": "2026-10-14T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "../source-regressions/homonym.md"
+    }
+  ],
+  "expectations": {
+    "required": [],
+    "forbidden": [],
+    "research": {
+      "status": "failed",
+      "failureReason": "identity_conflict"
+    }
+  }
+}

@@ -7,7 +7,7 @@
   },
   "input": {
     "mode": "refresh",
-    "scope": "current",
+    "scope": "full",
     "eventId": "search-policy-event",
     "actor": "catalog-research",
     "initiatedBy": "eval",

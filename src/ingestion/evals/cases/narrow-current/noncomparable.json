@@ -1,0 +1,184 @@
+{
+  "id": "narrow-current-noncomparable",
+  "todayUtc": "2026-10-14",
+  "provenance": {
+    "kind": "synthetic-current-regression",
+    "sourceReport": "openspec/changes/narrow-current-refresh/design.md",
+    "note": "Synthetic official announcements isolate scope and continuity decisions; no live source fallback."
+  },
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "narrow-current-noncomparable",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "narrow-current-noncomparable",
+      "slug": "narrow-current-noncomparable",
+      "canonicalName": "River Festival",
+      "summary": "Saved description",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://narrow-fixture.example/noncomparable",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "narrow-spring-2026",
+          "editionKey": "spring-2026",
+          "editionYear": 2026,
+          "startsOn": "2026-06-04",
+          "endsOn": "2026-06-05",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "Old Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music",
+            "festivalnetwork:term:genre:electronic"
+          ]
+        },
+        {
+          "id": "narrow-winter-2026",
+          "editionKey": "winter-2026",
+          "editionYear": 2026,
+          "startsOn": "2026-09-04",
+          "endsOn": "2026-09-05",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "Old Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:mixed",
+            "validation:music",
+            "festivalnetwork:term:genre:metal"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://narrow-fixture.example/noncomparable",
+      "finalUrl": "https://narrow-fixture.example/noncomparable",
+      "retrievedAt": "2026-10-14T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "noncomparable.md"
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "edition",
+        "field": "terms",
+        "contains": "validation:festival",
+        "editionYear": 2027
+      },
+      {
+        "owner": "edition",
+        "field": "terms",
+        "contains": "validation:openair",
+        "editionYear": 2027
+      },
+      {
+        "owner": "edition",
+        "field": "terms",
+        "contains": "validation:music",
+        "editionYear": 2027
+      },
+      {
+        "owner": "edition",
+        "field": "terms",
+        "contains": "festivalnetwork:term:genre:electronic",
+        "editionYear": 2027
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "event",
+        "field": "summary"
+      },
+      {
+        "owner": "event",
+        "field": "links"
+      },
+      {
+        "owner": "edition",
+        "field": "terms",
+        "contains": "festivalnetwork:term:genre:metal",
+        "editionYear": 2027
+      }
+    ],
+    "research": {
+      "status": "success",
+      "facts": [
+        {
+          "field": "classification",
+          "value": "validation:festival",
+          "editionYear": 2027
+        },
+        {
+          "field": "classification",
+          "value": "validation:openair",
+          "editionYear": 2027
+        },
+        {
+          "field": "classification",
+          "value": "validation:music",
+          "editionYear": 2027
+        },
+        {
+          "field": "classification",
+          "value": "festivalnetwork:term:genre:electronic",
+          "editionYear": 2027
+        },
+        {
+          "editionYear": 2027,
+          "field": "dates",
+          "value": {
+            "startsOn": "2027-06-04",
+            "endsOn": "2027-06-05",
+            "state": "confirmed"
+          }
+        }
+      ],
+      "absentFields": [
+        {
+          "field": "summary"
+        },
+        {
+          "field": "links.website"
+        },
+        {
+          "field": "links.socials.instagram"
+        },
+        {
+          "field": "links.socials.facebook"
+        },
+        {
+          "field": "links.socials.youtube"
+        },
+        {
+          "field": "links.socials.tiktok"
+        },
+        {
+          "field": "links.socials.x"
+        },
+        {
+          "field": "links.socials.other"
+        }
+      ],
+      "newEditionYear": 2027
+    }
+  }
+}

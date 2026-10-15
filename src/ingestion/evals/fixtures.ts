@@ -11,6 +11,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { toolUseExpectationSchema } from "./tool-use";
+import { catalogPriceBlockSchema } from "@/catalog/operations/operation";
 import { researchCandidateSchema } from "../research/contracts";
 
 const researchHandoffSchema = z.strictObject({
@@ -43,6 +44,7 @@ const edition = z.object({
   venueName: z.string().nullable().optional(),
   venueAddress: z.string().nullable().optional(),
   termIds: z.array(z.string()).optional(),
+  tickets: catalogPriceBlockSchema.optional(),
   links: z.array(link).optional(),
 });
 const event = z.object({
@@ -117,18 +119,31 @@ export const evalCaseSchema = z.object({
       research: z
         .object({
           status: z.enum(["success", "partial", "failed"]),
+          failureReason: z.literal("identity_conflict").optional(),
           editionKeys: z.array(z.string()).optional(),
+          newEditionYear: z.number().int().optional(),
           facts: z
             .array(
               z.object({
                 editionKey: z.string().optional(),
+                editionYear: z.number().int().optional(),
                 field: z.string(),
                 value: z.unknown(),
               }),
             )
             .optional(),
+          absentFields: z
+            .array(
+              z.object({
+                editionKey: z.string().optional(),
+                editionYear: z.number().int().optional(),
+                field: z.string().min(1),
+              }),
+            )
+            .optional(),
           unresolvedEditionKeys: z.array(z.string()).optional(),
           hasUnresolved: z.boolean().optional(),
+          noChanges: z.literal(true).optional(),
         })
         .optional(),
     })

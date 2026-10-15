@@ -78,7 +78,33 @@
     "forbidden": [],
     "research": {
       "status": "success",
-      "editionKeys": ["local-weekend"]
+      "editionKeys": ["local-weekend"],
+      "absentFields": [
+        {
+          "field": "summary"
+        },
+        {
+          "field": "links.website"
+        },
+        {
+          "field": "links.socials.instagram"
+        },
+        {
+          "field": "links.socials.facebook"
+        },
+        {
+          "field": "links.socials.youtube"
+        },
+        {
+          "field": "links.socials.tiktok"
+        },
+        {
+          "field": "links.socials.x"
+        },
+        {
+          "field": "links.socials.other"
+        }
+      ]
     }
   }
 }

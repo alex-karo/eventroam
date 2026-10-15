@@ -331,4 +331,4 @@ export type ResearchError = {
     retryable?: boolean;
   };
 };
-export const RESEARCH_PROMPT_VERSION = "focused-source-search-v3";
+export const RESEARCH_PROMPT_VERSION = "narrow-current-focused-search-v1";

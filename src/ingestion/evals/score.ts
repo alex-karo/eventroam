@@ -1,6 +1,9 @@
 import { createScorer } from "@mastra/core/evals";
 import { normalizeWireCandidate } from "../research/agent/wire";
-import { researchCandidateSchema } from "../research/contracts";
+import {
+  type ResearchCandidate,
+  researchCandidateSchema,
+} from "../research/contracts";
 import { hasHostFailure } from "../runs";
 import type { CatalogResearchResult } from "../workflow";
 import type { EvalAssertion, EvalCase } from "./fixtures";
@@ -148,6 +151,19 @@ export function assertionMatches(
   });
 }
 
+function researchTarget(
+  data: ResearchCandidate["data"] | undefined,
+  selector: { editionKey?: string; editionYear?: number },
+) {
+  if (selector.editionKey) {
+    return data?.editions.find((e) => e.key === selector.editionKey);
+  }
+  if (selector.editionYear !== undefined) {
+    return data?.editions.find((e) => e.year?.value === selector.editionYear);
+  }
+  return data;
+}
+
 function scoreResearch(
   item: EvalCase,
   result: CatalogResearchResult,
@@ -159,6 +175,7 @@ function scoreResearch(
   const parsed = researchCandidateSchema.safeParse(
     normalizeWireCandidate(result.modelResponse?.object),
   );
+  const data = parsed.success ? parsed.data.data : null;
   const keys = parsed.success
     ? (parsed.data.data?.editions
         .map((e) => e.key)
@@ -184,20 +201,46 @@ function scoreResearch(
           ),
     });
   }
+  if (expected.newEditionYear !== undefined) {
+    const editions = data?.editions;
+    const savedKeys = new Set(
+      item.initial.event.editions.map((e) => e.editionKey),
+    );
+    checks.push({
+      description: `one new Edition for year=${expected.newEditionYear}`,
+      matched:
+        editions?.length === 1 &&
+        !savedKeys.has(editions[0].key) &&
+        editions[0].year?.value === expected.newEditionYear,
+    });
+  }
   for (const fact of expected.facts ?? []) {
-    const data = parsed.success ? parsed.data.data : null;
-    const target = fact.editionKey
-      ? data?.editions.find((e) => e.key === fact.editionKey)
-      : data;
+    const target = researchTarget(data, fact);
     const proposed = target && (target as Record<string, unknown>)[fact.field];
     checks.push({
-      description: `returned ${fact.editionKey ?? "event"}.${fact.field}`,
+      description: `returned ${fact.editionKey ?? fact.editionYear ?? "event"}.${fact.field}`,
       matched: Boolean(
         proposed &&
         typeof proposed === "object" &&
         "value" in proposed &&
         contains(proposed.value, fact.value),
       ),
+    });
+  }
+  for (const fact of expected.absentFields ?? []) {
+    const target = researchTarget(data, fact);
+    const proposed = fact.field
+      .split(".")
+      .reduce<unknown>(
+        (value, key) =>
+          value && typeof value === "object"
+            ? (value as Record<string, unknown>)[key]
+            : undefined,
+        target,
+      );
+    checks.push({
+      description: `omitted ${fact.editionKey ?? fact.editionYear ?? "event"}.${fact.field}`,
+      matched: Boolean(target) && proposed == null,
     });
   }
   for (const key of expected.unresolvedEditionKeys ?? []) {
@@ -214,6 +257,12 @@ function scoreResearch(
       matched:
         result.unresolved.some((q) => q.message.trim().length > 0) ===
         expected.hasUnresolved,
+    });
+  }
+  if (expected.noChanges) {
+    checks.push({
+      description: "no catalog changes",
+      matched: result.changes.length === 0,
     });
   }
   return {
@@ -270,6 +319,24 @@ export function scoreCase(
       Boolean(error.url && unavailable.has(error.url)) &&
       error.message.trim().length > 0,
   );
+  const identityConflict =
+    item.expectations.research?.failureReason === "identity_conflict";
+  const failureEvidence = identityConflict
+    ? result.editorStatus === "not_run" &&
+      result.usage.searches === 0 &&
+      result.sources.some((source) => source.outcome === "ok") &&
+      result.sources.every((source) =>
+        item.sources.some(
+          (expected) => expected.attemptedUrl === source.attemptedUrl,
+        ),
+      ) &&
+      result.unresolved.some(
+        (question) =>
+          question.field === "identity" && /full/i.test(question.message),
+      )
+    : result.sources.every((source) =>
+        ["blocked", "failed", "unsupported"].includes(source.outcome),
+      ) && sourceFailure;
   const expectedFailureMet =
     expectsFailure &&
     !hostFailed &&
@@ -282,10 +349,7 @@ export function scoreCase(
     result.sourceSummaries.length === 0 &&
     Object.keys(result.references).length === 0 &&
     result.sources.length > 0 &&
-    result.sources.every((source) =>
-      ["blocked", "failed", "unsupported"].includes(source.outcome),
-    ) &&
-    sourceFailure &&
+    failureEvidence &&
     !result.errors.some((error) =>
       [
         "model_failed",
@@ -344,7 +408,7 @@ function describeChecks(
     return "Research workflow failed";
   }
   if (score.reasons.expectedFailureMissing) {
-    return "Expected failed research with null data, no writes, and a source failure tied to an unavailable page";
+    return "Expected failed research with null data, no writes, and the fixture’s source-failure or identity-conflict diagnosis";
   }
   const failures =
     kind === "required"

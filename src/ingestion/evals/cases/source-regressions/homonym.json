@@ -8,7 +8,7 @@
   },
   "input": {
     "mode": "refresh",
-    "scope": "current",
+    "scope": "full",
     "eventId": "source-homonym-wrong-saved-website",
     "actor": "catalog-research",
     "initiatedBy": "eval",
@@ -66,18 +66,18 @@
   "expectations": {
     "required": [
       {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_kind",
+        "value": "free"
+      },
+      {
         "owner": "event",
         "field": "links",
         "contains": {
           "kind": "official_site",
           "url": "https://harbor-echo-uk.example/"
         }
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "venue_address",
-        "value": "Festival Lane, Castlewellan, Northern Ireland, United Kingdom"
       }
     ],
     "forbidden": [
@@ -131,6 +131,15 @@
           "editionKey": "2027",
           "field": "countryCode",
           "value": "GB"
+        },
+        {
+          "editionKey": "2027",
+          "field": "tickets",
+          "value": {
+            "basePrice": {
+              "kind": "free"
+            }
+          }
         }
       ]
     },

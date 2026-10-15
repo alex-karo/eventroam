@@ -1,0 +1,127 @@
+{
+  "id": "narrow-current-none",
+  "todayUtc": "2026-10-14",
+  "provenance": {
+    "kind": "synthetic-current-regression",
+    "sourceReport": "openspec/changes/narrow-current-refresh/design.md",
+    "note": "Synthetic official announcements isolate scope and continuity decisions; no live source fallback."
+  },
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "narrow-current-none",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "narrow-current-none",
+      "slug": "narrow-current-none",
+      "canonicalName": "River Festival",
+      "summary": "Saved description",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://narrow-fixture.example/none",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "narrow-2026",
+          "editionKey": "2026",
+          "editionYear": 2026,
+          "startsOn": "2026-06-04",
+          "endsOn": "2026-06-05",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "Old Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music",
+            "festivalnetwork:term:genre:electronic"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://narrow-fixture.example/none",
+      "finalUrl": "https://narrow-fixture.example/none",
+      "retrievedAt": "2026-10-14T12:00:00Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "none.md"
+    }
+  ],
+  "expectations": {
+    "required": [],
+    "forbidden": [
+      {
+        "owner": "event",
+        "field": "summary"
+      },
+      {
+        "owner": "event",
+        "field": "links"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2026",
+        "field": "starts_on"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2026",
+        "field": "ends_on"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2026",
+        "field": "terms"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2026",
+        "field": "venue_name"
+      }
+    ],
+    "research": {
+      "status": "success",
+      "editionKeys": [],
+      "facts": [],
+      "absentFields": [
+        {
+          "field": "summary"
+        },
+        {
+          "field": "links.website"
+        },
+        {
+          "field": "links.socials.instagram"
+        },
+        {
+          "field": "links.socials.facebook"
+        },
+        {
+          "field": "links.socials.youtube"
+        },
+        {
+          "field": "links.socials.tiktok"
+        },
+        {
+          "field": "links.socials.x"
+        },
+        {
+          "field": "links.socials.other"
+        }
+      ],
+      "noChanges": true
+    }
+  }
+}

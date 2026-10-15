@@ -4,7 +4,7 @@ import {
   researchQuestionSchema,
 } from "../research/contracts";
 
-export const EDITOR_PROMPT_VERSION = "catalog-editor-v6";
+export const EDITOR_PROMPT_VERSION = "catalog-editor-v8";
 const reason = z.string().trim().min(1).max(500);
 const keep = z.strictObject({ action: z.literal("keep"), reason });
 const accept = z.strictObject({ action: z.literal("accept") });

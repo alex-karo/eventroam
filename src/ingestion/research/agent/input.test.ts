@@ -248,3 +248,130 @@ test("search permissions belong to the tool, including conditional add discovery
     "discard its facts, search for the correct",
   );
 });
+
+test("current narrows research only, preserving complete matching and replacement baselines", () => {
+  const client = testDatabase().client;
+  const fx = testFixtures(client);
+  const event = fx.event({
+    summary: "Saved festival description",
+    homeScope: "festivals",
+  });
+  const old = fx.edition(event, {
+    editionKey: "opaque-first-weekend",
+    editionYear: 2027,
+    venueAddress: "Saved address",
+    sizeEstimate: 8000,
+    latitude: 53,
+    longitude: -6,
+    coordinatePrecision: "approximate",
+    priceKind: "exact",
+    priceCurrency: "KWD",
+    priceMinMinor: 1234,
+    priceMaxMinor: 1234,
+    priceCoverage: "full_programme",
+    priceQualification: "Booking fee included",
+    priceDetails: [
+      {
+        label: "Student",
+        amount: 0,
+        terms: "Student ID",
+        availability: "available",
+      },
+    ],
+  });
+  fx.edition(event, { editionKey: "opaque-second-weekend", editionYear: 2027 });
+  const term = fx.term({ facet: "topic", slug: "music" });
+  fx.assignTerm(old, term);
+  const catalog = readResearchCatalog(client);
+  const before = structuredClone(catalog);
+  const saved = modelContext(catalog[0]);
+  const input = {
+    mode: "refresh" as const,
+    eventId: event.id,
+    actor: "tester",
+  };
+  const prompt = (scope?: "full" | "current") =>
+    JSON.parse(
+      promptFor(
+        { ...input, scope },
+        catalog,
+        [],
+        [],
+        { searches: 3, durationMs: 1000 },
+        [],
+        "2026-10-11T12:00:00Z",
+      ),
+    );
+  const current = prompt("current");
+  expect(prompt().compact).toEqual(saved);
+  expect(prompt("full").compact).toEqual(saved);
+  expect(
+    JSON.parse(
+      promptFor(
+        { mode: "add", name: "New", actor: "tester" },
+        catalog,
+        [],
+        [],
+        { searches: 3, durationMs: 1000 },
+        [],
+      ),
+    ).catalog[0].editions,
+  ).toHaveLength(2);
+  for (const field of ["summary", "homeScope", "publicationState"]) {
+    expect(current.compact).not.toHaveProperty(field);
+    expect(saved).toHaveProperty(field);
+  }
+  for (const edition of current.compact.editions) {
+    const full = saved.editions.find(
+      (e) => e.editionKey === edition.editionKey,
+    )!;
+    for (const field of ["publicationState", "venueAddress", "sizeEstimate"]) {
+      expect(edition).not.toHaveProperty(field);
+      expect(full).toHaveProperty(field);
+    }
+    expect(edition).toEqual(
+      Object.fromEntries(
+        Object.entries(full).filter(
+          ([key]) =>
+            !["publicationState", "venueAddress", "sizeEstimate"].includes(key),
+        ),
+      ),
+    );
+  }
+  expect(
+    current.compact.editions.find(
+      (e: { editionKey: string }) => e.editionKey === old.editionKey,
+    ).tickets,
+  ).toEqual(
+    saved.editions.find((e) => e.editionKey === old.editionKey)!.tickets,
+  );
+  expect(JSON.stringify(current).length).toBeLessThan(
+    JSON.stringify(prompt("full")).length,
+  );
+  expect(catalog).toEqual(before);
+});
+
+test("instructions narrow current duties without changing full/add research", () => {
+  expect(researchInstructions).toContain(
+    "Current MUST omit Event summary and shared-link findings",
+  );
+  expect(researchInstructions).toContain(
+    "Current mandatory checks are announcements/selection",
+  );
+  expect(researchInstructions).toContain(
+    "opportunistic: return supported encountered facts",
+  );
+  expect(researchInstructions).toContain("reason names the donor editionKey");
+  expect(researchInstructions).toContain(
+    "Date/year proximity alone does not establish comparability",
+  );
+  expect(researchInstructions).toContain(
+    "Do not search for or inspect replacement websites",
+  );
+  expect(researchInstructions).toContain(
+    "Full checks Event summary/shared links and EVERY saved Edition",
+  );
+  expect(researchInstructions).toContain(
+    "For add, inspect a known official source",
+  );
+});
