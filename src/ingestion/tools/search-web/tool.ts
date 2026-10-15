@@ -2,26 +2,23 @@ import { createTool } from "@mastra/core/tools";
 import { observeTrace, traceText, traceUrl } from "../../runtime/tracing";
 import { classifyModelError } from "../../runtime/model-errors";
 import type { ResearchToolContext } from "../contracts";
-import {
-  discoverSourcesInputSchema,
-  discoverSourcesOutputSchema,
-} from "./contracts";
+import { searchWebInputSchema, searchWebOutputSchema } from "./contracts";
 
-export function createDiscoverSourcesTool({
+export function createSearchWebTool({
   sources,
   budget,
   modelContext,
   tracing,
   abortSignal,
 }: ResearchToolContext) {
-  const { discoverSources: search } = sources;
+  const { searchWeb: search } = sources;
   const log = tracing?.log;
   return createTool({
-    id: "discoverSources",
+    id: "searchWeb",
     description:
-      "Find source URLs when inspected pages and their relevant links cannot answer a material question. Inspect a destination with readSource before using its facts.",
-    inputSchema: discoverSourcesInputSchema,
-    outputSchema: discoverSourcesOutputSchema,
+      "Find sources only when no official source is known, it is inaccessible or wrong, or known sources conflict materially with the original event identity/dates or each other. Use known links and prior results first. Missing announcements or fields alone do not justify search. Highlights are leads; verify facts with readPage.",
+    inputSchema: searchWebInputSchema,
+    outputSchema: searchWebOutputSchema,
     execute: async ({ query }, toolContext) => {
       const span = toolContext?.tracingContext?.currentSpan;
       const context = {
@@ -32,13 +29,13 @@ export function createDiscoverSourcesTool({
       };
       const toolLog = log?.child(context);
       const started = Date.now();
-      toolLog?.info("Tool call started", { tool: "discoverSources", query });
+      toolLog?.info("Tool call started", { tool: "searchWeb", query });
       try {
         abortSignal?.throwIfAborted();
         const result = await search(query, { ...context, tool: true });
         abortSignal?.throwIfAborted();
         observeTrace(tracing, span, {
-          name: "discoverSources",
+          name: "searchWeb",
           input: {
             query: traceText(query, 1200),
             queryTruncated: Buffer.byteLength(query) > 1200,
@@ -54,7 +51,7 @@ export function createDiscoverSourcesTool({
           },
         });
         toolLog?.info("Tool call finished", {
-          tool: "discoverSources",
+          tool: "searchWeb",
           query,
           status: "ok",
           returnedCount: result.candidates.length,
@@ -69,14 +66,14 @@ export function createDiscoverSourcesTool({
         return { ...result, remaining: budget.remaining() };
       } catch (error) {
         toolLog?.warn("Tool call failed", {
-          tool: "discoverSources",
+          tool: "searchWeb",
           query,
           ...classifyModelError(error, Infinity).diagnostic,
           errorCode: "search_failed",
           durationMs: Date.now() - started,
         });
         observeTrace(tracing, span, {
-          name: "discoverSources",
+          name: "searchWeb",
           input: {
             query: traceText(query, 1200),
             queryTruncated: Buffer.byteLength(query) > 1200,

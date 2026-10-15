@@ -7,8 +7,8 @@ import { openDatabase } from "../db/connection";
 import { testFixtures } from "./fixtures";
 import { runCatalogResearch } from "../ingestion/workflow";
 import { DEFAULT_RESEARCH_LIMITS } from "../ingestion/runtime/budget";
-import { readSource } from "../ingestion/tools/read-source/read";
-import { discoverSources } from "../ingestion/tools/discover-sources/search";
+import { readPage } from "../ingestion/tools/read-page/read";
+import { searchWeb } from "../ingestion/tools/search-web/search";
 
 export const TRACE_PUBLIC_MARKER = "PUBLIC_FESTIVAL";
 export const TRACE_PUBLIC_URL = `https://example.org/${TRACE_PUBLIC_MARKER}?token=public-value#programme`;
@@ -34,6 +34,7 @@ export type TraceFixtureScenario =
   | "skipped";
 
 export const TRACE_CREDENTIAL = "PRIVATE_CONFIG_CREDENTIAL";
+export const TRACE_HIGHLIGHT = "PRIVATE_SEARCH_HIGHLIGHT";
 export const TRACE_SOURCE_BODY = "PRIVATE_SOURCE_BODY";
 export const TRACE_CANDIDATE = "PRIVATE_CANDIDATE_EXPLANATION";
 export const TRACE_TRANSPORT = "PRIVATE_TRANSPORT_ENVELOPE";
@@ -219,8 +220,8 @@ export async function runTraceFixture(
                               scenario === "search" ||
                               scenario === "reserved" ||
                               scenario === "search_failure"
-                                ? "discoverSources"
-                                : "readSource",
+                                ? "searchWeb"
+                                : "readPage",
                             arguments: JSON.stringify(
                               scenario === "search" ||
                                 scenario === "reserved" ||
@@ -285,9 +286,9 @@ export async function runTraceFixture(
       {
         client,
         config,
-        readSource: async (url, { budget }) => {
+        readPage: async (url, { budget }) => {
           if (scenario === "truncated" && !url.endsWith("/initial")) {
-            return readSource(url, {
+            return readPage(url, {
               budget,
               now: () => new Date("2026-10-09T00:00:00Z"),
               request: async () => ({
@@ -322,10 +323,10 @@ export async function runTraceFixture(
             links: [],
           };
         },
-        discoverSources: async (query, options) => {
+        searchWeb: async (query, options) => {
           const { budget } = options;
           if (scenario === "search_failure") {
-            return discoverSources(query, {
+            return searchWeb(query, {
               ...options,
               fetch: async () =>
                 Response.json(
@@ -341,6 +342,7 @@ export async function runTraceFixture(
               {
                 url: TRACE_PUBLIC_URL,
                 title: `${TRACE_PUBLIC_MARKER} programme`,
+                highlights: [TRACE_HIGHLIGHT],
               },
             ],
             retrievedAt: "2026-10-09T00:00:00Z",

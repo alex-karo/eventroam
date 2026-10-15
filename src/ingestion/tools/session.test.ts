@@ -2,7 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { createResearchBudget, ResearchLimitError } from "../runtime/budget";
 import type { ResearchDependencies } from "../contracts";
 import type { KnownSourceLink } from "./contracts";
-import type { ReadSourceResult } from "./read-source/contracts";
+import type { ReadPageResult } from "./read-page/contracts";
 import { createSourceSession } from "./session";
 
 afterEach(() => {
@@ -18,7 +18,7 @@ const knownLinks: KnownSourceLink[] = [
   { url: tickets, owner: "event", kind: "tickets", official: true },
   { url: homepage, owner: "event", kind: "official_site", official: false },
 ];
-const page = (url: string): ReadSourceResult => ({
+const page = (url: string): ReadPageResult => ({
   attemptedUrl: url,
   finalUrl: url,
   retrievedAt: "2026-10-04T00:00:00Z",
@@ -37,7 +37,7 @@ test("long linked-page chains share accounting, caching and the deadline", async
     { length: 5 },
     (_, index) => `${homepage}step/${index}`,
   );
-  const readSource = vi.fn<NonNullable<ResearchDependencies["readSource"]>>(
+  const readPage = vi.fn<NonNullable<ResearchDependencies["readPage"]>>(
     async (url, options) => {
       options.budget.consumePage();
       const next = url === homepage ? chain[0] : chain[chain.indexOf(url) + 1];
@@ -45,13 +45,19 @@ test("long linked-page chains share accounting, caching and the deadline", async
     },
   );
   const sources = createSourceSession(budget, config, knownLinks, {
-    readSource,
-    discoverSources: async (query, options) => {
+    readPage,
+    searchWeb: async (query, options) => {
       options.budget.consumeSearch();
       options.budget.consumeModelCall();
       return {
         query,
-        candidates: [{ url: discovered, title: "Tickets" }],
+        candidates: [
+          {
+            url: discovered,
+            title: "Tickets",
+            highlights: ["Published programme"],
+          },
+        ],
         retrievedAt: page(discovered).retrievedAt,
         modelCostUsd: null,
         searchCostUsd: 0,
@@ -61,23 +67,25 @@ test("long linked-page chains share accounting, caching and the deadline", async
     },
   });
   await sources.readInitialSource();
-  await sources.readSource(tickets);
+  await sources.readPage(tickets);
   for (const url of chain) {
     expect(sources.reads.some((read) => read.links.includes(url))).toBe(true);
-    expect(await sources.readSource(url)).toMatchObject({ outcome: "ok" });
+    expect(await sources.readPage(url)).toMatchObject({ outcome: "ok" });
   }
-  await sources.discoverSources("Festival tickets");
-  await sources.readSource(discovered);
-  const count = readSource.mock.calls.length;
-  await sources.readSource(chain[4]);
-  expect(readSource).toHaveBeenCalledTimes(count);
+  expect(
+    (await sources.searchWeb("Festival tickets")).candidates[0].highlights,
+  ).toEqual(["Published programme"]);
+  await sources.readPage(discovered);
+  const count = readPage.mock.calls.length;
+  await sources.readPage(chain[4]);
+  expect(readPage).toHaveBeenCalledTimes(count);
   expect(budget.snapshot()).toMatchObject({
     pages: 8,
     searches: 1,
     modelCalls: 1,
   });
   current = budget.deadline;
-  await expect(sources.readSource(checkout)).rejects.toMatchObject({
+  await expect(sources.readPage(checkout)).rejects.toMatchObject({
     limit: "time",
   });
   expect(budget.snapshot().pages).toBe(8);
@@ -87,7 +95,7 @@ test("discovery calls share search limits without reserving model capacity", asy
   const budget = createResearchBudget({ searches: 2 });
   const config = { apiKey: "fixture", model: "fixture", limits: budget.limits };
   const sources = createSourceSession(budget, config, [], {
-    discoverSources: async (query, options) => {
+    searchWeb: async (query, options) => {
       options.budget.consumeSearch();
       options.budget.consumeModelCall();
       return {
@@ -101,20 +109,20 @@ test("discovery calls share search limits without reserving model capacity", asy
       };
     },
   });
-  await sources.discoverSources("Festival");
-  await sources.discoverSources("Festival tickets");
+  await sources.searchWeb("Festival");
+  await sources.searchWeb("Festival tickets");
   expect(budget.snapshot()).toMatchObject({ searches: 2, modelCalls: 2 });
 });
 
 test("initial read suppresses only budget limits, leaving other exceptions visible", async () => {
   const budget = createResearchBudget();
   const config = { apiKey: "fixture", model: "fixture", limits: budget.limits };
-  const readSource = vi
-    .fn<NonNullable<ResearchDependencies["readSource"]>>()
+  const readPage = vi
+    .fn<NonNullable<ResearchDependencies["readPage"]>>()
     .mockRejectedValueOnce(new ResearchLimitError("time"))
     .mockRejectedValueOnce(new Error("Source adapter failed"));
   const sources = createSourceSession(budget, config, knownLinks, {
-    readSource,
+    readPage,
   });
   await expect(sources.readInitialSource()).resolves.toBeUndefined();
   await expect(sources.readInitialSource()).rejects.toThrow(
@@ -125,8 +133,8 @@ test("initial read suppresses only budget limits, leaving other exceptions visib
 
 test("cache observations belong to each call, including concurrent duplicates and redirect aliases", async () => {
   const budget = createResearchBudget();
-  let release!: (result: ReadSourceResult) => void;
-  const readSource = vi.fn<NonNullable<ResearchDependencies["readSource"]>>(
+  let release!: (result: ReadPageResult) => void;
+  const readPage = vi.fn<NonNullable<ResearchDependencies["readPage"]>>(
     (_url, options) => {
       options.budget.consumePage();
       return new Promise((resolve) => {
@@ -138,11 +146,11 @@ test("cache observations belong to each call, including concurrent duplicates an
     budget,
     { apiKey: "fixture", model: "fixture", limits: budget.limits },
     [],
-    { readSource },
+    { readPage },
   );
   const readWithObservation = async () => {
     const cached = sources.isReadCached(homepage);
-    const result = await sources.readSource(homepage);
+    const result = await sources.readPage(homepage);
     return { cached, result };
   };
   const first = readWithObservation();
@@ -153,7 +161,7 @@ test("cache observations belong to each call, including concurrent duplicates an
   expect(observations[0].result).toBe(observations[1].result);
   expect(sources.isReadCached(homepage)).toBe(true);
   expect(sources.isReadCached(tickets)).toBe(true);
-  expect(await sources.readSource(tickets)).toBe(observations[0].result);
-  expect(readSource).toHaveBeenCalledTimes(1);
+  expect(await sources.readPage(tickets)).toBe(observations[0].result);
+  expect(readPage).toHaveBeenCalledTimes(1);
   expect(budget.snapshot().pages).toBe(1);
 });

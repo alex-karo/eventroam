@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createResearchBudget } from "../../runtime/budget";
 import { loadResearchConfig } from "../../runtime/config";
-import { discoverSources } from "./search";
+import { searchWeb } from "./search";
 
 afterEach(() => vi.useRealTimers());
 
@@ -18,7 +18,7 @@ function searchWith(fetchMock: typeof fetch, durationMs = 30_000) {
   return {
     budget,
     log,
-    run: discoverSources("  Festival 2027  ", {
+    run: searchWeb("  Festival 2027  ", {
       budget,
       config: {
         apiKey: "test-key",
@@ -31,7 +31,7 @@ function searchWith(fetchMock: typeof fetch, durationMs = 30_000) {
   };
 }
 
-describe("discoverSources", () => {
+describe("searchWeb", () => {
   it("uses Exa only for discovery and returns citations as candidates", async () => {
     const fetchMock = vi.fn(async (...args: Parameters<typeof fetch>) => {
       if (!args[0] || !args[1]) {
@@ -81,7 +81,7 @@ describe("discoverSources", () => {
       );
     });
     const budget = createResearchBudget({ searchResults: 2 });
-    const result = await discoverSources("Festival 2027", {
+    const result = await searchWeb("Festival 2027", {
       budget,
       config: {
         apiKey: "test-key",
@@ -107,14 +107,97 @@ describe("discoverSources", () => {
     expect(result.cachedInputTokens).toBe(16);
     expect(result.reasoningTokens).toBe(3);
     expect(result.candidates).toEqual([
-      { url: "https://festival.example/", title: "Festival" },
-      { url: "https://tickets.example/", title: "Tickets" },
+      { url: "https://festival.example/", title: "Festival", highlights: [] },
+      { url: "https://tickets.example/", title: "Tickets", highlights: [] },
     ]);
     expect(result.searchCostUsd).toBe(0.007);
     expect(result.modelCostUsd).toBe(0.001);
     expect(result.inputTokens).toBe(42);
     expect(result.usageComplete).toBe(true);
     expect(budget.snapshot()).toMatchObject({ searches: 1, modelCalls: 1 });
+  });
+
+  it.each([
+    [
+      "  Relevant dates [...] a second extract  ",
+      ["Relevant dates [...] a second extract"],
+    ],
+    [undefined, []],
+    [null, []],
+    [123, []],
+    ["  ", []],
+    ["x".repeat(2100), ["x".repeat(2000)]],
+  ])("bounds optional citation highlights: %s", async (content, highlights) => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        choices: [
+          {
+            message: {
+              content: "Synthesized answer must not become highlights",
+              annotations: [
+                {
+                  type: "url_citation",
+                  url_citation: {
+                    url: "https://festival.example/",
+                    title: "Festival",
+                    content,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+    expect((await searchWith(fetchMock).run).candidates).toEqual([
+      { url: "https://festival.example/", title: "Festival", highlights },
+    ]);
+  });
+
+  it("filters unsafe and duplicate URLs without displacing later candidates", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        choices: [
+          {
+            message: {
+              annotations: [
+                "javascript:alert(1)",
+                "not a url",
+                "https://first.example/",
+                "https://first.example/",
+                "ftp://files.example/",
+                "https://later.example/",
+              ].map((url) => ({
+                type: "url_citation",
+                url_citation: {
+                  url,
+                  title: "T".repeat(350),
+                  content: " Lead ",
+                },
+              })),
+            },
+          },
+        ],
+      }),
+    );
+    const budget = createResearchBudget({ searchResults: 2 });
+    const result = await searchWeb("Festival 2027", {
+      budget,
+      config: { apiKey: "fixture", model: "fixture", limits: budget.limits },
+      fetch: fetchMock,
+    });
+    expect(result.candidates).toEqual([
+      {
+        url: "https://first.example/",
+        title: "T".repeat(300),
+        highlights: ["Lead"],
+      },
+      {
+        url: "https://later.example/",
+        title: "T".repeat(300),
+        highlights: ["Lead"],
+      },
+    ]);
   });
 
   it("backs off for HTTP and network failures without double counting the successful response", async () => {
@@ -245,7 +328,7 @@ describe("discoverSources", () => {
       const fetchMock = vi.fn<typeof fetch>();
       const budget = createResearchBudget();
       await expect(
-        discoverSources(query, {
+        searchWeb(query, {
           budget,
           config: {
             apiKey: "test-key",

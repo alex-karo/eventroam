@@ -1,6 +1,6 @@
-import type { ReadSourceResult } from "./contracts";
+import type { ReadPageResult } from "./contracts";
 
-function safeSource(read: ReadSourceResult) {
+function safeSource(read: ReadPageResult) {
   return {
     attemptedUrl: read.attemptedUrl,
     finalUrl: read.finalUrl,
@@ -10,7 +10,7 @@ function safeSource(read: ReadSourceResult) {
   };
 }
 
-export function boundedToolSource(read: ReadSourceResult, maxChars = 80_000) {
+export function boundedToolSource(read: ReadPageResult, maxChars = 80_000) {
   const markdownBudget = Math.max(1_000, maxChars - 300);
   let markdown = read.markdown;
   if (markdown.length > markdownBudget) {

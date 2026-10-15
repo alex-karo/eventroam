@@ -148,10 +148,10 @@ test("blocked-source fixture replays captured HTTP metadata without fallback", a
     completeness: "none",
     markdown: "",
   });
-  const read = await fixedSources(blocked, blocked.todayUtc!).readSource(
+  const read = await fixedSources(blocked, blocked.todayUtc!).readPage(
     source.attemptedUrl,
     { budget: createResearchBudget() } as Parameters<
-      ReturnType<typeof fixedSources>["readSource"]
+      ReturnType<typeof fixedSources>["readPage"]
     >[1],
   );
   expect(read).toMatchObject({ outcome: "blocked", reason: "http_403" });
@@ -448,10 +448,9 @@ test("fixed source adapter uses captured pages and blocks unknown URLs without n
     ).toHaveLength(1);
     const sources = fixedSources(tomorrowland, suite.todayUtc);
     const budget = createResearchBudget();
-    const known = await sources.readSource(
-      tomorrowland.sources[0].attemptedUrl,
-      { budget },
-    );
+    const known = await sources.readPage(tomorrowland.sources[0].attemptedUrl, {
+      budget,
+    });
     expect(known.markdown).toEqual(tomorrowland.sources[0].markdown);
     expect(tomorrowland.sources[0]).not.toHaveProperty("links");
     expect(
@@ -463,7 +462,7 @@ test("fixed source adapter uses captured pages and blocks unknown URLs without n
     expect(known.links).toContain("https://winter.tomorrowland.com/");
     expect(known).not.toHaveProperty("blocks");
     expect(known.markdown).not.toMatch(/<!-- b\d+ -->/);
-    const unknown = await sources.readSource("https://unknown.example/eval", {
+    const unknown = await sources.readPage("https://unknown.example/eval", {
       budget,
     });
     expect(unknown).toMatchObject({
@@ -1227,3 +1226,99 @@ test("size evidence eval rejects unsupported replacements and clearing", () => {
     ),
   ).toBe(false);
 });
+
+test("eval runner retains each call sequence and fails needless search despite correct findings", async () => {
+  vi.stubEnv("OPENROUTER_API_KEY", "fixture-key");
+  const item = byId.get("search-no-announcement")!;
+  let invocation = 0;
+  vi.spyOn(workflowModule, "runCatalogResearch").mockImplementation(
+    async (_input, deps) => {
+      const budget = createResearchBudget();
+      await deps!.readPage!(item.sources[0].attemptedUrl, { budget });
+      if (++invocation === 2) {
+        await deps!.searchWeb!("Harbor Echo next announcement", {
+          budget,
+          config: deps!.config!,
+        });
+      }
+      return {
+        ...result(),
+        modelResponse: {
+          text: null,
+          object: {
+            status: "success",
+            data: {
+              eventName: "Harbor Echo",
+              links: { socials: {} },
+              sources: [],
+              editions: [{ key: "2026", links: {} }],
+            },
+            errors: [],
+            unresolved: [],
+          },
+        },
+      };
+    },
+  );
+  const report = await runCatalogEvals({ caseIds: [item.id], repeat: 2 });
+  expect(report.results.map((entry) => entry.score.passed)).toEqual([
+    true,
+    false,
+  ]);
+  expect(report.results.map((entry) => entry.score.toolUse?.score)).toEqual([
+    1, 0,
+  ]);
+  expect(
+    report.results.map((entry) => entry.toolCalls.map((call) => call.tool)),
+  ).toEqual([["readPage"], ["readPage", "searchWeb"]]);
+  expect(report.mastra.scores["source-search-policy"]).toBe(0.5);
+});
+
+test.each([
+  ["2027-01-23", "2027-01-30", true],
+  ["2027-02-01", "2027-02-03", false],
+])(
+  "date-conflict eval requires resolved dates %s–%s",
+  (startsOn, endsOn, passed) => {
+    const item = byId.get("search-date-conflict")!;
+    const report: CatalogResearchResult = {
+      ...result(),
+      eventId: item.initial.event.id,
+      modelResponse: {
+        text: null,
+        object: {
+          status: "success",
+          errors: [],
+          unresolved: [],
+          data: {
+            eventId: item.initial.event.id,
+            eventName: item.initial.event.canonicalName,
+            sources: [],
+            links: { socials: {} },
+            editions: [
+              {
+                key: "2027",
+                links: {},
+                dates: {
+                  value: { startsOn, endsOn, state: "confirmed" },
+                  reason: "Checked the independent venue announcement",
+                },
+              },
+            ],
+          },
+        },
+      },
+    };
+    const score = scoreCase(item, report, [
+      { tool: "searchWeb", query: "Harbor Echo 2027 dates" },
+      { tool: "readPage", url: item.sources[1].finalUrl },
+    ]);
+    expect(score.toolUse?.score).toBe(1);
+    expect(score.passed).toBe(passed);
+    expect(
+      score.research?.checks.find(
+        (check) => check.description === "returned 2027.dates",
+      )?.matched,
+    ).toBe(passed);
+  },
+);

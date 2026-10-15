@@ -133,6 +133,15 @@
           "value": "GB"
         }
       ]
+    },
+    "toolUse": {
+      "maxSearches": 0,
+      "readBeforeSearch": [
+        {
+          "url": "https://harbor-echo-uk.example/",
+          "searchIndex": 1
+        }
+      ]
     }
   }
 }

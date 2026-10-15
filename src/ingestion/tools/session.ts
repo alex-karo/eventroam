@@ -2,13 +2,10 @@ import type { ResearchLogger } from "../runtime/logging";
 import { ResearchLimitError, type ResearchBudget } from "../runtime/budget";
 import type { ResearchConfig } from "../runtime/config";
 import type { ResearchDependencies } from "../contracts";
-import { readSource } from "./read-source/read";
-import {
-  discoverSources,
-  discoveryHttpStatus,
-} from "./discover-sources/search";
-import type { ReadSourceResult } from "./read-source/contracts";
-import type { DiscoverSourcesResult } from "./discover-sources/contracts";
+import { readPage } from "./read-page/read";
+import { searchWeb, discoveryHttpStatus } from "./search-web/search";
+import type { ReadPageResult } from "./read-page/contracts";
+import type { SearchWebResult } from "./search-web/contracts";
 import type { KnownSourceLink } from "./contracts";
 
 export type SourceLogContext = {
@@ -25,12 +22,12 @@ export function createSourceSession(
   budget: ResearchBudget,
   config: ResearchConfig,
   knownLinks: KnownSourceLink[],
-  deps: Pick<ResearchDependencies, "readSource" | "discoverSources">,
+  deps: Pick<ResearchDependencies, "readPage" | "searchWeb">,
   log?: ResearchLogger,
 ) {
-  const reads: ReadSourceResult[] = [];
-  const inFlight = new Map<string, Promise<ReadSourceResult>>();
-  const discovery: DiscoverSourcesResult[] = [];
+  const reads: ReadPageResult[] = [];
+  const inFlight = new Map<string, Promise<ReadPageResult>>();
+  const discovery: SearchWebResult[] = [];
   const read = async (
     url: string,
     operation: SourceLogContext & { tool?: boolean } = {},
@@ -41,7 +38,7 @@ export function createSourceSession(
     if (!operation.tool) {
       operationLog?.info("Reading source", { attemptedUrl: url });
     }
-    const finished = (result: ReadSourceResult, cached: boolean) => {
+    const finished = (result: ReadPageResult, cached: boolean) => {
       if (result.reason?.endsWith("_budget_exhausted")) {
         operationLog?.warn("Research budget exhausted", {
           budgetKind: result.reason.replace("_budget_exhausted", ""),
@@ -88,7 +85,7 @@ export function createSourceSession(
       return finished(await pending, true);
     }
     const request = (async () => {
-      const result = await (deps.readSource ?? readSource)(key, {
+      const result = await (deps.readPage ?? readPage)(key, {
         budget,
         log: operationLog,
       });
@@ -126,7 +123,7 @@ export function createSourceSession(
     if (!operation.tool) {
       operationLog?.info("Discovering sources", { query });
     }
-    const finished = (result: DiscoverSourcesResult, status: string) => {
+    const finished = (result: SearchWebResult, status: string) => {
       if (!operation.tool) {
         operationLog?.info("Source discovery finished", {
           query,
@@ -143,9 +140,9 @@ export function createSourceSession(
       }
       return result;
     };
-    let result: DiscoverSourcesResult;
+    let result: SearchWebResult;
     try {
-      result = await (deps.discoverSources ?? discoverSources)(query, {
+      result = await (deps.searchWeb ?? searchWeb)(query, {
         budget,
         config,
         log: operationLog,
@@ -186,8 +183,8 @@ export function createSourceSession(
   return {
     reads,
     discovery,
-    readSource: read,
-    discoverSources: search,
+    readPage: read,
+    searchWeb: search,
     readInitialSource,
     initialUrl,
     isReadCached: (url: string) => {

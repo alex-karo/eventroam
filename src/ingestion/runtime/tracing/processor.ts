@@ -77,7 +77,7 @@ export function researchSpanProcessor(
         if (!Object.values(SpanType).includes(span.type)) {
           span.type = SpanType.GENERIC;
         }
-        const tool = ["readSource", "discoverSources"].find(
+        const tool = ["readPage", "searchWeb"].find(
           (name) => span.entityId === name,
         );
         const editor = span.entityId === "festival-editor";

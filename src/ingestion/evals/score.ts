@@ -5,12 +5,15 @@ import { hasHostFailure } from "../runs";
 import type { CatalogResearchResult } from "../workflow";
 import type { EvalAssertion, EvalCase } from "./fixtures";
 
+import { scoreToolUse, type EvalToolCall } from "./tool-use";
+
 type EvalChange = CatalogResearchResult["changes"][number];
 export type AssertionResult = {
   assertion: EvalAssertion;
   matched: boolean;
 };
 export type CaseScore = {
+  toolUse: ReturnType<typeof scoreToolUse>;
   correctness: number;
   completeness: number;
   passed: boolean;
@@ -222,6 +225,7 @@ function scoreResearch(
 export function scoreCase(
   item: EvalCase,
   result: CatalogResearchResult,
+  toolCalls: EvalToolCall[] = [],
 ): CaseScore {
   if (result.schemaVersion !== 5) {
     throw new Error(
@@ -304,14 +308,17 @@ export function scoreCase(
     correctness = 0;
   }
   const research = scoreResearch(item, result);
+  const toolUse = scoreToolUse(item.expectations.toolUse, toolCalls);
   return {
     correctness,
     completeness,
     research,
+    toolUse,
     passed:
       correctness === 1 &&
       completeness === 1 &&
-      (!research || research.score === 1),
+      (!research || research.score === 1) &&
+      (!toolUse || toolUse.score === 1),
     required,
     forbidden,
     reasons: {
@@ -367,7 +374,13 @@ function describeChecks(
     : "All assertions satisfied";
 }
 
-export function createEvalScorers(cases: EvalCase[]) {
+export function createEvalScorers(
+  cases: EvalCase[],
+  callsFor: (input: {
+    caseId: string;
+    repetition?: number;
+  }) => EvalToolCall[] = () => [],
+) {
   const byId = new Map(cases.map((item) => [item.id, item]));
   const find = (input: { caseId: string }) => {
     const item = byId.get(input.caseId);
@@ -424,5 +437,28 @@ export function createEvalScorers(cases: EvalCase[]) {
             .join("; ") || "All research assertions satisfied"
         : "No separate research annotations for this case";
     });
-  return { correctness, completeness, research };
+  const toolUse = createScorer<
+    { caseId: string; repetition?: number },
+    CatalogResearchResult
+  >({
+    id: "source-search-policy",
+    description: "Search count and page-read order for exceptional discovery",
+  })
+    .generateScore(({ run }) => {
+      const input = run.input ?? { caseId: "" };
+      return (
+        scoreToolUse(find(input).expectations.toolUse, callsFor(input))
+          ?.score ?? 1
+      );
+    })
+    .generateReason(({ run }) => {
+      const input = run.input ?? { caseId: "" };
+      return (
+        scoreToolUse(find(input).expectations.toolUse, callsFor(input))
+          ?.checks.filter((check) => !check.matched)
+          .map((check) => check.description)
+          .join("; ") || "Search policy satisfied"
+      );
+    });
+  return { correctness, completeness, research, toolUse };
 }
