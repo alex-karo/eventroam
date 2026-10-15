@@ -1,4 +1,4 @@
-schema: spec-driven
+schema: review-driven
 
 context: |
   Eventroam is an English-language worldwide event catalog. Initial scope covers
