@@ -17,6 +17,10 @@ Catalog:
 - [Edition classification](../openspec/specs/catalog/classification/spec.md) — fixed facets, per-edition assignments, and public labels.
 - [Source-backed catalog workflow](../openspec/specs/catalog/source-workflow/spec.md) — owner-initiated collection, model-led refresh, and attributable run outcomes.
 
+Operations:
+
+- [Storage integrity](../openspec/specs/operations/storage-integrity/spec.md) — application-owned validation, retained database protections, and data-preserving migrations.
+
 Website:
 
 - [Discovery](../openspec/specs/website/discovery/spec.md) — readable filter selections, pending counts, searchable locations, URL state, and shared map/list results.
@@ -30,6 +34,7 @@ Website:
 
 ## Archived changes
 
+- [Application-owned database validation](../openspec/changes/archive/2026-10-15-move-database-validation-to-code/proposal.md) — application-owned value and relationship checks, retained database integrity protections, and a persistent policy for future schema changes.
 - [Focused source search](../openspec/changes/archive/2026-10-15-direct-exa-discovery/proposal.md) — clearer tools, bounded highlights and exceptional-use conditions with the existing OpenRouter Exa mode.
 
 - [Ingestion editor](../openspec/changes/archive/2026-10-15-ingestion-editor/proposal.md) — research/editor separation with explicit field actions, simpler write preparation and focused quality evaluation.

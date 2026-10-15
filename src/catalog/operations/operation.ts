@@ -1,9 +1,8 @@
 import { z } from "zod";
-import { currency, price } from "@/catalog/domain/price";
+import { price, priceDetail } from "@/catalog/domain/price";
 import {
   dateStates,
   scheduleStatuses,
-  ticketAvailabilities,
   coordinatePrecisions,
   linkKinds,
 } from "@/catalog/domain/vocabulary";
@@ -27,24 +26,6 @@ const common = z
       .optional(),
   })
   .strict();
-const priceDetail = z
-  .object({
-    label: z.string().trim().min(1).max(250),
-    amount: z.number().nonnegative().optional(),
-    currency: currency.optional(),
-    terms: z.string().trim().min(1).max(1000).optional(),
-    availability: z.enum(ticketAvailabilities).optional(),
-    url: url.optional(),
-  })
-  .strict()
-  .refine(
-    (value) =>
-      value.amount === 0 ||
-      (value.amount === undefined) === (value.currency === undefined),
-    {
-      message: "Amount and currency must be supplied together",
-    },
-  );
 const eventData = z
   .object({
     slug,

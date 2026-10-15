@@ -95,7 +95,7 @@ test("populated catalog migration preserves identities, foreign keys, indexes an
             "UPDATE editions SET price_details='{}' WHERE id='edition-old'",
           )
           .run(),
-      ).toThrow();
+      ).not.toThrow();
       expect(
         (client.pragma("table_info('editions')") as { name: string }[]).map(
           (column) => column.name,
@@ -110,7 +110,7 @@ test("populated catalog migration preserves identities, foreign keys, indexes an
 });
 
 // Exercise the migration from each released schema, with every catalog table populated.
-for (const from of [0, 1, 2, 3, 4, 5, 6]) {
+for (const from of [0, 1, 2, 3, 4, 5, 6, 7]) {
   test(`catalog migration preserves retained data from 000${from}`, async () => {
     const { testFixtures } = await import("@/test/fixtures");
     const directory = mkdtempSync(
@@ -180,8 +180,11 @@ for (const from of [0, 1, 2, 3, 4, 5, 6]) {
       if (from >= 5) {
         seedSql = seedSql.replaceAll("occurrence", "edition");
       }
+      if (from >= 7) {
+        seedSql = seedSql.replaceAll("capacity_estimate", "size_estimate");
+      }
       client.exec(seedSql);
-      client.exec(`UPDATE ${from >= 5 ? "editions" : "occurrences"} SET version=7,display_name='Second weekend',capacity_estimate=9000,
+      client.exec(`UPDATE ${from >= 5 ? "editions" : "occurrences"} SET version=7,display_name='Second weekend',${from >= 7 ? "size_estimate" : "capacity_estimate"}=9000,
         venue_name='Park',venue_address='Main Street',administrative_area='Lisbon',latitude=38.72,longitude=-9.14,
         coordinate_precision='exact',time_zone='Europe/Lisbon';
         UPDATE events SET version=3,aliases='["Other name"]',summary='Known summary';`);
@@ -276,6 +279,22 @@ for (const from of [0, 1, 2, 3, 4, 5, 6]) {
               }),
           ]),
         );
+      const structure = () =>
+        Object.fromEntries(
+          tables.map(currentName).map((table) => [
+            table,
+            {
+              columns: client.pragma(`table_info('${table}')`),
+              foreignKeys: client.pragma(`foreign_key_list('${table}')`),
+              indexes: client
+                .prepare(
+                  "SELECT name,sql FROM sqlite_schema WHERE type='index' AND tbl_name=? ORDER BY name",
+                )
+                .all(table),
+            },
+          ]),
+        );
+      const previousStructure = from === 7 ? structure() : undefined;
       const before = snapshot();
       if (from === 0) {
         before.editions = before.editions.map((record) => ({
@@ -294,6 +313,9 @@ for (const from of [0, 1, 2, 3, 4, 5, 6]) {
       const beforeIndexes = indexes();
       migrateCatalogConnection(connection);
       expect(snapshot()).toEqual(before);
+      if (previousStructure) {
+        expect(structure()).toEqual(previousStructure);
+      }
       expect(indexes()).toEqual(beforeIndexes);
       expect(
         client
@@ -358,8 +380,6 @@ for (const from of [0, 1, 2, 3, 4, 5, 6]) {
       ).toEqual([
         { name: "catalog_changes_immutable_delete" },
         { name: "catalog_changes_immutable_update" },
-        { name: "taxonomy_parent_cycle_update" },
-        { name: "url_aliases_edition_owner_insert" },
         { name: "url_aliases_immutable_delete" },
         { name: "url_aliases_immutable_update" },
       ]);
@@ -367,7 +387,7 @@ for (const from of [0, 1, 2, 3, 4, 5, 6]) {
         client
           .prepare("UPDATE taxonomy_terms SET parent_id=? WHERE id=?")
           .run(childTerm.id, parentTerm.id),
-      ).toThrow(/cycle/);
+      ).not.toThrow();
       expect(() => client.exec("UPDATE url_aliases SET path='/other'")).toThrow(
         /immutable/,
       );
@@ -385,7 +405,7 @@ for (const from of [0, 1, 2, 3, 4, 5, 6]) {
             "INSERT INTO url_aliases(scope,path,event_id,edition_id,created_at) VALUES('festivals','/wrong-owner',?,?, '2026-10-01')",
           )
           .run(other.id, edition.id),
-      ).toThrow(/belong/);
+      ).not.toThrow();
     } finally {
       client.close();
       rmSync(directory, { recursive: true, force: true });

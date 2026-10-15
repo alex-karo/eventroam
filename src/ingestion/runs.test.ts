@@ -44,14 +44,14 @@ test.each([
   ["input_tokens", 0],
   ["usage_complete", 0],
   ["status", "completed"],
-])("SQLite rejects invalid running %s=%s", (column, value) => {
+])("raw SQL bypasses application-owned running rule %s=%s", (column, value) => {
   const { client } = testDatabase();
   const id = startIngestionRun(client, settings, Date.now(), null);
   expect(() =>
     client
       .prepare(`UPDATE ingestion_runs SET ${column}=? WHERE id=?`)
       .run(value, id),
-  ).toThrow();
+  ).not.toThrow();
 });
 
 test("finalization preserves normalized report, zero/unknown values and guards terminal rows", async () => {
@@ -91,6 +91,24 @@ test("finalization preserves normalized report, zero/unknown values and guards t
       client.prepare("SELECT * FROM ingestion_runs WHERE id=?").get(id),
     ).toEqual(pending);
   }
+  const invalidReports = [
+    { ...final, mode: "refresh" },
+    ...[-1, 1.5].map((inputTokens) => ({
+      ...final,
+      usage: { ...final.usage, inputTokens },
+    })),
+    { ...final, durationMs: -1 },
+    { ...final, usage: { ...final.usage, complete: 2 } },
+    { ...final, usage: { ...final.usage, searchCostUsd: -1 } },
+  ];
+  for (const invalid of invalidReports) {
+    expect(() =>
+      finalizeIngestionRun(client, id, invalid as never, null, Date.now()),
+    ).toThrow(RunPersistenceError);
+    expect(
+      client.prepare("SELECT * FROM ingestion_runs WHERE id=?").get(id),
+    ).toEqual(pending);
+  }
   const normalized = finalizeIngestionRun(client, id, final, null, Date.now());
   const row = client
     .prepare("SELECT * FROM ingestion_runs WHERE id=?")
@@ -124,20 +142,6 @@ test("finalization preserves normalized report, zero/unknown values and guards t
       .prepare("UPDATE ingestion_runs SET report_json='[]' WHERE id=?")
       .run(id),
   ).not.toThrow();
-  for (const [column, value] of [
-    ["input_tokens", -1],
-    ["input_tokens", 1.5],
-    ["model_cost_usd", -1],
-    ["duration_ms", -1],
-    ["usage_complete", 2],
-    ["finished_at", null],
-  ] as const) {
-    expect(() =>
-      client
-        .prepare(`UPDATE ingestion_runs SET ${column}=? WHERE id=?`)
-        .run(value, id),
-    ).toThrow();
-  }
 });
 
 test.each([NaN, Infinity, -1])(
@@ -206,4 +210,25 @@ test("start stores only allowlisted settings and every final statistic begins nu
     duration_ms: null,
     usage_complete: null,
   });
+});
+
+test("start rejects empty modes and stores normalized mode consistently", () => {
+  const { client } = testDatabase();
+  for (const mode of ["", "  "]) {
+    expect(() =>
+      startIngestionRun(client, { ...settings, mode }, Date.now(), null),
+    ).toThrow(RunPersistenceError);
+  }
+  expect(client.prepare("SELECT * FROM ingestion_runs").all()).toEqual([]);
+  const id = startIngestionRun(
+    client,
+    { ...settings, mode: " reconcile " },
+    Date.now(),
+    null,
+  );
+  const row = client
+    .prepare("SELECT mode,input_json FROM ingestion_runs WHERE id=?")
+    .get(id) as { mode: string; input_json: string };
+  expect(row.mode).toBe("reconcile");
+  expect(JSON.parse(row.input_json).mode).toBe(row.mode);
 });

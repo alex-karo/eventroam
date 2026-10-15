@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { price } from "./price";
+import { price, priceDetail } from "./price";
 import {
   publicationStates,
   scopes,
@@ -65,6 +65,8 @@ export function validateStoredPrice(r: RecordValues) {
 
 export function validateEditionRecord(r: RecordValues) {
   const states = editionStates.parse(r);
+  z.number().int().positive().nullish().parse(r.sizeEstimate);
+  z.array(priceDetail).max(100).default([]).parse(r.priceDetails);
   assert(
     (r.startsOn == null) === (r.endsOn == null),
     "Date pair is incomplete",
