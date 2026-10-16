@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  check,
   index,
   integer,
   primaryKey,
@@ -57,10 +56,7 @@ export const events = sqliteTable(
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
-  (t) => [
-    uniqueIndex("events_slug_uq").on(t.slug),
-    check("events_version_ck", sql`${t.version} > 0`),
-  ],
+  (t) => [uniqueIndex("events_slug_uq").on(t.slug)],
 );
 
 export const editions = sqliteTable(
@@ -124,24 +120,6 @@ export const editions = sqliteTable(
     index("editions_date_idx").on(t.startsOn, t.endsOn),
     index("editions_country_idx").on(t.countryCode),
     index("editions_coordinates_idx").on(t.latitude, t.longitude),
-    check(
-      "editions_dates_ck",
-      sql`((${t.startsOn} IS NULL AND ${t.endsOn} IS NULL) OR (${t.startsOn} IS NOT NULL AND ${t.endsOn} IS NOT NULL AND ${t.endsOn} >= ${t.startsOn}))`,
-    ),
-    check(
-      "editions_location_ck",
-      sql`((${t.latitude} IS NULL AND ${t.longitude} IS NULL) OR (${t.latitude} IS NOT NULL AND ${t.longitude} IS NOT NULL AND ${t.latitude} BETWEEN -90 AND 90 AND ${t.longitude} BETWEEN -180 AND 180))`,
-    ),
-    check(
-      // Historical constraint name retained by the column-rename migration.
-      "editions_capacity_ck",
-      sql`${t.sizeEstimate} IS NULL OR ${t.sizeEstimate} > 0`,
-    ),
-    check("editions_version_ck", sql`${t.version} > 0`),
-    check(
-      "editions_price_details_ck",
-      sql`json_valid(${t.priceDetails}) AND json_type(${t.priceDetails}) = 'array'`,
-    ),
   ],
 );
 
@@ -156,13 +134,7 @@ export const taxonomyTerms = sqliteTable(
       (): SQLiteColumn => taxonomyTerms.id,
     ),
   },
-  (t) => [
-    uniqueIndex("taxonomy_terms_facet_slug_uq").on(t.facet, t.slug),
-    check(
-      "taxonomy_terms_parent_ck",
-      sql`${t.parentId} IS NULL OR ${t.parentId} != ${t.id}`,
-    ),
-  ],
+  (t) => [uniqueIndex("taxonomy_terms_facet_slug_uq").on(t.facet, t.slug)],
 );
 export const editionTerms = sqliteTable(
   "edition_terms",
@@ -192,10 +164,6 @@ export const externalLinks = sqliteTable(
     updatedAt: text("updated_at").notNull(),
   },
   (t) => [
-    check(
-      "external_links_owner_ck",
-      sql`(${t.eventId} IS NOT NULL) != (${t.editionId} IS NOT NULL)`,
-    ),
     uniqueIndex("external_links_event_uq").on(t.eventId, t.kind, t.url),
     uniqueIndex("external_links_edition_uq").on(t.editionId, t.kind, t.url),
   ],
@@ -230,11 +198,6 @@ export const catalogChanges = sqliteTable(
     note: text("note"),
   },
   (t) => [
-    check(
-      "catalog_changes_subject_ck",
-      sql`(${t.eventId} IS NOT NULL) != (${t.editionId} IS NOT NULL)`,
-    ),
-    check("catalog_changes_version_ck", sql`${t.subjectVersion} > 0`),
     uniqueIndex("catalog_changes_event_operation_uq").on(
       t.operationKey,
       t.eventId,
@@ -253,53 +216,19 @@ export const operationReceipts = sqliteTable("operation_receipts", {
 });
 
 /** Private attempt history. Event IDs may refer to deleted catalog records. */
-export const ingestionRuns = sqliteTable(
-  "ingestion_runs",
-  {
-    id: text("id").primaryKey(),
-    eventId: text("event_id"),
-    mode: text("mode").notNull(),
-    status: text("status").notNull(),
-    startedAt: text("started_at").notNull(),
-    finishedAt: text("finished_at"),
-    inputJson: text("input_json", { mode: "json" }).$type<unknown>().notNull(),
-    reportJson: text("report_json", { mode: "json" }).$type<unknown>(),
-    inputTokens: integer("input_tokens"),
-    outputTokens: integer("output_tokens"),
-    modelCostUsd: real("model_cost_usd"),
-    searchCostEstimateUsd: real("search_cost_estimate_usd"),
-    durationMs: integer("duration_ms"),
-    usageComplete: integer("usage_complete", { mode: "boolean" }),
-  },
-  (t) => [
-    check("ingestion_runs_mode_ck", sql`length(trim(${t.mode})) > 0`),
-    check(
-      "ingestion_runs_status_ck",
-      sql`${t.status} IN ('running', 'completed', 'failed')`,
-    ),
-    check(
-      "ingestion_runs_input_ck",
-      sql`CASE WHEN json_valid(${t.inputJson}) THEN json_type(${t.inputJson}) IS 'object' AND json_extract(${t.inputJson}, '$.mode') IS ${t.mode} ELSE 0 END`,
-    ),
-    check(
-      "ingestion_runs_lifecycle_ck",
-      sql`(${t.status} = 'running' AND ${t.finishedAt} IS NULL AND ${t.reportJson} IS NULL AND ${t.inputTokens} IS NULL AND ${t.outputTokens} IS NULL AND ${t.modelCostUsd} IS NULL AND ${t.searchCostEstimateUsd} IS NULL AND ${t.durationMs} IS NULL AND ${t.usageComplete} IS NULL) OR (${t.status} != 'running' AND ${t.finishedAt} IS NOT NULL AND ${t.reportJson} IS NOT NULL AND ${t.inputTokens} IS NOT NULL AND ${t.outputTokens} IS NOT NULL AND ${t.searchCostEstimateUsd} IS NOT NULL AND ${t.durationMs} IS NOT NULL AND ${t.usageComplete} IS NOT NULL)`,
-    ),
-    ...[t.inputTokens, t.outputTokens, t.durationMs].map((column) =>
-      check(
-        `ingestion_runs_${column.name}_ck`,
-        sql`${column} IS NULL OR (typeof(${column}) = 'integer' AND ${column} >= 0)`,
-      ),
-    ),
-    ...[t.modelCostUsd, t.searchCostEstimateUsd].map((column) =>
-      check(
-        `ingestion_runs_${column.name}_ck`,
-        sql`${column} IS NULL OR ${column} >= 0`,
-      ),
-    ),
-    check(
-      "ingestion_runs_complete_ck",
-      sql`${t.usageComplete} IS NULL OR ${t.usageComplete} IN (0, 1)`,
-    ),
-  ],
-);
+export const ingestionRuns = sqliteTable("ingestion_runs", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id"),
+  mode: text("mode").notNull(),
+  status: text("status").notNull(),
+  startedAt: text("started_at").notNull(),
+  finishedAt: text("finished_at"),
+  inputJson: text("input_json", { mode: "json" }).$type<unknown>().notNull(),
+  reportJson: text("report_json", { mode: "json" }).$type<unknown>(),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  modelCostUsd: real("model_cost_usd"),
+  searchCostEstimateUsd: real("search_cost_estimate_usd"),
+  durationMs: integer("duration_ms"),
+  usageComplete: integer("usage_complete", { mode: "boolean" }),
+});

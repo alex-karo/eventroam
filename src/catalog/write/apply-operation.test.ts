@@ -652,9 +652,6 @@ test("typed price, size, coordinates, and area rules reject unsupported values",
       .get(edition.id),
   ).toMatchObject({ price_currency: "EUR", price_min_minor: 6500 });
   expect(() =>
-    client.prepare("UPDATE editions SET latitude=1 WHERE id=?").run(edition.id),
-  ).toThrow();
-  expect(() =>
     applyCatalogOperation(client, {
       kind: "updateEdition",
       operationKey: "test:unassigned-country",

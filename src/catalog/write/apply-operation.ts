@@ -1,8 +1,8 @@
+import { validateCatalogValues } from "./validate-values";
 import { validateFestivalScope } from "../domain/validation";
 import {
   validateEventRecord,
   validateEditionRecord,
-  validateAliasRecord,
   validateTermAssignments,
 } from "@/catalog/domain/validation";
 import { createHash, randomUUID } from "node:crypto";
@@ -220,7 +220,7 @@ function alias(
   editionId: string | null,
   now: string,
 ) {
-  validateAliasRecord({ scope });
+  validateCatalogValues(client, "url_aliases", { scope, eventId, editionId });
   const db = drizzle(client);
   const existing = db
     .select({

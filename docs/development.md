@@ -62,6 +62,14 @@ For behavior changes, use the standard OpenSpec workflow: explore or propose, de
 
 Before handoff, run focused tests and applicable checks, then report the result and remaining uncertainty. Run `docs:check` for documentation edits and `openspec:validate` for OpenSpec edits.
 
+New changes use the project-local [review-driven schema](../openspec/schemas/review-driven/schema.yaml), forked from OpenSpec 1.14.0's `spec-driven` schema. It keeps the proposal/specs/design/tasks workflow and requires a design for every change. Start with Small, Medium, or Large and a short reason based on coupling, risk, and verification effort. Scale design and tasks to that assessment; small changes can use a few paragraphs and focused steps.
+
+Write artifacts in plain English. Show important contract changes, execution flow, rule ownership, and the reasons for key decisions. Consider simpler options both within current requirements and with reduced scope; reducing scope still needs agreement. Keep each design coherent by folding corrections into the relevant sections. Tasks describe reviewable outcomes and their checks without repeating design details. Existing changes retain the schema recorded in their `.openspec.yaml`.
+
+After editing the custom schema or templates, run `npm exec -- openspec schema validate review-driven` as well as the documentation and OpenSpec checks. The local fork does not automatically inherit future upstream schema changes.
+
+Use the repository's [plan-review skill](../.agents/skills/plan-review/SKILL.md) with `$plan-review <change-name>` to review a plan before implementation or after material changes to requirements or design. It checks consistency, contracts, architecture, simplicity, task scope, and verification against repository evidence. It reports blockers, useful improvements, and readiness without editing the plan. Use `openspec-verify-change` to check completed implementation instead.
+
 ## Local database
 
 `npm run db:migrate` applies reviewed migrations to `DATABASE_PATH`; `npm run db:fixtures` also loads fictional development data. Fixtures are separate from schema migrations and omit audit history. Normal catalog mutations must use the validated writer; seed loaders must use shared catalog validators.

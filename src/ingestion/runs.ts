@@ -155,6 +155,7 @@ export function startIngestionRun(
   }
   const runId = randomUUID();
   try {
+    const parsed = storedInputSchema.parse(input);
     client
       .prepare(
         "INSERT INTO ingestion_runs(id,event_id,mode,status,started_at,input_json) VALUES(?,?,?,'running',?,?)",
@@ -162,9 +163,9 @@ export function startIngestionRun(
       .run(
         runId,
         eventId,
-        input.mode,
+        parsed.mode,
         new Date(started).toISOString(),
-        JSON.stringify(storedInputSchema.parse(input)),
+        JSON.stringify(parsed),
       );
   } catch {
     throw new RunPersistenceError();
