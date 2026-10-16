@@ -3,7 +3,6 @@ import {
   createFixtureIngestionWorkflow as createCatalogIngestionWorkflow,
 } from "@/test/ingestion";
 import { CatalogAttempt } from "./attempt";
-import { ToolOutputCapture } from "./tool-output-capture";
 import { createIngestionData } from "./contracts";
 import * as runsModule from "./runs";
 import { afterEach, expect, test, vi } from "vitest";
@@ -140,39 +139,6 @@ function fixture(client = testDatabase().client) {
   return { client, termIds, readPage };
 }
 
-test.each([true, false])(
-  "local %s attempt owns capture only with the exact opt-in value",
-  (dryRun) => {
-    const { client, readPage } = fixture();
-    vi.stubEnv("CATALOG_CAPTURE_TOOL_OUTPUTS", "true");
-    const config = {
-      apiKey: "fixture",
-      model: "fixture",
-      limits: DEFAULT_RESEARCH_LIMITS,
-    };
-    const enabled = new CatalogAttempt(
-      "capture-enabled",
-      { ...input, dryRun },
-      {
-        client,
-        readPage,
-        config,
-      },
-    );
-    expect(enabled.capture).toBeInstanceOf(ToolOutputCapture);
-    vi.stubEnv("CATALOG_CAPTURE_TOOL_OUTPUTS", "false");
-    const disabled = new CatalogAttempt(
-      "capture-disabled",
-      { ...input, dryRun },
-      {
-        client,
-        readPage,
-        config,
-      },
-    );
-    expect(disabled.capture).toBeUndefined();
-  },
-);
 function fakeTrace() {
   const finish = vi.fn(async () => {});
   const terminalFailed = vi.fn();

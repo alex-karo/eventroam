@@ -1,4 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
+import { readFileSync, readdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import { z } from "zod";
 import { researchCandidateSchema } from "../research/contracts";
 import { testDatabase } from "@/test/database";
@@ -180,8 +182,152 @@ function strictSchemaProblems(value: unknown, path: string = "$"): string[] {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+test("workflow captures the agent-visible initial source and tool responses", async () => {
+  const client = testDatabase().client;
+  savedSource(client);
+  vi.stubEnv("CATALOG_CAPTURE_TOOL_OUTPUTS", "true");
+  const linkedUrl = "https://example.org/linked-page";
+  const requests: Record<string, unknown>[] = [];
+  const directory = join(process.cwd(), "data", "catalog-debug");
+  const readPage = vi.fn(
+    async (
+      requestedUrl: string,
+      options: { budget: { consumePage: () => void } },
+    ) => {
+      options.budget.consumePage();
+      return {
+        ...source,
+        attemptedUrl: requestedUrl,
+        finalUrl: requestedUrl,
+        markdown:
+          requestedUrl === url ? source.markdown : "Linked page details",
+      };
+    },
+  );
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_input: unknown, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      requests.push(request);
+      const step = requests.length;
+      const message =
+        step === 1
+          ? {
+              content: null,
+              tool_calls: [
+                {
+                  id: "search-1",
+                  type: "function",
+                  function: {
+                    name: "searchWeb",
+                    arguments: JSON.stringify({ query: "Provider Fest" }),
+                  },
+                },
+              ],
+            }
+          : step === 2
+            ? {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "read-2",
+                    type: "function",
+                    function: {
+                      name: "readPage",
+                      arguments: JSON.stringify({ url: linkedUrl }),
+                    },
+                  },
+                ],
+              }
+            : {
+                content: JSON.stringify(
+                  wireCandidate(request, {
+                    ...candidate,
+                    data: { ...candidate.data, editions: [] },
+                  }),
+                ),
+              };
+      return modelResponse(message);
+    }),
+  );
+
+  try {
+    const result = await runCatalogResearch(input, {
+      client,
+      config: { ...config, limits: { ...config.limits, agentSteps: 4 } },
+      readPage,
+      searchWeb: async (query, options) => {
+        options.budget.consumeSearch();
+        return {
+          query,
+          candidates: [
+            { url: linkedUrl, title: "Linked page", highlights: [] },
+          ],
+          retrievedAt: source.retrievedAt,
+          modelCostUsd: null,
+          searchCostUsd: 0,
+          inputTokens: 0,
+          outputTokens: 0,
+        };
+      },
+    });
+    expect(result.researchStatus).toBe("success");
+    expect(requests).toHaveLength(3);
+    expect(readPage).toHaveBeenCalledTimes(2);
+    if (!result.runId) {
+      throw new Error("Expected a durable ingestion run");
+    }
+    const runDirectory = join(directory, result.runId);
+    const files = readdirSync(runDirectory);
+    expect(files.filter((file) => file.endsWith(".json"))).toEqual([
+      "00001-initial-source.json",
+      "00002-searchWeb.json",
+      "00003-readPage.json",
+    ]);
+    const captured = files
+      .filter((file) => file.endsWith(".json"))
+      .map(
+        (file) =>
+          JSON.parse(readFileSync(join(runDirectory, file), "utf8")) as {
+            runId: string;
+            origin: string;
+            result: Record<string, unknown>;
+          },
+      );
+    expect(captured.every((record) => record.runId === result.runId)).toBe(
+      true,
+    );
+    expect(captured.map((record) => record.origin)).toEqual([
+      "initial-source",
+      "searchWeb",
+      "readPage",
+    ]);
+    expect(captured[0].result.markdown).toBe(source.markdown);
+    expect(captured[1].result).toMatchObject({
+      query: "Provider Fest",
+      remaining: { searches: 2 },
+    });
+    expect(captured[2].result).toMatchObject({
+      markdown: "Linked page details",
+      remaining: { searches: 2 },
+    });
+    expect(readFileSync(join(runDirectory, "00003-readPage.md"), "utf8")).toBe(
+      "Linked page details",
+    );
+    expect(JSON.stringify(result)).not.toContain("Linked page details");
+  } finally {
+    const ids = client.prepare("SELECT id FROM ingestion_runs").all() as {
+      id: string;
+    }[];
+    for (const { id } of ids) {
+      rmSync(join(directory, id), { recursive: true, force: true });
+    }
+  }
 });
 
 test("actual Mastra request sends a compatible bounded response schema", async () => {
