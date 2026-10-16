@@ -67,17 +67,3 @@ The database SHALL retain primary keys, foreign keys, uniqueness, and NOT NULL c
 
 - **WHEN** direct SQL updates or deletes a catalog-change entry or public URL alias
 - **THEN** the database rejects the mutation
-
-### Requirement: Fresh catalog initialization is repeatable
-
-The supported migration command SHALL initialize a fresh catalog with the current tables, defaults, relational constraints, indexes, and immutable-history protections. Running it again on that catalog SHALL preserve the schema and stored data without repeating the baseline.
-
-#### Scenario: Fresh database is initialized
-
-- **WHEN** the migration command opens an empty database
-- **THEN** the current catalog schema is available with its relational constraints and immutable-history protections
-
-#### Scenario: Initialized database is migrated again
-
-- **WHEN** the migration command reopens a database initialized by the current baseline
-- **THEN** it leaves stored data and migration history unchanged

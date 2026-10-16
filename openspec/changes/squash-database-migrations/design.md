@@ -14,7 +14,7 @@ Generate a fresh `0000` migration and snapshot from `src/db/schema.ts`, then add
 
 ## Key decisions
 
-The baseline comes from the current Drizzle schema so future generated migrations compare against the same snapshot. The four immutability triggers remain reviewed SQL because the TypeScript schema does not express them. No compatibility bridge or old-database journal rewrite is added, consistent with the owner's decision to drop old-schema support.
+The baseline comes from the current Drizzle schema so future generated migrations compare against the same snapshot. The four immutability triggers remain reviewed SQL because the TypeScript schema does not express them. Fresh initialization and rerun checks belong in tests and development guidance rather than a durable catalog requirement. No compatibility bridge or old-database journal rewrite is added, consistent with the owner's decision to drop old-schema support.
 
 ## Risks and validation
 

@@ -15,7 +15,7 @@ The catalog has nine migrations for intermediate development schemas. Before pub
 
 ### Modified Capabilities
 
-- `operations/storage-integrity`: Replace validation-boundary upgrade guarantees with fresh baseline initialization and repeat-migration guarantees.
+- `operations/storage-integrity`: Remove validation-boundary upgrade guarantees that no longer describe supported behavior.
 - `catalog/records`: Remove the Edition rename and size-field upgrade guarantees, which no longer describe supported migrations.
 
 ## Impact

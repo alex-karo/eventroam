@@ -7,7 +7,7 @@
 
 ## 2. Current contracts and guidance
 
-- [x] 2.1 Remove obsolete upgrade requirements from the owning main specs and document the supported fresh baseline; verify `npm run openspec:validate` passes.
+- [x] 2.1 Remove obsolete upgrade requirements from the owning main specs; verify `npm run openspec:validate` passes.
 - [x] 2.2 Replace obsolete migration-specific development guidance with reset and backup instructions; verify `npm run docs:check` passes.
 
 ## 3. Integration
