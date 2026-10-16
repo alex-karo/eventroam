@@ -24,12 +24,12 @@ Website:
 
 ## Active changes
 
-- [Narrow current refresh](../openspec/changes/narrow-current-refresh/proposal.md) — implemented and verified; current trusts the full baseline, updates one Edition and stops on identity contradictions. Research receives only its selected assignment. Main specs synchronized; awaiting archive.
 - [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
 - [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
 
 ## Archived changes
 
+- [Narrow current refresh](../openspec/changes/archive/2026-10-16-narrow-current-refresh/proposal.md) — current trusts the full baseline, updates one Edition and stops on identity contradictions; research receives only its selected assignment.
 - [Focused source search](../openspec/changes/archive/2026-10-15-direct-exa-discovery/proposal.md) — clearer tools, bounded highlights and exceptional-use conditions with the existing OpenRouter Exa mode.
 
 - [Ingestion editor](../openspec/changes/archive/2026-10-15-ingestion-editor/proposal.md) — research/editor separation with explicit field actions, simpler write preparation and focused quality evaluation.
