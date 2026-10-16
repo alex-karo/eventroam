@@ -136,23 +136,6 @@ Active catalog contracts SHALL use Edition terminology, including editionId/edit
 - **WHEN** catalog internals are renamed
 - **THEN** public editions with id/key/year, agent editions with key/year, questions/errors with editionKey, and actual URLs retain their existing shapes and values
 
-### Requirement: Edition storage migration preserves catalog and history
-The SQLite migration SHALL rename occurrences/occurrence_terms to editions/edition_terms and occurrence_id/key/year columns to edition_id/key/year. It SHALL preserve row values, relationships, validation/ownership rules, versions, publication, immutable audits, receipts and private run history. Historical serialized payloads SHALL remain unchanged.
-
-#### Scenario: A populated legacy catalog is migrated
-- **WHEN** migration runs on a database containing Events, Occurrences, terms, links, aliases, catalog changes, operation receipts and ingestion runs
-- **THEN** the corresponding Edition records retain every ID/key/year and fact, related rows reference the same IDs, and all foreign keys, unique rules and audit protections remain effective
-- **AND** audit JSON, receipt keys/hashes/results and historical run JSON remain byte-for-byte unchanged
-
-#### Scenario: A fresh database or an already migrated database is opened
-- **WHEN** the supported migration command initializes a fresh database or reruns after the Edition migration
-- **THEN** the resulting schema supports the Edition contracts without losing data or repeating applied migrations
-
-#### Scenario: A renamed payload reuses an old operation key
-- **WHEN** a new Edition operation reuses a stored key whose receipt hash belongs to the old serialized payload
-- **THEN** the existing different-payload check rejects it without duplicate writes or rewriting the receipt
-- **AND** new identical Edition payload retries still return their saved result
-
 ### Requirement: Edition size represents approximate participant scale
 
 An Edition SHALL expose optional `sizeEstimate`: a positive integer estimate of festival size in people, or null when unknown. It SHALL replace `capacityEstimate` in active catalog, research, and public contracts without aliases. Size SHALL describe participant scale rather than maximum occupancy or exact attendance, and SHALL remain optional for publication.
@@ -160,11 +143,3 @@ An Edition SHALL expose optional `sizeEstimate`: a positive integer estimate of 
 #### Scenario: Size validation
 - **WHEN** an Edition write supplies a size
 - **THEN** positive integers and null are accepted; zero, negatives, fractions, and the obsolete capacityEstimate field are rejected
-
-### Requirement: Size migration preserves development catalog history
-
-The size-field migration SHALL preserve numeric estimates, IDs, relationships, versions, publication, and immutable audit/receipt/run payloads. Migrated estimates SHALL remain approximate development data subject to rechecking under the new semantics.
-
-#### Scenario: Catalog migration
-- **WHEN** the supported migration initializes, upgrades, or reopens a database
-- **THEN** the size contract is available without losing stored facts, rewriting historical payloads, or repeating applied migrations

@@ -68,16 +68,16 @@ The database SHALL retain primary keys, foreign keys, uniqueness, and NOT NULL c
 - **WHEN** direct SQL updates or deletes a catalog-change entry or public URL alias
 - **THEN** the database rejects the mutation
 
-### Requirement: Validation-boundary migrations preserve stored data
+### Requirement: Fresh catalog initialization is repeatable
 
-Changing the validation boundary SHALL preserve stored identities, facts, relationships, versions, indexes, defaults, retained constraints, and immutable-history protections. Serialized audit, receipt, and ingestion payloads SHALL remain unchanged. Fresh initialization, populated upgrade, and repeated migration SHALL produce the intended boundary without data loss.
+The supported migration command SHALL initialize a fresh catalog with the current tables, defaults, relational constraints, indexes, and immutable-history protections. Running it again on that catalog SHALL preserve the schema and stored data without repeating the baseline.
 
-#### Scenario: Populated database is upgraded
+#### Scenario: Fresh database is initialized
 
-- **WHEN** the supported migrator removes value checks and validation triggers
-- **THEN** existing records and serialized history are preserved and retained integrity protections remain effective
+- **WHEN** the migration command opens an empty database
+- **THEN** the current catalog schema is available with its relational constraints and immutable-history protections
 
-#### Scenario: Migration runs again
+#### Scenario: Initialized database is migrated again
 
-- **WHEN** the supported migrator opens an already upgraded database
-- **THEN** it does not repeat the migration or alter stored data
+- **WHEN** the migration command reopens a database initialized by the current baseline
+- **THEN** it leaves stored data and migration history unchanged

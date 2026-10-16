@@ -1,7 +1,4 @@
-DROP TRIGGER taxonomy_parent_cycle_update;--> statement-breakpoint
-DROP TRIGGER url_aliases_edition_owner_insert;--> statement-breakpoint
-PRAGMA foreign_keys=OFF;--> statement-breakpoint
-CREATE TABLE `__new_catalog_changes` (
+CREATE TABLE `catalog_changes` (
 	`id` text PRIMARY KEY NOT NULL,
 	`event_id` text,
 	`edition_id` text,
@@ -16,12 +13,17 @@ CREATE TABLE `__new_catalog_changes` (
 	FOREIGN KEY (`edition_id`) REFERENCES `editions`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-INSERT INTO `__new_catalog_changes`("id", "event_id", "edition_id", "subject_version", "changed_fields", "operation_key", "actor", "initiated_by", "changed_at", "note") SELECT "id", "event_id", "edition_id", "subject_version", "changed_fields", "operation_key", "actor", "initiated_by", "changed_at", "note" FROM `catalog_changes`;--> statement-breakpoint
-DROP TABLE `catalog_changes`;--> statement-breakpoint
-ALTER TABLE `__new_catalog_changes` RENAME TO `catalog_changes`;--> statement-breakpoint
 CREATE UNIQUE INDEX `catalog_changes_event_operation_uq` ON `catalog_changes` (`operation_key`,`event_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `catalog_changes_edition_operation_uq` ON `catalog_changes` (`operation_key`,`edition_id`);--> statement-breakpoint
-CREATE TABLE `__new_editions` (
+CREATE TABLE `edition_terms` (
+	`edition_id` text NOT NULL,
+	`term_id` text NOT NULL,
+	PRIMARY KEY(`edition_id`, `term_id`),
+	FOREIGN KEY (`edition_id`) REFERENCES `editions`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`term_id`) REFERENCES `taxonomy_terms`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `editions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`event_id` text NOT NULL,
 	`edition_key` text NOT NULL,
@@ -55,15 +57,12 @@ CREATE TABLE `__new_editions` (
 	FOREIGN KEY (`event_id`) REFERENCES `events`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-INSERT INTO `__new_editions`("id", "event_id", "edition_key", "display_name", "edition_year", "starts_on", "ends_on", "date_state", "schedule_status", "size_estimate", "publication_state", "venue_name", "venue_address", "locality", "administrative_area", "country_code", "latitude", "longitude", "coordinate_precision", "time_zone", "price_kind", "price_currency", "price_min_minor", "price_max_minor", "price_coverage", "price_qualification", "price_details", "version", "created_at", "updated_at") SELECT "id", "event_id", "edition_key", "display_name", "edition_year", "starts_on", "ends_on", "date_state", "schedule_status", "size_estimate", "publication_state", "venue_name", "venue_address", "locality", "administrative_area", "country_code", "latitude", "longitude", "coordinate_precision", "time_zone", "price_kind", "price_currency", "price_min_minor", "price_max_minor", "price_coverage", "price_qualification", "price_details", "version", "created_at", "updated_at" FROM `editions`;--> statement-breakpoint
-DROP TABLE `editions`;--> statement-breakpoint
-ALTER TABLE `__new_editions` RENAME TO `editions`;--> statement-breakpoint
 CREATE UNIQUE INDEX `editions_event_key_uq` ON `editions` (`event_id`,`edition_key`);--> statement-breakpoint
 CREATE INDEX `editions_event_idx` ON `editions` (`event_id`);--> statement-breakpoint
 CREATE INDEX `editions_date_idx` ON `editions` (`starts_on`,`ends_on`);--> statement-breakpoint
 CREATE INDEX `editions_country_idx` ON `editions` (`country_code`);--> statement-breakpoint
 CREATE INDEX `editions_coordinates_idx` ON `editions` (`latitude`,`longitude`);--> statement-breakpoint
-CREATE TABLE `__new_events` (
+CREATE TABLE `events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`slug` text NOT NULL,
 	`canonical_name` text NOT NULL,
@@ -76,11 +75,8 @@ CREATE TABLE `__new_events` (
 	`updated_at` text NOT NULL
 );
 --> statement-breakpoint
-INSERT INTO `__new_events`("id", "slug", "canonical_name", "aliases", "summary", "home_scope", "publication_state", "version", "created_at", "updated_at") SELECT "id", "slug", "canonical_name", "aliases", "summary", "home_scope", "publication_state", "version", "created_at", "updated_at" FROM `events`;--> statement-breakpoint
-DROP TABLE `events`;--> statement-breakpoint
-ALTER TABLE `__new_events` RENAME TO `events`;--> statement-breakpoint
 CREATE UNIQUE INDEX `events_slug_uq` ON `events` (`slug`);--> statement-breakpoint
-CREATE TABLE `__new_external_links` (
+CREATE TABLE `external_links` (
 	`id` text PRIMARY KEY NOT NULL,
 	`event_id` text,
 	`edition_id` text,
@@ -94,12 +90,9 @@ CREATE TABLE `__new_external_links` (
 	FOREIGN KEY (`edition_id`) REFERENCES `editions`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-INSERT INTO `__new_external_links`("id", "event_id", "edition_id", "kind", "url", "label", "official", "created_at", "updated_at") SELECT "id", "event_id", "edition_id", "kind", "url", "label", "official", "created_at", "updated_at" FROM `external_links`;--> statement-breakpoint
-DROP TABLE `external_links`;--> statement-breakpoint
-ALTER TABLE `__new_external_links` RENAME TO `external_links`;--> statement-breakpoint
 CREATE UNIQUE INDEX `external_links_event_uq` ON `external_links` (`event_id`,`kind`,`url`);--> statement-breakpoint
 CREATE UNIQUE INDEX `external_links_edition_uq` ON `external_links` (`edition_id`,`kind`,`url`);--> statement-breakpoint
-CREATE TABLE `__new_ingestion_runs` (
+CREATE TABLE `ingestion_runs` (
 	`id` text PRIMARY KEY NOT NULL,
 	`event_id` text,
 	`mode` text NOT NULL,
@@ -116,10 +109,14 @@ CREATE TABLE `__new_ingestion_runs` (
 	`usage_complete` integer
 );
 --> statement-breakpoint
-INSERT INTO `__new_ingestion_runs`("id", "event_id", "mode", "status", "started_at", "finished_at", "input_json", "report_json", "input_tokens", "output_tokens", "model_cost_usd", "search_cost_estimate_usd", "duration_ms", "usage_complete") SELECT "id", "event_id", "mode", "status", "started_at", "finished_at", "input_json", "report_json", "input_tokens", "output_tokens", "model_cost_usd", "search_cost_estimate_usd", "duration_ms", "usage_complete" FROM `ingestion_runs`;--> statement-breakpoint
-DROP TABLE `ingestion_runs`;--> statement-breakpoint
-ALTER TABLE `__new_ingestion_runs` RENAME TO `ingestion_runs`;--> statement-breakpoint
-CREATE TABLE `__new_taxonomy_terms` (
+CREATE TABLE `operation_receipts` (
+	`operation_key` text PRIMARY KEY NOT NULL,
+	`payload_hash` text NOT NULL,
+	`result` text NOT NULL,
+	`applied_at` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `taxonomy_terms` (
 	`id` text PRIMARY KEY NOT NULL,
 	`facet` text NOT NULL,
 	`slug` text NOT NULL,
@@ -128,13 +125,22 @@ CREATE TABLE `__new_taxonomy_terms` (
 	FOREIGN KEY (`parent_id`) REFERENCES `taxonomy_terms`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-INSERT INTO `__new_taxonomy_terms`("id", "facet", "slug", "name", "parent_id") SELECT "id", "facet", "slug", "name", "parent_id" FROM `taxonomy_terms`;--> statement-breakpoint
-DROP TABLE `taxonomy_terms`;--> statement-breakpoint
-ALTER TABLE `__new_taxonomy_terms` RENAME TO `taxonomy_terms`;--> statement-breakpoint
-CREATE UNIQUE INDEX `taxonomy_terms_facet_slug_uq` ON `taxonomy_terms` (`facet`,`slug`);
---> statement-breakpoint
-CREATE TRIGGER catalog_changes_immutable_update BEFORE UPDATE ON catalog_changes BEGIN SELECT RAISE(ABORT, 'catalog_changes are immutable'); END;
+CREATE UNIQUE INDEX `taxonomy_terms_facet_slug_uq` ON `taxonomy_terms` (`facet`,`slug`);--> statement-breakpoint
+CREATE TABLE `url_aliases` (
+	`scope` text NOT NULL,
+	`path` text NOT NULL,
+	`event_id` text NOT NULL,
+	`edition_id` text,
+	`created_at` text NOT NULL,
+	PRIMARY KEY(`scope`, `path`),
+	FOREIGN KEY (`event_id`) REFERENCES `events`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`edition_id`) REFERENCES `editions`(`id`) ON UPDATE no action ON DELETE no action
+);
 --> statement-breakpoint
 CREATE TRIGGER catalog_changes_immutable_delete BEFORE DELETE ON catalog_changes BEGIN SELECT RAISE(ABORT, 'catalog_changes are immutable'); END;
 --> statement-breakpoint
-PRAGMA foreign_keys=ON;
+CREATE TRIGGER catalog_changes_immutable_update BEFORE UPDATE ON catalog_changes BEGIN SELECT RAISE(ABORT, 'catalog_changes are immutable'); END;
+--> statement-breakpoint
+CREATE TRIGGER url_aliases_immutable_delete BEFORE DELETE ON url_aliases BEGIN SELECT RAISE(ABORT, 'public URL aliases are immutable'); END;
+--> statement-breakpoint
+CREATE TRIGGER url_aliases_immutable_update BEFORE UPDATE ON url_aliases BEGIN SELECT RAISE(ABORT, 'public URL aliases are immutable'); END;
