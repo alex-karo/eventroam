@@ -29,7 +29,8 @@ import type { ReadPageOptions } from "../tools/read-page/read";
 import type { SearchWebOptions } from "../tools/search-web/search";
 import { loadEvalSuite, type EvalCase, type EvalSuite } from "./fixtures";
 import { sourceLinks } from "./source-links";
-import { createEvalScorers, scoreCase } from "./score";
+import { scoreCase, type CaseScore } from "./score";
+import { createEvalScorers } from "./scorers";
 
 import type { EvalToolCall } from "./tool-use";
 
@@ -232,6 +233,12 @@ export type EvalOptions = {
   suite?: EvalSuite;
 };
 
+type EvalCaseOutput = {
+  result: CatalogResearchResult;
+  toolCalls: EvalToolCall[];
+  score: CaseScore;
+};
+
 export async function runCatalogEvals(options: EvalOptions = {}) {
   const suite = options.suite ?? loadEvalSuite();
   const selected = suite.cases.filter((item) =>
@@ -266,12 +273,9 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     ...process.env,
     ...(options.model ? { OPENROUTER_MODEL: options.model } : {}),
   });
-  const toolCalls = new Map<string, EvalToolCall[]>();
-  const callsFor = (input: { caseId: string; repetition?: number }) =>
-    toolCalls.get(`${input.caseId}/${input.repetition ?? 1}`) ?? [];
-  const scorer = createEvalScorers(selected, callsFor);
+  const scorer = createEvalScorers();
   const byId = new Map(selected.map((item) => [item.id, item]));
-  const outputs = new Map<string, CatalogResearchResult>();
+  const outputs = new Map<string, EvalCaseOutput>();
   const inputSchema = z.object({
     caseId: z.string(),
     repetition: z.number().int().positive(),
@@ -279,14 +283,13 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   const step = createStep({
     id: "evaluate-catalog-case",
     inputSchema,
-    outputSchema: z.custom<CatalogResearchResult>(),
+    outputSchema: z.custom<EvalCaseOutput>(),
     execute: async ({ inputData }) => {
       const item = byId.get(inputData.caseId);
       if (!item) {
         throw new Error(`Unknown eval case: ${inputData.caseId}`);
       }
       const calls: EvalToolCall[] = [];
-      toolCalls.set(`${inputData.caseId}/${inputData.repetition}`, calls);
       const connection = seedDatabase(suite, item);
       try {
         let result: CatalogResearchResult;
@@ -361,8 +364,13 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
             durationMs: Date.now() - started,
           };
         }
-        outputs.set(`${inputData.caseId}/${inputData.repetition}`, result);
-        return result;
+        const output = {
+          result,
+          toolCalls: calls,
+          score: scoreCase(item, result, calls),
+        };
+        outputs.set(`${inputData.caseId}/${inputData.repetition}`, output);
+        return output;
       } finally {
         connection.client.close();
       }
@@ -371,7 +379,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   const workflow = createWorkflow({
     id: "catalog-eval",
     inputSchema,
-    outputSchema: z.custom<CatalogResearchResult>(),
+    outputSchema: z.custom<EvalCaseOutput>(),
   })
     .then(step)
     .commit();
@@ -400,12 +408,13 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   });
   const results = data.map(({ input }) => {
     const item = byId.get(input.caseId)!;
-    const result = outputs.get(`${input.caseId}/${input.repetition}`);
-    if (!result) {
+    const output = outputs.get(`${input.caseId}/${input.repetition}`);
+    if (!output) {
       throw new Error(
         `Eval workflow did not return ${input.caseId}/${input.repetition}`,
       );
     }
+    const { result, score, toolCalls } = output;
     return {
       caseId: input.caseId,
       repetition: input.repetition,
@@ -422,8 +431,8 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       runId: result.runId,
       outcome: result.outcome,
       researchStatus: result.researchStatus,
-      score: scoreCase(item, result, callsFor(input)),
-      toolCalls: callsFor(input),
+      score,
+      toolCalls,
       usage: result.usage,
       durationMs: result.durationMs,
       modelVersion: result.modelVersion,

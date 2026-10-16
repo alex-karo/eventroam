@@ -24,7 +24,10 @@ afterEach(() => {
 import { loadEvalSuite, evalCaseSchema, evalSuiteSchema } from "./fixtures";
 import { sourceLinks } from "./source-links";
 import { fixedSources, runCatalogEvals, seedDatabase } from "./run";
-import { assertionMatches, createEvalScorers, scoreCase } from "./score";
+import { assertionMatches } from "./assertions";
+import { createEvalScorers } from "./scorers";
+import { scoreCase } from "./score";
+import * as scoreModule from "./score";
 
 const suite = loadEvalSuite();
 const byId = new Map(suite.cases.map((item) => [item.id, item]));
@@ -260,6 +263,31 @@ test("failed-source eval requires null data, source diagnosis, and no writes", (
     passed: true,
   });
   expect(Number.isNaN(scoreCase(blocked, expected).correctness)).toBe(false);
+  expect(scoreCase(blocked, expected).diagnostics).toEqual({
+    correctness: [],
+    completeness: [],
+    research: [],
+    toolUse: [],
+  });
+  expect(
+    scoreCase(blocked, { ...expected, errors: [] }).diagnostics.correctness,
+  ).toEqual([
+    "Expected a source-failure diagnosis for an unavailable inspected URL",
+  ]);
+  expect(
+    scoreCase(blocked, {
+      ...expected,
+      changes: [
+        {
+          subject: blocked.initial.event.id,
+          field: "summary",
+          oldValue: null,
+          newValue: "changed",
+          explanations: [],
+        },
+      ],
+    }).diagnostics.correctness,
+  ).toEqual(["Expected no catalog changes"]);
   for (const invalid of [
     ...(["workflow_failed", "run_persistence_failed"] as const).map((code) => ({
       ...expected,
@@ -354,7 +382,12 @@ test("failed-source eval requires null data, source diagnosis, and no writes", (
       sourceSummaries: [{ url: sourceUrl, information: "Unsupported claim" }],
     },
   ]) {
-    expect(scoreCase(blocked, invalid).passed).toBe(false);
+    const score = scoreCase(blocked, invalid);
+    expect(score.passed).toBe(false);
+    expect(score.diagnostics.correctness.length).toBeGreaterThan(0);
+    expect(score.diagnostics.completeness).toEqual(
+      score.diagnostics.correctness,
+    );
   }
 });
 
@@ -649,24 +682,28 @@ test("Mastra runEvals scores the final workflow output without model calls", asy
   const step = createStep({
     id: "fixture-output",
     inputSchema,
-    outputSchema: z.custom<CatalogResearchResult>(),
-    execute: async () =>
-      result([
-        {
-          subject: tomorrowland.initial.event.id,
-          field: "links",
-          oldValue: [],
-          explanations: [],
-          newValue: [
-            { kind: "official_site", url: "https://www.tomorrowland.com/" },
-          ],
-        },
-      ]),
+    outputSchema: z.custom<{ score: ReturnType<typeof scoreCase> }>(),
+    execute: async () => ({
+      score: scoreCase(
+        tomorrowland,
+        result([
+          {
+            subject: tomorrowland.initial.event.id,
+            field: "links",
+            oldValue: [],
+            explanations: [],
+            newValue: [
+              { kind: "official_site", url: "https://www.tomorrowland.com/" },
+            ],
+          },
+        ]),
+      ),
+    }),
   });
   const workflow = createWorkflow({
     id: "eval-smoke",
     inputSchema,
-    outputSchema: z.custom<CatalogResearchResult>(),
+    outputSchema: z.custom<{ score: ReturnType<typeof scoreCase> }>(),
   })
     .then(step)
     .commit();
@@ -675,7 +712,7 @@ test("Mastra runEvals scores the final workflow output without model calls", asy
     workflows: { evalSmoke: workflow },
     logger: false,
   });
-  const scorers = createEvalScorers([tomorrowland]);
+  const scorers = createEvalScorers();
   const evaluation = await runEvals({
     target: mastra.getWorkflow("evalSmoke"),
     data: [{ input: { caseId: tomorrowland.id } }],
@@ -1284,52 +1321,120 @@ test("size evidence eval rejects unsupported replacements and clearing", () => {
   ).toBe(false);
 });
 
-test("eval runner retains each call sequence and fails needless search despite correct findings", async () => {
-  vi.stubEnv("OPENROUTER_API_KEY", "fixture-key");
-  const item = byId.get("search-no-announcement")!;
-  let invocation = 0;
-  vi.spyOn(workflowModule, "runCatalogResearch").mockImplementation(
-    async (_input, deps) => {
-      const budget = createResearchBudget();
-      await deps!.readPage!(item.sources[0].attemptedUrl, { budget });
-      if (++invocation === 2) {
-        await deps!.searchWeb!("Harbor Echo next announcement", {
-          budget,
-          config: deps!.config!,
-        });
-      }
-      return {
-        ...result(),
-        modelResponse: {
-          text: null,
-          object: {
-            status: "success",
-            data: {
-              eventName: "Harbor Echo",
-              links: { socials: {} },
-              sources: [],
-              editions: [{ key: "2026", links: {} }],
+test.each(["toolUse", "research"] as const)(
+  "eval consumers share one score per repetition for a %s-only failure",
+  async (dimension) => {
+    vi.stubEnv("OPENROUTER_API_KEY", "fixture-key");
+    const item = byId.get("search-no-announcement")!;
+    const scoring = vi.spyOn(scoreModule, "scoreCase");
+    let invocation = 0;
+    vi.spyOn(workflowModule, "runCatalogResearch").mockImplementation(
+      async (_input, deps) => {
+        const fail = ++invocation === 2;
+        const budget = createResearchBudget();
+        await deps!.readPage!(item.sources[0].attemptedUrl, { budget });
+        if (fail && dimension === "toolUse") {
+          await deps!.searchWeb!("Harbor Echo next announcement", {
+            budget,
+            config: deps!.config!,
+          });
+        }
+        return {
+          ...result(),
+          modelResponse: {
+            text: null,
+            object: {
+              status: "success",
+              data: {
+                eventName: "Harbor Echo",
+                links: { socials: {} },
+                sources: [],
+                editions:
+                  fail && dimension === "research"
+                    ? []
+                    : [{ key: "2026", links: {} }],
+              },
+              errors: [],
+              unresolved: [],
             },
-            errors: [],
-            unresolved: [],
+          },
+        };
+      },
+    );
+    const directory = mkdtempSync(
+      join(tmpdir(), "eventroam-eval-diagnostics-"),
+    );
+    const reportPath = join(directory, "report.json");
+    const reports: Awaited<ReturnType<typeof runCatalogEvals>>[] = [];
+    const stdout = vi.fn();
+    try {
+      const code = await executeCatalogEvalCommand(
+        ["--case", item.id, "--repeat", "2", "--report", reportPath],
+        {
+          stdout,
+          runEvals: async (options) => {
+            const report = await runCatalogEvals(options);
+            reports.push(report);
+            return report;
           },
         },
-      };
-    },
-  );
-  const report = await runCatalogEvals({ caseIds: [item.id], repeat: 2 });
-  expect(report.results.map((entry) => entry.score.passed)).toEqual([
-    true,
-    false,
-  ]);
-  expect(report.results.map((entry) => entry.score.toolUse?.score)).toEqual([
-    1, 0,
-  ]);
-  expect(
-    report.results.map((entry) => entry.toolCalls.map((call) => call.tool)),
-  ).toEqual([["readPage"], ["readPage", "searchWeb"]]);
-  expect(report.mastra.scores["source-search-policy"]).toBe(0.5);
-});
+      );
+      expect(code).toBe(1);
+      const report = reports[0];
+      expect(scoring).toHaveBeenCalledTimes(2);
+      expect(report.results.map((entry) => entry.score.passed)).toEqual([
+        true,
+        false,
+      ]);
+      expect(
+        report.results.every(
+          (entry) =>
+            entry.score.correctness === 1 && entry.score.completeness === 1,
+        ),
+      ).toBe(true);
+      const diagnostic =
+        dimension === "toolUse"
+          ? "searches <= 0"
+          : 'returned Edition keys=["2026"]';
+      expect(
+        report.results.map((entry) => entry.score.diagnostics[dimension]),
+      ).toEqual([[], [diagnostic]]);
+      expect(
+        report.results.map((entry) => entry.toolCalls.map((call) => call.tool)),
+      ).toEqual([
+        ["readPage"],
+        dimension === "toolUse" ? ["readPage", "searchWeb"] : ["readPage"],
+      ]);
+      const stored = JSON.parse(readFileSync(reportPath, "utf8"));
+      expect(
+        stored.results.map((entry: { score: unknown }) => entry.score),
+      ).toEqual(report.results.map((entry) => entry.score));
+      const text = stdout.mock.calls.flat().join("");
+      expect(text).toContain("1/2 cases passed");
+      expect(text).toContain(`  ${dimension}: ${diagnostic}\n`);
+      expect(text.indexOf(diagnostic)).toBeGreaterThan(
+        text.indexOf(`${item.id} #2:`),
+      );
+      const adapters = createEvalScorers();
+      const scored = await adapters[dimension].run({
+        input: { caseId: item.id, repetition: 2 },
+        output: report.results[1],
+      });
+      expect(scored.reason).toBe(diagnostic);
+      expect(scored.score).toBe(report.results[1].score[dimension]?.score);
+      expect(
+        report.mastra.scores[
+          dimension === "toolUse"
+            ? "source-search-policy"
+            : "research-completeness"
+        ],
+      ).toBe(dimension === "toolUse" ? 0.5 : 0.75);
+      expect(scoring).toHaveBeenCalledTimes(2);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+);
 
 test.each([
   ["2027-01-23", "2027-01-30", true],
@@ -1607,8 +1712,14 @@ test("current identity-conflict eval requires a diagnosed stop without recovery 
     },
     { ...failed, modelResponse: null },
   ]) {
-    expect(scoreCase(item, invalid).passed).toBe(false);
+    const score = scoreCase(item, invalid);
+    expect(score.passed).toBe(false);
+    expect(score.diagnostics.correctness.length).toBeGreaterThan(0);
   }
+  expect(
+    scoreCase(item, { ...failed, usage: { ...failed.usage, searches: 1 } })
+      .diagnostics.correctness,
+  ).toEqual(["Expected identity conflict to stop without search"]);
 });
 
 test("Tomorrowland permits partial preservation when its destination is unavailable", () => {
@@ -1646,4 +1757,44 @@ test("Tomorrowland permits partial preservation when its destination is unavaila
   expect(
     scoreCase(tomorrowland, { ...partial, outcome: "failed" }).passed,
   ).toBe(false);
+});
+
+test("mutation matcher preserves partial object matching and null exclusions", () => {
+  const assertion = {
+    owner: "event" as const,
+    field: "summary",
+    notValue: "saved",
+  };
+  const changed = (newValue: unknown) =>
+    result([
+      {
+        subject: tomorrowland.initial.event.id,
+        field: "summary",
+        oldValue: "saved",
+        newValue,
+        explanations: [],
+      },
+    ]);
+  expect(assertionMatches(tomorrowland, changed(null), assertion)).toBe(false);
+  expect(assertionMatches(tomorrowland, changed("wrong"), assertion)).toBe(
+    true,
+  );
+  expect(
+    assertionMatches(tomorrowland, changed(null), {
+      owner: "event",
+      field: "summary",
+      value: null,
+    }),
+  ).toBe(true);
+  expect(
+    assertionMatches(
+      tomorrowland,
+      changed({ nested: { value: 1, extra: 2 } }),
+      {
+        owner: "event",
+        field: "summary",
+        value: { nested: { value: 1 } },
+      },
+    ),
+  ).toBe(true);
 });

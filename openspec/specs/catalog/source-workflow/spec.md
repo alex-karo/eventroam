@@ -757,6 +757,23 @@ Eval output SHALL preserve runId and available report data when finalization fai
 - **THEN** newly generated reports use v5 and old stored report JSON remains unchanged
 - **AND** historical report reading/scoring remains unsupported; no compatibility adapters or conversion are introduced
 
+### Requirement: Eval diagnostics explain every failed dimension
+Eval reports SHALL include failed-check explanations grouped by correctness, completeness, research, and tool use. CLI output and scorer explanations SHALL use those same diagnostics. Expected research failures SHALL identify unmet acceptance conditions. Diagnostic presentation SHALL preserve numeric scores, pass/fail decisions, and exit status.
+
+#### Scenario: Perfect mutation scores do not hide another failure
+- **WHEN** a case has perfect correctness and completeness but fails a research or tool-use check
+- **THEN** its report and CLI identify the failed dimension and check
+- **AND** its corresponding scorer gives the same failed-check explanation
+
+#### Scenario: An expected failure lacks required evidence
+- **WHEN** failed research does not satisfy an expected-failure condition
+- **THEN** diagnostics identify that condition, such as missing source diagnosis or unexpected writes
+- **AND** a host failure still invalidates acceptance
+
+#### Scenario: Repetitions remain independent
+- **WHEN** repetitions of the same case have different findings or tool calls
+- **THEN** each repetition retains its own scores and diagnostics across scorer output, JSON, and CLI
+
 ### Requirement: Run records remain private bounded reports
 Run input SHALL include only normalized operation settings and safe configuration metadata. Stored final reports SHALL retain the existing private report contract, including final model output, without storing credentials, environment dumps, prompts, full source pages, provider transport payloads, headers, or raw exception messages. Run records SHALL NOT be exposed through public website reads.
 
