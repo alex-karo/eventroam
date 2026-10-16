@@ -10,6 +10,7 @@ export function createSearchWebTool({
   modelContext,
   tracing,
   abortSignal,
+  capture,
 }: ResearchToolContext) {
   const { searchWeb: search } = sources;
   const log = tracing?.log;
@@ -20,6 +21,7 @@ export function createSearchWebTool({
     inputSchema: searchWebInputSchema,
     outputSchema: searchWebOutputSchema,
     execute: async ({ query }, toolContext) => {
+      const sequence = capture?.reserve();
       const span = toolContext?.tracingContext?.currentSpan;
       const context = {
         ...modelContext(),
@@ -63,7 +65,11 @@ export function createSearchWebTool({
           durationMs: Date.now() - started,
           remaining: budget.remaining(),
         });
-        return { ...result, remaining: budget.remaining() };
+        const response = { ...result, remaining: budget.remaining() };
+        if (sequence !== undefined) {
+          capture?.save(sequence, "searchWeb", response, context.toolCallId);
+        }
+        return response;
       } catch (error) {
         toolLog?.warn("Tool call failed", {
           tool: "searchWeb",

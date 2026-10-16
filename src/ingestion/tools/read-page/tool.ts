@@ -10,6 +10,7 @@ export function createReadPageTool({
   modelContext,
   tracing,
   abortSignal,
+  capture,
 }: ResearchToolContext) {
   const { readPage: read } = sources;
   const log = tracing?.log;
@@ -20,6 +21,7 @@ export function createReadPageTool({
     inputSchema: readPageInputSchema,
     outputSchema: readPageOutputSchema,
     execute: async ({ url }, toolContext) => {
+      const sequence = capture?.reserve();
       const span = toolContext?.tracingContext?.currentSpan;
       const context = {
         ...modelContext(),
@@ -77,7 +79,11 @@ export function createReadPageTool({
             remaining: budget.remaining(),
           },
         );
-        return { ...bounded, remaining: budget.remaining() };
+        const response = { ...bounded, remaining: budget.remaining() };
+        if (sequence !== undefined) {
+          capture?.save(sequence, "readPage", response, context.toolCallId);
+        }
+        return response;
       } catch (error) {
         toolLog?.warn("Tool call failed", {
           tool: "readPage",

@@ -92,6 +92,14 @@ The defaults are `openai/gpt-6-luna`, medium reasoning, and Flex routing. Set `O
 
 The [ingestion guide](ingestion-process.md) explains source handling, fact selection, previews, publication, and reports. Research is model-led and can make factual mistakes. Inspect the report before deciding on an apply run. After interruption, start a fresh run against current state; already committed changes remain.
 
+To inspect exactly what the research agent received from its initial source, `readPage`, and `searchWeb`, set `CATALOG_CAPTURE_TOOL_OUTPUTS=true` for a CLI or Studio process. Capture works for previews and apply runs and is off by default. For example:
+
+```sh
+CATALOG_CAPTURE_TOOL_OUTPUTS=true npm run catalog -- add --name "Festival name" --database data/research.sqlite
+```
+
+Find the durable `runId` in the report, then inspect `data/catalog-debug/<runId>/`. Numbered JSON files contain each agent-visible response and its origin; page responses also have Markdown files. Numbers follow tool invocation order, even when concurrent calls finish out of order. The directory is ignored by Git and contains sensitive source text and search results. Keep it local and remove it when no longer needed. If capture cannot write, the process prints one bounded diagnostic to stderr; the catalog outcome is unaffected. Injected eval candidates do not use this capture.
+
 ### Catalog evals
 
 `npm run catalog:eval -- --help` lists options. Evals use captured sources, fresh temporary catalogs, and preview writes. Only model calls use the network and incur provider charges; `npm test` checks the machinery without an API key.
