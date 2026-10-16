@@ -1,49 +1,12 @@
 # Eventroam documentation
 
-This is a hand-maintained guide to the project's Markdown knowledge. Main OpenSpec specs describe implemented behavior. Active OpenSpec changes describe approved work; completed changes may remain active pending archive. Draft proposals hold unresolved choices. The application and [build progress](service-build-progress.md) show what currently runs. `stable` describes an accepted decision, verified current behavior, or reliable historical record; `draft` marks material still being selected or reviewed. Dated research and legacy specs are background evidence.
+This is a hand-maintained guide to the documents under `docs/`. Draft proposals hold unresolved choices. The application and [build progress](service-build-progress.md) show what currently runs. `stable` describes an accepted decision, verified current behavior, or reliable historical record; `draft` marks material still being selected or reviewed. Dated research and legacy specs are background evidence.
 
 For a short introduction to the product, architecture, technology, and local setup, start with the [project README](../README.md).
 
 ## Maintaining the docs
 
-Every substantive file under `docs/` has OKF-style `type`, `title`, `description`, and `status` frontmatter; `tags` are optional. OpenSpec owns behavioral specifications and follows its own format. Index files and `AGENTS.md` are navigation and instructions, not concepts. Keep unapproved choices in draft proposals; do not promote them to main OpenSpec specs or active changes. Do not add `generated`, `verified`, or `stale_after` without evidence. Update this index when adding or removing a document. Run `npm run docs:check` after editing docs and `npm run openspec:validate` after editing OpenSpec artifacts.
-
-## Implemented behavior: OpenSpec
-
-Catalog:
-
-- [Catalog records](../openspec/specs/catalog/records/spec.md) — Event/Edition identity, validated facts, typed prices, and versioned writes.
-- [Publication and details](../openspec/specs/catalog/publication/spec.md) — publication gates, visibility, and public edition presentation.
-- [Edition classification](../openspec/specs/catalog/classification/spec.md) — fixed facets, per-edition assignments, and public labels.
-- [Source-backed catalog workflow](../openspec/specs/catalog/source-workflow/spec.md) — owner-initiated collection, model-led refresh, and attributable run outcomes.
-
-Operations:
-
-- [Storage integrity](../openspec/specs/operations/storage-integrity/spec.md) — application-owned validation, retained database protections, and data-preserving migrations.
-
-Website:
-
-- [Discovery](../openspec/specs/website/discovery/spec.md) — readable filter selections, pending counts, searchable locations, URL state, and shared map/list results.
-- [Scoped website](../openspec/specs/website/routing/spec.md) — configured hosts, stable detail routes, and scope-root state.
-
-## Active changes
-
-- [Public site launch](../openspec/changes/public-site-launch/proposal.md) — record metadata and crawler discoverability.
-- [Production readiness](../openspec/changes/production-readiness/proposal.md) — compatible release, recovery, launched hosts, and Mapbox gate.
-
-## Archived changes
-
-- [Narrow current refresh](../openspec/changes/archive/2026-10-16-narrow-current-refresh/proposal.md) — current trusts the full baseline, updates one Edition and stops on identity contradictions; research receives only its selected assignment.
-- [Application-owned database validation](../openspec/changes/archive/2026-10-15-move-database-validation-to-code/proposal.md) — application-owned value and relationship checks, retained database integrity protections, and a persistent policy for future schema changes.
-- [Focused source search](../openspec/changes/archive/2026-10-15-direct-exa-discovery/proposal.md) — clearer tools, bounded highlights and exceptional-use conditions with the existing OpenRouter Exa mode.
-
-- [Ingestion editor](../openspec/changes/archive/2026-10-15-ingestion-editor/proposal.md) — research/editor separation with explicit field actions, simpler write preparation and focused quality evaluation.
-- [Estimated festival size](../openspec/changes/archive/2026-10-11-estimate-festival-size/proposal.md) — approximate participant scale, report v4, ingestion guidance, and public wording.
-
-- [Scoped refresh](../openspec/changes/archive/2026-10-11-scoped-event-refresh/proposal.md) — full/current model-led refresh, website recovery, atomic country guards, and report v3 with raw findings and writer audit.
-- [Edition naming](../openspec/changes/archive/2026-10-11-rename-occurrence-to-edition/proposal.md) — implemented code/contracts and SQLite rename with preserved data and report v2; historical report compatibility is unsupported.
-
-- [Expanded festival topics](../openspec/changes/archive/2026-10-11-expand-festival-topics/proposal.md) — activity vocabulary, independent topic/format classification, and open-air publication format.
+Every substantive file under `docs/` has OKF-style `type`, `title`, `description`, and `status` frontmatter; `tags` are optional. Index files and `AGENTS.md` are navigation and instructions, not concepts. Keep unapproved choices in draft proposals. Do not add `generated`, `verified`, or `stale_after` without evidence. Update this index when adding or removing a document. Run `npm run docs:check` after editing docs.
 
 ## Draft proposals and migration record
 
