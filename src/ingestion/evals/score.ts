@@ -1,6 +1,6 @@
 import { hasHostFailure } from "../runs";
 import type { CatalogResearchResult } from "../contracts";
-import type { EvalAssertion, EvalCase } from "./fixtures";
+import type { EvalCase } from "./fixtures";
 import {
   assertionMatches,
   describeAssertion,
@@ -22,12 +22,6 @@ export type CaseScore = {
   >;
   required: AssertionResult[];
   forbidden: AssertionResult[];
-  reasons: {
-    missingRequired: EvalAssertion[];
-    violatedForbidden: EvalAssertion[];
-    workflowFailed: boolean;
-    expectedFailureMissing: boolean;
-  };
 };
 
 export function scoreCase(
@@ -123,15 +117,5 @@ export function scoreCase(
       (!toolUse || toolUse.score === 1),
     required,
     forbidden,
-    reasons: {
-      missingRequired: required
-        .filter((check) => !check.matched)
-        .map((check) => check.assertion),
-      violatedForbidden: forbidden
-        .filter((check) => check.matched)
-        .map((check) => check.assertion),
-      workflowFailed: hostFailed || (failed && !expectsFailure),
-      expectedFailureMissing: expectsFailure && !expectedFailureMet,
-    },
   };
 }

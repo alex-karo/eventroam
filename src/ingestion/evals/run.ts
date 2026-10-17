@@ -2,12 +2,9 @@ import { validateCatalogValues } from "@/catalog/write/validate-values";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname } from "node:path";
-import { runEvals } from "@mastra/core/evals";
-import { noopLogger } from "@mastra/core/logger";
+import { runExperiment } from "@mastra/core/datasets";
 import { Mastra } from "@mastra/core/mastra";
-import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { z } from "zod";
 import { openDatabase } from "@/db/connection";
 import { migrateCatalogConnection } from "@/db/migrate";
 import {
@@ -273,22 +270,23 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     ...process.env,
     ...(options.model ? { OPENROUTER_MODEL: options.model } : {}),
   });
-  const scorer = createEvalScorers();
+  const scorers = Object.values(createEvalScorers());
   const byId = new Map(selected.map((item) => [item.id, item]));
-  const outputs = new Map<string, EvalCaseOutput>();
-  const inputSchema = z.object({
-    caseId: z.string(),
-    repetition: z.number().int().positive(),
-  });
-  const step = createStep({
-    id: "evaluate-catalog-case",
-    inputSchema,
-    outputSchema: z.custom<EvalCaseOutput>(),
-    execute: async ({ inputData }) => {
-      const item = byId.get(inputData.caseId);
-      if (!item) {
-        throw new Error(`Unknown eval case: ${inputData.caseId}`);
-      }
+  const data = selected.flatMap((item) =>
+    Array.from({ length: repeat }, (_, index) => ({
+      id: `${item.id}/${index + 1}`,
+      input: { caseId: item.id, repetition: index + 1 },
+    })),
+  );
+  const experiment = await runExperiment(new Mastra({ logger: false }), {
+    data,
+    scorers,
+    maxConcurrency: 3,
+    persistence: { experiments: "none", scores: "none" },
+    task: async ({ input }): Promise<EvalCaseOutput> => {
+      // These inputs come from the selected fixtures above.
+      const { caseId } = input as (typeof data)[number]["input"];
+      const item = byId.get(caseId)!;
       const calls: EvalToolCall[] = [];
       const connection = seedDatabase(suite, item);
       try {
@@ -364,57 +362,34 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
             durationMs: Date.now() - started,
           };
         }
-        const output = {
+        return {
           result,
           toolCalls: calls,
           score: scoreCase(item, result, calls),
         };
-        outputs.set(`${inputData.caseId}/${inputData.repetition}`, output);
-        return output;
       } finally {
         connection.client.close();
       }
     },
   });
-  const workflow = createWorkflow({
-    id: "catalog-eval",
-    inputSchema,
-    outputSchema: z.custom<EvalCaseOutput>(),
-  })
-    .then(step)
-    .commit();
-  workflow.__setLogger(noopLogger);
-  // Register the eval target so runEvals scores the workflow result in Mastra.
-  const mastra = new Mastra({
-    workflows: { catalogEval: workflow },
-    logger: false,
-  });
-  const data = selected.flatMap((item) =>
-    Array.from({ length: repeat }, (_, index) => ({
-      input: { caseId: item.id, repetition: index + 1 },
-    })),
-  );
-  const startedAt = new Date().toISOString();
-  const mastraResult = await runEvals({
-    target: mastra.getWorkflow("catalogEval"),
-    data,
-    scorers: [
-      scorer.correctness,
-      scorer.completeness,
-      scorer.research,
-      scorer.toolUse,
-    ],
-    concurrency: 3,
-  });
-  const results = data.map(({ input }) => {
-    const item = byId.get(input.caseId)!;
-    const output = outputs.get(`${input.caseId}/${input.repetition}`);
-    if (!output) {
-      throw new Error(
-        `Eval workflow did not return ${input.caseId}/${input.repetition}`,
-      );
+  const { results: attempts, ...experimentSummary } = experiment;
+  if (attempts.length !== data.length) {
+    throw new Error("Eval experiment did not return every case");
+  }
+  // Mastra keeps results in input order even when tasks finish out of order.
+  const results = attempts.map((attempt, index) => {
+    const { input } = data[index];
+    if (attempt.itemId !== data[index].id || attempt.error || !attempt.output) {
+      throw new Error(`Eval task did not return ${data[index].id}`);
     }
-    const { result, score, toolCalls } = output;
+    if (
+      attempt.scores.length !== scorers.length ||
+      attempt.scores.some((scorer) => scorer.error || scorer.score === null)
+    ) {
+      throw new Error(`Eval scorer failed for ${data[index].id}`);
+    }
+    const item = byId.get(input.caseId)!;
+    const { result, score, toolCalls } = attempt.output as EvalCaseOutput;
     return {
       caseId: input.caseId,
       repetition: input.repetition,
@@ -432,6 +407,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       outcome: result.outcome,
       researchStatus: result.researchStatus,
       score,
+      scorers: attempt.scores,
       toolCalls,
       usage: result.usage,
       durationMs: result.durationMs,
@@ -459,8 +435,8 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   const report = {
     schemaVersion: 5,
     evaluationMode: options.editorOnly ? "editor-only" : "pipeline",
-    startedAt,
-    finishedAt: new Date().toISOString(),
+    startedAt: experiment.startedAt.toISOString(),
+    finishedAt: experiment.completedAt.toISOString(),
     fixtureTodayUtc: suite.todayUtc,
     fixtureSha256: createHash("sha256")
       .update(JSON.stringify(suite))
@@ -469,11 +445,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     modelVersion: config.model,
     reasoningEffort: config.reasoningEffort ?? null,
     promptVersion: RESEARCH_PROMPT_VERSION,
-    mastra: {
-      scores: mastraResult.scores,
-      summary: mastraResult.summary,
-      verdict: mastraResult.verdict,
-    },
+    experiment: experimentSummary,
     results,
   };
   if (options.reportPath) {

@@ -4,7 +4,7 @@ import type { CaseScore } from "./score";
 type EvalInput = { caseId: string; repetition?: number };
 type ScoredOutput = { score: CaseScore };
 
-/** Mastra presents the score already computed by the eval step. */
+/** Mastra presents the score already computed by the eval task. */
 export function createEvalScorers() {
   const correctness = createScorer<EvalInput, ScoredOutput>({
     id: "catalog-correctness",

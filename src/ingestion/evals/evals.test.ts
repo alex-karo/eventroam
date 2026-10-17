@@ -4,11 +4,6 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
-import { runEvals } from "@mastra/core/evals";
-import { Mastra } from "@mastra/core/mastra";
-import { noopLogger } from "@mastra/core/logger";
-import { createStep, createWorkflow } from "@mastra/core/workflows";
-import { z } from "zod";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { createResearchBudget } from "../runtime/budget";
 import type { CatalogResearchResult } from "../workflow";
@@ -28,6 +23,7 @@ import { assertionMatches } from "./assertions";
 import { createEvalScorers } from "./scorers";
 import { scoreCase } from "./score";
 import * as scoreModule from "./score";
+import * as scorersModule from "./scorers";
 
 const suite = loadEvalSuite();
 const byId = new Map(suite.cases.map((item) => [item.id, item]));
@@ -566,7 +562,14 @@ test("fixed source adapter uses captured pages and blocks unknown URLs without n
 });
 
 test("gold checks require supported changes and reject sibling links", () => {
-  expect(scoreCase(requiredLinkCase, result()).completeness).toBe(0);
+  const missing = scoreCase(requiredLinkCase, result());
+  expect(missing.completeness).toBe(0);
+  expect(missing.required).toEqual([
+    { assertion: requiredLinkCase.expectations.required[0], matched: false },
+  ]);
+  expect(missing.diagnostics.completeness).toEqual([
+    'Missing required change: event.links contains {"kind":"official_site","url":"https://www.tomorrowland.com/"}',
+  ]);
   const official = {
     subject: tomorrowland.initial.event.id,
     field: "links",
@@ -620,12 +623,17 @@ test("Tomorrowland rejects Thailand sell-out on a Belgium ticket variant", () =>
   expect(score.completeness).toBe(1);
   expect(score.correctness).toBeLessThan(1);
   expect(score.passed).toBe(false);
-  expect(score.reasons.violatedForbidden).toEqual([
+  expect(score.forbidden.filter((check) => check.matched)).toEqual([
     expect.objectContaining({
-      owner: "edition",
-      field: "price_details",
-      contains: { availability: "sold_out" },
+      assertion: expect.objectContaining({
+        owner: "edition",
+        field: "price_details",
+        contains: { availability: "sold_out" },
+      }),
     }),
+  ]);
+  expect(score.diagnostics.correctness).toEqual([
+    'Forbidden change: edition.price_details contains {"availability":"sold_out"}',
   ]);
 });
 
@@ -675,53 +683,6 @@ test("new and existing edition assertions map only to their own subject", () => 
       forbiddenOld,
     ),
   ).toBe(true);
-});
-
-test("Mastra runEvals scores the final workflow output without model calls", async () => {
-  const inputSchema = z.object({ caseId: z.string() });
-  const step = createStep({
-    id: "fixture-output",
-    inputSchema,
-    outputSchema: z.custom<{ score: ReturnType<typeof scoreCase> }>(),
-    execute: async () => ({
-      score: scoreCase(
-        tomorrowland,
-        result([
-          {
-            subject: tomorrowland.initial.event.id,
-            field: "links",
-            oldValue: [],
-            explanations: [],
-            newValue: [
-              { kind: "official_site", url: "https://www.tomorrowland.com/" },
-            ],
-          },
-        ]),
-      ),
-    }),
-  });
-  const workflow = createWorkflow({
-    id: "eval-smoke",
-    inputSchema,
-    outputSchema: z.custom<{ score: ReturnType<typeof scoreCase> }>(),
-  })
-    .then(step)
-    .commit();
-  workflow.__setLogger(noopLogger);
-  const mastra = new Mastra({
-    workflows: { evalSmoke: workflow },
-    logger: false,
-  });
-  const scorers = createEvalScorers();
-  const evaluation = await runEvals({
-    target: mastra.getWorkflow("evalSmoke"),
-    data: [{ input: { caseId: tomorrowland.id } }],
-    scorers: [scorers.correctness, scorers.completeness],
-  });
-  expect(evaluation.scores).toMatchObject({
-    "catalog-correctness": 1,
-    "catalog-completeness": 1,
-  });
 });
 
 test("fixture links preserve Markdown destinations without interpreting code as links", () => {
@@ -1019,7 +980,10 @@ test.each(["workflow_failed", "run_persistence_failed"] as const)(
       passed: false,
       correctness: 0,
       completeness: 0,
-      reasons: { workflowFailed: true },
+      diagnostics: {
+        correctness: ["Host workflow or persistence failure"],
+        completeness: ["Host workflow or persistence failure"],
+      },
     });
   },
 );
@@ -1120,6 +1084,46 @@ test.each(["none", "workflow", "persistence"] as const)(
       );
     }
     expect(stdout.mock.calls.flat().join("")).toContain(result.runId);
+  },
+);
+
+test.each(["task", "scorer"] as const)(
+  "experiment %s errors reject safely and close the catalog",
+  async (failure) => {
+    vi.stubEnv("OPENROUTER_API_KEY", "fixture-key");
+    let client: Parameters<typeof executeResearch>[1]["client"] | undefined;
+    vi.spyOn(workflowModule, "runCatalogResearch").mockImplementation(
+      async (_input, deps) => {
+        client = deps.client;
+        return result();
+      },
+    );
+    if (failure === "task") {
+      vi.spyOn(scoreModule, "scoreCase").mockImplementationOnce(() => {
+        throw new Error("SECRET task error");
+      });
+    } else {
+      const scorers = createEvalScorers();
+      vi.spyOn(scorers.correctness, "run").mockRejectedValueOnce(
+        new Error("SECRET scorer error"),
+      );
+      vi.spyOn(scorersModule, "createEvalScorers").mockReturnValue(scorers);
+    }
+    const directory = mkdtempSync(join(tmpdir(), "eventroam-eval-failure-"));
+    const reportPath = join(directory, "report.json");
+    try {
+      await expect(
+        runCatalogEvals({ caseIds: [tomorrowland.id], reportPath }),
+      ).rejects.toThrow(
+        failure === "task"
+          ? `Eval task did not return ${tomorrowland.id}/1`
+          : `Eval scorer failed for ${tomorrowland.id}/1`,
+      );
+      expect(client?.open).toBe(false);
+      expect(() => readFileSync(reportPath)).toThrow();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   },
 );
 
@@ -1328,6 +1332,11 @@ test.each(["toolUse", "research"] as const)(
     const item = byId.get("search-no-announcement")!;
     const scoring = vi.spyOn(scoreModule, "scoreCase");
     let invocation = 0;
+    let releaseFirst!: () => void;
+    const secondFinished = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const completionOrder: number[] = [];
     vi.spyOn(workflowModule, "runCatalogResearch").mockImplementation(
       async (_input, deps) => {
         const fail = ++invocation === 2;
@@ -1338,6 +1347,13 @@ test.each(["toolUse", "research"] as const)(
             budget,
             config: deps!.config!,
           });
+        }
+        if (!fail) {
+          await secondFinished;
+        }
+        completionOrder.push(fail ? 2 : 1);
+        if (fail) {
+          releaseFirst();
         }
         return {
           ...result(),
@@ -1380,7 +1396,15 @@ test.each(["toolUse", "research"] as const)(
         },
       );
       expect(code).toBe(1);
+      expect(completionOrder).toEqual([2, 1]);
       const report = reports[0];
+      expect(report.experiment).toMatchObject({
+        status: "completed",
+        totalItems: 2,
+        succeededCount: 2,
+        failedCount: 0,
+      });
+      expect(report.results.map((entry) => entry.repetition)).toEqual([1, 2]);
       expect(scoring).toHaveBeenCalledTimes(2);
       expect(report.results.map((entry) => entry.score.passed)).toEqual([
         true,
@@ -1422,13 +1446,28 @@ test.each(["toolUse", "research"] as const)(
       });
       expect(scored.reason).toBe(diagnostic);
       expect(scored.score).toBe(report.results[1].score[dimension]?.score);
+      const scorerId =
+        dimension === "toolUse"
+          ? "source-search-policy"
+          : "research-completeness";
       expect(
-        report.mastra.scores[
-          dimension === "toolUse"
-            ? "source-search-policy"
-            : "research-completeness"
-        ],
-      ).toBe(dimension === "toolUse" ? 0.5 : 0.75);
+        report.results.map((entry) =>
+          entry.scorers.find((scorer) => scorer.scorerId === scorerId),
+        ),
+      ).toEqual([
+        expect.objectContaining({ score: 1, error: null }),
+        expect.objectContaining({
+          score: dimension === "toolUse" ? 0 : 0.5,
+          reason: diagnostic,
+          error: null,
+        }),
+      ]);
+      expect(stored.experiment).toEqual(
+        JSON.parse(JSON.stringify(report.experiment)),
+      );
+      expect(
+        stored.results.map((entry: { scorers: unknown }) => entry.scorers),
+      ).toEqual(report.results.map((entry) => entry.scorers));
       expect(scoring).toHaveBeenCalledTimes(2);
     } finally {
       rmSync(directory, { recursive: true, force: true });
@@ -1557,8 +1596,11 @@ test.each(suite.cases.filter((item) => item.id.startsWith("narrow-current-")))(
       const score = scoreCase(item, result());
       expect(score.research?.score).toBeLessThan(1);
       if (item.expectations.required.length) {
-        expect(score.reasons.missingRequired).toEqual(
-          item.expectations.required,
+        expect(score.required).toEqual(
+          item.expectations.required.map((assertion) => ({
+            assertion,
+            matched: false,
+          })),
         );
       }
       expect(item.expectations.research?.absentFields).toContainEqual({

@@ -220,9 +220,10 @@ test("stale-language eval rejects an editor downgrade of confirmed dates", async
     const score = scoreCase(item, downgraded);
     expect(score.passed).toBe(false);
     expect(score.research?.score).toBe(1);
-    expect(score.reasons.violatedForbidden).toContainEqual(
-      expect.objectContaining({ field: "date_state" }),
-    );
+    expect(score.forbidden).toContainEqual({
+      assertion: expect.objectContaining({ field: "date_state" }),
+      matched: true,
+    });
   } finally {
     connection.client.close();
   }
