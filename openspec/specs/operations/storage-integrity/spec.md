@@ -67,17 +67,3 @@ The database SHALL retain primary keys, foreign keys, uniqueness, and NOT NULL c
 
 - **WHEN** direct SQL updates or deletes a catalog-change entry or public URL alias
 - **THEN** the database rejects the mutation
-
-### Requirement: Validation-boundary migrations preserve stored data
-
-Changing the validation boundary SHALL preserve stored identities, facts, relationships, versions, indexes, defaults, retained constraints, and immutable-history protections. Serialized audit, receipt, and ingestion payloads SHALL remain unchanged. Fresh initialization, populated upgrade, and repeated migration SHALL produce the intended boundary without data loss.
-
-#### Scenario: Populated database is upgraded
-
-- **WHEN** the supported migrator removes value checks and validation triggers
-- **THEN** existing records and serialized history are preserved and retained integrity protections remain effective
-
-#### Scenario: Migration runs again
-
-- **WHEN** the supported migrator opens an already upgraded database
-- **THEN** it does not repeat the migration or alter stored data
