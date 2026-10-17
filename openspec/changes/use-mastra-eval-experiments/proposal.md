@@ -8,7 +8,8 @@ The eval runner wraps each case in a one-step workflow and keeps a second result
 
 - Replace the outer eval workflow with an experiment task using inline fixtures.
 - Remove the shared output map and keep one score per case repetition.
-- Preserve assertions, diagnostics, acceptance, selection, source replay, and ingestion failure recovery.
+- Preserve assertions, acceptance, selection, source replay, and ingestion failure recovery.
+- Score expected safe failures as research checks. Keep mutation scores limited to mutation assertions and report host failures once under execution diagnostics.
 - **BREAKING**: Replace the eval report's `mastra` aggregate block with `experiment` execution metadata and per-case `scorers`. No compatibility projection is retained.
 
 ## Capabilities

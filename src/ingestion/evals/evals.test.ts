@@ -213,7 +213,7 @@ test("blocked-source fixture replays captured HTTP metadata without fallback", a
   expect(read).toMatchObject({ outcome: "blocked", reason: "http_403" });
 });
 
-test("failed-source eval requires null data, source diagnosis, and no writes", () => {
+test("failed-source research requires null data, source diagnosis, and no writes", () => {
   const sourceUrl = blocked.sources[0].attemptedUrl;
   const sourceError = {
     code: "source_blocked" as const,
@@ -258,18 +258,13 @@ test("failed-source eval requires null data, source diagnosis, and no writes", (
     completeness: 1,
     passed: true,
   });
-  expect(Number.isNaN(scoreCase(blocked, expected).correctness)).toBe(false);
   expect(scoreCase(blocked, expected).diagnostics).toEqual({
+    execution: [],
     correctness: [],
     completeness: [],
     research: [],
     toolUse: [],
   });
-  expect(
-    scoreCase(blocked, { ...expected, errors: [] }).diagnostics.correctness,
-  ).toEqual([
-    "Expected a source-failure diagnosis for an unavailable inspected URL",
-  ]);
   expect(
     scoreCase(blocked, {
       ...expected,
@@ -282,8 +277,19 @@ test("failed-source eval requires null data, source diagnosis, and no writes", (
           explanations: [],
         },
       ],
-    }).diagnostics.correctness,
+    }).diagnostics.research,
   ).toEqual(["Expected no catalog changes"]);
+  const missingDiagnosis = scoreCase(blocked, { ...expected, errors: [] });
+  expect(missingDiagnosis).toMatchObject({
+    correctness: 1,
+    completeness: 1,
+    passed: false,
+    diagnostics: { correctness: [], completeness: [], execution: [] },
+  });
+  expect(missingDiagnosis.research.score).toBeLessThan(1);
+  expect(missingDiagnosis.diagnostics.research).toEqual([
+    "Expected a source-failure diagnosis for an unavailable inspected URL",
+  ]);
   for (const invalid of [
     ...(["workflow_failed", "run_persistence_failed"] as const).map((code) => ({
       ...expected,
@@ -380,10 +386,9 @@ test("failed-source eval requires null data, source diagnosis, and no writes", (
   ]) {
     const score = scoreCase(blocked, invalid);
     expect(score.passed).toBe(false);
-    expect(score.diagnostics.correctness.length).toBeGreaterThan(0);
-    expect(score.diagnostics.completeness).toEqual(
-      score.diagnostics.correctness,
-    );
+    expect(
+      [...score.diagnostics.research, ...score.diagnostics.execution].length,
+    ).toBeGreaterThan(0);
   }
 });
 
@@ -424,10 +429,11 @@ test("partial research can pass factual assertions while failed research cannot"
     researchStatus: "failed",
   });
   expect(failed).toMatchObject({
-    correctness: 0,
-    completeness: 0,
+    correctness: 1,
+    completeness: 1,
     passed: false,
   });
+  expect(failed.research.score).toBeLessThan(1);
 });
 
 test("existing eval report is rejected before provider setup", async () => {
@@ -590,8 +596,13 @@ test("gold checks require supported changes and reject sibling links", () => {
   expect(score.correctness).toBeLessThan(1);
   expect(score.passed).toBe(false);
   expect(
-    scoreCase(requiredLinkCase, { ...result(), outcome: "failed" }).correctness,
-  ).toBe(0);
+    scoreCase(requiredLinkCase, { ...result(), outcome: "failed" }),
+  ).toMatchObject({
+    correctness: 1,
+    completeness: 0,
+    passed: false,
+    diagnostics: { research: ["Catalog outcome must not be failed"] },
+  });
 });
 
 test("Tomorrowland rejects Thailand sell-out on a Belgium ticket variant", () => {
@@ -978,11 +989,14 @@ test.each(["workflow_failed", "run_persistence_failed"] as const)(
       }),
     ).toMatchObject({
       passed: false,
-      correctness: 0,
-      completeness: 0,
+      correctness: 1,
+      completeness: 1,
+      research: { score: 1 },
       diagnostics: {
-        correctness: ["Host workflow or persistence failure"],
-        completeness: ["Host workflow or persistence failure"],
+        execution: ["Host workflow or persistence failure"],
+        correctness: [],
+        completeness: [],
+        research: [],
       },
     });
   },
@@ -1062,6 +1076,12 @@ test.each(["none", "workflow", "persistence"] as const)(
     expect(result.usage.searchCostBasis).toBe("estimate");
     expect(JSON.stringify(result)).not.toContain("SECRET");
     if (failure !== "none") {
+      expect(result.score.diagnostics.execution).toEqual([
+        "Host workflow or persistence failure",
+      ]);
+      expect(stdout.mock.calls.flat().join("")).toContain(
+        "execution: Host workflow or persistence failure",
+      );
       expect(
         result.errors.some(
           (error) =>
@@ -1405,7 +1425,6 @@ test.each(["toolUse", "research"] as const)(
         failedCount: 0,
       });
       expect(report.results.map((entry) => entry.repetition)).toEqual([1, 2]);
-      expect(scoring).toHaveBeenCalledTimes(2);
       expect(report.results.map((entry) => entry.score.passed)).toEqual([
         true,
         false,
@@ -1439,13 +1458,6 @@ test.each(["toolUse", "research"] as const)(
       expect(text.indexOf(diagnostic)).toBeGreaterThan(
         text.indexOf(`${item.id} #2:`),
       );
-      const adapters = createEvalScorers();
-      const scored = await adapters[dimension].run({
-        input: { caseId: item.id, repetition: 2 },
-        output: report.results[1],
-      });
-      expect(scored.reason).toBe(diagnostic);
-      expect(scored.score).toBe(report.results[1].score[dimension]?.score);
       const scorerId =
         dimension === "toolUse"
           ? "source-search-policy"
@@ -1756,11 +1768,11 @@ test("current identity-conflict eval requires a diagnosed stop without recovery 
   ]) {
     const score = scoreCase(item, invalid);
     expect(score.passed).toBe(false);
-    expect(score.diagnostics.correctness.length).toBeGreaterThan(0);
+    expect(score.diagnostics.research.length).toBeGreaterThan(0);
   }
   expect(
     scoreCase(item, { ...failed, usage: { ...failed.usage, searches: 1 } })
-      .diagnostics.correctness,
+      .diagnostics.research,
   ).toEqual(["Expected identity conflict to stop without search"]);
 });
 

@@ -20,10 +20,19 @@ function researchTarget(
   return data;
 }
 
-export function scoreResearch(item: EvalCase, result: CatalogResearchResult) {
+function checkResearch(item: EvalCase, result: CatalogResearchResult) {
   const expected = item.expectations.research;
-  if (!expected || expected.status === "failed") {
-    return null;
+  if (!expected) {
+    return [
+      {
+        description: "Catalog outcome must not be failed",
+        matched: result.outcome !== "failed",
+      },
+      {
+        description: "Research status must not be failed",
+        matched: result.researchStatus !== "failed",
+      },
+    ];
   }
   const parsed = researchCandidateSchema.safeParse(
     normalizeWireCandidate(result.modelResponse?.object),
@@ -36,8 +45,9 @@ export function scoreResearch(item: EvalCase, result: CatalogResearchResult) {
     : null;
   const checks = [
     {
-      description: `researchStatus=${expected.status}`,
+      description: `researchStatus=${expected.status} with non-failed catalog outcome`,
       matched:
+        result.outcome !== "failed" &&
         result.researchStatus === expected.status &&
         parsed.success &&
         parsed.data.status === expected.status,
@@ -118,8 +128,142 @@ export function scoreResearch(item: EvalCase, result: CatalogResearchResult) {
       matched: result.changes.length === 0,
     });
   }
+  return checks;
+}
+
+function checkFailedResearch(item: EvalCase, result: CatalogResearchResult) {
+  const candidate = result.modelResponse?.object;
+  const checks = [
+    {
+      description: "Expected researchStatus=failed",
+      matched: result.researchStatus === "failed",
+    },
+    {
+      description: "Expected catalog outcome=failed",
+      matched: result.outcome === "failed",
+    },
+    {
+      description: "Expected model response with status=failed and data=null",
+      matched:
+        candidate !== null &&
+        typeof candidate === "object" &&
+        "status" in candidate &&
+        candidate.status === "failed" &&
+        "data" in candidate &&
+        candidate.data === null,
+    },
+    {
+      description: "Expected no operations",
+      matched: result.operations.length === 0,
+    },
+    {
+      description: "Expected no receipts",
+      matched: result.receipts.length === 0,
+    },
+    {
+      description: "Expected no catalog changes",
+      matched: result.changes.length === 0,
+    },
+    {
+      description: "Expected no source summaries",
+      matched: result.sourceSummaries.length === 0,
+    },
+    {
+      description: "Expected no references",
+      matched: Object.keys(result.references).length === 0,
+    },
+    {
+      description: "Expected at least one inspected source",
+      matched: result.sources.length > 0,
+    },
+    {
+      description:
+        "Expected failure must not include model, candidate, write, or limit errors",
+      matched: !result.errors.some((error) =>
+        [
+          "model_failed",
+          "invalid_candidate",
+          "write_failed",
+          "limit_reached",
+        ].includes(error.code),
+      ),
+    },
+  ];
+  if (item.expectations.research?.failureReason === "identity_conflict") {
+    checks.push(
+      {
+        description: "Expected identity conflict to skip editing",
+        matched: result.editorStatus === "not_run",
+      },
+      {
+        description: "Expected identity conflict to stop without search",
+        matched: result.usage.searches === 0,
+      },
+      {
+        description:
+          "Expected identity conflict evidence from an available source",
+        matched: result.sources.some((source) => source.outcome === "ok"),
+      },
+      {
+        description:
+          "Expected identity conflict to inspect only fixture sources",
+        matched: result.sources.every((source) =>
+          item.sources.some(
+            (expected) => expected.attemptedUrl === source.attemptedUrl,
+          ),
+        ),
+      },
+      {
+        description:
+          "Expected an unresolved identity question directing a full refresh",
+        matched: result.unresolved.some(
+          (question) =>
+            question.field === "identity" && /full/i.test(question.message),
+        ),
+      },
+    );
+  } else {
+    const unavailable = new Set(
+      result.sources
+        .filter((source) =>
+          ["blocked", "failed", "unsupported"].includes(source.outcome),
+        )
+        .map((source) => source.attemptedUrl),
+    );
+    checks.push(
+      {
+        description: "Expected all inspected sources to be unavailable",
+        matched: result.sources.every((source) =>
+          ["blocked", "failed", "unsupported"].includes(source.outcome),
+        ),
+      },
+      {
+        description:
+          "Expected a source-failure diagnosis for an unavailable inspected URL",
+        matched: result.errors.some(
+          (error) =>
+            error.stage === "source" &&
+            [
+              "source_blocked",
+              "source_unavailable",
+              "source_unsupported",
+            ].includes(error.code) &&
+            Boolean(error.url && unavailable.has(error.url)) &&
+            error.message.trim().length > 0,
+        ),
+      },
+    );
+  }
+  return checks;
+}
+
+export function scoreResearch(item: EvalCase, result: CatalogResearchResult) {
+  const checks =
+    item.expectations.research?.status === "failed"
+      ? checkFailedResearch(item, result)
+      : checkResearch(item, result);
   return {
-    score: checks.filter((c) => c.matched).length / checks.length,
+    score: checks.filter((check) => check.matched).length / checks.length,
     checks,
   };
 }

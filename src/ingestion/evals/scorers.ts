@@ -31,15 +31,13 @@ export function createEvalScorers() {
   const research = createScorer<EvalInput, ScoredOutput>({
     id: "research-completeness",
     description:
-      "Annotated final selection, returned unchanged facts and unfinished research checks; independent of catalog mutations",
+      "Research outcome, expected safe failures, returned facts and unfinished research checks",
   })
-    .generateScore(({ run }) => run.output.score.research?.score ?? 1)
+    .generateScore(({ run }) => run.output.score.research.score)
     .generateReason(
       ({ run }) =>
         run.output.score.diagnostics.research.join("; ") ||
-        (run.output.score.research
-          ? "All research assertions satisfied"
-          : "No separate research annotations for this case"),
+        "All research assertions satisfied",
     );
   const toolUse = createScorer<EvalInput, ScoredOutput>({
     id: "source-search-policy",
