@@ -70,3 +70,46 @@ test("missing or external skip targets and CSS names do not invent regions", () 
   expect(page).not.toContain("[Navigation]");
   expect(page).toContain("## News");
 });
+
+test("sparse script-backed pages expose their non-navigation text length", () => {
+  const result = extractSource(
+    `<header><nav>${"Festival navigation ".repeat(30)}</nav></header>
+    <main>Loading festival details</main><script src="/app.js"></script>`,
+    url,
+    "text/html",
+  );
+  expect(result.nonNavigationTextLength).toBe(
+    "Loading festival details".length,
+  );
+  expect(result.needsJavascript).toBe(true);
+});
+
+test("short ordinary pages with scripts retain the existing sparse-page signal", () => {
+  const result = extractSource(
+    `<main>Festival dates and tickets</main><script src="/analytics.js"></script>`,
+    url,
+    "text/html",
+  );
+  expect(result.nonNavigationTextLength).toBeLessThan(200);
+  expect(result.needsJavascript).toBe(true);
+});
+
+test("JSON-LD alone does not count as an application script", () => {
+  const result = extractSource(
+    `<script type="application/ld+json">{"@type":"MusicEvent","name":"Festival 2027"}</script>`,
+    url,
+    "text/html",
+  );
+  expect(result.needsJavascript).toBe(false);
+  expect(result.markdown).toContain("Festival 2027");
+});
+
+test("200 body characters clear the sparse-page signal", () => {
+  const result = extractSource(
+    `<main>${"a".repeat(200)}</main><script src="/app.js"></script>`,
+    url,
+    "text/html",
+  );
+  expect(result.nonNavigationTextLength).toBe(200);
+  expect(result.needsJavascript).toBe(false);
+});

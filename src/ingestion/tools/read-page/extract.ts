@@ -5,6 +5,7 @@ import { tables } from "turndown-plugin-gfm";
 const MAX_MARKDOWN_CHARS = 20_000;
 const MAX_LINKS = 120;
 const REGION_ATTRIBUTE = "data-source-region";
+export const MIN_RENDERED_TEXT_CHARS = 200;
 
 function markRegions($: CheerioAPI, finalUrl: string): void {
   // Only converter-assigned labels are used by the Turndown rule below.
@@ -213,6 +214,7 @@ export function extractSource(
   markdown: string;
   links: string[];
   needsJavascript: boolean;
+  nonNavigationTextLength: number;
   truncated: boolean;
 } {
   const links: string[] = [];
@@ -230,6 +232,7 @@ export function extractSource(
       ...boundMarkdown(items.join("\n\n")),
       links,
       needsJavascript: false,
+      nonNavigationTextLength: 0,
     };
   }
   if (contentType.includes("text/plain")) {
@@ -237,6 +240,7 @@ export function extractSource(
       ...boundMarkdown(body.replace(/\r\n?/g, "\n")),
       links,
       needsJavascript: false,
+      nonNavigationTextLength: 0,
     };
   }
 
@@ -306,7 +310,14 @@ export function extractSource(
     }
   });
   const contentText = clean(
-    $("body").clone().find("header, nav, footer").remove().end().text(),
+    $("body")
+      .clone()
+      .find(
+        "header, nav, footer, [role='banner'], [role='navigation'], [role='contentinfo']",
+      )
+      .remove()
+      .end()
+      .text(),
   );
   const title = clean($("title").first().text());
   markRegions($, finalUrl);
@@ -339,6 +350,30 @@ export function extractSource(
   return {
     ...boundMarkdown(parts.join("\n\n")),
     links,
-    needsJavascript: hasApplicationScripts && contentText.length < 200,
+    needsJavascript:
+      hasApplicationScripts && contentText.length < MIN_RENDERED_TEXT_CHARS,
+    nonNavigationTextLength: contentText.length,
+  };
+}
+
+export function combineSourceExtractions(
+  rendered: ReturnType<typeof extractSource>,
+  direct: ReturnType<typeof extractSource>,
+): { markdown: string; links: string[]; truncated: boolean } {
+  const combined = boundMarkdown(
+    [
+      rendered.markdown,
+      direct.markdown ? `## Direct HTTP response\n\n${direct.markdown}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+  );
+  return {
+    markdown: combined.markdown,
+    links: [...new Set([...rendered.links, ...direct.links])].slice(
+      0,
+      MAX_LINKS,
+    ),
+    truncated: combined.truncated || rendered.truncated || direct.truncated,
   };
 }

@@ -46,6 +46,33 @@ it("requests fresh raw HTML with authentication and returns the source status an
   });
 });
 
+it("requests rendered HTML and reads the matching response field", async () => {
+  const request = vi.fn<typeof fetch>().mockResolvedValue(
+    Response.json({
+      success: true,
+      data: {
+        html: "<main>Rendered programme</main>",
+        metadata: { statusCode: 200, url: `${target}/programme` },
+      },
+    }),
+  );
+  const response = await getFirecrawlResponse(target, {
+    ...options,
+    format: "html",
+    request,
+  });
+  expect(JSON.parse(request.mock.calls[0][1]!.body as string)).toMatchObject({
+    formats: ["html"],
+    onlyMainContent: false,
+    maxAge: 0,
+  });
+  expect(response).toMatchObject({
+    finalUrl: `${target}/programme`,
+    status: 200,
+    body: Buffer.from("<main>Rendered programme</main>"),
+  });
+});
+
 it("does not treat a successful API request as a successful source HTTP status", async () => {
   const request = vi
     .fn<typeof fetch>()
@@ -78,6 +105,15 @@ it.each([
   const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(body));
   await expect(
     getFirecrawlResponse(target, { ...options, request }),
+  ).rejects.toThrow("firecrawl_invalid_response");
+});
+
+it("rejects a rendered response without its requested HTML field", async () => {
+  const request = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(Response.json(document()));
+  await expect(
+    getFirecrawlResponse(target, { ...options, format: "html", request }),
   ).rejects.toThrow("firecrawl_invalid_response");
 });
 

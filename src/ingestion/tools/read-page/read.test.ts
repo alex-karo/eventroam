@@ -386,11 +386,13 @@ describe("readPage", () => {
   });
 
   it("reports sparse JavaScript pages as partial without executing scripts", async () => {
+    const firecrawlRequest = mockResponse("<main>Rendered page</main>");
     const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(
         "<html><body><main>Loading festival details</main><script src='/app.js'></script></body></html>",
       ),
+      firecrawlRequest,
     });
     expect(result).toMatchObject({
       method: "http",
@@ -399,6 +401,232 @@ describe("readPage", () => {
       reason: "javascript_required",
     });
     expect(result.markdown).toContain("Loading festival details");
+    expect(firecrawlRequest).not.toHaveBeenCalled();
+  });
+
+  it("selects rendered HTML with at least 200 non-navigation characters", async () => {
+    const budget = createResearchBudget();
+    const firecrawlRequest = mockResponse(
+      `<main>${"Festival programme ".repeat(20)}</main>`,
+    );
+    firecrawlRequest.mockResolvedValueOnce({
+      finalUrl: `${sourceUrl}/rendered`,
+      status: 200,
+      contentType: "text/html",
+      body: Buffer.from(`<main>${"Festival programme ".repeat(20)}</main>`),
+    });
+    const result = await readPage(sourceUrl, {
+      budget,
+      request: mockResponse(
+        '<main>Loading festival details</main><script src="/app.js"></script>',
+      ),
+      firecrawlRequest,
+      firecrawlKey: "test-key",
+    });
+    expect(firecrawlRequest).toHaveBeenCalledOnce();
+    expect(firecrawlRequest).toHaveBeenCalledWith(
+      sourceUrl,
+      expect.objectContaining({ format: "html", apiKey: "test-key" }),
+    );
+    expect(result).toMatchObject({
+      method: "firecrawl",
+      finalUrl: `${sourceUrl}/rendered`,
+      outcome: "ok",
+      completeness: "full",
+    });
+    expect(result.markdown).toContain("Festival programme");
+    expect(budget.snapshot().pages).toBe(2);
+  });
+
+  it("does not select a render padded by ARIA navigation", async () => {
+    const firecrawlRequest = mockResponse(
+      `<div role="navigation">${"Menu item ".repeat(30)}</div><main>Loading</main>`,
+    );
+    const result = await readPage(sourceUrl, {
+      budget: createResearchBudget(),
+      request: mockResponse(
+        '<main>Loading</main><script src="/app.js"></script>',
+      ),
+      firecrawlRequest,
+      firecrawlKey: "test-key",
+    });
+    expect(firecrawlRequest).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({
+      method: "http",
+      outcome: "partial",
+      completeness: "partial",
+      reason: "javascript_required",
+    });
+    expect(result.markdown).toContain("Loading");
+    expect(result.markdown).not.toContain("Menu item");
+  });
+
+  it("keeps direct JSON-LD and safe links alongside selected rendered content", async () => {
+    const budget = createResearchBudget();
+    const firecrawlRequest = mockResponse(
+      `<main><p>${"Festival programme ".repeat(20)}</p><a href="/tickets">Tickets</a><a href="/programme">Programme</a></main>`,
+    );
+    const result = await readPage(sourceUrl, {
+      budget,
+      request: mockResponse(`<main>Loading</main>
+        <a href="/details">Details</a>
+        <script type="application/ld+json">{"@type":"MusicEvent","startDate":"2027-06-10","url":"https://festival.example/tickets"}</script>
+        <script src="/app.js"></script>`),
+      firecrawlRequest,
+      firecrawlKey: "test-key",
+    });
+    expect(result).toMatchObject({
+      method: "firecrawl",
+      outcome: "ok",
+      completeness: "full",
+    });
+    expect(result.markdown).toContain("Festival programme");
+    expect(result.markdown).toContain("## Direct HTTP response");
+    expect(result.markdown).toContain("startDate: 2027-06-10");
+    expect(result.links).toEqual([
+      "https://festival.example/tickets",
+      "https://festival.example/programme",
+      "https://festival.example/details",
+    ]);
+    expect(budget.snapshot().pages).toBe(2);
+  });
+
+  it("marks combined rendered and direct text partial when their total is truncated", async () => {
+    const result = await readPage(sourceUrl, {
+      budget: createResearchBudget(),
+      request: mockResponse(`<main>Loading</main>
+        <script type="application/ld+json">${JSON.stringify({
+          "@type": "MusicEvent",
+          description: "Extra detail ".repeat(400),
+        })}</script><script src="/app.js"></script>`),
+      firecrawlRequest: mockResponse(
+        `<main>${"Festival programme ".repeat(1_000)}</main>`,
+      ),
+      firecrawlKey: "test-key",
+    });
+    expect(result).toMatchObject({
+      method: "firecrawl",
+      outcome: "ok",
+      completeness: "partial",
+      reason: "source_content_truncated",
+      sourceTruncated: true,
+    });
+    expect(result.markdown.length).toBeLessThanOrEqual(20_000);
+    expect(result.markdown).toContain("## Direct HTTP response");
+  });
+
+  it("keeps a short ordinary scripted page when rendering adds only a placeholder", async () => {
+    const firecrawlRequest = mockResponse(
+      `<main>${"Loading festival details ".repeat(5)}</main>`,
+    );
+    const result = await readPage(sourceUrl, {
+      budget: createResearchBudget(),
+      request: mockResponse(
+        '<main>Festival dates and tickets</main><script src="/analytics.js"></script>',
+      ),
+      firecrawlRequest,
+      firecrawlKey: "test-key",
+    });
+    expect(firecrawlRequest).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({
+      method: "http",
+      outcome: "partial",
+      completeness: "partial",
+      reason: "javascript_required",
+    });
+    expect(result.markdown).toContain("Festival dates and tickets");
+  });
+
+  it("keeps the direct page when less than one second remains", async () => {
+    let now = 0;
+    const budget = createResearchBudget({ durationMs: 1_500 }, () => now);
+    const request = mockResponse(
+      '<main>Loading</main><script src="/app.js"></script>',
+    );
+    request.mockImplementationOnce(async () => {
+      now = 600;
+      return {
+        finalUrl: sourceUrl,
+        status: 200,
+        contentType: "text/html",
+        body: Buffer.from(
+          '<main>Loading</main><script src="/app.js"></script>',
+        ),
+      };
+    });
+    const firecrawlRequest = mockResponse(
+      `<main>${"Festival programme ".repeat(20)}</main>`,
+    );
+    const result = await readPage(sourceUrl, {
+      budget,
+      request,
+      firecrawlRequest,
+      firecrawlKey: "test-key",
+    });
+    expect(firecrawlRequest).not.toHaveBeenCalled();
+    expect(budget.snapshot().pages).toBe(1);
+    expect(result).toMatchObject({ method: "http", outcome: "partial" });
+  });
+
+  it("keeps direct content and logs a safe code when rendering fails", async () => {
+    const firecrawlRequest = vi
+      .fn()
+      .mockRejectedValue(new FirecrawlError("firecrawl_http_402"));
+    const log = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn(),
+    };
+    const result = await readPage(sourceUrl, {
+      budget: createResearchBudget(),
+      request: mockResponse(
+        '<main>Loading</main><script src="/app.js"></script>',
+      ),
+      firecrawlRequest,
+      firecrawlKey: "test-key",
+      log,
+    });
+    expect(firecrawlRequest).toHaveBeenCalledOnce();
+    expect(log.warn).toHaveBeenCalledWith(
+      "JavaScript source Firecrawl fallback failed",
+      expect.objectContaining({ errorCode: "firecrawl_http_402" }),
+    );
+    expect(result).toMatchObject({
+      method: "http",
+      outcome: "partial",
+      reason: "javascript_required",
+    });
+    expect(result.markdown).toContain("Loading");
+  });
+
+  it("keeps direct content when Firecrawl reports a blocked source page", async () => {
+    const blockedBody = `<main>${"Access denied ".repeat(20)}</main>`;
+    const firecrawlRequest = mockResponse(blockedBody);
+    firecrawlRequest.mockResolvedValueOnce({
+      finalUrl: sourceUrl,
+      status: 403,
+      contentType: "text/html",
+      body: Buffer.from(blockedBody),
+    });
+    const result = await readPage(sourceUrl, {
+      budget: createResearchBudget(),
+      request: mockResponse(
+        '<main>Loading</main><a href="/details">Details</a><script src="/app.js"></script>',
+      ),
+      firecrawlRequest,
+      firecrawlKey: "test-key",
+    });
+    expect(firecrawlRequest).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({
+      method: "http",
+      outcome: "partial",
+      reason: "javascript_required",
+      links: ["https://festival.example/details"],
+    });
+    expect(result.markdown).toContain("Loading");
+    expect(result.markdown).not.toContain("Access denied");
   });
 
   it("ignores long navigation when assessing a JavaScript page", async () => {
