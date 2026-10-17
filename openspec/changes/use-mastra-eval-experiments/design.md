@@ -4,6 +4,8 @@
 
 Small. The runner changes its Mastra entry point and eval summary contract. Existing scorers and acceptance rules stay in place. The installed core version supports inline experiment data and tasks without experiment storage.
 
+This is internal developer tooling. Eval behavior is covered by tests and the development guide rather than product capability specs.
+
 ## Approach
 
 Call `runExperiment` with one inline item per case repetition and `maxConcurrency: 3`. Mastra preserves input order; stable item IDs verify each returned result belongs to its input. The task owns a fresh seeded catalog, captured sources, optional editor handoff, ingestion failure recovery, and one `scoreCase` call. Keep its connection cleanup in `finally`.
@@ -23,4 +25,4 @@ Experiment execution success does not imply eval acceptance. Keep `score.passed`
 - Persistence recovery must retain available facts and run IDs: retain the existing offline real-ingestion failure tests.
 - Framework failures must not disappear: check task and scorer failure handling without model calls.
 
-Update the development and structure guides and the owning specification. Run eval tests, type checking, lint, dependency checks, formatting, docs checks, and OpenSpec validation.
+Update the development and structure guides. Run eval tests, type checking, lint, dependency checks, formatting, docs checks, and OpenSpec validation.

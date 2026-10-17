@@ -13,9 +13,7 @@ The eval runner wraps each case in a one-step workflow and keeps a second result
 
 ## Capabilities
 
-### Modified Capabilities
-
-- `catalog/source-workflow`: Distinguish eval execution status from assertion acceptance in reports.
+No product capability requirements change. This is internal eval tooling; its behavior is covered by tests and the development guide, with implementation decisions recorded in design.md.
 
 ## Impact
 

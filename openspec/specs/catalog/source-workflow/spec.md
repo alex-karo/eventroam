@@ -757,23 +757,6 @@ Eval output SHALL preserve runId and available report data when finalization fai
 - **THEN** newly generated reports use v5 and old stored report JSON remains unchanged
 - **AND** historical report reading/scoring remains unsupported; no compatibility adapters or conversion are introduced
 
-### Requirement: Eval diagnostics explain every failed dimension
-Eval reports SHALL include failed-check explanations grouped by correctness, completeness, research, and tool use. CLI output and scorer explanations SHALL use those same diagnostics. Expected research failures SHALL identify unmet acceptance conditions. Diagnostic presentation SHALL preserve numeric scores, pass/fail decisions, and exit status.
-
-#### Scenario: Perfect mutation scores do not hide another failure
-- **WHEN** a case has perfect correctness and completeness but fails a research or tool-use check
-- **THEN** its report and CLI identify the failed dimension and check
-- **AND** its corresponding scorer gives the same failed-check explanation
-
-#### Scenario: An expected failure lacks required evidence
-- **WHEN** failed research does not satisfy an expected-failure condition
-- **THEN** diagnostics identify that condition, such as missing source diagnosis or unexpected writes
-- **AND** a host failure still invalidates acceptance
-
-#### Scenario: Repetitions remain independent
-- **WHEN** repetitions of the same case have different findings or tool calls
-- **THEN** each repetition retains its own scores and diagnostics across scorer output, JSON, and CLI
-
 ### Requirement: Run records remain private bounded reports
 Run input SHALL include only normalized operation settings and safe configuration metadata. Stored final reports SHALL retain the existing private report contract, including final model output, without storing credentials, environment dumps, prompts, full source pages, provider transport payloads, headers, or raw exception messages. Run records SHALL NOT be exposed through public website reads.
 
@@ -1563,23 +1546,3 @@ The discovery tool description SHALL limit search to finding an unknown official
 
 - **WHEN** relevant known links and prior results give event information materially conflicting with the original identity or dates, or with other inspected sources
 - **THEN** instructions allow search to resolve that conflict
-
-### Requirement: Eval execution is distinct from acceptance
-
-Eval reports SHALL expose experiment execution metadata and per-case scorer results. A completed task SHALL NOT imply acceptance. Existing assertion checks, diagnostics, case acceptance, and CLI exit rules SHALL remain authoritative. Each repetition SHALL retain its own ordered result. Task or scorer execution failures SHALL fail the eval command without exporting raw exception details.
-
-#### Scenario: Completed task fails its checks
-
-- **WHEN** an eval task completes but research or tool-use checks fail
-- **THEN** experiment execution can report success while the case is rejected and the command exits nonzero
-- **AND** the report retains the failed diagnostics and native scorer results
-
-#### Scenario: Repetitions complete out of order
-
-- **WHEN** repeated cases finish in a different order from their inputs
-- **THEN** report rows preserve input order and keep each repetition's result, score, tool calls, and scorer results together
-
-#### Scenario: Framework evaluation fails
-
-- **WHEN** a task fails to produce an output or a scorer fails to execute
-- **THEN** the command fails without treating missing results as acceptance or exposing raw exception messages and stacks

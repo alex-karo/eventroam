@@ -13,9 +13,7 @@ Eval scoring mixes assertions, expected failures, and Mastra presentation. The C
 
 ## Capabilities
 
-### Modified Capabilities
-
-- `catalog/source-workflow`: Eval diagnostics explain failed dimensions consistently across report consumers.
+No product capability requirements change. This is internal eval tooling; its behavior is covered by tests and the development guide, with implementation decisions recorded in design.md.
 
 ## Impact
 

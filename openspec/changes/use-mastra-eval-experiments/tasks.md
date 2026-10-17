@@ -6,4 +6,4 @@
 
 ## 2. Integration validation
 
-- [x] 2.1 Sync the implemented report contract to the owning specification and run type, lint, dependency, formatting, docs, and OpenSpec checks.
+- [x] 2.1 Document the internal eval report in the development guide and run type, lint, dependency, formatting, docs, and OpenSpec checks.

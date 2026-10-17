@@ -4,6 +4,8 @@
 
 Small. The change affects eval code, CLI presentation, and offline tests. It adds diagnostic lists to eval scores without changing ingestion report v5, fixture schema 2, stored catalog data, dependencies, or assertion semantics.
 
+This is internal developer tooling. Eval behavior is covered by tests and the development guide rather than product capability specs.
+
 ## Approach
 
 Keep the existing matcher behavior, including partial object matching and null exclusions. Move mutation assertions, research checks, and expected-failure checks into focused modules. Keep aggregation in `score.ts`. Expected failures return named conditions so an unmet condition can be explained without another implementation of the acceptance rule.
