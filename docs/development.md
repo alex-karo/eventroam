@@ -140,9 +140,21 @@ CATALOG_LOGGING=true CATALOG_TRACING=true npm run catalog -- refresh --event EVE
 npm run catalog:studio
 ```
 
-In Studio, open Observability → Logs or Traces. Both commands use `CATALOG_OBSERVABILITY_DATABASE_PATH`, defaulting to `data/mastra-observability.duckdb`. Use the durable runId to correlate records. The [ingestion guide](ingestion-process.md#inspect-local-agent-traces) explains recorded fields and privacy boundaries.
+In Studio, open Observability → Logs, Traces or Metrics. Metrics follow tracing eligibility and use no separate switch. SDK metric names are not enumerated by the application; new names pass the same technical-name/value validation and safe context projection. Agent/model/tool latency and model usage are available; the generic catalog root and initial source read have no native duration metric. Logging-only, previews and injected candidates emit no metrics. Both commands use `CATALOG_OBSERVABILITY_DATABASE_PATH`, defaulting to `data/mastra-observability.duckdb`. Use the durable runId to correlate records. The [ingestion guide](ingestion-process.md#inspect-local-agent-traces) explains recorded fields and privacy boundaries.
 
-Observability is best effort; incomplete or missing traces do not replace the durable report. Revisit flush/shutdown handling if missing traces or closed-store failures recur. Local stores have no automatic retention. To remove a disposable store, stop research and Studio first, then delete its DuckDB file and `.wal`; leave the catalog and reports intact.
+Metrics show model cost, which can differ from report spending: search/discovery charges are excluded, and incomplete provider cost can trigger a pricing estimate while the report retains its known subtotal. Reported zero stays zero; missing pricing stays unknown. Sum total input/output cost once, excluding cache/reasoning detail costs. For example, with Studio running, query persisted records without model credentials or research execution:
+
+```sh
+curl -sS http://127.0.0.1:4111/api/observability/metrics/aggregate \
+  -H 'Content-Type: application/json' \
+  -d '{"name":["mastra_model_total_input_tokens","mastra_model_total_output_tokens"],"aggregation":"sum"}'
+```
+
+`value` is the combined input/output token count; `estimatedCost`/`costUnit` carry the known model cost or estimate, not a complete bill. Add `filters.runId` to select a durable run. `POST /api/observability/metrics/breakdown` accepts the same names/aggregation and `groupBy:["entityName","model"]`. Raw `GET /api/observability/metrics` records expose runId, traceId, spanId and selected cost metadata. Studio’s agent links from Metrics may preselect agent-root trace filters; this ingestion uses a generic catalog root, so clear those primitive filters to see its trace or correlate the IDs through the API. Time series and percentiles use the native `/timeseries` and `/percentiles` POST routes; percentile fractions range from 0 to 1.
+
+Operation logs retain start/result timestamps and selected context without manual `durationMs` fields. Native traces/metrics own operation timing; whole-run report/completion duration and execution budgets remain unchanged.
+
+Observability is best effort; incomplete or missing traces/metrics do not replace the durable report. Revisit flush/shutdown handling if missing traces or closed-store failures recur. Local stores have no automatic retention. To remove a disposable store, stop research and Studio first, then delete its DuckDB file and `.wal`; leave the catalog and reports intact.
 
 ## Future deployment and reference
 

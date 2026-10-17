@@ -1,3 +1,4 @@
+import { writeObservation } from "./write-observation";
 import type {
   CatalogResearchInput,
   CatalogResearchResult,
@@ -8,11 +9,7 @@ import { createResearchBudget, type ResearchBudget } from "./runtime/budget";
 import { loadResearchConfig, type ResearchConfig } from "./runtime/config";
 import { createCatalogRunTrace, type CatalogRunTrace } from "./runtime/tracing";
 import { RESEARCH_PROMPT_VERSION } from "./research/contracts";
-import {
-  logCompletion,
-  writeLogFields,
-  reportEventId,
-} from "./workflow-logging";
+import { logCompletion, reportEventId } from "./workflow-logging";
 import { RunPersistenceError } from "./runs";
 import type { SourceSession } from "./tools/session";
 import { createToolOutputCapture } from "./tool-output-capture";
@@ -176,7 +173,8 @@ export class CatalogAttempt {
           this.input,
           data.prepared,
           data.applied,
-          data.writeFailed,
+          this.trace?.state.writeState ??
+            (data.writeFailed ? "rolled_back" : "not_attempted"),
         );
         return result;
       } catch (error) {
@@ -186,7 +184,12 @@ export class CatalogAttempt {
             this.trace?.log?.error("Required run finalization failed", {
               stage: "report",
               errorCode: "run_persistence_failed",
-              ...writeLogFields(this.input, data.applied, data.writeFailed),
+              ...writeObservation(
+                this.input,
+                data.applied,
+                this.trace?.state.writeState ??
+                  (data.writeFailed ? "rolled_back" : "not_attempted"),
+              ),
             });
           }
         } else {

@@ -1,3 +1,4 @@
+import { writeObservation } from "./write-observation";
 import {
   assertRefreshBaseline,
   countryBaselineConflict,
@@ -28,9 +29,7 @@ import { editResearch } from "./editor/agent";
 import { buildResearchReport } from "./report";
 import {
   logPreparation,
-  writeDisposition,
   reportEventId,
-  writeLogFields,
   attemptedCatalogFields,
 } from "./workflow-logging";
 
@@ -518,6 +517,7 @@ export function createCatalogIngestionWorkflow(
       }
       if (owned.trace) {
         owned.trace.state.writeState = "unknown";
+        owned.trace.update();
       }
       try {
         data.applied = applyCatalogItem(
@@ -537,10 +537,10 @@ export function createCatalogIngestionWorkflow(
           },
         );
         if (owned.trace) {
-          owned.trace.state.writeState = writeDisposition(
+          owned.trace.state.writeState = writeObservation(
             owned.input,
             data.applied,
-          );
+          ).writeState;
         }
         owned.trace?.tracing.setEventId(
           reportEventId(owned.input, data.prepared, data.applied),
@@ -549,7 +549,7 @@ export function createCatalogIngestionWorkflow(
         owned.trace?.log?.info("Catalog write finished", {
           stage: "write",
           dryRun: owned.input.dryRun,
-          ...writeLogFields(owned.input, data.applied, false),
+          ...writeObservation(owned.input, data.applied),
           fields: attemptedCatalogFields(data.prepared.operations),
         });
       } catch (error) {

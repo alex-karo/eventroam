@@ -50,6 +50,8 @@ export async function runTraceFixture(
     commentary?: string;
     reasoning?: string;
     cost?: number;
+    stepCosts?: (number | null)[];
+    model?: string;
     searchStatus?: number;
     sourceErrorCount?: number;
     onAbortRequest?: () => void;
@@ -58,7 +60,7 @@ export async function runTraceFixture(
   const startedAt = Date.now();
   const config = {
     apiKey: TRACE_CREDENTIAL,
-    model: "fixture/provider-model",
+    model: modelText.model ?? "fixture/provider-model",
     limits: {
       ...DEFAULT_RESEARCH_LIMITS,
       agentSteps:
@@ -263,7 +265,7 @@ export async function runTraceFixture(
                 prompt_tokens: 10,
                 completion_tokens: 20,
                 total_tokens: 30,
-                cost: modelText.cost ?? 0,
+                ...fixtureCost(modelText.cost, modelText.stepCosts, requests),
                 prompt_tokens_details: { cached_tokens: 3 },
                 completion_tokens_details: { reasoning_tokens: 4 },
               },
@@ -462,4 +464,13 @@ function wireFixture(
       wireFixture((value as Record<string, unknown>)[key] ?? null, property),
     ]),
   );
+}
+
+function fixtureCost(
+  cost: number | undefined,
+  stepCosts: (number | null)[] | undefined,
+  request: number,
+) {
+  const selected = stepCosts ? stepCosts[request - 1] : (cost ?? 0);
+  return selected == null ? {} : { cost: selected };
 }

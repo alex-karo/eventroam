@@ -162,7 +162,25 @@ test.each(["http", "abort"] as const)(
     expect(result).toMatchObject({
       usage: { complete: false, inputTokens: 10, outputTokens: 20 },
     });
-    const root = (await spansAt(path)).find((span) => !span.parentSpanId)!;
+    const saved = await readTraceRows(path);
+    const root = saved.mastra_ai_spans.find((span) => !span.parentSpanId)!;
+    expect(
+      saved.mastra_metrics.some(
+        (metric) =>
+          metric.name === "mastra_model_duration_ms" &&
+          metric.runId === result.runId,
+      ),
+    ).toBe(true);
+    const tokens = saved.mastra_metrics.find(
+      (metric) => metric.name === "mastra_model_total_input_tokens",
+    );
+    if (ending === "http") {
+      expect(tokens).toMatchObject({ value: 10, runId: result.runId });
+    } else {
+      // Native cancellation can close a generation before SDK usage is attached.
+      // The independent report above still retains the completed step's usage.
+      expect(tokens).toBeUndefined();
+    }
     expect(JSON.parse(root.error as string)).toMatchObject({
       message: "operation_failed",
     });
@@ -299,6 +317,19 @@ test("short buffered writer exits and a different process can read its final spa
   ]) {
     expect(reader.stdout).not.toContain(marker);
   }
+  const saved = await readTraceRows(path);
+  expect(
+    saved.mastra_metrics.some(
+      (metric) =>
+        metric.name === "mastra_model_total_input_tokens" &&
+        metric.value === 20,
+    ),
+  ).toBe(true);
+  expect(
+    saved.mastra_metrics.every(
+      (metric) => metric.runId === JSON.parse(writer.stdout).result.runId,
+    ),
+  ).toBe(true);
   await spansAt(path);
 }, 15_000);
 
@@ -446,7 +477,7 @@ test.each([
     if (scenario === "skipped") {
       expect(output).toMatchObject({
         outcome: "skipped",
-        writeState: "unchanged",
+        writeState: "not_attempted",
         committedOperationCount: 0,
       });
     }
@@ -483,7 +514,7 @@ test.each([
       }
     }
     if (scenario === "unchanged") {
-      expect(output.writeState).toBe("unchanged");
+      expect(output.writeState).toBe("not_attempted");
     }
     if (scenario === "search" || scenario === "reserved") {
       const search = spans.find((span) => span.entityId === "searchWeb")!;
@@ -521,6 +552,8 @@ test.each(["context", "report", "no_report", "writer"] as const)(
     const writerModule = await import("@/catalog/write/apply-operation");
     const path = tracePath();
     enable(path);
+    vi.stubEnv("CATALOG_LOGGING", "true");
+    vi.spyOn(process.stderr, "write").mockReturnValue(true);
     if (failure === "context") {
       vi.spyOn(contextModule, "loadResearchContext").mockImplementation(() => {
         throw new Error(TRACE_ERROR);
@@ -550,7 +583,8 @@ test.each(["context", "report", "no_report", "writer"] as const)(
     } else {
       await runTraceFixture("success", false, "partial");
     }
-    const root = (await spansAt(path)).find((span) => !span.parentSpanId)!;
+    const saved = await readTraceRows(path);
+    const root = saved.mastra_ai_spans.find((span) => !span.parentSpanId)!;
     const output = JSON.parse(root.output as string);
     expect(root.endedAt).toBeTruthy();
     expect(JSON.parse(root.error as string)).toMatchObject({
@@ -574,6 +608,16 @@ test.each(["context", "report", "no_report", "writer"] as const)(
       expect(output.committedOperationCount).toBeGreaterThan(0);
     } else {
       expect(output.committedOperationCount).toBe(0);
+    }
+    for (const log of saved.mastra_logs.filter(
+      (row) =>
+        row.message === "Catalog write finished" ||
+        row.message === "Research finished",
+    )) {
+      expect(log.data).toMatchObject({
+        writeState: output.writeState,
+        committedOperationCount: output.committedOperationCount,
+      });
     }
     if (failure === "no_report") {
       expect(output).not.toHaveProperty("researchStatus");

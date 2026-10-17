@@ -1,8 +1,16 @@
 import {
   SpanType,
   type AnySpan,
+  type ModelGenerationAttributes,
   type SpanOutputProcessor,
+  type UsageStats,
 } from "@mastra/core/observability";
+import {
+  knownEntity,
+  nonnegative,
+  safeCostContext,
+  technicalId,
+} from "../observability/fields";
 import type { CatalogResearchInput } from "../../contracts";
 import type { Diagnose } from "../observability/diagnostics";
 
@@ -27,22 +35,28 @@ export function selectTraceFields(span: AnySpan, fields: TraceFields) {
   selectedFields.set(span, fields);
 }
 
-type Usage = Record<string, unknown>;
-function tokenUsage(value: unknown) {
-  if (!value || typeof value !== "object") {
+function tokenUsage(usage: UsageStats | undefined): UsageStats | undefined {
+  if (!usage) {
     return undefined;
   }
-  const usage = value as Usage;
-  const number = (key: string) =>
-    typeof usage[key] === "number" && Number.isFinite(usage[key])
-      ? usage[key]
-      : undefined;
   return {
-    inputTokens: number("inputTokens"),
-    outputTokens: number("outputTokens"),
-    cacheRead: number("cacheRead"),
-    cacheWrite: number("cacheWrite"),
-    reasoning: number("reasoning"),
+    inputTokens: nonnegative(usage.inputTokens),
+    outputTokens: nonnegative(usage.outputTokens),
+    inputDetails: usage.inputDetails && {
+      text: nonnegative(usage.inputDetails.text),
+      cacheRead: nonnegative(usage.inputDetails.cacheRead),
+      cacheWrite: nonnegative(usage.inputDetails.cacheWrite),
+      cacheWrite5m: nonnegative(usage.inputDetails.cacheWrite5m),
+      cacheWrite1h: nonnegative(usage.inputDetails.cacheWrite1h),
+      audio: nonnegative(usage.inputDetails.audio),
+      image: nonnegative(usage.inputDetails.image),
+    },
+    outputDetails: usage.outputDetails && {
+      text: nonnegative(usage.outputDetails.text),
+      reasoning: nonnegative(usage.outputDetails.reasoning),
+      audio: nonnegative(usage.outputDetails.audio),
+      image: nonnegative(usage.outputDetails.image),
+    },
   };
 }
 
@@ -59,17 +73,37 @@ export function researchSpanProcessor(
       }
       try {
         const explicit = selectedFields.get(span);
-        const attrs = span.attributes as Record<string, unknown> | undefined;
+        const attrs: ModelGenerationAttributes & {
+          success?: boolean;
+          usageIncomplete?: boolean;
+        } = span.attributes ?? {};
         const usage = tokenUsage(attrs?.usage);
         const attributes: Record<string, unknown> = {};
         if (usage) {
           attributes.usage = usage;
         }
+        attributes.provider = technicalId(attrs?.provider);
+        attributes.model = technicalId(attrs?.model);
+        attributes.responseModel = technicalId(attrs?.responseModel);
+        attributes.costContext = safeCostContext(attrs?.costContext);
+        if (typeof attrs?.usageIncomplete === "boolean") {
+          attributes.usageIncomplete = attrs.usageIncomplete;
+        }
         if (typeof attrs?.success === "boolean") {
           attributes.success = attrs.success;
         }
-        if (typeof attrs?.finishReason === "string") {
-          attributes.finishReason = attrs.finishReason;
+        if (
+          [
+            "stop",
+            "length",
+            "content-filter",
+            "tool-calls",
+            "error",
+            "other",
+            "unknown",
+          ].includes(attrs?.finishReason ?? "")
+        ) {
+          attributes.finishReason = attrs?.finishReason;
         }
         if (typeof span.type !== "string" || typeof span.name !== "string") {
           throw new Error("Invalid span");
@@ -86,10 +120,11 @@ export function researchSpanProcessor(
         span.name =
           explicit?.name ??
           (span.type === SpanType.AGENT_RUN ? agentName : (tool ?? span.type));
-        if (span.entityId !== "catalog-research") {
-          span.entityId = span.type === SpanType.AGENT_RUN ? agentId : tool;
-        }
-        span.entityType = undefined;
+        const entity =
+          knownEntity(span.entityId) ??
+          (span.type === SpanType.AGENT_RUN ? knownEntity(agentId) : undefined);
+        span.entityId = entity?.entityId;
+        span.entityType = entity?.entityType;
         span.entityName = span.name;
         span.attributes = attributes;
         span.metadata = { ...metadata, ...explicit?.metadata };

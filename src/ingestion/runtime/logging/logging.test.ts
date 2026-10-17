@@ -250,65 +250,78 @@ test.each([
   },
 );
 
-test("real research stores selected completed model text without source bodies or prompts", async () => {
-  const file = database();
-  enable(file, true);
-  const result = await runTraceFixture("success", false, "partial", false, {
-    commentary: "C".repeat(4_100),
-    reasoning: "R".repeat(4_200),
-  });
-  const rows = await readTraceRows(file);
-  expect(
-    rows.mastra_logs.some((row) => row.runId === result.result.runId),
-  ).toBe(true);
-  expect(result.durableReport).toMatchObject({ runId: result.result.runId });
-  for (const row of rows.mastra_logs) {
-    expect(row.data).toMatchObject({ eventId: result.result.eventId });
-  }
-  expect(
-    rows.mastra_logs.some((row) => row.message === "Tool call finished"),
-  ).toBe(true);
-  const commentary = rows.mastra_logs.find(
-    (row) =>
-      row.message === "Model commentary observed at step completion" &&
-      (row.data as Record<string, unknown>)?.originalCharacters === 4_100,
-  );
-  const reasoning = rows.mastra_logs.find(
-    (row) =>
-      row.message === "Provider reasoning observed at step completion" &&
-      (row.data as Record<string, unknown>)?.originalCharacters === 4_200,
-  );
-  expect(
-    rows.mastra_logs.filter(
-      (row) => row.message === "Model commentary observed at step completion",
-    ),
-  ).toHaveLength(1);
-  expect(commentary?.data).toMatchObject({
-    text: "C".repeat(4_000),
-    originalCharacters: 4_100,
-    truncated: true,
-    channel: "commentary",
-  });
-  expect(reasoning?.data).toMatchObject({
-    text: "R".repeat(4_000),
-    originalCharacters: 4_200,
-    truncated: true,
-    channel: "reasoning",
-  });
-  const stored = JSON.stringify(rows);
-  for (const secret of [
-    TRACE_CANDIDATE,
-    TRACE_CREDENTIAL,
-    TRACE_SOURCE_BODY,
-    TRACE_HIGHLIGHT,
-    TRACE_TRANSPORT,
-  ]) {
-    expect(stored).not.toContain(secret);
-  }
-  expect(
-    rows.mastra_logs.some((row) => row.message === "Research finished"),
-  ).toBe(true);
-});
+test.each([false, true])(
+  "real research retains selected model/tool logs without operation timers (tracing %s)",
+  async (traced) => {
+    const file = database();
+    enable(file, traced);
+    const result = await runTraceFixture("success", false, "partial", false, {
+      commentary: "C".repeat(4_100),
+      reasoning: "R".repeat(4_200),
+    });
+    const rows = await readTraceRows(file);
+    expect(
+      rows.mastra_logs.some((row) => row.runId === result.result.runId),
+    ).toBe(true);
+    expect(result.durableReport).toMatchObject({ runId: result.result.runId });
+    for (const row of rows.mastra_logs) {
+      expect(row.data).toMatchObject({ eventId: result.result.eventId });
+    }
+    expect(
+      rows.mastra_logs.some((row) => row.message === "Tool call finished"),
+    ).toBe(true);
+    const commentary = rows.mastra_logs.find(
+      (row) =>
+        row.message === "Model commentary observed at step completion" &&
+        (row.data as Record<string, unknown>)?.originalCharacters === 4_100,
+    );
+    const reasoning = rows.mastra_logs.find(
+      (row) =>
+        row.message === "Provider reasoning observed at step completion" &&
+        (row.data as Record<string, unknown>)?.originalCharacters === 4_200,
+    );
+    expect(
+      rows.mastra_logs.filter(
+        (row) => row.message === "Model commentary observed at step completion",
+      ),
+    ).toHaveLength(1);
+    expect(commentary?.data).toMatchObject({
+      text: "C".repeat(4_000),
+      originalCharacters: 4_100,
+      truncated: true,
+      channel: "commentary",
+    });
+    expect(reasoning?.data).toMatchObject({
+      text: "R".repeat(4_000),
+      originalCharacters: 4_200,
+      truncated: true,
+      channel: "reasoning",
+    });
+    for (const log of rows.mastra_logs.filter((row) =>
+      /^(Model step|Tool call)/.test(row.message),
+    )) {
+      expect(log.data).not.toHaveProperty("durationMs");
+    }
+    expect(
+      rows.mastra_logs.find((row) => row.message === "Research finished")?.data,
+    ).toMatchObject({ durationMs: result.result.durationMs });
+    expect(result.result.usage.modelCalls).toBe(3);
+    expect(result.result.schemaVersion).toBe(5);
+    const stored = JSON.stringify(rows);
+    for (const secret of [
+      TRACE_CANDIDATE,
+      TRACE_CREDENTIAL,
+      TRACE_SOURCE_BODY,
+      TRACE_HIGHLIGHT,
+      TRACE_TRANSPORT,
+    ]) {
+      expect(stored).not.toContain(secret);
+    }
+    expect(
+      rows.mastra_logs.some((row) => row.message === "Research finished"),
+    ).toBe(true);
+  },
+);
 
 test("finalization failure logs the already committed catalog write", async () => {
   const runs = await import("../../runs");
