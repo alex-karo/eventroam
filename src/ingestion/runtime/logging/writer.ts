@@ -17,8 +17,6 @@ export interface ResearchLogger {
   child(bindings: Record<string, unknown>): ResearchLogger;
 }
 
-const priority = { debug: 0, info: 1, warn: 2, error: 3 };
-
 /** Route native Pino records through the same EPIPE-safe stderr writer as diagnostics. */
 class StderrTransport extends LoggerTransport {
   constructor(private readonly failed: () => void) {
@@ -80,9 +78,6 @@ export function createResearchLogger(options: {
       message: string,
       fields: Record<string, unknown> = {},
     ) => {
-      if (priority[level] < priority[options.level]) {
-        return;
-      }
       try {
         const data: Record<string, unknown> = {
           ...context,

@@ -30,7 +30,6 @@ export function createReadPageTool({
         toolCallId: toolContext?.agent?.toolCallId,
       };
       const toolLog = log?.child(context);
-      const started = Date.now();
       toolLog?.info("Tool call started", {
         tool: "readPage",
         attemptedUrl: url,
@@ -75,7 +74,6 @@ export function createReadPageTool({
             sourceTruncated: result.sourceTruncated,
             toolTruncated: bounded.truncated,
             cached,
-            durationMs: Date.now() - started,
             remaining: budget.remaining(),
           },
         );
@@ -89,7 +87,6 @@ export function createReadPageTool({
           tool: "readPage",
           attemptedUrl: url,
           errorCode: "source_failed",
-          durationMs: Date.now() - started,
         });
         observeTrace(tracing, span, {
           name: "readPage",

@@ -1,6 +1,7 @@
 import {
   SpanType,
   type AnySpan,
+  type ModelGenerationAttributes,
   type SpanOutputProcessor,
 } from "@mastra/core/observability";
 import type { CatalogResearchInput } from "../../contracts";
@@ -27,25 +28,6 @@ export function selectTraceFields(span: AnySpan, fields: TraceFields) {
   selectedFields.set(span, fields);
 }
 
-type Usage = Record<string, unknown>;
-function tokenUsage(value: unknown) {
-  if (!value || typeof value !== "object") {
-    return undefined;
-  }
-  const usage = value as Usage;
-  const number = (key: string) =>
-    typeof usage[key] === "number" && Number.isFinite(usage[key])
-      ? usage[key]
-      : undefined;
-  return {
-    inputTokens: number("inputTokens"),
-    outputTokens: number("outputTokens"),
-    cacheRead: number("cacheRead"),
-    cacheWrite: number("cacheWrite"),
-    reasoning: number("reasoning"),
-  };
-}
-
 /** Remove SDK-generated content; only fields chosen by our producers are exported. */
 export function researchSpanProcessor(
   metadata: TraceMetadata,
@@ -59,38 +41,26 @@ export function researchSpanProcessor(
       }
       try {
         const explicit = selectedFields.get(span);
-        const attrs = span.attributes as Record<string, unknown> | undefined;
-        const usage = tokenUsage(attrs?.usage);
-        const attributes: Record<string, unknown> = {};
-        if (usage) {
-          attributes.usage = usage;
-        }
-        if (typeof attrs?.success === "boolean") {
-          attributes.success = attrs.success;
-        }
-        if (typeof attrs?.finishReason === "string") {
-          attributes.finishReason = attrs.finishReason;
-        }
-        if (typeof span.type !== "string" || typeof span.name !== "string") {
-          throw new Error("Invalid span");
-        }
-        if (!Object.values(SpanType).includes(span.type)) {
-          span.type = SpanType.GENERIC;
-        }
-        const tool = ["readPage", "searchWeb"].find(
-          (name) => span.entityId === name,
-        );
-        const editor = span.entityId === "festival-editor";
-        const agentName = editor ? "Festival editor" : "Festival research";
-        const agentId = editor ? "festival-editor" : "festival-research";
-        span.name =
-          explicit?.name ??
-          (span.type === SpanType.AGENT_RUN ? agentName : (tool ?? span.type));
-        if (span.entityId !== "catalog-research") {
-          span.entityId = span.type === SpanType.AGENT_RUN ? agentId : tool;
-        }
-        span.entityType = undefined;
-        span.entityName = span.name;
+        const attrs: ModelGenerationAttributes & {
+          success?: boolean;
+          usageIncomplete?: boolean;
+        } = span.attributes ?? {};
+        const attributes = {
+          usage: attrs.usage,
+          provider: attrs.provider,
+          model: attrs.model,
+          responseModel: attrs.responseModel,
+          costContext: attrs.costContext,
+          usageIncomplete: attrs.usageIncomplete,
+          success: attrs.success,
+          finishReason: attrs.finishReason,
+        };
+        const operationName =
+          span.type === SpanType.AGENT_RUN || span.type === SpanType.TOOL_CALL
+            ? (span.entityName ?? span.type)
+            : span.type;
+        span.name = explicit?.name ?? operationName;
+        span.entityName = explicit?.name ?? span.entityName;
         span.attributes = attributes;
         span.metadata = { ...metadata, ...explicit?.metadata };
         span.input = explicit?.input;

@@ -27,7 +27,10 @@ import { createObservabilityStore } from "./storage";
 
 /** Drop notifications may contain raw error messages: deliberately ignore them. */
 export class ResearchObservabilityExporter extends MastraStorageExporter {
-  constructor(private readonly diagnose: Diagnose) {
+  constructor(
+    private readonly diagnose: Diagnose,
+    private readonly metricsEnabled = false,
+  ) {
     super({ maxRetries: 0, strategy: "event-sourced" });
   }
   override async onLogEvent(
@@ -43,8 +46,18 @@ export class ResearchObservabilityExporter extends MastraStorageExporter {
   onDroppedEvent() {
     this.diagnose("trace_export_failed");
   }
-  // Automatic metrics are out of scope.
-  override async onMetricEvent() {}
+  override async onMetricEvent(
+    event: Parameters<MastraStorageExporter["onMetricEvent"]>[0],
+  ) {
+    if (!this.metricsEnabled) {
+      return;
+    }
+    try {
+      await super.onMetricEvent(event);
+    } catch {
+      this.diagnose("trace_export_failed");
+    }
+  }
 }
 
 export async function createResearchObservability(
@@ -108,7 +121,9 @@ export async function createResearchObservability(
             enabled: loggingEnabled,
             level: level as ResearchLogLevel,
           },
-          exporters: [new ResearchObservabilityExporter(diagnose)],
+          exporters: [
+            new ResearchObservabilityExporter(diagnose, traceEnabled),
+          ],
           spanOutputProcessors: [processor],
         },
       },

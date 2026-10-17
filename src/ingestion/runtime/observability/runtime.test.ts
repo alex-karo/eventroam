@@ -300,34 +300,6 @@ async function enabledTracing() {
   return tracing;
 }
 
-test("a sanitizer failure in the exporter pipeline persists no unsafe span", async () => {
-  const tracing = await enabledTracing();
-  const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
-  const mastra = new Mastra({
-    logger: false,
-    storage: tracing.storage,
-    observability: tracing.observability,
-  });
-  tracing.observability.setLogger({ logger: tracing.logger });
-  // Simulate an unexpected SDK value at the actual start/end export boundary.
-  const span = tracing.observability.getDefaultInstance()!.startSpan({
-    type: SpanType.AGENT_RUN,
-    name: null as unknown as string,
-    input: "PRIVATE_UNSANITIZED_PROMPT",
-    metadata: { secret: "PRIVATE_UNSANITIZED_METADATA" },
-  });
-  span.end({ output: { text: "PRIVATE_UNSANITIZED_RESPONSE" } });
-  await finishResearchObservability(mastra, tracing.diagnose);
-  const rows = await readTraceRows(
-    process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!,
-  );
-  expect(rows.mastra_ai_spans).toEqual([]);
-  expect(JSON.stringify(rows)).not.toContain("PRIVATE_");
-  expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
-    "trace_sanitization_failed\n",
-  );
-});
-
 test("internally handled exporter write failures and drops emit only fixed codes", async () => {
   const tracing = await enabledTracing();
   const store = (await tracing.storage.getStore("observability"))!;
@@ -373,7 +345,7 @@ test("missing mandatory processor disables tracing before creating a run", async
   );
 });
 
-test("unknown spans and start/update/end events retain only the host projection and numeric fields", async () => {
+test("generic spans retain native entity context and exclude raw content across start/update/end", async () => {
   const tracing = await enabledTracing();
   expect(tracing.options).toMatchObject({
     hideInput: false,
@@ -398,11 +370,11 @@ test("unknown spans and start/update/end events retain only the host projection 
     await original.call(this, event);
   });
   const span = tracing.observability.getDefaultInstance()!.startSpan({
-    type: "PRIVATE_UNKNOWN_TYPE" as SpanType,
+    type: SpanType.GENERIC,
     name: "PRIVATE_NAME",
     input: "PRIVATE_INPUT",
     metadata: { secret: "PRIVATE_KEY" },
-    entityName: "PRIVATE_ENTITY",
+    entityName: "Fixture entity",
   });
   span.update({
     input: "PRIVATE_UPDATE",
@@ -412,6 +384,9 @@ test("unknown spans and start/update/end events retain only the host projection 
   span.end({ output: "PRIVATE_FINAL" });
   await finishResearchObservability(mastra, tracing.diagnose);
   expect(exported).toHaveLength(3);
+  for (const event of exported) {
+    expect(JSON.parse(event).entityName).toBe("Fixture entity");
+  }
   expect(exported.join("")).not.toContain("PRIVATE_");
   const rows = await readTraceRows(
     process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!,

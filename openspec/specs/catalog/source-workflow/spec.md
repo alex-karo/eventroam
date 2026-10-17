@@ -805,24 +805,16 @@ Source diagnostics SHALL retain bounded read URLs, outcome/reason/method/complet
 - **THEN** its components are preserved within any call-site shortening applied, without rewriting the request
 
 ### Requirement: One catalog-run trace covers the final result
-Each eligible apply trace SHALL cover research, editing and the final write/report outcome. It SHALL expose research structural/target validation, editor plan validation/status, writeState, known committedOperationCount and available report status/outcome. Editorial rejection SHALL preserve research checks and report failed plan validation with not_attempted writes. Unavailable results SHALL NOT be invented.
+Each eligible apply trace SHALL cover research, editing and the final write/report outcome. It SHALL expose research structural/target validation, editor plan validation/status and available report status/outcome. Editorial rejection SHALL preserve research checks and report failed plan validation. Unavailable results SHALL NOT be invented.
 
 #### Scenario: Editorial rejection remains visible in diagnostics
 - **WHEN** usable partial research is followed by an explicit editor rejection
 - **THEN** preparation logs a warning for the rejected plan and the final trace label identifies editor rejection rather than partial completion
-- **AND** retain research validation, editorStatus=success, failed editorPlanValidation, not_attempted writes and zero committed operations
+- **AND** retain research validation, editorStatus=success and failed editorPlanValidation
 
 #### Scenario: Report construction fails after a commit
 - **WHEN** a confirmed write succeeds but report construction fails
-- **THEN** the root retains committed disposition/count and technical failure without inventing unavailable report fields
-
-### Requirement: Run traces distinguish write disposition from research outcome
-
-Write state SHALL remain committed, rolled_back, unchanged, not_attempted or unknown independently of research status. The committed-operation count SHALL be null when transaction disposition is unknown; dry-run previews SHALL not be labelled committed.
-
-#### Scenario: Writer rejects an atomic item
-- **WHEN** the writer rolls back after failure
-- **THEN** the root records rolled_back and zero confirmed changed operations without claiming successful mutation
+- **THEN** the root retains technical failure without inventing unavailable report fields
 
 ### Requirement: Research logging is optional and independent
 Local application logging SHALL be independently configurable from tracing, disabled by default, and support debug/info/warn/error levels. Logging failures SHALL produce fixed content-free diagnostics without changing research decisions, budgets, retries, catalog writes, reports, durable run lifecycle/accounting, eval acceptance or exit status.
@@ -861,7 +853,7 @@ Stored application logs SHALL include a short message, severity, durable runId a
 - **THEN** the research exporter does not admit it merely because application logging is enabled
 
 ### Requirement: Research logs cover actionable execution events
-Enabled logging SHALL describe selected source retrieval, discovery, model steps, completed commentary and returned reasoning, tool calls/results, retries, errors, budget limits, plan validation, write outcomes and run completion. Status/count fields SHALL reflect the observed phase; successful completion SHALL follow durable finalization. Logging SHALL NOT replay work or change generation settings.
+Enabled logging SHALL describe selected source retrieval, discovery, model steps, completed commentary and returned reasoning, tool calls/results, retries, errors, budget limits, plan validation, write outcomes and run completion. Status/count fields SHALL reflect the observed phase; successful completion SHALL follow durable finalization. Logging SHALL NOT replay work or change generation settings. Model-step and tool-call logs SHALL omit `durationMs`. Enabled traces and metrics SHALL expose operation durations.
 
 #### Scenario: Source was fetched
 - **WHEN** a source returns Markdown
@@ -871,6 +863,11 @@ Enabled logging SHALL describe selected source retrieval, discovery, model steps
 #### Scenario: A dry run previews writes
 - **WHEN** catalog changes are previewed
 - **THEN** the log distinguishes preview from committed writes and retains selected counts without claiming a commit
+
+#### Scenario: Detailed logs without tracing
+- **WHEN** logging is enabled while tracing is disabled
+- **THEN** model/tool start and outcome events retain timestamps, context and selected results without `durationMs` fields or execution metrics
+- **AND** whole-run duration in the report and completion log retains its existing meaning
 
 ### Requirement: Research log payloads are selected by event
 Logs SHALL contain only useful diagnostic fields. They SHALL exclude full prompts, message history, source Markdown or excerpts, full provider responses, transport headers/bodies, catalog snapshots and raw exception objects. Selected model commentary and returned reasoning MAY be logged with explicit shortening metadata. Debug logging SHALL obey the same exclusions.
@@ -910,7 +907,7 @@ Enabled logs SHALL remain readable locally in Studio after exit, with severity, 
 - **THEN** selected events and scoped context are visible without rerunning research or accessing model credentials
 
 ### Requirement: Observability storage has explicit local ownership
-Application logs and eligible traces SHALL remain in local storage separate from the catalog. Contention with another process SHALL produce a bounded diagnostic without disrupting ingestion or taking ownership from that process. Existing historical files SHALL remain untouched; legacy conversion and inspection SHALL remain unsupported.
+Application logs, eligible traces and their execution metrics SHALL remain in local storage separate from the catalog. Contention with another process SHALL produce a bounded diagnostic without disrupting ingestion or taking ownership from that process. Existing historical files SHALL remain untouched; legacy conversion and inspection SHALL remain unsupported.
 
 #### Scenario: Another process owns the store
 - **WHEN** another process prevents opening the local observability store
@@ -1547,7 +1544,6 @@ The discovery tool description SHALL limit search to finding an unknown official
 - **WHEN** relevant known links and prior results give event information materially conflicting with the original identity or dates, or with other inspected sources
 - **THEN** instructions allow search to resolve that conflict
 
-
 ### Requirement: Owner can capture agent-visible source results locally
 The local ingestion process SHALL capture research source content only when `CATALOG_CAPTURE_TOOL_OUTPUTS=true`. It SHALL save each `readPage` and `searchWeb` result as the research agent received it, after existing normalization and limits. It SHALL also save the initial source projection passed in `inspectedSources` before the first agent call. Capture SHALL work for local CLI and Studio attempts and SHALL be off by default.
 
@@ -1576,3 +1572,72 @@ The process SHALL place captured results under an ignored local `data/catalog-de
 - **WHEN** a capture directory or file cannot be written
 - **THEN** the owner receives a bounded capture diagnostic
 - **AND** the attempt follows its normal research and catalog outcome
+
+### Requirement: Eligible traced ingestion records execution metrics
+Eligible traced apply runs SHALL record operation durations and technical status for agent, model and tool execution, plus available model token usage. Metrics SHALL follow tracing eligibility and remain independent of application logging. Dry runs, injected candidate runs and runs with tracing disabled SHALL emit no ingestion metrics.
+
+#### Scenario: Tracing without application logging
+- **WHEN** an eligible apply run executes research, editing and tools with tracing enabled and logging disabled
+- **THEN** their completed operations produce duration observations and available model token observations
+- **AND** model usage includes available cache and reasoning categories without adding those subsets to total token counts
+
+#### Scenario: Metrics are ineligible
+- **WHEN** tracing is disabled or the run is a dry run or uses an injected candidate generator
+- **THEN** no ingestion metric records are emitted, even if application logging is enabled
+- **AND** when logging is also disabled, the attempt opens no observability store
+
+#### Scenario: Additional execution metrics are recorded
+- **WHEN** an eligible run produces an execution metric beyond the currently observed duration and token names
+- **THEN** that metric is also saved and available for inspection
+
+#### Scenario: Technical success is not catalog success
+- **WHEN** a tool completes normally with a failed retrieval result or successful editor generation is followed by plan rejection
+- **THEN** operation metrics retain their technical status and host diagnostics retain the retrieval or editorial outcome separately
+- **AND** an operation success count does not claim successful research or catalog mutation
+
+### Requirement: Execution metrics retain run and operation context
+Automatic agent, model and tool metrics SHALL retain the durable ingestion runId and real trace/span correlation. Their dimensions SHALL support grouping by the responsible agent or tool and model across runs.
+
+#### Scenario: Research and editor usage can be separated
+- **WHEN** research and editor use the same model in one traced run
+- **THEN** stored observations can be grouped by the responsible agent and model and correlated to the same durable run
+- **AND** agent and tool identifiers remain stable across Events and attempts
+
+### Requirement: Metric costs identify their accounting basis
+Model metrics SHALL retain valid provider-reported cost when available for the complete generation, otherwise an available pricing estimate. Their cost context SHALL distinguish reported cost from pricing estimates. Missing cost SHALL remain unknown and reported zero SHALL remain zero. Metric costs SHALL NOT be presented as complete ingestion spending or replace durable report accounting.
+
+#### Scenario: Provider reports every completed step cost
+- **WHEN** all completed steps in a model generation report valid costs
+- **THEN** its metric cost retains their total once with provider-reported provenance
+- **AND** summing total input/output token metric costs does not count the same generation charge twice
+
+#### Scenario: Reported generation cost is incomplete
+- **WHEN** a completed model step lacks a valid cost
+- **THEN** metric cost uses an available pricing estimate with its basis identifiable, or remains unknown if pricing is unavailable
+- **AND** the durable report continues to retain known reported cost subtotals under its existing contract
+
+#### Scenario: Known zero and absent pricing
+- **WHEN** a generation reports zero cost, or supplies usage without any reported cost or matching pricing
+- **THEN** the former retains zero with reported provenance and the latter retains token observations without a cost value
+
+#### Scenario: Search incurs additional charges
+- **WHEN** discovery contributes model or search charges outside traced model generation
+- **THEN** the durable report retains its existing accounting and model metrics do not claim to include those charges
+
+### Requirement: Local metrics can be inspected after execution
+Metrics SHALL remain queryable locally after exit, with totals and values grouped by agent and model. Inspection SHALL require no model credentials or execution. Metric failures SHALL NOT change catalog decisions, report accounting, durable lifecycle, eval acceptance or exit status, or leave ingestion waiting indefinitely.
+
+#### Scenario: Inspect saved metrics
+- **WHEN** a traced run exits and the owner reopens local inspection
+- **THEN** saved metrics and their aggregates are available without rerunning research or accessing the catalog
+- **AND** inspection can correlate observations with their saved trace and durable runId
+
+#### Scenario: Metric persistence fails
+- **WHEN** recording or closing metrics fails
+- **THEN** ingestion preserves its original result and emits a content-free diagnostic
+- **AND** the attempt does not make Studio's shared store unavailable to later attempts or inspection
+
+#### Scenario: Historical observations have no metrics
+- **WHEN** an existing observability store is opened after this change
+- **THEN** existing logs and spans remain available and new runs can append metrics
+- **AND** absent historical metrics are not backfilled or interpreted as zero usage

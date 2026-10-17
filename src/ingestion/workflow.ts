@@ -28,9 +28,7 @@ import { editResearch } from "./editor/agent";
 import { buildResearchReport } from "./report";
 import {
   logPreparation,
-  writeDisposition,
   reportEventId,
-  writeLogFields,
   attemptedCatalogFields,
 } from "./workflow-logging";
 
@@ -516,9 +514,6 @@ export function createCatalogIngestionWorkflow(
       ) {
         return;
       }
-      if (owned.trace) {
-        owned.trace.state.writeState = "unknown";
-      }
       try {
         data.applied = applyCatalogItem(
           owned.deps.client,
@@ -536,12 +531,6 @@ export function createCatalogIngestionWorkflow(
                 : undefined,
           },
         );
-        if (owned.trace) {
-          owned.trace.state.writeState = writeDisposition(
-            owned.input,
-            data.applied,
-          );
-        }
         owned.trace?.tracing.setEventId(
           reportEventId(owned.input, data.prepared, data.applied),
         );
@@ -549,7 +538,6 @@ export function createCatalogIngestionWorkflow(
         owned.trace?.log?.info("Catalog write finished", {
           stage: "write",
           dryRun: owned.input.dryRun,
-          ...writeLogFields(owned.input, data.applied, false),
           fields: attemptedCatalogFields(data.prepared.operations),
         });
       } catch (error) {
@@ -557,9 +545,6 @@ export function createCatalogIngestionWorkflow(
           throw error;
         }
         data.writeFailed = true;
-        if (owned.trace) {
-          owned.trace.state.writeState = "rolled_back";
-        }
         owned.trace?.failed("write_failed");
         data.errors.push({
           code: "write_failed",

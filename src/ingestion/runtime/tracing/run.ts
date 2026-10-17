@@ -59,7 +59,6 @@ export async function createCatalogRunTrace(
     structuralValidation: "not_run",
     targetValidation: "not_run",
     editorPlanValidation: "not_run",
-    writeState: "not_attempted",
   };
   const update = (values: Partial<Snapshot> = {}) => {
     Object.assign(snapshot, values);
@@ -93,12 +92,6 @@ export async function createCatalogRunTrace(
             : {}),
           ...state,
           semanticValidation: "not_run",
-          committedOperationCount:
-            state.writeState === "unknown"
-              ? null
-              : (snapshot.applied?.operations.filter(
-                  (operation) => operation.changed,
-                ).length ?? 0),
           editions: {
             context: boundedEditions(editions),
             committed: boundedEditions(mutations),
@@ -122,8 +115,6 @@ export async function createCatalogRunTrace(
         state.errorCode = "validation_failed";
       } else if (prepared.candidate.status === "failed") {
         state.errorCode = "research_failed";
-      } else {
-        state.writeState = "unchanged";
       }
       update({ prepared });
     },
@@ -138,7 +129,6 @@ export async function createCatalogRunTrace(
           rejection.code === "editor_rejected"
             ? "editor_rejected"
             : "validation_failed";
-        state.writeState = "not_attempted";
       }
       update({ prepared });
     },
