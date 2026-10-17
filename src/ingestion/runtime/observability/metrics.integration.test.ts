@@ -2,7 +2,6 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
-import { SpanType } from "@mastra/core/observability";
 import type { ObservabilityStorage } from "@mastra/core/storage";
 import { DuckDBStore } from "@mastra/duckdb";
 import { runTraceFixture, readTraceRows } from "@/test/tracing-fixture";
@@ -260,49 +259,6 @@ test.each(["off", "preview", "injected"])(
     expect(rows.mastra_logs).toHaveLength(1);
   },
 );
-
-test("live model updates filter usage and exclude raw content", async () => {
-  const file = path();
-  const run = (await createRunObservability(
-    input,
-    "fixture/model",
-    "update-run",
-  ))!;
-  const model = run.root!.createChildSpan({
-    type: SpanType.MODEL_GENERATION,
-    name: "PRIVATE_NAME",
-    entityId: "festival-research",
-    attributes: { provider: "openrouter", model: "fixture/model" },
-  });
-  model.update({
-    attributes: {
-      usage: {
-        inputTokens: 100,
-        outputTokens: 20,
-        inputDetails: { cacheRead: 30, cacheWrite: -1 },
-        outputDetails: { reasoning: 5, audio: Infinity },
-      },
-      costContext: {
-        estimatedCost: 0.012,
-        costUnit: "USD",
-        costMetadata: {
-          source: "provider_reported",
-        },
-      },
-      parameters: { headers: { Authorization: "PRIVATE_SECRET" } },
-    },
-  });
-  expect(model.attributes).toMatchObject({
-    usage: {
-      inputDetails: { cacheRead: 30, cacheWrite: undefined },
-      outputDetails: { reasoning: 5, audio: undefined },
-    },
-  });
-  expect(JSON.stringify(model.exportSpan())).not.toContain("PRIVATE_");
-  model.end();
-  await finishRunObservability(run);
-  expect(JSON.stringify(await readTraceRows(file))).not.toContain("PRIVATE_");
-});
 
 test("a metric storage failure cannot change the durable report or catalog outcome", async () => {
   path();

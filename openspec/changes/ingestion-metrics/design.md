@@ -26,7 +26,7 @@ Metric names are not enumerated or validated by the application; eligible SDK me
 
 ### Span fields and native metric context
 
-Replace the flat tracing-only `tokenUsage()` shape with a small projection of the installed `UsageStats` type. Preserve finite nonnegative input/output totals and supported nested input/output details. Preserve safe provider, configured/response model and incomplete-usage flag. Pass the SDK's native `costContext`, including `costMetadata`, through unchanged. Rely on SDK construction rather than independently validating or sanitizing manually supplied cost context. Native metric extraction may add its own accounting details.
+Select native usage, provider, configured/response model, cost context, incomplete-usage flag, success and finish reason without validating or projecting their values. Pass nested usage and cost metadata through unchanged. Trust SDK span types instead of validating names/types or substituting a generic type. Keep the projection that excludes raw inputs, outputs, attributes, metadata and errors; arbitrary malformed values in selected SDK fields have no separate application validation or sanitization guarantee. Native metric emission rejects negative and non-finite observations, and metric extraction may add its own accounting details.
 
 Preserve the entity IDs, types and names supplied by the SDK from agent/tool configuration and inherited by child spans. Do not maintain a second entity registry or substitute an agent for an unknown entity. Keep explicit application trace labels; other agent/tool display names use their SDK entity names and other operation names use the span type. The SDK carries run/trace/span and entity/parent/root context into metrics. Group by `entityId` and `model` to identify the responsible agent.
 
@@ -75,7 +75,7 @@ Removing durable usage accounting would make required reports depend on optional
 ## Risks and validation
 
 - Exercise real research/editor SDK execution with offline model fixtures. Verify safe fields after creation, updates and completion, rather than testing only fabricated span shapes.
-- Retain existing span content-exclusion checks and inspect native metrics from offline execution after reopen. Verify errors remain content-free and eligibility also rejects direct metric emission on logging-only runs. Remove tests for the retired arbitrary-metric sanitization and validation contract; add no new tests for this simplification.
+- Retain existing span content-exclusion checks and inspect native metrics from offline execution after reopen. Verify errors remain content-free and eligibility also rejects direct metric emission on logging-only runs. Remove tests for retired arbitrary-metric and malformed SDK-field sanitization/validation contracts; reuse existing lifecycle and processor-failure coverage without adding tests for these simplifications.
 - Check reported costs, zero, missing step costs, missing pricing and cache/reasoning subsets. Query total-token costs once and retain independent report accounting on failure/cancellation.
 - Compare grouped research/editor observations, run/trace correlation and native technical status with host retrieval/editor outcomes. Do not promote a technical success into catalog success.
 - Remove helper-only tests and assertions for retired write-state/count fields. Retain existing workflow, transaction, dry-run, report and failure coverage without adding tests. Verify ordinary write/error events and available trace results remain intact.

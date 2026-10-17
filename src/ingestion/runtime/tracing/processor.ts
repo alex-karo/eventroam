@@ -3,9 +3,7 @@ import {
   type AnySpan,
   type ModelGenerationAttributes,
   type SpanOutputProcessor,
-  type UsageStats,
 } from "@mastra/core/observability";
-import { nonnegative, technicalId } from "../observability/fields";
 import type { CatalogResearchInput } from "../../contracts";
 import type { Diagnose } from "../observability/diagnostics";
 
@@ -30,31 +28,6 @@ export function selectTraceFields(span: AnySpan, fields: TraceFields) {
   selectedFields.set(span, fields);
 }
 
-function tokenUsage(usage: UsageStats | undefined): UsageStats | undefined {
-  if (!usage) {
-    return undefined;
-  }
-  return {
-    inputTokens: nonnegative(usage.inputTokens),
-    outputTokens: nonnegative(usage.outputTokens),
-    inputDetails: usage.inputDetails && {
-      text: nonnegative(usage.inputDetails.text),
-      cacheRead: nonnegative(usage.inputDetails.cacheRead),
-      cacheWrite: nonnegative(usage.inputDetails.cacheWrite),
-      cacheWrite5m: nonnegative(usage.inputDetails.cacheWrite5m),
-      cacheWrite1h: nonnegative(usage.inputDetails.cacheWrite1h),
-      audio: nonnegative(usage.inputDetails.audio),
-      image: nonnegative(usage.inputDetails.image),
-    },
-    outputDetails: usage.outputDetails && {
-      text: nonnegative(usage.outputDetails.text),
-      reasoning: nonnegative(usage.outputDetails.reasoning),
-      audio: nonnegative(usage.outputDetails.audio),
-      image: nonnegative(usage.outputDetails.image),
-    },
-  };
-}
-
 /** Remove SDK-generated content; only fields chosen by our producers are exported. */
 export function researchSpanProcessor(
   metadata: TraceMetadata,
@@ -72,40 +45,16 @@ export function researchSpanProcessor(
           success?: boolean;
           usageIncomplete?: boolean;
         } = span.attributes ?? {};
-        const usage = tokenUsage(attrs?.usage);
-        const attributes: Record<string, unknown> = {};
-        if (usage) {
-          attributes.usage = usage;
-        }
-        attributes.provider = technicalId(attrs?.provider);
-        attributes.model = technicalId(attrs?.model);
-        attributes.responseModel = technicalId(attrs?.responseModel);
-        attributes.costContext = attrs.costContext;
-        if (typeof attrs?.usageIncomplete === "boolean") {
-          attributes.usageIncomplete = attrs.usageIncomplete;
-        }
-        if (typeof attrs?.success === "boolean") {
-          attributes.success = attrs.success;
-        }
-        if (
-          [
-            "stop",
-            "length",
-            "content-filter",
-            "tool-calls",
-            "error",
-            "other",
-            "unknown",
-          ].includes(attrs?.finishReason ?? "")
-        ) {
-          attributes.finishReason = attrs?.finishReason;
-        }
-        if (typeof span.type !== "string" || typeof span.name !== "string") {
-          throw new Error("Invalid span");
-        }
-        if (!Object.values(SpanType).includes(span.type)) {
-          span.type = SpanType.GENERIC;
-        }
+        const attributes = {
+          usage: attrs.usage,
+          provider: attrs.provider,
+          model: attrs.model,
+          responseModel: attrs.responseModel,
+          costContext: attrs.costContext,
+          usageIncomplete: attrs.usageIncomplete,
+          success: attrs.success,
+          finishReason: attrs.finishReason,
+        };
         const operationName =
           span.type === SpanType.AGENT_RUN || span.type === SpanType.TOOL_CALL
             ? (span.entityName ?? span.type)

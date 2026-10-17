@@ -7,7 +7,7 @@ Local ingestion already records traces in DuckDB, but its exporter discards metr
 ## What Changes
 
 - Persist SDK metrics for eligible traced apply runs without an application-maintained list of metric names. Current coverage includes automatic agent, model and tool metrics. Use the existing tracing switch, local store and Studio inspection flow.
-- Preserve safe model, cost, token-detail and entity context through span sanitization. Forward native metrics without a separate application projection, using the SDK context to link automatic observations to the durable ingestion run and trace.
+- Retain selected native model, cost, token-detail and status fields without application validation or nested projection, while excluding raw span content. Preserve SDK span types and entity context. Forward native metrics without a separate application projection, using the SDK context to link automatic observations to the durable ingestion run and trace.
 - Expose reported model cost or an identified pricing estimate without treating either as the complete ingestion bill.
 - **BREAKING**: Remove manually measured `durationMs` fields from model-step and tool-call application logs. Keep their selected events, context and results; native traces and metrics own operation timing.
 - **BREAKING**: Remove transaction-disposition and committed-operation-count summaries from logs and traces, keeping ordinary completion/error events, writer results and durable report receipts.
