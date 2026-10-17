@@ -2,10 +2,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
-import { SpanType, type MetricEvent } from "@mastra/core/observability";
+import { SpanType } from "@mastra/core/observability";
 import type { ObservabilityStorage } from "@mastra/core/storage";
 import { DuckDBStore } from "@mastra/duckdb";
-import { MastraStorageExporter } from "@mastra/observability";
 import { runTraceFixture, readTraceRows } from "@/test/tracing-fixture";
 import {
   createRunObservability,
@@ -48,7 +47,7 @@ async function inspect<T>(
   }
 }
 
-test("real research/editor lifecycles retain native usage/cost and persist correlated safe metrics", async () => {
+test("real research/editor lifecycles retain native usage/cost and persist native correlated metrics", async () => {
   const file = path();
   const events: { type: string; span: Record<string, unknown> }[] = [];
   const original = ResearchObservabilityExporter.prototype._exportTracingEvent;
@@ -86,6 +85,8 @@ test("real research/editor lifecycles retain native usage/cost and persist corre
     const ended = generations.find(({ type }) => type === "span_ended")!.span;
     expect(ended).toMatchObject({
       entityType: "agent",
+      entityName:
+        agent === "festival-research" ? "Festival research" : "Festival editor",
       attributes: {
         provider: "openrouter",
         model: "fixture/provider-model",
@@ -129,7 +130,7 @@ test("real research/editor lifecycles retain native usage/cost and persist corre
           span.spanId === metric.spanId && span.traceId === metric.traceId,
       ),
     ).toBe(true);
-    expect(metric.rootEntityName).toBe("catalog-research");
+    expect(metric.rootEntityId).toBe("catalog-research");
     expect(metric.labels).not.toHaveProperty("runId");
   }
   expect(
@@ -139,15 +140,15 @@ test("real research/editor lifecycles retain native usage/cost and persist corre
     const { groups } = await domain.getMetricBreakdown({
       name: totals,
       aggregation: "sum",
-      groupBy: ["entityName", "model"],
+      groupBy: ["entityId", "model"],
     });
     expect(groups).toHaveLength(2);
-    for (const [entityName, tokens, cost] of [
-      ["Festival research", 60, 0.024],
-      ["Festival editor", 30, 0.012],
+    for (const [entityId, tokens, cost] of [
+      ["festival-research", 60, 0.024],
+      ["festival-editor", 30, 0.012],
     ] as const) {
       expect(
-        groups.find((g) => g.dimensions.entityName === entityName),
+        groups.find((g) => g.dimensions.entityId === entityId),
       ).toMatchObject({
         dimensions: { model: "fixture/provider-model" },
         value: tokens,
@@ -186,11 +187,17 @@ test.each([
     const input = records.find((row) => row.name === totals[0])!;
     if (basis === "pricing") {
       expect(input.estimatedCost).toBeGreaterThan(0);
-      expect(input.costMetadata).toEqual({ pricing_id: expect.any(String) });
+      expect(input.costMetadata).toMatchObject({
+        pricing_id: expect.any(String),
+      });
       expect(result.usage.modelCostUsd).toBe(0.012); // report keeps the known subtotal
     } else {
       expect(input.estimatedCost).toBe(cost);
-      expect(input.costMetadata).toEqual(basis ? { source: basis } : {});
+      if (basis) {
+        expect(input.costMetadata).toMatchObject({ source: basis });
+      } else {
+        expect(input.costMetadata).not.toHaveProperty("source");
+      }
     }
     await inspect(file, async (domain) => {
       const aggregate = await domain.getMetricAggregate({
@@ -215,78 +222,6 @@ const input = {
   actor: "test",
   dryRun: false,
 };
-test("cached and spanless metrics retain new names without arbitrary content or invented correlation", async () => {
-  const file = path();
-  const metricNames = [totals[0], "future_sdk_observation"];
-  const run = (await createRunObservability(
-    input,
-    "fixture/model",
-    "durable-run",
-  ))!;
-  const instance = run.observability.getDefaultInstance()!;
-  const agent = run.root!.createChildSpan({
-    type: SpanType.AGENT_RUN,
-    name: "PRIVATE_DISPLAY",
-    entityId: "festival-editor",
-    metadata: { secret: "PRIVATE_METADATA" },
-  });
-  const metrics = instance.getMetricsContext!(agent);
-  const options = {
-    costContext: {
-      provider: "openrouter",
-      model: "fixture/model",
-      estimatedCost: 0.5,
-      costUnit: "USD",
-      costMetadata: {
-        source: "provider_reported",
-        sdkProvider: "openrouter",
-        sdkCostField: "openrouter.usage.cost",
-        scope: "query_total",
-        allocation: "query_total",
-        error: "partial_cost",
-        reportedStepCount: 2,
-        tier_index: 0,
-        prompt: "PRIVATE_COST",
-        nested: { body: "PRIVATE_BODY" },
-      },
-    },
-  };
-  metrics.emit(
-    metricNames[0],
-    10,
-    { status: "PRIVATE_STATUS", query: "PRIVATE_QUERY", runId: "PRIVATE_RUN" },
-    options,
-  );
-  instance.getMetricsContext!().emit(
-    metricNames[1],
-    20,
-    { url: "PRIVATE_URL" },
-    options,
-  );
-  agent.end();
-  await finishRunObservability(run);
-  const rows = await readTraceRows(file);
-  expect(JSON.stringify(rows)).not.toContain("PRIVATE_");
-  const observations = rows.mastra_metrics.filter((r) =>
-    metricNames.includes(r.name),
-  );
-  expect(observations).toHaveLength(2);
-  expect(observations.find((r) => r.name === metricNames[0])).toMatchObject({
-    entityName: "Festival editor",
-    spanId: agent.id,
-    traceId: agent.traceId,
-    labels: {},
-  });
-  expect(observations[0].costMetadata).toEqual({ source: "provider_reported" });
-  expect(observations.find((r) => r.name === metricNames[1])).toMatchObject({
-    value: 20,
-    traceId: null,
-    spanId: null,
-    runId: "durable-run",
-    labels: {},
-  });
-});
-
 test.each(["off", "preview", "injected"])(
   "%s rejects automatic and direct metrics while retaining logging",
   async (mode) => {
@@ -325,44 +260,6 @@ test.each(["off", "preview", "injected"])(
     expect(rows.mastra_logs).toHaveLength(1);
   },
 );
-
-test("invalid metric fields are dropped with a fixed diagnostic", async () => {
-  const diagnose = vi.fn();
-  const exporter = new ResearchObservabilityExporter(diagnose, true, "run");
-  const forward = vi.spyOn(MastraStorageExporter.prototype, "onMetricEvent");
-  const event: MetricEvent = {
-    type: "metric",
-    metric: {
-      metricId: "id",
-      name: totals[0],
-      value: NaN,
-      timestamp: new Date(),
-      labels: {},
-    },
-  };
-  await exporter.onMetricEvent(event);
-  event.metric.value = 10;
-  for (const name of ["", "PRIVATE NAME\nBODY", "x".repeat(161)]) {
-    await exporter.onMetricEvent({
-      ...event,
-      metric: { ...event.metric, name },
-    });
-  }
-  Object.defineProperty(event.metric, "value", {
-    get() {
-      throw new Error("PRIVATE_GETTER");
-    },
-  });
-  await exporter.onMetricEvent(event);
-  expect(forward).not.toHaveBeenCalled();
-  expect(diagnose.mock.calls).toEqual([
-    ["trace_sanitization_failed"],
-    ["trace_sanitization_failed"],
-    ["trace_sanitization_failed"],
-    ["trace_sanitization_failed"],
-    ["trace_sanitization_failed"],
-  ]);
-});
 
 test("live model updates preserve only native numeric and cost selections", async () => {
   const file = path();
@@ -442,25 +339,4 @@ test("a metric storage failure cannot change the durable report or catalog outco
   expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
     "trace_export_failed\n",
   );
-});
-
-test("unfinished writer observation keeps an unknown count through root persistence", async () => {
-  const file = path();
-  const { createCatalogRunTrace } = await import("../tracing/run");
-  const trace = (await createCatalogRunTrace(
-    input,
-    "fixture/model",
-    "pending-run",
-    false,
-  ))!;
-  trace.state.writeState = "unknown";
-  trace.update({ phase: "write" });
-  await trace.finish();
-  const root = (await readTraceRows(file)).mastra_ai_spans.find(
-    (span) => !span.parentSpanId,
-  )!;
-  expect(JSON.parse(root.output as string)).toMatchObject({
-    writeState: "unknown",
-    committedOperationCount: null,
-  });
 });

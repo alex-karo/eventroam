@@ -1,5 +1,4 @@
 import {
-  EntityType,
   SpanType,
   type AnySpan,
   type ModelGenerationAttributes,
@@ -7,7 +6,6 @@ import {
   type UsageStats,
 } from "@mastra/core/observability";
 import {
-  knownEntity,
   nonnegative,
   safeCostContext,
   technicalId,
@@ -112,21 +110,12 @@ export function researchSpanProcessor(
         if (!Object.values(SpanType).includes(span.type)) {
           span.type = SpanType.GENERIC;
         }
-        const known = knownEntity(span.entityId);
-        const agent =
-          known?.entityType === EntityType.AGENT
-            ? known
-            : knownEntity("festival-research")!;
         const operationName =
-          known?.entityType === EntityType.TOOL ? known.entityName : span.type;
-        span.name =
-          explicit?.name ??
-          (span.type === SpanType.AGENT_RUN ? agent.entityName : operationName);
-        const entity =
-          known ?? (span.type === SpanType.AGENT_RUN ? agent : undefined);
-        span.entityId = entity?.entityId;
-        span.entityType = entity?.entityType;
-        span.entityName = span.name;
+          span.type === SpanType.AGENT_RUN || span.type === SpanType.TOOL_CALL
+            ? (span.entityName ?? span.type)
+            : span.type;
+        span.name = explicit?.name ?? operationName;
+        span.entityName = explicit?.name ?? span.entityName;
         span.attributes = attributes;
         span.metadata = { ...metadata, ...explicit?.metadata };
         span.input = explicit?.input;

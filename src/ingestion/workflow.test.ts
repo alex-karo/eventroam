@@ -145,7 +145,6 @@ function fakeTrace() {
   const workflowFailed = vi.fn();
   const trace = {
     tracing: { root: undefined, diagnose: vi.fn(), setEventId: vi.fn() },
-    state: { writeState: "not_attempted" },
     update: vi.fn(),
     validated: vi.fn(),
     editorValidated: vi.fn(),

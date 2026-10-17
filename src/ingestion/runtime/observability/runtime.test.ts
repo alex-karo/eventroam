@@ -373,7 +373,7 @@ test("missing mandatory processor disables tracing before creating a run", async
   );
 });
 
-test("unknown spans and start/update/end events retain only the host projection and numeric fields", async () => {
+test("unknown spans retain native entity context and exclude raw content across start/update/end", async () => {
   const tracing = await enabledTracing();
   expect(tracing.options).toMatchObject({
     hideInput: false,
@@ -402,7 +402,7 @@ test("unknown spans and start/update/end events retain only the host projection 
     name: "PRIVATE_NAME",
     input: "PRIVATE_INPUT",
     metadata: { secret: "PRIVATE_KEY" },
-    entityName: "PRIVATE_ENTITY",
+    entityName: "Fixture entity",
   });
   span.update({
     input: "PRIVATE_UPDATE",
@@ -412,6 +412,9 @@ test("unknown spans and start/update/end events retain only the host projection 
   span.end({ output: "PRIVATE_FINAL" });
   await finishResearchObservability(mastra, tracing.diagnose);
   expect(exported).toHaveLength(3);
+  for (const event of exported) {
+    expect(JSON.parse(event).entityName).toBe("Fixture entity");
+  }
   expect(exported.join("")).not.toContain("PRIVATE_");
   const rows = await readTraceRows(
     process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!,

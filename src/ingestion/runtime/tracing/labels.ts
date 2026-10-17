@@ -1,4 +1,3 @@
-import type { WriteDisposition } from "../../write-observation";
 import type { CatalogItemResult } from "@/catalog/write/apply-operation";
 import type {
   CatalogResearchInput,
@@ -147,7 +146,6 @@ export type TraceRunState = {
   structuralValidation: "passed" | "failed" | "not_run";
   targetValidation: "passed" | "failed" | "not_run";
   editorPlanValidation: "passed" | "failed" | "not_run";
-  writeState: WriteDisposition;
   errorCode?:
     | "editor_rejected"
     | "validation_failed"

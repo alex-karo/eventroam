@@ -24,14 +24,12 @@ import {
   type Diagnose,
 } from "./diagnostics";
 import { createObservabilityStore } from "./storage";
-import { projectMetric } from "./metrics";
 
 /** Drop notifications may contain raw error messages: deliberately ignore them. */
 export class ResearchObservabilityExporter extends MastraStorageExporter {
   constructor(
     private readonly diagnose: Diagnose,
     private readonly metricsEnabled = false,
-    private readonly runId?: string,
   ) {
     super({ maxRetries: 0, strategy: "event-sourced" });
   }
@@ -54,15 +52,8 @@ export class ResearchObservabilityExporter extends MastraStorageExporter {
     if (!this.metricsEnabled) {
       return;
     }
-    let projected: ReturnType<typeof projectMetric>;
     try {
-      projected = projectMetric(event, this.runId);
-    } catch {
-      this.diagnose("trace_sanitization_failed");
-      return;
-    }
-    try {
-      await super.onMetricEvent(projected);
+      await super.onMetricEvent(event);
     } catch {
       this.diagnose("trace_export_failed");
     }
@@ -131,7 +122,7 @@ export async function createResearchObservability(
             level: level as ResearchLogLevel,
           },
           exporters: [
-            new ResearchObservabilityExporter(diagnose, traceEnabled, runId),
+            new ResearchObservabilityExporter(diagnose, traceEnabled),
           ],
           spanOutputProcessors: [processor],
         },

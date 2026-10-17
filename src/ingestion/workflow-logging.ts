@@ -1,4 +1,3 @@
-import { writeObservation, type WriteDisposition } from "./write-observation";
 import { shrinkText, type ResearchLogger } from "./runtime/logging";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
@@ -52,8 +51,6 @@ export function logCompletion(
   finalized: CatalogResearchResult,
   input: CatalogResearchInput,
   prepared: ReturnType<typeof prepareEditorPlan> | null,
-  applied: ReturnType<typeof applyCatalogItem> | null,
-  writeState: WriteDisposition,
 ) {
   log?.[
     finalized.outcome === "failed" ||
@@ -66,7 +63,6 @@ export function logCompletion(
     editorStatus: finalized.editorStatus,
     outcome: finalized.outcome,
     validation: prepared?.validation,
-    ...writeObservation(input, applied, writeState),
     errorCodes: finalized.errors.map((error) => error.code),
     mode: input.mode,
     dryRun: input.dryRun,

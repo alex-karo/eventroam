@@ -1,4 +1,3 @@
-import { writeObservation } from "./write-observation";
 import {
   assertRefreshBaseline,
   countryBaselineConflict,
@@ -515,10 +514,6 @@ export function createCatalogIngestionWorkflow(
       ) {
         return;
       }
-      if (owned.trace) {
-        owned.trace.state.writeState = "unknown";
-        owned.trace.update();
-      }
       try {
         data.applied = applyCatalogItem(
           owned.deps.client,
@@ -536,12 +531,6 @@ export function createCatalogIngestionWorkflow(
                 : undefined,
           },
         );
-        if (owned.trace) {
-          owned.trace.state.writeState = writeObservation(
-            owned.input,
-            data.applied,
-          ).writeState;
-        }
         owned.trace?.tracing.setEventId(
           reportEventId(owned.input, data.prepared, data.applied),
         );
@@ -549,7 +538,6 @@ export function createCatalogIngestionWorkflow(
         owned.trace?.log?.info("Catalog write finished", {
           stage: "write",
           dryRun: owned.input.dryRun,
-          ...writeObservation(owned.input, data.applied),
           fields: attemptedCatalogFields(data.prepared.operations),
         });
       } catch (error) {
@@ -557,9 +545,6 @@ export function createCatalogIngestionWorkflow(
           throw error;
         }
         data.writeFailed = true;
-        if (owned.trace) {
-          owned.trace.state.writeState = "rolled_back";
-        }
         owned.trace?.failed("write_failed");
         data.errors.push({
           code: "write_failed",

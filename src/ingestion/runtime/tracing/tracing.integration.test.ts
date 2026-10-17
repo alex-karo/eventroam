@@ -134,9 +134,7 @@ test("offline real agent persists sanitized model/tool relationships and bounded
   expect(root.name).toContain("ctx:2026");
   expect(JSON.parse(root.output as string)).toMatchObject({
     researchStatus: "failed",
-    writeState: "not_attempted",
     semanticValidation: "not_run",
-    committedOperationCount: 0,
   });
   expect(JSON.parse(root.metadata as string).runId).toBe(result.result.runId);
   const reads = spans.filter((span) => span.entityId === "readPage");
@@ -186,8 +184,6 @@ test.each(["http", "abort"] as const)(
     });
     expect(JSON.parse(root.output as string)).toMatchObject({
       researchStatus: "failed",
-      writeState: "not_attempted",
-      committedOperationCount: 0,
     });
   },
   15_000,
@@ -439,7 +435,6 @@ test.each([
       expect(output).toMatchObject({
         structuralValidation: "passed",
         targetValidation: "passed",
-        writeState: "committed",
         editions: {
           context: { entries: [{ editionKey: "2026", year: 2026 }] },
           committed: {
@@ -471,23 +466,18 @@ test.each([
       expect(output).toMatchObject({
         structuralValidation: "passed",
         targetValidation: "failed",
-        writeState: "not_attempted",
       });
     }
     if (scenario === "skipped") {
       expect(output).toMatchObject({
         outcome: "skipped",
-        writeState: "not_attempted",
-        committedOperationCount: 0,
       });
     }
     if (scenario === "invalid") {
       expect(output).toMatchObject({
         structuralValidation: "failed",
         targetValidation: "not_run",
-        writeState: "not_attempted",
         errorCode: "validation_failed",
-        committedOperationCount: 0,
       });
     }
     if (scenario === "invalid_editor" || scenario === "rejected_editor") {
@@ -499,9 +489,7 @@ test.each([
         structuralValidation: "passed",
         targetValidation: "passed",
         editorPlanValidation: "failed",
-        writeState: "not_attempted",
         errorCode: rejected ? "editor_rejected" : "validation_failed",
-        committedOperationCount: 0,
       });
       expect(traced.result).toMatchObject({
         operations: [],
@@ -512,9 +500,6 @@ test.each([
       if (rejected) {
         expect(root.name).not.toContain("partial");
       }
-    }
-    if (scenario === "unchanged") {
-      expect(output.writeState).toBe("not_attempted");
     }
     if (scenario === "search" || scenario === "reserved") {
       const search = spans.find((span) => span.entityId === "searchWeb")!;
@@ -597,28 +582,7 @@ test.each(["context", "report", "no_report", "writer"] as const)(
           : failure === "writer"
             ? "write_failed"
             : "report_failed",
-      writeState:
-        failure === "context"
-          ? "not_attempted"
-          : failure === "writer"
-            ? "rolled_back"
-            : "committed",
     });
-    if (failure === "report" || failure === "no_report") {
-      expect(output.committedOperationCount).toBeGreaterThan(0);
-    } else {
-      expect(output.committedOperationCount).toBe(0);
-    }
-    for (const log of saved.mastra_logs.filter(
-      (row) =>
-        row.message === "Catalog write finished" ||
-        row.message === "Research finished",
-    )) {
-      expect(log.data).toMatchObject({
-        writeState: output.writeState,
-        committedOperationCount: output.committedOperationCount,
-      });
-    }
     if (failure === "no_report") {
       expect(output).not.toHaveProperty("researchStatus");
     }

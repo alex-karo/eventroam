@@ -1,4 +1,4 @@
-import { EntityType, type CostContext } from "@mastra/core/observability";
+import type { CostContext } from "@mastra/core/observability";
 
 export function nonnegative(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
@@ -13,30 +13,6 @@ export function technicalId(value: unknown): string | undefined {
     /^[a-zA-Z0-9][a-zA-Z0-9_./:@+-]*$/.test(value)
     ? value
     : undefined;
-}
-
-export function knownEntity(id: unknown) {
-  switch (id) {
-    case "festival-research":
-      return {
-        entityId: id,
-        entityType: EntityType.AGENT,
-        entityName: "Festival research",
-      };
-    case "festival-editor":
-      return {
-        entityId: id,
-        entityType: EntityType.AGENT,
-        entityName: "Festival editor",
-      };
-    case "readPage":
-    case "searchWeb":
-      return { entityId: id, entityType: EntityType.TOOL, entityName: id };
-    case "catalog-research":
-      return { entityId: id, entityType: undefined, entityName: id };
-    default:
-      return undefined;
-  }
 }
 
 /** Preserve the installed SDK's accounting basis without copying provider data. */

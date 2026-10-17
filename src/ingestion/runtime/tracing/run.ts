@@ -1,4 +1,3 @@
-import { writeObservation } from "../../write-observation";
 import { SpanType, type AnySpan } from "@mastra/core/observability";
 import type { DuckDBStore } from "@mastra/duckdb";
 import type { CatalogItemResult } from "@/catalog/write/apply-operation";
@@ -60,7 +59,6 @@ export async function createCatalogRunTrace(
     structuralValidation: "not_run",
     targetValidation: "not_run",
     editorPlanValidation: "not_run",
-    writeState: "not_attempted",
   };
   const update = (values: Partial<Snapshot> = {}) => {
     Object.assign(snapshot, values);
@@ -94,11 +92,6 @@ export async function createCatalogRunTrace(
             : {}),
           ...state,
           semanticValidation: "not_run",
-          ...writeObservation(
-            input,
-            snapshot.applied ?? null,
-            state.writeState,
-          ),
           editions: {
             context: boundedEditions(editions),
             committed: boundedEditions(mutations),
@@ -136,7 +129,6 @@ export async function createCatalogRunTrace(
           rejection.code === "editor_rejected"
             ? "editor_rejected"
             : "validation_failed";
-        state.writeState = "not_attempted";
       }
       update({ prepared });
     },

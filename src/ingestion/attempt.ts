@@ -1,4 +1,3 @@
-import { writeObservation } from "./write-observation";
 import type {
   CatalogResearchInput,
   CatalogResearchResult,
@@ -167,15 +166,7 @@ export class CatalogAttempt {
           reportEventId(this.input, data.prepared, data.applied),
           Date.now(),
         );
-        logCompletion(
-          this.trace?.log,
-          result,
-          this.input,
-          data.prepared,
-          data.applied,
-          this.trace?.state.writeState ??
-            (data.writeFailed ? "rolled_back" : "not_attempted"),
-        );
+        logCompletion(this.trace?.log, result, this.input, data.prepared);
         return result;
       } catch (error) {
         if (data.report) {
@@ -184,12 +175,6 @@ export class CatalogAttempt {
             this.trace?.log?.error("Required run finalization failed", {
               stage: "report",
               errorCode: "run_persistence_failed",
-              ...writeObservation(
-                this.input,
-                data.applied,
-                this.trace?.state.writeState ??
-                  (data.writeFailed ? "rolled_back" : "not_attempted"),
-              ),
             });
           }
         } else {
