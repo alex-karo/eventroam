@@ -5,11 +5,7 @@ import {
   type SpanOutputProcessor,
   type UsageStats,
 } from "@mastra/core/observability";
-import {
-  nonnegative,
-  safeCostContext,
-  technicalId,
-} from "../observability/fields";
+import { nonnegative, technicalId } from "../observability/fields";
 import type { CatalogResearchInput } from "../../contracts";
 import type { Diagnose } from "../observability/diagnostics";
 
@@ -84,7 +80,7 @@ export function researchSpanProcessor(
         attributes.provider = technicalId(attrs?.provider);
         attributes.model = technicalId(attrs?.model);
         attributes.responseModel = technicalId(attrs?.responseModel);
-        attributes.costContext = safeCostContext(attrs?.costContext);
+        attributes.costContext = attrs.costContext;
         if (typeof attrs?.usageIncomplete === "boolean") {
           attributes.usageIncomplete = attrs.usageIncomplete;
         }

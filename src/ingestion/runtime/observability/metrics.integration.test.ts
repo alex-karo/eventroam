@@ -261,7 +261,7 @@ test.each(["off", "preview", "injected"])(
   },
 );
 
-test("live model updates preserve only native numeric and cost selections", async () => {
+test("live model updates filter usage and exclude raw content", async () => {
   const file = path();
   const run = (await createRunObservability(
     input,
@@ -287,7 +287,6 @@ test("live model updates preserve only native numeric and cost selections", asyn
         costUnit: "USD",
         costMetadata: {
           source: "provider_reported",
-          response: "PRIVATE_RESPONSE",
         },
       },
       parameters: { headers: { Authorization: "PRIVATE_SECRET" } },

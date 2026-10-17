@@ -26,7 +26,7 @@ Metric names are not enumerated or validated by the application; eligible SDK me
 
 ### Span fields and native metric context
 
-Replace the flat tracing-only `tokenUsage()` shape with a small projection of the installed `UsageStats` type. Preserve finite nonnegative input/output totals and supported nested input/output details. Preserve safe provider, configured/response model, incomplete-usage flag and selected cost context. The span projection retains only `source=provider_reported` and a safe `pricing_id` in cost metadata. Native metric extraction may add its own accounting details.
+Replace the flat tracing-only `tokenUsage()` shape with a small projection of the installed `UsageStats` type. Preserve finite nonnegative input/output totals and supported nested input/output details. Preserve safe provider, configured/response model and incomplete-usage flag. Pass the SDK's native `costContext`, including `costMetadata`, through unchanged. Rely on SDK construction rather than independently validating or sanitizing manually supplied cost context. Native metric extraction may add its own accounting details.
 
 Preserve the entity IDs, types and names supplied by the SDK from agent/tool configuration and inherited by child spans. Do not maintain a second entity registry or substitute an agent for an unknown entity. Keep explicit application trace labels; other agent/tool display names use their SDK entity names and other operation names use the span type. The SDK carries run/trace/span and entity/parent/root context into metrics. Group by `entityId` and `model` to identify the responsible agent.
 
