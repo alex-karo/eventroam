@@ -15,13 +15,19 @@ export function promptFor(
   remaining: ReturnType<ResearchBudget["remaining"]>,
   reads: ReadPageResult[],
   currentDate = new Date().toISOString(),
+  onInspectedSources?: (
+    sources: ReturnType<typeof boundedToolSource>[],
+  ) => void,
 ) {
   const target = catalog.find((event) => event.id === input.eventId);
   const project =
     input.mode === "refresh" && input.scope === "current"
       ? currentModelContext
       : modelContext;
-  return JSON.stringify({
+  const inspectedSources = reads.map((read) =>
+    boundedToolSource(read, Math.floor(80_000 / Math.max(1, reads.length))),
+  );
+  const prompt = JSON.stringify({
     task: researchInstructionsFor(input),
     currentDate,
     mode: input.mode,
@@ -46,10 +52,10 @@ export function promptFor(
         : undefined,
     compact: target ? project(target) : null,
     terms,
-    inspectedSources: reads.map((read) =>
-      boundedToolSource(read, Math.floor(80_000 / Math.max(1, reads.length))),
-    ),
+    inspectedSources,
   });
+  onInspectedSources?.(inspectedSources);
+  return prompt;
 }
 
 export function modelContext(target: ResearchCatalog[number]) {

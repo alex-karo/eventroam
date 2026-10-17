@@ -24,6 +24,7 @@ import { researchSystemInstructions } from "./prompt";
 import type { ResearchContext } from "../context";
 import { classifyModelError } from "../../runtime/model-errors";
 import { createResearchTools } from "../../tools/index";
+import type { ToolOutputCapture } from "../../tool-output-capture";
 import { completedStepUsage, updateModelUsage, type ModelUsage } from "./usage";
 
 export type { ModelUsage } from "./usage";
@@ -42,6 +43,7 @@ export async function researchFestival(
   deps: Pick<ResearchDependencies, "generateCandidate" | "todayUtc">,
   tracing?: RunObservability,
   abortSignal?: AbortSignal,
+  capture?: ToolOutputCapture,
 ): Promise<ResearchExecution> {
   const { catalog, terms, knownLinks } = context;
   const { reads, readPage: read, searchWeb: search } = sources;
@@ -63,6 +65,7 @@ export async function researchFestival(
     modelContext,
     tracing,
     abortSignal,
+    capture,
   );
   const usage: ModelUsage = {
     complete: !deps.generateCandidate,
@@ -122,6 +125,11 @@ export async function researchFestival(
     budget.remaining(),
     reads,
     context.currentDate,
+    (inspectedSources) => {
+      for (const source of inspectedSources) {
+        capture?.save(capture.reserve(), "initial-source", source);
+      }
+    },
   );
   let raw: unknown;
   let text: string | null = null;

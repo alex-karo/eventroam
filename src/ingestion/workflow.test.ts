@@ -138,6 +138,7 @@ function fixture(client = testDatabase().client) {
   );
   return { client, termIds, readPage };
 }
+
 function fakeTrace() {
   const finish = vi.fn(async () => {});
   const terminalFailed = vi.fn();

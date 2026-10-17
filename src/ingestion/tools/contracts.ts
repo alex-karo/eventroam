@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ResearchBudget } from "../runtime/budget";
 import type { RunObservability } from "../runtime/observability/runtime";
 import type { SourceSession } from "./session";
+import type { ToolOutputCapture } from "../tool-output-capture";
 
 export type ResearchToolContext = {
   sources: SourceSession;
@@ -9,6 +10,7 @@ export type ResearchToolContext = {
   modelContext: () => { stage: string; step: number; attempt: number };
   tracing?: RunObservability;
   abortSignal?: AbortSignal;
+  capture?: ToolOutputCapture;
 };
 
 export const sourceUrlSchema = z

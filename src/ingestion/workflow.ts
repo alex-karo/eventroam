@@ -415,6 +415,7 @@ export function createCatalogIngestionWorkflow(
           owned.deps,
           owned.trace?.tracing,
           signal,
+          owned.capture,
         ),
       );
       return {

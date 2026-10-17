@@ -8,8 +8,16 @@ export function createResearchTools(
   modelContext: ResearchToolContext["modelContext"],
   tracing?: ResearchToolContext["tracing"],
   abortSignal?: AbortSignal,
+  capture?: ResearchToolContext["capture"],
 ) {
-  const context = { sources, budget, modelContext, tracing, abortSignal };
+  const context = {
+    sources,
+    budget,
+    modelContext,
+    tracing,
+    abortSignal,
+    capture,
+  };
   return {
     readPage: createReadPageTool(context),
     searchWeb: createSearchWebTool(context),

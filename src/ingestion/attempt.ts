@@ -15,6 +15,7 @@ import {
 } from "./workflow-logging";
 import { RunPersistenceError } from "./runs";
 import type { SourceSession } from "./tools/session";
+import { createToolOutputCapture } from "./tool-output-capture";
 import {
   buildResearchReport,
   buildWorkflowFailureReport,
@@ -34,6 +35,7 @@ export class CatalogAttempt {
   readonly budget: ResearchBudget;
   readonly started = Date.now();
   readonly ingestionRunId: string;
+  readonly capture;
   trace?: CatalogRunTrace;
   sources: SourceSession | null = null;
   finalization?: Promise<CatalogResearchResult>;
@@ -70,6 +72,9 @@ export class CatalogAttempt {
       this.started,
       this.input.mode === "add" ? null : this.input.eventId!,
     );
+    this.capture = deps.generateCandidate
+      ? undefined
+      : createToolOutputCapture(this.ingestionRunId);
   }
 
   async initialize() {
