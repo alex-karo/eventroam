@@ -141,14 +141,11 @@ export function runTraceLabel(
   const tail = (details ? " · " + details : "") + suffix;
   return traceText(name, Math.min(320, 512 - Buffer.byteLength(tail))) + tail;
 }
-export type TraceWriteState =
-  "committed" | "rolled_back" | "unchanged" | "not_attempted" | "unknown";
 export type TraceRunState = {
   // These two checks describe research; editor actions are checked separately.
   structuralValidation: "passed" | "failed" | "not_run";
   targetValidation: "passed" | "failed" | "not_run";
   editorPlanValidation: "passed" | "failed" | "not_run";
-  writeState: TraceWriteState;
   errorCode?:
     | "editor_rejected"
     | "validation_failed"

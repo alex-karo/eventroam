@@ -362,6 +362,51 @@ test("recorded apply traces and logs stay private while the shared store serves 
     expect(await inspection.text()).not.toContain(
       "PRIVATE_STUDIO_FIXTURE_SENTINEL",
     );
+    const metrics = await fetch(
+      `${server.baseUrl}/api/observability/metrics?perPage=100`,
+    );
+    expect(metrics.status).toBe(200);
+    const aggregate = await fetch(
+      `${server.baseUrl}/api/observability/metrics/aggregate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: [
+            "mastra_model_total_input_tokens",
+            "mastra_model_total_output_tokens",
+          ],
+          aggregation: "sum",
+        }),
+      },
+    );
+    expect(aggregate.status).toBe(200);
+    expect(await aggregate.json()).toMatchObject({
+      value: 60,
+      estimatedCost: 0,
+      costUnit: "USD",
+    });
+    const records = (await metrics.json()).metrics as Record<string, unknown>[];
+    expect(records.length).toBeGreaterThan(0);
+    expect(
+      records.every((record) => record.runId === appliedSummary.ingestionRunId),
+    ).toBe(true);
+    expect(
+      new Set(
+        records
+          .filter((r) => r.name === "mastra_model_total_input_tokens")
+          .map((r) => r.entityId),
+      ),
+    ).toEqual(new Set(["festival-research", "festival-editor"]));
+    // A second apply must borrow the same still-open store successfully.
+    const again = await run(server, {
+      mode: "refresh",
+      eventId: STUDIO_FIXTURE_EVENT_ID,
+      dryRun: false,
+    });
+    expect(again.response.status, again.text).toBe(200);
+    const againSummary = streamResult(again.text);
+    expect(againSummary.persistenceStatus).toBe("completed");
     await server.stop(true);
     stopped = true;
     const saved = JSON.parse(
@@ -377,9 +422,25 @@ test("recorded apply traces and logs stay private while the shared store serves 
     ) as {
       mastra_ai_spans: Record<string, unknown>[];
       mastra_logs: Record<string, unknown>[];
+      mastra_metrics: Record<string, unknown>[];
     };
     expect(saved.mastra_ai_spans.length).toBeGreaterThan(0);
     expect(saved.mastra_logs.length).toBeGreaterThan(0);
+    expect(
+      saved.mastra_metrics.some(
+        (record) => record.runId === appliedSummary.ingestionRunId,
+      ),
+    ).toBe(true);
+    expect(
+      saved.mastra_metrics.some(
+        (record) => record.runId === againSummary.ingestionRunId,
+      ),
+    ).toBe(true);
+    expect(
+      saved.mastra_metrics.some(
+        (record) => record.runId === streamResult(preview.text).ingestionRunId,
+      ),
+    ).toBe(false);
     expect(JSON.stringify(saved)).not.toContain(
       "PRIVATE_STUDIO_FIXTURE_SENTINEL",
     );

@@ -51,7 +51,6 @@ export async function researchFestival(
   const log = tracing?.log;
   let stepNumber = 0;
   let attemptNumber = 0;
-  let modelStarted = Date.now();
   let unavailableAttempts = 0;
   const modelContext = () => ({
     stage: "research",
@@ -183,7 +182,6 @@ export async function researchFestival(
             }
             modelLog?.info("Model step completed", {
               finishReason: step.finishReason,
-              durationMs: Date.now() - modelStarted,
               usage: completedStepUsage(step),
               commentaryAvailable: !!step.text,
               reasoningAvailable: !!step.reasoningText,
@@ -225,7 +223,6 @@ export async function researchFestival(
             startedSteps += 1;
             stepNumber = completedSteps + 1;
             attemptNumber += 1;
-            modelStarted = Date.now();
             modelLog = log?.child(modelContext());
             modelLog?.info("Model step started", {
               model: config.model,

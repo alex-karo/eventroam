@@ -30,7 +30,6 @@ export function createSearchWebTool({
         toolCallId: toolContext?.agent?.toolCallId,
       };
       const toolLog = log?.child(context);
-      const started = Date.now();
       toolLog?.info("Tool call started", { tool: "searchWeb", query });
       try {
         abortSignal?.throwIfAborted();
@@ -62,7 +61,6 @@ export function createSearchWebTool({
           outputTokens: result.outputTokens,
           modelCostUsd: result.modelCostUsd,
           searchCostUsd: result.searchCostUsd,
-          durationMs: Date.now() - started,
           remaining: budget.remaining(),
         });
         const response = { ...result, remaining: budget.remaining() };
@@ -76,7 +74,6 @@ export function createSearchWebTool({
           query,
           ...classifyModelError(error, Infinity).diagnostic,
           errorCode: "search_failed",
-          durationMs: Date.now() - started,
         });
         observeTrace(tracing, span, {
           name: "searchWeb",

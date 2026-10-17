@@ -51,8 +51,6 @@ export function logCompletion(
   finalized: CatalogResearchResult,
   input: CatalogResearchInput,
   prepared: ReturnType<typeof prepareEditorPlan> | null,
-  applied: ReturnType<typeof applyCatalogItem> | null,
-  writeFailed: boolean,
 ) {
   log?.[
     finalized.outcome === "failed" ||
@@ -65,7 +63,6 @@ export function logCompletion(
     editorStatus: finalized.editorStatus,
     outcome: finalized.outcome,
     validation: prepared?.validation,
-    ...writeLogFields(input, applied, writeFailed),
     errorCodes: finalized.errors.map((error) => error.code),
     mode: input.mode,
     dryRun: input.dryRun,
@@ -88,16 +85,6 @@ export function reportEventId(
     }
   }
   return persistentEventId;
-}
-
-export function writeDisposition(
-  input: CatalogResearchInput,
-  applied: ReturnType<typeof applyCatalogItem>,
-) {
-  return !input.dryRun &&
-    applied.operations.some((operation) => operation.changed)
-    ? "committed"
-    : "unchanged";
 }
 
 export function attemptedCatalogFields(
@@ -124,23 +111,4 @@ export function attemptedCatalogFields(
       }),
     ),
   ];
-}
-
-/** The same committed disposition is logged at write, finalization failure and completion. */
-export function writeLogFields(
-  input: CatalogResearchInput,
-  applied: ReturnType<typeof applyCatalogItem> | null,
-  writeFailed: boolean,
-) {
-  let writeState = applied ? writeDisposition(input, applied) : "not_attempted";
-  if (writeFailed) {
-    writeState = "rolled_back";
-  }
-  return {
-    writeState,
-    committedOperationCount: input.dryRun
-      ? 0
-      : (applied?.operations.filter((operation) => operation.changed).length ??
-        0),
-  };
 }

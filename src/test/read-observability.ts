@@ -15,6 +15,9 @@ export async function readTraceRows(path: string) {
     const logs = await domain.listLogs({
       pagination: { page: 0, perPage: 100 },
     });
+    const metrics = await domain.listMetrics({
+      pagination: { page: 0, perPage: 100 },
+    });
     return {
       mastra_ai_spans: spans.map((span) =>
         Object.fromEntries(
@@ -28,6 +31,7 @@ export async function readTraceRows(path: string) {
         ),
       ),
       mastra_logs: logs.logs,
+      mastra_metrics: metrics.metrics,
     };
   } finally {
     await storage.close();

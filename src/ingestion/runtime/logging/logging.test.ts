@@ -250,7 +250,7 @@ test.each([
   },
 );
 
-test("real research stores selected completed model text without source bodies or prompts", async () => {
+test("real research retains selected model/tool logs", async () => {
   const file = database();
   enable(file, true);
   const result = await runTraceFixture("success", false, "partial", false, {
@@ -295,6 +295,11 @@ test("real research stores selected completed model text without source bodies o
     truncated: true,
     channel: "reasoning",
   });
+  expect(
+    rows.mastra_logs.find((row) => row.message === "Research finished")?.data,
+  ).toMatchObject({ durationMs: result.result.durationMs });
+  expect(result.result.usage.modelCalls).toBe(3);
+  expect(result.result.schemaVersion).toBe(5);
   const stored = JSON.stringify(rows);
   for (const secret of [
     TRACE_CANDIDATE,
@@ -308,42 +313,6 @@ test("real research stores selected completed model text without source bodies o
   expect(
     rows.mastra_logs.some((row) => row.message === "Research finished"),
   ).toBe(true);
-});
-
-test("finalization failure logs the already committed catalog write", async () => {
-  const runs = await import("../../runs");
-  const file = database();
-  enable(file, true);
-  vi.spyOn(runs, "finalizeIngestionRun").mockImplementation(
-    (_client, runId, report) => {
-      throw new runs.RunPersistenceError(runId, report);
-    },
-  );
-  await expect(runTraceFixture("success", false, "partial")).rejects.toThrow(
-    runs.RunPersistenceError,
-  );
-  const rows = (await readTraceRows(file)).mastra_logs;
-  const committed = rows.find(
-    (row) => row.message === "Catalog write finished",
-  );
-  const failed = rows.find(
-    (row) => row.message === "Required run finalization failed",
-  );
-  expect(committed?.data).toMatchObject({ writeState: "committed" });
-  expect(
-    (committed?.data as Record<string, unknown>).committedOperationCount,
-  ).toBeGreaterThan(0);
-  expect(failed).toMatchObject({
-    runId: committed?.runId,
-    level: "error",
-    data: {
-      writeState: "committed",
-      errorCode: "run_persistence_failed",
-    },
-  });
-  expect(
-    (failed?.data as Record<string, unknown>).committedOperationCount,
-  ).toBeGreaterThan(0);
 });
 
 test("enabled application logging excludes unmarked SDK logs", async () => {
