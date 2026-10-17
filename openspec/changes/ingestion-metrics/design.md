@@ -26,9 +26,9 @@ Metric names are not enumerated by the application: newly emitted SDK metrics pa
 
 ### Safe span and metric fields
 
-Replace the flat tracing-only `tokenUsage()` shape with a small projection of the installed `UsageStats` type. Preserve finite nonnegative input/output totals and supported nested input/output details. Preserve safe provider, configured/response model, incomplete-usage flag and selected cost context. Cost metadata must retain useful provenance and pricing information without copying arbitrary nested provider data.
+Replace the flat tracing-only `tokenUsage()` shape with a small projection of the installed `UsageStats` type. Preserve finite nonnegative input/output totals and supported nested input/output details. Preserve safe provider, configured/response model, incomplete-usage flag and selected cost context. Cost metadata retains only `source=provider_reported` and a safe `pricing_id`; provider field names, pricing tiers, errors and other SDK accounting details are excluded.
 
-Preserve normalized entity types and identities for the known research/editor agents and tools. Model observations must retain their owning-agent relationship. Keep the existing trace display labels. Normalize metric entity grouping to stable technical names, including the catalog root, rather than using dynamic Event/Edition labels as grouping values.
+Preserve normalized entity types and identities for the known research/editor agents and tools, using one mapping for their static names and types in span and metric projections. Model observations must retain their owning-agent relationship. Keep the existing trace display labels. Normalize metric entity grouping to stable technical names, including the catalog root, rather than using dynamic Event/Edition labels as grouping values.
 
 Replace the metric no-op with a narrow eligibility and content boundary that delegates delivery to the native exporter. Validate metric names as bounded technical identifiers and require finite nonnegative values, without restricting names to a maintained list or category. The same rule applies to direct SDK emissions. Select safe labels, correlation and cost fields; retain real metric/trace/span IDs, timestamps and durable runId. Do not forward arbitrary metric metadata. Keep unique IDs in correlation columns rather than labels. A failed projection drops the metric with the existing content-free diagnostic mechanism.
 
@@ -41,6 +41,8 @@ Let the SDK choose a complete provider-reported generation cost or an available 
 The report's known-cost subtotal and metric cost may differ after incomplete provider reporting. Direct discovery/search charges also remain outside native model metrics. Keep `research/agent/usage.ts`, `report.ts`, report v5, scalar run-statistic columns and their current semantics. No report reads metrics back from DuckDB.
 
 Existing DuckDB data remains in place. Native storage initialization owns metric tables. New runs append metrics; historical spans/reports are not converted or backfilled. There is no compatibility alias for removed log fields.
+
+Eventroam verifies saved records, correlation and total-token aggregate/breakdown queries against reopened offline research/editor data. Other native SDK query methods, including time series and percentiles, remain available without separate application guarantees or synthetic query tests.
 
 ## Architecture
 
@@ -80,6 +82,6 @@ Removing durable usage accounting would make required reports depend on optional
 - Compare grouped research/editor observations, run/trace correlation and native technical status with host retrieval/editor outcomes. Do not promote a technical success into catalog success.
 - Check committed, rolled-back, unattempted, unknown, no-op and dry-run write observations. Include a reporting failure after a confirmed commit.
 - Exercise owned and shared storage, flush failure, repeated Studio attempts and database reopen. Use the built-in Browser to verify saved Metrics in Studio; API-only success is insufficient to claim UI verification.
-- Update the ingestion/development guides and project structure with timing ownership, metric coverage, cost limits and inspection commands. Run focused regression suites plus the project's type, lint, dependency, documentation and OpenSpec checks. Synchronize the owning main spec only after implementation is complete.
+- Keep metric semantics, eligibility and safe-field policy in the ingestion guide; keep setup, query examples and the Studio filter workaround in the development guide. Update project structure with timing and metric ownership. Run focused regression suites plus the project's type, lint, dependency, documentation and OpenSpec checks. Synchronize the owning main spec only after implementation is complete.
 
 References: [Metrics overview](https://mastra.ai/docs/observability/metrics/overview), [automatic metrics](https://mastra.ai/reference/observability/metrics/automatic-metrics), and [metric queries](https://mastra.ai/reference/observability/metrics/queries). Installed SDK code and types govern implementation when remote documentation differs.

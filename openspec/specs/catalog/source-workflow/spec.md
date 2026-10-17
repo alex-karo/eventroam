@@ -877,7 +877,7 @@ Stored application logs SHALL include a short message, severity, durable runId a
 - **THEN** the research exporter does not admit it merely because application logging is enabled
 
 ### Requirement: Research logs cover actionable execution events
-Enabled logging SHALL describe selected source retrieval, discovery, model steps, completed commentary and returned reasoning, tool calls/results, retries, errors, budget limits, plan validation, write outcomes and run completion. Status/count fields SHALL reflect the observed phase; successful completion SHALL follow durable finalization. Logging SHALL NOT replay work or change generation settings. Model-step and tool-call logs SHALL omit manually measured durationMs; operation timing SHALL come from enabled traces and metrics.
+Enabled logging SHALL describe selected source retrieval, discovery, model steps, completed commentary and returned reasoning, tool calls/results, retries, errors, budget limits, plan validation, write outcomes and run completion. Status/count fields SHALL reflect the observed phase; successful completion SHALL follow durable finalization. Logging SHALL NOT replay work or change generation settings. Model-step and tool-call logs SHALL omit `durationMs`. Enabled traces and metrics SHALL expose operation durations.
 
 #### Scenario: Source was fetched
 - **WHEN** a source returns Markdown
@@ -890,7 +890,7 @@ Enabled logging SHALL describe selected source retrieval, discovery, model steps
 
 #### Scenario: Detailed logs without tracing
 - **WHEN** logging is enabled while tracing is disabled
-- **THEN** model/tool start and outcome events retain timestamps, context and selected results without durationMs fields or synthetic metrics
+- **THEN** model/tool start and outcome events retain timestamps, context and selected results without `durationMs` fields or execution metrics
 - **AND** whole-run duration in the report and completion log retains its existing meaning
 
 ### Requirement: Research log payloads are selected by event
@@ -1610,9 +1610,9 @@ Eligible traced apply runs SHALL record operation durations and technical status
 - **THEN** no ingestion metric records are emitted, even if application logging is enabled
 - **AND** when logging is also disabled, the attempt opens no observability store
 
-#### Scenario: SDK emits another metric
+#### Scenario: A new technical metric is recorded
 - **WHEN** an eligible run emits a metric with a valid technical name and finite nonnegative value outside the currently observed duration and token names
-- **THEN** the metric passes the same safe-field projection and persists without an application allowlist update
+- **THEN** the metric is saved and available for inspection with the same privacy and correlation guarantees as other metrics
 - **AND** malformed names are dropped with content-free diagnostics
 
 #### Scenario: Technical success is not catalog success
@@ -1630,7 +1630,7 @@ Metrics SHALL retain the durable ingestion runId and real trace/span correlation
 
 #### Scenario: Unsafe content accompanies a metric
 - **WHEN** an observability event contains forbidden content in metadata, labels or cost context
-- **THEN** the stored metric retains only the selected safe technical fields, or is dropped if a safe projection cannot be produced
+- **THEN** the saved metric excludes the forbidden content, or the metric is omitted if that exclusion cannot be ensured
 - **AND** no raw content appears in failure diagnostics
 
 ### Requirement: Metric costs identify their accounting basis
@@ -1653,10 +1653,9 @@ Model metrics SHALL retain valid provider-reported cost when available for the c
 #### Scenario: Search incurs additional charges
 - **WHEN** discovery contributes model or search charges outside traced model generation
 - **THEN** the durable report retains its existing accounting and model metrics do not claim to include those charges
-- **AND** documentation explains this difference before comparing the two totals
 
 ### Requirement: Local metrics can be inspected after execution
-Metrics SHALL remain queryable locally after exit, with totals, grouped values, time series and latency percentiles. Inspection SHALL require no model credentials or execution. Metric persistence SHALL use the existing local observability ownership and bounded cleanup rules. Failures SHALL NOT change catalog decisions, report accounting, durable lifecycle, eval acceptance or exit status.
+Metrics SHALL remain queryable locally after exit, with totals and values grouped by agent and model. Inspection SHALL require no model credentials or execution. Metric failures SHALL NOT change catalog decisions, report accounting, durable lifecycle, eval acceptance or exit status, or leave ingestion waiting indefinitely.
 
 #### Scenario: Inspect saved metrics
 - **WHEN** a traced run exits and the owner reopens local inspection
@@ -1664,9 +1663,9 @@ Metrics SHALL remain queryable locally after exit, with totals, grouped values, 
 - **AND** inspection can correlate observations with their saved trace and durable runId
 
 #### Scenario: Metric persistence fails
-- **WHEN** metric initialization, export, flush or shutdown fails
-- **THEN** ingestion preserves its original result and attempts independent bounded cleanup with content-free diagnostics
-- **AND** cleanup of a Studio attempt leaves the shared store usable for later attempts and inspection
+- **WHEN** recording or closing metrics fails
+- **THEN** ingestion preserves its original result and emits a content-free diagnostic
+- **AND** the attempt does not make Studio's shared store unavailable to later attempts or inspection
 
 #### Scenario: Historical observations have no metrics
 - **WHEN** an existing observability store is opened after this change

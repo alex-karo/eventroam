@@ -48,34 +48,8 @@ export function safeCostContext(
   }
   const source = value.costMetadata ?? {};
   const costMetadata: Record<string, unknown> = {};
-  const enums: Record<string, readonly string[]> = {
-    source: ["provider_reported"],
-    sdkProvider: ["openrouter", "vercel_ai_gateway"],
-    sdkCostField: [
-      "openrouter.usage.cost",
-      "openrouter.usage.costDetails.upstreamInferenceCost",
-      "openrouter.usage.cost+openrouter.usage.costDetails.upstreamInferenceCost",
-      "gateway.cost",
-    ],
-    scope: ["query_total"],
-    allocation: ["query_total"],
-    error: [
-      "no_matching_model",
-      "no_matching_tier",
-      "no_pricing_for_usage_type",
-      "partial_cost",
-    ],
-  };
-  for (const [key, allowed] of Object.entries(enums)) {
-    if (typeof source[key] === "string" && allowed.includes(source[key])) {
-      costMetadata[key] = source[key];
-    }
-  }
-  for (const key of ["reportedStepCount", "tier_index"]) {
-    const number = nonnegative(source[key]);
-    if (number !== undefined) {
-      costMetadata[key] = number;
-    }
+  if (source.source === "provider_reported") {
+    costMetadata.source = "provider_reported";
   }
   const pricingId = technicalId(source.pricing_id);
   if (pricingId) {

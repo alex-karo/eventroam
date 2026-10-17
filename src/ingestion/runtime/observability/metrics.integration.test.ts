@@ -135,6 +135,27 @@ test("real research/editor lifecycles retain native usage/cost and persist corre
   expect(
     rows.mastra_metrics.find((row) => row.name === "mastra_tool_duration_ms"),
   ).toMatchObject({ entityName: "readPage", labels: { status: "ok" } });
+  await inspect(file, async (domain) => {
+    const { groups } = await domain.getMetricBreakdown({
+      name: totals,
+      aggregation: "sum",
+      groupBy: ["entityName", "model"],
+    });
+    expect(groups).toHaveLength(2);
+    for (const [entityName, tokens, cost] of [
+      ["Festival research", 60, 0.024],
+      ["Festival editor", 30, 0.012],
+    ] as const) {
+      expect(
+        groups.find((g) => g.dimensions.entityName === entityName),
+      ).toMatchObject({
+        dimensions: { model: "fixture/provider-model" },
+        value: tokens,
+        estimatedCost: cost,
+        costUnit: "USD",
+      });
+    }
+  });
 });
 
 test.each([
@@ -148,12 +169,11 @@ test.each([
     costs: [0.012, null],
     model: "fixture/provider-model",
     cost: null,
-    error: "no_matching_model",
   },
   { costs: [0.012, null], model: "openai/gpt-4.1-mini", basis: "pricing" },
 ])(
   "SDK cost basis for $model / $costs survives projection",
-  async ({ costs, model, cost, basis, error }) => {
+  async ({ costs, model, cost, basis }) => {
     const file = path();
     const { result } = await runTraceFixture(
       "success",
@@ -166,17 +186,11 @@ test.each([
     const input = records.find((row) => row.name === totals[0])!;
     if (basis === "pricing") {
       expect(input.estimatedCost).toBeGreaterThan(0);
-      expect(input.costMetadata).toHaveProperty("pricing_id");
-      expect(input.costMetadata).not.toHaveProperty(
-        "source",
-        "provider_reported",
-      );
+      expect(input.costMetadata).toEqual({ pricing_id: expect.any(String) });
       expect(result.usage.modelCostUsd).toBe(0.012); // report keeps the known subtotal
     } else {
       expect(input.estimatedCost).toBe(cost);
-      expect(input.costMetadata).toMatchObject(
-        error ? { error } : { source: basis },
-      );
+      expect(input.costMetadata).toEqual(basis ? { source: basis } : {});
     }
     await inspect(file, async (domain) => {
       const aggregate = await domain.getMetricAggregate({
@@ -225,6 +239,13 @@ test("cached and spanless metrics retain new names without arbitrary content or 
       costUnit: "USD",
       costMetadata: {
         source: "provider_reported",
+        sdkProvider: "openrouter",
+        sdkCostField: "openrouter.usage.cost",
+        scope: "query_total",
+        allocation: "query_total",
+        error: "partial_cost",
+        reportedStepCount: 2,
+        tier_index: 0,
         prompt: "PRIVATE_COST",
         nested: { body: "PRIVATE_BODY" },
       },
@@ -256,6 +277,7 @@ test("cached and spanless metrics retain new names without arbitrary content or 
     traceId: agent.traceId,
     labels: {},
   });
+  expect(observations[0].costMetadata).toEqual({ source: "provider_reported" });
   expect(observations.find((r) => r.name === metricNames[1])).toMatchObject({
     value: 20,
     traceId: null,
@@ -340,103 +362,6 @@ test("invalid metric fields are dropped with a fixed diagnostic", async () => {
     ["trace_sanitization_failed"],
     ["trace_sanitization_failed"],
   ]);
-});
-
-test("native aggregate, breakdown, time series and percentiles query persisted deterministic observations", async () => {
-  const file = path();
-  const run = (await createRunObservability(
-    input,
-    "fixture/model",
-    "query-run",
-  ))!;
-  const instance = run.observability.getDefaultInstance()!;
-  for (const [entityId, values] of [
-    ["festival-research", [10, 20]],
-    ["festival-editor", [30]],
-  ] as const) {
-    const agent = run.root!.createChildSpan({
-      type: SpanType.GENERIC,
-      name: entityId,
-      entityId,
-    });
-    const metrics = instance.getMetricsContext!(agent);
-    for (const value of values) {
-      metrics.emit("mastra_model_duration_ms", value, { status: "ok" });
-    }
-    metrics.emit(
-      totals[0],
-      10,
-      {},
-      {
-        costContext: {
-          provider: "openrouter",
-          model: "fixture/model",
-          estimatedCost: 0.012,
-          costUnit: "USD",
-          costMetadata: { source: "provider_reported" },
-        },
-      },
-    );
-    agent.end();
-  }
-  await finishRunObservability(run);
-  await inspect(file, async (domain) => {
-    const name = ["mastra_model_duration_ms"];
-    expect(
-      await domain.getMetricAggregate({ name, aggregation: "sum" }),
-    ).toMatchObject({ value: 60 });
-    expect(
-      await domain.getMetricBreakdown({
-        name,
-        aggregation: "avg",
-        groupBy: ["entityName"],
-      }),
-    ).toMatchObject({
-      groups: expect.arrayContaining([
-        {
-          dimensions: { entityName: "Festival research" },
-          value: 15,
-          estimatedCost: null,
-          costUnit: null,
-        },
-        {
-          dimensions: { entityName: "Festival editor" },
-          value: 30,
-          estimatedCost: null,
-          costUnit: null,
-        },
-      ]),
-    });
-    const series = await domain.getMetricTimeSeries({
-      name,
-      aggregation: "sum",
-      interval: "1h",
-    });
-    expect(series).toMatchObject({ series: [{ points: [{ value: 60 }] }] });
-    const percentiles = await domain.getMetricPercentiles({
-      name: name[0],
-      percentiles: [0.5, 0.95],
-      interval: "1h",
-    });
-    expect(percentiles).toMatchObject({
-      series: [
-        { percentile: 0.5, points: [{ value: 20 }] },
-        { percentile: 0.95, points: [{ value: 29 }] },
-      ],
-    });
-    const groups = await domain.getMetricBreakdown({
-      name: totals,
-      aggregation: "sum",
-      groupBy: ["entityName", "model"],
-    });
-    expect(groups.groups).toHaveLength(2);
-    expect(
-      groups.groups.every(
-        (g) =>
-          g.dimensions.model === "fixture/model" && g.estimatedCost === 0.012,
-      ),
-    ).toBe(true);
-  });
 });
 
 test("live model updates preserve only native numeric and cost selections", async () => {

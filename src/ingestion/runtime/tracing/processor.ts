@@ -1,4 +1,5 @@
 import {
+  EntityType,
   SpanType,
   type AnySpan,
   type ModelGenerationAttributes,
@@ -111,18 +112,18 @@ export function researchSpanProcessor(
         if (!Object.values(SpanType).includes(span.type)) {
           span.type = SpanType.GENERIC;
         }
-        const tool = ["readPage", "searchWeb"].find(
-          (name) => span.entityId === name,
-        );
-        const editor = span.entityId === "festival-editor";
-        const agentName = editor ? "Festival editor" : "Festival research";
-        const agentId = editor ? "festival-editor" : "festival-research";
+        const known = knownEntity(span.entityId);
+        const agent =
+          known?.entityType === EntityType.AGENT
+            ? known
+            : knownEntity("festival-research")!;
+        const operationName =
+          known?.entityType === EntityType.TOOL ? known.entityName : span.type;
         span.name =
           explicit?.name ??
-          (span.type === SpanType.AGENT_RUN ? agentName : (tool ?? span.type));
+          (span.type === SpanType.AGENT_RUN ? agent.entityName : operationName);
         const entity =
-          knownEntity(span.entityId) ??
-          (span.type === SpanType.AGENT_RUN ? knownEntity(agentId) : undefined);
+          known ?? (span.type === SpanType.AGENT_RUN ? agent : undefined);
         span.entityId = entity?.entityId;
         span.entityType = entity?.entityType;
         span.entityName = span.name;
