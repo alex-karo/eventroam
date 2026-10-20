@@ -2,7 +2,11 @@ import type { ResearchLogger } from "../../runtime/logging";
 import type { ResearchBudget } from "../../runtime/budget";
 import { ResearchLimitError } from "../../runtime/budget";
 import type { ReadPageResult } from "./contracts";
-import { extractSource } from "./extract";
+import {
+  combineSourceExtractions,
+  extractSource,
+  MIN_RENDERED_TEXT_CHARS,
+} from "./extract";
 import { FirecrawlError, getFirecrawlResponse } from "./firecrawl";
 import {
   getBoundedResponse,
@@ -63,6 +67,10 @@ function requestReason(error: unknown): string {
   return "request_failed";
 }
 
+function firecrawlKey(options: ReadPageOptions): string {
+  return (options.firecrawlKey ?? process.env.FIRECRAWL_KEY)?.trim() ?? "";
+}
+
 async function fetchSource(
   url: string,
   options: ReadPageOptions,
@@ -76,7 +84,7 @@ async function fetchSource(
   });
   result.finalUrl = response.finalUrl;
   result.httpStatus = response.status;
-  const apiKey = (options.firecrawlKey ?? process.env.FIRECRAWL_KEY)?.trim();
+  const apiKey = firecrawlKey(options);
   if (response.status !== 403 || !apiKey) {
     return response;
   }
@@ -93,6 +101,81 @@ async function fetchSource(
     timeoutMs: Math.min(30_000, options.budget.remaining().durationMs),
     resolver: options.resolver,
   });
+}
+
+async function tryRenderedFallback(
+  response: BoundedResponse,
+  extracted: ReturnType<typeof extractSource>,
+  result: ReadPageResult,
+  options: ReadPageOptions,
+): Promise<void> {
+  const apiKey = firecrawlKey(options);
+  if (
+    result.method !== "http" ||
+    response.status !== 200 ||
+    (!response.contentType.includes("text/html") &&
+      !response.contentType.includes("application/xhtml+xml")) ||
+    !extracted.needsJavascript ||
+    !apiKey ||
+    options.budget.remaining().durationMs < 1_000
+  ) {
+    return;
+  }
+
+  try {
+    options.budget.consumePage();
+    const renderedResponse = await (
+      options.firecrawlRequest ?? getFirecrawlResponse
+    )(response.finalUrl, {
+      apiKey,
+      format: "html",
+      maxBytes: options.budget.limits.pageBytes,
+      timeoutMs: Math.min(30_000, options.budget.remaining().durationMs),
+      resolver: options.resolver,
+    });
+    if (
+      renderedResponse.status < 200 ||
+      renderedResponse.status >= 300 ||
+      renderedResponse.body.length > options.budget.limits.pageBytes
+    ) {
+      options.log?.warn("JavaScript source Firecrawl fallback failed", {
+        attemptedUrl: response.finalUrl,
+        provider: "firecrawl",
+        errorCode:
+          renderedResponse.body.length > options.budget.limits.pageBytes
+            ? "oversized_response"
+            : `firecrawl_page_http_${renderedResponse.status}`,
+      });
+      return;
+    }
+    const rendered = extractSource(
+      renderedResponse.body.toString("utf8"),
+      renderedResponse.finalUrl,
+      renderedResponse.contentType,
+    );
+    if (rendered.nonNavigationTextLength < MIN_RENDERED_TEXT_CHARS) {
+      return;
+    }
+    const combined = combineSourceExtractions(rendered, extracted);
+    result.finalUrl = renderedResponse.finalUrl;
+    result.httpStatus = renderedResponse.status;
+    result.method = "firecrawl";
+    result.markdown = combined.markdown;
+    result.links = combined.links;
+    result.sourceTruncated = combined.truncated;
+    result.outcome = "ok";
+    result.completeness = combined.truncated ? "partial" : "full";
+    result.reason = combined.truncated ? "source_content_truncated" : undefined;
+  } catch (error) {
+    options.log?.warn("JavaScript source Firecrawl fallback failed", {
+      attemptedUrl: response.finalUrl,
+      provider: "firecrawl",
+      errorCode:
+        error instanceof ResearchLimitError
+          ? `${error.limit}_budget_exhausted`
+          : requestReason(error),
+    });
+  }
 }
 
 export async function readPage(
@@ -202,5 +285,7 @@ export async function readPage(
     result.completeness = "partial";
     result.reason ??= "javascript_required";
   }
+
+  await tryRenderedFallback(response, extracted, result, options);
   return result;
 }

@@ -8,7 +8,8 @@ import {
 const scrapeResponse = z.object({
   success: z.literal(true),
   data: z.object({
-    rawHtml: z.string(),
+    rawHtml: z.string().optional(),
+    html: z.string().optional(),
     metadata: z.object({
       statusCode: z.number().int().min(100).max(599),
       url: z.string().optional(),
@@ -42,13 +43,14 @@ async function validateSourceUrl(
   }
 }
 
-/** Fetch raw HTML so fallback pages use the same extraction rules as HTTP. */
+/** Fetch HTML so fallback pages use the same extraction rules as HTTP. */
 export async function getFirecrawlResponse(
   target: string,
   options: {
     apiKey: string;
     maxBytes: number;
     timeoutMs: number;
+    format?: "html" | "rawHtml";
     resolver?: LookupHost;
     request?: typeof fetch;
   },
@@ -58,6 +60,7 @@ export async function getFirecrawlResponse(
   if (options.timeoutMs < 1_000) {
     throw new FirecrawlError("timeout");
   }
+  const format = options.format ?? "rawHtml";
   const signal = AbortSignal.timeout(options.timeoutMs);
   try {
     await validateSourceUrl(target, options.resolver, signal);
@@ -73,7 +76,7 @@ export async function getFirecrawlResponse(
         },
         body: JSON.stringify({
           url: target,
-          formats: ["rawHtml"],
+          formats: [format],
           onlyMainContent: false,
           maxAge: 0,
           timeout: options.timeoutMs,
@@ -108,7 +111,11 @@ export async function getFirecrawlResponse(
     if (!parsed.success) {
       throw new FirecrawlError("firecrawl_invalid_response");
     }
-    const { rawHtml, metadata } = parsed.data.data;
+    const { metadata } = parsed.data.data;
+    const html = parsed.data.data[format];
+    if (typeof html !== "string") {
+      throw new FirecrawlError("firecrawl_invalid_response");
+    }
     const finalUrl = metadata.url ?? metadata.sourceURL ?? target;
     await validateSourceUrl(finalUrl, options.resolver, signal);
     signal.throwIfAborted();
@@ -116,7 +123,7 @@ export async function getFirecrawlResponse(
       finalUrl,
       status: metadata.statusCode,
       contentType: "text/html",
-      body: Buffer.from(rawHtml),
+      body: Buffer.from(html),
     };
   } catch (error) {
     if (signal.aborted) {
