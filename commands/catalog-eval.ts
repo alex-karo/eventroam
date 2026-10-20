@@ -65,6 +65,15 @@ export async function executeCatalogEvalCommand(
     output(
       `${item.caseId} #${item.repetition}: correctness ${item.score.correctness.toFixed(2)}, completeness ${item.score.completeness.toFixed(2)}, ${item.outcome} [run ${item.runId ?? "unavailable"}]\n`,
     );
+    if (!item.score.passed) {
+      for (const [dimension, failures] of Object.entries(
+        item.score.diagnostics,
+      )) {
+        for (const failure of failures) {
+          output(`  ${dimension}: ${failure}\n`);
+        }
+      }
+    }
   }
   return passed === report.results.length ? 0 : 1;
 }
