@@ -400,8 +400,9 @@ test.each([
       "Follow relevant known links first. Use searchWeb only under its stated conditions.",
     );
     expect(prompt.task).toContain(
-      "tickets.value is one complete findings block",
+      "When you find at least one supported price for an Edition in this assignment",
     );
+    expect(prompt.task).toContain("do not copy saved offers or prices");
     if (mode === "refresh/current") {
       expect(prompt.task).toContain(
         "Do not search for or inspect replacement websites",

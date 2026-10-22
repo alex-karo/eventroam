@@ -331,4 +331,4 @@ export type ResearchError = {
     retryable?: boolean;
   };
 };
-export const RESEARCH_PROMPT_VERSION = "narrow-current-ticket-links-v1";
+export const RESEARCH_PROMPT_VERSION = "observed-ticket-prices-v1";
