@@ -513,7 +513,7 @@ test("omitted tickets and independent facts preserve saved values after relocati
     {
       editionKey: "2027",
       field: "tickets",
-      message: "Unread shop category; cannot replace complete block",
+      message: "No supported price; one shop category could not be read",
     },
   ];
   proposed.data!.editions[0].venueName = {
