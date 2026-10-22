@@ -2,11 +2,14 @@
 
 ## Why
 
-<!-- Explain the motivation for this change. What problem does this solve? Why now? -->
+<!-- Explain the requested outcome and why it matters. Use a concrete before/after
+example when useful. -->
 
 ## What Changes
 
-<!-- Describe what will change. Be specific about new capabilities, modifications, or removals. -->
+<!-- Describe capabilities, modifications, or removals. Distinguish requested
+outcomes and existing contracts from significant newly proposed guarantees.
+Expose material scope choices and their value/cost before detailing the plan. -->
 
 ## Capabilities
 
