@@ -339,9 +339,11 @@ export function extractSource(
     filter: ["th", "td"],
     replacement: (content, node) => {
       const inline = content
-        .replace(/\s*\n\s*/g, "; ")
-        .replace(/[ \t]+/g, " ")
-        .trim();
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join("; ")
+        .replace(/[ \t]+/g, " ");
       const prefix = node.parentNode?.firstChild === node ? "| " : " ";
       return `${prefix}${inline} |`;
     },
