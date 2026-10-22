@@ -3,7 +3,7 @@
 ## 1. Preserve table rows
 
 - [x] 1.1 Normalize converted table-cell content to one Markdown line and verify an HTML line break keeps its row's values together in extractor tests.
-- [x] 1.2 Represent table select controls as labeled choices and verify Open Flair and unrelated controls keep choices separate and Markdown-looking source text stays literal.
+- [x] 1.2 Omit HTML select controls and verify their option text is absent while nearby ticket and schedule facts remain.
 
 ## 2. Integration
 
