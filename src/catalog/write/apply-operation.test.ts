@@ -391,7 +391,7 @@ test("create audit keeps supplied field order, arrays, and omitted defaults", ()
   ).toEqual({ id: event.id, version: 1, changed: false });
 });
 
-test("publication gates dates, area and scope; withdrawal retains URL reservation", () => {
+test("publication gates dates, country and facets; withdrawal retains URL reservation", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ slug: "test-field-days" });
@@ -405,7 +405,6 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
       editionKey: "2028",
       dateState: "unknown",
       countryCode: "PT",
-      locality: "Example Valley",
     },
   });
   expect(() =>
@@ -475,8 +474,12 @@ test("publication accepts structurally complete editions with saved links", () =
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event();
-  const edition = fx.edition(event);
-  for (const term of fx.festivalTerms()) {
+  const edition = fx.edition(event, { locality: null });
+  for (const term of [
+    fx.existingTerm("format", "indoor"),
+    fx.term({ facet: "event_type", slug: "conference" }),
+    fx.term({ facet: "culture", slug: "participatory" }),
+  ]) {
     fx.assignTerm(edition, term);
   }
   fx.editionLink(edition, {

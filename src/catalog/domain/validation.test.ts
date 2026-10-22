@@ -7,6 +7,7 @@ import {
   validateAliasRecord,
   validateTaxonomyTerm,
   validateTermAssignments,
+  validateFestivalScope,
 } from "./validation";
 import {
   publicationStates,
@@ -106,12 +107,13 @@ test.each([
   { latitude: 91, longitude: 0, coordinatePrecision: "exact" },
   { ...published, editionYear: null },
   { ...published, countryCode: null },
-  { ...published, locality: null },
+  { ...published, startsOn: null, endsOn: null, dateState: "unknown" },
 ])("inconsistent edition is rejected: %j", (record) => {
   expect(() => validateEditionRecord(record)).toThrow();
 });
 
-test("published editions can use a venue, locality or region", () => {
+test("published editions need only a country for location", () => {
+  validateEditionRecord({ ...published, locality: null });
   for (const field of ["venueName", "locality", "administrativeArea"]) {
     validateEditionRecord({
       ...published,
@@ -120,6 +122,22 @@ test("published editions can use a venue, locality or region", () => {
     });
   }
 });
+
+test.each(["topic", "culture"])(
+  "publication accepts arbitrary values with a %s theme",
+  (theme) => {
+    const terms = ["format", "event_type", theme].map((facet) => ({
+      facet,
+      slug: "another-valid-value",
+    }));
+    expect(() => validateFestivalScope(terms)).not.toThrow();
+    for (const missing of ["format", "event_type", theme]) {
+      expect(() =>
+        validateFestivalScope(terms.filter((term) => term.facet !== missing)),
+      ).toThrow(/requires/);
+    }
+  },
+);
 
 test("price variants preserve the existing complete-block contract", () => {
   validateStoredPrice({});

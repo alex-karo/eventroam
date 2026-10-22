@@ -614,17 +614,17 @@ test("explicit cancellation updates schedule without renaming Event identity", (
 test.each([
   ["openair", true, true],
   ["mixed-indoor-outdoor", true, true],
-  ["indoor", true, false],
-  ["outdoor", true, false],
+  ["indoor", true, true],
+  ["outdoor", true, true],
   [null, true, false],
-  ["openair", false, false],
+  ["openair", false, true],
 ] as const)(
-  "research and writer agree on format %s with music=%s despite the outdoor activity topic",
+  "research and writer agree on format %s with music=%s and the outdoor activity topic",
   (format, music, publishable) => {
     const client = testDatabase().client;
     const fx = testFixtures(client);
     const terms = [
-      fx.existingTerm("event_type", "festival"),
+      fx.term({ facet: "event_type", slug: "conference" }),
       fx.existingTerm("topic", "outdoor"),
     ];
     if (format) {
@@ -651,7 +651,6 @@ test.each([
           reason: "Official programme dates",
         },
         countryCode: { value: "PT", reason: "Official venue" },
-        locality: { value: "Lisbon", reason: "Official venue" },
         classification: {
           value: terms.map((term) => term.id),
           reason: "Official programme and activity offerings",
@@ -682,10 +681,72 @@ test.each([
             expectedVersion: edition.version,
           },
         ]),
-      ).toThrow(music ? /format/ : /music or burning-like/);
+      ).toThrow(/format/);
     }
   },
 );
+
+test("a historical Edition publishes its Event while a new undated Edition stays draft", () => {
+  const client = testDatabase().client;
+  const terms = testFixtures(client).festivalTerms();
+  const proposed = candidate();
+  proposed.data!.editions = [
+    {
+      key: "2023",
+      year: { value: 2023, reason: "Official past edition year" },
+      dates: {
+        value: {
+          startsOn: "2023-06-10",
+          endsOn: "2023-06-12",
+          state: "confirmed",
+        },
+        reason: "Official past programme dates",
+      },
+      countryCode: { value: "PT", reason: "Official country" },
+      classification: {
+        value: terms.map((term) => term.id),
+        reason: "Official past programme",
+      },
+      links: {},
+    },
+    {
+      key: "2027",
+      year: { value: 2027, reason: "Announced edition year" },
+      countryCode: { value: "PT", reason: "Official country" },
+      classification: {
+        value: terms.map((term) => term.id),
+        reason: "Announced programme classification",
+      },
+      links: {},
+    },
+  ];
+  const prepared = prepareEditorialFixture(proposed, [], input, terms);
+  expect(prepared.errors).toEqual([]);
+  expect(
+    prepared.operations.filter((op) => op.kind === "publishEdition"),
+  ).toHaveLength(1);
+  expect(prepared.operations.some((op) => op.kind === "publishEvent")).toBe(
+    true,
+  );
+  applyCatalogItem(client, prepared.operations);
+  const [saved] = readResearchCatalog(client);
+  expect(saved).toMatchObject({
+    publicationState: "published",
+    homeScope: "festivals",
+  });
+  expect(
+    saved.editions.find((edition) => edition.editionKey === "2023"),
+  ).toMatchObject({
+    publicationState: "published",
+  });
+  expect(
+    saved.editions.find((edition) => edition.editionKey === "2027"),
+  ).toMatchObject({
+    publicationState: "draft",
+    startsOn: null,
+    endsOn: null,
+  });
+});
 
 test("research size survives context, preparation, writer and omission", () => {
   const { client, eventId } = create();
