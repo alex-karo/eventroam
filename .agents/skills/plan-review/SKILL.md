@@ -1,103 +1,85 @@
 ---
 name: plan-review
-description: Review an implementation plan for engineering soundness, simplicity, and readiness before coding or after material planning changes. Use for review of OpenSpec proposal, design, specs, and tasks. Does not verify completed implementation or rewrite the plan.
+description: Review an implementation plan for understandable intent, necessary complexity, and readiness before coding or after material planning changes. Accepts chat, Markdown, issues, or OpenSpec. Does not audit completed implementation or rewrite the plan.
 ---
 
 # Plan Review
 
-Assess whether the proposed work is clear, coherent, and ready to implement.
-Review the plan against repository evidence, not just its own wording.
-Keep the review proportionate to the change and its risks.
+Assess whether the proposed solution is understandable, justified, and ready to
+implement. Agreement between plan documents does not establish design quality.
 
 ## Scope and evidence
 
-- Use the change or plan named by the user or established in the conversation.
-  If the target is ambiguous, list active changes with
-  `npm exec -- openspec list --json` and ask which one to review.
-- Read the repository instructions and documentation index, then only the
-  documents relevant to the plan.
-- For an OpenSpec change, run
-  `npm exec -- openspec status --change "<name>" --json`.
-  Read its available proposal, design, delta specs, and tasks from the resolved
-  artifact paths. Use its selected schema and instructions; do not impose the
-  current default schema on an older change.
-- Read the relevant main specs, including scenarios, and inspect the code,
-  types, tests, and configuration needed to verify material assumptions.
-  Follow references to existing components before recommending new ones.
-- A partial plan can still receive useful feedback. State what is missing and
-  limit the readiness assessment. Do not invent missing artifacts or demand
-  artifacts that the selected schema legitimately skips.
-- When formal validation is useful, run
-  `npm exec -- openspec validate "<name>" --type change --strict`.
-  Distinguish structural errors from engineering findings. CLI validation
-  does not establish design quality or implementation readiness.
+Use the plan and original request identified by the user or context; ask if the
+target is ambiguous. Accept its format without requiring a repository, framework,
+or extra documents. For OpenSpec only, use [the adapter](references/openspec.md).
 
-This is a review, not an implementation audit. Unchecked tasks and code that
-does not yet implement the proposed behavior are expected before implementation.
-Use existing code to test the plan's assumptions, not to report planned work as
-missing implementation. Completed-code verification belongs to
-`openspec-verify-change`.
+Read applicable instructions and relevant contracts, decisions, code, callers,
+tests, and dependency capabilities. Distinguish requested outcomes and accepted
+contracts from newly proposed guarantees and implementation choices. New spec
+wording alone does not establish acceptance; unknown provenance is not permission
+to discard a requirement. Tests establish behavior, not necessarily its necessity.
 
-## Review criteria
+Partial plans can receive useful feedback. Note missing evidence, but do not treat
+unimplemented work or unchecked tasks as defects. Structural validation does not
+prove readiness.
 
-Apply the criteria that matter to the change. They are prompts for judgment,
-not required report sections or a quota of findings.
+## Compare with a minimal approach
 
-- **Consistency:** Proposal scope, spec behavior, design choices, and tasks
-  agree. Tasks cover the important outcomes, including removals and changed
-  behavior. Distinguish current behavior from approved future work and drafts.
-- **Contracts:** Important before/after inputs, outputs, and types are clear.
-  Check value semantics, errors, validation boundaries, and affected consumers
-  where relevant. Data transitions must fit the project's actual preservation
-  needs. Do not invent backward-compatibility requirements.
-- **Architecture:** Execution flow, module boundaries, and ownership of rules
-  and data are clear. Key decisions have reasons. Proposed abstractions solve
-  a concrete need. Identify duplicate rules or parallel obsolete paths.
-- **Simplicity:** Look for a smaller solution using existing capabilities.
-  Separate simplifications that preserve requirements from options that remove
-  or defer a capability. Name the requirement affected by each scope reduction;
-  treat it as an option requiring agreement, not as a defect in the plan.
-- **Proportion:** Check whether the stated change size fits coupling, risk,
-  uncertainty, and verification effort. Detail should address real decisions,
-  without prescribing every function. Do not enforce task counts, word quotas,
-  or missing optional headings as engineering requirements.
-- **Execution:** Tasks have reviewable outcomes, sensible dependencies, and
-  ways to check completion. Relevant tests and docs accompany their work;
-  integration checks may span groups. Avoid giant checkboxes that conceal
-  independent outcomes and trivial tasks that add no tracking value.
-- **Risk and decisions:** Material risks have credible checks. Questions that
-  can change requirements, approach, or task breakdown are resolved before
-  implementation. Leave harmless implementation choices to the implementer.
-- **Readability:** Descriptions use clear, simple English and exact technical
-  terms. Each artifact has a purpose; repeated details and appended corrections
-  should not hide the current decision. Flag wording only when it affects
-  understanding, review, or execution.
+For substantive designs, sketch the smallest credible approach from the original
+request, existing contracts, and system capabilities before reading the proposed
+solution in detail. Identify what existing code or dependencies already own,
+then compare the plan with that baseline.
+
+When independent review is requested or useful, use one fresh reviewer for both
+steps. Supply the request, existing contracts and artifact locations without the
+author's rationale or previous review conclusions. If the design is already in
+context, disclose that the comparison is not blind. Small direct changes need
+only a brief comparison, not delegation.
+
+For each consequential mechanism, establish its consumer and need, why existing
+capabilities are insufficient, and what changes if it disappears across callers.
+Check application-owned copies of dependency rules or data even when small.
+Trace real entry paths and safeguards: an available API or synthetic test does
+not establish application support, and dependency ownership does not prove a
+wrapper or protection redundant.
+
+Compare removing a mechanism with reorganizing it. Preserve accepted guarantees;
+report scope reductions separately with the lost capability, affected consumers,
+implementation/test burden avoided, and decision needed. A newly drafted spec
+requiring the mechanism is not a reason to omit an alternative. If necessity is
+unproven, name the evidence needed rather than endorse or demand removal.
+
+## Check understanding and execution
+
+Explain from the plan the observable change, main flow, ownership, and reasons
+for consequential mechanisms. Distinguish what the plan explains from what you
+inferred from code. Recommend filling important gaps in their owning sections,
+not adding a parallel summary document.
+
+Check that scope, behavior and tasks agree; significant before/after contracts,
+errors and affected consumers are clear; and tasks have sensible dependencies
+and verifiable outcomes. Do not invent compatibility or migration obligations.
+Surface unresolved decisions that could change the approach before coding.
+
+Each proposed test scenario should detect a meaningful failure not already
+adequately covered. Distinguish application integration checks from re-testing
+dependency algorithms. Do not impose headings, word counts or task quotas.
 
 ## Findings and result
 
-Use one reviewer by default. Do not require subagents or a separate review
-workflow for every small change.
+Lead with readiness and its reason: ready, ready with improvements, or not ready.
+Include the brief explanation of the solution, material findings, reviewed scope,
+evidence gaps, and whether the baseline was independent. For each finding give
+its location, consequence, evidence and proposed correction.
 
-Report only actionable findings supported by evidence. For each finding, give
-a precise artifact location, the concrete consequence, and a proposed correction.
-Include code references when the claim depends on existing implementation.
-Distinguish a verified contradiction from an assumption that still needs checking.
-Do not present a stylistic preference as a correctness issue, or inflate an
-uncertain concern into a blocker.
+Distinguish verified contradictions, behavior-preserving improvements and options
+requiring a scope decision. State which consequential mechanisms remain unproven
+or required inference to understand. An optional reduction alone does not make a
+sound plan unready; no blockers alone does not endorse simplicity. Keep a clean
+review short and avoid stylistic findings.
 
-Return a short report in this order:
-
-1. **Blocking issues:** Decisions or contradictions that prevent a reliable
-   implementation. Omit the section when there are none.
-2. **Useful improvements:** Non-blocking fixes and worthwhile simplifications,
-   clearly labeling options that change requirements. Omit empty sections.
-3. **Readiness:** Ready, ready with non-blocking improvements, or not ready,
-   with the reason. If material evidence is unavailable, say readiness is not
-   established and name the missing evidence. State the reviewed scope and any
-   significant limitations. A clean review may be only a few sentences.
-
-Do not rewrite artifacts, change requirements, mark tasks complete, or start
-implementation as part of review. Return recommendations in the conversation.
-If the user also requests fixes, treat those as a separate authorized editing
-step after presenting the findings; preserve the agreed scope and recheck the
-affected decisions. Review readiness is advice, not approval to implement.
+Do not edit artifacts, mark tasks complete or start implementation during review.
+If fixes were also requested, present findings before a separate authorized
+editing step and recheck affected decisions. Readiness is advice, not approval
+to implement.

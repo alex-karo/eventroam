@@ -87,7 +87,11 @@ This workflow revises artifacts that already exist; it never creates missing one
      openspec instructions "<artifact-id>" --change "<name>" --json
      ```
 
-6. **Point to the next step (guidance only - NEVER act on it)**
+6. **Review material planning changes**
+   - After changing requirements or approach in a plan awaiting implementation, use the repository's `plan-review` skill before reporting readiness. Routine wording edits need no separate review.
+   - Apply review-driven revisions through step 5 within the authorized scope, then recheck affected decisions once. Report unresolved decisions instead of repeating review loops. Do not create a review artifact or begin implementation.
+
+7. **Point to the next step (guidance only - NEVER act on it)**
    - Artifacts with empty `existingOutputPaths` and status `ready` or `blocked` -> run `openspec status --change "<name>" --json` for the next artifact and point the user to `openspec instructions "<artifact-id>" --change "<name>" --json` for how to create it.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; suggest `$openspec-apply-change (Codex) or /openspec-apply-change (other agents)` to carry the delta into code.
    - Everything done and implemented -> suggest `$openspec-archive-change (Codex) or /openspec-archive-change (other agents)`.

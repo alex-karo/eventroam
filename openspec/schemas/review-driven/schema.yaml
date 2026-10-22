@@ -15,6 +15,9 @@ artifacts:
       Do not add empty sections or invented alternatives just to fill a template.
 
       Create the proposal document that establishes WHY this change is needed.
+      Start from the requested outcome and a concrete before/after example when useful.
+      Distinguish requested outcomes, existing contracts and newly proposed guarantees.
+      Writing a guarantee into a proposal or spec does not itself establish user acceptance.
 
       Sections:
       - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
@@ -69,6 +72,11 @@ artifacts:
       Create specification files that define WHAT the system should do.
 
       A spec is a behavior contract, not an implementation plan.
+      Trace significant new obligations to the requested outcome, an existing
+      contract or an explicitly proposed decision. Do not turn an implementation
+      convenience or a defensive assumption into a requirement merely to justify
+      the chosen design. Resolve material scope choices before treating them as
+      accepted implementation constraints.
 
       Good spec content:
       - Observable behavior users or downstream systems rely on
@@ -185,7 +193,10 @@ artifacts:
         contract or stored-data changes, dependencies, and material uncertainty.
         Judge size by coupling, risk, and verification effort, not file count.
       - Approach: Briefly explain the proposed solution. Link to the proposal for
-        motivation and specs for behavior. State design boundaries only when useful.
+        motivation and specs for behavior. Make the core idea understandable without
+        reading code: describe the user-visible change and main flow, what existing
+        components or dependencies already do, and what the application must own.
+        Explain the smallest credible approach before its additional mechanisms.
       - Contracts: Show important before/after inputs, outputs, and type changes.
         Use short type sketches where helpful. Explain omission, null, empty values,
         errors, and validation when they affect the contract. Cover stored-data
@@ -194,12 +205,23 @@ artifacts:
         of decisions, validation, and writes. Name removed paths or abstractions.
         Use a small diagram when it makes the flow easier to understand.
       - Key decisions: State each important choice, its reason, and material trade-offs.
+        For significant custom mechanisms, identify the concrete scenario and consumer,
+        the source of the requirement, and why existing capabilities are insufficient.
+        Justify application-owned copies of dependency rules or data, even when small.
+        For defensive layers, name the real input path and existing safeguards;
+        API availability alone does not establish application support.
+        Separate requested or accepted guarantees from new proposals and assumptions.
         Distinguish required design decisions from details left to implementation.
         Do not prescribe every function or copy complete implementation types.
       - Simpler options: Consider options that keep the same requirements and options
         that reduce scope. For the former, explain why a simpler option is not selected,
         or select it. For the latter, name the requirement or capability lost or deferred.
         Scope reductions are proposals, not permission to change approved requirements.
+        Compare removing a mechanism with reorganizing it; check actual dependency
+        capabilities before retaining application-owned copies of their rules.
+        For worthwhile scope reductions, explain the user-visible loss and the
+        implementation and test burden avoided. Do not dismiss an option solely
+        because a newly drafted spec already requires the more complex behavior.
         Do not invent alternatives; briefly state if no useful simpler option was found.
       - Risks and validation: Connect each material risk to a focused check or evidence.
         Include migration, recovery, or rollout details only when needed.
@@ -217,6 +239,9 @@ artifacts:
       Keep design.md as one coherent description of the current solution. Fold later
       corrections into their owning sections instead of appending correction logs.
       Update affected proposal, specs, and tasks when an approved decision changes.
+      Before handoff, check whether the plan alone explains the outcome, main flow,
+      ownership, and reasons for added mechanisms. Rewrite missing explanations in
+      place; do not add a second document or repeat every requirement.
     requires:
       - proposal
 
@@ -287,7 +312,21 @@ artifacts:
       Each task should describe one reviewable outcome and how to check it. Do not hide
       many unrelated actions in a long checkbox to make the plan look short. Reference
       design details and spec scenarios instead of repeating them in each task.
+      For proposed test scenarios, identify a meaningful failure they would detect
+      and check existing coverage before adding fixtures or another integration matrix.
+      Prefer testing the application's use of a dependency over reproducing its own
+      algorithm tests, unless an explicit contract or integration risk calls for it.
       Reassess the plan when the design's size, scope, or risk changes.
+
+      After drafting the artifacts for a substantive change, use the repository's
+      plan-review skill before presenting the plan as ready. Give a fresh reviewer
+      the original request, existing contracts, and artifact locations, without
+      coaching it toward the author's approach or earlier review conclusions.
+      Apply supported wording and behavior-preserving planning improvements within
+      the authorized scope; surface material scope/guarantee decisions to the user.
+      Recheck affected decisions once after revisions, then report unresolved issues
+      rather than repeating review loops. Small direct changes can use a self-check,
+      identified as such. Do not add a review artifact or start implementation.
     requires:
       - specs
       - design
