@@ -17,9 +17,7 @@ artifacts:
       Create the proposal document that establishes WHY this change is needed.
       Start from the requested outcome and a concrete before/after example when useful.
       Distinguish requested outcomes, existing contracts and newly proposed guarantees.
-      Explain the value and cost of a significant added guarantee; writing it into a
-      proposal or spec does not itself establish user acceptance. Surface material
-      scope choices before expanding them into detailed specs and tasks.
+      Writing a guarantee into a proposal or spec does not itself establish user acceptance.
 
       Sections:
       - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?

@@ -8,8 +8,7 @@ example when useful. -->
 ## What Changes
 
 <!-- Describe capabilities, modifications, or removals. Distinguish requested
-outcomes and existing contracts from significant newly proposed guarantees.
-Expose material scope choices and their value/cost before detailing the plan. -->
+outcomes and existing contracts from significant newly proposed guarantees. -->
 
 ## Capabilities
 
