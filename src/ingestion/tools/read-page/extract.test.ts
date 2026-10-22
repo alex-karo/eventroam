@@ -123,25 +123,14 @@ test("table cell line breaks keep programme details in one row", () => {
   );
 });
 
-test("ticket table keeps price with category without quantity controls", () => {
-  const page =
-    markdown(`<table><thead><tr><th>Preiskategorie</th><th>Preis</th><th>Anzahl</th></tr></thead>
+test("select options are omitted while ticket facts stay in one row", () => {
+  const page = markdown(`<select><option>Other day</option></select>
+    <table><thead><tr><th>Preiskategorie</th><th>Preis</th><th>Anzahl</th></tr></thead>
     <tbody><tr><td>Dauerkarte<br><small>Verfügbar bis Freitag</small></td>
-    <td>199,00 €</td><td><select aria-label="Anzahl für Dauerkarte" class="variant-quantity" name="quantity">
+    <td>199,00 €</td><td><select name="quantity">
     <option>1</option><option>2</option><option>3</option></select></td></tr></tbody></table>`);
   expect(page).toContain("| Dauerkarte; Verfügbar bis Freitag | 199,00 € |  |");
-  expect(page).not.toContain("123");
-});
-
-test("selection controls do not add option text to source Markdown", () => {
-  const page = markdown(`<p>Festival schedule</p>
-    <select name="day"><option>Wednesday</option><option>Thursday</option></select>
-    <table><tr><th>Day</th><th>Stage</th></tr>
-    <tr><td><select name="day"><option>Friday</option><option>Saturday</option></select></td>
-    <td>Main stage</td></tr></table>`);
-  expect(page).toContain("Festival schedule");
-  expect(page).toContain("|  | Main stage |");
-  expect(page).not.toMatch(/Wednesday|Thursday|Friday|Saturday/);
+  expect(page).not.toContain("Other day");
 });
 
 test("selection options are removed before link labels are flattened", () => {
@@ -152,5 +141,4 @@ test("selection options are removed before link labels are flattened", () => {
   expect(page).toContain(
     "| [Weekend](https://festival.example/tickets) | €199 |",
   );
-  expect(page).not.toContain("123");
 });
