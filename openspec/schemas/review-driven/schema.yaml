@@ -319,9 +319,9 @@ artifacts:
       Reassess the plan when the design's size, scope, or risk changes.
 
       After drafting the artifacts for a substantive change, use the repository's
-      plan-review skill before presenting the plan as ready. Give a fresh reviewer
-      the original request, existing contracts, and artifact locations, without
-      coaching it toward the author's approach or earlier review conclusions.
+      plan-review skill before presenting the plan as ready. Let that skill coordinate
+      its reviewers directly; supply the original request, existing contracts, and
+      artifact locations without coaching them toward the author's conclusions.
       Apply supported wording and behavior-preserving planning improvements within
       the authorized scope; surface material scope/guarantee decisions to the user.
       Recheck affected decisions once after revisions, then report unresolved issues
