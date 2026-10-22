@@ -154,6 +154,8 @@ By default, the writer previews changes and rolls them back. The private run row
 
 Changes for one Event are saved together or rolled back together. If one proposed value fails validation, no other proposed change for that Event is saved. A normal update keeps a published record published. Complete eligible drafts can publish; incomplete ones stay drafts.
 
+Publication requires an Edition year, complete date pair, country, one `format`, one `event_type`, and at least one `topic` or `culture` term. Any valid assigned value in those facets qualifies; venue, locality, region and coordinates are optional. An Event can publish through a historical Edition without an announced next-year Edition. A new undated Edition stays a draft.
+
 ## Review the report
 
 For local debugging, opt in with `CATALOG_CAPTURE_TOOL_OUTPUTS=true` when starting the CLI or Studio process. Use the report's `runId` to open `data/catalog-debug/<runId>/`: numbered JSON files show the initial `inspectedSources` projection and each returned `readPage` or `searchWeb` result; page Markdown also appears in companion `.md` files. Repeated cached page calls have separate entries. These ignored files contain sensitive source content, so keep them local and delete them after inspection. Capture is best effort and does not change the report or catalog result.

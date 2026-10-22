@@ -105,13 +105,7 @@ export function validateEditionRecord(r: RecordValues) {
       r.startsOn != null && r.endsOn != null && r.editionYear != null,
       "Publication needs supported dates and year",
     );
-    assert(
-      r.countryCode != null &&
-        (r.venueName != null ||
-          r.locality != null ||
-          r.administrativeArea != null),
-      "Publication needs country and supported area",
-    );
+    assert(r.countryCode != null, "Publication needs country");
   }
   validateStoredPrice(r);
 }
@@ -162,19 +156,12 @@ export function validateTermAssignments(terms: readonly TaxonomyTerm[]) {
 export function validateFestivalScope(
   terms: readonly { facet: string; slug: string }[],
 ) {
-  const has = (facet: string, slug: string) =>
-    terms.some((term) => term.facet === facet && term.slug === slug);
+  const has = (facet: string) => terms.some((term) => term.facet === facet);
+  assert(has("format"), "Festival scope requires format");
+  assert(has("event_type"), "Festival scope requires event type");
   assert(
-    has("format", "openair") || has("format", "mixed-indoor-outdoor"),
-    "Festival scope requires supported open-air format",
-  );
-  assert(
-    has("event_type", "festival") || has("event_type", "gathering"),
-    "Festival scope requires event type",
-  );
-  assert(
-    has("topic", "music") || has("culture", "burning-like"),
-    "Festival scope requires music or burning-like culture",
+    has("topic") || has("culture"),
+    "Festival scope requires topic or culture",
   );
 }
 export function isEditionPublishable(
