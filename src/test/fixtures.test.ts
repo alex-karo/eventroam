@@ -57,14 +57,11 @@ test("scenario helpers create distinct public records and typed relationships", 
   ).toBe(0);
 });
 
-test("scenario publication reuses terms created through the low-level API", () => {
+test("scenario publication reuses migrated terms without changing vocabulary", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
-  const festival = fx.term({
-    facet: "event_type",
-    slug: "festival",
-    name: "Festival",
-  });
+  const before = client.prepare("SELECT * FROM taxonomy_terms").all();
+  const festival = fx.existingTerm("event_type", "festival");
 
   const { editions } = fx.publishedEvent();
   expect(
@@ -74,6 +71,7 @@ test("scenario publication reuses terms created through the low-level API", () =
       )
       .get(editions[0].id, festival.id),
   ).toMatchObject({ term_id: festival.id });
+  expect(client.prepare("SELECT * FROM taxonomy_terms").all()).toEqual(before);
 });
 
 test("generated URLs skip values explicitly supplied in the same fixture", () => {
@@ -102,13 +100,7 @@ test("a failed published scenario rolls back every related insert", () => {
   expect(() =>
     fx.publishedEvent({ editions: [{}, { startsOn: null }] }),
   ).toThrow();
-  for (const table of [
-    "events",
-    "editions",
-    "taxonomy_terms",
-    "edition_terms",
-    "url_aliases",
-  ]) {
+  for (const table of ["events", "editions", "edition_terms", "url_aliases"]) {
     expect(client.prepare(`SELECT count(*) FROM ${table}`).pluck().get()).toBe(
       0,
     );

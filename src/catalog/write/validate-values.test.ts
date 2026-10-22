@@ -96,6 +96,7 @@ test("taxonomy validation terminates on an already malformed ancestor chain", ()
   client
     .prepare("UPDATE taxonomy_terms SET parent_id=? WHERE id=?")
     .run(child.id, parent.id);
+  const before = client.prepare("SELECT * FROM taxonomy_terms").all();
   expect(() => fx.term({ parentId: child.id })).toThrow(/cycle/);
-  expect(client.prepare("SELECT id FROM taxonomy_terms").all()).toHaveLength(2);
+  expect(client.prepare("SELECT * FROM taxonomy_terms").all()).toEqual(before);
 });

@@ -127,19 +127,11 @@ test("term replacement rejects assigned ancestors at every depth atomically", ()
   const event = fx.event();
   const edition = fx.edition(event);
   const sibling = fx.edition(event);
-  const electronic = fx.term({ facet: "genre", slug: "electronic" });
-  const trance = fx.term({
-    facet: "genre",
-    slug: "trance",
-    parentId: electronic.id,
-  });
-  const psytrance = fx.term({
-    facet: "genre",
-    slug: "psytrance",
-    parentId: trance.id,
-  });
-  fx.assignTerm(edition, psytrance);
-  fx.assignTerm(sibling, electronic);
+  const parent = fx.term();
+  const child = fx.term({ parentId: parent.id });
+  const leaf = fx.term({ parentId: child.id });
+  fx.assignTerm(edition, leaf);
+  fx.assignTerm(sibling, parent);
   const snapshot = () => ({
     editions: client.prepare("SELECT * FROM editions").all(),
     assignments: client.prepare("SELECT * FROM edition_terms").all(),
@@ -147,7 +139,7 @@ test("term replacement rejects assigned ancestors at every depth atomically", ()
     receipts: client.prepare("SELECT * FROM operation_receipts").all(),
   });
   const before = snapshot();
-  for (const ancestor of [trance, electronic]) {
+  for (const ancestor of [child, parent]) {
     expect(() =>
       applyCatalogOperation(client, {
         kind: "replaceTerms",
@@ -155,7 +147,7 @@ test("term replacement rejects assigned ancestors at every depth atomically", ()
         actor: "owner",
         id: edition.id,
         expectedVersion: edition.version,
-        termIds: [ancestor.id, psytrance.id],
+        termIds: [ancestor.id, leaf.id],
       }),
     ).toThrow(/redundant ancestor/);
     expect(snapshot()).toEqual(before);
@@ -166,7 +158,7 @@ test("term replacement rejects assigned ancestors at every depth atomically", ()
     actor: "owner",
     id: edition.id,
     expectedVersion: edition.version,
-    termIds: [psytrance.id],
+    termIds: [leaf.id],
   });
   expect(noOp.changed).toBe(false);
 });
@@ -403,7 +395,7 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ slug: "test-field-days" });
-  fx.festivalTerms();
+  const termIds = fx.festivalTerms().map((term) => term.id);
   const draft = applyCatalogOperation(client, {
     kind: "createEdition",
     operationKey: "test:draft",
@@ -453,7 +445,7 @@ test("publication gates dates, area and scope; withdrawal retains URL reservatio
     actor: "owner",
     id: draft.id,
     expectedVersion: updated.version,
-    termIds: ["test-festival", "test-openair", "test-music"],
+    termIds,
   });
   const published = applyCatalogOperation(client, {
     kind: "publishEdition",
@@ -805,7 +797,7 @@ test("link replacement audits changes and leaves unchanged links alone", () => {
 test("item dry run rolls back dependent creates and publication", () => {
   const { client } = testDatabase();
   const fx = testFixtures(client);
-  fx.festivalTerms();
+  const termIds = fx.festivalTerms().map((term) => term.id);
   const operations: CatalogOperation[] = [
     {
       kind: "createEvent",
@@ -836,7 +828,7 @@ test("item dry run rolls back dependent creates and publication", () => {
       actor: "owner",
       id: "$edition",
       expectedVersion: 1,
-      termIds: ["test-festival", "test-openair", "test-music"],
+      termIds,
     },
     {
       kind: "publishEdition",

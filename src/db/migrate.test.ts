@@ -1,5 +1,8 @@
 import { expect, test } from "vitest";
+import { readFileSync } from "node:fs";
 import { migrateCatalogConnection } from "@/db/migrate";
+import { taxonomyTerms } from "@/db/schema";
+import { validateCatalogValues } from "@/catalog/write/validate-values";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 
@@ -49,7 +52,7 @@ test("fresh migration creates the current catalog structure", () => {
   ]);
   expect(
     client.prepare("SELECT * FROM __drizzle_migrations").all(),
-  ).toHaveLength(1);
+  ).toHaveLength(2);
   expect(client.pragma("foreign_keys", { simple: true })).toBe(1);
   expect(client.pragma("foreign_key_check")).toEqual([]);
   expect(client.pragma("integrity_check", { simple: true })).toBe("ok");
@@ -63,12 +66,72 @@ test("fresh migration creates the current catalog structure", () => {
   ).toBe("'[]'");
 });
 
+test("fresh migration loads a valid starter vocabulary without catalog records", () => {
+  const { client, db } = testDatabase();
+  const terms = db.select().from(taxonomyTerms).all();
+  expect(terms.length).toBeGreaterThan(0);
+  client.transaction(() => {
+    for (const term of terms) {
+      validateCatalogValues(client, "taxonomy_terms", term);
+    }
+  })();
+  for (const table of ["events", "editions", "edition_terms"]) {
+    expect(client.prepare(`SELECT count(*) FROM ${table}`).pluck().get()).toBe(
+      0,
+    );
+  }
+});
+
+test("starter vocabulary preserves imported terms and assignments", () => {
+  const { client, db } = testDatabase();
+  const vocabulary = db.select().from(taxonomyTerms).all();
+  const child = vocabulary.find((term) => term.parentId)!;
+  const parent = vocabulary.find((term) => term.id === child.parentId)!;
+  db.delete(taxonomyTerms).run();
+  const fx = testFixtures(client);
+  const custom = fx.term({ facet: parent.facet });
+  const imported = fx.term({
+    ...parent,
+    id: "imported-parent",
+    name: "Imported parent",
+    parentId: custom.id,
+  });
+  const event = fx.event();
+  const edition = fx.edition(event);
+  fx.assignTerm(edition, imported);
+  const oldTerms = db.select().from(taxonomyTerms).all();
+  const assignments = client.prepare("SELECT * FROM edition_terms").all();
+
+  // The data migration needs only the existing schema, already supplied by the test database.
+  client.transaction(() =>
+    client.exec(
+      readFileSync("src/db/migrations/0001_starter_taxonomy.sql", "utf8"),
+    ),
+  )();
+
+  const terms = db.select().from(taxonomyTerms).all();
+  expect(terms).toEqual(
+    expect.arrayContaining([
+      ...oldTerms,
+      expect.objectContaining({
+        facet: child.facet,
+        slug: child.slug,
+        parentId: imported.id,
+      }),
+    ]),
+  );
+  expect(client.prepare("SELECT * FROM edition_terms").all()).toEqual(
+    assignments,
+  );
+});
+
 test("repeating migration preserves data, journal and immutable history", () => {
   const connection = testDatabase();
   const { client } = connection;
   const fx = testFixtures(client);
   const event = fx.event();
   const edition = fx.edition(event);
+  fx.assignTerm(edition, fx.term());
   const alias = fx.alias(event, { edition });
   client
     .prepare(
@@ -83,6 +146,10 @@ test("repeating migration preserves data, journal and immutable history", () => 
     .all();
   const migrations = client.prepare("SELECT * FROM __drizzle_migrations").all();
   const rows = client.prepare("SELECT * FROM editions").all();
+  const terms = client
+    .prepare("SELECT * FROM taxonomy_terms ORDER BY id")
+    .all();
+  const assignments = client.prepare("SELECT * FROM edition_terms").all();
   migrateCatalogConnection(connection);
 
   expect(
@@ -96,6 +163,12 @@ test("repeating migration preserves data, journal and immutable history", () => 
     migrations,
   );
   expect(client.prepare("SELECT * FROM editions").all()).toEqual(rows);
+  expect(
+    client.prepare("SELECT * FROM taxonomy_terms ORDER BY id").all(),
+  ).toEqual(terms);
+  expect(client.prepare("SELECT * FROM edition_terms").all()).toEqual(
+    assignments,
+  );
   expect(() =>
     client
       .prepare("UPDATE url_aliases SET path='/changed' WHERE path=?")

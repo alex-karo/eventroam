@@ -12,7 +12,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 - [Remaining release decisions](proposals/release-open-decisions.md) — unresolved launch-data, ingestion, and storage choices.
 - [Website routing and indexing defaults](proposals/website-routing-and-indexing.md) — unselected cross-scope and public-launch policies.
-- [Festival taxonomy vocabulary proposal](proposals/festival-taxonomy-vocabulary.md) — starter terms awaiting launch-data validation.
+- [Festival taxonomy vocabulary proposal](proposals/festival-taxonomy-vocabulary.md) — starter terms loaded by catalog migrations and assignment guidance.
 - [Specification migration map](specification-migration.md) — where each legacy section moved.
 
 ## Historical specifications

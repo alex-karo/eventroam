@@ -337,49 +337,24 @@ export function testFixtures(client?: Database.Database) {
     );
   }
 
+  function existingTerm(facet: TermRow["facet"], slug: string) {
+    const found = db()
+      .select()
+      .from(taxonomyTerms)
+      .where(and(eq(taxonomyTerms.facet, facet), eq(taxonomyTerms.slug, slug)))
+      .get();
+    if (!found) {
+      throw new Error(`Missing test term: ${facet}/${slug}`);
+    }
+    return found;
+  }
+
   function festivalTerms() {
-    const values = [
-      {
-        id: "test-festival",
-        facet: "event_type",
-        slug: "festival",
-        name: "Festival",
-      },
-      {
-        id: "test-openair",
-        facet: "format",
-        slug: "openair",
-        name: "Open-air",
-      },
-      { id: "test-music", facet: "topic", slug: "music", name: "Music" },
-    ] as const;
-    return db().transaction((connection) => {
-      for (const value of values) {
-        connection
-          .insert(taxonomyTerms)
-          .values(
-            validateCatalogValues(connectionClient(), "taxonomy_terms", value),
-          )
-          .onConflictDoNothing()
-          .run();
-      }
-      return values.map((value) => {
-        const found = connection
-          .select()
-          .from(taxonomyTerms)
-          .where(
-            and(
-              eq(taxonomyTerms.facet, value.facet),
-              eq(taxonomyTerms.slug, value.slug),
-            ),
-          )
-          .get();
-        if (!found) {
-          throw new Error(`Missing test term: ${value.facet}/${value.slug}`);
-        }
-        return found;
-      });
-    });
+    return [
+      existingTerm("event_type", "festival"),
+      existingTerm("format", "openair"),
+      existingTerm("topic", "music"),
+    ];
   }
 
   function publishedEdition(
@@ -477,6 +452,7 @@ export function testFixtures(client?: Database.Database) {
     event,
     edition,
     term,
+    existingTerm,
     assignTerm,
     link,
     eventLink: (parent: EventRow, overrides: LinkInput = {}) =>

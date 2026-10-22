@@ -35,8 +35,8 @@ test("private research context retains drafts, links, classification and variant
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Private Festival" });
   const edition = fx.edition(event, { editionKey: "2028" });
-  fx.festivalTerms();
-  fx.assignTerm(edition, { id: "test-festival" });
+  const festival = fx.existingTerm("event_type", "festival");
+  fx.assignTerm(edition, festival);
   fx.eventLink(event, { url: "https://example.org", kind: "official_site" });
   const result = applyCatalogOperation(client, {
     kind: "replacePriceBlock",
@@ -61,7 +61,7 @@ test("private research context retains drafts, links, classification and variant
   );
   expect(context?.editions[0].version).toBe(result.version);
   expect(context?.editions[0].terms.map((term) => term.id)).toContain(
-    "test-festival",
+    festival.id,
   );
   expect(context?.editions[0].priceDetails).toEqual([
     { label: "Weekend", amount: 120, currency: "EUR" },

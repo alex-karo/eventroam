@@ -1,22 +1,24 @@
 ---
 type: Proposal
 title: Festival taxonomy vocabulary proposal
-description: Starter Edition vocabulary and assignment policy pending launch-data validation.
+description: Starter Edition vocabulary loaded by catalog migrations, with assignment guidance.
 status: draft
 tags: [taxonomy, festivals]
 ---
 
 # Festival taxonomy vocabulary proposal
 
-This draft retains the proposed starter terms and their validation notes. Implemented facet and classification behavior belongs to OpenSpec; the vocabulary remains subject to launch-data validation. Specific term definitions and evidence guidance belong here and in research instructions, not in behavioral specification requirements.
+This document holds the selected starter terms and their assignment guidance. Ordinary catalog migrations load all 71 starter terms, including 56 genres. Implemented facet and classification behavior belongs to OpenSpec. Launch-data review may refine the vocabulary later.
 
-Status: Expected starter vocabulary and assignment policy, version 0.4
+Status: Starter vocabulary implemented in migrations; launch-data review pending, version 0.5
 
-Date: 2026-10-11
+Date: 2026-10-22
 
-Basis: The owner accepted the simpler Edition-only classification model on 2026-10-01, added `reenactment`, `wellness`, and `moto` as programme topics on 2026-10-03, and added `snow-sports`, `surfing`, `food-and-drink`, and `topic/outdoor` on 2026-10-11, and selected `openair` as the proposed physical-format slug to distinguish it from the activity topic. Validate the vocabulary against the launch dataset before implementation.
+Basis: The owner accepted the simpler Edition-only classification model on 2026-10-01, added `reenactment`, `wellness`, and `moto` as programme topics on 2026-10-03, and added `snow-sports`, `surfing`, `food-and-drink`, and `topic/outdoor` on 2026-10-11, and selected `openair` as the proposed physical-format slug to distinguish it from the activity topic. On 2026-10-22, the owner accepted 56 genres and the existing 15 terms in the other facets for loading through ordinary database migration. Launch-data refinement remains future work.
 
-Implementation note (2026-10-11): Fresh development and eval vocabularies include `format/openair` and the four new activity topics. Research prompt `model-direct-v6` includes their evidence rules; publication checks require `openair` or `mixed-indoor-outdoor`. Evidence assessment remains model-led, while writes enforce structural rules. The rest of the starter vocabulary remains subject to launch-data validation.
+Implementation note (2026-10-22): Migration `0001_starter_taxonomy` adds missing starter terms by facet/slug, preserving existing IDs, labels, parents, and Edition assignments. Development fixtures reuse those terms. Loading the dictionary does not assign terms or publish Editions.
+
+Historical implementation note (2026-10-11): Fresh development and eval vocabularies include `format/openair` and the four new activity topics. Research prompt `model-direct-v6` includes their evidence rules; publication checks require `openair` or `mixed-indoor-outdoor`. Evidence assessment remains model-led, while writes enforce structural rules. The rest of the starter vocabulary remains subject to launch-data validation.
 
 ## 1 Context and outcome
 
@@ -51,7 +53,7 @@ Choose the type that best matches the organizer's description and programme. A f
 | `mixed-indoor-outdoor` | Mixed indoor/outdoor | Substantial parts of the public programme occur in both indoor and outdoor spaces. |
 | `indoor` | Indoor | The core public programme is indoors; any outdoor activity is incidental. Useful for internal candidates and recording a change of format. |
 
-Naming note (2026-10-11): `format/openair` replaces the former `format/outdoor` in application publication checks and fresh fixture vocabularies. No migration or existing-data rewrite is included, as requested by the owner. Existing catalogs containing the former format are not upgraded by this change.
+Naming note (2026-10-11): `format/openair` replaces the former `format/outdoor` in application publication checks and fresh fixture vocabularies. The starter migration adds `format/openair` but does not rename or reassign the former `format/outdoor` in existing catalogs.
 
 Preserve raw source wording. “Hybrid” may mean online plus in-person; an open-air name or photograph alone does not establish the current edition's setting. `indoor` and unknown format do not make an indoor music festival eligible for publication. Use programme/site evidence, not an invented percentage threshold, to judge substantial outdoor activity.
 
@@ -101,8 +103,48 @@ These are editorial discovery groups, not a universal hierarchy of music. Use ex
 | `classical` | Classical | — | Explicit classical music programme. |
 | `ambient` | Ambient | — | Explicit ambient programme. Kept at the root because it can be acoustic or electronic; electronic may also be assigned when separately supported. |
 | `experimental` | Experimental | — | Explicit experimental music programme, not a fallback for unfamiliar styles. |
+| `funk` | Funk | — | Explicit funk programme; a rhythmic or danceable description alone is insufficient. |
+| `disco` | Disco | — | Explicit disco programme; a dance floor or retro theme alone is insufficient. |
+| `ska` | Ska | — | Explicit ska programme; do not infer it from reggae or punk alone. |
+| `dub` | Dub | — | Explicit dub programme; not a spelling variant of dubstep. |
+| `dancehall` | Dancehall | — | Explicit dancehall programme; generic reggae does not establish it. |
+| `afrobeat` | Afrobeat | — | Explicit Afrobeat in the funk, jazz, and West African band tradition; distinct from Afrobeats. |
+| `afrobeats` | Afrobeats | — | Explicit Afrobeats as contemporary West African pop styles; distinct from Afrobeat and not inferred from artist nationality. |
+| `downtempo` | Downtempo | `electronic` | Explicit downtempo music programme; a quiet area or relaxation activity alone is insufficient. |
+| `breakbeat` | Breakbeat | `electronic` | Explicit breakbeat programme; generic bass music is insufficient. |
+| `dubstep` | Dubstep | `electronic` | Explicit dubstep programme; generic bass music or dub does not establish it. |
+| `uk-garage` | UK Garage | `electronic` | Explicit UK garage programme; unqualified garage needs musical context. |
+| `jungle` | Jungle | `electronic` | Explicit jungle music programme; scenery or an event name is insufficient. Kept alongside drum & bass under electronic. |
+| `hardstyle` | Hardstyle | `electronic` | Explicit hardstyle programme; hard techno or unqualified hard dance is insufficient. |
+| `deep-house` | Deep House | `house` | Explicit deep house programme; unqualified deep is insufficient. |
+| `tech-house` | Tech House | `house` | Explicit tech house programme; separate house and techno stages do not establish this style. |
+| `progressive-house` | Progressive House | `house` | Explicit progressive house programme; unqualified progressive is insufficient. |
+| `afro-house` | Afro House | `house` | Explicit Afro house programme; Afrobeat or Afrobeats does not establish it. |
+| `organic-house` | Organic House | `house` | Explicit organic house programme; nature imagery or an outdoor setting is insufficient. |
+| `minimal-techno` | Minimal Techno | `techno` | Explicit minimal techno programme; unqualified minimal needs musical context. |
+| `hard-techno` | Hard Techno | `techno` | Explicit hard techno programme; hardstyle or unqualified hard dance is insufficient. |
+| `melodic-techno` | Melodic Techno | `techno` | Explicit melodic techno programme; a melodic description alone is insufficient. |
+| `goa-trance` | Goa Trance | `psytrance` | Explicit Goa trance programme; a location in Goa is insufficient. Grouped under psytrance for discovery. |
+| `progressive-psytrance` | Progressive Psytrance | `psytrance` | Explicit progressive psytrance programme; unqualified progressive is insufficient. |
+| `darkpsy` | Darkpsy | `psytrance` | Explicit darkpsy or dark psytrance programme; dark imagery alone is insufficient. |
+| `forest-psytrance` | Forest Psytrance | `psytrance` | Explicit forest psytrance programme; a forest venue or theme is insufficient. |
+| `hi-tech` | Hi-Tech | `psytrance` | Explicit hi-tech psytrance programme; technology references or a generic fast tempo are insufficient. |
+| `alternative-rock` | Alternative Rock | `rock` | Explicit alternative rock programme; unqualified alternative needs musical context. |
+| `indie-rock` | Indie Rock | `rock` | Explicit indie rock programme; independent organization or unqualified indie is insufficient. |
+| `psychedelic-rock` | Psychedelic Rock | `rock` | Explicit psychedelic rock programme; psychedelic visuals or psytrance do not establish it. |
+| `hard-rock` | Hard Rock | `rock` | Explicit hard rock programme; generic loud or heavy descriptions are insufficient. |
+| `heavy-metal` | Heavy Metal | `metal` | Explicit heavy metal programme; broad metal may remain at the parent when the source does not distinguish the style. |
+| `thrash-metal` | Thrash Metal | `metal` | Explicit thrash metal programme. |
+| `death-metal` | Death Metal | `metal` | Explicit death metal programme. |
+| `black-metal` | Black Metal | `metal` | Explicit black metal programme; visual styling alone is insufficient. |
+| `doom-metal` | Doom Metal | `metal` | Explicit doom metal programme. |
+| `hardcore-punk` | Hardcore Punk | `punk` | Explicit hardcore punk programme; unqualified hardcore requires context and may refer to electronic music. |
 
 Store the most specific supported genre, not redundant ancestors; derive parent membership for filtering. Sibling/root genres may coexist. Psytrance is a direct child of electronic and does not automatically match a `trance` filter. For unrepresented styles, retain source wording, report the unmapped label, and assign a broader term only when defensible. Do not hide missing culturally specific styles in a generic bucket.
+
+These 56 genres use editorial discovery parents. Goa Trance and the other psytrance children do not match a generic Trance filter. Jungle does not automatically match Drum & bass. Root Ska, Dub, and Dancehall do not automatically match Reggae. Ambiguous `progressive`, `indie`, `hardcore`, and `psychedelic` require musical context; never guess a specific child from these words alone.
+
+Sources informing the selected additions: [Beatport genre catalog](https://greenroomsupport.beatport.com/hc/en-us/articles/41043520429076-Beatport-Genres-Including-NEW-Open-Format-Genres), [MusicBrainz genre list](https://musicbrainz.org/genres), and [Boom’s Gardens programme](https://www.boomfestival.org/programme/the-gardens/music), which explicitly advertises Downtempo. These sources inform term selection; they do not prescribe our parent hierarchy.
 
 ### Participatory culture
 
@@ -124,7 +166,7 @@ The term applies to official and independent events when supported. It makes no 
 6. **Replace only intentionally.** A missing label in a new extraction is not an instruction to delete an accepted assignment. Additions, removals, and complete set replacements use the domain's evidence, conflict, and owner-correction rules. A failed source fetch never clears terms.
 7. **Separate editions.** Copying a prior edition's assignments is allowed only as initial values for a new draft. Publication requires applicable supporting evidence, including when no copied value changes. Updating one edition never changes another or supplies implicit Event defaults.
 
-Canonical term IDs and slugs remain stable. New terms require a deliberate taxonomy-edit operation, not automatic creation from extraction output. New term definitions belong in this file. Preserve a used term's meaning, facet, and parent; semantic changes use new terms and explicit, audited Edition reassignments under the domain rules. Display-label corrections preserve meaning and are recorded in the versioned vocabulary definition. No term-audit entity is introduced.
+Canonical term IDs and slugs remain stable. New terms require a deliberate curated vocabulary change, not automatic creation from extraction output. New term definitions belong in this file. Preserve a used term's meaning, facet, and parent; semantic changes use new terms and explicit, audited Edition reassignments under the domain rules. Display-label corrections preserve meaning and are recorded in the versioned vocabulary definition. No term-audit entity is introduced.
 
 ## 4 Classification examples
 
@@ -162,4 +204,4 @@ Apply assignment changes and their Edition `CatalogChange` atomically under the 
 
 - Verify unique `(facet, slug)` pairs, configured facets, same-facet parents, and no cycles. Test cardinality, parent matching, aliases, unknown labels, edition isolation, intentional removals, idempotent replacements, rollback, owner corrections, and draft/withdrawn exclusion.
 - Use small attributable saved fixtures; normal tests must not fetch live sites. Before launch, classify roughly 30 varied official-source examples, including non-musical burns, independent gatherings, mixed programmes, substantial versus incidental reenactment, wellness, moto, snow-sports, surfing, food-and-drink, and outdoor activities, included ski passes versus discounts or nearby slopes, outdoor format without outdoor activities and vice versa, missing genres, and styles outside the starter list. Record disagreements and unmapped labels, then refine the vocabulary.
-- Create the two classification tables in reviewed migrations. Load starter terms through a separate idempotent data operation keyed by facet/slug. Imported candidates require refreshed evidence before publication.
+- The classification tables already exist. Migration [0001_starter_taxonomy](../../src/db/migrations/0001_starter_taxonomy.sql) adds missing starter terms through the existing migration command, matching by facet/slug and preserving existing IDs and assignments. Loading terms does not assign classifications or publish Editions; no ingestion run is part of this change.
