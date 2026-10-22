@@ -123,12 +123,41 @@ test("table cell line breaks keep programme details in one row", () => {
   );
 });
 
-test("ticket table keeps price with category without quantity choices", () => {
+test("ticket table keeps price with category and labels quantity choices", () => {
   const page =
     markdown(`<table><thead><tr><th>Preiskategorie</th><th>Preis</th><th>Anzahl</th></tr></thead>
     <tbody><tr><td>Dauerkarte<br><small>Verfügbar bis Freitag</small></td>
-    <td>199,00 €</td><td><select class="variant-quantity" name="quantity">
+    <td>199,00 €</td><td><select aria-label="Anzahl für Dauerkarte" class="variant-quantity" name="quantity">
     <option>1</option><option>2</option><option>3</option></select></td></tr></tbody></table>`);
-  expect(page).toContain("| Dauerkarte; Verfügbar bis Freitag | 199,00 € |  |");
+  expect(page).toContain(
+    "| Dauerkarte; Verfügbar bis Freitag | 199,00 € | [Select Anzahl für Dauerkarte: 1 / 2 / 3] |",
+  );
   expect(page).not.toContain("123");
+});
+
+test("other table selectors retain choices as controls", () => {
+  const page = markdown(`<table><tr><th>Day</th><th>Stage</th></tr>
+    <tr><td><select name="day"><option>Friday</option><option>Saturday</option></select></td>
+    <td>Main stage</td></tr></table>`);
+  expect(page).toContain("| [Select day: Friday / Saturday] | Main stage |");
+});
+
+test("table selector labels and options cannot create Markdown links", () => {
+  const page = markdown(`<table><tr><th>Day</th><th>Stage</th></tr>
+    <tr><td><select aria-label="*Day*"><option>[Friday](javascript:alert)</option>
+    <option>Saturday</option></select></td><td>Main stage</td></tr></table>`);
+  expect(page).toContain(
+    "| [Select \\*Day\\*: \\[Friday\\](javascript:alert) / Saturday] | Main stage |",
+  );
+  expect(page).not.toContain("[Friday](javascript:alert)");
+});
+
+test("table selector delimiters stay inside their cell", () => {
+  const page =
+    markdown(`<table><tr><th>Ticket</th><th>Price</th><th>Choice</th></tr>
+    <tr><td>Weekend</td><td>€199</td><td><select aria-label="Tier | quantity">
+    <option>Adult | weekend</option><option>Child</option></select></td></tr></table>`);
+  expect(page).toContain(
+    "| Weekend | €199 | [Select Tier \\| quantity: Adult \\| weekend / Child] |",
+  );
 });

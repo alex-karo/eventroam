@@ -309,10 +309,6 @@ export function extractSource(
       $(element).text(label);
     }
   });
-  // Purchase quantity options are controls, not source facts.
-  $(
-    "table td select[name='quantity'], table td select.variant-quantity",
-  ).remove();
   const contentText = clean(
     $("body")
       .clone()
@@ -335,6 +331,23 @@ export function extractSource(
     replacement: (_content, node) => clean(node.getAttribute("alt") ?? ""),
   });
   turndown.use(tables);
+  const escapeTableText = (value: string) =>
+    turndown.escape(value).replaceAll("|", "\\|");
+  turndown.addRule("tableSelect", {
+    filter: (node) => node.nodeName === "SELECT" && !!node.closest("table"),
+    replacement: (_content, node) => {
+      const label = clean(
+        node.getAttribute("aria-label") || node.getAttribute("name") || "",
+      );
+      const options = Array.from(node.querySelectorAll("option"))
+        .map((option) => clean(option.textContent ?? ""))
+        .filter(Boolean);
+      const control = label ? `Select ${escapeTableText(label)}` : "Select";
+      return options.length
+        ? `[${control}: ${options.map(escapeTableText).join(" / ")}]`
+        : `[${control}]`;
+    },
+  });
   turndown.addRule("singleLineTableCell", {
     filter: ["th", "td"],
     replacement: (content, node) => {

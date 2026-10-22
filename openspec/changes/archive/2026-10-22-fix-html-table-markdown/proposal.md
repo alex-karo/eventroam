@@ -7,7 +7,7 @@ The source reader turns line breaks inside HTML table cells into physical Markdo
 ## What Changes
 
 - Keep each supported HTML table row on one Markdown line while retaining readable cell content and safe links.
-- Omit purchase quantity controls from table content without removing factual table values.
+- Represent table selection controls with labeled, separated choices instead of joining their option text.
 - Add regression coverage for the observed ticket table and a schedule table with cell line breaks.
 
 ## Capabilities
