@@ -6,7 +6,7 @@ Medium. The change adds reference data without changing the schema or classifica
 
 ## Approach
 
-Append one SQL data migration after `0000_initial`. The existing Drizzle migrator owns sequencing, transactions, and the journal. Use the 71 terms and parent relationships in the [vocabulary document](../../../docs/proposals/festival-taxonomy-vocabulary.md): 56 genres and 15 terms in the other facets.
+Append one SQL data migration after `0000_initial`. The existing Drizzle migrator owns sequencing, transactions, and the journal. Use the 71 terms and parent relationships in the [vocabulary document](../../../../docs/proposals/festival-taxonomy-vocabulary.md): 56 genres and 15 terms in the other facets.
 
 Insert parents before children. Match existing rows by `(facet, slug)` with a targeted conflict clause. Give new terms stable IDs, such as `catalog:term:genre:deep-house`, and resolve parent IDs from the stored rows. Preserve existing IDs, labels, parents, and assignments, including terms outside the starter vocabulary. Do not use broad `INSERT OR IGNORE` or edit the applied baseline.
 
