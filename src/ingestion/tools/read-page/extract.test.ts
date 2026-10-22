@@ -113,3 +113,22 @@ test("200 body characters clear the sparse-page signal", () => {
   expect(result.nonNavigationTextLength).toBe(200);
   expect(result.needsJavascript).toBe(false);
 });
+
+test("table cell line breaks keep programme details in one row", () => {
+  const page =
+    markdown(`<table><thead><tr><th>Day</th><th>Programme</th><th>Stage</th></tr></thead>
+    <tbody><tr><td>Friday</td><td>Opening concert<br>18:00–19:00</td><td>Main stage</td></tr></tbody></table>`);
+  expect(page).toContain(
+    "| Friday | Opening concert; 18:00–19:00 | Main stage |",
+  );
+});
+
+test("ticket table keeps price with category without quantity choices", () => {
+  const page =
+    markdown(`<table><thead><tr><th>Preiskategorie</th><th>Preis</th><th>Anzahl</th></tr></thead>
+    <tbody><tr><td>Dauerkarte<br><small>Verfügbar bis Freitag</small></td>
+    <td>199,00 €</td><td><select class="variant-quantity" name="quantity">
+    <option>1</option><option>2</option><option>3</option></select></td></tr></tbody></table>`);
+  expect(page).toContain("| Dauerkarte; Verfügbar bis Freitag | 199,00 € |  |");
+  expect(page).not.toContain("123");
+});

@@ -377,8 +377,6 @@ Errors SHALL carry a code and bounded message, with optional URL/target. Questio
 - **WHEN** execution fails or exhausts its limit without valid final output
 - **THEN** the host reports failure with an error and null data; intermediate/malformed facts are not written
 
-
-
 ### Requirement: Dates and coordinates are complete grouped facts
 Dates SHALL group startsOn/endsOn/state; coordinates SHALL group latitude/longitude/precision, each with one reason. Editor accept/set actions SHALL replace all components; keep or omission SHALL preserve them; clear SHALL clear the pair and set state/precision to unknown.
 
@@ -1671,3 +1669,15 @@ Metrics SHALL remain queryable locally after exit, with totals and values groupe
 - **WHEN** an existing observability store is opened after this change
 - **THEN** existing logs and spans remain available and new runs can append metrics
 - **AND** absent historical metrics are not backfilled or interpreted as zero usage
+
+### Requirement: HTML table extraction preserves row relationships
+The source reader SHALL keep the content of each converted HTML table row together on one Markdown table line. It SHALL preserve factual cell text and links while preventing interactive quantity choices from appearing as joined numeric facts.
+
+#### Scenario: A cell contains a line break
+- **WHEN** a table cell places a descriptive note after an HTML line break
+- **THEN** the source Markdown keeps the note and the other cells in the same table row
+
+#### Scenario: A purchase quantity selector appears in a cell
+- **WHEN** a ticket table contains a control for choosing purchase quantity
+- **THEN** the source Markdown does not concatenate its options into a numeric value
+- **AND** ticket names and prices remain available in their respective cells

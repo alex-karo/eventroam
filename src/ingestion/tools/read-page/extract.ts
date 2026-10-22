@@ -309,6 +309,10 @@ export function extractSource(
       $(element).text(label);
     }
   });
+  // Purchase quantity options are controls, not source facts.
+  $(
+    "table td select[name='quantity'], table td select.variant-quantity",
+  ).remove();
   const contentText = clean(
     $("body")
       .clone()
@@ -331,6 +335,17 @@ export function extractSource(
     replacement: (_content, node) => clean(node.getAttribute("alt") ?? ""),
   });
   turndown.use(tables);
+  turndown.addRule("singleLineTableCell", {
+    filter: ["th", "td"],
+    replacement: (content, node) => {
+      const inline = content
+        .replace(/\s*\n\s*/g, "; ")
+        .replace(/[ \t]+/g, " ")
+        .trim();
+      const prefix = node.parentNode?.firstChild === node ? "| " : " ";
+      return `${prefix}${inline} |`;
+    },
+  });
   turndown.addRule("structuralRegion", {
     filter: (node) => node.hasAttribute(REGION_ATTRIBUTE),
     replacement: (content, node) => {
