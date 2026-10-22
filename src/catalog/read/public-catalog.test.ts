@@ -342,18 +342,9 @@ test("public summary and detail reads batch classification and link lookup acros
       { editionKey: "2027-c" },
     ],
   });
-  const parent = fx.term({
-    facet: "genre",
-    slug: "electronic",
-    name: "Electronic",
-  });
-  const child = fx.term({
-    facet: "genre",
-    slug: "psytrance",
-    name: "Psytrance",
-    parentId: parent.id,
-  });
-  const metal = fx.term({ facet: "genre", slug: "metal", name: "Metal" });
+  const parent = fx.existingTerm("genre", "electronic");
+  const child = fx.existingTerm("genre", "psytrance");
+  const metal = fx.existingTerm("genre", "metal");
   fx.assignTerm(editions[0], child);
   fx.assignTerm(editions[0], metal);
   fx.assignTerm(editions[1], parent);
@@ -384,11 +375,13 @@ test("public summary and detail reads batch classification and link lookup acros
       return statement;
     });
   try {
-    expect(discoveryGenres(client)).toEqual([
-      { slug: "electronic", name: "Electronic", parentSlug: null },
-      { slug: "metal", name: "Metal", parentSlug: null },
-      { slug: "psytrance", name: "Psytrance", parentSlug: "electronic" },
-    ]);
+    expect(discoveryGenres(client)).toEqual(
+      expect.arrayContaining([
+        { slug: parent.slug, name: parent.name, parentSlug: null },
+        { slug: metal.slug, name: metal.name, parentSlug: null },
+        { slug: child.slug, name: child.name, parentSlug: parent.slug },
+      ]),
+    );
     expect(queries).toHaveLength(1);
     expect(queries[0]).not.toContain("editions");
     queries.length = 0;

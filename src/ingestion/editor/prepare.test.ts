@@ -624,14 +624,18 @@ test.each([
     const client = testDatabase().client;
     const fx = testFixtures(client);
     const terms = [
-      fx.term({ facet: "event_type", slug: "festival" }),
-      fx.term({ facet: "topic", slug: "outdoor" }),
+      fx.existingTerm("event_type", "festival"),
+      fx.existingTerm("topic", "outdoor"),
     ];
     if (format) {
-      terms.push(fx.term({ facet: "format", slug: format }));
+      terms.push(
+        format === "outdoor"
+          ? fx.term({ facet: "format", slug: format })
+          : fx.existingTerm("format", format),
+      );
     }
     if (music) {
-      terms.push(fx.term({ facet: "topic", slug: "music" }));
+      terms.push(fx.existingTerm("topic", "music"));
     }
     const proposed = candidate();
     proposed.data!.editions = [

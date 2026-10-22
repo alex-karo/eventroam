@@ -54,6 +54,7 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
     migrateCatalogConnection(connection);
     const db = drizzle(connection.client);
     db.transaction(() => {
+      db.delete(taxonomyTerms).run();
       for (const term of suite.terms) {
         db.insert(taxonomyTerms)
           .values(

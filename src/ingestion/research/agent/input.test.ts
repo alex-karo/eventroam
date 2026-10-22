@@ -295,7 +295,7 @@ test("current narrows research only, preserving complete matching and replacemen
     ],
   });
   fx.edition(event, { editionKey: "opaque-second-weekend", editionYear: 2027 });
-  const term = fx.term({ facet: "topic", slug: "music" });
+  const term = fx.existingTerm("topic", "music");
   fx.assignTerm(old, term);
   const catalog = readResearchCatalog(client);
   const before = structuredClone(catalog);

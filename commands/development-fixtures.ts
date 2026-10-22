@@ -1,7 +1,7 @@
 import { validateCatalogValues } from "@/catalog/write/validate-values";
 import type Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import {
   events,
@@ -12,7 +12,6 @@ import {
   urlAliases,
 } from "@/db/schema";
 
-const termIds = ["dev-festival", "dev-openair", "dev-music"];
 // Fictional events use city-center markers; their dates and links are placeholders.
 const geographicExamples = [
   {
@@ -49,29 +48,29 @@ const geographicExamples = [
 export function seedDevelopmentFixtures(client: Database.Database) {
   const now = "2026-10-01T12:00:00.000Z";
   return drizzle(client).transaction((db) => {
-    for (const [id, facet, slug, name] of [
-      ["dev-festival", "event_type", "festival", "Festival"],
-      ["dev-openair", "format", "openair", "Open-air"],
-      ["dev-music", "topic", "music", "Music"],
-      ["dev-snow-sports", "topic", "snow-sports", "Snow sports"],
-      ["dev-surfing", "topic", "surfing", "Surfing"],
-      ["dev-food-and-drink", "topic", "food-and-drink", "Food & drink"],
-      ["dev-topic-outdoor", "topic", "outdoor", "Outdoor activities"],
-      ["dev-rock", "genre", "rock", "Rock"],
-      ["dev-electronic", "genre", "electronic", "Electronic"],
-    ] as const) {
-      db.insert(taxonomyTerms)
-        .values(
-          validateCatalogValues(client, "taxonomy_terms", {
-            id,
-            facet,
-            slug,
-            name,
-          }),
+    function termId(
+      facet: typeof taxonomyTerms.$inferSelect.facet,
+      slug: string,
+    ) {
+      const term = db
+        .select({ id: taxonomyTerms.id })
+        .from(taxonomyTerms)
+        .where(
+          and(eq(taxonomyTerms.facet, facet), eq(taxonomyTerms.slug, slug)),
         )
-        .onConflictDoNothing()
-        .run();
+        .get();
+      if (!term) {
+        throw new Error(`Missing development fixture term: ${facet}/${slug}`);
+      }
+      return term.id;
     }
+    const termIds = [
+      termId("event_type", "festival"),
+      termId("format", "openair"),
+      termId("topic", "music"),
+    ];
+    const rockId = termId("genre", "rock");
+    const electronicId = termId("genre", "electronic");
 
     function addEvent(slug: string, canonicalName: string) {
       const existing = db
@@ -115,7 +114,7 @@ export function seedDevelopmentFixtures(client: Database.Database) {
         typeof editions.$inferInsert,
         "id" | "eventId" | "createdAt" | "updatedAt"
       >,
-      genreIds = ["dev-rock"],
+      genreIds = [rockId],
     ) {
       const id = randomUUID();
       db.insert(editions)
@@ -199,7 +198,7 @@ export function seedDevelopmentFixtures(client: Database.Database) {
           coordinatePrecision: "locality",
           publicationState: "published",
         },
-        example.countryCode === "PT" ? ["dev-electronic"] : ["dev-rock"],
+        example.countryCode === "PT" ? [electronicId] : [rockId],
       );
       db.insert(externalLinks)
         .values(

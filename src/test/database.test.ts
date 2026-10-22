@@ -2,13 +2,19 @@ import { expect, test } from "vitest";
 import { createTestDatabase, testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 
-test("each test database call starts empty in a distinct file", () => {
+test("each test database has a distinct file and migrated vocabulary", () => {
   const first = testDatabase();
   expect(
     first.client.prepare("SELECT count(*) FROM events").pluck().get(),
   ).toBe(0);
+  expect(
+    first.client.prepare("SELECT count(*) FROM taxonomy_terms").pluck().get(),
+  ).toBeGreaterThan(0);
   testFixtures(first.client).event({ id: "first" });
   const second = createTestDatabase();
+  expect(second.client.prepare("SELECT * FROM taxonomy_terms").all()).toEqual(
+    first.client.prepare("SELECT * FROM taxonomy_terms").all(),
+  );
   expect(second.path).not.toBe(first.path);
   expect(
     second.client.prepare("SELECT count(*) FROM events").pluck().get(),

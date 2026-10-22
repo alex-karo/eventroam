@@ -24,7 +24,6 @@ test("invalid eval assignments roll back all seed rows before closing the databa
     .spyOn(Database.prototype, "close")
     .mockImplementation(function (this: Database.Database) {
       for (const table of [
-        "taxonomy_terms",
         "events",
         "editions",
         "edition_terms",
@@ -38,7 +37,7 @@ test("invalid eval assignments roll back all seed rows before closing the databa
     });
   try {
     expect(() => seedDatabase(suite, item)).toThrow(/Only one event_type/);
-    expect(counts).toEqual([0, 0, 0, 0, 0]);
+    expect(counts).toEqual([0, 0, 0, 0]);
   } finally {
     spy.mockRestore();
   }
