@@ -209,11 +209,9 @@ artifacts:
       - Key decisions: State each important choice, its reason, and material trade-offs.
         For significant custom mechanisms, identify the concrete scenario and consumer,
         the source of the requirement, and why existing capabilities are insufficient.
-        Prefer native dependency data and operations unless a consumer needs a
-        different contract. A small local copy of dependency rules still needs a reason.
-        Distinguish current observed values from an intentionally restricted domain.
+        Justify application-owned copies of dependency rules or data, even when small.
         For defensive layers, name the real input path and existing safeguards;
-        an available SDK API or synthetic test alone does not establish application support.
+        API availability alone does not establish application support.
         Separate requested or accepted guarantees from new proposals and assumptions.
         Distinguish required design decisions from details left to implementation.
         Do not prescribe every function or copy complete implementation types.

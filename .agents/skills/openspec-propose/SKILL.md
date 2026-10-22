@@ -151,8 +151,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
 After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
-- What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "The artifacts are ready for review. When you are ready, run `$openspec-apply-change (Codex) or /openspec-apply-change (other agents)` or ask me to apply this change."
+- Artifact completion separately from implementation readiness, including any review result and unresolved decisions
+- When ready, point to `$openspec-apply-change (Codex) or /openspec-apply-change (other agents)` or a request to apply; otherwise state what prevents readiness
 
 **Artifact Creation Guidelines**
 

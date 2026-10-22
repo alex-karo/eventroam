@@ -5,15 +5,13 @@ method in `SKILL.md` also works without OpenSpec.
 
 - If the change is ambiguous, run `npm exec -- openspec list --json` and ask
   which change to review.
-- Run `npm exec -- openspec status --change "<name>" --json`. Read proposal,
-  design, delta specs and tasks from the resolved artifact paths as available.
-  Use the change's selected schema, not today's default for new changes.
-- Read relevant main specs with their scenarios and accepted decisions as
-  existing contracts. Treat new delta requirements according to their provenance;
-  inclusion in a change is not evidence of explicit acceptance.
-- For the baseline assessment, read the original request and existing contracts
-  before the proposed design and deltas. Do not require extra artifacts for
-  schemas that legitimately omit them.
+- Run `npm exec -- openspec status --change "<name>" --json` to resolve artifact
+  paths and the selected schema; do not impose today's default on older changes.
+- Read the original request, relevant main specs and accepted decisions to form
+  the baseline before reading the proposed solution.
+- Then read the available proposal, design, delta specs and tasks from those
+  paths. Treat new requirements according to their provenance, not as accepted
+  merely by inclusion. Do not require artifacts the schema legitimately omits.
 - When useful, run
   `npm exec -- openspec validate "<name>" --type change --strict`.
   Report structural failures separately from engineering findings.
