@@ -265,7 +265,7 @@ export function extractSource(
     }
   });
   $(
-    "script, style, noscript, svg, template, [hidden], [aria-hidden='true']",
+    "script, style, noscript, svg, template, select, [hidden], [aria-hidden='true']",
   ).remove();
   $("time[datetime]").each((_index, element) => {
     const dateTime = clean($(element).attr("datetime") ?? "");
@@ -331,6 +331,19 @@ export function extractSource(
     replacement: (_content, node) => clean(node.getAttribute("alt") ?? ""),
   });
   turndown.use(tables);
+  turndown.addRule("singleLineTableCell", {
+    filter: ["th", "td"],
+    replacement: (content, node) => {
+      const inline = content
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join("; ")
+        .replace(/[ \t]+/g, " ");
+      const prefix = node.parentNode?.firstChild === node ? "| " : " ";
+      return `${prefix}${inline} |`;
+    },
+  });
   turndown.addRule("structuralRegion", {
     filter: (node) => node.hasAttribute(REGION_ATTRIBUTE),
     replacement: (content, node) => {
