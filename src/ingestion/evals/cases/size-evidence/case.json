@@ -10,7 +10,7 @@
   },
   "provenance": {
     "kind": "synthetic-size-regression",
-    "sourceReport": "openspec/changes/archive/2026-10-11-estimate-festival-size/design.md",
+    "sourceReport": "openspec/specs/catalog/ingestion-updates/spec.md",
     "note": "One synthetic full refresh checks four edition-specific size situations; no live HTTP/search fallback."
   },
   "initial": {
