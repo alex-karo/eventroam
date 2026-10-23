@@ -4,7 +4,7 @@
   "provenance": {
     "kind": "synthetic-source-regression",
     "sourceReport": "data/source-workflow-validation/2026-10-13-editor-ten/comparison.md",
-    "note": "Fictional sources isolate observed failure patterns; not captured website content. No live website/search fallback."
+    "note": "Fictional sources isolate observed failure patterns; not captured website content. No live website/search fallback. The source states that no previous Edition exists, so full-scope selection can complete without changing the source-policy assertions."
   },
   "input": {
     "mode": "refresh",
@@ -125,7 +125,6 @@
     ],
     "research": {
       "status": "success",
-      "editionKeys": ["2027"],
       "facts": [
         {
           "editionKey": "2027",
@@ -141,7 +140,9 @@
             }
           }
         }
-      ]
+      ],
+      "previousEdition": null,
+      "currentOrNextEdition": "2027"
     },
     "toolUse": {
       "maxSearches": 0,

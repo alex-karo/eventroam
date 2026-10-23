@@ -93,7 +93,6 @@
     ],
     "research": {
       "status": "success",
-      "editionKeys": [],
       "facts": [],
       "absentFields": [
         {
@@ -121,7 +120,9 @@
           "field": "links.socials.other"
         }
       ],
-      "noChanges": true
+      "noChanges": true,
+      "previousEdition": null,
+      "currentOrNextEdition": null
     }
   }
 }

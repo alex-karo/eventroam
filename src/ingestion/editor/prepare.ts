@@ -7,7 +7,10 @@ import {
 } from "./contracts";
 import type { z } from "zod";
 import { normalizeEditorWire } from "./wire";
-import { isEditionPublishable } from "@/catalog/domain/validation";
+import {
+  isEditionPublishable,
+  validateTermAssignments,
+} from "@/catalog/domain/validation";
 import { createHash, randomUUID } from "node:crypto";
 import { normalizeCatalogUrl } from "@/catalog/domain/urls";
 import type {
@@ -19,6 +22,7 @@ import type { ResearchCatalog } from "../research/context";
 import type { CatalogResearchInput } from "../contracts";
 import {
   researchCandidateSchema,
+  editionSlotNames,
   type ResearchCandidate,
   type ResearchData,
   type ResearchError,
@@ -27,15 +31,20 @@ import {
 import { validateRefresh } from "../research/guards";
 import { majorToMinor } from "../research/money";
 
-type EditionPlan = EditorPlan["editions"][number];
+type EditionPlan = NonNullable<EditorPlan["currentOrNextEdition"]>;
 type Event = ResearchCatalog[number];
-type Edition = ResearchData["editions"][number];
+type Edition = NonNullable<ResearchData["currentOrNextEdition"]>;
 type DraftOperation = CatalogOperation extends infer Op
   ? Op extends CatalogOperation
     ? Omit<Op, keyof CatalogOperationMeta | "expectedVersion">
     : never
   : never;
-type Term = { id: string; facet: string; slug: string };
+type Term = {
+  id: string;
+  facet: string;
+  slug: string;
+  parentId?: string | null;
+};
 type Reasons = Record<string, string[]>;
 type EditionPatch = Extract<
   CatalogOperation,
@@ -346,6 +355,14 @@ function fieldsToValues(fields: EditionPlan["fields"]) {
   }
   return { values, reasons };
 }
+function hasAction(value: unknown): boolean {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    ("action" in value || Object.values(value).some(hasAction))
+  );
+}
+
 function hasClear(value: unknown): boolean {
   return (
     !!value &&
@@ -389,6 +406,17 @@ export function prepareEditorPlan(
     });
     return result;
   }
+  if (
+    input.mode === "refresh" &&
+    input.scope === "current" &&
+    hasAction(parsed.data.event?.fields)
+  ) {
+    return planInvalid(
+      result,
+      "event.fields",
+      "Current refresh cannot address Event fields",
+    );
+  }
   const resolved = resolveEditorFields(parsed.data, result.candidate.data!);
   if (!resolved.ok) {
     return planInvalid(result, resolved.issue.field, resolved.issue.message);
@@ -421,22 +449,21 @@ export function prepareEditorPlan(
       "Cannot clear values on a new Event",
     );
   }
-  const issue = validateEditionTargets(
-    plan.editions,
-    event,
-    result,
-    input,
-    terms,
-  );
+  const issue = validateEditionTargets(plan, event, terms);
   if (issue) {
     return planInvalid(result, issue.field, issue.message);
   }
+  normalizeEditionClassifications(plan, terms);
   const add = adder(result, input);
   const eventRef = event?.id ?? "$event";
   prepareEvent(plan.event, event, result.candidate.data!.eventName, add);
   let willPublishEdition = false;
-  for (const [index, edition] of plan.editions.entries()) {
-    if (prepareEdition(edition, index, event, eventRef, input, terms, add)) {
+  for (const [index, slot] of editionSlotNames.entries()) {
+    const edition = plan[slot];
+    if (
+      edition &&
+      prepareEdition(edition, index, event, eventRef, input, terms, add)
+    ) {
       willPublishEdition = true;
     }
   }
@@ -566,6 +593,57 @@ function resolveEditorFields(
           "event.fields.links.socials",
         )
       : undefined;
+    const resolveEdition = (
+      slot: (typeof editionSlotNames)[number],
+    ): EditionPlan | null => {
+      const edition = plan[slot];
+      if (!edition) {
+        return null;
+      }
+      const finding = data[slot];
+      if (finding?.key !== edition.editionKey) {
+        throw new FieldIssue(
+          `${slot}.editionKey`,
+          "Editor key must match the same research slot",
+        );
+      }
+      const { links, ...fields } = edition.fields;
+      const path = `${slot}.fields`;
+      const resolve = fieldResolver(
+        fields,
+        finding,
+        editionFieldsSchema.shape,
+        path,
+      );
+      return {
+        ...edition,
+        fields: {
+          year: resolve("year"),
+          dates: resolve("dates"),
+          coordinates: resolve("coordinates"),
+          scheduleStatus: resolve("scheduleStatus"),
+          displayName: resolve("displayName"),
+          venueName: resolve("venueName"),
+          venueAddress: resolve("venueAddress"),
+          locality: resolve("locality"),
+          administrativeArea: resolve("administrativeArea"),
+          countryCode: resolve("countryCode"),
+          sizeEstimate: resolve("sizeEstimate"),
+          tickets: resolve("tickets"),
+          classification: resolve("classification"),
+          links: links
+            ? {
+                tickets: resolveAction(
+                  links.tickets,
+                  finding.links.tickets,
+                  editionFieldsSchema.shape.links.unwrap().shape.tickets,
+                  `${path}.links.tickets`,
+                ),
+              }
+            : undefined,
+        },
+      };
+    };
     return {
       ok: true,
       plan: {
@@ -603,47 +681,8 @@ function resolveEditorFields(
               },
             }
           : null,
-        editions: plan.editions.map((edition, index) => {
-          const finding = data.editions.find(
-            (item) => item.key === edition.editionKey,
-          );
-          const { links, ...fields } = edition.fields;
-          const path = `editions.${index}.fields`;
-          const resolve = fieldResolver(
-            fields,
-            finding,
-            editionFieldsSchema.shape,
-            path,
-          );
-          return {
-            ...edition,
-            fields: {
-              year: resolve("year"),
-              dates: resolve("dates"),
-              coordinates: resolve("coordinates"),
-              scheduleStatus: resolve("scheduleStatus"),
-              displayName: resolve("displayName"),
-              venueName: resolve("venueName"),
-              venueAddress: resolve("venueAddress"),
-              locality: resolve("locality"),
-              administrativeArea: resolve("administrativeArea"),
-              countryCode: resolve("countryCode"),
-              sizeEstimate: resolve("sizeEstimate"),
-              tickets: resolve("tickets"),
-              classification: resolve("classification"),
-              links: links
-                ? {
-                    tickets: resolveAction(
-                      links.tickets,
-                      finding?.links.tickets,
-                      editionFieldsSchema.shape.links.unwrap().shape.tickets,
-                      `${path}.links.tickets`,
-                    ),
-                  }
-                : undefined,
-            },
-          };
-        }),
+        previousEdition: resolveEdition("previousEdition"),
+        currentOrNextEdition: resolveEdition("currentOrNextEdition"),
       },
     };
   } catch (error) {
@@ -655,54 +694,32 @@ function resolveEditorFields(
 }
 
 function validateEditionTargets(
-  editions: EditionPlan[],
+  plan: EditorPlan,
   event: Event | undefined,
-  result: PreparedPlan,
-  input: CatalogResearchInput,
   terms: Term[],
 ) {
   const savedKeys = new Set(
     event?.editions.map((edition) => edition.editionKey),
   );
-  const newTargets = editions.filter(
-    (edition) => !savedKeys.has(edition.editionKey),
-  );
-  if (
-    input.mode === "refresh" &&
-    ((input.scope === "current" && editions.length > 1) ||
-      newTargets.length > 1 ||
-      ((input.scope ?? "full") === "full" &&
-        savedKeys.size + newTargets.length > 20))
-  ) {
-    return {
-      field: "editions",
-      message: "Editorial plan exceeds refresh scope bounds",
-    };
-  }
   const baseline = event?.editions.find(
     (edition) => edition.countryCode,
   )?.countryCode;
-  for (const edition of editions) {
+  for (const slot of editionSlotNames) {
+    const edition = plan[slot];
+    if (!edition) {
+      continue;
+    }
     const key = edition.editionKey;
     const creating = !savedKeys.has(key);
-    if (
-      creating &&
-      !result.candidate!.data!.editions.some((finding) => finding.key === key)
-    ) {
-      return {
-        field: "editions.editionKey",
-        message: "New Edition key is outside research assignment",
-      };
-    }
     if (creating && !edition.reason) {
       return {
-        field: "editions.reason",
+        field: `${slot}.reason`,
         message: "New Edition requires a creation reason",
       };
     }
     if (creating && hasClear(edition.fields)) {
       return {
-        field: "editions.fields",
+        field: `${slot}.fields`,
         message: "Cannot clear values on a new Edition",
       };
     }
@@ -713,15 +730,85 @@ function validateEditionTargets(
         message: "Editorial country conflicts with saved country",
       };
     }
-    const ids = valueOf(edition.fields.classification);
-    if (ids?.some((id) => !terms.some((term) => term.id === id))) {
-      return {
-        field: "classification",
-        message: "Unknown classification term",
-      };
+    const classification = edition.fields.classification;
+    if (classification?.action === "set") {
+      const issue = validateClassification(classification.value, terms);
+      if (issue) {
+        return { field: `${slot}.fields.classification`, message: issue };
+      }
     }
   }
   return null;
+}
+
+function validateClassification(ids: string[], terms: Term[]) {
+  if (new Set(ids).size !== ids.length) {
+    return "Duplicate classification term";
+  }
+  const byId = new Map(terms.map((term) => [term.id, term]));
+  if (ids.some((id) => !byId.has(id))) {
+    return "Unknown classification term";
+  }
+  try {
+    validateTermAssignments(ids.map((id) => byId.get(id)!));
+  } catch {
+    return "Invalid classification facets";
+  }
+  return null;
+}
+
+function normalizeEditionClassifications(plan: EditorPlan, terms: Term[]) {
+  const byId = new Map(terms.map((term) => [term.id, term]));
+  for (const slot of editionSlotNames) {
+    const classification = plan[slot]?.fields.classification;
+    if (classification?.action !== "set") {
+      continue;
+    }
+    const removed = redundantAncestors(classification.value, byId);
+    classification.value = classification.value.filter(
+      (id) => !removed.has(id),
+    );
+    if (removed.size) {
+      classification.reason +=
+        " " +
+        [...removed]
+          .map(
+            ([ancestor, descendant]) =>
+              `Removed ancestor ${ancestor}; retained descendant ${descendant}.`,
+          )
+          .join(" ");
+    }
+  }
+}
+
+function redundantAncestors(ids: string[], terms: Map<string, Term>) {
+  const selected = new Set(ids);
+  const removed = new Map<string, string>();
+  const ancestors = (id: string) => {
+    const visited = new Set([id]);
+    const result: string[] = [];
+    let parent = terms.get(id)?.parentId;
+    while (parent && !visited.has(parent)) {
+      visited.add(parent);
+      if (selected.has(parent)) {
+        result.push(parent);
+      }
+      parent = terms.get(parent)?.parentId;
+    }
+    return result;
+  };
+  for (const id of ids) {
+    for (const parent of ancestors(id)) {
+      removed.set(parent, id);
+    }
+  }
+  // Name a retained descendant in each explanation, including deep chains.
+  for (const id of ids.filter((id) => !removed.has(id))) {
+    for (const parent of ancestors(id)) {
+      removed.set(parent, id);
+    }
+  }
+  return removed;
 }
 
 function prepareEvent(

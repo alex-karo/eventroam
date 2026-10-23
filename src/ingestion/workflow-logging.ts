@@ -1,3 +1,4 @@
+import { editionSlotNames } from "./research/contracts";
 import { shrinkText, type ResearchLogger } from "./runtime/logging";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
@@ -23,11 +24,18 @@ export function logPreparation(
       status: prepared.candidate?.status ?? "invalid",
       eventId: prepared.matchedEventId,
       eventName: prepared.candidate?.data?.eventName,
-      editions:
-        prepared.candidate?.data?.editions.map((e) => ({
-          editionKey: e.key,
-          year: e.year?.value ?? null,
-        })) ?? [],
+      editions: editionSlotNames.flatMap((slot) => {
+        const edition = prepared.candidate?.data?.[slot];
+        return edition
+          ? [
+              {
+                role: slot,
+                editionKey: edition.key,
+                year: edition.year?.value ?? null,
+              },
+            ]
+          : [];
+      }),
       operationCount: prepared.operations.length,
       fields: attemptedCatalogFields(prepared.operations),
       validation: prepared.validation,

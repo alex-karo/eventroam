@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { editorPlanSchema, readyEditorPlanSchema } from "./contracts";
+import {
+  editorPlanSchema,
+  readyEditorPlanSchema,
+  editionFieldsSchema,
+} from "./contracts";
+import { editionSlotNames } from "../research/contracts";
 import { modelOutputSchema } from "../research/agent/wire";
 
 // Strict providers require an object at the root. Branch requirements are
@@ -12,7 +17,8 @@ export function editorModelOutputSchema() {
         editorPlanSchema.options[1].shape.status.value,
       ]),
       event: readyEditorPlanSchema.shape.event,
-      editions: readyEditorPlanSchema.shape.editions,
+      previousEdition: readyEditorPlanSchema.shape.previousEdition,
+      currentOrNextEdition: readyEditorPlanSchema.shape.currentOrNextEdition,
       unresolved: readyEditorPlanSchema.shape.unresolved,
       reason: editorPlanSchema.options[1].shape.reason.nullable(),
     }),
@@ -20,30 +26,33 @@ export function editorModelOutputSchema() {
 }
 
 // Optional null slots and empty rejection placeholders represent omission.
-// Required ready arrays and action members stay intact
+// Required Edition slots and action members stay intact
 // so malformed clear/keep/set variants still fail strict local validation.
 const eventFields = Object.keys(
   readyEditorPlanSchema.shape.event.unwrap().shape.fields.shape,
 );
-const editionFields = Object.keys(
-  readyEditorPlanSchema.shape.editions.element.shape.fields.shape,
-);
+const editionFields = Object.keys(editionFieldsSchema.shape);
 const optional = new Set([
   "reason",
   "event.reason",
-  "editions.*.reason",
+
   ...eventFields.map((field) => `event.fields.${field}`),
-  ...editionFields.map((field) => `editions.*.fields.${field}`),
+
   "event.fields.links.website",
   "event.fields.links.socials",
-  "editions.*.fields.links.tickets",
+
   ...["instagram", "facebook", "youtube", "tiktok", "x", "other"].map(
     (key) => `event.fields.links.socials.${key}`,
   ),
-  ...["amount", "currency", "terms", "availability", "url"].map(
-    (key) => `editions.*.fields.tickets.value.variants.*.${key}`,
-  ),
-  "editions.*.fields.tickets.value.basePrice.qualification",
+  ...editionSlotNames.flatMap((slot) => [
+    `${slot}.reason`,
+    ...editionFields.map((field) => `${slot}.fields.${field}`),
+    `${slot}.fields.links.tickets`,
+    ...["amount", "currency", "terms", "availability", "url"].map(
+      (key) => `${slot}.fields.tickets.value.variants.*.${key}`,
+    ),
+    `${slot}.fields.tickets.value.basePrice.qualification`,
+  ]),
   ...["editionKey", "field"].map((key) => `unresolved.*.${key}`),
 ]);
 export function normalizeEditorWire(
@@ -64,11 +73,15 @@ export function normalizeEditorWire(
           "status" in value &&
           value.status === "rejected"
         ) {
-          if (key === "event" && part === null) {
+          if (
+            (key === "event" ||
+              editionSlotNames.some((slot) => slot === key)) &&
+            part === null
+          ) {
             return false;
           }
           if (
-            (key === "editions" || key === "unresolved") &&
+            key === "unresolved" &&
             Array.isArray(part) &&
             part.length === 0
           ) {

@@ -18,7 +18,7 @@ Basis: The owner accepted the simpler Edition-only classification model on 2026-
 
 Implementation note (2026-10-22): Migration `0001_starter_taxonomy` adds missing starter terms by facet/slug, preserving existing IDs, labels, parents, and Edition assignments. Development fixtures reuse those terms. Loading the dictionary does not assign terms or publish Editions.
 
-Historical implementation note (2026-10-11): Fresh development and eval vocabularies include `format/openair` and the four new activity topics. Research prompt `model-direct-v6` includes their evidence rules; publication checks require `openair` or `mixed-indoor-outdoor`. Evidence assessment remains model-led, while writes enforce structural rules. The rest of the starter vocabulary remains subject to launch-data validation.
+Historical implementation note (2026-10-11): Fresh development and eval vocabularies include `format/openair` and the four new activity topics. Current publication checks accept any valid format, one event type, and at least one topic or culture term. Evidence assessment remains model-led, while writes enforce structural rules. The rest of the starter vocabulary remains subject to launch-data validation.
 
 ## 1 Context and outcome
 
@@ -49,13 +49,13 @@ Choose the type that best matches the organizer's description and programme. A f
 
 | Slug | Label | Assign when |
 | --- | --- | --- |
-| `openair` | Open-air | The core public programme is outdoors. Tents, covered stages, or indoor support facilities do not alone make it mixed. |
-| `mixed-indoor-outdoor` | Mixed indoor/outdoor | Substantial parts of the public programme occur in both indoor and outdoor spaces. |
-| `indoor` | Indoor | The core public programme is indoors; any outdoor activity is incidental. Useful for internal candidates and recording a change of format. |
+| `openair` | Open-air | The main public programme operates in an open-air site setting. A single physical feature or support facility does not decide format. |
+| `mixed-indoor-outdoor` | Mixed indoor/outdoor | Substantial parts of the public programme use both open-air and enclosed indoor settings. This value takes priority when both settings are supported. |
+| `indoor` | Indoor | The main public programme operates in enclosed indoor spaces. Outdoor support areas alone do not make it mixed. |
 
 Naming note (2026-10-11): `format/openair` replaces the former `format/outdoor` in application publication checks and fresh fixture vocabularies. The starter migration adds `format/openair` but does not rename or reassign the former `format/outdoor` in existing catalogs.
 
-Preserve raw source wording. “Hybrid” may mean online plus in-person; an open-air name or photograph alone does not establish the current edition's setting. `indoor` and unknown format do not make an indoor music festival eligible for publication. Use programme/site evidence, not an invented percentage threshold, to judge substantial outdoor activity.
+Preserve raw source wording. “Hybrid” may mean online plus in-person; an open-air name or photograph alone does not establish the current edition's setting. Any valid format can meet the publication format requirement. Unknown format cannot. Use programme and site evidence. Branding, camping, or one physical feature alone is insufficient. Do not invent a percentage threshold.
 
 ### Programme topics
 
@@ -73,7 +73,7 @@ Preserve raw source wording. “Hybrid” may mean online plus in-person; an ope
 
 Music does not imply arts; decoration alone does not establish an arts programme. Historical costume, fantasy theming, or an isolated demonstration does not establish reenactment; do not infer arts from reenactment without a separately supported artistic programme. A single yoga session, spa service, relaxing setting, or wellness marketing does not establish a substantial wellness programme. Biker attendance, motorcycle parking, a sponsor display, or a single incidental ride does not establish moto.
 
-A ski-resort location, nearby slopes, a ski-pass discount, or a link to buy a separate resort pass does not alone establish snow-sports. An official festival ticket or package that includes a ski pass valid for riding during the edition is sufficient. A beach location, surf imagery, or nearby surf schools does not alone establish surfing. Ordinary food stalls, bars, or one incidental tasting do not establish food-and-drink. Other workshops remain descriptive evidence unless they meet an existing topic's definition. None of these additional topics makes an otherwise out-of-scope event eligible for publication.
+A ski-resort location, nearby slopes, a ski-pass discount, or a link to buy a separate resort pass does not alone establish snow-sports. An official festival ticket or package that includes a ski pass valid for riding during the edition is sufficient. A beach location, surf imagery, or nearby surf schools does not alone establish surfing. Ordinary food stalls, bars, or one incidental tasting do not establish food-and-drink. Other workshops remain descriptive evidence unless they meet an existing topic's definition. Any supported topic or culture term can meet that part of the publication requirement.
 
 `topic/outdoor` describes active outdoor recreation; `format/openair` describes where the core public programme takes place. They have distinct slugs and display labels. Camping, a natural setting, nearby trails, or an isolated walk does not establish the topic. Snow-sports, surfing, and moto do not automatically imply `topic/outdoor`; assign it only for a separately supported recreation programme. It is not their taxonomy parent. An outdoor-activities topic does not by itself establish an open-air programme format or satisfy the publication format gate.
 
@@ -163,8 +163,8 @@ The term applies to official and independent events when supported. It makes no 
 3. **Keep dimensions independent.** Psytrance does not imply burning-like culture. Reenactment does not imply arts or a music genre; wellness does not imply burning-like culture; moto does not imply rock, sports, or a participatory gathering. Camping does not imply outdoor programming. A gathering need not have music, and missing genre must not exclude a supported non-musical burn.
 4. **Use the exact known term.** Map harmless spelling variants through a small versioned application mapping. Examples: `D&B` and `drum and bass` map to `drum-and-bass`; `psy-trance` maps to `psytrance`; `open air` maps to `format/openair` only when it describes the programme setting, never to `topic/outdoor`. Ambiguous `EDM`, `indie`, `hybrid`, `urban`, and an unqualified `outdoor` require facet and source context. No alias table is needed in v1.
 5. **Preserve uncertainty.** If a source only establishes electronic music, do not guess techno. “Multi-genre” is evidence of breadth, not a list of known genres; assign the specific styles supported or leave the facet unset. Do not seed multi-genre as a substitute for unknown.
-6. **Replace only intentionally.** A missing label in a new extraction is not an instruction to delete an accepted assignment. Additions, removals, and complete set replacements use the domain's evidence, conflict, and owner-correction rules. A failed source fetch never clears terms.
-7. **Separate editions.** Copying a prior edition's assignments is allowed only as initial values for a new draft. Publication requires applicable supporting evidence, including when no copied value changes. Updating one edition never changes another or supplies implicit Event defaults.
+6. **Replace only intentionally.** A missing label in a new extraction is not an instruction to delete an accepted assignment. Additions, removals, and complete set replacements use the domain's evidence, conflict, and owner-correction rules. A failed source fetch never clears terms. In ingestion, accept/set supplies a complete list. Preparation removes selected ancestors at any depth and keeps selected descendants and siblings. It rejects unknown IDs, duplicates, and single-value facet conflicts before this normalization. Broad-only terms remain valid. Omitted classification stays unchanged. Direct catalog writes still reject redundant ancestors.
+7. **Separate editions.** Research can explicitly reuse a comparable prior Edition's terms when inspected announcement evidence supports continuity. The finding must name the donor key and explain that basis. Refuted terms must be removed. Omission does not copy terms. Publication still uses the current catalog requirements. Updating one edition never changes another or supplies implicit Event defaults.
 
 Canonical term IDs and slugs remain stable. New terms require a deliberate curated vocabulary change, not automatic creation from extraction output. New term definitions belong in this file. Preserve a used term's meaning, facet, and parent; semantic changes use new terms and explicit, audited Edition reassignments under the domain rules. Display-label corrections preserve meaning and are recorded in the versioned vocabulary definition. No term-audit entity is introduced.
 
@@ -192,7 +192,7 @@ The public UI displays human-readable labels and queries stable IDs/slugs. Paren
 
 An Event page displays classifications from the specific published Edition it presents, selected using the domain's date/status rules. Historical classifications remain attached to their historical edition; drafts never supply public badges. Changing the displayed edition changes its classification summary without changing the Event's identity.
 
-The filter interaction spec will choose useful public controls; this vocabulary does not require one for every term. Classification does not replace publication gates for scope, evidence, dates, and location.
+The filter interaction spec will choose useful public controls; this vocabulary does not require one for every term. Publication also requires an Edition year, complete dates, and country.
 
 ## 6 Writes and observability
 

@@ -120,7 +120,7 @@ export async function researchFestival(
     input,
     catalog,
     knownLinks,
-    terms,
+    terms.map(({ id, facet, slug }) => ({ id, facet, slug })),
     budget.remaining(),
     reads,
     context.currentDate,

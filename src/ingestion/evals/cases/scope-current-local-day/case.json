@@ -78,7 +78,6 @@
     "forbidden": [],
     "research": {
       "status": "success",
-      "editionKeys": ["local-weekend"],
       "absentFields": [
         {
           "field": "summary"
@@ -104,7 +103,9 @@
         {
           "field": "links.socials.other"
         }
-      ]
+      ],
+      "previousEdition": null,
+      "currentOrNextEdition": "local-weekend"
     }
   }
 }

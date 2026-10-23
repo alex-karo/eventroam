@@ -77,7 +77,6 @@
     "forbidden": [],
     "research": {
       "status": "success",
-      "editionKeys": ["autumn-weekend"],
       "facts": [
         {
           "editionKey": "autumn-weekend",
@@ -114,7 +113,9 @@
         {
           "field": "links.socials.other"
         }
-      ]
+      ],
+      "previousEdition": null,
+      "currentOrNextEdition": "autumn-weekend"
     }
   }
 }

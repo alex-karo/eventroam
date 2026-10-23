@@ -13,12 +13,17 @@ const editionKey = z
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   .max(63);
 const boundedMessage = z.string().trim().min(1).max(500);
+const reason = z
+  .string()
+  .trim()
+  .min(1)
+  .describe("Explain the finding or identity decision in 1-3 short sentences.");
 const url = z
   .url()
   .refine((value) => /^https?:\/\//.test(value), "HTTP(S) URL required");
 const optionalLink = z.union([url, z.literal("")]).optional();
 const fact = <T extends z.ZodType>(value: T) =>
-  z.object({ value, reason: boundedMessage }).strict();
+  z.object({ value, reason }).strict();
 const nullableText = (max: number) =>
   z.string().trim().min(1).max(max).nullable();
 const amount = z.number().nonnegative();
@@ -149,7 +154,7 @@ const socialLinks = z
     other: optionalLink,
   })
   .strict();
-const edition = z
+export const editionFindingSchema = z
   .object({
     key: editionKey,
     year: fact(z.number().int().min(1).max(9999)).optional(),
@@ -182,24 +187,24 @@ export const researchDataSchema = z
       .string()
       .max(250)
       .refine((value) => value.trim().length > 0, "Event name required"),
-    reason: boundedMessage.optional(),
+    reason: reason.optional(),
     sources: z.array(z.object({ url, information: boundedMessage }).strict()),
     summary: fact(z.string().max(2000)).optional(),
     links: z.object({ website: optionalLink, socials: socialLinks }).strict(),
-    editions: z.array(edition).max(20),
+    previousEdition: editionFindingSchema.nullable(),
+    currentOrNextEdition: editionFindingSchema.nullable(),
   })
   .strict()
   .superRefine((data, ctx) => {
-    const keys = new Set<string>();
-    for (const [index, item] of data.editions.entries()) {
-      if (keys.has(item.key)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["editions", index, "key"],
-          message: "Duplicate edition key",
-        });
-      }
-      keys.add(item.key);
+    if (
+      data.previousEdition &&
+      data.previousEdition.key === data.currentOrNextEdition?.key
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["currentOrNextEdition", "key"],
+        message: "One Edition cannot occupy both roles",
+      });
     }
     const urls = new Set<string>();
     for (const [index, item] of data.sources.entries()) {
@@ -303,6 +308,12 @@ export const researchCandidateSchema = z
     }
   });
 
+export const editionSlotNames = [
+  "previousEdition",
+  "currentOrNextEdition",
+] as const;
+export type ResearchEdition = z.infer<typeof editionFindingSchema>;
+
 export type ResearchCandidate = z.infer<typeof researchCandidateSchema>;
 export type ResearchStatus = ResearchCandidate["status"];
 export type ResearchData = z.infer<typeof researchDataSchema>;
@@ -331,4 +342,4 @@ export type ResearchError = {
     retryable?: boolean;
   };
 };
-export const RESEARCH_PROMPT_VERSION = "observed-ticket-prices-v1";
+export const RESEARCH_PROMPT_VERSION = "edition-slots-v4";

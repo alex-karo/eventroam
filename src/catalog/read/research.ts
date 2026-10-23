@@ -86,3 +86,16 @@ export function readResearchCatalog(client: Database.Database) {
     .all();
   return ids.map(({ id }) => readResearchEvent(client, id)!);
 }
+
+/** Taxonomy context for ingestion validation and ancestor normalization. */
+export function readResearchTerms(client: Database.Database) {
+  return drizzle(client)
+    .select({
+      id: taxonomyTerms.id,
+      facet: taxonomyTerms.facet,
+      slug: taxonomyTerms.slug,
+      parentId: taxonomyTerms.parentId,
+    })
+    .from(taxonomyTerms)
+    .all();
+}

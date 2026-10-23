@@ -28,97 +28,95 @@
         "website": "https://szigetfestival.com/en/",
         "socials": {}
       },
-      "editions": [
-        {
-          "key": "source-row",
-          "year": {
-            "value": 2026,
-            "reason": "The official FAQ refers to Sziget 2026 in information about festival operations, confirming the saved edition year."
-          },
-          "links": {}
+      "previousEdition": {
+        "key": "source-row",
+        "year": {
+          "value": 2026,
+          "reason": "The official FAQ refers to Sziget 2026 in information about festival operations, confirming the saved edition year."
         },
-        {
-          "key": "2027",
-          "year": {
-            "value": 2027,
-            "reason": "The official homepage and FAQ announce Sziget Festival 2027."
+        "links": {}
+      },
+      "currentOrNextEdition": {
+        "key": "2027",
+        "year": {
+          "value": 2027,
+          "reason": "The official homepage and FAQ announce Sziget Festival 2027."
+        },
+        "dates": {
+          "value": {
+            "startsOn": "2027-08-10",
+            "endsOn": "2027-08-14",
+            "state": "confirmed"
           },
-          "dates": {
-            "value": {
-              "startsOn": "2027-08-10",
-              "endsOn": "2027-08-14",
-              "state": "confirmed"
-            },
-            "reason": "The official homepage and FAQ give the festival dates as 10–14 August 2027."
-          },
-          "scheduleStatus": {
-            "value": "scheduled",
-            "reason": "The official site says Sziget returns on the confirmed 2027 dates and is selling passes for that edition."
-          },
-          "venueName": {
-            "value": "Óbuda Island",
-            "reason": "The official travel page identifies Óbuda Island as the festival location."
-          },
-          "venueAddress": {
-            "value": "Május 9. park, Budapest, Hungary, 1033",
-            "reason": "The official travel page gives this as Sziget Festival’s address."
-          },
-          "locality": {
-            "value": "Budapest",
-            "reason": "The official travel page locates the festival in Budapest."
-          },
-          "countryCode": {
-            "value": "HU",
-            "reason": "The official travel page identifies the venue as being in Hungary."
-          },
-          "classification": {
-            "value": ["validation:festival", "validation:music"],
-            "reason": "The official site identifies Sziget as a festival and describes its programme as including music; the FAQ also refers to more than 500 artists."
-          },
-          "tickets": {
-            "value": {
-              "variants": [
-                {
-                  "label": "5-day Pass",
-                  "amount": 349,
-                  "currency": "EUR",
-                  "terms": "€23 online handling fee additional",
-                  "availability": "unknown",
-                  "url": "https://szi.gt/5daypass_2027"
-                },
-                {
-                  "label": "21&Under 5-day Pass",
-                  "amount": 279,
-                  "currency": "EUR",
-                  "terms": "For ticket holders aged 21 and under; €18 online handling fee additional",
-                  "availability": "unknown",
-                  "url": "https://szi.gt/21andUnderPass_2027"
-                },
-                {
-                  "label": "VIP 5-day Pass",
-                  "amount": 569,
-                  "currency": "EUR",
-                  "terms": "€37 online handling fee additional",
-                  "availability": "unknown",
-                  "url": "https://szi.gt/VIP_5day_2027"
-                }
-              ],
-              "basePrice": {
-                "kind": "exact",
+          "reason": "The official homepage and FAQ give the festival dates as 10–14 August 2027."
+        },
+        "scheduleStatus": {
+          "value": "scheduled",
+          "reason": "The official site says Sziget returns on the confirmed 2027 dates and is selling passes for that edition."
+        },
+        "venueName": {
+          "value": "Óbuda Island",
+          "reason": "The official travel page identifies Óbuda Island as the festival location."
+        },
+        "venueAddress": {
+          "value": "Május 9. park, Budapest, Hungary, 1033",
+          "reason": "The official travel page gives this as Sziget Festival’s address."
+        },
+        "locality": {
+          "value": "Budapest",
+          "reason": "The official travel page locates the festival in Budapest."
+        },
+        "countryCode": {
+          "value": "HU",
+          "reason": "The official travel page identifies the venue as being in Hungary."
+        },
+        "classification": {
+          "value": ["validation:festival", "validation:music"],
+          "reason": "The official site identifies Sziget as a festival and describes its programme as including music; the FAQ also refers to more than 500 artists."
+        },
+        "tickets": {
+          "value": {
+            "variants": [
+              {
+                "label": "5-day Pass",
+                "amount": 349,
                 "currency": "EUR",
-                "minAmount": 349,
-                "maxAmount": 349,
-                "coverage": "full_programme",
-                "qualification": "5-day Pass; €23 online handling fee additional"
+                "terms": "€23 online handling fee additional",
+                "availability": "unknown",
+                "url": "https://szi.gt/5daypass_2027"
+              },
+              {
+                "label": "21&Under 5-day Pass",
+                "amount": 279,
+                "currency": "EUR",
+                "terms": "For ticket holders aged 21 and under; €18 online handling fee additional",
+                "availability": "unknown",
+                "url": "https://szi.gt/21andUnderPass_2027"
+              },
+              {
+                "label": "VIP 5-day Pass",
+                "amount": 569,
+                "currency": "EUR",
+                "terms": "€37 online handling fee additional",
+                "availability": "unknown",
+                "url": "https://szi.gt/VIP_5day_2027"
               }
-            },
-            "reason": "The official homepage lists these three 2027 pass categories and prices. The 21&Under pass is eligibility-restricted; the 5-day Pass is the lowest-priced unrestricted full-programme pass."
+            ],
+            "basePrice": {
+              "kind": "exact",
+              "currency": "EUR",
+              "minAmount": 349,
+              "maxAmount": 349,
+              "coverage": "full_programme",
+              "qualification": "5-day Pass; €23 online handling fee additional"
+            }
           },
-          "links": {
-            "tickets": "https://szigetfestival.com/en/tickets"
-          }
+          "reason": "The official homepage lists these three 2027 pass categories and prices. The 21&Under pass is eligibility-restricted; the 5-day Pass is the lowest-priced unrestricted full-programme pass."
+        },
+        "links": {
+          "tickets": "https://szigetfestival.com/en/tickets"
         }
-      ]
+      }
     },
     "errors": [
       {

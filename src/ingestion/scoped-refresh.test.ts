@@ -51,10 +51,10 @@ function fixture(countryCode: string | null = "IE") {
     status: "success",
     data: {
       eventName: "Fixture Fest",
-      summary: { value: "Researched", reason },
       sources: [{ url, information: reason }],
       links: { socials: {} },
-      editions: [],
+      previousEdition: null,
+      currentOrNextEdition: null,
     },
     errors: [],
     unresolved: [],
@@ -70,14 +70,15 @@ test.each(["full", "current"] as const)(
   "%s passes scope and the catalog snapshot without a separate refresh object",
   async (scope) => {
     const f = fixture();
-    f.proposal.data!.editions = [
-      {
+    Object.assign(f.proposal.data!, {
+      previousEdition: null,
+      currentOrNextEdition: {
         key: "new-2027",
         year: { value: 2027, reason },
         countryCode: { value: "IE", reason },
         links: {},
       },
-    ];
+    });
     const result = await runCatalogResearch(
       { ...f.input, scope, dryRun: true },
       {
@@ -137,13 +138,14 @@ test.each([
     const before = readResearchEvent(f.client, f.event.id);
     const generateEditor = vi.fn();
     f.proposal.data!.links.website = "https://correct.fixture.example/";
-    f.proposal.data!.editions = [
-      {
+    Object.assign(f.proposal.data!, {
+      previousEdition: null,
+      currentOrNextEdition: {
         key: editionKey,
         countryCode: { value: country, reason },
         links: { tickets: "https://tickets.fixture.example/" },
       },
-    ];
+    });
     const result = await runCatalogResearch(f.input, {
       ...f.deps,
       generateEditor,
@@ -180,9 +182,14 @@ test.each([
 test("unknown selected country is constrained by a known historical sibling", async () => {
   const f = fixture();
   f.fx.edition(f.event, { editionKey: "unknown", countryCode: null });
-  f.proposal.data!.editions = [
-    { key: "unknown", countryCode: { value: "AU", reason }, links: {} },
-  ];
+  Object.assign(f.proposal.data!, {
+    previousEdition: null,
+    currentOrNextEdition: {
+      key: "unknown",
+      countryCode: { value: "AU", reason },
+      links: {},
+    },
+  });
   const result = await runCatalogResearch(
     { ...f.input, scope: "current" },
     {
@@ -196,40 +203,25 @@ test("unknown selected country is constrained by a known historical sibling", as
   expect(result.workload.returnedEditions).toBe(1);
   noWrites(f.client);
 });
-test("conflicting saved countries and oversized history fail before any external calls", async () => {
-  for (const oversized of [false, true]) {
-    const f = fixture();
-    if (oversized) {
-      for (let n = 0; n < 20; n++) {
-        f.fx.edition(f.event, {
-          editionKey: `history-${n}`,
-          countryCode: "IE",
-        });
-      }
-    } else {
-      f.fx.edition(f.event, { editionKey: "sibling", countryCode: "AU" });
-    }
-    const generate = vi.fn();
-    const result = await runCatalogResearch(f.input, {
-      ...f.deps,
-      generateCandidate: generate,
-    });
-    expect(f.read).not.toHaveBeenCalled();
-    expect(generate).not.toHaveBeenCalled();
-    expect(result.workload.returnedEditions).toBe(0);
-    noWrites(f.client);
-    expect(result.errors[0].code).toBe(
-      oversized ? "limit_reached" : "country_baseline_conflict",
-    );
-    expect(result).not.toHaveProperty("refresh");
-    expect(result).not.toHaveProperty("verification");
-    expect(result.workload.savedEditions).toBe(oversized ? 21 : 2);
-  }
+test("conflicting saved countries fail before external calls", async () => {
+  const f = fixture();
+  f.fx.edition(f.event, { editionKey: "sibling", countryCode: "AU" });
+  const generate = vi.fn();
+  const result = await runCatalogResearch(f.input, {
+    ...f.deps,
+    generateCandidate: generate,
+  });
+  expect(f.read).not.toHaveBeenCalled();
+  expect(generate).not.toHaveBeenCalled();
+  expect(result.errors[0].code).toBe("country_baseline_conflict");
+  expect(result.workload).toEqual({ savedEditions: 2, returnedEditions: 0 });
+  noWrites(f.client);
 });
 test.each(["country", "sibling", "remove"] as const)(
   "concurrent baseline %s aborts the whole atomic apply",
   async (mutation) => {
     const f = fixture();
+    f.proposal.data!.summary = { value: "Researched", reason };
     const result = await runCatalogResearch(f.input, {
       ...f.deps,
       generateCandidate: async () => {
@@ -266,13 +258,14 @@ test("current updates the returned Edition only; full permits a historical Editi
     countryCode: "PT",
     endsOn: "2027-07-03",
   });
-  f.proposal.data!.editions = [
-    {
+  Object.assign(f.proposal.data!, {
+    previousEdition: null,
+    currentOrNextEdition: {
       key: "summer-2027",
       venueName: { value: "Correct venue", reason },
       links: {},
     },
-  ];
+  });
   const result = await runCatalogResearch(
     { ...f.input, scope: "current" },
     {
@@ -295,14 +288,13 @@ test("current updates the returned Edition only; full permits a historical Editi
         ...f.proposal,
         data: {
           ...f.proposal.data!,
-          editions: [
-            {
-              key: "source-row",
-              year: { value: 2026, reason },
-              venueName: { value: "Historic venue", reason },
-              links: {},
-            },
-          ],
+          previousEdition: null,
+          currentOrNextEdition: {
+            key: "source-row",
+            year: { value: 2026, reason },
+            venueName: { value: "Historic venue", reason },
+            links: {},
+          },
         },
       };
     },
@@ -315,7 +307,7 @@ test("current updates the returned Edition only; full permits a historical Editi
     )!.venueName,
   ).toBe("Historic venue");
 });
-test("CLI and Studio current previews process a supplied replacement website equivalently", async () => {
+test("CLI and Studio current previews reject Event website findings equivalently", async () => {
   const f = fixture();
   f.proposal.data!.links.website = "https://correct.fixture.example/";
   const deps = {
@@ -364,84 +356,82 @@ test("CLI and Studio current previews process a supplied replacement website equ
     expect(report.sources).toContainEqual(
       expect.objectContaining({ finalUrl: "https://correct.fixture.example/" }),
     );
-    expect(report.operations).toContainEqual(
-      expect.objectContaining({
-        kind: "replaceLinks",
-        links: expect.arrayContaining([
-          expect.objectContaining({
-            kind: "official_site",
-            url: "https://correct.fixture.example/",
-          }),
-        ]),
-      }),
+    expect(report.outcome).toBe("failed");
+    expect(report.errors).toContainEqual(
+      expect.objectContaining({ code: "invalid_candidate" }),
     );
+    expect(report.operations).toEqual([]);
   }
 });
 test("unchanged country facts cannot evade guards through operation no-ops", () => {
   const f = fixture();
   f.fx.edition(f.event, { editionKey: "sibling", countryCode: "AU" });
   const saved = readResearchEvent(f.client, f.event.id)!;
-  f.proposal.data!.editions = [
-    { key: "source-row", countryCode: { value: "IE", reason }, links: {} },
-  ];
+  Object.assign(f.proposal.data!, {
+    previousEdition: null,
+    currentOrNextEdition: {
+      key: "source-row",
+      countryCode: { value: "IE", reason },
+      links: {},
+    },
+  });
   const prepared = prepareEditorialFixture(f.proposal, [saved], f.input, []);
   expect(prepared.operations).toEqual([]);
   expect(prepared.errors[0].code).toBe("country_baseline_conflict");
 });
 
-test.each(["current", "full"] as const)(
-  "%s rejects too many proposed targets before any operations",
-  async (scope) => {
-    const f = fixture();
-    f.proposal.data!.editions = [
-      { key: "new-one", year: { value: 2027, reason }, links: {} },
-      { key: "new-two", year: { value: 2028, reason }, links: {} },
-    ];
-    const result = await runCatalogResearch(
-      { ...f.input, scope },
-      { ...f.deps, generateCandidate: async () => f.proposal },
-    );
-    expect(result.errors[0].code).toBe("invalid_candidate");
-    expect(result.operations).toEqual([]);
-    expect(result.modelResponse!.object).toEqual(f.proposal);
-    expect(readResearchEvent(f.client, f.event.id)!.summary).toBe("Saved");
-    noWrites(f.client);
-  },
-);
-test("full rejects a new Edition when the complete saved/new union exceeds 20", async () => {
+test("current rejects a previous Edition before operations", async () => {
   const f = fixture();
-  for (let n = 0; n < 19; n++) {
-    f.fx.edition(f.event, { editionKey: `saved-${n}`, countryCode: "IE" });
-  }
-  f.proposal.data!.editions = [
-    { key: "new-one", year: { value: 2027, reason }, links: {} },
-  ];
-  const generate = vi.fn(async () => f.proposal);
-  const result = await runCatalogResearch(f.input, {
-    ...f.deps,
-    generateCandidate: generate,
-  });
-  expect(generate).toHaveBeenCalledOnce();
-  expect(result.errors[0].code).toBe("limit_reached");
-  expect(result.outcome).toBe("failed");
-  expect(result.researchStatus).toBe("success");
-  expect(result.editorStatus).toBe("not_run");
-  expect(result.workload.savedEditions).toBe(20);
+  f.proposal.data!.previousEdition = { key: "past", links: {} };
+  const result = await runCatalogResearch(
+    { ...f.input, scope: "current" },
+    { ...f.deps, generateCandidate: async () => f.proposal },
+  );
+  expect(result.errors[0].code).toBe("invalid_candidate");
   expect(result.operations).toEqual([]);
   noWrites(f.client);
+});
+
+test("full creates both selected Editions with more than twenty saved Editions", async () => {
+  const f = fixture();
+  for (let n = 0; n < 20; n++) {
+    f.fx.edition(f.event, { editionKey: `saved-${n}`, countryCode: "IE" });
+  }
+  f.proposal.data!.previousEdition = {
+    key: "past",
+    year: { value: 2025, reason },
+    links: {},
+  };
+  f.proposal.data!.currentOrNextEdition = {
+    key: "next",
+    year: { value: 2027, reason },
+    links: {},
+  };
+  const result = await runCatalogResearch(f.input, {
+    ...f.deps,
+    generateCandidate: async () => f.proposal,
+  });
+  expect(result.errors).toEqual([]);
+  expect(result.outcome).toBe("created");
+  expect(result.workload).toEqual({ savedEditions: 21, returnedEditions: 2 });
+  expect(readResearchEvent(f.client, f.event.id)!.editions).toHaveLength(23);
+  expect(
+    result.operations.filter((op) => op.kind === "createEdition"),
+  ).toHaveLength(2);
 });
 test("current retains all saved context without imposing a full-history limit or temporal host gate", async () => {
   const f = fixture();
   for (let n = 0; n < 20; n++) {
     f.fx.edition(f.event, { editionKey: `saved-${n}`, countryCode: "IE" });
   }
-  f.proposal.data!.editions = [
-    {
+  Object.assign(f.proposal.data!, {
+    previousEdition: null,
+    currentOrNextEdition: {
       key: "source-row",
       venueName: { value: "Inspected venue", reason },
       links: {},
     },
-  ];
+  });
   const result = await runCatalogResearch(
     { ...f.input, scope: "current" },
     { ...f.deps, generateCandidate: async () => f.proposal },
@@ -541,8 +531,9 @@ test.each([true, false])(
     }
     const before = readResearchEvent(f.client, f.event.id)!;
     delete f.proposal.data!.summary;
-    f.proposal.data!.editions = [
-      {
+    Object.assign(f.proposal.data!, {
+      previousEdition: null,
+      currentOrNextEdition: {
         key: "new-2027",
         year: { value: 2027, reason },
         countryCode: { value: "IE", reason },
@@ -566,7 +557,7 @@ test.each([true, false])(
           : {}),
         links: {},
       },
-    ];
+    });
     const result = await runCatalogResearch(
       { ...f.input, scope: "current" },
       { ...f.deps, generateCandidate: async () => f.proposal },

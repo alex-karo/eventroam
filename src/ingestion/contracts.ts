@@ -34,7 +34,7 @@ export type CatalogResearchInput = {
 };
 
 export type CatalogResearchResult = {
-  schemaVersion: 5;
+  schemaVersion: 6;
   scope: NonNullable<CatalogResearchInput["scope"]> | null;
   currentDate: string | null;
   limits: ResearchLimits;

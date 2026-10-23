@@ -400,7 +400,7 @@ test("eval fixtures reject the old schema version", () => {
 });
 
 test("eval scorer rejects unsupported result report versions", () => {
-  for (const schemaVersion of [1, 2, 3, 4, undefined]) {
+  for (const schemaVersion of [1, 2, 3, 4, 5, undefined]) {
     expect(() =>
       scoreCase(tomorrowland, {
         ...result(),
@@ -479,7 +479,7 @@ function result(
     ([, facts]) => facts.eventId && facts.key,
   );
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     editorResponse: null,
     editorStatus: "not_run",
     editorPromptVersion: "catalog-editor-v6",
@@ -1158,10 +1158,8 @@ test("full-history eval checks unchanged raw facts independently of mutations", 
       eventName: item.initial.event.canonicalName,
       sources: [],
       links: { socials: {} },
-      editions: item.initial.event.editions.map((e) => ({
-        key: e.editionKey,
-        links: {},
-      })),
+      previousEdition: { key: "historic-weekend", links: {} },
+      currentOrNextEdition: { key: "announced-weekend", links: {} },
     },
   };
   const report: CatalogResearchResult = {
@@ -1174,7 +1172,10 @@ test("full-history eval checks unchanged raw facts independently of mutations", 
     completeness: 1,
     passed: false,
   });
-  const editions = raw.data.editions.map((e) => ({
+  const editions = [
+    raw.data.previousEdition,
+    raw.data.currentOrNextEdition,
+  ].map((e) => ({
     ...e,
     ...Object.fromEntries(
       item.expectations
@@ -1189,13 +1190,46 @@ test("full-history eval checks unchanged raw facts independently of mutations", 
     ...report,
     modelResponse: {
       text: null,
-      object: { ...raw, data: { ...raw.data, editions } },
+      object: {
+        ...raw,
+        data: {
+          ...raw.data,
+          previousEdition: editions[0],
+          currentOrNextEdition: editions[1],
+        },
+      },
     },
   };
   expect(scoreCase(item, complete)).toMatchObject({
     passed: true,
     research: { score: 1 },
   });
+  const swapped = {
+    ...complete,
+    modelResponse: {
+      text: null,
+      object: {
+        ...raw,
+        data: {
+          ...raw.data,
+          previousEdition: editions[1],
+          currentOrNextEdition: editions[0],
+        },
+      },
+    },
+    editorResponse: {
+      text: null,
+      object: {
+        status: "ready",
+        event: { fields: {} },
+        previousEdition: { editionKey: editions[1].key, fields: {} },
+        currentOrNextEdition: { editionKey: editions[0].key, fields: {} },
+        unresolved: [],
+      },
+    },
+  };
+  expect(scoreCase(item, swapped).research.score).toBeLessThan(1);
+  expect(scoreCase(item, swapped).passed).toBe(false);
   const wire = {
     ...complete,
     modelResponse: {
@@ -1217,12 +1251,18 @@ test("full-history eval checks unchanged raw facts independently of mutations", 
               other: null,
             },
           },
-          editions: editions.map((e) => ({
-            ...e,
+          previousEdition: {
+            ...editions[0],
             year: null,
             displayName: null,
             links: { tickets: null },
-          })),
+          },
+          currentOrNextEdition: {
+            ...editions[1],
+            year: null,
+            displayName: null,
+            links: { tickets: null },
+          },
         },
       },
     },
@@ -1248,7 +1288,14 @@ test("full-history eval checks unchanged raw facts independently of mutations", 
       ...complete,
       modelResponse: {
         text: null,
-        object: { ...raw, data: { ...raw.data, editions: [editions[1]] } },
+        object: {
+          ...raw,
+          data: {
+            ...raw.data,
+            previousEdition: null,
+            currentOrNextEdition: editions[1],
+          },
+        },
       },
     }).passed,
   ).toBe(false);
@@ -1273,13 +1320,12 @@ test("unfinished-history eval requires the historical question despite no mutati
           eventName: item.initial.event.canonicalName,
           sources: [],
           links: { socials: {} },
-          editions: [
-            {
-              key: "announced-weekend",
-              dates: { value: dates, reason: "Announcement" },
-              links: {},
-            },
-          ],
+          previousEdition: null,
+          currentOrNextEdition: {
+            key: "announced-weekend",
+            dates: { value: dates, reason: "Announcement" },
+            links: {},
+          },
         },
       },
     },
@@ -1313,8 +1359,11 @@ test("scope fixtures retain local time zones in temporary catalog context", () =
 });
 
 test("size evidence eval rejects unsupported replacements and clearing", () => {
-  const item = byId.get("size-evidence")!;
-  for (const editionKey of ["repeat-admissions", "unknown"]) {
+  for (const [caseId, editionKey] of [
+    ["size-evidence", "repeat-admissions"],
+    ["size-historical-and-unknown", "unknown"],
+  ]) {
+    const item = byId.get(caseId)!;
     const subject = item.initial.event.editions.find(
       (e) => e.editionKey === editionKey,
     )!.id;
@@ -1339,9 +1388,11 @@ test("size evidence eval rejects unsupported replacements and clearing", () => {
     }
   }
   expect(
-    item.expectations.forbidden.some((assertion) =>
-      assertionMatches(item, result(), assertion),
-    ),
+    byId
+      .get("size-evidence")!
+      .expectations.forbidden.some((assertion) =>
+        assertionMatches(byId.get("size-evidence")!, result(), assertion),
+      ),
   ).toBe(false);
 });
 
@@ -1385,10 +1436,11 @@ test.each(["toolUse", "research"] as const)(
                 eventName: "Harbor Echo",
                 links: { socials: {} },
                 sources: [],
-                editions:
+                previousEdition:
                   fail && dimension === "research"
-                    ? []
-                    : [{ key: "2026", links: {} }],
+                    ? null
+                    : { key: "2026", links: {} },
+                currentOrNextEdition: null,
               },
               errors: [],
               unresolved: [],
@@ -1436,9 +1488,7 @@ test.each(["toolUse", "research"] as const)(
         ),
       ).toBe(true);
       const diagnostic =
-        dimension === "toolUse"
-          ? "searches <= 0"
-          : 'returned Edition keys=["2026"]';
+        dimension === "toolUse" ? "searches <= 0" : "previousEdition=2026";
       expect(
         report.results.map((entry) => entry.score.diagnostics[dimension]),
       ).toEqual([[], [diagnostic]]);
@@ -1469,7 +1519,7 @@ test.each(["toolUse", "research"] as const)(
       ).toEqual([
         expect.objectContaining({ score: 1, error: null }),
         expect.objectContaining({
-          score: dimension === "toolUse" ? 0 : 0.5,
+          score: dimension === "toolUse" ? 0 : 2 / 3,
           reason: diagnostic,
           error: null,
         }),
@@ -1508,16 +1558,15 @@ test.each([
             eventName: item.initial.event.canonicalName,
             sources: [],
             links: { socials: {} },
-            editions: [
-              {
-                key: "2027",
-                links: {},
-                dates: {
-                  value: { startsOn, endsOn, state: "confirmed" },
-                  reason: "Checked the independent venue announcement",
-                },
+            previousEdition: null,
+            currentOrNextEdition: {
+              key: "2027",
+              links: {},
+              dates: {
+                value: { startsOn, endsOn, state: "confirmed" },
+                reason: "Checked the independent venue announcement",
               },
-            ],
+            },
           },
         },
       },
@@ -1557,7 +1606,8 @@ test.each([
         eventName: item.initial.event.canonicalName,
         sources: [],
         links: { socials: {}, website: null },
-        editions: [],
+        previousEdition: null,
+        currentOrNextEdition: null,
         summary,
       },
     };
@@ -1590,7 +1640,8 @@ test("absent-field scoring requires a valid candidate and the addressed Edition"
       eventName: "River Festival",
       sources: [],
       links: { socials: {} },
-      editions: [],
+      previousEdition: null,
+      currentOrNextEdition: null,
     },
   };
   expect(
@@ -1662,7 +1713,8 @@ test("new-Edition scoring accepts a distinct key and rejects the historical dono
           },
         ],
         links: { socials: {} },
-        editions: [edition],
+        previousEdition: null,
+        currentOrNextEdition: edition,
       },
     },
   };
@@ -1692,7 +1744,8 @@ test("no-target scoring rejects incidental publication writes", () => {
           },
         ],
         links: { socials: {} },
-        editions: [],
+        previousEdition: null,
+        currentOrNextEdition: null,
       },
     },
   };
@@ -1800,7 +1853,8 @@ test("Tomorrowland permits partial preservation when its destination is unavaila
                 "Official portal links to the unavailable Belgium site.",
             },
           ],
-          editions: [],
+          previousEdition: null,
+          currentOrNextEdition: null,
         },
         errors: [],
         unresolved,

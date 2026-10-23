@@ -77,7 +77,6 @@
     "forbidden": [],
     "research": {
       "status": "success",
-      "editionKeys": ["imported-weekend"],
       "facts": [
         {
           "editionKey": "imported-weekend",
@@ -110,7 +109,9 @@
         {
           "field": "links.socials.other"
         }
-      ]
+      ],
+      "previousEdition": null,
+      "currentOrNextEdition": "imported-weekend"
     }
   }
 }

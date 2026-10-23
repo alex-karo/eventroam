@@ -88,7 +88,9 @@
             "state": "confirmed"
           }
         }
-      ]
+      ],
+      "previousEdition": null,
+      "currentOrNextEdition": "announced-weekend"
     }
   }
 }

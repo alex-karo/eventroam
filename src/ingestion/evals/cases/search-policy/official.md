@@ -1,3 +1,5 @@
 # Harbor Echo Castlewellan 2027 — official programme
-Harbor Echo is the recurring Castlewellan festival in Northern Ireland, United Kingdom. Our official website is https://harborechofestival.co.uk/. We are unrelated to the Australian Harbor Echo festival.
+Harbor Echo is the Castlewellan festival in Northern Ireland, United Kingdom. Our official website is https://harborechofestival.co.uk/. We are unrelated to the Australian Harbor Echo festival.
 Confirmed outdoor music programme: 23–30 January 2027 at Castlewellan Grounds, Festival Lane, Castlewellan, Northern Ireland, United Kingdom. All programme admission is free; no booking or paid ticket categories. No other editions are announced. No participant estimate is published. These details are complete; no further relevant pages are linked.
+
+The January 2027 programme will be the first Edition. No Edition has yet taken place.

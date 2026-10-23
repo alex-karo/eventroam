@@ -17,7 +17,7 @@ export function createSearchWebTool({
   return createTool({
     id: "searchWeb",
     description:
-      "Find sources only when no official source is known, it is inaccessible or wrong, or known sources conflict materially with the original event identity/dates or each other. Use known links and prior results first. Once resolved, an issue no longer justifies further searches. Missing announcements or fields alone do not justify search. Highlights are leads; verify facts with readPage.",
+      "Find candidate source pages for a query allowed by the research assignment. Results contain URLs and search highlights. Highlights are leads, not verified facts; inspect a destination with readPage before using its facts. Each call uses the shared search budget.",
     inputSchema: searchWebInputSchema,
     outputSchema: searchWebOutputSchema,
     execute: async ({ query }, toolContext) => {

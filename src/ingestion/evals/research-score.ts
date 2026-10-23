@@ -1,5 +1,6 @@
 import { normalizeWireCandidate } from "../research/agent/wire";
 import {
+  editionSlotNames,
   type ResearchCandidate,
   researchCandidateSchema,
 } from "../research/contracts";
@@ -12,10 +13,14 @@ function researchTarget(
   selector: { editionKey?: string; editionYear?: number },
 ) {
   if (selector.editionKey) {
-    return data?.editions.find((e) => e.key === selector.editionKey);
+    return [data?.previousEdition, data?.currentOrNextEdition]
+      .filter((e) => e != null)
+      .find((e) => e.key === selector.editionKey);
   }
   if (selector.editionYear !== undefined) {
-    return data?.editions.find((e) => e.year?.value === selector.editionYear);
+    return [data?.previousEdition, data?.currentOrNextEdition]
+      .filter((e) => e != null)
+      .find((e) => e.year?.value === selector.editionYear);
   }
   return data;
 }
@@ -38,11 +43,6 @@ function checkResearch(item: EvalCase, result: CatalogResearchResult) {
     normalizeWireCandidate(result.modelResponse?.object),
   );
   const data = parsed.success ? parsed.data.data : null;
-  const keys = parsed.success
-    ? (parsed.data.data?.editions
-        .map((e) => e.key)
-        .sort((a, b) => a.localeCompare(b)) ?? [])
-    : null;
   const checks = [
     {
       description: `researchStatus=${expected.status} with non-failed catalog outcome`,
@@ -53,28 +53,30 @@ function checkResearch(item: EvalCase, result: CatalogResearchResult) {
         parsed.data.status === expected.status,
     },
   ];
-  if (expected.editionKeys) {
-    checks.push({
-      description: `returned Edition keys=${JSON.stringify(expected.editionKeys)}`,
-      matched:
-        keys !== null &&
-        JSON.stringify(keys) ===
-          JSON.stringify(
-            [...expected.editionKeys].sort((a, b) => a.localeCompare(b)),
-          ),
-    });
+  for (const slot of editionSlotNames) {
+    if (expected[slot] !== undefined) {
+      checks.push({
+        description: `${slot}=${expected[slot] ?? "null"}`,
+        matched:
+          parsed.success && (data?.[slot]?.key ?? null) === expected[slot],
+      });
+    }
   }
   if (expected.newEditionYear !== undefined) {
-    const editions = data?.editions;
+    const editions = [data?.previousEdition, data?.currentOrNextEdition].filter(
+      (e) => e != null,
+    );
     const savedKeys = new Set(
       item.initial.event.editions.map((e) => e.editionKey),
     );
     checks.push({
       description: `one new Edition for year=${expected.newEditionYear}`,
       matched:
-        editions?.length === 1 &&
-        !savedKeys.has(editions[0].key) &&
-        editions[0].year?.value === expected.newEditionYear,
+        editions.filter((e) => !savedKeys.has(e.key)).length === 1 &&
+        editions.some(
+          (e) =>
+            !savedKeys.has(e.key) && e.year?.value === expected.newEditionYear,
+        ),
     });
   }
   for (const fact of expected.facts ?? []) {

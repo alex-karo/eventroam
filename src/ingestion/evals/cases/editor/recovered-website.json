@@ -85,7 +85,8 @@
     "forbidden": [],
     "research": {
       "status": "success",
-      "editionKeys": ["2027"]
+      "previousEdition": null,
+      "currentOrNextEdition": "2027"
     }
   },
   "id": "editor-recovered-website",

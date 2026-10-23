@@ -299,7 +299,7 @@ test("real research retains selected model/tool logs", async () => {
     rows.mastra_logs.find((row) => row.message === "Research finished")?.data,
   ).toMatchObject({ durationMs: result.result.durationMs });
   expect(result.result.usage.modelCalls).toBe(3);
-  expect(result.result.schemaVersion).toBe(5);
+  expect(result.result.schemaVersion).toBe(6);
   const stored = JSON.stringify(rows);
   for (const secret of [
     TRACE_CANDIDATE,

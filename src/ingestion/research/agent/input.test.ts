@@ -397,7 +397,10 @@ test.each([
     );
     expect(prompt.task).toContain("For every unknown nullable fact");
     expect(prompt.task).toContain(
-      "Follow relevant known links first. Use searchWeb only under its stated conditions.",
+      "Follow relevant known links and prior results first",
+    );
+    expect(prompt.task).toContain(
+      "Within the assignment limits, use searchWeb",
     );
     expect(prompt.task).toContain(
       "When you find at least one supported price for an Edition in this assignment",
@@ -407,8 +410,9 @@ test.each([
       expect(prompt.task).toContain(
         "Do not search for or inspect replacement websites",
       );
-      expect(prompt.task).toContain("can succeed with editions:[]");
+      expect(prompt.task).toContain("can succeed with both Edition slots null");
       expect(prompt.task).toContain("reason names the donor editionKey");
+      expect(prompt.task).toContain("Always use previousEdition:null");
       expect(prompt.task).not.toContain("Full checks");
       expect(prompt.task).not.toContain(
         "recover wrong websites within this run",
@@ -417,10 +421,16 @@ test.each([
       expect(prompt.task).not.toContain(
         "Do not search for or inspect replacement websites",
       );
-      expect(prompt.task).not.toContain("can succeed with editions:[]");
+      expect(prompt.task).not.toContain(
+        "can succeed with both Edition slots null",
+      );
       expect(prompt.task).not.toContain("Current MUST omit");
+      expect(prompt.task).not.toContain("Current scope only");
+      expect(prompt.task).not.toContain("Always use previousEdition:null");
+      expect(prompt.task).not.toContain("current requires failed/null");
+      expect(prompt.task).not.toContain("no replacement-site search");
       if (mode === "refresh/full") {
-        expect(prompt.task).toContain("EVERY saved Edition");
+        expect(prompt.task).toContain("the latest completed Edition");
         expect(prompt.task).toContain("recover wrong websites within this run");
         expect(prompt.task).not.toContain("Select an existing Event for add");
       } else {
@@ -436,4 +446,98 @@ test("omitted refresh scope uses exactly the explicit full instructions", () => 
   expect(assignment(input).task).toBe(
     assignment({ ...input, scope: "full" }).task,
   );
+});
+
+test.each(["add", "full", "current"] as const)(
+  "%s receives only the applicable Edition selection rules",
+  (mode) => {
+    const task = assignment(
+      mode === "add"
+        ? { mode, name: "New", actor: "tester" }
+        : { mode: "refresh", scope: mode, eventId: "saved", actor: "tester" },
+    ).task;
+    for (const rule of [
+      "latest Edition that actually finished before the reference local day",
+      "not necessarily the previous calendar year",
+      "Cancellation or postponement without a completed programme",
+      "completion without exact dates",
+      "An empty previousEdition slot alone does not justify search",
+      "A recurring Event description alone does not establish a specific past Edition",
+    ]) {
+      expect(task.includes(rule)).toBe(mode !== "current");
+    }
+    for (const rule of [
+      "On the final local date it is still current",
+      "the first start date, and the last end date",
+      "during a gap it is still ongoing",
+      "Other saved history and farther future Editions are context",
+    ]) {
+      expect(task).toContain(rule);
+    }
+    expect(task).not.toContain("EVERY saved Edition");
+    expect(task).not.toContain("at most 20");
+  },
+);
+
+import { editorInstructions } from "../../editor/prompt";
+import { createResearchTools } from "../../tools";
+import { createSourceSession } from "../../tools/session";
+
+test("both models receive the same general format definition", () => {
+  for (const text of [
+    assignment({ mode: "add", name: "New", actor: "tester" }).task,
+    editorInstructions,
+  ]) {
+    for (const rule of [
+      "open site is the primary setting",
+      "enclosed spaces are the primary setting",
+      "mixed takes precedence",
+      "single roof or enclosure alone",
+      "omit format or preserve saved classification",
+    ]) {
+      expect(text).toContain(rule);
+    }
+  }
+});
+
+test("research owns search policy and the tool describes search results", () => {
+  const budget = createResearchBudget({}, () => 0);
+  const sources = createSourceSession(
+    budget,
+    { apiKey: "fixture", model: "fixture", limits: budget.limits },
+    [],
+    {},
+  );
+  const tools = createResearchTools(sources, budget, () => ({
+    stage: "research",
+    step: 1,
+    attempt: 1,
+  }));
+  for (const input of [
+    { mode: "add", name: "New", actor: "tester" },
+    { mode: "refresh", scope: "full", eventId: "saved", actor: "tester" },
+    { mode: "refresh", scope: "current", eventId: "saved", actor: "tester" },
+  ] satisfies CatalogResearchInput[]) {
+    const task = assignment(input).task;
+    expect(task).not.toContain(tools.searchWeb.description);
+    for (const rule of [
+      "essential missing fact about an Edition supported by inspected evidence",
+      "Edition identification, dates or publication requirements",
+      "known links and prior results first",
+      "no announcement, alone do not justify search",
+      "Permission does not require search",
+    ]) {
+      expect(task).toContain(rule);
+      expect(tools.searchWeb.description).not.toContain(rule);
+    }
+  }
+  expect(tools.searchWeb.description).toContain(
+    "query allowed by the research assignment",
+  );
+  expect(tools.searchWeb.description).toContain(
+    "inspect a destination with readPage",
+  );
+  expect(tools.searchWeb.description).toContain("shared search budget");
+  expect(tools.searchWeb.description).not.toContain("failed");
+  expect(tools.searchWeb.description).not.toContain("Edition");
 });

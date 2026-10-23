@@ -141,7 +141,6 @@
     ],
     "research": {
       "status": "partial",
-      "editionKeys": ["2027"],
       "hasUnresolved": true,
       "facts": [
         {
@@ -151,7 +150,9 @@
             "basePrice": null
           }
         }
-      ]
+      ],
+      "previousEdition": null,
+      "currentOrNextEdition": "2027"
     }
   }
 }

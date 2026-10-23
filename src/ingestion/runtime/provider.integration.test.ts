@@ -48,13 +48,12 @@ const candidate = {
     eventName: "Provider Fest",
     sources: [],
     links: { socials: {} },
-    editions: [
-      {
-        key: "2027",
-        year: { value: 2027, reason: "Shown on the official page." },
-        links: {},
-      },
-    ],
+    previousEdition: null,
+    currentOrNextEdition: {
+      key: "2027",
+      year: { value: 2027, reason: "Shown on the official page." },
+      links: {},
+    },
   },
   errors: [],
   unresolved: [],
@@ -248,7 +247,11 @@ test("workflow captures the agent-visible initial source and tool responses", as
                 content: JSON.stringify(
                   wireCandidate(request, {
                     ...candidate,
-                    data: { ...candidate.data, editions: [] },
+                    data: {
+                      ...candidate.data,
+                      previousEdition: null,
+                      currentOrNextEdition: null,
+                    },
                   }),
                 ),
               };
@@ -440,12 +443,11 @@ test("actual Mastra request sends a compatible bounded response schema", async (
       ...candidate,
       data: {
         ...candidate.data,
-        editions: [
-          {
-            ...candidate.data.editions[0],
-            scheduleStatus: { value, reason: "Official schedule." },
-          },
-        ],
+        previousEdition: null,
+        currentOrNextEdition: {
+          ...candidate.data.currentOrNextEdition!,
+          scheduleStatus: { value, reason: "Official schedule." },
+        },
       },
     };
     const valid = ["announced", "scheduled", "postponed", "cancelled"].includes(
@@ -694,7 +696,11 @@ test.each([null, "I will read the linked page before returning the result."])(
                       content: JSON.stringify(
                         wireCandidate(requests[requests.length - 1], {
                           ...candidate,
-                          data: { ...candidate.data, editions: [] },
+                          data: {
+                            ...candidate.data,
+                            previousEdition: null,
+                            currentOrNextEdition: null,
+                          },
                         }),
                       ),
                     },
