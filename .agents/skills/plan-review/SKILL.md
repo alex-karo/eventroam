@@ -28,8 +28,10 @@ Check scope, behavior, affected consumers, task dependencies and verifiable
 outcomes against relevant code and existing contracts. Surface unresolved
 decisions that could change the approach. For test gaps, name the failure and why
 existing or planned checks would miss it. Do not invent compatibility or migration
-obligations. Note missing evidence without treating unimplemented work as a defect;
-structural validation does not prove readiness.
+obligations. Note missing evidence without treating unimplemented work as a defect.
+
+For OpenSpec, report each of the adapter's three checks as passed, issues found,
+or not reviewed, with the reason.
 
 For substantive plans, also send one independent subagent this question:
 
@@ -39,8 +41,7 @@ For substantive plans, also send one independent subagent this question:
 
 Give it the original request, accepted constraints, plan and relevant source
 locations in fresh context, without the author's reasoning or prior review
-conclusions. It reviews without editing or delegating. Do the ordinary review
-yourself; no additional dispatcher or prescribed alternative plan is needed.
+conclusions. It reviews without editing or delegating. Do the ordinary review yourself.
 For small direct plans, ask the same question yourself. If delegation is
 unavailable, do both checks and disclose the lack of independence.
 
