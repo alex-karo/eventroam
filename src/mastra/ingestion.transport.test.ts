@@ -113,7 +113,7 @@ test("native create and stream expose preview, then apply under a fresh ingestio
   expect(afterPreview).toHaveLength(1);
   expect(afterPreview[0].status).toBe("completed");
   expect(JSON.parse(afterPreview[0].report_json as string).schemaVersion).toBe(
-    5,
+    6,
   );
   const catalog = new Database(fixture.catalogPath, { readonly: true });
   try {
