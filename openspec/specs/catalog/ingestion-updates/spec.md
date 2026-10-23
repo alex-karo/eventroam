@@ -86,9 +86,9 @@ Every changed or cleared fact SHALL have a reason grounded in inspected evidence
 - **WHEN** research proposes a new venue for a saved Edition
 - **THEN** the proposed change identifies that Edition, its new value, and why the source supports it
 
-#### Scenario: A complete block retains saved entries
-- **WHEN** a supported ticket or classification change retains some saved entries
-- **THEN** the retained entries need no new source claim, while new or changed entries retain their basis
+#### Scenario: A classification replacement retains saved terms
+- **WHEN** a supported classification change retains some saved terms
+- **THEN** those terms need no new source claim, while new or changed terms retain their basis
 
 ### Requirement: Field groups remain complete and owned
 Dates, coordinates, tickets, and classification SHALL follow their complete-group or complete-replacement catalog rules. A change to one Edition SHALL NOT affect sibling Editions. Missing fields SHALL preserve saved values; a proposed clear SHALL be explicit and allowed by the catalog. The system SHALL reject an invalid owner, target, field type, or incomplete replacement before writing rather than silently dropping it.
@@ -96,10 +96,6 @@ Dates, coordinates, tickets, and classification SHALL follow their complete-grou
 #### Scenario: A date correction
 - **WHEN** an Edition date range changes
 - **THEN** the proposal supplies a complete start and end pair for that Edition
-
-#### Scenario: A partial ticket verification
-- **WHEN** only some saved ticket variants can be verified
-- **THEN** the run preserves the complete saved block unless it can propose a supported complete replacement
 
 #### Scenario: A field is omitted
 - **WHEN** a proposed update omits locality while changing venue
@@ -113,7 +109,7 @@ Research SHALL NOT propose time-zone changes. An existing Edition's time zone SH
 - **THEN** the saved time zone remains unchanged
 
 ### Requirement: Ticket findings preserve price meaning
-Ticket availability SHALL belong to each ticket variant, independently of schedule status. A proposed ticket replacement SHALL keep variant coverage, conditions, currency, and the intended base full-programme price distinct from day, package, or concession prices. Amounts SHALL use the catalog's currency precision. An unavailable price MAY coexist with a verified official ticket link. Incomplete or invalid monetary proposals SHALL not change the saved price block.
+Ticket availability SHALL belong to each ticket variant, independently of schedule status. A proposed ticket replacement SHALL keep variant coverage, conditions, currency, and the intended base full-programme price distinct from day, package, or concession prices. Amounts SHALL use the catalog's currency precision. An unavailable price MAY coexist with a verified official ticket link. Structurally incomplete or invalid monetary proposals SHALL not change the saved price block.
 
 #### Scenario: Categories have different availability
 - **WHEN** one ticket category is sold out and another is available
@@ -122,6 +118,23 @@ Ticket availability SHALL belong to each ticket variant, independently of schedu
 #### Scenario: A concession is cheaper than general admission
 - **WHEN** only a concession or day ticket has a lower amount
 - **THEN** it does not become the base full-programme admission price
+
+### Requirement: Supported ticket prices replace observed offers
+When an inspected source supports an Edition ticket price, ingestion SHALL propose a complete replacement of the offers observed in that check. It SHALL NOT copy unverified saved offers. Unfinished offer checks SHALL remain visible and MAY make research partial. Without a supported price, ingestion SHALL omit tickets and preserve the saved block. Availability or sales closure alone SHALL NOT replace it.
+
+#### Scenario: A saved offer cannot be checked
+- **GIVEN** saved Regular and Student offers
+- **WHEN** a current source supports a new Regular price but Student checkout cannot be read
+- **THEN** the replacement includes Regular without the unverified Student offer
+- **AND** the Student check remains unfinished in the report
+
+#### Scenario: An observed category has availability but no amount
+- **WHEN** a supported price permits replacement and another observed category has known availability without a price
+- **THEN** the replacement may include that category without amount or currency
+
+#### Scenario: No price is supported
+- **WHEN** relevant pages have no readable price or only announce closed sales
+- **THEN** the saved ticket block remains unchanged
 
 ### Requirement: Official link findings preserve ownership
 Proposed official links SHALL be valid HTTP(S) destinations associated with the Event or the appropriate Edition. An unverified link SHALL not displace a saved link; an omitted link slot SHALL remain unchanged. A verified replacement or explicit, supported removal MAY change only the matching owner and link-kind slot, preserving other links. Evidence pages SHALL not be published as official links solely because they were inspected.

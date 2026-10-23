@@ -101,6 +101,19 @@
         "editionKey": "2027",
         "field": "venue_name",
         "value": "New Grounds"
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_details",
+        "contains": { "amount": 110, "currency": "EUR" },
+        "notValue": { "label": "Student" }
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "price_min_minor",
+        "value": 11000
       }
     ],
     "forbidden": [
@@ -115,23 +128,31 @@
       {
         "owner": "edition",
         "editionKey": "2027",
-        "field": "price_details"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "price_min_minor"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
         "field": "price_qualification"
       }
     ],
     "research": {
       "status": "partial",
       "editionKeys": ["2027"],
-      "facts": [],
+      "facts": [
+        {
+          "editionKey": "2027",
+          "field": "tickets",
+          "value": {
+            "variants": {
+              "amount": 110,
+              "currency": "EUR"
+            },
+            "basePrice": {
+              "kind": "exact",
+              "currency": "EUR",
+              "minAmount": 110,
+              "maxAmount": 110,
+              "coverage": "full_programme"
+            }
+          }
+        }
+      ],
       "absentFields": [
         {
           "field": "summary"
@@ -141,10 +162,6 @@
         },
         {
           "field": "links.socials.instagram"
-        },
-        {
-          "editionKey": "2027",
-          "field": "tickets"
         },
         {
           "field": "links.socials.facebook"

@@ -17,6 +17,21 @@ The source reader SHALL use bounded requests for public HTTP(S) destinations and
 - **WHEN** a requested URL or redirect resolves to a non-public destination
 - **THEN** the reader blocks that request before connecting to the destination
 
+### Requirement: HTML table extraction preserves row relationships
+The source reader SHALL keep the factual text and links from each HTML table row together in the extracted result. It SHALL omit HTML select controls and their option text.
+
+#### Scenario: A cell contains a line break
+- **WHEN** a table cell places a note after an HTML line break
+- **THEN** the extracted text keeps the note with the other cells in that row
+
+#### Scenario: A selection control appears in a table
+- **WHEN** a table row contains a select control with several options
+- **THEN** the extracted text omits the control and option text while retaining the other cells
+
+#### Scenario: A selection control appears outside a table
+- **WHEN** a page contains a select control outside a table
+- **THEN** the extracted text omits the control and option text
+
 ### Requirement: Incomplete pages remain explicitly partial
 If direct retrieval cannot check an assigned fact, any configured alternate retrieval SHALL stay within the shared source bounds. The result SHALL identify the retrieval method and retain readable content from either method. If neither method can check the assigned fact, the result SHALL remain partial and SHALL NOT report the missing fact as absent.
 
