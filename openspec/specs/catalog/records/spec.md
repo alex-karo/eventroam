@@ -72,27 +72,27 @@ An Edition MAY store a bounded price summary as `free`, `exact`, `from`, or `ran
 - **THEN** it identifies the amount as a package in its original currency and shows the qualification
 
 ### Requirement: Edition prices are replaced as a complete block
-The catalog SHALL store ticket variants with their labels, supplied amounts/currencies, conditions, availability, and links. A zero-amount free variant MAY omit currency; positive amounts SHALL require currency and a currency SHALL require an amount. A free eligibility-restricted variant SHALL NOT imply free full-programme admission. Updating stored prices SHALL use `replacePriceBlock` with the complete variant list and primary price summary, atomically replacing both without merging individual variants. `updateEdition` SHALL reject price fields, including partial primary-summary updates. The model SHALL choose the base full-programme admission summary or leave it unknown; the host SHALL validate its structure without checking source support.
+The catalog SHALL store ticket variants with their labels, supplied amounts/currencies, conditions, availability, and links. A zero-amount free variant MAY omit currency; positive amounts SHALL require currency and a currency SHALL require an amount. A free eligibility-restricted variant SHALL NOT imply free full-programme admission. The primary price summary SHALL describe base full-programme admission or remain unknown. Updating stored prices SHALL use `replacePriceBlock` with the complete variant list and primary price summary, atomically replacing both without merging individual variants. `updateEdition` SHALL reject price fields, including partial primary-summary updates.
 
-#### Scenario: A legacy partial price update is submitted
+#### Scenario: A partial price update is submitted
 - **GIVEN** an Edition with a stored price block
 - **WHEN** an `updateEdition` operation supplies `price` to change the primary summary instead of a complete `replacePriceBlock` operation
 - **THEN** the operation fails without changing the record, version, or audit history
 
 #### Scenario: Several ticket variants are collected
-- **WHEN** the model supplies a full-programme pass and a day ticket for the same Edition
+- **WHEN** a complete price block supplies a full-programme pass and a day ticket for the same Edition
 - **THEN** both replace the previous variant list and the base full-programme admission price replaces the primary summary
 
-#### Scenario: Model explicitly clears prices
-- **WHEN** the model explicitly supplies an empty price block for an Edition
+#### Scenario: Prices are explicitly cleared
+- **WHEN** a complete update supplies an empty price block for an Edition
 - **THEN** the catalog replaces the variants with an empty list and clears all primary price fields, recording unknown price rather than free admission
 
 #### Scenario: Only day tickets are priced
-- **WHEN** the model supplies day-ticket prices with an unknown base full-programme price
+- **WHEN** a complete price block supplies day-ticket prices with an unknown base full-programme price
 - **THEN** the catalog stores the new variants and clears the primary summary
 
 #### Scenario: Recheck only changes variant order
-- **WHEN** the model returns the same price block with variants in a different order
+- **WHEN** an update supplies the same price block with variants in a different order
 - **THEN** normalization produces no catalog change
 
 #### Scenario: A free concession has no stated currency
@@ -107,34 +107,30 @@ Each named ticket variant MAY store availability as `unknown`, `available`, `sol
 - **WHEN** a validated complete price-block replacement sets a ticket variant's availability to `closed`
 - **THEN** the catalog stores `closed` for that category without changing the edition's schedule status or another category's availability
 
-### Requirement: Model writes retain changes and attribution
+### Requirement: Catalog writes retain changes and attribution
 The system SHALL commit catalog changes, operation receipts, actor, and any supplied initiating owner atomically. The audit SHALL retain old and new field values.
 
-#### Scenario: Model changes dates and venue
-- **WHEN** the model proposes structurally valid date and venue changes
+#### Scenario: Dates and venue change
+- **WHEN** a valid operation changes dates and venue
 - **THEN** the audit records those old and new values with actor attribution
 
 ### Requirement: Audit history remains private
 Applied field changes SHALL remain immutable and SHALL not appear in public summaries, pages, or discovery responses. Failed and unchanged checks SHALL not create CatalogChange entries solely to record a check.
 
 #### Scenario: Source wording changes without a catalog fact change
-- **WHEN** the model returns the same stored facts after reading changed page wording
+- **WHEN** a recheck returns the same stored facts after reading changed page wording
 - **THEN** no new catalog change is recorded
 
-### Requirement: Active catalog contracts name Editions
-Active catalog contracts SHALL use Edition terminology, including editionId/editionKey/editionYear, create/update/publish/withdrawEdition operations, and edition link owners. Existing Edition agent/public fields, stable IDs/keys and URL paths SHALL remain unchanged. Old Occurrence operation names and fields SHALL be rejected without aliases.
+### Requirement: Catalog operations use Edition names
+Catalog write operations SHALL support `createEdition`, `updateEdition`, `publishEdition`, and `withdrawEdition`, and SHALL allow Edition link ownership. Unsupported operation names and fields SHALL be rejected without catalog writes.
 
 #### Scenario: An Edition operation is submitted
 - **WHEN** a structurally valid createEdition or updateEdition operation is submitted
 - **THEN** the catalog applies the existing identity, validation, version, audit and publication rules using Edition names
 
-#### Scenario: An old operation name is submitted
-- **WHEN** an active caller submits createOccurrence, updateOccurrence, publishOccurrence, withdrawOccurrence, an occurrence owner, or occurrence-prefixed DTO fields
+#### Scenario: An unsupported operation name is submitted
+- **WHEN** a caller submits an unsupported operation name or field
 - **THEN** validation rejects it before catalog writes
-
-#### Scenario: Public and agent contracts already use Edition
-- **WHEN** catalog internals are renamed
-- **THEN** public editions with id/key/year, agent editions with key/year, questions/errors with editionKey, and actual URLs retain their existing shapes and values
 
 ### Requirement: Edition size represents approximate participant scale
 

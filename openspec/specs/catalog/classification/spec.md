@@ -66,16 +66,16 @@ The Event page SHALL show classifications from its selected published Edition on
 - **WHEN** a new eligible Edition becomes the Event page's active edition
 - **THEN** its classification labels replace the prior edition's summary without changing Event identity
 
-### Requirement: Model-proposed classification is edition-specific
-Research SHALL associate a complete classification finding with a specific Edition, retaining unchallenged saved terms. The editor SHALL accept or correct the complete list. The host SHALL replace assignments only for that Edition, preserving sibling editions' classifications and assigning no classifications or defaults to the Event. An omitted classification field SHALL preserve current assignments.
+### Requirement: Ingestion classification updates are edition-specific
+An ingestion classification proposal SHALL identify its Edition and provide a complete replacement list supported by inspected evidence and preserved accepted terms. A saved term SHALL remain unless inspected evidence supports its removal. Applying the replacement SHALL change only that Edition's assignments, preserving sibling editions and assigning no classifications or defaults to the Event. An omitted classification field SHALL preserve current assignments.
 
-#### Scenario: A later extraction omits a known term
+#### Scenario: A later check omits a known term
 - **WHEN** new evidence does not mention or refute a previously accepted genre
-- **THEN** research retains it in any proposed complete list, or omits the classification field to preserve assignments
+- **THEN** an update retains it in any proposed complete list, or omits classification to preserve assignments
 
-#### Scenario: Model removes an edition term
-- **WHEN** research explicitly refutes an assigned term and editor approves a complete list excluding it for a specific Edition
-- **THEN** the writer removes that assignment from that Edition only, preserving sibling editions' assignments
+#### Scenario: An edition term is removed
+- **WHEN** inspected evidence refutes an assigned term and a supported complete replacement excludes it for a specific Edition
+- **THEN** that assignment is removed from the Edition only, preserving sibling editions' assignments
 
 ### Requirement: Topics remain independent of physical format
 
@@ -92,7 +92,7 @@ For a new selected current Edition, research SHALL check its announcement before
 
 #### Scenario: Programme continuity supports reuse
 - **WHEN** inspected announcements support continuity with a preceding comparable Edition of the same Event
-- **THEN** research may propose its supplied term IDs with donor key and continuity explanation; the editor assesses the complete finding.
+- **THEN** its supplied term IDs may be proposed with the donor key and continuity explanation.
 
 #### Scenario: The programme or format changes
 - **WHEN** current evidence refutes donor programme/format terms
@@ -103,5 +103,5 @@ For a new selected current Edition, research SHALL check its announcement before
 - **THEN** do not copy by date/year alone; classify from current evidence or omit with any unfinished assessment in unresolved.
 
 #### Scenario: Reuse is omitted or rejected
-- **WHEN** research omits classification or editor declines reuse
+- **WHEN** classification is omitted or proposed reuse is rejected
 - **THEN** infer no sibling taxonomy or Event default; normal publication gates still apply.
