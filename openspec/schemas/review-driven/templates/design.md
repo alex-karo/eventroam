@@ -1,5 +1,13 @@
 # Design
 
+<!-- State each decision directly. Explain each fact once. Remove filler, repeated
+context, obvious details, and statements that add no useful information. Usually
+use 2-3 sentences per key decision: choice, reason, and material trade-off. Add
+detail only for a specific complexity or risk; this is not a sentence limit.
+Before handoff, remove any sentence whose deletion does not reduce the reader's
+ability to assess or implement the design. Keep necessary reasons and constraints.
+Prefer direct wording over dense shorthand. -->
+
 ## Change size
 
 <!-- Small / Medium / Large and why. Name affected areas, contract/data changes,

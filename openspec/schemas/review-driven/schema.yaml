@@ -24,7 +24,7 @@ artifacts:
       - **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
       - **Capabilities**: Identify which specs will be created or modified:
         - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<capability-path>/spec.md`. Name each capability for a durable system behavior (for example, `user-auth`), not the work in this change (for example, `add-login-endpoint`). Choose a cohesive boundary that can own related requirements as the system evolves; avoid broad catch-all capabilities. Use kebab-case for path segments you introduce (e.g., `user-auth` or `identity/user-auth`) and follow the project's existing spec organization.
-        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Use the exact existing path under `openspec/specs/`. Leave empty if no requirement changes.
+        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Use the exact existing path under `openspec/specs/`. For each capability, add **Before** and **After** bullets, usually one short sentence each. State the current behavior from the main spec and the proposed behavior. Note any known difference between the main spec and the implementation. Describe only the behavior that changes; leave detailed conditions and scenarios in the delta spec. Leave empty if no requirement changes.
       - **Impact**: Affected code, APIs, dependencies, or systems.
 
       IMPORTANT: The Capabilities section is critical. It creates the contract between
@@ -188,6 +188,12 @@ artifacts:
       A small design may be only a few paragraphs. Keep Change size and Approach;
       omit other sections when they add no useful information.
 
+      Keep the text concise. State each decision directly. Explain each fact once.
+      Remove filler, repeated context, obvious details, and statements that add no
+      useful information. For each key decision, usually use 2-3 sentences: the
+      choice, its reason, and any material trade-off. Use more detail only to explain
+      a specific complexity or risk. This is a guide, not a sentence limit.
+
       Sections:
       - Change size: Small, Medium, or Large, with a short reason. Name affected areas,
         contract or stored-data changes, dependencies, and material uncertainty.
@@ -242,6 +248,9 @@ artifacts:
       Before handoff, check whether the plan alone explains the outcome, main flow,
       ownership, and reasons for added mechanisms. Rewrite missing explanations in
       place; do not add a second document or repeat every requirement.
+      Then edit the draft for length. Remove any sentence whose deletion does not
+      reduce the reader's ability to assess or implement the design. Keep necessary
+      reasons and constraints. Prefer direct wording over dense shorthand.
     requires:
       - proposal
 
