@@ -98,24 +98,23 @@ function candidate(termIds: string[]): ResearchCandidate {
       ],
       summary: { value: "An outdoor music festival in Portugal.", reason },
       links: { website: url, socials: {} },
-      editions: [
-        {
-          key: "2027",
-          year: { value: 2027, reason },
-          dates: {
-            value: {
-              startsOn: "2027-07-01",
-              endsOn: "2027-07-03",
-              state: "confirmed",
-            },
-            reason,
+      previousEdition: null,
+      currentOrNextEdition: {
+        key: "2027",
+        year: { value: 2027, reason },
+        dates: {
+          value: {
+            startsOn: "2027-07-01",
+            endsOn: "2027-07-03",
+            state: "confirmed",
           },
-          locality: { value: "Lisbon", reason },
-          countryCode: { value: "PT", reason },
-          classification: { value: termIds, reason },
-          links: {},
+          reason,
         },
-      ],
+        locality: { value: "Lisbon", reason },
+        countryCode: { value: "PT", reason },
+        classification: { value: termIds, reason },
+        links: {},
+      },
     },
     errors: [],
     unresolved: [],
@@ -296,6 +295,26 @@ test("real discovery retries retain their estimated cost in the durable report",
   }
 });
 
+test("add reports the frozen date and available saved context", async () => {
+  const { client } = fixture();
+  const fx = testFixtures(client);
+  const event = fx.event({ canonicalName: "Another Festival" });
+  fx.edition(event, { editionKey: "2025" });
+  fx.edition(event, { editionKey: "2026" });
+  const result = await runCatalogResearch(input, {
+    client,
+    todayUtc: "2026-10-12",
+    generateCandidate: async () => ({
+      status: "failed",
+      data: null,
+      errors: [],
+      unresolved: [],
+    }),
+  });
+  expect(result.currentDate).toBe("2026-10-12T12:00:00.000Z");
+  expect(result.workload).toEqual({ savedEditions: 2, returnedEditions: 0 });
+});
+
 test("create dry run explains actual changes and rolls back catalog and audit", async () => {
   const { client, termIds, readPage } = fixture();
   const before = catalogState(client);
@@ -386,7 +405,8 @@ test.each([
         },
       ],
       links: { socials: {} },
-      editions: [],
+      previousEdition: null,
+      currentOrNextEdition: null,
     };
     proposal.unresolved =
       status === "partial"
@@ -500,7 +520,8 @@ test("refresh preserves identity, reports mismatch, and emits no duplicate audit
     eventName: "Another Name",
     sources: [],
     links: { socials: {} },
-    editions: [],
+    previousEdition: null,
+    currentOrNextEdition: null,
     summary: { value: "A changed summary.", reason },
   };
   const first = await runCatalogResearch(
@@ -557,21 +578,20 @@ test("cancellation and grouped clearing explain only changed writer fields", asy
     eventName: "Example Fest",
     sources: [],
     links: { socials: {} },
-    editions: [
-      {
-        key: "2027",
-        dates: { value: null, reason: "The announced dates were withdrawn." },
-        scheduleStatus: {
-          value: "cancelled",
-          reason: "The official page explicitly cancels this edition.",
-        },
-        coordinates: {
-          value: null,
-          reason: "The announced location was withdrawn.",
-        },
-        links: {},
+    previousEdition: null,
+    currentOrNextEdition: {
+      key: "2027",
+      dates: { value: null, reason: "The announced dates were withdrawn." },
+      scheduleStatus: {
+        value: "cancelled",
+        reason: "The official page explicitly cancels this edition.",
       },
-    ],
+      coordinates: {
+        value: null,
+        reason: "The announced location was withdrawn.",
+      },
+      links: {},
+    },
   };
   const result = await runCatalogResearch(
     { mode: "refresh", eventId: event.id, actor: input.actor },
@@ -627,37 +647,36 @@ test("complete classification and ticket reasons follow actual changes", async (
     eventName: "Example Fest",
     sources: [],
     links: { socials: {} },
-    editions: [
-      {
-        key: "2027",
-        links: {},
-        classification: {
-          value: [newTerm.id],
-          reason:
-            "New programme category replaces the explicitly refuted old category.",
-        },
-        tickets: {
-          value: {
-            variants: [
-              {
-                label: "Weekend",
-                amount: 100.5,
-                currency: "EUR",
-                availability: "available",
-              },
-            ],
-            basePrice: {
-              kind: "exact",
-              currency: "EUR",
-              minAmount: 100.5,
-              maxAmount: 100.5,
-              coverage: "full_programme",
-            },
-          },
-          reason: "The official ticket page lists a weekend pass.",
-        },
+    previousEdition: null,
+    currentOrNextEdition: {
+      key: "2027",
+      links: {},
+      classification: {
+        value: [newTerm.id],
+        reason:
+          "New programme category replaces the explicitly refuted old category.",
       },
-    ],
+      tickets: {
+        value: {
+          variants: [
+            {
+              label: "Weekend",
+              amount: 100.5,
+              currency: "EUR",
+              availability: "available",
+            },
+          ],
+          basePrice: {
+            kind: "exact",
+            currency: "EUR",
+            minAmount: 100.5,
+            maxAmount: 100.5,
+            coverage: "full_programme",
+          },
+        },
+        reason: "The official ticket page lists a weekend pass.",
+      },
+    },
   };
   const result = await runCatalogResearch(
     { mode: "refresh", eventId: event.id, actor: input.actor },
@@ -734,7 +753,8 @@ test("name mismatch survives a rolled-back refresh write", async () => {
     eventName: "Another Name",
     sources: [{ url, information: "Official name differs." }],
     links: { socials: {} },
-    editions: [],
+    previousEdition: null,
+    currentOrNextEdition: null,
     summary: { value: "Changed summary", reason },
   };
   const result = await runCatalogResearch(

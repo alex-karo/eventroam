@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { researchCandidateSchema } from "../contracts";
+import { researchCandidateSchema, editionSlotNames } from "../contracts";
 
 // OpenRouter's strict response_format accepts shape rather than Zod's optional
 // properties or validation keywords. Strict Zod validation still runs locally.
@@ -61,26 +61,28 @@ const optionalNullPaths = new Set([
   ...["instagram", "facebook", "youtube", "tiktok", "x", "other"].map(
     (field) => `data.links.socials.${field}`,
   ),
-  ...[
-    "year",
-    "dates",
-    "scheduleStatus",
-    "displayName",
-    "venueName",
-    "venueAddress",
-    "locality",
-    "administrativeArea",
-    "countryCode",
-    "coordinates",
-    "sizeEstimate",
-    "classification",
-    "tickets",
-  ].map((field) => `data.editions.*.${field}`),
-  "data.editions.*.links.tickets",
-  ...["amount", "currency", "terms", "availability", "url"].map(
-    (field) => `data.editions.*.tickets.value.variants.*.${field}`,
-  ),
-  "data.editions.*.tickets.value.basePrice.qualification",
+  ...editionSlotNames.flatMap((slot) => [
+    ...[
+      "year",
+      "dates",
+      "scheduleStatus",
+      "displayName",
+      "venueName",
+      "venueAddress",
+      "locality",
+      "administrativeArea",
+      "countryCode",
+      "coordinates",
+      "sizeEstimate",
+      "classification",
+      "tickets",
+    ].map((field) => `data.${slot}.${field}`),
+    `data.${slot}.links.tickets`,
+    ...["amount", "currency", "terms", "availability", "url"].map(
+      (field) => `data.${slot}.tickets.value.variants.*.${field}`,
+    ),
+    `data.${slot}.tickets.value.basePrice.qualification`,
+  ]),
   ...["url", "editionKey", "field"].map((field) => `errors.*.${field}`),
   ...["editionKey", "field"].map((field) => `unresolved.*.${field}`),
 ]);

@@ -77,7 +77,6 @@
     "forbidden": [],
     "research": {
       "status": "partial",
-      "editionKeys": [],
       "hasUnresolved": true,
       "absentFields": [
         {
@@ -105,7 +104,9 @@
           "field": "links.socials.other"
         }
       ],
-      "noChanges": true
+      "noChanges": true,
+      "previousEdition": null,
+      "currentOrNextEdition": null
     }
   }
 }

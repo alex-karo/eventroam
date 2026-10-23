@@ -30,20 +30,41 @@ The CLI SHALL accept a festival name for `add` and one or more Event IDs for `re
 - **THEN** the command rejects the input before research and makes no catalog changes
 
 ### Requirement: Addition researches an Event and its relevant Editions
-Add SHALL research the festival's identity, its latest completed Edition, and its next announced Edition where supported by inspected sources. It SHALL keep Edition facts separate and collect official links. Add instructions SHALL request a short factual English Event description. A missing description SHALL NOT block Event creation or eligible publication. An unannounced Edition SHALL NOT be inferred from prior-year facts.
+
+Add MUST research the Event identity, summary, shared links, and the same two Edition roles as full refresh.
+It MUST return the latest completed Edition and the ongoing or nearest announced future Edition where supported by inspected evidence.
+It MUST keep their facts separate. Add instructions MUST request a short factual English Event description.
+A missing description MUST NOT block Event creation or eligible publication.
+An unannounced Edition MUST NOT be inferred from prior facts.
 
 #### Scenario: History and next announcement are available
+
 - **WHEN** inspected sources document a completed Edition and the next announced Edition
-- **THEN** the run reports their facts separately under the matched Event
+- **THEN** the run reports them in `previousEdition` and `currentOrNextEdition` under the matched Event
 - **AND** any description does not present historical facts as current
 
 #### Scenario: A supported Event has no description
+
 - **WHEN** add establishes a new Event and valid publication facts without an Event description
 - **THEN** an eligible apply run may create and publish the records without that description
 
 #### Scenario: No next announcement is found
-- **WHEN** relevant source checks support a completed Edition but no next announcement
-- **THEN** the run retains the supported history and reports the limitation without creating a forecast Edition
+
+- **WHEN** relevant source checks support a completed Edition but no ongoing or next announced Edition
+- **THEN** the run retains the supported history and returns `currentOrNextEdition:null` without creating a forecast Edition
+- **AND** this completed absence check alone does not make research partial
+
+#### Scenario: A festival is underway
+
+- **WHEN** inspected evidence supports an ongoing Edition and a later announced Edition
+- **THEN** add uses the ongoing Edition in `currentOrNextEdition`
+- **AND** it does not also create the later Edition
+
+#### Scenario: Both roles require new records
+
+- **WHEN** a new Event and its two selected Editions are supported
+- **THEN** an eligible apply run can create all three records atomically
+- **AND** a duplicate Event still causes an identity-only skip without editing or writes
 
 ### Requirement: Add creates a supported new Event or skips
 Add SHALL create a new Event only when its identity and creation are supported. A recognized duplicate SHALL report `skipped` with the existing Event ID. A decision to decline new Event creation SHALL also report `skipped` with its reason. Neither skip SHALL make catalog or publication changes. Updating an existing Event SHALL require a targeted refresh.

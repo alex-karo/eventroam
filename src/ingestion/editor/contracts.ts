@@ -1,11 +1,15 @@
 import { z } from "zod";
 import {
-  researchDataSchema,
+  editionFindingSchema,
   researchQuestionSchema,
 } from "../research/contracts";
 
-export const EDITOR_PROMPT_VERSION = "catalog-editor-v13";
-const reason = z.string().trim().min(1).max(500);
+export const EDITOR_PROMPT_VERSION = "catalog-editor-v17";
+const reason = z
+  .string()
+  .trim()
+  .min(1)
+  .describe("Explain the editorial decision in 1-3 short sentences.");
 const keep = z.strictObject({ action: z.literal("keep"), reason });
 const accept = z.strictObject({ action: z.literal("accept") });
 const clear = z.strictObject({ action: z.literal("clear"), reason });
@@ -24,7 +28,7 @@ function clearable<T extends z.ZodType>(value: T) {
     clear,
   ]);
 }
-const facts = researchDataSchema.shape.editions.element.shape;
+const facts = editionFindingSchema.shape;
 const text = (max: number) => z.string().trim().min(1).max(max);
 const link = clearable(z.url().refine((url) => /^https?:\/\//.test(url)));
 export const eventFieldsSchema = z.strictObject({
@@ -85,6 +89,11 @@ export const editionFieldsSchema = z.strictObject({
   ).optional(),
   links: z.strictObject({ tickets: link.optional() }).optional(),
 });
+export const editionPlanSchema = z.strictObject({
+  editionKey: facts.key,
+  reason: reason.optional(),
+  fields: editionFieldsSchema,
+});
 export const readyEditorPlanSchema = z
   .strictObject({
     status: z.literal("ready"),
@@ -94,27 +103,27 @@ export const readyEditorPlanSchema = z
         fields: eventFieldsSchema,
       })
       .nullable(),
-    editions: z
-      .array(
-        z.strictObject({
-          editionKey: facts.key,
-          reason: reason.optional(),
-          fields: editionFieldsSchema,
-        }),
-      )
-      .max(20),
+    previousEdition: editionPlanSchema.nullable(),
+    currentOrNextEdition: editionPlanSchema.nullable(),
     unresolved: z.array(researchQuestionSchema).max(30),
   })
   .superRefine((plan, ctx) => {
-    const keys = plan.editions.map((edition) => edition.editionKey);
-    if (new Set(keys).size !== keys.length) {
+    if (
+      plan.previousEdition &&
+      plan.previousEdition.editionKey === plan.currentOrNextEdition?.editionKey
+    ) {
       ctx.addIssue({
         code: "custom",
-        path: ["editions"],
-        message: "Duplicate Edition target",
+        path: ["currentOrNextEdition"],
+        message: "One Edition cannot occupy both roles",
       });
     }
-    if (!plan.event && (plan.editions.length || !plan.unresolved.length)) {
+    if (
+      !plan.event &&
+      (plan.previousEdition ||
+        plan.currentOrNextEdition ||
+        !plan.unresolved.length)
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["event"],
@@ -129,7 +138,7 @@ export const editorPlanSchema = z.discriminatedUnion("status", [
 export type EditorOutput = z.infer<typeof editorPlanSchema>;
 export type EditorPlan = z.infer<typeof readyEditorPlanSchema>;
 export type EventPlan = NonNullable<EditorPlan["event"]>;
-export type EditionPlan = EditorPlan["editions"][number];
+export type EditionPlan = NonNullable<EditorPlan["currentOrNextEdition"]>;
 
 /** Transient plan after all accept actions have been replaced with validated sets. */
 type Resolved<T> = T extends { action: "accept" }

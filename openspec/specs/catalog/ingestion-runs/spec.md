@@ -33,11 +33,25 @@ Refresh SHALL associate its run with the targeted Event from the start. Add SHAL
 - **THEN** the run has no persistent Event association while the preview remains in its report
 
 ### Requirement: Reports distinguish work and outcome
-Each final report SHALL identify its attempt, add or refresh mode, scope, research and editorial status, catalog outcome, source checks, questions, errors, and known record IDs. Each success status SHALL describe only the success of its operation, without certifying complete Edition or field checks. Outcomes SHALL distinguish `created`, `updated`, `published`, `unchanged`, `skipped`, and `failed`. Refresh SHALL show the frozen date and saved and returned Edition counts.
+
+Each final report MUST identify its attempt, mode, scope, research status, editorial status, and catalog outcome.
+It MUST include source checks, questions, errors, and known record IDs.
+Each success status MUST describe the success of its operation. It MUST NOT certify complete Edition or field checks.
+Outcomes MUST distinguish `created`, `updated`, `published`, `unchanged`, `skipped`, and `failed`.
+Add and refresh MUST show the frozen date and saved and returned Edition counts.
+Returned counts MUST count non-null research slots. Saved counts MUST describe available catalog context.
 
 #### Scenario: A completed recheck changes nothing
+
 - **WHEN** refresh confirms accepted facts without a change
 - **THEN** the report identifies completed research and an unchanged catalog outcome
+
+#### Scenario: Reports retain the two-slot contract
+
+- **WHEN** add or refresh returns final research or editorial output
+- **THEN** the report retains the named Edition slots in the separate raw responses
+- **AND** add reports the same frozen `currentDate` used by research and editing
+- **AND** saved context and selected findings have separate counts
 
 ### Requirement: Reports retain findings and changes
 Successful previews and writes SHALL show old and new values with reasons. Applied changes SHALL match the catalog audit. After a write failure, reports SHALL retain prepared operations, available model responses, and the write error. They SHALL NOT require a separate diff of proposed old and new values. A rolled-back write SHALL leave applied `changes` empty. Available final research and editorial responses SHALL remain separate. A no-op SHALL retain explicit decisions and useful source summaries without inferring field verification. The catalog outcome SHALL NOT stand in for research completeness.
@@ -63,11 +77,19 @@ CLI, Studio, optional JSON export, and local run inspection SHALL use the same f
 - **THEN** its run ID and report content match the stored final report
 
 ### Requirement: Report consumers reject unsupported versions
-The current report contract SHALL use version 5. Consumers SHALL reject unsupported versions explicitly.
+
+The current report contract SHALL use version 6. Consumers SHALL reject unsupported versions explicitly.
 
 #### Scenario: An unsupported report version is read
+
 - **WHEN** a consumer receives a report version it does not support
 - **THEN** it rejects that version explicitly without silently converting or filling gaps
+
+#### Scenario: Historical reports remain unchanged
+
+- **WHEN** the active contract changes from version 5 to version 6
+- **THEN** newly generated reports use version 6 and stored historical report JSON remains unchanged
+- **AND** consumers do not convert or fill gaps in unsupported reports
 
 ### Requirement: Command results reflect attempt failures
 Failed research, editing, writing, or persistence SHALL produce a nonzero command result. Partial research alone SHALL not.

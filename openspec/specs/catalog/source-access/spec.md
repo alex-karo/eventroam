@@ -79,15 +79,48 @@ Discovery SHALL return bounded, unique, valid HTTP(S) candidates with titles and
 - **THEN** those candidates are excluded without hiding later valid candidates within the result bound
 
 ### Requirement: Discovery is limited to material source needs
-Discovery SHALL be bounded to finding an unknown official source or resolving an inaccessible or wrong source or a material identity or date conflict. Missing optional fields or an unannounced next Edition alone SHALL NOT justify another search. A discovered result SHALL not support catalog facts until inspected.
+
+Discovery MUST serve an unknown official source, source recovery, a material identity or date conflict, or an essential missing Edition fact.
+Research MUST use relevant known links and prior results before another search.
+The last case MUST concern an Edition supported by inspected evidence.
+Essential facts MUST concern Edition identification, dates, or publication requirements.
+Missing optional facts or an unannounced next Edition alone MUST NOT justify search.
+Current source-recovery restrictions MUST still apply.
 
 #### Scenario: Official sources contain no next announcement
+
 - **WHEN** relevant accessible official sources have been checked without finding a next announcement
-- **THEN** research reports that finding for the inspected sources without searching solely for the missing announcement
+- **THEN** research reports that finding without searching solely for the missing announcement
+- **AND** an empty `currentOrNextEdition` slot alone does not authorize discovery
 
 #### Scenario: A known source conflicts with Event identity
+
 - **WHEN** relevant known links cannot resolve a material identity or date conflict
-- **THEN** research may discover and inspect a candidate source within the budget
+- **THEN** research can discover and inspect a candidate within the budget if the scope permits source recovery
+- **AND** current identity contradictions still require full refresh without replacement-site search
+
+#### Scenario: An identified Edition lacks an essential fact
+
+- **WHEN** inspected evidence supports an Edition but relevant known pages leave identification, dates, or a publication-required fact unresolved
+- **THEN** research can make a targeted search for that fact within the shared budget
+- **AND** it uses relevant prior results before another search
+- **AND** search highlights remain leads until the destination is inspected
+
+#### Scenario: Optional information is missing
+
+- **WHEN** only optional prices or participant size remain unknown
+- **THEN** those gaps alone do not authorize discovery
+
+#### Scenario: Sources explicitly state that no next Edition is announced
+
+- **WHEN** inspected official material states that the next Edition has not been announced
+- **THEN** research can complete that announcement check without further search
+
+#### Scenario: A search question is resolved
+
+- **WHEN** inspected evidence resolves the question that authorized discovery
+- **THEN** that question no longer authorizes another search
+- **AND** permission does not require a search for every missing field
 
 ### Requirement: Source summaries identify useful inspected evidence
 The research model SHALL summarize inspected sources that informed findings and SHALL distinguish them from unread leads. A useful partial page MAY support a fact while its missing information remains unverified. The application SHALL retain model summaries without independently checking their claims against source-read history. Source summaries SHALL remain available for no-op and failed-write outcomes.

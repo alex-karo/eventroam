@@ -120,7 +120,8 @@ export const evalCaseSchema = z.object({
         .object({
           status: z.enum(["success", "partial", "failed"]),
           failureReason: z.literal("identity_conflict").optional(),
-          editionKeys: z.array(z.string()).optional(),
+          previousEdition: z.string().nullable().optional(),
+          currentOrNextEdition: z.string().nullable().optional(),
           newEditionYear: z.number().int().optional(),
           facts: z
             .array(

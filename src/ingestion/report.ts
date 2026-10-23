@@ -120,18 +120,21 @@ function assembleReport({
     .filter((_, index) => receipts[index]?.changed)
     .map((operation) => operation.kind);
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
-    currentDate:
-      input.mode === "refresh" ? (context?.currentDate ?? null) : null,
+    currentDate: context?.currentDate ?? null,
     limits,
     workload: {
       savedEditions:
-        input.mode === "refresh"
-          ? (context?.catalog[0]?.editions.length ?? 0)
-          : 0,
+        context?.catalog.reduce(
+          (count, event) => count + event.editions.length,
+          0,
+        ) ?? 0,
       returnedEditions: finalCandidate?.success
-        ? (finalCandidate.data.data?.editions.length ?? 0)
+        ? [
+            finalCandidate.data.data?.previousEdition,
+            finalCandidate.data.data?.currentOrNextEdition,
+          ].filter(Boolean).length
         : 0,
     },
     runId,

@@ -18,23 +18,22 @@ const candidate = {
     eventName: "Studio Fixture Festival",
     sources: [{ url: sourceUrl, information: OFFLINE_SENTINEL }],
     links: { socials: {} },
-    editions: [
-      {
-        key: "2027",
-        year: { value: 2027, reason: OFFLINE_SENTINEL },
-        dates: {
-          value: {
-            startsOn: "2027-07-01",
-            endsOn: "2027-07-03",
-            state: "confirmed",
-          },
-          reason: OFFLINE_SENTINEL,
+    previousEdition: null,
+    currentOrNextEdition: {
+      key: "2027",
+      year: { value: 2027, reason: OFFLINE_SENTINEL },
+      dates: {
+        value: {
+          startsOn: "2027-07-01",
+          endsOn: "2027-07-03",
+          state: "confirmed",
         },
-        countryCode: { value: "PT", reason: OFFLINE_SENTINEL },
-        locality: { value: "Lisbon", reason: OFFLINE_SENTINEL },
-        links: {},
+        reason: OFFLINE_SENTINEL,
       },
-    ],
+      countryCode: { value: "PT", reason: OFFLINE_SENTINEL },
+      locality: { value: "Lisbon", reason: OFFLINE_SENTINEL },
+      links: {},
+    },
   },
   errors: [],
   unresolved: [],

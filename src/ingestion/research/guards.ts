@@ -1,10 +1,14 @@
 import type Database from "better-sqlite3";
 import { readResearchCountryBaseline } from "@/catalog/read/research";
-import type { ResearchCandidate, ResearchError } from "./contracts";
+import type {
+  ResearchCandidate,
+  ResearchError,
+  ResearchEdition,
+} from "./contracts";
 import type { ResearchCatalog } from "./context";
 import type { CatalogResearchInput } from "../contracts";
 
-type Edition = NonNullable<ResearchCandidate["data"]>["editions"][number];
+type Edition = ResearchEdition;
 type SavedEditions = ResearchCatalog[number]["editions"];
 const invalid = (message: string): ResearchError => ({
   code: "invalid_candidate",
@@ -57,22 +61,21 @@ export function validateRefresh(
   if (candidate.status === "failed") {
     return null;
   }
-  const editions = candidate.data!.editions;
-  if (scope === "current" && editions.length > 1) {
-    return invalid("Current refresh may return at most one Edition");
+  const data = candidate.data!;
+  if (
+    scope === "current" &&
+    (data.previousEdition ||
+      data.summary ||
+      data.links.website !== undefined ||
+      Object.keys(data.links.socials).length)
+  ) {
+    return invalid(
+      "Current refresh permits only current-or-next Edition findings",
+    );
   }
-  const savedKeys = new Set(saved.map((e) => e.editionKey));
-  const newEditions = editions.filter((e) => !savedKeys.has(e.key));
-  if (scope === "full" && newEditions.length > 1) {
-    return invalid("Full refresh may return at most one new Edition");
-  }
-  if (scope === "full" && savedKeys.size + newEditions.length > 20) {
-    return {
-      code: "limit_reached",
-      stage: "validation",
-      message: "Full refresh exceeds the 20-Edition boundary",
-    };
-  }
+  const editions = [data.previousEdition, data.currentOrNextEdition].filter(
+    (edition) => edition !== null,
+  );
   return validateCountries(editions, saved);
 }
 /** Executed inside the writer's outer transaction, before any catalog operation. */

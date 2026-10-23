@@ -15,7 +15,8 @@ const candidate = (): ResearchCandidate => ({
     reason: "Official organizer identifies the festival",
     sources: [],
     links: { socials: {} },
-    editions: [{ key: "2027", links: {} }],
+    previousEdition: null,
+    currentOrNextEdition: { key: "2027", links: {} },
   },
 });
 const valid = (value: unknown) =>
@@ -68,18 +69,22 @@ test("envelope keeps research completion separate from diagnostics", () => {
   ).toBe(false);
 });
 
-test("classification requires a complete list and one bounded reason", () => {
+test("classification requires a complete list and a non-empty reason", () => {
   for (const classification of [
-    { value: ["music", "camping"], reason: "a".repeat(500) },
+    { value: ["music", "camping"], reason: "a".repeat(501) },
     { value: [], reason: "All saved categories explicitly refuted" },
   ]) {
     const value = candidate();
-    value.data!.editions[0] = { key: "2027", links: {}, classification };
+    value.data!.currentOrNextEdition! = {
+      key: "2027",
+      links: {},
+      classification,
+    };
     expect(valid(value)).toBe(true);
   }
   for (const classification of [
     { add: { value: ["music"], reason: "Legacy patch" } },
-    { value: ["music"], reason: "a".repeat(501) },
+    { value: ["music"], reason: "" },
     { value: null, reason: "Cannot refute individual terms with null" },
   ]) {
     const value = candidate();
@@ -88,7 +93,8 @@ test("classification requires a complete list and one bounded reason", () => {
         ...value,
         data: {
           ...value.data,
-          editions: [{ key: "2027", links: {}, classification }],
+          previousEdition: null,
+          currentOrNextEdition: { key: "2027", links: {}, classification },
         },
       }),
     ).toBe(false);
@@ -97,7 +103,7 @@ test("classification requires a complete list and one bounded reason", () => {
 
 test("strict named facts require reasons and complete groups", () => {
   const value = candidate();
-  value.data!.editions[0] = {
+  value.data!.currentOrNextEdition! = {
     key: "2027",
     links: {},
     dates: {
@@ -145,7 +151,11 @@ test("strict named facts require reasons and complete groups", () => {
         ...value,
         data: {
           ...value.data,
-          editions: [{ ...value.data!.editions[0], ...patch }],
+          previousEdition: null,
+          currentOrNextEdition: {
+            ...value.data!.currentOrNextEdition!,
+            ...patch,
+          },
         },
       }),
     ).toBe(false);
@@ -155,7 +165,8 @@ test("strict named facts require reasons and complete groups", () => {
       ...value,
       data: {
         ...value.data,
-        editions: [value.data!.editions[0], value.data!.editions[0]],
+        previousEdition: value.data!.currentOrNextEdition!,
+        currentOrNextEdition: value.data!.currentOrNextEdition!,
       },
     }),
   ).toBe(false);
@@ -170,7 +181,7 @@ test("ticket blocks and social slots reject legacy and malformed proposals", () 
       other: "https://mastodon.social/@festival",
     },
   };
-  value.data!.editions[0].tickets = {
+  value.data!.currentOrNextEdition!.tickets = {
     value: {
       variants: [
         { label: "Early Bird", availability: "sold_out" },
@@ -229,12 +240,11 @@ test("ticket blocks and social slots reject legacy and malformed proposals", () 
         ...value,
         data: {
           ...value.data,
-          editions: [
-            {
-              ...value.data!.editions[0],
-              tickets: { value: block, reason: "Official ticket page" },
-            },
-          ],
+          previousEdition: null,
+          currentOrNextEdition: {
+            ...value.data!.currentOrNextEdition!,
+            tickets: { value: block, reason: "Official ticket page" },
+          },
         },
       }),
     ).toBe(false);
@@ -313,7 +323,7 @@ test("money uses currency exponents and rejects excess precision or unsafe units
   expect(() => majorToMinor(Number.MAX_SAFE_INTEGER, "EUR")).toThrow();
   expect(() => majorToMinor(1, "ZZZ")).toThrow();
   const value = candidate();
-  value.data!.editions[0].tickets = {
+  value.data!.currentOrNextEdition!.tickets = {
     value: {
       variants: [],
       basePrice: {
@@ -363,15 +373,14 @@ test("money uses currency exponents and rejects excess precision or unsafe units
         ...value,
         data: {
           ...value.data,
-          editions: [
-            {
-              ...value.data!.editions[0],
-              tickets: {
-                value: { variants: [], basePrice },
-                reason: "Official",
-              },
+          previousEdition: null,
+          currentOrNextEdition: {
+            ...value.data!.currentOrNextEdition!,
+            tickets: {
+              value: { variants: [], basePrice },
+              reason: "Official",
             },
-          ],
+          },
         },
       }),
     ).toBe(false);

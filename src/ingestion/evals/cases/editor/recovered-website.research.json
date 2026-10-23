@@ -24,70 +24,69 @@
         "website": "https://harborechofestival.co.uk/",
         "socials": {}
       },
-      "editions": [
-        {
-          "key": "2027",
-          "year": {
-            "value": 2027,
-            "reason": "The official programme identifies this as Harbor Echo Castlewellan 2027."
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "key": "2027",
+        "year": {
+          "value": 2027,
+          "reason": "The official programme identifies this as Harbor Echo Castlewellan 2027."
+        },
+        "dates": {
+          "value": {
+            "startsOn": "2027-01-23",
+            "endsOn": "2027-01-30",
+            "state": "confirmed"
           },
-          "dates": {
-            "value": {
-              "startsOn": "2027-01-23",
-              "endsOn": "2027-01-30",
-              "state": "confirmed"
-            },
-            "reason": "The official programme confirms the festival dates as 23–30 January 2027."
+          "reason": "The official programme confirms the festival dates as 23–30 January 2027."
+        },
+        "scheduleStatus": {
+          "value": "scheduled",
+          "reason": "The official programme publishes the 2027 programme and confirmed dates."
+        },
+        "displayName": {
+          "value": "Harbor Echo Castlewellan 2027",
+          "reason": "This is the edition heading on the official programme."
+        },
+        "venueName": {
+          "value": "Castlewellan Grounds",
+          "reason": "The official programme names Castlewellan Grounds as the venue."
+        },
+        "venueAddress": {
+          "value": "Festival Lane, Castlewellan, Northern Ireland, United Kingdom",
+          "reason": "The official programme gives Festival Lane, Castlewellan as the venue location."
+        },
+        "locality": {
+          "value": "Castlewellan",
+          "reason": "The official programme places the festival in Castlewellan."
+        },
+        "administrativeArea": {
+          "value": "Northern Ireland",
+          "reason": "The official programme identifies Northern Ireland as the festival's region."
+        },
+        "countryCode": {
+          "value": "GB",
+          "reason": "The official programme identifies the location as the United Kingdom, consistent with the GB country code."
+        },
+        "classification": {
+          "value": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ],
+          "reason": "The official programme describes a festival with a confirmed outdoor music programme. These supported terms form the classification for this edition."
+        },
+        "tickets": {
+          "value": {
+            "variants": [],
+            "basePrice": {
+              "kind": "free",
+              "coverage": "full_programme"
+            }
           },
-          "scheduleStatus": {
-            "value": "scheduled",
-            "reason": "The official programme publishes the 2027 programme and confirmed dates."
-          },
-          "displayName": {
-            "value": "Harbor Echo Castlewellan 2027",
-            "reason": "This is the edition heading on the official programme."
-          },
-          "venueName": {
-            "value": "Castlewellan Grounds",
-            "reason": "The official programme names Castlewellan Grounds as the venue."
-          },
-          "venueAddress": {
-            "value": "Festival Lane, Castlewellan, Northern Ireland, United Kingdom",
-            "reason": "The official programme gives Festival Lane, Castlewellan as the venue location."
-          },
-          "locality": {
-            "value": "Castlewellan",
-            "reason": "The official programme places the festival in Castlewellan."
-          },
-          "administrativeArea": {
-            "value": "Northern Ireland",
-            "reason": "The official programme identifies Northern Ireland as the festival's region."
-          },
-          "countryCode": {
-            "value": "GB",
-            "reason": "The official programme identifies the location as the United Kingdom, consistent with the GB country code."
-          },
-          "classification": {
-            "value": [
-              "validation:festival",
-              "validation:openair",
-              "validation:music"
-            ],
-            "reason": "The official programme describes a festival with a confirmed outdoor music programme. These supported terms form the classification for this edition."
-          },
-          "tickets": {
-            "value": {
-              "variants": [],
-              "basePrice": {
-                "kind": "free",
-                "coverage": "full_programme"
-              }
-            },
-            "reason": "The official programme states that all programme admission is free, with no booking or paid ticket categories."
-          },
-          "links": {}
-        }
-      ]
+          "reason": "The official programme states that all programme admission is free, with no booking or paid ticket categories."
+        },
+        "links": {}
+      }
     },
     "errors": [],
     "unresolved": []

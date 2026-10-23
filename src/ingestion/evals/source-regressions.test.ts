@@ -23,35 +23,34 @@ test("known-offer eval accepts qualified variants and catches a dropped price", 
         },
       ],
       links: { socials: {} },
-      editions: [
-        {
-          key: "2027",
-          links: {},
-          tickets: {
-            value: {
-              basePrice: null,
-              variants: [
-                {
-                  label: "Three-concert pass",
-                  amount: 9.99,
-                  currency: "GBP",
-                  terms: "Three paid concerts only",
-                  availability: "unknown",
-                },
-                {
-                  label: "Stay package",
-                  amount: 899,
-                  currency: "GBP",
-                  terms: "Lodging and three concerts only",
-                  availability: "unknown",
-                },
-              ],
-            },
-            reason:
-              "Published offers do not cover the full programme. The dollar price has no verified currency.",
+      previousEdition: null,
+      currentOrNextEdition: {
+        key: "2027",
+        links: {},
+        tickets: {
+          value: {
+            basePrice: null,
+            variants: [
+              {
+                label: "Three-concert pass",
+                amount: 9.99,
+                currency: "GBP",
+                terms: "Three paid concerts only",
+                availability: "unknown",
+              },
+              {
+                label: "Stay package",
+                amount: 899,
+                currency: "GBP",
+                terms: "Lodging and three concerts only",
+                availability: "unknown",
+              },
+            ],
           },
+          reason:
+            "Published offers do not cover the full programme. The dollar price has no verified currency.",
         },
-      ],
+      },
     },
     errors: [],
     unresolved: [
@@ -91,7 +90,8 @@ test("known-offer eval accepts qualified variants and catches a dropped price", 
       ],
     };
     expect(scoreCase(item, guessed).passed).toBe(false);
-    const variants = candidate.data!.editions[0].tickets!.value.variants;
+    const variants =
+      candidate.data!.currentOrNextEdition!.tickets!.value.variants;
     for (const availability of [
       undefined,
       "unknown",
@@ -151,16 +151,15 @@ test("stale-language eval rejects an editor downgrade of confirmed dates", async
         },
       ],
       links: { socials: {} },
-      editions: [
-        {
-          key: "2027",
-          dates: {
-            value: dates,
-            reason: "Current official programme confirms these dates",
-          },
-          links: { tickets: "https://snow-meadow.example/hu/student/booking" },
+      previousEdition: null,
+      currentOrNextEdition: {
+        key: "2027",
+        dates: {
+          value: dates,
+          reason: "Current official programme confirms these dates",
         },
-      ],
+        links: { tickets: "https://snow-meadow.example/hu/student/booking" },
+      },
     },
     errors: [],
     unresolved: [
@@ -181,7 +180,7 @@ test("stale-language eval rejects an editor downgrade of confirmed dates", async
     const baseline = await runFixtureResearch(item.input, deps);
     expect(scoreCase(item, baseline).passed).toBe(true);
     expect(baseline.researchStatus).toBe("partial");
-    expect(candidate.data!.editions[0].tickets).toBeUndefined();
+    expect(candidate.data!.currentOrNextEdition!.tickets).toBeUndefined();
     expect(baseline.changes).toContainEqual(
       expect.objectContaining({
         field: "links",
@@ -202,7 +201,7 @@ test("stale-language eval rejects an editor downgrade of confirmed dates", async
       generateEditor: async (prompt) => {
         const { research, catalog } = JSON.parse(prompt);
         const plan = fixtureEditorPlan(research, catalog);
-        plan.editions[0].fields.dates = {
+        plan.currentOrNextEdition!.fields.dates = {
           action: "set",
           value: { ...dates, state: "provisional" },
           reason: "Unsupported downgrade",

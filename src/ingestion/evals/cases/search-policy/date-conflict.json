@@ -67,7 +67,6 @@
     "forbidden": [],
     "research": {
       "status": "success",
-      "editionKeys": ["2027"],
       "facts": [
         {
           "editionKey": "2027",
@@ -77,7 +76,9 @@
             "endsOn": "2027-01-30"
           }
         }
-      ]
+      ],
+      "previousEdition": null,
+      "currentOrNextEdition": "2027"
     },
     "toolUse": {
       "minSearches": 1,
@@ -98,7 +99,7 @@
         {
           "url": "https://castlewellangrounds.co.uk/events/harbor-echo-2027",
           "title": "Harbor Echo official programme",
-          "highlights": ["Castlewellan, 23\u201330 January 2027."]
+          "highlights": ["Castlewellan, 23–30 January 2027."]
         }
       ]
     }

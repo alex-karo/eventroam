@@ -22,7 +22,8 @@ const candidate = (): ResearchCandidate => ({
     reason: "Official organizer identifies this festival",
     sources: [],
     links: { socials: {} },
-    editions: [{ key: "2027", links: {} }],
+    previousEdition: null,
+    currentOrNextEdition: { key: "2027", links: {} },
   },
 });
 const create = () => {
@@ -110,20 +111,19 @@ test("add with recognized existing ID skips every proposed update and logs name 
     eventName: "Changed Fest",
     summary: { value: "Changed summary", reason: "Official revision" },
     links: { website: "https://new.example/", socials: {} },
-    editions: [
-      {
-        key: "2027",
-        year: { value: 2027, reason: "Official year" },
-        tickets: {
-          value: {
-            variants: [{ label: "Regular", availability: "available" }],
-            basePrice: null,
-          },
-          reason: "Official ticket page",
+    previousEdition: null,
+    currentOrNextEdition: {
+      key: "2027",
+      year: { value: 2027, reason: "Official year" },
+      tickets: {
+        value: {
+          variants: [{ label: "Regular", availability: "available" }],
+          basePrice: null,
         },
-        links: { tickets: "https://tickets.example/" },
+        reason: "Official ticket page",
       },
-    ],
+      links: { tickets: "https://tickets.example/" },
+    },
   };
   const result = prepareEditorialFixture(
     proposed,
@@ -147,17 +147,18 @@ test("refresh maps grouped facts and reasons while preserving saved name", () =>
   const proposed = candidate();
   proposed.data!.eventId = eventId;
   proposed.data!.eventName = "Observed New Name";
-  proposed.data!.editions = [
-    {
+  Object.assign(proposed.data!, {
+    previousEdition: null,
+    currentOrNextEdition: {
       key: "2027",
       year: { value: 2027, reason: "Programme year" },
       dates: {
         value: {
           startsOn: "2027-06-10",
-          endsOn: "2027-06-12",
+          endsOn: "2027-06-20",
           state: "confirmed",
         },
-        reason: "Confirmed programme window",
+        reason: "First and last programme dates across two periods",
       },
       coordinates: {
         value: { latitude: 10, longitude: 20, precision: "exact" },
@@ -166,7 +167,7 @@ test("refresh maps grouped facts and reasons while preserving saved name", () =>
       venueName: { value: "Main Field", reason: "Organizer moved venue" },
       links: {},
     },
-  ];
+  });
   const prepared = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
@@ -179,7 +180,7 @@ test("refresh maps grouped facts and reasons while preserving saved name", () =>
     data: {
       editionYear: 2027,
       startsOn: "2027-06-10",
-      endsOn: "2027-06-12",
+      endsOn: "2027-06-20",
       dateState: "confirmed",
       latitude: 10,
       longitude: 20,
@@ -188,16 +189,18 @@ test("refresh maps grouped facts and reasons while preserving saved name", () =>
     },
   });
   expect(prepared.explanations[update!.operationKey]).toMatchObject({
-    starts_on: ["Confirmed programme window"],
-    ends_on: ["Confirmed programme window"],
-    date_state: ["Confirmed programme window"],
+    starts_on: ["First and last programme dates across two periods"],
+    ends_on: ["First and last programme dates across two periods"],
+    date_state: ["First and last programme dates across two periods"],
     latitude: ["Venue map"],
     venue_name: ["Organizer moved venue"],
   });
   applyCatalogItem(client, prepared.operations);
   const [saved] = readResearchCatalog(client);
   expect(saved.canonicalName).toBe("Example Fest");
+  expect(saved.editions).toHaveLength(1);
   expect(saved.editions[0].startsOn).toBe("2027-06-10");
+  expect(saved.editions[0].endsOn).toBe("2027-06-20");
 });
 
 test("complete nullable groups clear both components and preserve zone", () => {
@@ -218,14 +221,15 @@ test("complete nullable groups clear both components and preserve zone", () => {
   });
   const proposed = candidate();
   proposed.data!.eventId = event.id;
-  proposed.data!.editions = [
-    {
+  Object.assign(proposed.data!, {
+    previousEdition: null,
+    currentOrNextEdition: {
       key: "2027",
       dates: { value: null, reason: "Dates withdrawn" },
       coordinates: { value: null, reason: "Venue withdrawn" },
       links: {},
     },
-  ];
+  });
   const prepared = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
@@ -298,7 +302,7 @@ test.each([
     if (owner === "event") {
       proposed.data!.links.website = "https://SITE.example:443/#fragment";
     } else {
-      proposed.data!.editions[0].links.tickets =
+      proposed.data!.currentOrNextEdition!.links.tickets =
         "https://TICKETS.example:443/#fragment";
     }
     const refreshInput = {
@@ -338,7 +342,8 @@ test.each([
     if (owner === "event") {
       proposed.data!.links.website = "https://new.example/";
     } else {
-      proposed.data!.editions[0].links.tickets = "https://new.example/";
+      proposed.data!.currentOrNextEdition!.links.tickets =
+        "https://new.example/";
     }
     const changed = prepareEditorialFixture(
       proposed,
@@ -373,7 +378,7 @@ test("base prices convert major to minor and variants retain major", () => {
     ["KWD", 1.234, 1234],
   ] as const) {
     const proposed = candidate();
-    proposed.data!.editions[0].tickets = {
+    proposed.data!.currentOrNextEdition!.tickets = {
       value: {
         variants: [{ label: "Regular", amount, currency }],
         basePrice: {
@@ -434,7 +439,7 @@ test("reordered qualified ticket variants and an equivalent base price produce n
     priceDetails: variants,
   });
   const proposed = candidate();
-  proposed.data!.editions[0].tickets = {
+  proposed.data!.currentOrNextEdition!.tickets = {
     value: {
       variants: [...variants].reverse(),
       basePrice: {
@@ -472,7 +477,7 @@ test("classification finding replaces explicitly refuted assignments", () => {
   fx.assignTerm(edition, old);
   const proposed = candidate();
   proposed.data!.eventId = event.id;
-  proposed.data!.editions[0].classification = {
+  proposed.data!.currentOrNextEdition!.classification = {
     value: [newTerm.id],
     reason: "New classification replaces explicitly refuted old classification",
   };
@@ -516,7 +521,7 @@ test("omitted tickets and independent facts preserve saved values after relocati
       message: "No supported price; one shop category could not be read",
     },
   ];
-  proposed.data!.editions[0].venueName = {
+  proposed.data!.currentOrNextEdition!.venueName = {
     value: "New Field",
     reason: "Organizer moved venues",
   };
@@ -539,10 +544,16 @@ test("omitted tickets and independent facts preserve saved values after relocati
 
 test("same ticket URL can be assigned to two editions independently", () => {
   const proposed = candidate();
-  proposed.data!.editions = [
-    { key: "2027", links: { tickets: "https://tickets.example/all" } },
-    { key: "2028", links: { tickets: "https://tickets.example/all" } },
-  ];
+  Object.assign(proposed.data!, {
+    previousEdition: {
+      key: "2027",
+      links: { tickets: "https://tickets.example/all" },
+    },
+    currentOrNextEdition: {
+      key: "2028",
+      links: { tickets: "https://tickets.example/all" },
+    },
+  });
   const prepared = prepareEditorialFixture(proposed, [], input, []);
   const links = prepared.operations.filter((op) => op.kind === "replaceLinks");
   expect(links).toHaveLength(2);
@@ -567,7 +578,7 @@ test("writer rejection rolls back a supplied link replacement", () => {
   const proposed = candidate();
   proposed.data!.eventId = event.id;
   proposed.data!.links.website = "https://new.example/";
-  proposed.data!.editions[0].dates = {
+  proposed.data!.currentOrNextEdition!.dates = {
     value: null,
     reason: "Official dates withdrawn",
   };
@@ -589,7 +600,7 @@ test("explicit cancellation updates schedule without renaming Event identity", (
   const proposed = candidate();
   proposed.data!.eventId = eventId;
   proposed.data!.eventName = "Changed Name";
-  proposed.data!.editions[0].scheduleStatus = {
+  proposed.data!.currentOrNextEdition!.scheduleStatus = {
     value: "cancelled",
     reason: "Organizer cancelled this edition",
   };
@@ -638,8 +649,9 @@ test.each([
       terms.push(fx.existingTerm("topic", "music"));
     }
     const proposed = candidate();
-    proposed.data!.editions = [
-      {
+    Object.assign(proposed.data!, {
+      previousEdition: null,
+      currentOrNextEdition: {
         key: "2027",
         year: { value: 2027, reason: "Official edition year" },
         dates: {
@@ -657,7 +669,7 @@ test.each([
         },
         links: {},
       },
-    ];
+    });
     const prepared = prepareEditorialFixture(proposed, [], input, terms);
     expect(prepared.errors).toEqual([]);
     expect(prepared.operations.some((op) => op.kind === "publishEdition")).toBe(
@@ -690,8 +702,8 @@ test("a historical Edition publishes its Event while a new undated Edition stays
   const client = testDatabase().client;
   const terms = testFixtures(client).festivalTerms();
   const proposed = candidate();
-  proposed.data!.editions = [
-    {
+  Object.assign(proposed.data!, {
+    previousEdition: {
       key: "2023",
       year: { value: 2023, reason: "Official past edition year" },
       dates: {
@@ -709,7 +721,7 @@ test("a historical Edition publishes its Event while a new undated Edition stays
       },
       links: {},
     },
-    {
+    currentOrNextEdition: {
       key: "2027",
       year: { value: 2027, reason: "Announced edition year" },
       countryCode: { value: "PT", reason: "Official country" },
@@ -719,7 +731,7 @@ test("a historical Edition publishes its Event while a new undated Edition stays
       },
       links: {},
     },
-  ];
+  });
   const prepared = prepareEditorialFixture(proposed, [], input, terms);
   expect(prepared.errors).toEqual([]);
   expect(
@@ -752,7 +764,7 @@ test("research size survives context, preparation, writer and omission", () => {
   const { client, eventId } = create();
   const proposed = candidate();
   proposed.data!.eventId = eventId;
-  proposed.data!.editions[0].sizeEstimate = {
+  proposed.data!.currentOrNextEdition!.sizeEstimate = {
     value: 8000,
     reason: "2026 participant count supports this edition estimate",
   };
@@ -766,7 +778,7 @@ test("research size survives context, preparation, writer and omission", () => {
   expect(prepared.errors).toEqual([]);
   applyCatalogItem(client, prepared.operations);
   expect(readResearchCatalog(client)[0].editions[0].sizeEstimate).toBe(8000);
-  delete proposed.data!.editions[0].sizeEstimate;
+  delete proposed.data!.currentOrNextEdition!.sizeEstimate;
   const omitted = prepareEditorialFixture(
     proposed,
     readResearchCatalog(client),
@@ -777,7 +789,7 @@ test("research size survives context, preparation, writer and omission", () => {
     true,
   );
   expect(readResearchCatalog(client)[0].editions[0].sizeEstimate).toBe(8000);
-  proposed.data!.editions[0].sizeEstimate = {
+  proposed.data!.currentOrNextEdition!.sizeEstimate = {
     value: null,
     reason: "Organizer explicitly withdrew its participant estimate",
   };

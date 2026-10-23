@@ -1,4 +1,7 @@
-import type { ResearchCandidate } from "@/ingestion/research/contracts";
+import type {
+  ResearchCandidate,
+  ResearchEdition,
+} from "@/ingestion/research/contracts";
 import type { ResearchCatalog } from "@/ingestion/research/context";
 import {
   validateResearch,
@@ -8,7 +11,7 @@ import type {
   CatalogResearchInput,
   ResearchDependencies,
 } from "@/ingestion/contracts";
-import type { EditorPlan } from "@/ingestion/editor/contracts";
+import type { EditionPlan, EditorPlan } from "@/ingestion/editor/contracts";
 import { modelContext } from "@/ingestion/research/agent/input";
 import {
   runCatalogResearch as executeResearch,
@@ -25,6 +28,31 @@ export function fixtureEditorPlan(
     fact.value === null
       ? { action: "clear" as const, reason: fact.reason }
       : { action: "accept" as const };
+  const editionPlan = (finding: ResearchEdition | null): EditionPlan | null => {
+    if (!finding) {
+      return null;
+    }
+    const { key, links, ...facts } = finding;
+    const old = saved?.editions.find((edition) => edition.editionKey === key);
+    return {
+      editionKey: key,
+      ...(!old ? { reason: "Fixture identifies distinct Edition" } : {}),
+      fields: {
+        ...Object.fromEntries(
+          Object.entries(facts).map(([name, fact]) => [name, action(fact)]),
+        ),
+        links: links.tickets
+          ? {
+              tickets: {
+                action: "set",
+                value: links.tickets,
+                reason: "Fixture ticket association",
+              },
+            }
+          : {},
+      },
+    };
+  };
   return {
     status: "ready",
     event: {
@@ -56,28 +84,8 @@ export function fixtureEditorPlan(
         },
       },
     },
-    editions: data.editions.map(({ key, classification, links, ...facts }) => {
-      const old = saved?.editions.find((edition) => edition.editionKey === key);
-      return {
-        editionKey: key,
-        ...(!old ? { reason: "Fixture identifies distinct Edition" } : {}),
-        fields: {
-          ...Object.fromEntries(
-            Object.entries(facts).map(([name, fact]) => [name, action(fact)]),
-          ),
-          ...(classification ? { classification: action(classification) } : {}),
-          links: links.tickets
-            ? {
-                tickets: {
-                  action: "set",
-                  value: links.tickets,
-                  reason: "Fixture ticket association",
-                },
-              }
-            : {},
-        },
-      };
-    }),
+    previousEdition: editionPlan(data.previousEdition),
+    currentOrNextEdition: editionPlan(data.currentOrNextEdition),
     unresolved: [],
   };
 }

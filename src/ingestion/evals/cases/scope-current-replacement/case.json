@@ -93,7 +93,6 @@
     "forbidden": [],
     "research": {
       "status": "success",
-      "editionKeys": ["replacement-weekend"],
       "facts": [
         {
           "editionKey": "replacement-weekend",
@@ -135,7 +134,9 @@
         {
           "field": "links.socials.other"
         }
-      ]
+      ],
+      "previousEdition": null,
+      "currentOrNextEdition": "replacement-weekend"
     }
   }
 }

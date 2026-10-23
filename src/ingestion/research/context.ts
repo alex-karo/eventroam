@@ -1,9 +1,8 @@
 import type Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { taxonomyTerms } from "@/db/schema";
 import {
   readResearchCatalog,
   readResearchEvent,
+  readResearchTerms,
 } from "@/catalog/read/research";
 import type { CatalogResearchInput } from "../contracts";
 import type { KnownSourceLink } from "../tools/contracts";
@@ -20,14 +19,7 @@ export function loadResearchContext(
     throw new Error("Event not found");
   }
   const catalog = target ? [target] : readResearchCatalog(client);
-  const terms = drizzle(client)
-    .select({
-      id: taxonomyTerms.id,
-      facet: taxonomyTerms.facet,
-      slug: taxonomyTerms.slug,
-    })
-    .from(taxonomyTerms)
-    .all();
+  const terms = readResearchTerms(client);
   const knownLinks: KnownSourceLink[] = [
     ...(target?.links.map(({ url, kind, official }) => ({
       url,

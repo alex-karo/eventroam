@@ -122,20 +122,19 @@ export async function runTraceFixture(
         eventName: "Model name mismatch",
         sources: [{ url: TRACE_PUBLIC_URL, information: TRACE_CANDIDATE }],
         links: { socials: {} },
-        editions:
+        previousEdition: null,
+        currentOrNextEdition:
           scenario === "unchanged"
-            ? []
-            : [
-                {
-                  key: "2023",
-                  links: {},
-                  year: { value: 2027, reason: TRACE_CANDIDATE },
-                  scheduleStatus: {
-                    value: "announced",
-                    reason: TRACE_CANDIDATE,
-                  },
+            ? null
+            : {
+                key: "2023",
+                links: {},
+                year: { value: 2027, reason: TRACE_CANDIDATE },
+                scheduleStatus: {
+                  value: "announced",
+                  reason: TRACE_CANDIDATE,
                 },
-              ],
+              },
       },
       errors:
         scenario === "target"
@@ -171,7 +170,8 @@ export async function runTraceFixture(
         status: "rejected",
         reason: "Research concerns a different same-name festival",
         event: null,
-        editions: [],
+        previousEdition: null,
+        currentOrNextEdition: null,
         unresolved: [],
       };
     }
@@ -412,21 +412,21 @@ function addFixtureDateScenario(
   scenario: TraceFixtureScenario,
 ) {
   if (["dates", "invalid_dates"].includes(scenario)) {
-    (candidate as { data: { editions: unknown[] } }).data.editions = [
-      {
-        key: "2026",
-        links: {},
-        year: { value: 2026, reason: TRACE_CANDIDATE },
-        dates: {
-          value: {
-            startsOn: scenario === "invalid_dates" ? "bad-date" : "2026-07-01",
-            endsOn: "2026-07-03",
-            state: "confirmed",
-          },
-          reason: TRACE_CANDIDATE,
+    (
+      candidate as { data: { currentOrNextEdition: unknown } }
+    ).data.currentOrNextEdition = {
+      key: "2026",
+      links: {},
+      year: { value: 2026, reason: TRACE_CANDIDATE },
+      dates: {
+        value: {
+          startsOn: scenario === "invalid_dates" ? "bad-date" : "2026-07-01",
+          endsOn: "2026-07-03",
+          state: "confirmed",
         },
+        reason: TRACE_CANDIDATE,
       },
-    ];
+    };
   }
 }
 

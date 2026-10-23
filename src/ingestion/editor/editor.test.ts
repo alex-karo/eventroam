@@ -4,22 +4,22 @@ import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { readResearchEvent } from "@/catalog/read/research";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
-import { editorPlanSchema } from "./contracts";
+import { editorPlanSchema, readyEditorPlanSchema } from "./contracts";
 import { editorModelOutputSchema, normalizeEditorWire } from "./wire";
 
-test("provider editor schema requires the same ready arrays as local validation", () => {
+test("provider editor schema requires both nullable Edition slots", () => {
   const schema = editorModelOutputSchema();
   expect(schema.type).toBe("object");
   expect(schema).not.toHaveProperty("anyOf");
   expect(schema.required).toEqual(
-    expect.arrayContaining(["event", "editions", "unresolved"]),
+    expect.arrayContaining([
+      "event",
+      "previousEdition",
+      "currentOrNextEdition",
+      "unresolved",
+    ]),
   );
-  expect(schema.properties).toMatchObject({
-    editions: { type: "array" },
-    unresolved: { type: "array" },
-  });
-  expect(schema.properties?.editions).not.toHaveProperty("anyOf");
-  expect(schema.properties?.unresolved).not.toHaveProperty("anyOf");
+  expect(schema.properties).not.toHaveProperty("editions");
   const f = fixture();
   expect(
     editorPlanSchema.parse(
@@ -27,10 +27,15 @@ test("provider editor schema requires the same ready arrays as local validation"
         ...f.plan,
         reason: null,
         event: { fields: {}, reason: null },
-        editions: [{ editionKey: "2027", fields: {}, reason: null }],
+        currentOrNextEdition: { editionKey: "2027", fields: {}, reason: null },
       }),
     ),
   ).toEqual(f.plan);
+  expect(
+    readyEditorPlanSchema.parse(
+      normalizeEditorWire({ ...f.plan, currentOrNextEdition: null }),
+    ).currentOrNextEdition,
+  ).toBeNull();
 });
 
 test("rejected transport drops only empty branch placeholders", () => {
@@ -38,7 +43,8 @@ test("rejected transport drops only empty branch placeholders", () => {
     status: "rejected",
     reason: "Wrong festival",
     event: null,
-    editions: [],
+    previousEdition: null,
+    currentOrNextEdition: null,
     unresolved: [],
   };
   expect(editorPlanSchema.parse(normalizeEditorWire(rejected))).toEqual({
@@ -46,10 +52,11 @@ test("rejected transport drops only empty branch placeholders", () => {
     reason: "Wrong festival",
   });
   for (const patch of [
-    { editions: [{}] },
+    { editions: [] },
+    { previousEdition: {} },
+    { currentOrNextEdition: {} },
     { unresolved: [{ message: "Unexpected question" }] },
-    { event: { target: { eventId: "unexpected" }, fields: {} } },
-    { editions: null },
+    { event: { fields: {} } },
     { unresolved: null },
   ]) {
     expect(
@@ -59,20 +66,24 @@ test("rejected transport drops only empty branch placeholders", () => {
   }
 });
 
-test.each(["editions", "unresolved"])(
-  "ready %s cannot be null or missing",
-  (field) => {
-    const f = fixture();
-    for (const value of [null, undefined]) {
-      const result = prepare(f, { ...f.plan, [field]: value });
-      expect(result.operations).toEqual([]);
-      expect(result.errors.at(-1)).toMatchObject({
-        code: "invalid_plan",
-        field,
-      });
-    }
-  },
-);
+test("ready output requires both Edition slots and rejects old arrays", () => {
+  const f = fixture();
+  for (const slot of [
+    "previousEdition",
+    "currentOrNextEdition",
+    "unresolved",
+  ]) {
+    expect(
+      editorPlanSchema.safeParse({ ...f.plan, [slot]: undefined }).success,
+    ).toBe(false);
+  }
+  expect(
+    editorPlanSchema.safeParse({ ...f.plan, unresolved: null }).success,
+  ).toBe(false);
+  expect(editorPlanSchema.safeParse({ ...f.plan, editions: [] }).success).toBe(
+    false,
+  );
+});
 import { prepareEditorPlan, validateResearch } from "./prepare";
 import { runCatalogResearch } from "../workflow";
 import { DEFAULT_RESEARCH_LIMITS } from "../runtime/budget";
@@ -102,10 +113,11 @@ function fixture() {
     id: term.id,
     facet: term.facet,
     slug: term.slug,
+    parentId: term.parentId,
   }));
   const input = {
     mode: "refresh" as const,
-    scope: "current" as "current" | "full",
+    scope: "full" as "current" | "full",
     eventId: event.id,
     actor: "test",
     dryRun: true,
@@ -119,9 +131,12 @@ function fixture() {
       sources: [
         { url: "https://example.org/announcement", information: reason },
       ],
-      editions: [
-        { key: "2027", venueName: { value: null, reason }, links: {} },
-      ],
+      previousEdition: null,
+      currentOrNextEdition: {
+        key: "2027",
+        venueName: { value: null, reason },
+        links: {},
+      },
     },
     errors: [],
     unresolved: [],
@@ -129,7 +144,8 @@ function fixture() {
   const plan = {
     status: "ready" as const,
     event: { fields: {} },
-    editions: [{ editionKey: "2027", fields: {} }],
+    previousEdition: null,
+    currentOrNextEdition: { editionKey: "2027", fields: {} },
     unresolved: [],
   };
   return {
@@ -166,7 +182,11 @@ test("strict actions reject unsupported metadata, null sets and malformed unions
     expect(
       editorPlanSchema.safeParse({
         ...f.plan,
-        editions: [{ editionKey: "2027", fields: { venueName: action } }],
+        previousEdition: null,
+        currentOrNextEdition: {
+          editionKey: "2027",
+          fields: { venueName: action },
+        },
       }).success,
     ).toBe(false);
   }
@@ -206,7 +226,8 @@ test("strict actions reject unsupported metadata, null sets and malformed unions
   expect(
     editorPlanSchema.safeParse({
       ...f.plan,
-      editions: [...f.plan.editions, ...f.plan.editions],
+      previousEdition: f.plan.currentOrNextEdition,
+      currentOrNextEdition: f.plan.currentOrNextEdition,
     }).success,
   ).toBe(false);
   expect(editorPlanSchema.safeParse({ ...f.plan, event: null }).success).toBe(
@@ -218,19 +239,20 @@ test("wire omission never becomes clear and invalid required action values survi
   const f = fixture();
   const raw = {
     ...f.plan,
-    editions: [
-      {
-        editionKey: "2027",
-        fields: {
-          venueName: null,
-          tickets: { action: "set", value: null, reason },
-        },
+    previousEdition: null,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      fields: {
+        venueName: null,
+        tickets: { action: "set", value: null, reason },
       },
-    ],
+    },
   };
   const normalized = normalizeEditorWire(raw) as typeof raw;
-  expect(normalized.editions[0].fields).not.toHaveProperty("venueName");
-  expect(normalized.editions[0].fields.tickets.value).toBeNull();
+  expect(normalized.currentOrNextEdition!.fields).not.toHaveProperty(
+    "venueName",
+  );
+  expect(normalized.currentOrNextEdition!.fields.tickets.value).toBeNull();
   expect(editorPlanSchema.safeParse(normalized).success).toBe(false);
 });
 
@@ -238,12 +260,11 @@ test("clear changes only its field and eligible kept content still publishes", (
   const f = fixture();
   const plan = {
     ...f.plan,
-    editions: [
-      {
-        editionKey: "2027",
-        fields: { venueName: { action: "clear", reason } },
-      },
-    ],
+    previousEdition: null,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      fields: { venueName: { action: "clear", reason } },
+    },
   };
   const prepared = prepare(f, plan);
   expect(prepared.errors).toEqual([]);
@@ -263,7 +284,10 @@ test("clear changes only its field and eligible kept content still publishes", (
   expect(
     prepare(f, f.plan).operations.some((op) => op.kind === "publishEdition"),
   ).toBe(true);
-  expect(prepare(f, { ...f.plan, editions: [] }).operations).toEqual([]);
+  expect(
+    prepare(f, { ...f.plan, previousEdition: null, currentOrNextEdition: null })
+      .operations,
+  ).toEqual([]);
 });
 
 test("final target, scope, country, term and creation checks reject the entire plan", () => {
@@ -272,7 +296,8 @@ test("final target, scope, country, term and creation checks reject the entire p
     {
       ...f.plan,
       event: null,
-      editions: [],
+      previousEdition: null,
+      currentOrNextEdition: null,
       unresolved: [{ message: "Insufficient evidence" }],
     },
     ...[
@@ -288,63 +313,58 @@ test("final target, scope, country, term and creation checks reject the entire p
       {},
     ].map((identity) => ({
       ...f.plan,
-      editions: [{ ...identity, fields: {} }],
+      previousEdition: null,
+      currentOrNextEdition: { ...identity, fields: {} },
     })),
     {
       ...f.plan,
-      editions: [{ editionKey: "unknown", fields: {} }],
+      previousEdition: null,
+      currentOrNextEdition: { editionKey: "unknown", fields: {} },
     },
     {
       ...f.plan,
-      editions: [
-        {
-          editionKey: "2027",
-          fields: { countryCode: { action: "clear", reason } },
-        },
-      ],
+      previousEdition: null,
+      currentOrNextEdition: {
+        editionKey: "2027",
+        fields: { countryCode: { action: "clear", reason } },
+      },
     },
     {
       ...f.plan,
-      editions: [
-        {
-          editionKey: "2027",
-          fields: {
-            classification: { action: "set", value: ["unknown"], reason },
-          },
+      previousEdition: null,
+      currentOrNextEdition: {
+        editionKey: "2027",
+        fields: {
+          classification: { action: "set", value: ["unknown"], reason },
         },
-      ],
+      },
     },
   ]) {
     const result = prepare(f, plan);
     expect(result.operations).toEqual([]);
     expect(result.errors.at(-1)?.code).toBe("invalid_plan");
   }
-  for (const [scope, keys] of [
-    ["current", ["2027", "2028"]],
-    ["full", ["2028", "2029"]],
-  ] as const) {
-    f.input.scope = scope;
-    const result = prepare(f, {
-      ...f.plan,
-      editions: keys.map((editionKey) => ({ editionKey, reason, fields: {} })),
-    });
-    expect(result.operations).toEqual([]);
-    expect(result.errors.at(-1)?.message).toBe(
-      "Editorial plan exceeds refresh scope bounds",
-    );
-  }
-  for (let i = 0; i < 19; i++) {
-    f.fx.edition(f.event, { editionKey: `old-${i}` });
-  }
-  f.catalog[0] = readResearchEvent(f.client, f.event.id)!;
-  const overLimit = prepare(f, {
+  const swapped = prepare(f, {
     ...f.plan,
-    editions: [{ editionKey: "2028", reason, fields: {} }],
+    previousEdition: f.plan.currentOrNextEdition,
+    currentOrNextEdition: null,
   });
-  expect(overLimit.operations).toEqual([]);
-  expect(overLimit.errors.at(-1)?.message).toBe(
-    "Editorial plan exceeds refresh scope bounds",
+  expect(swapped.operations).toEqual([]);
+  expect(swapped.errors.at(-1)?.message).toBe(
+    "Editor key must match the same research slot",
   );
+});
+
+test("swapped non-null roles reject all actions", () => {
+  const f = fixture();
+  f.research.data!.previousEdition = { key: "2026", links: {} };
+  const result = prepare(f, {
+    ...f.plan,
+    previousEdition: { editionKey: "2027", fields: {} },
+    currentOrNextEdition: { editionKey: "2026", fields: {} },
+  });
+  expect(result.operations).toEqual([]);
+  expect(result.errors.at(-1)?.field).toBe("previousEdition.editionKey");
 });
 
 test("invalid editor output is retained with independent successful research and no writes", async () => {
@@ -356,7 +376,7 @@ test("invalid editor output is retained with independent successful research and
     generateEditor: async () => invalid,
   });
   expect(result).toMatchObject({
-    schemaVersion: 5,
+    schemaVersion: 6,
     outcome: "failed",
     researchStatus: "success",
     editorStatus: "failed",
@@ -395,7 +415,7 @@ test("editor failure never falls back to research writes", async () => {
 
 test("research country refutation rejects before editor while omission allows it", async () => {
   const f = fixture();
-  f.research.data!.editions[0].countryCode = { value: null, reason };
+  f.research.data!.currentOrNextEdition!.countryCode = { value: null, reason };
   const editor = vi.fn(async () => f.plan);
   const rejected = await runCatalogResearch(f.input, {
     client: f.client,
@@ -406,7 +426,7 @@ test("research country refutation rejects before editor while omission allows it
   expect(rejected.editorStatus).toBe("not_run");
   expect(rejected.outcome).toBe("failed");
   expect(rejected.researchStatus).toBe("success");
-  delete f.research.data!.editions[0].countryCode;
+  delete f.research.data!.currentOrNextEdition!.countryCode;
   await runCatalogResearch(f.input, {
     client: f.client,
     generateCandidate: async () => f.research,
@@ -420,7 +440,10 @@ test("add may decline creation and reuse unresolved question objects", async () 
   const research = structuredClone(f.research);
   delete research.data!.eventId;
   research.data!.eventName = "New Fest";
-  research.data!.editions = [];
+  Object.assign(research.data!, {
+    previousEdition: null,
+    currentOrNextEdition: null,
+  });
   const result = await runCatalogResearch(
     { mode: "add", name: "New Fest", actor: "test", dryRun: true },
     {
@@ -429,7 +452,8 @@ test("add may decline creation and reuse unresolved question objects", async () 
       generateEditor: async () => ({
         status: "ready",
         event: null,
-        editions: [],
+        previousEdition: null,
+        currentOrNextEdition: null,
         unresolved: [
           {
             message: "Sources do not establish festival identity",
@@ -583,7 +607,8 @@ test("clear official-site slot preserves other saved link kinds", () => {
     event: {
       fields: { links: { website: { action: "clear", reason } } },
     },
-    editions: [],
+    previousEdition: null,
+    currentOrNextEdition: null,
   };
   const prepared = prepare(f, plan);
   const replacement = prepared.operations.find(
@@ -599,7 +624,10 @@ test.each(["add", "refresh"] as const)(
   async (mode) => {
     const f = fixture();
     f.research.status = "partial";
-    f.research.data!.editions = [];
+    Object.assign(f.research.data!, {
+      previousEdition: null,
+      currentOrNextEdition: null,
+    });
     f.research.data!.sources[0].information =
       "The supplied website belongs to Soma in Australia, not the saved festival in Ireland";
     f.research.data!.summary = {
@@ -676,7 +704,10 @@ test.each(["dates", "venueName", "tickets", "classification", "links"])(
   "editor cannot extract %s from summaries without same-Edition findings",
   (field) => {
     const f = fixture();
-    f.research.data!.editions = [];
+    Object.assign(f.research.data!, {
+      previousEdition: null,
+      currentOrNextEdition: null,
+    });
     f.research.data!.sources[0].information =
       "Another festival occurs in Australia, 6–9 November 2026, with free admission";
     const actions = {
@@ -706,37 +737,39 @@ test.each(["dates", "venueName", "tickets", "classification", "links"])(
     };
     const result = prepare(f, {
       ...f.plan,
-      editions: [
-        {
-          editionKey: "2027",
-          fields: { [field]: actions[field as keyof typeof actions] },
-        },
-      ],
+      previousEdition: null,
+      currentOrNextEdition: {
+        editionKey: "2027",
+        fields: { [field]: actions[field as keyof typeof actions] },
+      },
     });
     expect(result.operations).toEqual([]);
     expect(result.errors.at(-1)).toMatchObject({ code: "invalid_plan" });
-    expect(prepare(f, f.plan).errors).toEqual([]); // Preserving a considered Edition is still allowed.
+    expect(
+      prepare(f, { ...f.plan, currentOrNextEdition: null }).errors,
+    ).toEqual([]);
   },
 );
 
 test("a finding for another field or Edition cannot authorize a mutation", () => {
   const f = fixture();
   f.input.scope = "full";
-  f.research.data!.editions.push({
+  f.research.data!.previousEdition = {
     key: "2028",
     locality: { value: "Sydney", reason },
     links: {},
-  });
+  };
   const result = prepare(f, {
     ...f.plan,
-    editions: [
-      {
-        editionKey: "2027",
-        fields: { locality: { action: "set", value: "Sydney", reason } },
-      },
-    ],
+    previousEdition: null,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      fields: { locality: { action: "set", value: "Sydney", reason } },
+    },
   });
-  expect(result.errors.at(-1)?.field).toBe("editions.0.fields.locality");
+  expect(result.errors.at(-1)?.field).toBe(
+    "currentOrNextEdition.fields.locality",
+  );
   expect(result.operations).toEqual([]);
 });
 
@@ -764,7 +797,7 @@ test("free concession without currency survives wire, editing and persistence", 
   const { normalizeWireCandidate } = await import("../research/agent/wire");
   const { fixtureEditorPlan } = await import("@/test/ingestion");
   const { modelContext } = await import("../research/agent/input");
-  f.research.data!.editions[0].tickets = {
+  f.research.data!.currentOrNextEdition!.tickets = {
     value: {
       variants: [
         {
@@ -778,7 +811,7 @@ test("free concession without currency survives wire, editing and persistence", 
     reason,
   };
   const wire = structuredClone(f.research);
-  Object.assign(wire.data!.editions[0].tickets!.value.variants[0], {
+  Object.assign(wire.data!.currentOrNextEdition!.tickets!.value.variants[0], {
     currency: null,
   });
   const normalized = normalizeWireCandidate(wire) as ResearchCandidate;
@@ -815,15 +848,15 @@ test("accept resolves keyed fields, complete blocks and links without changing t
     reason: "Organizer description",
   };
   data.links.website = "https://example.org/festival";
-  data.editions[0].venueName = {
+  data.currentOrNextEdition!.venueName = {
     value: "New venue",
     reason: "Organizer venue",
   };
-  data.editions[0].dates = {
+  data.currentOrNextEdition!.dates = {
     value: { startsOn: "2027-07-10", endsOn: "2027-07-12", state: "confirmed" },
     reason: "Organizer dates",
   };
-  data.editions[0].tickets = {
+  data.currentOrNextEdition!.tickets = {
     value: {
       variants: [{ label: "Free admission", amount: 0 }],
       basePrice: { kind: "free", coverage: "full_programme" },
@@ -839,16 +872,15 @@ test("accept resolves keyed fields, complete blocks and links without changing t
         links: { website: { action: "accept" } },
       },
     },
-    editions: [
-      {
-        editionKey: "2027",
-        fields: {
-          venueName: { action: "accept" },
-          dates: { action: "accept" },
-          tickets: { action: "accept" },
-        },
+    previousEdition: null,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      fields: {
+        venueName: { action: "accept" },
+        dates: { action: "accept" },
+        tickets: { action: "accept" },
       },
-    ],
+    },
   };
   const before = structuredClone(plan);
   const result = prepare(f, plan);
@@ -873,7 +905,7 @@ test("accept resolves keyed fields, complete blocks and links without changing t
   expect(result.operations).toContainEqual(
     expect.objectContaining({
       kind: "replacePriceBlock",
-      priceDetails: data.editions[0].tickets!.value.variants,
+      priceDetails: data.currentOrNextEdition!.tickets!.value.variants,
     }),
   );
   expect(result.operations).toContainEqual(
@@ -903,14 +935,14 @@ test.each(["missing", "null", "wrong-edition", "incompatible"] as const)(
   (variant) => {
     const f = fixture();
     if (variant === "missing") {
-      delete f.research.data!.editions[0].venueName;
+      delete f.research.data!.currentOrNextEdition!.venueName;
     }
     if (variant === "wrong-edition") {
-      f.research.data!.editions[0].key = "2026";
+      f.research.data!.currentOrNextEdition!.key = "2026";
     }
     if (variant === "incompatible") {
       f.research.data!.summary = { value: "", reason };
-      f.research.data!.editions[0].venueName = {
+      f.research.data!.currentOrNextEdition!.venueName = {
         value: "Supported venue",
         reason,
       };
@@ -922,12 +954,11 @@ test.each(["missing", "null", "wrong-edition", "incompatible"] as const)(
         fields:
           variant === "incompatible" ? { summary: { action: "accept" } } : {},
       },
-      editions: [
-        {
-          editionKey: "2027",
-          fields: { venueName: { action: "accept" } },
-        },
-      ],
+      previousEdition: null,
+      currentOrNextEdition: {
+        editionKey: "2027",
+        fields: { venueName: { action: "accept" } },
+      },
     });
     expect(result.operations).toEqual([]);
     expect(result.errors).toContainEqual(
@@ -936,28 +967,35 @@ test.each(["missing", "null", "wrong-edition", "incompatible"] as const)(
   },
 );
 
-test("classification accept preserves saved terms, adds a new term and retains a 500-character reason", () => {
+test("classification accept preserves saved terms, adds a new term and retains the full reason", () => {
   const f = fixture();
   const ids = f.catalog[0].editions[0].terms.map((term) => term.id);
   const added = f.fx.term({ facet: "topic", slug: "new-category" });
-  f.vocabulary.push({ id: added.id, facet: added.facet, slug: added.slug });
-  const classificationReason = "a".repeat(500);
-  f.research.data!.editions[0].classification = {
+  f.vocabulary.push({
+    id: added.id,
+    facet: added.facet,
+    slug: added.slug,
+    parentId: added.parentId,
+  });
+  const classificationReason = "a".repeat(501);
+  f.research.data!.currentOrNextEdition!.classification = {
     value: [...ids, added.id],
     reason: classificationReason,
   };
-  f.research.data!.editions[0].venueName = { value: "New venue", reason };
+  f.research.data!.currentOrNextEdition!.venueName = {
+    value: "New venue",
+    reason,
+  };
   const result = prepare(f, {
     ...f.plan,
-    editions: [
-      {
-        editionKey: "2027",
-        fields: {
-          classification: { action: "accept" },
-          venueName: { action: "accept" },
-        },
+    previousEdition: null,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      fields: {
+        classification: { action: "accept" },
+        venueName: { action: "accept" },
       },
-    ],
+    },
   });
   expect(result.errors).toEqual([]);
   const termsOp = result.operations.find((op) => op.kind === "replaceTerms")!;
@@ -982,44 +1020,45 @@ test("classification accept preserves saved terms, adds a new term and retains a
 test("editor must correct duplicate classification IDs before accepting other changes", () => {
   const f = fixture();
   const ids = f.catalog[0].editions[0].terms.map((term) => term.id);
-  f.research.data!.editions[0].classification = {
+  f.research.data!.currentOrNextEdition!.classification = {
     value: [...ids, ids[0]],
     reason,
   };
-  f.research.data!.editions[0].venueName = { value: "New venue", reason };
+  f.research.data!.currentOrNextEdition!.venueName = {
+    value: "New venue",
+    reason,
+  };
   const plan = {
     ...f.plan,
-    editions: [
-      {
-        editionKey: "2027",
-        fields: {
-          classification: { action: "accept" },
-          venueName: { action: "accept" },
-        },
+    previousEdition: null,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      fields: {
+        classification: { action: "accept" },
+        venueName: { action: "accept" },
       },
-    ],
+    },
   };
   const invalid = prepare(f, plan);
   expect(invalid.operations).toEqual([]);
   expect(invalid.errors.at(-1)).toMatchObject({
     code: "invalid_plan",
-    field: "editions.0.fields.classification",
+    field: "currentOrNextEdition.fields.classification",
   });
   const corrected = prepare(f, {
     ...plan,
-    editions: [
-      {
-        ...plan.editions[0],
-        fields: {
-          ...plan.editions[0].fields,
-          classification: {
-            action: "set",
-            value: ids,
-            reason: "Deduplicated research list, preserving saved categories",
-          },
+    previousEdition: null,
+    currentOrNextEdition: {
+      ...plan.currentOrNextEdition!,
+      fields: {
+        ...plan.currentOrNextEdition!.fields,
+        classification: {
+          action: "set",
+          value: ids,
+          reason: "Deduplicated research list, preserving saved categories",
         },
       },
-    ],
+    },
   });
   expect(corrected.errors).toEqual([]);
   expect(corrected.operations).toContainEqual(
@@ -1047,12 +1086,11 @@ test("accept forbids copied values or reasons in the editor action", () => {
     expect(
       editorPlanSchema.safeParse({
         ...f.plan,
-        editions: [
-          {
-            editionKey: "2027",
-            fields: { venueName: { action: "accept", ...extra } },
-          },
-        ],
+        previousEdition: null,
+        currentOrNextEdition: {
+          editionKey: "2027",
+          fields: { venueName: { action: "accept", ...extra } },
+        },
       }).success,
     ).toBe(false);
   }
@@ -1060,21 +1098,26 @@ test("accept forbids copied values or reasons in the editor action", () => {
 
 test("accept creates only an addressed research-backed new Edition", () => {
   const f = fixture();
-  f.research.data!.editions = [
-    {
+  Object.assign(f.research.data!, {
+    previousEdition: null,
+    currentOrNextEdition: {
       key: "2028",
       year: { value: 2028, reason: "New Edition year" },
       links: {},
       venueName: { value: null, reason },
       countryCode: { value: "PT", reason },
     },
-  ];
+  });
   const edition = {
     editionKey: "2028",
     reason: "Announced new Edition",
     fields: { year: { action: "accept" } },
   };
-  const result = prepare(f, { ...f.plan, editions: [edition] });
+  const result = prepare(f, {
+    ...f.plan,
+    previousEdition: null,
+    currentOrNextEdition: edition,
+  });
   expect(result.errors).toEqual([]);
   expect(result.operations).toContainEqual(
     expect.objectContaining({
@@ -1095,7 +1138,8 @@ test("accept creates only an addressed research-backed new Edition", () => {
   ]) {
     const rejected = prepare(f, {
       ...f.plan,
-      editions: [{ ...edition, ...patch }],
+      previousEdition: null,
+      currentOrNextEdition: { ...edition, ...patch },
     });
     expect(rejected.operations).toEqual([]);
     expect(rejected.errors.at(-1)?.code).toBe("invalid_plan");
@@ -1110,7 +1154,7 @@ test("add derives Event identity from research and requires a creation reason", 
   const validated = validateResearch(f.research, [], input);
   const run = (event: unknown) =>
     prepareEditorPlan(
-      { ...f.plan, event, editions: [] },
+      { ...f.plan, event, previousEdition: null, currentOrNextEdition: null },
       validated,
       [],
       input,
@@ -1136,6 +1180,7 @@ test("add derives Event identity from research and requires a creation reason", 
 
 test("current editor preserves history by omitting preservation-only plan entries", () => {
   const f = fixture();
+  f.input.scope = "current";
   const history = f.fx.edition(f.event, {
     editionKey: "2026",
     editionYear: 2026,
@@ -1144,19 +1189,25 @@ test("current editor preserves history by omitting preservation-only plan entrie
   });
   f.catalog[0] = readResearchEvent(f.client, f.event.id)!;
   const before = f.catalog[0].editions.find((e) => e.id === history.id);
-  f.research.data!.editions[0].venueName = { value: "New venue", reason };
+  f.research.data!.currentOrNextEdition!.venueName = {
+    value: "New venue",
+    reason,
+  };
   const plan = {
     ...f.plan,
-    editions: [
-      { editionKey: "2027", fields: { venueName: { action: "accept" } } },
-    ],
+    previousEdition: null,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      fields: { venueName: { action: "accept" } },
+    },
   };
   const invalid = prepare(f, {
     ...plan,
-    editions: [...plan.editions, { editionKey: "2026", fields: {} }],
+    previousEdition: { editionKey: "2026", fields: {} },
+    currentOrNextEdition: plan.currentOrNextEdition,
   });
   expect(invalid.errors.at(-1)?.message).toBe(
-    "Editorial plan exceeds refresh scope bounds",
+    "Editor key must match the same research slot",
   );
   const prepared = prepare(f, plan);
   expect(prepared.errors).toEqual([]);
@@ -1166,4 +1217,187 @@ test("current editor preserves history by omitting preservation-only plan entrie
   expect(after.editions.find((e) => e.id === f.edition.id)?.venueName).toBe(
     "New venue",
   );
+});
+
+function classificationFixture(action: "accept" | "set" = "accept") {
+  const f = fixture();
+  const baseline = f.vocabulary.map((term) => term.id);
+  const broad = f.fx.term({ facet: "genre", slug: "test-broad" });
+  const parent = f.fx.term({
+    facet: "genre",
+    slug: "test-parent",
+    parentId: broad.id,
+  });
+  const leaf = f.fx.term({
+    facet: "genre",
+    slug: "test-leaf",
+    parentId: parent.id,
+  });
+  const sibling = f.fx.term({
+    facet: "genre",
+    slug: "test-sibling",
+    parentId: parent.id,
+  });
+  f.vocabulary.push(broad, parent, leaf, sibling);
+  const ids = [...baseline, leaf.id, parent.id, broad.id, sibling.id];
+  f.research.data!.currentOrNextEdition!.classification = {
+    value: ids,
+    reason: "Inspected programme supports these genres",
+  };
+  const plan = {
+    ...f.plan,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      fields: {
+        classification:
+          action === "accept" ? { action } : { action, value: ids, reason },
+      },
+    },
+  };
+  const deps = {
+    client: f.client,
+    generateCandidate: async () => f.research,
+    generateEditor: async () => plan,
+  };
+  return {
+    ...f,
+    plan,
+    deps,
+    broad,
+    parent,
+    normalizedIds: [...baseline, leaf.id, sibling.id],
+  };
+}
+
+test.each(["accept", "set"] as const)(
+  "%s classification removes deep ancestors and preserves siblings without changing inputs",
+  (action) => {
+    const f = classificationFixture(action);
+    const raw = structuredClone({ research: f.research, plan: f.plan });
+    const prepared = prepare(f, f.plan);
+    expect(prepared.errors).toEqual([]);
+    expect(prepared.operations).toContainEqual(
+      expect.objectContaining({
+        kind: "replaceTerms",
+        termIds: f.normalizedIds,
+      }),
+    );
+    expect({ research: f.research, plan: f.plan }).toEqual(raw);
+  },
+);
+
+test("classification preview explains normalization and preserves stored data and raw responses", async () => {
+  const f = classificationFixture();
+  const before = readResearchEvent(f.client, f.event.id);
+  const raw = structuredClone({ research: f.research, plan: f.plan });
+  const preview = await runCatalogResearch(f.input, f.deps);
+  expect(preview.errors).toEqual([]);
+  const change = preview.changes.find((c) => c.field === "terms")!;
+  expect(change.newValue).toEqual(expect.arrayContaining(f.normalizedIds));
+  expect(change.newValue).toHaveLength(f.normalizedIds.length);
+  for (const ancestor of [f.broad, f.parent]) {
+    expect(change.explanations.join(" ")).toContain(
+      "Removed ancestor " + ancestor.id + "; retained descendant",
+    );
+  }
+  expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
+  expect(preview.modelResponse!.object).toEqual(raw.research);
+  expect(preview.editorResponse!.object).toEqual(raw.plan);
+});
+
+test("classification commit saves normalized terms and a repeat adds no audit changes", async () => {
+  const f = classificationFixture();
+  const raw = structuredClone({ research: f.research, plan: f.plan });
+  const input = { ...f.input, dryRun: false };
+  const applied = await runCatalogResearch(input, f.deps);
+  expect(applied.errors).toEqual([]);
+  const saved = readResearchEvent(f.client, f.event.id)!.editions.find(
+    (edition) => edition.id === f.edition.id,
+  )!;
+  expect(saved.terms.map((term) => term.id).sort()).toEqual(
+    [...f.normalizedIds].sort(),
+  );
+  const changesBefore = f.client
+    .prepare("SELECT count(*) AS count FROM catalog_changes")
+    .get();
+  const noop = await runCatalogResearch(input, f.deps);
+  expect(noop.errors).toEqual([]);
+  expect(noop.changes).toEqual([]);
+  expect(
+    f.client.prepare("SELECT count(*) AS count FROM catalog_changes").get(),
+  ).toEqual(changesBefore);
+  expect({ research: f.research, plan: f.plan }).toEqual(raw);
+});
+
+test("classification preserves a broad term when no descendant is selected", () => {
+  const f = fixture();
+  const broad = f.fx.term({ facet: "genre", slug: "test-broad" });
+  f.vocabulary.push(broad);
+  const ids = f.vocabulary.map((term) => term.id);
+  f.research.data!.currentOrNextEdition!.classification = {
+    value: ids,
+    reason,
+  };
+  const plan = {
+    ...f.plan,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      fields: { classification: { action: "accept" } },
+    },
+  };
+  const prepared = prepare(f, plan);
+  expect(prepared.errors).toEqual([]);
+  expect(prepared.operations).toContainEqual(
+    expect.objectContaining({ kind: "replaceTerms", termIds: ids }),
+  );
+});
+
+test("classification rejects unknown and duplicate terms before normalization", () => {
+  const f = fixture();
+  const baseline = f.vocabulary.map((term) => term.id);
+  const topic = f.vocabulary.find((term) => term.facet === "topic")!;
+  const plan = {
+    ...f.plan,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      fields: { classification: { action: "accept" } },
+    },
+  };
+  for (const ids of [
+    [...baseline, "missing"],
+    [...baseline, topic.id],
+  ]) {
+    f.research.data!.currentOrNextEdition!.classification = {
+      value: ids,
+      reason,
+    };
+    const prepared = prepare(f, plan);
+    expect(prepared.operations).toEqual([]);
+    expect(prepared.errors.at(-1)?.code).toBe("invalid_plan");
+  }
+});
+
+test("classification rejects two format terms before removing ancestors", () => {
+  const f = fixture();
+  const format = f.vocabulary.find((term) => term.facet === "format")!;
+  const child = f.fx.term({
+    facet: "format",
+    slug: "test-format-child",
+    parentId: format.id,
+  });
+  f.vocabulary.push(child);
+  f.research.data!.currentOrNextEdition!.classification = {
+    value: f.vocabulary.map((term) => term.id),
+    reason,
+  };
+  const plan = {
+    ...f.plan,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      fields: { classification: { action: "accept" } },
+    },
+  };
+  const prepared = prepare(f, plan);
+  expect(prepared.operations).toEqual([]);
+  expect(prepared.errors.at(-1)?.code).toBe("invalid_plan");
 });

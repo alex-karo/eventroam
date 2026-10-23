@@ -106,8 +106,13 @@
         "owner": "edition",
         "editionKey": "2027",
         "field": "price_details",
-        "contains": { "amount": 110, "currency": "EUR" },
-        "notValue": { "label": "Student" }
+        "contains": {
+          "amount": 110,
+          "currency": "EUR"
+        },
+        "notValue": {
+          "label": "Student"
+        }
       },
       {
         "owner": "edition",
@@ -133,7 +138,6 @@
     ],
     "research": {
       "status": "partial",
-      "editionKeys": ["2027"],
       "facts": [
         {
           "editionKey": "2027",
@@ -180,7 +184,9 @@
         }
       ],
       "hasUnresolved": true,
-      "unresolvedEditionKeys": ["2027"]
+      "unresolvedEditionKeys": ["2027"],
+      "previousEdition": null,
+      "currentOrNextEdition": "2027"
     }
   }
 }

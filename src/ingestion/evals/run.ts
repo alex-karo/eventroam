@@ -312,7 +312,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
               ? persistenceFailureReport(error)
               : undefined;
           result = available ?? {
-            schemaVersion: 5,
+            schemaVersion: 6,
             editorResponse: null,
             editorStatus: "not_run",
             editorPromptVersion: EDITOR_PROMPT_VERSION,
@@ -434,7 +434,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     };
   });
   const report = {
-    schemaVersion: 5,
+    schemaVersion: 6,
     evaluationMode: options.editorOnly ? "editor-only" : "pipeline",
     startedAt: experiment.startedAt.toISOString(),
     finishedAt: experiment.completedAt.toISOString(),

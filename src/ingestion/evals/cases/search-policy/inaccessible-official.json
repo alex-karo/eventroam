@@ -3,7 +3,7 @@
   "provenance": {
     "kind": "synthetic-search-policy",
     "sourceReport": "openspec/changes/direct-exa-discovery/design.md",
-    "note": "Fictional sources isolate search selection; no live website/search fallback."
+    "note": "Fictional sources isolate search selection; no live website/search fallback. The source states that no previous Edition exists, so full-scope selection can complete without changing the source-policy assertions."
   },
   "input": {
     "mode": "refresh",
@@ -68,7 +68,8 @@
     "forbidden": [],
     "research": {
       "status": "success",
-      "editionKeys": ["2027"]
+      "previousEdition": null,
+      "currentOrNextEdition": "2027"
     },
     "toolUse": {
       "minSearches": 1,

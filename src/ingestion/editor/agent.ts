@@ -61,7 +61,11 @@ export async function editResearch(
   const prompt = JSON.stringify({
     research,
     catalog: saved ? modelContext(saved) : null,
-    vocabulary: context.terms,
+    vocabulary: context.terms.map(({ id, facet, slug }) => ({
+      id,
+      facet,
+      slug,
+    })),
     mode: input.mode,
     scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
     currentDate: context.currentDate,

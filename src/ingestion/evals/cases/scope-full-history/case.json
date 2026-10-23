@@ -77,7 +77,6 @@
     "forbidden": [],
     "research": {
       "status": "success",
-      "editionKeys": ["historic-weekend", "announced-weekend"],
       "facts": [
         {
           "editionKey": "historic-weekend",
@@ -93,7 +92,9 @@
             "state": "confirmed"
           }
         }
-      ]
+      ],
+      "previousEdition": "historic-weekend",
+      "currentOrNextEdition": "announced-weekend"
     }
   }
 }

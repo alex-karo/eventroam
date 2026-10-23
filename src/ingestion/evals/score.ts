@@ -28,7 +28,7 @@ export function scoreCase(
   result: CatalogResearchResult,
   toolCalls: EvalToolCall[] = [],
 ): CaseScore {
-  if (result.schemaVersion !== 5) {
+  if (result.schemaVersion !== 6) {
     throw new Error(
       `Unsupported catalog report version: ${String(result.schemaVersion)}`,
     );

@@ -357,17 +357,12 @@ export function createCatalogIngestionWorkflow(
       if (owned.input.mode === "refresh") {
         const saved = data.context.catalog[0].editions;
         const conflicting = countryBaselineConflict(saved);
-        if (
-          conflicting ||
-          ((owned.input.scope ?? "full") === "full" && saved.length > 20)
-        ) {
+        if (conflicting) {
           data.errors = [
             {
-              code: conflicting ? "country_baseline_conflict" : "limit_reached",
+              code: "country_baseline_conflict",
               stage: "validation",
-              message: conflicting
-                ? "Saved Edition countries conflict"
-                : "Refresh assignment exceeds the 20-Edition boundary",
+              message: "Saved Edition countries conflict",
             },
           ];
           data.report = buildResearchReport(owned.reportInput(data));

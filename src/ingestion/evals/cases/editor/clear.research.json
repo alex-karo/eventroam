@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "provenance": "Captured editor-clear research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract",
+  "provenance": "Captured editor-clear research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract; Event link finding removed for current scope",
   "candidate": {
     "status": "partial",
     "data": {
@@ -9,49 +9,47 @@
       "sources": [
         {
           "url": "https://www.roskilde-festival.dk/",
-          "information": "The official festival homepage identifies Roskilde Festival, displays the 2027 dates as 26 June–3 July, says ticket sales for RF27 are underway, and links to the festival’s ticket and programme pages."
+          "information": "The official festival homepage identifies Roskilde Festival, displays the 2027 dates as 26 June\u20133 July, says ticket sales for RF27 are underway, and links to the festival\u2019s ticket and programme pages."
         },
         {
           "url": "https://www.roskilde-festival.dk/kontakt",
-          "information": "The official contact page labels Rabalderstræde 7, 4., 4000 Roskilde as the festival’s secretariat office, not as the festival venue."
+          "information": "The official contact page labels Rabalderstr\u00e6de 7, 4., 4000 Roskilde as the festival\u2019s secretariat office, not as the festival venue."
         }
       ],
       "links": {
-        "website": "https://www.roskilde-festival.dk/",
         "socials": {}
       },
-      "editions": [
-        {
-          "key": "source-row",
-          "year": {
-            "value": 2027,
-            "reason": "The official homepage labels the upcoming edition RF27 and displays its dates in 2027."
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "key": "source-row",
+        "year": {
+          "value": 2027,
+          "reason": "The official homepage labels the upcoming edition RF27 and displays its dates in 2027."
+        },
+        "dates": {
+          "value": {
+            "startsOn": "2027-06-26",
+            "endsOn": "2027-07-03",
+            "state": "confirmed"
           },
-          "dates": {
-            "value": {
-              "startsOn": "2027-06-26",
-              "endsOn": "2027-07-03",
-              "state": "confirmed"
-            },
-            "reason": "The official homepage displays “26/6 – 3/7 2027,” confirming the edition dates."
-          },
-          "scheduleStatus": {
-            "value": "scheduled",
-            "reason": "The official homepage advertises RF27, says ticket sales are underway, and displays its 2027 dates."
-          },
-          "venueAddress": {
-            "value": null,
-            "reason": "The official contact page identifies the saved address, Rabalderstræde 7, 4., as the festival’s secretariat office. This positively establishes that it is not a venue address."
-          },
-          "classification": {
-            "value": ["validation:festival", "validation:music"],
-            "reason": "The official homepage presents RF27 as a festival and describes its programme as music, with the first artists announced."
-          },
-          "links": {
-            "tickets": "https://www.roskilde-festival.dk/billetter"
-          }
+          "reason": "The official homepage displays \u201c26/6 \u2013 3/7 2027,\u201d confirming the edition dates."
+        },
+        "scheduleStatus": {
+          "value": "scheduled",
+          "reason": "The official homepage advertises RF27, says ticket sales are underway, and displays its 2027 dates."
+        },
+        "venueAddress": {
+          "value": null,
+          "reason": "The official contact page identifies the saved address, Rabalderstr\u00e6de 7, 4., as the festival\u2019s secretariat office. This positively establishes that it is not a venue address."
+        },
+        "classification": {
+          "value": ["validation:festival", "validation:music"],
+          "reason": "The official homepage presents RF27 as a festival and describes its programme as music, with the first artists announced."
+        },
+        "links": {
+          "tickets": "https://www.roskilde-festival.dk/billetter"
         }
-      ]
+      }
     },
     "errors": [
       {

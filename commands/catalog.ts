@@ -161,7 +161,7 @@ export async function executeCatalogCommand(
       }
     }
     const report = {
-      schemaVersion: 5,
+      schemaVersion: 6,
       checkedAt: new Date().toISOString(),
       dryRun: options.dryRun,
       results,

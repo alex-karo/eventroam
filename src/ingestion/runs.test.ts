@@ -77,7 +77,7 @@ test("finalization preserves normalized report, zero/unknown values and guards t
   const pending = client
     .prepare("SELECT * FROM ingestion_runs WHERE id=?")
     .get(id);
-  for (const schemaVersion of [2, 3, 4]) {
+  for (const schemaVersion of [2, 3, 4, 5]) {
     expect(() =>
       finalizeIngestionRun(
         client,
@@ -231,4 +231,33 @@ test("start rejects empty modes and stores normalized mode consistently", () => 
     .get(id) as { mode: string; input_json: string };
   expect(row.mode).toBe("reconcile");
   expect(JSON.parse(row.input_json).mode).toBe(row.mode);
+});
+
+test("a new run leaves historical report JSON unchanged", async () => {
+  const { client } = testDatabase();
+  const id = startIngestionRun(client, settings, Date.now(), null);
+  const historical =
+    '{ "schemaVersion": 5, "modelResponse": {"editions": []} }';
+  client
+    .prepare(
+      "UPDATE ingestion_runs SET status='completed', report_json=? WHERE id=?",
+    )
+    .run(historical, id);
+  const result = await runCatalogResearch(
+    { mode: "add", name: "Test", actor: "owner" },
+    {
+      client,
+      generateCandidate: async () => ({
+        status: "failed",
+        data: null,
+        errors: [],
+        unresolved: [],
+      }),
+    },
+  );
+  expect(result.schemaVersion).toBe(6);
+  expect(result.currentDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  expect(
+    client.prepare("SELECT report_json FROM ingestion_runs WHERE id=?").get(id),
+  ).toEqual({ report_json: historical });
 });

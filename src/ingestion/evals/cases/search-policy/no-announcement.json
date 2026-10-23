@@ -58,7 +58,8 @@
     "forbidden": [],
     "research": {
       "status": "success",
-      "editionKeys": ["2026"]
+      "previousEdition": "2026",
+      "currentOrNextEdition": null
     },
     "toolUse": {
       "maxSearches": 0
