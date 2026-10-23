@@ -1,6 +1,6 @@
 # Eventroam documentation
 
-This is a hand-maintained guide to the documents under `docs/`. Draft proposals hold unresolved choices. The application and [build progress](service-build-progress.md) show what currently runs. `stable` describes an accepted decision, verified current behavior, or reliable historical record; `draft` marks material still being selected or reviewed. Dated research and legacy specs are background evidence.
+This is a hand-maintained guide to the documents under `docs/`. Draft proposals hold unresolved choices. The application and [current OpenSpec specs](../openspec/specs/) show what currently runs. `stable` describes an accepted decision, verified current behavior, or reliable historical record; `draft` marks material still being selected or reviewed. Dated research and legacy specs are background evidence.
 
 For a short introduction to the product, architecture, technology, and local setup, start with the [project README](../README.md).
 
@@ -8,12 +8,11 @@ For a short introduction to the product, architecture, technology, and local set
 
 Every substantive file under `docs/` has OKF-style `type`, `title`, `description`, and `status` frontmatter; `tags` are optional. Index files and `AGENTS.md` are navigation and instructions, not concepts. Keep unapproved choices in draft proposals. Do not add `generated`, `verified`, or `stale_after` without evidence. Update this index when adding or removing a document. Run `npm run docs:check` after editing docs.
 
-## Draft proposals and migration record
+## Draft proposals
 
 - [Remaining release decisions](proposals/release-open-decisions.md) — unresolved launch-data, ingestion, and storage choices.
 - [Website routing and indexing defaults](proposals/website-routing-and-indexing.md) — unselected cross-scope and public-launch policies.
 - [Festival taxonomy vocabulary proposal](proposals/festival-taxonomy-vocabulary.md) — starter terms loaded by catalog migrations and assignment guidance.
-- [Specification migration map](specification-migration.md) — where each legacy section moved.
 
 ## Historical specifications
 
@@ -28,8 +27,6 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 - [Development guide](development.md) — commands, workflow, and working practices.
 - [Ingestion process](ingestion-process.md) — plain-language steps for local festival research and catalog updates.
 - [Project structure](project-structure.md) — directories and dependency boundaries.
-- [Service build checklist](service-build-checklist.md) — build tasks and remaining gates.
-- [Service build progress](service-build-progress.md) — fixture-backed implementation and verification record.
 - [Mapbox deployment gate](mapbox-deployment-gate.md) — checks required before public map deployment.
 
 ## Decisions

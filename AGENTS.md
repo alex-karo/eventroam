@@ -10,7 +10,7 @@ Start at the [documentation index](docs/index.md), then read only the documents 
 - Classification: [Edition classification](openspec/specs/catalog/classification/spec.md); the [starter vocabulary](docs/proposals/festival-taxonomy-vocabulary.md) remains a draft.
 - Map, list, or filters: [discovery](openspec/specs/website/discovery/spec.md).
 - Routes or scope hosts: [scoped website](openspec/specs/website/routing/spec.md).
-- Local source workflows: [source-backed catalog workflow](openspec/specs/catalog/source-workflow/spec.md) and [ingestion guide](docs/ingestion-process.md).
+- Local ingestion: [ingestion workflow](openspec/specs/catalog/ingestion-workflow/spec.md), [source access](openspec/specs/catalog/source-access/spec.md), and [ingestion guide](docs/ingestion-process.md).
 - Future public discovery metadata and deployment: [active OpenSpec changes](openspec/changes/).
 - Code layout or commands: [project structure](docs/project-structure.md) and [development guide](docs/development.md).
 - Technology rationale: [decisions](docs/index.md#decisions). Deployment: [Mapbox gate](docs/mapbox-deployment-gate.md).
