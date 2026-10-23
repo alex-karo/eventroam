@@ -4,7 +4,7 @@
   "candidate": {
     "status": "partial",
     "data": {
-      "eventId": "festivalnetwork:event:792d44feb71838d4b28b",
+      "eventId": "event:792d44feb71838d4b28b",
       "eventName": "Wacken Open Air",
       "sources": [
         {
@@ -57,7 +57,7 @@
             "validation:festival",
             "validation:openair",
             "validation:music",
-            "festivalnetwork:term:genre:metal"
+            "catalog:term:genre:metal"
           ],
           "reason": "The official pages describe the event as Wacken Open Air and promote four days of concerts in a metal community."
         },

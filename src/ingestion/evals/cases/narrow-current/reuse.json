@@ -42,7 +42,7 @@
             "validation:festival",
             "validation:openair",
             "validation:music",
-            "festivalnetwork:term:genre:electronic"
+            "catalog:term:genre:electronic"
           ]
         }
       ]
@@ -82,7 +82,7 @@
       {
         "owner": "edition",
         "field": "terms",
-        "contains": "festivalnetwork:term:genre:electronic",
+        "contains": "catalog:term:genre:electronic",
         "editionYear": 2027
       }
     ],
@@ -116,7 +116,7 @@
         },
         {
           "field": "classification",
-          "value": "festivalnetwork:term:genre:electronic",
+          "value": "catalog:term:genre:electronic",
           "editionYear": 2027
         },
         {

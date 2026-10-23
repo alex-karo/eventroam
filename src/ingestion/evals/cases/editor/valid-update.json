@@ -2,27 +2,27 @@
   "id": "editor-valid-update",
   "input": {
     "mode": "refresh",
-    "eventId": "festivalnetwork:event:a22324dcf0078266ed4e",
+    "eventId": "event:a22324dcf0078266ed4e",
     "actor": "catalog-research",
     "initiatedBy": "eval",
     "dryRun": true
   },
   "initial": {
     "event": {
-      "id": "festivalnetwork:event:a22324dcf0078266ed4e",
-      "slug": "festivalnetwork-sziget-festival-a22324dc",
+      "id": "event:a22324dcf0078266ed4e",
+      "slug": "sziget-festival-a22324dc",
       "canonicalName": "Sziget Festival",
       "links": [
         {
           "kind": "other",
           "url": "https://www.szigetfestival.com/",
-          "label": "FestivalNetwork website (unverified)",
+          "label": "Website (unverified)",
           "official": false
         }
       ],
       "editions": [
         {
-          "id": "festivalnetwork:edition:a22324dcf0078266ed4e",
+          "id": "edition:a22324dcf0078266ed4e",
           "editionKey": "source-row",
           "editionYear": 2026,
           "startsOn": "2026-08-11",

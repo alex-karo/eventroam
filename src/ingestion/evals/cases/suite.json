@@ -8,13 +8,13 @@
   },
   "terms": [
     {
-      "id": "festivalnetwork:term:genre:electronic",
+      "id": "catalog:term:genre:electronic",
       "facet": "genre",
       "slug": "electronic",
       "name": "Electronic"
     },
     {
-      "id": "festivalnetwork:term:genre:metal",
+      "id": "catalog:term:genre:metal",
       "facet": "genre",
       "slug": "metal",
       "name": "Metal"

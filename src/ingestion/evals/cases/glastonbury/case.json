@@ -2,27 +2,27 @@
   "id": "glastonbury",
   "input": {
     "mode": "refresh",
-    "eventId": "festivalnetwork:event:2d90837f6b8f1217f50c",
+    "eventId": "event:2d90837f6b8f1217f50c",
     "actor": "catalog-research",
     "initiatedBy": "eval",
     "dryRun": true
   },
   "initial": {
     "event": {
-      "id": "festivalnetwork:event:2d90837f6b8f1217f50c",
-      "slug": "festivalnetwork-glastonbury-2027-2d90837f",
+      "id": "event:2d90837f6b8f1217f50c",
+      "slug": "glastonbury-2027-2d90837f",
       "canonicalName": "Glastonbury (2027)",
       "links": [
         {
           "kind": "other",
           "url": "https://www.glastonburyfestivals.co.uk/",
-          "label": "FestivalNetwork website (unverified)",
+          "label": "Website (unverified)",
           "official": false
         }
       ],
       "editions": [
         {
-          "id": "festivalnetwork:edition:2d90837f6b8f1217f50c",
+          "id": "edition:2d90837f6b8f1217f50c",
           "editionKey": "source-row",
           "editionYear": 2027,
           "startsOn": "2027-06-23",

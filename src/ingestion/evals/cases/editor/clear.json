@@ -2,7 +2,7 @@
   "id": "editor-clear",
   "input": {
     "mode": "refresh",
-    "eventId": "festivalnetwork:event:87b1f34093d76b709011",
+    "eventId": "event:87b1f34093d76b709011",
     "actor": "catalog-research",
     "initiatedBy": "eval",
     "dryRun": true,
@@ -10,20 +10,20 @@
   },
   "initial": {
     "event": {
-      "id": "festivalnetwork:event:87b1f34093d76b709011",
-      "slug": "festivalnetwork-roskilde-festival-87b1f340",
+      "id": "event:87b1f34093d76b709011",
+      "slug": "roskilde-festival-87b1f340",
       "canonicalName": "Roskilde Festival",
       "links": [
         {
           "kind": "other",
           "url": "https://www.roskilde-festival.dk/",
-          "label": "FestivalNetwork website (unverified)",
+          "label": "Website (unverified)",
           "official": false
         }
       ],
       "editions": [
         {
-          "id": "festivalnetwork:edition:87b1f34093d76b709011",
+          "id": "edition:87b1f34093d76b709011",
           "editionKey": "source-row",
           "editionYear": 2027,
           "startsOn": "2027-06-26",

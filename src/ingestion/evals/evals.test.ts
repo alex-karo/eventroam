@@ -888,7 +888,7 @@ test("Wacken permits metal while preserving historical dates", () => {
       field: "terms",
       oldValue: [],
       explanations: [],
-      newValue: ["festivalnetwork:term:genre:metal"],
+      newValue: ["catalog:term:genre:metal"],
     },
   ]);
   expect(scoreCase(wacken, output).passed).toBe(true);
@@ -897,7 +897,7 @@ test("Wacken permits metal while preserving historical dates", () => {
     field: "terms",
     oldValue: [],
     explanations: [],
-    newValue: ["festivalnetwork:term:genre:metal"],
+    newValue: ["catalog:term:genre:metal"],
   });
   expect(scoreCase(wacken, output).passed).toBe(true);
   output.changes.push({
