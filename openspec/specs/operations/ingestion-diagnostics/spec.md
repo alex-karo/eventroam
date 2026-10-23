@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define optional local inspection of ingestion execution while keeping sensitive content out of durable reports and ordinary observability records.
+Define optional local inspection of ingestion execution and the fields selected for diagnostic records.
 
 ## Requirements
 
@@ -37,7 +37,7 @@ Enabled logs, traces, and metrics SHALL be stored separately from the catalog an
 - **THEN** diagnostics retain that retrieval failure rather than claiming a successful source check
 
 ### Requirement: Traces exclude content payloads
-Stored traces SHALL exclude prompts, message history, full source bodies, full model responses, transport payloads, credentials, and raw errors, including content attached automatically by tooling. They MAY retain bounded source URL, retrieval method and outcome, timing, safe identity, validation status, and the final run outcome. A failure to enforce these exclusions SHALL prevent the sensitive content from persisting.
+Stored traces SHALL exclude prompts, message history, full source bodies, full model responses, transport payloads, application or SDK credentials, and raw errors. This SHALL include fields attached automatically by tooling. Traces MAY retain bounded public source URLs, retrieval method and outcome, timing, record identity, validation status, and the final run outcome. Selected public URLs SHALL NOT require secret detection or redaction. A failure to enforce the field exclusions SHALL prevent the excluded fields from persisting.
 
 #### Scenario: A model span includes prompt content
 - **WHEN** tracing receives automatically attached prompts or message history
@@ -45,10 +45,10 @@ Stored traces SHALL exclude prompts, message history, full source bodies, full m
 
 #### Scenario: A source read is traced
 - **WHEN** an inspected source produces content and links
-- **THEN** the trace may retain its safe URL and outcome without the page body
+- **THEN** the trace may retain its bounded public URL and outcome without the page body
 
 ### Requirement: Application logs use selected bounded fields
-Enabled logs SHALL identify severity, a short message, run ID, and selected run or source context. They SHALL cover retrieval, discovery, model, validation, write, and completion outcomes. Logs SHALL exclude full prompts, source content, transport data, credentials, and raw exceptions at every level. Unobserved outcomes SHALL not be fabricated.
+Enabled logs SHALL identify severity, a short message, run ID, and selected run or source context. They SHALL cover retrieval, discovery, model, validation, write, and completion outcomes. Logs SHALL NOT separately copy full prompts, source content, transport data, application or SDK credentials, or raw exceptions at any level. Selected public URLs and permitted model text SHALL NOT require secret detection or redaction. Unobserved outcomes SHALL NOT be fabricated.
 
 #### Scenario: A source is fetched
 - **WHEN** a source read returns content
@@ -65,23 +65,23 @@ Logs MAY include two separate text fields from a completed model step: model com
 - **WHEN** model commentary or returned reasoning exceeds 4,000 Unicode code points
 - **THEN** the saved event contains only the first 4,000 code points of that field, its original length, and a shortening flag
 
-### Requirement: Studio inspection exposes safe execution progress
-Loopback Studio SHALL expose the ingestion flow, live progress, execution ID, durable run ID, and available research, editorial, source, catalog, and report outcomes. Merely opening inspection SHALL not start an attempt or require catalog or model credentials. Saved execution data and errors SHALL omit credentials, prompts, full page bodies, provider payloads, live resources, and raw exceptions. Concurrent attempts SHALL remain distinct in inspection.
+### Requirement: Studio inspection exposes execution progress
+Loopback Studio SHALL expose the ingestion flow, live progress, execution ID, durable run ID, and available research, editorial, source, catalog, and report outcomes. Merely opening inspection SHALL NOT start an attempt or require catalog or model credentials. Saved execution data and errors SHALL NOT separately copy application or SDK credentials, prompts, full page bodies, provider payloads, live resources, or raw exceptions. Available model responses SHALL follow the preservation rules in [ingestion runs](../../catalog/ingestion-runs/spec.md). Concurrent attempts SHALL remain distinct in inspection.
 
 #### Scenario: Open Studio without execution prerequisites
 - **WHEN** the owner opens the ingestion view without model credentials
-- **THEN** the flow and saved safe observations are inspectable without starting a run
+- **THEN** the flow and saved observations are inspectable without starting a run
 
 #### Scenario: Inspect a failed attempt
 - **WHEN** an attempt fails after returning research findings
-- **THEN** Studio exposes available safe phase outcomes and the failure stage without page bodies or raw provider details
+- **THEN** Studio exposes available phase outcomes, model responses, and the failure stage without separately attaching page bodies or provider payloads
 
 #### Scenario: An active execution ID is reused
 - **WHEN** a caller supplies an execution ID already in use
 - **THEN** Studio rejects that execution before work without affecting the original attempt
 
 ### Requirement: Source-result capture is explicit and separate
-The owner MAY enable local capture with `CATALOG_CAPTURE_TOOL_OUTPUTS=true`. It SHALL save bounded source and discovery results supplied to research, including initial context and repeated cached results in call order. Capture SHALL be off by default, identified by run ID, and kept in ignored local debug storage. It SHALL NOT copy source bodies or search responses into runs, reports, logs, or traces. Capture write failure SHALL be visible without changing ingestion's outcome.
+The owner MAY enable local capture with `CATALOG_CAPTURE_TOOL_OUTPUTS=true`. It SHALL save bounded source and discovery results supplied to research, including initial context and repeated cached results in call order. Capture SHALL be off by default, identified by run ID, and kept in ignored local debug storage. Capture SHALL NOT separately attach source bodies or search responses to runs, reports, logs, or traces. Text repeated in model responses SHALL follow the model-output rules above. Capture write failure SHALL be visible without changing ingestion's outcome.
 
 #### Scenario: Capture is enabled
 - **WHEN** the owner enables capture and research reads a page and a discovery result

@@ -6,15 +6,15 @@ Define when source-backed findings can change catalog facts and how uncertain, i
 
 ## Requirements
 
-### Requirement: Research completion is independent of catalog mutation
-Research SHALL report success, partial, or failure separately from the catalog outcome. Research MAY succeed without changing the catalog when all assigned checks are complete. Repeating an unverified saved value SHALL NOT count as a new finding.
+### Requirement: Research status is independent of catalog mutation
+Research SHALL report success, partial, or failure separately from the catalog outcome. Success SHALL mean that the research operation succeeded. It SHALL NOT certify that every assigned check was complete. Research MAY succeed without catalog changes. The research model SHALL NOT treat an unverified saved value as a new finding.
 
 #### Scenario: Assigned checks confirm saved facts
 - **WHEN** inspected sources complete the assignment and support the saved values
 - **THEN** research may succeed while the catalog remains unchanged
 
-### Requirement: Partial research identifies unfinished checks
-Partial research SHALL include findings supported by inspected sources and identify an unfinished mandatory check. Missing optional facts or an unannounced next Edition alone SHALL NOT make completed research partial.
+### Requirement: Partial research identifies known unfinished checks
+The research model SHALL report partial research when it returns useful findings with a known unfinished mandatory check. It SHALL identify that check. Missing optional facts or an unannounced next Edition alone SHALL NOT require partial status. The application SHALL NOT infer check completion from omitted fields. A hard limit without a usable result SHALL follow the failure rules in [ingestion runs](../ingestion-runs/spec.md).
 
 #### Scenario: A mandatory check is blocked
 - **WHEN** inspected sources support some findings but an assigned source cannot be checked
@@ -39,10 +39,10 @@ The run SHALL distinguish bounded execution errors from factual questions that c
 - **THEN** no catalog changes are made and a safe execution error is reported
 
 ### Requirement: Findings alone do not authorize writes
-Catalog changes SHALL require a supported update proposal based on inspected findings and saved state. The system SHALL validate target, scope, country, field structure, and catalog rules before writing. Failed research, an invalid proposal, or failed validation SHALL produce no writes. Findings alone SHALL not be applied as a fallback.
+Catalog changes SHALL require an editor proposal based on research findings and saved state. The editor SHALL assess factual support and whether each proposed change fits its finding. The application SHALL validate target ownership, Edition count limits, country, field structure, and catalog rules before writing. It SHALL trust the editor's assessment of meaning without an independent evidence check. Failed research, an invalid proposal, or failed validation SHALL produce no writes. Findings alone SHALL NOT be applied as a fallback.
 
 #### Scenario: A finding concerns the wrong Edition
-- **WHEN** evidence for an earlier Edition is presented as a current date change
+- **WHEN** the editor identifies evidence for an earlier Edition as the basis for a current date change
 - **THEN** the saved value remains unchanged and the mismatch is explained
 
 #### Scenario: No valid update proposal is available
@@ -54,18 +54,18 @@ Catalog changes SHALL require a supported update proposal based on inspected fin
 - **THEN** the whole item is rejected without partial catalog or audit changes
 
 ### Requirement: Field changes require matching findings
-A change or clear SHALL be supported by inspected evidence for the same Event or Edition and field. A source summary or unanswered question alone SHALL not authorize it. A missing or incompatible basis SHALL reject the proposal. A rejected proposal SHALL make no catalog or publication changes while preserving its reason in the report.
+A change or clear SHALL have a research finding for the same Event or Edition key and field. A source summary or unanswered question alone SHALL NOT replace that finding. The editor SHALL assess whether the finding supports the proposed value or clear. It MAY transform a finding into a valid field value. The application SHALL check the matching finding, action structure, reason, and catalog rules without comparing the meaning of the finding and action. A missing finding or invalid proposal SHALL cause rejection. A rejected proposal SHALL make no catalog or publication changes and SHALL retain its reason in the report.
 
 #### Scenario: An update lacks a finding
-- **WHEN** an update names a field without matching support for that owner and field
+- **WHEN** an update names a field without a finding for that owner, Edition key where applicable, and field
 - **THEN** the whole proposal is rejected before catalog operations
 
 #### Scenario: An update targets the wrong Event
-- **WHEN** research is usable but a proposed update identifies the wrong Event
+- **WHEN** research is usable but the editor rejects an update as belonging to another Event
 - **THEN** no writes occur and the report preserves the rejection reason and failed catalog outcome separately from research status
 
 ### Requirement: Omission and uncertainty preserve saved values
-An omitted or unknown field SHALL leave its saved value unchanged without claiming it was verified. A retrieval failure or a page's silence SHALL NOT justify clearing a value. An explicit, explained finding that a saved value is disproven MAY support a clear when catalog rules allow it; the finding alone SHALL NOT perform the clear. Supported changes MAY proceed alongside unrelated uncertainty.
+An omitted or unknown field SHALL leave its saved value unchanged without claiming it was verified. The editor SHALL NOT use a retrieval failure or a page's silence as grounds to clear a value. It MAY propose a clear when an explained finding disproves the saved value and catalog rules allow it. The finding alone SHALL NOT perform the clear. Supported changes MAY proceed alongside unrelated uncertainty.
 
 #### Scenario: The source omits a saved price
 - **WHEN** a failed or incomplete source read yields no supported replacement ticket block

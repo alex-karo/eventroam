@@ -33,22 +33,23 @@ Refresh SHALL associate its run with the targeted Event from the start. Add SHAL
 - **THEN** the run has no persistent Event association while the preview remains in its report
 
 ### Requirement: Reports distinguish work and outcome
-Each final report SHALL identify its attempt, add or refresh mode, scope, research and editorial status, catalog outcome, source checks, questions, errors, and known record IDs. Outcomes SHALL distinguish `created`, `updated`, `published`, `unchanged`, `skipped`, and `failed`. Refresh SHALL show the frozen date and saved and returned Edition counts.
+Each final report SHALL identify its attempt, add or refresh mode, scope, research and editorial status, catalog outcome, source checks, questions, errors, and known record IDs. Each success status SHALL describe only the success of its operation, without certifying complete Edition or field checks. Outcomes SHALL distinguish `created`, `updated`, `published`, `unchanged`, `skipped`, and `failed`. Refresh SHALL show the frozen date and saved and returned Edition counts.
 
 #### Scenario: A completed recheck changes nothing
 - **WHEN** refresh confirms accepted facts without a change
 - **THEN** the report identifies completed research and an unchanged catalog outcome
 
 ### Requirement: Reports retain findings and changes
-Reports SHALL show proposed or applied old and new values with reasons. Applied changes SHALL match the catalog audit. Available final research and editorial responses SHALL remain separate. A no-op SHALL retain explicit decisions and useful source summaries without inferring field verification. The catalog outcome SHALL NOT stand in for research completeness.
+Successful previews and writes SHALL show old and new values with reasons. Applied changes SHALL match the catalog audit. After a write failure, reports SHALL retain prepared operations, available model responses, and the write error. They SHALL NOT require a separate diff of proposed old and new values. A rolled-back write SHALL leave applied `changes` empty. Available final research and editorial responses SHALL remain separate. A no-op SHALL retain explicit decisions and useful source summaries without inferring field verification. The catalog outcome SHALL NOT stand in for research completeness.
 
 #### Scenario: Research and editorial responses are available
 - **WHEN** both stages return final text and structured output
-- **THEN** the private report retains them separately as `modelResponse` and `editorResponse` without copying prompts or page bodies
+- **THEN** the private report retains them separately as `modelResponse` and `editorResponse` without content filtering
 
 #### Scenario: Research succeeds but writing fails
 - **WHEN** a valid proposed update fails the catalog writer
-- **THEN** the report retains research status and findings, identifies the write-stage failure, and reports no committed catalog change
+- **THEN** the report retains research status, findings, prepared operations, and available model responses with the write-stage error
+- **AND** applied `changes` is empty and a separate proposed diff is not required
 
 #### Scenario: A source cannot be fetched
 - **WHEN** a source read fails and no update is supported
@@ -103,7 +104,8 @@ The final report SHALL distinguish a model request failure before usable output 
 
 #### Scenario: Research budget is exhausted
 - **WHEN** research reaches its step or time limit without a valid result
-- **THEN** the run reports `limit_reached` and retains known usage and unfinished checks
+- **THEN** the run reports `limit_reached` with a limit reason, known usage, source-read history, and available model questions
+- **AND** it does not require or invent a complete list of unfinished checks
 
 ### Requirement: Run persistence failures do not replay work
 Failure to create the running record SHALL stop the attempt before research or mutation. Failure to save final status and report SHALL yield a safe persistence error and nonzero result, correlated by run ID where available. It SHALL leave the run record unfinished and SHALL NOT replay research, undo confirmed catalog commits, or claim durable finalization.
@@ -143,7 +145,7 @@ Run records SHALL expose nullable `input_tokens`, `output_tokens`, `model_cost_u
 - **THEN** its final statistics, finish time, and report remain absent
 
 ### Requirement: Run history remains private and bounded
-Stored inputs SHALL contain normalized operation settings and safe configuration metadata. Reports MAY retain final model output and source summaries, but SHALL NOT store credentials, environment dumps, prompts, full source page bodies, headers, provider transport payloads, or raw exception messages. Run records SHALL not be exposed through public website reads.
+Stored inputs SHALL contain normalized operation settings and safe configuration metadata. Reports SHALL retain available final model responses without content filtering, even when they repeat prompt or public source text. Public source URLs SHALL retain their components within existing field length limits. The application SHALL NOT scan model responses or public source URLs for secrets or redact their content. It SHALL NOT separately copy application or SDK credentials, environment dumps, prompts, full source bodies, headers, provider transport payloads, or raw exceptions into reports. These field exclusions SHALL NOT override model-response preservation. Run records SHALL NOT be exposed through public website reads.
 
 #### Scenario: A provider error contains sensitive content
 - **WHEN** a caught exception contains request or response content
@@ -151,4 +153,5 @@ Stored inputs SHALL contain normalized operation settings and safe configuration
 
 #### Scenario: Research reads a page
 - **WHEN** research uses a full page body to produce findings
-- **THEN** the private report retains its safe summary and final model output without copying the page body or prompt
+- **THEN** the private report retains the model's summary and available final response
+- **AND** text repeated by the model remains, but the application does not attach the page body or prompt separately

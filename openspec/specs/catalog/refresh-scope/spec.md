@@ -2,12 +2,12 @@
 
 ## Purpose
 
-Define which Event and Editions a refresh must check, how a current Edition is selected, and when identity or country uncertainty prevents updates.
+Define refresh assignments, model selection of Editions, and catalog guards for target ownership, Edition counts, and country.
 
 ## Requirements
 
 ### Requirement: Refresh stays within its requested Event
-Refresh SHALL use only the targeted Event's private catalog context and SHALL update only that Event and its assigned Editions. Saved links and facts SHALL be available as research leads with their Event or Edition ownership, but SHALL NOT count as newly verified evidence. A different Event with the same brand SHALL remain separate; an established relocation SHALL preserve Event identity only when the country guard allows it.
+Refresh SHALL use only the targeted Event's private catalog context and SHALL update only that Event and its Editions. Saved links and facts SHALL be available as research leads with their Event or Edition ownership, but SHALL NOT count as newly verified evidence. A different Event with the same brand SHALL remain separate; an established relocation SHALL preserve Event identity only when the country guard allows it.
 
 #### Scenario: A catalog contains unrelated Events
 - **WHEN** refresh targets one Event in a catalog containing other festivals
@@ -17,21 +17,25 @@ Refresh SHALL use only the targeted Event's private catalog context and SHALL up
 - **WHEN** two recurring festivals use the same brand in different countries
 - **THEN** refresh does not merge their Event identities
 
-### Requirement: Full scope checks saved history and the next candidate
-Refresh SHALL use one frozen current date. Full scope SHALL check every saved Edition plus the selected ongoing or nearest future Edition when missing. It SHALL verify supported Event facts, shared links, and all assigned Edition facts. It SHALL NOT search solely for unsaved historical Editions. Unfinished mandatory checks SHALL remain visible in research status.
+### Requirement: Full scope assigns saved history and the next candidate
+Refresh SHALL use one frozen current date. Full instructions SHALL assign every saved Edition plus the selected ongoing or nearest future Edition when missing. They SHALL request checks of Event facts, shared links, and all assigned Edition facts. They SHALL NOT request a search solely for unsaved historical Editions. The research model SHALL report known unfinished mandatory checks. The application SHALL trust the model's account of its checks without a separate coverage record. Success SHALL NOT certify that all assigned checks were complete.
 
 #### Scenario: Full refresh has saved history
 - **WHEN** full refresh finds a new future announcement and has a saved historical Edition
 - **THEN** it checks the saved Edition as well as the new candidate
 - **AND** finding the new announcement does not make unfinished saved checks complete
 
-### Requirement: Current scope checks one selected Edition
-Current scope SHALL check at most one ongoing or nearest future Edition. It SHALL assess announcement, dates, schedule status, location, tickets, and classification for that Edition. Size, coordinates, and detailed address MAY be opportunistic. Current SHALL omit Event summary and shared-link findings and SHALL not re-audit history or an established Event identity baseline.
+### Requirement: Current scope focuses research on one selected Edition
+Current instructions SHALL focus on one ongoing or nearest future Edition. They SHALL request checks of its announcement, dates, schedule status, location, tickets, and classification. Size, coordinates, and detailed address MAY be opportunistic. The instructions SHALL tell the model to omit Event summary and shared-link findings and avoid a history or identity audit. The application SHALL trust the model's temporal selection and additional findings. It SHALL NOT independently enforce this semantic focus. Target ownership, Edition count limits, country, and catalog guards SHALL still apply.
 
 #### Scenario: Current refresh has saved history
 - **WHEN** current selects one future Edition and another Edition is saved
-- **THEN** only the selected Edition may receive findings and changes
+- **THEN** the model is instructed to focus its findings and changes on the selected Edition
 - **AND** the other Edition remains available as matching and country context
+
+#### Scenario: Current returns an additional Event fact
+- **WHEN** current returns a supported shared-link change that passes editor and catalog validation
+- **THEN** the application does not reject it solely because current instructions omitted that task
 
 #### Scenario: No Editions are saved
 - **WHEN** the targeted Event has no Editions
@@ -42,7 +46,7 @@ Current scope SHALL check at most one ongoing or nearest future Edition. It SHAL
 - **THEN** the result is rejected before catalog operations
 
 ### Requirement: Current selection uses inspected temporal evidence
-Current SHALL select an ongoing Edition first, otherwise the nearest future Edition supported by inspected material. Programme start and end dates SHALL be inclusive local dates using the saved time zone or UTC fallback. Saved dates and statuses SHALL guide checks but SHALL NOT prove the selection. The result SHALL preserve an existing Edition key when the selected announcement matches it.
+The research model SHALL select an ongoing Edition first, otherwise the nearest future Edition supported by inspected material. It SHALL use inclusive local programme dates with the saved time zone or UTC fallback. Saved dates and statuses SHALL guide checks but SHALL NOT prove the selection. The result SHALL preserve an existing Edition key when the selected announcement matches it.
 
 #### Scenario: A festival is underway
 - **WHEN** an Edition is supported as ongoing today and a later Edition is announced
@@ -102,11 +106,11 @@ Full refresh MAY recover a wrong website association using an inspected known li
 - **WHEN** full inspects a website associated with a different festival
 - **THEN** its facts remain diagnostic context and do not become target proposals
 
-### Requirement: Current refresh does not replace an unavailable or wrong source
-Current refresh SHALL NOT search for a replacement website when a relevant source is unavailable or contradicts the target Event's identity. It SHALL report the unfinished check or identity contradiction. An identity contradiction SHALL request full refresh. Current refresh SHALL make no changes based on an unverified source.
+### Requirement: Current instructions avoid source replacement work
+Current instructions SHALL tell the research model not to search for a replacement for an unavailable or wrong website. The model SHALL report known unfinished checks or identity contradictions. A reported identity contradiction SHALL request full refresh and prevent catalog changes. The application SHALL trust the model's assessment of source identity.
 
 #### Scenario: Current finds a contradictory identity
-- **WHEN** current discovers that a relevant source materially identifies another Event
+- **WHEN** current reports that a relevant source materially identifies another Event
 - **THEN** it fails with an identity question requesting full refresh and makes no changes
 
 #### Scenario: Current cannot access a relevant source

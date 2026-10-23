@@ -49,15 +49,16 @@ If direct retrieval cannot check an assigned fact, any configured alternate retr
 - **THEN** the source result reflects the bounded attempt and its outcome
 
 ### Requirement: Research stays within a shared run budget
-Source reads, discovery, and model work SHALL share a bounded run budget. The system SHALL allow relevant follow-up pages while time remains without an independent fixed page-count or link-depth cap. It SHALL report an unfinished mandatory check when the budget prevents it. A budget limit SHALL NOT turn an unread source into a verified absence.
+Source reads, discovery, and model work SHALL share a bounded run budget. The system SHALL allow relevant follow-up pages while time remains without an independent fixed page-count or link-depth cap. At a hard limit without a usable result, it SHALL retain the limit reason, known usage, source-read history, and available model questions. It SHALL NOT require or invent a complete list of unfinished checks. A budget limit SHALL NOT turn an unread source into a verified absence.
 
 #### Scenario: A relevant linked page remains available
 - **WHEN** a source links to a more specific ticket or announcement page and budget remains
 - **THEN** research may inspect that page before returning findings
 
 #### Scenario: The budget expires
-- **WHEN** a mandatory source check cannot finish within the budget
-- **THEN** the run reports the unfinished check and preserves affected saved facts
+- **WHEN** the budget expires before a usable final result
+- **THEN** the run reports the limit with available diagnostics and makes no catalog changes
+- **AND** no complete list of unfinished checks is required
 
 ### Requirement: Oversized assignments fail without losing targets
 An assignment that exceeds supported size SHALL fail explicitly before research when detectable, otherwise before application. The report SHALL retain the full assignment and a size diagnostic. Ingestion SHALL not silently truncate targets or split the assignment into separate runs.
@@ -89,7 +90,7 @@ Discovery SHALL be bounded to finding an unknown official source or resolving an
 - **THEN** research may discover and inspect a candidate source within the budget
 
 ### Requirement: Source summaries identify useful inspected evidence
-Reports SHALL distinguish inspected sources that informed findings from unread leads. A useful partial page MAY support a fact while its missing information remains unverified. Source summaries SHALL remain available for no-op and failed-write outcomes.
+The research model SHALL summarize inspected sources that informed findings and SHALL distinguish them from unread leads. A useful partial page MAY support a fact while its missing information remains unverified. The application SHALL retain model summaries without independently checking their claims against source-read history. Source summaries SHALL remain available for no-op and failed-write outcomes.
 
 #### Scenario: One page supports several facts
 - **WHEN** an inspected page supports dates and venue for one Edition
@@ -97,7 +98,7 @@ Reports SHALL distinguish inspected sources that informed findings from unread l
 
 #### Scenario: A destination was not read
 - **WHEN** research finds a URL but does not inspect it
-- **THEN** the URL is not reported as an informative inspected source
+- **THEN** the research model omits that URL from its informative inspected sources
 
 ### Requirement: Unsupported social retrieval is reported
 When automated Facebook or Instagram content retrieval is unsupported, the run SHALL report that limitation without blocking other supported findings. [Ingestion updates](../ingestion-updates/spec.md) governs link preservation.

@@ -30,12 +30,16 @@ The CLI SHALL accept a festival name for `add` and one or more Event IDs for `re
 - **THEN** the command rejects the input before research and makes no catalog changes
 
 ### Requirement: Addition researches an Event and its relevant Editions
-Add SHALL research the festival's identity, its latest completed Edition, and its next announced Edition where supported by inspected sources. It SHALL keep Edition facts separate, collect official links, and produce a short factual English Event description. An unannounced Edition SHALL NOT be inferred from prior-year facts.
+Add SHALL research the festival's identity, its latest completed Edition, and its next announced Edition where supported by inspected sources. It SHALL keep Edition facts separate and collect official links. Add instructions SHALL request a short factual English Event description. A missing description SHALL NOT block Event creation or eligible publication. An unannounced Edition SHALL NOT be inferred from prior-year facts.
 
 #### Scenario: History and next announcement are available
 - **WHEN** inspected sources document a completed Edition and the next announced Edition
 - **THEN** the run reports their facts separately under the matched Event
-- **AND** the description does not present historical facts as current
+- **AND** any description does not present historical facts as current
+
+#### Scenario: A supported Event has no description
+- **WHEN** add establishes a new Event and valid publication facts without an Event description
+- **THEN** an eligible apply run may create and publish the records without that description
 
 #### Scenario: No next announcement is found
 - **WHEN** relevant source checks support a completed Edition but no next announcement
@@ -57,7 +61,7 @@ Add SHALL create a new Event only when its identity and creation are supported. 
 - **THEN** add reports skipped with an explanation and makes no catalog or publication changes
 
 ### Requirement: Refresh checks an existing Event
-Refresh SHALL research only the requested Event and its assigned Editions under the selected scope. It SHALL recheck supported facts for corrections and updates, including known links. A page wording change alone SHALL NOT create a catalog change. Unknown or mismatched target IDs SHALL fail before research.
+Refresh SHALL target only the requested Event. Its research instructions SHALL follow the selected [refresh scope](../refresh-scope/spec.md). They SHALL request checks for factual corrections and updates, including known links where assigned. A page wording change alone SHALL NOT create a catalog change. Unknown or mismatched target IDs SHALL fail before research.
 
 #### Scenario: A known page changes without a fact change
 - **WHEN** a source changes wording but supports the saved catalog facts
