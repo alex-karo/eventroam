@@ -88,13 +88,14 @@ An omitted classification MUST preserve current assignments.
 
 ### Requirement: Topics remain independent of physical format
 
-Topic assignments SHALL describe programme content or participant offerings independently of the physical format. A topic assignment SHALL NOT substitute for a format assignment required by publication rules. Specific topic definitions and assignment guidance SHALL remain curated vocabulary rather than fixed specification requirements.
+Topic assignments SHALL describe programme content or participant offerings independently of the physical format. A topic assignment SHALL NOT establish a format assignment. An unknown format SHALL NOT prevent publication when the other publication requirements are met. Specific topic definitions and assignment guidance SHALL remain curated vocabulary rather than fixed specification requirements.
 
-#### Scenario: Additional topics without an eligible format
+#### Scenario: Additional topics with unknown format
 
-- **GIVEN** an edition with additional topic assignments but no eligible physical format
-- **WHEN** publication is attempted
-- **THEN** those topics do not satisfy the publication format gate
+- **GIVEN** an Edition with topic assignments and no physical format assignment
+- **WHEN** publication passes the other publication requirements
+- **THEN** the Edition can publish
+- **AND** its format remains unknown
 
 ### Requirement: Current research can explicitly reuse preceding classification
 For a new selected current Edition, research SHALL check its announcement before reusing the nearest preceding comparable saved Edition's taxonomy. Reuse SHALL be a complete finding whose reason identifies the donor and continuity basis. Refuted terms SHALL be revised or excluded; ambiguous comparability SHALL NOT authorize copying. Omission SHALL NOT trigger inheritance.

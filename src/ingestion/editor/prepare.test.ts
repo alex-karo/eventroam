@@ -623,15 +623,16 @@ test("explicit cancellation updates schedule without renaming Event identity", (
 });
 
 test.each([
-  ["openair", true, true],
-  ["mixed-indoor-outdoor", true, true],
-  ["indoor", true, true],
-  ["outdoor", true, true],
-  [null, true, false],
-  ["openair", false, true],
+  ["openair", true],
+  ["mixed-indoor-outdoor", true],
+  ["indoor", true],
+  ["outdoor", true],
+  [null, true],
+  [null, false],
+  ["openair", false],
 ] as const)(
   "research and writer agree on format %s with music=%s and the outdoor activity topic",
-  (format, music, publishable) => {
+  (format, music) => {
     const client = testDatabase().client;
     const fx = testFixtures(client);
     const terms = [
@@ -673,28 +674,16 @@ test.each([
     const prepared = prepareEditorialFixture(proposed, [], input, terms);
     expect(prepared.errors).toEqual([]);
     expect(prepared.operations.some((op) => op.kind === "publishEdition")).toBe(
-      publishable,
+      true,
     );
     applyCatalogItem(client, prepared.operations);
     const [saved] = readResearchCatalog(client);
     const edition = saved.editions[0];
-    expect(edition.publicationState).toBe(publishable ? "published" : "draft");
+    expect(edition.publicationState).toBe("published");
+    expect(saved.publicationState).toBe("published");
     expect(edition.terms.map((term) => term.id).sort()).toEqual(
       terms.map((term) => term.id).sort(),
     );
-    if (!publishable) {
-      expect(() =>
-        applyCatalogItem(client, [
-          {
-            kind: "publishEdition",
-            operationKey: "test:activity-publication",
-            actor: "owner",
-            id: edition.id,
-            expectedVersion: edition.version,
-          },
-        ]),
-      ).toThrow(/format/);
-    }
   },
 );
 

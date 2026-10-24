@@ -18,7 +18,7 @@ Basis: The owner accepted the simpler Edition-only classification model on 2026-
 
 Implementation note (2026-10-22): Migration `0001_starter_taxonomy` adds missing starter terms by facet/slug, preserving existing IDs, labels, parents, and Edition assignments. Development fixtures reuse those terms. Loading the dictionary does not assign terms or publish Editions.
 
-Historical implementation note (2026-10-11): Fresh development and eval vocabularies include `format/openair` and the four new activity topics. Current publication checks accept any valid format, one event type, and at least one topic or culture term. Evidence assessment remains model-led, while writes enforce structural rules. The rest of the starter vocabulary remains subject to launch-data validation.
+Historical implementation note (2026-10-11): Fresh development and eval vocabularies include `format/openair` and the four new activity topics. Current publication checks require one event type and at least one topic or culture term. Physical format is optional. Evidence assessment remains model-led, while writes enforce structural rules. The rest of the starter vocabulary remains subject to launch-data validation.
 
 ## 1 Context and outcome
 
@@ -55,7 +55,7 @@ Choose the type that best matches the organizer's description and programme. A f
 
 Naming note (2026-10-11): `format/openair` replaces the former `format/outdoor` in application publication checks and fresh fixture vocabularies. The starter migration adds `format/openair` but does not rename or reassign the former `format/outdoor` in existing catalogs.
 
-Preserve raw source wording. “Hybrid” may mean online plus in-person; an open-air name or photograph alone does not establish the current edition's setting. Any valid format can meet the publication format requirement. Unknown format cannot. Use programme and site evidence. Branding, camping, or one physical feature alone is insufficient. Do not invent a percentage threshold.
+Preserve raw source wording. “Hybrid” may mean online plus in-person; an open-air name or photograph alone does not establish the current edition's setting. Physical format is optional for publication. An unknown format remains unassigned. Use programme and site evidence. Branding, camping, or one physical feature alone is insufficient. Do not invent a percentage threshold.
 
 ### Programme topics
 
@@ -75,7 +75,7 @@ Music does not imply arts; decoration alone does not establish an arts programme
 
 A ski-resort location, nearby slopes, a ski-pass discount, or a link to buy a separate resort pass does not alone establish snow-sports. An official festival ticket or package that includes a ski pass valid for riding during the edition is sufficient. A beach location, surf imagery, or nearby surf schools does not alone establish surfing. Ordinary food stalls, bars, or one incidental tasting do not establish food-and-drink. Other workshops remain descriptive evidence unless they meet an existing topic's definition. Any supported topic or culture term can meet that part of the publication requirement.
 
-`topic/outdoor` describes active outdoor recreation; `format/openair` describes where the core public programme takes place. They have distinct slugs and display labels. Camping, a natural setting, nearby trails, or an isolated walk does not establish the topic. Snow-sports, surfing, and moto do not automatically imply `topic/outdoor`; assign it only for a separately supported recreation programme. It is not their taxonomy parent. An outdoor-activities topic does not by itself establish an open-air programme format or satisfy the publication format gate.
+`topic/outdoor` describes active outdoor recreation; `format/openair` describes where the core public programme takes place. They have distinct slugs and display labels. Camping, a natural setting, nearby trails, or an isolated walk does not establish the topic. Snow-sports, surfing, and moto do not automatically imply `topic/outdoor`; assign it only for a separately supported recreation programme. It is not their taxonomy parent. An outdoor-activities topic does not by itself establish an open-air programme format.
 
 ### Music genres
 
