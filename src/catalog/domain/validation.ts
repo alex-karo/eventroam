@@ -157,7 +157,6 @@ export function validateFestivalScope(
   terms: readonly { facet: string; slug: string }[],
 ) {
   const has = (facet: string) => terms.some((term) => term.facet === facet);
-  assert(has("format"), "Festival scope requires format");
   assert(has("event_type"), "Festival scope requires event type");
   assert(
     has("topic") || has("culture"),

@@ -437,7 +437,7 @@ test("publication gates dates, country and facets; withdrawal retains URL reserv
       id: draft.id,
       expectedVersion: updated.version,
     }),
-  ).toThrow(/format/);
+  ).toThrow(/event type/);
   updated = applyCatalogOperation(client, {
     kind: "replaceTerms",
     operationKey: "test:terms",
@@ -470,13 +470,12 @@ test("publication gates dates, country and facets; withdrawal retains URL reserv
   ).toMatchObject({ path: "/events/test-field-days/2028" });
 });
 
-test("publication accepts structurally complete editions with saved links", () => {
+test("publication accepts unknown format with complete required facts and saved links", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event();
   const edition = fx.edition(event, { locality: null });
   for (const term of [
-    fx.existingTerm("format", "indoor"),
     fx.term({ facet: "event_type", slug: "conference" }),
     fx.term({ facet: "culture", slug: "participatory" }),
   ]) {

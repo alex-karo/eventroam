@@ -8,7 +8,7 @@ Define the structural gates and visible behavior of public festival records in t
 
 ### Requirement: Publication enforces edition facts and festival scope
 
-An Edition SHALL publish only with a year, date pair, and country. Venue, locality, and region SHALL be optional. Classification SHALL require one `format`, one `event_type`, and at least one `topic` or `culture` term, without requiring specific values. Existing term validity and assignment rules SHALL apply. An Event SHALL publish only after a published Edition of any year and SHALL then receive the Festivals home scope. Draft and withdrawn subjects SHALL stay outside public reads.
+An Edition SHALL publish only with a year, date pair, and country. Venue, locality, and region SHALL be optional. Classification SHALL require one `event_type` and at least one `topic` or `culture` term, without requiring specific values. A `format` assignment SHALL be optional. Existing term validity and assignment rules SHALL apply. An Event SHALL publish only after a published Edition of any year and SHALL then receive the Festivals home scope. Draft and withdrawn subjects SHALL stay outside public reads.
 
 #### Scenario: An edition has only a country
 
@@ -28,11 +28,11 @@ An Edition SHALL publish only with a year, date pair, and country. Venue, locali
 - **WHEN** their values are outside the previous open-air, festival/gathering, and music/burning-like restrictions
 - **THEN** those values do not prevent publication
 
-#### Scenario: Additional topics cannot replace physical format
+#### Scenario: Unknown physical format permits publication
 
 - **GIVEN** a dated, located festival with music and additional topic assignments but no format assignment
 - **WHEN** publication is attempted
-- **THEN** publication is rejected
+- **THEN** publication passes the gates without adding a format assignment
 
 #### Scenario: Event type or theme is absent
 

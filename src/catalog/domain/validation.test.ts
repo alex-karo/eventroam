@@ -126,12 +126,15 @@ test("published editions need only a country for location", () => {
 test.each(["topic", "culture"])(
   "publication accepts arbitrary values with a %s theme",
   (theme) => {
-    const terms = ["format", "event_type", theme].map((facet) => ({
+    const terms = ["event_type", theme].map((facet) => ({
       facet,
       slug: "another-valid-value",
     }));
     expect(() => validateFestivalScope(terms)).not.toThrow();
-    for (const missing of ["format", "event_type", theme]) {
+    expect(() =>
+      validateFestivalScope([...terms, { facet: "format", slug: "openair" }]),
+    ).not.toThrow();
+    for (const missing of ["event_type", theme]) {
       expect(() =>
         validateFestivalScope(terms.filter((term) => term.facet !== missing)),
       ).toThrow(/requires/);

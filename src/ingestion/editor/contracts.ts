@@ -4,7 +4,7 @@ import {
   researchQuestionSchema,
 } from "../research/contracts";
 
-export const EDITOR_PROMPT_VERSION = "catalog-editor-v17";
+export const EDITOR_PROMPT_VERSION = "catalog-editor-v18";
 const reason = z
   .string()
   .trim()
