@@ -9,6 +9,7 @@ import type { z } from "zod";
 import { normalizeEditorWire } from "./wire";
 import {
   isEditionPublishable,
+  TermAssignmentCountError,
   validateTermAssignments,
 } from "@/catalog/domain/validation";
 import { createHash, randomUUID } from "node:crypto";
@@ -751,8 +752,10 @@ function validateClassification(ids: string[], terms: Term[]) {
   }
   try {
     validateTermAssignments(ids.map((id) => byId.get(id)!));
-  } catch {
-    return "Invalid classification facets";
+  } catch (error) {
+    return error instanceof TermAssignmentCountError
+      ? error.message
+      : "Invalid classification facets";
   }
   return null;
 }

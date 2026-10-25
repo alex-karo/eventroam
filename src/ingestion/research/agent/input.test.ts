@@ -483,12 +483,18 @@ import { editorInstructions } from "../../editor/prompt";
 import { createResearchTools } from "../../tools";
 import { createSourceSession } from "../../tools/session";
 
-test("both models receive the same general format definition", () => {
+test("both models receive the same classification rules", () => {
   for (const text of [
     assignment({ mode: "add", name: "New", actor: "tester" }).task,
     editorInstructions,
   ]) {
     for (const rule of [
+      "at most one event_type and at most one format",
+      "topic, genre, and culture can each have multiple terms",
+      "main programme comes from participants' contributions",
+      "Community wording, workshops, or shared activities alone",
+      "prefer festival if the organizer explicitly calls the Edition a festival",
+      "a festival with music, workshops, and a community gathering uses one festival type",
       "open site is the primary setting",
       "enclosed spaces are the primary setting",
       "mixed takes precedence",
@@ -498,6 +504,9 @@ test("both models receive the same general format definition", () => {
       expect(text).toContain(rule);
     }
   }
+  expect(editorInstructions).toContain(
+    "Never accept a classification list that exceeds a facet limit",
+  );
 });
 
 test("research owns search policy and the tool describes search results", () => {
