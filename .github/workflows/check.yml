@@ -44,4 +44,5 @@ jobs:
           name: test-coverage
           path: coverage/
           retention-days: 14
-      - run: npm run build
+      - name: Build images and check Compose
+        run: npm run docker:smoke

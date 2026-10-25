@@ -25,10 +25,14 @@
     "catalog": "tsx --env-file-if-exists=.env commands/catalog.ts",
     "catalog:eval": "tsx --env-file-if-exists=.env commands/catalog-eval.ts",
     "catalog:studio": "tsx --env-file-if-exists=.env commands/catalog-studio.ts",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "studio:build": "mastra build --studio && node scripts/build-studio-commands.mjs",
+    "studio:start": "node .mastra/output/commands/studio-start.mjs",
+    "docker:smoke": "node scripts/compose-smoke.mjs"
   },
   "dependencies": {
     "@mastra/core": "1.74.0",
+    "@mastra/deployer": "1.75.0",
     "@mastra/duckdb": "1.13.0",
     "@mastra/loggers": "1.3.5",
     "@mastra/observability": "1.18.4",
@@ -48,7 +52,6 @@
   },
   "devDependencies": {
     "@fission-ai/openspec": "1.14.0",
-    "@mastra/deployer": "1.75.0",
     "@playwright/test": "1.63.0",
     "@testing-library/react": "16.3.3",
     "@types/better-sqlite3": "9.6.0",
@@ -60,6 +63,7 @@
     "@vitest/coverage-v8": "5.0.3",
     "dependency-cruiser": "18.5.0",
     "drizzle-kit": "0.31.11",
+    "esbuild": "0.28.2",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.8",
     "eslint-config-prettier": "10.1.8",

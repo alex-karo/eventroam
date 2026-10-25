@@ -3,8 +3,8 @@ schema: review-driven
 context: |
   Eventroam is an English-language worldwide event catalog. Initial scope covers
   open-air music festivals and burning-like gatherings. The current Next.js app
-  uses fictional development fixtures. Owner-initiated local ingestion is
-  implemented; hosted ingestion and public deployment are deferred.
+  uses fictional development fixtures. Owner-initiated ingestion and application containers are
+  implemented; public deployment is deferred.
   Main specs describe implemented behavior. Approved future work belongs in
   active changes; unresolved decisions belong in docs/proposals/.
   Group spec capabilities under catalog/, website/, or operations/ by domain.

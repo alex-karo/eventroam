@@ -8,7 +8,7 @@ tags: [development]
 
 # Development guide
 
-Eventroam is under active development with no production deployment. Backward compatibility is not required yet. This guide covers local work; the [project structure](project-structure.md) explains code ownership, [OpenSpec](../openspec/specs/) defines implemented behavior, and [ADRs](index.md#decisions) record technology choices.
+Eventroam is under active development with no production deployment. Backward compatibility is not required yet. This guide covers local work and application containers; the [project structure](project-structure.md) explains code ownership, [OpenSpec](../openspec/specs/) defines implemented behavior, and [ADRs](index.md#decisions) record technology choices.
 
 ## Local setup
 
@@ -46,7 +46,7 @@ CI validates main OpenSpec specs with `npm exec -- openspec validate --specs --s
 
 Run `npm run test:coverage` for unit and integration coverage of application and command TypeScript, including unimported files. E2E, test helpers, declaration files, and child-process coverage from Studio and tracing fixtures are excluded. Reports go to ignored `coverage/`; CI publishes totals and retains the HTML `test-coverage` artifact for 14 days. Coverage thresholds are not enforced. React tests use a per-file `// @vitest-environment jsdom` directive and React Testing Library; other tests use Node.
 
-Mastra transport tests start the SDK’s `createNodeServer` directly against temporary catalogs; they do not build or launch the Studio CLI. Observability tests read closed DuckDB stores in the test process, with a dedicated subprocess test for persistence after writer exit. Retry and tracing-abort tests advance controlled timers after the SDK reaches the relevant wait, preserving the configured production delays.
+Mastra transport tests use the production server setup and SDK shutdown against temporary catalogs; they do not build or launch the Studio CLI. Observability tests read closed DuckDB stores in the test process, with a dedicated subprocess test for persistence after writer exit. Retry and tracing-abort tests advance controlled timers after the SDK reaches the relevant wait, preserving the configured production delays.
 
 Use the built-in Browser for local UI verification. On macOS, obtain approved execution outside the command sandbox before launching full Chrome through a shell or test runner, including headless mode.
 
@@ -102,7 +102,7 @@ The defaults are `openai/gpt-6-luna`, medium reasoning, and Flex routing. Set `O
 
 The [ingestion guide](ingestion-process.md) explains source handling, fact selection, previews, publication, and reports. Research is model-led and can make factual mistakes. Inspect the report before deciding on an apply run. After interruption, start a fresh run against current state; already committed changes remain.
 
-To inspect exactly what the research agent received from its initial source, `readPage`, and `searchWeb`, set `CATALOG_CAPTURE_TOOL_OUTPUTS=true` for a CLI or Studio process. Capture works for previews and apply runs and is off by default. For example:
+To inspect exactly what the research agent received from its initial source, `readPage`, and `searchWeb`, set `CATALOG_CAPTURE_TOOL_OUTPUTS=true` for a local CLI or loopback Studio process. Capture works for previews and apply runs and is off by default. For example:
 
 ```sh
 CATALOG_CAPTURE_TOOL_OUTPUTS=true npm run catalog -- add --name "Festival name" --database data/research.sqlite
@@ -170,8 +170,64 @@ curl -sS http://127.0.0.1:4111/api/observability/metrics/aggregate \
 
 Observability is best effort; incomplete or missing traces/metrics do not replace the durable report. Revisit flush/shutdown handling if missing traces or closed-store failures recur. Local stores have no automatic retention. To remove a disposable store, stop research and Studio first, then delete its DuckDB file and `.wal`; leave the catalog and reports intact.
 
-## Future deployment and reference
+## Application containers
 
-Production packaging and Docker Compose are not implemented. See [production readiness](../openspec/changes/production-readiness/proposal.md) and the [Mapbox deployment gate](mapbox-deployment-gate.md) for planned work.
+One Dockerfile has `web` and `studio` targets. Both use Node 26.11.1 on Debian Bookworm, with the base image pinned by digest. Dependencies come from `package-lock.json` and are installed for the target Linux architecture. The website uses Next standalone output. Studio includes its UI, Mastra's production Node server, and a separate migration command. Neither startup command runs migrations or loads fixtures.
+
+```sh
+docker compose build
+docker compose stop
+docker compose run --rm --no-deps studio node commands/migrate.mjs
+docker compose up -d --wait
+```
+
+Supply the two closed database files before the first service start. The migration command can also create an empty catalog for a temporary check. It is repeatable and returns nonzero on failure. Run it with all catalog users stopped. Use matching images and schema from the same source version.
+
+Compose declares one named volume, `data`, mounted at `/data` in both services. Keep the same Compose project name to retain it during recreation. Do not use `docker compose down --volumes` for retained data. The fixed container paths are:
+
+- `/data/eventroam.sqlite`: catalog, public website reads, and validated Studio writes.
+- `/data/mastra-observability.duckdb`: Studio history and observations.
+
+Both images run as `node` (UID/GID 1000). The volume directory and supplied files must permit this user to read and write, including SQLite WAL/shared-memory files and DuckDB WAL files. Website database connections stay read-only; the shared volume permits SQLite sidecar access. Only one process can own the DuckDB file. Stop Studio before any separate command opens that file.
+
+Compose exposes web port 3000 and Studio port 4111 only on the Docker network. It publishes no host ports. Studio listens on `0.0.0.0:4111` and has no application login or credentials. Authentication for the complete public Studio host is an external ingress prerequisite. Network attachment, ingress authentication, DNS, TLS, Komodo, webhooks, and deployment automation belong in the self-hosted repository. Both services use `restart: unless-stopped`.
+
+### Container inputs
+
+Compose reads deployment inputs with `EVENTROAM_` and maps them to current application names. Existing local `.env` names and defaults stay unchanged. Set these inputs in the deployment environment or a selected Compose env file; do not commit credentials.
+
+| Deployment input | Use |
+| --- | --- |
+| `EVENTROAM_MAPBOX_TOKEN`, `EVENTROAM_MAPBOX_STYLE` | Website build arguments mapped to `NEXT_PUBLIC_MAPBOX_TOKEN` and `NEXT_PUBLIC_MAPBOX_STYLE`. Empty token keeps list-only use; the style defaults to Mapbox streets-v12. Rebuild to change either value. |
+| `EVENTROAM_PUBLIC_APEX_ORIGIN`, `EVENTROAM_PUBLIC_FESTIVALS_ORIGIN` | Runtime `PUBLIC_APEX_ORIGIN` and `PUBLIC_FESTIVALS_ORIGIN`; defaults match local development. Set the public origins for deployment. |
+| `EVENTROAM_OPENROUTER_API_KEY`, `EVENTROAM_FIRECRAWL_KEY` | Runtime Studio provider credentials. Neither is a build argument. Inspection needs no model key. Execution needs the migrated catalog and its usual provider settings. |
+| `EVENTROAM_OPENROUTER_MODEL`, `EVENTROAM_OPENROUTER_SERVICE_TIER`, `EVENTROAM_OPENROUTER_REASONING_EFFORT` | Runtime model selection; empty values keep the current application defaults. |
+| `EVENTROAM_CATALOG_TRACING`, `EVENTROAM_CATALOG_LOGGING`, `EVENTROAM_CATALOG_LOG_LEVEL` | Existing diagnostics, all off by default except log level `info`. |
+| `EVENTROAM_CATALOG_MAX_SEARCHES`, `EVENTROAM_CATALOG_MAX_SEARCH_RESULTS`, `EVENTROAM_CATALOG_MAX_AGENT_STEPS`, `EVENTROAM_CATALOG_MAX_DURATION_MS`, `EVENTROAM_CATALOG_MAX_PAGE_BYTES`, `EVENTROAM_CATALOG_MAX_MODEL_OUTPUT_TOKENS` | Existing execution limits; empty values keep the application defaults. |
+
+Database paths are Compose constants, without deployment inputs. Direct image use can set the existing `DATABASE_PATH` and `CATALOG_OBSERVABILITY_DATABASE_PATH` runtime names. Builds exclude owner databases, `.env` files, old output, and host dependencies. Only the public Mapbox token and style enter browser assets. Complete the [Mapbox deployment gate](mapbox-deployment-gate.md) before public map use.
+
+For a production Studio build outside Docker, use temporary build storage, then select runtime storage explicitly:
+
+```sh
+DATABASE_PATH=/tmp/eventroam-build/catalog.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/eventroam-build/history.duckdb npm run studio:build
+DATABASE_PATH=./data/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=./data/mastra-observability.duckdb npm run studio:start
+```
+
+`studio:start` serves the built UI and API on all interfaces without application authentication. It reads shell inputs; it does not load `.env`. Keep `npm run catalog:studio` for loopback development. Both servers preserve default preview, explicit apply, native cancellation, and the existing unsupported-execution guards. Hosted inspection alone makes no model call.
+
+### Health and image verification
+
+Both images include Node health probes. Website `GET /health` returns `200 {"status":"ok"}` for a readable public schema or generic `503 {"status":"unavailable"}`. It does not create or migrate a missing catalog. Studio uses its existing `GET /health`. These internal checks need no model or login inputs.
+
+Run `npm run docker:smoke` to build both targets, prepare an empty test catalog with one explicit migration, and wait for both container health checks to pass. The script uses the application Compose file without host ports, a random project, and a temporary named volume. It supplies no owner data or provider credentials, makes no paid calls, and removes only its test project's containers and volume after success or failure. CI runs the same command instead of a separate host website build. Website health tests and full offline workflow execution remain outside the images.
+
+### Replace supplied data
+
+There is no merge or automatic transfer command. Stop all source and destination users before replacing either database, in either direction. Close/checkpoint SQLite and handle WAL state before copying; never copy a live WAL database's main file alone. Check SQLite integrity and open the closed DuckDB copy with the matching runtime before start. Copy only the catalog and observability data, without separate reports or debug directories. Set file ownership, run explicit migrations while users remain stopped, then start the matching release. Short downtime is expected.
+
+Backups and recovery drills are deferred to the next iteration. Retained images permit code rollback only while catalog schema and DuckDB formats stay compatible. Image rollback does not reverse data changes; an incompatible migration needs a compatible saved data copy.
+
+## Reference
 
 `/Users/karo/projects/eventmap` is a read-only product reference. Do not modify it or copy its implementation wholesale; follow this project's specs and dependency choices.

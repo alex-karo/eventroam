@@ -409,6 +409,7 @@ test("recorded apply traces and logs stay private while the shared store serves 
     expect(againSummary.persistenceStatus).toBe("completed");
     await server.stop(true);
     stopped = true;
+    expect(server.child.exitCode).toBe(0);
     const saved = JSON.parse(
       execFileSync(
         process.execPath,

@@ -1,6 +1,6 @@
 # Eventroam
 
-Eventroam is an English-language worldwide event catalog. The first scope covers open-air music festivals and burning-like gatherings. The current Next.js app uses fictional development fixtures. Owner-initiated local ingestion is implemented; hosted ingestion and public deployment are deferred.
+Eventroam is an English-language worldwide event catalog. The first scope covers open-air music festivals and burning-like gatherings. The current Next.js app uses fictional development fixtures. Owner-initiated ingestion and production application containers are implemented; public deployment is deferred.
 
 The project is under active development and has no production deployment. Backward compatibility is not required at this stage. Prefer clear current contracts; do not add compatibility layers or preserve obsolete APIs, schemas, report formats, or commands solely for earlier versions. Keep code, tests, specs, and documentation aligned when changing a contract.
 

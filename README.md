@@ -18,7 +18,7 @@ npm run db:fixtures
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000) for the directory or [festivals.localhost:3000](http://festivals.localhost:3000) for festivals. Mapbox is optional. See the [development guide](docs/development.md) for configuration and ingestion commands.
+Open [localhost:3000](http://localhost:3000) for the directory or [festivals.localhost:3000](http://festivals.localhost:3000) for festivals. Mapbox is optional. See the [development guide](docs/development.md) for configuration, ingestion, and application Compose commands.
 
 ## Architecture
 
@@ -26,13 +26,13 @@ Eventroam is one Next.js application and one SQLite catalog. Scope hosts share t
 
 ```mermaid
 flowchart TD
-    Sources[External sources] --> Ingestion[Local Mastra ingestion]
+    Sources[External sources] --> Ingestion[Owner-initiated Mastra ingestion]
     Ingestion -->|Validated updates| DB[(SQLite catalog)]
     DB -->|Public data| Web[Next.js application]
     Web --> UI["Browser: list, filters and optional map"]
 ```
 
-The website reads published catalog data. An owner runs ingestion locally through the CLI or Studio to research sources and save validated changes.
+The website reads published catalog data. An owner runs ingestion through the local CLI, loopback Studio, or hosted Studio to research sources and save validated changes.
 
 ## Ingestion
 

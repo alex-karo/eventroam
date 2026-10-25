@@ -2,12 +2,12 @@
 
 ## Purpose
 
-Define how an owner starts local catalog ingestion, previews or applies its result, and resumes work after interruption.
+Define how an owner starts catalog ingestion through the CLI or Studio, previews or applies its result, and resumes work after interruption.
 
 ## Requirements
 
-### Requirement: Ingestion is owner initiated and local
-Discovery, source checks, additions, and refreshes SHALL run only when the owner starts a local CLI or loopback Studio operation. The catalog SHALL NOT refresh itself on a schedule or require a hosted ingestion service.
+### Requirement: Ingestion is owner initiated
+Discovery, source checks, additions, and refreshes SHALL run only when the owner starts a local CLI, loopback Studio, or hosted Studio operation. The catalog SHALL NOT refresh itself on a schedule or require a hosted ingestion service.
 
 #### Scenario: No owner starts a run
 - **WHEN** no owner starts an ingestion operation
@@ -16,6 +16,11 @@ Discovery, source checks, additions, and refreshes SHALL run only when the owner
 #### Scenario: Owner starts a run
 - **WHEN** the owner starts ingestion through the CLI or loopback Studio
 - **THEN** the operation can complete without a deployed collection server
+
+#### Scenario: Owner starts hosted ingestion
+- **WHEN** the owner starts an ingestion operation through hosted Studio
+- **THEN** it uses the configured server catalog and the same validated workflow as local ingestion
+- **AND** the operation starts only from that explicit request
 
 ### Requirement: Local commands target Events
 The CLI SHALL accept a festival name for `add` and one or more Event IDs for `refresh`. Refresh SHALL accept `--scope full|current` and default to `full`. Add SHALL NOT accept a scope. `check`, operator labels, and Edition targets SHALL be rejected before research. Applied changes SHALL retain the fixed research actor in audit history; the initiating owner MAY be absent.
@@ -93,7 +98,7 @@ Refresh SHALL target only the requested Event. Its research instructions SHALL f
 - **THEN** refresh updates that Edition while preserving sibling Editions
 
 ### Requirement: Debug previews show changes without catalog writes
-For local debugging, the owner SHALL be able to preview proposed catalog changes and their old and new values. A preview SHALL retain no catalog record, version, audit, or receipt changes. Its ingestion run and final report SHALL remain available, including any transient new identifiers.
+Through the CLI or Studio, the owner SHALL be able to preview proposed catalog changes and their old and new values. A preview SHALL retain no catalog record, version, audit, or receipt changes. Its ingestion run and final report SHALL remain available, including any transient new identifiers.
 
 #### Scenario: Preview a correction
 - **WHEN** the owner previews an Edition venue correction
@@ -141,7 +146,7 @@ Ordinary research SHALL make bounded recovery attempts only for explicit provide
 - **THEN** the run reports a safe model failure without retrying that failure automatically
 
 ### Requirement: Studio starts with a bounded preview
-Loopback Studio SHALL accept add by name and one Event target per refresh, with the CLI's scope behavior. It SHALL default to preview with republish permission off. Apply SHALL require an explicit request. Invalid input SHALL fail before external work. Each execution SHALL start from current catalog state and remain isolated from concurrent executions.
+Local or hosted Studio SHALL accept add by name and one Event target per refresh, with the CLI's scope behavior. It SHALL default to preview with republish permission off. Apply SHALL require an explicit request. Invalid input SHALL fail before external work. Each execution SHALL start from current catalog state and remain isolated from concurrent executions.
 
 #### Scenario: Studio preview and apply
 - **WHEN** the owner runs the same valid target in Studio preview and then apply

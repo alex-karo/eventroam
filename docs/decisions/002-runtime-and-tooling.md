@@ -1,14 +1,14 @@
 ---
 type: Decision
 title: "ADR 002: Runtime and tooling"
-description: Accepted runtime and tooling baseline, with production packaging still open.
+description: Accepted runtime, tooling, and verified application container baseline.
 status: stable
 tags: [architecture, tooling]
 ---
 
 # ADR 002: Runtime and tooling
 
-Status: Accepted; the fixture-backed application has been installed, tested, and built. Production image and deployment verification remain open.
+Status: Accepted; application checks and Linux/arm64 container builds and smoke checks pass. Public deployment remains outside this repository.
 
 Date: 2026-10-01
 
@@ -77,11 +77,25 @@ Review stable release updates as maintenance changes. The Node policy remains la
 
 ## Deferred decisions
 
-- The original decision deferred agent execution and AI/source tooling. Owner-initiated local research has since been implemented with Mastra, OpenRouter, bounded HTTP reads and optional Firecrawl; its current boundaries are in the [project structure](../project-structure.md#ingestion-ownership), [ingestion workflow](../../openspec/specs/catalog/ingestion-workflow/spec.md), and [source access spec](../../openspec/specs/catalog/source-access/spec.md). Hosted execution and scheduling remain deferred.
+- The original decision deferred agent execution and AI/source tooling. Owner-initiated local research has since been implemented with Mastra, OpenRouter, bounded HTTP reads and optional Firecrawl; its current boundaries are in the [project structure](../project-structure.md#ingestion-ownership), [ingestion workflow](../../openspec/specs/catalog/ingestion-workflow/spec.md), and [source access spec](../../openspec/specs/catalog/source-access/spec.md). Hosted Studio execution is available through the production image with external ingress authentication. Scheduling remains deferred.
 - The exact Mapbox style, token values, budget limits, and any ingestion geocoder remain open. The v1 locality/country filter can use catalog fields without a geocoding service. Configure the selected style, tokens, attribution, and usage monitoring before public deployment.
 - Production hosting vendor, ingress/TLS tooling, backup destination/schedule, and monitoring service remain deployment decisions. Supporting several scope hostnames does not require a multi-service deployment.
 - Discovery payload schemas are implemented in the application. The confirmed requirement is all summaries with details on selection and no map-area fetching; the current application filters the complete scope summary set in the browser with shared server-rendering rules.
 
+## Container verification
+
+Checked on 2026-10-25 with Docker Desktop on Linux/arm64. Both targets use:
+
+```text
+node:26.11.1-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567
+```
+
+The first container checks passed explicit and repeated migration, native SQLite health, served Studio assets/API, saved DuckDB observations, clean stop, recreation, runtime origins, and public map build inputs. The built-in Browser opened the production Studio workflow graph and Observability on a temporary host port without model credentials or console errors. The same-origin flag and successful UI requests kept API access on that origin.
+
+The current local/CI `npm run docker:smoke` command has a smaller scope: build both images without owner data or provider keys, run one migration to prepare an empty test catalog, then wait for both container health checks. It uses an isolated volume without host ports and removes its test containers and volume after success or failure. External HTTPS and ingress authentication are checked in the self-hosted project.
+
+`web` contains Next standalone output, static assets, and native SQLite. `studio` contains its bundled application, Mastra's Node server, UI assets, migration command, SQL files, and production dependencies. Runtime files use the same source and root lockfile; the generated Mastra server is not the entry point because its automatic run recovery is outside the supported execution contract. The thin entry uses `createNodeServer` with browser-stream support disabled and reuses its workers and shutdown.
+
 ## Verification limits
 
-The fixture-backed application, lockfile, database migration, tests, and production build now exist. The production Docker image and deployment path remain unverified. Verify native SQLite packaging and Next's production output in the target image before deployment.
+Local image checks cover Linux/arm64 only. CI runs the same smoke command on its runner architecture. Other target architectures need a passing build and smoke check. Image smoke checks startup and health only; it does not check assets, APIs, origins, map settings, saved history, shutdown, or recreation. Full ingestion runs use offline transport tests outside Docker; image dependencies used only during real ingestion can escape the smoke check. Public rollout, TLS, ingress authentication, external automation, backups, and recovery drills remain outside this check.
