@@ -140,15 +140,19 @@ export function validateTaxonomyTerm(
     "Taxonomy children must be in same facet",
   );
 }
+export class TermAssignmentCountError extends Error {}
+
 export function validateTermAssignments(terms: readonly TaxonomyTerm[]) {
   for (const term of terms) {
     z.enum(facets).parse(term.facet);
   }
   for (const facet of ["event_type", "format"]) {
-    assert(
-      terms.filter((term) => term.facet === facet).length <= 1,
-      `Only one ${facet} term allowed`,
-    );
+    const assigned = terms.filter((term) => term.facet === facet);
+    if (assigned.length > 1) {
+      throw new TermAssignmentCountError(
+        `Only one ${facet} term allowed (limit: 1); received: ${assigned.map((term) => term.id).join(", ")}`,
+      );
+    }
   }
 }
 

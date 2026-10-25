@@ -87,7 +87,10 @@ test("ready output requires both Edition slots and rejects old arrays", () => {
 import { prepareEditorPlan, validateResearch } from "./prepare";
 import { runCatalogResearch } from "../workflow";
 import { DEFAULT_RESEARCH_LIMITS } from "../runtime/budget";
-import type { ResearchCandidate } from "../research/contracts";
+import {
+  editionSlotNames,
+  type ResearchCandidate,
+} from "../research/contracts";
 
 afterEach(() => vi.restoreAllMocks());
 const reason = "Organizer explicitly withdrew the old venue";
@@ -1017,6 +1020,35 @@ test("classification accept preserves saved terms, adds a new term and retains t
   ).toEqual([...ids, added.id].sort());
 });
 
+test("keep preserves saved classification despite a different research finding", () => {
+  const f = fixture();
+  const savedTerms = f.catalog[0].editions[0].terms;
+  f.research.data!.currentOrNextEdition!.classification = {
+    value: [],
+    reason: "Research proposes removing all terms",
+  };
+  const result = prepare(f, {
+    ...f.plan,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      fields: {
+        classification: {
+          action: "keep",
+          reason: "The saved classification remains supported",
+        },
+      },
+    },
+  });
+  expect(result.errors).toEqual([]);
+  expect(result.operations.some((op) => op.kind === "replaceTerms")).toBe(
+    false,
+  );
+  applyCatalogItem(f.client, result.operations);
+  expect(readResearchEvent(f.client, f.event.id)!.editions[0].terms).toEqual(
+    savedTerms,
+  );
+});
+
 test("editor must correct duplicate classification IDs before accepting other changes", () => {
   const f = fixture();
   const ids = f.catalog[0].editions[0].terms.map((term) => term.id);
@@ -1376,6 +1408,64 @@ test("classification rejects unknown and duplicate terms before normalization", 
     expect(prepared.errors.at(-1)?.code).toBe("invalid_plan");
   }
 });
+
+test.each(editionSlotNames)(
+  "%s rejects an event type conflict and allows a supported correction",
+  (slot) => {
+    const f = fixture();
+    const festival = f.fx.existingTerm("event_type", "festival");
+    const gathering = f.fx.existingTerm("event_type", "gathering");
+    const ids = f.vocabulary.map((term) => term.id);
+    f.vocabulary.push(gathering);
+    f.research.data!.previousEdition = null;
+    f.research.data!.currentOrNextEdition = null;
+    f.research.data![slot] = {
+      key: "2027",
+      links: {},
+      classification: {
+        value: [...ids, gathering.id],
+        reason: "The organizer describes a festival and community gathering",
+      },
+    };
+    const plan = (classification: unknown) => ({
+      ...f.plan,
+      previousEdition: null,
+      currentOrNextEdition: null,
+      [slot]: {
+        editionKey: "2027",
+        fields: { classification },
+      },
+    });
+    const rejected = prepare(f, plan({ action: "accept" }));
+    expect(rejected.errors).toEqual([
+      {
+        code: "invalid_plan",
+        stage: "validation",
+        field: `${slot}.fields.classification`,
+        message: `Only one event_type term allowed (limit: 1); received: ${festival.id}, ${gathering.id}`,
+      },
+    ]);
+    expect(rejected.operations).toEqual([]);
+    const correctionReason =
+      "The organizer calls it a festival; community wording does not establish a participatory gathering";
+    const prepared = prepare(
+      f,
+      plan({ action: "set", value: ids, reason: correctionReason }),
+    );
+    expect(prepared.errors).toEqual([]);
+    const replacement = prepared.operations.find(
+      (operation) => operation.kind === "replaceTerms",
+    )!;
+    expect(replacement).toMatchObject({
+      kind: "replaceTerms",
+      id: f.edition.id,
+      termIds: ids,
+    });
+    expect(prepared.explanations[replacement.operationKey].terms).toEqual([
+      correctionReason,
+    ]);
+  },
+);
 
 test("classification rejects two format terms before removing ancestors", () => {
   const f = fixture();
