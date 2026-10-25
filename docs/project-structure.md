@@ -10,7 +10,7 @@ tags: [architecture]
 
 Status: Implemented core structure · Updated: 2026-10-11
 
-Eventroam is one npm package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. A local Mastra research agent collects findings; a tool-free editor chooses explicit actions for a typed adapter and the same writer.
+Eventroam is one npm package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. An owner-initiated Mastra research agent collects findings; a tool-free editor chooses explicit actions for a typed adapter and the same writer.
 
 ```text
 Commands → research → editor → typed adapter → catalog writer → SQLite ← Next.js public reads
@@ -60,7 +60,7 @@ src/
 │   │   ├── contracts.ts       # Shared schemas and execution context
 │   │   └── index.ts           # Tool composition
 │   └── evals/                 # Captured website cases, Mastra runner and code scorers
-├── mastra/                    # Local Studio workflow and observability registration
+├── mastra/                    # Studio workflow, production server, and observability registration
 ├── db/                        # Schema, connections, and SQL migrations
 └── test/                      # Temporary databases and data builders
 
@@ -95,7 +95,7 @@ Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `editor
 - `evals/score.ts` aggregates mutation, research and tool-use scores, with a separate host-failure veto and execution diagnostics. `evals/research-score.ts` owns research outcome, fact and expected-safe-failure checks. Mutation scores measure only mutation assertions. `evals/run.ts` passes inline cases to Mastra `runExperiment`. Each task owns a temporary catalog and returns one score with its ingestion result and tool calls. Mastra collects task outputs and scorer results in input order. `evals/scorers.ts`, JSON reports and CLI diagnostics consume the score without rerunning checks. Experiment execution status is separate from case acceptance in `score.passed`.
 - `runtime/logging/` uses Mastra PinoLogger methods and scoped context. Producers select plain fields and explicitly shorten model text. A small delivery bridge preserves child context and run/trace/span correlation in Studio.
 - `runtime/tracing/run.ts` observes apply attempts through explicit host fields and a narrow SDK-content exclusion. `runtime/observability/` owns DuckDB storage, optional signals, diagnostics and cleanup. Its exporter forwards native metric events without a separate application projection; the span processor preserves the usage/cost fields needed for native extraction and the SDK propagates execution context. Only eligible traced runs persist metrics. Native agent/model/tool metrics own operation timing; application logs keep timestamped events without duplicate timers. Durable usage/report accounting and budget counters remain independent. Studio lends its initialized store to attempts; attempt cleanup leaves that shared store open.
-- `src/mastra/index.ts` registers local Studio's workflow. Studio opens an existing migrated catalog lazily and closes its owned connection. CLI callers retain injected dependencies and connection ownership. Workflow data contains inspectable research results, while credentials, prompts, provider transport payloads and live resources remain outside it.
+- `src/mastra/index.ts` registers Studio's workflow. Studio opens an existing migrated catalog lazily and closes its owned connection. CLI callers retain injected dependencies and connection ownership. Workflow data contains inspectable research results, while credentials, prompts, provider transport payloads and live resources remain outside it.
 
 ## Discovery
 
@@ -111,10 +111,10 @@ About and privacy pages, dedicated error pages, robots and sitemap routes, and c
 
 Run `npm run db:migrate` for reviewed SQL migrations and `npm run db:fixtures` for repeatable fictional development data. Both enter through `commands/catalog-db.ts`. See the [development guide](development.md) for checks and local setup.
 
-Release the web application, writer, and schema as one compatible version. For a schema change, stop web and writer processes, back up the database, apply the migration, and start the matching version. Keep SQLite transactions short and verify WAL file permissions for reader access. A read-only SQLite connection does not guarantee that a read-only volume mount works in every WAL lifecycle state. Follow the [SQLite decision](decisions/001-sqlite-and-drizzle.md) for backup and restoration requirements.
+Release the web application, writer, and schema as one compatible version. For a schema change, stop web and writer processes, retain a compatible closed data copy if rollback is needed, apply the migration, and start the matching version. Keep SQLite transactions short and verify WAL file permissions for reader access. A read-only SQLite connection does not guarantee that a read-only volume mount works in every WAL lifecycle state. Follow the [SQLite decision](decisions/001-sqlite-and-drizzle.md) for consistent-copy rules and deferred backup work.
 
 ## Future additions
 
 Add `src/components/ui/` for common React primitives, and `src/shared/` for small domain-independent utilities. Add more local event-detail components as their roles become concrete.
 
-Open-view freshness and concrete release compatibility checks remain undecided. Collection uses the local TypeScript CLI or loopback Mastra Studio; hosted execution and scheduling remain deferred. Production packaging and Docker Compose commands also remain to be implemented. The deployment direction is a single release image containing the Next.js server, separately runnable commands, SQL migrations, and their runtime dependencies; the implementation must verify that each is packaged.
+Open-view freshness and concrete release compatibility checks remain undecided. Collection uses the local TypeScript CLI, loopback Studio, or hosted Studio with external ingress authentication. Scheduling remains deferred. One Dockerfile provides separate web and Studio targets; the Studio image also carries the explicit migration command and SQL files. Both services share one named data volume in application Compose. See [application containers](development.md#application-containers) for commands and inputs. External infrastructure and the public rollout belong in the self-hosted project.

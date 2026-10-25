@@ -8,7 +8,9 @@ tags: [catalog, ingestion]
 
 # Ingestion process
 
-Ingestion finds or refreshes festival facts in the catalog. An owner starts each run locally; there is no scheduled refresh.
+The owner can use the local CLI, loopback Studio, or hosted Studio with the same preview and apply rules. Hosted Studio requires external ingress authentication and one owner for its DuckDB file. See [application containers](development.md#application-containers) for commands and settings.
+
+Ingestion finds or refreshes festival facts in the catalog. An owner starts each run through the CLI or Studio; there is no scheduled refresh.
 
 ## Process at a glance
 
@@ -40,7 +42,7 @@ Each festival attempt runs one Mastra workflow with ten sequential steps:
 | `build-report`        | Combine research/editor output, actual changes, source history, questions, and known usage.             |
 | `finalize-run`        | Persist the private report, return the bounded summary and release owned resources.                     |
 
-CLI and local Studio execute this same graph in their own Node process. Native Mastra workflow state accumulates research context, source-read metadata, model output, prepared changes, receipts and reports. Page Markdown stays in the in-memory source session for research and is excluded from workflow state and step outputs. Each step returns its own inspectable result; the server-owned attempt retains only budget, source session, connections, trace and terminal lifecycle. The application does not separately attach credentials, prompts or live resources to workflow data. Retained model responses can repeat prompt or public source text without filtering. The final step persists once; terminal hooks recover from their final state. Mastra discards state updates from throwing steps, so an interrupted phase finalizes its available local data before propagating a safe error. Cleanup waits for active work. Finalization failure remains visible without repeating research or writes.
+CLI and Studio execute this same graph in their own Node process. Native Mastra workflow state accumulates research context, source-read metadata, model output, prepared changes, receipts and reports. Page Markdown stays in the in-memory source session for research and is excluded from workflow state and step outputs. Each step returns its own inspectable result; the server-owned attempt retains only budget, source session, connections, trace and terminal lifecycle. The application does not separately attach credentials, prompts or live resources to workflow data. Retained model responses can repeat prompt or public source text without filtering. The final step persists once; terminal hooks recover from their final state. Mastra discards state updates from throwing steps, so an interrupted phase finalizes its available local data before propagating a safe error. Cleanup waits for active work. Finalization failure remains visible without repeating research or writes.
 
 Workflow retries, snapshots and automatic restart are disabled. Per-step execution, resume, restart and time travel are unsupported. Start a fresh attempt against current catalog state after interruption.
 

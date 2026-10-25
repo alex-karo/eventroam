@@ -32,7 +32,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 ## Decisions
 
 - [ADR 001: SQLite and Drizzle](decisions/001-sqlite-and-drizzle.md) — accepted database choice.
-- [ADR 002: Runtime and tooling](decisions/002-runtime-and-tooling.md) — accepted runtime baseline; production packaging remains open.
+- [ADR 002: Runtime and tooling](decisions/002-runtime-and-tooling.md) — accepted runtime and application container baseline.
 
 ## Research
 

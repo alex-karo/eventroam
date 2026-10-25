@@ -10,6 +10,8 @@ tags: [deployment, mapbox]
 
 The map uses Mapbox GL JS 3.30.0 and `NEXT_PUBLIC_MAPBOX_STYLE` (default `mapbox://styles/mapbox/streets-v12`). `NEXT_PUBLIC_MAPBOX_TOKEN` is intentionally unset in the repository; without it the linked list remains available. Mapbox attribution stays visible in the map control.
 
+For Docker builds, set `EVENTROAM_MAPBOX_TOKEN` and `EVENTROAM_MAPBOX_STYLE` through Compose. They map to the existing `NEXT_PUBLIC_MAPBOX_*` build inputs; changing them requires a rebuild. Private provider keys are runtime inputs for Studio and never map build arguments. See [container inputs](development.md#container-inputs).
+
 Before publishing a host:
 
 1. Create a dedicated public Mapbox token with only the read scopes required by the selected style and map resources. Configure allowed URLs for every launched hostname, including the festivals scope host. Keep local development on a separate token and allowed URL set.

@@ -1,0 +1,45 @@
+services:
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        EVENTROAM_MAPBOX_TOKEN: ${EVENTROAM_MAPBOX_TOKEN:-}
+        EVENTROAM_MAPBOX_STYLE: ${EVENTROAM_MAPBOX_STYLE:-mapbox://styles/mapbox/streets-v12}
+    environment:
+      DATABASE_PATH: /data/eventroam.sqlite
+      PUBLIC_APEX_ORIGIN: ${EVENTROAM_PUBLIC_APEX_ORIGIN:-http://localhost:3000}
+      PUBLIC_FESTIVALS_ORIGIN: ${EVENTROAM_PUBLIC_FESTIVALS_ORIGIN:-http://festivals.localhost:3000}
+    volumes:
+      - data:/data
+    expose:
+      - "3000"
+    restart: unless-stopped
+  studio:
+    build:
+      context: .
+      target: studio
+    environment:
+      DATABASE_PATH: /data/eventroam.sqlite
+      CATALOG_OBSERVABILITY_DATABASE_PATH: /data/mastra-observability.duckdb
+      OPENROUTER_API_KEY: ${EVENTROAM_OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${EVENTROAM_OPENROUTER_MODEL:-}
+      OPENROUTER_SERVICE_TIER: ${EVENTROAM_OPENROUTER_SERVICE_TIER:-}
+      OPENROUTER_REASONING_EFFORT: ${EVENTROAM_OPENROUTER_REASONING_EFFORT:-}
+      FIRECRAWL_KEY: ${EVENTROAM_FIRECRAWL_KEY:-}
+      CATALOG_TRACING: ${EVENTROAM_CATALOG_TRACING:-false}
+      CATALOG_LOGGING: ${EVENTROAM_CATALOG_LOGGING:-false}
+      CATALOG_LOG_LEVEL: ${EVENTROAM_CATALOG_LOG_LEVEL:-info}
+      CATALOG_MAX_SEARCHES: ${EVENTROAM_CATALOG_MAX_SEARCHES:-}
+      CATALOG_MAX_SEARCH_RESULTS: ${EVENTROAM_CATALOG_MAX_SEARCH_RESULTS:-}
+      CATALOG_MAX_AGENT_STEPS: ${EVENTROAM_CATALOG_MAX_AGENT_STEPS:-}
+      CATALOG_MAX_DURATION_MS: ${EVENTROAM_CATALOG_MAX_DURATION_MS:-}
+      CATALOG_MAX_PAGE_BYTES: ${EVENTROAM_CATALOG_MAX_PAGE_BYTES:-}
+      CATALOG_MAX_MODEL_OUTPUT_TOKENS: ${EVENTROAM_CATALOG_MAX_MODEL_OUTPUT_TOKENS:-}
+    volumes:
+      - data:/data
+    expose:
+      - "4111"
+    restart: unless-stopped
+volumes:
+  data:
