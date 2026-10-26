@@ -375,7 +375,7 @@ export async function runTraceFixture(
     return {
       result,
       requests,
-      budget: result.usage,
+      budget: result.budget,
       durationMs: Date.now() - startedAt,
       durableReport: JSON.parse(row.report_json),
       effects,

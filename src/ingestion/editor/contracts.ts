@@ -4,7 +4,7 @@ import {
   researchQuestionSchema,
 } from "../research/contracts";
 
-export const EDITOR_PROMPT_VERSION = "catalog-editor-v19";
+export const EDITOR_PROMPT_VERSION = "catalog-editor-v20";
 const reason = z
   .string()
   .trim()
@@ -66,18 +66,8 @@ export const eventFieldsSchema = z.strictObject({
 export const editionFieldsSchema = z.strictObject({
   year: action(facts.year.unwrap().shape.value).optional(),
   dates: clearable(facts.dates.unwrap().shape.value.unwrap()).optional(),
-  coordinates: clearable(
-    facts.coordinates.unwrap().shape.value.unwrap(),
-  ).optional(),
   scheduleStatus: action(facts.scheduleStatus.unwrap().shape.value).optional(),
   displayName: clearable(text(250)).optional(),
-  venueName: clearable(text(250)).optional(),
-  venueAddress: clearable(text(500)).optional(),
-  locality: clearable(text(250)).optional(),
-  administrativeArea: clearable(text(250)).optional(),
-  countryCode: clearable(
-    facts.countryCode.unwrap().shape.value.unwrap(),
-  ).optional(),
   sizeEstimate: clearable(
     facts.sizeEstimate.unwrap().shape.value.unwrap(),
   ).optional(),

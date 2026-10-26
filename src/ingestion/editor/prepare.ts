@@ -1,8 +1,9 @@
+import type { MaterializedLocation } from "../location/validate";
 import {
   editorPlanSchema,
   eventFieldsSchema,
   editionFieldsSchema,
-  type ResolvedEditorPlan as EditorPlan,
+  type ResolvedEditorPlan,
   type EditorPlan as RawEditorPlan,
 } from "./contracts";
 import type { z } from "zod";
@@ -32,7 +33,18 @@ import {
 import { validateRefresh } from "../research/guards";
 import { majorToMinor } from "../research/money";
 
-type EditionPlan = NonNullable<EditorPlan["currentOrNextEdition"]>;
+type CombinedEditionPlan = NonNullable<
+  ResolvedEditorPlan["currentOrNextEdition"]
+> & {
+  fields: Partial<
+    NonNullable<MaterializedLocation["slots"]["currentOrNextEdition"]>
+  >;
+};
+type CombinedPlan = Omit<
+  ResolvedEditorPlan,
+  (typeof editionSlotNames)[number]
+> &
+  Record<(typeof editionSlotNames)[number], CombinedEditionPlan | null>;
 type Event = ResearchCatalog[number];
 type Edition = NonNullable<ResearchData["currentOrNextEdition"]>;
 type DraftOperation = CatalogOperation extends infer Op
@@ -63,6 +75,7 @@ export type EventNameMismatch = {
   observedName: string;
 };
 export type PreparedPlan = {
+  editorPlan?: ResolvedEditorPlan;
   validation: {
     structural: "passed" | "failed";
     target: "passed" | "failed" | "not_run";
@@ -303,7 +316,7 @@ function linksToOperations(
     version,
   );
 }
-function fieldsToValues(fields: EditionPlan["fields"]) {
+function fieldsToValues(fields: CombinedEditionPlan["fields"]) {
   const values: EditionPatch = {};
   const reasons: Reasons = {};
   const set = <K extends keyof EditionPatch>(
@@ -455,9 +468,50 @@ export function prepareEditorPlan(
     return planInvalid(result, issue.field, issue.message);
   }
   normalizeEditionClassifications(plan, terms);
+  result.editorPlan = plan;
+  return result;
+}
+
+/** Prepare one combined plan after both agents have completed validation. */
+export function prepareCatalogPlan(
+  validated: PreparedPlan,
+  catalog: ResearchCatalog,
+  input: CatalogResearchInput,
+  terms: Term[],
+  location: MaterializedLocation,
+): PreparedPlan {
+  const result = structuredClone(validated);
+  if (
+    !result.editorPlan ||
+    result.skipped ||
+    result.errors.some((error) =>
+      ["invalid_plan", "editor_rejected"].includes(error.code),
+    )
+  ) {
+    return result;
+  }
+  if (!result.candidate || !result.editorPlan.event) {
+    return result;
+  }
+  const plan: CombinedPlan = structuredClone(result.editorPlan);
+  for (const slot of editionSlotNames) {
+    if (!!plan[slot] !== !!location.slots[slot]) {
+      return planInvalid(result, slot, "Location target mismatch");
+    }
+    if (plan[slot]) {
+      plan[slot].fields = { ...plan[slot].fields, ...location.slots[slot] };
+    }
+  }
+  result.unresolved.push(...location.unresolved);
+  const event = catalog.find((item) => item.id === result.matchedEventId);
+  const issue = validateEditionTargets(plan, event, terms);
+  if (issue) {
+    return planInvalid(result, issue.field, issue.message);
+  }
   const add = adder(result, input);
+
   const eventRef = event?.id ?? "$event";
-  prepareEvent(plan.event, event, result.candidate.data!.eventName, add);
+  prepareEvent(plan.event!, event, result.candidate.data!.eventName, add);
   let willPublishEdition = false;
   for (const [index, slot] of editionSlotNames.entries()) {
     const edition = plan[slot];
@@ -580,7 +634,7 @@ function fieldResolver<
 function resolveEditorFields(
   plan: RawEditorPlan,
   data: ResearchData,
-): { ok: true; plan: EditorPlan } | { ok: false; issue: FieldIssue } {
+): { ok: true; plan: ResolvedEditorPlan } | { ok: false; issue: FieldIssue } {
   try {
     const eventSchema = eventFieldsSchema.shape;
     const linkSchema = eventSchema.links.unwrap().shape;
@@ -596,7 +650,7 @@ function resolveEditorFields(
       : undefined;
     const resolveEdition = (
       slot: (typeof editionSlotNames)[number],
-    ): EditionPlan | null => {
+    ): ResolvedEditorPlan["currentOrNextEdition"] => {
       const edition = plan[slot];
       if (!edition) {
         return null;
@@ -621,14 +675,8 @@ function resolveEditorFields(
         fields: {
           year: resolve("year"),
           dates: resolve("dates"),
-          coordinates: resolve("coordinates"),
           scheduleStatus: resolve("scheduleStatus"),
           displayName: resolve("displayName"),
-          venueName: resolve("venueName"),
-          venueAddress: resolve("venueAddress"),
-          locality: resolve("locality"),
-          administrativeArea: resolve("administrativeArea"),
-          countryCode: resolve("countryCode"),
           sizeEstimate: resolve("sizeEstimate"),
           tickets: resolve("tickets"),
           classification: resolve("classification"),
@@ -695,7 +743,7 @@ function resolveEditorFields(
 }
 
 function validateEditionTargets(
-  plan: EditorPlan,
+  plan: CombinedPlan,
   event: Event | undefined,
   terms: Term[],
 ) {
@@ -760,7 +808,10 @@ function validateClassification(ids: string[], terms: Term[]) {
   return null;
 }
 
-function normalizeEditionClassifications(plan: EditorPlan, terms: Term[]) {
+function normalizeEditionClassifications(
+  plan: ResolvedEditorPlan,
+  terms: Term[],
+) {
   const byId = new Map(terms.map((term) => [term.id, term]));
   for (const slot of editionSlotNames) {
     const classification = plan[slot]?.fields.classification;
@@ -815,7 +866,7 @@ function redundantAncestors(ids: string[], terms: Map<string, Term>) {
 }
 
 function prepareEvent(
-  plan: NonNullable<EditorPlan["event"]>,
+  plan: NonNullable<ResolvedEditorPlan["event"]>,
   event: Event | undefined,
   canonicalName: string,
   add: AddOperation,
@@ -861,7 +912,7 @@ function prepareEvent(
 }
 
 function prepareEdition(
-  edition: EditionPlan,
+  edition: CombinedEditionPlan,
   index: number,
   event: Event | undefined,
   eventRef: string,

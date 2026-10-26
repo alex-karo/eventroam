@@ -15,9 +15,9 @@ const settings = storedRunInput(
   DEFAULT_RESEARCH_LIMITS,
 );
 
-test("fresh storage has 14 columns, no Event foreign key and accepts future mode names", () => {
+test("fresh storage has 9 columns, no Event foreign key and accepts future mode names", () => {
   const { client } = testDatabase();
-  expect(client.pragma("table_info('ingestion_runs')")).toHaveLength(14);
+  expect(client.pragma("table_info('ingestion_runs')")).toHaveLength(9);
   expect(client.pragma("foreign_key_list('ingestion_runs')")).toEqual([]);
   const id = startIngestionRun(
     client,
@@ -41,8 +41,6 @@ test.each([
   ["input_json", '{"mode":"refresh"}'],
   ["report_json", "not json"],
   ["finished_at", "2026-10-09"],
-  ["input_tokens", 0],
-  ["usage_complete", 0],
   ["status", "completed"],
 ])("raw SQL bypasses application-owned running rule %s=%s", (column, value) => {
   const { client } = testDatabase();
@@ -72,7 +70,7 @@ test("finalization preserves normalized report, zero/unknown values and guards t
   const final = {
     ...report,
     runId: id,
-    usage: { ...report.usage, inputTokens: 10, modelCostUsd: 0 },
+    budget: { ...report.budget },
   };
   const pending = client
     .prepare("SELECT * FROM ingestion_runs WHERE id=?")
@@ -93,13 +91,11 @@ test("finalization preserves normalized report, zero/unknown values and guards t
   }
   const invalidReports = [
     { ...final, mode: "refresh" },
-    ...[-1, 1.5].map((inputTokens) => ({
+    ...[-1, 1.5].map((pages) => ({
       ...final,
-      usage: { ...final.usage, inputTokens },
+      budget: { ...final.budget, pages },
     })),
     { ...final, durationMs: -1 },
-    { ...final, usage: { ...final.usage, complete: 2 } },
-    { ...final, usage: { ...final.usage, searchCostUsd: -1 } },
   ];
   for (const invalid of invalidReports) {
     expect(() =>
@@ -116,11 +112,6 @@ test("finalization preserves normalized report, zero/unknown values and guards t
   expect(JSON.parse(row.report_json as string)).toEqual(normalized);
   expect(row).toMatchObject({
     status: "failed",
-    input_tokens: 10,
-    output_tokens: 0,
-    model_cost_usd: 0,
-    search_cost_estimate_usd: 0,
-    usage_complete: 0,
   });
   expect(() =>
     finalizeIngestionRun(client, id, final, null, Date.now()),
@@ -144,8 +135,8 @@ test("finalization preserves normalized report, zero/unknown values and guards t
   ).not.toThrow();
 });
 
-test.each([NaN, Infinity, -1])(
-  "invalid cost %s cannot finalize a row",
+test.each([NaN, Infinity, -1, 1.5])(
+  "invalid budget count %s cannot finalize a row",
   async (cost) => {
     const { client } = testDatabase();
     const report = await runCatalogResearch(
@@ -165,22 +156,16 @@ test.each([NaN, Infinity, -1])(
       finalizeIngestionRun(
         client,
         id,
-        {
-          ...report,
-          runId: id,
-          usage: { ...report.usage, modelCostUsd: cost },
-        },
+        { ...report, runId: id, budget: { ...report.budget, searches: cost } },
         null,
         Date.now(),
       ),
     ).toThrow(RunPersistenceError);
     expect(
       client
-        .prepare(
-          "SELECT status,report_json,input_tokens FROM ingestion_runs WHERE id=?",
-        )
+        .prepare("SELECT status,report_json FROM ingestion_runs WHERE id=?")
         .get(id),
-    ).toEqual({ status: "running", report_json: null, input_tokens: null });
+    ).toEqual({ status: "running", report_json: null });
   },
 );
 
@@ -203,12 +188,7 @@ test("start stores only allowlisted settings and every final statistic begins nu
     finished_at: null,
     report_json: null,
     event_id: null,
-    input_tokens: null,
-    output_tokens: null,
-    model_cost_usd: null,
-    search_cost_estimate_usd: null,
     duration_ms: null,
-    usage_complete: null,
   });
 });
 
@@ -255,9 +235,42 @@ test("a new run leaves historical report JSON unchanged", async () => {
       }),
     },
   );
-  expect(result.schemaVersion).toBe(6);
+  expect(result.schemaVersion).toBe(7);
   expect(result.currentDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   expect(
     client.prepare("SELECT report_json FROM ingestion_runs WHERE id=?").get(id),
   ).toEqual({ report_json: historical });
+});
+
+test("accounting migration preserves old rows and opaque report JSON", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { client } = testDatabase();
+  for (const column of [
+    "input_tokens",
+    "output_tokens",
+    "model_cost_usd",
+    "search_cost_estimate_usd",
+    "usage_complete",
+  ]) {
+    client.exec(`ALTER TABLE ingestion_runs ADD COLUMN ${column} REAL`);
+  }
+  const id = startIngestionRun(client, settings, Date.now(), null);
+  const historical = '{ "schemaVersion": 6, "usage": {"inputTokens": 12} }';
+  client
+    .prepare(
+      "UPDATE ingestion_runs SET status='completed',finished_at=?,duration_ms=42,report_json=?,input_tokens=12 WHERE id=?",
+    )
+    .run("2026-10-24T12:00:00Z", historical, id);
+  client.exec(
+    readFileSync("src/db/migrations/0002_remove_run_accounting.sql", "utf8"),
+  );
+  const row = client.prepare("SELECT * FROM ingestion_runs WHERE id=?").get(id);
+  expect(row).toMatchObject({
+    id,
+    status: "completed",
+    duration_ms: 42,
+    report_json: historical,
+  });
+  expect(row).not.toHaveProperty("input_tokens");
+  expect(client.pragma("integrity_check", { simple: true })).toBe("ok");
 });

@@ -25,12 +25,8 @@ import type { ResearchContext } from "../context";
 import { classifyModelError } from "../../runtime/model-errors";
 import { createResearchTools } from "../../tools/index";
 import type { ToolOutputCapture } from "../../tool-output-capture";
-import { completedStepUsage, updateModelUsage, type ModelUsage } from "./usage";
-
-export type { ModelUsage } from "./usage";
 
 export type ResearchExecution = {
-  usage: ModelUsage;
   modelResponse?: { text: string | null; object: unknown } | null;
 } & ({ ok: true; candidate: unknown } | { ok: false; errors: ResearchError[] });
 
@@ -66,14 +62,6 @@ export async function researchFestival(
     abortSignal,
     capture,
   );
-  const usage: ModelUsage = {
-    complete: !deps.generateCandidate,
-    inputTokens: 0,
-    outputTokens: 0,
-    cachedInputTokens: deps.generateCandidate ? null : 0,
-    reasoningTokens: deps.generateCandidate ? null : 0,
-    modelCostUsd: null,
-  };
   let completedSteps = 0;
   let startedSteps = 0;
   const agent = deps.generateCandidate
@@ -92,7 +80,6 @@ export async function researchFestival(
             () => {
               unavailableAttempts += 1;
               startedSteps -= 1;
-              usage.complete = false;
             },
             log,
           ),
@@ -106,7 +93,6 @@ export async function researchFestival(
     });
     return {
       ok: false,
-      usage,
       errors: [
         {
           code: "limit_reached",
@@ -182,7 +168,6 @@ export async function researchFestival(
             }
             modelLog?.info("Model step completed", {
               finishReason: step.finishReason,
-              usage: completedStepUsage(step),
               commentaryAvailable: !!step.text,
               reasoningAvailable: !!step.reasoningText,
               complete:
@@ -206,14 +191,9 @@ export async function researchFestival(
                 channel: "reasoning",
               });
             }
-            updateModelUsage(usage, step);
           },
           onError: ({ error }) => {
             providerError = error;
-            usage.complete = false;
-          },
-          onAbort: () => {
-            usage.complete = false;
           },
           prepareStep: () => {
             abortSignal?.throwIfAborted();
@@ -251,15 +231,9 @@ export async function researchFestival(
         budget.limits.agentSteps,
       );
       text = generated.text ?? null;
-      usage.complete &&= completedSteps === startedSteps;
     }
   } catch (error) {
     traceFailure(tracing, "research_failed");
-    usage.complete = false;
-    if (completedSteps === 0) {
-      usage.cachedInputTokens = null;
-      usage.reasoningTokens = null;
-    }
     const classified = classifyModelError(
       error,
       budget.deadline,
@@ -268,7 +242,6 @@ export async function researchFestival(
     logModelFailure(modelLog, classified, unavailableAttempts);
     return {
       ok: false,
-      usage,
       errors: [
         {
           code: classified.limit ? "limit_reached" : "model_failed",
@@ -285,7 +258,6 @@ export async function researchFestival(
     traceFailure(tracing, "research_failed");
     return {
       ok: false,
-      usage,
       modelResponse: { text, object: raw ?? null },
       errors: [
         {
@@ -299,10 +271,8 @@ export async function researchFestival(
   if (raw == null && (generationFinishedAt ?? Date.now()) >= budget.deadline) {
     traceFailure(tracing, "research_failed");
     modelLog?.warn("Research budget exhausted", { budgetKind: "time" });
-    usage.complete = false;
     return {
       ok: false,
-      usage,
       modelResponse: { text, object: raw ?? null },
       errors: [
         {
@@ -317,7 +287,6 @@ export async function researchFestival(
     ok: true,
     candidate: normalizeWireCandidate(raw),
     modelResponse: { text, object: raw ?? null },
-    usage,
   };
 }
 

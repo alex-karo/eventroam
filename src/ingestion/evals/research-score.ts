@@ -199,7 +199,7 @@ function checkFailedResearch(item: EvalCase, result: CatalogResearchResult) {
       },
       {
         description: "Expected identity conflict to stop without search",
-        matched: result.usage.searches === 0,
+        matched: result.budget.searches === 0,
       },
       {
         description:

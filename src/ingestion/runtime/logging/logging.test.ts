@@ -298,8 +298,8 @@ test("real research retains selected model/tool logs", async () => {
   expect(
     rows.mastra_logs.find((row) => row.message === "Research finished")?.data,
   ).toMatchObject({ durationMs: result.result.durationMs });
-  expect(result.result.usage.modelCalls).toBe(3);
-  expect(result.result.schemaVersion).toBe(6);
+  expect(result.result.budget.modelCalls).toBe(4);
+  expect(result.result.schemaVersion).toBe(7);
   const stored = JSON.stringify(rows);
   for (const secret of [
     TRACE_CANDIDATE,
@@ -371,7 +371,11 @@ test.each([
     enable(file, dryRun);
     const result = await runTraceFixture("success", false, scenario, dryRun);
     const rows = await readTraceRows(file);
-    expect(rows.mastra_ai_spans).toHaveLength(0);
+    if (dryRun) {
+      expect(rows.mastra_ai_spans.length).toBeGreaterThan(0);
+    } else {
+      expect(rows.mastra_ai_spans).toHaveLength(0);
+    }
     const toolLogs = rows.mastra_logs.filter(
       (row) =>
         typeof row.message === "string" && row.message.startsWith("Tool call"),
@@ -379,10 +383,17 @@ test.each([
     expect(toolLogs.length).toBeGreaterThan(0);
     for (const row of toolLogs) {
       expect(row.runId).toBe(result.result.runId);
-      expect(row.traceId ?? null).toBeNull();
-      expect(row.spanId ?? null).toBeNull();
-      expect(row.data).not.toHaveProperty("traceId");
-      expect(row.data).not.toHaveProperty("spanId");
+      if (dryRun) {
+        expect(row.traceId).toBeTruthy();
+        expect(row.spanId).toBeTruthy();
+      } else {
+        expect(row.traceId ?? null).toBeNull();
+        expect(row.spanId ?? null).toBeNull();
+      }
+      if (!dryRun) {
+        expect(row.data).not.toHaveProperty("traceId");
+        expect(row.data).not.toHaveProperty("spanId");
+      }
     }
     expect(JSON.stringify(rows)).not.toContain("no-op");
   },

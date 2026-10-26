@@ -225,10 +225,5 @@ export const ingestionRuns = sqliteTable("ingestion_runs", {
   finishedAt: text("finished_at"),
   inputJson: text("input_json", { mode: "json" }).$type<unknown>().notNull(),
   reportJson: text("report_json", { mode: "json" }).$type<unknown>(),
-  inputTokens: integer("input_tokens"),
-  outputTokens: integer("output_tokens"),
-  modelCostUsd: real("model_cost_usd"),
-  searchCostEstimateUsd: real("search_cost_estimate_usd"),
   durationMs: integer("duration_ms"),
-  usageComplete: integer("usage_complete", { mode: "boolean" }),
 });

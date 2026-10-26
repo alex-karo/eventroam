@@ -1,0 +1,489 @@
+{
+  "id": "location-bridge",
+  "provenance": {
+    "kind": "captured-adapted",
+    "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",
+    "note": "Saved descriptions, source summaries and Geoapify forward responses captured on 2026-10-24. Free-text replay hints use those captured responses. Responses use the client format and omit unused provider fields. Reverse was not captured and is explicitly unavailable. Expected actions are review assertions, not captured model output."
+  },
+  "input": {
+    "mode": "refresh",
+    "eventId": "event:cf44a6d868fa37b6805e",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "event:cf44a6d868fa37b6805e",
+      "slug": "location-bridge",
+      "canonicalName": "Warm Up Festival",
+      "editions": [
+        {
+          "id": "14be599a-0feb-4c1b-a7cf-2c9dec397e04",
+          "editionKey": "warm-up-estrella-de-levante-2027",
+          "editionYear": 2027,
+          "startsOn": "2027-04-30",
+          "endsOn": "2027-05-01",
+          "scheduleStatus": "announced",
+          "latitude": 37.973,
+          "longitude": -1.129,
+          "coordinatePrecision": "approximate",
+          "venueName": "La Fica",
+          "venueAddress": "Diseminado Primero Mayo, 19, 30003 Murcia",
+          "locality": "Murcia",
+          "administrativeArea": null,
+          "countryCode": "ES"
+        }
+      ]
+    }
+  },
+  "sources": [],
+  "location": {
+    "group": "preservation",
+    "input": {
+      "festival": {
+        "name": "Warm Up Festival",
+        "summary": "Annual music, culture and urban-leisure festival in Murcia, Spain.",
+        "format": ["openair"]
+      },
+      "scope": "full",
+      "currentDate": "2026-10-24T12:00:00Z",
+      "countryBaseline": "ES",
+      "sources": [
+        {
+          "url": "https://warmupfestival.es/",
+          "information": "Official Warm Up Estrella de Levante site; identifies the Murcia festival, links its social accounts, and advertises the 2027 dates. Its homepage shows a ticket price that differs from other official pages."
+        },
+        {
+          "url": "https://warmupfestival.es/the-kooks-barry-b-ivan-ferreiro-elyella-y-sexy-zebras-encabezan-las-primeras-confirmaciones-de-warm-up-estrella-de-levante-2027/",
+          "information": "Official 2027 announcement confirms 30 April–1 May 2027 at La Fica, Murcia, names the initial lineup, and announces an initial 1,000 general passes at €64.99. It describes this as a limited first price tranche."
+        },
+        {
+          "url": "https://warmupfestival.es/fatboy-slim-conquista-murcia-y-pone-el-cierre-perfecto-a-warm-up-estrella-de-levante-2026/",
+          "information": "Official 6 May 2026 recap says the festival finished after two days at La Fica, with the main-venue programme ending Saturday; it reports more than 52,000 people across the two days and describes the music programme."
+        },
+        {
+          "url": "https://warmupfestival.es/abonos/",
+          "information": "Official ticket-information page describes general and VIP passes for both festival days and links the 2027 Enterticket booking page. The page advertises €66.99, while other official pages show differing amounts; checkout prices did not load on Enterticket."
+        },
+        {
+          "url": "https://warmupfestival.es/cartel/",
+          "information": "Official 2027 lineup page confirms 30 April and 1 May and links to the same ticket page; it displays a limited-pass price of €66.99."
+        },
+        {
+          "url": "https://warmupfestival.es/como-llegar/",
+          "information": "Official directions identify La Fica as the festival site and give its address as Diseminado Primero Mayo, 19, 30003 Murcia."
+        },
+        {
+          "url": "https://www.enterticket.es/eventos/warm-up-estrella-de-levante-2027-693926",
+          "information": "Officially linked ticket page identifies WARM UP Estrella de Levante 2027 at La Fica, Murcia, on 30 April–1 May; ticket prices were still loading when inspected."
+        }
+      ],
+      "history": [
+        {
+          "venueName": "La Fica",
+          "venueAddress": "Diseminado Primero Mayo, 19, 30003 Murcia",
+          "locality": "Murcia",
+          "administrativeArea": null,
+          "countryCode": "ES",
+          "id": "14be599a-0feb-4c1b-a7cf-2c9dec397e04",
+          "eventId": "event:cf44a6d868fa37b6805e",
+          "editionKey": "warm-up-estrella-de-levante-2027",
+          "version": 5,
+          "editionYear": 2027,
+          "startsOn": "2027-04-30",
+          "endsOn": "2027-05-01",
+          "scheduleStatus": "announced",
+          "latitude": 37.973,
+          "longitude": -1.129,
+          "coordinatePrecision": "approximate"
+        }
+      ],
+      "editor": {
+        "status": "ready",
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "warm-up-estrella-de-levante-2027",
+          "reason": null
+        }
+      },
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "editionKey": "warm-up-estrella-de-levante-2027",
+        "editionYear": 2027,
+        "startsOn": "2027-04-30",
+        "endsOn": "2027-05-01",
+        "scheduleStatus": "announced",
+        "saved": {
+          "venueName": "La Fica",
+          "venueAddress": "Diseminado Primero Mayo, 19, 30003 Murcia",
+          "locality": "Murcia",
+          "administrativeArea": null,
+          "countryCode": "ES",
+          "id": "14be599a-0feb-4c1b-a7cf-2c9dec397e04",
+          "eventId": "event:cf44a6d868fa37b6805e",
+          "editionKey": "warm-up-estrella-de-levante-2027",
+          "version": 5,
+          "editionYear": 2027,
+          "startsOn": "2027-04-30",
+          "endsOn": "2027-05-01",
+          "scheduleStatus": "announced",
+          "latitude": 37.973,
+          "longitude": -1.129,
+          "coordinatePrecision": "approximate"
+        },
+        "donor": null,
+        "findings": {
+          "venueName": {
+            "value": "La Fica",
+            "reason": "Captured catalog location description"
+          },
+          "venueAddress": {
+            "value": "Diseminado Primero Mayo, 19, 30003 Murcia",
+            "reason": "Captured catalog location description"
+          },
+          "locality": {
+            "value": "Murcia",
+            "reason": "Captured catalog location description"
+          },
+          "countryCode": {
+            "value": "ES",
+            "reason": "Captured catalog location description"
+          }
+        }
+      }
+    }
+  },
+  "geocoding": [
+    {
+      "request": {
+        "direction": "forward",
+        "query": "La Fica, Diseminado Primero Mayo, 19, 30003 Murcia, Murcia, ES",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.024263,
+            "longitude": -1.13932,
+            "placeId": "510adcba9ba73af2bf595dc0cb0c1b034340c00203e203476f70656e6164647265737365733a616464726573733a65732f636f756e747279776964652d6164647265737365732d636f756e7472793a63336636346635336333393830363533",
+            "label": "Calle Primero Mayo, 19, Murcia, 30110 Churra, Spain",
+            "name": null,
+            "countryCode": "ES",
+            "locality": null,
+            "address": null,
+            "objectType": "venue",
+            "originalType": "building",
+            "category": null,
+            "confidence": 0.81
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "La Fica, Murcia, ES",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 37.9825427,
+            "longitude": -1.1142499,
+            "placeId": "51ec2301b4f7d3f1bf5937b68df5c3fd4240f00102f90168f20f3c00000000c002019203115075656e7465206465206c612046696361",
+            "label": "Puente de la Fica, Avenida Primero de Mayo, 30011 Murcia, Spain",
+            "name": "Puente de la Fica",
+            "countryCode": "ES",
+            "locality": "Murcia",
+            "address": "Puente de la Fica",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": null,
+            "confidence": 0.81
+          },
+          {
+            "latitude": 37.9825472,
+            "longitude": -1.1142066,
+            "placeId": "5133ccbf4ccad3f1bf5960634d1bc4fd4240f00102f901093c1a0500000000c002019203115075656e7465206465206c612046696361",
+            "label": "Puente de la Fica, 30011 Murcia, Spain",
+            "name": "Puente de la Fica",
+            "countryCode": "ES",
+            "locality": "Murcia",
+            "address": "Puente de la Fica",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": null,
+            "confidence": 0.81
+          },
+          {
+            "latitude": 37.9843281,
+            "longitude": -1.1110784,
+            "placeId": "510facf424fac6f1bf5954049376fefd4240f00102f901fae0610200000000c00201920316526563696e746f2046657269616c204c612046696361",
+            "label": "Recinto Ferial La Fica, Camino Orilla del Río, 30006 Murcia, Spain",
+            "name": "Recinto Ferial La Fica",
+            "countryCode": "ES",
+            "locality": "Murcia",
+            "address": "Recinto Ferial La Fica",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": null,
+            "confidence": 0.81
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "La Fica",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 37.9825427,
+            "longitude": -1.1142499,
+            "placeId": "51ec2301b4f7d3f1bf5937b68df5c3fd4240f00102f90168f20f3c00000000c002019203115075656e7465206465206c612046696361",
+            "label": "Puente de la Fica, Avenida Primero de Mayo, 30011 Murcia, Spain",
+            "name": "Puente de la Fica",
+            "countryCode": "ES",
+            "locality": "Murcia",
+            "address": "Puente de la Fica",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": null,
+            "confidence": 0.81
+          },
+          {
+            "latitude": 37.9825472,
+            "longitude": -1.1142066,
+            "placeId": "5133ccbf4ccad3f1bf5960634d1bc4fd4240f00102f901093c1a0500000000c002019203115075656e7465206465206c612046696361",
+            "label": "Puente de la Fica, 30011 Murcia, Spain",
+            "name": "Puente de la Fica",
+            "countryCode": "ES",
+            "locality": "Murcia",
+            "address": "Puente de la Fica",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": null,
+            "confidence": 0.81
+          },
+          {
+            "latitude": 37.9843281,
+            "longitude": -1.1110784,
+            "placeId": "510facf424fac6f1bf5954049376fefd4240f00102f901fae0610200000000c00201920316526563696e746f2046657269616c204c612046696361",
+            "label": "Recinto Ferial La Fica, Camino Orilla del Río, 30006 Murcia, Spain",
+            "name": "Recinto Ferial La Fica",
+            "countryCode": "ES",
+            "locality": "Murcia",
+            "address": "Recinto Ferial La Fica",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": null,
+            "confidence": 0.81
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Diseminado Primero Mayo, 19, 30003 Murcia, Murcia, ES",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.024263,
+            "longitude": -1.13932,
+            "placeId": "510adcba9ba73af2bf595dc0cb0c1b034340c00203e203476f70656e6164647265737365733a616464726573733a65732f636f756e747279776964652d6164647265737365732d636f756e7472793a63336636346635336333393830363533",
+            "label": "Calle Primero Mayo, 19, Murcia, 30110 Churra, Spain",
+            "name": null,
+            "countryCode": "ES",
+            "locality": "Churra",
+            "address": "Calle Primero Mayo, 19",
+            "objectType": "venue",
+            "originalType": "building",
+            "category": null,
+            "confidence": 0.9
+          },
+          {
+            "latitude": 38.014835,
+            "longitude": -1.15163,
+            "placeId": "51cc7a3194136df2bf5907ebff1ce6014340c00203e203476f70656e6164647265737365733a616464726573733a65732f636f756e747279776964652d6164647265737365732d636f756e7472793a38666435616336313039313665613765",
+            "label": "Avenida Primero Mayo, 19, Murcia, 30100 Puntal, El, Spain",
+            "name": null,
+            "countryCode": "ES",
+            "locality": "Puntal, El",
+            "address": "Avenida Primero Mayo, 19",
+            "objectType": "venue",
+            "originalType": "building",
+            "category": null,
+            "confidence": 0.7
+          },
+          {
+            "latitude": 38.022917,
+            "longitude": -1.119361,
+            "placeId": "518aaf7614e7e8f1bf59dfc2baf1ee024340c00203e203476f70656e6164647265737365733a616464726573733a65732f636f756e747279776964652d6164647265737365732d636f756e7472793a32336538346134333733623538666566",
+            "label": "Calle Primero De Mayo, 19, Murcia, 30110 José Luis Borja Alarcón, Spain",
+            "name": null,
+            "countryCode": "ES",
+            "locality": "José Luis Borja Alarcón",
+            "address": "Calle Primero De Mayo, 19",
+            "objectType": "venue",
+            "originalType": "building",
+            "category": null,
+            "confidence": 0.48999999999999994
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Diseminado Primero Mayo, 19, 30003 Murcia",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.024263,
+            "longitude": -1.13932,
+            "placeId": "510adcba9ba73af2bf595dc0cb0c1b034340c00203e203476f70656e6164647265737365733a616464726573733a65732f636f756e747279776964652d6164647265737365732d636f756e7472793a63336636346635336333393830363533",
+            "label": "Calle Primero Mayo, 19, Murcia, 30110 Churra, Spain",
+            "name": null,
+            "countryCode": "ES",
+            "locality": "Churra",
+            "address": "Calle Primero Mayo, 19",
+            "objectType": "venue",
+            "originalType": "building",
+            "category": null,
+            "confidence": 0.9
+          },
+          {
+            "latitude": 38.014835,
+            "longitude": -1.15163,
+            "placeId": "51cc7a3194136df2bf5907ebff1ce6014340c00203e203476f70656e6164647265737365733a616464726573733a65732f636f756e747279776964652d6164647265737365732d636f756e7472793a38666435616336313039313665613765",
+            "label": "Avenida Primero Mayo, 19, Murcia, 30100 Puntal, El, Spain",
+            "name": null,
+            "countryCode": "ES",
+            "locality": "Puntal, El",
+            "address": "Avenida Primero Mayo, 19",
+            "objectType": "venue",
+            "originalType": "building",
+            "category": null,
+            "confidence": 0.7
+          },
+          {
+            "latitude": 38.022917,
+            "longitude": -1.119361,
+            "placeId": "518aaf7614e7e8f1bf59dfc2baf1ee024340c00203e203476f70656e6164647265737365733a616464726573733a65732f636f756e747279776964652d6164647265737365732d636f756e7472793a32336538346134333733623538666566",
+            "label": "Calle Primero De Mayo, 19, Murcia, 30110 José Luis Borja Alarcón, Spain",
+            "name": null,
+            "countryCode": "ES",
+            "locality": "José Luis Borja Alarcón",
+            "address": "Calle Primero De Mayo, 19",
+            "objectType": "venue",
+            "originalType": "building",
+            "category": null,
+            "confidence": 0.48999999999999994
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Murcia, ES",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 37.9923795,
+            "longitude": -1.1305431,
+            "placeId": "51cd7e935cb416f2bf5944dc9c4a06ff4240f00103f901a515850f00000000c002089203064d7572636961",
+            "label": "Murcia, MC, Spain",
+            "name": "Murcia",
+            "countryCode": "ES",
+            "locality": "Murcia",
+            "address": "Murcia",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "populated_place",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Murcia",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 37.9923795,
+            "longitude": -1.1305431,
+            "placeId": "51cd7e935cb416f2bf5944dc9c4a06ff4240f00103f901a515850f00000000c002089203064d7572636961",
+            "label": "Murcia, MC, Spain",
+            "name": "Murcia",
+            "countryCode": "ES",
+            "locality": "Murcia",
+            "address": "Murcia",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "populated_place",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "reverse",
+        "latitude": 37.973,
+        "longitude": -1.129
+      },
+      "response": {
+        "status": "error",
+        "code": "unavailable"
+      }
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "edition",
+        "editionKey": "warm-up-estrella-de-levante-2027",
+        "field": "coordinate_action",
+        "value": "keep"
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "edition",
+        "editionKey": "warm-up-estrella-de-levante-2027",
+        "field": "coordinates"
+      }
+    ]
+  }
+}

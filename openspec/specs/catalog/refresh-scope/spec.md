@@ -21,7 +21,8 @@ Refresh SHALL use only the targeted Event's private catalog context and SHALL up
 
 Full instructions MUST assign Event summary and shared links, the latest completed Edition, and the ongoing or nearest announced future Edition.
 They MUST request checks of all supported fields of those selected Editions, whether saved or new.
-Other saved Editions MUST remain context for matching, country checks, and classification reuse.
+Location MUST assess the Editions accepted by the editor under location resolution.
+Other saved Editions MUST remain context for matching, country checks, classification reuse, and historical coordinate donors.
 They MUST NOT require a separate field audit or become update targets.
 The research model MUST report known unfinished mandatory checks.
 The application MUST trust the model's account without a separate coverage record.
@@ -60,11 +61,12 @@ Success MUST NOT certify that all assigned checks were complete.
 
 ### Requirement: Current scope focuses research on one selected Edition
 
-Current scope MUST check only `currentOrNextEdition`. Its `previousEdition` MUST be null.
-Its instructions MUST request checks of announcement, dates, schedule status, location, tickets, and classification for that Edition.
-Size, coordinates, and detailed address can remain opportunistic.
+Current scope MUST check only currentOrNextEdition. Its previousEdition MUST be null in every agent plan.
+Its research instructions MUST request checks of announcement, dates, schedule status, location, tickets, and classification for that Edition.
+Size, source coordinates, and detailed address can remain opportunistic.
 Current MUST omit Event summary and shared-link findings and actions.
 It MUST NOT re-audit history or an established Event identity baseline.
+Location MUST assess only the target accepted by the editor.
 The application MUST enforce the slot and Event-field restrictions.
 It MUST trust the model's temporal selection and account of its checks.
 Target ownership, country, field, and catalog guards MUST still apply.
@@ -73,7 +75,7 @@ Target ownership, country, field, and catalog guards MUST still apply.
 
 - **WHEN** current selects one future Edition and another Edition is saved
 - **THEN** only the selected Edition can receive findings, changes, or publication evaluation
-- **AND** the other Edition remains available as matching, country, and classification-donor context
+- **AND** the other Edition remains available as matching, country, classification-donor, and coordinate-donor context
 
 #### Scenario: Current returns an additional Event fact
 
@@ -213,37 +215,48 @@ Current instructions SHALL tell the research model not to search for a replaceme
 - **THEN** it reports the unfinished check without searching for a replacement website or changing facts that depend on that source
 
 ### Requirement: Country conflicts veto the whole Event refresh
-Refresh SHALL compare researched countries with the target Event's known saved Edition countries. A different country, clearing a known country, or conflicting saved baselines SHALL fail the whole Event. No catalog or publication changes SHALL commit. Unknown or omitted country SHALL not count as confirmation. A supported country MAY be filled when no baseline exists. The baseline SHALL be checked again before apply.
+
+Refresh SHALL compare researched countries and final Location country actions with the known saved Edition countries. Different countries, clearing a known country, or conflicting saved baselines SHALL fail the whole Event without writes or publication. Unknown or omitted country SHALL NOT count as confirmation. A supported country MAY be filled when no baseline exists. The baseline SHALL be checked again before apply.
 
 #### Scenario: A new Edition conflicts with saved country
+
 - **WHEN** an existing Edition establishes IE and research supports AU for another Edition of the same Event
 - **THEN** the entire refresh fails with a country-conflict diagnostic, including otherwise valid changes
 
 #### Scenario: The saved country may be wrong
+
 - **WHEN** sources support a different country from the saved baseline
 - **THEN** refresh still fails; correcting the baseline requires a separate authorized catalog correction
 
 #### Scenario: Country is unknown
+
 - **WHEN** a mandatory country check cannot verify a country but finds no contradiction
 - **THEN** the result remains unfinished, saved country is preserved, and no confirmation is claimed
 
 #### Scenario: Saved Editions already conflict
+
 - **WHEN** the Event's saved Editions have different known countries
 - **THEN** refresh fails before source or model work instead of choosing one baseline
 
 #### Scenario: Baseline changes during research
+
 - **WHEN** saved country changes before an apply transaction
 - **THEN** no operation commits using the stale country decision
+
+#### Scenario: A geocoding result has another country
+
+- **WHEN** a candidate or Location action conflicts with the established country baseline
+- **THEN** it cannot authorize a country correction through ingestion
+- **AND** a conflicting final action rejects the whole item
+
 ### Requirement: Selection uses one reference date
 
-Add and refresh MUST use one frozen `currentDate` for research and editorial assessment.
-Both stages MUST receive the same date and applicable scope.
-Inspected evidence MUST establish temporal selection. Saved context alone MUST NOT certify selection or completion.
+Add and refresh MUST use one frozen currentDate and applicable scope for research, editing, and Location. Inspected evidence MUST establish temporal selection. Saved context alone MUST NOT certify selection or completion. Location MUST NOT reassign selected Edition roles.
 
 #### Scenario: The run crosses a date boundary
 
-- **WHEN** research and editing run on opposite sides of a date boundary
-- **THEN** both stages use the frozen reference date from the run
+- **WHEN** agent stages run on opposite sides of a date boundary
+- **THEN** all stages use the frozen reference date from the run
 
 ### Requirement: Previous selection uses the latest completed Edition
 

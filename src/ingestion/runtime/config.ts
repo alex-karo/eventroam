@@ -3,6 +3,8 @@ import { DEFAULT_RESEARCH_LIMITS, type ResearchLimits } from "./budget";
 export interface ResearchConfig {
   apiKey: string;
   model: string;
+  locationModel?: string;
+  geoapifyKey?: string;
   reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
   serviceTier?: "flex";
   limits: ResearchLimits;
@@ -27,7 +29,8 @@ export function loadResearchConfig(
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY is required for research");
   }
-  if (model.endsWith(":online")) {
+  const locationModel = env.CATALOG_LOCATION_MODEL?.trim() || model;
+  if (model.endsWith(":online") || locationModel.endsWith(":online")) {
     throw new Error("OPENROUTER_MODEL must not enable automatic web search");
   }
 
@@ -61,5 +64,13 @@ export function loadResearchConfig(
     limits[key] = parsed;
   }
 
-  return { apiKey, model, reasoningEffort, serviceTier, limits };
+  return {
+    apiKey,
+    model,
+    locationModel,
+    geoapifyKey: env.GEOAPIFY_KEY?.trim() || undefined,
+    reasoningEffort,
+    serviceTier,
+    limits,
+  };
 }

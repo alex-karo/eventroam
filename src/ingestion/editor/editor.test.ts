@@ -1,3 +1,7 @@
+import { generateFixtureLocation, fixtureLocationPlan } from "@/test/ingestion";
+import { locationTextFields } from "../location/contracts";
+import type { MaterializedLocation } from "../location/validate";
+import { buildLocationInput } from "../location/input";
 import { afterEach, expect, test, vi } from "vitest";
 import { Agent } from "@mastra/core/agent";
 import { testDatabase } from "@/test/database";
@@ -84,7 +88,11 @@ test("ready output requires both Edition slots and rejects old arrays", () => {
     false,
   );
 });
-import { prepareEditorPlan, validateResearch } from "./prepare";
+import {
+  prepareEditorPlan,
+  prepareCatalogPlan,
+  validateResearch,
+} from "./prepare";
 import { runCatalogResearch } from "../workflow";
 import { DEFAULT_RESEARCH_LIMITS } from "../runtime/budget";
 import {
@@ -106,7 +114,7 @@ function fixture() {
     endsOn: "2027-07-03",
     countryCode: "PT",
     locality: "Lisbon",
-    venueName: "Old venue",
+    displayName: "Old venue",
   });
   for (const term of terms) {
     fx.assignTerm(edition, term);
@@ -137,7 +145,7 @@ function fixture() {
       previousEdition: null,
       currentOrNextEdition: {
         key: "2027",
-        venueName: { value: null, reason },
+        displayName: { value: null, reason },
         links: {},
       },
     },
@@ -163,14 +171,73 @@ function fixture() {
     plan,
   };
 }
+test("Location receives the writer's default status for a new Edition", () => {
+  const f = fixture();
+  f.research.data!.currentOrNextEdition!.key = "2028";
+  f.plan.currentOrNextEdition.editionKey = "2028";
+  const prepared = prepareEditorPlan(
+    {
+      ...f.plan,
+      currentOrNextEdition: {
+        ...f.plan.currentOrNextEdition,
+        reason: "The organizer announced a new Edition",
+      },
+    },
+    validateResearch(f.research, f.catalog, f.input),
+    f.catalog,
+    f.input,
+    f.vocabulary,
+  );
+  expect(prepared.errors).toEqual([]);
+  const location = buildLocationInput(
+    prepared.editorPlan!,
+    prepared.candidate!.data!,
+    {
+      catalog: f.catalog,
+      terms: f.vocabulary,
+      knownLinks: [],
+      currentDate: "2026-10-25T12:00:00Z",
+    },
+    f.input,
+  );
+  expect(location.currentOrNextEdition).toMatchObject({
+    editionKey: "2028",
+    saved: null,
+    scheduleStatus: "announced",
+  });
+});
+
 function prepare(f: ReturnType<typeof fixture>, plan: unknown) {
-  return prepareEditorPlan(
+  const prepared = prepareEditorPlan(
     plan,
     validateResearch(f.research, f.catalog, f.input),
     f.catalog,
     f.input,
     f.vocabulary,
   );
+  if (!prepared.editorPlan) {
+    return prepared;
+  }
+  return prepareCatalogPlan(prepared, f.catalog, f.input, f.vocabulary, {
+    slots: Object.fromEntries(
+      ["previousEdition", "currentOrNextEdition"]
+        .filter((slot) => !!prepared.editorPlan![slot as "previousEdition"])
+        .map((slot) => [
+          slot,
+          {
+            ...Object.fromEntries(
+              locationTextFields.map((field) => [
+                field,
+                { action: "keep", reason: "Preserve" },
+              ]),
+            ),
+            coordinates: { action: "keep", reason: "Preserve" },
+          },
+        ]),
+    ),
+    donors: [],
+    unresolved: [],
+  } as MaterializedLocation);
 }
 
 test("strict actions reject unsupported metadata, null sets and malformed unions", () => {
@@ -188,7 +255,7 @@ test("strict actions reject unsupported metadata, null sets and malformed unions
         previousEdition: null,
         currentOrNextEdition: {
           editionKey: "2027",
-          fields: { venueName: action },
+          fields: { displayName: action },
         },
       }).success,
     ).toBe(false);
@@ -246,14 +313,14 @@ test("wire omission never becomes clear and invalid required action values survi
     currentOrNextEdition: {
       editionKey: "2027",
       fields: {
-        venueName: null,
+        displayName: null,
         tickets: { action: "set", value: null, reason },
       },
     },
   };
   const normalized = normalizeEditorWire(raw) as typeof raw;
   expect(normalized.currentOrNextEdition!.fields).not.toHaveProperty(
-    "venueName",
+    "displayName",
   );
   expect(normalized.currentOrNextEdition!.fields.tickets.value).toBeNull();
   expect(editorPlanSchema.safeParse(normalized).success).toBe(false);
@@ -266,7 +333,7 @@ test("clear changes only its field and eligible kept content still publishes", (
     previousEdition: null,
     currentOrNextEdition: {
       editionKey: "2027",
-      fields: { venueName: { action: "clear", reason } },
+      fields: { displayName: { action: "clear", reason } },
     },
   };
   const prepared = prepare(f, plan);
@@ -277,11 +344,11 @@ test("clear changes only its field and eligible kept content still publishes", (
   expect(
     applied.changes.some((change) =>
       change.changedFields.some(
-        (field) => field.field === "venue_name" && field.newValue === null,
+        (field) => field.field === "display_name" && field.newValue === null,
       ),
     ),
   ).toBe(true);
-  expect(readResearchEvent(f.client, f.event.id)!.editions[0].venueName).toBe(
+  expect(readResearchEvent(f.client, f.event.id)!.editions[0].displayName).toBe(
     "Old venue",
   );
   expect(
@@ -379,7 +446,12 @@ test("invalid editor output is retained with independent successful research and
     generateEditor: async () => invalid,
   });
   expect(result).toMatchObject({
-    schemaVersion: 6,
+    schemaVersion: 7,
+    locationResponse: null,
+    locationStatus: "not_run",
+    locationPromptVersion: "catalog-location-v1",
+    locationModelVersion: "fixture",
+    geocoding: { observations: [], points: [] },
     outcome: "failed",
     researchStatus: "success",
     editorStatus: "failed",
@@ -472,7 +544,7 @@ test("add may decline creation and reuse unresolved question objects", async () 
   expect(result.unresolved[0].field).toBe("identity");
 });
 
-test("research and one tool-free editor share date, configuration and total usage without double counting", async () => {
+test("research, editor and Location share the fixed run date and model settings", async () => {
   const f = fixture();
   const prompts: Record<string, unknown>[] = [];
   vi.spyOn(Agent.prototype, "generate").mockImplementation(async function (
@@ -515,7 +587,12 @@ test("research and one tool-free editor share date, configuration and total usag
       finishReason: "stop",
     } as never);
     return {
-      object: editing ? f.plan : f.research,
+      object:
+        this.id === "festival-location"
+          ? fixtureLocationPlan(JSON.parse(prompt as string))
+          : editing
+            ? f.plan
+            : f.research,
       text: "",
       finishReason: "stop",
     } as never;
@@ -529,16 +606,10 @@ test("research and one tool-free editor share date, configuration and total usag
       limits: DEFAULT_RESEARCH_LIMITS,
     },
   });
-  expect(prompts).toHaveLength(2);
+  expect(result.errors).toEqual([]);
+  expect(result).not.toHaveProperty("usage");
+  expect(prompts).toHaveLength(3);
   expect(prompts[0].currentDate).toBe(prompts[1].currentDate);
-  expect(result.usage).toMatchObject({
-    inputTokens: 20,
-    outputTokens: 10,
-    cachedInputTokens: 4,
-    reasoningTokens: 2,
-    modelCostUsd: 0.02,
-    modelCalls: 2,
-  });
 });
 
 test("editor cancellation and exhausted deadline stop without fallback mutations", async () => {
@@ -703,7 +774,7 @@ test("editor output requires a status and keeps rejection separate from actions"
   ).toBe(true);
 });
 
-test.each(["dates", "venueName", "tickets", "classification", "links"])(
+test.each(["dates", "displayName", "tickets", "classification", "links"])(
   "editor cannot extract %s from summaries without same-Edition findings",
   (field) => {
     const f = fixture();
@@ -723,7 +794,7 @@ test.each(["dates", "venueName", "tickets", "classification", "links"])(
         },
         reason,
       },
-      venueName: { action: "clear", reason },
+      displayName: { action: "clear", reason },
       tickets: {
         action: "set",
         value: { variants: [], basePrice: null },
@@ -770,9 +841,7 @@ test("a finding for another field or Edition cannot authorize a mutation", () =>
       fields: { locality: { action: "set", value: "Sydney", reason } },
     },
   });
-  expect(result.errors.at(-1)?.field).toBe(
-    "currentOrNextEdition.fields.locality",
-  );
+  expect(result.errors.at(-1)?.field).toBe("currentOrNextEdition.fields");
   expect(result.operations).toEqual([]);
 });
 
@@ -825,6 +894,7 @@ test("free concession without currency survives wire, editing and persistence", 
       generateCandidate: async () => normalized,
       generateEditor: async () =>
         fixtureEditorPlan(normalized, modelContext(f.catalog[0])),
+      generateLocation: generateFixtureLocation,
     },
   );
   expect(result.errors).toEqual([]);
@@ -851,7 +921,7 @@ test("accept resolves keyed fields, complete blocks and links without changing t
     reason: "Organizer description",
   };
   data.links.website = "https://example.org/festival";
-  data.currentOrNextEdition!.venueName = {
+  data.currentOrNextEdition!.displayName = {
     value: "New venue",
     reason: "Organizer venue",
   };
@@ -879,7 +949,7 @@ test("accept resolves keyed fields, complete blocks and links without changing t
     currentOrNextEdition: {
       editionKey: "2027",
       fields: {
-        venueName: { action: "accept" },
+        displayName: { action: "accept" },
         dates: { action: "accept" },
         tickets: { action: "accept" },
       },
@@ -899,7 +969,7 @@ test("accept resolves keyed fields, complete blocks and links without changing t
       kind: "updateEdition",
       id: f.edition.id,
       data: expect.objectContaining({
-        venueName: "New venue",
+        displayName: "New venue",
         startsOn: "2027-07-10",
         endsOn: "2027-07-12",
       }),
@@ -938,14 +1008,14 @@ test.each(["missing", "null", "wrong-edition", "incompatible"] as const)(
   (variant) => {
     const f = fixture();
     if (variant === "missing") {
-      delete f.research.data!.currentOrNextEdition!.venueName;
+      delete f.research.data!.currentOrNextEdition!.displayName;
     }
     if (variant === "wrong-edition") {
       f.research.data!.currentOrNextEdition!.key = "2026";
     }
     if (variant === "incompatible") {
       f.research.data!.summary = { value: "", reason };
-      f.research.data!.currentOrNextEdition!.venueName = {
+      f.research.data!.currentOrNextEdition!.displayName = {
         value: "Supported venue",
         reason,
       };
@@ -960,7 +1030,7 @@ test.each(["missing", "null", "wrong-edition", "incompatible"] as const)(
       previousEdition: null,
       currentOrNextEdition: {
         editionKey: "2027",
-        fields: { venueName: { action: "accept" } },
+        fields: { displayName: { action: "accept" } },
       },
     });
     expect(result.operations).toEqual([]);
@@ -985,7 +1055,7 @@ test("classification accept preserves saved terms, adds a new term and retains t
     value: [...ids, added.id],
     reason: classificationReason,
   };
-  f.research.data!.currentOrNextEdition!.venueName = {
+  f.research.data!.currentOrNextEdition!.displayName = {
     value: "New venue",
     reason,
   };
@@ -996,7 +1066,7 @@ test("classification accept preserves saved terms, adds a new term and retains t
       editionKey: "2027",
       fields: {
         classification: { action: "accept" },
-        venueName: { action: "accept" },
+        displayName: { action: "accept" },
       },
     },
   });
@@ -1009,7 +1079,7 @@ test("classification accept preserves saved terms, adds a new term and retains t
   expect(result.operations).toContainEqual(
     expect.objectContaining({
       kind: "updateEdition",
-      data: expect.objectContaining({ venueName: "New venue" }),
+      data: expect.objectContaining({ displayName: "New venue" }),
     }),
   );
   applyCatalogItem(f.client, result.operations);
@@ -1056,7 +1126,7 @@ test("editor must correct duplicate classification IDs before accepting other ch
     value: [...ids, ids[0]],
     reason,
   };
-  f.research.data!.currentOrNextEdition!.venueName = {
+  f.research.data!.currentOrNextEdition!.displayName = {
     value: "New venue",
     reason,
   };
@@ -1067,7 +1137,7 @@ test("editor must correct duplicate classification IDs before accepting other ch
       editionKey: "2027",
       fields: {
         classification: { action: "accept" },
-        venueName: { action: "accept" },
+        displayName: { action: "accept" },
       },
     },
   };
@@ -1096,7 +1166,7 @@ test("editor must correct duplicate classification IDs before accepting other ch
   expect(corrected.operations).toContainEqual(
     expect.objectContaining({
       kind: "updateEdition",
-      data: expect.objectContaining({ venueName: "New venue" }),
+      data: expect.objectContaining({ displayName: "New venue" }),
     }),
   );
   const applied = applyCatalogItem(f.client, corrected.operations);
@@ -1121,7 +1191,7 @@ test("accept forbids copied values or reasons in the editor action", () => {
         previousEdition: null,
         currentOrNextEdition: {
           editionKey: "2027",
-          fields: { venueName: { action: "accept", ...extra } },
+          fields: { displayName: { action: "accept", ...extra } },
         },
       }).success,
     ).toBe(false);
@@ -1136,7 +1206,7 @@ test("accept creates only an addressed research-backed new Edition", () => {
       key: "2028",
       year: { value: 2028, reason: "New Edition year" },
       links: {},
-      venueName: { value: null, reason },
+      displayName: { value: null, reason },
       countryCode: { value: "PT", reason },
     },
   });
@@ -1165,7 +1235,7 @@ test("accept creates only an addressed research-backed new Edition", () => {
   for (const patch of [
     { editionKey: "unresearched" },
     { reason: undefined },
-    { fields: { venueName: { action: "clear", reason } } },
+    { fields: { displayName: { action: "clear", reason } } },
     { fields: { countryCode: { action: "set", value: "ES", reason } } },
   ]) {
     const rejected = prepare(f, {
@@ -1192,7 +1262,13 @@ test("add derives Event identity from research and requires a creation reason", 
       input,
       f.vocabulary,
     );
-  const result = run({ reason, fields: {} });
+  const editor = run({ reason, fields: {} });
+  expect(editor.operations).toEqual([]);
+  const result = prepareCatalogPlan(editor, [], input, f.vocabulary, {
+    slots: {},
+    donors: [],
+    unresolved: [],
+  });
   expect(result.errors).toEqual([]);
   expect(result.operations).toContainEqual(
     expect.objectContaining({
@@ -1217,11 +1293,11 @@ test("current editor preserves history by omitting preservation-only plan entrie
     editionKey: "2026",
     editionYear: 2026,
     countryCode: "PT",
-    venueName: "Historical venue",
+    displayName: "Historical venue",
   });
   f.catalog[0] = readResearchEvent(f.client, f.event.id)!;
   const before = f.catalog[0].editions.find((e) => e.id === history.id);
-  f.research.data!.currentOrNextEdition!.venueName = {
+  f.research.data!.currentOrNextEdition!.displayName = {
     value: "New venue",
     reason,
   };
@@ -1230,7 +1306,7 @@ test("current editor preserves history by omitting preservation-only plan entrie
     previousEdition: null,
     currentOrNextEdition: {
       editionKey: "2027",
-      fields: { venueName: { action: "accept" } },
+      fields: { displayName: { action: "accept" } },
     },
   };
   const invalid = prepare(f, {
@@ -1246,7 +1322,7 @@ test("current editor preserves history by omitting preservation-only plan entrie
   applyCatalogItem(f.client, prepared.operations);
   const after = readResearchEvent(f.client, f.event.id)!;
   expect(after.editions.find((e) => e.id === history.id)).toEqual(before);
-  expect(after.editions.find((e) => e.id === f.edition.id)?.venueName).toBe(
+  expect(after.editions.find((e) => e.id === f.edition.id)?.displayName).toBe(
     "New venue",
   );
 });
@@ -1290,6 +1366,7 @@ function classificationFixture(action: "accept" | "set" = "accept") {
     client: f.client,
     generateCandidate: async () => f.research,
     generateEditor: async () => plan,
+    generateLocation: generateFixtureLocation,
   };
   return {
     ...f,

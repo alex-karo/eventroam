@@ -130,10 +130,6 @@ export function createSourceSession(
           status,
           returnedCount: result.candidates.length,
           candidates: result.candidates.slice(0, 5).map(({ url }) => ({ url })),
-          inputTokens: result.inputTokens,
-          outputTokens: result.outputTokens,
-          modelCostUsd: result.modelCostUsd,
-          searchCostUsd: result.searchCostUsd,
           durationMs: Date.now() - started,
           remaining: budget.remaining(),
         });

@@ -113,7 +113,7 @@ test("native create and stream expose preview, then apply under a fresh ingestio
   expect(afterPreview).toHaveLength(1);
   expect(afterPreview[0].status).toBe("completed");
   expect(JSON.parse(afterPreview[0].report_json as string).schemaVersion).toBe(
-    6,
+    7,
   );
   const catalog = new Database(fixture.catalogPath, { readonly: true });
   try {
@@ -311,7 +311,6 @@ test("final persistence failure keeps the committed catalog change and hides the
         mode: "refresh",
         dryRun: false,
         persistenceStatus: "failed",
-        usage: { inputTokens: 20, outputTokens: 40 },
       },
     });
     const durable = rows(server);
@@ -346,14 +345,14 @@ test("recorded apply traces and logs stay private while the shared store serves 
     expect(appliedSummary).toMatchObject({
       engineRunId: applied.runId,
       persistenceStatus: "completed",
-      usage: { inputTokens: 20, outputTokens: 40 },
     });
     const preview = await run(server, {
       mode: "refresh",
       eventId: STUDIO_FIXTURE_EVENT_ID,
     });
     expect(preview.response.status, preview.text).toBe(200);
-    expect(streamResult(preview.text)).toMatchObject({
+    const previewSummary = streamResult(preview.text);
+    expect(previewSummary).toMatchObject({
       dryRun: true,
       persistenceStatus: "completed",
     });
@@ -382,14 +381,18 @@ test("recorded apply traces and logs stay private while the shared store serves 
     );
     expect(aggregate.status).toBe(200);
     expect(await aggregate.json()).toMatchObject({
-      value: 60,
+      value: 180,
       estimatedCost: 0,
       costUnit: "USD",
     });
     const records = (await metrics.json()).metrics as Record<string, unknown>[];
     expect(records.length).toBeGreaterThan(0);
     expect(
-      records.every((record) => record.runId === appliedSummary.ingestionRunId),
+      records.every((record) =>
+        [appliedSummary.ingestionRunId, previewSummary.ingestionRunId].includes(
+          record.runId,
+        ),
+      ),
     ).toBe(true);
     expect(
       new Set(
@@ -397,7 +400,9 @@ test("recorded apply traces and logs stay private while the shared store serves 
           .filter((r) => r.name === "mastra_model_total_input_tokens")
           .map((r) => r.entityId),
       ),
-    ).toEqual(new Set(["festival-research", "festival-editor"]));
+    ).toEqual(
+      new Set(["festival-research", "festival-editor", "festival-location"]),
+    );
     // A second apply must borrow the same still-open store successfully.
     const again = await run(server, {
       mode: "refresh",
@@ -439,16 +444,16 @@ test("recorded apply traces and logs stay private while the shared store serves 
     ).toBe(true);
     expect(
       saved.mastra_metrics.some(
-        (record) => record.runId === streamResult(preview.text).ingestionRunId,
+        (record) => record.runId === previewSummary.ingestionRunId,
       ),
-    ).toBe(false);
+    ).toBe(true);
     expect(JSON.stringify(saved)).not.toContain(
       "PRIVATE_STUDIO_FIXTURE_SENTINEL",
     );
     const spans = JSON.stringify(saved.mastra_ai_spans);
     expect(spans).toContain(applied.runId);
     expect(spans).toContain(String(appliedSummary.ingestionRunId));
-    expect(spans).not.toContain(preview.runId);
+    expect(spans).toContain(preview.runId);
   } finally {
     if (!stopped) {
       await server.stop();

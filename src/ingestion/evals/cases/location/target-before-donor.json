@@ -1,0 +1,257 @@
+{
+  "id": "location-target-before-donor",
+  "provenance": {
+    "kind": "synthetic",
+    "sourceReport": "openspec/changes/separate-location-resolution/design.md",
+    "note": "The festival moved from the 2026 park to River Park in 2027. The saved 2027 point is the official current venue. The historical point no longer applies. Provider results are synthetic."
+  },
+  "input": {
+    "mode": "refresh",
+    "eventId": "event-target-before-donor",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "event-target-before-donor",
+      "slug": "target-before-donor",
+      "canonicalName": "River Festival target-before-donor",
+      "editions": [
+        {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "target-before-donor-2027",
+          "editionKey": "2027",
+          "editionYear": 2027,
+          "startsOn": "2027-07-01",
+          "endsOn": "2027-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": 38.71,
+          "longitude": -9.14,
+          "coordinatePrecision": "approximate"
+        },
+        {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "target-before-donor-2026",
+          "editionKey": "2026",
+          "editionYear": 2026,
+          "startsOn": "2026-07-01",
+          "endsOn": "2026-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": 38.73,
+          "longitude": -9.16,
+          "coordinatePrecision": "approximate"
+        }
+      ]
+    }
+  },
+  "sources": [],
+  "location": {
+    "group": "preservation",
+    "input": {
+      "festival": {
+        "name": "River Festival target-before-donor",
+        "summary": "An open-air music festival.",
+        "format": ["openair"]
+      },
+      "scope": "full",
+      "currentDate": "2026-10-24T12:00:00Z",
+      "countryBaseline": "PT",
+      "sources": [
+        {
+          "url": "https://fixture.test/target-before-donor",
+          "information": "The festival moved from the 2026 park to River Park in 2027. The saved 2027 point is the official current venue. The historical point no longer applies."
+        }
+      ],
+      "history": [
+        {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "target-before-donor-2027",
+          "eventId": "event-target-before-donor",
+          "editionKey": "2027",
+          "version": 1,
+          "editionYear": 2027,
+          "startsOn": "2027-07-01",
+          "endsOn": "2027-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": 38.71,
+          "longitude": -9.14,
+          "coordinatePrecision": "approximate"
+        },
+        {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "target-before-donor-2026",
+          "eventId": "event-target-before-donor",
+          "editionKey": "2026",
+          "version": 1,
+          "editionYear": 2026,
+          "startsOn": "2026-07-01",
+          "endsOn": "2026-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": 38.73,
+          "longitude": -9.16,
+          "coordinatePrecision": "approximate"
+        }
+      ],
+      "editor": {
+        "status": "ready",
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "2027",
+          "reason": null
+        }
+      },
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "editionKey": "2027",
+        "editionYear": 2027,
+        "startsOn": "2027-07-01",
+        "endsOn": "2027-07-03",
+        "scheduleStatus": "scheduled",
+        "saved": {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "target-before-donor-2027",
+          "eventId": "event-target-before-donor",
+          "editionKey": "2027",
+          "version": 1,
+          "editionYear": 2027,
+          "startsOn": "2027-07-01",
+          "endsOn": "2027-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": 38.71,
+          "longitude": -9.14,
+          "coordinatePrecision": "approximate"
+        },
+        "donor": {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "target-before-donor-2026",
+          "eventId": "event-target-before-donor",
+          "editionKey": "2026",
+          "version": 1,
+          "editionYear": 2026,
+          "startsOn": "2026-07-01",
+          "endsOn": "2026-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": 38.73,
+          "longitude": -9.16,
+          "coordinatePrecision": "approximate"
+        },
+        "findings": {
+          "venueName": {
+            "value": "River Park",
+            "reason": "The festival moved from the 2026 park to River Park in 2027. The saved 2027 point is the official current venue. The historical point no longer applies."
+          },
+          "locality": {
+            "value": "Lisbon",
+            "reason": "The festival moved from the 2026 park to River Park in 2027. The saved 2027 point is the official current venue. The historical point no longer applies."
+          },
+          "countryCode": {
+            "value": "PT",
+            "reason": "The festival moved from the 2026 park to River Park in 2027. The saved 2027 point is the official current venue. The historical point no longer applies."
+          }
+        }
+      }
+    }
+  },
+  "geocoding": [
+    {
+      "request": {
+        "direction": "reverse",
+        "latitude": 38.71,
+        "longitude": -9.14
+      },
+      "response": {
+        "status": "success",
+        "direction": "reverse",
+        "queriedPoint": {
+          "latitude": 38.71,
+          "longitude": -9.14
+        },
+        "nearby": {
+          "latitude": 38.71,
+          "longitude": -9.14,
+          "placeId": null,
+          "label": "Nearby kiosk",
+          "name": "Nearby kiosk",
+          "countryCode": "PT",
+          "locality": null,
+          "address": null,
+          "objectType": "venue",
+          "originalType": "building",
+          "category": null,
+          "confidence": null
+        },
+        "distanceKm": 0
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "River Park, Lisbon, PT",
+        "countryCode": "PT"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.72,
+            "longitude": -9.15,
+            "placeId": null,
+            "label": "Lisbon",
+            "name": null,
+            "countryCode": "PT",
+            "locality": null,
+            "address": null,
+            "objectType": "locality",
+            "originalType": "city",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      }
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "coordinate_action",
+        "value": "keep"
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "coordinates"
+      }
+    ]
+  }
+}

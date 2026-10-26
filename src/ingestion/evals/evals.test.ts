@@ -1,5 +1,8 @@
 import { DEFAULT_RESEARCH_LIMITS } from "@/ingestion/runtime/budget";
-import { generateFixtureEditor } from "@/test/ingestion";
+import {
+  generateFixtureEditor,
+  generateFixtureLocation,
+} from "@/test/ingestion";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -84,7 +87,7 @@ test("default pipeline excludes captured handoffs and retains full recovery", as
   expect(report.evaluationMode).toBe("pipeline");
   expect(report.results.map((row) => row.caseId).sort()).toEqual(
     suite.cases
-      .filter((item) => !item.researchHandoff)
+      .filter((item) => !item.researchHandoff && !item.location)
       .map((item) => item.id)
       .sort(),
   );
@@ -109,6 +112,7 @@ test("editor-only CLI replays captured research through preparation and writer w
       return executeResearch(input, {
         ...deps,
         generateEditor: generateFixtureEditor,
+        generateLocation: generateFixtureLocation,
       });
     });
   const reports: Awaited<ReturnType<typeof runCatalogEvals>>[] = [];
@@ -129,10 +133,14 @@ test("editor-only CLI replays captured research through preparation and writer w
     expect(fetch).not.toHaveBeenCalled();
     const report = reports[0];
     expect(report.evaluationMode).toBe("editor-only");
-    expect(report.results.every((item) => item.score.passed)).toBe(true);
+    expect(report.results.every((item) => item.output!.score.passed)).toBe(
+      true,
+    );
     for (const row of report.results) {
       const handoff = byId.get(row.caseId)!.researchHandoff!;
-      expect(row.modelResponse?.object).toEqual(handoff.candidate);
+      expect(row.output!.report!.modelResponse?.object).toEqual(
+        handoff.candidate,
+      );
       expect(row.researchHandoff).toMatchObject({
         provenance: handoff.provenance,
         sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
@@ -479,7 +487,12 @@ function result(
     ([, facts]) => facts.eventId && facts.key,
   );
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
+    locationResponse: null,
+    locationStatus: "not_run",
+    locationPromptVersion: "catalog-location-v1",
+    locationModelVersion: "fixture",
+    geocoding: { observations: [], points: [] },
     editorResponse: null,
     editorStatus: "not_run",
     editorPromptVersion: "catalog-editor-v6",
@@ -512,14 +525,8 @@ function result(
     errors: [],
     unresolved: [],
     eventNameMismatch: null,
-    usage: {
+    budget: {
       ...createResearchBudget().snapshot(),
-      complete: true,
-      inputTokens: 0,
-      outputTokens: 0,
-      modelCostUsd: null,
-      searchCostUsd: 0,
-      searchCostBasis: "estimate",
     },
     modelVersion: "test",
     promptVersion: "test",
@@ -1070,20 +1077,22 @@ test.each(["none", "workflow", "persistence"] as const)(
     });
     const result = reports[0].results[0];
     expect(code).toBe(failure === "none" ? 0 : 1);
-    expect(result.runId).toBe(snapshot?.id);
-    expect(result.modelResponse?.object).toEqual(failedCandidate);
-    expect(result.sources).toHaveLength(1);
-    expect(result.usage.searchCostBasis).toBe("estimate");
+    expect(result.output!.report!.runId).toBe(snapshot?.id);
+    expect(result.output!.report!.modelResponse?.object).toEqual(
+      failedCandidate,
+    );
+    expect(result.output!.report!.sources).toHaveLength(1);
+
     expect(JSON.stringify(result)).not.toContain("SECRET");
     if (failure !== "none") {
-      expect(result.score.diagnostics.execution).toEqual([
+      expect(result.output!.score.diagnostics.execution).toEqual([
         "Host workflow or persistence failure",
       ]);
       expect(stdout.mock.calls.flat().join("")).toContain(
         "execution: Host workflow or persistence failure",
       );
       expect(
-        result.errors.some(
+        result.output!.report!.errors.some(
           (error) =>
             error.code ===
             (failure === "workflow"
@@ -1096,19 +1105,20 @@ test.each(["none", "workflow", "persistence"] as const)(
       expect(snapshot).toMatchObject({
         status: "running",
         report_json: null,
-        input_tokens: null,
       });
     } else {
       expect(JSON.parse(snapshot!.report_json as string).runId).toBe(
-        result.runId,
+        result.output!.report!.runId,
       );
     }
-    expect(stdout.mock.calls.flat().join("")).toContain(result.runId);
+    expect(stdout.mock.calls.flat().join("")).toContain(
+      result.output!.report!.runId,
+    );
   },
 );
 
 test.each(["task", "scorer"] as const)(
-  "experiment %s errors reject safely and close the catalog",
+  "experiment %s errors retain safe native results and close the catalog",
   async (failure) => {
     vi.stubEnv("OPENROUTER_API_KEY", "fixture-key");
     let client: Parameters<typeof executeResearch>[1]["client"] | undefined;
@@ -1132,15 +1142,28 @@ test.each(["task", "scorer"] as const)(
     const directory = mkdtempSync(join(tmpdir(), "eventroam-eval-failure-"));
     const reportPath = join(directory, "report.json");
     try {
-      await expect(
-        runCatalogEvals({ caseIds: [tomorrowland.id], reportPath }),
-      ).rejects.toThrow(
-        failure === "task"
-          ? `Eval task did not return ${tomorrowland.id}/1`
-          : `Eval scorer failed for ${tomorrowland.id}/1`,
-      );
+      const report = await runCatalogEvals({
+        caseIds: [tomorrowland.id, wacken.id],
+        reportPath,
+      });
+      expect(report.results).toHaveLength(2);
+      const failed = report.results[0];
+      if (failure === "task") {
+        expect(failed.output).toBeNull();
+        expect(failed.error).toEqual({ message: "Evaluation task failed" });
+      } else {
+        expect(failed.output?.report).toBeDefined();
+        expect(
+          failed.scores.some(
+            (score) => score.error?.message === "Evaluation scorer failed",
+          ),
+        ).toBe(true);
+      }
+      expect(report.results[1].output?.report).toBeDefined();
       expect(client?.open).toBe(false);
-      expect(() => readFileSync(reportPath)).toThrow();
+      const stored = readFileSync(reportPath, "utf8");
+      expect(stored).not.toContain("SECRET");
+      expect(JSON.parse(stored).results).toHaveLength(2);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -1477,31 +1500,37 @@ test.each(["toolUse", "research"] as const)(
         failedCount: 0,
       });
       expect(report.results.map((entry) => entry.repetition)).toEqual([1, 2]);
-      expect(report.results.map((entry) => entry.score.passed)).toEqual([
-        true,
-        false,
-      ]);
+      expect(report.results.map((entry) => entry.output!.score.passed)).toEqual(
+        [true, false],
+      );
       expect(
         report.results.every(
           (entry) =>
-            entry.score.correctness === 1 && entry.score.completeness === 1,
+            entry.output!.score.correctness === 1 &&
+            entry.output!.score.completeness === 1,
         ),
       ).toBe(true);
       const diagnostic =
         dimension === "toolUse" ? "searches <= 0" : "previousEdition=2026";
       expect(
-        report.results.map((entry) => entry.score.diagnostics[dimension]),
+        report.results.map(
+          (entry) => entry.output!.score.diagnostics[dimension],
+        ),
       ).toEqual([[], [diagnostic]]);
       expect(
-        report.results.map((entry) => entry.toolCalls.map((call) => call.tool)),
+        report.results.map((entry) =>
+          entry.output!.toolCalls.map((call) => call.tool),
+        ),
       ).toEqual([
         ["readPage"],
         dimension === "toolUse" ? ["readPage", "searchWeb"] : ["readPage"],
       ]);
       const stored = JSON.parse(readFileSync(reportPath, "utf8"));
       expect(
-        stored.results.map((entry: { score: unknown }) => entry.score),
-      ).toEqual(report.results.map((entry) => entry.score));
+        stored.results.map(
+          (entry: { output: { score: unknown } }) => entry.output!.score,
+        ),
+      ).toEqual(report.results.map((entry) => entry.output!.score));
       const text = stdout.mock.calls.flat().join("");
       expect(text).toContain("1/2 cases passed");
       expect(text).toContain(`  ${dimension}: ${diagnostic}\n`);
@@ -1514,22 +1543,22 @@ test.each(["toolUse", "research"] as const)(
           : "research-completeness";
       expect(
         report.results.map((entry) =>
-          entry.scorers.find((scorer) => scorer.scorerId === scorerId),
+          entry.scores.find((scorer) => scorer.scorerId === scorerId),
         ),
       ).toEqual([
-        expect.objectContaining({ score: 1, error: null }),
+        expect.objectContaining({ score: 1, error: undefined }),
         expect.objectContaining({
           score: dimension === "toolUse" ? 0 : 2 / 3,
           reason: diagnostic,
-          error: null,
+          error: undefined,
         }),
       ]);
       expect(stored.experiment).toEqual(
         JSON.parse(JSON.stringify(report.experiment)),
       );
       expect(
-        stored.results.map((entry: { scorers: unknown }) => entry.scorers),
-      ).toEqual(report.results.map((entry) => entry.scorers));
+        stored.results.map((entry: { scores: unknown }) => entry.scores),
+      ).toEqual(report.results.map((entry) => entry.scores));
       expect(scoring).toHaveBeenCalledTimes(2);
     } finally {
       rmSync(directory, { recursive: true, force: true });
@@ -1794,7 +1823,7 @@ test("current identity-conflict eval requires a diagnosed stop without recovery 
   expect(scoreCase(item, failed).passed).toBe(true);
   for (const invalid of [
     { ...failed, unresolved: [] },
-    { ...failed, usage: { ...failed.usage, searches: 1 } },
+    { ...failed, budget: { ...failed.budget, searches: 1 } },
     { ...failed, unresolved: [{ message: "No prices found" }] },
     { ...failed, editorStatus: "success" as const },
     {
@@ -1824,7 +1853,7 @@ test("current identity-conflict eval requires a diagnosed stop without recovery 
     expect(score.diagnostics.research.length).toBeGreaterThan(0);
   }
   expect(
-    scoreCase(item, { ...failed, usage: { ...failed.usage, searches: 1 } })
+    scoreCase(item, { ...failed, budget: { ...failed.budget, searches: 1 } })
       .diagnostics.research,
   ).toEqual(["Expected identity conflict to stop without search"]);
 });

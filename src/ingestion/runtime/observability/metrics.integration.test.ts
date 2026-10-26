@@ -90,10 +90,6 @@ test("real research/editor lifecycles retain native usage/cost and persist nativ
         provider: "openrouter",
         model: "fixture/provider-model",
         responseModel: "fixture/provider-model",
-        usage: {
-          inputDetails: { cacheRead: expect.any(Number) },
-          outputDetails: { reasoning: expect.any(Number) },
-        },
         costContext: {
           estimatedCost: agent === "festival-research" ? 0.024 : 0.012,
           costMetadata: { source: "provider_reported" },
@@ -141,10 +137,11 @@ test("real research/editor lifecycles retain native usage/cost and persist nativ
       aggregation: "sum",
       groupBy: ["entityId", "model"],
     });
-    expect(groups).toHaveLength(2);
+    expect(groups).toHaveLength(3);
     for (const [entityId, tokens, cost] of [
       ["festival-research", 60, 0.024],
       ["festival-editor", 30, 0.012],
+      ["festival-location", 30, 0.012],
     ] as const) {
       expect(
         groups.find((g) => g.dimensions.entityId === entityId),
@@ -189,7 +186,7 @@ test.each([
       expect(input.costMetadata).toMatchObject({
         pricing_id: expect.any(String),
       });
-      expect(result.usage.modelCostUsd).toBe(0.012); // report keeps the known subtotal
+      expect(result).not.toHaveProperty("usage");
     } else {
       expect(input.estimatedCost).toBe(cost);
       if (basis) {
@@ -222,7 +219,7 @@ const input = {
   dryRun: false,
 };
 test.each(["off", "preview", "injected"])(
-  "%s rejects automatic and direct metrics while retaining logging",
+  "%s follows metric settings while retaining logging",
   async (mode) => {
     const file = path();
     vi.stubEnv("CATALOG_LOGGING", "true");
@@ -233,7 +230,6 @@ test.each(["off", "preview", "injected"])(
       { ...input, dryRun: mode === "preview" },
       "fixture/model",
       "ineligible-run",
-      mode === "injected",
     ))!;
     run.observability.getDefaultInstance()!.getMetricsContext!().emit(
       totals[0],
@@ -255,7 +251,11 @@ test.each(["off", "preview", "injected"])(
     run.log?.info("Fixture event");
     await finishRunObservability(run);
     const rows = await readTraceRows(file);
-    expect(rows.mastra_metrics).toEqual([]);
+    if (mode === "off") {
+      expect(rows.mastra_metrics).toEqual([]);
+    } else {
+      expect(rows.mastra_metrics).toHaveLength(2);
+    }
     expect(rows.mastra_logs).toHaveLength(1);
   },
 );
@@ -276,14 +276,14 @@ test("a metric storage failure cannot change the durable report or catalog outco
   const observed = await runTraceFixture("success", false, "partial", false, {
     cost: 0.012,
   });
-  expect(observed.result.usage).toMatchObject({
-    inputTokens: baseline.result.usage.inputTokens,
-    outputTokens: baseline.result.usage.outputTokens,
-    modelCostUsd: baseline.result.usage.modelCostUsd,
-    complete: baseline.result.usage.complete,
-  });
+
   expect(observed.result).toMatchObject({
-    schemaVersion: 6,
+    schemaVersion: 7,
+    locationResponse: baseline.result.locationResponse,
+    locationStatus: baseline.result.locationStatus,
+    locationPromptVersion: "catalog-location-v1",
+    locationModelVersion: baseline.result.locationModelVersion,
+    geocoding: baseline.result.geocoding,
     outcome: baseline.result.outcome,
     researchStatus: baseline.result.researchStatus,
     editorStatus: baseline.result.editorStatus,

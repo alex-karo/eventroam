@@ -11,10 +11,6 @@ import {
 import { RunPersistenceError, hasHostFailure } from "@/ingestion/runs";
 import { parseCatalogOptions, catalogUsage } from "./catalog-options";
 
-function formatTokens(usage: CatalogResearchResult["usage"]) {
-  return `${usage.inputTokens}/${usage.outputTokens}${usage.complete === false ? " (partial)" : ""}`;
-}
-
 export function formatCatalogReport(
   results: CatalogResearchResult[],
   dryRun: boolean,
@@ -53,7 +49,7 @@ function formatResult(result: CatalogResearchResult): string[] {
       (question) =>
         `  Unresolved${optionalSuffix(question.editionKey, " [", "]")}${optionalSuffix(question.field, ": ")}: ${question.message}`,
     ),
-    `  Model: ${result.modelVersion}; reasoning: ${result.reasoningEffort ?? "provider default"}; prompt: ${result.promptVersion}; tokens: ${formatTokens(result.usage)}; cached input: ${result.usage.cachedInputTokens ?? "unavailable"}; reasoning tokens: ${result.usage.reasoningTokens ?? "unavailable"}; known model USD: ${result.usage.modelCostUsd ?? "unavailable"}; estimated search USD: ${result.usage.searchCostUsd}`,
+    `  Model: ${result.modelVersion}; location: ${result.locationModelVersion}; reasoning: ${result.reasoningEffort ?? "provider default"}; prompt: ${result.promptVersion}`,
   ];
 }
 
@@ -161,7 +157,7 @@ export async function executeCatalogCommand(
       }
     }
     const report = {
-      schemaVersion: 6,
+      schemaVersion: 7,
       checkedAt: new Date().toISOString(),
       dryRun: options.dryRun,
       results,

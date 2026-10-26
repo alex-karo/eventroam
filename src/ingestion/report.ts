@@ -1,9 +1,9 @@
+import type { LocationExecution } from "./location/agent";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
 import type { ResearchBudgetSnapshot } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
 import type { SourceReadMetadata } from "./tools/read-page/contracts";
-import type { SearchWebResult } from "./tools/search-web/contracts";
 import {
   RESEARCH_PROMPT_VERSION,
   researchCandidateSchema,
@@ -14,9 +14,10 @@ import type { prepareEditorPlan } from "./editor/prepare";
 import { EDITOR_PROMPT_VERSION } from "./editor/contracts";
 import type { EditorExecution } from "./editor/agent";
 import type { ResearchExecution } from "./research/agent";
-import { sumKnownModelCosts } from "./research/agent/usage";
+import { LOCATION_PROMPT_VERSION } from "./location/contracts";
 
 export type ReportInput = {
+  traceId?: string;
   context: import("./research/context").ResearchContext | null;
   limits: import("./runtime/budget").ResearchLimits;
   runId: string;
@@ -25,12 +26,12 @@ export type ReportInput = {
   prepared: ReturnType<typeof prepareEditorPlan> | null;
   research: ResearchExecution;
   editor: EditorExecution;
+  location: LocationExecution;
   applied: ReturnType<typeof applyCatalogItem> | null;
   writeFailed: boolean;
   errors: ResearchError[];
   unresolved: ResearchQuestion[];
   reads: SourceReadMetadata[];
-  discovery: SearchWebResult[];
   budget: ResearchBudgetSnapshot;
   started: number;
   finished: number;
@@ -40,7 +41,7 @@ export function buildResearchReport(input: ReportInput): CatalogResearchResult {
   return assembleReport(input);
 }
 
-/** Uses the same accounting when the normal report boundary fails. */
+/** Uses the same diagnostics when the normal report boundary fails. */
 export function buildWorkflowFailureReport(
   input: ReportInput,
 ): CatalogResearchResult {
@@ -58,6 +59,7 @@ export function buildWorkflowFailureReport(
 
 function assembleReport({
   runId,
+  traceId,
   context,
   limits,
   input,
@@ -65,12 +67,12 @@ function assembleReport({
   prepared,
   research,
   editor,
+  location,
   applied,
   writeFailed,
   errors,
   unresolved,
   reads,
-  discovery,
   budget,
   started,
   finished,
@@ -95,32 +97,12 @@ function assembleReport({
     !research.ok || !finalCandidate?.success
       ? "failed"
       : finalCandidate.data.status;
-  const inputTokens = research.usage.inputTokens + editor.usage.inputTokens;
-  const outputTokens = research.usage.outputTokens + editor.usage.outputTokens;
-  const cachedInputTokens =
-    research.usage.cachedInputTokens === null ||
-    editor.usage.cachedInputTokens === null
-      ? null
-      : research.usage.cachedInputTokens + editor.usage.cachedInputTokens;
-  const reasoningTokens =
-    research.usage.reasoningTokens === null ||
-    editor.usage.reasoningTokens === null
-      ? null
-      : research.usage.reasoningTokens + editor.usage.reasoningTokens;
-  const modelCostUsd = sumKnownModelCosts([
-    research.usage.modelCostUsd,
-    editor.usage.modelCostUsd,
-  ]);
-  const usageComplete =
-    research.usage.complete &&
-    editor.usage.complete &&
-    budget.searches === discovery.length &&
-    discovery.every((result) => result.usageComplete !== false);
   const changedKinds = operations
     .filter((_, index) => receipts[index]?.changed)
     .map((operation) => operation.kind);
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
+    ...(traceId ? { traceId } : {}),
     scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
     currentDate: context?.currentDate ?? null,
     limits,
@@ -144,6 +126,7 @@ function assembleReport({
       writeFailed:
         writeFailed ||
         editor.status === "failed" ||
+        location.status === "failed" ||
         !!(prepared && !prepared.candidate && !prepared.skipped) ||
         !!errors.some(
           (error) =>
@@ -177,42 +160,14 @@ function assembleReport({
     errors,
     unresolved,
     eventNameMismatch: prepared?.eventNameMismatch ?? null,
-    usage: {
-      ...budget,
-      complete: usageComplete,
-      searchCostBasis: "estimate",
-      inputTokens:
-        inputTokens +
-        discovery.reduce((sum, result) => sum + result.inputTokens, 0),
-      outputTokens:
-        outputTokens +
-        discovery.reduce((sum, result) => sum + result.outputTokens, 0),
-      cachedInputTokens:
-        cachedInputTokens === null ||
-        discovery.some((result) => result.cachedInputTokens == null)
-          ? null
-          : cachedInputTokens +
-            discovery.reduce(
-              (sum, result) => sum + (result.cachedInputTokens ?? 0),
-              0,
-            ),
-      reasoningTokens:
-        reasoningTokens === null ||
-        discovery.some((result) => result.reasoningTokens == null)
-          ? null
-          : reasoningTokens +
-            discovery.reduce(
-              (sum, result) => sum + (result.reasoningTokens ?? 0),
-              0,
-            ),
-      modelCostUsd: sumKnownModelCosts([
-        modelCostUsd,
-        ...discovery.map((result) => result.modelCostUsd),
-      ]),
-      searchCostUsd: discovery.reduce(
-        (sum, result) => sum + result.searchCostUsd,
-        0,
-      ),
+    budget,
+    locationResponse: location.modelResponse,
+    locationStatus: location.status,
+    locationPromptVersion: LOCATION_PROMPT_VERSION,
+    locationModelVersion: config.locationModel ?? config.model,
+    geocoding: {
+      observations: location.observations,
+      points: location.points,
     },
     modelVersion: config.model,
     reasoningEffort: config.reasoningEffort ?? null,

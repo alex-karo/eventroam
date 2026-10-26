@@ -15,6 +15,13 @@
       "when": 1792699200000,
       "tag": "0001_starter_taxonomy",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792965600000,
+      "tag": "0002_remove_run_accounting",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,8 @@
+import { locationInputSchema } from "../location/input";
+import {
+  geocodingRequestSchema,
+  geocodingResultSchema,
+} from "../tools/geocode/contracts";
 import {
   publicationStates,
   scopes,
@@ -41,6 +46,11 @@ const edition = z.object({
   administrativeArea: z.string().nullable().optional(),
   timeZone: z.string().nullable().optional(),
   sizeEstimate: z.number().int().positive().nullable().optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
+  coordinatePrecision: z
+    .enum(["unknown", "exact", "approximate", "locality", "region"])
+    .optional(),
   venueName: z.string().nullable().optional(),
   venueAddress: z.string().nullable().optional(),
   termIds: z.array(z.string()).optional(),
@@ -82,6 +92,20 @@ export const assertionSchema = z.object({
 export const evalCaseSchema = z.object({
   id: z.string().min(1),
   researchHandoff: researchHandoffSchema.optional(),
+  geocoding: z
+    .array(
+      z.strictObject({
+        request: geocodingRequestSchema,
+        response: geocodingResultSchema,
+      }),
+    )
+    .optional(),
+  location: z
+    .strictObject({
+      group: z.enum(["completion", "correction", "preservation"]),
+      input: locationInputSchema,
+    })
+    .optional(),
   todayUtc: z.iso.date().optional(),
   provenance: z
     .object({ kind: z.string(), sourceReport: z.string(), note: z.string() })

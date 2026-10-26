@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
-import { runCatalogEvals } from "@/ingestion/evals/run";
+import { runCatalogEvals, evalItemPassed } from "@/ingestion/evals/run";
 import type { EvalOptions } from "@/ingestion/evals/run";
 
 function parseArgs(args: string[]): EvalOptions {
@@ -9,9 +9,13 @@ function parseArgs(args: string[]): EvalOptions {
     const arg = args[index];
     if (arg === "--help" || arg === "-h") {
       process.stdout.write(
-        "Usage: npm run catalog:eval -- [--editor-only] [--case ID] [--model OPENROUTER_MODEL] [--repeat N] [--report PATH]\nRuns fixed-source Mastra catalog evals; pipeline excludes handoffs; --editor-only replays them. --case must match the selected mode.\n",
+        "Usage: npm run catalog:eval -- [--editor-only | --location-only] [--case ID] [--model OPENROUTER_MODEL] [--repeat N] [--report PATH]\nRuns fixed-source Mastra catalog evals; pipeline excludes handoffs; --editor-only replays them. --case must match the selected mode.\n",
       );
       process.exit(0);
+    }
+    if (arg === "--location-only") {
+      options.locationOnly = true;
+      continue;
     }
     if (arg === "--editor-only") {
       options.editorOnly = true;
@@ -39,6 +43,9 @@ function parseArgs(args: string[]): EvalOptions {
         break;
     }
   }
+  if (options.locationOnly && options.editorOnly) {
+    throw new Error("--location-only and --editor-only are mutually exclusive");
+  }
   return options;
 }
 
@@ -57,21 +64,37 @@ export async function executeCatalogEvalCommand(
     options.reportPath = resolve(`data/catalog-evals/${stamp}.json`);
   }
   const report = await (deps.runEvals ?? runCatalogEvals)(options);
-  const passed = report.results.filter((item) => item.score.passed).length;
+  const passed = report.results.filter(evalItemPassed).length;
   output(
     `${passed}/${report.results.length} cases passed; report: ${options.reportPath}\n`,
   );
+  for (const group of ["completion", "correction", "preservation"]) {
+    const items = report.results.filter((item) => item.group === group);
+    if (items.length) {
+      output(
+        `${group}: ${items.filter(evalItemPassed).length}/${items.length} cases passed\n`,
+      );
+    }
+  }
   for (const item of report.results) {
+    const value = item.output;
+    if (!value) {
+      output(`${item.caseId} #${item.repetition}: execution failed\n`);
+      continue;
+    }
     output(
-      `${item.caseId} #${item.repetition}: correctness ${item.score.correctness.toFixed(2)}, completeness ${item.score.completeness.toFixed(2)}, ${item.outcome} [run ${item.runId ?? "unavailable"}]\n`,
+      `${item.caseId} #${item.repetition}: correctness ${value.score.correctness.toFixed(2)}, completeness ${value.score.completeness.toFixed(2)}, ${value.report?.outcome ?? "location"} [run ${value.report?.runId ?? value.runId ?? "unavailable"}]\n`,
     );
-    if (!item.score.passed) {
+    if (!evalItemPassed(item)) {
       for (const [dimension, failures] of Object.entries(
-        item.score.diagnostics,
+        value.score.diagnostics,
       )) {
         for (const failure of failures) {
           output(`  ${dimension}: ${failure}\n`);
         }
+      }
+      if (item.error || item.scores.some((score) => score.error)) {
+        output("  execution: task or scorer failed\n");
       }
     }
   }

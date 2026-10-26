@@ -5,7 +5,6 @@ import type { CatalogResearchInput, ResearchDependencies } from "../contracts";
 import type { ResearchContext } from "../research/context";
 import type { ResearchCandidate, ResearchError } from "../research/contracts";
 import { modelContext } from "../research/agent/input";
-import { updateModelUsage, type ModelUsage } from "../research/agent/usage";
 import type { ResearchBudget } from "../runtime/budget";
 import type { ResearchConfig } from "../runtime/config";
 import { classifyModelError } from "../runtime/model-errors";
@@ -20,7 +19,6 @@ import { editorInstructions } from "./prompt";
 export type EditorExecution = {
   status: "success" | "failed" | "not_run";
   modelResponse: { text: string | null; object: unknown } | null;
-  usage: ModelUsage;
   errors: ResearchError[];
 };
 export function emptyEditorExecution(): EditorExecution {
@@ -28,14 +26,6 @@ export function emptyEditorExecution(): EditorExecution {
     status: "not_run",
     modelResponse: null,
     errors: [],
-    usage: {
-      complete: true,
-      inputTokens: 0,
-      outputTokens: 0,
-      cachedInputTokens: 0,
-      reasoningTokens: 0,
-      modelCostUsd: null,
-    },
   };
 }
 
@@ -51,12 +41,6 @@ export async function editResearch(
 ): Promise<EditorExecution> {
   const execution = emptyEditorExecution();
   execution.status = "failed";
-  const usage = execution.usage;
-  usage.complete = !deps.generateEditor;
-  if (deps.generateEditor) {
-    usage.cachedInputTokens = null;
-    usage.reasoningTokens = null;
-  }
   const saved = context.catalog.find((event) => event.id === input.eventId);
   const prompt = JSON.stringify({
     research,
@@ -134,13 +118,6 @@ export async function editResearch(
             timeout: { totalMs: Math.max(1, budget.remaining().durationMs) },
           },
           abortSignal: signal,
-          onStepFinish: (step) => updateModelUsage(usage, step),
-          onError: () => {
-            usage.complete = false;
-          },
-          onAbort: () => {
-            usage.complete = false;
-          },
         });
       execution.modelResponse = {
         text: generated.text ?? null,
@@ -151,9 +128,8 @@ export async function editResearch(
     budget.assertTime();
     // Strict local validation and target checks happen in plan preparation.
     execution.status = "success";
-    log?.info("Editorial generation finished", { usage });
+    log?.info("Editorial generation finished");
   } catch (error) {
-    usage.complete = false;
     const classified = classifyModelError(error, budget.deadline);
     execution.errors.push({
       code: classified.limit ? "limit_reached" : "model_failed",
