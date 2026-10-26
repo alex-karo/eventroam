@@ -1,0 +1,545 @@
+@font-face {
+  font-family: "Presentation Display";
+  src: url("/fonts/bricolage-grotesque.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Presentation Sans";
+  src: url("/fonts/ibm-plex-sans.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Presentation Mono";
+  src: url("/fonts/ibm-plex-mono.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+.page {
+  --ink: #192d38;
+  --muted: #536572;
+  --accent: #315ddc;
+  --highlight: #e5edf9;
+  --surface: #fff;
+  --background: #f5f7fa;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--ink);
+  font:
+    400 17px/1.6 "Presentation Sans",
+    Arial,
+    sans-serif;
+}
+
+.page * {
+  box-sizing: border-box;
+}
+.container {
+  max-width: 1248px;
+  margin: 0 auto;
+  padding: 0 48px;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 30px 0;
+}
+.brand {
+  font:
+    700 27px/1 "Presentation Display",
+    sans-serif;
+  letter-spacing: -1.3px;
+}
+.brand span {
+  color: var(--accent);
+}
+.headerNote {
+  color: var(--muted);
+  font-size: 13px;
+}
+.page h1,
+.page h2,
+.page h3 {
+  font-family: "Presentation Display", sans-serif;
+  font-weight: 600;
+  text-wrap: balance;
+}
+.page h1 {
+  margin: 0 0 28px;
+  font-size: clamp(52px, 5.4vw, 70px);
+  line-height: 1.05;
+  letter-spacing: -0.055em;
+}
+.page h1 span {
+  color: var(--accent);
+}
+.page h2 {
+  margin: 0 0 20px;
+  font-size: clamp(30px, 3vw, 38px);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+}
+.page h3 {
+  margin: 8px 0 16px;
+  font-size: 29px;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+.page p {
+  margin: 0;
+}
+.page a {
+  color: var(--accent);
+}
+.page a:hover {
+  color: var(--ink);
+}
+.page a:focus-visible,
+.previewScroll:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 5px;
+}
+.introduction {
+  padding: 56px 0 64px;
+}
+.introCopy {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  align-items: center;
+  gap: 64px;
+  margin-bottom: 52px;
+}
+.page .introCopy h1 {
+  margin-bottom: 0;
+  font-size: clamp(48px, 4.9vw, 64px);
+}
+.page .lead {
+  max-width: 440px;
+  color: var(--muted);
+  font-size: 21px;
+  line-height: 1.5;
+}
+.heroActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 24px;
+}
+.textLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.textLink:hover {
+  text-decoration: underline;
+}
+.page .contactLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex: none;
+  min-height: 50px;
+  padding: 13px 20px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--surface);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.page .contactLink:hover {
+  background: var(--ink);
+}
+.transformation {
+  margin: 0;
+}
+.pipeline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr) 40px minmax(
+      0,
+      1.25fr
+    );
+  align-items: stretch;
+}
+.source {
+  padding: 24px;
+  border: 1px solid var(--highlight);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.label {
+  font:
+    400 11px/1.5 "Presentation Mono",
+    monospace;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.source .sourceTitle {
+  margin: 16px 0 8px;
+  font-weight: 600;
+}
+.source > p:last-child {
+  font-size: 16px;
+  line-height: 1.9;
+}
+.page mark {
+  padding: 2px 4px;
+  border-radius: 3px;
+  background: var(--highlight);
+  color: var(--accent);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.connector {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+.agentLabel {
+  position: absolute;
+  top: calc(50% - 32px);
+  font:
+    10px/1.5 "Presentation Mono",
+    monospace;
+}
+.arrow {
+  font-size: 25px;
+}
+.record,
+.catalog {
+  min-width: 0;
+  padding: 22px 24px 12px;
+  border: 1px solid var(--highlight);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.catalog {
+  border-top: 3px solid var(--accent);
+  box-shadow: 0 12px 32px rgb(25 45 56 / 6%);
+  padding: 22px 18px 16px;
+}
+.catalog table {
+  width: 100%;
+  margin-top: 16px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.catalog th {
+  padding: 0 8px 10px;
+  color: var(--muted);
+  font:
+    11px/1.5 "Presentation Mono",
+    monospace;
+  text-align: left;
+}
+.catalog td {
+  padding: 12px 8px;
+  border-top: 1px solid var(--background);
+  vertical-align: top;
+}
+.catalog td > span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.newRecord {
+  background: var(--highlight);
+  color: var(--accent);
+}
+.catalog .newLabel {
+  color: var(--accent);
+  font:
+    10px/1.5 "Presentation Mono",
+    monospace;
+}
+.recordHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.recordSymbol {
+  color: var(--accent);
+  font:
+    18px "Presentation Mono",
+    monospace;
+}
+.record dl {
+  margin: 14px 0 0;
+}
+.record dl > div {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--background);
+}
+.record dt {
+  color: var(--muted);
+  font:
+    12px/1.9 "Presentation Mono",
+    monospace;
+}
+.record dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+.transformation figcaption {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.example {
+  display: grid;
+  grid-template-columns: 0.7fr 1.3fr;
+  align-items: center;
+  gap: 48px;
+  border-top: 1px solid var(--highlight);
+  padding: 64px 0;
+  scroll-margin-top: 24px;
+}
+.page .eyebrow {
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.exampleCopy > p:not(.eyebrow) {
+  color: var(--muted);
+  max-width: 300px;
+}
+.exampleCopy .textLink {
+  margin-top: 22px;
+}
+.preview {
+  min-width: 0;
+  margin: 0;
+}
+.previewScroll {
+  overflow-x: auto;
+  border: 1px solid var(--highlight);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+}
+.preview figcaption {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.scrollHint {
+  display: none;
+}
+.cooperation {
+  border-top: 1px solid var(--highlight);
+  padding: 64px 0 36px;
+}
+.sectionHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 32px;
+}
+.sectionHeading > p {
+  color: var(--muted);
+  max-width: 320px;
+}
+.services {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  margin: 36px 0 48px;
+}
+.services > div {
+  padding: 28px 0 0;
+  border-top: 2px solid var(--highlight);
+}
+.services .eyebrow {
+  margin: 0;
+}
+.services > div > p:last-child {
+  max-width: 400px;
+  color: var(--muted);
+}
+.contact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 28px 32px;
+  background: var(--highlight);
+  border-radius: 8px;
+}
+.contact > div {
+  max-width: 500px;
+}
+.contact .author {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.contact p {
+  font-size: 15px;
+}
+
+@media (max-width: 1000px) {
+  .container {
+    padding: 0 32px;
+  }
+  .introCopy {
+    gap: 32px;
+  }
+  .pipeline {
+    grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr) 32px minmax(
+        0,
+        1.25fr
+      );
+  }
+  .source,
+  .record,
+  .catalog {
+    padding: 20px 16px;
+  }
+  .record dl > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .example {
+    gap: 32px;
+  }
+}
+
+@media (max-width: 800px) {
+  .pipeline {
+    grid-template-columns: 1fr;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .connector {
+    height: 48px;
+  }
+  .arrow {
+    transform: rotate(90deg);
+  }
+  .agentLabel {
+    top: auto;
+    left: calc(50% + 20px);
+  }
+  .record dl > div {
+    grid-template-columns: 66px minmax(0, 1fr);
+  }
+  .transformation figcaption {
+    max-width: 480px;
+    margin: 16px auto 0;
+  }
+}
+
+@media (max-width: 740px) {
+  .container {
+    padding: 0 24px;
+  }
+  .header {
+    padding: 24px 0;
+  }
+  .headerNote {
+    display: none;
+  }
+  .introduction {
+    padding: 32px 0 48px;
+  }
+  .introCopy {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-bottom: 36px;
+  }
+  .page .introCopy h1 {
+    font-size: clamp(42px, 9vw, 60px);
+  }
+  .page .lead {
+    font-size: 19px;
+  }
+  .record dd {
+    font-size: 14px;
+  }
+  .example {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 40px 0;
+  }
+  .exampleCopy > p:not(.eyebrow) {
+    max-width: 440px;
+  }
+  .preview img {
+    width: 640px;
+  }
+  .scrollHint {
+    display: block;
+    margin-top: 4px;
+  }
+  .cooperation {
+    padding: 40px 0 24px;
+  }
+  .sectionHeading {
+    display: block;
+  }
+  .sectionHeading > p {
+    max-width: 440px;
+  }
+  .services {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    margin: 28px 0 36px;
+  }
+  .services > div {
+    padding-top: 20px;
+  }
+  .contact {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px;
+  }
+  .contact .contactLink {
+    padding: 13px 14px;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .container {
+    padding: 0 20px;
+  }
+  .source,
+  .record {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .contact {
+    padding: 20px 16px;
+  }
+}

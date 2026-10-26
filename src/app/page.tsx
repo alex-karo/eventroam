@@ -8,6 +8,7 @@ import {
 } from "@/features/discovery/model/discovery";
 import { openReadDatabase } from "@/db/connection";
 import { Discovery } from "@/features/discovery/discovery";
+import { ProjectPresentation } from "@/features/project-presentation/project-presentation";
 
 type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -32,7 +33,11 @@ export async function generateMetadata({
 }: Props): Promise<Metadata> {
   const { site, origins } = await requestSite();
   if (site !== "festivals") {
-    return { title: "Eventroam" };
+    return {
+      title: "Eventroam | A catalog of structured data",
+      description:
+        "From web sources to one catalog, with agents to collect new records and update existing ones.",
+    };
   }
   const params = paramsFromRecord(await searchParams);
   const { client } = openReadDatabase();
@@ -64,13 +69,7 @@ export async function generateMetadata({
 export default async function HomePage({ searchParams }: Readonly<Props>) {
   const { site, origins } = await requestSite();
   if (site === "apex") {
-    return (
-      <main className="catalog">
-        <h1>Eventroam</h1>
-        <p>Explore events around the world.</p>
-        <a href={origins.festivals}>Festivals</a>
-      </main>
-    );
+    return <ProjectPresentation festivalsHref={origins.festivals} />;
   }
   const { client } = openReadDatabase();
   let catalog;
