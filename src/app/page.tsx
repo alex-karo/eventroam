@@ -87,7 +87,6 @@ export default async function HomePage({ searchParams }: Readonly<Props>) {
   } catch (caught) {
     error = caught instanceof Error ? caught.message : "Invalid filters.";
   }
-  const normalized = serializeFilters(initial).toString();
   return (
     <main className="discovery-page">
       <Discovery
@@ -95,7 +94,6 @@ export default async function HomePage({ searchParams }: Readonly<Props>) {
         initialCatalog={catalog}
         initialFilters={initial}
         initialError={error}
-        initialQuery={normalized}
         initialNow={new Date().toISOString()}
         initialView={raw.get("view") === "map" ? "map" : "list"}
       />

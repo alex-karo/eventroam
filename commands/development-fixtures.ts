@@ -88,6 +88,8 @@ export function seedDevelopmentFixtures(client: Database.Database) {
             id,
             slug,
             canonicalName,
+            summary:
+              "A fictional open-air festival used for local development. Each year has its own dates and ticket details.",
             homeScope: "festivals",
             publicationState: "published",
             createdAt: now,
@@ -172,11 +174,60 @@ export function seedDevelopmentFixtures(client: Database.Database) {
           scheduleStatus: status,
           countryCode: "PT",
           locality: "Example Valley",
+          priceKind: "from",
+          priceCurrency: "EUR",
+          priceMinMinor: 6990,
+          priceMaxMinor: 6990,
+          priceCoverage: "full_programme",
+          priceQualification:
+            "Promotion price, plus fees. This does not confirm availability.",
+          priceDetails: [
+            {
+              label: "Early Bird",
+              amount: 69.9,
+              currency: "EUR",
+              availability: "sold_out",
+              terms:
+                "Full festival pass. Handling fees are added by the ticket seller. This promotional category has sold out.",
+            },
+            {
+              label: "Regular",
+              amount: 99.9,
+              currency: "EUR",
+              availability: "available",
+              terms:
+                "Full festival pass. Check the official ticket site for current conditions and fees.",
+            },
+            { label: "Children", amount: 0, terms: "Registration required." },
+            { label: "Day pass", availability: "closed" },
+          ],
           publicationState: "published",
         });
       }
     }
 
+    if (event.created) {
+      for (const [kind, path, label] of [
+        ["official_site", "festival", "Festival website"],
+        ["official_site", "info", "Visitor information"],
+        ["ticketing", "tickets", "Tickets"],
+      ] as const) {
+        db.insert(externalLinks)
+          .values(
+            validateCatalogValues(client, "external_links", {
+              id: randomUUID(),
+              eventId: event.id,
+              kind,
+              url: `https://example.org/fictional-field-days/${path}`,
+              label,
+              official: true,
+              createdAt: now,
+              updatedAt: now,
+            }),
+          )
+          .run();
+      }
+    }
     for (const example of geographicExamples) {
       const added = addEvent(example.slug, example.name);
       if (!added.created) {

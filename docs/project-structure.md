@@ -8,7 +8,7 @@ tags: [architecture]
 
 # Eventroam project structure
 
-Status: Implemented core structure · Updated: 2026-10-11
+Status: Implemented core structure · Updated: 2026-10-26
 
 Eventroam is one npm package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. An owner-initiated Mastra research agent collects findings; a tool-free editor chooses explicit actions for a typed adapter and the same writer.
 
@@ -25,13 +25,13 @@ src/
 │   └── events/[slug]/         # Event and Edition pages
 ├── features/
 │   ├── discovery/             # Discovery UI, filtering model, hooks, and map
-│   │   ├── components/        # Filters, results, selected preview
-│   │   ├── hooks/             # URL state
+│   │   ├── components/        # Filters, results, one selected card
+│   │   ├── hooks/             # URL state and selected detail requests
 │   │   ├── map/               # Mapbox adapter
 │   │   └── model/             # Pure filtering and ordering
-│   └── event-details/         # Event and Edition presentation
+│   └── event-details/         # Event history, Edition page, single-point map
 ├── components/
-│   ├── catalog/               # Shared dates, location, status, and price views
+│   ├── catalog/               # Facts, icons, ticket views, links, shared history
 │   └── site/                  # Shared site header
 ├── catalog/
 │   ├── domain/                # Pure business rules
@@ -39,6 +39,7 @@ src/
 │   ├── read/                  # Public queries and browser-safe DTO contracts
 │   └── write/                 # Transactions, publication, audit
 ├── site/
+│   ├── discovery-context.ts   # Tab-local visit snapshots and context tokens
 │   └── server/                # Request adapters; site.ts holds scope and URL rules
 ├── ingestion/                 # Research/editor agents, typed adapter, sources and limits
 │   ├── research/
@@ -102,6 +103,10 @@ Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `editor
 Discovery loads complete public summaries for the active scope and applies the same filtering rules on direct server entry and in the browser. The map displays the coordinate-bearing subset of list results; moving the map does not fetch or filter inventory. Full details load on selection. See the [discovery contract](../openspec/specs/website/discovery/spec.md) and [catalog records](../openspec/specs/catalog/records/spec.md).
 
 ## Routes and scope
+
+The Edition page owns the full festival view in one column. Its location map owns one saved point, a precision-based initial zoom, and map loading errors. It uses the same Mapbox token and style as discovery. The Event page contains only its name, optional summary, navigation, and public history. Both pages use the shared `EditionHistory` component. Shared catalog views own price units, historical labels, fact icons, external link names, and native link titles. See the [festival detail contract](../openspec/specs/website/festival-details/spec.md).
+
+`site/discovery-context.ts` stores one visit snapshot in session storage. It contains the root filter URL, camera, list scroll, selected ID, and card expansion state. History state and detail URLs carry only its opaque token. `Discovery` saves and restores this context for browser Back and Back to results. It reloads selected details and removes an ineligible selection. The discovery map restores the camera before its first fit and uses the rendered card bounds to keep the selected point visible. Direct details without a matching token return to default discovery.
 
 The application currently has a root page, Event and Edition pages, and two discovery API routes. The root renders an apex directory or Festivals discovery according to the allowed host. Unknown hosts do not expose a default catalog. Detail requests resolve public identity and canonical hosts through `site/server` and `catalog/read`. The [scoped website specification](../openspec/specs/website/routing/spec.md) owns implemented routing behavior; [public site launch](../openspec/changes/public-site-launch/proposal.md) tracks approved metadata work.
 

@@ -1,43 +1,58 @@
 import type { PublicEdition } from "@/catalog/read/contracts";
-import { editionPath } from "@/site/site";
+import { durationDays, isPastEdition } from "@/catalog/domain/dates";
+import { Icon } from "./icons";
+import { basePrice, categoryPrice, dateRangeParts, placeName } from "./format";
+export { linkLabel } from "./external-links";
 
 export function Dates({ edition }: Readonly<{ edition: PublicEdition }>) {
-  const format = (date: string) =>
-    new Intl.DateTimeFormat("en", {
-      dateStyle: "medium",
-      timeZone: "UTC",
-    }).format(new Date(`${date}T12:00:00Z`));
+  const days = durationDays(edition.startsOn, edition.endsOn);
+  const [first, last] = dateRangeParts(edition.startsOn, edition.endsOn);
   return (
-    <p>
-      {edition.status === "postponed" && (
-        <strong>Postponed — new dates TBA. </strong>
-      )}
-      {edition.status === "postponed" && "Previous dates: "}
-      {edition.dateState === "provisional" && "Tentative dates: "}
-      <time dateTime={edition.startsOn}>{format(edition.startsOn)}</time>
-      {edition.endsOn !== edition.startsOn && (
-        <>
-          {" "}
-          – <time dateTime={edition.endsOn}>{format(edition.endsOn)}</time>
-        </>
-      )}
+    <p className="fact">
+      <Icon name="calendar" />
+      <span className="date-facts">
+        {edition.status === "postponed" && (
+          <>
+            <strong>Postponed — new dates TBA. </strong>Previous dates:{" "}
+          </>
+        )}
+        <span className="date-range">
+          <time dateTime={edition.startsOn}>{first}</time>
+          {edition.endsOn !== edition.startsOn && (
+            <>
+              –<time dateTime={edition.endsOn}>{last}</time>
+            </>
+          )}
+        </span>
+        {edition.dateState === "provisional" && (
+          <span className="date-badge">Tentative dates</span>
+        )}
+        <span className="fact-duration">
+          {days} {days === 1 ? "day" : "days"}
+        </span>
+      </span>
     </p>
   );
 }
 export function Location({ edition }: Readonly<{ edition: PublicEdition }>) {
-  const place = [
-    edition.venueName,
-    edition.locality,
-    edition.administrativeArea,
-    edition.countryCode,
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const located = edition.latitude !== null && edition.longitude !== null;
   return (
-    <p>
-      {place}
-      {!edition.venueName && " · Approximate location"}
-      {!edition.hasCoordinates && " · Map location unavailable"}
+    <p className="fact">
+      <Icon name="place" />
+      <span>
+        {placeName(edition)}
+        {located &&
+          edition.coordinatePrecision !== "exact" &&
+          " · Approximate location"}
+        {!located && (
+          <>
+            {" "}
+            <span className="location-note" title="Map location unavailable">
+              · Not mapped
+            </span>
+          </>
+        )}
+      </span>
     </p>
   );
 }
@@ -47,84 +62,107 @@ const statusLabels = {
   announced: "Announced",
   scheduled: "Scheduled",
 };
-
-export function linkLabel(kind: string): string {
-  return kind === "x" ? "X (Twitter)" : kind.replaceAll("_", " ");
+export function Status({
+  edition,
+  now = new Date(),
+}: Readonly<{ edition: PublicEdition; now?: Date }>) {
+  return (
+    <p className={`edition-state state-${edition.status}`}>
+      {statusLabels[edition.status]}
+      {isPastEdition(edition, now) && " · Past edition"}
+    </p>
+  );
 }
-
-export function Status({ edition }: Readonly<{ edition: PublicEdition }>) {
-  return <p>{statusLabels[edition.status]}</p>;
-}
-
 const availabilityLabels = {
   available: "Available",
   sold_out: "Sold out",
   closed: "Ticket sales closed",
 };
-
 export function TicketCategories({
   edition,
-}: Readonly<{ edition: PublicEdition }>) {
+  now = new Date(),
+}: Readonly<{ edition: PublicEdition; now?: Date }>) {
   if (!edition.ticketCategories.length) {
     return null;
   }
+  const past = isPastEdition(edition, now);
   return (
-    <section>
-      <h2>Ticket categories</h2>
-      <ul>
-        {edition.ticketCategories.map((category, index) => (
+    <ul className="ticket-categories">
+      {edition.ticketCategories.map((category, index) => {
+        const availability = category.availability;
+        const showStatus =
+          availability &&
+          availability !== "unknown" &&
+          !(past && availability === "available");
+        return (
           <li key={`${category.label}:${index}`}>
-            {category.label}
-            {category.availability && category.availability !== "unknown" && (
-              <> · {availabilityLabels[category.availability]}</>
+            <div className="ticket-category-heading">
+              <strong>{category.label}</strong>
+              <span>{categoryPrice(category)}</span>
+            </div>
+            {showStatus && (
+              <span className="ticket-status">
+                {availabilityLabels[availability]}
+              </span>
             )}
+            {category.terms && <p>{category.terms}</p>}
           </li>
-        ))}
-      </ul>
-    </section>
+        );
+      })}
+    </ul>
   );
 }
-
-export function TicketPrice({ edition }: Readonly<{ edition: PublicEdition }>) {
-  let price: string | null = null;
-  if (edition.priceKind === "free") {
-    price = "Free";
-  } else if (edition.priceCurrency && edition.priceMinMinor !== null) {
-    const formatter = new Intl.NumberFormat("en", {
-      style: "currency",
-      currency: edition.priceCurrency,
-    });
-    const minorUnit =
-      10 ** (formatter.resolvedOptions().maximumFractionDigits ?? 2);
-    const amount = (minor: number) => formatter.format(minor / minorUnit);
-    const upperAmount =
-      edition.priceKind === "range" && edition.priceMaxMinor !== null
-        ? `–${amount(edition.priceMaxMinor)}`
-        : "";
-    price = `${edition.priceKind === "from" ? "From " : ""}${amount(edition.priceMinMinor)}${upperAmount}`;
-  }
+export function TicketPrice({
+  edition,
+  now = new Date(),
+}: Readonly<{ edition: PublicEdition; now?: Date }>) {
+  const price = basePrice(edition);
   if (!price) {
     return null;
   }
   return (
-    <p>
-      Tickets: {price}
-      {edition.priceCoverage && edition.priceCoverage !== "full_programme"
-        ? ` (${edition.priceCoverage})`
-        : ""}
-      {edition.priceQualification ? ` · ${edition.priceQualification}` : ""}
+    <p className="fact">
+      <Icon name="ticket" />
+      <span>
+        {isPastEdition(edition, now) ? "Prices for this edition" : "Tickets"}:{" "}
+        <strong className="price-amount">{price}</strong>
+        {edition.priceCoverage && edition.priceCoverage !== "full_programme"
+          ? ` (${edition.priceCoverage.replaceAll("_", " ")})`
+          : ""}
+        {edition.priceQualification && (
+          <small className="price-qualification">
+            {edition.priceQualification}
+          </small>
+        )}
+      </span>
     </p>
   );
 }
-export function EditionItem({ edition }: Readonly<{ edition: PublicEdition }>) {
-  return (
-    <li>
-      <a href={editionPath(edition.eventSlug, edition.key)}>
-        {edition.name ?? `${edition.eventName} ${edition.year}`}
-      </a>
-      <Dates edition={edition} />
-      <Status edition={edition} />
-      <Location edition={edition} />
-    </li>
-  );
+export function Terms({ edition }: Readonly<{ edition: PublicEdition }>) {
+  return edition.terms.length > 0 ? (
+    <ul className="fact-tags" aria-label="Festival types and music">
+      {edition.terms
+        .toSorted(
+          (a, b) => Number(b.facet === "genre") - Number(a.facet === "genre"),
+        )
+        .map((term) => (
+          <li
+            className={term.facet === "genre" ? "term-genre" : "term-general"}
+            key={`${term.facet}:${term.name}`}
+          >
+            {term.name}
+          </li>
+        ))}
+    </ul>
+  ) : null;
+}
+export function Size({ edition }: Readonly<{ edition: PublicEdition }>) {
+  return edition.sizeEstimate !== null ? (
+    <p className="fact">
+      <Icon name="people" />
+      <span>
+        Estimated size: {edition.sizeEstimate.toLocaleString("en")} people
+      </span>
+    </p>
+  ) : null;
 }

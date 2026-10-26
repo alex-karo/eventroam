@@ -50,6 +50,8 @@ function publicRows(
       countryCode: editions.countryCode,
       latitude: editions.latitude,
       longitude: editions.longitude,
+      coordinatePrecision: editions.coordinatePrecision,
+      timeZone: editions.timeZone,
       sizeEstimate: editions.sizeEstimate,
       priceKind: editions.priceKind,
       priceCurrency: editions.priceCurrency,
@@ -166,24 +168,26 @@ function enrich(client: Database.Database, rows: Row[]): PublicEdition[] {
     assigned.push(link);
     linksByEdition.set(editionId, assigned);
   }
-  return rows.map(
-    ({ editionKey, latitude, longitude, priceDetails, ...fields }) => ({
-      ...fields,
-      key: editionKey,
-      year: fields.year!,
-      startsOn: fields.startsOn!,
-      endsOn: fields.endsOn!,
-      dateState: fields.dateState as PublicEdition["dateState"],
-      countryCode: fields.countryCode!,
-      hasCoordinates: latitude !== null && longitude !== null,
-      ticketCategories: priceDetails.map(({ label, availability }) => ({
+  return rows.map(({ editionKey, priceDetails, ...fields }) => ({
+    ...fields,
+    key: editionKey,
+    year: fields.year!,
+    startsOn: fields.startsOn!,
+    endsOn: fields.endsOn!,
+    dateState: fields.dateState as PublicEdition["dateState"],
+    countryCode: fields.countryCode!,
+    ticketCategories: priceDetails.map(
+      ({ label, amount, currency, terms, availability }) => ({
         label,
+        ...(amount !== undefined ? { amount } : {}),
+        ...(currency ? { currency } : {}),
+        ...(terms ? { terms } : {}),
         ...(availability ? { availability } : {}),
-      })),
-      terms: termsByEdition.get(fields.id) ?? [],
-      links: linksByEdition.get(fields.id) ?? [],
-    }),
-  );
+      }),
+    ),
+    terms: termsByEdition.get(fields.id) ?? [],
+    links: linksByEdition.get(fields.id) ?? [],
+  }));
 }
 
 export function publicEditions(
@@ -238,25 +242,6 @@ export function publicEditionById(
     )[0];
     return row ? enrich(client, [row])[0] : null;
   })();
-}
-
-export function selectActive(
-  editions: PublicEdition[],
-  today: string,
-): PublicEdition | null {
-  const eligible = editions.filter(
-    (o) =>
-      o.status !== "cancelled" && o.status !== "postponed" && o.endsOn >= today,
-  );
-  eligible.sort((a, b) => {
-    const rank = (o: PublicEdition) => (o.startsOn <= today ? 0 : 1);
-    return (
-      rank(a) - rank(b) ||
-      a.startsOn.localeCompare(b.startsOn) ||
-      a.id.localeCompare(b.id)
-    );
-  });
-  return eligible[0] ?? null;
 }
 
 export function resolvePublicPath(

@@ -42,7 +42,17 @@ npm run openspec:validate
 
 CI validates main OpenSpec specs with `npm exec -- openspec validate --specs --strict`, allowing active changes to start with a proposal only. `npm run openspec:validate` also validates active changes and requires their delta specs to be ready.
 
-`npm start` serves the built application. `npm run test:e2e` runs desktop and mobile discovery journeys against a temporary fixture database on port 3137. Mapbox loading is disabled, so this suite does not verify live tiles or marker interaction. Pass Playwright options after `--`, for example `npm run test:e2e -- --project=mobile`.
+`npm start` serves the built application. `npm run test:e2e` runs desktop and mobile discovery and detail journeys against a temporary fixture database on port 3137. The default mode disables Mapbox and checks list and map fallbacks. Pass Playwright options after `--`, for example `npm run test:e2e -- --project=mobile`.
+
+For a small real-map check, set `E2E_REAL_MAP=1` and supply `NEXT_PUBLIC_MAPBOX_TOKEN`. The runner and Playwright server forward that token only in this mode. This command loads the local token from `.env` without printing it:
+
+```sh
+E2E_REAL_MAP=1 node --env-file-if-exists=.env scripts/run-e2e.mjs e2e/real-map.spec.ts --workers=1
+```
+
+The real-map tests check clustered selection, card overlap, unchanged zoom, camera return, pointer hover, and unlocated selection. They use real Mapbox rendering and a small discovery response override for the cluster case. They need provider access and browser rendering support. Keep the token local. The default suite skips these tests.
+
+Use the built-in Browser for local UI checks. On macOS, obtain approved execution outside the command sandbox before a shell runner starts full Chrome, including headless Chrome. Do not retry a sandboxed launch after an `_RegisterApplication` or `SIGABRT` startup crash. Stop other local Next.js servers before an E2E run because they share the build directory.
 
 Run `npm run test:coverage` for unit and integration coverage of application and command TypeScript, including unimported files. E2E, test helpers, declaration files, and child-process coverage from Studio and tracing fixtures are excluded. Reports go to ignored `coverage/`; CI publishes totals and retains the HTML `test-coverage` artifact for 14 days. Coverage thresholds are not enforced. React tests use a per-file `// @vitest-environment jsdom` directive and React Testing Library; other tests use Node.
 

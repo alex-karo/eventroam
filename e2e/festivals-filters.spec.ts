@@ -46,7 +46,7 @@ test("direct date ranges include overlap and history but exclude cancellations",
   await page.goto("/?from=2025-07-02&to=2025-07-02");
   await expectNames(page, ["Fictional Field Days 2025"]);
   await expect(page.locator(".results-geography")).toHaveText(
-    "0 mapped · 1 unlocated",
+    "On map: 0 · Not mapped: 1",
   );
   await expectViews(page, testInfo);
 
@@ -103,7 +103,7 @@ test("combined date, country, place, and name filters survive reload and view sw
 
   await expectNames(page, ["Fictional Atlantic Sounds 2027"]);
   await expect(page.locator(".results-geography")).toHaveText(
-    "1 mapped · 0 unlocated",
+    "On map: 1 · Not mapped: 0",
   );
   await expect(page).toHaveURL(
     /from=2027-06-01.*to=2027-07-31.*country=PT.*place=lisbon/,

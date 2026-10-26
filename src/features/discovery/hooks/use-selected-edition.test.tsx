@@ -9,7 +9,10 @@ const edition: PublicEdition = {
   ...testFixtures().build.summary({ id: "edition-1" }),
   eventId: "event-1",
   venueAddress: null,
-  hasCoordinates: false,
+  latitude: null,
+  longitude: null,
+  coordinatePrecision: "unknown",
+  timeZone: null,
   ticketCategories: [],
   priceKind: null,
   priceCurrency: null,
@@ -164,6 +167,7 @@ function focusHarness() {
         <button data-fallback>Results</button>
         {hook.selectedId && (
           <section ref={hook.panelRef}>
+            <button style={{ display: "none" }}>Expand</button>
             <button>Close</button>
           </section>
         )}

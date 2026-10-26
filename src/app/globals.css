@@ -613,43 +613,6 @@ a:hover {
   color: white;
   border-color: var(--teal);
 }
-.detail-panel {
-  position: absolute;
-  z-index: 4;
-  top: 62px;
-  right: 14px;
-  width: min(380px, calc(60% - 28px));
-  max-height: calc(100% - 76px);
-  overflow-y: auto;
-  padding: 17px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: white;
-  box-shadow: 0 8px 25px #0002;
-}
-.detail-panel > button:first-child {
-  float: right;
-  margin: -3px -3px 8px 8px;
-}
-.detail-panel h2 {
-  font:
-    700 22px/1.2 "Trebuchet MS",
-    "Avenir Next",
-    sans-serif;
-  letter-spacing: -0.5px;
-  margin: 3px 0 12px;
-}
-.detail-panel h3 {
-  margin: 13px 0 5px;
-  font-size: 13px;
-}
-.detail-panel p {
-  margin: 7px 0;
-}
-.detail-panel ul {
-  margin: 5px 0 10px;
-  padding-left: 20px;
-}
 .view-switch {
   display: none;
 }
@@ -804,13 +767,6 @@ a:hover {
   .map-fallback {
     top: 45px;
   }
-  .detail-panel {
-    top: 65px;
-    left: 10px;
-    right: 10px;
-    width: auto;
-    max-height: calc(100% - 135px);
-  }
   .view-switch {
     position: absolute;
     z-index: 5;
@@ -960,4 +916,379 @@ a:hover {
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
   }
+}
+
+/* Festival facts and detail pages share the same compact controls. */
+.festival-details {
+  max-width: 48rem;
+  padding-top: 1.5rem;
+  overflow-wrap: anywhere;
+}
+.catalog.festival-details h1 {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  line-height: 1.15;
+}
+.catalog.festival-details nav {
+  margin-bottom: 1.25rem;
+}
+.catalog.festival-details section {
+  margin-top: 1.5rem;
+  padding-top: 0.5rem;
+}
+.catalog.festival-details h2 {
+  margin-top: 0.75rem;
+  font-size: 1.25rem;
+}
+.fact {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0.6rem 0;
+}
+.fact-icon {
+  flex: none;
+  margin-top: 0.15em;
+}
+.fact-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0;
+}
+.fact-tags li {
+  border: 1px solid #c7d1ca;
+  border-radius: 1rem;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.85em;
+}
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.external-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  max-width: 100%;
+  width: 100%;
+}
+.external-link {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 5px 8px;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #c7d1ca;
+  border-radius: 6px;
+  background: white;
+  box-sizing: border-box;
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+.external-link .fact-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+.external-link:hover {
+  background: #e8f5f0;
+}
+a:focus-visible {
+  outline: 3px solid #007969;
+  outline-offset: 2px;
+}
+.ticket-categories,
+.edition-history {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0;
+}
+.ticket-categories li {
+  border: 1px solid #c7d1ca;
+  border-radius: 8px;
+  padding: 0.85rem;
+  margin: 0.5rem 0;
+}
+.ticket-category-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.ticket-categories p {
+  margin: 0.5rem 0 0;
+}
+.ticket-status {
+  display: inline-block;
+  font-size: 0.85em;
+  background: #edf0e9;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  margin-top: 0.4rem;
+}
+.edition-history li {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #c7d1ca;
+}
+.edition-history small {
+  margin-left: 0.65rem;
+  color: #536671;
+}
+.edition-location-map {
+  position: relative;
+  height: 20rem;
+  margin: 0.75rem 0;
+  background: #e2edf2;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.location-canvas {
+  height: 100%;
+  width: 100%;
+}
+.location-map-fallback {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  right: 1rem;
+  background: #fff9ed;
+  padding: 0.75rem;
+  border: 1px solid #d2aa64;
+  border-radius: 6px;
+}
+@media (max-width: 740px) {
+  .catalog.festival-details {
+    padding: 1.25rem 1rem 3rem;
+  }
+}
+
+.detail-panel {
+  position: absolute;
+  z-index: 4;
+  top: 62px;
+  right: 14px;
+  width: min(360px, calc(100vw - 28px));
+  max-height: calc(100% - 76px);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 8px 25px #0002;
+}
+.detail-panel p {
+  margin: 7px 0;
+}
+.detail-panel ul {
+  margin: 5px 0 10px;
+  padding-left: 20px;
+}
+.card-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  flex: none;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.detail-panel .card-header h2 {
+  margin: 0;
+  align-self: center;
+  max-height: 5.4em;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  font:
+    700 20px/1.25 "Trebuchet MS",
+    "Avenir Next",
+    sans-serif;
+  letter-spacing: -0.5px;
+}
+.card-controls {
+  display: flex;
+  gap: 2px;
+}
+.card-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+}
+.card-controls button:hover {
+  background: #e8f5f0;
+}
+.card-controls .fact-icon {
+  margin: 0;
+}
+.card-controls .card-expand {
+  display: none;
+}
+.card-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 14px 18px;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+}
+.detail-panel h2 a {
+  color: var(--ink);
+}
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex: none;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+}
+.detail-panel .view-edition {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 14px;
+  font-size: 14px;
+  border-radius: 7px;
+  background: var(--teal);
+  color: white;
+  font-weight: 600;
+}
+.view-edition .fact-icon {
+  margin: 0;
+}
+.date-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+.fact-duration,
+.date-range time {
+  white-space: nowrap;
+}
+.fact-duration {
+  color: #536671;
+  font-size: 0.9em;
+}
+.date-badge {
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: #fff5df;
+  color: #77531a;
+  font-size: 0.8em;
+}
+.location-note {
+  white-space: nowrap;
+  color: #536671;
+  font-size: 0.85em;
+}
+.card-date-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+}
+.card-date-facts .fact {
+  flex: 1 1 220px;
+}
+.card-date-facts .edition-state {
+  margin: 0 0 4px 30px;
+  font-size: 0.8em;
+  color: #536671;
+}
+.card-date-facts .state-cancelled,
+.card-date-facts .state-postponed {
+  color: #9a3c25;
+  font-weight: 700;
+}
+.price-amount {
+  font-size: 1.08em;
+}
+.price-qualification {
+  display: block;
+  margin-top: 4px;
+  color: #536671;
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+.fact-tags .term-genre {
+  background: #e8f5f0;
+  border-color: #b3cec4;
+  color: #215b4e;
+}
+.fact-tags .term-general {
+  border-color: transparent;
+  color: #536671;
+}
+.detail-panel .fact-tags {
+  padding: 0;
+}
+@media (max-width: 740px) {
+  .detail-panel {
+    top: auto;
+    bottom: calc(68px + env(safe-area-inset-bottom));
+    left: 10px;
+    right: 10px;
+    width: auto;
+    height: min(300px, calc(100% - 136px));
+    max-height: calc(100% - 136px);
+  }
+  .detail-panel.is-expanded {
+    height: min(540px, calc(100% - 136px));
+  }
+  .detail-panel .card-header h2 {
+    font-size: 18px;
+  }
+  .card-controls .card-expand {
+    display: inline-flex;
+  }
+  .card-header {
+    padding: 10px 12px;
+  }
+  .card-scroll {
+    padding: 8px 14px 14px;
+  }
+  .detail-panel:not(.is-expanded) .selected-more {
+    display: none;
+  }
+  .discovery-results-shell:has(.detail-panel) .list-region {
+    padding-bottom: 322px;
+  }
+  .discovery-results-shell:has(.detail-panel.is-expanded) .list-region {
+    padding-bottom: 562px;
+  }
+  .discovery-results-shell.view-map:has(.detail-panel) .results-summary {
+    display: none;
+  }
+}
+.selected-map-point {
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  border: 4px solid white;
+  border-radius: 50%;
+  background: #bd4f2e;
+  box-shadow:
+    0 0 0 3px #172c31,
+    0 2px 8px #0005;
+  pointer-events: none;
 }

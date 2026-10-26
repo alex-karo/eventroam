@@ -12,6 +12,9 @@ export type PublicEdition = {
   status: "announced" | "scheduled" | "postponed" | "cancelled";
   ticketCategories: {
     label: string;
+    amount?: number;
+    currency?: string;
+    terms?: string;
     availability?: "unknown" | "available" | "sold_out" | "closed";
   }[];
   venueName: string | null;
@@ -19,7 +22,10 @@ export type PublicEdition = {
   locality: string | null;
   administrativeArea: string | null;
   countryCode: string;
-  hasCoordinates: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  coordinatePrecision: string;
+  timeZone: string | null;
   sizeEstimate: number | null;
   priceKind: string | null;
   priceCurrency: string | null;

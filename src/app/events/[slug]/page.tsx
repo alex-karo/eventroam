@@ -1,18 +1,16 @@
 import { requestDetail } from "@/site/server/public-request";
 import { eventPath } from "@/site/site";
-import { selectActive } from "@/catalog/read/public-catalog";
+import { discoveryToken } from "@/site/discovery-context";
 import { EventDetailsPage } from "@/features/event-details/event-page";
-
 export default async function EventPage({
   params,
+  searchParams,
 }: Readonly<{
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ discovery?: string }>;
 }>) {
   const { slug } = await params;
-  const { event } = await requestDetail(eventPath(slug));
-  const active = selectActive(
-    event.editions,
-    new Date().toISOString().slice(0, 10),
-  );
-  return <EventDetailsPage event={event} active={active} />;
+  const token = discoveryToken((await searchParams).discovery);
+  const { event } = await requestDetail(eventPath(slug), token);
+  return <EventDetailsPage event={event} token={token} />;
 }

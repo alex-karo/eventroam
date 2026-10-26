@@ -1,9 +1,17 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useEffectEvent,
+} from "react";
 import {
   emptyFilters,
   filterSummaries,
   normalizeFilters,
+  serializeFilters,
   type Filters,
 } from "@/features/discovery/model/discovery";
 import type { DiscoverySummary, Genre } from "@/catalog/read/contracts";
@@ -21,6 +29,12 @@ import {
   pushDiscoveryView,
   readDiscoveryLocation,
 } from "@/features/discovery/hooks/discovery-url";
+import {
+  beginVisit,
+  historyVisitToken,
+  saveVisit,
+  type Camera,
+} from "@/site/discovery-context";
 import { useSelectedEdition } from "@/features/discovery/hooks/use-selected-edition";
 
 import {
@@ -37,7 +51,6 @@ export function Discovery({
   initialCatalog,
   initialFilters,
   initialError,
-  initialQuery,
   initialNow,
   initialView,
 }: Readonly<{
@@ -45,7 +58,6 @@ export function Discovery({
   initialCatalog: Catalog;
   initialFilters: Filters;
   initialError: string | null;
-  initialQuery: string;
   initialNow: string;
   initialView: "map" | "list";
 }>) {
@@ -72,6 +84,100 @@ export function Discovery({
       viewSwitch.current?.querySelector<HTMLElement>("[aria-pressed=true]") ??
       null,
   );
+  const [expanded, setExpanded] = useState(false);
+  const [visitToken, setVisitToken] = useState<string | null>(null);
+  const [visitReady, setVisitReady] = useState(false);
+  const [restoreCamera, setRestoreCamera] = useState<Camera | null>(null);
+  const [preserveSelectionCamera, setPreserveSelectionCamera] = useState(false);
+  const camera = useRef<Camera | null>(null);
+  const listColumn = useRef<HTMLDivElement>(null);
+  const listScroll = useRef(0);
+  const pendingListScroll = useRef<number | null>(null);
+  function saveContext() {
+    const token = historyVisitToken();
+    if (!token) {
+      return;
+    }
+    if (
+      listColumn.current?.clientHeight &&
+      pendingListScroll.current === null
+    ) {
+      listScroll.current = listColumn.current.scrollTop;
+    }
+    const rootUrl = `${window.location.pathname}${window.location.search}`;
+    const next = {
+      rootUrl,
+      camera: camera.current,
+      scroll: listScroll.current,
+      selectedId,
+      expanded,
+    };
+    saveVisit(token, next);
+  }
+  const saveCurrentContext = useEffectEvent(saveContext);
+  const restoreContext = useEffectEvent(() => {
+    const { token, visit } = beginVisit();
+    setVisitToken(token);
+    setVisitReady(true);
+    const location = readDiscoveryLocation(catalog.genres);
+    setView(location.view);
+    if (location.filters) {
+      setApplied(location.filters);
+      setPending(location.filters);
+      setQuery(location.filters.q);
+    }
+    setUrlError(location.error);
+    setFormError(null);
+    setSearchError(null);
+    setPanel(null);
+    if (location.filters && !location.error) {
+      normalizeDiscoveryLocation(serializeFilters(location.filters).toString());
+    }
+    camera.current = visit?.camera ?? null;
+    setRestoreCamera(visit?.camera ?? null);
+    setPreserveSelectionCamera(!!visit?.camera);
+    listScroll.current = visit?.scroll ?? 0;
+    pendingListScroll.current = listScroll.current;
+    setExpanded(visit?.expanded ?? false);
+    const eligible =
+      location.filters && !location.error
+        ? filterSummaries(
+            catalog.summaries,
+            location.filters,
+            catalog.genres,
+            new Date(initialNow),
+          )
+        : [];
+    if (
+      visit?.selectedId &&
+      eligible.some((item) => item.id === visit.selectedId)
+    ) {
+      void selectEdition(visit.selectedId);
+    } else if (selectedId) {
+      closeDetail();
+    }
+  });
+  const restoreListScroll = useEffectEvent(() => {
+    const column = listColumn.current;
+    if (column?.clientHeight && pendingListScroll.current !== null) {
+      const scroll = pendingListScroll.current;
+      pendingListScroll.current = null;
+      column.scrollTop = scroll;
+    }
+  });
+  useEffect(() => {
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(restoreListScroll);
+    });
+    const observer = new ResizeObserver(restoreListScroll);
+    if (listColumn.current) {
+      observer.observe(listColumn.current);
+    }
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [view, visitToken, selectedId, expanded, applied]);
   const today = useMemo(() => new Date(initialNow), [initialNow]);
   const chipButtons = useRef(new Map<string, HTMLButtonElement>());
   const clearButton = useRef<HTMLButtonElement>(null);
@@ -89,27 +195,27 @@ export function Discovery({
   // eslint-disable-next-line sonarjs/no-alphabetical-sort
   countries.sort();
   useEffect(() => {
-    if (!initialError) {
-      normalizeDiscoveryLocation(initialQuery);
-    }
-  }, [initialError, initialQuery]);
-  useEffect(() => {
-    const restore = () => {
-      const { view, filters, error } = readDiscoveryLocation(catalog.genres);
-      setView(view);
-      if (filters) {
-        setApplied(filters);
-        setPending(filters);
-        setQuery(filters.q);
+    let active = true;
+    queueMicrotask(() => {
+      if (active) {
+        restoreContext();
       }
-      setUrlError(error);
-      setFormError(null);
-      setSearchError(null);
-      setPanel(null);
-    };
+    });
+    const restore = () => restoreContext();
+    const save = () => saveCurrentContext();
     window.addEventListener("popstate", restore);
-    return () => window.removeEventListener("popstate", restore);
-  }, [catalog.genres]);
+    window.addEventListener("pagehide", save);
+    return () => {
+      active = false;
+      window.removeEventListener("popstate", restore);
+      window.removeEventListener("pagehide", save);
+    };
+  }, []);
+  useEffect(() => {
+    if (visitReady) {
+      saveCurrentContext();
+    }
+  }, [visitReady, visitToken, selectedId, expanded, applied, view]);
   const load = useCallback(() => {
     const request = ++latest.current;
     return fetch("/api/discovery", { cache: "no-store" })
@@ -170,7 +276,8 @@ export function Discovery({
     }
     try {
       const valid = normalizeFilters(next, catalog.genres);
-      pushDiscoveryFilters(valid);
+      saveContext();
+      setVisitToken(pushDiscoveryFilters(valid));
       setApplied(valid);
       setPending(valid);
       setQuery(valid.q);
@@ -187,8 +294,13 @@ export function Discovery({
     }
   }
   function switchView(next: "map" | "list") {
+    if (next === view) {
+      return;
+    }
+    saveContext();
+    pendingListScroll.current = listScroll.current;
     setView(next);
-    pushDiscoveryView(next);
+    setVisitToken(pushDiscoveryView(next));
   }
   useEffect(() => {
     if (!panel && !selectedId) {
@@ -212,6 +324,19 @@ export function Discovery({
   const results = invalidUrl
     ? []
     : filterSummaries(catalog.summaries, applied, catalog.genres, today);
+  const selectedEligible =
+    !selectedId || results.some((item) => item.id === selectedId);
+  const clearIneligibleSelection = useEffectEvent(() => closeDetail());
+  useEffect(() => {
+    if (!selectedEligible) {
+      clearIneligibleSelection();
+    }
+  }, [selectedEligible]);
+  function selectResult(id: string) {
+    setPreserveSelectionCamera(false);
+    setExpanded(false);
+    void selectEdition(id);
+  }
   const editionLabel = results.length === 1 ? "edition" : "editions";
   const mapped = results.filter(hasMapPoint).length;
   const active = filterSelections(applied, catalog.genres);
@@ -321,7 +446,7 @@ export function Discovery({
           />
         )}
         <div className={`discovery-results-shell view-${view}`}>
-          <div className="list-column">
+          <div className="list-column" ref={listColumn} onScroll={saveContext}>
             <div className="results-summary">
               <div className="results-total">
                 <strong aria-live="polite">
@@ -330,7 +455,9 @@ export function Discovery({
                     : `${results.length} ${editionLabel}`}
                 </strong>
                 <span className="results-geography">
-                  {mapped} mapped · {results.length - mapped} unlocated
+                  On map: {mapped} ·{" "}
+                  <span title="Map location unavailable">Not mapped</span>:{" "}
+                  {results.length - mapped}
                 </span>
               </div>
               {active.length > 0 && (
@@ -398,19 +525,32 @@ export function Discovery({
               results={results}
               selectedId={selectedId}
               error={urlError}
-              onSelect={(id) => void selectEdition(id)}
+              onSelect={selectResult}
               onClear={() => apply(emptyFilters())}
+              token={visitToken}
+              onNavigate={saveContext}
             />
           </div>
           <section className="map-region" aria-label="Map results">
-            <DiscoveryMap
-              summaries={results}
-              selectedId={selectedId}
-              onSelect={(id) => void selectEdition(id)}
-              visible={view === "map"}
-            />
+            {visitReady && (
+              <DiscoveryMap
+                summaries={results}
+                selectedId={selectedId}
+                onSelect={selectResult}
+                visible={view === "map"}
+                cardRef={detailPanel}
+                restoreCamera={restoreCamera}
+                preserveSelectionCamera={preserveSelectionCamera}
+                onCameraChange={(next) => {
+                  camera.current = next;
+                  saveContext();
+                }}
+              />
+            )}
             <div className="map-result-count" aria-live="polite">
-              {mapped} on map · {results.length - mapped} without a map location
+              On map: {mapped} ·{" "}
+              <span title="Map location unavailable">Not mapped</span>:{" "}
+              {results.length - mapped}
             </div>
           </section>
           <SelectedPreview
@@ -418,6 +558,11 @@ export function Discovery({
             panelRef={detailPanel}
             onClose={closeDetail}
             onRetry={(id) => void selectEdition(id)}
+            expanded={expanded}
+            onExpand={() => setExpanded(!expanded)}
+            token={visitToken}
+            onNavigate={saveContext}
+            now={today}
           />
         </div>
         <div
@@ -428,6 +573,7 @@ export function Discovery({
         >
           <button
             type="button"
+            disabled={!visitReady}
             aria-pressed={view === "list"}
             onClick={() => switchView("list")}
           >
@@ -435,6 +581,7 @@ export function Discovery({
           </button>
           <button
             type="button"
+            disabled={!visitReady}
             aria-pressed={view === "map"}
             onClick={() => switchView("map")}
           >
