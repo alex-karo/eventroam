@@ -15,15 +15,7 @@ const runCatalogResearch: typeof executeResearch = async (input, deps) => {
     .prepare("SELECT * FROM ingestion_runs WHERE id=?")
     .get(result.runId) as Record<string, unknown>;
   expect(JSON.parse(row.report_json as string)).toEqual(result);
-  expect(row).toMatchObject({
-    input_tokens: result.usage.inputTokens,
-    output_tokens: result.usage.outputTokens,
-    model_cost_usd: result.usage.modelCostUsd,
-    search_cost_estimate_usd: result.usage.searchCostUsd,
-    duration_ms: result.durationMs,
-    usage_complete: Number(result.usage.complete),
-  });
-  expect(result.usage.searchCostBasis).toBe("estimate");
+
   return result;
 };
 import type { ReadPageResult } from "../tools/read-page/contracts";
@@ -272,8 +264,6 @@ test("workflow captures the agent-visible initial source and tool responses", as
             { url: linkedUrl, title: "Linked page", highlights: [] },
           ],
           retrievedAt: source.retrievedAt,
-          modelCostUsd: null,
-          searchCostUsd: 0,
           inputTokens: 0,
           outputTokens: 0,
         };
@@ -392,7 +382,7 @@ test("actual Mastra request sends a compatible bounded response schema", async (
     wireCandidate(requests[0], candidate),
   );
   expect(requests).toHaveLength(1);
-  expect(result.usage.modelCalls).toBe(2);
+  expect(result.budget.modelCalls).toBe(3);
   expect(result.researchStatus).toBe("success");
   expect(result.errors).toEqual([]);
   expect(result.operations.map((operation) => operation.kind)).toContain(
@@ -404,8 +394,7 @@ test("actual Mastra request sends a compatible bounded response schema", async (
   expect(request.service_tier).toBe("flex");
   expect(request.extraBody).toBeUndefined();
   expect(request.stream).not.toBe(true);
-  expect(result.usage.cachedInputTokens).toBe(null);
-  expect(result.usage.reasoningTokens).toBe(null);
+
   expect(request.plugins).toBeUndefined();
   expect(request.tools).toBeUndefined();
   expect(request.max_tokens ?? request.max_completion_tokens).toBe(256);
@@ -465,7 +454,7 @@ test.each([
   [false, 1],
   [true, 2],
 ] as const)(
-  "add combines discovery and model usage (search details: %s; attempts: %s)",
+  "add shares discovery and model budgets (search details: %s; attempts: %s)",
   async (searchDetails, searchAttempts) => {
     const client = testDatabase().client;
     const requests: Record<string, unknown>[] = [];
@@ -499,11 +488,8 @@ test.each([
           query,
           candidates: [{ url, title: "Provider Fest", highlights: [] }],
           retrievedAt: source.retrievedAt,
-          modelCostUsd: searchDetails ? 0.125 : null,
-          searchCostUsd: 0.25,
           inputTokens: 7,
           outputTokens: 9,
-          usageComplete: searchAttempts === 1,
           ...(searchDetails
             ? { cachedInputTokens: 2, reasoningTokens: 3 }
             : {}),
@@ -605,18 +591,7 @@ test.each([
     expect(searchWeb).toHaveBeenCalledTimes(1);
     expect(searchWeb).toHaveBeenCalledWith("Provider Fest", expect.anything());
     expect(readPage).toHaveBeenCalledTimes(1);
-    expect(result.usage).toMatchObject({
-      complete: false,
-      searches: searchAttempts,
-      pages: 1,
-      modelCalls: 4 + searchAttempts,
-      inputTokens: 65,
-      outputTokens: 101,
-      cachedInputTokens: null,
-      reasoningTokens: null,
-      modelCostUsd: searchDetails ? 1 : 0.875,
-      searchCostUsd: 0.25,
-    });
+
     expect(requests[2].tools).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -731,9 +706,7 @@ test.each([null, "I will read the linked page before returning the result."])(
       readPage,
     });
     expect(requests).toHaveLength(2);
-    expect(result.usage.cachedInputTokens).toBe(null);
-    expect(result.usage.reasoningTokens).toBe(null);
-    expect(result.usage).toMatchObject({ inputTokens: 33, outputTokens: 57 });
+
     expect(requests[0].reasoning).toBeUndefined();
     expect(requests[0].tools).toEqual(
       expect.arrayContaining([
@@ -838,7 +811,7 @@ function readCall(
 }
 
 test.each(["http", "abort"])(
-  "retains completed step usage after %s failure",
+  "retains completed tool history and call counters after %s failure",
   async (failure) => {
     const client = testDatabase().client;
     savedSource(client);
@@ -883,14 +856,8 @@ test.each(["http", "abort"])(
       }),
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(result.usage).toMatchObject({
-      inputTokens: 10,
-      outputTokens: 20,
-      cachedInputTokens: 6,
-      reasoningTokens: 12,
-      complete: false,
-      modelCostUsd: 0.125,
-    });
+    expect(result.budget.modelCalls).toBe(2);
+    expect(result).not.toHaveProperty("usage");
     expect(result.operations).toEqual([]);
     if (failure === "abort") {
       expect(result.errors).toContainEqual(
@@ -932,7 +899,7 @@ test.each([true, false])(
     );
     expect(requests.slice(0, -1).every((request) => request.tools)).toBe(true);
     expect(requests.at(-1)?.tools).toBeUndefined();
-    expect(result.usage.modelCalls).toBe(returnsFinalResponse ? 16 : 15);
+    expect(result.budget.modelCalls).toBe(returnsFinalResponse ? 17 : 15);
     expect(result.limits).not.toHaveProperty("modelInputChars");
     if (returnsFinalResponse) {
       expect(result.researchStatus).toBe("success");
@@ -964,7 +931,7 @@ test("native agent iterations stop repeated tool requests", async () => {
   });
   expect(fetchMock).toHaveBeenCalledTimes(2);
   expect(result.operations).toEqual([]);
-  expect(result.usage.modelCalls).toBe(fetchMock.mock.calls.length);
+  expect(result.budget.modelCalls).toBe(fetchMock.mock.calls.length);
   expect(result.errors).toContainEqual(
     expect.objectContaining({ code: "limit_reached", stage: "research" }),
   );
@@ -1002,10 +969,8 @@ test("provider unavailable retries preserve ordinary agent capacity and call acc
   await vi.advanceTimersByTimeAsync(10_000);
   const result = await pending;
   expect(fetchMock).toHaveBeenCalledTimes(2);
-  expect(result.usage.modelCalls).toBe(3);
-  expect(result.usage.inputTokens).toBe(10);
-  expect(result.usage.complete).toBe(false);
-  expect(result.usage.modelCostUsd).toBe(0);
+  expect(result.budget.modelCalls).toBe(4);
+
   expect(result.errors).toEqual([]);
 }, 15_000);
 
@@ -1048,22 +1013,18 @@ test("retry allowance cannot add ordinary agent iterations", async () => {
   await vi.advanceTimersByTimeAsync(10_000);
   const result = await pending;
   expect(fetchMock).toHaveBeenCalledTimes(3);
-  expect(result.usage.modelCalls).toBe(3);
+  expect(result.budget.modelCalls).toBe(3);
   expect(result.errors).toContainEqual(
     expect.objectContaining({ code: "limit_reached" }),
   );
 }, 15_000);
 
 test.each([
-  [undefined, 0, 0],
-  [0, 0, 0],
-  [0.125, 0, 0.125],
-  [0.125, undefined, 0.125],
-  [undefined, undefined, null],
-  [undefined, 0.125, 0.125],
+  [0.125, 0.125],
+  [undefined, undefined],
 ])(
-  "sums known step costs %s and %s as %s",
-  async (cost, finalCost, expectedCost) => {
+  "provider costs %s and %s do not add report accounting",
+  async (cost, finalCost) => {
     const client = testDatabase().client;
     savedSource(client);
     vi.stubGlobal(
@@ -1089,21 +1050,18 @@ test.each([
         finalUrl: requestedUrl,
       }),
     });
-    expect(result.usage).toMatchObject({
-      complete: false,
-      inputTokens: 33,
-      outputTokens: 57,
-      cachedInputTokens: null,
-      reasoningTokens: null,
-      modelCostUsd: expectedCost,
-    });
+
     expect(result.errors).toEqual([]);
+    expect(result).not.toHaveProperty("usage");
   },
 );
 
-test.each([undefined, {}])(
-  "a final response without token counts (%s) retains known usage and marks tokens partial",
-  async (usage) => {
+test.each([
+  { usage: undefined, expectedStatus: "success" },
+  { usage: {}, expectedStatus: "failed" },
+])(
+  "provider usage $usage has research status $expectedStatus without report accounting",
+  async ({ usage, expectedStatus }) => {
     const client = testDatabase().client;
     savedSource(client);
     vi.stubGlobal(
@@ -1122,12 +1080,15 @@ test.each([undefined, {}])(
         finalUrl: requestedUrl,
       }),
     });
-    expect(result.usage).toMatchObject({
-      complete: false,
-      inputTokens: 10,
-      outputTokens: 20,
-      modelCostUsd: 0,
-    });
+    expect(result.researchStatus).toBe(expectedStatus);
+    if (expectedStatus === "failed") {
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({ code: "model_failed" }),
+      );
+    } else {
+      expect(result.errors).toEqual([]);
+    }
+    expect(result).not.toHaveProperty("usage");
   },
 );
 
@@ -1196,8 +1157,6 @@ test.each(["readPage", "searchWeb"])(
         retrievedAt: source.retrievedAt,
         inputTokens: 0,
         outputTokens: 0,
-        modelCostUsd: null,
-        searchCostUsd: 0,
       }),
     });
     const messages = JSON.parse(String(fetchMock.mock.calls[1][1]?.body))
@@ -1335,14 +1294,7 @@ test.each([400, 429, 503])(
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.outcome).toBe("failed");
-    expect(result.usage).toMatchObject({
-      complete: false,
-      inputTokens: 0,
-      outputTokens: 0,
-      cachedInputTokens: null,
-      reasoningTokens: null,
-      modelCostUsd: null,
-    });
+
     expect(result.errors).toContainEqual(
       expect.objectContaining({
         code: "model_failed",
@@ -1368,7 +1320,7 @@ test.each([400, 429, 503])(
   },
 );
 
-test("completed tool step usage survives a later provider failure", async () => {
+test("completed tool history survives a later provider failure", async () => {
   const client = testDatabase().client;
   savedSource(client);
   const linkedUrl = "https://example.org/dates";
@@ -1433,15 +1385,6 @@ test("completed tool step usage survives a later provider failure", async () => 
   expect(result).toMatchObject({
     outcome: "failed",
     operations: [],
-    usage: {
-      modelCalls: 2,
-      inputTokens: 10,
-      outputTokens: 20,
-      complete: false,
-      modelCostUsd: 0.125,
-      cachedInputTokens: null,
-      reasoningTokens: null,
-    },
   });
   expect(result.errors).toContainEqual(
     expect.objectContaining({

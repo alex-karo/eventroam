@@ -1,3 +1,8 @@
+import { locationTextFields } from "@/ingestion/location/contracts";
+import { buildLocationInput } from "@/ingestion/location/input";
+import { createGeocodingSession } from "@/ingestion/tools/geocode/tool";
+import { createResearchBudget } from "@/ingestion/runtime/budget";
+import { validateLocation } from "@/ingestion/location/validate";
 import type {
   ResearchCandidate,
   ResearchEdition,
@@ -6,6 +11,7 @@ import type { ResearchCatalog } from "@/ingestion/research/context";
 import {
   validateResearch,
   prepareEditorPlan,
+  prepareCatalogPlan,
 } from "@/ingestion/editor/prepare";
 import type {
   CatalogResearchInput,
@@ -39,7 +45,12 @@ export function fixtureEditorPlan(
       ...(!old ? { reason: "Fixture identifies distinct Edition" } : {}),
       fields: {
         ...Object.fromEntries(
-          Object.entries(facts).map(([name, fact]) => [name, action(fact)]),
+          Object.entries(facts)
+            .filter(
+              ([name]) =>
+                ![...locationTextFields, "coordinates"].includes(name as never),
+            )
+            .map(([name, fact]) => [name, action(fact)]),
         ),
         links: links.tickets
           ? {
@@ -110,16 +121,36 @@ export function prepareEditorialFixture(
     return validated;
   }
   const saved = catalog.find((event) => event.id === validated.matchedEventId);
-  return prepareEditorPlan(
+  const prepared = prepareEditorPlan(
     fixtureEditorPlan(validated.candidate, saved ? modelContext(saved) : null),
     validated,
     catalog,
     input,
     terms,
   );
+  if (!prepared.editorPlan) {
+    return prepared;
+  }
+  const locationInput = buildLocationInput(
+    prepared.editorPlan,
+    prepared.candidate!.data!,
+    { catalog, terms: [], knownLinks: [], currentDate: "2026-10-03T12:00:00Z" },
+    input,
+  );
+  const session = createGeocodingSession(locationInput, createResearchBudget());
+  const location = validateLocation(
+    fixtureLocationPlan({ ...locationInput, targetPoints: session.targets }),
+    locationInput,
+    session,
+  );
+  return prepareCatalogPlan(prepared, catalog, input, terms, location);
 }
 export const runFixtureResearch: typeof executeResearch = (input, deps) =>
-  executeResearch(input, { generateEditor: generateFixtureEditor, ...deps });
+  executeResearch(input, {
+    generateEditor: generateFixtureEditor,
+    generateLocation: generateFixtureLocation,
+    ...deps,
+  });
 export const createFixtureIngestionWorkflow: typeof createWorkflow = (
   resolve,
   options,
@@ -128,7 +159,11 @@ export const createFixtureIngestionWorkflow: typeof createWorkflow = (
     const resolved = await resolve(input);
     return {
       ...resolved,
-      deps: { generateEditor: generateFixtureEditor, ...resolved.deps },
+      deps: {
+        generateEditor: generateFixtureEditor,
+        generateLocation: generateFixtureLocation,
+        ...resolved.deps,
+      },
     };
   }, options);
 
@@ -139,6 +174,20 @@ export function fixtureEditorForProvider(
   const format = body.response_format as
     { json_schema?: { schema?: Record<string, unknown> } } | undefined;
   const schema = format?.json_schema?.schema;
+  if ((schema?.properties as Record<string, unknown> | undefined)?.decision) {
+    const messages = body.messages as {
+      role: string;
+      content: string | { text?: string }[];
+    }[];
+    const content = messages.findLast(
+      (message) => message.role === "user",
+    )!.content;
+    const prompt =
+      typeof content === "string"
+        ? content
+        : content.map((part) => part.text ?? "").join("");
+    return editorWireFixture(fixtureLocationPlan(JSON.parse(prompt)), schema!);
+  }
   if (!(schema?.properties as Record<string, unknown> | undefined)?.event) {
     return undefined;
   }
@@ -199,4 +248,65 @@ function editorWireFixture(
       key in record ? editorWireFixture(record[key], part) : null,
     ]),
   );
+}
+
+/** Fixed Location decisions for tests of other ingestion stages. */
+export const generateFixtureLocation: NonNullable<
+  ResearchDependencies["generateLocation"]
+> = async (prompt) => fixtureLocationPlan(JSON.parse(prompt));
+export function fixtureLocationPlan(
+  input: import("@/ingestion/location/input").LocationInput & {
+    targetPoints?: Record<string, { sourceId?: string }>;
+  },
+): import("@/ingestion/location/contracts").LocationOutput {
+  const slot = (name: "previousEdition" | "currentOrNextEdition") => {
+    const target = input[name];
+    if (!target) {
+      return null;
+    }
+    const fields = Object.fromEntries(
+      locationTextFields.map((field) => {
+        const fact = target.findings[field];
+        let action: import("@/ingestion/location/contracts").LocationFields["venueName"] =
+          { action: "keep", reason: "Fixture preserves saved data" };
+        if (fact?.value != null) {
+          action = { action: "set", value: fact.value, reason: fact.reason };
+        } else if (fact && target.saved?.[field]) {
+          action = { action: "clear", reason: fact.reason };
+        }
+        return [field, action];
+      }),
+    ) as import("@/ingestion/location/contracts").LocationFields;
+    const id = input.targetPoints?.[name]?.sourceId;
+    let coordinates: import("@/ingestion/location/contracts").LocationSlot["coordinates"] =
+      { action: "keep", reason: "Fixture preserves saved point" };
+    if (
+      target.findings.coordinates?.value === null &&
+      target.saved?.latitude != null
+    ) {
+      coordinates = {
+        action: "clear",
+        reason: target.findings.coordinates.reason,
+      };
+    } else if (id) {
+      coordinates = {
+        action: "select",
+        pointId: id,
+        precision: target.findings.coordinates!.value!.precision,
+        reason: target.findings.coordinates!.reason,
+      };
+    }
+    return {
+      fields,
+      coordinates,
+      unresolved: [],
+    };
+  };
+  return {
+    decision: {
+      status: "ready",
+      previousEdition: slot("previousEdition"),
+      currentOrNextEdition: slot("currentOrNextEdition"),
+    },
+  };
 }

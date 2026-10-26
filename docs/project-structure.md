@@ -10,10 +10,10 @@ tags: [architecture]
 
 Status: Implemented core structure · Updated: 2026-10-26
 
-Eventroam is one npm package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. An owner-initiated Mastra research agent collects findings; a tool-free editor chooses explicit actions for a typed adapter and the same writer.
+Eventroam is one npm package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. An owner-initiated Mastra research agent collects findings; a tool-free editor chooses non-location actions. A bounded Location agent resolves place fields before the same writer.
 
 ```text
-Commands → research → editor → typed adapter → catalog writer → SQLite ← Next.js public reads
+Commands → research → editor → initial geocoding → Location → typed adapter → catalog writer → SQLite ← Next.js public reads
 ```
 
 ## Current directories
@@ -42,7 +42,7 @@ src/
 ├── site/
 │   ├── discovery-context.ts   # Tab-local visit snapshots and context tokens
 │   └── server/                # Request adapters; site.ts holds scope and URL rules
-├── ingestion/                 # Research/editor agents, typed adapter, sources and limits
+├── ingestion/                 # Research/editor/Location agents, typed adapter, sources and limits
 │   ├── research/
 │   │   ├── agent/             # Agent implementation and adjacent tests
 │   │   │   ├── index.ts       # Model execution, step policy, callbacks and cleanup
@@ -53,6 +53,7 @@ src/
 │   │   ├── context.ts         # Private read context
 │   │   ├── contracts.ts       # Strict research candidate contracts
 │   │   └── money.ts           # Currency precision conversions
+│   ├── location/              # Place contracts, input, preparation, agent and point checks
 │   ├── editor/                # Typed plans, tool-free agent and operation conversion
 │   ├── tools/                 # Read/search capabilities and Mastra adapters
 │   │   ├── read-page/       # Tool, reader, extraction, fallback and contracts
@@ -88,13 +89,13 @@ ESLint enforces these import boundaries. The writer runs without Next.js. Avoid 
 
 ## Ingestion ownership
 
-Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `editor/agent.ts` → `editor/prepare.ts` → catalog writer → `report.ts`. Use `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) explains the ten steps and their observable behavior.
+Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `editor/agent.ts` → `location/agent.ts` → `editor/prepare.ts` → catalog writer → `report.ts`. Use `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) explains the eleven steps and their observable behavior.
 
 - `workflow.ts` owns the shared CLI/Studio graph, native serializable state, step results and engine-run-to-attempt lookup. `attempt.ts` owns runtime resources, a memoized finalization promise and idempotent cleanup. Terminal hooks recover paths that bypass the final step without retrying final persistence.
-- `research/context.ts` builds private catalog context and owns its inferred type. `research/agent/index.ts` owns model execution, iteration/deadline policy, retries, usage callbacks and cleanup. Adjacent `prompt.ts`, `input.ts`, `wire.ts` and `usage.ts` own fixed instructions, input/saved-price projection, provider-schema/null adaptation and usage accumulation. `runtime/model-errors.ts` classifies host/provider failures and selects safe diagnostics.
+- `research/context.ts` builds private catalog context and owns its inferred type. `research/agent/index.ts` owns model execution, iteration/deadline policy, retries and cleanup. Adjacent `prompt.ts`, `input.ts` and `wire.ts` own fixed instructions, input/saved-price projection and provider-schema/null adaptation. `runtime/model-errors.ts` classifies host/provider failures and selects safe diagnostics.
 - `research/context.ts` loads the catalog snapshot and one frozen currentDate; model rules live in `research/agent/prompt.ts`. Scope comes from the invocation input. `research/guards.ts` checks simple scope bounds and countries directly from saved Editions, including the baseline reread inside atomic apply. No separate refresh context or field registry is maintained. Returned facts stay in the raw model response; actual mutations use the existing writer audit.
 - `tools/index.ts` composes read/search capabilities. Each tool directory keeps its adapter, implementation, contracts and observations together. `tools/session.ts` owns shared budgets, caching and read history; `tools/network.ts` provides bounded safe HTTP. Initial reads and eval fixtures reuse the session. `tools/read-page/response.ts` projects source text for the tool and initial prompt.
-- `editor/prepare.ts` checks findings/plan targets, converts typed actions and prices into operations and proposes eligible publication. The catalog writer validates the resulting committed records. `report.ts` combines research/editor output, actual changes and known accounting. `runs.ts` persists durable start/final records outside catalog item transactions, so previews retain history.
+- `editor/prepare.ts` checks findings/plan targets, converts typed actions and prices into operations and proposes eligible publication. The catalog writer validates the resulting committed records. `report.ts` combines three agent outputs, actual changes and budget counters. `runs.ts` persists durable start/final records outside catalog item transactions, so previews retain history.
 - `evals/score.ts` aggregates mutation, research and tool-use scores, with a separate host-failure veto and execution diagnostics. `evals/research-score.ts` owns research outcome, fact and expected-safe-failure checks. Mutation scores measure only mutation assertions. `evals/run.ts` passes inline cases to Mastra `runExperiment`. Each task owns a temporary catalog and returns one score with its ingestion result and tool calls. Mastra collects task outputs and scorer results in input order. `evals/scorers.ts`, JSON reports and CLI diagnostics consume the score without rerunning checks. Experiment execution status is separate from case acceptance in `score.passed`.
 - `runtime/logging/` uses Mastra PinoLogger methods and scoped context. Producers select plain fields and explicitly shorten model text. A small delivery bridge preserves child context and run/trace/span correlation in Studio.
 - `runtime/tracing/run.ts` observes apply attempts through explicit host fields and a narrow SDK-content exclusion. `runtime/observability/` owns DuckDB storage, optional signals, diagnostics and cleanup. Its exporter forwards native metric events without a separate application projection; the span processor preserves the usage/cost fields needed for native extraction and the SDK propagates execution context. Only eligible traced runs persist metrics. Native agent/model/tool metrics own operation timing; application logs keep timestamped events without duplicate timers. Durable usage/report accounting and budget counters remain independent. Studio lends its initialized store to attempts; attempt cleanup leaves that shared store open.
@@ -125,3 +126,5 @@ Release the web application, writer, and schema as one compatible version. For a
 Add `src/components/ui/` for common React primitives, and `src/shared/` for small domain-independent utilities. Add more local event-detail components as their roles become concrete.
 
 Open-view freshness and concrete release compatibility checks remain undecided. Collection uses the local TypeScript CLI, loopback Studio, or hosted Studio with external ingress authentication. Scheduling remains deferred. One Dockerfile provides separate web and Studio targets; the Studio image also carries the explicit migration command and SQL files. Both services share one named data volume in application Compose. See [application containers](development.md#application-containers) for commands and inputs. External infrastructure and the public rollout belong in the self-hosted project.
+
+Location owns five place text fields and coordinates. `tools/geocode/` owns the bounded Geoapify adapter, forward tool, Event cache, six-call limit and point map. `location/initial.ts` deduplicates initial forward/reverse requests. `editor/prepare.ts` validates editor actions first, then combines Location actions before operation and publication preparation. `location/donor-guard.ts` rechecks inherited donor versions and points inside the existing writer transaction. No agent sends messages to another agent.

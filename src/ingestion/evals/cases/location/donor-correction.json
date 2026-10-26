@@ -1,0 +1,224 @@
+{
+  "id": "location-donor-correction",
+  "provenance": {
+    "kind": "synthetic",
+    "sourceReport": "openspec/changes/separate-location-resolution/design.md",
+    "note": "The 2027 saved point was placed at the wrong park. The 2026 point is the official River Park venue; no move occurred. Provider results are synthetic."
+  },
+  "input": {
+    "mode": "refresh",
+    "eventId": "event-donor-correction",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "location": {
+    "group": "correction",
+    "input": {
+      "festival": {
+        "name": "River Festival donor-correction",
+        "summary": "An open-air music festival.",
+        "format": ["openair"]
+      },
+      "scope": "full",
+      "currentDate": "2026-10-24T12:00:00Z",
+      "countryBaseline": "PT",
+      "sources": [
+        {
+          "url": "https://fixture.test/donor-correction",
+          "information": "The 2027 saved point was placed at the wrong park. The 2026 point is the official River Park venue; no move occurred."
+        }
+      ],
+      "history": [
+        {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "donor-correction-2027",
+          "eventId": "event-donor-correction",
+          "editionKey": "2027",
+          "version": 1,
+          "editionYear": 2027,
+          "startsOn": "2027-07-01",
+          "endsOn": "2027-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": 38.71,
+          "longitude": -9.14,
+          "coordinatePrecision": "approximate"
+        },
+        {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "donor-correction-2026",
+          "eventId": "event-donor-correction",
+          "editionKey": "2026",
+          "version": 1,
+          "editionYear": 2026,
+          "startsOn": "2026-07-01",
+          "endsOn": "2026-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": 38.73,
+          "longitude": -9.16,
+          "coordinatePrecision": "approximate"
+        }
+      ],
+      "editor": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "2027",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "editionKey": "2027",
+        "editionYear": 2027,
+        "startsOn": "2027-07-01",
+        "endsOn": "2027-07-03",
+        "scheduleStatus": "scheduled",
+        "saved": {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "donor-correction-2027",
+          "eventId": "event-donor-correction",
+          "editionKey": "2027",
+          "version": 1,
+          "editionYear": 2027,
+          "startsOn": "2027-07-01",
+          "endsOn": "2027-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": 38.71,
+          "longitude": -9.14,
+          "coordinatePrecision": "approximate"
+        },
+        "donor": {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "donor-correction-2026",
+          "eventId": "event-donor-correction",
+          "editionKey": "2026",
+          "version": 1,
+          "editionYear": 2026,
+          "startsOn": "2026-07-01",
+          "endsOn": "2026-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": 38.73,
+          "longitude": -9.16,
+          "coordinatePrecision": "approximate"
+        },
+        "findings": {
+          "venueName": {
+            "value": "River Park",
+            "reason": "The 2027 saved point was placed at the wrong park. The 2026 point is the official River Park venue; no move occurred."
+          },
+          "locality": {
+            "value": "Lisbon",
+            "reason": "The 2027 saved point was placed at the wrong park. The 2026 point is the official River Park venue; no move occurred."
+          },
+          "countryCode": {
+            "value": "PT",
+            "reason": "The 2027 saved point was placed at the wrong park. The 2026 point is the official River Park venue; no move occurred."
+          }
+        }
+      }
+    }
+  },
+  "geocoding": [
+    {
+      "request": {
+        "direction": "reverse",
+        "latitude": 38.71,
+        "longitude": -9.14
+      },
+      "response": {
+        "status": "success",
+        "direction": "reverse",
+        "queriedPoint": {
+          "latitude": 38.71,
+          "longitude": -9.14
+        },
+        "nearby": {
+          "latitude": 38.71,
+          "longitude": -9.14,
+          "placeId": null,
+          "label": "Nearby kiosk",
+          "name": "Nearby kiosk",
+          "countryCode": "PT",
+          "locality": null,
+          "address": null,
+          "objectType": "venue",
+          "originalType": "building",
+          "category": null,
+          "confidence": null
+        },
+        "distanceKm": 0
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "River Park, Lisbon, PT",
+        "countryCode": "PT"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.72,
+            "longitude": -9.15,
+            "placeId": null,
+            "label": "Lisbon",
+            "name": null,
+            "countryCode": "PT",
+            "locality": null,
+            "address": null,
+            "objectType": "locality",
+            "originalType": "city",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      }
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "coordinates",
+        "value": {
+          "latitude": 38.73,
+          "longitude": -9.16,
+          "precision": "approximate"
+        }
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "coordinates",
+        "value": {
+          "latitude": 38.72,
+          "longitude": -9.15,
+          "precision": "locality"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,435 @@
+{
+  "id": "location-cemetery-correction",
+  "provenance": {
+    "kind": "captured-adapted",
+    "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",
+    "note": "Saved descriptions, source summaries and Geoapify forward responses captured on 2026-10-24. Free-text replay hints use those captured responses. Responses use the client format and omit unused provider fields. Reverse was not captured and is explicitly unavailable. Expected actions are review assertions, not captured model output. The locality refinement with administrative area was captured in the 2026-10-26 PortAmérica v6 ingestion run."
+  },
+  "input": {
+    "mode": "refresh",
+    "eventId": "event:7c4bee6a0db9e3b8f696",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "location": {
+    "group": "correction",
+    "input": {
+      "festival": {
+        "name": "PortAmérica",
+        "summary": "A recurring Galician festival combining live music, gastronomy and community, with additional cultural programming.",
+        "format": ["openair"]
+      },
+      "scope": "full",
+      "currentDate": "2026-10-24T12:00:00Z",
+      "countryBaseline": "ES",
+      "sources": [
+        {
+          "url": "https://portamerica.es/",
+          "information": "Official PortAmérica site; the saved www/http address redirects to this canonical HTTPS site. It identifies the festival with the Azucarera de Portas and links official social accounts."
+        },
+        {
+          "url": "https://portamerica.es/comollegar/",
+          "information": "Official location and travel page: the festival is held near the historic Azucarera de Portas and describes music and gastronomy outdoors."
+        },
+        {
+          "url": "https://portamerica.es/portamerica-despide-su-xiv-edicion-y-pone-rumbo-a/",
+          "information": "Official 17 July 2026 recap says the XIV edition has closed after three days at Azucreira de Portas; describes its music, chef-led ShowRocking, other cultural programming, and sustainability and inclusion activities."
+        },
+        {
+          "url": "https://portamerica.es/consulta-los-horarios-de-portamerica-2026/",
+          "information": "Official 2026 programme announcement gives the XIV edition dates as 9–11 July in Portas and lists its music programme."
+        },
+        {
+          "url": "https://portamerica.es/portamerica-pone-a-la-venta-los-abonos-creyentes-de-su-xv-aniversario-que-sera-los-dias-8-9-y-10-de-julio/",
+          "information": "Official 28 July 2026 announcement confirms PortAmérica’s XV Anniversary dates, 8–10 July 2027, at Azucreira de Portas; says the festival unites music, gastronomy and community, and reports the first abonos from €70 with €15 bar credit."
+        },
+        {
+          "url": "https://portamerica.es/portamerica-agota-los-abonos-promo-creyentes-para-s/",
+          "information": "Official 3 August 2026 report confirms the 2027 dates and venue and says the limited Promo Creyentes abono allotment from €70, including €15 bar credit, sold out."
+        },
+        {
+          "url": "https://portamerica.es/abonos-y-entradas/",
+          "information": "Official ticket page provides the PortAmérica 2027 ticket route. It confirms ticketing but does not give a current general-admission price."
+        }
+      ],
+      "history": [
+        {
+          "venueName": "Azucreira de Portas",
+          "venueAddress": null,
+          "locality": "Portas",
+          "administrativeArea": "Pontevedra",
+          "countryCode": "ES",
+          "id": "f9a70691-9caf-4e81-9de8-fcdad0218541",
+          "eventId": "event:7c4bee6a0db9e3b8f696",
+          "editionKey": "2027",
+          "version": 5,
+          "editionYear": 2027,
+          "startsOn": "2027-07-08",
+          "endsOn": "2027-07-10",
+          "scheduleStatus": "scheduled",
+          "latitude": 42.579634,
+          "longitude": -8.669209,
+          "coordinatePrecision": "exact"
+        }
+      ],
+      "editor": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "2027",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "editionKey": "2027",
+        "editionYear": 2027,
+        "startsOn": "2027-07-08",
+        "endsOn": "2027-07-10",
+        "scheduleStatus": "scheduled",
+        "saved": {
+          "venueName": "Azucreira de Portas",
+          "venueAddress": null,
+          "locality": "Portas",
+          "administrativeArea": "Pontevedra",
+          "countryCode": "ES",
+          "id": "f9a70691-9caf-4e81-9de8-fcdad0218541",
+          "eventId": "event:7c4bee6a0db9e3b8f696",
+          "editionKey": "2027",
+          "version": 5,
+          "editionYear": 2027,
+          "startsOn": "2027-07-08",
+          "endsOn": "2027-07-10",
+          "scheduleStatus": "scheduled",
+          "latitude": 42.579634,
+          "longitude": -8.669209,
+          "coordinatePrecision": "exact"
+        },
+        "donor": null,
+        "findings": {
+          "venueName": {
+            "value": "Azucreira de Portas",
+            "reason": "Captured catalog location description"
+          },
+          "locality": {
+            "value": "Portas",
+            "reason": "Captured catalog location description"
+          },
+          "administrativeArea": {
+            "value": "Pontevedra",
+            "reason": "Captured catalog location description"
+          },
+          "countryCode": {
+            "value": "ES",
+            "reason": "Captured catalog location description"
+          }
+        }
+      }
+    }
+  },
+  "geocoding": [
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Azucreira de Portas, Portas, Pontevedra, ES",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.579634,
+            "longitude": -8.669209,
+            "placeId": "51b360e28fa25621c05928d36872314a4540f00102f901b5072a4f00000000c00201e203226f70656e7374726565746d61703a76656e75653a7761792f31333238313534353439",
+            "label": "Cemiterio de Portas, 36675 Portas, Spain",
+            "name": null,
+            "countryCode": "ES",
+            "locality": null,
+            "address": null,
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": null,
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Azucreira de Portas, Portas, ES",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.5802347,
+            "longitude": -8.656739,
+            "placeId": "51f7031e18405021c0598f407221454a4540f00102f901b2fbef2f00000000c0020192031a43656e74726f206465205361c3ba646520646520506f72746173e203216f70656e7374726565746d61703a76656e75653a7761792f383034323536363930",
+            "label": "Centro de Saúde de Portas, EP-0507, 36658 Currás, Spain",
+            "name": "Centro de Saúde de Portas",
+            "countryCode": "ES",
+            "locality": "Currás",
+            "address": "Centro de Saúde de Portas",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": "healthcare.clinic_or_praxis",
+            "confidence": 1
+          },
+          {
+            "latitude": 42.5791831,
+            "longitude": -8.6688666,
+            "placeId": "51ffc5d8ae755621c059ad72fcab224a4540f00102f901cd98ef2f00000000c002019203204967726578612064652053616e7461204d6172c3ad6120646520506f72746173e203216f70656e7374726565746d61703a76656e75653a7761792f383034323331333733",
+            "label": "Igrexa de Santa María de Portas, EP-8004, 36658 Currás, Spain",
+            "name": "Igrexa de Santa María de Portas",
+            "countryCode": "ES",
+            "locality": "Currás",
+            "address": "Igrexa de Santa María de Portas",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": null,
+            "confidence": 1
+          },
+          {
+            "latitude": 42.5805583,
+            "longitude": -8.657162,
+            "placeId": "511059a489775021c059eff5ffbb4f4a4540f00102f901a7fbef2f00000000c00201920312436f6e63656c6c6f20646520506f72746173e203216f70656e7374726565746d61703a76656e75653a7761792f383034323536363739",
+            "label": "Concello de Portas, EP-0507, 36658 Currás, Spain",
+            "name": "Concello de Portas",
+            "countryCode": "ES",
+            "locality": "Currás",
+            "address": "Concello de Portas",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": "tourism.sights.city_hall",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Azucreira de Portas",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.5802347,
+            "longitude": -8.656739,
+            "placeId": "51f7031e18405021c0598f407221454a4540f00102f901b2fbef2f00000000c0020192031a43656e74726f206465205361c3ba646520646520506f72746173e203216f70656e7374726565746d61703a76656e75653a7761792f383034323536363930",
+            "label": "Centro de Saúde de Portas, EP-0507, 36658 Currás, Spain",
+            "name": "Centro de Saúde de Portas",
+            "countryCode": "ES",
+            "locality": "Currás",
+            "address": "Centro de Saúde de Portas",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": "healthcare.clinic_or_praxis",
+            "confidence": 1
+          },
+          {
+            "latitude": 42.5791831,
+            "longitude": -8.6688666,
+            "placeId": "51ffc5d8ae755621c059ad72fcab224a4540f00102f901cd98ef2f00000000c002019203204967726578612064652053616e7461204d6172c3ad6120646520506f72746173e203216f70656e7374726565746d61703a76656e75653a7761792f383034323331333733",
+            "label": "Igrexa de Santa María de Portas, EP-8004, 36658 Currás, Spain",
+            "name": "Igrexa de Santa María de Portas",
+            "countryCode": "ES",
+            "locality": "Currás",
+            "address": "Igrexa de Santa María de Portas",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": null,
+            "confidence": 1
+          },
+          {
+            "latitude": 42.5805583,
+            "longitude": -8.657162,
+            "placeId": "511059a489775021c059eff5ffbb4f4a4540f00102f901a7fbef2f00000000c00201920312436f6e63656c6c6f20646520506f72746173e203216f70656e7374726565746d61703a76656e75653a7761792f383034323536363739",
+            "label": "Concello de Portas, EP-0507, 36658 Currás, Spain",
+            "name": "Concello de Portas",
+            "countryCode": "ES",
+            "locality": "Currás",
+            "address": "Concello de Portas",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": "tourism.sights.city_hall",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Portas, ES",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.5639366,
+            "longitude": -8.6570848,
+            "placeId": "51bc653d6b6d5021c0593b0213132f484540f00101f9017e47050000000000c00208920306506f72746173",
+            "label": "Portas, GA, Spain",
+            "name": "Portas",
+            "countryCode": "ES",
+            "locality": "Portas",
+            "address": "Portas",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "administrative",
+            "confidence": 1
+          },
+          {
+            "latitude": 42.6221422,
+            "longitude": -7.7237767,
+            "placeId": "515e6d20b825e51ec059123b095ba24f4540f00103f9010063a57c02000000c00208920306506f72746173",
+            "label": "Portas, Chantada, GA, Spain",
+            "name": "Portas",
+            "countryCode": "ES",
+            "locality": "Chantada",
+            "address": "Portas",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "populated_place",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Portas",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.5639366,
+            "longitude": -8.6570848,
+            "placeId": "51bc653d6b6d5021c0593b0213132f484540f00101f9017e47050000000000c00208920306506f72746173",
+            "label": "Portas, GA, Spain",
+            "name": "Portas",
+            "countryCode": "ES",
+            "locality": "Portas",
+            "address": "Portas",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "administrative",
+            "confidence": 1
+          },
+          {
+            "latitude": 42.6221422,
+            "longitude": -7.7237767,
+            "placeId": "515e6d20b825e51ec059123b095ba24f4540f00103f9010063a57c02000000c00208920306506f72746173",
+            "label": "Portas, Chantada, GA, Spain",
+            "name": "Portas",
+            "countryCode": "ES",
+            "locality": "Chantada",
+            "address": "Portas",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "populated_place",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "reverse",
+        "latitude": 42.579634,
+        "longitude": -8.669209
+      },
+      "response": {
+        "status": "error",
+        "code": "unavailable"
+      }
+    },
+    {
+      "request": {
+        "query": "Portas, Pontevedra, Spain",
+        "countryCode": "ES",
+        "direction": "forward"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.5639366,
+            "longitude": -8.6570848,
+            "placeId": "51bc653d6b6d5021c0593b0213132f484540f00101f9017e47050000000000c00208920306506f72746173",
+            "label": "Portas, GA, Spain",
+            "name": "Portas",
+            "countryCode": "ES",
+            "locality": "Portas",
+            "address": "Portas",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "administrative",
+            "confidence": 1
+          },
+          {
+            "latitude": 42.6221422,
+            "longitude": -7.7237767,
+            "placeId": "515e6d20b825e51ec059123b095ba24f4540f00103f9010063a57c02000000c00208920306506f72746173",
+            "label": "Portas, Chantada, GA, Spain",
+            "name": "Portas",
+            "countryCode": "ES",
+            "locality": "Chantada",
+            "address": "Portas",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "populated_place",
+            "confidence": 1
+          }
+        ]
+      }
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "unresolved",
+        "contains": {
+          "field": "coordinates"
+        }
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "coordinates",
+        "value": {
+          "latitude": 42.5639366,
+          "longitude": -8.6570848,
+          "precision": "locality"
+        }
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "coordinate_action",
+        "value": "keep"
+      }
+    ]
+  }
+}

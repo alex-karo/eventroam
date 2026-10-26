@@ -106,6 +106,19 @@
     "narrow-current/partial-tickets.json",
     "narrow-current/identity-conflict.json",
     "editor/recovered-website.json",
-    "editor/unknown-currency.json"
+    "editor/unknown-currency.json",
+    "location/cemetery.json",
+    "location/bridge.json",
+    "location/central-park.json",
+    "location/building-complex.json",
+    "location/several-venues.json",
+    "location/cemetery-correction.json",
+    "location/move-city-fallback.json",
+    "location/move-without-point.json",
+    "location/saved-precision.json",
+    "location/target-before-donor.json",
+    "location/donor-correction.json",
+    "location/donor-inheritance.json",
+    "location/official-venue-point.json"
   ]
 }

@@ -52,10 +52,6 @@ test("captures final tool returns in invocation order, including cached pages", 
         query,
         candidates: [],
         retrievedAt: page.retrievedAt,
-        modelCostUsd: null,
-        searchCostUsd: 0,
-        inputTokens: 0,
-        outputTokens: 0,
       };
     },
   });

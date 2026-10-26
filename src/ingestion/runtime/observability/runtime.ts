@@ -64,12 +64,10 @@ export async function createResearchObservability(
   input: CatalogResearchInput,
   model: string,
   runId?: string,
-  injected = false,
   protectedPaths: string[] = [],
   sharedStore?: DuckDBStore,
 ) {
-  const traceEnabled =
-    process.env.CATALOG_TRACING === "true" && !input.dryRun && !injected;
+  const traceEnabled = process.env.CATALOG_TRACING === "true";
   const loggingEnabled = process.env.CATALOG_LOGGING === "true";
   if (!traceEnabled && !loggingEnabled) {
     return undefined;
@@ -186,7 +184,6 @@ export async function createRunObservability(
   input: CatalogResearchInput,
   model: string,
   runId: string,
-  injected = false,
   protectedPaths: string[] = [],
   sharedStore?: DuckDBStore,
 ) {
@@ -194,7 +191,6 @@ export async function createRunObservability(
     input,
     model,
     runId,
-    injected,
     protectedPaths,
     sharedStore,
   );

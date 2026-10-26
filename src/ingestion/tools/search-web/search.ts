@@ -14,13 +14,6 @@ interface Citation {
 
 interface SearchResponse {
   choices?: { message?: { annotations?: Citation[] } }[];
-  usage?: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    prompt_tokens_details?: { cached_tokens?: number };
-    completion_tokens_details?: { reasoning_tokens?: number };
-    cost_details?: { upstream_inference_cost?: number | null };
-  };
 }
 
 export interface SearchWebOptions {
@@ -192,11 +185,9 @@ export async function searchWeb(
   );
   let data: SearchResponse | undefined;
   let lastError: Error | undefined;
-  let billedSearches = 0;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     options.budget.consumeSearch();
     options.budget.consumeModelCall();
-    billedSearches += 1;
     try {
       const response = await requestSearch(normalized, maxResults, options);
       if (!response.ok) {
@@ -242,25 +233,8 @@ export async function searchWeb(
   const candidates = sourceCandidates(data, maxResults);
   return {
     query: normalized,
-    usageComplete:
-      billedSearches === 1 &&
-      typeof data.usage?.prompt_tokens === "number" &&
-      typeof data.usage?.completion_tokens === "number",
     candidates,
     retrievedAt: (options.now?.() ?? new Date()).toISOString(),
-    modelCostUsd:
-      typeof data.usage?.cost_details?.upstream_inference_cost === "number" &&
-      Number.isFinite(data.usage.cost_details.upstream_inference_cost) &&
-      data.usage.cost_details.upstream_inference_cost >= 0
-        ? data.usage.cost_details.upstream_inference_cost
-        : null,
-    searchCostUsd:
-      billedSearches * (0.007 + Math.max(0, maxResults - 10) * 0.001),
-    inputTokens: data.usage?.prompt_tokens ?? 0,
-    outputTokens: data.usage?.completion_tokens ?? 0,
-    cachedInputTokens: data.usage?.prompt_tokens_details?.cached_tokens ?? null,
-    reasoningTokens:
-      data.usage?.completion_tokens_details?.reasoning_tokens ?? null,
   };
 }
 

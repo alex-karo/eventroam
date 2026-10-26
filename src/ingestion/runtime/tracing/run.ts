@@ -38,7 +38,6 @@ export async function createCatalogRunTrace(
   input: CatalogResearchInput,
   model: string,
   runId: string,
-  injected: boolean,
   protectedPaths: string[] = [],
   engineRunId?: string,
   sharedStore?: DuckDBStore,
@@ -47,7 +46,6 @@ export async function createCatalogRunTrace(
     input,
     model,
     runId,
-    injected,
     protectedPaths,
     sharedStore,
   );
@@ -84,6 +82,7 @@ export async function createCatalogRunTrace(
             ? {
                 researchStatus: snapshot.report.researchStatus,
                 editorStatus: snapshot.report.editorStatus,
+                locationStatus: snapshot.report.locationStatus,
                 outcome: snapshot.report.outcome,
                 scope: snapshot.report.scope,
                 savedEditionCount: snapshot.report.workload.savedEditions,

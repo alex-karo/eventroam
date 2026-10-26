@@ -6,6 +6,8 @@ import { join, resolve } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
 import { Mastra } from "@mastra/core/mastra";
 import { Observability } from "@mastra/observability";
+import { LOCATION_PROMPT_VERSION } from "../../location/contracts";
+import { RESEARCH_PROMPT_VERSION } from "../../research/contracts";
 import {
   readTraceRows,
   runTraceFixture as executeTraceFixture,
@@ -91,7 +93,6 @@ test("offline real agent persists sanitized model/tool relationships and bounded
   expect(result.requests).toBe(2);
   expect(result.result).toMatchObject({
     researchStatus: "failed",
-    usage: { complete: true, inputTokens: 20, outputTokens: 40 },
   });
   expect(result.durableReport).toEqual(result.result);
   expect(JSON.stringify(result.result.modelResponse)).toContain(
@@ -157,9 +158,7 @@ test.each(["http", "abort"] as const)(
     enable(path);
     const { result, requests } = await runTraceFixture(ending);
     expect(requests).toBe(2);
-    expect(result).toMatchObject({
-      usage: { complete: false, inputTokens: 10, outputTokens: 20 },
-    });
+    expect(result).toMatchObject({});
     const saved = await readTraceRows(path);
     const root = saved.mastra_ai_spans.find((span) => !span.parentSpanId)!;
     expect(
@@ -190,7 +189,7 @@ test.each(["http", "abort"] as const)(
 );
 
 test.each([false, true])(
-  "disabled/injected real agent path %s creates no store",
+  "tracing follows the setting for injected=%s",
   async (injected) => {
     const path = tracePath();
     enable(path);
@@ -198,7 +197,7 @@ test.each([false, true])(
       vi.stubEnv("CATALOG_TRACING", "false");
     }
     await runTraceFixture("success", injected);
-    expect(existsSync(path)).toBe(false);
+    expect(existsSync(path)).toBe(injected);
   },
 );
 
@@ -231,7 +230,6 @@ test.each(["http", "abort"] as const)(
             }
           : { code: "limit_reached" },
       ],
-      usage: { complete: false, inputTokens: 10, outputTokens: 20 },
     });
   },
   15_000,
@@ -252,7 +250,7 @@ test("tracing initialization failure falls back to identical research", async ()
 });
 
 test.each(["success", "http", "abort"] as const)(
-  "cleanup failures do not replace %s result or partial usage",
+  "cleanup failures do not replace the %s result",
   async (ending) => {
     const path = tracePath();
     enable(path);
@@ -270,10 +268,8 @@ test.each(["success", "http", "abort"] as const)(
     const { result, requests } = await runTraceFixture(ending);
     expect(shutdown).toHaveBeenCalledOnce();
     expect(requests).toBe(2);
-    expect(result.usage).toMatchObject({
-      complete: ending === "success",
-      inputTokens: ending === "success" ? 20 : 10,
-    });
+    expect(result).not.toHaveProperty("usage");
+
     const codes = stderr.mock.calls.map((call) => call[0]).join("");
     expect(codes).toContain("trace_flush_failed\n");
     expect(codes).toContain("trace_shutdown_failed\n");
@@ -334,6 +330,7 @@ function normalize(
 ) {
   const copy = structuredClone(result);
   delete copy.runId;
+  delete copy.traceId;
   copy.durationMs = 0;
   if (copy.currentDate) {
     copy.currentDate = "TIMESTAMP";
@@ -343,8 +340,8 @@ function normalize(
       change.newValue = "TIMESTAMP";
     }
   }
-  copy.usage.elapsedMs = 0;
-  copy.usage.remaining.durationMs = 0;
+  copy.budget.elapsedMs = 0;
+  copy.budget.remaining.durationMs = 0;
   return JSON.parse(
     JSON.stringify(copy).replace(
       /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g,
@@ -410,7 +407,7 @@ test.each([
       expect(
         reads.map((span) => JSON.parse(span.output as string).cached).sort(),
       ).toEqual([false, true]);
-      expect(traced.result.usage.pages).toBe(2);
+      expect(traced.result.budget.pages).toBe(2);
       expect(traced.requests).toBe(2);
     }
     if (scenario === "truncated" || scenario === "tool_truncated") {
@@ -424,8 +421,8 @@ test.each([
           ? { reason: "source_content_truncated", completeness: "partial" }
           : {}),
       });
-      expect(traced.result.usage.pages).toBe(2);
-      expect(traced.requests).toBe(3);
+      expect(traced.result.budget.pages).toBe(2);
+      expect(traced.requests).toBe(4);
     }
     if (
       scenario === "partial" ||
@@ -447,6 +444,15 @@ test.each([
       expect(root.name).not.toContain("Model name mismatch");
       if (scenario === "partial") {
         expect(root.name).toContain("partial");
+        expect(JSON.parse(root.metadata as string).promptVersion).toBe(
+          RESEARCH_PROMPT_VERSION,
+        );
+        const locationSpan = spans.find(
+          (span) => span.name === "resolve-location",
+        )!;
+        expect(JSON.parse(locationSpan.metadata as string).promptVersion).toBe(
+          LOCATION_PROMPT_VERSION,
+        );
       }
       if (scenario === "recovered") {
         expect(
@@ -457,10 +463,6 @@ test.each([
       }
     }
     if (scenario === "mistaken") {
-      expect(traced.result.usage).toMatchObject({
-        complete: false,
-        modelCostUsd: 0,
-      });
     }
     if (scenario === "target") {
       expect(output).toMatchObject({
@@ -514,7 +516,7 @@ test.each([
   },
 );
 
-test("dry-run with tracing enabled creates no store and retains its durable preview", async () => {
+test("dry-run with tracing enabled creates a store and retains its durable preview", async () => {
   const path = tracePath();
   enable(path);
   const { result, effects, durableReport } = await runTraceFixture(
@@ -523,7 +525,7 @@ test("dry-run with tracing enabled creates no store and retains its durable prev
     "partial",
     true,
   );
-  expect(existsSync(path)).toBe(false);
+  expect(existsSync(path)).toBe(true);
   expect(durableReport).toEqual(result);
   expect(effects).toHaveLength(1);
   expect(result.receipts.some((receipt) => receipt.changed)).toBe(true);

@@ -59,8 +59,6 @@ test("long linked-page chains share accounting, caching and the deadline", async
           },
         ],
         retrievedAt: page(discovered).retrievedAt,
-        modelCostUsd: null,
-        searchCostUsd: 0,
         inputTokens: 0,
         outputTokens: 0,
       };
@@ -102,8 +100,6 @@ test("discovery calls share search limits without reserving model capacity", asy
         query,
         candidates: [],
         retrievedAt: new Date().toISOString(),
-        modelCostUsd: null,
-        searchCostUsd: 0,
         inputTokens: 0,
         outputTokens: 0,
       };

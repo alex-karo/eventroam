@@ -1,6 +1,7 @@
 import {
   runFixtureResearch as executeResearch,
   createFixtureIngestionWorkflow as createCatalogIngestionWorkflow,
+  fixtureEditorPlan,
 } from "@/test/ingestion";
 import { CatalogAttempt } from "./attempt";
 import { createIngestionData } from "./contracts";
@@ -41,23 +42,10 @@ const runCatalogResearch: typeof executeResearch = async (input, deps) => {
   const row = deps.client
     .prepare("SELECT * FROM ingestion_runs WHERE id=?")
     .get(result.runId) as Record<string, unknown>;
-  expect(row).toMatchObject({
-    mode: input.mode,
-    status:
-      result.outcome === "failed" ||
-      result.errors.some((error) => error.code === "workflow_failed")
-        ? "failed"
-        : "completed",
-    input_tokens: result.usage.inputTokens,
-    output_tokens: result.usage.outputTokens,
-    model_cost_usd: result.usage.modelCostUsd,
-    search_cost_estimate_usd: result.usage.searchCostUsd,
-    duration_ms: result.durationMs,
-    usage_complete: Number(result.usage.complete),
-  });
+
   expect(JSON.parse(row.report_json as string)).toEqual(result);
   expect(JSON.parse(row.input_json as string).mode).toBe(input.mode);
-  expect(result.usage.searchCostBasis).toBe("estimate");
+
   expect(row.finished_at).toMatch(/Z$/);
   const persistent =
     result.eventId &&
@@ -198,13 +186,13 @@ test("concurrent and repeated failed source reads are cached and charged once", 
     },
   });
   expect(readPage).toHaveBeenCalledTimes(1);
-  expect(result.usage).toMatchObject({ pages: 1, modelCalls: 2 });
+
   expect(result.sources).toEqual([
     expect.objectContaining({ outcome: "failed", reason: "http_503" }),
   ]);
 });
 
-test("discovery shares search limits while model calls remain accounting", async () => {
+test("discovery shares search limits and counts model calls", async () => {
   const { client } = fixture();
   const searchWeb = vi.fn(
     async (
@@ -221,8 +209,6 @@ test("discovery shares search limits while model calls remain accounting", async
         retrievedAt: source.retrievedAt,
         inputTokens: 7,
         outputTokens: 9,
-        modelCostUsd: 0.1,
-        searchCostUsd: 0.2,
       };
     },
   );
@@ -238,24 +224,17 @@ test("discovery shares search limits while model calls remain accounting", async
           candidates: [],
           inputTokens: 7,
           outputTokens: 9,
-          searchCostUsd: 0.2,
         });
         return candidate([]);
       },
     },
   );
   expect(searchWeb).toHaveBeenCalledTimes(2);
-  expect(result.usage).toMatchObject({
-    searches: 2,
-    modelCalls: 4,
-    inputTokens: 14,
-    outputTokens: 18,
-    modelCostUsd: 0.2,
-    searchCostUsd: 0.4,
-  });
+  expect(result.budget.searches).toBe(2);
+  expect(result).not.toHaveProperty("usage");
 });
 
-test("real discovery retries retain their estimated cost in the durable report", async () => {
+test("real discovery retries retain budget counters without report costs", async () => {
   const { client } = fixture();
   const fetchMock = vi
     .fn<typeof fetch>()
@@ -281,15 +260,8 @@ test("real discovery retries retain their estimated cost in the durable report",
     await vi.advanceTimersByTimeAsync(1500);
     const result = await pending;
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(result.usage).toMatchObject({
-      searches: 3,
-      inputTokens: 10,
-      outputTokens: 2,
-      complete: false,
-      modelCostUsd: null,
-      searchCostBasis: "estimate",
-    });
-    expect(result.usage.searchCostUsd).toBeCloseTo(0.027);
+    expect(result).not.toHaveProperty("usage");
+    expect(result.budget.searches).toBe(3);
   } finally {
     vi.useRealTimers();
   }
@@ -941,7 +913,6 @@ test("running row and safe normalized invocation precede context and model work"
         status: "running",
         mode: "add",
         report_json: null,
-        input_tokens: null,
       });
       expect(JSON.parse(row.input_json as string)).toMatchObject({
         mode: "add",
@@ -1139,8 +1110,6 @@ test.each(["update", "serialization"] as const)(
       finished_at: null,
       event_id: null,
       report_json: null,
-      input_tokens: null,
-      model_cost_usd: null,
     });
     expect(readResearchCatalog(client)).toHaveLength(1);
     if (failure === "update") {
@@ -1286,7 +1255,8 @@ test("the public runner accumulates research in native state without runtime res
     "research-festival",
     "validate-research",
     "edit-research",
-    "prepare-plan",
+    "validate-editor-plan",
+    "resolve-location",
     "apply-catalog-item",
     "build-report",
     "finalize-run",
@@ -1315,7 +1285,7 @@ test("the public runner accumulates research in native state without runtime res
     reads: [expect.objectContaining({ attemptedUrl: url, outcome: "ok" })],
   });
   expect(stepOutput("research-festival")).not.toHaveProperty("prepared");
-  expect(stepOutput("prepare-plan")).toHaveProperty("operationCount");
+  expect(stepOutput("resolve-location")).toHaveProperty("status", "success");
   expect(stepOutput("apply-catalog-item")).toHaveProperty("applied");
   expect(stepOutput("build-report")).toMatchObject({ outcome: "published" });
   expect(engineResult.state.data).toMatchObject({
@@ -1639,7 +1609,7 @@ test("native cancellation waits for active research before finalizing known stat
     .prepare("SELECT report_json FROM ingestion_runs")
     .get() as { report_json: string };
   expect(JSON.parse(saved.report_json)).toMatchObject({
-    usage: { pages: 1 },
+    budget: { pages: 1 },
     sources: [expect.objectContaining({ attemptedUrl: url })],
   });
   expect(trace.terminalFailed).toHaveBeenCalledWith("cancelled");
@@ -1741,7 +1711,7 @@ test("registered final persistence failure exposes a bounded safe summary", asyn
       ingestionRunId: string;
       persistenceStatus: string;
       outcome: string;
-      usage: { complete: boolean };
+      locationStatus: string;
     };
   };
   expect(failure).toMatchObject({
@@ -1751,7 +1721,7 @@ test("registered final persistence failure exposes a bounded safe summary", asyn
       ingestionRunId: row.id,
       persistenceStatus: "failed",
       outcome: "published",
-      usage: { complete: false },
+      locationStatus: "success",
     },
   });
   // Error messages are non-enumerable; JSON.stringify alone misses leaks.
@@ -1829,3 +1799,365 @@ test.each([false, true])(
     }
   },
 );
+
+test.each([false, true])(
+  "historical donor is checked inside the write transaction (changed=%s)",
+  async (changed) => {
+    const { client, termIds } = fixture();
+    const fx = testFixtures(client);
+    const event = fx.event({
+      canonicalName: "Example Fest",
+      summary: "Old summary",
+    });
+    const donor = fx.edition(event, {
+      editionKey: "2026",
+      editionYear: 2026,
+      startsOn: "2026-07-01",
+      endsOn: "2026-07-03",
+      countryCode: "PT",
+      latitude: 38.7,
+      longitude: -9.1,
+      coordinatePrecision: "approximate",
+    });
+    const { fixtureLocationPlan } = await import("@/test/ingestion");
+    const proposal = candidate(termIds);
+    proposal.data!.eventId = event.id;
+    const result = await runCatalogResearch(
+      { mode: "refresh", eventId: event.id, actor: "test", dryRun: false },
+      {
+        client,
+        generateCandidate: async () => proposal,
+        generateLocation: async (raw) => {
+          const prompt = JSON.parse(raw);
+          const plan = fixtureLocationPlan(prompt);
+          if (plan.decision.status !== "ready") {
+            throw new Error("Expected ready fixture");
+          }
+          plan.decision.currentOrNextEdition!.coordinates = {
+            action: "inherit",
+            donorPointId: prompt.targetPoints.currentOrNextEdition.donorId,
+            reason: "Saved venue continues",
+          };
+          if (changed) {
+            client
+              .prepare(
+                "UPDATE editions SET latitude=39,version=version+1 WHERE id=?",
+              )
+              .run(donor.id);
+          }
+          return plan;
+        },
+      },
+    );
+    if (changed) {
+      expect(result.outcome).toBe("failed");
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({ code: "write_failed" }),
+      );
+      expect(readResearchEvent(client, event.id)!.summary).toBe("Old summary");
+      expect(readResearchEvent(client, event.id)!.editions).toHaveLength(1);
+    } else {
+      expect(result.errors).toEqual([]);
+      const saved = readResearchEvent(client, event.id)!.editions.find(
+        (edition) => edition.editionKey === "2027",
+      )!;
+      expect(saved).toMatchObject({
+        latitude: 38.7,
+        longitude: -9.1,
+        coordinatePrecision: "approximate",
+      });
+    }
+  },
+);
+
+test.each([
+  {
+    name: "invalid plan",
+    decision: {
+      status: "ready",
+      currentOrNextEdition: null,
+      previousEdition: null,
+    },
+    status: "failed",
+    error: {
+      code: "location_failed",
+      message: "Location target does not match the accepted slot",
+    },
+  },
+  {
+    name: "rejection",
+    decision: {
+      status: "rejected",
+      reason: "The venue belongs to another festival",
+    },
+    status: "rejected",
+    error: {
+      code: "location_rejected",
+      message: "The venue belongs to another festival",
+    },
+  },
+  {
+    name: "malformed rejection",
+    decision: { status: "rejected", reason: "" },
+    status: "failed",
+    error: {
+      code: "location_failed",
+      message: "decision.reason:too_small",
+    },
+  },
+])(
+  "Location $name preserves successful Research and stops all writes",
+  async ({ decision, status, error }) => {
+    const { client, termIds } = fixture();
+    const result = await runCatalogResearch(
+      { ...input, dryRun: false },
+      {
+        client,
+        generateCandidate: async () => candidate(termIds),
+        generateLocation: async () => ({ decision }),
+      },
+    );
+    expect(result.researchStatus).toBe("success");
+    expect(result.locationStatus).toBe(status);
+    expect(result.locationResponse?.object).toEqual({ decision });
+    expect(result.errors).toContainEqual({ ...error, stage: "location" });
+    expect(result.outcome).toBe("failed");
+    expect(result.operations).toEqual([]);
+    expect(result.changes).toEqual([]);
+    expect(readResearchCatalog(client)).toEqual([]);
+    expect(
+      client
+        .prepare("SELECT status FROM ingestion_runs WHERE id=?")
+        .get(result.runId),
+    ).toEqual({ status: "failed" });
+  },
+);
+
+test("a recoverable geocoding failure and Location question permit a ticket update", async () => {
+  const { client, termIds } = fixture();
+  const proposal = candidate(termIds);
+  proposal.data!.currentOrNextEdition!.tickets = {
+    value: {
+      variants: [
+        {
+          label: "Weekend",
+          amount: 100,
+          currency: "EUR",
+          availability: "available",
+        },
+      ],
+      basePrice: {
+        kind: "exact",
+        currency: "EUR",
+        minAmount: 100,
+        maxAmount: 100,
+        coverage: "full_programme",
+      },
+    },
+    reason: "The official ticket page lists a weekend pass",
+  };
+  const { fixtureLocationPlan } = await import("@/test/ingestion");
+  const result = await runCatalogResearch(input, {
+    client,
+    generateCandidate: async () => proposal,
+    geocodingClient: async () => ({ status: "error", code: "provider_error" }),
+    generateLocation: async (raw) => {
+      const plan = fixtureLocationPlan(JSON.parse(raw));
+      if (plan.decision.status === "ready") {
+        plan.decision.currentOrNextEdition!.unresolved.push({
+          field: "coordinates",
+          message: "Venue point remains unknown",
+        });
+      }
+      return plan;
+    },
+  });
+  expect(result.errors).toEqual([]);
+  expect(result.locationStatus).toBe("success");
+  expect(result.unresolved).toContainEqual(
+    expect.objectContaining({ field: "coordinates" }),
+  );
+  expect(
+    result.operations.some((operation) => operation.kind === "createEdition"),
+  ).toBe(true);
+  expect(result.changes).toContainEqual(
+    expect.objectContaining({ field: "price_min_minor", newValue: 10000 }),
+  );
+});
+
+test("two accepted slots share initial geocoding and have separate Location decisions", async () => {
+  const { client, termIds } = fixture();
+  const prepare = vi.spyOn(prepareModule, "prepareCatalogPlan");
+  const fx = testFixtures(client);
+  const event = fx.event({ canonicalName: "Example Fest" });
+  const previous = fx.edition(event, {
+    editionKey: "2026",
+    editionYear: 2026,
+    startsOn: "2026-07-01",
+    endsOn: "2026-07-03",
+    latitude: 38.7,
+    longitude: -9.1,
+    coordinatePrecision: "approximate",
+    countryCode: "PT",
+    locality: "Lisbon",
+  });
+  const found = candidate(termIds);
+  found.data!.eventId = event.id;
+  found.data!.previousEdition = {
+    ...structuredClone(found.data!.currentOrNextEdition!),
+    key: "2026",
+    year: { value: 2026, reason },
+    dates: {
+      value: {
+        startsOn: "2026-07-01",
+        endsOn: "2026-07-03",
+        state: "confirmed",
+      },
+      reason,
+    },
+  };
+  const clientResponse = vi.fn<
+    NonNullable<import("./contracts").ResearchDependencies["geocodingClient"]>
+  >(async (request) =>
+    request.direction === "forward"
+      ? { status: "success", direction: "forward", candidates: [] }
+      : {
+          status: "success",
+          direction: "reverse",
+          queriedPoint: {
+            latitude: request.latitude,
+            longitude: request.longitude,
+          },
+          nearby: null,
+          distanceKm: null,
+        },
+  );
+  const generateLocation = vi.fn(async (raw: string) => {
+    expect(prepare).not.toHaveBeenCalled();
+    const prompt = JSON.parse(raw);
+    expect(prompt.editor).not.toHaveProperty("status");
+    expect(prompt.editor.previousEdition.editionKey).toBe("2026");
+    expect(prompt.editor.currentOrNextEdition.editionKey).toBe("2027");
+    expect(prompt.prepared).toHaveLength(2);
+    expect(
+      prompt.prepared.every(
+        (observation: { slots: string[] }) => observation.slots.length === 2,
+      ),
+    ).toBe(true);
+    const { fixtureLocationPlan } = await import("@/test/ingestion");
+    const plan = fixtureLocationPlan(prompt);
+    if (plan.decision.status !== "ready") {
+      throw new Error("Expected ready fixture");
+    }
+    plan.decision.currentOrNextEdition!.coordinates = {
+      action: "inherit",
+      donorPointId: prompt.targetPoints.currentOrNextEdition.donorId,
+      reason: "The venue continues",
+    };
+    return plan;
+  });
+  const result = await runCatalogResearch(
+    {
+      ...input,
+      name: undefined,
+      mode: "refresh",
+      eventId: event.id,
+      dryRun: false,
+    },
+    {
+      client,
+      generateCandidate: async () => found,
+      geocodingClient: clientResponse,
+      generateLocation,
+    },
+  );
+  expect(result.errors).toEqual([]);
+  expect(generateLocation).toHaveBeenCalledOnce();
+  expect(prepare).toHaveBeenCalledOnce();
+  expect(clientResponse).toHaveBeenCalledTimes(2);
+  const saved = readResearchEvent(client, event.id)!;
+  expect(
+    saved.editions.find((edition) => edition.id === previous.id)?.latitude,
+  ).toBe(38.7);
+  expect(
+    saved.editions.find((edition) => edition.editionKey === "2027"),
+  ).toMatchObject({
+    latitude: 38.7,
+    longitude: -9.1,
+    coordinatePrecision: "approximate",
+  });
+  expect(
+    result.operations.filter((operation) => operation.kind === "createEdition"),
+  ).toHaveLength(1);
+});
+
+test("current Location cannot turn historical context into a write target", async () => {
+  const { client, termIds } = fixture();
+  const fx = testFixtures(client);
+  const event = fx.event({ canonicalName: "Example Fest" });
+  const previous = fx.edition(event, {
+    editionKey: "2026",
+    editionYear: 2026,
+    startsOn: "2026-07-01",
+    endsOn: "2026-07-03",
+    countryCode: "PT",
+    locality: "Lisbon",
+  });
+  const found = candidate(termIds);
+  found.data!.eventId = event.id;
+  delete found.data!.summary;
+  found.data!.links = { socials: {} };
+  found.unresolved = [{ message: "Research question" }];
+  const unresolved = [
+    { editionKey: "2026", message: "The previous Edition is outside scope" },
+    { message: "Check whether the source describes the same festival" },
+    { field: "tickets", message: "The ticket page names another venue" },
+  ];
+  let locationEditor: unknown;
+  const result = await runCatalogResearch(
+    {
+      ...input,
+      mode: "refresh",
+      name: undefined,
+      scope: "current",
+      eventId: event.id,
+      dryRun: false,
+    },
+    {
+      client,
+      generateCandidate: async () => found,
+      generateEditor: async (raw) => {
+        const { research, catalog } = JSON.parse(raw);
+        const plan = fixtureEditorPlan(research, catalog);
+        if (plan.status !== "ready") {
+          throw new Error("Expected ready fixture");
+        }
+        return { ...plan, unresolved };
+      },
+      generateLocation: async (raw) => {
+        const prompt = JSON.parse(raw);
+        expect(prompt.previousEdition).toBeNull();
+        locationEditor = prompt.editor;
+        expect(
+          prompt.history.map((edition: { id: string }) => edition.id),
+        ).toContain(previous.id);
+        const { fixtureLocationPlan } = await import("@/test/ingestion");
+        const plan = fixtureLocationPlan(prompt);
+        if (plan.decision.status !== "ready") {
+          throw new Error("Expected ready fixture");
+        }
+        plan.decision.previousEdition = {
+          ...plan.decision.currentOrNextEdition!,
+        };
+        return plan;
+      },
+    },
+  );
+  expect(locationEditor).toMatchObject({ previousEdition: null, unresolved });
+  expect(result.locationStatus).toBe("failed");
+  expect(result.outcome).toBe("failed");
+  expect(result.operations).toEqual([]);
+  expect(
+    readResearchEvent(client, event.id)!.editions.map((edition) => edition.id),
+  ).toEqual([previous.id]);
+});

@@ -1,3 +1,9 @@
+import {
+  emptyLocationExecution,
+  type LocationExecution,
+  type GenerateLocation,
+} from "./location/agent";
+import type { GeocodingClient } from "./tools/geocode/contracts";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { ResearchContext } from "./research/context";
 import type { ResearchExecution } from "./research/agent";
@@ -34,7 +40,7 @@ export type CatalogResearchInput = {
 };
 
 export type CatalogResearchResult = {
-  schemaVersion: 6;
+  schemaVersion: 7;
   scope: NonNullable<CatalogResearchInput["scope"]> | null;
   currentDate: string | null;
   limits: ResearchLimits;
@@ -79,18 +85,16 @@ export type CatalogResearchResult = {
     storedName: string;
     observedName: string;
   } | null;
-  usage: ReturnType<ResearchBudget["snapshot"]> & {
-    /** False means reported tokens are only the known portion of the run. */
-    complete: boolean;
-    inputTokens: number;
-    outputTokens: number;
-    cachedInputTokens?: number | null;
-    reasoningTokens?: number | null;
-    /** Sum of reported model costs; may be partial. Null when none are known. */
-    modelCostUsd: number | null;
-    searchCostUsd: number;
-    searchCostBasis?: "estimate";
+  budget: ReturnType<ResearchBudget["snapshot"]>;
+  locationResponse: LocationExecution["modelResponse"];
+  locationStatus: LocationExecution["status"];
+  locationPromptVersion: string;
+  locationModelVersion: string;
+  geocoding: {
+    observations: LocationExecution["observations"];
+    points: LocationExecution["points"];
   };
+  traceId?: string;
   modelVersion: string;
   reasoningEffort?: Exclude<
     ResearchConfig["reasoningEffort"],
@@ -109,6 +113,8 @@ export type ResearchDependencies = {
   reportPath?: string;
   /** Freeze the domain date in reproducible evaluations. */
   todayUtc?: string;
+  generateLocation?: GenerateLocation;
+  geocodingClient?: GeocodingClient;
   generateEditor?: (
     prompt: string,
     context: { budget: ResearchBudget; abortSignal: AbortSignal },
@@ -133,6 +139,7 @@ export type IngestionData = {
   discovery: SearchWebResult[];
   research: ResearchExecution;
   editor: EditorExecution;
+  location: LocationExecution;
   prepared: ReturnType<typeof prepareEditorPlan> | null;
   applied: ReturnType<typeof applyCatalogItem> | null;
   writeFailed: boolean;
@@ -149,16 +156,9 @@ export function createIngestionData(): IngestionData {
     research: {
       ok: false,
       errors: [],
-      usage: {
-        complete: false,
-        inputTokens: 0,
-        outputTokens: 0,
-        cachedInputTokens: null,
-        reasoningTokens: null,
-        modelCostUsd: null,
-      },
     },
     editor: emptyEditorExecution(),
+    location: emptyLocationExecution(),
     prepared: null,
     applied: null,
     writeFailed: false,

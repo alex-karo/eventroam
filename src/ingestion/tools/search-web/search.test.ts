@@ -104,16 +104,12 @@ describe("searchWeb", () => {
     expect(request.model).toBe("provider/model");
     expect(request.reasoning).toEqual({ effort: "medium" });
     expect(request.service_tier).toBe("flex");
-    expect(result.cachedInputTokens).toBe(16);
-    expect(result.reasoningTokens).toBe(3);
+
     expect(result.candidates).toEqual([
       { url: "https://festival.example/", title: "Festival", highlights: [] },
       { url: "https://tickets.example/", title: "Tickets", highlights: [] },
     ]);
-    expect(result.searchCostUsd).toBe(0.007);
-    expect(result.modelCostUsd).toBe(0.001);
-    expect(result.inputTokens).toBe(42);
-    expect(result.usageComplete).toBe(true);
+
     expect(budget.snapshot()).toMatchObject({ searches: 1, modelCalls: 1 });
   });
 
@@ -219,9 +215,6 @@ describe("searchWeb", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(await run).toMatchObject({
       query: "Festival 2027",
-      inputTokens: 10,
-      outputTokens: 2,
-      usageComplete: false,
     });
     expect(budget.snapshot()).toMatchObject({ searches: 3, modelCalls: 3 });
     expect(log.warn.mock.calls.map((call) => call[1].delayMs)).toEqual([
@@ -310,16 +303,6 @@ describe("searchWeb", () => {
     await rejected;
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(vi.getTimerCount()).toBe(0);
-  });
-
-  it("marks a response without token counts as incomplete", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(Response.json({}));
-    expect(await searchWith(fetchMock).run).toMatchObject({
-      usageComplete: false,
-      modelCostUsd: null,
-    });
   });
 
   it.each(["ab", " ", "x".repeat(301)])(

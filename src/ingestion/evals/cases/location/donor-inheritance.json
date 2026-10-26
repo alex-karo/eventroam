@@ -1,0 +1,230 @@
+{
+  "id": "location-donor-inheritance",
+  "provenance": {
+    "kind": "synthetic",
+    "sourceReport": "openspec/changes/separate-location-resolution/design.md",
+    "note": "The 2027 Edition has no coordinates. It uses the same venue as the 2026 Edition, which has a saved approximate point. Geocoding returns only the city. Inheritance must retain donor precision without claiming fresh verification. Provider results are synthetic."
+  },
+  "input": {
+    "mode": "refresh",
+    "eventId": "event-donor-inheritance",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "location": {
+    "group": "completion",
+    "input": {
+      "festival": {
+        "name": "River Festival donor-inheritance",
+        "summary": "An open-air music festival.",
+        "format": ["openair"]
+      },
+      "scope": "full",
+      "currentDate": "2026-10-24T12:00:00Z",
+      "countryBaseline": "PT",
+      "sources": [
+        {
+          "url": "https://fixture.test/donor-inheritance",
+          "information": "The 2027 Edition is announced at River Park in Lisbon, the same venue as in 2026. The announcement gives no coordinates and reports no venue change."
+        }
+      ],
+      "history": [
+        {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "donor-inheritance-2027",
+          "eventId": "event-donor-inheritance",
+          "editionKey": "2027",
+          "version": 1,
+          "editionYear": 2027,
+          "startsOn": "2027-07-01",
+          "endsOn": "2027-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": null,
+          "longitude": null,
+          "coordinatePrecision": "unknown"
+        },
+        {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "donor-inheritance-2026",
+          "eventId": "event-donor-inheritance",
+          "editionKey": "2026",
+          "version": 1,
+          "editionYear": 2026,
+          "startsOn": "2026-07-01",
+          "endsOn": "2026-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": 38.73,
+          "longitude": -9.16,
+          "coordinatePrecision": "approximate"
+        }
+      ],
+      "editor": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "2027",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "editionKey": "2027",
+        "editionYear": 2027,
+        "startsOn": "2027-07-01",
+        "endsOn": "2027-07-03",
+        "scheduleStatus": "scheduled",
+        "saved": {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "donor-inheritance-2027",
+          "eventId": "event-donor-inheritance",
+          "editionKey": "2027",
+          "version": 1,
+          "editionYear": 2027,
+          "startsOn": "2027-07-01",
+          "endsOn": "2027-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": null,
+          "longitude": null,
+          "coordinatePrecision": "unknown"
+        },
+        "donor": {
+          "venueName": "River Park",
+          "venueAddress": null,
+          "locality": "Lisbon",
+          "administrativeArea": null,
+          "countryCode": "PT",
+          "id": "donor-inheritance-2026",
+          "eventId": "event-donor-inheritance",
+          "editionKey": "2026",
+          "version": 1,
+          "editionYear": 2026,
+          "startsOn": "2026-07-01",
+          "endsOn": "2026-07-03",
+          "scheduleStatus": "scheduled",
+          "latitude": 38.73,
+          "longitude": -9.16,
+          "coordinatePrecision": "approximate"
+        },
+        "findings": {
+          "venueName": {
+            "value": "River Park",
+            "reason": "The 2027 Edition is announced at River Park in Lisbon, the same venue as in 2026. The announcement gives no coordinates and reports no venue change."
+          },
+          "locality": {
+            "value": "Lisbon",
+            "reason": "The 2027 Edition is announced at River Park in Lisbon, the same venue as in 2026. The announcement gives no coordinates and reports no venue change."
+          },
+          "countryCode": {
+            "value": "PT",
+            "reason": "The 2027 Edition is announced at River Park in Lisbon, the same venue as in 2026. The announcement gives no coordinates and reports no venue change."
+          }
+        }
+      }
+    }
+  },
+  "geocoding": [
+    {
+      "request": {
+        "direction": "reverse",
+        "latitude": 38.73,
+        "longitude": -9.16
+      },
+      "response": {
+        "status": "success",
+        "direction": "reverse",
+        "queriedPoint": {
+          "latitude": 38.73,
+          "longitude": -9.16
+        },
+        "nearby": {
+          "latitude": 38.7301,
+          "longitude": -9.16,
+          "placeId": null,
+          "label": "Nearby kiosk",
+          "name": "Nearby kiosk",
+          "countryCode": "PT",
+          "locality": null,
+          "address": null,
+          "objectType": "venue",
+          "originalType": "building",
+          "category": null,
+          "confidence": null
+        },
+        "distanceKm": 0.011
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "River Park, Lisbon, PT",
+        "countryCode": "PT"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.72,
+            "longitude": -9.15,
+            "placeId": null,
+            "label": "Lisbon",
+            "name": null,
+            "countryCode": "PT",
+            "locality": null,
+            "address": null,
+            "objectType": "locality",
+            "originalType": "city",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      }
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "coordinates",
+        "value": {
+          "latitude": 38.73,
+          "longitude": -9.16,
+          "precision": "approximate"
+        }
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "coordinate_action",
+        "value": "inherit"
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "coordinates",
+        "value": {
+          "latitude": 38.72,
+          "longitude": -9.15,
+          "precision": "locality"
+        }
+      }
+    ]
+  }
+}

@@ -78,7 +78,6 @@ export class CatalogAttempt {
       this.input,
       this.config.model,
       this.ingestionRunId,
-      !!this.deps.generateCandidate,
       [
         this.deps.client.name,
         `${this.deps.client.name}-wal`,
@@ -103,6 +102,9 @@ export class CatalogAttempt {
   reportInput(data: IngestionData): ReportInput {
     return {
       runId: this.ingestionRunId,
+      ...(this.trace?.tracing.root?.traceId
+        ? { traceId: this.trace.tracing.root.traceId }
+        : {}),
       input: this.input,
       config: this.config,
       prepared: data.prepared,
@@ -110,12 +112,12 @@ export class CatalogAttempt {
       limits: this.budget.limits,
       research: data.research,
       editor: data.editor,
+      location: data.location,
       applied: data.applied,
       writeFailed: data.writeFailed,
       errors: data.errors,
       unresolved: data.unresolved,
       reads: data.reads,
-      discovery: data.discovery,
       budget: this.budget.snapshot(),
       started: this.started,
       finished: Date.now(),

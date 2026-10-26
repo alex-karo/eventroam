@@ -325,13 +325,22 @@ export type ResearchError = {
     | "invalid_candidate"
     | "invalid_plan"
     | "editor_rejected"
+    | "location_rejected"
+    | "location_failed"
     | "country_conflict"
     | "country_baseline_conflict"
     | "write_failed"
     | "workflow_failed"
     | "run_persistence_failed";
   message: string;
-  stage: "source" | "research" | "editor" | "validation" | "write" | "workflow";
+  stage:
+    | "source"
+    | "research"
+    | "editor"
+    | "location"
+    | "validation"
+    | "write"
+    | "workflow";
   url?: string;
   editionKey?: string;
   field?: string;

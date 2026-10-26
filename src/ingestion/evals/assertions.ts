@@ -1,5 +1,5 @@
 import type { CatalogResearchResult } from "../contracts";
-import type { EvalAssertion, EvalCase } from "./fixtures";
+import type { EvalAssertion, PipelineEvalCase } from "./fixtures";
 
 type EvalChange = CatalogResearchResult["changes"][number];
 export type AssertionResult = {
@@ -23,7 +23,7 @@ export function contains(actual: unknown, expected: unknown): boolean {
 }
 
 function expectedSubjects(
-  item: EvalCase,
+  item: PipelineEvalCase,
   result: CatalogResearchResult,
   assertion: EvalAssertion,
 ): Set<string> {
@@ -72,7 +72,7 @@ function expectedSubjects(
 }
 
 export function assertionMatches(
-  item: EvalCase,
+  item: PipelineEvalCase,
   result: CatalogResearchResult,
   assertion: EvalAssertion,
 ): boolean {
@@ -81,46 +81,7 @@ export function assertionMatches(
     if (!subjects.has(change.subject) || change.field !== assertion.field) {
       return false;
     }
-    if ("value" in assertion && !contains(change.newValue, assertion.value)) {
-      return false;
-    }
-    if (
-      "notValue" in assertion &&
-      contains(change.newValue, assertion.notValue)
-    ) {
-      return false;
-    }
-    if (
-      "contains" in assertion &&
-      !contains(change.newValue, assertion.contains)
-    ) {
-      return false;
-    }
-    if (
-      assertion.containsText &&
-      (typeof change.newValue !== "string" ||
-        !change.newValue
-          .toLowerCase()
-          .replace(/\s+/g, " ")
-          .includes(assertion.containsText.toLowerCase().replace(/\s+/g, " ")))
-    ) {
-      return false;
-    }
-    if (
-      assertion.containsAny &&
-      !assertion.containsAny.some((value) => contains(change.newValue, value))
-    ) {
-      return false;
-    }
-    if (
-      !("value" in assertion) &&
-      !("contains" in assertion) &&
-      !assertion.containsAny &&
-      change.newValue == null
-    ) {
-      return false;
-    }
-    return true;
+    return assertionValueMatches(change.newValue, assertion);
   });
 }
 
@@ -144,4 +105,44 @@ export function describeAssertion(assertion: EvalAssertion): string {
     description += ` contains text ${JSON.stringify(assertion.containsText)}`;
   }
   return description;
+}
+
+export function assertionValueMatches(
+  actual: unknown,
+  assertion: EvalAssertion,
+): boolean {
+  if ("value" in assertion && !contains(actual, assertion.value)) {
+    return false;
+  }
+  if ("notValue" in assertion && contains(actual, assertion.notValue)) {
+    return false;
+  }
+  if ("contains" in assertion && !contains(actual, assertion.contains)) {
+    return false;
+  }
+  if (
+    assertion.containsText &&
+    (typeof actual !== "string" ||
+      !actual
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .includes(assertion.containsText.toLowerCase().replace(/\s+/g, " ")))
+  ) {
+    return false;
+  }
+  if (
+    assertion.containsAny &&
+    !assertion.containsAny.some((value) => contains(actual, value))
+  ) {
+    return false;
+  }
+  if (
+    !("value" in assertion) &&
+    !("contains" in assertion) &&
+    !assertion.containsAny &&
+    actual == null
+  ) {
+    return false;
+  }
+  return true;
 }

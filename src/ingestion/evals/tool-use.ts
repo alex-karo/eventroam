@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 export type EvalToolCall =
-  { tool: "readPage"; url: string } | { tool: "searchWeb"; query: string };
+  | { tool: "readPage"; url: string }
+  | { tool: "searchWeb"; query: string }
+  | {
+      tool: "geocode";
+      observation: import("../tools/geocode/tool").GeocodingObservation;
+    };
 
 export const toolUseExpectationSchema = z.object({
   minSearches: z.number().int().nonnegative().optional(),

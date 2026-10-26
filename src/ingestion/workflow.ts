@@ -1,3 +1,7 @@
+import { locationExecutionSchema } from "./location/execution";
+import { resolveLocation } from "./location/agent";
+import { buildLocationInput } from "./location/input";
+import { assertLocationDonors } from "./location/donor-guard";
 import {
   assertRefreshBaseline,
   countryBaselineConflict,
@@ -23,7 +27,11 @@ import type {
 } from "./tools/read-page/contracts";
 import { readInitialWithTrace } from "./runtime/tracing";
 import { researchFestival } from "./research/agent";
-import { prepareEditorPlan, validateResearch } from "./editor/prepare";
+import {
+  prepareEditorPlan,
+  prepareCatalogPlan,
+  validateResearch,
+} from "./editor/prepare";
 import { editResearch } from "./editor/agent";
 import { buildResearchReport } from "./report";
 import {
@@ -73,6 +81,7 @@ const dataSchema = z.object({
   discovery: z.array(z.json()),
   research: z.json(),
   editor: z.json(),
+  location: locationExecutionSchema,
   prepared: z.json().nullable(),
   applied: z.json().nullable(),
   writeFailed: z.boolean(),
@@ -111,13 +120,7 @@ export const studioIngestionResultSchema = z.strictObject({
   searchCount: z.number().int().nonnegative(),
   operationCount: z.number().int().nonnegative(),
   changedCount: z.number().int().nonnegative(),
-  usage: z.strictObject({
-    complete: z.boolean(),
-    inputTokens: z.number(),
-    outputTokens: z.number(),
-    modelCostUsd: z.number().nullable(),
-    searchCostUsd: z.number(),
-  }),
+  locationStatus: locationExecutionSchema.shape.status,
   errorCodes: z.array(z.string()),
 });
 
@@ -216,17 +219,11 @@ function projectSummary(
     scope: result.scope,
     savedEditionCount: result.workload.savedEditions,
     returnedEditionCount: result.workload.returnedEditions,
-    readCount: result.usage.pages,
-    searchCount: result.usage.searches,
+    readCount: result.budget.pages,
+    searchCount: result.budget.searches,
     operationCount: result.operations.length,
     changedCount: result.receipts.filter((receipt) => receipt.changed).length,
-    usage: {
-      complete: result.usage.complete,
-      inputTokens: result.usage.inputTokens,
-      outputTokens: result.usage.outputTokens,
-      modelCostUsd: result.usage.modelCostUsd,
-      searchCostUsd: result.usage.searchCostUsd,
-    },
+    locationStatus: result.locationStatus,
     errorCodes:
       persistenceStatus === "failed"
         ? [
@@ -324,7 +321,7 @@ export function createCatalogIngestionWorkflow(
               return await execute(owned, data, abortSignal);
             } finally {
               // Capture requests even when a phase fails or is cancelled,
-              // before failure finalization reads the local accounting.
+              // before failure finalization reads the source history.
               if (owned.sources) {
                 data.reads = owned.sources.reads.map(sourceReadMetadata);
                 data.discovery = owned.sources.discovery;
@@ -469,8 +466,8 @@ export function createCatalogIngestionWorkflow(
     },
   );
   const prepare = phase(
-    "prepare-plan",
-    "Validate editorial actions and convert them to catalog operations",
+    "validate-editor-plan",
+    "Validate editorial actions before Location",
     (owned, data) => {
       if (data.editor.status !== "success" || !data.prepared) {
         return null;
@@ -497,6 +494,67 @@ export function createCatalogIngestionWorkflow(
       };
     },
   );
+  const location = phase(
+    "resolve-location",
+    "Prepare geocoding and resolve the complete accepted place block",
+    async (owned, data, signal) => {
+      const prepared = data.prepared;
+      if (
+        !prepared?.editorPlan ||
+        !prepared.candidate?.data ||
+        prepared.skipped ||
+        data.editor.status !== "success" ||
+        prepared.errors.some((error) =>
+          ["invalid_plan", "editor_rejected"].includes(error.code),
+        )
+      ) {
+        return data.location;
+      }
+      const hasTargets =
+        prepared.editorPlan.previousEdition ||
+        prepared.editorPlan.currentOrNextEdition;
+      let materialized = {
+        slots: {},
+        donors: [],
+        unresolved: [],
+      } as NonNullable<IngestionData["location"]["materialized"]>;
+      if (hasTargets) {
+        owned.trace?.update({ phase: "location" });
+        const locationInput = buildLocationInput(
+          prepared.editorPlan,
+          prepared.candidate.data,
+          data.context!,
+          owned.input,
+        );
+        data.location = await owned.track(
+          resolveLocation(
+            locationInput,
+            owned.budget,
+            owned.config,
+            owned.deps,
+            owned.trace?.tracing,
+            signal,
+          ),
+        );
+        data.errors.push(...data.location.errors);
+        if (data.location.status !== "success" || !data.location.materialized) {
+          return data.location;
+        }
+        materialized = data.location.materialized;
+      }
+      data.prepared = prepareCatalogPlan(
+        prepared,
+        data.context!.catalog,
+        owned.input,
+        data.context!.terms,
+        materialized,
+      );
+      data.errors = data.prepared.errors;
+      data.unresolved = data.prepared.unresolved;
+      logPreparation(owned.trace?.log, data.prepared);
+      return data.location;
+    },
+  );
   const apply = phase(
     "apply-catalog-item",
     "Apply the item atomically or roll back a dry run",
@@ -515,15 +573,19 @@ export function createCatalogIngestionWorkflow(
           data.prepared.operations,
           {
             dryRun: owned.input.dryRun,
-            beforeApply:
-              owned.input.mode === "refresh"
-                ? (client) =>
-                    assertRefreshBaseline(
-                      client,
-                      owned.input.eventId!,
-                      data.context!.catalog[0].editions,
-                    )
-                : undefined,
+            beforeApply: (client) => {
+              if (owned.input.mode === "refresh") {
+                assertRefreshBaseline(
+                  client,
+                  owned.input.eventId!,
+                  data.context!.catalog[0].editions,
+                );
+              }
+              assertLocationDonors(
+                client,
+                data.location.materialized?.donors ?? [],
+              );
+            },
           },
         );
         owned.trace?.tracing.setEventId(
@@ -552,7 +614,7 @@ export function createCatalogIngestionWorkflow(
   );
   const buildReport = phase(
     "build-report",
-    "Assemble the outcome and accounting",
+    "Assemble the outcome and diagnostics",
     (owned, data) => {
       owned.trace?.update({ phase: "report" });
       data.report = buildResearchReport(owned.reportInput(data));
@@ -663,6 +725,7 @@ export function createCatalogIngestionWorkflow(
     .then(validate)
     .then(edit)
     .then(prepare)
+    .then(location)
     .then(apply)
     .then(buildReport)
     .then(finalize)

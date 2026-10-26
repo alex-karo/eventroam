@@ -1,3 +1,8 @@
+import { locationInputSchema } from "../location/input";
+import {
+  geocodingRequestSchema,
+  geocodingResultSchema,
+} from "../tools/geocode/contracts";
 import {
   publicationStates,
   scopes,
@@ -41,6 +46,11 @@ const edition = z.object({
   administrativeArea: z.string().nullable().optional(),
   timeZone: z.string().nullable().optional(),
   sizeEstimate: z.number().int().positive().nullable().optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
+  coordinatePrecision: z
+    .enum(["unknown", "exact", "approximate", "locality", "region"])
+    .optional(),
   venueName: z.string().nullable().optional(),
   venueAddress: z.string().nullable().optional(),
   termIds: z.array(z.string()).optional(),
@@ -79,9 +89,23 @@ export const assertionSchema = z.object({
   containsAny: z.array(z.unknown()).min(1).optional(),
   containsText: z.string().min(1).optional(),
 });
-export const evalCaseSchema = z.object({
+const commonCaseSchema = z.object({
   id: z.string().min(1),
   researchHandoff: researchHandoffSchema.optional(),
+  geocoding: z
+    .array(
+      z.strictObject({
+        request: geocodingRequestSchema,
+        response: geocodingResultSchema,
+      }),
+    )
+    .optional(),
+  location: z
+    .strictObject({
+      group: z.enum(["completion", "correction", "preservation"]),
+      input: locationInputSchema,
+    })
+    .optional(),
   todayUtc: z.iso.date().optional(),
   provenance: z
     .object({ kind: z.string(), sourceReport: z.string(), note: z.string() })
@@ -95,8 +119,6 @@ export const evalCaseSchema = z.object({
     initiatedBy: z.string(),
     dryRun: z.literal(true),
   }),
-  initial: z.object({ event, relatedEvents: z.array(event).optional() }),
-  sources: z.array(source),
   discoveries: z
     .array(
       z.object({
@@ -169,6 +191,25 @@ export const evalCaseSchema = z.object({
       }
     }),
 });
+const initialSchema = z.object({
+  event,
+  relatedEvents: z.array(event).optional(),
+});
+export const pipelineEvalCaseSchema = commonCaseSchema.extend({
+  location: z.undefined().optional(),
+  initial: initialSchema,
+  sources: z.array(source),
+});
+const locationEvalCaseSchema = commonCaseSchema.extend({
+  location: commonCaseSchema.shape.location.unwrap(),
+  // Only workflow integration cases need a separate catalog seed.
+  initial: initialSchema.optional(),
+  sources: z.array(source).default([]),
+});
+export const evalCaseSchema = z.union([
+  pipelineEvalCaseSchema,
+  locationEvalCaseSchema,
+]);
 export const evalSuiteSchema = z.object({
   schemaVersion: z.literal(2),
   todayUtc: z.iso.date(),
@@ -188,15 +229,25 @@ export const evalSuiteSchema = z.object({
   cases: z.array(evalCaseSchema).min(1),
 });
 export type EvalCase = z.infer<typeof evalCaseSchema>;
+export type PipelineEvalCase = z.infer<typeof pipelineEvalCaseSchema>;
+export type LocationEvalCase = z.infer<typeof locationEvalCaseSchema>;
 export type EvalSuite = z.infer<typeof evalSuiteSchema>;
 export type EvalAssertion = z.infer<typeof assertionSchema>;
 
-const caseFileSchema = evalCaseSchema.extend({
-  researchHandoffFile: z.string().min(1).optional(),
-  sources: z.array(
-    source.omit({ markdown: true }).extend({ markdownFile: z.string().min(1) }),
-  ),
-});
+const sourceFilesSchema = z.array(
+  source.omit({ markdown: true }).extend({ markdownFile: z.string().min(1) }),
+);
+const handoffFileSchema = z.string().min(1).optional();
+const caseFileSchema = z.union([
+  pipelineEvalCaseSchema.extend({
+    researchHandoffFile: handoffFileSchema,
+    sources: sourceFilesSchema,
+  }),
+  locationEvalCaseSchema.extend({
+    researchHandoffFile: handoffFileSchema,
+    sources: sourceFilesSchema.default([]),
+  }),
+]);
 const suiteFileSchema = evalSuiteSchema.extend({
   cases: z.array(z.string().min(1)).min(1),
 });

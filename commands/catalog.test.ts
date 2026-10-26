@@ -15,7 +15,12 @@ afterEach(() => vi.restoreAllMocks());
 import { executeCatalogCommand, formatCatalogReport } from "./catalog";
 
 const result = (): CatalogResearchResult => ({
-  schemaVersion: 6,
+  schemaVersion: 7,
+  locationResponse: null,
+  locationStatus: "not_run",
+  locationPromptVersion: "catalog-location-v1",
+  locationModelVersion: "fixture",
+  geocoding: { observations: [], points: [] },
   editorResponse: null,
   editorStatus: "not_run",
   editorPromptVersion: "catalog-editor-v6",
@@ -36,8 +41,7 @@ const result = (): CatalogResearchResult => ({
   errors: [],
   unresolved: [],
   eventNameMismatch: null,
-  usage: {
-    complete: true,
+  budget: {
     searches: 0,
     pages: 0,
     modelCalls: 0,
@@ -46,32 +50,10 @@ const result = (): CatalogResearchResult => ({
       searches: 3,
       durationMs: DEFAULT_RESEARCH_LIMITS.durationMs,
     },
-    inputTokens: 0,
-    outputTokens: 0,
-    modelCostUsd: null,
-    searchCostUsd: 0,
   },
   modelVersion: "fixture",
   promptVersion: "fixture",
   durationMs: 0,
-});
-
-test("CLI marks partial tokens and renders unknown cost separately from zero", () => {
-  const partial = result();
-  partial.usage.complete = false;
-  partial.usage.inputTokens = 10;
-  partial.usage.outputTokens = 20;
-  const text = formatCatalogReport([partial], true);
-  expect(text).toContain("tokens: 10/20 (partial)");
-  expect(text).toContain("known model USD: unavailable");
-  partial.usage.modelCostUsd = 0.125;
-  expect(formatCatalogReport([partial], true)).toContain(
-    "known model USD: 0.125;",
-  );
-  partial.usage.complete = true;
-  partial.usage.modelCostUsd = 0;
-  expect(formatCatalogReport([partial], true)).toContain("tokens: 10/20;");
-  expect(formatCatalogReport([partial], true)).toContain("known model USD: 0;");
 });
 
 test("CLI targets an Event and starts fresh research for dry-run and apply", async () => {
@@ -151,7 +133,7 @@ test("one festival failure does not stop another or expose provider payloads", a
   expect(text).toContain("research_failed");
   expect(text).not.toContain("SECRET");
   expect(JSON.parse(text).results).toHaveLength(1);
-  expect(JSON.parse(text).schemaVersion).toBe(6);
+  expect(JSON.parse(text).schemaVersion).toBe(7);
 });
 
 test("text report separates research and catalog status, source summaries, errors, questions, and explanations", () => {
@@ -327,7 +309,7 @@ function fixtureCandidate(eventId: string) {
   };
 }
 
-test("real CLI stores/exports the same report and prints runId with estimated search cost", async () => {
+test("real CLI stores/exports the same report and prints runId and stage models", async () => {
   const database = testDatabase();
   const event = testFixtures().event();
   const reportPath = join(dirname(database.path), "report.json");
@@ -361,7 +343,7 @@ test("real CLI stores/exports the same report and prints runId with estimated se
   expect(JSON.parse(saved.report_json)).toEqual(report.results[0]);
   const text = formatCatalogReport(report.results, true);
   expect(text).toContain(`Run ${report.results[0].runId}:`);
-  expect(text).toContain("estimated search USD: 0");
+  expect(text).not.toContain("estimated search USD");
 });
 
 test.each(["workflow", "persistence"] as const)(
@@ -512,11 +494,7 @@ test("CLI serialization persistence error retains safe available data and correl
     ),
   ).toBe(1);
   const report = JSON.parse(stdout.mock.calls[0][0] as string);
-  expect(report.results[0]).toMatchObject({
-    runId: "unfinished",
-    usage: available.usage,
-    modelResponse: null,
-  });
+
   expect(report.failures[0]).toMatchObject({
     code: "run_persistence_failed",
     runId: "unfinished",

@@ -76,7 +76,7 @@ export function logCompletion(
     dryRun: input.dryRun,
     eventId: finalized.eventId,
     durationMs: finalized.durationMs,
-    usage: finalized.usage,
+    budget: finalized.budget,
   });
 }
 

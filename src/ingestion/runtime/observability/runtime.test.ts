@@ -68,7 +68,6 @@ test("a registered run leaves its caller-owned observability store open", async 
       { mode: "add", name: "Fixture", actor: "catalog-research", dryRun: true },
       "fixture/model",
       "shared-run",
-      true,
       [],
       store,
     );
@@ -121,7 +120,6 @@ test.each(["rejection", "timeout"] as const)(
           },
           "fixture/model",
           "failed-shared-run",
-          false,
           [],
           store,
         ),

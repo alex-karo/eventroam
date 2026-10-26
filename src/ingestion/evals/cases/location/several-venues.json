@@ -1,0 +1,301 @@
+{
+  "id": "location-several-venues",
+  "provenance": {
+    "kind": "captured-adapted",
+    "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",
+    "note": "Saved descriptions, source summaries and Geoapify forward responses captured on 2026-10-24. Free-text replay hints use those captured responses. Responses use the client format and omit unused provider fields. Reverse was not captured and is explicitly unavailable. Expected actions are review assertions, not captured model output."
+  },
+  "input": {
+    "mode": "refresh",
+    "eventId": "event:d2f08eac8f3289da9c06",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "location": {
+    "group": "completion",
+    "input": {
+      "festival": {
+        "name": "Ageas Cooljazz",
+        "summary": "Ageas Cooljazz is a recurring summer music festival in Cascais, with performances at Hipódromo Manuel Possolo and Parque Marechal Carmona.",
+        "format": ["openair"]
+      },
+      "scope": "full",
+      "currentDate": "2026-10-24T12:00:00Z",
+      "countryBaseline": "PT",
+      "sources": [
+        {
+          "url": "https://www.ageascooljazz.pt/",
+          "information": "Official Ageas Cooljazz homepage identifies the festival, gives the 1–31 July 2027 dates in Cascais, and links official YouTube, Facebook, Instagram and TikTok accounts."
+        },
+        {
+          "url": "https://www.ageascooljazz.pt/recinto.html",
+          "information": "Official venue page says Ageas Cooljazz uses Hipódromo Manuel Possolo and Parque Marechal Carmona, both in central Cascais."
+        },
+        {
+          "url": "https://www.ageascooljazz.pt/en/line-up.html",
+          "information": "Official lineup page identifies 2027 performers and describes music programming including jazz, indie-pop and other sounds; it lists a 15 July Jack Johnson ticket link."
+        },
+        {
+          "url": "https://cooljazz.seetickets.com/event/jack-johnson-ageas-cooljazz-2027/hipodromo-manuel-possolo-cascais/3743124?src=#op1",
+          "information": "Official ticketing page identifies the Jack Johnson Ageas Cooljazz 2027 show at Hipódromo Manuel Possolo, Cascais, on 15 July. It lists general ticket prices and availability; prices include a €2 donation."
+        }
+      ],
+      "history": [],
+      "editor": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "ageas-cooljazz-2027",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "editionKey": "ageas-cooljazz-2027",
+        "editionYear": 2027,
+        "startsOn": "2027-07-01",
+        "endsOn": "2027-07-31",
+        "scheduleStatus": "scheduled",
+        "saved": null,
+        "donor": null,
+        "findings": {
+          "venueName": {
+            "value": "Hipódromo Manuel Possolo and Parque Marechal Carmona",
+            "reason": "Captured catalog location description"
+          },
+          "locality": {
+            "value": "Cascais",
+            "reason": "Captured catalog location description"
+          },
+          "countryCode": {
+            "value": "PT",
+            "reason": "Captured catalog location description"
+          }
+        }
+      }
+    }
+  },
+  "geocoding": [
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Hipódromo Manuel Possolo and Parque Marechal Carmona, Cascais, PT",
+        "countryCode": "PT"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.6968919,
+            "longitude": -9.4204495,
+            "placeId": "51363d282845d722c05974acf7c033594340f00101f9013969520000000000c0020892030743617363616973",
+            "label": "Cascais, Portugal",
+            "name": null,
+            "countryCode": "PT",
+            "locality": null,
+            "address": null,
+            "objectType": "locality",
+            "originalType": "city",
+            "category": null,
+            "confidence": 0.25
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Hipódromo Manuel Possolo, Cascais, PT",
+        "countryCode": "PT"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.6935115,
+            "longitude": -9.4253156,
+            "placeId": "510df560f7c2d922c05930f31dfcc4584340f00102f901f09baf0100000000c00201920319486970c3b364726f6d6f204d616e75656c20506f73736f6c6f",
+            "label": "Hipódromo Manuel Possolo, Rua Visconde da Gandarinha, Cascais e Estoril, 2750-433 Cascais, Portugal",
+            "name": "Hipódromo Manuel Possolo",
+            "countryCode": "PT",
+            "locality": "Cascais",
+            "address": "Hipódromo Manuel Possolo",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": "sport.sports_centre",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Hipódromo Manuel Possolo",
+        "countryCode": "PT"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.6935115,
+            "longitude": -9.4253156,
+            "placeId": "510df560f7c2d922c05930f31dfcc4584340f00102f901f09baf0100000000c00201920319486970c3b364726f6d6f204d616e75656c20506f73736f6c6f",
+            "label": "Hipódromo Manuel Possolo, Rua Visconde da Gandarinha, Cascais e Estoril, 2750-433 Cascais, Portugal",
+            "name": "Hipódromo Manuel Possolo",
+            "countryCode": "PT",
+            "locality": "Cascais",
+            "address": "Hipódromo Manuel Possolo",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": "sport.sports_centre",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Parque Marechal Carmona, Cascais, PT",
+        "countryCode": "PT"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.6929693,
+            "longitude": -9.4229258,
+            "placeId": "51ef44ffba89d822c059e650d037b3584340f00102f9012285060600000000c00201920317506172717565204d6172656368616c204361726d6f6e61",
+            "label": "Parque Marechal Carmona, Cascais, Lisbon, Portugal",
+            "name": "Parque Marechal Carmona",
+            "countryCode": "PT",
+            "locality": "Cascais",
+            "address": "Parque Marechal Carmona",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": "leisure.park",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Parque Marechal Carmona",
+        "countryCode": "PT"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.6929693,
+            "longitude": -9.4229258,
+            "placeId": "51ef44ffba89d822c059e650d037b3584340f00102f9012285060600000000c00201920317506172717565204d6172656368616c204361726d6f6e61",
+            "label": "Parque Marechal Carmona, Cascais, Lisbon, Portugal",
+            "name": "Parque Marechal Carmona",
+            "countryCode": "PT",
+            "locality": "Cascais",
+            "address": "Parque Marechal Carmona",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": "leisure.park",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Cascais, PT",
+        "countryCode": "PT"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.6968919,
+            "longitude": -9.4204495,
+            "placeId": "51363d282845d722c05974acf7c033594340f00101f9013969520000000000c0020892030743617363616973",
+            "label": "Cascais, Portugal",
+            "name": "Cascais",
+            "countryCode": "PT",
+            "locality": "Cascais",
+            "address": "Cascais",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "administrative",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Cascais",
+        "countryCode": "PT"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.6968919,
+            "longitude": -9.4204495,
+            "placeId": "51363d282845d722c05974acf7c033594340f00101f9013969520000000000c0020892030743617363616973",
+            "label": "Cascais, Portugal",
+            "name": "Cascais",
+            "countryCode": "PT",
+            "locality": "Cascais",
+            "address": "Cascais",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "administrative",
+            "confidence": 1
+          }
+        ]
+      }
+    }
+  ],
+  "expectations": {
+    "required": [
+      {
+        "owner": "edition",
+        "editionKey": "ageas-cooljazz-2027",
+        "field": "unresolved",
+        "contains": {
+          "field": "coordinates"
+        }
+      },
+      {
+        "owner": "edition",
+        "editionKey": "ageas-cooljazz-2027",
+        "field": "coordinates",
+        "value": {
+          "latitude": 38.6968919,
+          "longitude": -9.4204495,
+          "precision": "locality"
+        }
+      }
+    ],
+    "forbidden": [
+      {
+        "owner": "edition",
+        "editionKey": "ageas-cooljazz-2027",
+        "field": "coordinate_action",
+        "value": "keep"
+      }
+    ]
+  }
+}

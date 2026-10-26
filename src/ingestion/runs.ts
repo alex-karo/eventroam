@@ -29,6 +29,10 @@ const invocationSchema = z.object({
 const configSchema = z.object({
   apiKey: z.string().trim().min(1),
   model: nonempty.refine((value) => !value.endsWith(":online")),
+  locationModel: nonempty
+    .refine((value) => !value.endsWith(":online"))
+    .optional(),
+  geoapifyKey: nonempty.optional(),
   reasoningEffort: z
     .enum(["none", "minimal", "low", "medium", "high", "xhigh"])
     .optional(),
@@ -184,33 +188,26 @@ export function finalizeIngestionRun(
   try {
     if (
       client.inTransaction ||
-      report.schemaVersion !== 6 ||
+      report.schemaVersion !== 7 ||
       report.runId !== runId
     ) {
       throw new Error();
     }
     const json = JSON.stringify(report);
     const normalized = JSON.parse(json) as CatalogResearchResult;
-    const { usage, durationMs } = normalized;
-    for (const count of [usage.inputTokens, usage.outputTokens, durationMs]) {
+    const { budget, durationMs } = normalized;
+    for (const count of [
+      durationMs,
+      budget.searches,
+      budget.pages,
+      budget.modelCalls,
+      budget.elapsedMs,
+      budget.remaining.searches,
+      budget.remaining.durationMs,
+    ]) {
       if (!Number.isSafeInteger(count) || count < 0) {
         throw new Error();
       }
-    }
-    // Check originals too: JSON converts nonfinite numbers into null.
-    for (const cost of [
-      report.usage.modelCostUsd,
-      report.usage.searchCostUsd,
-    ]) {
-      if (cost !== null && (!Number.isFinite(cost) || cost < 0)) {
-        throw new Error();
-      }
-    }
-    if (
-      typeof usage.complete !== "boolean" ||
-      typeof usage.searchCostUsd !== "number"
-    ) {
-      throw new Error();
     }
     const status =
       normalized.outcome === "failed" ||
@@ -220,19 +217,14 @@ export function finalizeIngestionRun(
         : "completed";
     const update = client
       .prepare(
-        "UPDATE ingestion_runs SET status=?,finished_at=?,event_id=?,report_json=?,input_tokens=?,output_tokens=?,model_cost_usd=?,search_cost_estimate_usd=?,duration_ms=?,usage_complete=? WHERE id=? AND status='running' AND mode=?",
+        "UPDATE ingestion_runs SET status=?,finished_at=?,event_id=?,report_json=?,duration_ms=? WHERE id=? AND status='running' AND mode=?",
       )
       .run(
         status,
         new Date(finished).toISOString(),
         eventId,
         json,
-        usage.inputTokens,
-        usage.outputTokens,
-        usage.modelCostUsd,
-        usage.searchCostUsd,
         durationMs,
-        Number(usage.complete),
         runId,
         normalized.mode,
       );

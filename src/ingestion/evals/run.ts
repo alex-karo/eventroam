@@ -1,6 +1,15 @@
+import { resolveLocation, type LocationExecution } from "../location/agent";
+import { LOCATION_PROMPT_VERSION } from "../location/contracts";
+import { createResearchBudget } from "../runtime/budget";
+import {
+  createRunObservability,
+  finishRunObservability,
+} from "../runtime/observability/runtime";
+import { geocodingKey, type GeocodingClient } from "../tools/geocode/contracts";
+import { scoreLocationCase } from "./score";
 import { validateCatalogValues } from "@/catalog/write/validate-values";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 import { runExperiment } from "@mastra/core/datasets";
 import { Mastra } from "@mastra/core/mastra";
@@ -17,14 +26,17 @@ import {
 import { RunPersistenceError, persistenceFailureReport } from "../runs";
 import { runCatalogResearch, type CatalogResearchResult } from "../workflow";
 import { loadResearchConfig } from "../runtime/config";
-import { createResearchBudget } from "../runtime/budget";
-import { EDITOR_PROMPT_VERSION } from "../editor/contracts";
 import { RESEARCH_PROMPT_VERSION } from "../research/contracts";
 import type { ReadPageResult } from "../tools/read-page/contracts";
 import type { SearchWebResult } from "../tools/search-web/contracts";
 import type { ReadPageOptions } from "../tools/read-page/read";
 import type { SearchWebOptions } from "../tools/search-web/search";
-import { loadEvalSuite, type EvalCase, type EvalSuite } from "./fixtures";
+import {
+  loadEvalSuite,
+  type EvalCase,
+  type PipelineEvalCase,
+  type EvalSuite,
+} from "./fixtures";
 import { sourceLinks } from "./source-links";
 import { scoreCase, type CaseScore } from "./score";
 import { createEvalScorers } from "./scorers";
@@ -34,7 +46,7 @@ import type { EvalToolCall } from "./tool-use";
 const timestamp = "2026-10-03T00:00:00.000Z";
 
 function ticketColumns(
-  tickets: EvalCase["initial"]["event"]["editions"][number]["tickets"],
+  tickets: PipelineEvalCase["initial"]["event"]["editions"][number]["tickets"],
 ) {
   const base = tickets?.basePrice;
   return {
@@ -48,7 +60,7 @@ function ticketColumns(
   };
 }
 
-export function seedDatabase(suite: EvalSuite, item: EvalCase) {
+export function seedDatabase(suite: EvalSuite, item: PipelineEvalCase) {
   const connection = openDatabase(":memory:");
   try {
     migrateCatalogConnection(connection);
@@ -122,6 +134,9 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
                 sizeEstimate: edition.sizeEstimate,
                 venueName: edition.venueName,
                 venueAddress: edition.venueAddress,
+                latitude: edition.latitude,
+                longitude: edition.longitude,
+                coordinatePrecision: edition.coordinatePrecision,
                 ...ticketColumns(edition.tickets),
                 createdAt: timestamp,
                 updatedAt: timestamp,
@@ -165,7 +180,7 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
 }
 
 export function fixedSources(
-  item: EvalCase,
+  item: PipelineEvalCase,
   todayUtc: string,
   calls: EvalToolCall[] = [],
 ) {
@@ -213,10 +228,6 @@ export function fixedSources(
             new RegExp(discovery.queryPattern, "i").test(query),
           )?.candidates ?? [],
         retrievedAt: `${todayUtc}T00:00:00.000Z`,
-        modelCostUsd: 0,
-        searchCostUsd: 0,
-        inputTokens: 0,
-        outputTokens: 0,
       };
     },
   };
@@ -224,6 +235,7 @@ export function fixedSources(
 
 export type EvalOptions = {
   editorOnly?: boolean;
+  locationOnly?: boolean;
   caseIds?: string[];
   model?: string;
   repeat?: number;
@@ -231,24 +243,54 @@ export type EvalOptions = {
   suite?: EvalSuite;
 };
 
-type EvalCaseOutput = {
-  result: CatalogResearchResult;
+export type EvalCaseOutput = {
+  report?: CatalogResearchResult;
+  location?: LocationExecution;
+  runId?: string;
+  traceId?: string;
   toolCalls: EvalToolCall[];
   score: CaseScore;
 };
 
+function evaluationConfig(options: EvalOptions) {
+  const env = { ...process.env };
+  if (options.model) {
+    env.OPENROUTER_MODEL = options.model;
+    if (options.locationOnly) {
+      env.CATALOG_LOCATION_MODEL = options.model;
+    }
+  }
+  return loadResearchConfig(env);
+}
+
 export async function runCatalogEvals(options: EvalOptions = {}) {
+  if (options.editorOnly && options.locationOnly) {
+    throw new Error("--location-only and --editor-only are mutually exclusive");
+  }
   const suite = options.suite ?? loadEvalSuite();
-  const selected = suite.cases.filter((item) =>
-    options.caseIds?.length
-      ? options.caseIds.includes(item.id)
-      : Boolean(options.editorOnly) === Boolean(item.researchHandoff),
-  );
+  const selected = suite.cases.filter((item) => {
+    if (options.caseIds?.length) {
+      return options.caseIds.includes(item.id);
+    }
+    if (options.locationOnly) {
+      return !!item.location;
+    }
+    return (
+      !item.location &&
+      Boolean(options.editorOnly) === Boolean(item.researchHandoff)
+    );
+  });
   if (
     !selected.length ||
     options.caseIds?.some((id) => !suite.cases.some((item) => item.id === id))
   ) {
     throw new Error("Unknown or empty eval case selection");
+  }
+  if (options.locationOnly && selected.some((item) => !item.location)) {
+    throw new Error("Location-only eval requires a complete Location fixture");
+  }
+  if (!options.locationOnly && selected.some((item) => item.location)) {
+    throw new Error("Location fixtures require --location-only");
   }
   if (options.editorOnly && selected.some((item) => !item.researchHandoff)) {
     throw new Error(
@@ -267,10 +309,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   if (options.reportPath && existsSync(options.reportPath)) {
     throw new Error(`Eval report already exists: ${options.reportPath}`);
   }
-  const config = loadResearchConfig({
-    ...process.env,
-    ...(options.model ? { OPENROUTER_MODEL: options.model } : {}),
-  });
+  const config = evaluationConfig(options);
   const scorers = Object.values(createEvalScorers());
   const byId = new Map(selected.map((item) => [item.id, item]));
   const data = selected.flatMap((item) =>
@@ -289,15 +328,50 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       const { caseId } = input as (typeof data)[number]["input"];
       const item = byId.get(caseId)!;
       const calls: EvalToolCall[] = [];
+      if (item.location) {
+        const runId = `location-eval-${randomUUID()}`;
+        const tracing = await createRunObservability(
+          item.input,
+          config.locationModel ?? config.model,
+          runId,
+          options.reportPath ? [options.reportPath] : [],
+        );
+        try {
+          const location = await resolveLocation(
+            item.location.input,
+            createResearchBudget(config.limits),
+            config,
+            { geocodingClient: fixedGeocoding(item) },
+            tracing,
+          );
+          return {
+            location,
+            runId,
+            ...(tracing?.root?.traceId
+              ? { traceId: tracing.root.traceId }
+              : {}),
+            toolCalls: location.observations
+              .filter((observation) => observation.origin === "agent")
+              .map((observation) => ({
+                tool: "geocode" as const,
+                observation,
+              })),
+            score: scoreLocationCase(item, location),
+          };
+        } finally {
+          await finishRunObservability(tracing);
+        }
+      }
       const connection = seedDatabase(suite, item);
       try {
         let result: CatalogResearchResult;
-        const started = Date.now();
         try {
           result = await runCatalogResearch(item.input, {
             client: connection.client,
             config,
+            reportPath: options.reportPath,
             todayUtc: item.todayUtc ?? suite.todayUtc,
+            geocodingClient: fixedGeocoding(item),
             ...fixedSources(item, item.todayUtc ?? suite.todayUtc, calls),
             ...(options.editorOnly
               ? {
@@ -311,60 +385,13 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
             error instanceof RunPersistenceError
               ? persistenceFailureReport(error)
               : undefined;
-          result = available ?? {
-            schemaVersion: 6,
-            editorResponse: null,
-            editorStatus: "not_run",
-            editorPromptVersion: EDITOR_PROMPT_VERSION,
-            scope:
-              item.input.mode === "refresh"
-                ? (item.input.scope ?? "full")
-                : null,
-            currentDate: null,
-            limits: config.limits,
-            workload: {
-              savedEditions: 0,
-              returnedEditions: 0,
-            },
-            mode: item.input.mode,
-            outcome: "failed",
-            researchStatus: "failed",
-            eventId: item.input.eventId,
-            modelResponse: null,
-            operations: [],
-            receipts: [],
-            references: {},
-            changes: [],
-            sources: [],
-            sourceSummaries: [],
-            errors: [
-              {
-                code: "model_failed",
-                message: "Evaluation workflow failed",
-                stage: "research",
-              },
-            ],
-            unresolved: [],
-            eventNameMismatch: null,
-            usage: {
-              ...createResearchBudget(config.limits).snapshot(),
-              complete: false,
-              inputTokens: 0,
-              outputTokens: 0,
-              cachedInputTokens: null,
-              reasoningTokens: null,
-              modelCostUsd: null,
-              searchCostUsd: 0,
-              searchCostBasis: "estimate",
-            },
-            modelVersion: config.model,
-            reasoningEffort: config.reasoningEffort ?? null,
-            promptVersion: RESEARCH_PROMPT_VERSION,
-            durationMs: Date.now() - started,
-          };
+          if (!available) {
+            throw new Error("Evaluation task failed");
+          }
+          result = available;
         }
         return {
-          result,
+          report: result,
           toolCalls: calls,
           score: scoreCase(item, result, calls),
         };
@@ -380,18 +407,18 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   // Mastra keeps results in input order even when tasks finish out of order.
   const results = attempts.map((attempt, index) => {
     const { input } = data[index];
-    if (attempt.itemId !== data[index].id || attempt.error || !attempt.output) {
-      throw new Error(`Eval task did not return ${data[index].id}`);
-    }
-    if (
-      attempt.scores.length !== scorers.length ||
-      attempt.scores.some((scorer) => scorer.error || scorer.score === null)
-    ) {
-      throw new Error(`Eval scorer failed for ${data[index].id}`);
-    }
     const item = byId.get(input.caseId)!;
-    const { result, score, toolCalls } = attempt.output as EvalCaseOutput;
     return {
+      ...attempt,
+      output: (attempt.output ?? null) as EvalCaseOutput | null,
+      error: attempt.error ? { message: "Evaluation task failed" } : null,
+      scores: attempt.scores.map((score) => ({
+        ...score,
+        error: score.error
+          ? { message: "Evaluation scorer failed" }
+          : undefined,
+      })),
+      group: item.location?.group ?? null,
       caseId: input.caseId,
       repetition: input.repetition,
       fixtureTodayUtc: item.todayUtc ?? suite.todayUtc,
@@ -404,38 +431,18 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
               .digest("hex"),
           }
         : null,
-      runId: result.runId,
-      outcome: result.outcome,
-      researchStatus: result.researchStatus,
-      score,
-      scorers: attempt.scores,
-      toolCalls,
-      usage: result.usage,
-      durationMs: result.durationMs,
-      modelVersion: result.modelVersion,
-      reasoningEffort: result.reasoningEffort ?? null,
-      promptVersion: result.promptVersion,
-      modelResponse: result.modelResponse ?? null,
-      editorResponse: result.editorResponse,
-      editorStatus: result.editorStatus,
-      editorPromptVersion: result.editorPromptVersion,
-      operations: result.operations,
-      references: result.references,
-      changes: result.changes,
-      errors: result.errors,
-      unresolved: result.unresolved,
-      sources: result.sources,
-      sourceSummaries: result.sourceSummaries,
-      eventNameMismatch: result.eventNameMismatch,
-      scope: result.scope,
-      currentDate: result.currentDate,
-      limits: result.limits,
-      workload: result.workload,
     };
   });
+  let evaluationMode = "pipeline";
+  if (options.editorOnly) {
+    evaluationMode = "editor-only";
+  }
+  if (options.locationOnly) {
+    evaluationMode = "location-only";
+  }
   const report = {
-    schemaVersion: 6,
-    evaluationMode: options.editorOnly ? "editor-only" : "pipeline",
+    schemaVersion: 7,
+    evaluationMode,
     startedAt: experiment.startedAt.toISOString(),
     finishedAt: experiment.completedAt.toISOString(),
     fixtureTodayUtc: suite.todayUtc,
@@ -443,9 +450,13 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       .update(JSON.stringify(suite))
       .digest("hex"),
     fixtureProvenance: suite.provenance,
-    modelVersion: config.model,
+    modelVersion: options.locationOnly ? config.locationModel : config.model,
+    locationModelVersion: config.locationModel ?? config.model,
+    locationPromptVersion: LOCATION_PROMPT_VERSION,
     reasoningEffort: config.reasoningEffort ?? null,
-    promptVersion: RESEARCH_PROMPT_VERSION,
+    promptVersion: options.locationOnly
+      ? LOCATION_PROMPT_VERSION
+      : RESEARCH_PROMPT_VERSION,
     experiment: experimentSummary,
     results,
   };
@@ -457,4 +468,32 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     });
   }
   return report;
+}
+
+export function evalItemPassed(item: {
+  error?: unknown;
+  output?: unknown;
+  scores: { scorerId: string; score: number | null; error?: unknown }[];
+}) {
+  const output = item.output as EvalCaseOutput | null;
+  const required = Object.values(createEvalScorers()).map(
+    (scorer) => scorer.id,
+  );
+  return (
+    !item.error &&
+    !!output?.score.passed &&
+    required.every((id) =>
+      item.scores.some(
+        (score) =>
+          score.scorerId === id && !score.error && score.score !== null,
+      ),
+    )
+  );
+}
+
+export function fixedGeocoding(item: EvalCase): GeocodingClient {
+  return async (request) =>
+    item.geocoding?.find(
+      (fixture) => geocodingKey(fixture.request) === geocodingKey(request),
+    )?.response ?? { status: "error", code: "fixture_miss" };
 }
