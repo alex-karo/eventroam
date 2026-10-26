@@ -1,10 +1,10 @@
+import { durationDays } from "@/catalog/domain/dates";
 import { expect, test } from "vitest";
 import { testFixtures } from "@/test/fixtures";
 
 const { build } = testFixtures();
 import {
   sizeBand,
-  durationDays,
   emptyFilters,
   filterSummaries,
   genrePickerTree,

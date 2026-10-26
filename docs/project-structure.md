@@ -25,14 +25,14 @@ src/
 │   └── events/[slug]/         # Event and Edition pages
 ├── features/
 │   ├── discovery/             # Discovery UI, filtering model, hooks, and map
-│   │   ├── components/        # Filters, results, selected preview
-│   │   ├── hooks/             # URL state
+│   │   ├── components/        # Filters, results, one selected card
+│   │   ├── hooks/             # URL state and selected detail requests
 │   │   ├── map/               # Mapbox adapter
 │   │   └── model/             # Pure filtering and ordering
-│   ├── event-details/         # Event and Edition presentation
+│   ├── event-details/         # Event history, Edition page, single-point map
 │   └── project-presentation/  # Apex system introduction, example, and services
 ├── components/
-│   ├── catalog/               # Shared dates, location, status, and price views
+│   ├── catalog/               # Facts, icons, ticket views, links, shared history
 │   └── site/                  # Shared site header
 ├── catalog/
 │   ├── domain/                # Pure business rules
@@ -40,6 +40,7 @@ src/
 │   ├── read/                  # Public queries and browser-safe DTO contracts
 │   └── write/                 # Transactions, publication, audit
 ├── site/
+│   ├── discovery-context.ts   # Tab-local visit snapshots and context tokens
 │   └── server/                # Request adapters; site.ts holds scope and URL rules
 ├── ingestion/                 # Research/editor agents, typed adapter, sources and limits
 │   ├── research/
@@ -104,6 +105,10 @@ Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `editor
 Discovery loads complete public summaries for the active scope and applies the same filtering rules on direct server entry and in the browser. The map displays the coordinate-bearing subset of list results; moving the map does not fetch or filter inventory. Full details load on selection. See the [discovery contract](../openspec/specs/website/discovery/spec.md) and [catalog records](../openspec/specs/catalog/records/spec.md).
 
 ## Routes and scope
+
+The Edition page owns the full festival view in one column. Its location map owns one saved point, a precision-based initial zoom, and map loading errors. It uses the same Mapbox token and style as discovery. The Event page contains only its name, optional summary, navigation, and public history. Both pages use the shared `EditionHistory` component. Shared catalog views own price units, historical labels, fact icons, external link names, and native link titles. See the [festival detail contract](../openspec/specs/website/festival-details/spec.md).
+
+`site/discovery-context.ts` stores one visit snapshot in session storage. It contains the root filter URL, camera, list scroll, selected ID, and card expansion state. History state and detail URLs carry only its opaque token. `Discovery` saves and restores this context for browser Back and Back to results. It reloads selected details and removes an ineligible selection. The discovery map restores the camera before its first fit and uses the rendered card bounds to keep the selected point visible. Direct details without a matching token return to default discovery.
 
 The application currently has a root page, Event and Edition pages, and two discovery API routes. The root renders the project presentation or Festivals discovery according to the allowed host. The apex has three sections: system introduction, festival example, and services with a direct LinkedIn contact link. Its [presentation spec](../openspec/specs/website/project-presentation/spec.md) defines this content. The apex uses a local preview image, local fonts, and a labeled source-to-record-to-catalog illustration. It does not query the catalog. Unknown hosts do not expose a default catalog. Detail requests resolve public identity and canonical hosts through `site/server` and `catalog/read`. The [scoped website specification](../openspec/specs/website/routing/spec.md) owns implemented routing behavior; [public site launch](../openspec/changes/public-site-launch/proposal.md) tracks approved metadata work.
 

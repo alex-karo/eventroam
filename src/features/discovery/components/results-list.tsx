@@ -1,14 +1,9 @@
-import { durationDays } from "@/features/discovery/model/discovery";
+import { durationDays } from "@/catalog/domain/dates";
+import { placeName, dateRangeParts } from "@/components/catalog/format";
 import type { DiscoverySummary } from "@/catalog/read/contracts";
+import { withDiscovery } from "@/site/discovery-context";
 import { editionPath } from "@/site/site";
 
-const format = (date: string) =>
-  new Intl.DateTimeFormat("en", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${date}T12:00:00Z`));
 const month = (date: string) =>
   new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" }).format(
     new Date(`${date}T12:00:00Z`),
@@ -20,12 +15,16 @@ export function ResultsList({
   error,
   onSelect,
   onClear,
+  token,
+  onNavigate,
 }: Readonly<{
   results: DiscoverySummary[];
   selectedId: string | null;
   error: string | null;
   onSelect: (id: string) => void;
   onClear: () => void;
+  token: string | null;
+  onNavigate: () => void;
 }>) {
   return (
     <section className="list-region" aria-label="List results">
@@ -35,14 +34,12 @@ export function ResultsList({
             {results.map((edition) => {
               const name =
                 edition.name ?? `${edition.eventName} ${edition.year}`;
-              const place = [
-                edition.venueName,
-                edition.locality,
-                edition.administrativeArea,
-                edition.countryCode,
-              ]
-                .filter(Boolean)
-                .join(", ");
+              const place = placeName(edition);
+              const [first, last] = dateRangeParts(
+                edition.startsOn,
+                edition.endsOn,
+              );
+              const days = durationDays(edition.startsOn, edition.endsOn);
               return (
                 <li
                   key={edition.id}
@@ -57,7 +54,11 @@ export function ResultsList({
                   <div className="edition-body">
                     <a
                       className="edition-name"
-                      href={editionPath(edition.eventSlug, edition.key)}
+                      href={withDiscovery(
+                        editionPath(edition.eventSlug, edition.key),
+                        token,
+                      )}
+                      onClick={onNavigate}
                     >
                       {name}
                     </a>
@@ -65,19 +66,16 @@ export function ResultsList({
                       {place || "Location not announced"}
                     </span>
                     <span className="edition-meta">
-                      <time dateTime={edition.startsOn}>
-                        {format(edition.startsOn)}
-                      </time>
+                      <time dateTime={edition.startsOn}>{first}</time>
                       {edition.endsOn !== edition.startsOn && (
                         <>
-                          {" "}
-                          –{" "}
-                          <time dateTime={edition.endsOn}>
-                            {format(edition.endsOn)}
-                          </time>
+                          –<time dateTime={edition.endsOn}>{last}</time>
                         </>
                       )}{" "}
-                      · {durationDays(edition.startsOn, edition.endsOn)} days
+                      ·{" "}
+                      <span className="fact-duration">
+                        {days} {days === 1 ? "day" : "days"}
+                      </span>
                       {edition.sizeEstimate !== null &&
                         ` · Est. ${edition.sizeEstimate.toLocaleString("en")} people`}
                     </span>
@@ -86,7 +84,9 @@ export function ResultsList({
                         <span>Tentative dates</span>
                       )}
                       {(edition.latitude === null ||
-                        edition.longitude === null) && <span>Not on map</span>}
+                        edition.longitude === null) && (
+                        <span title="Map location unavailable">Not mapped</span>
+                      )}
                       {edition.latitude !== null &&
                         edition.longitude !== null &&
                         edition.coordinatePrecision !== "exact" && (

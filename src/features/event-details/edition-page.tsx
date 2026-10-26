@@ -1,75 +1,109 @@
-import Link from "next/link";
 import type { PublicEvent, PublicEdition } from "@/catalog/read/contracts";
-import { eventPath, editionPath } from "@/site/site";
+import { isPastEdition } from "@/catalog/domain/dates";
+import { eventPath } from "@/site/site";
+import { withDiscovery } from "@/site/discovery-context";
+import { BackToResults } from "@/components/catalog/back-to-results";
+import { EditionHistory } from "@/components/catalog/edition-history";
+import { ExternalLinks } from "@/components/catalog/external-links";
+import { basePrice } from "@/components/catalog/format";
 import {
   Dates,
   Location,
   Status,
   TicketPrice,
   TicketCategories,
-  linkLabel,
+  Terms,
+  Size,
 } from "@/components/catalog/catalog";
+import { LocationMap } from "./location-map";
 
 export function EditionDetailsPage({
   event,
   edition,
+  token = null,
+  now = new Date(),
 }: Readonly<{
   event: PublicEvent;
   edition: PublicEdition;
+  token?: string | null;
+  now?: Date;
 }>) {
-  const siblings = event.editions.filter((o) => o.id !== edition.id);
+  const located = edition.latitude !== null && edition.longitude !== null;
+  const past = isPastEdition(edition, now);
+  const mapLink = {
+    kind: "map",
+    url: `https://www.google.com/maps/search/?api=1&query=${edition.latitude},${edition.longitude}`,
+    label:
+      edition.coordinatePrecision === "exact"
+        ? "Open location"
+        : "Open approximate location",
+  };
   return (
-    <main className="catalog">
-      <nav>
-        <Link href="/">Festivals</Link> /{" "}
-        <a href={eventPath(event.slug)}>{event.name}</a>
+    <main className="catalog festival-details">
+      <nav aria-label="Festival navigation">
+        <BackToResults token={token} /> /{" "}
+        <a href={withDiscovery(eventPath(event.slug), token)}>{event.name}</a>
       </nav>
-      <h1>{edition.name ?? `${event.name} ${edition.year}`}</h1>
-      <Status edition={edition} />
-      <Dates edition={edition} />
-      <Location edition={edition} />
-      {edition.venueAddress && <p>{edition.venueAddress}</p>}
-      {edition.terms.length > 0 && (
+      <header>
+        <h1>{edition.name ?? `${event.name} ${edition.year}`}</h1>
+        <Status edition={edition} now={now} />
+        <Dates edition={edition} />
+        <Location edition={edition} />
+        {edition.venueAddress && <p>{edition.venueAddress}</p>}
+        <Terms edition={edition} />
+        <Size edition={edition} />
+        <TicketPrice edition={edition} now={now} />
+        <div className="detail-actions">
+          <ExternalLinks
+            links={edition.links}
+            historicalYear={past ? edition.year : undefined}
+          />
+          {located && <a href="#location">Show on map</a>}
+        </div>
+      </header>
+      {event.summary && (
         <section>
-          <h2>Classification</h2>
-          <p>{edition.terms.map((term) => term.name).join(", ")}</p>
+          <h2>About the festival</h2>
+          <p>{event.summary}</p>
         </section>
       )}
-      {edition.sizeEstimate !== null && (
-        <p>
-          Estimated size: {edition.sizeEstimate.toLocaleString("en")} people
-        </p>
-      )}
-      <TicketPrice edition={edition} />
-      <TicketCategories edition={edition} />
-      {edition.links.length > 0 && (
-        <section>
-          <h2>Official links</h2>
-          <ul>
-            {edition.links.map((link) => (
-              <li key={`${link.kind}:${link.url}`}>
-                <a href={link.url} rel="noopener noreferrer">
-                  {link.label ?? linkLabel(link.kind)}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      {siblings.length > 0 && (
-        <section>
-          <h2>Other published editions</h2>
-          <ul>
-            {siblings.map((s) => (
-              <li key={s.id}>
-                <a href={editionPath(event.slug, s.key)}>
-                  {s.name ?? `${event.name} ${s.year}`}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <section>
+        <h2>Tickets</h2>
+        {past &&
+          (basePrice(edition) || edition.ticketCategories.length > 0) && (
+            <p>Prices for this edition</p>
+          )}
+        <TicketCategories edition={edition} now={now} />
+        {!basePrice(edition) && !edition.ticketCategories.length && (
+          <p>Ticket information not available</p>
+        )}
+        {basePrice(edition) && !edition.ticketCategories.length && (
+          <TicketPrice edition={edition} now={now} />
+        )}
+      </section>
+      <section id="location">
+        <h2>Location</h2>
+        <Location edition={edition} />
+        {edition.venueAddress && <p>{edition.venueAddress}</p>}
+        {located && (
+          <>
+            <ExternalLinks links={[mapLink]} />
+            <LocationMap
+              latitude={edition.latitude!}
+              longitude={edition.longitude!}
+              precision={edition.coordinatePrecision}
+            />
+          </>
+        )}
+      </section>
+      <section>
+        <h2>Other editions</h2>
+        <EditionHistory
+          editions={event.editions}
+          currentId={edition.id}
+          token={token}
+        />
+      </section>
     </main>
   );
 }

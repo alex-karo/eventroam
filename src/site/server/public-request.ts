@@ -1,4 +1,5 @@
 import "server-only";
+import { withDiscovery } from "@/site/discovery-context";
 import { headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
 import { openReadDatabase } from "@/db/connection";
@@ -14,7 +15,7 @@ export async function requestSite() {
   }
   return { site, origins };
 }
-export async function requestDetail(path: string) {
+export async function requestDetail(path: string, token: string | null = null) {
   const { site, origins } = await requestSite();
   const { client } = openReadDatabase();
   let detail;
@@ -30,7 +31,7 @@ export async function requestDetail(path: string) {
     ? editionPath(detail.event.slug, detail.edition.key)
     : eventPath(detail.event.slug);
   if (site !== "festivals" || detail.redirect) {
-    permanentRedirect(`${origins.festivals}${current}`);
+    permanentRedirect(`${origins.festivals}${withDiscovery(current, token)}`);
   }
   return detail;
 }

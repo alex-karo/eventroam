@@ -1,3 +1,4 @@
+import { newVisitToken } from "@/site/discovery-context";
 import {
   parseFilters,
   serializeFilters,
@@ -28,6 +29,7 @@ export function readDiscoveryLocation(genres: Genre[]) {
 function writeLocation(
   params: URLSearchParams,
   method: "pushState" | "replaceState",
+  token?: string,
 ) {
   const query = params.size ? `?${params}` : "";
   const path = `${window.location.pathname}${query}`;
@@ -35,8 +37,21 @@ function writeLocation(
     method === "pushState" ||
     path !== `${window.location.pathname}${window.location.search}`
   ) {
-    window.history[method](null, "", path);
+    window.history[method](
+      {
+        ...window.history.state,
+        ...(token ? { eventroamDiscovery: token } : {}),
+      },
+      "",
+      path,
+    );
   }
+}
+
+function pushLocation(params: URLSearchParams) {
+  const token = newVisitToken();
+  writeLocation(params, "pushState", token);
+  return token;
 }
 
 function preserveView(params: URLSearchParams) {
@@ -52,7 +67,7 @@ export function normalizeDiscoveryLocation(query: string) {
 }
 
 export function pushDiscoveryFilters(filters: Filters) {
-  writeLocation(preserveView(serializeFilters(filters)), "pushState");
+  return pushLocation(preserveView(serializeFilters(filters)));
 }
 
 export function pushDiscoveryView(view: DiscoveryView) {
@@ -62,5 +77,5 @@ export function pushDiscoveryView(view: DiscoveryView) {
   } else {
     params.delete("view");
   }
-  writeLocation(params, "pushState");
+  return pushLocation(params);
 }

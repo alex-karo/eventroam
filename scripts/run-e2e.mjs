@@ -13,7 +13,10 @@ const env = {
   E2E_DATABASE_PATH: databasePath,
   PUBLIC_APEX_ORIGIN: "http://localhost:3137",
   PUBLIC_FESTIVALS_ORIGIN: "http://festivals.localhost:3137",
-  NEXT_PUBLIC_MAPBOX_TOKEN: "",
+  NEXT_PUBLIC_MAPBOX_TOKEN:
+    process.env.E2E_REAL_MAP === "1"
+      ? (process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "")
+      : "",
 };
 
 function run(command, args) {

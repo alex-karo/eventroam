@@ -6,7 +6,6 @@ import {
   publicEvent,
   publicEditionById,
   resolvePublicPath,
-  selectActive,
 } from "@/catalog/read/public-catalog";
 import {
   discoveryCatalog,
@@ -25,7 +24,7 @@ function upcoming(client: Parameters<typeof discoveryCatalog>[0], now: Date) {
   return filterSummaries(summaries, emptyFilters(), genres, now);
 }
 
-test("upcoming list and active selection use only current public editions", () => {
+test("upcoming list and public history use their publication rules", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const { event: created } = fx.publishedEvent({
@@ -65,13 +64,17 @@ test("upcoming list and active selection use only current public editions", () =
     locality: "Test Valley",
   });
   const event = publicEvent(client, id)!;
+  expect(event.editions[0]).toMatchObject({
+    latitude: null,
+    longitude: null,
+    coordinatePrecision: "unknown",
+    timeZone: null,
+  });
   expect(event.editions.map((o) => o.key)).toEqual([
     "2027",
     "2026-cancelled",
     "2025",
   ]);
-  expect(selectActive(event.editions, "2026-10-01")?.key).toBe("2027");
-  expect(selectActive(event.editions, "2028-01-01")).toBeNull();
   expect(JSON.stringify(event)).not.toMatch(/operationKey|catalog_changes/);
 });
 
@@ -471,24 +474,30 @@ test("public ticket categories show their own availability and hide private deta
         amount: 120,
         currency: "EUR",
         availability: "sold_out",
-        terms: "Private terms",
+        terms: "Plus fees",
         url: "https://example.org/offer",
       },
       { label: "Regular", availability: "available" },
       { label: "Late", availability: "closed" },
       { label: "Mystery", availability: "unknown" },
-      { label: "Unannounced" },
+      { label: "Unannounced", amount: 0 },
     ]),
     editions[0].id,
   );
   const detail = publicEvent(client, event.id)!;
   const summaries = publicSummaries(client);
   expect(detail.editions[0].ticketCategories).toEqual([
-    { label: "Early Bird", availability: "sold_out" },
+    {
+      label: "Early Bird",
+      amount: 120,
+      currency: "EUR",
+      terms: "Plus fees",
+      availability: "sold_out",
+    },
     { label: "Regular", availability: "available" },
     { label: "Late", availability: "closed" },
     { label: "Mystery", availability: "unknown" },
-    { label: "Unannounced" },
+    { label: "Unannounced", amount: 0 },
   ]);
   expect(detail.editions[0].status).toBe("scheduled");
   expect(summaries).toHaveLength(1);
@@ -497,7 +506,7 @@ test("public ticket categories show their own availability and hide private deta
   );
   expect(JSON.stringify(summaries)).not.toContain("ticketCategories");
   expect(JSON.stringify({ detail, summaries })).not.toMatch(
-    /priceDetails|price_details|Private terms|example.org\/offer|changedFields|operationKey|retrievedAt/,
+    /priceDetails|price_details|example.org\/offer|changedFields|operationKey|retrievedAt/,
   );
 });
 

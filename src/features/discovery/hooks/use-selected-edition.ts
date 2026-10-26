@@ -22,7 +22,10 @@ export function useSelectedEdition(fallbackFocus: () => HTMLElement | null) {
 
   useEffect(() => {
     if (selectedId) {
-      panelRef.current?.querySelector("button")?.focus();
+      const buttons = panelRef.current?.querySelectorAll("button");
+      Array.from(buttons ?? [])
+        .find((button) => getComputedStyle(button).display !== "none")
+        ?.focus();
     }
   }, [selectedId]);
 
