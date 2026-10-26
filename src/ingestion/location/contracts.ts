@@ -2,7 +2,7 @@ import { z } from "zod";
 import { modelOutputSchema } from "../research/agent/wire";
 import { pointSchema } from "../tools/geocode/contracts";
 
-export const LOCATION_PROMPT_VERSION = "catalog-location-v1";
+export const LOCATION_PROMPT_VERSION = "catalog-location-v6";
 export const locationTextFields = [
   "venueName",
   "venueAddress",
@@ -48,12 +48,8 @@ export const coordinateDecisionSchema = z.discriminatedUnion("action", [
   }),
 ]);
 export const locationSlotSchema = z.strictObject({
-  editionKey: z.string().trim().min(1).max(100),
   fields: locationFieldsSchema,
   coordinates: coordinateDecisionSchema,
-  sourceUrls: z
-    .array(z.url().refine((url) => /^https?:\/\//.test(url)))
-    .max(30),
   unresolved: z
     .array(
       z.strictObject({ message: reason, field: z.string().min(1).nullable() }),

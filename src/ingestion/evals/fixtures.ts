@@ -89,7 +89,7 @@ export const assertionSchema = z.object({
   containsAny: z.array(z.unknown()).min(1).optional(),
   containsText: z.string().min(1).optional(),
 });
-export const evalCaseSchema = z.object({
+const commonCaseSchema = z.object({
   id: z.string().min(1),
   researchHandoff: researchHandoffSchema.optional(),
   geocoding: z
@@ -119,8 +119,6 @@ export const evalCaseSchema = z.object({
     initiatedBy: z.string(),
     dryRun: z.literal(true),
   }),
-  initial: z.object({ event, relatedEvents: z.array(event).optional() }),
-  sources: z.array(source),
   discoveries: z
     .array(
       z.object({
@@ -193,6 +191,25 @@ export const evalCaseSchema = z.object({
       }
     }),
 });
+const initialSchema = z.object({
+  event,
+  relatedEvents: z.array(event).optional(),
+});
+export const pipelineEvalCaseSchema = commonCaseSchema.extend({
+  location: z.undefined().optional(),
+  initial: initialSchema,
+  sources: z.array(source),
+});
+const locationEvalCaseSchema = commonCaseSchema.extend({
+  location: commonCaseSchema.shape.location.unwrap(),
+  // Only workflow integration cases need a separate catalog seed.
+  initial: initialSchema.optional(),
+  sources: z.array(source).default([]),
+});
+export const evalCaseSchema = z.union([
+  pipelineEvalCaseSchema,
+  locationEvalCaseSchema,
+]);
 export const evalSuiteSchema = z.object({
   schemaVersion: z.literal(2),
   todayUtc: z.iso.date(),
@@ -212,15 +229,25 @@ export const evalSuiteSchema = z.object({
   cases: z.array(evalCaseSchema).min(1),
 });
 export type EvalCase = z.infer<typeof evalCaseSchema>;
+export type PipelineEvalCase = z.infer<typeof pipelineEvalCaseSchema>;
+export type LocationEvalCase = z.infer<typeof locationEvalCaseSchema>;
 export type EvalSuite = z.infer<typeof evalSuiteSchema>;
 export type EvalAssertion = z.infer<typeof assertionSchema>;
 
-const caseFileSchema = evalCaseSchema.extend({
-  researchHandoffFile: z.string().min(1).optional(),
-  sources: z.array(
-    source.omit({ markdown: true }).extend({ markdownFile: z.string().min(1) }),
-  ),
-});
+const sourceFilesSchema = z.array(
+  source.omit({ markdown: true }).extend({ markdownFile: z.string().min(1) }),
+);
+const handoffFileSchema = z.string().min(1).optional();
+const caseFileSchema = z.union([
+  pipelineEvalCaseSchema.extend({
+    researchHandoffFile: handoffFileSchema,
+    sources: sourceFilesSchema,
+  }),
+  locationEvalCaseSchema.extend({
+    researchHandoffFile: handoffFileSchema,
+    sources: sourceFilesSchema.default([]),
+  }),
+]);
 const suiteFileSchema = evalSuiteSchema.extend({
   cases: z.array(z.string().min(1)).min(1),
 });

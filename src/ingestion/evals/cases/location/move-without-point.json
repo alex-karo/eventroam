@@ -3,7 +3,7 @@
   "provenance": {
     "kind": "synthetic",
     "sourceReport": "openspec/changes/separate-location-resolution/design.md",
-    "note": "A synthetic move uses captured provider results for a city fallback. It tests contract and policy coverage, not a real festival move."
+    "note": "A synthetic move uses captured provider results for a city fallback. It tests contract and policy coverage, not a real festival move. The locality refinement is a synthetic empty result, so this case has no applicable city fallback."
   },
   "input": {
     "mode": "refresh",
@@ -12,32 +12,6 @@
     "initiatedBy": "eval",
     "dryRun": true
   },
-  "initial": {
-    "event": {
-      "id": "event:7c4bee6a0db9e3b8f696",
-      "slug": "location-cemetery",
-      "canonicalName": "PortAmérica",
-      "editions": [
-        {
-          "id": "f9a70691-9caf-4e81-9de8-fcdad0218541",
-          "editionKey": "2027",
-          "editionYear": 2027,
-          "startsOn": "2027-07-08",
-          "endsOn": "2027-07-10",
-          "scheduleStatus": "scheduled",
-          "latitude": 42.579634,
-          "longitude": -8.669209,
-          "coordinatePrecision": "exact",
-          "venueName": "Old field",
-          "venueAddress": "Old road 1",
-          "locality": "Portas",
-          "administrativeArea": "Pontevedra",
-          "countryCode": "ES"
-        }
-      ]
-    }
-  },
-  "sources": [],
   "location": {
     "group": "correction",
     "input": {
@@ -76,13 +50,13 @@
         }
       ],
       "editor": {
-        "status": "ready",
         "eventReason": null,
         "previousEdition": null,
         "currentOrNextEdition": {
           "editionKey": "2027",
           "reason": null
-        }
+        },
+        "unresolved": []
       },
       "previousEdition": null,
       "currentOrNextEdition": {
@@ -158,6 +132,18 @@
         "status": "error",
         "code": "unavailable"
       }
+    },
+    {
+      "request": {
+        "query": "Portas, Pontevedra, Spain",
+        "countryCode": "ES",
+        "direction": "forward"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": []
+      }
     }
   ],
   "expectations": {
@@ -181,6 +167,12 @@
         "editionKey": "2027",
         "field": "venue_address",
         "value": null
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "venue_name",
+        "value": "New field"
       }
     ],
     "forbidden": [

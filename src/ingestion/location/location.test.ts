@@ -31,8 +31,8 @@ function input(): LocationInput {
     ],
     history: [],
     editor: {
-      status: "ready",
       eventReason: null,
+      unresolved: [],
       previousEdition: null,
       currentOrNextEdition: { editionKey: "2027", reason: "New Edition" },
     },
@@ -59,7 +59,6 @@ function output() {
       status: "ready",
       previousEdition: null,
       currentOrNextEdition: {
-        editionKey: "2027",
         fields: Object.fromEntries(
           locationTextFields.map((key) => [
             key,
@@ -67,7 +66,6 @@ function output() {
           ]),
         ),
         coordinates: { action: "keep", reason: "Preserve" },
-        sourceUrls: ["https://festival.test/venue"],
         unresolved: [],
       },
     },
@@ -209,7 +207,7 @@ test("new venue never appends an old address and withdrawn text stays absent", a
   await prepareInitialGeocoding(data, other);
   expect(other.observations).toHaveLength(1);
 });
-test("source selection, source URLs, target keys, city precision and unknown IDs are checked", async () => {
+test("source selection, accepted slots, city precision and unknown IDs are checked", async () => {
   const data = input();
   data.currentOrNextEdition!.findings.coordinates = {
     value: { latitude: 38.7, longitude: -9.1, precision: "exact" },
@@ -242,11 +240,13 @@ test("source selection, source URLs, target keys, city precision and unknown IDs
     validateLocation(raw, data, session).slots.currentOrNextEdition
       ?.coordinates,
   ).toMatchObject({ action: "set", value: { precision: "locality" } });
-  slot.sourceUrls = ["https://another-event.test/venue"];
-  expect(() => validateLocation(raw, data, session)).toThrow("source URL");
-  slot.sourceUrls = ["https://festival.test/venue"];
-  slot.editionKey = "2026";
-  expect(() => validateLocation(raw, data, session)).toThrow("target");
+  expect(() =>
+    validateLocation(
+      { decision: { ...raw.decision, currentOrNextEdition: null } },
+      data,
+      session,
+    ),
+  ).toThrow("target");
 });
 test("missing credentials remain bounded context and model fallback uses the configured model", async () => {
   const data = input();
@@ -438,11 +438,143 @@ test("donor inheritance preserves precision and reverse results cannot become po
     value: { latitude: 38.7, longitude: -9.1, precision: "locality" },
   });
   expect(materialized.donors[0].version).toBe(4);
+  raw.decision.currentOrNextEdition.unresolved = [
+    { field: "coordinates", message: "Inherited without fresh verification" },
+  ] as never;
+  expect(validateLocation(raw, data, session).unresolved).toEqual([
+    {
+      editionKey: data.currentOrNextEdition!.editionKey,
+      field: "coordinates",
+      message: "Inherited without fresh verification",
+    },
+  ]);
   raw.decision.previousEdition = {
     ...raw.decision.currentOrNextEdition,
-    editionKey: "declined",
   } as never;
   expect(() => validateLocation(raw, data, session)).toThrow("target");
+});
+
+test("a rejected donor stays absent through keep and clear reports the invalid slot", async () => {
+  const data = input();
+  const donor = {
+    id: "previous",
+    eventId: "f",
+    editionKey: "2026",
+    version: 1,
+    editionYear: 2026,
+    startsOn: null,
+    endsOn: null,
+    scheduleStatus: "scheduled" as const,
+    latitude: 38.7,
+    longitude: -9.1,
+    coordinatePrecision: "approximate" as const,
+    venueName: "Central Park",
+    venueAddress: null,
+    locality: "Lisbon",
+    administrativeArea: null,
+    countryCode: "PT",
+  };
+  data.currentOrNextEdition!.donor = donor;
+  data.previousEdition = {
+    ...structuredClone(data.currentOrNextEdition!),
+    editionKey: "2026",
+    saved: donor,
+    donor: null,
+  };
+  const raw = output();
+  const previous = structuredClone(raw.decision.currentOrNextEdition);
+  previous.coordinates = {
+    action: "clear",
+    reason: "Saved point is disproved",
+  };
+  raw.decision.previousEdition = previous as never;
+  const next = raw.decision.currentOrNextEdition;
+  next.coordinates = { action: "clear", reason: "Donor is disproved" };
+  next.unresolved = [
+    { field: "coordinates", message: "No supported replacement" },
+  ] as never;
+  const run = () =>
+    resolveLocation(
+      data,
+      createResearchBudget(),
+      {
+        apiKey: "fixture",
+        model: "fixture",
+        limits: createResearchBudget().limits,
+      },
+      {
+        generateLocation: async () => raw,
+        geocodingClient: async () => ({ status: "error", code: "unavailable" }),
+      },
+    );
+  const invalid = await run();
+  expect(invalid.status).toBe("failed");
+  expect(invalid.materialized).toBeNull();
+  expect(invalid.modelResponse?.object).toEqual(raw);
+  expect(invalid.errors).toEqual([
+    {
+      code: "location_failed",
+      stage: "location",
+      message: "currentOrNextEdition: Cannot clear absent coordinates",
+    },
+  ]);
+  next.coordinates = {
+    action: "keep",
+    reason: "Do not inherit disproved donor",
+  };
+  const valid = await run();
+  expect(valid.status).toBe("success");
+  expect(valid.materialized?.slots.previousEdition?.coordinates.action).toBe(
+    "clear",
+  );
+  expect(
+    valid.materialized?.slots.currentOrNextEdition?.coordinates.action,
+  ).toBe("keep");
+  expect(valid.materialized?.donors).toEqual([]);
+  expect(valid.materialized?.unresolved).toEqual([
+    {
+      editionKey: "2027",
+      field: "coordinates",
+      message: "No supported replacement",
+    },
+  ]);
+});
+
+test("schema failures retain issue paths while technical errors omit raw messages", async () => {
+  const config = {
+    apiKey: "fixture",
+    model: "fixture",
+    limits: createResearchBudget().limits,
+  };
+  const raw = output();
+  raw.decision.currentOrNextEdition.coordinates.reason = "";
+  const invalid = await resolveLocation(
+    input(),
+    createResearchBudget(),
+    config,
+    {
+      generateLocation: async () => raw,
+      geocodingClient: async () => ({ status: "error", code: "unavailable" }),
+    },
+  );
+  expect(invalid.errors[0].message).toBe(
+    "decision.currentOrNextEdition.coordinates.reason:too_small",
+  );
+  const failed = await resolveLocation(
+    input(),
+    createResearchBudget(),
+    config,
+    {
+      generateLocation: async () => {
+        throw new Error("https://provider.test/?apiKey=secret");
+      },
+      geocodingClient: async () => ({ status: "error", code: "unavailable" }),
+    },
+  );
+  expect(failed.errors[0].message).toBe(
+    "Location execution or validation failed",
+  );
+  expect(JSON.stringify(failed)).not.toContain("secret");
 });
 
 test("injected Location shares cancellation and retains initial errors", async () => {

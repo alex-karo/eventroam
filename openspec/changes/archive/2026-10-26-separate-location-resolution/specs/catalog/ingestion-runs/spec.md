@@ -25,7 +25,7 @@ Each final report MUST identify attempt, mode, scope, research, editorial and Lo
 
 ### Requirement: Reports retain findings and changes
 
-Previews and writes SHALL show old and new values with reasons. Applied changes SHALL match audit. A write failure SHALL retain prepared operations, available final agent responses, and its error; applied changes SHALL stay empty. Research, editor, and Location responses SHALL remain separate. Location decisions SHALL retain their bounded source, candidate, and donor references. No-op decisions SHALL remain visible without claiming verification. Outcome SHALL NOT imply research completeness.
+Previews and writes SHALL show old and new values with reasons. Applied changes SHALL match audit. A write failure SHALL retain prepared operations, available final agent responses, and its error; applied changes SHALL stay empty. Research, editor, and Location responses SHALL remain separate. Reports SHALL retain supplied source summaries and bounded Location candidate and donor references without requiring source citations in Location output. No-op decisions SHALL remain visible without claiming verification. Outcome SHALL NOT imply research completeness.
 
 #### Scenario: Research and editorial responses are available
 
@@ -52,6 +52,8 @@ Previews and writes SHALL show old and new values with reasons. Applied changes 
 
 - **WHEN** Location rejects a material identity conflict
 - **THEN** the report retains the separate research, editor, and Location responses with no applied changes
+- **AND** locationStatus is rejected and a location_rejected diagnostic retains the supplied reason
+- **AND** the attempt outcome is failed while the successful research status is preserved
 
 #### Scenario: Location starts with shared geocoding context
 

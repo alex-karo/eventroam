@@ -19,7 +19,12 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
 });
-import { loadEvalSuite, evalCaseSchema, evalSuiteSchema } from "./fixtures";
+import {
+  loadEvalSuite,
+  evalCaseSchema,
+  evalSuiteSchema,
+  type PipelineEvalCase,
+} from "./fixtures";
 import { sourceLinks } from "./source-links";
 import { fixedSources, runCatalogEvals, seedDatabase } from "./run";
 import { assertionMatches } from "./assertions";
@@ -29,7 +34,11 @@ import * as scoreModule from "./score";
 import * as scorersModule from "./scorers";
 
 const suite = loadEvalSuite();
-const byId = new Map(suite.cases.map((item) => [item.id, item]));
+const byId = new Map(
+  suite.cases
+    .filter((item): item is PipelineEvalCase => !item.location)
+    .map((item) => [item.id, item]),
+);
 const tomorrowland = byId.get("tomorrowland")!;
 const wacken = byId.get("wacken")!;
 const blocked = byId.get("afro-nation-portugal-blocked")!;
@@ -182,11 +191,16 @@ test.each(["editor-wrong-year", "editor-day-ticket", "editor-valid-update"])(
   },
 );
 
-test("empty change assertions need explicit research expectations", () => {
+test("pipeline fixtures require seed data, sources and explicit expectations", () => {
   expect(blocked.provenance?.kind).toBe(
     "captured-http-metadata-synthetic-replay",
   );
   expect(blocked.todayUtc).toBe("2026-10-08");
+  for (const field of ["initial", "sources"]) {
+    expect(
+      evalCaseSchema.safeParse({ ...tomorrowland, [field]: undefined }).success,
+    ).toBe(false);
+  }
   expect(
     evalCaseSchema.safeParse({
       ...tomorrowland,
@@ -1679,7 +1693,9 @@ test("absent-field scoring requires a valid candidate and the addressed Edition"
   ).toBe(false);
 });
 
-test.each(suite.cases.filter((item) => item.id.startsWith("narrow-current-")))(
+test.each(
+  [...byId.values()].filter((item) => item.id.startsWith("narrow-current-")),
+)(
   "$id has a valid complete baseline and rejects missing mandatory updates",
   (item) => {
     const db = seedDatabase(suite, item);

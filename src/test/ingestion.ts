@@ -297,10 +297,8 @@ export function fixtureLocationPlan(
       };
     }
     return {
-      editionKey: target.editionKey,
       fields,
       coordinates,
-      sourceUrls: input.sources.map((source) => source.url),
       unresolved: [],
     };
   };

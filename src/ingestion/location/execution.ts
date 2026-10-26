@@ -4,7 +4,7 @@ import { registeredPointSchema } from "./contracts";
 import { materializedLocationSchema } from "./validate";
 
 export const locationExecutionSchema = z.strictObject({
-  status: z.enum(["success", "failed", "not_run"]),
+  status: z.enum(["success", "rejected", "failed", "not_run"]),
   modelResponse: z
     .strictObject({ text: z.string().nullable(), object: z.unknown() })
     .nullable(),
@@ -13,7 +13,7 @@ export const locationExecutionSchema = z.strictObject({
   materialized: materializedLocationSchema.nullable(),
   errors: z.array(
     z.strictObject({
-      code: z.enum(["location_failed", "limit_reached"]),
+      code: z.enum(["location_rejected", "location_failed", "limit_reached"]),
       stage: z.literal("location"),
       message: z.string(),
     }),

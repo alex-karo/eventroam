@@ -5,7 +5,7 @@ import {
   researchCandidateSchema,
 } from "../research/contracts";
 import type { CatalogResearchResult } from "../contracts";
-import type { EvalCase } from "./fixtures";
+import type { PipelineEvalCase } from "./fixtures";
 import { contains } from "./assertions";
 
 function researchTarget(
@@ -25,7 +25,7 @@ function researchTarget(
   return data;
 }
 
-function checkResearch(item: EvalCase, result: CatalogResearchResult) {
+function checkResearch(item: PipelineEvalCase, result: CatalogResearchResult) {
   const expected = item.expectations.research;
   if (!expected) {
     return [
@@ -133,7 +133,10 @@ function checkResearch(item: EvalCase, result: CatalogResearchResult) {
   return checks;
 }
 
-function checkFailedResearch(item: EvalCase, result: CatalogResearchResult) {
+function checkFailedResearch(
+  item: PipelineEvalCase,
+  result: CatalogResearchResult,
+) {
   const candidate = result.modelResponse?.object;
   const checks = [
     {
@@ -259,7 +262,10 @@ function checkFailedResearch(item: EvalCase, result: CatalogResearchResult) {
   return checks;
 }
 
-export function scoreResearch(item: EvalCase, result: CatalogResearchResult) {
+export function scoreResearch(
+  item: PipelineEvalCase,
+  result: CatalogResearchResult,
+) {
   const checks =
     item.expectations.research?.status === "failed"
       ? checkFailedResearch(item, result)

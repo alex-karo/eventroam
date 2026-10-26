@@ -37,7 +37,6 @@
       ]
     }
   },
-  "sources": [],
   "location": {
     "group": "correction",
     "input": {
@@ -76,13 +75,13 @@
         }
       ],
       "editor": {
-        "status": "ready",
         "eventReason": null,
         "previousEdition": null,
         "currentOrNextEdition": {
           "editionKey": "2027",
           "reason": null
-        }
+        },
+        "unresolved": []
       },
       "previousEdition": null,
       "currentOrNextEdition": {
@@ -214,6 +213,12 @@
         "editionKey": "2027",
         "field": "venue_address",
         "value": null
+      },
+      {
+        "owner": "edition",
+        "editionKey": "2027",
+        "field": "venue_name",
+        "value": "New field"
       }
     ],
     "forbidden": [

@@ -68,7 +68,7 @@ An omitted or unknown research field SHALL NOT authorize a change to its saved v
 
 ### Requirement: Proposed changes have an attributable basis
 
-Every changed or cleared fact SHALL have a reason grounded in supplied evidence or saved state and retain its owner and Edition key. New records SHALL have an identity or creation explanation. Location decisions SHALL retain their source, registered point, or donor references as applicable. Unchanged saved entries SHALL NOT require fresh citations. An unsupported explanation SHALL NOT bypass validation.
+Every changed or cleared fact SHALL have a reason grounded in supplied evidence or saved state and retain its owner and Edition key. New records SHALL have an identity or creation explanation. Location decisions SHALL retain registered point or donor references as applicable; supplied source summaries remain in the input and report without citations in Location output. Unchanged saved entries SHALL NOT require fresh citations. An unsupported explanation SHALL NOT bypass validation.
 
 #### Scenario: A venue changes
 

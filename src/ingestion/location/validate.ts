@@ -42,15 +42,12 @@ export const materializedLocationSchema = z.strictObject({
 });
 export type MaterializedLocation = z.infer<typeof materializedLocationSchema>;
 type PointContext = Pick<GeocodingSession, "points" | "targets">;
+export class LocationValidationError extends Error {}
 function validateText(
   plan: LocationSlot,
   target: LocationTarget,
   input: LocationInput,
 ) {
-  const urls = new Set(input.sources.map((source) => source.url));
-  if (plan.sourceUrls.some((url) => !urls.has(url))) {
-    throw new Error("Unknown Location source URL");
-  }
   const action = plan.fields.countryCode;
   let country = target.saved?.countryCode ?? null;
   if (action.action === "set") {
@@ -60,18 +57,20 @@ function validateText(
     country = null;
   }
   if (country && !isAssignedCountryCode(country)) {
-    throw new Error("Invalid Location country");
+    throw new LocationValidationError("Invalid Location country");
   }
   if (
     input.countryBaseline &&
     action.action !== "keep" &&
     country !== input.countryBaseline
   ) {
-    throw new Error("Location country conflicts with saved country");
+    throw new LocationValidationError(
+      "Location country conflicts with saved country",
+    );
   }
   for (const field of locationTextFields) {
     if (plan.fields[field].action === "clear" && !target.saved?.[field]) {
-      throw new Error("Cannot clear absent location data");
+      throw new LocationValidationError("Cannot clear absent location data");
     }
   }
   return country ?? input.countryBaseline;
@@ -85,16 +84,18 @@ function validateSelection(
   const rank = precisionSchema.options.indexOf(precision);
   const oldRank = precisionSchema.options.indexOf(point.precision);
   if (point.kind === "donor") {
-    throw new Error("Historical points require inherit");
+    throw new LocationValidationError("Historical points require inherit");
   }
   if (point.kind === "target" && (point.id !== targetId || rank <= oldRank)) {
-    throw new Error("Saved target selection can only lower its own precision");
+    throw new LocationValidationError(
+      "Saved target selection can only lower its own precision",
+    );
   }
   if (
     point.kind === "source" &&
     (point.editionKey !== target.editionKey || rank < oldRank)
   ) {
-    throw new Error("Invalid source point or precision");
+    throw new LocationValidationError("Invalid source point or precision");
   }
   if (point.kind !== "candidate") {
     return;
@@ -105,7 +106,7 @@ function validateSelection(
     (point.objectType === "unknown" &&
       ["exact", "approximate"].includes(precision))
   ) {
-    throw new Error("Precision conflicts with point type");
+    throw new LocationValidationError("Precision conflicts with point type");
   }
 }
 function materializePoint(
@@ -119,22 +120,24 @@ function materializePoint(
   const coords = plan.coordinates;
   if (coords.action === "keep" || coords.action === "clear") {
     if (coords.action === "clear" && target.saved?.latitude == null) {
-      throw new Error("Clearing a point needs saved data and evidence");
+      throw new LocationValidationError(
+        `${slot}: Cannot clear absent coordinates`,
+      );
     }
     return coords;
   }
   const id = coords.action === "inherit" ? coords.donorPointId : coords.pointId;
   const point = session.points.get(id);
   if (!point) {
-    throw new Error("Unknown Location point");
+    throw new LocationValidationError("Unknown Location point");
   }
   if (point.countryCode && country && point.countryCode !== country) {
-    throw new Error("Point country conflicts with target");
+    throw new LocationValidationError("Point country conflicts with target");
   }
   let precision = point.precision;
   if (coords.action === "inherit") {
     if (point.kind !== "donor" || session.targets[slot]?.donorId !== id) {
-      throw new Error("Invalid historical donor");
+      throw new LocationValidationError("Invalid historical donor");
     }
     donors.push(point);
   } else {
@@ -160,7 +163,7 @@ export function validateLocation(
 ): MaterializedLocation {
   const { decision } = locationOutputSchema.parse(raw);
   if (decision.status === "rejected") {
-    throw new Error("Location rejected the item");
+    throw new LocationValidationError("Location rejected the item");
   }
   const result: MaterializedLocation = {
     slots: {},
@@ -173,8 +176,10 @@ export function validateLocation(
     if (!target && !plan) {
       continue;
     }
-    if (!target || target.editionKey !== plan?.editionKey) {
-      throw new Error("Location target does not match the accepted slot");
+    if (!target || !plan) {
+      throw new LocationValidationError(
+        "Location target does not match the accepted slot",
+      );
     }
     const country = validateText(plan, target, input);
     const coordinates = materializePoint(

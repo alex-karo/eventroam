@@ -6,19 +6,26 @@ import { tmpdir } from "node:os";
 import * as database from "@/db/connection";
 import * as workflow from "../workflow";
 import { fixtureLocationPlan, generateFixtureEditor } from "@/test/ingestion";
-import { loadEvalSuite, type EvalCase } from "./fixtures";
+import {
+  loadEvalSuite,
+  pipelineEvalCaseSchema,
+  type LocationEvalCase,
+} from "./fixtures";
 import { fixedGeocoding, runCatalogEvals, evalItemPassed } from "./run";
 import { scoreLocationCase } from "./score";
 import { resolveLocation } from "../location/agent";
 import { createResearchBudget } from "../runtime/budget";
 import {
   LOCATION_PROMPT_VERSION,
+  type Precision,
   type RegisteredPoint,
 } from "../location/contracts";
 import type { LocationInput } from "../location/input";
 import { executeCatalogEvalCommand } from "../../../commands/catalog-eval";
 const suite = loadEvalSuite();
-const cases = suite.cases.filter((item) => item.location);
+const cases = suite.cases.filter(
+  (item): item is LocationEvalCase => !!item.location,
+);
 const config = {
   apiKey: "fixture",
   model: "fixture/model",
@@ -31,7 +38,7 @@ afterEach(() => {
 type Prompt = LocationInput & { points: RegisteredPoint[] };
 /** Explicit fixture choices test integration, not model accuracy. */
 async function decision(
-  item: EvalCase,
+  item: LocationEvalCase,
   prompt: Prompt,
   geocode: (query: {
     query: string;
@@ -43,7 +50,7 @@ async function decision(
     throw new Error("Fixture must be ready");
   }
   const target = plan.decision.currentOrNextEdition!;
-  if (item.location!.group === "preservation") {
+  if (item.location.group === "preservation") {
     return plan;
   }
   const point = item.expectations.required.find(
@@ -51,7 +58,7 @@ async function decision(
   )!.value as {
     latitude: number;
     longitude: number;
-    precision: "locality" | "approximate";
+    precision: Precision;
   };
   if (point == null || point.precision === "locality") {
     target.unresolved.push({
@@ -111,12 +118,19 @@ async function decision(
     precision: point.precision,
     reason: "Fixture identifies the supported point",
   };
+  if (item.id === "location-official-venue-point") {
+    target.unresolved.push({
+      field: "coordinates",
+      message:
+        "The official venue point differs from saved history; supplied evidence does not explain the distance or disprove the official point",
+    });
+  }
   return plan;
 }
 for (const item of cases) {
   test(`${item.id} exercises real preparation, point validation and scoring`, async () => {
     const execution = await resolveLocation(
-      item.location!.input,
+      item.location.input,
       createResearchBudget(),
       config,
       {
@@ -127,6 +141,35 @@ for (const item of cases) {
     );
     expect(execution.status).toBe("success");
     expect(scoreLocationCase(item, execution).passed).toBe(true);
+    if (item.id === "location-official-venue-point") {
+      const source = execution.points.find((point) => point.kind === "source")!;
+      expect(source.comparisons![0].targetKm).toBeGreaterThan(10);
+      expect(source.comparisons![0].donorKm).toBeGreaterThan(10);
+      expect(
+        execution.observations.every(({ origin }) => origin === "initial"),
+      ).toBe(true);
+      const missingQuestion = structuredClone(execution);
+      missingQuestion.materialized!.unresolved = [];
+      expect(scoreLocationCase(item, missingQuestion).passed).toBe(false);
+    }
+    if (
+      ["location-move-city-fallback", "location-move-without-point"].includes(
+        item.id,
+      )
+    ) {
+      const oldVenue = structuredClone(execution);
+      oldVenue.materialized!.slots.currentOrNextEdition!.venueName = {
+        action: "keep",
+        reason: "Preserve the saved venue name",
+      };
+      const score = scoreLocationCase(item, oldVenue);
+      expect(score.passed).toBe(false);
+      expect(
+        score.required
+          .filter((check) => !check.matched)
+          .map((check) => check.assertion.field),
+      ).toEqual(["venue_name"]);
+    }
     if (item.id === "location-cemetery") {
       for (const unresolved of [
         [],
@@ -139,7 +182,7 @@ for (const item of cases) {
         ],
         [
           {
-            editionKey: item.location!.input.currentOrNextEdition!.editionKey,
+            editionKey: item.location.input.currentOrNextEdition!.editionKey,
             field: "tickets",
             message: "Unknown tickets",
           },
@@ -157,7 +200,7 @@ for (const item of cases) {
       }
     }
     const keep = await resolveLocation(
-      item.location!.input,
+      item.location.input,
       createResearchBudget(),
       config,
       {
@@ -167,7 +210,7 @@ for (const item of cases) {
       },
     );
     expect(scoreLocationCase(item, keep).passed).toBe(
-      item.location!.group === "preservation",
+      item.location.group === "preservation",
     );
   });
 }
@@ -178,7 +221,7 @@ function mockLocation(extraQuery = false) {
       expect(this.id).toBe("festival-location");
       const prompt = JSON.parse(raw as string) as Prompt;
       const item = cases.find(
-        (item) => item.location!.input.festival.name === prompt.festival.name,
+        (item) => item.location.input.festival.name === prompt.festival.name,
       )!;
       const tools = await this.listTools();
       const geocode = async (query: {
@@ -211,7 +254,7 @@ test("location-only uses no database or workflow and retains native items, group
   });
   const model = mockLocation();
   const selected = cases.filter(
-    (item) => item.location!.group === "preservation",
+    (item) => item.location.group === "preservation",
   );
   const report = await runCatalogEvals({
     locationOnly: true,
@@ -222,7 +265,7 @@ test("location-only uses no database or workflow and retains native items, group
   expect(model).toHaveBeenCalledTimes(selected.length * 2);
   expect(report.modelVersion).toBe("fixture/selected-model");
   expect(report.locationModelVersion).toBe("fixture/selected-model");
-  expect(report.promptVersion).toBe("catalog-location-v1");
+  expect(report.promptVersion).toBe(LOCATION_PROMPT_VERSION);
   expect(report.results.every(evalItemPassed)).toBe(true);
   expect(
     report.results.every(
@@ -244,7 +287,7 @@ test.each(["initial", "agent"])(
     vi.stubEnv("OPENROUTER_API_KEY", "fixture");
     const selected = structuredClone(
       cases
-        .filter((item) => item.location!.group === "preservation")
+        .filter((item) => item.location.group === "preservation")
         .slice(0, 2),
     );
     if (origin === "initial") {
@@ -292,9 +335,43 @@ test("exclusive modes reject before setup and missing required native scores fai
     evalItemPassed({ output: { score: { passed: true } }, scores: [] }),
   ).toBe(false);
 });
+test.each([false, true])(
+  "location-only retains the rejection reason with fixture miss: %s",
+  async (missingFixture) => {
+    vi.stubEnv("OPENROUTER_API_KEY", "fixture");
+    const reason = "The venue belongs to another festival";
+    vi.spyOn(Agent.prototype, "generate").mockResolvedValue({
+      text: "",
+      object: { decision: { status: "rejected", reason } },
+    } as never);
+    const fixture = structuredClone(cases[0]);
+    if (missingFixture) {
+      fixture.geocoding = [];
+    }
+    const report = await runCatalogEvals({
+      locationOnly: true,
+      suite: { ...suite, cases: [fixture] },
+    });
+    const item = report.results[0];
+    expect(item.output?.location).toMatchObject({
+      status: "rejected",
+      materialized: null,
+      errors: [
+        { code: "location_rejected", stage: "location", message: reason },
+      ],
+    });
+    expect(item.output?.score.diagnostics.execution).toEqual(
+      missingFixture
+        ? [reason, "Unmatched geocoding fixture: fixture_miss"]
+        : [reason],
+    );
+    expect(evalItemPassed(item)).toBe(false);
+  },
+);
+
 test("recorded empty responses and provider failures differ from fixture misses", async () => {
   const item = structuredClone(
-    cases.find((item) => item.location!.group === "preservation")!,
+    cases.find((item) => item.location.group === "preservation")!,
   );
   for (const outcome of ["empty", "error"]) {
     item.geocoding!.forEach((fixture) => {
@@ -315,7 +392,7 @@ test("recorded empty responses and provider failures differ from fixture misses"
               };
     });
     const execution = await resolveLocation(
-      item.location!.input,
+      item.location.input,
       createResearchBudget(),
       config,
       {
@@ -338,7 +415,8 @@ test("recorded empty responses and provider failures differ from fixture misses"
 test("pipeline eval uses shared geocoding recordings to select a point", async () => {
   vi.stubEnv("OPENROUTER_API_KEY", "fixture");
   const item = cases.find((item) => item.id === "location-building-complex")!;
-  const { location, ...pipeline } = item;
+  const { location, ...rest } = item;
+  const pipeline = pipelineEvalCaseSchema.parse(rest);
   const target = location!.input.currentOrNextEdition!;
   pipeline.expectations = {
     required: Object.entries({
@@ -367,8 +445,8 @@ test("pipeline eval uses shared geocoding recordings to select a point", async (
       generateCandidate: async () => ({
         status: "success",
         data: {
-          eventId: item.initial.event.id,
-          eventName: item.initial.event.canonicalName,
+          eventId: pipeline.initial.event.id,
+          eventName: pipeline.initial.event.canonicalName,
           sources: location!.input.sources,
           links: { socials: {} },
           previousEdition: null,
@@ -416,9 +494,13 @@ test.each(
   async (item) => {
     const { seedDatabase } = await import("./run");
     const { runFixtureResearch } = await import("@/test/ingestion");
-    const connection = seedDatabase(suite, item);
+    const pipeline = pipelineEvalCaseSchema.parse({
+      ...item,
+      location: undefined,
+    });
+    const connection = seedDatabase(suite, pipeline);
     try {
-      const target = item.location!.input.currentOrNextEdition!;
+      const target = item.location.input.currentOrNextEdition!;
       const result = await runFixtureResearch(item.input, {
         client: connection.client,
         config,
@@ -426,9 +508,9 @@ test.each(
         generateCandidate: async () => ({
           status: "success",
           data: {
-            eventId: item.initial.event.id,
-            eventName: item.initial.event.canonicalName,
-            sources: item.location!.input.sources,
+            eventId: pipeline.initial.event.id,
+            eventName: pipeline.initial.event.canonicalName,
+            sources: item.location.input.sources,
             links: { socials: {} },
             previousEdition: null,
             currentOrNextEdition: {
@@ -453,13 +535,13 @@ test.each(
           "SELECT latitude,longitude,coordinate_precision FROM editions WHERE edition_key=?",
         )
         .get(target.editionKey);
-      const before = item.initial.event.editions[0];
+      const before = pipeline.initial.event.editions[0];
       expect(saved).toEqual({
         latitude: before.latitude,
         longitude: before.longitude,
         coordinate_precision: before.coordinatePrecision,
       });
-      if (item.location!.group === "preservation") {
+      if (item.location.group === "preservation") {
         expect(
           result.changes.some((change) =>
             ["latitude", "longitude", "coordinate_precision"].includes(
@@ -490,7 +572,7 @@ test("Location preview traces failures without mock usage and protects the repor
   const tracePath = join(directory, "observability.duckdb");
   vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", tracePath);
   const selected = cases
-    .filter((item) => item.location!.group === "preservation")
+    .filter((item) => item.location.group === "preservation")
     .slice(0, 1);
   mockLocation();
   try {

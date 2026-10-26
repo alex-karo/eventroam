@@ -1,5 +1,5 @@
 import type { CatalogResearchResult } from "../contracts";
-import type { EvalAssertion, EvalCase } from "./fixtures";
+import type { EvalAssertion, PipelineEvalCase } from "./fixtures";
 
 type EvalChange = CatalogResearchResult["changes"][number];
 export type AssertionResult = {
@@ -23,7 +23,7 @@ export function contains(actual: unknown, expected: unknown): boolean {
 }
 
 function expectedSubjects(
-  item: EvalCase,
+  item: PipelineEvalCase,
   result: CatalogResearchResult,
   assertion: EvalAssertion,
 ): Set<string> {
@@ -72,7 +72,7 @@ function expectedSubjects(
 }
 
 export function assertionMatches(
-  item: EvalCase,
+  item: PipelineEvalCase,
   result: CatalogResearchResult,
   assertion: EvalAssertion,
 ): boolean {

@@ -8,7 +8,7 @@ Define automatic, source-backed decisions for an Edition's venue, address, local
 
 ### Requirement: Location runs only for accepted Edition targets
 
-During ingestion, Location SHALL run after a valid editor decision and before catalog operations are prepared. One assignment SHALL cover all accepted Edition slots of one Event. It SHALL NOT restore declined slots or change Event or Edition identity. Rejected editing, duplicate add, declined Event creation, or no accepted Edition slots SHALL skip Location.
+During ingestion, Location SHALL run after a valid editor decision and before catalog operations are prepared. One assignment SHALL cover all accepted Edition slots of one Event. The application SHALL bind each output slot to its accepted input key; Location output SHALL NOT repeat Edition keys. Location input SHALL omit the constant editor status while retaining available Editor explanations. It SHALL NOT restore declined slots or change Event or Edition identity. Rejected editing, duplicate add, declined Event creation, or no accepted Edition slots SHALL skip Location.
 
 #### Scenario: The editor rejects the festival association
 
@@ -24,13 +24,15 @@ During ingestion, Location SHALL run after a valid editor decision and before ca
 #### Scenario: Both Editions are accepted
 
 - **WHEN** the editor accepts two distinct Edition slots
-- **THEN** one Location assignment assesses them with separately keyed decisions
+- **THEN** one Location assignment assesses them with separate named-slot decisions
 - **AND** neither slot requires a separate earlier Location run
 
 #### Scenario: Editor context is available
 
 - **WHEN** Location receives accepted targets
 - **THEN** it also receives relevant saved state, research, and available editor identity and slot decisions with their explanations
+- **AND** it receives the full Editor unresolved array unchanged, including questions without field or Edition labels and any explanations for declined slots
+- **AND** Research questions are not merged into that Editor array, and Location need not repeat the Editor questions in its output
 - **AND** absent explanations are not invented and editor decisions do not authorize Location to restore a declined slot
 
 ### Requirement: Initial geocoding prepares Location context
@@ -86,7 +88,7 @@ During ingestion, Location SHALL own venueName, venueAddress, locality, administ
 
 ### Requirement: Location decisions retain their evidence
 
-Each changed or cleared location field SHALL have a reason tied to its Edition. Source-backed decisions SHALL cite supplied source references. Geocoding choices SHALL cite registered candidates, and inheritance SHALL cite its donor. Unsupported references SHALL be rejected. Location SHALL use only supplied research and saved context plus its geocoding tool; it SHALL NOT perform another web investigation.
+Each changed or cleared location field SHALL have a reason tied to its Edition and grounded in supplied evidence or saved state. Location SHALL NOT return source URLs or source IDs. Supplied source summaries SHALL remain in the input and report without a separate association between each decision and a source. Geocoding choices SHALL cite registered candidates, and inheritance SHALL cite its donor. Unsupported point or donor references SHALL be rejected. Location SHALL use only supplied research and saved context plus its geocoding tool; it SHALL NOT perform another web investigation.
 
 #### Scenario: Only a city is known
 
@@ -140,11 +142,25 @@ Precision SHALL describe what a point represents, not confidence. Exact SHALL me
 
 ### Requirement: Applicable saved coordinates have priority
 
-Location SHALL prefer an applicable saved target point. When target coordinates are absent, it SHALL prefer a suitable historical point unless evidence supports its rejection or a better correction. Keeping target coordinates and inheriting history SHALL be distinct actions. Preserving or inheriting a point SHALL NOT imply fresh verification or improved precision.
+Location SHALL prefer supplied coordinates that the festival's official site explicitly identifies as the target Edition's venue point, unless supplied evidence gives a concrete reason to reject them. Evidence that the point refers to another Edition, another object, an outdated venue, or conflicts with other established facts MAY defeat this preference. These coordinates SHALL take priority over a saved target point or historical donor without requiring a confirmed move or proof of an old mapping error. Distance from an old point or locality centre, failed geocoding, no venue match, and locality-only results SHALL NOT alone disprove the site's venue point. Material unexplained discrepancies SHALL remain in unresolved; they SHALL NOT alone prevent selection or require lower precision.
+
+Otherwise Location SHALL prefer an applicable saved target point. When target coordinates are absent, it SHALL prefer a suitable historical point unless evidence supports its rejection or a better correction. Keeping target coordinates and inheriting history SHALL be distinct actions. Preserving or inheriting a point SHALL NOT imply fresh verification or improved precision.
+
+#### Scenario: Official venue coordinates differ from saved history
+
+- **WHEN** the official site explicitly supplies the target Edition's venue coordinates far from a saved point or historical donor
+- **AND** supplied evidence gives no concrete reason to reject those coordinates, while geocoding returns only a locality or fails
+- **THEN** Location selects the registered official venue point without requiring a confirmed move or lower precision
+- **AND** it retains the material unexplained discrepancy in unresolved
+
+#### Scenario: Official coordinates refer to an outdated venue
+
+- **WHEN** supplied evidence establishes that the site's coordinates belong to a venue withdrawn for the target Edition
+- **THEN** their official origin does not give them priority over applicable saved data or another supported point
 
 #### Scenario: A new candidate is far from the old point
 
-- **WHEN** the candidate differs substantially but no evidence establishes which point is wrong
+- **WHEN** a geocoding candidate differs substantially but no supplied evidence supports replacing the old point
 - **THEN** distance alone does not replace an otherwise applicable old point
 - **AND** the unresolved discrepancy remains visible
 
@@ -169,6 +185,12 @@ Location SHALL NOT preserve or inherit a point that supplied evidence establishe
 - **AND** no supported venue point or applicable locality fallback is found
 - **THEN** the new venue can be accepted while the disproved target point is explicitly cleared
 - **AND** the missing new point remains unresolved
+
+#### Scenario: The target has no point and its donor is disproved
+
+- **WHEN** the target has no saved point, its historical donor is inapplicable, and no supported replacement exists
+- **THEN** Location returns keep with the reason for not inheriting and an unresolved coordinate question
+- **AND** the target stays without coordinates; clear is invalid because it has no saved point to remove
 
 #### Scenario: Geocoding fails without contrary evidence
 
@@ -205,6 +227,13 @@ When no better applicable point is available, Location SHALL allow a supported l
 - **THEN** Location can select that candidate with locality precision so the Edition can appear on the map
 - **AND** the venue point remains unresolved
 
+#### Scenario: Venue queries return unsuitable objects
+
+- **WHEN** no applicable saved, donor, source, or venue candidate point exists, the locality is established, and geocoding calls remain
+- **THEN** Location queries the locality with its administrative area and country without the venue name before leaving coordinates absent
+- **AND** it does not repeat an equivalent completed query or exceed the existing call limit
+- **AND** only a supported locality result can provide the fallback
+
 #### Scenario: The old venue point remains applicable
 
 - **WHEN** an applicable specific saved point exists and forward geocoding returns only the city
@@ -236,12 +265,26 @@ Forward geocoding SHALL return bounded candidates and safe provider failures. Fo
 
 ### Requirement: Location failure does not apply unreviewed findings
 
-A valid Location plan with unresolved questions SHALL allow unrelated supported changes. A failed or invalid required Location result, explicit rejection, country conflict, or material identity conflict SHALL stop all item writes. The application SHALL NOT substitute raw research or a partial unvalidated Location result.
+A valid Location plan with unresolved questions SHALL allow unrelated supported changes. A failed or invalid required Location result, explicit rejection, country conflict, or material identity conflict SHALL stop all item writes. The application SHALL NOT substitute raw research or a partial unvalidated Location result. A valid explicit rejection SHALL have a separate rejected status and retain its reason. Malformed output and technical errors SHALL remain failures.
 
 #### Scenario: A valid result cannot improve the old point
 
 - **WHEN** Location returns a valid keep decision with an unresolved refinement question
 - **THEN** a supported ticket update can still proceed in the same item
+
+#### Scenario: Location returns an explicit rejection
+
+- **WHEN** Location returns a valid rejected decision with a reason
+- **THEN** no item changes are prepared or applied
+- **AND** Location has rejected status and retains the reason in a location_rejected diagnostic
+- **AND** the attempt has failed outcome and the command exits with failure
+- **AND** an isolated Location evaluation fails and retains the rejection reason in its diagnostics
+
+#### Scenario: A location action violates a validation rule
+
+- **WHEN** a Location action fails application validation
+- **THEN** the report retains the safe rule failure with location_failed and no writes
+- **AND** a schema error retains bounded issue paths and codes without raw exception or provider messages
 
 #### Scenario: Location returns a malformed result
 

@@ -504,10 +504,6 @@ export function prepareCatalogPlan(
   }
   result.unresolved.push(...location.unresolved);
   const event = catalog.find((item) => item.id === result.matchedEventId);
-  const issue = validateEditionTargets(plan, event, terms);
-  if (issue) {
-    return planInvalid(result, issue.field, issue.message);
-  }
   const add = adder(result, input);
 
   const eventRef = event?.id ?? "$event";
@@ -743,16 +739,13 @@ function resolveEditorFields(
 }
 
 function validateEditionTargets(
-  plan: CombinedPlan,
+  plan: ResolvedEditorPlan,
   event: Event | undefined,
   terms: Term[],
 ) {
   const savedKeys = new Set(
     event?.editions.map((edition) => edition.editionKey),
   );
-  const baseline = event?.editions.find(
-    (edition) => edition.countryCode,
-  )?.countryCode;
   for (const slot of editionSlotNames) {
     const edition = plan[slot];
     if (!edition) {
@@ -770,13 +763,6 @@ function validateEditionTargets(
       return {
         field: `${slot}.fields`,
         message: "Cannot clear values on a new Edition",
-      };
-    }
-    const country = valueOf(edition.fields.countryCode);
-    if (baseline && country !== undefined && country !== baseline) {
-      return {
-        field: "countryCode",
-        message: "Editorial country conflicts with saved country",
       };
     }
     const classification = edition.fields.classification;

@@ -3,6 +3,7 @@ import { observeTrace, traceFailure } from "../runtime/tracing/spans";
 import { Agent } from "@mastra/core/agent";
 import { Mastra } from "@mastra/core/mastra";
 import { noopLogger } from "@mastra/core/logger";
+import { z } from "zod";
 import type { ResearchBudget } from "../runtime/budget";
 import type { ResearchConfig } from "../runtime/config";
 import type { RunObservability } from "../runtime/observability/runtime";
@@ -15,11 +16,12 @@ import { createGeocodingSession } from "../tools/geocode/tool";
 import {
   LOCATION_PROMPT_VERSION,
   locationModelOutputSchema,
+  locationOutputSchema,
 } from "./contracts";
 import type { LocationInput } from "./input";
 import { prepareInitialGeocoding } from "./initial";
 import { locationInstructions } from "./prompt";
-import { validateLocation } from "./validate";
+import { LocationValidationError, validateLocation } from "./validate";
 import { emptyLocationExecution, type LocationExecution } from "./execution";
 export { emptyLocationExecution, type LocationExecution } from "./execution";
 export type GenerateLocation = (
@@ -33,6 +35,18 @@ export type GenerateLocation = (
     }) => Promise<unknown>;
   },
 ) => Promise<unknown>;
+function validationMessage(error: unknown): string {
+  if (error instanceof LocationValidationError) {
+    return error.message;
+  }
+  if (error instanceof z.ZodError) {
+    return error.issues
+      .slice(0, 5)
+      .map((issue) => `${issue.path.join(".")}:${issue.code}`)
+      .join("; ");
+  }
+  return "Location execution or validation failed";
+}
 export async function resolveLocation(
   input: LocationInput,
   budget: ResearchBudget,
@@ -179,13 +193,25 @@ export async function resolveLocation(
     }
     session.signal.throwIfAborted();
     budget.assertTime();
+    const { decision } = locationOutputSchema.parse(
+      execution.modelResponse.object,
+    );
+    if (decision.status === "rejected") {
+      execution.status = "rejected";
+      execution.errors.push({
+        code: "location_rejected",
+        stage: "location",
+        message: decision.reason,
+      });
+      return execution;
+    }
     execution.materialized = validateLocation(
       execution.modelResponse.object,
       input,
       session,
     );
     execution.status = "success";
-  } catch {
+  } catch (error) {
     const timedOut =
       budget.remaining().durationMs <= 0 ||
       session.signal.reason?.name === "TimeoutError";
@@ -194,7 +220,7 @@ export async function resolveLocation(
       stage: "location",
       message: timedOut
         ? "Location reached the run deadline"
-        : "Location execution or validation failed",
+        : validationMessage(error),
     });
   } finally {
     observeTrace(tracing, span, {

@@ -1,6 +1,7 @@
 import {
   runFixtureResearch as executeResearch,
   createFixtureIngestionWorkflow as createCatalogIngestionWorkflow,
+  fixtureEditorPlan,
 } from "@/test/ingestion";
 import { CatalogAttempt } from "./attempt";
 import { createIngestionData } from "./contracts";
@@ -1869,28 +1870,68 @@ test.each([false, true])(
   },
 );
 
-test("invalid Location preserves successful Research and stops all writes", async () => {
-  const { client, termIds } = fixture();
-  const result = await runCatalogResearch(
-    { ...input, dryRun: false },
-    {
-      client,
-      generateCandidate: async () => candidate(termIds),
-      generateLocation: async () => ({
-        decision: {
-          status: "ready",
-          currentOrNextEdition: null,
-          previousEdition: null,
-        },
-      }),
+test.each([
+  {
+    name: "invalid plan",
+    decision: {
+      status: "ready",
+      currentOrNextEdition: null,
+      previousEdition: null,
     },
-  );
-  expect(result.researchStatus).toBe("success");
-  expect(result.locationStatus).toBe("failed");
-  expect(result.outcome).toBe("failed");
-  expect(result.operations).toEqual([]);
-  expect(readResearchCatalog(client)).toEqual([]);
-});
+    status: "failed",
+    error: {
+      code: "location_failed",
+      message: "Location target does not match the accepted slot",
+    },
+  },
+  {
+    name: "rejection",
+    decision: {
+      status: "rejected",
+      reason: "The venue belongs to another festival",
+    },
+    status: "rejected",
+    error: {
+      code: "location_rejected",
+      message: "The venue belongs to another festival",
+    },
+  },
+  {
+    name: "malformed rejection",
+    decision: { status: "rejected", reason: "" },
+    status: "failed",
+    error: {
+      code: "location_failed",
+      message: "decision.reason:too_small",
+    },
+  },
+])(
+  "Location $name preserves successful Research and stops all writes",
+  async ({ decision, status, error }) => {
+    const { client, termIds } = fixture();
+    const result = await runCatalogResearch(
+      { ...input, dryRun: false },
+      {
+        client,
+        generateCandidate: async () => candidate(termIds),
+        generateLocation: async () => ({ decision }),
+      },
+    );
+    expect(result.researchStatus).toBe("success");
+    expect(result.locationStatus).toBe(status);
+    expect(result.locationResponse?.object).toEqual({ decision });
+    expect(result.errors).toContainEqual({ ...error, stage: "location" });
+    expect(result.outcome).toBe("failed");
+    expect(result.operations).toEqual([]);
+    expect(result.changes).toEqual([]);
+    expect(readResearchCatalog(client)).toEqual([]);
+    expect(
+      client
+        .prepare("SELECT status FROM ingestion_runs WHERE id=?")
+        .get(result.runId),
+    ).toEqual({ status: "failed" });
+  },
+);
 
 test("a recoverable geocoding failure and Location question permit a ticket update", async () => {
   const { client, termIds } = fixture();
@@ -1994,6 +2035,7 @@ test("two accepted slots share initial geocoding and have separate Location deci
   const generateLocation = vi.fn(async (raw: string) => {
     expect(prepare).not.toHaveBeenCalled();
     const prompt = JSON.parse(raw);
+    expect(prompt.editor).not.toHaveProperty("status");
     expect(prompt.editor.previousEdition.editionKey).toBe("2026");
     expect(prompt.editor.currentOrNextEdition.editionKey).toBe("2027");
     expect(prompt.prepared).toHaveLength(2);
@@ -2065,6 +2107,13 @@ test("current Location cannot turn historical context into a write target", asyn
   found.data!.eventId = event.id;
   delete found.data!.summary;
   found.data!.links = { socials: {} };
+  found.unresolved = [{ message: "Research question" }];
+  const unresolved = [
+    { editionKey: "2026", message: "The previous Edition is outside scope" },
+    { message: "Check whether the source describes the same festival" },
+    { field: "tickets", message: "The ticket page names another venue" },
+  ];
+  let locationEditor: unknown;
   const result = await runCatalogResearch(
     {
       ...input,
@@ -2077,9 +2126,18 @@ test("current Location cannot turn historical context into a write target", asyn
     {
       client,
       generateCandidate: async () => found,
+      generateEditor: async (raw) => {
+        const { research, catalog } = JSON.parse(raw);
+        const plan = fixtureEditorPlan(research, catalog);
+        if (plan.status !== "ready") {
+          throw new Error("Expected ready fixture");
+        }
+        return { ...plan, unresolved };
+      },
       generateLocation: async (raw) => {
         const prompt = JSON.parse(raw);
         expect(prompt.previousEdition).toBeNull();
+        locationEditor = prompt.editor;
         expect(
           prompt.history.map((edition: { id: string }) => edition.id),
         ).toContain(previous.id);
@@ -2090,12 +2148,12 @@ test("current Location cannot turn historical context into a write target", asyn
         }
         plan.decision.previousEdition = {
           ...plan.decision.currentOrNextEdition!,
-          editionKey: "2026",
         };
         return plan;
       },
     },
   );
+  expect(locationEditor).toMatchObject({ previousEdition: null, unresolved });
   expect(result.locationStatus).toBe("failed");
   expect(result.outcome).toBe("failed");
   expect(result.operations).toEqual([]);

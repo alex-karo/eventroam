@@ -37,7 +37,6 @@
       ]
     }
   },
-  "sources": [],
   "location": {
     "group": "completion",
     "input": {
@@ -73,13 +72,13 @@
       ],
       "history": [],
       "editor": {
-        "status": "ready",
         "eventReason": null,
         "previousEdition": null,
         "currentOrNextEdition": {
           "editionKey": "hallowindie-2025",
           "reason": null
-        }
+        },
+        "unresolved": []
       },
       "previousEdition": null,
       "currentOrNextEdition": {

@@ -12,32 +12,6 @@
     "initiatedBy": "eval",
     "dryRun": true
   },
-  "initial": {
-    "event": {
-      "id": "event:cf44a6d868fa37b6805e",
-      "slug": "location-bridge",
-      "canonicalName": "Warm Up Festival",
-      "editions": [
-        {
-          "id": "14be599a-0feb-4c1b-a7cf-2c9dec397e04",
-          "editionKey": "warm-up-estrella-de-levante-2027",
-          "editionYear": 2027,
-          "startsOn": "2027-04-30",
-          "endsOn": "2027-05-01",
-          "scheduleStatus": "announced",
-          "latitude": 37.973,
-          "longitude": -1.129,
-          "coordinatePrecision": "approximate",
-          "venueName": "La Fica",
-          "venueAddress": "Diseminado Primero Mayo, 19, 30003 Murcia",
-          "locality": "Murcia",
-          "administrativeArea": null,
-          "countryCode": "ES"
-        }
-      ]
-    }
-  },
-  "sources": [],
   "location": {
     "group": "preservation",
     "input": {
@@ -100,13 +74,13 @@
         }
       ],
       "editor": {
-        "status": "ready",
         "eventReason": null,
         "previousEdition": null,
         "currentOrNextEdition": {
           "editionKey": "warm-up-estrella-de-levante-2027",
           "reason": null
-        }
+        },
+        "unresolved": []
       },
       "previousEdition": null,
       "currentOrNextEdition": {

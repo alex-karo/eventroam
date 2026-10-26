@@ -1,6 +1,6 @@
 import { hasHostFailure } from "../runs";
 import type { CatalogResearchResult } from "../contracts";
-import type { EvalCase } from "./fixtures";
+import type { PipelineEvalCase, LocationEvalCase } from "./fixtures";
 import {
   assertionMatches,
   assertionValueMatches,
@@ -25,7 +25,7 @@ export type CaseScore = {
 };
 
 export function scoreCase(
-  item: EvalCase,
+  item: PipelineEvalCase,
   result: CatalogResearchResult,
   toolCalls: EvalToolCall[] = [],
 ): CaseScore {
@@ -91,10 +91,10 @@ export function scoreCase(
 
 /** Use the existing assertion details and dimensions without a catalog report. */
 export function scoreLocationCase(
-  item: EvalCase,
+  item: LocationEvalCase,
   execution: import("../location/agent").LocationExecution,
 ): CaseScore {
-  const input = item.location!.input;
+  const input = item.location.input;
   const output = execution.modelResponse?.object as
     import("../location/contracts").LocationOutput | undefined;
   const match = (assertion: import("./fixtures").EvalAssertion) =>
@@ -128,7 +128,7 @@ export function scoreLocationCase(
           ? output.decision[slot]?.coordinates.action
           : undefined,
       );
-      if (item.location!.group !== "preservation" && !observed.changed) {
+      if (item.location.group !== "preservation" && !observed.changed) {
         return false;
       }
       const predicate = [
@@ -162,11 +162,14 @@ export function scoreLocationCase(
     ? 1 - forbidden.filter((check) => check.matched).length / forbidden.length
     : 1;
   const failed = execution.status !== "success" || missing;
-  let executionErrors = failed
-    ? ["Location execution or output validation failed"]
+  const executionErrors = failed
+    ? execution.errors.map((error) => error.message)
     : [];
   if (missing) {
-    executionErrors = ["Unmatched geocoding fixture: fixture_miss"];
+    executionErrors.push("Unmatched geocoding fixture: fixture_miss");
+  }
+  if (failed && !executionErrors.length) {
+    executionErrors.push("Location execution or output validation failed");
   }
   return {
     required,

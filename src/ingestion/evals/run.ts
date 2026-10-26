@@ -31,7 +31,12 @@ import type { ReadPageResult } from "../tools/read-page/contracts";
 import type { SearchWebResult } from "../tools/search-web/contracts";
 import type { ReadPageOptions } from "../tools/read-page/read";
 import type { SearchWebOptions } from "../tools/search-web/search";
-import { loadEvalSuite, type EvalCase, type EvalSuite } from "./fixtures";
+import {
+  loadEvalSuite,
+  type EvalCase,
+  type PipelineEvalCase,
+  type EvalSuite,
+} from "./fixtures";
 import { sourceLinks } from "./source-links";
 import { scoreCase, type CaseScore } from "./score";
 import { createEvalScorers } from "./scorers";
@@ -41,7 +46,7 @@ import type { EvalToolCall } from "./tool-use";
 const timestamp = "2026-10-03T00:00:00.000Z";
 
 function ticketColumns(
-  tickets: EvalCase["initial"]["event"]["editions"][number]["tickets"],
+  tickets: PipelineEvalCase["initial"]["event"]["editions"][number]["tickets"],
 ) {
   const base = tickets?.basePrice;
   return {
@@ -55,7 +60,7 @@ function ticketColumns(
   };
 }
 
-export function seedDatabase(suite: EvalSuite, item: EvalCase) {
+export function seedDatabase(suite: EvalSuite, item: PipelineEvalCase) {
   const connection = openDatabase(":memory:");
   try {
     migrateCatalogConnection(connection);
@@ -175,7 +180,7 @@ export function seedDatabase(suite: EvalSuite, item: EvalCase) {
 }
 
 export function fixedSources(
-  item: EvalCase,
+  item: PipelineEvalCase,
   todayUtc: string,
   calls: EvalToolCall[] = [],
 ) {
@@ -323,7 +328,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       const { caseId } = input as (typeof data)[number]["input"];
       const item = byId.get(caseId)!;
       const calls: EvalToolCall[] = [];
-      if (options.locationOnly) {
+      if (item.location) {
         const runId = `location-eval-${randomUUID()}`;
         const tracing = await createRunObservability(
           item.input,
@@ -333,7 +338,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
         );
         try {
           const location = await resolveLocation(
-            item.location!.input,
+            item.location.input,
             createResearchBudget(config.limits),
             config,
             { geocodingClient: fixedGeocoding(item) },

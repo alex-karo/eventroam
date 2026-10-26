@@ -5,6 +5,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import type { ObservabilityStorage } from "@mastra/core/storage";
 import { DuckDBStore } from "@mastra/duckdb";
 import { runTraceFixture, readTraceRows } from "@/test/tracing-fixture";
+import { LOCATION_PROMPT_VERSION } from "../../location/contracts";
 import {
   createRunObservability,
   finishRunObservability,
@@ -281,7 +282,7 @@ test("a metric storage failure cannot change the durable report or catalog outco
     schemaVersion: 7,
     locationResponse: baseline.result.locationResponse,
     locationStatus: baseline.result.locationStatus,
-    locationPromptVersion: "catalog-location-v1",
+    locationPromptVersion: LOCATION_PROMPT_VERSION,
     locationModelVersion: baseline.result.locationModelVersion,
     geocoding: baseline.result.geocoding,
     outcome: baseline.result.outcome,

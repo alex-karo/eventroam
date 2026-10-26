@@ -325,6 +325,7 @@ export type ResearchError = {
     | "invalid_candidate"
     | "invalid_plan"
     | "editor_rejected"
+    | "location_rejected"
     | "location_failed"
     | "country_conflict"
     | "country_baseline_conflict"

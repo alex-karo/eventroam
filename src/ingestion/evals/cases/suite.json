@@ -109,7 +109,6 @@
     "editor/unknown-currency.json",
     "location/cemetery.json",
     "location/bridge.json",
-    "location/locality-alias.json",
     "location/central-park.json",
     "location/building-complex.json",
     "location/several-venues.json",
@@ -118,6 +117,8 @@
     "location/move-without-point.json",
     "location/saved-precision.json",
     "location/target-before-donor.json",
-    "location/donor-correction.json"
+    "location/donor-correction.json",
+    "location/donor-inheritance.json",
+    "location/official-venue-point.json"
   ]
 }

@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { scheduleStatuses } from "@/catalog/domain/vocabulary";
 import type { CatalogResearchInput } from "../contracts";
-import type { ResolvedEditorPlan } from "../editor/contracts";
+import {
+  readyEditorPlanSchema,
+  type ResolvedEditorPlan,
+} from "../editor/contracts";
 import type { ResearchContext } from "../research/context";
 import {
   editionFindingSchema,
@@ -62,8 +65,8 @@ export const locationInputSchema = z.strictObject({
   ),
   history: z.array(savedLocationSchema),
   editor: z.strictObject({
-    status: z.literal("ready"),
     eventReason: z.string().nullable(),
+    unresolved: readyEditorPlanSchema.shape.unresolved,
     previousEdition: z
       .strictObject({ editionKey: z.string(), reason: z.string().nullable() })
       .nullable(),
@@ -119,8 +122,8 @@ export function buildLocationInput(
     sources: research.sources,
     history,
     editor: {
-      status: "ready",
       eventReason: plan.event?.reason ?? null,
+      unresolved: plan.unresolved,
       previousEdition: plan.previousEdition
         ? {
             editionKey: plan.previousEdition.editionKey,

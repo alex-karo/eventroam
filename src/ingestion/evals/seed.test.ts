@@ -2,12 +2,12 @@ import Database from "better-sqlite3";
 import { expect, test, vi } from "vitest";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { modelContext } from "../research/agent/input";
-import { evalCaseSchema, loadEvalSuite } from "./fixtures";
+import { pipelineEvalCaseSchema, loadEvalSuite } from "./fixtures";
 import { seedDatabase } from "./run";
 
 test("invalid eval assignments roll back all seed rows before closing the database", () => {
   const suite = loadEvalSuite();
-  const item = structuredClone(suite.cases[0]);
+  const item = pipelineEvalCaseSchema.parse(suite.cases[0]);
   suite.terms.push({
     id: "extra-type",
     facet: "event_type",
@@ -45,7 +45,7 @@ test("invalid eval assignments roll back all seed rows before closing the databa
 
 test("eval data cannot bypass publication and date-state rules", () => {
   const suite = loadEvalSuite();
-  const item = structuredClone(suite.cases[0]);
+  const item = pipelineEvalCaseSchema.parse(suite.cases[0]);
   item.initial.event.editions[0] = {
     id: "bad-edition",
     editionKey: "2027",
@@ -63,7 +63,7 @@ test.each(["paid", "free", "unknown"] as const)(
   "eval seeds complete %s ticket baselines",
   (kind) => {
     const suite = loadEvalSuite();
-    const item = structuredClone(suite.cases[0]);
+    const item = pipelineEvalCaseSchema.parse(suite.cases[0]);
     const tickets = {
       priceDetails: [
         {
@@ -100,7 +100,7 @@ test.each(["paid", "free", "unknown"] as const)(
             : null,
     };
     item.initial.event.editions[0].tickets = tickets;
-    const validated = evalCaseSchema.parse(item);
+    const validated = pipelineEvalCaseSchema.parse(item);
     const connection = seedDatabase(suite, validated);
     try {
       const catalog = readResearchCatalog(connection.client);

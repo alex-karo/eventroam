@@ -12,48 +12,6 @@
     "initiatedBy": "eval",
     "dryRun": true
   },
-  "initial": {
-    "event": {
-      "id": "event-donor-correction",
-      "slug": "donor-correction",
-      "canonicalName": "River Festival donor-correction",
-      "editions": [
-        {
-          "venueName": "River Park",
-          "venueAddress": null,
-          "locality": "Lisbon",
-          "administrativeArea": null,
-          "countryCode": "PT",
-          "id": "donor-correction-2027",
-          "editionKey": "2027",
-          "editionYear": 2027,
-          "startsOn": "2027-07-01",
-          "endsOn": "2027-07-03",
-          "scheduleStatus": "scheduled",
-          "latitude": 38.71,
-          "longitude": -9.14,
-          "coordinatePrecision": "approximate"
-        },
-        {
-          "venueName": "River Park",
-          "venueAddress": null,
-          "locality": "Lisbon",
-          "administrativeArea": null,
-          "countryCode": "PT",
-          "id": "donor-correction-2026",
-          "editionKey": "2026",
-          "editionYear": 2026,
-          "startsOn": "2026-07-01",
-          "endsOn": "2026-07-03",
-          "scheduleStatus": "scheduled",
-          "latitude": 38.73,
-          "longitude": -9.16,
-          "coordinatePrecision": "approximate"
-        }
-      ]
-    }
-  },
-  "sources": [],
   "location": {
     "group": "correction",
     "input": {
@@ -110,13 +68,13 @@
         }
       ],
       "editor": {
-        "status": "ready",
         "eventReason": null,
         "previousEdition": null,
         "currentOrNextEdition": {
           "editionKey": "2027",
           "reason": null
-        }
+        },
+        "unresolved": []
       },
       "previousEdition": null,
       "currentOrNextEdition": {

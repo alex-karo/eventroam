@@ -12,32 +12,6 @@
     "initiatedBy": "eval",
     "dryRun": true
   },
-  "initial": {
-    "event": {
-      "id": "event:d2f08eac8f3289da9c06",
-      "slug": "location-several-venues",
-      "canonicalName": "Ageas Cooljazz",
-      "editions": [
-        {
-          "id": "0ab414fc-4fca-4a6f-ac09-5d542e0963c5",
-          "editionKey": "ageas-cooljazz-2027",
-          "editionYear": 2027,
-          "startsOn": "2027-07-01",
-          "endsOn": "2027-07-31",
-          "scheduleStatus": "scheduled",
-          "latitude": null,
-          "longitude": null,
-          "coordinatePrecision": "unknown",
-          "venueName": "Hipódromo Manuel Possolo and Parque Marechal Carmona",
-          "venueAddress": null,
-          "locality": "Cascais",
-          "administrativeArea": null,
-          "countryCode": "PT"
-        }
-      ]
-    }
-  },
-  "sources": [],
   "location": {
     "group": "completion",
     "input": {
@@ -69,13 +43,13 @@
       ],
       "history": [],
       "editor": {
-        "status": "ready",
         "eventReason": null,
         "previousEdition": null,
         "currentOrNextEdition": {
           "editionKey": "ageas-cooljazz-2027",
           "reason": null
-        }
+        },
+        "unresolved": []
       },
       "previousEdition": null,
       "currentOrNextEdition": {

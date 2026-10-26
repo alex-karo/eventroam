@@ -3,7 +3,7 @@
   "provenance": {
     "kind": "captured-adapted",
     "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",
-    "note": "Saved descriptions, source summaries and Geoapify forward responses captured on 2026-10-24. Free-text replay hints use those captured responses. Responses use the client format and omit unused provider fields. Reverse was not captured and is explicitly unavailable. Expected actions are review assertions, not captured model output."
+    "note": "Saved descriptions, source summaries and Geoapify forward responses captured on 2026-10-24. Free-text replay hints use those captured responses. Responses use the client format and omit unused provider fields. Reverse was not captured and is explicitly unavailable. Expected actions are review assertions, not captured model output. The locality refinement with administrative area was captured in the 2026-10-26 PortAmérica v6 ingestion run."
   },
   "input": {
     "mode": "refresh",
@@ -12,32 +12,6 @@
     "initiatedBy": "eval",
     "dryRun": true
   },
-  "initial": {
-    "event": {
-      "id": "event:7c4bee6a0db9e3b8f696",
-      "slug": "location-cemetery",
-      "canonicalName": "PortAmérica",
-      "editions": [
-        {
-          "id": "f9a70691-9caf-4e81-9de8-fcdad0218541",
-          "editionKey": "2027",
-          "editionYear": 2027,
-          "startsOn": "2027-07-08",
-          "endsOn": "2027-07-10",
-          "scheduleStatus": "scheduled",
-          "latitude": null,
-          "longitude": null,
-          "coordinatePrecision": "unknown",
-          "venueName": "Azucreira de Portas",
-          "venueAddress": null,
-          "locality": "Portas",
-          "administrativeArea": "Pontevedra",
-          "countryCode": "ES"
-        }
-      ]
-    }
-  },
-  "sources": [],
   "location": {
     "group": "completion",
     "input": {
@@ -81,13 +55,13 @@
       ],
       "history": [],
       "editor": {
-        "status": "ready",
         "eventReason": null,
         "previousEdition": null,
         "currentOrNextEdition": {
           "editionKey": "2027",
           "reason": null
-        }
+        },
+        "unresolved": []
       },
       "previousEdition": null,
       "currentOrNextEdition": {
@@ -303,6 +277,47 @@
         "direction": "forward",
         "query": "Portas",
         "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.5639366,
+            "longitude": -8.6570848,
+            "placeId": "51bc653d6b6d5021c0593b0213132f484540f00101f9017e47050000000000c00208920306506f72746173",
+            "label": "Portas, GA, Spain",
+            "name": "Portas",
+            "countryCode": "ES",
+            "locality": "Portas",
+            "address": "Portas",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "administrative",
+            "confidence": 1
+          },
+          {
+            "latitude": 42.6221422,
+            "longitude": -7.7237767,
+            "placeId": "515e6d20b825e51ec059123b095ba24f4540f00103f9010063a57c02000000c00208920306506f72746173",
+            "label": "Portas, Chantada, GA, Spain",
+            "name": "Portas",
+            "countryCode": "ES",
+            "locality": "Chantada",
+            "address": "Portas",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "populated_place",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "query": "Portas, Pontevedra, Spain",
+        "countryCode": "ES",
+        "direction": "forward"
       },
       "response": {
         "status": "success",

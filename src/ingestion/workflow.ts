@@ -120,7 +120,7 @@ export const studioIngestionResultSchema = z.strictObject({
   searchCount: z.number().int().nonnegative(),
   operationCount: z.number().int().nonnegative(),
   changedCount: z.number().int().nonnegative(),
-  locationStatus: z.enum(["success", "failed", "not_run"]),
+  locationStatus: locationExecutionSchema.shape.status,
   errorCodes: z.array(z.string()),
 });
 

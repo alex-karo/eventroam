@@ -1,6 +1,11 @@
 import { generateFixtureLocation, fixtureLocationPlan } from "@/test/ingestion";
-import { locationTextFields } from "../location/contracts";
-import type { MaterializedLocation } from "../location/validate";
+import {
+  LOCATION_PROMPT_VERSION,
+  locationTextFields,
+} from "../location/contracts";
+import { validateLocation } from "../location/validate";
+import { createGeocodingSession } from "../tools/geocode/tool";
+import { createResearchBudget } from "../runtime/budget";
 import { buildLocationInput } from "../location/input";
 import { afterEach, expect, test, vi } from "vitest";
 import { Agent } from "@mastra/core/agent";
@@ -173,11 +178,19 @@ function fixture() {
 }
 test("Location receives the writer's default status for a new Edition", () => {
   const f = fixture();
+  const unresolved = [
+    { editionKey: "2026", message: "Previous Edition identity is unclear" },
+    { message: "The source may describe another festival" },
+    { field: "tickets", message: "The ticket page also lists another venue" },
+  ];
+  f.research.unresolved = [{ message: "Research question" }];
   f.research.data!.currentOrNextEdition!.key = "2028";
   f.plan.currentOrNextEdition.editionKey = "2028";
   const prepared = prepareEditorPlan(
     {
       ...f.plan,
+      event: { ...f.plan.event, reason: "The Event identity is confirmed" },
+      unresolved,
       currentOrNextEdition: {
         ...f.plan.currentOrNextEdition,
         reason: "The organizer announced a new Edition",
@@ -205,6 +218,16 @@ test("Location receives the writer's default status for a new Edition", () => {
     saved: null,
     scheduleStatus: "announced",
   });
+  expect(location.editor).toEqual({
+    eventReason: "The Event identity is confirmed",
+    unresolved,
+    previousEdition: null,
+    currentOrNextEdition: {
+      editionKey: "2028",
+      reason: "The organizer announced a new Edition",
+    },
+  });
+  expect(location.previousEdition).toBeNull();
 });
 
 function prepare(f: ReturnType<typeof fixture>, plan: unknown) {
@@ -218,26 +241,46 @@ function prepare(f: ReturnType<typeof fixture>, plan: unknown) {
   if (!prepared.editorPlan) {
     return prepared;
   }
-  return prepareCatalogPlan(prepared, f.catalog, f.input, f.vocabulary, {
-    slots: Object.fromEntries(
-      ["previousEdition", "currentOrNextEdition"]
-        .filter((slot) => !!prepared.editorPlan![slot as "previousEdition"])
-        .map((slot) => [
-          slot,
-          {
-            ...Object.fromEntries(
+  const locationInput = buildLocationInput(
+    prepared.editorPlan,
+    prepared.candidate!.data!,
+    {
+      catalog: f.catalog,
+      terms: f.vocabulary,
+      knownLinks: [],
+      currentDate: "2026-10-25T12:00:00Z",
+    },
+    f.input,
+  );
+  const decision = Object.fromEntries(
+    editionSlotNames.map((slot) => [
+      slot,
+      locationInput[slot]
+        ? {
+            fields: Object.fromEntries(
               locationTextFields.map((field) => [
                 field,
                 { action: "keep", reason: "Preserve" },
               ]),
             ),
             coordinates: { action: "keep", reason: "Preserve" },
-          },
-        ]),
-    ),
-    donors: [],
-    unresolved: [],
-  } as MaterializedLocation);
+            unresolved: [],
+          }
+        : null,
+    ]),
+  );
+  const location = validateLocation(
+    { decision: { status: "ready", ...decision } },
+    locationInput,
+    createGeocodingSession(locationInput, createResearchBudget()),
+  );
+  return prepareCatalogPlan(
+    prepared,
+    f.catalog,
+    f.input,
+    f.vocabulary,
+    location,
+  );
 }
 
 test("strict actions reject unsupported metadata, null sets and malformed unions", () => {
@@ -449,7 +492,7 @@ test("invalid editor output is retained with independent successful research and
     schemaVersion: 7,
     locationResponse: null,
     locationStatus: "not_run",
-    locationPromptVersion: "catalog-location-v1",
+    locationPromptVersion: LOCATION_PROMPT_VERSION,
     locationModelVersion: "fixture",
     geocoding: { observations: [], points: [] },
     outcome: "failed",

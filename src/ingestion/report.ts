@@ -126,6 +126,7 @@ function assembleReport({
       writeFailed:
         writeFailed ||
         editor.status === "failed" ||
+        location.status === "rejected" ||
         location.status === "failed" ||
         !!(prepared && !prepared.candidate && !prepared.skipped) ||
         !!errors.some(
