@@ -29,7 +29,8 @@ src/
 │   │   ├── hooks/             # URL state and selected detail requests
 │   │   ├── map/               # Mapbox adapter
 │   │   └── model/             # Pure filtering and ordering
-│   └── event-details/         # Event history, Edition page, single-point map
+│   ├── event-details/         # Event history, Edition page, single-point map
+│   └── project-presentation/  # Apex system introduction, example, and services
 ├── components/
 │   ├── catalog/               # Facts, icons, ticket views, links, shared history
 │   └── site/                  # Shared site header
@@ -66,6 +67,7 @@ src/
 └── test/                      # Temporary databases and data builders
 
 commands/                     # Catalog research CLI, migrations, development fixtures
+public/                       # Local website assets, catalog preview, and licensed fonts
 openspec/specs/               # Implemented behavior, grouped by catalog/ and website/
 openspec/changes/             # Approved future work; delta specs use matching domain paths
 docs/                         # Decisions and development guidance
@@ -108,7 +110,7 @@ The Edition page owns the full festival view in one column. Its location map own
 
 `site/discovery-context.ts` stores one visit snapshot in session storage. It contains the root filter URL, camera, list scroll, selected ID, and card expansion state. History state and detail URLs carry only its opaque token. `Discovery` saves and restores this context for browser Back and Back to results. It reloads selected details and removes an ineligible selection. The discovery map restores the camera before its first fit and uses the rendered card bounds to keep the selected point visible. Direct details without a matching token return to default discovery.
 
-The application currently has a root page, Event and Edition pages, and two discovery API routes. The root renders an apex directory or Festivals discovery according to the allowed host. Unknown hosts do not expose a default catalog. Detail requests resolve public identity and canonical hosts through `site/server` and `catalog/read`. The [scoped website specification](../openspec/specs/website/routing/spec.md) owns implemented routing behavior; [public site launch](../openspec/changes/public-site-launch/proposal.md) tracks approved metadata work.
+The application currently has a root page, Event and Edition pages, and two discovery API routes. The root renders the project presentation or Festivals discovery according to the allowed host. The apex has three sections: system introduction, festival example, and services with a direct LinkedIn contact link. Its [presentation spec](../openspec/specs/website/project-presentation/spec.md) defines this content. The apex uses a local preview image, local fonts, and a labeled source-to-record-to-catalog illustration. It does not query the catalog. Unknown hosts do not expose a default catalog. Detail requests resolve public identity and canonical hosts through `site/server` and `catalog/read`. The [scoped website specification](../openspec/specs/website/routing/spec.md) owns implemented routing behavior; [public site launch](../openspec/changes/public-site-launch/proposal.md) tracks approved metadata work.
 
 About and privacy pages, dedicated error pages, robots and sitemap routes, and complete SEO metadata remain future work. Add their files when the behavior is implemented; do not publish placeholder routes.
 

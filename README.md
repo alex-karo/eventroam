@@ -18,11 +18,11 @@ npm run db:fixtures
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000) for the directory or [festivals.localhost:3000](http://festivals.localhost:3000) for festivals. Mapbox is optional. See the [development guide](docs/development.md) for configuration, ingestion, and application Compose commands.
+Open [localhost:3000](http://localhost:3000) for the project presentation or [festivals.localhost:3000](http://festivals.localhost:3000) for festivals. Mapbox is optional. See the [development guide](docs/development.md) for configuration, ingestion, and application Compose commands.
 
 ## Architecture
 
-Eventroam is one Next.js application and one SQLite catalog. Scope hosts share the application and database: the apex host is a directory, while the Festivals host serves discovery and record pages.
+Eventroam is one Next.js application and one SQLite catalog. The apex host presents the data collection system, its festival catalog example, and two services: data collection and custom system development. It links to the author's LinkedIn profile for discussion. The Festivals host serves discovery and record pages from the shared catalog.
 
 ```mermaid
 flowchart TD

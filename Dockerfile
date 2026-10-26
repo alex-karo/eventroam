@@ -14,9 +14,10 @@ COPY scripts/build-studio-commands.mjs ./scripts/build-studio-commands.mjs
 COPY tsconfig.json next-env.d.ts next.config.ts postcss.config.mjs ./
 
 FROM source AS web-build
+COPY public ./public
 ARG EVENTROAM_MAPBOX_TOKEN=""
 ARG EVENTROAM_MAPBOX_STYLE="mapbox://styles/mapbox/streets-v12"
-RUN mkdir -p public && NEXT_PUBLIC_MAPBOX_TOKEN="$EVENTROAM_MAPBOX_TOKEN" NEXT_PUBLIC_MAPBOX_STYLE="$EVENTROAM_MAPBOX_STYLE" npm run build
+RUN NEXT_PUBLIC_MAPBOX_TOKEN="$EVENTROAM_MAPBOX_TOKEN" NEXT_PUBLIC_MAPBOX_STYLE="$EVENTROAM_MAPBOX_STYLE" npm run build
 
 FROM source AS studio-build
 RUN DATABASE_PATH=/tmp/build/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/build/history.duckdb npm run studio:build
