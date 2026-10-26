@@ -10,7 +10,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 ## Website design
 
-- [Signal design](../DESIGN.md) — selected visual direction for the public website; shared visual rules for the catalog and project presentation.
+- [Signal design](design.md) — selected visual direction for the public website; shared visual rules for the catalog and project presentation.
 
 ## Draft proposals
 

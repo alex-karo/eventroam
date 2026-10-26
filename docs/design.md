@@ -1,6 +1,6 @@
 ---
 type: Reference
-title: Eventroam Signal design
+title: Eventroam — Signal
 description: Selected visual direction and implementation guidance for the public website.
 status: stable
 tags: [design, website]
