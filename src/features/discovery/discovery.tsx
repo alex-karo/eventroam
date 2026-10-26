@@ -362,7 +362,7 @@ export function Discovery({
           href={apexHref}
           aria-label="Eventroam home"
         >
-          event<span>roam</span>
+          Eventroam<span aria-hidden="true">.</span>
         </a>
         <span className="discovery-scope">Festivals</span>
         <form

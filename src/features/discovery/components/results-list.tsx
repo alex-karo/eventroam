@@ -1,13 +1,9 @@
+import { DateBlock } from "@/components/catalog/date-block";
 import { durationDays } from "@/catalog/domain/dates";
 import { placeName, dateRangeParts } from "@/components/catalog/format";
 import type { DiscoverySummary } from "@/catalog/read/contracts";
 import { withDiscovery } from "@/site/discovery-context";
 import { editionPath } from "@/site/site";
-
-const month = (date: string) =>
-  new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" }).format(
-    new Date(`${date}T12:00:00Z`),
-  );
 
 export function ResultsList({
   results,
@@ -47,10 +43,7 @@ export function ResultsList({
                     selectedId === edition.id ? "selected-edition" : ""
                   }
                 >
-                  <div className="edition-date" aria-hidden="true">
-                    <span>{month(edition.startsOn)}</span>
-                    <strong>{Number(edition.startsOn.slice(-2))}</strong>
-                  </div>
+                  <DateBlock date={edition.startsOn} />
                   <div className="edition-body">
                     <a
                       className="edition-name"

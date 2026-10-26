@@ -52,7 +52,7 @@ export function LocationMap({
           new gl.NavigationControl({ showCompass: false }),
           "top-right",
         );
-        marker = new gl.Marker({ color: "#007969" })
+        marker = new gl.Marker({ color: "#151522" })
           .setLngLat([longitude, latitude])
           .addTo(map);
         map.on("error", () => setError(true));
