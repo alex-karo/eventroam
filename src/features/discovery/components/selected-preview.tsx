@@ -1,3 +1,4 @@
+import { DateBlock } from "@/components/catalog/date-block";
 import type { RefObject } from "react";
 import type { DetailState } from "@/features/discovery/hooks/use-selected-edition";
 import { editionPath } from "@/site/site";
@@ -93,9 +94,12 @@ export function SelectedPreview({
         )}
         {detail && (
           <>
-            <div className="card-date-facts">
-              <Dates edition={detail} />
-              <Status edition={detail} now={now} />
+            <div className="preview-date">
+              <DateBlock date={detail.startsOn} />
+              <div className="card-date-facts">
+                <Dates edition={detail} />
+                <Status edition={detail} now={now} />
+              </div>
             </div>
             <Location edition={detail} />
             <div id="selected-more" className="selected-more">

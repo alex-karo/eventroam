@@ -1,24 +1,77 @@
 @import "tailwindcss";
 @import "mapbox-gl/dist/mapbox-gl.css";
 
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/fonts/space-grotesk.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/ibm-plex-mono.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
 :root {
   color-scheme: light;
-  font-family: Arial, Helvetica, sans-serif;
+  --ink: #151522;
+  --canvas: #fafafc;
+  --surface: #ffffff;
+  --muted: #60606f;
+  --line: #dedee7;
+  --control: #858593;
+  --soft: #f1f0f6;
+  --accent: #5144b5;
+  --tint: #dcd9fa;
+  --coral: #e96851;
+  --warning: #865000;
+  --warning-surface: #fff3d6;
+  --error: #a3293a;
+  --font-sans: "Space Grotesk", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+  --radius: 4px;
+  --panel-radius: 8px;
+  --panel-shadow: 0 12px 32px rgb(21 21 34 / 12%);
+  font-family: var(--font-sans);
 }
-
+* {
+  box-sizing: border-box;
+}
 body {
   margin: 0;
-  color: #172c31;
-  background: #f6f7f2;
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+  font-family: var(--font-sans);
   line-height: 1.5;
 }
+button,
+input {
+  font: inherit;
+}
+button,
+a,
+input {
+  transition:
+    color 150ms,
+    background-color 150ms,
+    border-color 150ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a,
+  input {
+    transition: none;
+  }
+}
 a {
-  color: #12614f;
+  color: var(--accent);
   text-underline-offset: 3px;
 }
 a:hover {
-  color: #084637;
+  color: var(--ink);
 }
 .catalog {
   max-width: 54rem;
@@ -39,7 +92,7 @@ a:hover {
   margin-top: 2rem;
 }
 .catalog section {
-  border-top: 1px solid #c7d1ca;
+  border-top: 1px solid var(--line);
   margin-top: 2rem;
 }
 .edition-list {
@@ -48,7 +101,7 @@ a:hover {
 }
 .edition-list li {
   padding: 1rem 0;
-  border-bottom: 1px solid #c7d1ca;
+  border-bottom: 1px solid var(--line);
 }
 .edition-list li > a {
   font-size: 1.2rem;
@@ -66,19 +119,9 @@ a:hover {
   padding: 0;
 }
 .discovery {
-  --ink: #172b36;
-  --muted: #536671;
-  --line: #dce4e8;
-  --soft: #f2f6f8;
-  --teal: #007969;
-  --tint: #e8f5f0;
   color: var(--ink);
-  background: #fff;
-  font:
-    14px/1.45 "IBM Plex Sans",
-    "Avenir Next",
-    Arial,
-    sans-serif;
+  background: var(--surface);
+  font: 400 14px/1.5 var(--font-sans);
 }
 .discovery * {
   box-sizing: border-box;
@@ -89,8 +132,8 @@ a:hover {
 }
 .discovery button {
   cursor: pointer;
-  border: 1px solid var(--line);
-  border-radius: 7px;
+  border: 1px solid var(--control);
+  border-radius: var(--radius);
   background: white;
   color: var(--ink);
   padding: 7px 10px;
@@ -101,43 +144,46 @@ a:hover {
 .discovery button:focus-visible,
 .discovery a:focus-visible,
 .discovery input:focus-visible {
-  outline: 3px solid var(--teal);
+  outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 .discovery a {
-  color: var(--teal);
+  color: var(--accent);
 }
 .discovery-header {
   display: flex;
   align-items: center;
   gap: 14px;
-  height: 52px;
-  padding: 0 14px;
+  min-height: 64px;
+  padding: 10px 24px;
+  background: var(--ink);
+  color: white;
   border-bottom: 1px solid var(--line);
 }
 .discovery-brand {
-  color: var(--ink) !important;
+  color: white !important;
   text-decoration: none;
-  font:
-    800 23px/1 "Trebuchet MS",
-    "Avenir Next",
-    sans-serif;
-  letter-spacing: -1.3px;
+  font: 600 24px/1 var(--font-sans);
+  letter-spacing: -1px;
   white-space: nowrap;
 }
 .discovery-brand span {
-  color: var(--teal);
+  color: var(--coral);
 }
 .discovery-scope {
-  border-left: 1px solid var(--line);
-  padding-left: 13px;
-  color: var(--muted);
+  border-left: 1px solid var(--control);
+  padding-left: 16px;
+  color: var(--tint);
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 .name-search {
   display: flex;
   align-items: center;
-  width: min(300px, 35vw);
+  width: min(360px, 40vw);
+  background: var(--surface);
+  color: var(--ink);
+  min-height: 44px;
   margin-left: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -158,7 +204,7 @@ a:hover {
 }
 .discovery-stage {
   position: relative;
-  height: calc(100dvh - 52px);
+  height: calc(100dvh - 64px);
   min-height: 460px;
 }
 .discovery-results-shell {
@@ -203,10 +249,10 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #cde7de;
-  border-radius: 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
   background: var(--tint);
-  color: #166255;
+  color: var(--ink);
   padding: 5px 9px;
   font-size: 12px;
 }
@@ -226,16 +272,16 @@ a:hover {
   white-space: nowrap;
 }
 .discovery .clear-filters:hover {
-  color: var(--teal);
+  color: var(--accent);
 }
 .discovery-notices {
   padding: 10px 14px 0;
 }
 .notice {
   padding: 12px;
-  border: 1px solid #d2aa64;
+  border: 1px solid var(--warning);
   border-radius: 8px;
-  background: #fff9ed;
+  background: var(--warning-surface);
 }
 .notice + .notice {
   margin-top: 8px;
@@ -253,23 +299,25 @@ a:hover {
 }
 .discovery .edition-list li {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
   align-items: start;
-  gap: 11px;
-  padding: 12px 14px;
+  gap: 16px;
+  padding: 20px 16px;
   border-bottom: 1px solid var(--line);
 }
 .discovery .edition-list li.selected-edition {
   background: var(--tint);
-  box-shadow: inset 3px 0 var(--teal);
+  box-shadow: inset 3px 0 var(--accent);
 }
 .edition-date {
   display: flex;
   flex-direction: column;
   align-items: center;
   border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 4px 2px;
+  border-radius: var(--radius);
+  padding: 8px 4px;
+  background: var(--canvas);
+  font-family: var(--font-mono);
   line-height: 1.1;
 }
 .edition-date span {
@@ -280,10 +328,7 @@ a:hover {
 }
 .edition-date strong {
   margin-top: 3px;
-  font:
-    700 21px/1 "Trebuchet MS",
-    "Avenir Next",
-    sans-serif;
+  font: 500 26px/1 var(--font-sans);
 }
 .edition-body {
   min-width: 0;
@@ -293,30 +338,30 @@ a:hover {
 .edition-name {
   color: var(--ink) !important;
   text-decoration: none;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.25px;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
   line-height: 1.25;
 }
 .edition-name:hover {
   text-decoration: underline;
-  text-decoration-color: var(--teal);
+  text-decoration-color: var(--accent);
 }
 .edition-place {
-  margin-top: 3px;
-  font-size: 12px;
+  margin-top: 6px;
+  font-size: 14px;
 }
 .edition-meta {
   color: var(--muted);
-  margin-top: 3px;
-  font-size: 11px;
+  margin-top: 8px;
+  font-size: 12px;
 }
 .edition-statuses {
   display: flex;
   flex-wrap: wrap;
   gap: 2px 8px;
   margin-top: 3px;
-  color: #855321;
+  color: var(--warning);
   font-size: 11px;
 }
 .edition-statuses span::before {
@@ -325,12 +370,13 @@ a:hover {
 }
 .discovery .edition-details {
   align-self: center;
-  padding: 5px 7px;
-  color: var(--teal);
-  font-size: 11px;
+  min-height: 44px;
+  padding: 8px;
+  color: var(--accent);
+  font-size: 12px;
 }
 .discovery .edition-details[aria-pressed="true"] {
-  border-color: var(--teal);
+  border-color: var(--accent);
   background: var(--tint);
 }
 .empty-results {
@@ -341,7 +387,7 @@ a:hover {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: #e2edf2;
+  background: var(--soft);
 }
 .map-shell,
 .map-canvas {
@@ -359,9 +405,9 @@ a:hover {
   right: 16px;
   z-index: 2;
   padding: 12px;
-  border: 1px solid #d2aa64;
+  border: 1px solid var(--warning);
   border-radius: 8px;
-  background: #fff9ed;
+  background: var(--warning-surface);
 }
 .map-caption {
   position: absolute;
@@ -398,14 +444,14 @@ a:hover {
   gap: 3px;
   padding: 4px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: white;
   box-shadow: 0 3px 12px #00000012;
 }
 .discovery .filter-trigger {
   flex: none;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius);
   min-height: 36px;
   padding: 8px 12px;
   white-space: nowrap;
@@ -413,10 +459,10 @@ a:hover {
   font-size: 12px;
 }
 .discovery .filter-trigger + .filter-trigger {
-  border-radius: 7px;
+  border-radius: var(--radius);
 }
 .discovery .filter-trigger[aria-expanded="true"] {
-  color: var(--teal);
+  color: var(--accent);
   background: var(--tint);
 }
 .mobile-filter-label {
@@ -432,21 +478,16 @@ a:hover {
   width: min(530px, calc(60% - 24px));
   max-height: calc(100% - 80px);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: white;
-  box-shadow:
-    0 16px 48px #172b3626,
-    0 3px 10px #172b360c;
+  box-shadow: var(--panel-shadow);
 }
 .filter-panel h2 {
   flex: none;
   margin: 0;
   padding: 22px 24px 18px;
   border-bottom: 1px solid var(--line);
-  font:
-    700 22px/1.2 "Trebuchet MS",
-    "Avenir Next",
-    sans-serif;
+  font: 700 22px/1.2 var(--font-sans);
   letter-spacing: -0.4px;
 }
 .filter-fields {
@@ -492,9 +533,9 @@ a:hover {
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid #ccd8de;
-  border-radius: 9px;
-  background: #f9fbfc;
+  border: 1px solid var(--control);
+  border-radius: var(--radius);
+  background: var(--canvas);
   color: var(--ink);
   transition: border-color 120ms ease;
 }
@@ -511,21 +552,21 @@ a:hover {
 }
 .filter-panel .filter-shortcuts button {
   min-height: 38px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   font-size: 12px;
   padding: 8px 12px;
 }
 .filter-panel .filter-shortcuts button[aria-pressed="true"] {
   background: var(--tint);
-  border-color: var(--teal);
-  color: var(--teal);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .filter-panel input::placeholder {
-  color: #74848d;
+  color: var(--muted);
   font-weight: 400;
 }
 .filter-panel input[type="checkbox"] {
-  accent-color: var(--teal);
+  accent-color: var(--accent);
   width: 17px;
   height: 17px;
   flex: none;
@@ -544,19 +585,19 @@ a:hover {
   padding: 10px 12px;
   min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius);
   font-weight: 400;
   white-space: normal;
 }
 .filter-panel .choices label:has(input:checked),
 .filter-panel .genre-options label:has(input:checked) {
   background: var(--tint);
-  border-color: #a7d3c6;
-  color: #166255;
+  border-color: var(--accent);
+  color: var(--ink);
 }
 .filter-panel .choices label:hover,
 .filter-panel .genre-options label:hover {
-  border-color: #8eb5a9;
+  border-color: var(--accent);
 }
 .filter-panel .genre-options {
   display: grid;
@@ -579,7 +620,7 @@ a:hover {
   padding: 10px 12px;
   margin: 0;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius);
   font-weight: 400;
 }
 .filter-panel .mobile-genre-field {
@@ -592,14 +633,14 @@ a:hover {
   gap: 8px;
   padding: 16px 24px;
   border-top: 1px solid var(--line);
-  background: #f9fbfc;
-  border-radius: 0 0 16px 16px;
+  background: var(--canvas);
+  border-radius: 0 0 var(--panel-radius) var(--panel-radius);
 }
 .discovery .filter-actions button {
   min-height: 44px;
   padding: 10px 16px;
   font-weight: 600;
-  border-radius: 9px;
+  border-radius: var(--radius);
 }
 .discovery .filter-actions button:last-child {
   order: -1;
@@ -609,9 +650,9 @@ a:hover {
   color: var(--muted);
 }
 .discovery .filter-actions button:first-child {
-  background: var(--teal);
+  background: var(--ink);
   color: white;
-  border-color: var(--teal);
+  border-color: var(--accent);
 }
 .view-switch {
   display: none;
@@ -634,7 +675,7 @@ a:hover {
 }
 @media (max-width: 740px) {
   .discovery-header {
-    height: 49px;
+    min-height: 64px;
     gap: 8px;
     padding: 0 10px;
   }
@@ -652,7 +693,7 @@ a:hover {
     font-size: 16px;
   }
   .discovery-stage {
-    height: calc(100dvh - 49px);
+    height: calc(100dvh - 64px);
     min-height: 450px;
   }
   .filter-toolbar {
@@ -776,7 +817,7 @@ a:hover {
     gap: 2px;
     padding: 3px;
     border: 1px solid var(--line);
-    border-radius: 9px;
+    border-radius: var(--radius);
     background: white;
     box-shadow: 0 3px 12px #0002;
   }
@@ -788,8 +829,8 @@ a:hover {
   }
   .view-switch button[aria-pressed="true"] {
     color: white;
-    background: var(--teal);
-    border-color: var(--teal);
+    background: var(--accent);
+    border-color: var(--accent);
   }
 }
 @media (max-width: 380px) {
@@ -827,7 +868,7 @@ a:hover {
 .filter-error {
   margin: 0;
   padding: 7px 16px;
-  color: #8b3f20;
+  color: var(--error);
   font-size: 12px;
 }
 
@@ -873,7 +914,7 @@ a:hover {
   padding: 0;
   margin: 12px 0 0;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius);
   overflow: hidden;
 }
 .place-suggestions [role="option"] {
@@ -920,12 +961,14 @@ a:hover {
 
 /* Festival facts and detail pages share the same compact controls. */
 .festival-details {
-  max-width: 48rem;
+  max-width: 70rem;
   padding-top: 1.5rem;
   overflow-wrap: anywhere;
 }
 .catalog.festival-details h1 {
-  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
   line-height: 1.15;
 }
 .catalog.festival-details nav {
@@ -958,8 +1001,8 @@ a:hover {
   margin: 0.75rem 0;
 }
 .fact-tags li {
-  border: 1px solid #c7d1ca;
-  border-radius: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   padding: 0.15rem 0.6rem;
   font-size: 0.85em;
 }
@@ -982,13 +1025,13 @@ a:hover {
   display: inline-flex;
   min-width: 0;
   max-width: 100%;
-  min-height: 32px;
+  min-height: 44px;
   padding: 5px 8px;
   gap: 6px;
   align-items: center;
   justify-content: center;
-  border: 1px solid #c7d1ca;
-  border-radius: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   background: white;
   box-sizing: border-box;
   font-size: 13px;
@@ -1002,10 +1045,10 @@ a:hover {
   margin: 0;
 }
 .external-link:hover {
-  background: #e8f5f0;
+  background: var(--tint);
 }
 a:focus-visible {
-  outline: 3px solid #007969;
+  outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 .ticket-categories,
@@ -1015,7 +1058,7 @@ a:focus-visible {
   margin: 0.75rem 0;
 }
 .ticket-categories li {
-  border: 1px solid #c7d1ca;
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.85rem;
   margin: 0.5rem 0;
@@ -1032,24 +1075,24 @@ a:focus-visible {
 .ticket-status {
   display: inline-block;
   font-size: 0.85em;
-  background: #edf0e9;
+  background: var(--soft);
   border-radius: 4px;
   padding: 0.1rem 0.4rem;
   margin-top: 0.4rem;
 }
 .edition-history li {
   padding: 0.6rem 0;
-  border-bottom: 1px solid #c7d1ca;
+  border-bottom: 1px solid var(--line);
 }
 .edition-history small {
   margin-left: 0.65rem;
-  color: #536671;
+  color: var(--muted);
 }
 .edition-location-map {
   position: relative;
   height: 20rem;
   margin: 0.75rem 0;
-  background: #e2edf2;
+  background: var(--soft);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -1062,10 +1105,10 @@ a:focus-visible {
   top: 1rem;
   left: 1rem;
   right: 1rem;
-  background: #fff9ed;
+  background: var(--warning-surface);
   padding: 0.75rem;
-  border: 1px solid #d2aa64;
-  border-radius: 6px;
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
 }
 @media (max-width: 740px) {
   .catalog.festival-details {
@@ -1085,9 +1128,9 @@ a:focus-visible {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: white;
-  box-shadow: 0 8px 25px #0002;
+  box-shadow: var(--panel-shadow);
 }
 .detail-panel p {
   margin: 7px 0;
@@ -1111,10 +1154,7 @@ a:focus-visible {
   max-height: 5.4em;
   overflow-y: auto;
   overflow-wrap: anywhere;
-  font:
-    700 20px/1.25 "Trebuchet MS",
-    "Avenir Next",
-    sans-serif;
+  font: 700 20px/1.25 var(--font-sans);
   letter-spacing: -0.5px;
 }
 .card-controls {
@@ -1133,7 +1173,7 @@ a:focus-visible {
   background: transparent;
 }
 .card-controls button:hover {
-  background: #e8f5f0;
+  background: var(--tint);
 }
 .card-controls .fact-icon {
   margin: 0;
@@ -1167,8 +1207,8 @@ a:focus-visible {
   gap: 10px;
   padding: 0 14px;
   font-size: 14px;
-  border-radius: 7px;
-  background: var(--teal);
+  border-radius: var(--radius);
+  background: var(--ink);
   color: white;
   font-weight: 600;
 }
@@ -1186,19 +1226,19 @@ a:focus-visible {
   white-space: nowrap;
 }
 .fact-duration {
-  color: #536671;
+  color: var(--muted);
   font-size: 0.9em;
 }
 .date-badge {
   border-radius: 4px;
   padding: 1px 5px;
-  background: #fff5df;
-  color: #77531a;
+  background: var(--warning-surface);
+  color: var(--warning);
   font-size: 0.8em;
 }
 .location-note {
   white-space: nowrap;
-  color: #536671;
+  color: var(--muted);
   font-size: 0.85em;
 }
 .card-date-facts {
@@ -1213,11 +1253,11 @@ a:focus-visible {
 .card-date-facts .edition-state {
   margin: 0 0 4px 30px;
   font-size: 0.8em;
-  color: #536671;
+  color: var(--muted);
 }
 .card-date-facts .state-cancelled,
 .card-date-facts .state-postponed {
-  color: #9a3c25;
+  color: var(--error);
   font-weight: 700;
 }
 .price-amount {
@@ -1226,18 +1266,18 @@ a:focus-visible {
 .price-qualification {
   display: block;
   margin-top: 4px;
-  color: #536671;
+  color: var(--muted);
   font-size: 0.85em;
   line-height: 1.5;
 }
 .fact-tags .term-genre {
-  background: #e8f5f0;
-  border-color: #b3cec4;
-  color: #215b4e;
+  background: var(--tint);
+  border-color: var(--accent);
+  color: var(--ink);
 }
 .fact-tags .term-general {
   border-color: transparent;
-  color: #536671;
+  color: var(--muted);
 }
 .detail-panel .fact-tags {
   padding: 0;
@@ -1286,9 +1326,89 @@ a:focus-visible {
   height: 24px;
   border: 4px solid white;
   border-radius: 50%;
-  background: #bd4f2e;
+  background: var(--accent);
   box-shadow:
-    0 0 0 3px #172c31,
+    0 0 0 3px var(--ink),
     0 2px 8px #0005;
   pointer-events: none;
+}
+
+.discovery-header a:focus-visible {
+  outline-color: var(--tint);
+}
+.discovery .edition-list li:not(.selected-edition):hover {
+  background: var(--canvas);
+}
+.results-summary {
+  padding: 16px;
+}
+.results-summary strong,
+.results-geography {
+  font-family: var(--font-mono);
+}
+.filter-panel,
+.detail-panel {
+  border-radius: var(--panel-radius);
+}
+.festival-details > section > p {
+  max-width: 65ch;
+}
+.festival-details > nav {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+@media (max-width: 1100px) and (min-width: 741px) {
+  .discovery .edition-list li {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .edition-details {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+.edition-title {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 32px 0;
+}
+.edition-title .edition-date {
+  flex: none;
+  width: 80px;
+  padding: 12px;
+  border-top: 3px solid var(--accent);
+}
+.edition-title .edition-date strong {
+  font-size: 40px;
+}
+.edition-title h1 {
+  margin: 0;
+}
+.preview-date {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.preview-date .edition-date {
+  margin-top: 8px;
+}
+.preview-date .fact-icon {
+  display: none;
+}
+.preview-date .edition-state {
+  margin-left: 0;
+}
+@media (max-width: 740px) {
+  .edition-title {
+    gap: 16px;
+  }
+  .edition-title .edition-date {
+    width: 56px;
+    padding: 8px;
+  }
+  .edition-title .edition-date strong {
+    font-size: 28px;
+  }
 }

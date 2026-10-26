@@ -165,8 +165,8 @@ export function ProjectPresentation({ festivalsHref }: Readonly<Props>) {
                 <Image
                   src="/festival-catalog-preview.webp"
                   alt="Festival catalog with four fictional editions, search, filters, and a map. Map attribution is shown at the bottom."
-                  width={900}
-                  height={720}
+                  width={1265}
+                  height={712}
                   sizes="(max-width: 740px) 640px, (max-width: 1200px) 62vw, 700px"
                 />
               </div>

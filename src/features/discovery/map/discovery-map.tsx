@@ -362,7 +362,7 @@ export function DiscoveryMap({
             source: "editions",
             filter: ["has", "point_count"],
             paint: {
-              "circle-color": "#007969",
+              "circle-color": "#151522",
               "circle-radius": [
                 "step",
                 ["get", "point_count"],
@@ -407,8 +407,8 @@ export function DiscoveryMap({
               "circle-color": [
                 "case",
                 ["==", ["get", "id"], latestSelected.current ?? ""],
-                "#bd4f2e",
-                "#007969",
+                "#5144b5",
+                "#151522",
               ],
               "circle-radius": [
                 "case",
@@ -516,8 +516,8 @@ export function DiscoveryMap({
       instance.setPaintProperty("points", "circle-color", [
         "case",
         selected,
-        "#bd4f2e",
-        "#007969",
+        "#5144b5",
+        "#151522",
       ]);
       instance.setPaintProperty("points", "circle-radius", [
         "case",

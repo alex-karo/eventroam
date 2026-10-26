@@ -1,41 +1,10 @@
-@font-face {
-  font-family: "Presentation Display";
-  src: url("/fonts/bricolage-grotesque.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 600 700;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Presentation Sans";
-  src: url("/fonts/ibm-plex-sans.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 400 600;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Presentation Mono";
-  src: url("/fonts/ibm-plex-mono.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-
 .page {
-  --ink: #192d38;
-  --muted: #536572;
-  --accent: #315ddc;
-  --highlight: #e5edf9;
-  --surface: #fff;
-  --background: #f5f7fa;
+  --highlight: var(--tint);
+  --background: var(--canvas);
   min-height: 100vh;
   background: var(--background);
   color: var(--ink);
-  font:
-    400 17px/1.6 "Presentation Sans",
-    Arial,
-    sans-serif;
+  font: 400 17px/1.6 var(--font-sans);
 }
 
 .page * {
@@ -51,25 +20,29 @@
   justify-content: space-between;
   align-items: center;
   gap: 24px;
-  padding: 30px 0;
+  min-height: 64px;
+  padding: 16px 0;
+  background: var(--ink);
+  color: white;
+  box-shadow: 0 0 0 100vmax var(--ink);
+  clip-path: inset(0 -100vmax);
 }
 .brand {
-  font:
-    700 27px/1 "Presentation Display",
-    sans-serif;
+  font: 700 27px/1 var(--font-sans);
   letter-spacing: -1.3px;
 }
 .brand span {
-  color: var(--accent);
+  color: var(--coral);
 }
 .headerNote {
-  color: var(--muted);
+  color: var(--tint);
+  font-family: var(--font-mono);
   font-size: 13px;
 }
 .page h1,
 .page h2,
 .page h3 {
-  font-family: "Presentation Display", sans-serif;
+  font-family: var(--font-sans);
   font-weight: 600;
   text-wrap: balance;
 }
@@ -109,7 +82,7 @@
   outline-offset: 5px;
 }
 .introduction {
-  padding: 56px 0 64px;
+  padding: 72px 0 64px;
 }
 .introCopy {
   display: grid;
@@ -155,18 +128,21 @@
   flex: none;
   min-height: 50px;
   padding: 13px 20px;
-  border-radius: 6px;
-  background: var(--accent);
+  border-radius: var(--radius);
+  background: var(--ink);
   color: var(--surface);
   font-size: 15px;
   font-weight: 600;
   text-decoration: none;
 }
 .page .contactLink:hover {
-  background: var(--ink);
+  background: var(--accent);
 }
 .transformation {
   margin: 0;
+  border-top: 4px solid transparent;
+  border-image: linear-gradient(90deg, var(--coral), var(--tint)) 1;
+  padding-top: 24px;
 }
 .pipeline {
   display: grid;
@@ -178,14 +154,12 @@
 }
 .source {
   padding: 24px;
-  border: 1px solid var(--highlight);
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   background: var(--surface);
 }
 .label {
-  font:
-    400 11px/1.5 "Presentation Mono",
-    monospace;
+  font: 400 12px/1.5 var(--font-mono);
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -202,7 +176,7 @@
   padding: 2px 4px;
   border-radius: 3px;
   background: var(--highlight);
-  color: var(--accent);
+  color: var(--ink);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
@@ -216,9 +190,7 @@
 .agentLabel {
   position: absolute;
   top: calc(50% - 32px);
-  font:
-    10px/1.5 "Presentation Mono",
-    monospace;
+  font: 10px/1.5 var(--font-mono);
 }
 .arrow {
   font-size: 25px;
@@ -227,13 +199,13 @@
 .catalog {
   min-width: 0;
   padding: 22px 24px 12px;
-  border: 1px solid var(--highlight);
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   background: var(--surface);
 }
 .catalog {
   border-top: 3px solid var(--accent);
-  box-shadow: 0 12px 32px rgb(25 45 56 / 6%);
+  box-shadow: none;
   padding: 22px 18px 16px;
 }
 .catalog table {
@@ -247,9 +219,7 @@
 .catalog th {
   padding: 0 8px 10px;
   color: var(--muted);
-  font:
-    11px/1.5 "Presentation Mono",
-    monospace;
+  font: 11px/1.5 var(--font-mono);
   text-align: left;
 }
 .catalog td {
@@ -261,17 +231,15 @@
   display: block;
   margin-top: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .newRecord {
   background: var(--highlight);
-  color: var(--accent);
+  color: var(--ink);
 }
 .catalog .newLabel {
   color: var(--accent);
-  font:
-    10px/1.5 "Presentation Mono",
-    monospace;
+  font: 10px/1.5 var(--font-mono);
 }
 .recordHeading {
   display: flex;
@@ -280,9 +248,7 @@
 }
 .recordSymbol {
   color: var(--accent);
-  font:
-    18px "Presentation Mono",
-    monospace;
+  font: 18px var(--font-mono);
 }
 .record dl {
   margin: 14px 0 0;
@@ -296,9 +262,7 @@
 }
 .record dt {
   color: var(--muted);
-  font:
-    12px/1.9 "Presentation Mono",
-    monospace;
+  font: 12px/1.9 var(--font-mono);
 }
 .record dd {
   margin: 0;
@@ -315,7 +279,7 @@
   grid-template-columns: 0.7fr 1.3fr;
   align-items: center;
   gap: 48px;
-  border-top: 1px solid var(--highlight);
+  border-top: 1px solid var(--line);
   padding: 64px 0;
   scroll-margin-top: 24px;
 }
@@ -338,8 +302,8 @@
 }
 .previewScroll {
   overflow-x: auto;
-  border: 1px solid var(--highlight);
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   background: var(--surface);
 }
 .preview img {
@@ -357,7 +321,7 @@
   display: none;
 }
 .cooperation {
-  border-top: 1px solid var(--highlight);
+  border-top: 1px solid var(--line);
   padding: 64px 0 36px;
 }
 .sectionHeading {
@@ -394,7 +358,7 @@
   gap: 32px;
   padding: 28px 32px;
   background: var(--highlight);
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 .contact > div {
   max-width: 500px;
