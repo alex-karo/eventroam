@@ -1,0 +1,6 @@
+interface:
+  display_name: "Complex Code Review"
+  short_description: "Adaptive specialist review with selective verification"
+  default_prompt: "Use $complex-code-review to review these changes, including design simplicity and code clarity, and validate significant findings."
+policy:
+  allow_implicit_invocation: true
