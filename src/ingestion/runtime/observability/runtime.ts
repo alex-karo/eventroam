@@ -10,7 +10,7 @@ import type { CatalogResearchInput } from "../../contracts";
 import { RESEARCH_PROMPT_VERSION } from "../../research/contracts";
 import {
   createPinoLogger,
-  createResearchLogger,
+  createApplicationLogger,
   type ResearchLogLevel,
 } from "../logging";
 import { traceText } from "../tracing/labels";
@@ -167,16 +167,23 @@ export async function finishResearchObservability(
     await boundedCleanup(() => mastra.shutdown());
     return;
   }
+  await flushObservability(mastra, diagnose);
+  try {
+    await boundedCleanup(() => mastra.shutdown());
+  } catch {
+    diagnose("trace_shutdown_failed");
+  }
+}
+
+export async function flushObservability(
+  mastra: Pick<Mastra, "observability">,
+  diagnose: Diagnose,
+) {
   // Core closes storage before observability.shutdown(), so flush explicitly first.
   try {
     await boundedCleanup(() => mastra.observability.flush());
   } catch {
     diagnose("trace_flush_failed");
-  }
-  try {
-    await boundedCleanup(() => mastra.shutdown());
-  } catch {
-    diagnose("trace_shutdown_failed");
   }
 }
 
@@ -223,7 +230,7 @@ export async function createRunObservability(
         })
       : undefined;
     const log = native
-      ? createResearchLogger({
+      ? createApplicationLogger({
           native,
           eventContext,
           observability: tracing.observability,

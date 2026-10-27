@@ -1,5 +1,9 @@
 import { LoggerTransport } from "@mastra/core/logger";
-import { EntityType, type AnySpan } from "@mastra/core/observability";
+import {
+  EntityType,
+  type AnySpan,
+  type CorrelationContext,
+} from "@mastra/core/observability";
 import { PinoLogger } from "@mastra/loggers";
 import {
   LoggerContextImpl,
@@ -50,11 +54,12 @@ export function createPinoLogger(
  * original call arguments without child bindings, so emit one matching Studio
  * event through Mastra's bus with explicit correlation and selected metadata.
  */
-export function createResearchLogger(options: {
+export function createApplicationLogger(options: {
   native: PinoLogger;
   observability: Observability;
-  runId: string;
-  eventContext: { eventId?: string };
+  runId?: string;
+  eventContext?: { eventId?: string };
+  correlationContext?: CorrelationContext;
   level: ResearchLogLevel;
   root?: AnySpan;
   diagnose: (code: "log_write_failed") => void;
@@ -64,9 +69,16 @@ export function createResearchLogger(options: {
   const bus = (
     options.observability.getDefaultInstance() as DefaultObservabilityInstance
   ).getObservabilityBus();
-  const base = {
+  const correlationContext = {
     serviceName: "eventroam-research",
+    entityType: EntityType.WORKFLOW_RUN,
+    entityId: "catalog-research",
+    entityName: "Catalog research",
+    ...options.correlationContext,
     runId: options.runId,
+  };
+  const base = {
+    ...correlationContext,
     ...(options.root
       ? { traceId: options.root.traceId, spanId: options.root.id }
       : {}),
@@ -99,13 +111,7 @@ export function createResearchLogger(options: {
         try {
           new LoggerContextImpl({
             observabilityBus: bus,
-            correlationContext: {
-              runId: options.runId,
-              serviceName: "eventroam-research",
-              entityType: EntityType.WORKFLOW_RUN,
-              entityId: "catalog-research",
-              entityName: "Catalog research",
-            },
+            correlationContext,
             traceId,
             spanId,
             metadata: { catalogApplicationLog: true },

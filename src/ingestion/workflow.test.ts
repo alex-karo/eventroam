@@ -1272,7 +1272,7 @@ test("the public runner accumulates research in native state without runtime res
   const graph = JSON.stringify(workflow.serializedStepGraph);
   expect(workflow.retryConfig).toMatchObject({ attempts: 0 });
   expect((workflow.options.shouldPersistSnapshot as () => boolean)()).toBe(
-    false,
+    true,
   );
   for (const privateValue of ["PRIVATE_API_KEY", privatePage, privateOutput]) {
     expect(graph).not.toContain(privateValue);

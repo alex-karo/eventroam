@@ -1,3 +1,6 @@
+import { Mastra } from "@mastra/core/mastra";
+import { createWorkflowStorage } from "@/ingestion/runtime/workflow-storage";
+import { trackFixtureWorkflowStore } from "./workflow-stores";
 import { locationTextFields } from "@/ingestion/location/contracts";
 import { buildLocationInput } from "@/ingestion/location/input";
 import { createGeocodingSession } from "@/ingestion/tools/geocode/tool";
@@ -145,17 +148,30 @@ export function prepareEditorialFixture(
   );
   return prepareCatalogPlan(prepared, catalog, input, terms, location);
 }
-export const runFixtureResearch: typeof executeResearch = (input, deps) =>
-  executeResearch(input, {
-    generateEditor: generateFixtureEditor,
-    generateLocation: generateFixtureLocation,
-    ...deps,
-  });
+export const runFixtureResearch: typeof executeResearch = async (
+  input,
+  deps,
+) => {
+  const storage =
+    deps.workflowStorage ?? createWorkflowStorage({ path: ":memory:" });
+  try {
+    return await executeResearch(input, {
+      generateEditor: generateFixtureEditor,
+      generateLocation: generateFixtureLocation,
+      ...deps,
+      workflowStorage: storage,
+    });
+  } finally {
+    if (!deps.workflowStorage) {
+      await storage.close();
+    }
+  }
+};
 export const createFixtureIngestionWorkflow: typeof createWorkflow = (
   resolve,
   options,
-) =>
-  createWorkflow(async (input) => {
+) => {
+  const workflow = createWorkflow(async (input) => {
     const resolved = await resolve(input);
     return {
       ...resolved,
@@ -166,6 +182,19 @@ export const createFixtureIngestionWorkflow: typeof createWorkflow = (
       },
     };
   }, options);
+  const storage = createWorkflowStorage({
+    path: ":memory:",
+    onFailure: workflow.historyControl.recoverHistory,
+  });
+  const host = new Mastra({
+    workflows: { "catalog-ingestion": workflow },
+    storage,
+    logger: false,
+    loggerOptions: { export: false },
+  });
+  trackFixtureWorkflowStore({ close: () => host.shutdown() });
+  return host.getWorkflow("catalog-ingestion");
+};
 
 /** Offline HTTP fixtures answer the editor with the same explicit fixture decisions. */
 export function fixtureEditorForProvider(

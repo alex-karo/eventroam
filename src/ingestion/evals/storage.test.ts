@@ -80,6 +80,14 @@ test("native experiments retain results, numeric scores and errors after restart
         CATALOG_EVAL_DATABASE_PATH: env.DATABASE_PATH,
       }),
     ).toThrow("separate");
+    for (const field of [
+      "CATALOG_WORKFLOW_DATABASE_PATH",
+      "CATALOG_CHAT_DATABASE_PATH",
+    ]) {
+      expect(() =>
+        evalDatabasePath({ ...env, [field]: env.CATALOG_EVAL_DATABASE_PATH }),
+      ).toThrow("separate");
+    }
   } finally {
     await reopened?.close();
     await store.close();
@@ -87,18 +95,22 @@ test("native experiments retain results, numeric scores and errors after restart
   }
 });
 
-test("Studio composes saved eval domains with DuckDB observability", async () => {
+test("Studio composes saved eval domains with workflow history and observability", async () => {
   const { createStudioStorage } = await import("./storage");
   const dir = mkdtempSync(join(tmpdir(), "eventroam-studio-evals-"));
   const stores = await createStudioStorage({
     NODE_ENV: "test",
     CATALOG_EVAL_DATABASE_PATH: join(dir, "evals.sqlite"),
     CATALOG_OBSERVABILITY_DATABASE_PATH: join(dir, "observations.duckdb"),
+    CATALOG_WORKFLOW_DATABASE_PATH: join(dir, "workflows.sqlite"),
   });
   try {
     await stores.storage.init();
     expect(await stores.storage.getStore("observability")).toBe(
       await stores.observations.getStore("observability"),
+    );
+    expect(await stores.storage.getStore("workflows")).toBe(
+      await stores.workflows.getStore("workflows"),
     );
     for (const domain of ["datasets", "experiments", "scores"] as const) {
       expect(await stores.storage.getStore(domain)).toBe(

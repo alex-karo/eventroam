@@ -11,19 +11,20 @@ Produce an actionable review with bounded coordination cost. Review only by defa
 
 1. Establish the requested scope and an unambiguous base and target. Record commit IDs for committed changes; for working changes, record the base, staged/unstaged/untracked scope, and check for drift before reporting. Ask when the base cannot be determined. Do not silently pick an unrelated branch or omit relevant untracked files. If files change during review, qualify affected findings as stale rather than reporting them as current.
 2. Read applicable repository instructions, the diff, and relevant requirements. Distinguish implemented requirements from approved future work and drafts. Future requirements govern the change only when the requested implementation explicitly targets them. Inspect surrounding code, callers, and tests as needed; a diff is a starting point, not the boundary of evidence.
-3. Select roles using the table below. Always select Correctness and Code Clarity & Decomposition. Select Design Simplicity for substantive logic or design in scope; the two roles work independently on necessity and organization, respectively. The coordinator reads [references/roles.md](references/roles.md), then sends each specialist only its role section and the shared review brief. Run each selected role once, independently, with no nested delegation or discussion between specialists.
+3. Select roles using the table below. Always select Correctness and Code Clarity & Decomposition. Select Design Simplicity for substantive logic or design in scope; the two roles work independently on necessity and organization, respectively. The coordinator reads only the selected role files linked below, then sends each specialist its role instructions and the shared review brief. These roles guide investigation; they are not mandatory checklists for every file. Trace related code as needed and respect role ownership to reduce duplicate work. Run each selected role once, independently, with no nested delegation or discussion between specialists.
 
 | Role | Activate when |
 | --- | --- |
-| Correctness | Always |
-| Code Clarity & Decomposition | Always |
-| Design Simplicity | Substantive logic, mechanisms, representations, abstractions, dependencies, or orchestration are introduced, changed, or explicitly under review; skip small straightforward edits |
-| Security | Authorization, trust boundaries, untrusted input, secrets, or personal data change |
-| Reliability & performance | I/O, mutable state, asynchronous/concurrent execution, failure handling, or costly operations change |
-| Architecture & contracts | Public interfaces, data schemas, module boundaries, or integrations change |
-| Tests | Behavior or tests change |
+| [Correctness](references/roles/correctness.md) | Always |
+| [Code Clarity & Decomposition](references/roles/code-clarity.md) | Always |
+| [Design Simplicity](references/roles/design-simplicity.md) | Substantive logic, mechanisms, representations, abstractions, dependencies, or orchestration are introduced, changed, or explicitly under review; skip small straightforward edits |
+| [Security](references/roles/security.md) | Authorization, trust boundaries, untrusted input, secrets, or personal data change |
+| [Reliability & performance](references/roles/reliability-performance.md) | I/O, mutable state, asynchronous/concurrent execution, failure handling, or costly operations change |
+| [Architecture & contracts](references/roles/architecture-contracts.md) | Public interfaces, data schemas, module boundaries, or integrations change |
+| [Tests](references/roles/tests.md) | Behavior or tests change |
+| [AI systems](references/roles/ai-systems.md) | Model or agent instructions, context or memory handling, model-facing tools, agent loops, permissions, side effects, or agent behavior evals change; skip ordinary application changes that do not affect model or agent behavior |
 
-Use 2–7 specialist runs, plus at most one independent verifier. Respect available concurrency; schedule in waves when necessary. A broad change may activate all seven. Explain skipped roles briefly in coverage, especially when a plausible risk was considered and excluded.
+Use 2–8 specialist runs, plus at most one independent verifier. Respect available concurrency; schedule in waves when necessary. A broad change may activate all eight. Explain skipped roles briefly in coverage, especially when a plausible risk was considered and excluded.
 
 If delegation is unavailable, apply the selected lenses sequentially yourself. Clearly state that the review lacked independent agents and verification; do not label self-checking as independent validation.
 
@@ -33,12 +34,16 @@ Pass the review base/target, original requested outcome, existing contracts and 
 
 Return concise results:
 
-- **Coverage:** what was inspected and material gaps.
+- **Coverage:** files or flows actually read at the review base/target; material risks checked and ruled out; relevant areas not inspected and why. Keep this brief and specific to the assigned role.
 - **Candidates:** issue ID (see below), location with a current line, concrete trigger, impact, source/test evidence, suggested P0–P3 severity, confidence (`high`, `medium`, or `low`), and why this change introduces or exposes the issue. For Design Simplicity and Code Clarity & Decomposition, a concrete comprehension or maintenance difficulty replaces the runtime-trigger requirement; source-based structural evidence is sufficient. Include the alternative, whole-flow benefit, preserved guarantees, and meaningful cost.
 - **Design proposals:** include an issue ID and keep promising broader alternatives whose equivalence or requirement changes need a decision separate from actionable improvements and defects. State the observed motivation, affected consumers, unresolved decision, and focused validation needed; do not assign defect severity.
 - **Dismissed candidates:** retain their issue IDs; include only plausible material concerns that were checked and disproved; include the decisive reason to avoid repeated investigation.
 
-Assign issue IDs as a three-letter uppercase role code followed directly by a positive integer, such as `COR1` or `CLR2`. Use `COR` (Correctness), `CLR` (Code Clarity & Decomposition), `SIM` (Design Simplicity), `SEC` (Security), `REL` (Reliability & performance), `ARC` (Architecture & contracts), and `TST` (Tests). Each specialist numbers its candidates and design proposals from 1 in a single sequence. Preserve IDs through triage, verification, and the final result; do not renumber after dismissing or reordering issues. When merging duplicates, retain one canonical ID and record the merged IDs as aliases. Include the canonical ID on every reported defect, improvement, design proposal, and candidate-derived unresolved risk, and retain IDs when mentioning refuted claims. Pass these IDs in specialist and verifier results and in any structured result's `id` field.
+For an uncertain claim, name the unknown fact and the smallest check that could
+confirm or refute it. Preserve this information when passing the claim to the
+verifier or reporting an unresolved risk.
+
+Assign issue IDs as a three-letter uppercase role code followed directly by a positive integer, such as `COR1` or `CLR2`. Use `COR` (Correctness), `CLR` (Code Clarity & Decomposition), `SIM` (Design Simplicity), `SEC` (Security), `REL` (Reliability & performance), `ARC` (Architecture & contracts), `TST` (Tests), and `AIS` (AI systems). Each specialist numbers its candidates and design proposals from 1 in a single sequence. Preserve IDs through triage, verification, and the final result; do not renumber after dismissing or reordering issues. When merging duplicates, retain one canonical ID and record the merged IDs as aliases. Include the canonical ID on every reported defect, improvement, design proposal, and candidate-derived unresolved risk, and retain IDs when mentioning refuted claims. Pass these IDs in specialist and verifier results and in any structured result's `id` field.
 
 No finding quota. No speculative bugs, generic best practices, or unrelated pre-existing defects. Missing tests alone are not proof of a behavior bug. A test gap must name a meaningful changed scenario and explain why existing checks do not protect it. For test-maintenance suggestions, concrete redundancy or complexity and its maintenance cost may replace a runtime trigger; identify the protection retained by the proposed change. Keep justified suggestions separate from defects.
 
@@ -49,6 +54,11 @@ The coordinator owns shared commands so tests/lint/build are not repeated by eve
 ## Triage and selective verification
 
 Reopen the relevant source for every candidate. Check reachability, caller guarantees, existing safeguards, requirements, and whether the issue belongs to this change. Merge candidates with the same root cause, retaining distinct impacts when useful. Prefer stronger evidence over votes or reviewer count. Reject unsupported claims and record meaningful unresolved questions as risks, not established defects.
+
+Compare each specialist's coverage with its assigned scope and role. Use targeted
+reads to check claims and material gaps; do not repeat the specialist's broad
+investigation unless a concrete gap could change the result. Differences in
+coverage wording or grouping do not justify more investigation.
 
 For maintainability candidates, compare the current and proposed flows across affected callers and modules. Do not reject a substantiated improvement solely because current behavior is correct or tests pass. Reject proposals that merely relocate complexity or invoke a preferred pattern without a practical benefit. A reference to the new spec does not by itself settle whether an added guarantee is worth its cost: retain a substantiated scope-reduction option separately, with its affected consumers and lost behavior. Merge overlapping necessity/clarity findings by root cause. Keep optional design proposals separate from correctness risks: uncertainty about a possible refactor alone does not make the current change inconclusive.
 

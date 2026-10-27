@@ -34,11 +34,16 @@ fixes supported by available evidence; bring the missing review to the user.
 ## Account for every finding
 
 Read the source and evidence for each returned finding before choosing an action.
+Use the coordinator's coverage and targeted reads to check claims and material
+gaps. Do not repeat the broad investigation unless a concrete gap could change
+the result.
 Keep its ID and assign one of these outcomes:
 
 - **Fixed:** state the change and the check that supports it.
 - **Discussion needed:** state the evidence, impact, proposed action, cost or
-  uncertainty, and the concrete decision needed from the user.
+  uncertainty, and the concrete decision needed from the user. For an uncertain
+  claim, retain the unknown fact and the smallest check that could confirm or
+  refute it.
 - **Refuted:** record decisive source or test evidence. If the evidence is
   uncertain, use discussion needed. A preference or low priority is not a refutation.
 - **Duplicate:** link the canonical ID. It must have one of the other outcomes.

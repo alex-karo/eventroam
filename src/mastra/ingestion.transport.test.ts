@@ -54,6 +54,16 @@ async function run(
   const runId = await createRun(server);
   const started = await request(server, `${route}?runId=${runId}`, {
     inputData,
+    requestContext: {
+      private: {
+        credential: "PRIVATE_CONTEXT_CREDENTIAL",
+        prompt: "PRIVATE_CONTEXT_PROMPT",
+        body: "PRIVATE_CONTEXT_BODY",
+        providerPayload: "PRIVATE_CONTEXT_PAYLOAD",
+        url: "https://user:pass@example.org/PRIVATE_CONTEXT_URL",
+        error: "PRIVATE_CONTEXT_EXCEPTION",
+      },
+    },
   });
   return { runId, ...started };
 }
@@ -151,8 +161,21 @@ test("native create and stream expose preview, then apply under a fresh ingestio
   const fetched = await fetch(
     `${fixture.baseUrl}/api/workflows/catalog-ingestion/runs/${applied.runId}`,
   );
-  expect(fetched.status).toBe(404);
-  expect(await fetched.text()).not.toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
+  expect(fetched.status).toBe(200);
+  const saved = await fetched.text();
+  expect(saved).toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
+  expect(saved).toContain(applied.runId);
+  expect(saved).toContain(String(appliedResult.ingestionRunId));
+  expect(saved).toContain("resolve-location");
+  expect(saved).toContain("geocoding");
+  expect(saved).not.toContain("PRIVATE_STUDIO_PAGE_BODY");
+  expect(saved).not.toContain("fixture-api-key");
+  expect(saved).not.toContain("PRIVATE_CONTEXT_");
+  const listed = await fetch(
+    `${fixture.baseUrl}/api/workflows/catalog-ingestion/runs`,
+  );
+  expect(listed.status).toBe(200);
+  expect(await listed.text()).toContain(applied.runId);
   const inspection = await fetch(`${fixture.baseUrl}/api/observability/logs`);
   expect(inspection.status).toBe(200);
   expect(await inspection.text()).not.toContain(
@@ -412,6 +435,23 @@ test("recorded apply traces and logs stay private while the shared store serves 
     expect(again.response.status, again.text).toBe(200);
     const againSummary = streamResult(again.text);
     expect(againSummary.persistenceStatus).toBe("completed");
+    const beforeDelete = rows(server);
+    const deleted = await fetch(
+      `${server.baseUrl}/api/workflows/catalog-ingestion/runs/${applied.runId}`,
+      { method: "DELETE" },
+    );
+    expect(deleted.status).toBe(200);
+    const deletedEntry = await fetch(
+      `${server.baseUrl}/api/workflows/catalog-ingestion/runs/${applied.runId}`,
+    );
+    expect(deletedEntry.status).toBe(404);
+    expect(rows(server)).toEqual(beforeDelete);
+    const remainingMetrics = await fetch(
+      `${server.baseUrl}/api/observability/metrics?perPage=100`,
+    );
+    expect(JSON.stringify(await remainingMetrics.json())).toContain(
+      String(appliedSummary.ingestionRunId),
+    );
     await server.stop(true);
     stopped = true;
     expect(server.child.exitCode).toBe(0);
@@ -462,3 +502,27 @@ test("recorded apply traces and logs stay private while the shared store serves 
     }
   }
 }, 70_000);
+
+test("saved execution IDs are rejected before every native start acknowledgment", async () => {
+  const done = await run(fixture, {
+    mode: "refresh",
+    eventId: STUDIO_FIXTURE_EVENT_ID,
+  });
+  const before = rows(fixture);
+  const url = `${fixture.baseUrl}/api/workflows/catalog-ingestion/runs/${done.runId}`;
+  const saved = await (await fetch(url)).json();
+  for (const route of [
+    "start",
+    "start-async",
+    "stream",
+    "stream-legacy",
+    "streamVNext",
+  ]) {
+    const rejected = await request(fixture, `${route}?runId=${done.runId}`, {
+      inputData: { mode: "refresh", eventId: STUDIO_FIXTURE_EVENT_ID },
+    });
+    expect(rejected.response.status, route).toBe(409);
+  }
+  expect(rows(fixture)).toEqual(before);
+  expect(await (await fetch(url)).json()).toEqual(saved);
+});

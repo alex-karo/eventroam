@@ -23,6 +23,8 @@ services:
       DATABASE_PATH: /data/eventroam.sqlite
       CATALOG_OBSERVABILITY_DATABASE_PATH: /data/mastra-observability.duckdb
       CATALOG_EVAL_DATABASE_PATH: /data/mastra-evals.sqlite
+      CATALOG_WORKFLOW_DATABASE_PATH: /data/mastra-workflows.sqlite
+      CATALOG_CHAT_DATABASE_PATH: /data/mastra-chat.sqlite
       OPENROUTER_API_KEY: ${EVENTROAM_OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${EVENTROAM_OPENROUTER_MODEL:-}
       OPENROUTER_SERVICE_TIER: ${EVENTROAM_OPENROUTER_SERVICE_TIER:-}

@@ -6,7 +6,13 @@ import {
   assertRefreshBaseline,
   countryBaselineConflict,
 } from "./research/guards";
-import { randomUUID } from "node:crypto";
+import { Mastra } from "@mastra/core/mastra";
+import type { WorkflowsStorage } from "@mastra/core/storage";
+import {
+  createWorkflowStorage,
+  pruneWorkflowSnapshot,
+  WorkflowHistoryError,
+} from "./runtime/workflow-storage";
 import { noopLogger } from "@mastra/core/logger";
 import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
@@ -136,7 +142,10 @@ export type ResolveCatalogDependencies = (
 async function safeStep<T>(execute: () => T | Promise<T>): Promise<T> {
   try {
     return await execute();
-  } catch {
+  } catch (error) {
+    if (error instanceof WorkflowHistoryError) {
+      throw error;
+    }
     throw new Error("Ingestion workflow failed");
   }
 }
@@ -238,6 +247,7 @@ type CliInvocation = {
   requested: CatalogResearchInput;
   deps: ResearchDependencies;
   owned?: CatalogAttempt;
+  historyFailed?: boolean;
 };
 
 export function createCatalogIngestionWorkflow(
@@ -290,8 +300,8 @@ export function createCatalogIngestionWorkflow(
     execute: ({ runId, setState }) =>
       safeStep(async () => {
         await setState({ data: createIngestionData() });
-        attempt(runId);
-        return null;
+        const owned = attempt(runId);
+        return { engineRunId: runId, ingestionRunId: owned.ingestionRunId };
       }),
   });
   const phase = (
@@ -664,14 +674,38 @@ export function createCatalogIngestionWorkflow(
     options: {
       validateInputs: true,
       autoRestartActiveRuns: false,
-      shouldPersistSnapshot: () => false,
-      onStart: async ({ runId, getInitData }) => {
+      shouldPersistSnapshot: () => true,
+      pruneSnapshot: ({ snapshot }) => pruneWorkflowSnapshot(snapshot),
+      onStart: async ({ runId, getInitData, mastra }) => {
         if (attempts.has(runId)) {
           throw new Error("Ingestion attempt already active");
         }
         attempts.set(runId, null);
         try {
-          const parsed = studioIngestionInputSchema.parse(getInitData());
+          const parsed = getInitData() as z.output<
+            typeof studioIngestionInputSchema
+          >;
+          const store = await mastra?.getStorage()?.getStore("workflows");
+          if (!store) {
+            throw new WorkflowHistoryError(runId);
+          }
+          const saved = await checkSavedId(store, runId);
+          if (!saved) {
+            throw new WorkflowHistoryError(runId);
+          }
+          await store.persistWorkflowSnapshot({
+            workflowName: "catalog-ingestion",
+            runId,
+            snapshot: pruneWorkflowSnapshot({
+              ...saved,
+              status: "running",
+              context: {
+                ...saved.context,
+                input: parsed,
+              } as unknown as typeof saved.context,
+              timestamp: Date.now(),
+            }),
+          });
           const resolved = options.cli
             ? { deps: options.cli.deps }
             : await resolveDependencies(parsed);
@@ -701,7 +735,7 @@ export function createCatalogIngestionWorkflow(
           } else {
             attempts.delete(runId);
           }
-          if (options.cli) {
+          if (options.cli || error instanceof WorkflowHistoryError) {
             throw error;
           }
           throw new Error("Ingestion workflow failed");
@@ -730,44 +764,107 @@ export function createCatalogIngestionWorkflow(
     .then(buildReport)
     .then(finalize)
     .commit();
+  async function checkSavedId(store: WorkflowsStorage, runId: string) {
+    const saved = await store.loadWorkflowSnapshot({
+      workflowName: "catalog-ingestion",
+      runId,
+    });
+    if (saved && saved.status !== "pending") {
+      throw new Error("Ingestion execution already started");
+    }
+    return saved;
+  }
+  const historyControl = {
+    async assertCanStart(store: WorkflowsStorage, runId: string) {
+      if (attempts.has(runId)) {
+        throw new Error("Ingestion attempt already active");
+      }
+      await checkSavedId(store, runId);
+    },
+    async recoverHistory(runId: string, data = createIngestionData()) {
+      if (options.cli) {
+        options.cli.historyFailed = true;
+      }
+      await recover(runId, structuredClone(data));
+    },
+  };
   workflow.__setLogger(noopLogger);
-  return workflow;
+  return Object.assign(workflow, { historyControl });
 }
 
 export async function runCatalogResearch(
   requested: CatalogResearchInput,
   deps: ResearchDependencies,
 ): Promise<CatalogResearchResult> {
-  const engineRunId = randomUUID();
   const cli: CliInvocation = { requested, deps };
   const workflow = createCatalogIngestionWorkflow(async () => ({ deps }), {
     cli,
   });
-  const run = await safeStep(() => workflow.createRun({ runId: engineRunId }));
-  const inputData = {
-    mode: requested.mode,
-    scope: requested.scope,
-    name: requested.name,
-    eventId: requested.eventId,
-    dryRun: requested.dryRun ?? true,
-    republish: requested.republish ?? false,
-  };
-  const result = await run.start({ inputData }).catch((error: unknown) => {
-    if (!cli.owned) {
-      throw error;
+  const storage =
+    deps.workflowStorage ??
+    createWorkflowStorage({ path: deps.workflowDatabasePath });
+  storage.setFailureHandler(workflow.historyControl.recoverHistory);
+  let host: Mastra | undefined;
+  try {
+    await storage.init();
+    host = new Mastra({
+      workflows: { "catalog-ingestion": workflow },
+      storage,
+      logger: false,
+      loggerOptions: { export: false },
+    });
+    const run = await safeStep(() => workflow.createRun());
+    const inputData = {
+      mode: requested.mode,
+      scope: requested.scope,
+      name: requested.name,
+      eventId: requested.eventId,
+      dryRun: requested.dryRun ?? true,
+      republish: requested.republish ?? false,
+    };
+    const result = await run.start({ inputData }).catch((error: unknown) => {
+      if (!cli.owned || error instanceof WorkflowHistoryError) {
+        throw error;
+      }
+      return undefined;
+    });
+    const owned = cli.owned;
+    if (!owned) {
+      throw new Error("Ingestion attempt unavailable");
     }
-    return undefined;
-  });
-  const owned = cli.owned;
-  if (!owned) {
-    throw new Error("Ingestion attempt unavailable");
+    if (cli.historyFailed) {
+      throw new WorkflowHistoryError(run.runId);
+    }
+    if (owned.finalization) {
+      return await owned.finalization;
+    }
+    throw new Error(
+      result?.status === "success"
+        ? "Ingestion result unavailable"
+        : "Ingestion workflow failed",
+    );
+  } catch (error) {
+    if (error instanceof WorkflowHistoryError || cli.historyFailed) {
+      const owned = cli.owned;
+      const report = await owned?.finalization?.catch(() => undefined);
+      throw new WorkflowHistoryError(
+        owned?.engineRunId ??
+          (error instanceof WorkflowHistoryError
+            ? error.engineRunId
+            : undefined),
+        owned?.ingestionRunId,
+        report,
+      );
+    }
+    throw error;
+  } finally {
+    if (deps.workflowStorage) {
+      // The caller owns the store; this run owns its host hooks.
+      host?.__unregisterHooks();
+    } else if (host) {
+      await host.shutdown();
+    } else {
+      await storage.close();
+    }
   }
-  if (owned.finalization) {
-    return owned.finalization;
-  }
-  throw new Error(
-    result?.status === "success"
-      ? "Ingestion result unavailable"
-      : "Ingestion workflow failed",
-  );
 }

@@ -1,3 +1,4 @@
+import { createWorkflowStorage } from "../runtime/workflow-storage";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { evaluateMainCase, assertMainCase, type MainScore } from "./main";
 import { resolveLocation, type LocationExecution } from "../location/agent";
@@ -306,6 +307,7 @@ async function executeCase(
     }
   }
   const connection = seedDatabase(suite, item);
+  const workflowStorage = createWorkflowStorage({ path: ":memory:" });
   try {
     const before =
       item.suite === "main"
@@ -317,6 +319,7 @@ async function executeCase(
         { ...item.input, dryRun: item.suite !== "main" },
         {
           client: connection.client,
+          workflowStorage,
           config,
           todayUtc: item.todayUtc ?? suite.todayUtc,
           geocodingClient: fixedGeocoding(item),
@@ -355,6 +358,7 @@ async function executeCase(
       score: scoreCase(item, result, calls),
     };
   } finally {
+    await workflowStorage.close();
     connection.client.close();
   }
 }

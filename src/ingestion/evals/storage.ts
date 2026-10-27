@@ -2,10 +2,9 @@ import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { LibSQLStore } from "@mastra/libsql";
 import { MastraCompositeStore } from "@mastra/core/storage";
-import {
-  createObservabilityStore,
-  pathsAlias,
-} from "../runtime/observability/storage";
+import { createObservabilityStore } from "../runtime/observability/storage";
+import { diagnosticStoragePaths, filesAlias } from "../runtime/storage-paths";
+import { createWorkflowStorage } from "../runtime/workflow-storage";
 
 export function evalDatabasePath(
   env: NodeJS.ProcessEnv = process.env,
@@ -19,20 +18,25 @@ export function evalDatabasePath(
     cwd,
     env.DATABASE_PATH?.trim() || "data/eventroam.sqlite",
   );
-  const observations = resolve(
+  const { observability: observations } = diagnosticStoragePaths(env, cwd, [
+    path,
+    `${path}-wal`,
+    `${path}-shm`,
+    `${path}-journal`,
+  ]);
+  const chat = resolve(
     cwd,
-    env.CATALOG_OBSERVABILITY_DATABASE_PATH?.trim() ||
-      "data/mastra-observability.duckdb",
+    env.CATALOG_CHAT_DATABASE_PATH?.trim() || "data/mastra-chat.sqlite",
   );
   if (
-    [catalog, observations].some((file) =>
+    [catalog, observations, chat].some((file) =>
       ["", "-wal", "-shm", "-journal", ".wal"].some((suffix) =>
-        pathsAlias(path, `${file}${suffix}`),
+        filesAlias(path, `${file}${suffix}`),
       ),
     )
   ) {
     throw new Error(
-      "Eval storage must be separate from the catalog and observability storage",
+      "Eval storage must be separate from catalog, observability, workflow and chat storage",
     );
   }
   return path;
@@ -51,23 +55,31 @@ export async function createStudioStorage(
   const observations = await createObservabilityStore(env, [
     evalDatabasePath(env),
   ]);
+  const workflows = createWorkflowStorage({
+    path: diagnosticStoragePaths(env).workflow,
+    observability: observations,
+  });
   class StudioStore extends MastraCompositeStore {
     override async close() {
       try {
         await super.close();
       } finally {
-        await evals.close();
+        try {
+          await workflows.close();
+        } finally {
+          await evals.close();
+        }
       }
     }
   }
   const storage = new StudioStore({
     id: "catalog-studio",
-    default: observations,
+    default: workflows,
     domains: {
       datasets: await evals.getStore("datasets"),
       experiments: await evals.getStore("experiments"),
       scores: await evals.getStore("scores"),
     },
   });
-  return { storage, observations, evals };
+  return { storage, observations, workflows, evals };
 }
