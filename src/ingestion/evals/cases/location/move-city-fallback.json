@@ -189,6 +189,48 @@
         "status": "error",
         "code": "unavailable"
       }
+    },
+    {
+      "request": {
+        "query": "Portas, Pontevedra, Spain",
+        "countryCode": "ES",
+        "direction": "forward"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.5639366,
+            "longitude": -8.6570848,
+            "placeId": "51bc653d6b6d5021c0593b0213132f484540f00101f9017e47050000000000c00208920306506f72746173",
+            "label": "Portas, GA, Spain",
+            "name": "Portas",
+            "countryCode": "ES",
+            "locality": "Portas",
+            "address": "Portas",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "administrative",
+            "confidence": 1
+          },
+          {
+            "latitude": 42.6221422,
+            "longitude": -7.7237767,
+            "placeId": "515e6d20b825e51ec059123b095ba24f4540f00103f9010063a57c02000000c00208920306506f72746173",
+            "label": "Portas, Chantada, GA, Spain",
+            "name": "Portas",
+            "countryCode": "ES",
+            "locality": "Chantada",
+            "address": "Portas",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "populated_place",
+            "confidence": 1
+          }
+        ]
+      },
+      "provenance": "Locality response captured in the 2026-10-26 PortAmérica v6 ingestion run; reused from cemetery-correction.json. It does not identify the new venue."
     }
   ],
   "expectations": {

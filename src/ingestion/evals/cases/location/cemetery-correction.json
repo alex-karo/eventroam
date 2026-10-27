@@ -403,6 +403,62 @@
           }
         ]
       }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Azucarera de Portas, Portas, Pontevedra, Spain",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.579634,
+            "longitude": -8.669209,
+            "placeId": "51b360e28fa25621c05928d36872314a4540f00102f901b5072a4f00000000c00201e203226f70656e7374726565746d61703a76656e75653a7761792f31333238313534353439",
+            "label": "Cemiterio de Portas, 36675 Portas, Spain",
+            "name": null,
+            "countryCode": "ES",
+            "locality": null,
+            "address": null,
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": null,
+            "confidence": 1
+          }
+        ]
+      },
+      "provenance": "Synthetic query alias for the Azucarera spelling in the supplied official source summaries. Reuses the captured Azucreira venue-query response; this alias was not captured from the provider. It retains the unrelated cemetery candidate."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Azucarera de Portas, Portas, Pontevedra",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.579634,
+            "longitude": -8.669209,
+            "placeId": "51b360e28fa25621c05928d36872314a4540f00102f901b5072a4f00000000c00201e203226f70656e7374726565746d61703a76656e75653a7761792f31333238313534353439",
+            "label": "Cemiterio de Portas, 36675 Portas, Spain",
+            "name": null,
+            "countryCode": "ES",
+            "locality": null,
+            "address": null,
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": null,
+            "confidence": 1
+          }
+        ]
+      },
+      "provenance": "Synthetic alias for the observed query without Spain, with countryCode ES. Reuses the captured Azucreira venue-query response; this alias was not captured from the provider. It retains the unrelated cemetery candidate."
     }
   ],
   "expectations": {

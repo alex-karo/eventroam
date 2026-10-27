@@ -20,9 +20,11 @@ Each case SHALL declare its task, source origin, and `main` or `regression` suit
 
 - **WHEN** the Glastonbury verification case adapts the official site to a scenario without a next-festival announcement
 - **THEN** its pages retain navigation, unrelated news, separate local events and page controls
-- **AND** archive years are navigation only, without readable historical programme pages
-- **AND** body text, links and metadata do not confirm the main festival programme
+- **AND** archive navigation and the captured History 2025 page support an optional draft 2025 Edition with country GB and unknown programme dates
+- **AND** body text, links and metadata do not confirm the next main festival programme
 - **AND** the current saved Edition and draft Event checks remain in use
+- **AND** no new Edition or one draft 2025 Edition with country GB and unknown dates is accepted; other new Editions, supplied historical dates and publication fail the case
+- **AND** the historical year, country and GBP 378.50 full-programme base price earn additional completeness credit; capacity 210,000 does not support participant attendance
 - **AND** provenance identifies the source captures and the synthetic edits
 
 ### Requirement: All groups can run together

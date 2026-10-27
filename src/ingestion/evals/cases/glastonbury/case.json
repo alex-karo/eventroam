@@ -85,6 +85,15 @@
       "markdownFile": "history.md"
     },
     {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/history/history-2025/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/history/history-2025/",
+      "retrievedAt": "2026-10-27T21:15:15.476Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "history-2025.md"
+    },
+    {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/areas/",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/areas/",
       "retrievedAt": "2026-10-27T15:35:47.168Z",
@@ -163,6 +172,6 @@
   "provenance": {
     "kind": "synthetic",
     "sourceReport": "docs/development.md#main-fact-checks",
-    "note": "Owner-requested synthetic replay, adapted from official pages read on 2026-10-27 with the production HTTP reader and rendering disabled. Retain page regions, desktop and mobile menus, news publication dates, separate local events, contact links, charity content, newsletter, accessibility and cookie controls. Remove main-festival announcement, ticket-sale and prize-draw cards, past-programme text, and dated programme metadata; remove the year from the logo. Replace the Info announcement with a natural notice that next-festival details are not announced, and add general information under its section headings. Shorten and adapt charity content without a dated festival report. Archive years remain navigation only; no archive detail response is supplied. Keep the observed tickets-path redirect and map the real Info Tickets anchor. Instagram uses the production social stub. Response times record the base capture, not an unedited response. Preserve the saved 2027 Edition and draft Event; unrelated event dates and archive links do not confirm its programme."
+    "note": "Owner-requested synthetic replay, adapted from official pages read on 2026-10-27 with the production HTTP reader and rendering disabled. Retain page regions, desktop and mobile menus, news publication dates, separate local events, contact links, charity content, newsletter, accessibility and cookie controls. Remove main-festival announcement, ticket-sale and prize-draw cards, past-programme text, and dated programme metadata; remove the year from the logo. Replace the Info announcement with a natural notice that next-festival details are not announced, and add general information under its section headings. Shorten and adapt charity content without a dated festival report. Archive navigation and the unedited official History 2025 page support a draft 2025 Edition with country GB and unknown dates. History 2025 was captured separately on 2026-10-27 through the production HTTP reader with rendering disabled. It states a GBP 378.50 ticket price and capacity 210,000; it does not give programme dates or participant attendance. Historical year, country and base price earn additional completeness credit. Capacity alone does not support sizeEstimate. Keep the observed tickets-path redirect and map the real Info Tickets anchor. Instagram uses the production social stub. Response times for adapted pages record the base capture, not an unedited response; History 2025 is an unedited capture. Preserve the saved 2027 Edition and draft Event; unrelated event dates and archive links do not confirm its programme."
   }
 }
