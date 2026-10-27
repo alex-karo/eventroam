@@ -38,7 +38,11 @@ export function wacken(context: MainContext) {
         "https://www.youtube.com/wackentv",
         "https://www.youtube.com/channel/UCvQT6N9nu2BJ-lJuMg1jEZQ",
       ]),
-      linkFact("next.tickets", next?.links, "ticketing", urls),
+      // ticket-exchange.md: the official resale portal also serves this Edition.
+      linkFact("next.tickets", next?.links, "ticketing", [
+        ...urls,
+        "https://ticketcenter.wacken.com/",
+      ]),
       // tickets.md: unrestricted LOUDER admission, EUR 364 plus mandatory EUR 2 fee.
       basePrice(next, "EUR", 36400, 36600),
     ],

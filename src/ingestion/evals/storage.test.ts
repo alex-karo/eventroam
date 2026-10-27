@@ -1,10 +1,90 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  linkSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { Mastra } from "@mastra/core/mastra";
 import { createScorer, notScorable } from "@mastra/core/evals";
-import { createEvalStore, evalDatabasePath } from "./storage";
+import { LibSQLStore } from "@mastra/libsql";
+import {
+  createEvalStore,
+  createStudioStorage,
+  evalDatabasePath,
+} from "./storage";
+
+test("eval sidecars cannot overlap catalog or chat files in either direction", () => {
+  const dir = mkdtempSync(join(tmpdir(), "eventroam-eval-paths-"));
+  const path = join(dir, "shared.sqlite");
+  try {
+    for (const field of ["DATABASE_PATH", "CATALOG_CHAT_DATABASE_PATH"]) {
+      for (const suffix of ["-wal", "-shm", "-journal"]) {
+        for (const [evalPath, protectedPath] of [
+          [path, `${path}${suffix}`],
+          [`${path}${suffix}`, path],
+        ]) {
+          expect(() =>
+            evalDatabasePath({
+              NODE_ENV: "test",
+              CATALOG_EVAL_DATABASE_PATH: evalPath,
+              [field]: protectedPath,
+            }),
+          ).toThrow("separate");
+        }
+      }
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test.each([symlinkSync, linkSync])(
+  "eval sidecars cannot alias protected files through %s",
+  (link) => {
+    const dir = mkdtempSync(join(tmpdir(), "eventroam-eval-alias-"));
+    const path = join(dir, "evals.sqlite");
+    const catalog = join(dir, "catalog.sqlite");
+    try {
+      writeFileSync(`${path}-wal`, "catalog sentinel");
+      link(`${path}-wal`, catalog);
+      expect(() =>
+        evalDatabasePath({
+          NODE_ENV: "test",
+          DATABASE_PATH: catalog,
+          CATALOG_EVAL_DATABASE_PATH: path,
+        }),
+      ).toThrow("separate");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+test("eval storage uses literal file names with URL characters", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "eventroam-eval-url-"));
+  const catalog = join(dir, "catalog.sqlite");
+  const path = join(dir, "catalog%2Esqlite?#");
+  writeFileSync(catalog, "catalog sentinel");
+  const store = await createEvalStore({
+    NODE_ENV: "test",
+    DATABASE_PATH: catalog,
+    CATALOG_EVAL_DATABASE_PATH: path,
+  });
+  try {
+    await store.init();
+    expect(existsSync(path)).toBe(true);
+    expect(readFileSync(catalog, "utf8")).toBe("catalog sentinel");
+  } finally {
+    await store.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test("native experiments retain results, numeric scores and errors after restart without touching the catalog", async () => {
   const dir = mkdtempSync(join(tmpdir(), "eventroam-evals-"));
@@ -96,7 +176,6 @@ test("native experiments retain results, numeric scores and errors after restart
 });
 
 test("Studio composes saved eval domains with workflow history and observability", async () => {
-  const { createStudioStorage } = await import("./storage");
   const dir = mkdtempSync(join(tmpdir(), "eventroam-studio-evals-"));
   const stores = await createStudioStorage({
     NODE_ENV: "test",
@@ -122,6 +201,30 @@ test("Studio composes saved eval domains with workflow history and observability
     expect((await dataset.getDetails()).name).toBe("Studio proof");
   } finally {
     await stores.storage.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("Studio closes acquired providers and preserves a setup error", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "eventroam-studio-failure-"));
+  const blocked = join(dir, "blocked");
+  writeFileSync(blocked, "not a directory");
+  const close = vi.spyOn(LibSQLStore.prototype, "close");
+  try {
+    await expect(
+      createStudioStorage({
+        NODE_ENV: "test",
+        CATALOG_EVAL_DATABASE_PATH: join(dir, "evals.sqlite"),
+        CATALOG_OBSERVABILITY_DATABASE_PATH: join(
+          blocked,
+          "observations.duckdb",
+        ),
+        CATALOG_WORKFLOW_DATABASE_PATH: join(dir, "workflows.sqlite"),
+      }),
+    ).rejects.toMatchObject({ code: "EEXIST", path: blocked });
+    expect(close).toHaveBeenCalledOnce();
+  } finally {
+    close.mockRestore();
     rmSync(dir, { recursive: true, force: true });
   }
 });

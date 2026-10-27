@@ -73,6 +73,20 @@ test.each(["wacken", "sziget"])(
   },
 );
 
+test("Wacken accepts its resale portal as a ticket link, without adding offer alternatives", () => {
+  const run = attempt("wacken");
+  const next = nextEdition(run);
+  const ticketLink = next.links.find((link) => link.kind === "ticketing")!;
+  ticketLink.url = "https://ticketcenter.wacken.com/";
+  expect(
+    evaluateMainCase(run.item, run.before, run.after, run.report).passed,
+  ).toBe(true);
+  next.priceDetails![0].url = ticketLink.url;
+  expect(
+    evaluateMainCase(run.item, run.before, run.after, run.report),
+  ).toMatchObject({ errorCount: 1, passed: false });
+});
+
 test.each([
   [
     "wacken",
