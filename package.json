@@ -28,7 +28,10 @@
     "test:coverage": "vitest run --coverage",
     "studio:build": "mastra build --studio && node scripts/build-studio-commands.mjs",
     "studio:start": "node .mastra/output/commands/studio-start.mjs",
-    "docker:smoke": "node scripts/compose-smoke.mjs"
+    "docker:smoke": "node scripts/compose-smoke.mjs",
+    "db:pull": "node --env-file-if-exists=.env scripts/db-transfer.mjs pull",
+    "db:push": "node --env-file-if-exists=.env scripts/db-transfer.mjs push",
+    "test:db-transfer": "node --test scripts/db-transfer.test.mjs"
   },
   "dependencies": {
     "@mastra/core": "1.74.0",

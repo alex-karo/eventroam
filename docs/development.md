@@ -100,6 +100,10 @@ Use the project-local [code-review skill](../.agents/skills/code-review/SKILL.md
 
 The current migration history starts from one baseline, the starter-taxonomy data migration and a private run-accounting migration. The data migration also supports catalogs already using that baseline. A database initialized by the earlier nine-migration history must be recreated; `db:migrate` does not upgrade it. Stop processes using a disposable database before replacing it, then run `npm run db:fixtures` for fictional data or `npm run db:migrate` for a catalog with the starter vocabulary and no Events or Editions. Preserve valuable local research data with a consistent SQLite backup before replacing its database, and keep that backup separate for manual recovery. SQLite's backup API includes committed WAL data; copying only the live main file is insufficient. Verify backups with `PRAGMA integrity_check`. Historical reports remain opaque storage and are unsupported by current report/eval consumers. See the [SQLite decision](decisions/001-sqlite-and-drizzle.md) for storage details.
 
+For catalog transfer between the local machine and the remote Compose volume,
+see [Catalog pull and push](infrastructure.md#catalog-pull-and-push). Both commands
+keep a target backup before replacement.
+
 ## Local catalog research
 
 Set `OPENROUTER_API_KEY` in `.env`. The selected database must exist and be migrated; migrations supply the starter taxonomy needed for classification. `npm run catalog -- --help` lists options.
@@ -281,10 +285,10 @@ Run `npm run docker:smoke` to build both targets, prepare an empty test catalog 
 
 ### Replace supplied data
 
-There is no merge or automatic transfer command. Stop all source and destination users before replacing either database, in either direction. Close/checkpoint SQLite and handle WAL state before copying; never copy a live WAL database's main file alone. Check SQLite integrity and open the closed DuckDB copy with the matching runtime before start. Copy only the catalog and observability data, without separate reports or debug directories. Set file ownership, run explicit migrations while users remain stopped, then start the matching release. Short downtime is expected.
+Use [Catalog pull and push](infrastructure.md#catalog-pull-and-push) to replace the catalog with a checked snapshot and keep a target backup. The commands do not merge data or transfer observability stores. For manual transfers, stop all source and destination users before replacement. Close/checkpoint SQLite and handle WAL state before copying; never copy a live WAL database's main file alone. Check SQLite integrity and open the closed DuckDB copy with the matching runtime before start. Copy only the catalog and observability data, without separate reports or debug directories. Set file ownership, run explicit migrations while users remain stopped, then start the matching release. Short downtime is expected.
 
-Backups and recovery drills are deferred to the next iteration. Retained images permit code rollback only while catalog schema and DuckDB formats stay compatible. Image rollback does not reverse data changes; an incompatible migration needs a compatible saved data copy.
+Automatic backup schedules and recovery drills are deferred to the next iteration. Retained images permit code rollback only while catalog schema and DuckDB formats stay compatible. Image rollback does not reverse data changes; an incompatible migration needs a compatible saved data copy.
 
 ## Reference
 
-`/Users/karo/projects/eventmap` is a read-only product reference. Do not modify it or copy its implementation wholesale; follow this project's specs and dependency choices.
+Eventmap is a read-only product reference. Do not modify it or copy its implementation wholesale; follow this project's specs and dependency choices.
