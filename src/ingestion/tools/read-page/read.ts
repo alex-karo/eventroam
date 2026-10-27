@@ -3,6 +3,12 @@ import type { ResearchBudget } from "../../runtime/budget";
 import { ResearchLimitError } from "../../runtime/budget";
 import type { ReadPageResult } from "./contracts";
 import { extractSource, MIN_RENDERED_TEXT_CHARS } from "./extract";
+import {
+  mergeMapReferences,
+  referenceMarkdown,
+  type MapReference,
+} from "./maps";
+import { myMapMarkdown, parseMyMap } from "./my-maps";
 import { FirecrawlError, getFirecrawlResponse } from "./firecrawl";
 import {
   getBoundedResponse,
@@ -102,7 +108,7 @@ async function tryRenderedFallback(
   extracted: ReturnType<typeof extractSource>,
   result: ReadPageResult,
   options: ReadPageOptions,
-): Promise<void> {
+): Promise<MapReference[]> {
   const apiKey = firecrawlKey(options);
   if (
     result.method !== "http" ||
@@ -113,7 +119,7 @@ async function tryRenderedFallback(
     !apiKey ||
     options.budget.remaining().durationMs < 1_000
   ) {
-    return;
+    return extracted.maps;
   }
 
   try {
@@ -140,7 +146,7 @@ async function tryRenderedFallback(
             ? "oversized_response"
             : `firecrawl_page_http_${renderedResponse.status}`,
       });
-      return;
+      return extracted.maps;
     }
     const rendered = extractSource(
       renderedResponse.body.toString("utf8"),
@@ -148,7 +154,7 @@ async function tryRenderedFallback(
       renderedResponse.contentType,
     );
     if (rendered.nonNavigationTextLength < MIN_RENDERED_TEXT_CHARS) {
-      return;
+      return extracted.maps;
     }
     const markdown = [
       rendered.markdown,
@@ -164,6 +170,7 @@ async function tryRenderedFallback(
     result.markdown = markdown;
     result.status = "ok";
     result.reasonCode = undefined;
+    return mergeMapReferences(extracted.maps, rendered.maps);
   } catch (error) {
     options.log?.warn("JavaScript source Firecrawl fallback failed", {
       attemptedUrl: response.finalUrl,
@@ -173,6 +180,51 @@ async function tryRenderedFallback(
           ? `${error.limit}_budget_exhausted`
           : requestReason(error),
     });
+  }
+  return extracted.maps;
+}
+
+async function appendMapEvidence(
+  maps: MapReference[],
+  result: ReadPageResult,
+  options: ReadPageOptions,
+): Promise<void> {
+  for (const ref of maps) {
+    let block = referenceMarkdown(ref);
+    if (ref.mid) {
+      try {
+        options.budget.consumePage();
+        const mapResponse = await (options.request ?? getBoundedResponse)(
+          ref.url,
+          {
+            maxBytes: options.budget.limits.pageBytes,
+            timeoutMs: Math.min(15_000, options.budget.remaining().durationMs),
+            resolver: options.resolver,
+            onRetry: () => options.budget.consumePage(),
+          },
+        );
+        if (mapResponse.body.length > options.budget.limits.pageBytes) {
+          throw new Error("oversized_response");
+        }
+        if (mapResponse.status < 200 || mapResponse.status >= 300) {
+          throw new Error(`map_http_${mapResponse.status}`);
+        }
+        block += `\n\n${myMapMarkdown(parseMyMap(mapResponse.body.toString("utf8")))}`;
+      } catch (error) {
+        let reason = requestReason(error);
+        if (error instanceof ResearchLimitError) {
+          reason = `${error.limit}_budget_exhausted`;
+        } else if (
+          error instanceof Error &&
+          /^(?:unsupported_map_data|map_http_\d+)$/.test(error.message)
+        ) {
+          reason = error.message;
+        }
+        block += `\n\nMap read incomplete: ${reason}. Point data is unverified.`;
+        result.reasonCode ??= "map_read_incomplete";
+      }
+    }
+    result.markdown += `\n\n${block}`;
   }
 }
 
@@ -270,6 +322,7 @@ export async function readPage(
     result.reasonCode = "javascript_required";
   }
 
-  await tryRenderedFallback(response, extracted, result, options);
+  const maps = await tryRenderedFallback(response, extracted, result, options);
+  await appendMapEvidence(maps, result, options);
   return result;
 }

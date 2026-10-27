@@ -1,0 +1,163 @@
+{
+  "sourceUrl": "https://www.google.com/maps/d/viewer?mid=12_TFl3M_zF6-MQpycLq4LJghWwgAqNY",
+  "capturedAt": "2026-10-27",
+  "pageData": [
+    null,
+    [
+      null,
+      null,
+      "Mountain Music Fest",
+      null,
+      null,
+      null,
+      [
+        [
+          null,
+          null,
+          "Venue and Parking",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "4E368FB7A4B8955C",
+                    [[[39.6858145, -105.3640047]]],
+                    null,
+                    null,
+                    0,
+                    [
+                      ["name", ["Venue: Buchanan Park"], 1],
+                      [
+                        "description",
+                        ["The festival grounds will cover Buchanan Park."],
+                        1
+                      ]
+                    ],
+                    null,
+                    0
+                  ],
+                  [
+                    "4E3691CA4AF64819",
+                    [[[39.6853228, -105.3665267]]],
+                    null,
+                    null,
+                    1,
+                    [
+                      ["name", ["Parking: Hwy 66/103 | Squaw Pass Road"], 1],
+                      [
+                        "description",
+                        [
+                          "Walking distance: 0.2 mi+\n\nHwy 66/103 (Squaw Pass Road) - Please park your car on the side of the road inside the white line. Cars will be ticketed if any part of the car crosses the white line. While the road is right across the street from the venue, your walking distance will depend on how far up you park.\n"
+                        ],
+                        1
+                      ]
+                    ],
+                    null,
+                    1
+                  ],
+                  [
+                    "4E3694BD4C38ED03",
+                    [[[39.6808814, -105.3614949]]],
+                    null,
+                    null,
+                    1,
+                    [
+                      ["name", ["Parking: Bergen Meadow Elementary School"], 1],
+                      ["description", ["Walking distance: 0.6 mi"], 1]
+                    ],
+                    null,
+                    2
+                  ],
+                  [
+                    "4E369C62AA9CE276",
+                    [[[39.6911876, -105.3629567]]],
+                    null,
+                    null,
+                    1,
+                    [
+                      ["name", ["Parking: RTD at CR 65 and Bergen Parkway"], 1],
+                      [
+                        "description",
+                        [
+                          "Walking distance: 0.7 mi\n\nThere is a people path that connects the RTD parking lot with Buchanan Park."
+                        ],
+                        1
+                      ]
+                    ],
+                    null,
+                    3
+                  ],
+                  [
+                    "4E3693F12CBABA3D",
+                    [[[39.6775179, -105.3613292]]],
+                    null,
+                    null,
+                    1,
+                    [
+                      ["name", ["Parking: Evergreen Middle School"], 1],
+                      ["description", ["Walking distance: 0.9 mi\n"], 1]
+                    ],
+                    null,
+                    4
+                  ],
+                  [
+                    "4EA83D5C86E9D9DD",
+                    [[[39.6826791, -105.3647077]]],
+                    null,
+                    null,
+                    1,
+                    [
+                      ["name", ["Castle Court Parking Lot"], 1],
+                      [
+                        "description",
+                        [
+                          "A teeny tiny walk across a blissful path to the venue. If you get a spot here - buy a lottery ticket. Today's your lucky day!"
+                        ],
+                        1
+                      ]
+                    ],
+                    null,
+                    5
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "Venue location and parking for the event - Saturday, August 3, 2024"
+    ]
+  ],
+  "fixtureNotes": "Recorded map metadata and full point records. Unused fields and compact duplicates removed; non-point geometry reduced to one source vertex."
+}

@@ -89,6 +89,10 @@ The run caches full extracted Markdown within the response byte bounds, includin
 
 Page links stay inline in Markdown. There is no separate link list or completeness field. Identified page regions use paired HTML comments, such as `<!-- Navigation -->` and `<!-- /Navigation -->`, with the same form for Main content, Page header, Page footer, and Aside. A bounded prefix can end before a region's closing comment.
 
+`readPage` also finds Google Maps references in anchors, iframes, and supported lazy attributes. It reads each unique public My Maps `mid` once inside the same tool call, after any page fallback. These HTTP reads share the run time and response byte limits. Maps do not use rendering, and links in marker text are not followed. Ordinary Maps links and short map URLs remain references only.
+
+Map Markdown keeps source URLs, local context, map titles and descriptions, source years, layer names, and point names, descriptions, latitude, and longitude. Parking and camping markers remain visible for Research to assess. Lines and polygons are skipped with a notice. JSON-LD coordinates stay with their named location or Place. A map failure keeps the readable page and reports its URL and limit in Markdown, with `reasonCode: map_read_incomplete` unless a page limit reason already exists. Page status remains `ok`; unread map data does not prove absence. Full map text is cached with the page and uses the same model projection bound.
+
 Both fallbacks consume another page request and respect the remaining run time and response-size limit; other HTTP errors do not trigger Firecrawl.
 
 ### Choose facts and editions

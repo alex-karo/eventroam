@@ -146,3 +146,61 @@ test("selection options are removed before link labels are flattened", () => {
     "| [Weekend](https://festival.example/tickets) | €199 |",
   );
 });
+
+test("map references keep lazy, noscript and anchor context in source order", () => {
+  const result = extractSource(
+    `<section><h2>Venue and parking</h2><p>Shuttle stop</p>
+    <iframe src="about:blank" data-lazy-src="https://maps.google.com/maps?q=Azucarera" title="Azucarera de portas"></iframe>
+    <a href="https://www.google.com/maps/d/edit?mid=festival">Site map</a>
+    <noscript><iframe src="https://www.google.com/maps/d/embed?mid=festival" title="Fallback map"></iframe></noscript>
+    <a href="https://maps.app.goo.gl/stop">Bus stop</a></section>`,
+    url,
+    "text/html",
+  );
+  expect(result.maps.map((ref) => ref.mid ?? ref.url)).toEqual([
+    "https://maps.google.com/maps?q=Azucarera",
+    "festival",
+    "https://maps.app.goo.gl/stop",
+  ]);
+  expect(result.maps[0].context).toContain("Azucarera de portas");
+  expect(result.maps[1].context).toContain("Fallback map");
+  expect(result.maps[1].context).toContain("Site map");
+  expect(result.markdown).not.toContain("Fallback map");
+});
+
+test("structured coordinates stay with their owner and reject invalid pairs", () => {
+  const body = JSON.stringify({
+    "@type": "MusicEvent",
+    name: "Festival",
+    location: [
+      { name: "Venue", geo: { latitude: "42.5", longitude: -8.6 } },
+      {
+        "@type": "Place",
+        name: "Parking",
+        geo: { latitude: 42.6, longitude: -8.7 },
+      },
+      { "@type": "Place", name: "Bad", geo: { latitude: 200, longitude: "" } },
+    ],
+  });
+  const result = extractSource(body, url, "application/ld+json");
+  const lines = result.markdown.split("\n\n");
+  expect(lines.find((line) => line.includes("name: Venue"))).toContain(
+    "latitude: 42.5 · longitude: -8.6",
+  );
+  expect(lines.find((line) => line.includes("name: Parking"))).toContain(
+    "latitude: 42.6 · longitude: -8.7",
+  );
+  expect(lines.find((line) => line.includes("name: Bad"))).not.toContain(
+    "latitude",
+  );
+  expect(result.markdown).toContain("location:");
+});
+
+test.each([
+  '<section><h2>Parking 2024</h2><noscript><iframe src="https://www.google.com/maps/d/embed?mid=parking"></iframe></noscript></section>',
+  '<h2>Parking 2024</h2><iframe src="https://www.google.com/maps/d/embed?mid=parking"></iframe>',
+])("map context keeps the year for isolated iframe markup", (html) => {
+  const result = extractSource(html, url, "text/html");
+  expect(result.maps).toHaveLength(1);
+  expect(result.maps[0].context).toContain("Parking 2024");
+});

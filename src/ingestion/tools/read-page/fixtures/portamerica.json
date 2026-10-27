@@ -1,0 +1,193 @@
+{
+  "sourceUrl": "https://www.google.com/maps/d/viewer?mid=1pxKSXse3dnVlqzRP9fQWBp0V1PWde9s",
+  "capturedAt": "2026-10-27",
+  "pageData": [
+    null,
+    [
+      null,
+      null,
+      "PortAmérica Parkings",
+      null,
+      null,
+      null,
+      [
+        [
+          null,
+          null,
+          "Cortes tráfico Portamérica 2026",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "5D318E7FF1000007",
+                    [[[42.58581, -8.654378]]],
+                    null,
+                    null,
+                    0,
+                    [["nombre", ["Parking Público 5"], 1]],
+                    null,
+                    0
+                  ],
+                  [
+                    "5D318E7FF1000008",
+                    null,
+                    null,
+                    [[[[[[[42.587647, -8.656102]]]]]]],
+                    1,
+                    [["nombre", ["Parking Público 4"], 1]],
+                    null,
+                    1
+                  ],
+                  [
+                    "5D318E7FF200000D",
+                    [[[42.5905606, -8.6538945]]],
+                    null,
+                    null,
+                    0,
+                    [["nombre", ["Parking Público 2"], 1]],
+                    null,
+                    2
+                  ],
+                  [
+                    "5D318E7FF200000E",
+                    null,
+                    null,
+                    [[[[[[[42.590997, -8.653567]]]]]]],
+                    2,
+                    [["nombre", ["Parking Público 2"], 1]],
+                    null,
+                    3
+                  ],
+                  [
+                    "5D318E7FF500001A",
+                    [[[42.5883167, -8.6553453]]],
+                    null,
+                    null,
+                    0,
+                    [["nombre", ["Parking Público 1"], 1]],
+                    null,
+                    4
+                  ],
+                  [
+                    "5D318E7FF5000022",
+                    null,
+                    null,
+                    [[[[[[[42.588666, -8.654976]]]]]]],
+                    1,
+                    [["nombre", ["Parking Público 1"], 1]],
+                    null,
+                    5
+                  ],
+                  [
+                    "5D318E7FF5000023",
+                    [[[42.5877362, -8.6550806]]],
+                    null,
+                    null,
+                    0,
+                    [["nombre", ["Parking Público 3"], 1]],
+                    null,
+                    6
+                  ],
+                  [
+                    "5D318E7FF5000024",
+                    null,
+                    null,
+                    [[[[[[[42.587962, -8.654756]]]]]]],
+                    3,
+                    [["nombre", ["Parking Público 3"], 1]],
+                    null,
+                    7
+                  ],
+                  [
+                    "5D318E7FF5000025",
+                    null,
+                    null,
+                    [[[[[[[42.586019, -8.654467]]]]]]],
+                    4,
+                    [["nombre", ["Parking Público 5"], 1]],
+                    null,
+                    8
+                  ],
+                  [
+                    "5D318E7FF5000026",
+                    [[[42.587383, -8.656153]]],
+                    null,
+                    null,
+                    0,
+                    [["nombre", ["Parking Público 4"], 1]],
+                    null,
+                    9
+                  ],
+                  [
+                    "5D318E7FF2000011",
+                    null,
+                    null,
+                    [[[[[[[42.585942, -8.652884]]]]]]],
+                    5,
+                    [["nombre", ["PArking Producción"], 1]],
+                    null,
+                    10
+                  ],
+                  [
+                    "5D318E7FF200000A",
+                    [[[42.5906854, -8.6557329]]],
+                    null,
+                    null,
+                    6,
+                    [["nombre", ["PortAmérica"], 1]],
+                    null,
+                    11
+                  ],
+                  [
+                    "5D318E7FF200000B",
+                    [[[42.5853234, -8.6520703]]],
+                    null,
+                    null,
+                    7,
+                    [["nombre", ["CAMPING"], 1]],
+                    null,
+                    12
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      ""
+    ]
+  ],
+  "fixtureNotes": "Recorded map metadata and full point records. Unused fields and compact duplicates removed; non-point geometry reduced to one source vertex."
+}

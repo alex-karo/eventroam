@@ -1,0 +1,950 @@
+{
+  "sourceUrl": "https://www.google.com/maps/d/viewer?mid=1lxJnSGcCMfkx-ZvZDlTN27PbUpLQlJc",
+  "capturedAt": "2026-10-27",
+  "pageData": [
+    null,
+    [
+      null,
+      null,
+      "Handpicked Festival 2026",
+      null,
+      null,
+      null,
+      [
+        [
+          null,
+          null,
+          "Parking",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "5763024301BF68DB",
+                    [[[-35.3170966, 139.0381226]]],
+                    null,
+                    null,
+                    0,
+                    [["name", ["Carpark 1"], 1]],
+                    [1, ["Carpark 1"]],
+                    0
+                  ],
+                  [
+                    "576D6F750B017DCB",
+                    null,
+                    null,
+                    [[[[[[[-35.3174846, 139.0400812]]]]]]],
+                    1,
+                    [["name", ["Bus Parking"], 1]],
+                    [1, ["Bus Parking"]],
+                    1
+                  ],
+                  [
+                    "576D72CD5530BF70",
+                    null,
+                    [[[[[-35.3179102, 139.0373222]]]]],
+                    null,
+                    2,
+                    [["name", ["Carpark"], 1]],
+                    [1, ["Carpark"]],
+                    2
+                  ],
+                  [
+                    "576D73C10B317517",
+                    null,
+                    null,
+                    [[[[[[[-35.3179146, 139.0375261]]]]]]],
+                    3,
+                    [],
+                    [1, [""]],
+                    3
+                  ],
+                  [
+                    "576D7423C02C1AFE",
+                    [[[-35.3178369, 139.0373297]]],
+                    null,
+                    null,
+                    4,
+                    [["name", ["Carpark Entry"], 1]],
+                    [1, ["Carpark Entry"]],
+                    4
+                  ],
+                  [
+                    "576D835229E595DD",
+                    [[[-35.3158775, 139.0405591]]],
+                    null,
+                    null,
+                    5,
+                    [["name", ["Caravan Entry"], 1]],
+                    [1, ["Caravan Entry"]],
+                    5
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          null,
+          null,
+          "Pick Up / Drop Off Zone",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "576D752F640AFCDC",
+                    null,
+                    null,
+                    [[[[[[[-35.3172187, 139.039906]]]]]]],
+                    0,
+                    [],
+                    [1, [""]],
+                    6
+                  ],
+                  [
+                    "576D761B5DF3E3BA",
+                    [[[-35.3172789, 139.0401299]]],
+                    null,
+                    null,
+                    1,
+                    [["name", ["Pick Up / Drop Off / Taxi Zone"], 1]],
+                    [1, ["Pick Up / Drop Off / Taxi Zone"]],
+                    7
+                  ],
+                  [
+                    "57E9A2CC7D40063E",
+                    null,
+                    [[[[[-35.3170139, 139.0368796]]]]],
+                    null,
+                    2,
+                    [["name", ["Passenger Drop Off/Taxi Route"], 1]],
+                    [1, ["Passenger Drop Off/Taxi Route"]],
+                    8
+                  ],
+                  [
+                    "57E9A4ACEB6F1F8E",
+                    [[[-35.3170455, 139.0369261]]],
+                    null,
+                    null,
+                    1,
+                    [["name", ["Passenger Drop Off/Taxi Vehicle Entry"], 1]],
+                    [1, ["Passenger Drop Off/Taxi Vehicle Entry"]],
+                    9
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          null,
+          null,
+          "Bus Parking",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "57630721AFFD61CB",
+                    null,
+                    [[[[[-35.3169243, 139.0368464]]]]],
+                    null,
+                    0,
+                    [["name", ["Bus Parking"], 1]],
+                    [1, ["Bus Parking"]],
+                    10
+                  ],
+                  [
+                    "576307CF1DF0D25E",
+                    [[[-35.3174364, 139.0407517]]],
+                    null,
+                    null,
+                    1,
+                    [
+                      ["name", ["Bus Parking"], 1],
+                      ["description", ["Handpicked Festival Bus Parking"], 1]
+                    ],
+                    [1, ["Bus Parking"]],
+                    11
+                  ],
+                  [
+                    "576308594032BF7C",
+                    [[[-35.3169243, 139.0368464]]],
+                    null,
+                    null,
+                    1,
+                    [["name", ["Bus Entry"], 1]],
+                    [1, ["Bus Entry"]],
+                    12
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          null,
+          null,
+          "Walking Path to Festival",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "576D7DB3FA2B6D48",
+                    null,
+                    [[[[[-35.3171513, 139.0398431]]]]],
+                    null,
+                    0,
+                    [["name", ["Walking Path to Festival"], 1]],
+                    [1, ["Walking Path to Festival"]],
+                    13
+                  ],
+                  [
+                    "576D7E3A1729F6F6",
+                    [[[-35.3189022, 139.0409857]]],
+                    null,
+                    null,
+                    1,
+                    [
+                      ["name", ["Walking Path to Festival"], 1],
+                      [
+                        "description",
+                        ["400m, approximately a 5 minute walk"],
+                        1
+                      ]
+                    ],
+                    [1, ["Walking Path to Festival"]],
+                    14
+                  ],
+                  [
+                    "576D7F615898AB41",
+                    [[[-35.3180886, 139.0402068]]],
+                    null,
+                    null,
+                    2,
+                    [["name", ["Toilets"], 1]],
+                    [1, ["Toilets"]],
+                    15
+                  ],
+                  [
+                    "576D8017C0236574",
+                    [[[-35.318244, 139.0403007]]],
+                    null,
+                    null,
+                    3,
+                    [["name", ["Food Truck"], 1]],
+                    [1, ["Food Truck"]],
+                    16
+                  ],
+                  [
+                    "576D89C9F0846771",
+                    null,
+                    [[[[[-35.3205552, 139.0420509]]]]],
+                    null,
+                    4,
+                    [
+                      ["name", ["Walking Path to the Festival"], 1],
+                      ["description", ["A short 5 minute stroll"], 1]
+                    ],
+                    [1, ["Walking Path to the Festival"]],
+                    17
+                  ],
+                  [
+                    "576D8A29C93247E6",
+                    [[[-35.3206997, 139.0421421]]],
+                    null,
+                    null,
+                    1,
+                    [
+                      ["name", ["Walking Path to Festival"], 1],
+                      ["description", ["A short 2 minute stroll"], 1]
+                    ],
+                    [1, ["Walking Path to Festival"]],
+                    18
+                  ],
+                  [
+                    "576D925629D52323",
+                    [[[-35.3205594, 139.0421808]]],
+                    null,
+                    null,
+                    2,
+                    [["name", ["Portaloo"], 1]],
+                    [1, ["Portaloo"]],
+                    19
+                  ],
+                  [
+                    "57E9A8A6662A0958",
+                    [[[-35.3179668, 139.0401416]]],
+                    null,
+                    null,
+                    5,
+                    [["name", ["Hydration Station"], 1]],
+                    [1, ["Hydration Station"]],
+                    20
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          null,
+          null,
+          "Caravan Camping",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "576D80C46A38DBF3",
+                    null,
+                    null,
+                    [[[[[[[-35.3157283, 139.0404898]]]]]]],
+                    0,
+                    [["name", ["Caravan Camping"], 1]],
+                    [1, ["Caravan Camping"]],
+                    21
+                  ],
+                  [
+                    "576D818173AAA6FF",
+                    [[[-35.31577, 139.0412058]]],
+                    null,
+                    null,
+                    1,
+                    [["name", ["Caravan Camping"], 1]],
+                    [1, ["Caravan Camping"]],
+                    22
+                  ],
+                  [
+                    "57E9A9183C04D50F",
+                    [[[-35.3165529, 139.0412063]]],
+                    null,
+                    null,
+                    2,
+                    [["name", ["Caravan Camping Check In Tent"], 1]],
+                    [1, ["Caravan Camping Check In Tent"]],
+                    23
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          null,
+          null,
+          "Festival Entry",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "576D8415FDD1137E",
+                    [[[-35.3202615, 139.0419844]]],
+                    null,
+                    null,
+                    0,
+                    [["name", ["Festival Entry Gate"], 1]],
+                    [1, ["Festival Entry Gate"]],
+                    24
+                  ],
+                  [
+                    "576D941F5AF6D238",
+                    null,
+                    null,
+                    [[[[[[[-35.3204876, 139.0421116]]]]]]],
+                    1,
+                    [["name", ["Festival Site"], 1]],
+                    [1, ["Festival Site"]],
+                    25
+                  ],
+                  [
+                    "576D94D003B1FD8A",
+                    [[[-35.3185869, 139.0437102]]],
+                    null,
+                    null,
+                    2,
+                    [["name", ["Stage"], 1]],
+                    [1, ["Stage"]],
+                    26
+                  ],
+                  [
+                    "576D99087C24794A",
+                    null,
+                    null,
+                    [[[[[[[-35.3187052, 139.0439692]]]]]]],
+                    3,
+                    [["name", ["Premium Cellar Door Space"], 1]],
+                    [1, ["Premium Cellar Door Space"]],
+                    27
+                  ],
+                  [
+                    "576D998466543371",
+                    [[[-35.3190772, 139.0440711]]],
+                    null,
+                    null,
+                    4,
+                    [["name", ["Premium Cellar Door Space"], 1]],
+                    [1, ["Premium Cellar Door Space"]],
+                    28
+                  ],
+                  [
+                    "576D9B90F2A7ABE1",
+                    null,
+                    [[[[[-35.3195937, 139.044206]]]]],
+                    null,
+                    5,
+                    [["name", ["Food Trucks"], 1]],
+                    [1, ["Food Trucks"]],
+                    29
+                  ],
+                  [
+                    "576D9BD9E50573BA",
+                    [[[-35.319957, 139.0440665]]],
+                    null,
+                    null,
+                    6,
+                    [["name", ["The Food Garden"], 1]],
+                    [1, ["The Food Garden"]],
+                    30
+                  ],
+                  [
+                    "576DA5DE3BE57C07",
+                    [[[-35.3203235, 139.0427466]]],
+                    null,
+                    null,
+                    7,
+                    [["name", ["Toilets"], 1]],
+                    [1, ["Toilets"]],
+                    31
+                  ],
+                  [
+                    "576DA62C6655D529",
+                    [[[-35.3199843, 139.0426071]]],
+                    null,
+                    null,
+                    8,
+                    [["name", ["First Aid"], 1]],
+                    [1, ["First Aid"]],
+                    32
+                  ],
+                  [
+                    "576DA6A683E64FE5",
+                    [[[-35.319934, 139.0427466]]],
+                    null,
+                    null,
+                    9,
+                    [["name", ["Info Tent"], 1]],
+                    [1, ["Info Tent"]],
+                    33
+                  ],
+                  [
+                    "576DA6EDA394F65C",
+                    [[[-35.3199121, 139.0428297]]],
+                    null,
+                    null,
+                    10,
+                    [["name", ["Merch Tent"], 1]],
+                    [1, ["Merch Tent"]],
+                    34
+                  ],
+                  [
+                    "576DA7D2E70243AA",
+                    [[[-35.3189601, 139.0441815]]],
+                    null,
+                    null,
+                    11,
+                    [["name", ["Toilets"], 1]],
+                    [1, ["Toilets"]],
+                    35
+                  ],
+                  [
+                    "576DA8184C4DA0A6",
+                    [[[-35.3191417, 139.0441896]]],
+                    null,
+                    null,
+                    12,
+                    [["name", ["Bar"], 1]],
+                    [1, ["Bar"]],
+                    36
+                  ],
+                  [
+                    "576DA86D548416A7",
+                    [[[-35.3190433, 139.0426071]]],
+                    null,
+                    null,
+                    13,
+                    [["name", ["Accessible Toilet"], 1]],
+                    [1, ["Accessible Toilet"]],
+                    37
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          null,
+          null,
+          "Tent City Camping",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "576D8790DAC08EF9",
+                    null,
+                    null,
+                    [[[[[[[-35.3206485, 139.0430487]]]]]]],
+                    0,
+                    [["name", ["Tent City Camping"], 1]],
+                    [1, ["Tent City Camping"]],
+                    38
+                  ],
+                  [
+                    "576D8910ED2A01AC",
+                    [[[-35.3211431, 139.042877]]],
+                    null,
+                    null,
+                    1,
+                    [["name", ["Tent City Camping"], 1]],
+                    [1, ["Tent City Camping"]],
+                    39
+                  ],
+                  [
+                    "57E9AE827F584791",
+                    [[[-35.321233, 139.0425031]]],
+                    null,
+                    null,
+                    2,
+                    [
+                      [
+                        "name",
+                        ["Tent City Camping Check In Tent & Chill Zone"],
+                        1
+                      ]
+                    ],
+                    [1, ["Tent City Camping Check In Tent & Chill Zone"]],
+                    40
+                  ],
+                  [
+                    "57E9AF40CA7703CC",
+                    [[[-35.3212943, 139.0425822]]],
+                    null,
+                    null,
+                    3,
+                    [["name", ["Food Truck"], 1]],
+                    [1, ["Food Truck"]],
+                    41
+                  ],
+                  [
+                    "57E9AFA8220C9227",
+                    [[[-35.321337, 139.0425983]]],
+                    null,
+                    null,
+                    4,
+                    [["name", ["Coffee Van"], 1]],
+                    [1, ["Coffee Van"]],
+                    42
+                  ],
+                  [
+                    "57E9B03FF3844D61",
+                    [[[-35.3211805, 139.0425514]]],
+                    null,
+                    null,
+                    5,
+                    [["name", ["Hydration Station"], 1]],
+                    [1, ["Hydration Station"]],
+                    43
+                  ],
+                  [
+                    "57E9B0B137C12B00",
+                    [[[-35.321093, 139.0425702]]],
+                    null,
+                    null,
+                    6,
+                    [["name", ["Toilets"], 1]],
+                    [1, ["Toilets"]],
+                    44
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          null,
+          null,
+          "Tent City Camping Parking",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "576D8B7FA2E68DBC",
+                    null,
+                    null,
+                    [[[[[[[-35.3213349, 139.0400308]]]]]]],
+                    0,
+                    [["name", ["Tent City Camping Parking"], 1]],
+                    [1, ["Tent City Camping Parking"]],
+                    45
+                  ],
+                  [
+                    "576D8C667CA04016",
+                    [[[-35.3216588, 139.0413236]]],
+                    null,
+                    null,
+                    1,
+                    [["name", ["Tent City Parking"], 1]],
+                    [1, ["Tent City Parking"]],
+                    46
+                  ],
+                  [
+                    "576D8DC73CC4EE4D",
+                    null,
+                    [[[[[-35.3190376, 139.0374841]]]]],
+                    null,
+                    2,
+                    [["name", ["Tent City Camping Access"], 1]],
+                    [1, ["Tent City Camping Access"]],
+                    47
+                  ],
+                  [
+                    "576D8E495FADB30B",
+                    [[[-35.3213349, 139.0400308]]],
+                    null,
+                    null,
+                    3,
+                    [["name", ["Tent City Entry"], 1]],
+                    [1, ["Tent City Entry"]],
+                    48
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          null,
+          null,
+          "Accessible & Lake Breeze VIP Parking",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "576D906F532194AF",
+                    null,
+                    null,
+                    [[[[[[[-35.3207787, 139.0416452]]]]]]],
+                    0,
+                    [["name", ["Accessible & Lake Breeze VIP Parking"], 1]],
+                    [1, ["Accessible & Lake Breeze VIP Parking"]],
+                    49
+                  ],
+                  [
+                    "576D90B3695FFCEF",
+                    [[[-35.3208072, 139.0419081]]],
+                    null,
+                    null,
+                    1,
+                    [["name", ["Accessible & Lake Breeze VIP Parking"], 1]],
+                    [1, ["Accessible & Lake Breeze VIP Parking"]],
+                    50
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          null,
+          null,
+          "Food & Drink",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "576D96E38824B1AB",
+                    [[[-35.319331, 139.0428866]]],
+                    null,
+                    null,
+                    0,
+                    [["name", ["Barrel Bar"], 1]],
+                    null,
+                    51
+                  ],
+                  [
+                    "576D9ADB454428AE",
+                    [[[-35.3194755, 139.0441301]]],
+                    null,
+                    null,
+                    0,
+                    [["name", ["Bar"], 1]],
+                    null,
+                    52
+                  ],
+                  [
+                    "576DA2202CA30369",
+                    [[[-35.3204113, 139.0437305]]],
+                    null,
+                    null,
+                    1,
+                    [["name", ["The Cocktail Forest"], 1]],
+                    null,
+                    53
+                  ],
+                  [
+                    "576DA44AFC0D5949",
+                    [[[-35.320561, 139.0434101]]],
+                    null,
+                    null,
+                    2,
+                    [["name", ["The Lane Marketplace"], 1]],
+                    null,
+                    54
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      ""
+    ]
+  ],
+  "fixtureNotes": "Recorded map metadata and full point records. Unused fields and compact duplicates removed; non-point geometry reduced to one source vertex."
+}
