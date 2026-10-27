@@ -1,14 +1,14 @@
 ---
 type: Proposal
 title: Website routing and indexing defaults
-description: Unselected cross-scope routing, canonical URL, redirect, and search indexing policies.
+description: Remaining proposals for future pages, scopes, and routing beyond current website discoverability.
 status: draft
 tags: [website, routing, seo]
 ---
 
 # Website routing and indexing defaults
 
-These remaining rules were proposed alongside the [scoped website specification](../../openspec/specs/website/routing/spec.md). Existing application behavior, including discovery canonical URLs and `noindex` responses, is specified in OpenSpec; implementation alone does not imply owner approval of the remaining choices.
+The [website discoverability specification](../../openspec/specs/website/discoverability/spec.md) defines implemented metadata, indexing, and crawler behavior. The [scoped website specification](../../openspec/specs/website/routing/spec.md) owns host mapping, redirects, and discovery query rules. Remaining proposals below extend these contracts.
 
 ## Site hierarchy and later scopes
 
@@ -16,9 +16,9 @@ Proposed pages and scopes beyond the current fixture-backed routes:
 
 | Host and path | Purpose | Release |
 | --- | --- | --- |
-| `eventroam.com/about` | Shared explanation of the catalog, coverage, and uncertainty labels | V1 |
-| `eventroam.com/privacy` | Shared privacy information reflecting the implemented site | Before public launch |
-| `it.eventroam.com/` | Discovery for a future, separately specified IT scope | Deferred |
+| `eventroam.org/about` | Shared explanation of the catalog, coverage, and uncertainty labels | Separate future work |
+| `eventroam.org/privacy` | Shared privacy information reflecting the implemented site | Separate future work |
+| `it.eventroam.org/` | Discovery for a future, separately specified IT scope | Deferred |
 
 Scope navigation identifies the current scope and offers links to launched alternatives plus the apex. Shared informational pages live on the apex and are linked from each scope footer. Define each future scope's membership rules and filters before launching it; choose an initial home scope for overlapping records without changing existing IDs.
 
@@ -26,11 +26,13 @@ An explicit home-scope migration preserves the same IDs and redirects the old UR
 
 ## Cross-scope links, canonical URLs, and redirects
 
+The existing two-host routing and the first-launch metadata policy remain in their owning OpenSpec documents. These proposals extend that baseline to future scopes, identity merges, and home-scope moves; they are not additional requirements for `public-site-launch`.
+
 Each public Event and Edition has exactly one canonical absolute URL on its Event's home scope. An eligible result discovered on another scope links directly to that canonical address; the destination visibly identifies its home scope. A known public record requested at the equivalent path on another launched scope redirects permanently to its canonical host. The apex can likewise redirect a recognized detail path rather than serve another copy; unknown paths return `404`.
 
 Scope roots are distinct discovery experiences and have their own canonical URLs. Do not canonicalize all scope roots to the apex or to Festivals. Shared about/privacy content is served only from the apex; scope navigation links directly to it.
 
-Use permanent server redirects for old published slugs/keys, confirmed duplicate merges, explicit home-scope moves, HTTPS normalization, and configured host aliases such as `www.eventroam.com` to `eventroam.com`. Resolve aliases to the final current route in one redirect where practical; prevent loops. Preserve old published aliases indefinitely and never reuse them for another identity.
+Use permanent server redirects for old published slugs/keys, confirmed duplicate merges, explicit home-scope moves, HTTPS normalization, and configured host aliases such as `www.eventroam.org` to `eventroam.org`. Resolve aliases to the final current route in one redirect where practical; prevent loops. Preserve old published aliases indefinitely and never reuse them for another identity.
 
 Redirect a known old slug together with its Edition suffix to the same Edition's current address. If a merge involved a conflicting key, resolve it using the stored identity/alias mapping rather than assuming the suffix matches on the surviving Event. Recheck public visibility before redirects or payload reads so aliases cannot expose a draft or withdrawn target.
 
@@ -38,28 +40,4 @@ Detail-page filter/view/tracking parameters do not alter identity or content; ca
 
 ## Crawlability and indexing
 
-Retain the server-rendered discovery list, ordinary linked result titles, and Event/Edition content as the public metadata and crawler policy is completed. The map enhances these links; it is not the only way to discover records. Event pages link to all their public editions so published historical pages remain reachable without a historical search query. Draft data and internal evidence/history must never appear in public HTML, page data, or sitemaps.
-
-Remaining public-launch indexing policy:
-
-| Page class | Policy |
-| --- | --- |
-| Apex and launched scope roots | Indexable, self-canonical |
-| Useful public Event and Edition pages | Indexable, canonical on home scope |
-| Shared informational pages | Indexable on apex when substantive |
-| Applied filter/search combinations | Exclude from sitemaps; the current discovery page already emits `noindex,follow` |
-| View-only or tracking-only root variants | Exclude variants from sitemaps; the current discovery page already canonicalizes them to the clean scope root |
-| Invalid filter state, unavailable record, or unlaunched scope | Keep unavailable records and unlaunched scopes out of the index; the current discovery page already marks invalid filter state `noindex` |
-
-Keep the current normalized self URL for materially filtered pages and their visible invalid-filter recovery state. Permit crawlers to retrieve pages carrying `noindex`; do not rely on `robots.txt` alone to express this indexing policy.
-
-Each launched host serves its own `robots.txt` and sitemap, containing only its canonical, currently public URLs. The apex sitemap lists shared pages; each scope sitemap lists its root and the Events/Editions it canonically owns. Include retained historical, cancelled, and postponed public pages; remove withdrawn pages and never include redirects, filtered combinations, API routes, or placeholders. A future large sitemap may use an index without changing public content URLs.
-
-Titles, descriptions, social metadata, and relevant structured data must describe the rendered record and accepted dates/status. Page URLs and structured-data identity URLs use the same canonical origin. Do not label historical or previous postponed dates as upcoming merely to populate metadata.
-
-## Acceptance for proposed policies
-
-- A cross-scope result uses one shared identity and canonical home-scope URL. An explicit home-scope migration redirects old URLs without duplicate indexable pages.
-- Public history remains linked and in the correct host's sitemap. Drafts and withdrawn records are absent from all public payloads and aliases; retained cancellations/postponements display their status.
-- Exclude view-only and filtered variants from sitemaps while retaining the current canonical and `noindex` behavior.
-- Canonical links, social URLs, sitemap entries, and redirect destinations come from configured origins and retained identity mappings.
+The [discoverability specification](../../openspec/specs/website/discoverability/spec.md) defines indexability, per-host crawler routes, metadata, supported Event JSON-LD, public visibility, and historical links. New content pages and curated country or genre landing pages remain separate future work; specify their indexing policy when their content and routes are selected.

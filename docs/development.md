@@ -28,6 +28,18 @@ Codex worktrees use `.codex/environments/environment.toml` to link the source ch
 
 ## Coordinate comparison
 
+## Public page metadata
+
+Set `PUBLIC_APEX_ORIGIN=https://eventroam.org` and `PUBLIC_FESTIVALS_ORIGIN=https://festivals.eventroam.org` for public use. Local defaults remain `http://localhost:3000` and `http://festivals.localhost:3000`. The application selects the site from the configured hosts; request hosts cannot set absolute identity URLs.
+
+Next.js Metadata API supplies titles, descriptions, canonicals, Open Graph text, and Twitter summary cards. No social preview images are declared. Event pages describe published history. Edition metadata uses its stored year, known dates and place, and the same status and past-edition rules as page content. Public records remain indexable when optional facts are absent. Material or invalid discovery filters keep `noindex,follow`.
+
+Each configured host serves `/robots.txt` and `/sitemap.xml` through Next.js metadata routes. Robots permits public pages and query variants so crawlers can read `noindex` responses. The apex sitemap lists its root. The Festivals sitemap lists its root and current public Event and Edition URLs, including history and cancelled or postponed editions. Each request reads current publication state; a publish, rename, or withdrawal needs no rebuild. Sitemaps omit aliases, queries, private records, and unsupported modification times.
+
+Edition pages add Event JSON-LD only when dates are confirmed and a country plus street address or locality is known. Country, venue name, region, or coordinates alone do not qualify. Missing JSON-LD does not change indexing or sitemap eligibility. The script uses date-only values and stored cancellation or postponement status; it adds no unknown times, images, organizers, performers, or ticket offers. Event history and discovery pages do not emit a dated Event. Public text is serialized with `<` escaped.
+
+After deployment, manually verify ownership of both hosts in Google Search Console, submit each host's sitemap, and inspect representative root, Event, and Edition URLs. Check the rendered canonical, indexing state, and structured-data reports. These account actions and real-data updates are separate from application checks.
+
 ## Checks and tests
 
 Run the checks relevant to your change:
@@ -43,6 +55,8 @@ npm run openspec:validate
 ```
 
 CI validates main OpenSpec specs with `npm exec -- openspec validate --specs --strict`, allowing active changes to start with a proposal only. `npm run openspec:validate` also validates active changes and requires their delta specs to be ready.
+
+Run `npm run build` then `npm run test:site` for the public-site HTTP smoke checks. The smoke runner starts the built app on a free local port with a temporary validated catalog and runtime public origins. It makes HTTP requests with a crawler user agent; it does not start a browser or use an owner database.
 
 `npm start` serves the built application. `npm run test:e2e` runs desktop and mobile discovery and detail journeys against a temporary fixture database on port 3137. The default mode disables Mapbox and checks list and map fallbacks. Pass Playwright options after `--`, for example `npm run test:e2e -- --project=mobile`.
 

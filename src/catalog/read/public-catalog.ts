@@ -24,6 +24,26 @@ import {
 
 import type { PublicEvent, PublicEdition } from "@/catalog/read/contracts";
 
+function publicEditionConditions() {
+  return and(
+    eq(events.publicationState, "published"),
+    eq(events.homeScope, "festivals"),
+    eq(editions.publicationState, "published"),
+    isNotNull(editions.startsOn),
+    isNotNull(editions.endsOn),
+  );
+}
+
+export function publicUrlRecords(client: Database.Database) {
+  return drizzle(client)
+    .select({ eventSlug: events.slug, editionKey: editions.editionKey })
+    .from(editions)
+    .innerJoin(events, eq(events.id, editions.eventId))
+    .where(publicEditionConditions())
+    .orderBy(asc(events.slug), asc(editions.editionKey))
+    .all();
+}
+
 function publicRows(
   client: Database.Database,
   condition: SQL | undefined,
@@ -62,16 +82,7 @@ function publicRows(
     })
     .from(editions)
     .innerJoin(events, eq(events.id, editions.eventId))
-    .where(
-      and(
-        eq(events.publicationState, "published"),
-        eq(events.homeScope, "festivals"),
-        eq(editions.publicationState, "published"),
-        isNotNull(editions.startsOn),
-        isNotNull(editions.endsOn),
-        condition,
-      ),
-    )
+    .where(and(publicEditionConditions(), condition))
     .orderBy(
       newestFirst ? desc(editions.startsOn) : asc(editions.startsOn),
       asc(editions.id),

@@ -22,7 +22,9 @@ Commands → research → editor → initial geocoding → Location → typed ad
 src/
 ├── app/                       # Next.js routes and page composition
 │   ├── api/discovery/         # Public summary and Edition detail endpoints
-│   └── events/[slug]/         # Event and Edition pages
+│   ├── events/[slug]/         # Event and Edition pages
+│   ├── robots.ts             # Request-time crawler rules for each host
+│   └── sitemap.ts            # Request-time public canonical URLs
 ├── features/
 │   ├── discovery/             # Discovery UI, filtering model, hooks, and map
 │   │   ├── components/        # Filters, results, one selected card
@@ -41,7 +43,7 @@ src/
 │   └── write/                 # Transactions, publication, audit
 ├── site/
 │   ├── discovery-context.ts   # Tab-local visit snapshots and context tokens
-│   └── server/                # Request adapters; site.ts holds scope and URL rules
+│   └── server/                # Public request adapters and metadata builders
 ├── ingestion/                 # Research/editor/Location agents, typed adapter, sources and limits
 │   ├── research/
 │   │   ├── agent/             # Agent implementation and adjacent tests
@@ -121,9 +123,15 @@ The Edition page owns the full festival view in one column. Its location map own
 
 `site/discovery-context.ts` stores one visit snapshot in session storage. It contains the root filter URL, camera, list scroll, selected ID, and card expansion state. History state and detail URLs carry only its opaque token. `Discovery` saves and restores this context for browser Back and Back to results. It reloads selected details and removes an ineligible selection. The discovery map restores the camera before its first fit and uses the rendered card bounds to keep the selected point visible. Direct details without a matching token return to default discovery.
 
-The application currently has a root page, Event and Edition pages, and two discovery API routes. The root renders the project presentation or Festivals discovery according to the allowed host. The apex has three sections: system introduction, festival example, and services with a direct LinkedIn contact link. Its [presentation spec](../openspec/specs/website/project-presentation/spec.md) defines this content. The apex uses a local preview image, local fonts, and a labeled source-to-record-to-catalog illustration. It does not query the catalog. Unknown hosts do not expose a default catalog. Detail requests resolve public identity and canonical hosts through `site/server` and `catalog/read`. The [scoped website specification](../openspec/specs/website/routing/spec.md) owns implemented routing behavior; [public site launch](../openspec/changes/public-site-launch/proposal.md) tracks approved metadata work.
+The application has a root page, Event and Edition pages, two discovery API routes, and per-host crawler routes. The root renders the project presentation or Festivals discovery according to the allowed host. The apex has three sections: system introduction, festival example, and services with a direct LinkedIn contact link. Its [presentation spec](../openspec/specs/website/project-presentation/spec.md) defines this content. The apex uses a local preview image, local fonts, and a labeled source-to-record-to-catalog illustration. It does not query the catalog. Unknown hosts do not expose a default catalog. Detail requests resolve public identity and canonical hosts through `site/server` and `catalog/read`. The [scoped website specification](../openspec/specs/website/routing/spec.md) owns routing behavior; [website discoverability](../openspec/specs/website/discoverability/spec.md) owns metadata and crawler output.
 
-About and privacy pages, dedicated error pages, robots and sitemap routes, and complete SEO metadata remain future work. Add their files when the behavior is implemented; do not publish placeholder routes.
+`site/server/metadata.ts` builds Next.js metadata from public DTOs. Page adapters share detail reads and the current time within each request through React memoization. `site.ts` owns configured origins and paths. Metadata does not use arbitrary request hosts or add a publication gate. The HTTP checks in `src/test/site-smoke.ts` run against the built app.
+
+`app/robots.ts` and `app/sitemap.ts` use Next.js metadata routes and request-site resolution. The sitemap reads only slugs and Edition keys through `catalog/read/public-catalog.ts`, with the same publication conditions as detail reads. It does not use discovery eligibility or load full details. Next.js owns crawler text and XML serialization; each response uses current runtime origins and publication state.
+
+`site/server/structured-data.ts` builds an optional Event object from public Edition facts and safely serializes its script data. The Edition route inserts the script; metadata and page indexing do not depend on its eligibility. The small adjacent test table checks eligibility, date and status fields, and safe serialization. The same HTTP smoke suite checks script presence or absence in rendered pages.
+
+About and privacy pages and dedicated error pages remain future work. Add their files when the behavior is implemented; do not publish placeholder routes.
 
 ## Database operations
 
