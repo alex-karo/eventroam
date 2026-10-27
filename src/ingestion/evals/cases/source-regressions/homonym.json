@@ -126,27 +126,6 @@
         "value": null
       }
     ],
-    "research": {
-      "status": "success",
-      "facts": [
-        {
-          "editionKey": "2027",
-          "field": "countryCode",
-          "value": "GB"
-        },
-        {
-          "editionKey": "2027",
-          "field": "tickets",
-          "value": {
-            "basePrice": {
-              "kind": "free"
-            }
-          }
-        }
-      ],
-      "previousEdition": null,
-      "currentOrNextEdition": "2027"
-    },
     "toolUse": {
       "maxSearches": 0,
       "readBeforeSearch": [

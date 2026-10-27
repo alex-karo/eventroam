@@ -26,7 +26,7 @@ Define expected facts from the supplied evidence, independently of a model answe
 
 Use explicit TypeScript main evaluators with shared helpers. Keep expected alternatives and source comments close to the checks. Do not add a general rule engine or require a policy for every possible field.
 
-Case inputs and source files live in [`src/ingestion/evals/cases/`](../src/ingestion/evals/cases/). Main checks live in [`src/ingestion/evals/main/`](../src/ingestion/evals/main/). Register a new case in the suite manifest and, for main, the evaluator registry. Keep tests independent of evaluator expected values.
+Case inputs and source files live in [`src/ingestion/evals/cases/`](../src/ingestion/evals/cases/). Main checks live in [`src/ingestion/evals/main/`](../src/ingestion/evals/main/). Regression Research checks live in adjacent `checks.ts` files under `cases/`; [`case-research.ts`](../src/ingestion/evals/case-research.ts) registers them. Register a new case in the suite manifest and its evaluator registry.
 
 ## Keep completeness and errors separate
 
@@ -50,6 +50,8 @@ For each declared fact:
 For example, omitting a checked Instagram link lowers additional completeness. An unsupported official Instagram URL adds an error. The error count counts failed factual checks, not individual characters or every field in a record.
 
 Publication, identity, protected records and execution have separate conditions. High completeness cannot compensate for a failed condition.
+
+Regressions use the same pass/fail check format as main conditions. They expose one `scenario-success`: all checks must pass. Their saved output contains `checks` and `passed`, without intermediate percentages or separate diagnostic categories. The CLI and Mastra reason show failed-check messages. Keep mutation, tool-use and Location expectations in JSON. Define Research statuses, returned facts, omitted fields and deliberate refusals in each case function, using small helpers from `research.ts`. There is no `expectations.research` schema or shared interpreter. Keep dry-run change checks, partial-object and collection matching, and Location preservation rules. A correct value already in the seed does not satisfy a required mutation.
 
 ## Accept variation through explicit alternatives
 
@@ -86,15 +88,15 @@ Compare the actual value with the supplied source, expected alternatives and too
 | Agent error | Keep the failure; fix the agent or add a focused regression |
 | Narrow or incorrect expectation | Correct it from source evidence |
 | Missing or contradictory fixture | Fix the declared task inputs and provenance |
-| Scorer error | Fix the comparison or condition and test the boundary |
+| Scorer error | Fix the comparison or condition and review the affected outputs |
 
 Do not weaken a rule only because a model failed it. Do not demand an additional fact that the supplied pages cannot support.
 
-Test shared helpers once, keep case-specific error checks, one real replay and a small Mastra integration set. Use model substitutes for routine tests. Avoid repeated assertions for every expected value or saved score snapshots that only repeat constants.
+There are no separate eval unit tests, model-substitute eval runs, or eval persistence tests. CI does not run evals, and application coverage excludes the eval code and CLI. Run the eval CLI when checking model behavior or changed fixtures and review its saved outputs. The five main cases and all 45 regression cases remain available.
 
 ## Compare models on the same revision
 
-Use the same group, cases, inputs, expectations, scoring rules and repeat count. Dataset identity uses a coarse hash of all case JSON/MD files and main evaluator/helper sources, plus group, selected case IDs, repeats and scorer version. Even whitespace or changes to unselected cases can create new datasets. Other scoring changes require an `EVAL_SCORER_VERSION` update. Existing datasets are reused without content checks or source snapshots. Edit definitions in repository files; manual Studio changes are not detected or imported.
+Use the same group, cases, inputs, expectations, scoring rules and repeat count. Dataset identity uses a coarse hash of all case JSON/MD/TypeScript files, main evaluator/helper sources, `case-research.ts` and `research.ts`, plus group, selected case IDs, repeats and scorer version. Even whitespace or changes to unselected cases can create new datasets. Other scoring changes require an `EVAL_SCORER_VERSION` update. Existing datasets are reused without content checks or source snapshots. Edit definitions in repository files; manual Studio changes are not detected or imported.
 
 Experiment names identify the branch, group and model. Use `--label before` and `--label after` to compare code changes with the same model. To compare models, keep code and settings fixed. Other labels can describe prompt or limit changes. Git metadata records the commit, branch and dirty flag; it does not save uncommitted file contents. These fields and the model do not change dataset identity. See the [CLI guide](development.md#catalog-evals) for naming details.
 

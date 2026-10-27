@@ -20,7 +20,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 ## Active change proposals
 
-- [Ingestion eval redesign](../openspec/changes/redesign-ingestion-evals/proposal.md) — implemented case groups, gold data, scoring, and model comparison. The change awaits archive.
+- [Ingestion eval redesign](../openspec/changes/redesign-ingestion-evals/proposal.md) — implemented case groups, checks, scoring, and model comparison. The change awaits archive.
 
 ## Historical specifications
 

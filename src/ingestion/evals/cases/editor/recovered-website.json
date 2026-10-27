@@ -86,12 +86,7 @@
         }
       }
     ],
-    "forbidden": [],
-    "research": {
-      "status": "success",
-      "previousEdition": null,
-      "currentOrNextEdition": "2027"
-    }
+    "forbidden": []
   },
   "researchHandoffFile": "recovered-website.research.json"
 }

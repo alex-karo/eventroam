@@ -1,3 +1,4 @@
+import { researchDidNotFail } from "../research";
 import type { MainContext } from "./context";
 import { fillConditions, savedEditions } from "./context";
 import {
@@ -92,6 +93,10 @@ export function sziget(context: MainContext) {
       ]),
       ...offerChecks(next, offers),
     ],
-    conditions: [...context.conditions, ...fillConditions(context)],
+    conditions: [
+      ...context.conditions,
+      ...researchDidNotFail(context.report),
+      ...fillConditions(context),
+    ],
   });
 }

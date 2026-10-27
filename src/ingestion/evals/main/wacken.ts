@@ -1,3 +1,4 @@
+import { researchDidNotFail } from "../research";
 import type { MainContext } from "./context";
 import { fillConditions, savedEditions } from "./context";
 import {
@@ -57,7 +58,14 @@ export function wacken(context: MainContext) {
           previous?.displayName === "Wacken Open Air 2026"
             ? "Wacken Open Air 2026"
             : "W:O:A 2026",
-        termIds: ["validation:festival", "validation:music"],
+        // aftermovie.md also supports metal; this optional addition is valid.
+        termIds: [
+          "validation:festival",
+          "validation:music",
+          ...termIds(previous, ["genre"]).filter(
+            (id) => id === "catalog:term:genre:metal",
+          ),
+        ],
         publicationState: "published",
         locality: "Wacken",
         administrativeArea: "Schleswig-Holstein",
@@ -71,6 +79,10 @@ export function wacken(context: MainContext) {
         { urls, amounts: [364, 366, 279, 281, 1399, 1049], currency: "EUR" },
       ]),
     ],
-    conditions: [...context.conditions, ...fillConditions(context)],
+    conditions: [
+      ...context.conditions,
+      ...researchDidNotFail(context.report),
+      ...fillConditions(context),
+    ],
   });
 }

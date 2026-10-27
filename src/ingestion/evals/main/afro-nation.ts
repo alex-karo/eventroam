@@ -1,7 +1,9 @@
+import { refusedResearch, unavailableSources } from "../research";
 import { isDeepStrictEqual as same } from "node:util";
 import type { MainContext } from "./context";
 import { preservedConditions } from "./context";
-import { check, evaluate, fact } from "./facts";
+import { evaluate, fact } from "./facts";
+import { check } from "../checks";
 
 export function afroNation(context: MainContext) {
   // blocked.md: no new facts. Keep the full saved Event and require an unresolved source failure.
@@ -13,6 +15,8 @@ export function afroNation(context: MainContext) {
     ],
     conditions: [
       ...context.conditions,
+      ...refusedResearch(context.report),
+      ...unavailableSources(context.report),
       ...preservedConditions(context),
       check(
         "task.unresolved",

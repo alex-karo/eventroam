@@ -43,13 +43,30 @@ One command SHALL support case and group selection. With no selection flags, it 
 
 ### Requirement: Quality and regression results stay separate
 
-Results SHALL separate main pipeline, regression pipeline, regression editor, and regression Location groups. Main SHALL report quality dimensions; regressions SHALL report scenario success and failed checks. Location SHALL retain completion, correction, and preservation summaries. No combined quality average SHALL mix groups.
+Results SHALL separate main pipeline, regression pipeline, regression editor, and regression Location groups. Main SHALL report quality dimensions; regressions SHALL report scenario success and failed checks. Location SHALL retain completion, correction, and preservation summaries. No combined quality average SHALL mix groups. Regression evaluators SHALL return checks with `path`, `passed`, and `message`, and SHALL pass only when every check passes. They SHALL expose one binary `scenario-success` score without intermediate completeness, correctness, Research, or tool-use scores. Failed-check messages SHALL provide the CLI diagnostics and Mastra reason without separate diagnostic categories.
 
 #### Scenario: Location correction fails
 
 - **WHEN** Location preservation cases pass but a correction case keeps a known wrong point
 - **THEN** the correction case fails its existing checks
 - **AND** its subgroup result remains visible separately from preservation and main quality
+
+
+#### Scenario: Regression checks a required mutation
+
+- **WHEN** a dry-run regression requires a field change but the value is only present in the initial record
+- **THEN** the required-change check fails and scenario-success is zero
+- **AND** existing partial-object and collection matching rules remain in use
+
+### Requirement: Research checks belong to each case
+
+Research conditions SHALL use explicit TypeScript case functions and small shared helpers. The functions SHALL define expected statuses, Edition slots, returned and omitted facts, unresolved questions, and deliberate refusals. JSON fixtures SHALL retain mutation, tool-use and Location expectations without an `expectations.research` schema or shared interpreter. Loading SHALL require a registered evaluator for every workflow case. Moving the conditions SHALL preserve their check meanings, including partial matching and technical-failure rejection.
+
+#### Scenario: Review a Research refusal
+
+- **WHEN** a case checks an identity-conflict refusal
+- **THEN** its function states the Editor, search, source and unresolved-question conditions
+- **AND** it reuses the common deliberate-refusal checks without branching on a JSON failure reason
 
 ### Requirement: Experiment sources and writes are isolated
 
@@ -240,7 +257,7 @@ Valid comparisons SHALL use the same group, selected cases, inputs, expectations
 
 #### Scenario: Inputs or scoring rules change
 
-- **WHEN** any JSON/MD file under cases, main.ts, or a non-test TypeScript file under main changes
+- **WHEN** any JSON/MD/TypeScript file under cases, main.ts, case-research.ts, research.ts, or a non-test TypeScript file under main changes
 - **THEN** its file name and full contents affect one shared file hash for all groups
 - **AND** dataset identity combines that hash with the group, sorted selected case IDs, repeat count and explicit scorer version
 - **AND** whitespace and changes to unselected cases may create new datasets

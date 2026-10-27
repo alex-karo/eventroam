@@ -87,11 +87,6 @@
       }
     ],
     "forbidden": [],
-    "research": {
-      "status": "success",
-      "previousEdition": null,
-      "currentOrNextEdition": "2027"
-    },
     "toolUse": {
       "minSearches": 1,
       "maxSearches": 1,

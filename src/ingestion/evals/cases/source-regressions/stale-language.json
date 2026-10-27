@@ -135,23 +135,6 @@
         "editionKey": "2027",
         "field": "date_state"
       }
-    ],
-    "research": {
-      "status": "partial",
-      "hasUnresolved": true,
-      "facts": [
-        {
-          "editionKey": "2027",
-          "field": "dates",
-          "value": {
-            "startsOn": "2027-01-23",
-            "endsOn": "2027-01-30",
-            "state": "confirmed"
-          }
-        }
-      ],
-      "previousEdition": null,
-      "currentOrNextEdition": "2027"
-    }
+    ]
   }
 }

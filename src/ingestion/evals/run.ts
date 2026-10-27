@@ -1,6 +1,6 @@
 import { createWorkflowStorage } from "../runtime/workflow-storage";
 import { readResearchCatalog } from "@/catalog/read/research";
-import { evaluateMainCase, assertMainCase, type MainScore } from "./main";
+import { evaluateMainCase, type MainScore } from "./main";
 import { resolveLocation, type LocationExecution } from "../location/agent";
 import { LOCATION_PROMPT_VERSION } from "../location/contracts";
 import { createResearchBudget } from "../runtime/budget";
@@ -33,13 +33,13 @@ import type { ReadPageOptions } from "../tools/read-page/read";
 import type { SearchWebOptions } from "../tools/search-web/search";
 import {
   loadEvalSuite,
-  evalSuiteSchema,
   type EvalCase,
   type PipelineEvalCase,
   type EvalSuite,
 } from "./fixtures";
 import { sourceLinks } from "./source-links";
-import { scoreCase, type CaseScore } from "./score";
+import { scoreCase } from "./score";
+import type { ScenarioResult } from "./checks";
 import { createEvalScorers } from "./scorers";
 
 import type { EvalToolCall } from "./tool-use";
@@ -71,7 +71,7 @@ function ticketColumns(
   };
 }
 
-export function seedDatabase(suite: EvalSuite, item: PipelineEvalCase) {
+function seedDatabase(suite: EvalSuite, item: PipelineEvalCase) {
   const connection = openDatabase(":memory:");
   try {
     migrateCatalogConnection(connection);
@@ -190,10 +190,10 @@ export function seedDatabase(suite: EvalSuite, item: PipelineEvalCase) {
   }
 }
 
-export function fixedSources(
+function fixedSources(
   item: PipelineEvalCase,
   todayUtc: string,
-  calls: EvalToolCall[] = [],
+  calls: EvalToolCall[],
 ) {
   const byUrl = new Map<string, ReadPageResult>();
   for (const source of item.sources) {
@@ -248,7 +248,6 @@ export type EvalOptions = EvalSelection & {
   model?: string;
   label?: string;
   repeat?: number;
-  suite?: EvalSuite;
 };
 
 export type EvalCaseOutput = {
@@ -260,10 +259,11 @@ export type EvalCaseOutput = {
   before?: ReturnType<typeof readResearchCatalog>;
   after?: ReturnType<typeof readResearchCatalog>;
 } & (
-  { quality: MainScore; score?: never } | { score: CaseScore; quality?: never }
+  | { quality: MainScore; score?: never }
+  | { score: ScenarioResult; quality?: never }
 );
 
-export function evaluationConfig(options: Pick<EvalOptions, "model">) {
+function evaluationConfig(options: Pick<EvalOptions, "model">) {
   const env = { ...process.env };
   if (options.model) {
     env.OPENROUTER_MODEL = options.model;
@@ -379,13 +379,8 @@ function workflowIdentity() {
 }
 
 export async function runCatalogEvals(options: EvalOptions = {}) {
-  const suite = evalSuiteSchema.parse(options.suite ?? loadEvalSuite());
+  const suite = loadEvalSuite();
   const selected = selectEvalCases(suite, options);
-  for (const item of selected) {
-    if (item.suite === "main") {
-      assertMainCase(item);
-    }
-  }
   const repeat = options.repeat ?? 1;
   if (!Number.isSafeInteger(repeat) || repeat < 1 || repeat > 20) {
     throw new Error("repeat must be 1–20");
@@ -402,7 +397,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
         prepared.push(
           await prepareEvalDataset(
             mastra,
-            evalDataset(suite, cases, group, repeat, undefined, fileHash),
+            evalDataset(suite, cases, group, repeat, fileHash),
           ),
         );
       }
@@ -555,7 +550,7 @@ export function evalItemPassed(item: {
   );
 }
 
-export function fixedGeocoding(item: EvalCase): GeocodingClient {
+function fixedGeocoding(item: EvalCase): GeocodingClient {
   return async (request) =>
     item.geocoding?.find(
       (fixture) => geocodingKey(fixture.request) === geocodingKey(request),

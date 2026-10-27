@@ -1,13 +1,13 @@
 import { createScorer, notScorable } from "@mastra/core/evals";
-import type { CaseScore } from "./score";
+import type { ScenarioResult } from "./checks";
 import type { MainScore } from "./main";
 
 type EvalInput = { caseId: string; repetition?: number };
-type ScoredOutput = { score: CaseScore };
+type ScoredOutput = { score: ScenarioResult };
 type MainOutput = { quality: MainScore };
 
 /** Mastra presents values computed once by the task. */
-export function createEvalScorers(main = false) {
+export function createEvalScorers(main: boolean) {
   if (!main) {
     return {
       scenario: createScorer<EvalInput, ScoredOutput>({
@@ -17,8 +17,10 @@ export function createEvalScorers(main = false) {
         .generateScore(({ run }) => (run.output.score.passed ? 1 : 0))
         .generateReason(
           ({ run }) =>
-            Object.values(run.output.score.diagnostics).flat().join("; ") ||
-            "All checks passed",
+            run.output.score.checks
+              .filter((check) => !check.passed)
+              .map((check) => `${check.path}: ${check.message}`)
+              .join("; ") || "All checks passed",
         ),
     };
   }

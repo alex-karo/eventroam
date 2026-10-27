@@ -35,9 +35,8 @@ export function evaluateMainCase(
   before: Catalog,
   after: Catalog,
   report: CatalogResearchResult,
-  calls: EvalToolCall[] = [],
+  calls: EvalToolCall[],
 ): MainScore {
-  assertMainCase(item);
   return evaluators[item.id as keyof typeof evaluators](
     mainContext(item, before, after, report, calls),
   );

@@ -105,37 +105,7 @@
         "field": "size_estimate",
         "value": null
       }
-    ],
-    "research": {
-      "status": "success",
-      "facts": [
-        {
-          "editionKey": "historical",
-          "field": "dates",
-          "value": {
-            "startsOn": "2026-10-10",
-            "endsOn": "2026-10-12",
-            "state": "confirmed"
-          }
-        },
-        {
-          "editionKey": "historical",
-          "field": "sizeEstimate",
-          "value": 7500
-        },
-        {
-          "editionKey": "unknown",
-          "field": "dates",
-          "value": {
-            "startsOn": "2026-11-01",
-            "endsOn": "2026-11-03",
-            "state": "confirmed"
-          }
-        }
-      ],
-      "previousEdition": "historical",
-      "currentOrNextEdition": "unknown"
-    }
+    ]
   },
   "todayUtc": "2026-10-31"
 }

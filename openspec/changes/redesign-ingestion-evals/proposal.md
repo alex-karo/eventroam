@@ -7,7 +7,7 @@ Current evals mix representative examples with regressions and score selected mu
 ## What Changes
 
 - Use explicit TypeScript evaluators and shared helpers for five main cases (four captured, one synthetic). Remove Tomorrowland until one festival identity can be tested. Remove the old scorer, gold schema, and gold files.
-- Keep the other 45 cases in `regression` with their current targeted checks. Report pipeline, editor, and Location results separately. Keep Location completion, correction, and preservation summaries.
+- Keep the other 45 cases in `regression` with their current check meanings. Keep mutation, tool-use and Location expectations in JSON; define Research conditions in explicit case functions with shared helpers. Use one list of pass/fail checks and one `scenario-success` score, without intermediate percentages or duplicate diagnostics. Report pipeline, editor, and Location results separately. Keep Location completion, correction, and preservation summaries.
 - Score main cases after isolated apply. Separate required completeness, additional completeness, checked-data errors, and scenario success.
 - Check returned ticket URL, amount, and currency combinations with explicit alternatives. Score base price as one additional fact; offer extraction has no completeness obligation. Missing optional data lowers completeness; wrong optional data fails the scenario.
 - Run the five main cases by default; use `--all` for all 50 cases. Save results in Mastra Experiments and compare models in Studio, without an overall score across groups.
@@ -17,6 +17,7 @@ Current evals mix representative examples with regressions and score selected mu
 - Use a coarse file hash for dataset identity. Reuse saved datasets without content checks or source snapshots; edit definitions in repository files only.
 - Document model selection: prioritize factual accuracy, then completeness; use repeated main runs and check all regressions before replacing a model. Limit conclusions to the tested scenarios.
 - Keep fill, verify, and correct as distinct cases.
+- Remove tests of eval code and their unused helpers from CI. Keep all five main and 45 regression eval cases, fixtures, scoring, and commands.
 - **BREAKING**: Replace the main scoring contract. Remove eval JSON report files and the eval `--report` option. Use saved Mastra results and CLI summaries. Keep regression checks as an active test contract, without old report readers.
 
 Production ingestion and publication rules stay unchanged. Complex ticket matching, offline rescoring, custom comparison commands, and launching evals from Studio are deferred. Live evals, LLM judges, automatic URL discovery, a general assertion language, significance analysis, and custom handling of experiment storage failures are outside this change.

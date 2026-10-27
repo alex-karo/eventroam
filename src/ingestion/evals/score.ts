@@ -1,99 +1,39 @@
+import { check, scenarioResult } from "./checks";
 import { hasHostFailure } from "../runs";
 import type { CatalogResearchResult } from "../contracts";
 import type { RegressionPipelineEvalCase, LocationEvalCase } from "./fixtures";
 import {
   assertionMatches,
   assertionValueMatches,
-  describeAssertion,
-  type AssertionResult,
+  checkAssertions,
 } from "./assertions";
-import { scoreResearch } from "./research-score";
-import { scoreToolUse, type EvalToolCall } from "./tool-use";
-
-export type CaseScore = {
-  toolUse: ReturnType<typeof scoreToolUse>;
-  correctness: number;
-  completeness: number;
-  passed: boolean;
-  research: ReturnType<typeof scoreResearch>;
-  diagnostics: Record<
-    "execution" | "correctness" | "completeness" | "research" | "toolUse",
-    string[]
-  >;
-  required: AssertionResult[];
-  forbidden: AssertionResult[];
-};
+import { checkCaseResearch } from "./case-research";
+import { checkToolUse, type EvalToolCall } from "./tool-use";
 
 export function scoreCase(
   item: RegressionPipelineEvalCase,
   result: CatalogResearchResult,
-  toolCalls: EvalToolCall[] = [],
-): CaseScore {
-  if (result.schemaVersion !== 7) {
-    throw new Error(
-      `Unsupported catalog report version: ${String(result.schemaVersion)}`,
-    );
-  }
-  const required = item.expectations.required.map((assertion) => ({
-    assertion,
-    matched: assertionMatches(item, result, assertion),
-  }));
-  const forbidden = item.expectations.forbidden.map((assertion) => ({
-    assertion,
-    matched: assertionMatches(item, result, assertion),
-  }));
-  const hostFailed = hasHostFailure(result);
-  const completeness = required.length
-    ? required.filter((check) => check.matched).length / required.length
-    : 1;
-  const correctness = forbidden.length
-    ? 1 - forbidden.filter((check) => check.matched).length / forbidden.length
-    : 1;
-  const research = scoreResearch(item, result);
-  const toolUse = scoreToolUse(item.expectations.toolUse, toolCalls);
-  return {
-    correctness,
-    completeness,
-    research,
-    toolUse,
-    diagnostics: {
-      execution: hostFailed ? ["Host workflow or persistence failure"] : [],
-      correctness: forbidden
-        .filter((check) => check.matched)
-        .map(
-          ({ assertion }) =>
-            `Forbidden change: ${describeAssertion(assertion)}`,
-        ),
-      completeness: required
-        .filter((check) => !check.matched)
-        .map(
-          ({ assertion }) =>
-            `Missing required change: ${describeAssertion(assertion)}`,
-        ),
-      research: research.checks
-        .filter((check) => !check.matched)
-        .map((check) => check.description),
-      toolUse:
-        toolUse?.checks
-          .filter((check) => !check.matched)
-          .map((check) => check.description) ?? [],
-    },
-    passed:
-      !hostFailed &&
-      correctness === 1 &&
-      completeness === 1 &&
-      research.score === 1 &&
-      (!toolUse || toolUse.score === 1),
-    required,
-    forbidden,
-  };
+  toolCalls: EvalToolCall[],
+) {
+  return scenarioResult([
+    check(
+      "execution",
+      !hasHostFailure(result),
+      "Host workflow or run persistence failed",
+    ),
+    ...checkAssertions(item.expectations, (assertion) =>
+      assertionMatches(item, result, assertion),
+    ),
+    ...checkCaseResearch(item, result),
+    ...checkToolUse(item.expectations.toolUse, toolCalls),
+  ]);
 }
 
-/** Use the existing assertion details and dimensions without a catalog report. */
+/** Check Location changes or preserved values without a catalog report. */
 export function scoreLocationCase(
   item: LocationEvalCase,
   execution: import("../location/agent").LocationExecution,
-): CaseScore {
+) {
   const input = item.location.input;
   const output = execution.modelResponse?.object as
     import("../location/contracts").LocationOutput | undefined;
@@ -142,25 +82,11 @@ export function scoreLocationCase(
         ? assertionValueMatches(observed.value, assertion)
         : observed.changed;
     });
-  const required = item.expectations.required.map((assertion) => ({
-    assertion,
-    matched: match(assertion),
-  }));
-  const forbidden = item.expectations.forbidden.map((assertion) => ({
-    assertion,
-    matched: match(assertion),
-  }));
   const missing = execution.observations.some(
     (observation) =>
       observation.result.status === "error" &&
       observation.result.code === "fixture_miss",
   );
-  const completeness = required.length
-    ? required.filter((check) => check.matched).length / required.length
-    : 1;
-  const correctness = forbidden.length
-    ? 1 - forbidden.filter((check) => check.matched).length / forbidden.length
-    : 1;
   const failed = execution.status !== "success" || missing;
   const executionErrors = failed
     ? execution.errors.map((error) => error.message)
@@ -171,32 +97,10 @@ export function scoreLocationCase(
   if (failed && !executionErrors.length) {
     executionErrors.push("Location execution or output validation failed");
   }
-  return {
-    required,
-    forbidden,
-    completeness,
-    correctness,
-    research: { score: 1, checks: [] },
-    toolUse: null,
-    passed: !failed && completeness === 1 && correctness === 1,
-    diagnostics: {
-      execution: executionErrors,
-      correctness: forbidden
-        .filter((check) => check.matched)
-        .map(
-          ({ assertion }) =>
-            `Forbidden change: ${describeAssertion(assertion)}`,
-        ),
-      completeness: required
-        .filter((check) => !check.matched)
-        .map(
-          ({ assertion }) =>
-            `Missing required change: ${describeAssertion(assertion)}`,
-        ),
-      research: [],
-      toolUse: [],
-    },
-  };
+  return scenarioResult([
+    check("execution", !failed, executionErrors.join("; ")),
+    ...checkAssertions(item.expectations, match),
+  ]);
 }
 
 function finalCoordinates(

@@ -93,53 +93,6 @@
   ],
   "expectations": {
     "required": [],
-    "forbidden": [],
-    "research": {
-      "status": "success",
-      "facts": [
-        {
-          "editionKey": "replacement-weekend",
-          "field": "dates",
-          "value": {
-            "startsOn": "2026-10-06",
-            "endsOn": "2026-10-07",
-            "state": "confirmed"
-          }
-        },
-        {
-          "editionKey": "replacement-weekend",
-          "field": "scheduleStatus",
-          "value": "scheduled"
-        }
-      ],
-      "absentFields": [
-        {
-          "field": "summary"
-        },
-        {
-          "field": "links.website"
-        },
-        {
-          "field": "links.socials.instagram"
-        },
-        {
-          "field": "links.socials.facebook"
-        },
-        {
-          "field": "links.socials.youtube"
-        },
-        {
-          "field": "links.socials.tiktok"
-        },
-        {
-          "field": "links.socials.x"
-        },
-        {
-          "field": "links.socials.other"
-        }
-      ],
-      "previousEdition": null,
-      "currentOrNextEdition": "replacement-weekend"
-    }
+    "forbidden": []
   }
 }

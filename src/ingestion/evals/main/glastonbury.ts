@@ -1,3 +1,4 @@
+import { researchDidNotFail } from "../research";
 import type { MainContext } from "./context";
 import { preservedConditions } from "./context";
 import { evaluate, linkFact } from "./facts";
@@ -21,6 +22,10 @@ export function glastonbury(context: MainContext) {
       ]),
     ],
     correctness: [context.saved],
-    conditions: [...context.conditions, ...preservedConditions(context)],
+    conditions: [
+      ...context.conditions,
+      ...researchDidNotFail(context.report),
+      ...preservedConditions(context),
+    ],
   });
 }

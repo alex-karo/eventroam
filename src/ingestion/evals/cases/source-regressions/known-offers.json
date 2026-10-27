@@ -141,21 +141,6 @@
           }
         ]
       }
-    ],
-    "research": {
-      "status": "partial",
-      "hasUnresolved": true,
-      "facts": [
-        {
-          "editionKey": "2027",
-          "field": "tickets",
-          "value": {
-            "basePrice": null
-          }
-        }
-      ],
-      "previousEdition": null,
-      "currentOrNextEdition": "2027"
-    }
+    ]
   }
 }

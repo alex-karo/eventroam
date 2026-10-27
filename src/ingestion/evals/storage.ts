@@ -7,10 +7,8 @@ import { createObservabilityStore } from "../runtime/observability/storage";
 import { diagnosticStoragePaths, filesAlias } from "../runtime/storage-paths";
 import { createWorkflowStorage } from "../runtime/workflow-storage";
 
-export function evalDatabasePath(
-  env: NodeJS.ProcessEnv = process.env,
-  cwd = process.cwd(),
-) {
+export function evalDatabasePath(env: NodeJS.ProcessEnv = process.env) {
+  const cwd = process.cwd();
   const path = resolve(
     cwd,
     env.CATALOG_EVAL_DATABASE_PATH?.trim() || "data/mastra-evals.sqlite",

@@ -77,48 +77,6 @@
   ],
   "expectations": {
     "required": [],
-    "forbidden": [],
-    "research": {
-      "status": "success",
-      "facts": [
-        {
-          "editionKey": "autumn-weekend",
-          "field": "dates",
-          "value": {
-            "startsOn": "2026-10-01",
-            "endsOn": "2026-10-03",
-            "state": "confirmed"
-          }
-        }
-      ],
-      "absentFields": [
-        {
-          "field": "summary"
-        },
-        {
-          "field": "links.website"
-        },
-        {
-          "field": "links.socials.instagram"
-        },
-        {
-          "field": "links.socials.facebook"
-        },
-        {
-          "field": "links.socials.youtube"
-        },
-        {
-          "field": "links.socials.tiktok"
-        },
-        {
-          "field": "links.socials.x"
-        },
-        {
-          "field": "links.socials.other"
-        }
-      ],
-      "previousEdition": null,
-      "currentOrNextEdition": "autumn-weekend"
-    }
+    "forbidden": []
   }
 }

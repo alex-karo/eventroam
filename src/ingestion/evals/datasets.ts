@@ -8,19 +8,22 @@ import type { EvalCase, EvalSuite } from "./fixtures";
 import type { EvalGroup } from "./selection";
 
 // Increase this version when rules outside the hashed files change.
-export const EVAL_SCORER_VERSION = "2";
+export const EVAL_SCORER_VERSION = "4";
 
-/** Hash all fixture files and main rules, including whitespace changes. */
-export function evalFileHash(
-  directory = fileURLToPath(new URL("./", import.meta.url)),
-) {
+/** Hash all case data, case checks, and main rules, including whitespace changes. */
+export function evalFileHash() {
+  const directory = fileURLToPath(new URL("./", import.meta.url));
   const files = [
     "main.ts",
+    "research.ts",
+    "case-research.ts",
     ...readdirSync(join(directory, "cases"), {
       recursive: true,
       encoding: "utf8",
     })
-      .filter((name) => /\.(json|md)$/.test(name))
+      .filter(
+        (name) => /\.(json|md|ts)$/.test(name) && !name.endsWith(".test.ts"),
+      )
       .map((name) => join("cases", name)),
     ...readdirSync(join(directory, "main"), {
       recursive: true,
@@ -43,9 +46,9 @@ export function evalDataset(
   cases: EvalCase[],
   group: EvalGroup,
   repeat: number,
-  scorerVersion = EVAL_SCORER_VERSION,
-  fileHash = evalFileHash(),
+  fileHash: string,
 ) {
+  const scorerVersion = EVAL_SCORER_VERSION;
   const items: DatasetItemPayload[] = [...cases]
     .sort((a, b) => a.id.localeCompare(b.id))
     .flatMap((item) => {

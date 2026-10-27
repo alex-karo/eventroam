@@ -97,9 +97,5 @@
       "markdownFile": "blocked.md"
     }
   ],
-  "expectations": {
-    "research": {
-      "status": "failed"
-    }
-  }
+  "expectations": {}
 }

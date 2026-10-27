@@ -52,10 +52,7 @@
   ],
   "expectations": {
     "required": [],
-    "forbidden": [],
-    "research": {
-      "status": "failed"
-    }
+    "forbidden": []
   },
   "provenance": {
     "kind": "captured-source-editor-regression",

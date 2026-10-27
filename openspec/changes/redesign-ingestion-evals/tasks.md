@@ -1,6 +1,6 @@
 # Tasks
 
-Implement in order. Use the [design](design.md) for decisions and the [spec](specs/operations/ingestion-evaluation/spec.md) for behavior. Checks use model substitutes; paid model runs are not required.
+Implement in order. Use the [design](design.md) for decisions and the [spec](specs/operations/ingestion-evaluation/spec.md) for behavior. Paid model runs are not required.
 
 ## 1. Establish experiment storage
 
@@ -120,3 +120,33 @@ This section replaces resolved-content hashing, saved source snapshots and store
 - [x] 17.1 Hash all case JSON/MD files and main evaluator/helper source files. Add group, selected case IDs, repeat count and scorer version to dataset identity. Reuse existing datasets without reading or comparing saved items; remove source snapshots and obsolete verification tests. Keep version pinning, small hash/import tests and model-substitute integration coverage. Update specs and guides, and run checks without model calls.
 
 Section 17 validation: all 182 eval tests in 16 files passed; after type and lint fixes, all nine dataset/runner integration tests passed again. Hash tests cover file names, whitespace, fixtures, main rules and selection settings. Native imports reuse item IDs without reading stored items, accept manual Studio edits and pin the current version. Type, lint, dependency, documentation, OpenSpec, format and diff checks passed. The dataset module and the two affected test files decreased from 804 to 667 lines. No live model calls or existing experiment edits were made.
+
+## 18. Remove eval tests only
+
+This section replaces earlier requirements to keep eval unit tests, model-substitute runs, and persistence smoke tests. All 50 eval cases, fixtures, scorers, selection flags, and runtime behavior stay unchanged.
+
+- [x] 18.1 Remove tests under `src/ingestion/evals/` and unused `src/test/eval-*` helpers. Keep all five main and 45 regression cases and their runners.
+- [x] 18.2 Align test guidance and run the remaining tests, type, lint, dependency, formatting, documentation, and OpenSpec checks without model calls.
+
+## 19. Use simple regression checks
+
+- [x] 19.1 Replace regression intermediate scores and duplicate diagnostics with shared `Check[]` and one scenario result. Keep all 45 JSON expectations, pipeline mutation matching, partial matching, Location rules, and expected failures. Reuse Research and tool checks in main. Update CLI and the existing Mastra adapter without adding eval tests.
+- [x] 19.2 Align the spec and guide, increase the scorer version, and run application tests and static checks without model calls. Check saved outputs where available.
+
+Section 19 validation: all 692 application tests in 64 files passed with coverage. Type, lint, dependency, format, documentation, OpenSpec, and diff checks passed. The suite still loads five main and 45 regression cases; all case JSON files are unchanged. A temporary replay compared the previous and current predicates using 31 saved v7 workflow reports against all 32 pipeline/editor regression expectation sets. All 992 decisions and failed-check counts matched. This checks saved material, not new model execution of all regression cases. No eval tests, model calls, or saved experiment changes were added. Scorer version is 3.
+
+## 20. Remove eval test options and run the full suite
+
+- [x] 20.1 Remove unused eval test substitutions, test parameters, and duplicate validation. Exclude eval code and its CLI from application coverage. Update current documentation without changing case expectations.
+- [x] 20.2 Run application tests and static checks, then run all 50 eval cases once with the configured models. Retain experiments and inspect failures without changing saved results or weakening expectations.
+
+Section 20 validation: all 692 application tests passed. Type, lint, dependency, format, documentation, OpenSpec, and diff checks passed; coverage contains no eval code or eval CLI. One full run used `openai/gpt-6-luna`, medium reasoning, and Flex for all three agents: main 3/5, pipeline regression 21/25, editor regression 7/7, Location regression 9/13. All 50 results and traces were saved in this worktree. Four failures were provider-unavailable errors (502); three were strict regression geocoding fixture misses. Wacken rejected an added `metal` term in the saved 2026 Edition because its expected classification is too narrow. Glastonbury created an extra 2025 Edition from archive navigation; `search-wrong-official` made three searches against a one-search limit. No case expectations or saved results were changed.
+
+Experiments: main `c711a572-d725-4a0e-9b7f-7dd7323796ff`; pipeline `ed25788d-03f2-4b7e-9049-f7e6f5298732`; editor `d12f10b8-02c6-47fe-8ea4-657517413af6`; Location `cb6c4e6c-3ad7-43be-bb29-a8bc6e8a31ce`.
+
+## 21. Put Research checks in each case
+
+- [x] 21.1 Move Research conditions from JSON expectations and the shared interpreter to explicit case functions. Keep check meanings, all 50 cases, workflow mutations, and Location rules. Share small data helpers and repeated refusal checks. Hash the new case functions and helpers into dataset identity. Update the guide and spec.
+- [x] 21.2 Compare previous and new Research checks on saved workflow reports without changing experiments. Run application tests and static, documentation, and OpenSpec checks. Add no eval unit tests or model calls.
+
+Section 21 validation: all 692 application tests in 64 files passed. Type, lint, dependency, formatting, documentation, OpenSpec, and diff checks passed. All 50 case files retain their inputs and other expectations; only Research expectations moved to TypeScript. Comparing 68 saved workflow reports against all 37 workflow cases gives 2,516 equal check sets and pass/fail decisions. Research conditions also match in all 36 saved main outputs replayed through the main evaluator. These checks used temporary scripts, without new eval tests, model calls, or saved experiment changes. Dataset identity includes the new case functions, registry and shared helpers; scorer version is 4.

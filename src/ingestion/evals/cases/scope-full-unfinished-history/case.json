@@ -77,23 +77,6 @@
   ],
   "expectations": {
     "required": [],
-    "forbidden": [],
-    "research": {
-      "status": "partial",
-      "unresolvedEditionKeys": ["historic-weekend"],
-      "facts": [
-        {
-          "editionKey": "announced-weekend",
-          "field": "dates",
-          "value": {
-            "startsOn": "2026-10-10",
-            "endsOn": "2026-10-11",
-            "state": "confirmed"
-          }
-        }
-      ],
-      "previousEdition": null,
-      "currentOrNextEdition": "announced-weekend"
-    }
+    "forbidden": []
   }
 }

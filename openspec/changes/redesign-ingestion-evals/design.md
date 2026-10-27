@@ -51,13 +51,13 @@ Tickets use exact URL/amount/currency combinations. A returned offer needs all t
 
 Only explicitly listed facts are checked. Region and other unlisted new fields remain outside the boundary; no empty-region rule is inferred from missing evidence. URL paths, queries, fragments, and trailing slashes stay significant. A new accepted value requires a rule correction and fresh compared experiments.
 
-Main fixtures retain research and tool conditions, without `required`/`forbidden` mutation assertions. Regression definitions and pass/fail checks stay unchanged. Remove the old main scorer, schema, gold files, and duplicate prototype. Keep the raw saved Roskilde output and replay it through the new evaluator without changing its observations.
+Main evaluators own their Research conditions; main fixtures retain only tool expectations, without `required`/`forbidden` mutation assertions. Regression Research functions live beside their fixture files and use small helpers for candidate access, value comparison and repeated conditions. Remove `expectations.research`, its schema, and its shared interpreter. Keep all check meanings. Remove the old main scorer, schema, gold files, and duplicate prototype. Keep the raw saved Roskilde output and replay it through the new evaluator without changing its observations.
 
 ## Runner and ownership
 
 | Component | Responsibility |
 | --- | --- |
-| `fixtures.ts` | Load metadata and regression expectations; require a registered main evaluator |
+| `fixtures.ts` | Load metadata and JSON mutation/tool/Location expectations; require registered main and regression Research evaluators |
 | `run.ts` | Select groups, own isolated workflow databases, dispatch main apply, regression dry run, or isolated Location execution |
 | Catalog reader | Use `readResearchCatalog` directly for main before/after state, including unrelated records |
 | Main scorer | Check explicit facts and task conditions without model or source calls |
@@ -71,7 +71,7 @@ Keep the real v7 ingestion report once in workflow output. For isolated Location
 
 Save detailed eval outputs only in Mastra. Remove the separate JSON report builder, file writer, and eval `--report` option. The CLI prints group summaries, failed checks, and experiment IDs. This removes duplicate output formats; there is no portable JSON export or fallback report file. Normal ingestion reports remain unchanged.
 
-Expose required completeness, additional completeness, no-checked-errors (1 or 0), and scenario success as main scores. Keep the raw error count in item output and the CLI. Native comparisons assume higher scores are better; do not expose an inverted raw error count as a quality score. Regression exposes scenario success only; existing numeric intermediate results can remain internal. Use `notScorable()` for intentional N/A. Distinguish failed checks from task/scorer errors; either causes a nonzero CLI exit. Finish other groups after scenario failures and report execution failures separately.
+Expose required completeness, additional completeness, no-checked-errors (1 or 0), and scenario success as main scores. Keep the raw error count in item output and the CLI. Native comparisons assume higher scores are better; do not expose an inverted raw error count as a quality score. Regression uses a list of checks with `path`, `passed`, and `message`, and one `scenario-success` score. All checks must pass. Remove intermediate percentages, assertion-result copies, and separate diagnostic categories. Research and tool conditions return the same check format for both suites. Keep pipeline change matching, partial object and collection matching, and Location change/preservation rules. Retain all 45 regression cases and their check meanings. Use `notScorable()` for intentional main N/A. Distinguish failed checks from task/scorer errors; either causes a nonzero CLI exit. Finish other groups after scenario failures and report execution failures separately.
 
 ## Mastra storage and comparison
 
@@ -79,9 +79,9 @@ The installed DuckDB adapter provides observability, not dataset or experiment s
 
 The eval CLI uses this store. Existing Studio receives its datasets, experiments, and scores domains through composite storage, while keeping its current observability setup. Use the same absolute eval database path in both processes. Eval execution stays in the CLI with an inline task; Studio is for viewing and comparing saved runs. Do not register the owner-catalog workflow as an eval target.
 
-Accept experiment storage failures as an exceptional case handled only by Mastra's existing behavior. Add no custom recovery, retries, or post-run storage checks. A score write failure can remain a warning and leave incomplete saved scores without a failed CLI exit. The integration test verifies normal result and score persistence across restart; it does not add runtime guarantees for write failures.
+Accept experiment storage failures as an exceptional case handled only by Mastra's existing behavior. Add no custom recovery, retries, or post-run storage checks. A score write failure can remain a warning and leave incomplete saved scores without a failed CLI exit. Inspect saved experiment results and scores in Studio when checking storage changes.
 
-Repository files remain the source of truth. Hash all JSON/MD files under `cases/`, `main.ts`, and non-test TypeScript files under `main/`, in sorted path order. Hash file names and full contents once per command. This coarse hash covers all cases and main rules for every group; whitespace, comments and changes to unselected cases can create new datasets. Keep the explicit scorer version for scoring changes outside these paths. Do not hash the resolved in-memory suite or store source snapshots.
+Repository files remain the source of truth. Hash all JSON/MD/TypeScript files under `cases/`, `main.ts`, `case-research.ts`, `research.ts`, and non-test TypeScript files under `main/`, in sorted path order. Hash file names and full contents once per command. This coarse hash covers all cases and their Research and main rules for every group; whitespace, comments and changes to unselected cases can create new datasets. Keep the explicit scorer version for scoring changes outside these paths. Do not hash the resolved in-memory suite or store source snapshots.
 
 Dataset identity combines that file hash with group, sorted selected case IDs, repeat count and scorer version. Use Mastra item `externalId` from case ID and repetition. If the dataset ID exists, reuse it without reading saved items or comparing saved content; otherwise create it and add the case items. Pin the current native version for each experiment. Edit definitions only in repository files. Manual Studio changes are not detected or imported. Keep case expectations in item ground truth and compact revision metadata on the dataset.
 
@@ -111,8 +111,6 @@ Use these rules for human decisions, without an automatic ranking or a new combi
 
 ## Validation
 
-Test shared comparison rules in helper tests. Test common main conditions once and keep case-specific tests for source rules and important errors. Do not repeat each expected value or the same omission for each festival. Keep one real replay through the current scorer; do not test the old saved score as a JSON constant. Test case evaluators with independent model substitutes and deliberate corruption, including optional omissions, wrong currency, URL alternatives, wrong extras, saved records, and diagnostic fixture misses. Reuse existing identity, preservation, source-isolation, and rollback tests where applicable.
+Keep all five main cases and 45 regression cases with their current runners, fixtures, scoring, and selection flags. Run them through the eval CLI when checking model behavior or changed inputs. Review failed checks and saved outputs in Studio.
 
-Verify all five main cases load and all 45 regressions keep their pass/fail meaning. Test default selection and all 50 selected cases without model calls. Use seven representative cases for an explicit `--all` integration run across all four experiment groups, including a failed Location case and valid siblings. Test all five main evaluators separately. Reuse Location tests for initial/agent fixture misses, required changes, and preservation. Check geocoding changes create a new dataset revision. Store two comparable experiments and inspect them through the built-in browser in Studio. Verify persistence after restart, stable item alignment, N/A handling, and optional run/trace correlation without fabricated usage. No paid model run is needed to prove these contracts.
-
-Reuse `evals/location.test.ts` and `runtime/observability/metrics.integration.test.ts` for tracing and native token/cost coverage. New model and observability checks cover only model selection and saving/reopening experiment metadata and run/trace IDs.
+Remove tests under `src/ingestion/evals/` and unused `src/test/eval-*` helpers, including model-substitute pipeline runs and Mastra persistence smoke tests. CI keeps application tests and static checks; it does not run evals or tests of eval code. Application coverage excludes eval code and its CLI. Load and validate file definitions once; do not retain test-only suite, path, scorer-version, or command dependency substitutions. Validate this cleanup with the remaining test suite, type, lint, dependency, formatting, documentation, and OpenSpec checks. No model calls are needed for this cleanup.

@@ -1,4 +1,5 @@
 import { assertMainCase } from "./main";
+import { assertResearchCase } from "./case-research";
 import { locationInputSchema } from "../location/input";
 import {
   geocodingRequestSchema,
@@ -79,7 +80,7 @@ const source = z.strictObject({
   markdown: z.string(),
   completeness: z.enum(["full", "partial", "none"]),
 });
-export const assertionSchema = z.object({
+const assertionSchema = z.object({
   owner: z.enum(["event", "edition"]),
   editionKey: z.string().optional(),
   editionYear: z.number().int().optional(),
@@ -140,64 +141,12 @@ const commonCaseSchema = z.object({
 });
 const taskExpectationsSchema = z.strictObject({
   toolUse: toolUseExpectationSchema.optional(),
-  research: z
-    .object({
-      status: z.enum(["success", "partial", "failed"]),
-      failureReason: z.literal("identity_conflict").optional(),
-      previousEdition: z.string().nullable().optional(),
-      currentOrNextEdition: z.string().nullable().optional(),
-      newEditionYear: z.number().int().optional(),
-      facts: z
-        .array(
-          z.object({
-            editionKey: z.string().optional(),
-            editionYear: z.number().int().optional(),
-            field: z.string(),
-            value: z.unknown(),
-          }),
-        )
-        .optional(),
-      absentFields: z
-        .array(
-          z.object({
-            editionKey: z.string().optional(),
-            editionYear: z.number().int().optional(),
-            field: z.string().min(1),
-          }),
-        )
-        .optional(),
-      unresolvedEditionKeys: z.array(z.string()).optional(),
-      hasUnresolved: z.boolean().optional(),
-      noChanges: z.literal(true).optional(),
-    })
-    .optional(),
 });
-const regressionExpectationsSchema = z
-  .object({
-    ...taskExpectationsSchema.shape,
-    required: z.array(assertionSchema),
-    forbidden: z.array(assertionSchema),
-  })
-  .superRefine((expectations, ctx) => {
-    if (expectations.research?.status === "failed") {
-      if (expectations.required.length || expectations.forbidden.length) {
-        ctx.addIssue({
-          code: "custom",
-          message:
-            "Failed research expectations cannot include change assertions",
-        });
-      }
-    } else if (
-      !expectations.research &&
-      (!expectations.required.length || !expectations.forbidden.length)
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        message:
-          "Factual research expectations need required and forbidden assertions",
-      });
-    }
-  });
+const regressionExpectationsSchema = z.strictObject({
+  ...taskExpectationsSchema.shape,
+  required: z.array(assertionSchema),
+  forbidden: z.array(assertionSchema),
+});
 
 const initialSchema = z.object({
   event,
@@ -218,7 +167,7 @@ const regressionPipelineEvalCaseSchema = commonCaseSchema.extend({
   suite: z.literal("regression"),
   expectations: regressionExpectationsSchema,
 });
-export const pipelineEvalCaseSchema = z.discriminatedUnion("suite", [
+const pipelineEvalCaseSchema = z.discriminatedUnion("suite", [
   mainPipelineEvalCaseSchema,
   regressionPipelineEvalCaseSchema,
 ]);
@@ -230,11 +179,11 @@ const locationEvalCaseSchema = commonCaseSchema.extend({
   initial: initialSchema.optional(),
   sources: z.array(source).default([]),
 });
-export const evalCaseSchema = z.union([
+const evalCaseSchema = z.union([
   pipelineEvalCaseSchema,
   locationEvalCaseSchema,
 ]);
-export const evalSuiteSchema = z.object({
+const evalSuiteSchema = z.object({
   schemaVersion: z.literal(2),
   todayUtc: z.iso.date(),
   provenance: z.object({
@@ -283,9 +232,8 @@ const suiteFileSchema = evalSuiteSchema.extend({
   cases: z.array(z.string().min(1)).min(1),
 });
 
-export function loadEvalSuite(
-  path = fileURLToPath(new URL("./cases/suite.json", import.meta.url)),
-): EvalSuite {
+export function loadEvalSuite(): EvalSuite {
+  const path = fileURLToPath(new URL("./cases/suite.json", import.meta.url));
   const manifest = suiteFileSchema.parse(
     JSON.parse(readFileSync(path, "utf8")),
   );
@@ -325,6 +273,8 @@ export function loadEvalSuite(
   for (const item of suite.cases) {
     if (item.suite === "main") {
       assertMainCase(item);
+    } else if (!item.location) {
+      assertResearchCase(item);
     }
   }
   return suite;

@@ -1,11 +1,11 @@
 import { isDeepStrictEqual as same } from "node:util";
+import type { Check } from "../checks";
 
 type Fact = {
   path: string;
   status: "correct" | "missing" | "wrong";
   note: string;
 };
-type Condition = { path: string; passed: boolean; message: string };
 
 function missing(value: unknown) {
   return (
@@ -55,10 +55,6 @@ export function fact(
   return { path, status, note: path };
 }
 
-export function check(path: string, passed: boolean): Condition {
-  return { path, passed, message: path };
-}
-
 export function normalizeUrl(value: string) {
   try {
     const url = new URL(value);
@@ -96,7 +92,7 @@ export function evaluate(input: {
   required: Fact[];
   additional: Fact[];
   correctness?: Fact[];
-  conditions: Condition[];
+  conditions: Check[];
 }) {
   const count = (facts: Fact[]) => {
     const correct = facts.filter((item) => item.status === "correct").length;

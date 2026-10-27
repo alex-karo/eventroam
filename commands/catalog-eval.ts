@@ -37,7 +37,7 @@ function setValueOption(options: EvalOptions, arg: string, value: string) {
   }
 }
 
-export function parseEvalArgs(args: string[]): EvalOptions {
+function parseEvalArgs(args: string[]): EvalOptions {
   const options: EvalOptions = {};
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
@@ -106,12 +106,8 @@ function printFailure(item: EvalItem, output: Output) {
       output(`    ${check.path}: ${check.message}\n`);
     }
   } else if (value?.score) {
-    for (const [dimension, failures] of Object.entries(
-      value.score.diagnostics,
-    )) {
-      for (const failure of failures) {
-        output(`    ${dimension}: ${failure}\n`);
-      }
+    for (const check of value.score.checks.filter((check) => !check.passed)) {
+      output(`    ${check.path}: ${check.message}\n`);
     }
   }
   if (item.error || item.scores.some((score) => score.error)) {
@@ -157,15 +153,8 @@ function printGroup(group: EvalGroupResult, output: Output) {
   }
 }
 
-export async function executeCatalogEvalCommand(
-  args: string[],
-  deps: {
-    runEvals?: typeof runCatalogEvals;
-    stdout?: Output;
-  } = {},
-) {
-  const output =
-    deps.stdout ?? ((value: string) => process.stdout.write(value));
+async function executeCatalogEvalCommand(args: string[]) {
+  const output = (value: string) => process.stdout.write(value);
   if (args.includes("--help") || args.includes("-h")) {
     output(
       "Usage: npm run catalog:eval -- [--all | --group GROUP | --editor-only | --location-only] [--case ID] [--model MODEL] [--repeat N] [--label LABEL]\nDefault: five main cases, one repetition. Groups: " +
@@ -174,7 +163,7 @@ export async function executeCatalogEvalCommand(
     );
     return 0;
   }
-  const run = await (deps.runEvals ?? runCatalogEvals)(parseEvalArgs(args));
+  const run = await runCatalogEvals(parseEvalArgs(args));
   for (const group of run.groups) {
     printGroup(group, output);
   }
@@ -198,7 +187,7 @@ if (
     .catch((error: unknown) => {
       const message =
         error instanceof Error &&
-        /^(OPENROUTER_|Unknown eval|Unknown or incompatible|Use one of|Missing value for|repeat must be|Main case needs|Eval storage must)/.test(
+        /^(OPENROUTER_|Unknown eval|Unknown or incompatible|Use one of|Missing value for|repeat must be|(?:Main|Regression) case needs|Eval storage must)/.test(
           error.message,
         )
           ? error.message

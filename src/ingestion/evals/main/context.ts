@@ -3,9 +3,9 @@ import type { readResearchCatalog } from "@/catalog/read/research";
 import type { CatalogResearchResult } from "../../contracts";
 import { hasHostFailure } from "../../runs";
 import type { PipelineEvalCase } from "../fixtures";
-import { scoreResearch } from "../research-score";
-import { scoreToolUse, type EvalToolCall } from "../tool-use";
-import { check, fact } from "./facts";
+import { checkToolUse, type EvalToolCall } from "../tool-use";
+import { check } from "../checks";
+import { fact } from "./facts";
 
 export type Catalog = ReturnType<typeof readResearchCatalog>;
 export type Edition = Catalog[number]["editions"][number];
@@ -114,8 +114,6 @@ export function mainContext(
   const created =
     event?.editions.filter((edition) => !savedIds.includes(edition.id)) ?? [];
   const next = created.length === 1 ? created[0] : undefined;
-  const research = scoreResearch(item, report);
-  const tools = scoreToolUse(item.expectations.toolUse, calls);
   return {
     original,
     event,
@@ -124,20 +122,12 @@ export function mainContext(
     report,
     saved: savedEditions(original, event),
     conditions: [
-      {
-        path: "execution",
-        passed: !hasHostFailure(report),
-        message: "Host workflow or run persistence failed",
-      },
-      {
-        path: "research",
-        passed: research.score === 1,
-        message: research.checks
-          .filter((item) => !item.matched)
-          .map((item) => item.description)
-          .join("; "),
-      },
-      check("toolUse", !tools || tools.score === 1),
+      check(
+        "execution",
+        !hasHostFailure(report),
+        "Host workflow or run persistence failed",
+      ),
+      ...checkToolUse(item.expectations.toolUse, calls),
       check(
         "event.identity",
         !!original &&

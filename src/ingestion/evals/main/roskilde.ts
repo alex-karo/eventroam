@@ -1,3 +1,4 @@
+import { researchDidNotFail } from "../research";
 import type { MainContext } from "./context";
 import { savedEditions } from "./context";
 import { fillConditions } from "./context";
@@ -88,6 +89,10 @@ export function roskilde(context: MainContext) {
         },
       ]),
     ],
-    conditions: [...context.conditions, ...fillConditions(context)],
+    conditions: [
+      ...context.conditions,
+      ...researchDidNotFail(context.report),
+      ...fillConditions(context),
+    ],
   });
 }

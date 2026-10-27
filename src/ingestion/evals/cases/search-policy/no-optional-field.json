@@ -60,11 +60,6 @@
   "expectations": {
     "required": [],
     "forbidden": [],
-    "research": {
-      "status": "success",
-      "previousEdition": null,
-      "currentOrNextEdition": "2027"
-    },
     "toolUse": {
       "maxSearches": 0
     }
