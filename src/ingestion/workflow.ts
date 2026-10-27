@@ -388,6 +388,7 @@ export function createCatalogIngestionWorkflow(
         data.context!.knownLinks,
         owned.deps,
         owned.trace?.log,
+        { sessionId: owned.trace?.tracing.options.metadata.sessionId },
       );
       await owned.track(readInitialWithTrace(owned.sources, owned.trace));
       signal.throwIfAborted();

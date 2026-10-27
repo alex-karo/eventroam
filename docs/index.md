@@ -28,6 +28,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 ## Development and operations
 
+- [Analytics](analytics.md) — PostHog setup, tracked events, GitHub campaign links, and owner opt-out.
 - [Development guide](development.md) — local setup, common commands, and task routes.
 - [Testing](testing.md) — application checks, browser tests, and temporary test data.
 - [Change workflow](change-workflow.md) — planning, implementation, and review.

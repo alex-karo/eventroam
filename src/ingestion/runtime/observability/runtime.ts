@@ -6,6 +6,7 @@ import {
   Observability,
   SamplingStrategyType,
 } from "@mastra/observability";
+import { PosthogExporter } from "@mastra/posthog";
 import type { CatalogResearchInput } from "../../contracts";
 import { RESEARCH_PROMPT_VERSION } from "../../research/contracts";
 import {
@@ -38,6 +39,8 @@ export function createCatalogObservability(options: {
   loggingEnabled: boolean;
   level: ResearchLogLevel;
 }) {
+  const projectToken = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
+  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim();
   return new Observability({
     configs: {
       catalog: {
@@ -48,7 +51,12 @@ export function createCatalogObservability(options: {
             : SamplingStrategyType.NEVER,
         },
         logging: { enabled: options.loggingEnabled, level: options.level },
-        exporters: [new ResearchObservabilityExporter(options.traceEnabled)],
+        exporters: [
+          new ResearchObservabilityExporter(options.traceEnabled),
+          ...(options.traceEnabled && projectToken && host
+            ? [new PosthogExporter({ apiKey: projectToken, host })]
+            : []),
+        ],
       },
     },
   });
@@ -83,7 +91,7 @@ export async function createResearchObservability(
       throw new Error("Trace storage unavailable");
     }
     const metadata = {
-      ...(runId ? { runId } : {}),
+      ...(runId ? { runId, sessionId: runId } : {}),
       ...(experimentId ? { experimentId } : {}),
       mode: input.mode,
       ...(input.eventId ? { eventId: traceText(input.eventId, 160) } : {}),

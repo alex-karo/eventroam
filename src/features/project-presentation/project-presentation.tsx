@@ -1,11 +1,10 @@
 import Image from "next/image";
+import { PromoLink } from "./promo-link";
 import styles from "./project-presentation.module.css";
 
 type Props = {
   festivalsHref: string;
 };
-
-const contactHref = "https://www.linkedin.com/in/alex-karo/";
 
 export function ProjectPresentation({ festivalsHref }: Readonly<Props>) {
   return (
@@ -36,9 +35,14 @@ export function ProjectPresentation({ festivalsHref }: Readonly<Props>) {
                   records and update existing ones.
                 </p>
                 <div className={styles.heroActions}>
-                  <a className={styles.contactLink} href={contactHref}>
+                  <PromoLink
+                    className={styles.contactLink}
+                    placement="hero"
+                    destination="linkedin"
+                    href="https://www.linkedin.com/in/alex-karo/"
+                  >
                     Contact me on LinkedIn <span aria-hidden="true">↗</span>
-                  </a>
+                  </PromoLink>
                   <a className={styles.textLink} href="#example">
                     See an example <span aria-hidden="true">↓</span>
                   </a>
@@ -151,9 +155,14 @@ export function ProjectPresentation({ festivalsHref }: Readonly<Props>) {
                 Dates, locations, and event details in a searchable catalog,
                 with filters and a map.
               </p>
-              <a className={styles.textLink} href={festivalsHref}>
+              <PromoLink
+                className={styles.textLink}
+                href={festivalsHref}
+                destination="festivals"
+                placement="example"
+              >
                 Explore the festival catalog <span aria-hidden="true">↗</span>
-              </a>
+              </PromoLink>
             </div>
             <figure className={styles.preview}>
               <div
@@ -210,9 +219,14 @@ export function ProjectPresentation({ festivalsHref }: Readonly<Props>) {
                 <p className={styles.author}>Built by Alex.</p>
                 <p>Tell me what data you need and how you plan to use it.</p>
               </div>
-              <a className={styles.contactLink} href={contactHref}>
+              <PromoLink
+                className={styles.contactLink}
+                placement="footer"
+                destination="linkedin"
+                href="https://www.linkedin.com/in/alex-karo/"
+              >
                 Contact me on LinkedIn <span aria-hidden="true">↗</span>
-              </a>
+              </PromoLink>
             </div>
           </section>
         </main>

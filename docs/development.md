@@ -26,6 +26,10 @@ Copy `.env.example` to `.env.local` for Next.js settings. A Mapbox token is opti
 
 Codex worktrees use `.codex/environments/environment.toml` to link the source checkout’s `.env` and run `npm ci` in the new worktree. The setup requires the pinned Node.js and npm versions to be available on `PATH`.
 
+## Analytics
+
+See the [analytics guide](analytics.md) for PostHog settings, events, campaign links, and browser opt-out.
+
 ## Common checks
 
 Run checks that apply to your change:
