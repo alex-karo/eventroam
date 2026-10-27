@@ -1,7 +1,13 @@
 import type { PublicEdition } from "@/catalog/read/contracts";
 import { durationDays, isPastEdition } from "@/catalog/domain/dates";
 import { Icon } from "./icons";
-import { basePrice, categoryPrice, dateRangeParts, placeName } from "./format";
+import {
+  basePrice,
+  categoryPrice,
+  dateRangeParts,
+  placeName,
+  scheduleStatusLabels,
+} from "./format";
 export { linkLabel } from "./external-links";
 
 export function Dates({ edition }: Readonly<{ edition: PublicEdition }>) {
@@ -56,19 +62,13 @@ export function Location({ edition }: Readonly<{ edition: PublicEdition }>) {
     </p>
   );
 }
-const statusLabels = {
-  cancelled: "Cancelled",
-  postponed: "Postponed",
-  announced: "Announced",
-  scheduled: "Scheduled",
-};
 export function Status({
   edition,
   now = new Date(),
 }: Readonly<{ edition: PublicEdition; now?: Date }>) {
   return (
     <p className={`edition-state state-${edition.status}`}>
-      {statusLabels[edition.status]}
+      {scheduleStatusLabels[edition.status]}
       {isPastEdition(edition, now) && " · Past edition"}
     </p>
   );

@@ -1,5 +1,12 @@
 import type { PublicEdition } from "@/catalog/read/contracts";
 
+export const scheduleStatusLabels = {
+  cancelled: "Cancelled",
+  postponed: "Postponed",
+  announced: "Announced",
+  scheduled: "Scheduled",
+};
+
 export function formatDate(date: string) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",

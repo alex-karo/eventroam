@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/site/server/metadata";
 import { requestSite } from "@/site/server/public-request";
 import { discoveryCatalog, discoveryGenres } from "@/catalog/read/discovery";
 import {
@@ -33,11 +34,11 @@ export async function generateMetadata({
 }: Props): Promise<Metadata> {
   const { site, origins } = await requestSite();
   if (site !== "festivals") {
-    return {
-      title: "Eventroam | A catalog of structured data",
-      description:
-        "From web sources to one catalog, with agents to collect new records and update existing ones.",
-    };
+    return pageMetadata(
+      "Eventroam | A catalog of structured data",
+      "From web sources to one catalog, with agents to collect new records and update existing ones.",
+      `${origins.apex}/`,
+    );
   }
   const params = paramsFromRecord(await searchParams);
   const { client } = openReadDatabase();
@@ -52,18 +53,19 @@ export async function generateMetadata({
       parseFilters(params, genres),
     ).toString();
     const query = normalized ? `?${normalized}` : "";
-    return {
-      title: "Festivals | Eventroam",
-      robots: normalized ? { index: false, follow: true } : undefined,
-      alternates: {
-        canonical: `${origins.festivals}/${query}`,
-      },
-    };
+    return pageMetadata(
+      "Festivals | Eventroam",
+      "Find festivals by date, country, music genre, duration, and estimated size. Explore the list and map, with links to published editions.",
+      `${origins.festivals}/${query}`,
+      !normalized,
+    );
   } catch {
-    return {
-      title: "Invalid festival filters | Eventroam",
-      robots: { index: false, follow: true },
-    };
+    return pageMetadata(
+      "Invalid festival filters | Eventroam",
+      "Check the festival filters or clear them to return to festival discovery.",
+      `${origins.festivals}/`,
+      false,
+    );
   }
 }
 export default async function HomePage({ searchParams }: Readonly<Props>) {
