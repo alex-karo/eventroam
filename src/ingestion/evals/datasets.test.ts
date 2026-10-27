@@ -57,7 +57,11 @@ test("resolved sources, search, geocoding, seed, evaluator source, taxonomy, dat
       copy.terms[0].name += " corrected";
     },
     (copy: typeof suite) => {
-      copy.todayUtc = "2026-10-27";
+      copy.cases[0].todayUtc = new Date(
+        Date.parse(copy.cases[0].todayUtc ?? copy.todayUtc) + 86_400_000,
+      )
+        .toISOString()
+        .slice(0, 10);
     },
   ]) {
     expect(changed(mutate)).not.toBe(original.revision);
