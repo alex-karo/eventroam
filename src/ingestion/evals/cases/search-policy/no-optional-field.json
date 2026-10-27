@@ -1,4 +1,8 @@
 {
+  "id": "search-no-optional-field",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check search policy no optional field",
   "todayUtc": "2026-10-15",
   "provenance": {
     "kind": "synthetic-search-policy",
@@ -64,6 +68,5 @@
     "toolUse": {
       "maxSearches": 0
     }
-  },
-  "id": "search-no-optional-field"
+  }
 }

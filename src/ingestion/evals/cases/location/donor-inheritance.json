@@ -1,5 +1,8 @@
 {
   "id": "location-donor-inheritance",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location donor inheritance",
   "provenance": {
     "kind": "synthetic",
     "sourceReport": "openspec/changes/separate-location-resolution/design.md",
@@ -18,7 +21,9 @@
       "festival": {
         "name": "River Festival donor-inheritance",
         "summary": "An open-air music festival.",
-        "format": ["openair"]
+        "format": [
+          "openair"
+        ]
       },
       "scope": "full",
       "currentDate": "2026-10-24T12:00:00Z",

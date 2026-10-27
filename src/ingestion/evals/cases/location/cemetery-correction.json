@@ -1,5 +1,8 @@
 {
   "id": "location-cemetery-correction",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location cemetery correction",
   "provenance": {
     "kind": "captured-adapted",
     "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",
@@ -18,7 +21,9 @@
       "festival": {
         "name": "PortAmérica",
         "summary": "A recurring Galician festival combining live music, gastronomy and community, with additional cultural programming.",
-        "format": ["openair"]
+        "format": [
+          "openair"
+        ]
       },
       "scope": "full",
       "currentDate": "2026-10-24T12:00:00Z",

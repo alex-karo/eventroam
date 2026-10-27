@@ -1,5 +1,8 @@
 {
   "id": "location-bridge",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location bridge",
   "provenance": {
     "kind": "captured-adapted",
     "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",
@@ -18,7 +21,9 @@
       "festival": {
         "name": "Warm Up Festival",
         "summary": "Annual music, culture and urban-leisure festival in Murcia, Spain.",
-        "format": ["openair"]
+        "format": [
+          "openair"
+        ]
       },
       "scope": "full",
       "currentDate": "2026-10-24T12:00:00Z",

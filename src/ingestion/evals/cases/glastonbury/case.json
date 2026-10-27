@@ -1,5 +1,8 @@
 {
   "id": "glastonbury",
+  "suite": "main",
+  "origin": "captured",
+  "task": "verify",
   "input": {
     "mode": "refresh",
     "eventId": "event:2d90837f6b8f1217f50c",
@@ -46,44 +49,5 @@
       "markdownFile": "page.md"
     }
   ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "event",
-        "field": "links",
-        "contains": {
-          "url": "https://www.glastonburyfestivals.co.uk/",
-          "kind": "official_site"
-        }
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "event",
-        "field": "publication_state",
-        "value": "published"
-      },
-      {
-        "owner": "edition",
-        "field": "publication_state",
-        "value": "published"
-      },
-      {
-        "owner": "event",
-        "field": "links",
-        "contains": {
-          "url": "https://glastonbury.seetickets.com/mailinglist/subscribe",
-          "kind": "ticketing"
-        }
-      },
-      {
-        "owner": "edition",
-        "field": "links",
-        "contains": {
-          "url": "https://glastonbury.seetickets.com/mailinglist/subscribe",
-          "kind": "ticketing"
-        }
-      }
-    ]
-  }
+  "expectations": {}
 }

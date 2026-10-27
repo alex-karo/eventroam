@@ -1,5 +1,8 @@
 {
   "id": "current-identity-contradiction",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check narrow current identity conflict",
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-source-regression",

@@ -1,5 +1,8 @@
 {
   "id": "sziget",
+  "suite": "main",
+  "origin": "captured",
+  "task": "fill",
   "input": {
     "mode": "refresh",
     "eventId": "event:a22324dcf0078266ed4e",
@@ -74,52 +77,203 @@
       "markdownFile": "info.md"
     }
   ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "event",
-        "field": "links",
-        "containsAny": [
+  "expectations": {},
+  "geocoding": [
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Budapest",
+        "countryCode": "HU"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
           {
-            "url": "https://szigetfestival.com/en/",
-            "kind": "official_site"
-          },
-          {
-            "url": "https://www.szigetfestival.com/",
-            "kind": "official_site"
+            "latitude": 47.49835,
+            "longitude": 19.04045,
+            "placeId": "geonames:3054643",
+            "label": "Budapest",
+            "name": "Budapest",
+            "countryCode": "HU",
+            "locality": "Budapest",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
           }
         ]
       },
-      {
-        "owner": "edition",
-        "field": "starts_on",
-        "value": "2027-08-10",
-        "editionYear": 2027
+      "provenance": "https://www.geonames.org/3054643/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Budapest, HU",
+        "countryCode": "HU"
       },
-      {
-        "owner": "edition",
-        "field": "ends_on",
-        "value": "2027-08-14",
-        "editionYear": 2027
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 47.49835,
+            "longitude": 19.04045,
+            "placeId": "geonames:3054643",
+            "label": "Budapest",
+            "name": "Budapest",
+            "countryCode": "HU",
+            "locality": "Budapest",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
       },
-      {
-        "owner": "edition",
-        "field": "date_state",
-        "value": "confirmed",
-        "editionYear": 2027
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "starts_on"
+      "provenance": "https://www.geonames.org/3054643/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Óbuda Island, Budapest, HU",
+        "countryCode": "HU"
       },
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "ends_on"
-      }
-    ]
-  }
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 47.49835,
+            "longitude": 19.04045,
+            "placeId": "geonames:3054643",
+            "label": "Budapest",
+            "name": "Budapest",
+            "countryCode": "HU",
+            "locality": "Budapest",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      },
+      "provenance": "https://www.geonames.org/3054643/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Obuda Island, Budapest, HU",
+        "countryCode": "HU"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 47.49835,
+            "longitude": 19.04045,
+            "placeId": "geonames:3054643",
+            "label": "Budapest",
+            "name": "Budapest",
+            "countryCode": "HU",
+            "locality": "Budapest",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      },
+      "provenance": "https://www.geonames.org/3054643/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Óbuda Island, Május 9. park, Budapest, HU",
+        "countryCode": "HU"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 47.49835,
+            "longitude": 19.04045,
+            "placeId": "geonames:3054643",
+            "label": "Budapest",
+            "name": "Budapest",
+            "countryCode": "HU",
+            "locality": "Budapest",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      },
+      "provenance": "https://www.geonames.org/3054643/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Május 9. park, Budapest, HU",
+        "countryCode": "HU"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 47.49835,
+            "longitude": 19.04045,
+            "placeId": "geonames:3054643",
+            "label": "Budapest",
+            "name": "Budapest",
+            "countryCode": "HU",
+            "locality": "Budapest",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      },
+      "provenance": "https://www.geonames.org/3054643/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Május 9. park, Budapest, Hungary, 1033, Budapest, HU",
+        "countryCode": "HU"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 47.49835,
+            "longitude": 19.04045,
+            "placeId": "geonames:3054643",
+            "label": "Budapest",
+            "name": "Budapest",
+            "countryCode": "HU",
+            "locality": "Budapest",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      },
+      "provenance": "https://www.geonames.org/3054643/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue."
+    }
+  ]
 }

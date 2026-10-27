@@ -1,5 +1,8 @@
 {
   "id": "wacken",
+  "suite": "main",
+  "origin": "captured",
+  "task": "fill",
   "input": {
     "mode": "refresh",
     "eventId": "event:792d44feb71838d4b28b",
@@ -64,62 +67,119 @@
       "markdownFile": "travel.md"
     }
   ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "event",
-        "field": "links",
-        "containsAny": [
+  "expectations": {},
+  "geocoding": [
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Wacken",
+        "countryCode": "DE"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
           {
-            "url": "https://www.wacken.com/de/",
-            "kind": "official_site"
-          },
-          {
-            "url": "https://www.wacken.com/en/",
-            "kind": "official_site"
-          },
-          {
-            "url": "https://www.wacken.com/",
-            "kind": "official_site"
+            "latitude": 54.02078040137254,
+            "longitude": 9.375972747802734,
+            "placeId": null,
+            "label": "Wacken",
+            "name": "Wacken",
+            "countryCode": "DE",
+            "locality": "Wacken",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
           }
         ]
       },
-      {
-        "owner": "edition",
-        "field": "starts_on",
-        "value": "2027-07-28",
-        "editionYear": 2027
+      "provenance": "https://www.geonames.org/search.html?q=Steinburg&startRow=250; read 2026-10-26, Wacken populated-place entry. GeoNames CC BY 4.0. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel text. Locality fallback, not the venue."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Wacken, DE",
+        "countryCode": "DE"
       },
-      {
-        "owner": "edition",
-        "field": "ends_on",
-        "value": "2027-07-31",
-        "editionYear": 2027
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 54.02078040137254,
+            "longitude": 9.375972747802734,
+            "placeId": null,
+            "label": "Wacken",
+            "name": "Wacken",
+            "countryCode": "DE",
+            "locality": "Wacken",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
       },
-      {
-        "owner": "edition",
-        "field": "date_state",
-        "value": "confirmed",
-        "editionYear": 2027
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "field": "country_code",
-        "editionYear": 2027,
-        "notValue": "DE"
+      "provenance": "https://www.geonames.org/search.html?q=Steinburg&startRow=250; read 2026-10-26, Wacken populated-place entry. GeoNames CC BY 4.0. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel text. Locality fallback, not the venue."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Wacken Open Air, Wacken, DE",
+        "countryCode": "DE"
       },
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "starts_on"
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 54.02078040137254,
+            "longitude": 9.375972747802734,
+            "placeId": null,
+            "label": "Wacken",
+            "name": "Wacken",
+            "countryCode": "DE",
+            "locality": "Wacken",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
       },
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "ends_on"
-      }
-    ]
-  }
+      "provenance": "https://www.geonames.org/search.html?q=Steinburg&startRow=250; read 2026-10-26, Wacken populated-place entry. GeoNames CC BY 4.0. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel text. Locality fallback, not the venue."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Holy Ground, Wacken, DE",
+        "countryCode": "DE"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 54.02078040137254,
+            "longitude": 9.375972747802734,
+            "placeId": null,
+            "label": "Wacken",
+            "name": "Wacken",
+            "countryCode": "DE",
+            "locality": "Wacken",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      },
+      "provenance": "https://www.geonames.org/search.html?q=Steinburg&startRow=250; read 2026-10-26, Wacken populated-place entry. GeoNames CC BY 4.0. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel text. Locality fallback, not the venue."
+    }
+  ]
 }

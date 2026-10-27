@@ -1,6 +1,6 @@
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { Agent } from "@mastra/core/agent";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import * as database from "@/db/connection";
@@ -13,14 +13,14 @@ import {
 } from "./fixtures";
 import { fixedGeocoding, runCatalogEvals, evalItemPassed } from "./run";
 import { scoreLocationCase } from "./score";
+import { readSavedResults } from "@/test/eval-storage";
 import { resolveLocation } from "../location/agent";
 import { createResearchBudget } from "../runtime/budget";
-import {
-  LOCATION_PROMPT_VERSION,
-  type Precision,
-  type RegisteredPoint,
-} from "../location/contracts";
+import { LOCATION_PROMPT_VERSION } from "../location/contracts";
 import type { LocationInput } from "../location/input";
+import type { RegisteredPoint } from "../location/contracts";
+import { locationDecision } from "@/test/eval-location";
+type Prompt = LocationInput & { points: RegisteredPoint[] };
 import { executeCatalogEvalCommand } from "../../../commands/catalog-eval";
 const suite = loadEvalSuite();
 const cases = suite.cases.filter(
@@ -31,102 +31,16 @@ const config = {
   model: "fixture/model",
   limits: createResearchBudget().limits,
 };
+let evalDirectory: string;
+beforeEach(() => {
+  evalDirectory = mkdtempSync(join(tmpdir(), "eventroam-location-store-"));
+  vi.stubEnv("CATALOG_EVAL_DATABASE_PATH", join(evalDirectory, "evals.sqlite"));
+});
 afterEach(() => {
+  rmSync(evalDirectory, { recursive: true, force: true });
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
 });
-type Prompt = LocationInput & { points: RegisteredPoint[] };
-/** Explicit fixture choices test integration, not model accuracy. */
-async function decision(
-  item: LocationEvalCase,
-  prompt: Prompt,
-  geocode: (query: {
-    query: string;
-    countryCode: string | null;
-  }) => Promise<unknown>,
-) {
-  const plan = fixtureLocationPlan(prompt);
-  if (plan.decision.status !== "ready") {
-    throw new Error("Fixture must be ready");
-  }
-  const target = plan.decision.currentOrNextEdition!;
-  if (item.location.group === "preservation") {
-    return plan;
-  }
-  const point = item.expectations.required.find(
-    (assertion) => assertion.field === "coordinates",
-  )!.value as {
-    latitude: number;
-    longitude: number;
-    precision: Precision;
-  };
-  if (point == null || point.precision === "locality") {
-    target.unresolved.push({
-      field: "coordinates",
-      message: "The venue point is not resolved by the supplied evidence",
-    });
-  }
-  if (point == null) {
-    target.coordinates = {
-      action: "clear",
-      reason: "The move disproves the old point and no replacement applies",
-    };
-    return plan;
-  }
-  let found = prompt.points.find(
-    (candidate) =>
-      candidate.latitude === point.latitude &&
-      candidate.longitude === point.longitude,
-  );
-  if (!found) {
-    const fixture = item.geocoding!.find(
-      (fixture) =>
-        fixture.response.status === "success" &&
-        fixture.response.direction === "forward" &&
-        fixture.response.candidates.some(
-          (candidate) =>
-            candidate.latitude === point.latitude &&
-            candidate.longitude === point.longitude,
-        ),
-    )!;
-    if (fixture.request.direction !== "forward") {
-      throw new Error("Expected forward fixture");
-    }
-    const result = (await geocode(fixture.request)) as {
-      points: RegisteredPoint[];
-    };
-    found = result.points.find(
-      (candidate) =>
-        candidate.latitude === point.latitude &&
-        candidate.longitude === point.longitude,
-    );
-  }
-  if (!found) {
-    throw new Error("Expected registered point");
-  }
-  if (found.kind === "donor") {
-    target.coordinates = {
-      action: "inherit",
-      donorPointId: found.id,
-      reason: "The historical venue point applies to this Edition",
-    };
-    return plan;
-  }
-  target.coordinates = {
-    action: "select",
-    pointId: found.id,
-    precision: point.precision,
-    reason: "Fixture identifies the supported point",
-  };
-  if (item.id === "location-official-venue-point") {
-    target.unresolved.push({
-      field: "coordinates",
-      message:
-        "The official venue point differs from saved history; supplied evidence does not explain the distance or disprove the official point",
-    });
-  }
-  return plan;
-}
 for (const item of cases) {
   test(`${item.id} exercises real preparation, point validation and scoring`, async () => {
     const execution = await resolveLocation(
@@ -136,7 +50,7 @@ for (const item of cases) {
       {
         geocodingClient: fixedGeocoding(item),
         generateLocation: (prompt, context) =>
-          decision(item, JSON.parse(prompt), context.geocode),
+          locationDecision(item, JSON.parse(prompt), context.geocode),
       },
     );
     expect(execution.status).toBe("success");
@@ -239,7 +153,7 @@ function mockLocation(extraQuery = false) {
       }
       return {
         text: "",
-        object: await decision(item, prompt, geocode),
+        object: await locationDecision(item, prompt, geocode),
       } as never;
     });
 }
@@ -263,21 +177,29 @@ test("location-only uses no database or workflow and retains native items, group
     repeat: 2,
   });
   expect(model).toHaveBeenCalledTimes(selected.length * 2);
-  expect(report.modelVersion).toBe("fixture/selected-model");
-  expect(report.locationModelVersion).toBe("fixture/selected-model");
-  expect(report.promptVersion).toBe(LOCATION_PROMPT_VERSION);
-  expect(report.results.every(evalItemPassed)).toBe(true);
+  expect(report.groups[0].metadata.models.research).toBe(
+    "fixture/selected-model",
+  );
+  expect(report.groups[0].metadata.models.location).toBe(
+    "fixture/selected-model",
+  );
+  expect(report.groups[0].metadata.promptVersions.location).toBe(
+    LOCATION_PROMPT_VERSION,
+  );
+  expect(report.groups[0].results.every(evalItemPassed)).toBe(true);
   expect(
-    report.results.every(
+    report.groups[0].results.every(
       (item) =>
         !item.output?.report &&
         item.output?.location?.observations.length &&
         item.output.runId,
     ),
   ).toBe(true);
-  expect(report.results.every((item) => item.group === "preservation")).toBe(
-    true,
-  );
+  expect(
+    report.groups[0].results.every(
+      (item) => item.locationGroup === "preservation",
+    ),
+  ).toBe(true);
   expect(database.openDatabase).not.toHaveBeenCalled();
   expect(workflow.runCatalogResearch).not.toHaveBeenCalled();
 });
@@ -294,34 +216,36 @@ test.each(["initial", "agent"])(
       selected[0].geocoding = [];
     }
     const model = mockLocation(origin === "agent");
-    const directory = mkdtempSync(join(tmpdir(), "eventroam-location-eval-"));
-    const reportPath = join(directory, "report.json");
-    try {
-      const code = await executeCatalogEvalCommand(
-        ["--location-only", "--report", reportPath],
-        {
-          stdout: vi.fn(),
-          runEvals: (options) =>
-            runCatalogEvals({
-              ...options,
-              suite: { ...suite, cases: selected },
-            }),
-        },
-      );
-      expect(code).toBe(1);
-      expect(model).toHaveBeenCalledTimes(2);
-      const report = JSON.parse(readFileSync(reportPath, "utf8"));
-      expect(report.results).toHaveLength(2);
-      expect(report.results[0].output.location.status).toBe("success");
-      expect(report.results[0].output.score.diagnostics.execution).toEqual([
-        "Unmatched geocoding fixture: fixture_miss",
-      ]);
-      expect(report.results[1].output.location.status).toBe("success");
-      if (origin === "initial") {
-        expect(report.results[1].output.score.passed).toBe(true);
-      }
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
+    const runs: Awaited<ReturnType<typeof runCatalogEvals>>[] = [];
+    const code = await executeCatalogEvalCommand(["--location-only"], {
+      stdout: vi.fn(),
+      runEvals: async (options) => {
+        const run = await runCatalogEvals({
+          ...options,
+          suite: { ...suite, cases: selected },
+        });
+        runs.push(run);
+        return run;
+      },
+    });
+    expect(code).toBe(1);
+    expect(model).toHaveBeenCalledTimes(2);
+    const report = runs[0];
+    expect((await readSavedResults(report.groups[0])).results).toHaveLength(2);
+    expect(report.groups[0].results).toHaveLength(2);
+    const failed = report.groups[0].results.find(
+      (item) => item.caseId === selected[0].id,
+    )!;
+    const sibling = report.groups[0].results.find(
+      (item) => item.caseId === selected[1].id,
+    )!;
+    expect(failed.output!.location!.status).toBe("success");
+    expect(failed.output!.score!.diagnostics.execution).toEqual([
+      "Unmatched geocoding fixture: fixture_miss",
+    ]);
+    expect(sibling.output!.location!.status).toBe("success");
+    if (origin === "initial") {
+      expect(sibling.output!.score!.passed).toBe(true);
     }
   },
 );
@@ -329,7 +253,7 @@ test("exclusive modes reject before setup and missing required native scores fai
   const model = mockLocation();
   await expect(
     runCatalogEvals({ locationOnly: true, editorOnly: true }),
-  ).rejects.toThrow("mutually exclusive");
+  ).rejects.toThrow("Use one of");
   expect(model).not.toHaveBeenCalled();
   expect(
     evalItemPassed({ output: { score: { passed: true } }, scores: [] }),
@@ -352,7 +276,7 @@ test.each([false, true])(
       locationOnly: true,
       suite: { ...suite, cases: [fixture] },
     });
-    const item = report.results[0];
+    const item = report.groups[0].results[0];
     expect(item.output?.location).toMatchObject({
       status: "rejected",
       materialized: null,
@@ -360,7 +284,7 @@ test.each([false, true])(
         { code: "location_rejected", stage: "location", message: reason },
       ],
     });
-    expect(item.output?.score.diagnostics.execution).toEqual(
+    expect(item.output?.score?.diagnostics.execution).toEqual(
       missingFixture
         ? [reason, "Unmatched geocoding fixture: fixture_miss"]
         : [reason],
@@ -461,15 +385,16 @@ test("pipeline eval uses shared geocoding recordings to select a point", async (
       }),
       generateEditor: generateFixtureEditor,
       generateLocation: (prompt, context) =>
-        decision(item, JSON.parse(prompt), context.geocode),
+        locationDecision(item, JSON.parse(prompt), context.geocode),
     }),
   );
   const report = await runCatalogEvals({
+    caseIds: [pipeline.id],
     suite: { ...suite, cases: [pipeline] },
   });
-  expect(report.evaluationMode).toBe("pipeline");
-  expect(report.results).toHaveLength(1);
-  const output = report.results[0].output!;
+  expect(report.groups[0].group).toBe("regression/pipeline");
+  expect(report.groups[0].results).toHaveLength(1);
+  const output = report.groups[0].results[0].output!;
   expect(output.report?.errors).toEqual([]);
   expect(output.report?.locationStatus).toBe("success");
   expect(
@@ -477,8 +402,8 @@ test("pipeline eval uses shared geocoding recordings to select a point", async (
       (observation) => observation.result.status === "success",
     ),
   ).toBe(true);
-  expect(output.score.passed).toBe(true);
-  expect(report.results.every(evalItemPassed)).toBe(true);
+  expect(output.score!.passed).toBe(true);
+  expect(report.groups[0].results.every(evalItemPassed)).toBe(true);
 });
 
 test.each(
@@ -524,7 +449,7 @@ test.each(
         }),
         geocodingClient: fixedGeocoding(item),
         generateLocation: (prompt, context) =>
-          decision(item, JSON.parse(prompt), context.geocode),
+          locationDecision(item, JSON.parse(prompt), context.geocode),
       });
       expect(result.errors).toEqual([]);
       expect(result.locationStatus).toBe("success");
@@ -564,11 +489,10 @@ test.each(
   },
 );
 
-test("Location preview traces failures without mock usage and protects the report destination", async () => {
+test("Location preview traces failures without mock usage and saves real correlation", async () => {
   vi.stubEnv("OPENROUTER_API_KEY", "fixture");
   vi.stubEnv("CATALOG_TRACING", "true");
   const directory = mkdtempSync(join(tmpdir(), "eventroam-location-trace-"));
-  const reportPath = join(directory, "report.json");
   const tracePath = join(directory, "observability.duckdb");
   vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", tracePath);
   const selected = cases
@@ -582,7 +506,7 @@ test("Location preview traces failures without mock usage and protects the repor
     });
     const { readTraceRows } = await import("@/test/tracing-fixture");
     const rows = await readTraceRows(tracePath);
-    expect(report.results[0].output?.traceId).toBeTruthy();
+    expect(report.groups[0].results[0].output?.traceId).toBeTruthy();
     const locationSpan = rows.mastra_ai_spans.find(
       (span) => span.name === "resolve-location",
     )!;
@@ -601,20 +525,11 @@ test("Location preview traces failures without mock usage and protects the repor
         String(metric.name).includes("tokens"),
       ),
     ).toBe(false);
-    vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", reportPath);
-    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
-    const collision = await runCatalogEvals({
-      locationOnly: true,
-      suite: { ...suite, cases: selected },
-      reportPath,
+    const saved = await readSavedResults(report.groups[0]);
+    expect(saved.results[0].output).toMatchObject({
+      runId: report.groups[0].results[0].output!.runId,
+      traceId: report.groups[0].results[0].output!.traceId,
     });
-    expect(collision.results[0].output?.traceId).toBeUndefined();
-    expect(JSON.parse(readFileSync(reportPath, "utf8")).results).toHaveLength(
-      1,
-    );
-    expect(stderr.mock.calls.flat().join("")).toContain(
-      "trace_initialization_failed",
-    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

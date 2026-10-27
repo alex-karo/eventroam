@@ -1,104 +1,185 @@
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
-import { runCatalogEvals, evalItemPassed } from "@/ingestion/evals/run";
-import type { EvalOptions } from "@/ingestion/evals/run";
+import {
+  runCatalogEvals,
+  evalItemPassed,
+  type EvalOptions,
+} from "@/ingestion/evals/run";
+import { evalGroups } from "@/ingestion/evals/selection";
 
-function parseArgs(args: string[]): EvalOptions {
+type EvalRun = Awaited<ReturnType<typeof runCatalogEvals>>;
+type EvalGroupResult = EvalRun["groups"][number];
+type EvalItem = EvalGroupResult["results"][number];
+type Output = (value: string) => void;
+
+function setValueOption(options: EvalOptions, arg: string, value: string) {
+  switch (arg) {
+    case "--case":
+      options.caseIds = [...(options.caseIds ?? []), value];
+      break;
+    case "--group": {
+      const group = evalGroups.find((group) => group === value);
+      if (!group) {
+        throw new Error(`Unknown eval group: ${value}`);
+      }
+      options.groups = [...(options.groups ?? []), group];
+      break;
+    }
+    case "--model":
+      options.model = value;
+      break;
+    case "--repeat":
+      options.repeat = Number(value);
+      break;
+  }
+}
+
+export function parseEvalArgs(args: string[]): EvalOptions {
   const options: EvalOptions = {};
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
-    if (arg === "--help" || arg === "-h") {
-      process.stdout.write(
-        "Usage: npm run catalog:eval -- [--editor-only | --location-only] [--case ID] [--model OPENROUTER_MODEL] [--repeat N] [--report PATH]\nRuns fixed-source Mastra catalog evals; pipeline excludes handoffs; --editor-only replays them. --case must match the selected mode.\n",
-      );
-      process.exit(0);
+    switch (arg) {
+      case "--all":
+        options.all = true;
+        continue;
+      case "--location-only":
+        options.locationOnly = true;
+        continue;
+      case "--editor-only":
+        options.editorOnly = true;
+        continue;
     }
-    if (arg === "--location-only") {
-      options.locationOnly = true;
-      continue;
-    }
-    if (arg === "--editor-only") {
-      options.editorOnly = true;
-      continue;
-    }
-    if (!["--case", "--model", "--repeat", "--report"].includes(arg)) {
+    if (!["--case", "--group", "--model", "--repeat"].includes(arg)) {
       throw new Error(`Unknown eval option: ${arg}`);
     }
     const value = args[++index];
     if (!value || value.startsWith("--")) {
       throw new Error(`Missing value for ${arg}`);
     }
-    switch (arg) {
-      case "--case":
-        options.caseIds = [...(options.caseIds ?? []), value];
-        break;
-      case "--model":
-        options.model = value;
-        break;
-      case "--repeat":
-        options.repeat = Number(value);
-        break;
-      case "--report":
-        options.reportPath = resolve(value);
-        break;
-    }
-  }
-  if (options.locationOnly && options.editorOnly) {
-    throw new Error("--location-only and --editor-only are mutually exclusive");
+    setValueOption(options, arg, value);
   }
   return options;
+}
+
+function printMainScores(items: EvalItem[], output: Output) {
+  for (const id of [
+    "no-checked-errors",
+    "required-completeness",
+    "additional-completeness",
+  ]) {
+    const scores = items.flatMap((item) =>
+      item.scores.filter((score) => score.scorerId === id),
+    );
+    const applicable = scores.filter(
+      (score) => score.score !== null && !score.error,
+    );
+    const na = scores.filter((score) => score.notScorable).length;
+    const mean = applicable.length
+      ? (
+          applicable.reduce((sum, score) => sum + score.score!, 0) /
+          applicable.length
+        ).toFixed(2)
+      : "N/A";
+    const incomplete = applicable.length + na !== items.length;
+    output(
+      `  ${id}: ${mean}; applicable ${applicable.length}, N/A ${na}${incomplete ? "; incomplete execution" : ""}\n`,
+    );
+  }
+}
+
+function printFailure(item: EvalItem, output: Output) {
+  const value = item.output;
+  if (value?.quality) {
+    for (const check of value.quality.checks.filter(
+      (check) => check.status !== "correct",
+    )) {
+      output(`    ${check.path}: ${check.status} — ${check.note}\n`);
+    }
+    for (const check of value.quality.conditions.filter(
+      (check) => !check.passed,
+    )) {
+      output(`    ${check.path}: ${check.message}\n`);
+    }
+  } else if (value?.score) {
+    for (const [dimension, failures] of Object.entries(
+      value.score.diagnostics,
+    )) {
+      for (const failure of failures) {
+        output(`    ${dimension}: ${failure}\n`);
+      }
+    }
+  }
+  if (item.error || item.scores.some((score) => score.error)) {
+    output("    execution: task or scorer failed\n");
+  }
+}
+
+function printGroup(group: EvalGroupResult, output: Output) {
+  const items = group.results;
+  const passed = items.filter(evalItemPassed).length;
+  const duration =
+    (group.completedAt.getTime() - group.startedAt.getTime()) / 1000;
+  output(
+    `${group.group}: ${group.caseCount} cases, ${items.length} attempts; ${passed}/${items.length} passed; ${duration.toFixed(1)}s\n`,
+  );
+  output(
+    `  experiment: ${group.experimentId}; dataset: ${group.datasetId}; version: ${group.datasetVersion}\n`,
+  );
+  if (group.group === "main/pipeline") {
+    printMainScores(items, output);
+  }
+  for (const name of ["completion", "correction", "preservation"]) {
+    const selected = items.filter((item) => item.locationGroup === name);
+    if (selected.length) {
+      output(
+        `  ${name}: ${selected.filter(evalItemPassed).length}/${selected.length} passed\n`,
+      );
+    }
+  }
+  for (const item of items) {
+    const runId =
+      item.output?.report?.runId ?? item.output?.runId ?? "unavailable";
+    const passed = evalItemPassed(item);
+    output(
+      `  ${item.caseId} #${item.repetition}: ${passed ? "passed" : "failed"}; run ${runId}\n`,
+    );
+    if (item.output?.quality) {
+      output(`    checked errors: ${item.output.quality.errorCount}\n`);
+    }
+    if (!passed) {
+      printFailure(item, output);
+    }
+  }
 }
 
 export async function executeCatalogEvalCommand(
   args: string[],
   deps: {
     runEvals?: typeof runCatalogEvals;
-    stdout?: (value: string) => void;
+    stdout?: Output;
   } = {},
 ) {
-  const options = parseArgs(args);
   const output =
     deps.stdout ?? ((value: string) => process.stdout.write(value));
-  if (!options.reportPath) {
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    options.reportPath = resolve(`data/catalog-evals/${stamp}.json`);
-  }
-  const report = await (deps.runEvals ?? runCatalogEvals)(options);
-  const passed = report.results.filter(evalItemPassed).length;
-  output(
-    `${passed}/${report.results.length} cases passed; report: ${options.reportPath}\n`,
-  );
-  for (const group of ["completion", "correction", "preservation"]) {
-    const items = report.results.filter((item) => item.group === group);
-    if (items.length) {
-      output(
-        `${group}: ${items.filter(evalItemPassed).length}/${items.length} cases passed\n`,
-      );
-    }
-  }
-  for (const item of report.results) {
-    const value = item.output;
-    if (!value) {
-      output(`${item.caseId} #${item.repetition}: execution failed\n`);
-      continue;
-    }
+  if (args.includes("--help") || args.includes("-h")) {
     output(
-      `${item.caseId} #${item.repetition}: correctness ${value.score.correctness.toFixed(2)}, completeness ${value.score.completeness.toFixed(2)}, ${value.report?.outcome ?? "location"} [run ${value.report?.runId ?? value.runId ?? "unavailable"}]\n`,
+      "Usage: npm run catalog:eval -- [--all | --group GROUP | --editor-only | --location-only] [--case ID] [--model MODEL] [--repeat N]\nDefault: five main cases, one repetition. Groups: " +
+        evalGroups.join(", ") +
+        ".\nResults are saved as Mastra experiments. Inspect them in catalog:studio.\n",
     );
-    if (!evalItemPassed(item)) {
-      for (const [dimension, failures] of Object.entries(
-        value.score.diagnostics,
-      )) {
-        for (const failure of failures) {
-          output(`  ${dimension}: ${failure}\n`);
-        }
-      }
-      if (item.error || item.scores.some((score) => score.error)) {
-        output("  execution: task or scorer failed\n");
-      }
-    }
+    return 0;
   }
-  return passed === report.results.length ? 0 : 1;
+  const run = await (deps.runEvals ?? runCatalogEvals)(parseEvalArgs(args));
+  for (const group of run.groups) {
+    printGroup(group, output);
+  }
+  return run.groups.every(
+    (group) =>
+      group.results.length === group.totalItems &&
+      group.results.every(evalItemPassed),
+  )
+    ? 0
+    : 1;
 }
 
 if (
@@ -110,15 +191,13 @@ if (
       process.exitCode = code;
     })
     .catch((error: unknown) => {
-      let message = error instanceof Error ? error.name : "unknown error";
-      if (
+      const message =
         error instanceof Error &&
-        /^(OPENROUTER_API_KEY is required|OPENROUTER_MODEL must not enable automatic web search|OPENROUTER_REASONING_EFFORT is invalid|Unknown eval option:|Missing value for|Unknown or empty eval case selection|Editor-only eval requires|Pipeline eval does not accept|repeat must be|Eval report already exists:)/.test(
+        /^(OPENROUTER_|Unknown eval|Unknown or incompatible|Use one of|Missing value for|repeat must be|Stored eval dataset differs|Main case needs|Eval storage must)/.test(
           error.message,
         )
-      ) {
-        message = error.message;
-      }
+          ? error.message
+          : "Evaluation setup failed";
       process.stderr.write(`Catalog eval failed: ${message}\n`);
       process.exitCode = 1;
     });

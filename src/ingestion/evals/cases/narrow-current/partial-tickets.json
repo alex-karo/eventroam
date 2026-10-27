@@ -1,5 +1,8 @@
 {
   "id": "narrow-current-partial-tickets",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check narrow current partial tickets",
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-current-regression",
@@ -184,7 +187,9 @@
         }
       ],
       "hasUnresolved": true,
-      "unresolvedEditionKeys": ["2027"],
+      "unresolvedEditionKeys": [
+        "2027"
+      ],
       "previousEdition": null,
       "currentOrNextEdition": "2027"
     }

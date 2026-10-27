@@ -1,3 +1,5 @@
+import { readResearchCatalog } from "@/catalog/read/research";
+import { evaluateMainCase, assertMainCase, type MainScore } from "./main";
 import { resolveLocation, type LocationExecution } from "../location/agent";
 import { LOCATION_PROMPT_VERSION } from "../location/contracts";
 import { createResearchBudget } from "../runtime/budget";
@@ -8,10 +10,7 @@ import {
 import { geocodingKey, type GeocodingClient } from "../tools/geocode/contracts";
 import { scoreLocationCase } from "./score";
 import { validateCatalogValues } from "@/catalog/write/validate-values";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { createHash, randomUUID } from "node:crypto";
-import { dirname } from "node:path";
-import { runExperiment } from "@mastra/core/datasets";
+import { randomUUID } from "node:crypto";
 import { Mastra } from "@mastra/core/mastra";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { openDatabase } from "@/db/connection";
@@ -33,6 +32,7 @@ import type { ReadPageOptions } from "../tools/read-page/read";
 import type { SearchWebOptions } from "../tools/search-web/search";
 import {
   loadEvalSuite,
+  evalSuiteSchema,
   type EvalCase,
   type PipelineEvalCase,
   type EvalSuite,
@@ -42,6 +42,16 @@ import { scoreCase, type CaseScore } from "./score";
 import { createEvalScorers } from "./scorers";
 
 import type { EvalToolCall } from "./tool-use";
+import { execFileSync } from "node:child_process";
+import { EDITOR_PROMPT_VERSION } from "../editor/contracts";
+import { createEvalStore, evalDatabasePath } from "./storage";
+import { evalDataset, prepareEvalDataset } from "./datasets";
+import {
+  caseGroup,
+  evalGroups,
+  selectEvalCases,
+  type EvalSelection,
+} from "./selection";
 
 const timestamp = "2026-10-03T00:00:00.000Z";
 
@@ -233,13 +243,9 @@ export function fixedSources(
   };
 }
 
-export type EvalOptions = {
-  editorOnly?: boolean;
-  locationOnly?: boolean;
-  caseIds?: string[];
+export type EvalOptions = EvalSelection & {
   model?: string;
   repeat?: number;
-  reportPath?: string;
   suite?: EvalSuite;
 };
 
@@ -249,243 +255,242 @@ export type EvalCaseOutput = {
   runId?: string;
   traceId?: string;
   toolCalls: EvalToolCall[];
-  score: CaseScore;
-};
+  before?: ReturnType<typeof readResearchCatalog>;
+  after?: ReturnType<typeof readResearchCatalog>;
+} & (
+  { quality: MainScore; score?: never } | { score: CaseScore; quality?: never }
+);
 
-function evaluationConfig(options: EvalOptions) {
+export function evaluationConfig(options: Pick<EvalOptions, "model">) {
   const env = { ...process.env };
   if (options.model) {
     env.OPENROUTER_MODEL = options.model;
-    if (options.locationOnly) {
-      env.CATALOG_LOCATION_MODEL = options.model;
-    }
+    env.CATALOG_LOCATION_MODEL = options.model;
   }
   return loadResearchConfig(env);
 }
 
+async function executeCase(
+  suite: EvalSuite,
+  item: EvalCase,
+  config: ReturnType<typeof evaluationConfig>,
+): Promise<EvalCaseOutput> {
+  const calls: EvalToolCall[] = [];
+  if (item.location) {
+    const runId = `location-eval-${randomUUID()}`;
+    const tracing = await createRunObservability(
+      item.input,
+      config.locationModel ?? config.model,
+      runId,
+      [evalDatabasePath()],
+    );
+    try {
+      const location = await resolveLocation(
+        item.location.input,
+        createResearchBudget(config.limits),
+        config,
+        { geocodingClient: fixedGeocoding(item) },
+        tracing,
+      );
+      return {
+        location,
+        runId,
+        ...(tracing?.root?.traceId ? { traceId: tracing.root.traceId } : {}),
+        toolCalls: location.observations
+          .filter((observation) => observation.origin === "agent")
+          .map((observation) => ({ tool: "geocode" as const, observation })),
+        score: scoreLocationCase(item, location),
+      };
+    } finally {
+      await finishRunObservability(tracing);
+    }
+  }
+  const connection = seedDatabase(suite, item);
+  try {
+    const before =
+      item.suite === "main"
+        ? readResearchCatalog(connection.client)
+        : undefined;
+    let result: CatalogResearchResult;
+    try {
+      result = await runCatalogResearch(
+        { ...item.input, dryRun: item.suite !== "main" },
+        {
+          client: connection.client,
+          config,
+          todayUtc: item.todayUtc ?? suite.todayUtc,
+          geocodingClient: fixedGeocoding(item),
+          ...fixedSources(item, item.todayUtc ?? suite.todayUtc, calls),
+          ...(item.researchHandoff
+            ? {
+                generateCandidate: async () =>
+                  structuredClone(item.researchHandoff!.candidate),
+              }
+            : {}),
+        },
+      );
+    } catch (error) {
+      const available =
+        error instanceof RunPersistenceError
+          ? persistenceFailureReport(error)
+          : undefined;
+      if (!available) {
+        throw error;
+      }
+      result = available;
+    }
+    if (item.suite === "main") {
+      const after = readResearchCatalog(connection.client);
+      return {
+        quality: evaluateMainCase(item, before!, after, result, calls),
+        before,
+        after,
+        report: result,
+        toolCalls: calls,
+      };
+    }
+    return {
+      report: result,
+      toolCalls: calls,
+      score: scoreCase(item, result, calls),
+    };
+  } finally {
+    connection.client.close();
+  }
+}
+
+function workflowRevision() {
+  return execFileSync("/usr/bin/git", ["rev-parse", "HEAD"], {
+    encoding: "utf8",
+  }).trim();
+}
+
 export async function runCatalogEvals(options: EvalOptions = {}) {
-  if (options.editorOnly && options.locationOnly) {
-    throw new Error("--location-only and --editor-only are mutually exclusive");
-  }
-  const suite = options.suite ?? loadEvalSuite();
-  const selected = suite.cases.filter((item) => {
-    if (options.caseIds?.length) {
-      return options.caseIds.includes(item.id);
+  const suite = evalSuiteSchema.parse(options.suite ?? loadEvalSuite());
+  const selected = selectEvalCases(suite, options);
+  for (const item of selected) {
+    if (item.suite === "main") {
+      assertMainCase(item);
     }
-    if (options.locationOnly) {
-      return !!item.location;
-    }
-    return (
-      !item.location &&
-      Boolean(options.editorOnly) === Boolean(item.researchHandoff)
-    );
-  });
-  if (
-    !selected.length ||
-    options.caseIds?.some((id) => !suite.cases.some((item) => item.id === id))
-  ) {
-    throw new Error("Unknown or empty eval case selection");
-  }
-  if (options.locationOnly && selected.some((item) => !item.location)) {
-    throw new Error("Location-only eval requires a complete Location fixture");
-  }
-  if (!options.locationOnly && selected.some((item) => item.location)) {
-    throw new Error("Location fixtures require --location-only");
-  }
-  if (options.editorOnly && selected.some((item) => !item.researchHandoff)) {
-    throw new Error(
-      "Editor-only eval requires a research handoff for every selected case",
-    );
-  }
-  if (!options.editorOnly && selected.some((item) => item.researchHandoff)) {
-    throw new Error(
-      "Pipeline eval does not accept research handoffs; use --editor-only",
-    );
   }
   const repeat = options.repeat ?? 1;
   if (!Number.isSafeInteger(repeat) || repeat < 1 || repeat > 20) {
     throw new Error("repeat must be 1–20");
   }
-  if (options.reportPath && existsSync(options.reportPath)) {
-    throw new Error(`Eval report already exists: ${options.reportPath}`);
-  }
-  const config = evaluationConfig(options);
-  const scorers = Object.values(createEvalScorers());
-  const byId = new Map(selected.map((item) => [item.id, item]));
-  const data = selected.flatMap((item) =>
-    Array.from({ length: repeat }, (_, index) => ({
-      id: `${item.id}/${index + 1}`,
-      input: { caseId: item.id, repetition: index + 1 },
-    })),
-  );
-  const experiment = await runExperiment(new Mastra({ logger: false }), {
-    data,
-    scorers,
-    maxConcurrency: 3,
-    persistence: { experiments: "none", scores: "none" },
-    task: async ({ input }): Promise<EvalCaseOutput> => {
-      // These inputs come from the selected fixtures above.
-      const { caseId } = input as (typeof data)[number]["input"];
-      const item = byId.get(caseId)!;
-      const calls: EvalToolCall[] = [];
-      if (item.location) {
-        const runId = `location-eval-${randomUUID()}`;
-        const tracing = await createRunObservability(
-          item.input,
-          config.locationModel ?? config.model,
-          runId,
-          options.reportPath ? [options.reportPath] : [],
+  const store = await createEvalStore();
+  try {
+    await store.init();
+    const mastra = new Mastra({ storage: store, logger: false });
+    // Verify every selected dataset before provider configuration or model calls.
+    const prepared = [];
+    for (const group of evalGroups) {
+      const cases = selected.filter((item) => caseGroup(item) === group);
+      if (cases.length) {
+        prepared.push(
+          await prepareEvalDataset(
+            mastra,
+            evalDataset(suite, cases, group, repeat),
+          ),
         );
-        try {
-          const location = await resolveLocation(
-            item.location.input,
-            createResearchBudget(config.limits),
-            config,
-            { geocodingClient: fixedGeocoding(item) },
-            tracing,
-          );
-          return {
-            location,
-            runId,
-            ...(tracing?.root?.traceId
-              ? { traceId: tracing.root.traceId }
-              : {}),
-            toolCalls: location.observations
-              .filter((observation) => observation.origin === "agent")
-              .map((observation) => ({
-                tool: "geocode" as const,
-                observation,
-              })),
-            score: scoreLocationCase(item, location),
-          };
-        } finally {
-          await finishRunObservability(tracing);
-        }
       }
-      const connection = seedDatabase(suite, item);
-      try {
-        let result: CatalogResearchResult;
-        try {
-          result = await runCatalogResearch(item.input, {
-            client: connection.client,
-            config,
-            reportPath: options.reportPath,
-            todayUtc: item.todayUtc ?? suite.todayUtc,
-            geocodingClient: fixedGeocoding(item),
-            ...fixedSources(item, item.todayUtc ?? suite.todayUtc, calls),
-            ...(options.editorOnly
-              ? {
-                  generateCandidate: async () =>
-                    structuredClone(item.researchHandoff!.candidate),
-                }
-              : {}),
-          });
-        } catch (error) {
-          const available =
-            error instanceof RunPersistenceError
-              ? persistenceFailureReport(error)
-              : undefined;
-          if (!available) {
+    }
+    const config = evaluationConfig(options);
+    const metadata = {
+      workflowRevision: workflowRevision(),
+      models: {
+        research: config.model,
+        editor: config.model,
+        location: config.locationModel ?? config.model,
+      },
+      promptVersions: {
+        research: RESEARCH_PROMPT_VERSION,
+        editor: EDITOR_PROMPT_VERSION,
+        location: LOCATION_PROMPT_VERSION,
+      },
+      reasoningEffort: config.reasoningEffort ?? null,
+      serviceTier: config.serviceTier ?? "standard",
+      limits: config.limits,
+    };
+    const byId = new Map(selected.map((item) => [item.id, item]));
+    const groups = [];
+    for (const ready of prepared) {
+      const group = ready.definition.group;
+      const experiment = await ready.dataset.startExperiment({
+        version: ready.version,
+        name: `${group} — ${config.model}`,
+        metadata: { ...metadata, ...ready.definition.metadata },
+        scorers: Object.values(createEvalScorers(group === "main/pipeline")),
+        maxConcurrency: 3,
+        task: async ({ input }): Promise<EvalCaseOutput> => {
+          const { caseId } = input as { caseId: string };
+          try {
+            return await executeCase(suite, byId.get(caseId)!, config);
+          } catch {
             throw new Error("Evaluation task failed");
           }
-          result = available;
-        }
-        return {
-          report: result,
-          toolCalls: calls,
-          score: scoreCase(item, result, calls),
-        };
-      } finally {
-        connection.client.close();
-      }
-    },
-  });
-  const { results: attempts, ...experimentSummary } = experiment;
-  if (attempts.length !== data.length) {
-    throw new Error("Eval experiment did not return every case");
+        },
+      });
+      const results = experiment.results
+        .map((attempt) => {
+          const input = attempt.input as { caseId: string; repetition: number };
+          return {
+            ...attempt,
+            caseId: input.caseId,
+            repetition: input.repetition,
+            output: attempt.output as EvalCaseOutput | null,
+            locationGroup: byId.get(input.caseId)!.location?.group ?? null,
+          };
+        })
+        .sort(
+          (a, b) =>
+            a.caseId.localeCompare(b.caseId) || a.repetition - b.repetition,
+        );
+      groups.push({
+        group,
+        caseCount: ready.definition.items.length / repeat,
+        revision: ready.definition.revision,
+        datasetId: ready.definition.id,
+        datasetVersion: ready.version,
+        metadata,
+        ...experiment,
+        results,
+      });
+    }
+    return { groups };
+  } finally {
+    await store.close();
   }
-  // Mastra keeps results in input order even when tasks finish out of order.
-  const results = attempts.map((attempt, index) => {
-    const { input } = data[index];
-    const item = byId.get(input.caseId)!;
-    return {
-      ...attempt,
-      output: (attempt.output ?? null) as EvalCaseOutput | null,
-      error: attempt.error ? { message: "Evaluation task failed" } : null,
-      scores: attempt.scores.map((score) => ({
-        ...score,
-        error: score.error
-          ? { message: "Evaluation scorer failed" }
-          : undefined,
-      })),
-      group: item.location?.group ?? null,
-      caseId: input.caseId,
-      repetition: input.repetition,
-      fixtureTodayUtc: item.todayUtc ?? suite.todayUtc,
-      fixtureProvenance: item.provenance ?? suite.provenance,
-      researchHandoff: options.editorOnly
-        ? {
-            provenance: item.researchHandoff!.provenance,
-            sha256: createHash("sha256")
-              .update(JSON.stringify(item.researchHandoff))
-              .digest("hex"),
-          }
-        : null,
-    };
-  });
-  let evaluationMode = "pipeline";
-  if (options.editorOnly) {
-    evaluationMode = "editor-only";
-  }
-  if (options.locationOnly) {
-    evaluationMode = "location-only";
-  }
-  const report = {
-    schemaVersion: 7,
-    evaluationMode,
-    startedAt: experiment.startedAt.toISOString(),
-    finishedAt: experiment.completedAt.toISOString(),
-    fixtureTodayUtc: suite.todayUtc,
-    fixtureSha256: createHash("sha256")
-      .update(JSON.stringify(suite))
-      .digest("hex"),
-    fixtureProvenance: suite.provenance,
-    modelVersion: options.locationOnly ? config.locationModel : config.model,
-    locationModelVersion: config.locationModel ?? config.model,
-    locationPromptVersion: LOCATION_PROMPT_VERSION,
-    reasoningEffort: config.reasoningEffort ?? null,
-    promptVersion: options.locationOnly
-      ? LOCATION_PROMPT_VERSION
-      : RESEARCH_PROMPT_VERSION,
-    experiment: experimentSummary,
-    results,
-  };
-  if (options.reportPath) {
-    mkdirSync(dirname(options.reportPath), { recursive: true });
-    writeFileSync(options.reportPath, `${JSON.stringify(report, null, 2)}\n`, {
-      flag: "wx",
-      mode: 0o600,
-    });
-  }
-  return report;
 }
 
 export function evalItemPassed(item: {
   error?: unknown;
   output?: unknown;
-  scores: { scorerId: string; score: number | null; error?: unknown }[];
+  scores: {
+    scorerId: string;
+    score: number | null;
+    error?: unknown;
+    notScorable?: unknown;
+  }[];
 }) {
   const output = item.output as EvalCaseOutput | null;
-  const required = Object.values(createEvalScorers()).map(
+  const main = !!output?.quality;
+  const required = Object.values(createEvalScorers(main)).map(
     (scorer) => scorer.id,
   );
   return (
     !item.error &&
-    !!output?.score.passed &&
+    !!(output?.quality?.passed ?? output?.score?.passed) &&
     required.every((id) =>
       item.scores.some(
         (score) =>
-          score.scorerId === id && !score.error && score.score !== null,
+          score.scorerId === id &&
+          !score.error &&
+          (score.score !== null ||
+            (score.notScorable &&
+              ((id === "required-completeness" &&
+                output.quality!.required.expected === 0) ||
+                (id === "additional-completeness" &&
+                  output.quality!.additional.expected === 0)))),
       ),
     )
   );

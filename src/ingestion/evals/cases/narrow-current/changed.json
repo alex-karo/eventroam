@@ -1,5 +1,8 @@
 {
   "id": "narrow-current-changed",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check narrow current changed",
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-current-regression",

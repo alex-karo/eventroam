@@ -1,12 +1,12 @@
-import { DEFAULT_RESEARCH_LIMITS } from "@/ingestion/runtime/budget";
+import { evalReport } from "@/test/eval-report";
 import {
   generateFixtureEditor,
   generateFixtureLocation,
 } from "@/test/ingestion";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { createResearchBudget } from "../runtime/budget";
 import type { CatalogResearchResult } from "../workflow";
@@ -15,7 +15,13 @@ import * as reportModule from "../report";
 import { RunPersistenceError } from "../runs";
 import { executeCatalogEvalCommand } from "../../../commands/catalog-eval";
 const executeResearch = workflowModule.runCatalogResearch;
+let evalDirectory: string;
+beforeEach(() => {
+  evalDirectory = mkdtempSync(join(tmpdir(), "eventroam-evals-test-"));
+  vi.stubEnv("CATALOG_EVAL_DATABASE_PATH", join(evalDirectory, "evals.sqlite"));
+});
 afterEach(() => {
+  rmSync(evalDirectory, { recursive: true, force: true });
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
 });
@@ -23,87 +29,46 @@ import {
   loadEvalSuite,
   evalCaseSchema,
   evalSuiteSchema,
-  type PipelineEvalCase,
+  type RegressionPipelineEvalCase,
 } from "./fixtures";
 import { sourceLinks } from "./source-links";
 import { fixedSources, runCatalogEvals, seedDatabase } from "./run";
 import { assertionMatches } from "./assertions";
 import { createEvalScorers } from "./scorers";
 import { scoreCase } from "./score";
+import { scoreResearch } from "./research-score";
+import { evaluateMainCase } from "./main";
 import * as scoreModule from "./score";
 import * as scorersModule from "./scorers";
+import { readSavedResults } from "@/test/eval-storage";
 
 const suite = loadEvalSuite();
 const byId = new Map(
   suite.cases
-    .filter((item): item is PipelineEvalCase => !item.location)
+    .filter(
+      (item): item is RegressionPipelineEvalCase =>
+        !item.location && item.suite === "regression",
+    )
     .map((item) => [item.id, item]),
 );
-const tomorrowland = byId.get("tomorrowland")!;
-const wacken = byId.get("wacken")!;
-const blocked = byId.get("afro-nation-portugal-blocked")!;
-const requiredLinkCase = {
-  ...tomorrowland,
-  expectations: {
-    required: [
-      {
-        owner: "event" as const,
-        field: "links",
-        contains: {
-          kind: "official_site",
-          url: "https://www.tomorrowland.com/",
-        },
-      },
-    ],
-    forbidden: tomorrowland.expectations.forbidden,
-  },
-};
-
+const mainById = new Map(
+  suite.cases
+    .filter((item) => !item.location && item.suite === "main")
+    .map((item) => [item.id, item]),
+);
+const wacken = mainById.get("wacken")!;
+const blocked = mainById.get("afro-nation-portugal-blocked")!;
 test("editor-only rejects cases without handoffs before provider setup", async () => {
   await expect(
-    runCatalogEvals({ editorOnly: true, caseIds: [tomorrowland.id] }),
-  ).rejects.toThrow("Editor-only eval requires a research handoff");
+    runCatalogEvals({ editorOnly: true, caseIds: [wacken.id] }),
+  ).rejects.toThrow("Unknown or incompatible");
 });
 
-test.each([
-  { editorOnly: false, caseIds: ["editor-clear"] },
-  { editorOnly: false, caseIds: ["tomorrowland", "editor-recovered-website"] },
-  { editorOnly: true, caseIds: ["editor-clear", "tomorrowland"] },
-])("rejects incompatible explicit eval selection: %j", async (options) => {
+test("explicit mixed cases select their own groups without a mode flag", async () => {
   vi.stubEnv("OPENROUTER_API_KEY", "");
-  await expect(runCatalogEvals(options)).rejects.toThrow(
-    options.editorOnly
-      ? "Editor-only eval requires"
-      : "Pipeline eval does not accept",
-  );
-});
-
-test("default pipeline excludes captured handoffs and retains full recovery", async () => {
-  vi.stubEnv("OPENROUTER_API_KEY", "fixture-key");
-  vi.spyOn(workflowModule, "runCatalogResearch").mockImplementation(
-    (input, deps) =>
-      executeResearch(input, {
-        ...deps,
-        generateCandidate: async () => ({
-          status: "failed",
-          data: null,
-          errors: [],
-          unresolved: [{ message: "Injected offline selection test" }],
-        }),
-      }),
-  );
-  const report = await runCatalogEvals({ reportPath: undefined });
-  expect(report.evaluationMode).toBe("pipeline");
-  expect(report.results.map((row) => row.caseId).sort()).toEqual(
-    suite.cases
-      .filter((item) => !item.researchHandoff && !item.location)
-      .map((item) => item.id)
-      .sort(),
-  );
-  expect(
-    report.results.some((row) => row.caseId === "search-wrong-official"),
-  ).toBe(true);
-  expect(report.results.every((row) => !row.researchHandoff)).toBe(true);
+  await expect(
+    runCatalogEvals({ caseIds: ["wacken", "editor-clear"] }),
+  ).rejects.toThrow("OPENROUTER_API_KEY is required");
 });
 
 test("editor-only CLI replays captured research through preparation and writer without network", async () => {
@@ -131,7 +96,6 @@ test("editor-only CLI replays captured research through preparation and writer w
       runEvals: async (options) => {
         const report = await runCatalogEvals({
           ...options,
-          reportPath: undefined,
         });
         reports.push(report);
         return report;
@@ -141,24 +105,24 @@ test("editor-only CLI replays captured research through preparation and writer w
     expect(execute).toHaveBeenCalledTimes(7);
     expect(fetch).not.toHaveBeenCalled();
     const report = reports[0];
-    expect(report.evaluationMode).toBe("editor-only");
-    expect(report.results.every((item) => item.output!.score.passed)).toBe(
-      true,
-    );
-    for (const row of report.results) {
+    expect(report.groups[0].group).toBe("regression/editor");
+    expect(
+      report.groups[0].results.every((item) => item.output!.score!.passed),
+    ).toBe(true);
+    for (const row of report.groups[0].results) {
       const handoff = byId.get(row.caseId)!.researchHandoff!;
       expect(row.output!.report!.modelResponse?.object).toEqual(
         handoff.candidate,
       );
-      expect(row.researchHandoff).toMatchObject({
-        provenance: handoff.provenance,
-        sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
-      });
+      expect(
+        (row.input as { fixture: { researchHandoff: unknown } }).fixture
+          .researchHandoff,
+      ).toEqual(handoff);
     }
   } finally {
     vi.unstubAllGlobals();
   }
-});
+}, 15_000);
 
 test.each(["editor-wrong-year", "editor-day-ticket", "editor-valid-update"])(
   "%s forbids clearing saved historical dates as well as replacing them",
@@ -198,12 +162,12 @@ test("pipeline fixtures require seed data, sources and explicit expectations", (
   expect(blocked.todayUtc).toBe("2026-10-08");
   for (const field of ["initial", "sources"]) {
     expect(
-      evalCaseSchema.safeParse({ ...tomorrowland, [field]: undefined }).success,
+      evalCaseSchema.safeParse({ ...wacken, [field]: undefined }).success,
     ).toBe(false);
   }
   expect(
     evalCaseSchema.safeParse({
-      ...tomorrowland,
+      ...byId.get("search-no-announcement")!,
       expectations: { required: [], forbidden: [] },
     }).success,
   ).toBe(false);
@@ -212,10 +176,34 @@ test("pipeline fixtures require seed data, sources and explicit expectations", (
       ...blocked,
       expectations: {
         ...blocked.expectations,
-        required: requiredLinkCase.expectations.required,
+        required: [{ owner: "event", field: "links" }],
       },
     }).success,
   ).toBe(false);
+});
+
+test("main fixtures reject mutation assertions and regressions still require them", () => {
+  for (const item of mainById.values()) {
+    expect(item.expectations).not.toHaveProperty("required");
+    expect(item.expectations).not.toHaveProperty("forbidden");
+    for (const field of ["required", "forbidden"]) {
+      expect(
+        evalCaseSchema.safeParse({
+          ...item,
+          expectations: { ...item.expectations, [field]: [] },
+        }).success,
+      ).toBe(false);
+    }
+  }
+  const item = byId.get("search-no-announcement")!;
+  for (const field of ["required", "forbidden"]) {
+    expect(
+      evalCaseSchema.safeParse({
+        ...item,
+        expectations: { ...item.expectations, [field]: undefined },
+      }).success,
+    ).toBe(false);
+  }
 });
 
 test("blocked-source fixture replays captured HTTP metadata without fallback", async () => {
@@ -236,6 +224,11 @@ test("blocked-source fixture replays captured HTTP metadata without fallback", a
 });
 
 test("failed-source research requires null data, source diagnosis, and no writes", () => {
+  const db = seedDatabase(suite, blocked);
+  const catalog = readResearchCatalog(db.client);
+  db.client.close();
+  const score = (report: CatalogResearchResult) =>
+    evaluateMainCase(blocked, catalog, catalog, report);
   const sourceUrl = blocked.sources[0].attemptedUrl;
   const sourceError = {
     code: "source_blocked" as const,
@@ -243,6 +236,7 @@ test("failed-source research requires null data, source diagnosis, and no writes
     message: "Official ticket page returned HTTP 403",
     url: sourceUrl,
   };
+  const unresolved = [{ message: "Official source access is blocked" }];
   const expected: CatalogResearchResult = {
     ...result(),
     mode: "refresh",
@@ -261,7 +255,7 @@ test("failed-source research requires null data, source diagnosis, and no writes
             url: sourceUrl,
           },
         ],
-        unresolved: [],
+        unresolved,
       },
     },
     sources: [
@@ -274,44 +268,42 @@ test("failed-source research requires null data, source diagnosis, and no writes
       },
     ],
     errors: [sourceError],
+    unresolved,
   };
-  expect(scoreCase(blocked, expected)).toMatchObject({
-    correctness: 1,
-    completeness: 1,
-    passed: true,
+  expect(score(expected)).toMatchObject({ errorCount: 0, passed: true });
+  expect(score(expected).conditions.filter((check) => !check.passed)).toEqual(
+    [],
+  );
+  const changed = score({
+    ...expected,
+    changes: [
+      {
+        subject: blocked.initial.event.id,
+        field: "summary",
+        oldValue: null,
+        newValue: "changed",
+        explanations: [],
+      },
+    ],
   });
-  expect(scoreCase(blocked, expected).diagnostics).toEqual({
-    execution: [],
-    correctness: [],
-    completeness: [],
-    research: [],
-    toolUse: [],
-  });
-  expect(
-    scoreCase(blocked, {
-      ...expected,
-      changes: [
-        {
-          subject: blocked.initial.event.id,
-          field: "summary",
-          oldValue: null,
-          newValue: "changed",
-          explanations: [],
-        },
-      ],
-    }).diagnostics.research,
-  ).toEqual(["Expected no catalog changes"]);
-  const missingDiagnosis = scoreCase(blocked, { ...expected, errors: [] });
-  expect(missingDiagnosis).toMatchObject({
-    correctness: 1,
-    completeness: 1,
-    passed: false,
-    diagnostics: { correctness: [], completeness: [], execution: [] },
-  });
-  expect(missingDiagnosis.research.score).toBeLessThan(1);
-  expect(missingDiagnosis.diagnostics.research).toEqual([
-    "Expected a source-failure diagnosis for an unavailable inspected URL",
-  ]);
+  expect(changed.passed).toBe(false);
+  expect(changed.conditions).toContainEqual(
+    expect.objectContaining({
+      path: "research",
+      passed: false,
+      message: "Expected no catalog changes",
+    }),
+  );
+  const missingDiagnosis = score({ ...expected, errors: [] });
+  expect(missingDiagnosis.passed).toBe(false);
+  expect(missingDiagnosis.conditions).toContainEqual(
+    expect.objectContaining({
+      path: "research",
+      passed: false,
+      message:
+        "Expected a source-failure diagnosis for an unavailable inspected URL",
+    }),
+  );
   for (const invalid of [
     ...(["workflow_failed", "run_persistence_failed"] as const).map((code) => ({
       ...expected,
@@ -406,11 +398,14 @@ test("failed-source research requires null data, source diagnosis, and no writes
       sourceSummaries: [{ url: sourceUrl, information: "Unsupported claim" }],
     },
   ]) {
-    const score = scoreCase(blocked, invalid);
-    expect(score.passed).toBe(false);
+    const invalidScore = score(invalid);
+    expect(invalidScore.passed).toBe(false);
     expect(
-      [...score.diagnostics.research, ...score.diagnostics.execution].length,
-    ).toBeGreaterThan(0);
+      invalidScore.conditions.some(
+        (check) =>
+          !check.passed && ["research", "execution"].includes(check.path),
+      ),
+    ).toBe(true);
   }
 });
 
@@ -421,158 +416,55 @@ test("eval fixtures reject the old schema version", () => {
   ).toBe(false);
 });
 
-test("eval scorer rejects unsupported result report versions", () => {
-  for (const schemaVersion of [1, 2, 3, 4, 5, undefined]) {
-    expect(() =>
-      scoreCase(tomorrowland, {
-        ...result(),
-        schemaVersion,
-      } as unknown as CatalogResearchResult),
-    ).toThrow(`Unsupported catalog report version: ${schemaVersion}`);
-  }
-});
-
-test("partial research can pass factual assertions while failed research cannot", () => {
-  const official = {
-    subject: tomorrowland.initial.event.id,
-    field: "links",
-    oldValue: [],
-    explanations: [],
-    newValue: [{ kind: "official_site", url: "https://www.tomorrowland.com/" }],
-  };
-  const partial = {
-    ...result([official]),
-    researchStatus: "partial" as const,
-    unresolved: [{ message: "Optional dates unknown." }],
-  };
-  expect(scoreCase(requiredLinkCase, partial).passed).toBe(true);
-  const failed = scoreCase(requiredLinkCase, {
-    ...partial,
-    researchStatus: "failed",
-  });
-  expect(failed).toMatchObject({
-    correctness: 1,
-    completeness: 1,
-    passed: false,
-  });
-  expect(failed.research.score).toBeLessThan(1);
-});
-
-test("existing eval report is rejected before provider setup", async () => {
-  const directory = mkdtempSync(join(tmpdir(), "eventroam-eval-report-"));
-  const reportPath = join(directory, "report.json");
-  writeFileSync(reportPath, "existing report");
+test("the eval command rejects the removed report option before setup", async () => {
   vi.stubEnv("OPENROUTER_API_KEY", "");
-  try {
-    await expect(
-      runCatalogEvals({ caseIds: [tomorrowland.id], reportPath }),
-    ).rejects.toThrow(`Eval report already exists: ${reportPath}`);
-    expect(readFileSync(reportPath, "utf8")).toBe("existing report");
-  } finally {
-    vi.unstubAllEnvs();
-    rmSync(directory, { recursive: true, force: true });
-  }
+  await expect(
+    executeCatalogEvalCommand(["--report", "unused.json"]),
+  ).rejects.toThrow("Unknown eval option: --report");
 });
 
-function result(
-  changes: CatalogResearchResult["changes"] = [],
-): CatalogResearchResult {
-  const created = new Map<
-    string,
-    { eventId?: string; key?: string; year?: number }
-  >();
-  for (const change of changes) {
-    const facts = created.get(change.subject) ?? {};
-    if (change.field === "event_id" && typeof change.newValue === "string") {
-      facts.eventId = change.newValue;
-    }
-    if (change.field === "edition_key" && typeof change.newValue === "string") {
-      facts.key = change.newValue;
-    }
-    if (
-      change.field === "edition_year" &&
-      typeof change.newValue === "number"
-    ) {
-      facts.year = change.newValue;
-    }
-    created.set(change.subject, facts);
-  }
-  const newEditions = [...created].filter(
-    ([, facts]) => facts.eventId && facts.key,
-  );
-  return {
-    schemaVersion: 7,
-    locationResponse: null,
-    locationStatus: "not_run",
-    locationPromptVersion: "catalog-location-v1",
-    locationModelVersion: "fixture",
-    geocoding: { observations: [], points: [] },
-    editorResponse: null,
-    editorStatus: "not_run",
-    editorPromptVersion: "catalog-editor-v6",
-    scope: null,
-    currentDate: null,
-    workload: { savedEditions: 0, returnedEditions: 0 },
-    limits: DEFAULT_RESEARCH_LIMITS,
-    runId: "eval-fixture-run",
-    mode: "refresh",
-    outcome: changes.length ? "updated" : "unchanged",
-    modelResponse: null,
-    researchStatus: "success",
-    eventId: tomorrowland.initial.event.id,
-    operations: newEditions.map(([subject, facts]) => ({
-      kind: "createEdition",
-      eventId: facts.eventId!,
-      tempKey: subject,
-      data: {
-        editionKey: facts.key!,
-        ...(facts.year === undefined ? {} : { editionYear: facts.year }),
-      },
-    })) as CatalogResearchResult["operations"],
-    receipts: [],
-    references: Object.fromEntries(
-      newEditions.map(([subject]) => [subject, subject]),
-    ),
-    changes,
-    sources: [],
-    sourceSummaries: [],
-    errors: [],
-    unresolved: [],
-    eventNameMismatch: null,
-    budget: {
-      ...createResearchBudget().snapshot(),
-    },
-    modelVersion: "test",
-    promptVersion: "test",
-    durationMs: 0,
-  };
+function result(changes: CatalogResearchResult["changes"] = []) {
+  return evalReport(changes, wacken.initial.event.id);
 }
 
 test("fixed source adapter uses captured pages and blocks unknown URLs without network", async () => {
-  const connection = seedDatabase(suite, tomorrowland);
+  const connection = seedDatabase(suite, {
+    ...wacken,
+    initial: {
+      ...wacken.initial,
+      relatedEvents: [
+        {
+          ...wacken.initial.event,
+          id: "other-event",
+          slug: "other-event",
+          canonicalName: "Other festival",
+          editions: [],
+        },
+      ],
+    },
+  });
   try {
     const catalog = readResearchCatalog(connection.client);
     expect(catalog.map((event) => event.canonicalName)).toContain(
-      "Tomorrowland Winter",
+      "Other festival",
     );
     expect(
-      catalog.find((event) => event.id === tomorrowland.initial.event.id)
-        ?.editions,
+      catalog.find((event) => event.id === wacken.initial.event.id)?.editions,
     ).toHaveLength(1);
-    const sources = fixedSources(tomorrowland, suite.todayUtc);
+    const sources = fixedSources(wacken, suite.todayUtc);
     const budget = createResearchBudget();
-    const known = await sources.readPage(tomorrowland.sources[0].attemptedUrl, {
+    const known = await sources.readPage(wacken.sources[0].attemptedUrl, {
       budget,
     });
-    expect(known.markdown).toEqual(tomorrowland.sources[0].markdown);
-    expect(tomorrowland.sources[0]).not.toHaveProperty("links");
+    expect(known.markdown).toEqual(wacken.sources[0].markdown);
+    expect(wacken.sources[0]).not.toHaveProperty("links");
     expect(
       evalCaseSchema.safeParse({
-        ...tomorrowland,
-        sources: [{ ...tomorrowland.sources[0], links: [] }],
+        ...wacken,
+        sources: [{ ...wacken.sources[0], links: [] }],
       }).success,
     ).toBe(false);
-    expect(known.links).toContain("https://winter.tomorrowland.com/");
+    expect(known.links).toContain("https://www.wacken.com/de/");
     expect(known).not.toHaveProperty("blocks");
     expect(known.markdown).not.toMatch(/<!-- b\d+ -->/);
     const unknown = await sources.readPage("https://unknown.example/eval", {
@@ -586,135 +478,6 @@ test("fixed source adapter uses captured pages and blocks unknown URLs without n
   } finally {
     connection.client.close();
   }
-});
-
-test("gold checks require supported changes and reject sibling links", () => {
-  const missing = scoreCase(requiredLinkCase, result());
-  expect(missing.completeness).toBe(0);
-  expect(missing.required).toEqual([
-    { assertion: requiredLinkCase.expectations.required[0], matched: false },
-  ]);
-  expect(missing.diagnostics.completeness).toEqual([
-    'Missing required change: event.links contains {"kind":"official_site","url":"https://www.tomorrowland.com/"}',
-  ]);
-  const official = {
-    subject: tomorrowland.initial.event.id,
-    field: "links",
-    oldValue: [],
-    explanations: [],
-    newValue: [{ kind: "official_site", url: "https://www.tomorrowland.com/" }],
-  };
-  expect(scoreCase(requiredLinkCase, result([official])).passed).toBe(true);
-  const winter = {
-    ...official,
-    newValue: [
-      ...official.newValue,
-      { kind: "official_site", url: "https://winter.tomorrowland.com/" },
-    ],
-  };
-  const score = scoreCase(requiredLinkCase, result([winter]));
-  expect(score.completeness).toBe(1);
-  expect(score.correctness).toBeLessThan(1);
-  expect(score.passed).toBe(false);
-  expect(
-    scoreCase(requiredLinkCase, { ...result(), outcome: "failed" }),
-  ).toMatchObject({
-    correctness: 1,
-    completeness: 0,
-    passed: false,
-    diagnostics: { research: ["Catalog outcome must not be failed"] },
-  });
-});
-
-test("Tomorrowland rejects Thailand sell-out on a Belgium ticket variant", () => {
-  const official = {
-    subject: tomorrowland.initial.event.id,
-    field: "links",
-    oldValue: [],
-    explanations: [],
-    newValue: [{ kind: "official_site", url: "https://www.tomorrowland.com/" }],
-  };
-  const soldOut = {
-    subject: tomorrowland.initial.event.editions[0].id,
-    field: "price_details",
-    oldValue: [],
-    explanations: [
-      "Tomorrowland Thailand is marked Sold Out on the events page.",
-    ],
-    newValue: [
-      { label: "Belgium day ticket", availability: "unknown" },
-      { label: "Belgium weekend pass", availability: "sold_out" },
-    ],
-  };
-  expect(scoreCase(requiredLinkCase, result([official]))).toMatchObject({
-    correctness: 1,
-    completeness: 1,
-    passed: true,
-  });
-  const score = scoreCase(requiredLinkCase, result([official, soldOut]));
-  expect(score.completeness).toBe(1);
-  expect(score.correctness).toBeLessThan(1);
-  expect(score.passed).toBe(false);
-  expect(score.forbidden.filter((check) => check.matched)).toEqual([
-    expect.objectContaining({
-      assertion: expect.objectContaining({
-        owner: "edition",
-        field: "price_details",
-        contains: { availability: "sold_out" },
-      }),
-    }),
-  ]);
-  expect(score.diagnostics.correctness).toEqual([
-    'Forbidden change: edition.price_details contains {"availability":"sold_out"}',
-  ]);
-});
-
-test("new and existing edition assertions map only to their own subject", () => {
-  const newId = "new-wacken-2027";
-  const created = {
-    ...result([
-      {
-        subject: newId,
-        field: "starts_on",
-        oldValue: null,
-        explanations: [],
-        newValue: "2027-07-28",
-      },
-    ]),
-    operations: [
-      {
-        kind: "createEdition",
-        eventId: wacken.initial.event.id,
-        tempKey: "edition_2027",
-        data: { editionKey: "year-2027", editionYear: 2027 },
-      },
-    ] as CatalogResearchResult["operations"],
-    references: { edition_2027: newId },
-  };
-  const required2027 = wacken.expectations.required.find(
-    (assertion) => assertion.field === "starts_on",
-  )!;
-  const forbiddenOld = wacken.expectations.forbidden.find(
-    (assertion) =>
-      assertion.editionKey === "source-row" && assertion.field === "starts_on",
-  )!;
-  expect(assertionMatches(wacken, created, required2027)).toBe(true);
-  expect(assertionMatches(wacken, created, forbiddenOld)).toBe(false);
-  expect(
-    assertionMatches(
-      wacken,
-      {
-        ...created,
-        changes: [
-          {
-            ...created.changes[0],
-            subject: wacken.initial.event.editions[0].id,
-          },
-        ],
-      },
-      forbiddenOld,
-    ),
-  ).toBe(true);
 });
 
 test("fixture links preserve Markdown destinations without interpreting code as links", () => {
@@ -736,270 +499,12 @@ test("fixture links preserve Markdown destinations without interpreting code as 
   ]);
 });
 
-test("Roskilde permits missing location but rejects the office address", () => {
-  const roskilde = byId.get("roskilde")!;
-  const subject = "roskilde-2027";
-  const wrongCountry = roskilde.expectations.forbidden.find(
-    (assertion) => assertion.field === "country_code",
-  )!;
-  expect(
-    roskilde.expectations.required.some((assertion) =>
-      ["locality", "venue_address", "country_code"].includes(assertion.field),
-    ),
-  ).toBe(false);
-  const base: CatalogResearchResult["changes"] = [
-    {
-      subject,
-      field: "event_id",
-      oldValue: null,
-      explanations: [],
-      newValue: roskilde.initial.event.id,
-    },
-    {
-      subject,
-      field: "edition_key",
-      oldValue: null,
-      explanations: [],
-      newValue: "2027",
-    },
-  ];
-  base.push({
-    subject,
-    field: "edition_year",
-    oldValue: null,
-    explanations: [],
-    newValue: 2027,
-  });
-  for (const [country, forbidden] of [
-    ["DK", false],
-    [null, false],
-    ["DE", true],
-  ] as const) {
-    expect(
-      assertionMatches(
-        roskilde,
-        result([
-          ...base,
-          {
-            subject,
-            field: "country_code",
-            oldValue: null,
-            explanations: [],
-            newValue: country,
-          },
-        ]),
-        wrongCountry,
-      ),
-    ).toBe(forbidden);
-  }
-  const change = {
-    subject,
-    field: "venue_address",
-    oldValue: null,
-    explanations: [],
-    newValue: "Darupvej 19, 4000 Roskilde",
-  };
-  const office = roskilde.expectations.forbidden.find(
-    (assertion) => assertion.field === "venue_address",
-  )!;
-  for (const [value, officeMatches] of [
-    ["Darupvej 19, 4000 Roskilde", false],
-    ["Festivalpladsen, DARUPVEJ   19, Roskilde", false],
-    ["Rabalderstræde 7, 4., 4000 Roskilde", true],
-    ["Some other address", false],
-    [null, false],
-  ] as const) {
-    const output = result([...base, { ...change, newValue: value }]);
-    expect(assertionMatches(roskilde, output, office)).toBe(officeMatches);
-  }
-  const complete = result([
-    ...base,
-    ...roskilde.expectations.required.map((assertion) => ({
-      subject:
-        assertion.owner === "event" ? roskilde.initial.event.id : subject,
-      field: assertion.field,
-      oldValue: null,
-      explanations: [],
-      newValue:
-        assertion.field === "links" ? [assertion.contains] : assertion.value,
-    })),
-  ]);
-  expect(scoreCase(roskilde, complete).passed).toBe(true);
-  expect(
-    scoreCase(roskilde, {
-      ...complete,
-      changes: [
-        ...complete.changes,
-        {
-          ...change,
-          newValue: "Rabalderstræde 7, 4., 4000 Roskilde",
-        },
-      ],
-    }).passed,
-  ).toBe(false);
-  const contact = roskilde.sources.find((source) =>
-    source.finalUrl.endsWith("/kontakt"),
-  )!;
-  expect(contact.method).toBe("http");
-  expect(contact.markdown).toContain("Darupvej 19");
-});
-
-test.each([
-  ["https://www.wacken.com/", "official_site", true],
-  ["https://www.wacken.com/de/", "official_site", true],
-  ["https://www.wacken.com/", "other", false],
-  ["https://unrelated.example/", "official_site", false],
-])("Wacken official link %s (%s) matches: %s", (url, kind, matches) => {
-  const assertion = wacken.expectations.required.find(
-    (item) => item.field === "links",
-  )!;
-  expect(
-    assertionMatches(
-      wacken,
-      result([
-        {
-          subject: wacken.initial.event.id,
-          field: "links",
-          oldValue: [],
-          explanations: [],
-          newValue: [{ kind, url }],
-        },
-      ]),
-      assertion,
-    ),
-  ).toBe(matches);
-});
-
-test("Wacken permits metal while preserving historical dates", () => {
-  const subject = "wacken-2027";
-  const output = result([
-    {
-      subject,
-      field: "event_id",
-      oldValue: null,
-      explanations: [],
-      newValue: wacken.initial.event.id,
-    },
-    {
-      subject,
-      field: "edition_key",
-      oldValue: null,
-      explanations: [],
-      newValue: "2027",
-    },
-    {
-      subject,
-      field: "edition_year",
-      oldValue: null,
-      explanations: [],
-      newValue: 2027,
-    },
-    ...wacken.expectations.required.map((assertion) => ({
-      subject: assertion.owner === "event" ? wacken.initial.event.id : subject,
-      field: assertion.field,
-      oldValue: null,
-      explanations: [],
-      newValue:
-        assertion.field === "links"
-          ? [assertion.containsAny![0]]
-          : assertion.value,
-    })),
-    {
-      subject,
-      field: "terms",
-      oldValue: [],
-      explanations: [],
-      newValue: ["catalog:term:genre:metal"],
-    },
-  ]);
-  expect(scoreCase(wacken, output).passed).toBe(true);
-  output.changes.push({
-    subject: wacken.initial.event.editions[0].id,
-    field: "terms",
-    oldValue: [],
-    explanations: [],
-    newValue: ["catalog:term:genre:metal"],
-  });
-  expect(scoreCase(wacken, output).passed).toBe(true);
-  output.changes.push({
-    subject: wacken.initial.event.editions[0].id,
-    field: "starts_on",
-    oldValue: "2026-07-30",
-    explanations: [],
-    newValue: "2027-07-28",
-  });
-  expect(scoreCase(wacken, output).passed).toBe(false);
-});
-
-test("Wacken allows DE or missing country but rejects another country", () => {
-  const assertion = wacken.expectations.forbidden.find(
-    (a) => a.field === "country_code",
-  )!;
-  for (const [value, forbidden] of [
-    ["DE", false],
-    [null, false],
-    ["DK", true],
-  ] as const) {
-    const subject = "wacken-2027";
-    const output = result([
-      {
-        subject,
-        field: "event_id",
-        oldValue: null,
-        explanations: [],
-        newValue: wacken.initial.event.id,
-      },
-      {
-        subject,
-        field: "edition_key",
-        oldValue: null,
-        explanations: [],
-        newValue: "2027",
-      },
-      {
-        subject,
-        field: "edition_year",
-        oldValue: null,
-        explanations: [],
-        newValue: 2027,
-      },
-      {
-        subject,
-        field: "country_code",
-        oldValue: null,
-        explanations: [],
-        newValue: value,
-      },
-    ]);
-    expect(assertionMatches(wacken, output, assertion)).toBe(forbidden);
-  }
-});
-
-test.each(["wacken", "roskilde", "sziget"])(
-  "%s permits optional openair and structurally gated publication",
-  (id) => {
-    const item = byId.get(id)!;
-    expect(
-      item.expectations.required.some(
-        (a) => a.contains === "validation:openair",
-      ),
-    ).toBe(false);
-    expect(
-      item.expectations.forbidden.some(
-        (a) =>
-          a.contains === "validation:openair" ||
-          a.field === "publication_state",
-      ),
-    ).toBe(false);
-  },
-);
-
 test.each(["workflow_failed", "run_persistence_failed"] as const)(
   "ordinary factual acceptance rejects %s despite successful outcomes",
   (code) => {
     const report = result();
     const item = {
-      ...tomorrowland,
+      ...byId.get("search-no-announcement")!,
       expectations: { required: [], forbidden: [] },
     };
     expect(scoreCase(item, report).passed).toBe(true);
@@ -1037,7 +542,7 @@ test.each(["none", "workflow", "persistence"] as const)(
           url: blocked.sources[0].attemptedUrl,
         },
       ],
-      unresolved: [],
+      unresolved: [{ message: "Official source is blocked" }],
     };
     let snapshot: Record<string, unknown> | undefined;
     vi.spyOn(workflowModule, "runCatalogResearch").mockImplementation(
@@ -1080,16 +585,14 @@ test.each(["none", "workflow", "persistence"] as const)(
     const code = await executeCatalogEvalCommand(["--case", blocked.id], {
       stdout,
       runEvals: async (options) => {
-        // No file needed in this test; the command's default path is only metadata.
         const report = await runCatalogEvals({
           ...options,
-          reportPath: undefined,
         });
         reports.push(report);
         return report;
       },
     });
-    const result = reports[0].results[0];
+    const result = reports[0].groups[0].results[0];
     expect(code).toBe(failure === "none" ? 0 : 1);
     expect(result.output!.report!.runId).toBe(snapshot?.id);
     expect(result.output!.report!.modelResponse?.object).toEqual(
@@ -1099,11 +602,13 @@ test.each(["none", "workflow", "persistence"] as const)(
 
     expect(JSON.stringify(result)).not.toContain("SECRET");
     if (failure !== "none") {
-      expect(result.output!.score.diagnostics.execution).toEqual([
-        "Host workflow or persistence failure",
-      ]);
+      expect(result.output!.quality!.conditions).toContainEqual({
+        path: "execution",
+        passed: false,
+        message: "Host workflow or run persistence failed",
+      });
       expect(stdout.mock.calls.flat().join("")).toContain(
-        "execution: Host workflow or persistence failure",
+        "Host workflow or run persistence failed",
       );
       expect(
         result.output!.report!.errors.some(
@@ -1148,39 +653,37 @@ test.each(["task", "scorer"] as const)(
       });
     } else {
       const scorers = createEvalScorers();
-      vi.spyOn(scorers.correctness, "run").mockRejectedValueOnce(
-        new Error("SECRET scorer error"),
+      vi.spyOn(scorers.scenario, "run").mockRejectedValueOnce(
+        new Error("Injected scorer failure"),
       );
       vi.spyOn(scorersModule, "createEvalScorers").mockReturnValue(scorers);
     }
-    const directory = mkdtempSync(join(tmpdir(), "eventroam-eval-failure-"));
-    const reportPath = join(directory, "report.json");
-    try {
-      const report = await runCatalogEvals({
-        caseIds: [tomorrowland.id, wacken.id],
-        reportPath,
+    const report = await runCatalogEvals({
+      caseIds: ["scope-current-stable-key", "search-no-announcement"],
+    });
+    expect(report.groups[0].results).toHaveLength(2);
+    const failed = report.groups[0].results.find((item) =>
+      failure === "task"
+        ? !!item.error
+        : item.scores.some((score) => score.error),
+    )!;
+    if (failure === "task") {
+      expect(failed.output).toBeNull();
+      expect(failed.error).toMatchObject({
+        message: "Evaluation task failed",
       });
-      expect(report.results).toHaveLength(2);
-      const failed = report.results[0];
-      if (failure === "task") {
-        expect(failed.output).toBeNull();
-        expect(failed.error).toEqual({ message: "Evaluation task failed" });
-      } else {
-        expect(failed.output?.report).toBeDefined();
-        expect(
-          failed.scores.some(
-            (score) => score.error?.message === "Evaluation scorer failed",
-          ),
-        ).toBe(true);
-      }
-      expect(report.results[1].output?.report).toBeDefined();
-      expect(client?.open).toBe(false);
-      const stored = readFileSync(reportPath, "utf8");
-      expect(stored).not.toContain("SECRET");
-      expect(JSON.parse(stored).results).toHaveLength(2);
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
+    } else {
+      expect(failed.output?.report).toBeDefined();
+      expect(failed.scores.some((score) => !!score.error)).toBe(true);
     }
+    expect(
+      report.groups[0].results.find((item) => item.itemId !== failed.itemId)!
+        .output?.report,
+    ).toBeDefined();
+    expect(client?.open).toBe(false);
+    const stored = await readSavedResults(report.groups[0]);
+    expect(JSON.stringify(stored)).not.toContain("SECRET");
+    expect(stored.results).toHaveLength(2);
   },
 );
 
@@ -1486,97 +989,81 @@ test.each(["toolUse", "research"] as const)(
         };
       },
     );
-    const directory = mkdtempSync(
-      join(tmpdir(), "eventroam-eval-diagnostics-"),
-    );
-    const reportPath = join(directory, "report.json");
     const reports: Awaited<ReturnType<typeof runCatalogEvals>>[] = [];
     const stdout = vi.fn();
-    try {
-      const code = await executeCatalogEvalCommand(
-        ["--case", item.id, "--repeat", "2", "--report", reportPath],
-        {
-          stdout,
-          runEvals: async (options) => {
-            const report = await runCatalogEvals(options);
-            reports.push(report);
-            return report;
-          },
+    const code = await executeCatalogEvalCommand(
+      ["--case", item.id, "--repeat", "2"],
+      {
+        stdout,
+        runEvals: async (options) => {
+          const report = await runCatalogEvals(options);
+          reports.push(report);
+          return report;
         },
-      );
-      expect(code).toBe(1);
-      expect(completionOrder).toEqual([2, 1]);
-      const report = reports[0];
-      expect(report.experiment).toMatchObject({
-        status: "completed",
-        totalItems: 2,
-        succeededCount: 2,
-        failedCount: 0,
-      });
-      expect(report.results.map((entry) => entry.repetition)).toEqual([1, 2]);
-      expect(report.results.map((entry) => entry.output!.score.passed)).toEqual(
-        [true, false],
-      );
-      expect(
-        report.results.every(
-          (entry) =>
-            entry.output!.score.correctness === 1 &&
-            entry.output!.score.completeness === 1,
-        ),
-      ).toBe(true);
-      const diagnostic =
-        dimension === "toolUse" ? "searches <= 0" : "previousEdition=2026";
-      expect(
-        report.results.map(
-          (entry) => entry.output!.score.diagnostics[dimension],
-        ),
-      ).toEqual([[], [diagnostic]]);
-      expect(
-        report.results.map((entry) =>
-          entry.output!.toolCalls.map((call) => call.tool),
-        ),
-      ).toEqual([
-        ["readPage"],
-        dimension === "toolUse" ? ["readPage", "searchWeb"] : ["readPage"],
-      ]);
-      const stored = JSON.parse(readFileSync(reportPath, "utf8"));
-      expect(
-        stored.results.map(
-          (entry: { output: { score: unknown } }) => entry.output!.score,
-        ),
-      ).toEqual(report.results.map((entry) => entry.output!.score));
-      const text = stdout.mock.calls.flat().join("");
-      expect(text).toContain("1/2 cases passed");
-      expect(text).toContain(`  ${dimension}: ${diagnostic}\n`);
-      expect(text.indexOf(diagnostic)).toBeGreaterThan(
-        text.indexOf(`${item.id} #2:`),
-      );
-      const scorerId =
-        dimension === "toolUse"
-          ? "source-search-policy"
-          : "research-completeness";
-      expect(
-        report.results.map((entry) =>
-          entry.scores.find((scorer) => scorer.scorerId === scorerId),
-        ),
-      ).toEqual([
-        expect.objectContaining({ score: 1, error: undefined }),
-        expect.objectContaining({
-          score: dimension === "toolUse" ? 0 : 2 / 3,
-          reason: diagnostic,
-          error: undefined,
-        }),
-      ]);
-      expect(stored.experiment).toEqual(
-        JSON.parse(JSON.stringify(report.experiment)),
-      );
-      expect(
-        stored.results.map((entry: { scores: unknown }) => entry.scores),
-      ).toEqual(report.results.map((entry) => entry.scores));
-      expect(scoring).toHaveBeenCalledTimes(2);
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
+      },
+    );
+    expect(code).toBe(1);
+    expect(completionOrder).toEqual([2, 1]);
+    const report = reports[0];
+    expect(report.groups[0]).toMatchObject({
+      status: "completed",
+      totalItems: 2,
+      succeededCount: 2,
+      failedCount: 0,
+    });
+    expect(report.groups[0].results.map((entry) => entry.repetition)).toEqual([
+      1, 2,
+    ]);
+    const results = [...report.groups[0].results].sort(
+      (a, b) =>
+        Number(b.output!.score!.passed) - Number(a.output!.score!.passed),
+    );
+    expect(results.map((entry) => entry.output!.score!.passed)).toEqual([
+      true,
+      false,
+    ]);
+    expect(
+      report.groups[0].results.every(
+        (entry) =>
+          entry.output!.score!.correctness === 1 &&
+          entry.output!.score!.completeness === 1,
+      ),
+    ).toBe(true);
+    const diagnostic =
+      dimension === "toolUse" ? "searches <= 0" : "previousEdition=2026";
+    expect(
+      results.map((entry) => entry.output!.score!.diagnostics[dimension]),
+    ).toEqual([[], [diagnostic]]);
+    expect(
+      results.map((entry) => entry.output!.toolCalls.map((call) => call.tool)),
+    ).toEqual([
+      ["readPage"],
+      dimension === "toolUse" ? ["readPage", "searchWeb"] : ["readPage"],
+    ]);
+    const stored = await readSavedResults(report.groups[0]);
+    expect(
+      stored.results.map((entry) => JSON.stringify(entry.output)).sort(),
+    ).toEqual(
+      report.groups[0].results
+        .map((entry) => JSON.stringify(entry.output))
+        .sort(),
+    );
+    const text = stdout.mock.calls.flat().join("");
+    expect(text).toContain("1/2 passed");
+    expect(text).toContain(`  ${dimension}: ${diagnostic}\n`);
+    expect(text.indexOf(diagnostic)).toBeGreaterThan(
+      text.indexOf(`${item.id} #${results[1].repetition}:`),
+    );
+    expect(
+      results.map((entry) =>
+        entry.scores.find((scorer) => scorer.scorerId === "scenario-success"),
+      ),
+    ).toEqual([
+      expect.objectContaining({ score: 1, error: null }),
+      expect.objectContaining({ score: 0, reason: diagnostic, error: null }),
+    ]);
+    expect(stored.scores.map((score) => score.score).sort()).toEqual([0, 1]);
+    expect(scoring).toHaveBeenCalledTimes(2);
   },
 );
 
@@ -1874,10 +1361,10 @@ test("current identity-conflict eval requires a diagnosed stop without recovery 
   ).toEqual(["Expected identity conflict to stop without search"]);
 });
 
-test("Tomorrowland permits partial preservation when its destination is unavailable", () => {
+test("partial research can preserve data when a source is unavailable", () => {
   const unresolved = [
     {
-      message: "Belgium destination is unavailable; preserve unverified facts.",
+      message: "Official source is unavailable; preserve unverified facts.",
     },
   ];
   const partial = {
@@ -1889,13 +1376,12 @@ test("Tomorrowland permits partial preservation when its destination is unavaila
       object: {
         status: "partial",
         data: {
-          eventName: "Tomorrowland",
+          eventName: "Wacken Open Air",
           links: { socials: {} },
           sources: [
             {
-              url: "https://www.tomorrowland.com/",
-              information:
-                "Official portal links to the unavailable Belgium site.",
+              url: "https://www.wacken.com/",
+              information: "Official portal links to an unavailable source.",
             },
           ],
           previousEdition: null,
@@ -1906,48 +1392,22 @@ test("Tomorrowland permits partial preservation when its destination is unavaila
       },
     },
   };
-  expect(scoreCase(tomorrowland, partial).passed).toBe(true);
   expect(
-    scoreCase(tomorrowland, { ...partial, outcome: "failed" }).passed,
-  ).toBe(false);
-});
-
-test("mutation matcher preserves partial object matching and null exclusions", () => {
-  const assertion = {
-    owner: "event" as const,
-    field: "summary",
-    notValue: "saved",
-  };
-  const changed = (newValue: unknown) =>
-    result([
+    scoreResearch(
       {
-        subject: tomorrowland.initial.event.id,
-        field: "summary",
-        oldValue: "saved",
-        newValue,
-        explanations: [],
+        ...wacken,
+        expectations: { research: { status: "partial", hasUnresolved: true } },
       },
-    ]);
-  expect(assertionMatches(tomorrowland, changed(null), assertion)).toBe(false);
-  expect(assertionMatches(tomorrowland, changed("wrong"), assertion)).toBe(
-    true,
-  );
+      partial,
+    ).score,
+  ).toBe(1);
   expect(
-    assertionMatches(tomorrowland, changed(null), {
-      owner: "event",
-      field: "summary",
-      value: null,
-    }),
-  ).toBe(true);
-  expect(
-    assertionMatches(
-      tomorrowland,
-      changed({ nested: { value: 1, extra: 2 } }),
+    scoreResearch(
       {
-        owner: "event",
-        field: "summary",
-        value: { nested: { value: 1 } },
+        ...wacken,
+        expectations: { research: { status: "partial", hasUnresolved: true } },
       },
-    ),
-  ).toBe(true);
+      { ...partial, outcome: "failed" },
+    ).score,
+  ).toBeLessThan(1);
 });

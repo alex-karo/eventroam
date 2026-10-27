@@ -1,5 +1,8 @@
 {
   "id": "size-historical-and-unknown",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check size history case",
   "input": {
     "mode": "refresh",
     "scope": "full",

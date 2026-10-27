@@ -1,4 +1,8 @@
 {
+  "id": "search-unknown-official",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check search policy unknown official",
   "todayUtc": "2026-10-15",
   "provenance": {
     "kind": "synthetic-search-policy",
@@ -84,7 +88,6 @@
       ]
     }
   },
-  "id": "search-unknown-official",
   "discoveries": [
     {
       "queryPattern": ".*",
@@ -92,7 +95,9 @@
         {
           "url": "https://harborechofestival.co.uk/programme",
           "title": "Harbor Echo official programme",
-          "highlights": ["Castlewellan, 23\u201330 January 2027."]
+          "highlights": [
+            "Castlewellan, 23–30 January 2027."
+          ]
         }
       ]
     }

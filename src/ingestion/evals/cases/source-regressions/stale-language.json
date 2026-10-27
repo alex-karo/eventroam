@@ -1,5 +1,8 @@
 {
   "id": "source-stale-language-other-programme",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check source regressions stale language",
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-source-regression",

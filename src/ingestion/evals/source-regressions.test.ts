@@ -1,15 +1,17 @@
 import { expect, test } from "vitest";
 import { fixtureEditorPlan, runFixtureResearch } from "@/test/ingestion";
 import type { ResearchCandidate } from "../research/contracts";
-import { loadEvalSuite, type PipelineEvalCase } from "./fixtures";
+import { loadEvalSuite, type RegressionPipelineEvalCase } from "./fixtures";
 import { fixedSources, seedDatabase } from "./run";
 import { scoreCase } from "./score";
 
 test("known-offer eval accepts qualified variants and catches a dropped price", async () => {
   const suite = loadEvalSuite();
   const item = suite.cases.find(
-    (c): c is PipelineEvalCase =>
-      !c.location && c.id === "source-known-offers-blocked-checkout",
+    (c): c is RegressionPipelineEvalCase =>
+      !c.location &&
+      c.suite === "regression" &&
+      c.id === "source-known-offers-blocked-checkout",
   )!;
   const connection = seedDatabase(suite, item);
   const candidate: ResearchCandidate = {
@@ -132,8 +134,10 @@ test("known-offer eval accepts qualified variants and catches a dropped price", 
 test("stale-language eval rejects an editor downgrade of confirmed dates", async () => {
   const suite = loadEvalSuite();
   const item = suite.cases.find(
-    (c): c is PipelineEvalCase =>
-      !c.location && c.id === "source-stale-language-other-programme",
+    (c): c is RegressionPipelineEvalCase =>
+      !c.location &&
+      c.suite === "regression" &&
+      c.id === "source-stale-language-other-programme",
   )!;
   const connection = seedDatabase(suite, item);
   const dates = {

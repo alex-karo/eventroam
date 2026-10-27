@@ -1,5 +1,8 @@
 {
   "id": "source-known-offers-blocked-checkout",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check source regressions known offers",
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-source-regression",

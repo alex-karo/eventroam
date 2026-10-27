@@ -200,6 +200,16 @@ Lifecycle status (`running`, `completed`, `failed`) is separate from research st
 
 Abrupt interruption may leave a running row with null report, finish time, and final statistics, even after a catalog commit. That means completion is unknown. A rerun researches current state with a new runId and does not alter the earlier row. Event association is nullable and survives catalog deletion; use report operations’ `operationKey` to correlate saved audit changes.
 
+## Evaluate ingestion
+
+`npm run catalog:eval` runs six main cases once against fixed pages, searches, and geocoding responses. Each attempt starts from a fresh seed and applies the normal Research, Editor, Location, and writer flow in a disposable catalog. The owner's catalog is not changed. `--all` also runs all targeted regressions, for 51 cases in four separate groups.
+
+Main results show required completeness, additional completeness, no checked errors, and scenario success. Missing additional facts lower completeness; wrong checked facts fail the case. A dimension with no expected facts is N/A. Gold data stays outside model input.
+
+Results and diagnostics are saved as Mastra experiments in `data/mastra-evals.sqlite`, separate from catalog and observability storage. Inspect and compare them in Studio. Workflow output retains one real v7 report; isolated Location output retains its actual execution without an ingestion report. The eval command has no `--report` option. Ordinary ingestion report export still works.
+
+Use `--model X` to select X for all three agents, including isolated Location. Compare runs with the same cases, repeat count, fixtures, and scorer revision. See the [eval guide](development.md#catalog-evals) for selection, fact units, storage paths, and comparison limits, and the [evaluation spec](../openspec/specs/operations/ingestion-evaluation/spec.md) for the contract.
+
 ## Inspect local agent traces
 
 Set `CATALOG_TRACING=true` to save one trace per Event for apply, preview and evaluation, including injected dependencies. Tracing is off by default. Research, Editor, Location, source tools and initial geocoding share the execution trace. Mocks and initial preparation do not invent model tokens or costs. Eligible traced runs also save native execution metrics, independently of logging. The shared log/trace/metric file is `data/mastra-observability.duckdb`; `CATALOG_OBSERVABILITY_DATABASE_PATH` selects another local path, separate from catalog files/sidecars and the optional report. The old trace-path setting no longer selects recording or inspection; historical SQLite files remain untouched. DuckDB and the catalog remain separate. Close Studio before research, then reopen Studio after research exits.

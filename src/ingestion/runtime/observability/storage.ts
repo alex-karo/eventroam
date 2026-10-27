@@ -39,20 +39,11 @@ export function observabilityDatabasePath(
       : []),
     ...protectedPaths,
   ].map((p) => resolve(cwd, p));
-  const alias = (a: string, b: string) => {
-    if (canonicalPath(a) === canonicalPath(b)) {
-      return true;
-    }
-    if (!existsSync(a) || !existsSync(b)) {
-      return false;
-    }
-    const left = statSync(a),
-      right = statSync(b);
-    return left.dev === right.dev && left.ino === right.ino;
-  };
   if (
     /\.sqlite(?:3)?(?:$|-)/i.test(path) ||
-    forbidden.some((file) => alias(path, file) || alias(`${path}.wal`, file))
+    forbidden.some(
+      (file) => pathsAlias(path, file) || pathsAlias(`${path}.wal`, file),
+    )
   ) {
     throw new Error(
       "Observability storage must be separate from catalog, historical and report files",
@@ -67,4 +58,16 @@ export async function createObservabilityStore(
   const path = observabilityDatabasePath(env, process.cwd(), protectedPaths);
   await mkdir(dirname(path), { recursive: true });
   return new DuckDBStore({ id: "catalog-observability", path });
+}
+
+export function pathsAlias(a: string, b: string) {
+  if (canonicalPath(a) === canonicalPath(b)) {
+    return true;
+  }
+  if (!existsSync(a) || !existsSync(b)) {
+    return false;
+  }
+  const left = statSync(a),
+    right = statSync(b);
+  return left.dev === right.dev && left.ino === right.ino;
 }

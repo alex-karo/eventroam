@@ -1,5 +1,8 @@
 {
   "id": "scope-full-history",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check scope full history case",
   "input": {
     "mode": "refresh",
     "scope": "full",

@@ -1,5 +1,8 @@
 {
   "id": "location-building-complex",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location building complex",
   "provenance": {
     "kind": "captured-adapted",
     "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",
@@ -43,7 +46,9 @@
       "festival": {
         "name": "Hallowindie",
         "summary": "Hallowindie is a recurring Halloween festival in León, Spain.",
-        "format": ["indoor"]
+        "format": [
+          "indoor"
+        ]
       },
       "scope": "full",
       "currentDate": "2026-10-24T12:00:00Z",

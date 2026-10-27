@@ -1,6 +1,6 @@
 import { hasHostFailure } from "../runs";
 import type { CatalogResearchResult } from "../contracts";
-import type { PipelineEvalCase, LocationEvalCase } from "./fixtures";
+import type { RegressionPipelineEvalCase, LocationEvalCase } from "./fixtures";
 import {
   assertionMatches,
   assertionValueMatches,
@@ -25,7 +25,7 @@ export type CaseScore = {
 };
 
 export function scoreCase(
-  item: PipelineEvalCase,
+  item: RegressionPipelineEvalCase,
   result: CatalogResearchResult,
   toolCalls: EvalToolCall[] = [],
 ): CaseScore {

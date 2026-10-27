@@ -1,5 +1,8 @@
 {
   "id": "scope-current-ongoing",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check scope current ongoing case",
   "input": {
     "mode": "refresh",
     "scope": "current",

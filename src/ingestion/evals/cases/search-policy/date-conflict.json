@@ -1,4 +1,8 @@
 {
+  "id": "search-date-conflict",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check search policy date conflict",
   "todayUtc": "2026-10-15",
   "provenance": {
     "kind": "synthetic-search-policy",
@@ -91,7 +95,6 @@
       ]
     }
   },
-  "id": "search-date-conflict",
   "discoveries": [
     {
       "queryPattern": ".*",
@@ -99,7 +102,9 @@
         {
           "url": "https://castlewellangrounds.co.uk/events/harbor-echo-2027",
           "title": "Harbor Echo official programme",
-          "highlights": ["Castlewellan, 23–30 January 2027."]
+          "highlights": [
+            "Castlewellan, 23–30 January 2027."
+          ]
         }
       ]
     }

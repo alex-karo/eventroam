@@ -18,6 +18,10 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 - [Website routing and indexing defaults](proposals/website-routing-and-indexing.md) — unselected cross-scope and public-launch policies.
 - [Festival taxonomy vocabulary proposal](proposals/festival-taxonomy-vocabulary.md) — starter terms loaded by catalog migrations and assignment guidance.
 
+## Active change proposals
+
+- [Ingestion eval redesign](../openspec/changes/redesign-ingestion-evals/proposal.md) — implemented case groups, gold data, scoring, and model comparison. The change awaits archive.
+
 ## Historical specifications
 
 - [Product foundation](archive/legacy-specs/000-product-foundation.md) — original first-release scope and acceptance text.
@@ -30,6 +34,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 - [Development guide](development.md) — commands, workflow, and working practices.
 - [Ingestion process](ingestion-process.md) — plain-language steps for festival research and catalog updates, including [Location resolution](../openspec/specs/catalog/location-resolution/spec.md).
+- [Ingestion evaluation](../openspec/specs/operations/ingestion-evaluation/spec.md) — fixed inputs, separate main and regression results, and saved model experiments. See the [eval guide](development.md#catalog-evals) for commands and score rules.
 - [Project structure](project-structure.md) — directories and dependency boundaries.
 - [Mapbox deployment gate](mapbox-deployment-gate.md) — checks required before public map deployment.
 

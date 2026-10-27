@@ -1,5 +1,8 @@
 {
   "id": "size-evidence",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check size evidence case",
   "input": {
     "mode": "refresh",
     "scope": "full",

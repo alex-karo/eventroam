@@ -1,5 +1,8 @@
 {
   "id": "scope-current-local-day",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check scope current local day case",
   "input": {
     "mode": "refresh",
     "scope": "current",

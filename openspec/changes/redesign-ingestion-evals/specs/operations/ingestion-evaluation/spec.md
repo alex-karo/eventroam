@@ -1,0 +1,252 @@
+# Ingestion evaluation
+
+## Purpose
+
+Define controlled ingestion experiments that separate catalog quality from targeted regressions and retain results for model comparison.
+
+## ADDED Requirements
+
+### Requirement: Cases have separate purpose and source labels
+
+Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The initial main set SHALL contain five captured festival cases: Wacken, Roskilde, Sziget, Glastonbury, and Afro Nation Portugal. The remaining 45 cases SHALL retain their targeted regression checks, including 13 isolated Location cases.
+
+#### Scenario: Shared sources serve different tasks
+
+- **WHEN** fill and verify cases use the same pages
+- **THEN** each has its own identity, seed, and expectations
+- **AND** source origin does not determine its suite
+
+### Requirement: All groups can run together
+
+One command SHALL support case and group selection. With no selection flags, it SHALL select five main cases. The `--all` option SHALL select all 50 cases. The repeat count SHALL default to one. CLI output SHALL identify selected groups and case counts.
+
+#### Scenario: Default run selects main cases
+
+- **WHEN** the command runs without selection or repeat flags
+- **THEN** it selects each of the five main cases once
+- **AND** the CLI identifies the main pipeline group and five selected cases
+
+#### Scenario: Full run includes a rejected scenario
+
+- **WHEN** `--all` selects all 50 cases and one scenario fails its checks
+- **THEN** other groups still run and retain their results
+- **AND** the command exits nonzero with separate group summaries
+
+### Requirement: Quality and regression results stay separate
+
+Results SHALL separate main pipeline, regression pipeline, regression editor, and regression Location groups. Main SHALL report quality dimensions; regressions SHALL report scenario success and failed checks. Location SHALL retain completion, correction, and preservation summaries. No combined quality average SHALL mix groups.
+
+#### Scenario: Location correction fails
+
+- **WHEN** Location preservation cases pass but a correction case keeps a known wrong point
+- **THEN** the correction case fails its existing checks
+- **AND** its subgroup result remains visible separately from preservation and main quality
+
+### Requirement: Experiment sources and writes are isolated
+
+Workflow attempts SHALL start from their declared seed and date in a disposable catalog. Main SHALL use normal apply through Research, Editor, and Location; workflow regressions SHALL retain dry runs. Isolated Location SHALL use complete fixture input without catalog writes. None SHALL modify the owner's catalog. Reads, searches, and geocoding SHALL use fixed fixtures without live fallback. Evaluator expectations SHALL NOT enter model input.
+
+#### Scenario: Repeated attempts and uncaptured sources
+
+- **WHEN** a case repeats and requests an uncaptured page
+- **THEN** it starts from a fresh seed and reports fixture access failure without a live read
+
+#### Scenario: Main geocoding fixture is missing
+
+- **WHEN** initial preparation or the Location agent requests an uncaptured geocoding response in a main case
+- **THEN** the case fails with a retained fixture_miss observation, even if a later Location decision is valid
+- **AND** no live request or invented provider result replaces the missing fixture
+
+### Requirement: Main evaluators define the checked data boundary
+
+Main SHALL use explicit TypeScript case evaluators and shared fact, identity, preservation, and execution helpers. Only listed facts SHALL affect completeness or factual errors. Required and additional facts SHALL have explicit alternatives and source comments. Unlisted fields SHALL remain unchecked. Main fixtures SHALL NOT contain regression mutation assertions or a separate gold file. The old field-policy schema and scorer SHALL be removed. Tomorrowland SHALL remain outside the suite until a new case defines one festival identity.
+
+#### Scenario: No source-supported facts are available
+
+- **WHEN** all captured sources are blocked
+- **THEN** required and additional completeness are N/A
+- **AND** the case checks unchanged saved data, the expected source failure, and an unresolved question
+
+#### Scenario: Saved Editions are outside the fill target
+
+- **WHEN** a fill case creates its next Edition
+- **THEN** complete saved Editions must remain equal to their before values
+- **AND** preservation earns no completeness credit
+
+#### Scenario: Unlisted fields
+
+- **WHEN** a field or ticket label has no explicit check
+- **THEN** it earns no completeness credit and contributes no factual errors
+- **AND** a preserved saved record still has to remain equal
+
+### Requirement: Equivalent values pass without hiding errors
+
+Main comparisons SHALL accept declared alternatives and defined normalization. They SHALL distinguish missing facts from wrong assertions, including wrong extras. Errors SHALL identify their record and field or fact unit. The error count SHALL count failed factual checks. Equivalent forms SHALL NOT earn extra credit.
+
+#### Scenario: URL alternatives
+
+- **WHEN** a link matches a declared alternative
+- **THEN** it passes
+- **AND** a different path or query is not accepted merely because its host matches
+
+#### Scenario: Expected alternatives missed a valid value
+
+- **WHEN** a value differs from the accepted alternatives
+- **THEN** its check fails without an uncertain verdict
+- **AND** a correction to expected values requires fresh runs for the models being compared
+
+### Requirement: Ticket checks use declared structured facts
+
+Main SHALL check each returned admission offer against accepted URL, amount, and currency combinations. Missing offers SHALL NOT reduce completeness. A returned offer SHALL need all three values to match. Labels, terms, availability, and duplicate offers SHALL remain outside this check. Base price, including mandatory fees and full-programme coverage, SHALL be one independent additional fact. General interpretation of ticket prose SHALL remain outside scoring.
+
+#### Scenario: An offer and base price repeat a wrong price
+
+- **WHEN** an offer and base price each fail their price check
+- **THEN** the report counts two errors and identifies both checks
+- **AND** no-checked-errors is zero and the scenario fails
+
+#### Scenario: Valid offer subset with varied labels
+
+- **WHEN** the result contains a subset of valid offer combinations with different labels
+- **THEN** offer checks pass without changing completeness denominators
+- **AND** an unsupported product or contradictory price instead adds a factual error
+
+#### Scenario: Displayed price and mandatory fees
+
+- **WHEN** the source lists an offer price and a separate mandatory fee
+- **THEN** its offer may use the declared displayed or total amount
+- **AND** the full-programme base price must include the mandatory fee
+
+### Requirement: Main completeness separates required and additional facts
+
+Main results SHALL show correct/expected counts and fractions for required and additional facts. Zero expected facts SHALL produce N/A. Missing additional facts alone SHALL lower completeness without failing the scenario. Wrong additional facts SHALL count as errors. Fact-unit rules SHALL be fixed per scorer version.
+
+#### Scenario: Optional price is missing or wrong
+
+- **WHEN** an available optional base price is omitted
+- **THEN** additional completeness falls without a scenario failure from that omission
+- **AND** an asserted wrong price earns no credit, adds a fact-unit error, and fails the scenario
+
+### Requirement: Scenario success includes the assigned task
+
+Main success SHALL require correct available required facts, zero checked errors, expected publication, and declared task and preservation conditions. Regression success SHALL retain its existing check meanings. Unexpected execution failures SHALL fail either group. Main factual scores SHALL use final catalog data without duplicate Research confirmation checks. Expected source failures SHALL still match the declared outcome.
+
+#### Scenario: Final facts lack a duplicate Research confirmation
+
+- **WHEN** checked final facts are correct but a fill report omits a duplicate Research confirmation
+- **THEN** this omission alone does not fail the main case
+- **AND** targeted verification regressions retain their evidence checks
+
+#### Scenario: Refusal is expected
+
+- **WHEN** a case expects an identity-conflict refusal
+- **THEN** success requires the expected diagnostic, question, and preserved catalog
+- **AND** a technical failure does not pass merely because no data changed
+
+### Requirement: Main identity and protected data are checked
+
+Main comparisons SHALL distinguish Event and Edition identities without relying on generated IDs or year alone. They SHALL reject unexpected records and changes to protected data. Evaluator factual and publication expectations SHALL be independent of production validation.
+
+#### Scenario: Same-year Editions and duplicates
+
+- **WHEN** two Editions share a year
+- **THEN** saved IDs, newly created records, and writer references determine the match
+- **AND** an ambiguous match or extra duplicate fails the scenario
+
+#### Scenario: Structurally valid false facts
+
+- **WHEN** an invented date passes structural validation
+- **THEN** the evaluator still rejects it
+
+### Requirement: Experiment results remain available for inspection
+
+Saved experiments SHALL retain case identity, task output, check diagnostics, relevant tool observations, model/prompt configuration, and evaluation revision. Main results SHALL also retain before/after catalogs. Results SHALL remain available after restart for viewing and comparison. Files SHALL remain the source of case definitions. Before execution, validation SHALL compare item identities, inputs, expectations, item metadata, and owned dataset metadata against repository files. Unused Mastra item fields and extra dataset metadata SHALL NOT be part of this comparison.
+
+#### Scenario: Stored data changes
+
+- **WHEN** a stored input, expectation, or evaluator source snapshot differs from repository files
+- **THEN** execution is rejected before model calls
+- **AND** changes to unused Mastra fields do not cause this rejection
+
+#### Scenario: Inspect a completed experiment
+
+- **WHEN** the experiment viewer is reopened after a run
+- **THEN** each item's output, scores, and diagnostics remain available
+- **AND** original results are not replaced by a later run
+
+#### Scenario: Eval output uses stored experiments
+
+- **WHEN** an eval command completes
+- **THEN** the CLI shows group summaries, failed checks, and experiment IDs for inspection in Studio
+- **AND** the eval command has no `--report` option and writes no separate JSON report file
+
+#### Scenario: Experiment storage rejects a write
+
+- **WHEN** experiment storage rejects a result or score write
+- **THEN** Mastra's native error or warning behavior applies without custom recovery or post-run storage checks
+- **AND** complete saved results and a nonzero CLI exit are not guaranteed for this exceptional case
+
+### Requirement: Valid model comparisons use the same evaluation revision
+
+Valid comparisons SHALL use the same group, selected cases, inputs, expectations, scorer rules, and uniform repeat count. Inputs SHALL include geocoding fixtures and complete isolated Location inputs. Experiment metadata SHALL expose stage models, prompt versions, workflow, and runtime settings. N/A SHALL be excluded with applicable counts visible. Partial results SHALL NOT be presented as a complete comparison.
+
+#### Scenario: Inputs or scoring rules change
+
+- **WHEN** source content, geocoding fixtures, Location inputs, evaluator expected values, regression expectations, or scorer rules change
+- **THEN** new runs use a different evaluation revision
+- **AND** main revisions include the source text of case evaluators and their shared scoring helpers, stored once in dataset metadata
+- **AND** each item ground truth contains only its case expectations
+- **AND** old and new runs remain inspectable but are not a valid quality comparison
+
+#### Scenario: Repeat counts or case sets differ
+
+- **WHEN** selections or repeat counts differ
+- **THEN** results belong to different evaluation revisions
+- **AND** no custom common-subset or unequal-repeat comparison is required
+
+### Requirement: Explicit model selection applies to every stage
+
+The eval option `--model X` SHALL select X for Research, Editor, and Location in every selected group, overriding the Location environment setting. Without this option, existing environment model selection SHALL apply. Experiment metadata SHALL record resolved stage models.
+
+#### Scenario: Explicit model overrides the Location environment
+
+- **WHEN** `CATALOG_LOCATION_MODEL` names Y and an eval runs with `--model X`
+- **THEN** each executed Research, Editor, or Location stage uses X
+- **AND** this applies to both `--all` and `--location-only` runs
+
+#### Scenario: No explicit model is supplied
+
+- **WHEN** an eval runs without `--model`
+- **THEN** Research and Editor use `OPENROUTER_MODEL` or its default
+- **AND** Location uses `CATALOG_LOCATION_MODEL` when set, otherwise the same model
+
+### Requirement: Eval usage inspection uses native observability
+
+Eval outputs SHALL retain run IDs and available real trace IDs. Tokens and cost SHALL remain in optional native observability without eval totals. Missing metrics SHALL NOT become zero or fail an eval. Duration SHALL remain separate from quality. Stage models and prompt versions SHALL identify Research, Editor, and Location.
+
+#### Scenario: Tracing is disabled
+
+- **WHEN** a workflow or isolated Location eval runs without tracing
+- **THEN** its output retains its run ID and available decisions without a fabricated trace ID, token count, or cost
+- **AND** budget counters and tool observations remain usable by checks
+
+#### Scenario: Tracing records Location execution
+
+- **WHEN** enabled tracing records an eval that executes Location
+- **THEN** the saved output retains available correlation to its native observations
+- **AND** Location usage can be inspected separately from Research and Editor without an eval spending total
+
+### Requirement: Execution and quality failure stay distinct
+
+The command SHALL fail on rejected scenarios or unexpected task/scorer failures. Intentional N/A SHALL NOT independently fail it. Reports SHALL distinguish task completion from quality success and explain failed checks. Experiment storage failures SHALL retain Mastra's native behavior.
+
+#### Scenario: Completed task fails quality
+
+- **WHEN** a completed task returns wrong checked facts
+- **THEN** it is a failed scenario and the command exits nonzero with diagnostics
+
+#### Scenario: N/A versus scorer failure
+
+- **WHEN** a dimension has no expected facts
+- **THEN** it is N/A rather than a scorer exception
+- **AND** unexpected scorer exceptions still fail execution

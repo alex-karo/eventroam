@@ -1,5 +1,8 @@
 {
   "id": "location-central-park",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location central park",
   "provenance": {
     "kind": "captured-adapted",
     "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",
@@ -43,7 +46,9 @@
       "festival": {
         "name": "Palencia Sonora",
         "summary": "Recurring music festival in Palencia, with live concerts and DJ programming, including performances at Parque del Sotillo and across city locations.",
-        "format": ["openair"]
+        "format": [
+          "openair"
+        ]
       },
       "scope": "full",
       "currentDate": "2026-10-24T12:00:00Z",

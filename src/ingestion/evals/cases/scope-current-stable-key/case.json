@@ -1,5 +1,8 @@
 {
   "id": "scope-current-stable-key",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check scope current stable key case",
   "input": {
     "mode": "refresh",
     "scope": "current",

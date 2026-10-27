@@ -1,5 +1,8 @@
 {
   "id": "narrow-current-reuse",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check narrow current reuse",
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-current-regression",

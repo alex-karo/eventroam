@@ -1,5 +1,8 @@
 {
   "id": "scope-current-replacement",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check scope current replacement case",
   "input": {
     "mode": "refresh",
     "scope": "current",

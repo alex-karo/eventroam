@@ -1,5 +1,8 @@
 {
   "id": "editor-unknown-currency",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check editor unknown currency",
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "captured-research-editor-regression",
