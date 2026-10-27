@@ -29,19 +29,19 @@ Ingestion finds or refreshes festival facts in the catalog. An owner starts each
 
 Each festival attempt runs one Mastra workflow with eleven sequential steps:
 
-| Step                  | Responsibility                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------------- |
-| `initialize-run`      | Initialize native state after the shared start hook validates settings and creates the durable attempt. |
-| `load-context`        | Load saved Event facts, editions, links, and vocabulary.                                                |
-| `read-initial-source` | Create the shared source session and read its initial saved link when available.                        |
-| `research-festival`   | Run the research agent with the shared source session and budget.                                       |
-| `validate-research`   | Check findings, targets, scope and country before editing.                                              |
-| `edit-research`       | Run one tool-free editor to choose explicit actions.                                                    |
-| `validate-editor-plan` | Validate editor actions and targets without preparing writes.                                            |
-| `resolve-location` | Prepare shared geocoding, run Location, and prepare the combined item plan. |
-| `apply-catalog-item`  | Preview or atomically apply eligible operations; retain write failures for the report.                  |
-| `build-report`        | Combine three agent outputs, actual changes, source history, questions, and budget counters.             |
-| `finalize-run`        | Persist the private report, return the bounded summary and release owned resources.                     |
+| Step                   | Responsibility                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------- |
+| `initialize-run`       | Initialize native state after the shared start hook validates settings and creates the durable attempt. |
+| `load-context`         | Load saved Event facts, editions, links, and vocabulary.                                                |
+| `read-initial-source`  | Create the shared source session and read its initial saved link when available.                        |
+| `research-festival`    | Run the research agent with the shared source session and budget.                                       |
+| `validate-research`    | Check findings, targets, scope and country before editing.                                              |
+| `edit-research`        | Run one tool-free editor to choose explicit actions.                                                    |
+| `validate-editor-plan` | Validate editor actions and targets without preparing writes.                                           |
+| `resolve-location`     | Prepare shared geocoding, run Location, and prepare the combined item plan.                             |
+| `apply-catalog-item`   | Preview or atomically apply eligible operations; retain write failures for the report.                  |
+| `build-report`         | Combine three agent outputs, actual changes, source history, questions, and budget counters.            |
+| `finalize-run`         | Persist the private report, return the bounded summary and release owned resources.                     |
 
 CLI and Studio execute this same graph in their own Node process. Native Mastra workflow state accumulates research context, source-read metadata, model output, prepared changes, receipts and reports. Page Markdown stays in the in-memory source session for research and is excluded from workflow state and step outputs. Each step returns its own inspectable result; the server-owned attempt retains only budget, source session, connections, trace and terminal lifecycle. The application does not separately attach credentials, prompts or live resources to workflow data. Retained model responses can repeat prompt or public source text without filtering. The final step persists once; terminal hooks recover from their final state. Mastra discards state updates from throwing steps, so an interrupted phase finalizes its available local data before propagating a safe error. Cleanup waits for active work. Finalization failure remains visible without repeating research or writes.
 
@@ -220,6 +220,8 @@ Operation timing belongs to native traces and metrics: agent/model/tool duration
 
 Set `CATALOG_LOGGING=true` for selected application events at `CATALOG_LOG_LEVEL=info` (default), independently of tracing. Debug adds cache detail; warn/error restrict both sinks. Mastra PinoLogger uses ordinary level methods and scoped `child({...})` context. Stored events share the durable runId and available real trace/span IDs. Producers pass plain selected objects; source events retain character count and response status/URL without Markdown or full responses. Commentary and returned reasoning are separate completed-step events, each shortened explicitly with `shrinkText(text)` to at most 4,000 Unicode code points. Producers can include original/retained counts and a shortening flag. There is no generic field allowlist, recursive payload processing or whole-record 8 KiB cap.
 
+Studio chat uses the same logging flag and level for `query_catalog` and `refresh_events`. Tool events record start, completion, elapsed time, agent ID, and available thread and tool call IDs. SQL completion records row count, truncation, or a safe error code. Refresh events include selected Event IDs, scope, dryRun, and each available ingestion and engine run ID. Cancellation uses warn; failure uses error. These selected events go to stderr and Studio Logs. They do not copy SQL text, parameters, result rows, report bodies, prompts, or raw exceptions. A log failure does not change tool results. Studio flushes pending logs before closing its store. This does not enable chat tracing.
+
 An explicit editor rejection logs a rejected plan and uses the final trace label `editor-rejected`, retaining successful generation and failed plan validation. Preparation events include selected identity, edition keys/actual years, proposed field names/counts, validation codes/paths and model-reported unresolved question previews. Write completion events identify dry-run versus apply and affected field names. The “Research finished” message follows successful durable finalization; “Required run finalization failed” includes `errorCode: run_persistence_failed`; finalization preserves the original error and leaves any already committed changes intact. Successful previews and writes retain old and new values with reasons. Failed writes retain prepared operations and available model responses without requiring a separate proposed diff. Logging never adds model/provider requests or changes budgets/retries. Native Pino JSON on stderr and Studio records carry the selected fields. Completed-step text can follow tool outcomes, and unfinished-step text may be absent. SDK/config credentials are never selected as log arguments. No arbitrary credential redaction is promised for selected model commentary or reasoning; source diagnostic fields are not scanned for token-like public values. Completed commentary may include candidate text, while full provider response envelopes remain excluded.
 
 ### Execution metrics
@@ -243,3 +245,47 @@ Editor returns either `status:ready` with a plan or `status:rejected` with a rea
 ### Accepting research values
 
 Editor can use `accept` to take a non-null same-field research value without repeating it, or `set` with a complete value/reason for a supported editorial transformation. Preparation resolves acceptance before writer operations and inherits the finding explanation; invalid/missing findings reject the whole plan. URL edits preserve meaningful components; text rewrites and list deduplication must preserve supported facts. Complete lists/blocks replace existing values without merging. Classification acceptance copies the complete research list, including unchallenged saved terms; editor checks preservation before accepting. Editions remain keyed decisions: omitted Editions are untouched; a new addressed key requires matching research and a creation reason.
+
+## Studio catalog chat
+
+Open Agents → `catalog-assistant` in Studio. The assistant reads the catalog through SQL, refreshes one to three distinct existing Events, and analyzes saved reports. It does not discover new Events or make a separate web check when it reads a report. A read or explanation request does not start ingestion. A clear owner update request selects apply without a second confirmation; preview selects `dryRun: true`. Unclear targets or write intent require clarification.
+
+`refresh_events` accepts `{eventIds: ["EVENT_ID"], scope: "full", dryRun: true}`. Scope defaults to full; current is also supported. Republish stays off. The whole selection is checked before work starts. Each Event gets a fresh workflow run, in sequence. An ordinary failure does not stop later Events. One valid selection consumes the execution limit even if it fails. The assistant cannot split a larger selection or retry it in the same execution. A new owner message permits another selection. Overlapping refreshes in one conversation are rejected.
+
+`query_catalog` accepts `{sql, parameters?}` with positional scalar parameters. It can read catalog tables and private `ingestion_runs`, including raw stored reports. It cannot write, attach files, load extensions, or execute SQL scripts. It uses a separate read-only connection per call. Omit a final semicolon. SQL input is limited to 16 KiB, results to 200 rows and 64 KiB. Results include columns, row arrays, returned row count, and an explicit truncation flag. Null stays null; integers outside the safe JavaScript range become decimal strings; blobs use `{encoding: "base64", data}`. Driver failures return a safe error code.
+
+SQL runs synchronously inside Studio. There is no hard query timeout or cancellation of active SQL. Costly queries can block Studio and delay other requests or cancellation, even with small output. Output limits do not bound computation time. A cancellation already observed before a query prevents it from starting.
+
+For a refresh result, use `ingestionRunId` as `ingestion_runs.id`; `engineRunId` is only engine correlation. The following guarded query checks presence, lifecycle, report validity, version, preview/apply, and outcome together. Bind the run ID as the first parameter:
+
+```sql
+SELECT id AS ingestionRunId, event_id, mode, status, started_at, finished_at,
+  report_json IS NOT NULL AS reportPresent,
+  json_valid(report_json) AS reportValid,
+  CASE WHEN json_valid(report_json) THEN json_extract(report_json, '$.schemaVersion') END AS schemaVersion,
+  CASE WHEN json_valid(input_json) THEN json_extract(input_json, '$.dryRun') END AS dryRun,
+  CASE WHEN json_valid(report_json) THEN
+    CASE WHEN json_extract(report_json, '$.schemaVersion') = 7 THEN json_extract(report_json, '$.outcome') END
+  END AS outcome,
+  CASE WHEN json_valid(report_json) THEN
+    CASE WHEN json_extract(report_json, '$.schemaVersion') = 7 THEN json_extract(report_json, '$.researchStatus') END
+  END AS researchStatus
+FROM ingestion_runs WHERE id = ?
+```
+
+Read relevant evidence with a second query. Replace `$.changes` with `$.sources`, `$.errors`, or `$.unresolved` as needed, and narrow fields or array ranges for large entries:
+
+```sql
+SELECT evidence.key AS itemIndex, evidence.value AS evidence
+FROM ingestion_runs AS run,
+  json_each(CASE WHEN json_valid(run.report_json) THEN
+    CASE WHEN json_extract(run.report_json, '$.schemaVersion') = 7 THEN run.report_json ELSE '{}' END
+    ELSE '{}' END, '$.changes') AS evidence
+WHERE run.id = ? ORDER BY evidence.key LIMIT 20
+```
+
+The current report version is 7. Stored mode is add or refresh. Preview/apply comes from `input_json.dryRun`, not the report. An absent row means unknown only if output is not truncated. A null report means no saved final report; invalid JSON and unfamiliar versions limit interpretation. Neither proves an outcome. State partial research, missing sources, and persistence failures separately from catalog changes. A preview describes proposed changes. Cite run IDs and available source URLs. State when analysis uses selected fields or truncated output, and use narrower SQL for more evidence. Stored reports remain complete.
+
+Cancellation observed during refresh calls the active workflow's cancel method and prevents later Events from starting. Existing ingestion rules preserve known commits and attempt finalization. The selection guard stays held until the active attempt settles. Closing a browser tab is not a durable job-control mechanism; inspect saved runs after interruption. Process failure does not replay unstarted work or prove a final outcome. A new owner request starts a fresh attempt against current state. Conversation history is separate from the catalog and uses the configured chat storage file across restart.
+
+In the offline Browser check on 2026-10-27, the Studio Cancel button stopped an active refresh. Its saved attempt had status failed and the message `Ingestion cancelled`, with no Edition writes. Closing the tab did not cancel the active preview. It continued until the existing editor time limit and saved a failed report. Do not assume tab closure stops work. The same check covered selection, preview, apply, SQL analysis, and a finalization failure. A repeated finalization-failure check after the COR1 fix confirmed that chat retains the workflow's safe summary: ingestion and engine run IDs, the known catalog change, and failed persistence. The catalog commit remained, but the attempt had no saved final report. SQL showed the available attempt state.

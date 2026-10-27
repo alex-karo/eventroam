@@ -8,7 +8,7 @@ tags: [architecture]
 
 # Eventroam project structure
 
-Status: Implemented core structure · Updated: 2026-10-26
+Status: Implemented core structure · Updated: 2026-10-27
 
 Eventroam is one npm package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. An owner-initiated Mastra research agent collects findings; a tool-free editor chooses non-location actions. A bounded Location agent resolves place fields before the same writer.
 
@@ -64,6 +64,15 @@ src/
 │   │   └── index.ts           # Tool composition
 │   └── evals/                 # Captured website cases, Mastra runner and code scorers
 ├── mastra/                    # Studio workflow, production server, and observability registration
+│   └── catalog-assistant/
+│       ├── index.ts           # Agent composition
+│       ├── prompt.ts          # Fixed agent instructions
+│       ├── execution-context.ts # Trusted request context initialization
+│       ├── memory.ts          # Separate chat storage
+│       └── tools/
+│           ├── index.ts       # Tool composition
+│           ├── query-catalog/ # SQL tool, adapter, contracts, guide and tests
+│           └── refresh-events/ # Refresh tool, workflow contracts and tests
 ├── db/                        # Schema, connections, and SQL migrations
 └── test/                      # Temporary databases and data builders
 
@@ -99,7 +108,7 @@ Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `editor
 - `evals/score.ts` aggregates mutation, research and tool-use scores, with a separate host-failure veto and execution diagnostics. `evals/research-score.ts` owns research outcome, fact and expected-safe-failure checks. Mutation scores measure only mutation assertions. `evals/run.ts` passes inline cases to Mastra `runExperiment`. Each task owns a temporary catalog and returns one score with its ingestion result and tool calls. Mastra collects task outputs and scorer results in input order. `evals/scorers.ts`, JSON reports and CLI diagnostics consume the score without rerunning checks. Experiment execution status is separate from case acceptance in `score.passed`.
 - `runtime/logging/` uses Mastra PinoLogger methods and scoped context. Producers select plain fields and explicitly shorten model text. A small delivery bridge preserves child context and run/trace/span correlation in Studio.
 - `runtime/tracing/run.ts` observes apply attempts through explicit host fields and a narrow SDK-content exclusion. `runtime/observability/` owns DuckDB storage, optional signals, diagnostics and cleanup. Its exporter forwards native metric events without a separate application projection; the span processor preserves the usage/cost fields needed for native extraction and the SDK propagates execution context. Only eligible traced runs persist metrics. Native agent/model/tool metrics own operation timing; application logs keep timestamped events without duplicate timers. Durable usage/report accounting and budget counters remain independent. Studio lends its initialized store to attempts; attempt cleanup leaves that shared store open.
-- `src/mastra/index.ts` registers Studio's workflow. Studio opens an existing migrated catalog lazily and closes its owned connection. CLI callers retain injected dependencies and connection ownership. Workflow data contains inspectable research results, while credentials, prompts, provider transport payloads and live resources remain outside it.
+- `src/mastra/index.ts` registers Studio's workflow and catalog assistant. Within `src/mastra/catalog-assistant/`, `index.ts` composes the agent, `prompt.ts` owns fixed instructions, and `execution-context.ts` initializes trusted request context. `tools/index.ts` composes the two tools. Each tool directory keeps its adapter, contracts, implementation and tests together. `tools/query-catalog/` also owns the schema guide and SQL examples. `query_catalog` opens a separate read-only catalog connection per call. `refresh_events` validates one to three Event IDs, then starts fresh workflow runs in sequence. Host request context limits each assistant execution to one selection; a process-local guard prevents overlapping refreshes in the same conversation. Memory receives its own LibSQLStore; Mastra keeps DuckDB for workflow state and observability. StudioMastra closes both storage owners during shutdown. Studio opens an existing migrated catalog lazily and closes its owned connection. CLI callers retain injected dependencies and connection ownership. Workflow data contains inspectable research results, while credentials, prompts, provider transport payloads and live resources remain outside it.
 
 ## Discovery
 

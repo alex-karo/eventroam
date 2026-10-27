@@ -163,7 +163,17 @@ Run `npm run catalog:studio`, open `http://127.0.0.1:4111` in the built-in Brows
 { "mode": "refresh", "eventId": "EVENT_ID", "scope": "full", "dryRun": false, "republish": false }
 ```
 
-Studio accepts one Event per refresh, with optional `scope: "full"|"current"` (default full). Add rejects scope and check is unsupported. Preview is the default. Inspect intermediate results and the final report in the workflow view. Use native cancellation while a run is active; after interruption, start a fresh run. Per-step execution, resume, restart, and time travel are unsupported. See the [workflow steps](ingestion-process.md#workflow-steps) for the shared CLI/Studio lifecycle.
+The workflow form accepts one Event per refresh, with optional `scope: "full"|"current"` (default full). Add rejects scope and check is unsupported. Preview is the default. Inspect intermediate results and the final report in the workflow view. Use native cancellation while a run is active; after interruption, start a fresh run. Per-step execution, resume, restart, and time travel are unsupported. See the [workflow steps](ingestion-process.md#workflow-steps) for the shared CLI/Studio lifecycle.
+
+### Studio catalog assistant
+
+Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview one to three Events, update a clear selection, or explain saved results. Follow-up references use the selected conversation. An explicit update request permits apply without a second confirmation. Unclear targets or write intent require clarification.
+
+The assistant has two tools: `query_catalog({sql, parameters?})` and `refresh_events({eventIds, scope?, dryRun?})`. SQL reads need a migrated catalog but no provider key. Chat generation and refresh need the configured OpenRouter model. Inspection needs no model key. Memory uses pinned `@mastra/memory` and `@mastra/libsql` packages with plain message history; it uses no embeddings or background model calls.
+
+`CATALOG_CHAT_DATABASE_PATH` selects a separate SQLite file, default `data/mastra-chat.sqlite`. The local launcher resolves this path before Mastra changes its working directory. Retain it across restart for conversation history. The file and its SQLite sidecars must be separate from the catalog and DuckDB files. SDK shutdown closes both stores. Chat history can contain private catalog and report text.
+
+Use `npx tsx src/test/studio-fixture.ts success` for an offline Studio fixture. It uses temporary storage and a deterministic provider, with no paid research. Its chat model tests the tool protocol, not production model reasoning. See the [chat limits and report examples](ingestion-process.md#studio-catalog-chat).
 
 ### Local trace inspection
 
@@ -206,7 +216,8 @@ Supply the two closed database files before the first service start. The migrati
 Compose declares one named volume, `data`, mounted at `/data` in both services. Keep the same Compose project name to retain it during recreation. Do not use `docker compose down --volumes` for retained data. The fixed container paths are:
 
 - `/data/eventroam.sqlite`: catalog, public website reads, and validated Studio writes.
-- `/data/mastra-observability.duckdb`: Studio history and observations.
+- `/data/mastra-observability.duckdb`: workflow state and observations.
+- `/data/mastra-chat.sqlite`: assistant conversation history.
 
 Both images run as `node` (UID/GID 1000). The volume directory and supplied files must permit this user to read and write, including SQLite WAL/shared-memory files and DuckDB WAL files. Website database connections stay read-only; the shared volume permits SQLite sidecar access. Only one process can own the DuckDB file. Stop Studio before any separate command opens that file.
 
@@ -226,13 +237,13 @@ Compose reads deployment inputs with `EVENTROAM_` and maps them to current appli
 | `EVENTROAM_CATALOG_TRACING`, `EVENTROAM_CATALOG_LOGGING`, `EVENTROAM_CATALOG_LOG_LEVEL` | Existing diagnostics, all off by default except log level `info`. |
 | `EVENTROAM_CATALOG_MAX_SEARCHES`, `EVENTROAM_CATALOG_MAX_SEARCH_RESULTS`, `EVENTROAM_CATALOG_MAX_AGENT_STEPS`, `EVENTROAM_CATALOG_MAX_DURATION_MS`, `EVENTROAM_CATALOG_MAX_PAGE_BYTES`, `EVENTROAM_CATALOG_MAX_MODEL_OUTPUT_TOKENS` | Existing execution limits; empty values keep the application defaults. |
 
-Database paths are Compose constants, without deployment inputs. Direct image use can set the existing `DATABASE_PATH` and `CATALOG_OBSERVABILITY_DATABASE_PATH` runtime names. Builds exclude owner databases, `.env` files, old output, and host dependencies. Only the public Mapbox token and style enter browser assets. Complete the [Mapbox deployment gate](mapbox-deployment-gate.md) before public map use.
+Database paths are Compose constants, without deployment inputs. Direct image use can set the existing `DATABASE_PATH`, `CATALOG_OBSERVABILITY_DATABASE_PATH`, and `CATALOG_CHAT_DATABASE_PATH` runtime names. Builds exclude owner databases, `.env` files, old output, and host dependencies. Only the public Mapbox token and style enter browser assets. Complete the [Mapbox deployment gate](mapbox-deployment-gate.md) before public map use.
 
 For a production Studio build outside Docker, use temporary build storage, then select runtime storage explicitly:
 
 ```sh
-DATABASE_PATH=/tmp/eventroam-build/catalog.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/eventroam-build/history.duckdb npm run studio:build
-DATABASE_PATH=./data/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=./data/mastra-observability.duckdb npm run studio:start
+DATABASE_PATH=/tmp/eventroam-build/catalog.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/eventroam-build/history.duckdb CATALOG_CHAT_DATABASE_PATH=/tmp/eventroam-build/chat.sqlite npm run studio:build
+DATABASE_PATH=./data/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=./data/mastra-observability.duckdb CATALOG_CHAT_DATABASE_PATH=./data/mastra-chat.sqlite npm run studio:start
 ```
 
 `studio:start` serves the built UI and API on all interfaces without application authentication. It reads shell inputs; it does not load `.env`. Keep `npm run catalog:studio` for loopback development. Both servers preserve default preview, explicit apply, native cancellation, and the existing unsupported-execution guards. Hosted inspection alone makes no model call.
