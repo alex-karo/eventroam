@@ -1,0 +1,4 @@
+interface:
+  display_name: "Docs Refactor"
+  short_description: "Review and simplify docs for readers and agents"
+  default_prompt: "Use $docs-refactor to review or refactor documentation while keeping its meaning and improving navigation."
