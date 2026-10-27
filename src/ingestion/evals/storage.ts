@@ -6,10 +6,8 @@ import { MastraCompositeStore } from "@mastra/core/storage";
 import { createObservabilityStore } from "../runtime/observability/storage";
 import { diagnosticStoragePaths, filesAlias } from "../runtime/storage-paths";
 import { createWorkflowStorage } from "../runtime/workflow-storage";
-import {
-  createDiagnostics,
-  ObservabilityLogger,
-} from "../runtime/observability/diagnostics";
+import { createDiagnostics } from "../runtime/observability/diagnostics";
+import { createPinoLogger } from "../runtime/logging";
 
 /** One owner keeps concurrent cases from opening separate DuckDB instances. */
 export async function createEvalObservability() {
@@ -21,7 +19,6 @@ export async function createEvalObservability() {
   }
   const diagnose = createDiagnostics();
   let storage: Awaited<ReturnType<typeof createObservabilityStore>> | undefined;
-  let initializing = true;
   const close = async () => {
     try {
       await storage?.close();
@@ -32,14 +29,9 @@ export async function createEvalObservability() {
   try {
     storage = await createObservabilityStore(process.env, [evalDatabasePath()]);
     storage.__setLogger(
-      new ObservabilityLogger(() =>
-        diagnose(
-          initializing ? "trace_initialization_failed" : "trace_export_failed",
-        ),
-      ),
+      createPinoLogger("warn", () => diagnose("log_write_failed")),
     );
     await storage.init();
-    initializing = false;
     return { storage, close };
   } catch {
     diagnose("trace_initialization_failed");

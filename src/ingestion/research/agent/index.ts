@@ -137,6 +137,7 @@ export async function researchFestival(
       let generated;
       try {
         generated = await mastra.getAgent("festivalResearch").generate(prompt, {
+          runId: tracing?.options.metadata.runId,
           tracingOptions: runtime.options,
           tracingContext: runtime.context,
           structuredOutput: {

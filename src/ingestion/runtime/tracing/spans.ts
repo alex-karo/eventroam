@@ -1,6 +1,11 @@
 import type { AnySpan } from "@mastra/core/observability";
 import type { RunObservability } from "../observability/runtime";
-import { selectTraceFields, type TraceFields } from "./processor";
+export type TraceFields = {
+  name: string;
+  input?: unknown;
+  output?: unknown;
+  metadata?: Record<string, unknown>;
+};
 
 /** Trace failures never change ingestion results. */
 export function observeTrace(
@@ -12,12 +17,11 @@ export function observeTrace(
     return;
   }
   try {
-    selectTraceFields(span, fields);
     span.update({
       name: fields.name,
       input: fields.input,
       output: fields.output,
-      metadata: fields.metadata,
+      metadata: { ...span.metadata, ...fields.metadata },
     });
   } catch {
     tracing.diagnose("trace_export_failed");

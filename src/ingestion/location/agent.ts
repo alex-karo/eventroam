@@ -162,6 +162,7 @@ export async function resolveLocation(
       const output = await runtime
         .getAgent("festivalLocation")
         .generate(prompt, {
+          runId: tracing?.options.metadata.runId,
           maxSteps: 8,
           maxProcessorRetries: 0,
           structuredOutput: {

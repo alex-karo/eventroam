@@ -29,9 +29,8 @@ export const mastra = new Mastra(
     },
     workflows: { "catalog-ingestion": workflow },
     storage,
-    logger: logging?.sdk ?? false,
+    logger: logging?.native ?? false,
     observability: logging?.observability,
-    loggerOptions: { export: false },
     server: {
       host: "127.0.0.1",
       port: 4111,

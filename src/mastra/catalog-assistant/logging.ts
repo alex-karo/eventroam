@@ -1,43 +1,14 @@
-import { MastraLogger } from "@mastra/core/logger";
 import { EntityType } from "@mastra/core/observability";
 import type { ToolExecutionContext } from "@mastra/core/tools";
-import { Observability, SamplingStrategyType } from "@mastra/observability";
 import {
   createApplicationLogger,
   createPinoLogger,
+  researchLogLevel,
   type ResearchLogLevel,
   type ResearchLogger,
 } from "../../ingestion/runtime/logging";
 import { createDiagnostics } from "../../ingestion/runtime/observability/diagnostics";
-import { ResearchObservabilityExporter } from "../../ingestion/runtime/observability/runtime";
-
-/** SDK messages can contain prompts and tool data. Keep only safe diagnostics. */
-class StudioSdkLogger extends MastraLogger {
-  constructor(
-    private readonly native: ReturnType<typeof createPinoLogger>,
-    private readonly failed: () => void,
-  ) {
-    super({ name: "catalog-studio" });
-  }
-  debug() {}
-  info() {}
-  warn() {
-    this.write("warn");
-  }
-  error() {
-    this.write("error");
-  }
-  override trackException() {
-    this.error();
-  }
-  private write(level: "warn" | "error") {
-    try {
-      this.native[level]("Studio SDK diagnostic");
-    } catch {
-      this.failed();
-    }
-  }
-}
+import { createCatalogObservability } from "../../ingestion/runtime/observability/runtime";
 
 /** Studio owns the store. Assistant logging adds no chat spans or metrics. */
 export function createAssistantLogging() {
@@ -46,27 +17,17 @@ export function createAssistantLogging() {
   }
   const diagnose = createDiagnostics();
   try {
-    const level = process.env.CATALOG_LOG_LEVEL?.trim() || "info";
-    if (!["debug", "info", "warn", "error"].includes(level)) {
-      throw new Error("Invalid log level");
-    }
+    const level = researchLogLevel(true);
     const failed = () => diagnose("log_write_failed");
-    const native = createPinoLogger(level as ResearchLogLevel, failed);
+    const native = createPinoLogger(level, failed);
     return {
       native,
-      sdk: new StudioSdkLogger(native, failed),
-      observability: new Observability({
-        sensitiveDataFilter: false,
-        configs: {
-          assistant: {
-            serviceName: "eventroam-research",
-            sampling: { type: SamplingStrategyType.NEVER },
-            logging: { enabled: true, level: level as ResearchLogLevel },
-            exporters: [new ResearchObservabilityExporter(diagnose)],
-          },
-        },
+      observability: createCatalogObservability({
+        traceEnabled: false,
+        loggingEnabled: true,
+        level,
       }),
-      level: level as ResearchLogLevel,
+      level,
       diagnose,
     };
   } catch {
@@ -92,7 +53,6 @@ export function startToolLog(
         runId:
           context?.tracingContext?.currentSpan?.getCorrelationContext?.()
             ?.runId,
-        root: context?.tracingContext?.currentSpan,
         correlationContext: {
           entityType: EntityType.AGENT,
           entityId: "catalog-assistant",

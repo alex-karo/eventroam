@@ -179,9 +179,8 @@ export async function createFixtureMastra() {
         ),
       },
       storage,
-      logger: logging?.sdk ?? false,
+      logger: logging?.native ?? false,
       observability: logging?.observability,
-      loggerOptions: { export: false },
       server: {
         host: "127.0.0.1",
         port: Number(process.env.STUDIO_FIXTURE_PORT ?? 4111),

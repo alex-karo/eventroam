@@ -1,5 +1,6 @@
 export {
   createPinoLogger,
+  researchLogLevel,
   createApplicationLogger,
   type ResearchLogger,
   type ResearchLogLevel,

@@ -1,5 +1,4 @@
 import { createTool } from "@mastra/core/tools";
-import { observeTrace, traceUrl } from "../../runtime/tracing";
 import type { ResearchToolContext } from "../contracts";
 import { readPageInputSchema, readPageOutputSchema } from "./contracts";
 import { boundedToolSource } from "./response";
@@ -40,24 +39,7 @@ export function createReadPageTool({
         const result = await read(url, { ...context, tool: true });
         abortSignal?.throwIfAborted();
         const bounded = boundedToolSource(result);
-        observeTrace(tracing, span, {
-          name: "readPage",
-          input: {
-            attemptedUrl: traceUrl(url).url,
-            urlTruncated: traceUrl(url).truncated,
-          },
-          output: {
-            finalUrl: traceUrl(result.finalUrl).url,
-            urlTruncated: traceUrl(result.finalUrl).truncated,
-            status: result.status,
-            method: result.method,
-            reasonCode: result.reasonCode,
-            httpStatus: result.httpStatus,
-            sourceCharacters: result.markdown.length,
-            truncated: bounded.truncated,
-            cached,
-          },
-        });
+
         toolLog?.[result.status === "ok" ? "info" : "warn"](
           "Tool call finished",
           {
@@ -84,14 +66,7 @@ export function createReadPageTool({
           attemptedUrl: url,
           errorCode: "source_failed",
         });
-        observeTrace(tracing, span, {
-          name: "readPage",
-          input: {
-            attemptedUrl: traceUrl(url).url,
-            urlTruncated: traceUrl(url).truncated,
-          },
-          output: { status: "failed" },
-        });
+
         throw error;
       }
     },

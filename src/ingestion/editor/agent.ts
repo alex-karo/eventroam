@@ -98,6 +98,7 @@ export async function editResearch(
       const generated = await runtime
         .getAgent("festivalEditor")
         .generate(prompt, {
+          runId: tracing?.options.metadata.runId,
           maxSteps: 1,
           maxProcessorRetries: 0,
           activeTools: [],

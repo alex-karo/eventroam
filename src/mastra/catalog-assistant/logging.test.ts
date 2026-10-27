@@ -67,8 +67,7 @@ async function setupLogging(level: "debug" | "error") {
     {
       agents: { "catalog-assistant": assistant },
       storage,
-      logger: logging.sdk,
-      loggerOptions: { export: false },
+      logger: logging.native,
       observability: logging.observability,
     },
     chat,
@@ -85,7 +84,7 @@ test("assistant logs use both sinks with native execution context", async () => 
       memory: { thread: "owner-chat", resource: "owner" },
     });
     expect(reply.text).toContain("PRIVATE_SQL_AGENT_ROW");
-    // SDK messages and exceptions can contain private payloads at any level.
+    // Native SDK logs can retain payloads in the private store.
     mastra.getLogger().debug("PRIVATE_SDK_PROMPT", { sql: "PRIVATE_SQL" });
     mastra.getLogger().warn("PRIVATE_SDK_WARNING", { rows: ["PRIVATE_SQL"] });
     mastra.getLogger().error("PRIVATE_SDK_ERROR", {
@@ -111,8 +110,8 @@ test("assistant logs use both sinks with native execution context", async () => 
       { sql: "SELECT 1" },
       { observe: noopObserve, abortSignal: AbortSignal.abort() },
     );
-    // A broken stderr sink must not remove the stored event or change SQL output.
-    vi.spyOn(logging.native, "child").mockImplementationOnce(() => {
+    // A log failure must not change SQL output.
+    vi.spyOn(logging.native, "info").mockImplementationOnce(() => {
       throw new Error("PRIVATE_LOG_ERROR");
     });
     expect(
@@ -139,7 +138,7 @@ test("assistant logs use both sinks with native execution context", async () => 
   )!;
   expect(result).toMatchObject({
     level: "error",
-    entityId: "catalog-assistant",
+    entityId: "refresh_events",
     threadId: "owner-chat",
     data: {
       toolName: "refresh_events",
@@ -182,14 +181,8 @@ test("assistant logs use both sinks with native execution context", async () => 
   ).toBe(true);
   const lines = stderr.mock.calls.map(([chunk]) => String(chunk)).join("");
   expect(lines).toContain('"msg":"Assistant refresh result"');
-  expect(lines).toContain('"msg":"Studio SDK diagnostic"');
-  expect(lines).not.toContain("SELECT id, canonical_name");
-  for (const secret of [
-    "PRIVATE_SQL",
-    "PRIVATE_SDK",
-    "PRIVATE_LOG_ERROR",
-    "PRIVATE_BUS_ERROR",
-  ]) {
+  expect(lines).toContain('"msg":"PRIVATE_SDK_WARNING"');
+  for (const secret of ["PRIVATE_LOG_ERROR", "PRIVATE_BUS_ERROR"]) {
     expect(JSON.stringify(rows)).not.toContain(secret);
     expect(lines).not.toContain(secret);
   }
