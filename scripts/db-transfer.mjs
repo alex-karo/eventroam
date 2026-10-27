@@ -1,6 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { closeSync, mkdirSync, openSync, readFileSync, rmSync } from "node:fs";
+import {
+  closeSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import * as store from "./db-transfer-store.mjs";
@@ -9,7 +15,7 @@ function shellQuote(value) {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-function remoteScript(direction, worker) {
+function remoteScript(direction, worker, withMastra) {
   const code = `${worker}\nmain(process.argv.slice(1)).catch(error => { console.error(error.message); process.exitCode = 1; });`;
   return `set -euo pipefail
 find_service() {
@@ -39,8 +45,7 @@ restore_services() {
 }
 trap restore_services EXIT
 if (( \${#running[@]} )); then docker stop -t 120 "\${running[@]}" >&2; fi
-docker run --rm -i --network none --user 1000:1000 --mount "type=volume,src=$volume,dst=/data" --entrypoint node "$image" --input-type=module -e ${shellQuote(code)} ${shellQuote(direction)}
-
+docker run --rm -i --network none --user 1000:1000 --mount "type=volume,src=$volume,dst=/data" --entrypoint node "$image" --input-type=module -e ${shellQuote(code)} ${shellQuote(direction)} ${shellQuote(withMastra ? "all" : "catalog")}
 `;
 }
 
@@ -49,7 +54,7 @@ function options(args) {
   if (!["pull", "push"].includes(direction)) {
     throw new Error("Expected pull or push");
   }
-  const allowed = new Set(["--local-stopped", "--help"]);
+  const allowed = new Set(["--local-stopped", "--with-mastra", "--help"]);
   for (const flag of flags) {
     if (!allowed.has(flag)) {
       throw new Error(`Unknown option: ${flag}`);
@@ -57,17 +62,19 @@ function options(args) {
   }
   return {
     direction,
+    withMastra: flags.includes("--with-mastra"),
     help: flags.includes("--help"),
     stopped: flags.includes("--local-stopped"),
   };
 }
 
 async function run(args, env = process.env) {
-  const { direction, help, stopped } = options(args);
+  const { direction, help, stopped, withMastra } = options(args);
   if (help) {
-    console.log(`Usage: npm run db:${direction} -- --local-stopped
+    console.log(`Usage: npm run db:${direction} -- --local-stopped [--with-mastra]
 Stop local web, Studio, and catalog commands first.
-Transfers only the catalog. The target backup is kept in its adjacent backups directory.
+Transfers the catalog. Add --with-mastra for workflow history, chats, and diagnostics.
+Each target backup is kept in its adjacent backups directory. All selected source files must exist.
 DATABASE_PATH selects the local file (default ./data/eventroam.sqlite).
 Set DB_SSH_HOST in .env to select the server. There is no default.
 Do not deploy or start other database users during transfer.`);
@@ -83,29 +90,28 @@ Do not deploy or start other database users during transfer.`);
   if (!/^[a-zA-Z0-9_@.:-]+$/.test(host) || host.startsWith("-")) {
     throw new Error("DB_SSH_HOST must be an SSH host or user@host");
   }
-  const target = resolve(env.DATABASE_PATH ?? "./data/eventroam.sqlite");
-  if (!env.DATABASE_PATH?.trim() && env.DATABASE_PATH !== undefined) {
-    throw new Error("DATABASE_PATH must not be empty");
-  }
-  mkdirSync(dirname(target), { recursive: true });
-  const staged = resolve(
-    dirname(target),
-    `.catalog-transfer-${randomUUID()}.sqlite`,
+  const files = store.filesFor(env, withMastra);
+  mkdirSync(dirname(files[0].path), { recursive: true });
+  const directory = mkdtempSync(
+    resolve(dirname(files[0].path), ".db-transfer-"),
   );
+  const archive = resolve(directory, "transfer.tar");
   let fd;
   try {
+    fd = openSync(archive, "wx+", 0o600);
     if (direction === "push") {
-      await store.snapshot(target, staged);
+      await store.createBundle(files, directory, fd);
+      closeSync(fd);
+      fd = openSync(archive, "r");
     }
     const worker = readFileSync(
       new URL("./db-transfer-store.mjs", import.meta.url),
       "utf8",
     );
-    fd = openSync(staged, direction === "pull" ? "wx" : "r", 0o600);
     console.log(
-      `${direction === "pull" ? "Download from" : "Upload to"} ${host}: /data/eventroam.sqlite`,
+      `${direction === "pull" ? "Download from" : "Upload to"} ${host}: ${files.map((file) => file.name).join(", ")}`,
     );
-    const script = remoteScript(direction, worker);
+    const script = remoteScript(direction, worker, withMastra);
     const child = spawnSync(
       "ssh",
       ["-T", "--", host, `bash -c ${shellQuote(script)}`],
@@ -125,16 +131,14 @@ Do not deploy or start other database users during transfer.`);
       throw new Error(`SSH transfer failed (${child.signal ?? child.status})`);
     }
     if (direction === "pull") {
-      await store.replace(staged, target);
+      await store.installBundle(archive, files, directory);
     }
-    console.log(`Catalog ${direction} complete. Local file: ${target}`);
+    console.log(`Database ${direction} complete.`);
   } finally {
     if (fd !== undefined) {
       closeSync(fd);
     }
-    for (const suffix of ["", "-wal", "-shm", "-journal"]) {
-      rmSync(`${staged}${suffix}`, { force: true });
-    }
+    rmSync(directory, { recursive: true, force: true });
   }
 }
 

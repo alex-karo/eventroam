@@ -102,7 +102,8 @@ The current migration history starts from one baseline, the starter-taxonomy dat
 
 For catalog transfer between the local machine and the remote Compose volume,
 see [Catalog pull and push](infrastructure.md#catalog-pull-and-push). Both commands
-keep a target backup before replacement.
+keep a target backup before replacement. Add `--with-mastra` to include workflow
+history, chats, and stored diagnostics.
 
 ## Local catalog research
 
@@ -285,7 +286,7 @@ Run `npm run docker:smoke` to build both targets, prepare an empty test catalog 
 
 ### Replace supplied data
 
-Use [Catalog pull and push](infrastructure.md#catalog-pull-and-push) to replace the catalog with a checked snapshot and keep a target backup. The commands do not merge data or transfer observability stores. For manual transfers, stop all source and destination users before replacement. Close/checkpoint SQLite and handle WAL state before copying; never copy a live WAL database's main file alone. Check SQLite integrity and open the closed DuckDB copy with the matching runtime before start. Copy only the catalog and observability data, without separate reports or debug directories. Set file ownership, run explicit migrations while users remain stopped, then start the matching release. Short downtime is expected.
+Use [Catalog pull and push](infrastructure.md#catalog-pull-and-push) to replace the catalog with a checked snapshot and keep a target backup. Add `--with-mastra` to include workflow history, chats, and stored diagnostics. Stop all database users before transfer. The commands do not merge data or run migrations. Run any required migrations while users remain stopped, then start the matching release. Short downtime is expected.
 
 Automatic backup schedules and recovery drills are deferred to the next iteration. Retained images permit code rollback only while catalog schema and DuckDB formats stay compatible. Image rollback does not reverse data changes; an incompatible migration needs a compatible saved data copy.
 
