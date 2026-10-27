@@ -33,13 +33,17 @@ export async function startStudioFixture(
     root?: string;
     catalog?: boolean;
     ui?: boolean;
+    directory?: string;
+    inspectionOnly?: boolean;
   } = {},
 ) {
   const root = options.root ?? process.cwd();
-  const directory = mkdtempSync(join(tmpdir(), "eventroam-studio-"));
+  const directory =
+    options.directory ?? mkdtempSync(join(tmpdir(), "eventroam-studio-"));
   const catalogPath = join(directory, "catalog.sqlite");
   const tracePath = join(directory, "observability.duckdb");
-  if (options.catalog !== false) {
+  const workflowPath = join(directory, "workflows.sqlite");
+  if (options.catalog !== false && !options.directory) {
     const connection = openDatabase(catalogPath);
     try {
       migrate(connection.db, {
@@ -75,11 +79,17 @@ export async function startStudioFixture(
         STUDIO_FIXTURE_UI_PATH: options.ui
           ? resolve(root, ".mastra/output/studio")
           : "",
+        CATALOG_WORKFLOW_DATABASE_PATH: workflowPath,
         CATALOG_TRACING: scenario === "recording" ? "true" : "false",
         CATALOG_LOGGING: scenario === "recording" ? "true" : "false",
         STUDIO_FIXTURE_SCENARIO: scenario,
+        STUDIO_FIXTURE_INSPECTION_ONLY: options.inspectionOnly
+          ? "true"
+          : "false",
         STUDIO_FIXTURE_PORT: String(port),
-        OPENROUTER_API_KEY: "OFFLINE_FIXTURE_ONLY",
+        OPENROUTER_API_KEY: options.inspectionOnly
+          ? ""
+          : "OFFLINE_FIXTURE_ONLY",
       },
       stdio: ["ignore", "pipe", "pipe"],
     },
@@ -106,6 +116,7 @@ export async function startStudioFixture(
             baseUrl,
             catalogPath,
             tracePath,
+            workflowPath,
             directory,
             child,
             output: () => output,

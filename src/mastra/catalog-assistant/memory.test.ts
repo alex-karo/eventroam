@@ -4,6 +4,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { createMockModel } from "@mastra/core/test-utils/llm-mock";
 import { testDatabase } from "@/test/database";
 import { createObservabilityStore } from "../../ingestion/runtime/observability/storage";
+import { createWorkflowStorage } from "../../ingestion/runtime/workflow-storage";
 import { chatDatabasePath, createChatMemory, StudioMastra } from "./memory";
 import { createCatalogAssistant } from ".";
 
@@ -76,6 +77,7 @@ test("chat storage is separate even with path aliases", () => {
     ...process.env,
     DATABASE_PATH: db.path,
     CATALOG_OBSERVABILITY_DATABASE_PATH: join(root, "traces.duckdb"),
+    CATALOG_WORKFLOW_DATABASE_PATH: join(root, "workflows.sqlite"),
   };
   expect(
     chatDatabasePath({
@@ -93,6 +95,8 @@ test("chat storage is separate even with path aliases", () => {
     hard,
     sym,
     env.CATALOG_OBSERVABILITY_DATABASE_PATH,
+    env.CATALOG_WORKFLOW_DATABASE_PATH,
+    `${env.CATALOG_WORKFLOW_DATABASE_PATH}-journal`,
   ]) {
     expect(() =>
       chatDatabasePath({ ...env, CATALOG_CHAT_DATABASE_PATH: path }),
@@ -100,7 +104,7 @@ test("chat storage is separate even with path aliases", () => {
   }
 });
 
-test("Memory owns persistent history, Studio selects it, and shutdown closes both stores", async () => {
+test("Memory owns persistent history and Studio closes chat, workflow and observation stores", async () => {
   const db = testDatabase(),
     root = dirname(db.path),
     original = readFileSync(db.path);
@@ -110,9 +114,14 @@ test("Memory owns persistent history, Studio selects it, and shutdown closes bot
     DATABASE_PATH: db.path,
     CATALOG_OBSERVABILITY_DATABASE_PATH: join(root, "traces.duckdb"),
   });
-  await observability.init();
+  const storage = createWorkflowStorage({
+    path: join(root, "workflows.sqlite"),
+    observability,
+  });
+  await storage.init();
   const chat = await createChatMemory(path);
   const closeChat = vi.spyOn(chat.storage, "close"),
+    closeWorkflow = vi.spyOn(storage, "close"),
     closeTrace = vi.spyOn(observability, "close");
   vi.stubEnv("OPENROUTER_API_KEY", "");
   const assistant = createCatalogAssistant({ createRun: vi.fn() }, chat.memory);
@@ -120,7 +129,7 @@ test("Memory owns persistent history, Studio selects it, and shutdown closes bot
   const mastra = new StudioMastra(
     {
       agents: { "catalog-assistant": assistant },
-      storage: observability,
+      storage,
       logger: false,
     },
     chat,
@@ -129,6 +138,8 @@ test("Memory owns persistent history, Studio selects it, and shutdown closes bot
     const memory = await mastra.getAgent("catalog-assistant").getMemory();
     expect(memory).toBe(chat.memory);
     expect(memory!.storage.id).toBe(chat.storage.id);
+    expect(await storage.getStore("memory")).toBeUndefined();
+    expect(await storage.getStore("workflows")).toBeDefined();
     await memory!.createThread({
       threadId: "one",
       resourceId: "owner",
@@ -153,6 +164,7 @@ test("Memory owns persistent history, Studio selects it, and shutdown closes bot
     await mastra.shutdown();
   }
   expect(closeChat).toHaveBeenCalledTimes(1);
+  expect(closeWorkflow).toHaveBeenCalledTimes(1);
   expect(closeTrace).toHaveBeenCalledTimes(1);
   const reopened = await createChatMemory(path);
   try {

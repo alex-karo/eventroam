@@ -11,6 +11,7 @@ import type { prepareEditorPlan } from "./editor/prepare";
 import { emptyEditorExecution, type EditorExecution } from "./editor/agent";
 import type Database from "better-sqlite3";
 import type { DuckDBStore } from "@mastra/duckdb";
+import type { WorkflowStorage } from "./runtime/workflow-storage";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 import type { ResearchBudget, ResearchLimits } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
@@ -108,6 +109,9 @@ export type ResearchDependencies = {
   client: Database.Database;
   /** Shared local Studio observability store; the caller owns its lifetime. */
   observabilityStore?: DuckDBStore;
+  /** Injected workflow storage is owned by the caller. */
+  workflowStorage?: WorkflowStorage;
+  workflowDatabasePath?: string;
   config?: ResearchConfig;
   /** Protect the selected optional report destination from observability writes. */
   reportPath?: string;

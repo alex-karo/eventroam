@@ -1,11 +1,12 @@
 import { chatDatabasePath } from "../src/mastra/catalog-assistant/memory";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
-import { observabilityDatabasePath } from "../src/ingestion/runtime/observability/storage";
+import { diagnosticStoragePaths } from "../src/ingestion/runtime/storage-paths";
 import { readDatabaseEnvironment } from "../src/db/env";
 
 // Resolve before the CLI changes its working directory to .mastra/output.
 const root = process.cwd();
+const paths = diagnosticStoragePaths();
 const child = spawn(
   process.execPath,
   [
@@ -21,7 +22,8 @@ const child = spawn(
     env: {
       ...process.env,
       DATABASE_PATH: resolve(root, readDatabaseEnvironment().DATABASE_PATH),
-      CATALOG_OBSERVABILITY_DATABASE_PATH: observabilityDatabasePath(),
+      CATALOG_OBSERVABILITY_DATABASE_PATH: paths.observability,
+      CATALOG_WORKFLOW_DATABASE_PATH: paths.workflow,
       CATALOG_CHAT_DATABASE_PATH: chatDatabasePath(),
       CATALOG_ASSISTANT_SKILL_PATH: resolve(
         root,

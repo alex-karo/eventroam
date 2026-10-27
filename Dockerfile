@@ -20,7 +20,7 @@ ARG EVENTROAM_MAPBOX_STYLE="mapbox://styles/mapbox/streets-v12"
 RUN NEXT_PUBLIC_MAPBOX_TOKEN="$EVENTROAM_MAPBOX_TOKEN" NEXT_PUBLIC_MAPBOX_STYLE="$EVENTROAM_MAPBOX_STYLE" npm run build
 
 FROM source AS studio-build
-RUN DATABASE_PATH=/tmp/build/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/build/history.duckdb CATALOG_CHAT_DATABASE_PATH=/tmp/build/chat.sqlite npm run studio:build
+RUN DATABASE_PATH=/tmp/build/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/build/history.duckdb CATALOG_WORKFLOW_DATABASE_PATH=/tmp/build/workflows.sqlite CATALOG_CHAT_DATABASE_PATH=/tmp/build/chat.sqlite npm run studio:build
 RUN npm prune --omit=dev
 
 FROM base AS runtime

@@ -1,3 +1,4 @@
+import { createWorkflowStorage } from "../runtime/workflow-storage";
 import { resolveLocation, type LocationExecution } from "../location/agent";
 import { LOCATION_PROMPT_VERSION } from "../location/contracts";
 import { createResearchBudget } from "../runtime/budget";
@@ -363,11 +364,13 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
         }
       }
       const connection = seedDatabase(suite, item);
+      const workflowStorage = createWorkflowStorage({ path: ":memory:" });
       try {
         let result: CatalogResearchResult;
         try {
           result = await runCatalogResearch(item.input, {
             client: connection.client,
+            workflowStorage,
             config,
             reportPath: options.reportPath,
             todayUtc: item.todayUtc ?? suite.todayUtc,
@@ -396,6 +399,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
           score: scoreCase(item, result, calls),
         };
       } finally {
+        await workflowStorage.close();
         connection.client.close();
       }
     },

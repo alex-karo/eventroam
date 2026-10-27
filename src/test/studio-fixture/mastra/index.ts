@@ -10,6 +10,7 @@ import { createAssistantFixtureModel } from "../../assistant-model";
 import { createCatalogIngestionWorkflow } from "../../../ingestion/workflow";
 import { DEFAULT_RESEARCH_LIMITS } from "../../../ingestion/runtime/budget";
 import { createObservabilityStore } from "../../../ingestion/runtime/observability/storage";
+import { createWorkflowStorage } from "../../../ingestion/runtime/workflow-storage";
 import { ingestionExecutionGuard } from "../../../mastra/ingestion-guard";
 
 export const OFFLINE_SENTINEL = "PRIVATE_STUDIO_FIXTURE_SENTINEL";
@@ -115,6 +116,9 @@ export async function createFixtureMastra() {
   const observabilityStore = await fixtureStore();
   const chat = await createChatMemory(process.env.CATALOG_CHAT_DATABASE_PATH);
   const workflow = createCatalogIngestionWorkflow(async () => {
+    if (process.env.STUDIO_FIXTURE_INSPECTION_ONLY === "true") {
+      throw new Error("Inspection must not resolve catalog dependencies");
+    }
     const path = process.env.DATABASE_PATH;
     if (!path) {
       throw new Error("Fixture catalog unavailable");
@@ -160,6 +164,11 @@ export async function createFixtureMastra() {
       close: () => client.close(),
     };
   });
+  const storage = createWorkflowStorage({
+    observability: observabilityStore,
+    onFailure: workflow.historyControl.recoverHistory,
+  });
+  await storage.init();
   return new StudioMastra(
     {
       workflows: { "catalog-ingestion": workflow },
@@ -171,14 +180,14 @@ export async function createFixtureMastra() {
           logging,
         ),
       },
-      storage: observabilityStore,
+      storage,
       logger: logging?.sdk ?? false,
       observability: logging?.observability,
       loggerOptions: { export: false },
       server: {
         host: "127.0.0.1",
         port: Number(process.env.STUDIO_FIXTURE_PORT ?? 4111),
-        middleware: [ingestionExecutionGuard],
+        middleware: [ingestionExecutionGuard(workflow.historyControl, storage)],
       },
     },
     chat,
