@@ -1,14 +1,14 @@
 ---
 type: Guide
 title: Development guide
-description: Local setup, checks, change workflow, and catalog research commands.
+description: Local setup, common checks, and links to task guides.
 status: stable
 tags: [development]
 ---
 
 # Development guide
 
-Eventroam is under active development with no production deployment. Backward compatibility is not required yet. This guide covers local work and application containers; the [project structure](project-structure.md) explains code ownership, [OpenSpec](../openspec/specs/) defines implemented behavior, and [ADRs](index.md#decisions) record technology choices.
+Use this guide to start local work. Read only the task guide needed for your change.
 
 ## Local setup
 
@@ -26,322 +26,28 @@ Copy `.env.example` to `.env.local` for Next.js settings. A Mapbox token is opti
 
 Codex worktrees use `.codex/environments/environment.toml` to link the source checkout’s `.env` and run `npm ci` in the new worktree. The setup requires the pinned Node.js and npm versions to be available on `PATH`.
 
-## Coordinate comparison
+## Common checks
 
-## Public page metadata
-
-Set `PUBLIC_APEX_ORIGIN=https://eventroam.org` and `PUBLIC_FESTIVALS_ORIGIN=https://festivals.eventroam.org` for public use. Local defaults remain `http://localhost:3000` and `http://festivals.localhost:3000`. The application selects the site from the configured hosts; request hosts cannot set absolute identity URLs.
-
-Next.js Metadata API supplies titles, descriptions, canonicals, Open Graph text, and Twitter summary cards. No social preview images are declared. Event pages describe published history. Edition metadata uses its stored year, known dates and place, and the same status and past-edition rules as page content. Public records remain indexable when optional facts are absent. Material or invalid discovery filters keep `noindex,follow`.
-
-Each configured host serves `/robots.txt` and `/sitemap.xml` through Next.js metadata routes. Robots permits public pages and query variants so crawlers can read `noindex` responses. The apex sitemap lists its root. The Festivals sitemap lists its root and current public Event and Edition URLs, including history and cancelled or postponed editions. Each request reads current publication state; a publish, rename, or withdrawal needs no rebuild. Sitemaps omit aliases, queries, private records, and unsupported modification times.
-
-Edition pages add Event JSON-LD only when dates are confirmed and a country plus street address or locality is known. Country, venue name, region, or coordinates alone do not qualify. Missing JSON-LD does not change indexing or sitemap eligibility. The script uses date-only values and stored cancellation or postponement status; it adds no unknown times, images, organizers, performers, or ticket offers. Event history and discovery pages do not emit a dated Event. Public text is serialized with `<` escaped.
-
-After deployment, manually verify ownership of both hosts in Google Search Console, submit each host's sitemap, and inspect representative root, Event, and Edition URLs. Check the rendered canonical, indexing state, and structured-data reports. These account actions and real-data updates are separate from application checks.
-
-## Checks and tests
-
-Run the checks relevant to your change:
+Run checks that apply to your change:
 
 ```sh
 npm run type-check
 npm run lint
-npm run format:check
 npm test
 npm run build
 npm run docs:check
-npm run openspec:validate
 ```
 
-CI validates main OpenSpec specs with `npm exec -- openspec validate --specs --strict`, allowing active changes to start with a proposal only. `npm run openspec:validate` also validates active changes and requires their delta specs to be ready.
-
-Run `npm run build` then `npm run test:site` for the public-site HTTP smoke checks. The smoke runner starts the built app on a free local port with a temporary validated catalog and runtime public origins. It makes HTTP requests with a crawler user agent; it does not start a browser or use an owner database.
-
-`npm start` serves the built application. `npm run test:e2e` runs desktop and mobile discovery and detail journeys against a temporary fixture database on port 3137. The default mode disables Mapbox and checks list and map fallbacks. Pass Playwright options after `--`, for example `npm run test:e2e -- --project=mobile`.
-
-For a small real-map check, set `E2E_REAL_MAP=1` and supply `NEXT_PUBLIC_MAPBOX_TOKEN`. The runner and Playwright server forward that token only in this mode. This command loads the local token from `.env` without printing it:
-
-```sh
-E2E_REAL_MAP=1 node --env-file-if-exists=.env scripts/run-e2e.mjs e2e/real-map.spec.ts --workers=1
-```
-
-The real-map tests check clustered selection, card overlap, unchanged zoom, camera return, pointer hover, and unlocated selection. They use real Mapbox rendering and a small discovery response override for the cluster case. They need provider access and browser rendering support. Keep the token local. The default suite skips these tests.
-
-Use the built-in Browser for local UI checks. On macOS, obtain approved execution outside the command sandbox before a shell runner starts full Chrome, including headless Chrome. Do not retry a sandboxed launch after an `_RegisterApplication` or `SIGABRT` startup crash. Stop other local Next.js servers before an E2E run because they share the build directory.
-
-Run `npm run test:coverage` for unit and integration coverage of application and command TypeScript, including unimported files. E2E, test helpers, declaration files, and child-process coverage from Studio and tracing fixtures are excluded. Reports go to ignored `coverage/`; CI publishes totals and retains the HTML `test-coverage` artifact for 14 days. Coverage thresholds are not enforced. React tests use a per-file `// @vitest-environment jsdom` directive and React Testing Library; other tests use Node.
-
-Mastra transport tests use the production server setup and SDK shutdown against temporary catalogs; they do not build or launch the Studio CLI. Observability tests read closed DuckDB stores in the test process, with a dedicated subprocess test for persistence after writer exit. Retry and tracing-abort tests advance controlled timers after the SDK reaches the relevant wait, preserving the configured production delays.
-
-Use the built-in Browser for local UI verification. On macOS, obtain approved execution outside the command sandbox before launching full Chrome through a shell or test runner, including headless mode.
-
-Tests live beside their implementation. Use `testDatabase()` for a fresh migrated temporary database and `testFixtures()` from `src/test/fixtures.ts` for typed builders and inserts. The database includes the migrated starter vocabulary. Use `fx.existingTerm(facet, slug)` to read a stored term; `fx.festivalTerms()` and public-scenario helpers reuse those terms. Use `fx.term(...)` to insert custom terms for the scenario, without clearing the dictionary. Cleanup is automatic. `fx.build.*` creates objects without storing them; `fx.publishedEvent(...)` creates a complete public scenario. Omitted fields receive defaults, explicit `null` is preserved, and `undefined` overrides are ignored. Set values that affect the scenario or assertions. Tests do not load development fixtures or fetch live source pages; direct SQL is appropriate for testing database constraints or deliberately invalid data.
-
-Run `npm run deps:check` to check runtime dependencies in `src/` and `commands/` for circular dependencies, unresolved imports, and production imports of test code. Type-only imports and other dependencies erased by TypeScript compilation are excluded. CI runs the same check.
-
-## Change workflow
-
-Read the relevant spec, nearby tests, and configuration before editing. Inspect the working tree and preserve unrelated changes. Follow the [module boundaries](project-structure.md#boundaries), validate external input at runtime, and review generated migrations. Keep code, tests, specs, and documentation aligned when changing a contract.
-
-For behavior changes, use the standard OpenSpec workflow: explore or propose, define testable delta specs, add design and tasks, implement, verify, synchronize main specs, and archive. In Codex, use the corresponding `$openspec-*` skills; use `npm exec -- openspec` for the project-local CLI. Group capabilities under `catalog/`, `website/`, or `operations/`, with matching main and delta paths. Keep unresolved choices in [draft proposals](proposals/) and lasting technology decisions in ADRs.
-
-Before handoff, run focused tests and applicable checks, then report the result and remaining uncertainty. Run `docs:check` for documentation edits and `openspec:validate` for OpenSpec edits.
-
-New changes use the project-local [review-driven schema](../openspec/schemas/review-driven/schema.yaml), forked from OpenSpec 1.14.0's `spec-driven` schema. It keeps the proposal/specs/design/tasks workflow and requires a design for every change. Start with Small, Medium, or Large and a short reason based on coupling, risk, and verification effort. Scale design and tasks to that assessment; small changes can use a few paragraphs and focused steps.
-
-For each Modified Capability in a proposal, show Before and After behavior. Base Before on the main spec and note any known difference from the implementation. Keep detailed conditions in delta specs. In design, state each decision directly and each fact once. Usually use 2-3 sentences per key decision: choice, reason, and material trade-off. Add detail for a specific complexity or risk. Before handoff, remove text that does not help the reader assess or implement the design. Keep necessary reasons and constraints; use direct wording instead of dense shorthand.
-
-Write plans in plain English, whether they live in chat, a design document, or OpenSpec. Explain the observable change and main flow before implementation details. Identify what existing code or dependencies already do and what the application must add. Distinguish requested outcomes, accepted contracts, and newly proposed guarantees; writing a guarantee into a spec does not establish its acceptance. For significant additional mechanisms, explain the concrete consumer/scenario and why existing capabilities are insufficient.
-
-Compare the smallest credible solution with the proposed design. Consider removing mechanisms as well as reorganizing them. When a simpler option reduces scope, name the lost behavior, affected consumers, and implementation/test burden avoided; changing an accepted guarantee still needs agreement. Check that a reader can explain the idea, flow, ownership and key trade-offs from the plan alone. Rewrite missing explanations in their owning sections rather than adding a separate summary document.
-
-Keep each design coherent by folding corrections into the relevant sections. Tasks describe reviewable outcomes and their checks without repeating design details. Proposed tests should detect meaningful failures not already adequately covered; avoid reproducing a dependency's algorithm tests without an application integration risk. Existing changes retain the schema recorded in their `.openspec.yaml`.
-
-After editing the custom schema or templates, run `npm exec -- openspec schema validate review-driven` as well as the documentation and OpenSpec checks. The local fork does not automatically inherit future upstream schema changes.
-
-Use the repository's [plan-review skill](../.agents/skills/plan-review/SKILL.md) with `$plan-review <plan or change-name>` before implementation or after material planning changes. It accepts plans in chat, Markdown, issues, or OpenSpec. For substantive plans, the main reviewer checks readiness and asks one independent subagent what can be simplified, requesting concrete removals, combinations or replacements and their trade-offs. The main reviewer verifies these suggestions against the sources and reports readiness separately from supported simplifications. Small direct plans use a self-check. The skill reports findings without editing the plan. Use `openspec-verify-change` to check completed implementation against OpenSpec instead.
-
-For OpenSpec plans, the review reports three separate checks: specs follow the selected schema's instructions, proposal keeps implementation details in design, and design contains only useful content. Each check states whether it passed, found issues, or was not reviewed, with a reason.
-
-The review-driven schema calls for this review after drafting substantive plans, before presenting them as ready. The update workflow also invokes it after material changes to requirements or approach in plans awaiting implementation. The author incorporates supported improvements within the authorized planning scope and surfaces material scope decisions. Recheck affected decisions once after revisions; report unresolved issues instead of starting repeated review loops. Small direct plans can use a disclosed self-check. This is workflow guidance, not a new CLI-enforced approval gate or an extra artifact.
-
-Use the project-local [code-review skill](../.agents/skills/code-review/SKILL.md) with `$code-review` to review changes and fix clear bugs and simple improvements. It runs [complex-code-review](../.agents/skills/complex-code-review/SKILL.md) in a fresh Astra subagent. Every finding gets a recorded outcome. High-effort changes, uncertain improvements, and changes to requirements go to the user for a decision. After fixes, it runs one more review if the first pass had at least four unique findings, or if the fixes have substantial regression risk. Use `$complex-code-review` directly for review only.
-
-## Local database
-
-`npm run db:migrate` applies reviewed migrations to `DATABASE_PATH`, including the 71-term [starter taxonomy](proposals/festival-taxonomy-vocabulary.md) (56 genres). Existing terms and Edition assignments are preserved; new terms do not classify or publish records. `npm run db:fixtures` also loads fictional development data. Fixtures are separate from schema migrations and omit audit history. Normal catalog mutations must use the validated writer; seed loaders must use shared catalog validators.
-
-The current migration history starts from one baseline, the starter-taxonomy data migration and a private run-accounting migration. The data migration also supports catalogs already using that baseline. A database initialized by the earlier nine-migration history must be recreated; `db:migrate` does not upgrade it. Stop processes using a disposable database before replacing it, then run `npm run db:fixtures` for fictional data or `npm run db:migrate` for a catalog with the starter vocabulary and no Events or Editions. Preserve valuable local research data with a consistent SQLite backup before replacing its database, and keep that backup separate for manual recovery. SQLite's backup API includes committed WAL data; copying only the live main file is insufficient. Verify backups with `PRAGMA integrity_check`. Historical reports remain opaque storage and are unsupported by current report/eval consumers. See the [SQLite decision](decisions/001-sqlite-and-drizzle.md) for storage details.
-
-For catalog transfer between the local machine and the remote Compose volume,
-see [Catalog pull and push](infrastructure.md#catalog-pull-and-push). Both commands
-keep a target backup before replacement. Add `--with-mastra` to include workflow
-history, chats, and stored diagnostics.
-
-## Local catalog research
-
-Set `OPENROUTER_API_KEY` in `.env`. The selected database must exist and be migrated; migrations supply the starter taxonomy needed for classification. `npm run catalog -- --help` lists options.
-
-```sh
-npm run catalog -- add --name "Festival name" --database data/research.sqlite
-npm run catalog -- refresh --event EVENT_ID --database data/research.sqlite --report data/refresh.json
-npm run catalog -- refresh --event EVENT_ID --database data/research.sqlite --apply
-```
-
-`add` creates new Events; use `refresh` for existing ones. Refresh supports repeated `--event` and `--scope full|current`; each Event has an independent atomic attempt. Preview is the default and still needs a writable database: catalog changes roll back, while the private run report persists. `--apply` starts fresh research rather than applying a saved preview. Use `--republish` to permit withdrawn records to publish again.
-
-The defaults are `openai/gpt-6-luna`, medium reasoning, and Flex routing. Set `OPENROUTER_MODEL`, `OPENROUTER_REASONING_EFFORT`, or `OPENROUTER_SERVICE_TIER=standard` to override them. Flex can have higher latency and capacity errors. Optional `FIRECRAWL_KEY` enables a fallback for HTTP 403 responses. Research permits 15 ordinary model steps by default, reserving the last for a final response; override this with `--agent-steps` or `CATALOG_MAX_AGENT_STEPS`. There is no application limit on total input context characters. Defaults and remaining `CATALOG_MAX_*` safeguards are in `.env.example`; CLI overrides also include `--searches` and `--seconds`. Limits bound work, not exact spending.
-
-The [ingestion guide](ingestion-process.md) explains source handling, fact selection, previews, publication, and reports. Research is model-led and can make factual mistakes. Inspect the report before deciding on an apply run. After interruption, start a fresh run against current state; already committed changes remain.
-
-To inspect exactly what the research agent received from its initial source, `readPage`, and `searchWeb`, set `CATALOG_CAPTURE_TOOL_OUTPUTS=true` for a local CLI or loopback Studio process. Capture works for previews and apply runs and is off by default. For example:
-
-```sh
-CATALOG_CAPTURE_TOOL_OUTPUTS=true npm run catalog -- add --name "Festival name" --database data/research.sqlite
-```
-
-Find the durable `runId` in the report, then inspect `data/catalog-debug/<runId>/`. Numbered JSON files contain each agent-visible response and its origin; page responses also have Markdown files. Numbers follow tool invocation order, even when concurrent calls finish out of order. The directory is ignored by Git and contains sensitive source text and search results. Keep it local and remove it when no longer needed. If capture cannot write, the process prints one bounded diagnostic to stderr; the catalog outcome is unaffected. Injected eval candidates do not use this capture.
-
-### Catalog evals
-
-See [Ingestion evals](ingestion-evals.md) for the approach and requirements for cases, checks and fixtures.
-
-`npm run catalog:eval -- --help` lists options. The default runs five main cases once. Main applies the normal Research → Editor → Location → writer flow in a fresh in-memory catalog. Workflow regressions use dry runs; isolated Location cases use complete inputs without a catalog or writer. The owner's catalog stays untouched. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. CI does not run evals or tests of the eval code, and application coverage excludes eval code and its CLI. Run evals through the CLI when needed.
-
-```sh
-npm run catalog:eval
-npm run catalog:eval -- --all
-npm run catalog:eval -- --group regression/pipeline
-npm run catalog:eval -- --editor-only
-npm run catalog:eval -- --location-only
-npm run catalog:eval -- --case sziget --repeat 3 --model openai/gpt-6-luna
-npm run catalog:eval -- --label before
-npm run catalog:eval -- --label after
-```
-
-The 50 cases form four separate experiment groups:
-
-| Group | Cases | Result |
-| --- | ---: | --- |
-| `main/pipeline` | 5 | Catalog quality and scenario success |
-| `regression/pipeline` | 25 | Targeted scenario success |
-| `regression/editor` | 7 | Handoff replay through Editor and eligible Location |
-| `regression/location` | 13 | Direct Location execution |
-
-Use repeated `--group GROUP` or `--case ID` flags for a selection. A case selection without a mode flag can span groups. Use one of `--all`, `--group`, `--editor-only`, or `--location-only`; an incompatible case selection fails before provider setup. `--repeat N` accepts 1–20 and applies equally to all selected cases. Location retains separate completion, correction, and preservation summaries. Its positive cases require the declared changes; keep-only output cannot pass them. The provider adapter tests cover raw Geoapify parsing; eval fixtures cover normalized client responses.
-
-`--model X` selects X for all three agents, including direct Location, and overrides `CATALOG_LOCATION_MODEL`. Without it, Research and Editor use `OPENROUTER_MODEL` or the default; Location uses `CATALOG_LOCATION_MODEL` or falls back to the same model. Experiments save resolved stage models, prompt versions, workflow revision, reasoning effort, service tier, and limits. Injected handoffs do not claim Research usage.
-
-Results are saved as Mastra datasets, experiments, and scores. The eval command has no `--report` option and writes no separate JSON report. Ordinary ingestion reports are unchanged. Each workflow result contains one v7 report in `output.report`; main also retains `before`, `after`, and `quality`. Direct Location retains its actual execution, observations, run ID, and available trace ID without a fabricated workflow report. A returned failure report is scored against the case. Unexpected task errors have null output and a bounded diagnostic; scorer errors remain distinct from intentional N/A. Other cases and groups continue. Failed scenarios, task/scorer errors, or missing required scores cause exit code 1. Mastra task completion counts are not quality pass counts.
-
-Experiment names use `<branch> · <group> · <model>` and append `--label` when supplied. For example, `feature/location · main/pipeline · openai/gpt-6-luna · before`. The isolated Location group uses its resolved model. Detached HEAD uses the first eight commit characters instead of a branch. Each experiment saves the full commit, branch, dirty flag and label in metadata. The dirty flag includes tracked changes and untracked files; it does not save their contents. Names can repeat; IDs stay unique. Branch, commit, dirty state, label and model do not change dataset identity.
-
-The CLI shows group/case counts, separate metrics, applicable and N/A counts, failed checks, experiment IDs, and duration. Main facts and conditions are computed once. Thin Mastra scorers expose `required-completeness`, `additional-completeness`, `no-checked-errors`, and `scenario-success`. A zero completeness denominator is N/A. The binary error score is 1 only with no wrong checked facts; raw error counts remain in `output.quality`. Scenario success also needs correct available required facts, publication, assigned task conditions, protected records, source policy, and successful execution. Missing additional data alone lowers completeness. Regression groups retain their assertions and diagnostics under `output.score`, with one native `scenario-success` score.
-
-Edit inputs and adjacent Research checks in `src/ingestion/evals/cases/`, and main expectations in `src/ingestion/evals/main/`, then rerun. One shared hash covers the names and full contents of all case JSON/MD/TypeScript files, `main.ts`, `case-research.ts`, `research.ts` and non-test TypeScript files under `main/`. Whitespace and edits to unselected cases can create new datasets. Bump `EVAL_SCORER_VERSION` when scoring rules outside those files change. Dataset identity also includes group, sorted selected case IDs and repeat count. Existing IDs are reused without reading or comparing saved items; new IDs create datasets. Each experiment pins the current native dataset version. Edit definitions in repository files only: manual Studio edits are not detected or imported. Metadata stores the hash without source snapshots. See [evaluation revisions](../openspec/specs/operations/ingestion-evaluation/spec.md#requirement-valid-model-comparisons-use-the-same-evaluation-revision) for comparison requirements. Review source identity, Edition identity, venue versus office addresses, and ticket links versus signup forms when refreshing captures.
-
-Start `npm run catalog:studio`, open `http://127.0.0.1:4111`, and choose **Experiments**. Open an experiment to inspect item outputs and per-scorer values. Select **Compare**, choose two runs of the same group and dataset revision, then select **Compare Experiments**. Stable item IDs align repetitions. Run new experiments from the CLI; the Studio inline target is not an executable eval entry point. Use each dimension, not Studio's generic overall average. N/A appears as a dash; inspect saved quality counts or the CLI summary for applicability. Do not rank failed or incomplete runs by partial means. Changed cases, inputs, expectations, scorer rules, or repeat counts require fresh runs for both models.
-
-For model choice, compare the share of cases without checked errors first, then required completeness, then additional completeness. Use duration and native usage when quality is close. Recommend three repetitions per main case for each model on the same revision. This is guidance, not a CLI minimum or proof of statistical superiority. Before replacing a model, run all 50 cases for both models and review new regression failures. Check whether the cause is model behavior, a narrow expectation, or variable output. Fixed sources cover a limited sample; add cases from observed failures instead of growing the suite without a specific reason.
-
-Duration is separate from quality. Set `CATALOG_TRACING=true` to collect native tokens and cost. Eval traces and metrics carry the experiment ID, and saved result rows link to their real trace. Studio shows the native Tokens/Cost summary when metrics are available; evals add no usage totals or metric queries. Eval runs and Studio must use the same `CATALOG_OBSERVABILITY_DATABASE_PATH`. Close Studio before CLI evals and reopen it after they finish: separate processes cannot write to the same DuckDB file at the same time. Old runs without this correlation are not backfilled. See [execution metrics](ingestion-process.md#execution-metrics). Missing metrics are unknown. Experiment storage write failures retain Mastra's native errors or warnings; no custom retry, recovery, post-run storage check, or JSON fallback is added. Complete saved scores and a failed exit are not guaranteed for this exceptional case.
-
-### Fixed geocoding fixtures
-
-Main geocoding uses explicit normalized requests. Wacken, Roskilde, and Budapest locality responses cite GeoNames coordinates and captured travel/contact text for query aliases. They are source-backed locality fallbacks, not venue points or Geoapify captures. Each response carries provenance. Glastonbury and the blocked Afro Nation case have no supported new location in their source fixtures and need no initial geocoding. No seed has coordinates, so initial reverse fixtures are not needed. Add a source-backed response when a missing response blocks the assigned task; do not expand fixtures after every new request. Do not use a wildcard or live fallback. Main source and geocoding fixture misses stay in the saved observations as diagnostics only. Missing required facts, wrong checked facts, and failed task conditions still fail main. Regression fixture-miss checks stay strict. Captured no-match or provider errors are separate declared inputs.
-
-### Main fact checks
-
-Main uses explicit TypeScript case evaluators and common helpers. Main fixtures contain no gold file or regression mutation assertions. Tomorrowland is removed because the old fixture mixed festivals under one brand. Wacken, Roskilde, and Sziget use real official pages captured on 2026-10-27 with the production reader and rendering disabled. Partial, truncated, and failed responses retain their actual outcomes. Glastonbury uses synthetic pages adapted from the real site on 2026-10-27. They retain navigation, unrelated news, separate local events, page controls and general information, with no main-festival programme confirmation in body text or metadata. Archive years remain navigation only; archive detail pages are not supplied. The Info Tickets section gives the next-festival notice. Case provenance lists the edits. Afro Nation retains its blocked capture. Source origin, dates, and provenance are stored in each case.
-
-Each fill case has five required units: year, date pair, country, event type, and topic/culture. Listed location fields, statuses, attendance, classification groups, official link purposes, and full-programme base price are additional units. Roskilde has 11 additional units; Wacken and Sziget have eight each. Glastonbury has four additional link purposes and no required facts. Afro Nation has no available new facts, so both dimensions are N/A. Saved records earn no completeness credit.
-
-Missing optional facts reduce completeness. Contradictory facts and failed factual guards count as errors. Roskilde expects the festival address at Darupvej 19, not the office. Fill cases protect saved Edition facts, identify the one new Edition by saved IDs and its writer reference, and check publication. Fill cases permit declared location additions and locality points on selected saved Editions that have no point. Wacken and Sziget also permit listed names. The three fill cases accept the supported Festival/Music classification on an unclassified saved Edition and its publication when the saved year, dates, and country already satisfy the other gates. Populated saved fields remain protected. Empty optional fields without explicit expectations may be filled without completeness credit; this includes region, price fields, offers, and links. Required fields, identities, publication, and declared coordinate rules stay protected. Version and update time do not count as facts. Main checks accept both `announced` and `scheduled`, including saved Editions; `cancelled` and `postponed` remain distinct. TODO: define deterministic agent rules for the two accepted statuses, then narrow this exception. Glastonbury protects its populated Edition fields and keeps its Event draft. Afro Nation preserves its whole Event and requires the expected source failure and an unresolved question. Main checks final catalog facts without duplicate Research confirmations; verification regressions retain their checks.
-
-Each returned offer must match an accepted product URL, amount, and currency. Missing offers do not reduce completeness. Labels, terms, availability, and duplicate offers are unchecked. Base price is one independent additional fact. Declared displayed and fee-inclusive alternatives both pass: EUR 364 or 366 for Wacken, EUR 349 or 372 for Sziget, DKK 2,650 for Roskilde. Roskilde accepts the displayed Smart Ticket payment of DKK 524 or its full DKK 2,720 cost (five payments plus a DKK 100 fee). Gift cards and the separate Pumpehuset event are not festival admission. Offer amounts can use declared displayed or fee-inclusive alternatives. A wrong offer and wrong base price count as two errors. Unlisted new fields, including region, remain unchecked. General prose and semantic matching stay outside the scorer.
-
-### Local eval storage
-
-Mastra datasets, experiment results, and scores use `CATALOG_EVAL_DATABASE_PATH`, which defaults to `data/mastra-evals.sqlite`. This file is separate from the catalog and DuckDB observability. Relative paths resolve from the project root. `npm run catalog:studio` passes the same absolute path to Studio; set it explicitly for `studio:start` if you use a custom path. Studio can inspect saved datasets and experiments without model credentials. Keep eval execution in the CLI.
-
-Known issue: [intermittent `SQLITE_BUSY_SNAPSHOT` failures](known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) can leave saved scores incomplete or fail an experiment update.
-
-### Local Studio ingestion
-
-Run `npm run catalog:studio`, open `http://127.0.0.1:4111` in the built-in Browser, and choose Workflows → `catalog-ingestion`. Inspection needs no model credentials or catalog; execution needs the migrated `DATABASE_PATH` and OpenRouter settings from `.env`.
-
-```json
-{ "mode": "add", "name": "Festival name" }
-```
-
-```json
-{
-  "mode": "refresh",
-  "eventId": "EVENT_ID",
-  "scope": "full",
-  "dryRun": false,
-  "republish": false
-}
-```
-
-The workflow form accepts one Event per refresh, with optional `scope: "full"|"current"` (default full). Add rejects scope and check is unsupported. Preview is the default. Inspect intermediate results and the final report in the workflow view. Use native cancellation while a run is active; after interruption, start a fresh run. Per-step execution, resume, restart, and time travel are unsupported. See the [workflow steps](ingestion-process.md#workflow-steps) for the shared CLI/Studio lifecycle.
-
-### Studio catalog assistant
-
-Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview one to three Events, update a clear selection, or explain saved results. Follow-up references use the selected conversation. An explicit update request permits apply without a second confirmation. Unclear targets or write intent require clarification.
-
-The assistant has two catalog tools: `query_catalog({sql, parameters?})` and `refresh_events({eventIds, scope?, dryRun?})`. It loads schema and report guidance from the catalog-sql filesystem skill through native Mastra skill tools. SQL reads need a migrated catalog but no provider key. Chat uses the configured OpenRouter model by default. Native Studio model selection can use another provider and its credentials without an OpenRouter key. OpenRouter chat calls use the configured reasoning and service tier; explicit call options override those defaults. Other providers do not receive these defaults. Refresh keeps its separate OpenRouter settings and key requirement. Inspection needs no model key.
-
-Memory uses pinned `@mastra/memory` and `@mastra/libsql` packages with at most 40 remembered messages and a native 16,000-token context budget. Above the budget, it removes oldest remembered messages to free 4,000 tokens. Removed messages remain stored. System instructions and the current turn are protected, so this is not a hard limit on the full prompt. Memory uses no embeddings or background model calls.
-
-`CATALOG_CHAT_DATABASE_PATH` selects a separate SQLite file, default `data/mastra-chat.sqlite`. The local launcher resolves this path before Mastra changes its working directory. Retain it across restart for conversation history. The file and its SQLite sidecars must be separate from the catalog, workflow history, and DuckDB files. SDK shutdown closes all storage providers. Chat history can contain private catalog and report text.
-
-Use `npx tsx src/test/studio-fixture.ts success` for an offline Studio fixture. It uses temporary storage and a deterministic provider, with no paid research. Its chat model tests the tool protocol, not production model reasoning. See the [chat limits and report examples](ingestion-process.md#studio-catalog-chat).
-
-### Workflow history
-
-CLI and Studio always save workflow snapshots, including intermediate results, to `CATALOG_WORKFLOW_DATABASE_PATH` (default `data/mastra-workflows.sqlite`). Relative paths use the project root. Use the same path for both commands and keep this store separate from other data files.
-
-After a CLI run, start `npm run catalog:studio` and open Workflows → catalog-ingestion → Recent runs. Inspection needs no catalog connection or model key. History supports inspection only; start a new run after interruption.
-
-A history storage failure stops execution with `workflow_history_failed` and CLI exit code 1. Confirmed catalog writes and completed reports remain.
-
-History has no automatic deletion. With Studio running, delete a completed entry with:
-
-```sh
-curl -X DELETE http://127.0.0.1:4111/api/workflows/catalog-ingestion/runs/EXECUTION_ID
-```
-
-To clear all history, stop Studio and other writers, then remove only the workflow SQLite file and its sidecars. Catalog data and reports remain. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) for the full history contract.
-
-### Local trace inspection
-
-Logging and tracing are independently opt-in and default off. Tracing supports apply, preview and evaluation, including injected dependencies. Mock calls do not invent tokens or costs. `CATALOG_LOG_LEVEL` accepts `debug`, `info` (default), `warn`, or `error`.
-
-Close Studio before recording from a separate CLI process: DuckDB requires exclusive process ownership of its file.
-
-```sh
-CATALOG_LOGGING=true CATALOG_TRACING=true npm run catalog -- refresh --event EVENT_ID --apply --report data/research-report.json
-npm run catalog:studio
-```
-
-In Studio, open Observability → Logs, Traces or Metrics. Both commands use `CATALOG_OBSERVABILITY_DATABASE_PATH`, defaulting to `data/mastra-observability.duckdb`. Use the durable runId to correlate records. The [ingestion guide](ingestion-process.md#execution-metrics) describes metric eligibility, recorded fields, cost semantics and privacy boundaries.
-
-With Studio running, query persisted records without model credentials or research execution. Sum cost over total input/output metrics only; adding cache/reasoning detail costs can double count consumption:
-
-```sh
-curl -sS http://127.0.0.1:4111/api/observability/metrics/aggregate \
-  -H 'Content-Type: application/json' \
-  -d '{"name":["mastra_model_total_input_tokens","mastra_model_total_output_tokens"],"aggregation":"sum"}'
-```
-
-`value` is the combined input/output token count; `estimatedCost`/`costUnit` carry the known model cost or estimate, not a complete bill. Add `filters.runId` to select a durable run. `POST /api/observability/metrics/breakdown` accepts the same names/aggregation and `groupBy:["entityId","model"]`. Raw `GET /api/observability/metrics` records expose runId, traceId, spanId and native cost metadata. Studio’s agent links from Metrics may preselect agent-root trace filters; this ingestion uses a generic catalog root, so clear those primitive filters to see its trace or correlate the IDs through the API.
-
-Observability is best effort; incomplete or missing traces/metrics do not replace the durable report. Revisit flush/shutdown handling if missing traces or closed-store failures recur. Local stores have no automatic retention. To remove a disposable store, stop research and Studio first, then delete its DuckDB file and `.wal`; leave the catalog and reports intact.
-
-## Application containers
-
-One Dockerfile has `web` and `studio` targets. Both use Node 26.11.1 on Debian Bookworm, with the base image pinned by digest. Dependencies come from `package-lock.json` and are installed for the target Linux architecture. The website uses Next standalone output. Studio includes its UI, Mastra's production Node server, and a separate migration command. Neither startup command runs migrations or loads fixtures.
-
-```sh
-docker compose build
-docker compose stop
-docker compose run --rm --no-deps studio node commands/migrate.mjs
-docker compose up -d --wait
-```
-
-Supply the closed catalog and any retained diagnostic stores before the first service start. Missing diagnostic stores are created empty. The migration command can also create an empty catalog for a temporary check. It is repeatable and returns nonzero on failure. Run it with all catalog users stopped. Use matching images and schema from the same source version.
-
-Compose declares one named volume, `data`, mounted at `/data` in both services. Keep the same Compose project name to retain it during recreation. Do not use `docker compose down --volumes` for retained data. The fixed container paths are:
-
-- `/data/eventroam.sqlite`: catalog, public website reads, and validated Studio writes.
-- `/data/mastra-workflows.sqlite`: native CLI and Studio workflow history.
-- `/data/mastra-observability.duckdb`: optional logs, traces, and metrics.
-- `/data/mastra-chat.sqlite`: assistant conversation history.
-- `/data/mastra-evals.sqlite`: saved eval datasets, experiments, and scores.
-
-Both images run as `node` (UID/GID 1000). The volume directory and supplied files must permit this user to read and write, including SQLite WAL/shared-memory files and DuckDB WAL files. Website database connections stay read-only; the shared volume permits SQLite sidecar access. Only one process can own the DuckDB file. Stop Studio before any separate command opens that file.
-
-Compose exposes web port 3000 and Studio port 4111 only on the Docker network. It publishes no host ports. Studio listens on `0.0.0.0:4111` and has no application login or credentials. Authentication for the complete public Studio host is an external ingress prerequisite. Network attachment, ingress authentication, DNS, TLS, Komodo, webhooks, and deployment automation belong in the self-hosted repository. Both services use `restart: unless-stopped`.
-
-### Container inputs
-
-Compose reads deployment inputs with `EVENTROAM_` and maps them to current application names. Existing local `.env` names and defaults stay unchanged. Set these inputs in the deployment environment or a selected Compose env file; do not commit credentials.
-
-| Deployment input                                                                                                                                                                                                                    | Use                                                                                                                                                                                                     |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EVENTROAM_MAPBOX_TOKEN`, `EVENTROAM_MAPBOX_STYLE`                                                                                                                                                                                  | Website build arguments mapped to `NEXT_PUBLIC_MAPBOX_TOKEN` and `NEXT_PUBLIC_MAPBOX_STYLE`. Empty token keeps list-only use; the style defaults to Mapbox streets-v12. Rebuild to change either value. |
-| `EVENTROAM_PUBLIC_APEX_ORIGIN`, `EVENTROAM_PUBLIC_FESTIVALS_ORIGIN`                                                                                                                                                                 | Runtime `PUBLIC_APEX_ORIGIN` and `PUBLIC_FESTIVALS_ORIGIN`; defaults match local development. Set the public origins for deployment.                                                                    |
-| `EVENTROAM_OPENROUTER_API_KEY`, `EVENTROAM_FIRECRAWL_KEY`, `EVENTROAM_GEOAPIFY_KEY`                                                                                                                                                 | Runtime Studio provider credentials. Neither is a build argument. Inspection needs no model key. Execution needs the migrated catalog and its usual provider settings.                                  |
-| `EVENTROAM_OPENROUTER_MODEL`, `EVENTROAM_OPENROUTER_SERVICE_TIER`, `EVENTROAM_OPENROUTER_REASONING_EFFORT`                                                                                                                          | Runtime model selection; empty values keep the current application defaults.                                                                                                                            |
-| `EVENTROAM_CATALOG_LOCATION_MODEL`                                                                                                                                                                                                  | Runtime `CATALOG_LOCATION_MODEL`; empty uses the normal model.                                                                                                                                          |
-| `EVENTROAM_CATALOG_TRACING`, `EVENTROAM_CATALOG_LOGGING`, `EVENTROAM_CATALOG_LOG_LEVEL`                                                                                                                                             | Existing diagnostics, all off by default except log level `info`.                                                                                                                                       |
-| `EVENTROAM_CATALOG_MAX_SEARCHES`, `EVENTROAM_CATALOG_MAX_SEARCH_RESULTS`, `EVENTROAM_CATALOG_MAX_AGENT_STEPS`, `EVENTROAM_CATALOG_MAX_DURATION_MS`, `EVENTROAM_CATALOG_MAX_PAGE_BYTES`, `EVENTROAM_CATALOG_MAX_MODEL_OUTPUT_TOKENS` | Existing execution limits; empty values keep the application defaults.                                                                                                                                  |
-
-Database paths are Compose constants, without deployment inputs. Direct image use can set the `DATABASE_PATH`, `CATALOG_WORKFLOW_DATABASE_PATH`, `CATALOG_OBSERVABILITY_DATABASE_PATH`, and `CATALOG_CHAT_DATABASE_PATH` runtime names. Builds exclude owner databases, `.env` files, old output, and host dependencies. Only the public Mapbox token and style enter browser assets. Complete the [Mapbox deployment gate](mapbox-deployment-gate.md) before public map use.
-
-For a production Studio build outside Docker, use temporary build storage, then select runtime storage explicitly:
-
-```sh
-DATABASE_PATH=/tmp/eventroam-build/catalog.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/eventroam-build/history.duckdb CATALOG_WORKFLOW_DATABASE_PATH=/tmp/eventroam-build/workflows.sqlite CATALOG_CHAT_DATABASE_PATH=/tmp/eventroam-build/chat.sqlite npm run studio:build
-DATABASE_PATH=./data/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=./data/mastra-observability.duckdb CATALOG_WORKFLOW_DATABASE_PATH=./data/mastra-workflows.sqlite CATALOG_CHAT_DATABASE_PATH=./data/mastra-chat.sqlite npm run studio:start
-```
-
-`studio:start` serves the built UI and API on all interfaces without application authentication. It reads shell inputs; it does not load `.env`. Keep `npm run catalog:studio` for loopback development. Both servers preserve default preview, explicit apply, native cancellation, and the existing unsupported-execution guards. Hosted inspection alone makes no model call.
-
-### Health and image verification
-
-Both images include Node health probes. Website `GET /health` returns `200 {"status":"ok"}` for a readable public schema or generic `503 {"status":"unavailable"}`. It does not create or migrate a missing catalog. Studio uses its existing `GET /health`. These internal checks need no model or login inputs.
-
-Run `npm run docker:smoke` to build both targets, prepare an empty test catalog with one explicit migration, and wait for both container health checks to pass. The script uses the application Compose file without host ports, a random project, and a temporary named volume. It supplies no owner data or provider credentials, makes no paid calls, and removes only its test project's containers and volume after success or failure. CI runs the same command instead of a separate host website build. Website health tests and full offline workflow execution remain outside the images.
-
-### Replace supplied data
-
-Use [Catalog pull and push](infrastructure.md#catalog-pull-and-push) to replace the catalog with a checked snapshot and keep a target backup. Add `--with-mastra` to include workflow history, chats, and stored diagnostics. Stop all database users before transfer. The commands do not merge data or run migrations. Run any required migrations while users remain stopped, then start the matching release. Short downtime is expected.
-
-Automatic backup schedules and recovery drills are deferred to the next iteration. Retained images permit code rollback only while catalog schema and DuckDB formats stay compatible. Image rollback does not reverse data changes; an incompatible migration needs a compatible saved data copy.
-
-## Reference
-
-Eventmap is a read-only product reference. Do not modify it or copy its implementation wholesale; follow this project's specs and dependency choices.
+Use `npm run format:check` for application formatting and `npm run openspec:validate` for OpenSpec edits. See [Testing](testing.md) for browser tests, coverage, fixtures, and CI differences. Follow the [change workflow](change-workflow.md) for behavior changes and review.
+
+## Task guides
+
+| Task | Read |
+| --- | --- |
+| Find code owners and dependency boundaries | [Project structure](project-structure.md) |
+| Plan or review a change | [Change workflow](change-workflow.md) |
+| Test application or browser behavior | [Testing](testing.md) |
+| Run research through CLI or Studio | [Ingestion tools](ingestion-tools.md) |
+| Understand source selection, field decisions, or publication | [Ingestion process](ingestion-process.md) |
+| Run evals, inspect experiments, or compare models | [Ingestion evals](ingestion-evals.md) |
+| Build containers, migrate data, or transfer a catalog | [Infrastructure](infrastructure.md) |
