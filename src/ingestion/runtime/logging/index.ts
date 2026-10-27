@@ -1,6 +1,6 @@
 export {
   createPinoLogger,
-  createResearchLogger,
+  createApplicationLogger,
   type ResearchLogger,
   type ResearchLogLevel,
 } from "./writer";

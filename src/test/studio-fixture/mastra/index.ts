@@ -1,6 +1,12 @@
 import { fixtureEditorForProvider } from "../../ingestion";
 import Database from "better-sqlite3";
-import { Mastra } from "@mastra/core/mastra";
+import { createCatalogAssistant } from "../../../mastra/catalog-assistant";
+import { createAssistantLogging } from "../../../mastra/catalog-assistant/logging";
+import {
+  createChatMemory,
+  StudioMastra,
+} from "../../../mastra/catalog-assistant/memory";
+import { createAssistantFixtureModel } from "../../assistant-model";
 import { createCatalogIngestionWorkflow } from "../../../ingestion/workflow";
 import { DEFAULT_RESEARCH_LIMITS } from "../../../ingestion/runtime/budget";
 import { createObservabilityStore } from "../../../ingestion/runtime/observability/storage";
@@ -106,7 +112,9 @@ const candidate = {
 }
 
 export async function createFixtureMastra() {
+  const logging = createAssistantLogging();
   const observabilityStore = await fixtureStore();
+  const chat = await createChatMemory(process.env.CATALOG_CHAT_DATABASE_PATH);
   const workflow = createCatalogIngestionWorkflow(async () => {
     if (process.env.STUDIO_FIXTURE_INSPECTION_ONLY === "true") {
       throw new Error("Inspection must not resolve catalog dependencies");
@@ -161,17 +169,29 @@ export async function createFixtureMastra() {
     onFailure: workflow.historyControl.recoverHistory,
   });
   await storage.init();
-  return new Mastra({
-    workflows: { "catalog-ingestion": workflow },
-    storage,
-    logger: false,
-    loggerOptions: { export: false },
-    server: {
-      host: "127.0.0.1",
-      port: Number(process.env.STUDIO_FIXTURE_PORT ?? 4111),
-      middleware: [ingestionExecutionGuard(workflow.historyControl, storage)],
+  return new StudioMastra(
+    {
+      workflows: { "catalog-ingestion": workflow },
+      agents: {
+        "catalog-assistant": createCatalogAssistant(
+          workflow,
+          chat.memory,
+          createAssistantFixtureModel(),
+          logging,
+        ),
+      },
+      storage,
+      logger: logging?.sdk ?? false,
+      observability: logging?.observability,
+      loggerOptions: { export: false },
+      server: {
+        host: "127.0.0.1",
+        port: Number(process.env.STUDIO_FIXTURE_PORT ?? 4111),
+        middleware: [ingestionExecutionGuard(workflow.historyControl, storage)],
+      },
     },
-  });
+    chat,
+  );
 }
 
 async function fixtureStore() {

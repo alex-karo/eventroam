@@ -72,11 +72,13 @@ test("diagnostic preflight resolves relative paths and rejects sidecars and alia
   const root = dirname(catalog);
   const workflow = join(root, "workflows.sqlite");
   const observability = join(root, "observability.duckdb");
+  const chat = join(root, "chat.sqlite");
   const env = {
     ...process.env,
     DATABASE_PATH: catalog,
     CATALOG_WORKFLOW_DATABASE_PATH: workflow,
     CATALOG_OBSERVABILITY_DATABASE_PATH: observability,
+    CATALOG_CHAT_DATABASE_PATH: chat,
   };
   expect(
     diagnosticStoragePaths(
@@ -98,6 +100,10 @@ test("diagnostic preflight resolves relative paths and rejects sidecars and alia
     hard,
     observability,
     `${observability}.wal`,
+    chat,
+    `${chat}-wal`,
+    `${chat}-shm`,
+    `${chat}-journal`,
   ]) {
     expect(() =>
       diagnosticStoragePaths(

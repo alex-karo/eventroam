@@ -9,6 +9,6 @@ createFixtureMastra().then((mastra) =>
       host: "127.0.0.1",
       port: Number(process.env.STUDIO_FIXTURE_PORT ?? 4111),
     },
-    process.env.STUDIO_FIXTURE_UI_PATH,
+    process.env.STUDIO_FIXTURE_UI_PATH || undefined,
   ),
 );

@@ -32,6 +32,7 @@ export async function startStudioFixture(
     port?: number;
     root?: string;
     catalog?: boolean;
+    ui?: boolean;
     directory?: string;
     inspectionOnly?: boolean;
   } = {},
@@ -74,6 +75,10 @@ export async function startStudioFixture(
         ...process.env,
         DATABASE_PATH: catalogPath,
         CATALOG_OBSERVABILITY_DATABASE_PATH: tracePath,
+        CATALOG_CHAT_DATABASE_PATH: join(directory, "chat.sqlite"),
+        STUDIO_FIXTURE_UI_PATH: options.ui
+          ? resolve(root, ".mastra/output/studio")
+          : "",
         CATALOG_WORKFLOW_DATABASE_PATH: workflowPath,
         CATALOG_TRACING: scenario === "recording" ? "true" : "false",
         CATALOG_LOGGING: scenario === "recording" ? "true" : "false",
@@ -166,6 +171,7 @@ if (process.argv[1]?.endsWith("studio-fixture.ts")) {
   const scenario = (process.argv[2] ?? "success") as StudioScenario;
   startStudioFixture(scenario, {
     port: Number(process.env.STUDIO_FIXTURE_PORT ?? 4111),
+    ui: true,
   })
     .then((fixture) => {
       process.stdout.write(`Offline Studio fixture: ${fixture.baseUrl}\n`);

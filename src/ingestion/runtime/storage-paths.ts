@@ -47,6 +47,12 @@ export function diagnosticStoragePaths(
     ...sqliteFiles(
       resolve(cwd, env.DATABASE_PATH?.trim() || "data/eventroam.sqlite"),
     ),
+    ...sqliteFiles(
+      resolve(
+        cwd,
+        env.CATALOG_CHAT_DATABASE_PATH?.trim() || "data/mastra-chat.sqlite",
+      ),
+    ),
     ...sqliteFiles(resolve(cwd, "data/mastra-traces.sqlite")),
     ...(env.CATALOG_TRACE_DATABASE_PATH
       ? sqliteFiles(resolve(cwd, env.CATALOG_TRACE_DATABASE_PATH))

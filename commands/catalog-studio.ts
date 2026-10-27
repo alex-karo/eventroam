@@ -1,3 +1,4 @@
+import { chatDatabasePath } from "../src/mastra/catalog-assistant/memory";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { diagnosticStoragePaths } from "../src/ingestion/runtime/storage-paths";
@@ -23,6 +24,11 @@ const child = spawn(
       DATABASE_PATH: resolve(root, readDatabaseEnvironment().DATABASE_PATH),
       CATALOG_OBSERVABILITY_DATABASE_PATH: paths.observability,
       CATALOG_WORKFLOW_DATABASE_PATH: paths.workflow,
+      CATALOG_CHAT_DATABASE_PATH: chatDatabasePath(),
+      CATALOG_ASSISTANT_SKILL_PATH: resolve(
+        root,
+        "src/mastra/catalog-assistant/skills/catalog-sql",
+      ),
     },
   },
 );
