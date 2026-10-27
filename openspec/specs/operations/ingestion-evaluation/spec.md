@@ -148,7 +148,14 @@ Main comparisons SHALL accept declared alternatives and defined normalization. M
 
 ### Requirement: Ticket checks use declared structured facts
 
-Main SHALL check each returned admission offer against accepted URL, amount, and currency combinations. Missing offers SHALL NOT reduce completeness. A returned offer SHALL need all three values to match. Labels, terms, availability, and duplicate offers SHALL remain outside this check. Base price with full-programme coverage SHALL be one independent additional fact. A case MAY accept both the displayed price and its declared mandatory-fee total. General interpretation of ticket prose SHALL remain outside scoring.
+Main SHALL check each returned admission offer against accepted URL, amount, and currency combinations. Missing offers SHALL NOT reduce completeness. A returned offer SHALL need all three values to match. Labels, terms, availability, and duplicate offers SHALL remain outside this check. Base price with full-programme coverage SHALL be one independent additional fact. A case MAY accept both the displayed price and its declared mandatory-fee total. General interpretation of ticket prose SHALL remain outside scoring. For the historical Glastonbury 2025 case only, offer checks SHALL compare amount and currency without checking the URL because the captured history page provides no admission product URL. Its full-programme base price SHALL remain a separate additional fact.
+
+#### Scenario: Historical Glastonbury has a price without a product URL
+
+- **WHEN** the optional Glastonbury 2025 Edition contains an admission offer
+- **THEN** its amount must be GBP 378.50 and its currency must be GBP
+- **AND** the offer URL is outside this historical case check
+- **AND** a missing offer does not reduce completeness, while its base price remains one additional fact
 
 #### Scenario: An offer and base price repeat a wrong price
 
