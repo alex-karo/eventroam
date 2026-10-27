@@ -18,6 +18,8 @@ Log ind
 
 [Bliv frivillig](https://www.roskilde-festival.dk/bliv-frivillig)
 
+[Køb RF-merch](https://shop.roskilde-festival.dk/)
+
 [Camping](https://www.roskilde-festival.dk/camping)
 
 [Kontakt os](https://www.roskilde-festival.dk/kontakt)
@@ -30,7 +32,7 @@ Log ind
 
 # Billetter
 
-Vælg mellem partoutbillet, endagsbillet og todagesbillet – eller køb et billetgavekort til en, du holder af.
+Vælg mellem partoutbillet, Smart Ticket, endagsbilletter og todagesbilletter – eller køb et billetgavekort til en, du holder af.
 
 SCROLL NED
 
@@ -43,6 +45,16 @@ Alle otte dage på Roskilde Festival 2027
 kr. inkl. billetgebyr.
 
 [Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09)
+
+## Smart Ticket
+
+Fordel betalingen for en partoutbillet til RF27 over fem måneder. Deadline: 26. november.
+
+524
+
+kr. om måneden plus 100,- i gebyr
+
+[Køb her](https://ticket.roskilde-festival.dk/da/3e9u8rgkhdlw9dg/products)
 
 ## Todagesbillet
 
@@ -63,6 +75,16 @@ Fra 250
 kr. (du bestemmer beløbet)
 
 [Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=7wxh8y3)
+
+## Headline Flip, 5. november
+
+En særlig Roskilde Festival-aften i Pumpehuset med fire acts, overraskelser og fuld energi.
+
+210
+
+kr. inkl. billetgebyr.
+
+[Køb her](https://ticket.roskilde-festival.dk/da/ekxtjekynuuae5p/products)
 
 ## Onsdag
 

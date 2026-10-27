@@ -38,7 +38,7 @@ test("required and optional omissions lower completeness; a wrong supplied value
   const omitted = evaluateMainCase(run.item, run.before, run.after, run.report);
   expect(omitted).toMatchObject({
     required: { correct: 4, expected: 5 },
-    additional: { correct: 8, expected: 9 },
+    additional: { correct: 7, expected: 8 },
     errorCount: 0,
     passed: false,
   });
@@ -49,23 +49,77 @@ test("required and optional omissions lower completeness; a wrong supplied value
 });
 
 test.each(["wacken", "sziget"])(
-  "%s requires the mandatory fee in base price and accepts captured ticket URLs",
+  "%s accepts displayed and total base prices, but rejects other prices",
   (id) => {
     const run = attempt(id);
     const next = nextEdition(run);
     const offer = next.priceDetails![0];
     next.links.find((link) => link.kind === "ticketing")!.url =
       id === "wacken"
-        ? "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802"
+        ? "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets"
         : offer.url!;
     expect(
       evaluateMainCase(run.item, run.before, run.after, run.report).passed,
     ).toBe(true);
     next.priceMinMinor = next.priceMaxMinor = id === "wacken" ? 36400 : 34900;
+    expect(
+      evaluateMainCase(run.item, run.before, run.after, run.report).passed,
+    ).toBe(true);
+    next.priceMinMinor = next.priceMaxMinor = 100;
     offer.currency = "USD";
     expect(
       evaluateMainCase(run.item, run.before, run.after, run.report),
     ).toMatchObject({ errorCount: 2, passed: false });
+  },
+);
+
+test.each([
+  [
+    "wacken",
+    {
+      displayName: "W:O:A 2026",
+      locality: "Wacken",
+      administrativeArea: "Schleswig-Holstein",
+      latitude: 54.02078040137254,
+      longitude: 9.375972747802734,
+      coordinatePrecision: "locality",
+    },
+  ],
+  [
+    "sziget",
+    {
+      displayName: "Sziget Festival 2026",
+      venueName: "Óbuda Island",
+      venueAddress: "Május 9. park, Budapest, Hungary, 1033",
+      locality: "Budapest",
+      latitude: 47.49835,
+      longitude: 19.04045,
+      coordinatePrecision: "locality",
+    },
+  ],
+])(
+  "%s permits listed historical additions and protects other saved facts",
+  (id, updates) => {
+    const run = attempt(id);
+    const saved = run.after[0].editions.find(
+      (edition) => edition.id === run.before[0].editions[0].id,
+    )!;
+    Object.assign(saved, updates, {
+      version: 2,
+      updatedAt: "2026-10-27T11:00:00.000Z",
+    });
+    expect(
+      evaluateMainCase(run.item, run.before, run.after, run.report).passed,
+    ).toBe(true);
+    saved.locality = "Wrong city";
+    expect(
+      evaluateMainCase(run.item, run.before, run.after, run.report).errorCount,
+    ).toBe(1);
+    Object.assign(saved, updates);
+    saved.startsOn = "2026-01-01";
+    expect(
+      evaluateMainCase(run.item, run.before, run.after, run.report).errorCount,
+    ).toBe(1);
   },
 );
 
@@ -95,6 +149,95 @@ test("Sziget checks each product against its own price; fee totals also pass", (
   ).toBe(1);
 });
 
+test.each(["wacken", "sziget"])("%s has no format completeness unit", (id) => {
+  const run = attempt(id);
+  nextEdition(run).terms = nextEdition(run).terms.filter(
+    (term) => term.facet !== "format",
+  );
+  const score = evaluateMainCase(run.item, run.before, run.after, run.report);
+  expect(score.additional).toMatchObject({ correct: 8, expected: 8 });
+  expect(score.passed).toBe(true);
+});
+
+test.each(["sziget", "roskilde"])(
+  "%s accepts source-backed music genres",
+  (id) => {
+    const run = attempt(id);
+    nextEdition(run).terms.push({
+      id: "catalog:term:genre:electronic",
+      facet: "genre",
+      slug: "electronic",
+      name: "Electronic",
+      parentId: null,
+    });
+    if (id === "roskilde") {
+      nextEdition(run).terms.push({
+        id: "catalog:term:genre:metal",
+        facet: "genre",
+        slug: "metal",
+        name: "Metal",
+        parentId: null,
+      });
+    }
+    expect(
+      evaluateMainCase(run.item, run.before, run.after, run.report).passed,
+    ).toBe(true);
+  },
+);
+
+test.each(["wacken", "sziget", "roskilde"])(
+  "%s permits supported historical classification and publication, but rejects other terms",
+  (id) => {
+    const run = attempt(id);
+    const saved = run.after[0].editions.find(
+      (e) => e.id === run.before[0].editions[0].id,
+    )!;
+    saved.terms = loadEvalSuite()
+      .terms.filter((term) =>
+        ["validation:festival", "validation:music"].includes(term.id),
+      )
+      .map((term) => ({ ...term, parentId: null }));
+    saved.publicationState = "published";
+    expect(
+      evaluateMainCase(run.item, run.before, run.after, run.report).passed,
+    ).toBe(true);
+    saved.terms.push({
+      id: "validation:unsupported",
+      facet: "genre",
+      slug: "unsupported",
+      name: "Unsupported",
+      parentId: null,
+    });
+    expect(
+      evaluateMainCase(run.item, run.before, run.after, run.report).errorCount,
+    ).toBe(1);
+  },
+);
+
+test("Sziget rejects exact precision for a city point and protects a saved point", () => {
+  const run = attempt("sziget");
+  const saved = run.after[0].editions.find(
+    (e) => e.id === run.before[0].editions[0].id,
+  )!;
+  Object.assign(saved, {
+    latitude: 47.49835,
+    longitude: 19.04045,
+    coordinatePrecision: "exact",
+  });
+  expect(
+    evaluateMainCase(run.item, run.before, run.after, run.report).errorCount,
+  ).toBe(1);
+  saved.coordinatePrecision = "locality";
+  Object.assign(run.before[0].editions[0], {
+    latitude: 47.55,
+    longitude: 19.05,
+    coordinatePrecision: "exact",
+  });
+  expect(
+    evaluateMainCase(run.item, run.before, run.after, run.report).errorCount,
+  ).toBe(1);
+});
+
 test("Glastonbury protects its saved Edition", () => {
   const run = attempt("glastonbury");
   run.after[0].editions[0].startsOn = "2027-01-01";
@@ -104,6 +247,102 @@ test("Glastonbury protects its saved Edition", () => {
     expect.objectContaining({ path: "saved.editions", status: "wrong" }),
   );
 });
+
+test("empty optional saved fields without expectations can be filled without credit", () => {
+  const run = attempt("sziget");
+  const saved = run.after[0].editions.find(
+    (edition) => edition.id === run.before[0].editions[0].id,
+  )!;
+  const baseline = evaluateMainCase(
+    run.item,
+    run.before,
+    run.after,
+    run.report,
+  );
+  saved.administrativeArea = "Budapest";
+  saved.timeZone = "Europe/Budapest";
+  saved.priceDetails = structuredClone(nextEdition(run).priceDetails);
+  saved.links = structuredClone(nextEdition(run).links);
+  expect(evaluateMainCase(run.item, run.before, run.after, run.report)).toEqual(
+    baseline,
+  );
+
+  const original = run.before[0].editions[0];
+  original.administrativeArea = "Saved region";
+  for (const replacement of ["Budapest", null]) {
+    saved.administrativeArea = replacement;
+    expect(
+      evaluateMainCase(run.item, run.before, run.after, run.report),
+    ).toMatchObject({ errorCount: 1, passed: false });
+  }
+});
+
+test("saved optional collections and empty required fields remain protected", () => {
+  const run = attempt("glastonbury");
+  const original = run.before[0].editions[0];
+  const saved = run.after[0].editions[0];
+  original.links = structuredClone(run.after[0].links);
+  saved.links = [];
+  expect(
+    evaluateMainCase(run.item, run.before, run.after, run.report),
+  ).toMatchObject({ errorCount: 1, passed: false });
+  original.links = [];
+  original.countryCode = null;
+  expect(
+    evaluateMainCase(run.item, run.before, run.after, run.report),
+  ).toMatchObject({ errorCount: 1, passed: false });
+});
+
+test("main fixture misses stay diagnostic without masking missing or wrong facts", () => {
+  const run = attempt("wacken");
+  run.report.sources.push({
+    ...run.report.sources[0],
+    reason: "not_in_eval_fixture",
+    outcome: "blocked",
+  });
+  for (const origin of ["initial", "agent"] as const) {
+    run.report.geocoding.observations.push({
+      origin,
+      request: { direction: "forward", query: "missing", countryCode: "DE" },
+      slots: [],
+      cacheHit: false,
+      result: { status: "error", code: "fixture_miss" },
+      pointIds: [],
+    });
+  }
+  const report = structuredClone(run.report);
+  expect(
+    evaluateMainCase(run.item, run.before, run.after, run.report).passed,
+  ).toBe(true);
+  expect(run.report).toEqual(report);
+  nextEdition(run).countryCode = null;
+  expect(
+    evaluateMainCase(run.item, run.before, run.after, run.report),
+  ).toMatchObject({ required: { correct: 4 }, errorCount: 0, passed: false });
+  nextEdition(run).countryCode = "US";
+  expect(
+    evaluateMainCase(run.item, run.before, run.after, run.report),
+  ).toMatchObject({ errorCount: 1, passed: false });
+});
+
+test.each(["wacken", "glastonbury"])(
+  "%s accepts announced or scheduled, but not cancelled or postponed",
+  (id) => {
+    const run = attempt(id);
+    const edition =
+      id === "wacken" ? nextEdition(run) : run.after[0].editions[0];
+    edition.scheduleStatus = "announced";
+    expect(
+      evaluateMainCase(run.item, run.before, run.after, run.report).passed,
+    ).toBe(true);
+    for (const status of ["cancelled", "postponed"] as const) {
+      edition.scheduleStatus = status;
+      expect(
+        evaluateMainCase(run.item, run.before, run.after, run.report).passed,
+      ).toBe(false);
+    }
+  },
+);
 
 test("Afro Nation protects the full saved Event when sources are blocked", () => {
   const run = attempt("afro-nation-portugal-blocked");
@@ -145,29 +384,6 @@ test.each<[string, (run: ReturnType<typeof attempt>) => void]>([
       run.after.push({
         ...structuredClone(other),
         canonicalName: "Wrong name",
-      });
-    },
-  ],
-  [
-    "fixtures",
-    (run) => {
-      run.report.sources.push({
-        ...run.report.sources[0],
-        reason: "not_in_eval_fixture",
-        outcome: "blocked",
-      });
-    },
-  ],
-  [
-    "fixtures",
-    (run) => {
-      run.report.geocoding.observations.push({
-        origin: "initial",
-        request: { direction: "forward", query: "missing", countryCode: "DE" },
-        slots: [],
-        cacheHit: false,
-        result: { status: "error", code: "fixture_miss" },
-        pointIds: [],
       });
     },
   ],

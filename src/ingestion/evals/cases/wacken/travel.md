@@ -10,7 +10,7 @@ TageStundenMinuten
 
 Suche nach
 
-[Newsletter](https://www.wacken.com/de/2026/news/etter-abonnieren/)Wacken-Radio
+Newsletter Wacken-Radio
 
 [DE](https://www.wacken.com/de/camping-travel/die-uebersicht/ "Deutsch")
 
@@ -80,8 +80,6 @@ Suche nach
     
     ###### Metal Battle
     
-    [Bewerbt Euch!](https://www.wacken.com/de/line-up/bewerbt-euch/ "Bewerbt Euch!")
-    
 -   [Camping & Travel](https://www.wacken.com/de/camping-travel/die-uebersicht/ "Camping & Travel")
     
     ###### Camping-Areas
@@ -115,8 +113,6 @@ Suche nach
     [DKMS](https://www.wacken.com/de/community/dkms/ "DKMS")
     
     ###### Unser Engagement
-    
-    [Green Wacken](https://www.wacken.com/de/community/green-wacken/ "Green Wacken")
     
     [Wacken Foundation](https://www.wacken.com/de/community/wacken-foundation/ "Wacken Foundation")
     
@@ -212,8 +208,8 @@ MEHR INFORMATIONEN!
 
 ## Auf nach Wacken!
 
--   [Newsletter abonnieren](https://www.wacken.com/de/2026/news/etter-abonnieren/)
--   [Bands](https://www.wacken.com/de/2026/line-up/bands/)
+-   Newsletter abonnieren
+-   Bands
 -   [Tickets & Shop](https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/)
 -   Medien
 

@@ -1,4 +1,4 @@
-import type { Edition } from "./context";
+import { mainScheduleStatuses, type Edition } from "./context";
 import { fact, normalizeUrl } from "./facts";
 
 export function termIds(edition: Edition | undefined, facets: string[]) {
@@ -37,7 +37,7 @@ export function requiredFacts(
 export function statusFacts(edition: Edition | undefined) {
   return [
     fact("next.dateState", edition?.dateState, ["confirmed"]),
-    fact("next.scheduleStatus", edition?.scheduleStatus, ["scheduled"]),
+    fact("next.scheduleStatus", edition?.scheduleStatus, mainScheduleStatuses),
   ];
 }
 
@@ -56,7 +56,7 @@ export function classification(
 export function basePrice(
   edition: Edition | undefined,
   currency: string,
-  amountMinor: number,
+  ...amountsMinor: number[]
 ) {
   return fact(
     "next.basePrice",
@@ -69,15 +69,13 @@ export function basePrice(
           coverage: edition.priceCoverage,
         }
       : null,
-    [
-      {
-        kind: "exact",
-        currency,
-        minMinor: amountMinor,
-        maxMinor: amountMinor,
-        coverage: "full_programme",
-      },
-    ],
+    amountsMinor.map((amountMinor) => ({
+      kind: "exact",
+      currency,
+      minMinor: amountMinor,
+      maxMinor: amountMinor,
+      coverage: "full_programme",
+    })),
   );
 }
 

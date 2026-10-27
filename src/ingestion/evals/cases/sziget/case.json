@@ -42,7 +42,7 @@
     {
       "attemptedUrl": "https://www.szigetfestival.com/",
       "finalUrl": "https://szigetfestival.com/en/",
-      "retrievedAt": "2026-10-03T16:33:58.662Z",
+      "retrievedAt": "2026-10-27T13:33:25.433Z",
       "method": "http",
       "outcome": "ok",
       "completeness": "full",
@@ -51,17 +51,17 @@
     {
       "attemptedUrl": "https://szigetfestival.com/en/tickets",
       "finalUrl": "https://szigetfestival.com/en/tickets",
-      "retrievedAt": "2026-10-03T23:16:38.705Z",
+      "retrievedAt": "2026-10-27T13:33:26.866Z",
       "method": "http",
       "outcome": "partial",
+      "reason": "javascript_required",
       "completeness": "partial",
-      "reason": "renders_budget_exhausted",
       "markdownFile": "tickets.md"
     },
     {
       "attemptedUrl": "https://szigetfestival.com/en/travel",
       "finalUrl": "https://szigetfestival.com/en/travel/",
-      "retrievedAt": "2026-10-03T23:14:50.663Z",
+      "retrievedAt": "2026-10-27T13:33:27.419Z",
       "method": "http",
       "outcome": "ok",
       "completeness": "full",
@@ -70,11 +70,58 @@
     {
       "attemptedUrl": "https://szigetfestival.com/en/festival-info",
       "finalUrl": "https://szigetfestival.com/en/festival-info",
-      "retrievedAt": "2026-10-03T23:49:32.520Z",
+      "retrievedAt": "2026-10-27T13:33:28.002Z",
+      "method": "http",
+      "outcome": "ok",
+      "reason": "source_content_truncated",
+      "completeness": "partial",
+      "markdownFile": "info.md"
+    },
+    {
+      "attemptedUrl": "https://szigetfestival.com/en/experience",
+      "finalUrl": "https://szigetfestival.com/en/experience",
+      "retrievedAt": "2026-10-27T13:33:28.342Z",
       "method": "http",
       "outcome": "ok",
       "completeness": "full",
-      "markdownFile": "info.md"
+      "markdownFile": "experience.md"
+    },
+    {
+      "attemptedUrl": "https://szigetfestival.com/en/stages",
+      "finalUrl": "https://szigetfestival.com/en/stages/",
+      "retrievedAt": "2026-10-27T13:33:28.735Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "stages.md"
+    },
+    {
+      "attemptedUrl": "https://szigetfestival.com/en/programs-lineup-2026",
+      "finalUrl": "https://szigetfestival.com/en/programs-lineup-2026",
+      "retrievedAt": "2026-10-27T13:58:05.370Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "lineup-2026.md"
+    },
+    {
+      "attemptedUrl": "https://szigetfestival.com/en/contact",
+      "finalUrl": "https://szigetfestival.com/en/contact",
+      "retrievedAt": "2026-10-27T13:58:05.768Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "contact.md"
+    },
+    {
+      "attemptedUrl": "https://szigetfestival.com/en/gallery",
+      "finalUrl": "https://szigetfestival.com/en/gallery",
+      "retrievedAt": "2026-10-27T13:58:06.152Z",
+      "method": "http",
+      "outcome": "partial",
+      "reason": "javascript_required",
+      "completeness": "partial",
+      "markdownFile": "gallery.md"
     }
   ],
   "expectations": {},
@@ -274,6 +321,96 @@
         ]
       },
       "provenance": "https://www.geonames.org/3054643/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Óbuda Island, Május 9. park, Budapest, Hungary, 1033, Budapest, HU",
+        "countryCode": "HU"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 47.49835,
+            "longitude": 19.04045,
+            "placeId": "geonames:3054643",
+            "label": "Budapest",
+            "name": "Budapest",
+            "countryCode": "HU",
+            "locality": "Budapest",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      },
+      "provenance": "https://www.geonames.org/3054643/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue. This explicit alias was observed in the main run on 2026-10-27; it returns the same locality fallback, not a venue match."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Budapest, Hungary",
+        "countryCode": "HU"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 47.49835,
+            "longitude": 19.04045,
+            "placeId": "geonames:3054643",
+            "label": "Budapest",
+            "name": "Budapest",
+            "countryCode": "HU",
+            "locality": "Budapest",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      },
+      "provenance": "https://www.geonames.org/3054643/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue. This explicit alias was observed in the main run on 2026-10-27; it returns the same locality fallback, not a venue match."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Budapest, Budapest, Hungary",
+        "countryCode": "HU"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 47.49835,
+            "longitude": 19.04045,
+            "placeId": "geonames:3054643",
+            "label": "Budapest",
+            "name": "Budapest",
+            "countryCode": "HU",
+            "locality": "Budapest",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      },
+      "provenance": "https://www.geonames.org/3054643/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue. Observed city query in experiment c8fa18ac-8cf2-4d2d-98a6-15f9d633241e."
     }
-  ]
+  ],
+  "todayUtc": "2026-10-27",
+  "provenance": {
+    "kind": "captured",
+    "sourceReport": "docs/development.md#main-fact-checks",
+    "note": "Captured from official websites on 2026-10-27 through the production readPage tool with rendering disabled. Replaces the previous page set and adds URLs requested in the saved main run. Markdown is reader output with trailing spaces removed. Partial, truncated, and failed HTTP responses keep their actual outcomes. No generated page content or live fallback. Expanded with real HTTP responses for URLs requested in experiment a2bef149-7ecb-47b5-9794-db4dbfb898c3; trailing spaces removed."
+  }
 }

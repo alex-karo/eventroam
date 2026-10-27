@@ -12,10 +12,48 @@ beforeAll(async () => {
 
 test.each<[string, (run: Attempt) => void, boolean]>([
   [
-    "second venue and address alternatives",
+    "full Smart Ticket price",
+    (r) => {
+      next(r).priceDetails!.push({
+        label: "Smart Ticket",
+        amount: 2720,
+        currency: "DKK",
+        url: "https://ticket.roskilde-festival.dk/da/3e9u8rgkhdlw9dg/products",
+      });
+    },
+    true,
+  ],
+  [
+    "displayed Smart Ticket monthly payment",
+    (r) => {
+      next(r).priceDetails![0] = {
+        label: "Smart Ticket",
+        amount: 524,
+        currency: "DKK",
+        terms: "Five monthly instalments; plus a DKK 100 fee.",
+        url: "https://ticket.roskilde-festival.dk/da/3e9u8rgkhdlw9dg/products",
+      };
+    },
+    true,
+  ],
+  [
+    "separate Pumpehuset event as festival admission",
+    (r) => {
+      next(r).priceDetails![0] = {
+        label: "Headline Flip",
+        amount: 210,
+        currency: "DKK",
+        url: "https://ticket.roskilde-festival.dk/da/ekxtjekynuuae5p/products",
+      };
+    },
+    false,
+  ],
+  [
+    "venue alternative and full festival address",
     (r) => {
       next(r).venueName = "Roskilde Festivalplads";
-      next(r).venueAddress = "Darupvej 19, 4000 Roskilde";
+      next(r).venueAddress =
+        "Festivalpladsen, Darupvej 19, 4000 Roskilde, Denmark";
     },
     true,
   ],
@@ -69,10 +107,10 @@ test("wrong offers, extra terms and changed saved data count as errors without c
   const run = structuredClone(fixture);
   next(run).priceDetails![0].currency = "EUR";
   next(run).terms.push({
-    id: "catalog:term:genre:metal",
+    id: "validation:unsupported-genre",
     facet: "genre",
-    slug: "metal",
-    name: "Metal",
+    slug: "unsupported",
+    name: "Unsupported",
     parentId: null,
   });
   run.after[0].editions.find(

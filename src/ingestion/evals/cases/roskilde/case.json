@@ -42,7 +42,7 @@
     {
       "attemptedUrl": "https://www.roskilde-festival.dk/",
       "finalUrl": "https://www.roskilde-festival.dk/",
-      "retrievedAt": "2026-10-03T16:33:58.662Z",
+      "retrievedAt": "2026-10-27T13:33:25.433Z",
       "method": "http",
       "outcome": "ok",
       "completeness": "full",
@@ -51,7 +51,7 @@
     {
       "attemptedUrl": "https://www.roskilde-festival.dk/billetter",
       "finalUrl": "https://www.roskilde-festival.dk/billetter",
-      "retrievedAt": "2026-10-03T23:49:31.905Z",
+      "retrievedAt": "2026-10-27T13:33:25.753Z",
       "method": "http",
       "outcome": "ok",
       "completeness": "full",
@@ -60,7 +60,7 @@
     {
       "attemptedUrl": "https://www.roskilde-festival.dk/kontakt",
       "finalUrl": "https://www.roskilde-festival.dk/kontakt",
-      "retrievedAt": "2026-10-04T00:50:16.361Z",
+      "retrievedAt": "2026-10-27T13:33:25.831Z",
       "method": "http",
       "outcome": "ok",
       "completeness": "full",
@@ -69,11 +69,84 @@
     {
       "attemptedUrl": "https://www.roskilde-festival.dk/festival-med-formaal",
       "finalUrl": "https://www.roskilde-festival.dk/festival-med-formaal",
-      "retrievedAt": "2026-10-03T23:49:31.906Z",
+      "retrievedAt": "2026-10-27T13:33:26.196Z",
       "method": "http",
       "outcome": "ok",
       "completeness": "full",
       "markdownFile": "purpose.md"
+    },
+    {
+      "attemptedUrl": "https://www.roskilde-festival.dk/nyheder/rf27-de-foerste-18-navne-er-klar",
+      "finalUrl": "https://www.roskilde-festival.dk/nyheder/rf27-de-foerste-18-navne-er-klar",
+      "retrievedAt": "2026-10-27T13:33:26.501Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "first-artists.md"
+    },
+    {
+      "attemptedUrl": "https://www.roskilde-festival.dk/program",
+      "finalUrl": "https://www.roskilde-festival.dk/program",
+      "retrievedAt": "2026-10-27T13:33:26.794Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "program.md"
+    },
+    {
+      "attemptedUrl": "https://www.roskilde-festival.dk/nyheder/goer-dig-klar-til-at-koebe-billet-til-rf27",
+      "finalUrl": "https://www.roskilde-festival.dk/nyheder/goer-dig-klar-til-at-koebe-billet-til-rf27",
+      "retrievedAt": "2026-10-27T13:33:27.185Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "ticket-sale.md"
+    },
+    {
+      "attemptedUrl": "https://www.roskilde-festival.dk/nyheder/tessa-sender-aarets-orange-donation-til-amnesty",
+      "finalUrl": "https://www.roskilde-festival.dk/nyheder/tessa-sender-aarets-orange-donation-til-amnesty",
+      "retrievedAt": "2026-10-27T13:33:27.497Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "donation.md"
+    },
+    {
+      "attemptedUrl": "https://www.roskilde-festival.dk/nyheder",
+      "finalUrl": "https://www.roskilde-festival.dk/nyheder",
+      "retrievedAt": "2026-10-27T13:58:06.531Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "news.md"
+    },
+    {
+      "attemptedUrl": "https://www.roskilde-festival.dk/saadan-er-roskilde",
+      "finalUrl": "https://www.roskilde-festival.dk/saadan-er-roskilde",
+      "retrievedAt": "2026-10-27T13:58:07.239Z",
+      "method": "http",
+      "outcome": "ok",
+      "reason": "source_content_truncated",
+      "completeness": "partial",
+      "markdownFile": "about.md"
+    },
+    {
+      "attemptedUrl": "https://faq.roskilde-festival.dk/hc/da/categories/10127594054813-Roskilde-Festival",
+      "finalUrl": "https://faq.roskilde-festival.dk/hc/da/categories/10127594054813-Roskilde-Festival",
+      "retrievedAt": "2026-10-27T13:58:07.635Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "faq.md"
+    },
+    {
+      "attemptedUrl": "https://www.roskilde-festival.dk/nyheder/tak-for-i-aar-vi-ses-i-2027",
+      "finalUrl": "https://www.roskilde-festival.dk/nyheder/tak-for-i-aar-vi-ses-i-2027",
+      "retrievedAt": "2026-10-27T14:15:46.285Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "wrap-up.md"
     }
   ],
   "expectations": {},
@@ -329,6 +402,40 @@
         ]
       },
       "provenance": "https://www.geonames.org/2614481/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue. Observed Roskilde query alias in run b6aac593-a425-48b4-8717-58ef9a690b9c; the response remains a city result and does not assert a venue point or region."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Festivalpladsen, Darupvej 19, Roskilde",
+        "countryCode": "DK"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 55.64152,
+            "longitude": 12.08035,
+            "placeId": "geonames:2614481",
+            "label": "Roskilde",
+            "name": "Roskilde",
+            "countryCode": "DK",
+            "locality": "Roskilde",
+            "address": null,
+            "objectType": "locality",
+            "originalType": "populated place",
+            "category": null,
+            "confidence": null
+          }
+        ]
+      },
+      "provenance": "https://www.geonames.org/2614481/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue. Observed address alias in experiment a2bef149-7ecb-47b5-9794-db4dbfb898c3. The response remains a Roskilde city fallback, not a venue point."
     }
-  ]
+  ],
+  "todayUtc": "2026-10-27",
+  "provenance": {
+    "kind": "captured",
+    "sourceReport": "docs/development.md#main-fact-checks",
+    "note": "Captured from official websites on 2026-10-27 through the production readPage tool with rendering disabled. Replaces the previous page set and adds URLs requested in the saved main run. Markdown is unchanged reader output. Partial, truncated, and failed HTTP responses keep their actual outcomes. No generated page content or live fallback. Expanded with real HTTP responses for URLs requested in experiment a2bef149-7ecb-47b5-9794-db4dbfb898c3; trailing spaces removed. Expanded with real HTTP responses for URLs requested in experiment aaded5e7-804b-4a0d-a5e8-6f0ddd95a174; trailing spaces removed."
+  }
 }

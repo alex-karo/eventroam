@@ -1,12 +1,11 @@
 import type { MainContext } from "./context";
-import { fillConditions } from "./context";
+import { fillConditions, savedEditions } from "./context";
 import {
   basePrice,
   classification,
   offerChecks,
   requiredFacts,
   statusFacts,
-  termIds,
 } from "./checks";
 import { evaluate, fact, linkFact } from "./facts";
 
@@ -47,7 +46,6 @@ export function sziget(context: MainContext) {
         "Május 9. park, Budapest, Hungary, 1033",
         "Május 9. park, 1033 Budapest, Hungary",
       ]),
-      fact("next.format", termIds(next, ["format"]), [["validation:openair"]]),
       linkFact("event.website", event?.links, "official_site", [
         "https://szigetfestival.com/en/",
         "https://www.szigetfestival.com/",
@@ -58,11 +56,28 @@ export function sziget(context: MainContext) {
         ...offers.flatMap((offer) => offer.urls),
       ]),
       // Unrestricted pass: EUR 349 plus mandatory EUR 23 handling fee.
-      basePrice(next, "EUR", 37200),
+      basePrice(next, "EUR", 34900, 37200),
     ],
     correctness: [
-      context.saved,
-      classification(next, ["validation:openair"]),
+      // Recap and shared travel page also describe the selected 2026 Edition.
+      savedEditions(context.original, event, {
+        displayName: "Sziget Festival 2026",
+        // The recap confirms the past music festival; saved dates and country satisfy the other publication gates.
+        termIds: ["validation:festival", "validation:music"],
+        publicationState: "published",
+        venueName: "Óbuda Island",
+        venueAddress: "Május 9. park, Budapest, Hungary, 1033",
+        locality: "Budapest",
+        // The declared geocoding response is a city point, not a venue point.
+        latitude: 47.49835,
+        longitude: 19.04045,
+        coordinatePrecision: "locality",
+      }),
+      // experience.md lists house, techno, and trance.
+      classification(next, [
+        "validation:openair",
+        "catalog:term:genre:electronic",
+      ]),
       ...offerChecks(next, offers),
     ],
     conditions: [...context.conditions, ...fillConditions(context)],

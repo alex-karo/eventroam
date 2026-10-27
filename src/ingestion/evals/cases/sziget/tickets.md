@@ -23,7 +23,7 @@
 -   [Best moments](https://szigetfestival.com/en/gallery)
 -   [Sziget TV](https://szigetfestival.com/en/stream)
 
-[Login](https://szigetfestival.com/en/account/)
+[Login](https://szigetfestival.com/en/account)
 
 -   en
     

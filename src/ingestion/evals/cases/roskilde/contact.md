@@ -18,6 +18,8 @@ Log ind
 
 [Bliv frivillig](https://www.roskilde-festival.dk/bliv-frivillig)
 
+[Køb RF-merch](https://shop.roskilde-festival.dk/)
+
 [Camping](https://www.roskilde-festival.dk/camping)
 
 [Kontakt os](https://www.roskilde-festival.dk/kontakt)

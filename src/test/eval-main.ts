@@ -16,7 +16,7 @@ import { runCatalogResearch } from "@/ingestion/workflow";
 import { loadResearchConfig } from "@/ingestion/runtime/config";
 import { generateFixtureEditor, generateFixtureLocation } from "./ingestion";
 
-// Independent model substitutes. Values come from the captured pages, not evaluator rules.
+// Fixed model outputs. Values come from source fixtures, not evaluator rules.
 const programmes: Record<string, Record<string, unknown>> = {
   wacken: {
     year: 2027,
@@ -194,8 +194,17 @@ export function mainCandidate(item: PipelineEvalCase): ResearchCandidate {
     data: {
       eventId: item.initial.event.id,
       eventName: item.initial.event.canonicalName,
-      sources: item.sources.map((source) => ({
-        url: source.finalUrl,
+      sources: [
+        ...new Set(
+          item.sources
+            .filter(
+              (source) =>
+                source.outcome === "ok" || source.outcome === "partial",
+            )
+            .map((source) => source.finalUrl),
+        ),
+      ].map((url) => ({
+        url,
         information: "Captured source supports the test findings",
       })),
       links: links[item.id],

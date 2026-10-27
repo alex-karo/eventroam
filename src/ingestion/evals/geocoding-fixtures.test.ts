@@ -3,6 +3,33 @@ import { geocodingKey } from "../tools/geocode/contracts";
 import { loadEvalSuite } from "./fixtures";
 import { fixedGeocoding } from "./run";
 
+test.each([
+  ["wacken", "Wacken, Schleswig-Holstein, Germany", "DE", "Wacken"],
+  ["wacken", "Wacken, Germany", "DE", "Wacken"],
+  [
+    "sziget",
+    "Óbuda Island, Május 9. park, Budapest, Hungary, 1033, Budapest, HU",
+    "HU",
+    "Budapest",
+  ],
+  ["sziget", "Budapest, Hungary", "HU", "Budapest"],
+  ["sziget", "Budapest, Budapest, Hungary", "HU", "Budapest"],
+  ["roskilde", "Festivalpladsen, Darupvej 19, Roskilde", "DK", "Roskilde"],
+])(
+  "%s replays an observed geocoding request: %s",
+  async (id, query, countryCode, locality) => {
+    const item = loadEvalSuite().cases.find((item) => item.id === id)!;
+    const result = await fixedGeocoding(item)(
+      { direction: "forward", query, countryCode },
+      new AbortController().signal,
+    );
+    expect(result).toMatchObject({
+      status: "success",
+      candidates: [{ locality, countryCode, objectType: "locality" }],
+    });
+  },
+);
+
 test("main geocoding uses declared source-backed locality results with exact requests", async () => {
   for (const item of loadEvalSuite().cases.filter((c) => c.suite === "main")) {
     const fixtures = item.geocoding ?? [];

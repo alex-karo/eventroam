@@ -480,6 +480,102 @@ test("fixed source adapter uses captured pages and blocks unknown URLs without n
   }
 });
 
+test.each([
+  [
+    "wacken",
+    "https://www.wacken.com/de/impressum/",
+    "failed",
+    "http_404",
+    "none",
+  ],
+  [
+    "wacken",
+    "https://www.wacken.com/de/historie/",
+    "partial",
+    "javascript_required",
+    "partial",
+  ],
+  [
+    "sziget",
+    "https://szigetfestival.com/en/festival-info",
+    "ok",
+    "source_content_truncated",
+    "partial",
+  ],
+  [
+    "roskilde",
+    "https://www.roskilde-festival.dk/program",
+    "ok",
+    undefined,
+    "full",
+  ],
+  [
+    "glastonbury",
+    "https://www.glastonburyfestivals.co.uk/info/#tickets",
+    "ok",
+    undefined,
+    "full",
+  ],
+  [
+    "glastonbury",
+    "https://instagram.com/glastofest",
+    "unsupported",
+    "social_content_unsupported",
+    "none",
+  ],
+])(
+  "expanded source replay keeps the HTTP result for %s: %s",
+  async (id, url, outcome, reason, completeness) => {
+    const item = mainById.get(id!)!;
+    const read = await fixedSources(item, suite.todayUtc).readPage(url!, {
+      budget: createResearchBudget(),
+    });
+    expect(read).toMatchObject({ outcome, completeness });
+    expect(read.reason).toBe(reason);
+    if (completeness === "none") {
+      expect(read.markdown).toBe("");
+    } else {
+      expect(read.markdown.length).toBeGreaterThan(0);
+    }
+  },
+);
+
+test("Glastonbury keeps site noise without confirming a festival programme", async () => {
+  const item = mainById.get("glastonbury")!;
+  const base = "https://www.glastonburyfestivals.co.uk";
+  const sources = fixedSources(item, item.todayUtc!);
+  const read = (url: string) =>
+    sources.readPage(url, { budget: createResearchBudget() });
+  const home = await read(`${base}/`);
+  expect(home.markdown).toContain("## This site uses Cookies");
+  expect(home.markdown).toContain("[Page footer]");
+  expect(home.markdown.match(/\[Navigation\]/g)!.length).toBeGreaterThan(1);
+  for (const path of [
+    "/info/#tickets",
+    "/news/",
+    "/history/",
+    "/line-up/",
+    "/areas/",
+    "/worthy-causes/",
+    "/contact/",
+  ]) {
+    expect(home.links).toContain(`${base}${path}`);
+    expect((await read(`${base}${path}`)).outcome).toBe("ok");
+  }
+  expect((await read(`${base}/info/#tickets`)).markdown).toContain(
+    "Details of the next Glastonbury Festival have not been announced.",
+  );
+  expect((await read(`${base}/info/tickets/`)).finalUrl).toBe(`${base}/`);
+  const history = await read(`${base}/history/`);
+  const archive = history.links.find((url) => /\/history-\d{4}\/$/.test(url))!;
+  expect(archive).toBeDefined();
+  expect((await read(archive)).reason).toBe("not_in_eval_fixture");
+  const text = item.sources.map((source) => source.markdown).join("\n");
+  expect(text).not.toMatch(/2027|ticket-information-confirmed|prize-draw/);
+  expect(text).not.toMatch(/@type: (?:MusicEvent|Festival|Event)\b/);
+  expect(text).toContain("Pilton Party 2025 in photos");
+});
+
 test("fixture links preserve Markdown destinations without interpreting code as links", () => {
   const links = sourceLinks(
     `## Festival 2027 tickets

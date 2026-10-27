@@ -1,4 +1,5 @@
 import type { MainContext } from "./context";
+import { savedEditions } from "./context";
 import { fillConditions } from "./context";
 import {
   basePrice,
@@ -11,7 +12,7 @@ import { evaluate, fact, linkFact } from "./facts";
 
 export function roskilde(context: MainContext) {
   const { event, next } = context;
-  // tickets.md: six admission products, prices include the fee. Gift cards are excluded.
+  // tickets.md: admission products. Gift cards and the Pumpehuset event are excluded.
   const offers = [
     ["fz3fh09", 2650],
     ["7g0tvpp", 2230],
@@ -35,6 +36,7 @@ export function roskilde(context: MainContext) {
       fact("next.address", next?.venueAddress, [
         "Darupvej 19",
         "Darupvej 19, 4000 Roskilde",
+        "Festivalpladsen, Darupvej 19, 4000 Roskilde, Denmark",
       ]),
       linkFact("event.website", event?.links, "official_site", [
         "https://www.roskilde-festival.dk/",
@@ -54,18 +56,37 @@ export function roskilde(context: MainContext) {
     ],
     // Neither pages nor fixed geocoding responses state a region.
     correctness: [
-      context.saved,
-      classification(next),
-      ...offerChecks(
-        next,
-        offers.map(([code, amount]) => ({
+      // news.md confirms the completed 2026 music festival.
+      savedEditions(context.original, event, {
+        termIds: ["validation:festival", "validation:music"],
+        publicationState: "published",
+        locality: "Roskilde",
+        latitude: 55.64152,
+        longitude: 12.08035,
+        coordinatePrecision: "locality",
+      }),
+      // first-artists.md describes electronic music and death-doom acts.
+      classification(next, [
+        "catalog:term:genre:electronic",
+        "catalog:term:genre:metal",
+      ]),
+      ...offerChecks(next, [
+        ...offers.map(([code, amount]) => ({
           urls: [
             `https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=${code}`,
           ],
           amounts: [amount],
           currency: "DKK",
         })),
-      ),
+        {
+          urls: [
+            "https://ticket.roskilde-festival.dk/da/3e9u8rgkhdlw9dg/products",
+          ],
+          // Accept the displayed monthly amount or the full cost with the fee.
+          amounts: [524, 2720],
+          currency: "DKK",
+        },
+      ]),
     ],
     conditions: [...context.conditions, ...fillConditions(context)],
   });
