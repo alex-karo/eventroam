@@ -265,16 +265,18 @@ Use `--model X` to select X for all three agents, including isolated Location. C
 
 Logs and traces help diagnose execution. They are optional and best effort. They do not replace the durable run report or writer audit. See [Ingestion tools](ingestion-tools.md#local-trace-inspection) for recording, queries, and cleanup.
 
-- Set `CATALOG_TRACING=true` for traces and native metrics. Set `CATALOG_LOGGING=true` independently for selected application events. Both default off.
+- Set `CATALOG_TRACING=true` for traces and native metrics. Set `CATALOG_LOGGING=true` independently for application and native SDK logs. Both default off.
 - Close Studio before a separate CLI process records data. Only one process can own the DuckDB file. Reopen Studio after the CLI exits.
 - Correlate saved runs, logs, and traces through the durable `runId` and any available real trace/span IDs. A missing trace does not mean the catalog write failed.
 - Inspect retrieval status and reason codes separately from tool execution status. A completed tool can return a failed retrieval. Native technical success does not verify facts or catalog changes.
-- Trace labels distinguish saved context from created or changed Editions. Years are not inferred from Edition keys.
-- Keep diagnostics private. Selected commentary and reasoning can contain model text. Public source URLs can contain token-like values; no general secret detector is promised. Full source capture needs separate opt-in.
+- The root has the fixed name `catalog-research`. Metadata identifies the Event, mode and durable run ID, with workflow and experiment IDs when available. Output copies only `researchStatus`, `editorStatus`, `locationStatus` and catalog `outcome`. Workflow steps and the report hold phase, validation and Edition details.
+- Keep diagnostics private. Native spans and SDK logs can retain prompts, messages, model responses, tool results and errors. Mastra's standard `SensitiveDataFilter` redacts supported span secret fields; arbitrary text and logs have no general redaction guarantee. The application does not attach configuration credentials. Separate source capture needs its own opt-in.
 
-Read spans retain `status`, `reasonCode`, method, URLs, and caching. Tool spans and completion logs also retain the model projection's `truncated` flag; initial-fetch spans report retrieval metadata without a projection truncation claim.
+Native tool spans retain their standard results. Application logs retain retrieval status, reason codes, method, URLs, caching and projection truncation. The initial read span retains retrieval metadata without a projection truncation claim. No processor restores custom span fields after SDK completion.
 
-Application telemetry selects bounded fields. SDK model/tool content is suppressed or excluded from export; a failed exclusion drops the affected span with a content-free diagnostic. Shutdown, interruption, or storage failures can lose telemetry. Logging and tracing do not add model requests or change budgets, retries, catalog writes, or exit status. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) and `src/ingestion/runtime/` for exact fields and implementation.
+Pino writes JSON to stderr and Mastra forwards calls to Studio Logs. Delivery uses native Mastra behavior. Events outside SDK contexts can have no top-level correlation; application log data retains the durable `runId`. Completed model commentary and returned reasoning are separate events, each limited to 4,000 Unicode code points. Studio assistant tools use the same logging configuration without enabling chat traces.
+
+The workflow ends its root after report construction, settles children, then attempts flush before shutdown. CLI closes its owned store; Studio lends its store across attempts. SDK observability warnings and errors use native messages; application lifecycle guards retain fixed codes. Telemetry remains best effort and does not change model requests, budgets, retries, catalog writes, reports, scoring or exit status. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) and `src/ingestion/runtime/` for the contract and implementation.
 
 ### Execution metrics
 

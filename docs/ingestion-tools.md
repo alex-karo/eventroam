@@ -113,13 +113,15 @@ npm run catalog:studio
 
 In Studio, open Observability → Logs, Traces or Metrics. Both commands use `CATALOG_OBSERVABILITY_DATABASE_PATH`, defaulting to `data/mastra-observability.duckdb`. Use the durable runId to correlate records. The [ingestion guide](ingestion-process.md#execution-metrics) describes metric eligibility, recorded fields, cost semantics and privacy boundaries.
 
-With Studio running, query persisted records without model credentials or research execution. Sum cost over total input/output metrics only; adding cache/reasoning detail costs can double count consumption:
+With Studio running, use the native Mastra CLI to inspect saved records without model credentials or a research run:
 
 ```sh
-curl -sS http://127.0.0.1:4111/api/observability/metrics/aggregate \
-  -H 'Content-Type: application/json' \
-  -d '{"name":["mastra_model_total_input_tokens","mastra_model_total_output_tokens"],"aggregation":"sum"}'
+npx mastra api --url http://127.0.0.1:4111 trace list '{"page":0,"perPage":20}'
+npx mastra api --url http://127.0.0.1:4111 log list '{"level":"error","page":0,"perPage":50}'
+npx mastra api --url http://127.0.0.1:4111 metric aggregate '{"name":["mastra_model_total_input_tokens","mastra_model_total_output_tokens"],"aggregation":"sum"}'
 ```
+
+Use `--schema` on a command to check its filter fields. Sum cost over total input/output metrics only; adding cache/reasoning detail costs can double count consumption.
 
 `value` is the combined input/output token count; `estimatedCost`/`costUnit` carry the known model cost or estimate, not a complete bill. Add `filters.runId` to select a durable run. `POST /api/observability/metrics/breakdown` accepts the same names/aggregation and `groupBy:["entityId","model"]`. Raw `GET /api/observability/metrics` records expose runId, traceId, spanId and native cost metadata. Studio’s agent links from Metrics may preselect agent-root trace filters; this ingestion uses a generic catalog root, so clear those primitive filters to see its trace or correlate the IDs through the API.
 

@@ -1,5 +1,4 @@
 import { createTool } from "@mastra/core/tools";
-import { observeTrace, traceText, traceUrl } from "../../runtime/tracing";
 import { classifyModelError } from "../../runtime/model-errors";
 import type { ResearchToolContext } from "../contracts";
 import { searchWebInputSchema, searchWebOutputSchema } from "./contracts";
@@ -35,22 +34,7 @@ export function createSearchWebTool({
         abortSignal?.throwIfAborted();
         const result = await search(query, { ...context, tool: true });
         abortSignal?.throwIfAborted();
-        observeTrace(tracing, span, {
-          name: "searchWeb",
-          input: {
-            query: traceText(query, 1200),
-            queryTruncated: Buffer.byteLength(query) > 1200,
-          },
-          output: {
-            status: "ok",
-            returnedCount: result.candidates.length,
-            retainedCount: Math.min(result.candidates.length, 5),
-            omittedCount: Math.max(0, result.candidates.length - 5),
-            candidates: result.candidates
-              .slice(0, 5)
-              .map(({ url }) => traceUrl(url)),
-          },
-        });
+
         toolLog?.info("Tool call finished", {
           tool: "searchWeb",
           query,
@@ -71,14 +55,7 @@ export function createSearchWebTool({
           ...classifyModelError(error, Infinity).diagnostic,
           errorCode: "search_failed",
         });
-        observeTrace(tracing, span, {
-          name: "searchWeb",
-          input: {
-            query: traceText(query, 1200),
-            queryTruncated: Buffer.byteLength(query) > 1200,
-          },
-          output: { status: "failed", errorCode: "search_failed" },
-        });
+
         throw error;
       }
     },

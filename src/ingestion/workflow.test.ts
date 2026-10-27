@@ -126,20 +126,14 @@ function fixture(client = testDatabase().client) {
 
 function fakeTrace() {
   const finish = vi.fn(async () => {});
-  const terminalFailed = vi.fn();
-  const workflowFailed = vi.fn();
+  const failed = vi.fn();
   const trace = {
     tracing: { root: undefined, diagnose: vi.fn(), setEventId: vi.fn() },
-    update: vi.fn(),
-    validated: vi.fn(),
-    editorValidated: vi.fn(),
-    failed: vi.fn(),
     finish,
-    terminalFailed,
-    workflowFailed,
+    failed,
   } as unknown as CatalogRunTrace;
   vi.spyOn(runTraceModule, "createCatalogRunTrace").mockResolvedValue(trace);
-  return { finish, terminalFailed, workflowFailed };
+  return { finish, failed };
 }
 function catalogState(client: Database.Database) {
   const db = drizzle(client);
@@ -1347,7 +1341,7 @@ test("an unexpected phase failure skips later work and returns a safe failed sum
   );
   expect(JSON.stringify(result)).not.toContain("PRIVATE_CONTEXT_FAILURE");
   expect(client.prepare("SELECT id FROM ingestion_runs").all()).toHaveLength(1);
-  expect(trace.workflowFailed).toHaveBeenCalledOnce();
+  expect(trace.failed).toHaveBeenCalledWith("workflow_failed");
   expect(trace.finish).toHaveBeenCalledOnce();
 });
 
@@ -1618,7 +1612,7 @@ test("native cancellation waits for active research before finalizing known stat
     budget: { pages: 1 },
     sources: [expect.objectContaining({ attemptedUrl: url })],
   });
-  expect(trace.terminalFailed).toHaveBeenCalledWith("cancelled");
+  expect(trace.failed).toHaveBeenCalledWith("cancelled");
   expect(trace.finish).toHaveBeenCalledOnce();
 });
 
@@ -1743,7 +1737,7 @@ test("registered final persistence failure exposes a bounded safe summary", asyn
   expect(JSON.stringify(chunks)).not.toContain("PRIVATE_DB_ERROR");
   expect(row).toMatchObject({ status: "running", report_json: null });
   expect(readResearchCatalog(client)).toHaveLength(1);
-  expect(trace.terminalFailed).toHaveBeenCalledWith("run_persistence_failed");
+  expect(trace.failed).toHaveBeenCalledWith("run_persistence_failed");
   expect(trace.finish).toHaveBeenCalledOnce();
 });
 
