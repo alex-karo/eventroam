@@ -80,6 +80,44 @@ test("a registered run leaves its caller-owned observability store open", async 
   }
 });
 
+test("concurrent runs retain both traces after their shared store closes", async () => {
+  vi.stubEnv("CATALOG_TRACING", "true");
+  vi.stubEnv("CATALOG_LOGGING", "false");
+  const path = join(directory(), "concurrent.duckdb");
+  vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", path);
+  const store = await createObservabilityStore();
+  await store.init();
+  const runs = await Promise.all(
+    ["first", "second"].map((runId) =>
+      createRunObservability(
+        { mode: "add", name: "Fixture", actor: "test" },
+        "fixture/model",
+        runId,
+        [],
+        store,
+        "concurrent-experiment",
+      ),
+    ),
+  );
+  try {
+    expect(runs.every((run) => !!run?.root)).toBe(true);
+    await Promise.all(runs.map((run) => finishRunObservability(run)));
+  } finally {
+    await store.close();
+  }
+  const rows = await readTraceRows(path);
+  expect(new Set(rows.mastra_ai_spans.map((span) => span.traceId))).toEqual(
+    new Set(runs.map((run) => run!.root!.traceId)),
+  );
+  expect(rows.mastra_ai_spans).toHaveLength(2);
+  expect(rows.mastra_ai_spans.every((span) => !!span.endedAt)).toBe(true);
+  expect(
+    rows.mastra_ai_spans.every(
+      (span) => span.experimentId === "concurrent-experiment",
+    ),
+  ).toBe(true);
+});
+
 test.each(["rejection", "timeout"] as const)(
   "shared-store initialization failure survives cleanup %s",
   async (failure) => {

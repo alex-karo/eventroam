@@ -6,6 +6,47 @@ import { MastraCompositeStore } from "@mastra/core/storage";
 import { createObservabilityStore } from "../runtime/observability/storage";
 import { diagnosticStoragePaths, filesAlias } from "../runtime/storage-paths";
 import { createWorkflowStorage } from "../runtime/workflow-storage";
+import {
+  createDiagnostics,
+  ObservabilityLogger,
+} from "../runtime/observability/diagnostics";
+
+/** One owner keeps concurrent cases from opening separate DuckDB instances. */
+export async function createEvalObservability() {
+  if (
+    process.env.CATALOG_TRACING !== "true" &&
+    process.env.CATALOG_LOGGING !== "true"
+  ) {
+    return undefined;
+  }
+  const diagnose = createDiagnostics();
+  let storage: Awaited<ReturnType<typeof createObservabilityStore>> | undefined;
+  let initializing = true;
+  const close = async () => {
+    try {
+      await storage?.close();
+    } catch {
+      diagnose("trace_shutdown_failed");
+    }
+  };
+  try {
+    storage = await createObservabilityStore(process.env, [evalDatabasePath()]);
+    storage.__setLogger(
+      new ObservabilityLogger(() =>
+        diagnose(
+          initializing ? "trace_initialization_failed" : "trace_export_failed",
+        ),
+      ),
+    );
+    await storage.init();
+    initializing = false;
+    return { storage, close };
+  } catch {
+    diagnose("trace_initialization_failed");
+    await close();
+    return undefined;
+  }
+}
 
 export function evalDatabasePath(env: NodeJS.ProcessEnv = process.env) {
   const cwd = process.cwd();

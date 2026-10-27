@@ -220,7 +220,7 @@ function safeSource(read: SourceReadMetadata) {
     attemptedUrl: read.attemptedUrl,
     finalUrl: read.finalUrl,
     retrievedAt: read.retrievedAt,
-    outcome: read.outcome,
-    ...(read.reason ? { reason: read.reason } : {}),
+    outcome: read.status,
+    ...(read.reasonCode ? { reason: read.reasonCode } : {}),
   };
 }

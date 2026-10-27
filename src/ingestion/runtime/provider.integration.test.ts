@@ -27,11 +27,9 @@ const source: ReadPageResult = {
   finalUrl: url,
   retrievedAt: "2026-10-03T12:00:00.000Z",
   method: "http",
-  outcome: "ok",
-  completeness: "full",
+  status: "ok",
   markdown:
     "Provider Fest 2027 takes place in Portugal.\n\nWelcome to our festival, Provider Fest.",
-  links: [],
 };
 const candidate = {
   status: "success",
@@ -1145,9 +1143,9 @@ test.each(["readPage", "searchWeb"])(
         ...source,
         attemptedUrl: requestedUrl,
         finalUrl: requestedUrl,
-        completeness: (requestedUrl === url
-          ? "full"
-          : "invalid") as ReadPageResult["completeness"],
+        status: (requestedUrl === url
+          ? "ok"
+          : "invalid") as ReadPageResult["status"],
       }),
       searchWeb: async (query) => ({
         query,

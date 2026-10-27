@@ -312,22 +312,19 @@ export async function runTraceFixture(
             finalUrl: url,
             retrievedAt: "2026-10-09T00:00:00Z",
             method: "http",
-            outcome: url.endsWith("/initial") ? "failed" : "ok",
+            status: url.endsWith("/initial") ? "failed" : "ok",
             ...(url.endsWith("/initial")
               ? {
-                  reason:
+                  reasonCode:
                     scenario === "recovered"
                       ? "oversized_response"
                       : "request_failed",
                 }
               : {}),
-            completeness: url.endsWith("/initial") ? "none" : "full",
-            sourceTruncated: false,
             markdown:
               scenario === "tool_truncated" && !url.endsWith("/initial")
                 ? `${TRACE_SOURCE_BODY} `.repeat(6_000)
                 : TRACE_SOURCE_BODY,
-            links: [],
           };
         },
         searchWeb: async (query, options) => {

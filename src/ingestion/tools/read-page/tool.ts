@@ -49,30 +49,26 @@ export function createReadPageTool({
           output: {
             finalUrl: traceUrl(result.finalUrl).url,
             urlTruncated: traceUrl(result.finalUrl).truncated,
-            outcome: result.outcome,
+            status: result.status,
             method: result.method,
-            reason: result.reason,
-            completeness: result.completeness,
+            reasonCode: result.reasonCode,
             httpStatus: result.httpStatus,
             sourceCharacters: result.markdown.length,
-            sourceTruncated: result.sourceTruncated,
-            toolTruncated: bounded.truncated,
+            truncated: bounded.truncated,
             cached,
           },
         });
-        toolLog?.[result.outcome === "ok" ? "info" : "warn"](
+        toolLog?.[result.status === "ok" ? "info" : "warn"](
           "Tool call finished",
           {
             tool: "readPage",
             attemptedUrl: url,
             response: { status: result.httpStatus, url: result.finalUrl },
-            outcome: result.outcome,
+            status: result.status,
             method: result.method,
-            reason: result.reason,
-            completeness: result.completeness,
+            reasonCode: result.reasonCode,
             sourceCharacters: result.markdown.length,
-            sourceTruncated: result.sourceTruncated,
-            toolTruncated: bounded.truncated,
+            truncated: bounded.truncated,
             cached,
             remaining: budget.remaining(),
           },
@@ -94,7 +90,7 @@ export function createReadPageTool({
             attemptedUrl: traceUrl(url).url,
             urlTruncated: traceUrl(url).truncated,
           },
-          output: { outcome: "failed" },
+          output: { status: "failed" },
         });
         throw error;
       }

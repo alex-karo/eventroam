@@ -70,8 +70,7 @@
       "finalUrl": "https://scope-fixture.example/scope-full-unfinished-history",
       "retrievedAt": "2026-10-03T12:00:00Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "page.md"
     }
   ],

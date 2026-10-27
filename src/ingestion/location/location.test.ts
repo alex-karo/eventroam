@@ -572,9 +572,49 @@ test("schema failures retain issue paths while technical errors omit raw message
     },
   );
   expect(failed.errors[0].message).toBe(
-    "Location execution or validation failed",
+    "Location execution or validation failed (type=error)",
   );
   expect(JSON.stringify(failed)).not.toContain("secret");
+});
+
+test("Location reports safe nested provider diagnostics without transport data", async () => {
+  const result = await resolveLocation(
+    input(),
+    createResearchBudget(),
+    {
+      apiKey: "fixture",
+      model: "fixture",
+      limits: createResearchBudget().limits,
+    },
+    {
+      generateLocation: async () => {
+        throw Object.assign(new Error("secret outer message"), {
+          name: "MastraError",
+          cause: Object.assign(new Error("secret provider response"), {
+            name: "AI_APICallError",
+            statusCode: 503,
+            url: "https://provider.test/?apiKey=secret",
+            data: {
+              error: {
+                message: "secret body",
+                metadata: { error_type: "provider_unavailable", key: "secret" },
+              },
+            },
+          }),
+        });
+      },
+      geocodingClient: async () => ({ status: "error", code: "unavailable" }),
+    },
+  );
+  expect(result.errors).toEqual([
+    {
+      code: "location_failed",
+      stage: "location",
+      message:
+        "Location execution or validation failed (type=api_call; httpStatus=503; providerCode=provider_unavailable)",
+    },
+  ]);
+  expect(JSON.stringify(result)).not.toContain("secret");
 });
 
 test("injected Location shares cancellation and retains initial errors", async () => {

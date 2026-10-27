@@ -4,36 +4,27 @@ import { sourceUrlSchema, remainingSchema } from "../contracts";
 export const readPageInputSchema = z.object({ url: sourceUrlSchema });
 
 export const readPageOutputSchema = z.object({
-  attemptedUrl: sourceUrlSchema,
-  finalUrl: sourceUrlSchema,
-  retrievedAt: z.iso.datetime(),
-  outcome: z.enum(["ok", "partial", "unsupported", "blocked", "failed"]),
-  reason: z.string().optional(),
+  url: sourceUrlSchema,
+  status: z.enum(["ok", "unsupported", "failed"]),
+  reasonCode: z.string().optional(),
   markdown: z.string(),
   truncated: z.boolean(),
-  completeness: z.enum(["full", "partial", "none"]),
   remaining: remainingSchema,
 });
 
-export type RetrievalOutcome =
-  "ok" | "partial" | "unsupported" | "blocked" | "failed";
+export type ReadPageStatus = "ok" | "unsupported" | "failed";
 
 export interface ReadPageResult {
   attemptedUrl: string;
   finalUrl: string;
   retrievedAt: string;
   method: "http" | "firecrawl" | "social_stub";
-  outcome: RetrievalOutcome;
-  reason?: string;
-  /** Host-only extractor observation; never part of model tool output. */
-  sourceTruncated?: boolean;
+  status: ReadPageStatus;
+  reasonCode?: string;
   /** Host-only retrieval diagnostic, excluded from model tool output. */
   httpStatus?: number;
   /** Ordered Markdown extracted from the fetched page. */
   markdown: string;
-  links: string[];
-  /** Whether the fetched source was sufficiently readable to support absence claims. */
-  completeness: "full" | "partial" | "none";
 }
 
 /** Inspectable retrieval metadata; page text stays in the source session. */

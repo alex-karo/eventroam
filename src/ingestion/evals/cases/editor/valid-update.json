@@ -44,8 +44,7 @@
       "finalUrl": "https://szigetfestival.com/en/",
       "retrievedAt": "2026-10-03T16:33:58.662Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../sziget/page.md"
     },
     {
@@ -53,9 +52,8 @@
       "finalUrl": "https://szigetfestival.com/en/tickets",
       "retrievedAt": "2026-10-03T23:16:38.705Z",
       "method": "http",
-      "outcome": "partial",
-      "completeness": "partial",
-      "reason": "renders_budget_exhausted",
+      "status": "ok",
+      "reasonCode": "renders_budget_exhausted",
       "markdownFile": "../sziget/tickets.md"
     },
     {
@@ -63,8 +61,7 @@
       "finalUrl": "https://szigetfestival.com/en/travel/",
       "retrievedAt": "2026-10-03T23:14:50.663Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../sziget/travel.md"
     },
     {
@@ -72,8 +69,7 @@
       "finalUrl": "https://szigetfestival.com/en/festival-info",
       "retrievedAt": "2026-10-03T23:49:32.520Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../sziget/info.md"
     }
   ],

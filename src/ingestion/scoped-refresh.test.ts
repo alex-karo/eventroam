@@ -33,10 +33,8 @@ function fixture(countryCode: string | null = "IE") {
         finalUrl: requested,
         retrievedAt: "2026-10-11T12:00:00Z",
         method: "http",
-        outcome: "ok",
-        completeness: "full",
+        status: "ok",
         markdown: "Fixture Fest 2027",
-        links: [],
       };
     },
   );

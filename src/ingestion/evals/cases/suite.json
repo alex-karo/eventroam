@@ -4,7 +4,7 @@
   "provenance": {
     "kind": "captured",
     "sourceReport": "docs/research/2026-10-03-source-workflow-validation.md#five-additional-deepseek-refresh-dry-runs",
-    "note": "Wacken, Roskilde, and Sziget use real official pages captured on 2026-10-27 with the production reader and rendering disabled. Their per-case provenance replaces the original 2026-10-03 captures in sourceReport. Glastonbury uses synthetic pages adapted from the real site structure on 2026-10-27, with navigation and unrelated content but no confirmation of its saved 2027 programme. Archive years are navigation only. Afro Nation Portugal keeps its own 2026-10-08 blocked capture. Source timestamps and outcomes are stored per response. Replay derives links from Markdown and has no live website or search fallback. Tomorrowland remains removed because its old fixture mixed festival identities."
+    "note": "Wacken, Roskilde, and Sziget use real official pages captured on 2026-10-27 with the production reader and rendering disabled. Their per-case provenance replaces the original 2026-10-03 captures in sourceReport. Glastonbury uses synthetic pages adapted from the real site structure on 2026-10-27, with navigation and unrelated content but no confirmation of its saved 2027 programme. Archive years are navigation only. Afro Nation Portugal keeps its own 2026-10-08 blocked capture. Source timestamps, statuses and retrieval reasons are stored per response. Replay keeps links in Markdown and has no live website or search fallback. Tomorrowland remains removed because its old fixture mixed festival identities."
   },
   "terms": [
     {

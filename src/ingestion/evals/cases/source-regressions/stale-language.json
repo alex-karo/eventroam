@@ -52,8 +52,7 @@
       "finalUrl": "https://snow-meadow.example/",
       "retrievedAt": "2026-10-14T12:00:00Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "snow-home.md"
     },
     {
@@ -61,8 +60,7 @@
       "finalUrl": "https://snow-meadow.example/en/student/booking",
       "retrievedAt": "2026-10-14T12:00:00Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "snow-stale.md"
     },
     {
@@ -70,18 +68,16 @@
       "finalUrl": "https://snow-meadow.example/hu/student/booking",
       "retrievedAt": "2026-10-14T12:00:00Z",
       "method": "http",
-      "outcome": "partial",
-      "completeness": "partial",
+      "status": "ok",
       "markdownFile": "snow-current.md",
-      "reason": "javascript_required"
+      "reasonCode": "javascript_required"
     },
     {
       "attemptedUrl": "https://snow-meadow.example/international/prices",
       "finalUrl": "https://snow-meadow.example/international/prices",
       "retrievedAt": "2026-10-14T12:00:00Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "snow-other.md"
     }
   ],
