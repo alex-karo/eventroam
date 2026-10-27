@@ -8,6 +8,8 @@ import {
   type CatalogResearchResult,
   type ResearchDependencies,
 } from "@/ingestion/workflow";
+import { diagnosticStoragePaths } from "@/ingestion/runtime/storage-paths";
+import { WorkflowHistoryError } from "@/ingestion/runtime/workflow-storage";
 import { RunPersistenceError, hasHostFailure } from "@/ingestion/runs";
 import { parseCatalogOptions, catalogUsage } from "./catalog-options";
 
@@ -76,13 +78,29 @@ function optionalSuffix(value: string | undefined, before: string, after = "") {
   return value ? before + value + after : "";
 }
 
-type CommandFailure = { eventId?: string; code: string; runId?: string };
+type CommandFailure = {
+  eventId?: string;
+  code: string;
+  runId?: string;
+  engineRunId?: string;
+};
 
 function commandFailure(
   error: unknown,
   eventId: string | undefined,
   results: CatalogResearchResult[],
 ): CommandFailure {
+  if (error instanceof WorkflowHistoryError) {
+    if (error.report) {
+      results.push(error.report);
+    }
+    return {
+      eventId,
+      code: "workflow_history_failed",
+      ...(error.runId ? { runId: error.runId } : {}),
+      ...(error.engineRunId ? { engineRunId: error.engineRunId } : {}),
+    };
+  }
   if (error instanceof RunPersistenceError) {
     if (error.report) {
       results.push(error.report);
@@ -121,6 +139,11 @@ export async function executeCatalogCommand(
   ) {
     throw new Error("Report path must differ from database files.");
   }
+  const paths = diagnosticStoragePaths(
+    { ...process.env, DATABASE_PATH: database },
+    process.cwd(),
+    reportPath ? [reportPath] : [],
+  );
   if (!existsSync(database)) {
     throw new Error(
       "Catalog does not exist; run db:migrate with the intended DATABASE_PATH first.",
@@ -149,6 +172,7 @@ export async function executeCatalogCommand(
               client: connection.client,
               ...deps.researchDependencies,
               reportPath,
+              workflowDatabasePath: paths.workflow,
             },
           ),
         );

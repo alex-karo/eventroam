@@ -1,3 +1,5 @@
+import { Mastra } from "@mastra/core/mastra";
+import { createWorkflowStorage } from "../ingestion/runtime/workflow-storage";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -23,6 +25,15 @@ test("graph inspection is lazy and execution never creates a missing catalog", a
     path: join(directory, "observability.duckdb"),
   });
   const workflow = createStudioIngestionWorkflow(store);
+  const history = createWorkflowStorage({
+    path: ":memory:",
+    onFailure: workflow.historyControl.recoverHistory,
+  });
+  new Mastra({
+    workflows: { "catalog-ingestion": workflow },
+    storage: history,
+    logger: false,
+  });
   expect(Object.keys(workflow.steps)).toEqual([
     "initialize-run",
     "load-context",
@@ -50,4 +61,5 @@ test("graph inspection is lazy and execution never creates a missing catalog", a
     }),
   ).rejects.toThrow("Ingestion workflow failed");
   expect(existsSync(catalog)).toBe(false);
+  await history.close();
 });

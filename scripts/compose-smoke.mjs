@@ -29,11 +29,12 @@ const args = [
   "-f",
   join(root, "compose.yaml"),
 ];
-function command(extra) {
-  execFileSync("docker", [...args, ...extra], {
+function command(extra, capture = false) {
+  return execFileSync("docker", [...args, ...extra], {
     cwd: root,
     env,
-    stdio: "inherit",
+    stdio: capture ? ["ignore", "pipe", "inherit"] : "inherit",
+    encoding: "utf8",
   });
 }
 
@@ -50,7 +51,46 @@ try {
     "commands/migrate.mjs",
   ]);
   command(["up", "-d", "--wait", "--wait-timeout", "60"]);
-  console.log("Compose smoke passed: startup and health.");
+  const endpoint = "http://127.0.0.1:4111/api/workflows/catalog-ingestion";
+  const runId = JSON.parse(
+    command(
+      [
+        "exec",
+        "-T",
+        "studio",
+        "node",
+        "--input-type=module",
+        "-e",
+        `const response = await fetch("${endpoint}/create-run", {method:"POST", headers:{"content-type":"application/json"}, body:"{}"}); if (!response.ok) throw new Error("Create failed"); console.log(JSON.stringify(await response.json()));`,
+      ],
+      true,
+    ),
+  ).runId;
+  if (!runId) {
+    throw new Error("Pending history ID is missing");
+  }
+  command([
+    "up",
+    "-d",
+    "--force-recreate",
+    "--no-deps",
+    "--wait",
+    "--wait-timeout",
+    "60",
+    "studio",
+  ]);
+  command([
+    "exec",
+    "-T",
+    "studio",
+    "node",
+    "--input-type=module",
+    "-e",
+    `import {existsSync} from "node:fs"; const response = await fetch("${endpoint}/runs/${encodeURIComponent(runId)}"); const run = await response.json(); if (!response.ok || run.runId !== ${JSON.stringify(runId)} || run.status !== "pending") throw new Error("Pending history did not survive replacement"); for (const path of ["/data/eventroam.sqlite", "/data/mastra-workflows.sqlite", "/data/mastra-observability.duckdb"]) if (!existsSync(path)) throw new Error("Missing storage file: " + path);`,
+  ]);
+  console.log(
+    "Compose smoke passed: health and saved history after replacement.",
+  );
 } catch (error) {
   try {
     command(["logs", "--no-color", "--tail", "80"]);

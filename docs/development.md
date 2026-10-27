@@ -160,10 +160,32 @@ Run `npm run catalog:studio`, open `http://127.0.0.1:4111` in the built-in Brows
 ```
 
 ```json
-{ "mode": "refresh", "eventId": "EVENT_ID", "scope": "full", "dryRun": false, "republish": false }
+{
+  "mode": "refresh",
+  "eventId": "EVENT_ID",
+  "scope": "full",
+  "dryRun": false,
+  "republish": false
+}
 ```
 
 Studio accepts one Event per refresh, with optional `scope: "full"|"current"` (default full). Add rejects scope and check is unsupported. Preview is the default. Inspect intermediate results and the final report in the workflow view. Use native cancellation while a run is active; after interruption, start a fresh run. Per-step execution, resume, restart, and time travel are unsupported. See the [workflow steps](ingestion-process.md#workflow-steps) for the shared CLI/Studio lifecycle.
+
+### Workflow history
+
+CLI and Studio always save workflow snapshots, including intermediate results, to `CATALOG_WORKFLOW_DATABASE_PATH` (default `data/mastra-workflows.sqlite`). Relative paths use the project root. Use the same path for both commands and keep this store separate from other data files.
+
+After a CLI run, start `npm run catalog:studio` and open Workflows → catalog-ingestion → Recent runs. Inspection needs no catalog connection or model key. History supports inspection only; start a new run after interruption.
+
+A history storage failure stops execution with `workflow_history_failed` and CLI exit code 1. Confirmed catalog writes and completed reports remain.
+
+History has no automatic deletion. With Studio running, delete a completed entry with:
+
+```sh
+curl -X DELETE http://127.0.0.1:4111/api/workflows/catalog-ingestion/runs/EXECUTION_ID
+```
+
+To clear all history, stop Studio and other writers, then remove only the workflow SQLite file and its sidecars. Catalog data and reports remain. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) for the full history contract.
 
 ### Local trace inspection
 
@@ -201,12 +223,13 @@ docker compose run --rm --no-deps studio node commands/migrate.mjs
 docker compose up -d --wait
 ```
 
-Supply the two closed database files before the first service start. The migration command can also create an empty catalog for a temporary check. It is repeatable and returns nonzero on failure. Run it with all catalog users stopped. Use matching images and schema from the same source version.
+Supply the closed catalog and any retained diagnostic stores before the first service start. Missing diagnostic stores are created empty. The migration command can also create an empty catalog for a temporary check. It is repeatable and returns nonzero on failure. Run it with all catalog users stopped. Use matching images and schema from the same source version.
 
 Compose declares one named volume, `data`, mounted at `/data` in both services. Keep the same Compose project name to retain it during recreation. Do not use `docker compose down --volumes` for retained data. The fixed container paths are:
 
 - `/data/eventroam.sqlite`: catalog, public website reads, and validated Studio writes.
-- `/data/mastra-observability.duckdb`: Studio history and observations.
+- `/data/mastra-workflows.sqlite`: native CLI and Studio workflow history.
+- `/data/mastra-observability.duckdb`: optional logs, traces, and metrics.
 
 Both images run as `node` (UID/GID 1000). The volume directory and supplied files must permit this user to read and write, including SQLite WAL/shared-memory files and DuckDB WAL files. Website database connections stay read-only; the shared volume permits SQLite sidecar access. Only one process can own the DuckDB file. Stop Studio before any separate command opens that file.
 
@@ -216,23 +239,23 @@ Compose exposes web port 3000 and Studio port 4111 only on the Docker network. I
 
 Compose reads deployment inputs with `EVENTROAM_` and maps them to current application names. Existing local `.env` names and defaults stay unchanged. Set these inputs in the deployment environment or a selected Compose env file; do not commit credentials.
 
-| Deployment input | Use |
-| --- | --- |
-| `EVENTROAM_MAPBOX_TOKEN`, `EVENTROAM_MAPBOX_STYLE` | Website build arguments mapped to `NEXT_PUBLIC_MAPBOX_TOKEN` and `NEXT_PUBLIC_MAPBOX_STYLE`. Empty token keeps list-only use; the style defaults to Mapbox streets-v12. Rebuild to change either value. |
-| `EVENTROAM_PUBLIC_APEX_ORIGIN`, `EVENTROAM_PUBLIC_FESTIVALS_ORIGIN` | Runtime `PUBLIC_APEX_ORIGIN` and `PUBLIC_FESTIVALS_ORIGIN`; defaults match local development. Set the public origins for deployment. |
-| `EVENTROAM_OPENROUTER_API_KEY`, `EVENTROAM_FIRECRAWL_KEY`, `EVENTROAM_GEOAPIFY_KEY` | Runtime Studio provider credentials. Neither is a build argument. Inspection needs no model key. Execution needs the migrated catalog and its usual provider settings. |
-| `EVENTROAM_OPENROUTER_MODEL`, `EVENTROAM_OPENROUTER_SERVICE_TIER`, `EVENTROAM_OPENROUTER_REASONING_EFFORT` | Runtime model selection; empty values keep the current application defaults. |
-| `EVENTROAM_CATALOG_LOCATION_MODEL` | Runtime `CATALOG_LOCATION_MODEL`; empty uses the normal model. |
-| `EVENTROAM_CATALOG_TRACING`, `EVENTROAM_CATALOG_LOGGING`, `EVENTROAM_CATALOG_LOG_LEVEL` | Existing diagnostics, all off by default except log level `info`. |
-| `EVENTROAM_CATALOG_MAX_SEARCHES`, `EVENTROAM_CATALOG_MAX_SEARCH_RESULTS`, `EVENTROAM_CATALOG_MAX_AGENT_STEPS`, `EVENTROAM_CATALOG_MAX_DURATION_MS`, `EVENTROAM_CATALOG_MAX_PAGE_BYTES`, `EVENTROAM_CATALOG_MAX_MODEL_OUTPUT_TOKENS` | Existing execution limits; empty values keep the application defaults. |
+| Deployment input                                                                                                                                                                                                                    | Use                                                                                                                                                                                                     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EVENTROAM_MAPBOX_TOKEN`, `EVENTROAM_MAPBOX_STYLE`                                                                                                                                                                                  | Website build arguments mapped to `NEXT_PUBLIC_MAPBOX_TOKEN` and `NEXT_PUBLIC_MAPBOX_STYLE`. Empty token keeps list-only use; the style defaults to Mapbox streets-v12. Rebuild to change either value. |
+| `EVENTROAM_PUBLIC_APEX_ORIGIN`, `EVENTROAM_PUBLIC_FESTIVALS_ORIGIN`                                                                                                                                                                 | Runtime `PUBLIC_APEX_ORIGIN` and `PUBLIC_FESTIVALS_ORIGIN`; defaults match local development. Set the public origins for deployment.                                                                    |
+| `EVENTROAM_OPENROUTER_API_KEY`, `EVENTROAM_FIRECRAWL_KEY`, `EVENTROAM_GEOAPIFY_KEY`                                                                                                                                                 | Runtime Studio provider credentials. Neither is a build argument. Inspection needs no model key. Execution needs the migrated catalog and its usual provider settings.                                  |
+| `EVENTROAM_OPENROUTER_MODEL`, `EVENTROAM_OPENROUTER_SERVICE_TIER`, `EVENTROAM_OPENROUTER_REASONING_EFFORT`                                                                                                                          | Runtime model selection; empty values keep the current application defaults.                                                                                                                            |
+| `EVENTROAM_CATALOG_LOCATION_MODEL`                                                                                                                                                                                                  | Runtime `CATALOG_LOCATION_MODEL`; empty uses the normal model.                                                                                                                                          |
+| `EVENTROAM_CATALOG_TRACING`, `EVENTROAM_CATALOG_LOGGING`, `EVENTROAM_CATALOG_LOG_LEVEL`                                                                                                                                             | Existing diagnostics, all off by default except log level `info`.                                                                                                                                       |
+| `EVENTROAM_CATALOG_MAX_SEARCHES`, `EVENTROAM_CATALOG_MAX_SEARCH_RESULTS`, `EVENTROAM_CATALOG_MAX_AGENT_STEPS`, `EVENTROAM_CATALOG_MAX_DURATION_MS`, `EVENTROAM_CATALOG_MAX_PAGE_BYTES`, `EVENTROAM_CATALOG_MAX_MODEL_OUTPUT_TOKENS` | Existing execution limits; empty values keep the application defaults.                                                                                                                                  |
 
-Database paths are Compose constants, without deployment inputs. Direct image use can set the existing `DATABASE_PATH` and `CATALOG_OBSERVABILITY_DATABASE_PATH` runtime names. Builds exclude owner databases, `.env` files, old output, and host dependencies. Only the public Mapbox token and style enter browser assets. Complete the [Mapbox deployment gate](mapbox-deployment-gate.md) before public map use.
+Database paths are Compose constants, without deployment inputs. Direct image use can set the `DATABASE_PATH`, `CATALOG_WORKFLOW_DATABASE_PATH`, and `CATALOG_OBSERVABILITY_DATABASE_PATH` runtime names. Builds exclude owner databases, `.env` files, old output, and host dependencies. Only the public Mapbox token and style enter browser assets. Complete the [Mapbox deployment gate](mapbox-deployment-gate.md) before public map use.
 
 For a production Studio build outside Docker, use temporary build storage, then select runtime storage explicitly:
 
 ```sh
-DATABASE_PATH=/tmp/eventroam-build/catalog.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/eventroam-build/history.duckdb npm run studio:build
-DATABASE_PATH=./data/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=./data/mastra-observability.duckdb npm run studio:start
+DATABASE_PATH=/tmp/eventroam-build/catalog.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/eventroam-build/history.duckdb CATALOG_WORKFLOW_DATABASE_PATH=/tmp/eventroam-build/workflows.sqlite npm run studio:build
+DATABASE_PATH=./data/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=./data/mastra-observability.duckdb CATALOG_WORKFLOW_DATABASE_PATH=./data/mastra-workflows.sqlite npm run studio:start
 ```
 
 `studio:start` serves the built UI and API on all interfaces without application authentication. It reads shell inputs; it does not load `.env`. Keep `npm run catalog:studio` for loopback development. Both servers preserve default preview, explicit apply, native cancellation, and the existing unsupported-execution guards. Hosted inspection alone makes no model call.
