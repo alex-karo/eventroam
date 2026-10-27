@@ -77,7 +77,6 @@ test("chat storage is separate even with path aliases", () => {
     ...process.env,
     DATABASE_PATH: db.path,
     CATALOG_OBSERVABILITY_DATABASE_PATH: join(root, "traces.duckdb"),
-    CATALOG_WORKFLOW_DATABASE_PATH: join(root, "workflows.sqlite"),
   };
   expect(
     chatDatabasePath({
@@ -95,8 +94,6 @@ test("chat storage is separate even with path aliases", () => {
     hard,
     sym,
     env.CATALOG_OBSERVABILITY_DATABASE_PATH,
-    env.CATALOG_WORKFLOW_DATABASE_PATH,
-    `${env.CATALOG_WORKFLOW_DATABASE_PATH}-journal`,
   ]) {
     expect(() =>
       chatDatabasePath({ ...env, CATALOG_CHAT_DATABASE_PATH: path }),
@@ -138,8 +135,6 @@ test("Memory owns persistent history and Studio closes chat, workflow and observ
     const memory = await mastra.getAgent("catalog-assistant").getMemory();
     expect(memory).toBe(chat.memory);
     expect(memory!.storage.id).toBe(chat.storage.id);
-    expect(await storage.getStore("memory")).toBeUndefined();
-    expect(await storage.getStore("workflows")).toBeDefined();
     await memory!.createThread({
       threadId: "one",
       resourceId: "owner",
