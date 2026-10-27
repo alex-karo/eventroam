@@ -173,19 +173,19 @@ Studio accepts one Event per refresh, with optional `scope: "full"|"current"` (d
 
 ### Workflow history
 
-CLI and Studio save native workflow snapshots by default, including intermediate progress, with logs and traces off. `CATALOG_WORKFLOW_DATABASE_PATH` defaults to `data/mastra-workflows.sqlite`. Relative paths use the project root, including when the Studio launcher changes directory. Keep the file and its SQLite sidecars separate from catalog, report, historical trace, and observability files. Preflight checks include the CLI `--database` path, symlinks, and hard links.
+CLI and Studio always save workflow snapshots, including intermediate results, to `CATALOG_WORKFLOW_DATABASE_PATH` (default `data/mastra-workflows.sqlite`). Relative paths use the project root. Use the same path for both commands and keep this store separate from other data files.
 
-After CLI exit, start `npm run catalog:studio`, open Workflows → catalog-ingestion → Recent runs, then select a run. Use the same workflow path in both commands. Graph and saved inspection need no catalog connection or model key. `initialize-run` connects the engine execution ID to the durable ingestion run ID. Reports from before this feature are not imported. Tests use temporary stores; evals use per-case in-memory history.
+After a CLI run, start `npm run catalog:studio` and open Workflows → catalog-ingestion → Recent runs. Inspection needs no catalog connection or model key. History supports inspection only; start a new run after interruption.
 
-History is required. A failed open or write prevents or stops work and gives CLI exit code 1 with `workflow_history_failed`. Paid work may already have occurred. Confirmed catalog commits and completed reports remain; use them to check actual writes. Optional observability keeps its best-effort policy. Close Studio before a CLI run with logging or tracing enabled: DuckDB permits one owning process. Workflow history alone does not require DuckDB.
+A history storage failure stops execution with `workflow_history_failed` and CLI exit code 1. Confirmed catalog writes and completed reports remain.
 
-Snapshots remain until manual cleanup; there is no automatic retention. To delete one completed entry, keep Studio running and call:
+History has no automatic deletion. With Studio running, delete a completed entry with:
 
 ```sh
 curl -X DELETE http://127.0.0.1:4111/api/workflows/catalog-ingestion/runs/EXECUTION_ID
 ```
 
-To reset a disposable workflow store, stop all its writers and Studio, then remove only its configured SQLite file and `-wal`, `-shm`, and `-journal` sidecars. Leave catalog, reports, and DuckDB files intact. Deletion also removes evidence used to reject old IDs; always use a new execution ID for a new attempt. History does not enable resume, replay, comparison dashboards, or cross-host sync.
+To clear all history, stop Studio and other writers, then remove only the workflow SQLite file and its sidecars. Catalog data and reports remain. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) for the full history contract.
 
 ### Local trace inspection
 
