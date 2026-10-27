@@ -44,8 +44,7 @@
       "finalUrl": "https://www.roskilde-festival.dk/",
       "retrievedAt": "2026-10-03T16:33:58.662Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../roskilde/page.md"
     },
     {
@@ -53,8 +52,7 @@
       "finalUrl": "https://www.roskilde-festival.dk/billetter",
       "retrievedAt": "2026-10-03T23:49:31.905Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../roskilde/tickets.md"
     },
     {
@@ -62,8 +60,7 @@
       "finalUrl": "https://www.roskilde-festival.dk/kontakt",
       "retrievedAt": "2026-10-04T00:50:16.361Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../roskilde/contact.md"
     },
     {
@@ -71,8 +68,7 @@
       "finalUrl": "https://www.roskilde-festival.dk/festival-med-formaal",
       "retrievedAt": "2026-10-03T23:49:31.906Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../roskilde/purpose.md"
     }
   ],

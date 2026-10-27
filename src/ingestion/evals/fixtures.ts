@@ -75,10 +75,9 @@ const source = z.strictObject({
   finalUrl: z.url(),
   retrievedAt: z.iso.datetime(),
   method: z.enum(["http", "firecrawl", "social_stub"]),
-  outcome: z.enum(["ok", "partial", "unsupported", "blocked", "failed"]),
-  reason: z.string().optional(),
+  status: z.enum(["ok", "unsupported", "failed"]),
+  reasonCode: z.string().optional(),
   markdown: z.string(),
-  completeness: z.enum(["full", "partial", "none"]),
 });
 const assertionSchema = z.object({
   owner: z.enum(["event", "edition"]),

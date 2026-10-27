@@ -50,8 +50,7 @@
       "finalUrl": "https://sound-trail.example/",
       "retrievedAt": "2026-10-14T12:00:00Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../source-regressions/offers.md"
     },
     {
@@ -59,20 +58,18 @@
       "finalUrl": "https://sound-trail.example/checkout",
       "retrievedAt": "2026-10-14T12:00:00Z",
       "method": "http",
-      "outcome": "blocked",
-      "completeness": "none",
+      "status": "failed",
       "markdownFile": "../source-regressions/empty.md",
-      "reason": "http_401"
+      "reasonCode": "http_401"
     },
     {
       "attemptedUrl": "https://sound-trail.example/extras",
       "finalUrl": "https://sound-trail.example/extras",
       "retrievedAt": "2026-10-14T12:00:00Z",
       "method": "http",
-      "outcome": "failed",
-      "completeness": "none",
+      "status": "failed",
       "markdownFile": "../source-regressions/empty.md",
-      "reason": "firecrawl_http_429"
+      "reasonCode": "firecrawl_http_429"
     }
   ],
   "expectations": {

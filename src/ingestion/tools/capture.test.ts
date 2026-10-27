@@ -20,7 +20,8 @@ test("captures final tool returns in invocation order, including cached pages", 
   const root = mkdtempSync(join(tmpdir(), "catalog-tools-"));
   roots.push(root);
   const capture = new ToolOutputCapture("run-1", root);
-  const budget = createResearchBudget({}, () => 0);
+  let now = 0;
+  const budget = createResearchBudget({}, () => now);
   const config = { apiKey: "fixture", model: "fixture", limits: budget.limits };
   let release!: () => void;
   const hold = new Promise<void>((resolve) => {
@@ -31,10 +32,10 @@ test("captures final tool returns in invocation order, including cached pages", 
     finalUrl: url,
     retrievedAt: "2026-10-08T00:00:00.000Z",
     method: "http",
-    outcome: "ok",
-    completeness: "full",
-    markdown: "A".repeat(81_000),
-    links: [],
+    status: "ok",
+    reasonCode: "javascript_required",
+    markdown: "A".repeat(81_000) + "CACHE_TAIL",
+
     httpStatus: 200,
   };
   const readPage = vi.fn(
@@ -70,8 +71,19 @@ test("captures final tool returns in invocation order, including cached pages", 
   );
   release();
   const first = await pendingPage;
+  now = 1_000;
   const cached = await tools.readPage.execute!({ url }, {} as never);
   expect(readPage).toHaveBeenCalledOnce();
+  expect(sources.reads[0].markdown).toBe(page.markdown);
+  expect(sources.reads[0].reasonCode).toBe("javascript_required");
+  expect(first).toMatchObject({
+    url,
+    status: "ok",
+    reasonCode: "javascript_required",
+    truncated: true,
+    remaining: { durationMs: 600_000 },
+  });
+  expect(cached).toMatchObject({ remaining: { durationMs: 599_000 } });
   const files = readdirSync(join(root, "run-1"));
   expect(files.filter((file) => file.endsWith(".json"))).toEqual([
     "00001-readPage.json",
@@ -88,6 +100,7 @@ test("captures final tool returns in invocation order, including cached pages", 
   expect(readFileSync(join(root, "run-1", "00001-readPage.md"), "utf8")).toBe(
     (first as { markdown: string }).markdown,
   );
+  expect(JSON.stringify(saved)).not.toContain("CACHE_TAIL");
   expect(JSON.stringify(saved)).not.toContain("NEVER_SAVE");
   expect(JSON.stringify(saved)).not.toContain("httpStatus");
 });

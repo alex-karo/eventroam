@@ -78,7 +78,7 @@ Run `npm run type-check`, `npm run lint`, `npm test`, and `npm run build` for ap
 - [Ingestion process](docs/ingestion-process.md) — workflow, source rules, and reports.
 - [Project structure](docs/project-structure.md) — code layout and dependency boundaries.
 - [OpenSpec](openspec/specs/) — implemented behavior; [active changes](openspec/changes/) describe approved future work.
-- [Documentation index](docs/index.md) — decisions, deployment gates, and research.
+- [Documentation index](docs/index.md) — decisions, infrastructure, and research.
 
 ## License
 

@@ -52,8 +52,7 @@
       "finalUrl": "https://harbor-echo-australia.example/",
       "retrievedAt": "2026-10-14T12:00:00Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../source-regressions/homonym.md"
     }
   ],

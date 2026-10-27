@@ -23,6 +23,7 @@ import { prepareInitialGeocoding } from "./initial";
 import { locationInstructions } from "./prompt";
 import { LocationValidationError, validateLocation } from "./validate";
 import { emptyLocationExecution, type LocationExecution } from "./execution";
+import { locationFailureMessage } from "./failure";
 export { emptyLocationExecution, type LocationExecution } from "./execution";
 export type GenerateLocation = (
   prompt: string,
@@ -45,7 +46,7 @@ function validationMessage(error: unknown): string {
       .map((issue) => `${issue.path.join(".")}:${issue.code}`)
       .join("; ");
   }
-  return "Location execution or validation failed";
+  return locationFailureMessage(error);
 }
 export async function resolveLocation(
   input: LocationInput,
@@ -161,6 +162,7 @@ export async function resolveLocation(
       const output = await runtime
         .getAgent("festivalLocation")
         .generate(prompt, {
+          runId: tracing?.options.metadata.runId,
           maxSteps: 8,
           maxProcessorRetries: 0,
           structuredOutput: {

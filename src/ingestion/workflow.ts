@@ -160,12 +160,9 @@ function sourceReadMetadata(read: ReadPageResult): SourceReadMetadata {
     finalUrl: read.finalUrl,
     retrievedAt: read.retrievedAt,
     method: read.method,
-    outcome: read.outcome,
-    reason: read.reason,
-    sourceTruncated: read.sourceTruncated,
+    status: read.status,
+    reasonCode: read.reasonCode,
     httpStatus: read.httpStatus,
-    links: read.links,
-    completeness: read.completeness,
   };
 }
 
@@ -376,7 +373,7 @@ export function createCatalogIngestionWorkflow(
           return data.context;
         }
       }
-      owned.trace?.update({ context: data.context, phase: "initial_source" });
+
       return data.context;
     },
   );
@@ -405,7 +402,6 @@ export function createCatalogIngestionWorkflow(
     "research-festival",
     "Research the festival using bounded source tools",
     async (owned, data, signal) => {
-      owned.trace?.update({ phase: "research" });
       data.research = await owned.track(
         researchFestival(
           owned.input,
@@ -430,20 +426,18 @@ export function createCatalogIngestionWorkflow(
     "validate-research",
     "Validate research, target, scope and country before editing",
     (owned, data) => {
-      owned.trace?.update({ phase: "validation" });
       if (data.research.ok) {
         data.prepared = validateResearch(
           data.research.candidate,
           data.context!.catalog,
           owned.input,
         );
-        owned.trace?.validated(data.prepared);
+
         owned.trace?.tracing.setEventId(data.prepared.matchedEventId);
         data.errors = data.prepared.errors;
         data.unresolved = data.prepared.unresolved;
       } else {
         data.errors = data.research.errors;
-        owned.trace?.failed("research_failed", false);
       }
       return data.prepared;
     },
@@ -459,7 +453,7 @@ export function createCatalogIngestionWorkflow(
       ) {
         return data.editor;
       }
-      owned.trace?.update({ phase: "editor" });
+
       data.editor = await owned.track(
         editResearch(
           data.prepared.candidate,
@@ -483,7 +477,7 @@ export function createCatalogIngestionWorkflow(
       if (data.editor.status !== "success" || !data.prepared) {
         return null;
       }
-      owned.trace?.update({ phase: "validation" });
+
       data.prepared = prepareEditorPlan(
         data.editor.modelResponse?.object,
         data.prepared,
@@ -496,7 +490,7 @@ export function createCatalogIngestionWorkflow(
       }
       data.errors = data.prepared.errors;
       data.unresolved = data.prepared.unresolved;
-      owned.trace?.editorValidated(data.prepared);
+
       logPreparation(owned.trace?.log, data.prepared);
       // The normalized plan exists only during preparation; editorResponse is retained once.
       return {
@@ -530,7 +524,6 @@ export function createCatalogIngestionWorkflow(
         unresolved: [],
       } as NonNullable<IngestionData["location"]["materialized"]>;
       if (hasTargets) {
-        owned.trace?.update({ phase: "location" });
         const locationInput = buildLocationInput(
           prepared.editorPlan,
           prepared.candidate.data,
@@ -570,7 +563,6 @@ export function createCatalogIngestionWorkflow(
     "apply-catalog-item",
     "Apply the item atomically or roll back a dry run",
     (owned, data, signal) => {
-      owned.trace?.update({ phase: "write" });
       signal.throwIfAborted();
       if (
         !data.prepared?.operations.length ||
@@ -602,7 +594,7 @@ export function createCatalogIngestionWorkflow(
         owned.trace?.tracing.setEventId(
           reportEventId(owned.input, data.prepared, data.applied),
         );
-        owned.trace?.update({ applied: data.applied });
+
         owned.trace?.log?.info("Catalog write finished", {
           stage: "write",
           dryRun: owned.input.dryRun,
@@ -627,7 +619,6 @@ export function createCatalogIngestionWorkflow(
     "build-report",
     "Assemble the outcome and diagnostics",
     (owned, data) => {
-      owned.trace?.update({ phase: "report" });
       data.report = buildResearchReport(owned.reportInput(data));
       return data.report;
     },

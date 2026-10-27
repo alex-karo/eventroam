@@ -28,13 +28,15 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 ## Development and operations
 
-- [Development guide](development.md) — commands, workflow, and working practices.
 - [Analytics](analytics.md) — PostHog setup, tracked events, GitHub campaign links, and owner opt-out.
-- [Infrastructure](infrastructure.md) — deployment ownership and database transfer commands.
+- [Development guide](development.md) — local setup, common commands, and task routes.
+- [Testing](testing.md) — application checks, browser tests, and temporary test data.
+- [Change workflow](change-workflow.md) — planning, implementation, and review.
+- [Ingestion tools](ingestion-tools.md) — CLI, Studio, saved runs, and diagnostics.
+- [Infrastructure](infrastructure.md) — application containers, deployment inputs, and database maintenance and transfers.
 - [Ingestion process](ingestion-process.md) — plain-language steps for festival research and catalog updates, including [Location resolution](../openspec/specs/catalog/location-resolution/spec.md).
-- [Ingestion evals](ingestion-evals.md) — approach, case requirements, scoring boundaries, fixtures and model comparison. See the [eval commands](development.md#catalog-evals) and [evaluation contract](../openspec/specs/operations/ingestion-evaluation/spec.md).
+- [Ingestion evals](ingestion-evals.md) — commands, Studio experiments, case design, scoring, fixtures, and model comparison.
 - [Project structure](project-structure.md) — directories and dependency boundaries.
-- [Mapbox deployment gate](mapbox-deployment-gate.md) — checks required before public map deployment.
 
 ## Decisions
 
@@ -43,6 +45,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 ## Known issues
 
+- [Studio and CLI share a DuckDB writer lock](known-issues/2026-10-27-studio-cli-duckdb-conflict.md) — current workaround and a possible move to native Mastra server execution.
 - [Roskilde ticket link preference](known-issues/2026-10-27-roskilde-edition-ticket-link.md) — the eval requires an overview that the agent instructions do not prefer.
 - [Invalid Edition key rejects Wacken research](known-issues/2026-10-27-wacken-invalid-edition-key.md) — malformed model output rejects a full research result.
 - [Mastra eval storage snapshot failure](known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) — intermittent storage errors, related upstream fixes, and pending checks.

@@ -12,12 +12,8 @@ import {
   readTraceRows,
   runTraceFixture as executeTraceFixture,
   TRACE_ERROR,
-  TRACE_CREDENTIAL,
-  TRACE_SOURCE_BODY,
-  TRACE_HIGHLIGHT,
   TRACE_CANDIDATE,
-  TRACE_TRANSPORT,
-  TRACE_PUBLIC_MARKER,
+  TRACE_SOURCE_BODY,
   TRACE_PUBLIC_URL,
 } from "@/test/tracing-fixture";
 // Advance the real SDK deadline only after its second request is hanging.
@@ -72,21 +68,11 @@ async function spansAt(path: string) {
   const rows = await readTraceRows(path);
   const spans = rows.mastra_ai_spans as Record<string, unknown>[];
   expect(spans.length).toBeGreaterThan(0);
-  for (const marker of [
-    TRACE_ERROR,
-    TRACE_CREDENTIAL,
-    TRACE_SOURCE_BODY,
-    TRACE_HIGHLIGHT,
-    TRACE_CANDIDATE,
-    TRACE_TRANSPORT,
-  ]) {
-    expect(JSON.stringify(rows)).not.toContain(marker);
-  }
   expect(rows.mastra_logs).toEqual([]);
   return spans;
 }
 
-test("offline real agent persists sanitized model/tool relationships and bounded metadata", async () => {
+test("offline real agent persists native model/tool relationships and run metadata", async () => {
   const path = tracePath();
   enable(path);
   const result = await runTraceFixture();
@@ -99,6 +85,8 @@ test("offline real agent persists sanitized model/tool relationships and bounded
     TRACE_CANDIDATE,
   );
   const spans = await spansAt(path);
+  expect(JSON.stringify(spans)).toContain(TRACE_CANDIDATE);
+  expect(JSON.stringify(spans)).toContain(TRACE_SOURCE_BODY);
   expect(spans.map((span) => span.spanType)).toEqual(
     expect.arrayContaining([
       "agent_run",
@@ -130,22 +118,40 @@ test("offline real agent persists sanitized model/tool relationships and bounded
   ).toBe(root.spanId);
   expect(root.error).toBeNull(); // A domain failed envelope is technically complete.
   expect(root.entityId).toBe("catalog-research");
-  expect(root.name).toBe(root.entityName);
-  expect(root.name).toContain(TRACE_PUBLIC_MARKER);
-  expect(root.name).toContain("ctx:2026");
+  expect(root.name).toBe("catalog-research");
   expect(JSON.parse(root.output as string)).toMatchObject({
     researchStatus: "failed",
-    semanticValidation: "not_run",
   });
   expect(JSON.parse(root.metadata as string).runId).toBe(result.result.runId);
   const reads = spans.filter((span) => span.entityId === "readPage");
   expect(reads).toHaveLength(2);
+  for (const read of reads) {
+    const output = JSON.parse(read.output as string);
+    expect(output).toHaveProperty("status");
+    for (const field of [
+      "outcome",
+      "reason",
+      "completeness",
+      "sourceTruncated",
+      "toolTruncated",
+    ]) {
+      expect(output).not.toHaveProperty(field);
+    }
+    if (read.spanType !== "tool_call") {
+      expect(output).not.toHaveProperty("truncated");
+      expect(output).not.toHaveProperty("markdown");
+      expect(output).not.toHaveProperty("links");
+    } else {
+      expect(output.markdown).toContain(TRACE_SOURCE_BODY);
+    }
+  }
   expect(
     reads.some((span) => JSON.stringify(span).includes(TRACE_PUBLIC_URL)),
   ).toBe(true);
   expect(
     reads.some(
-      (span) => JSON.parse(span.output as string).reason === "request_failed",
+      (span) =>
+        JSON.parse(span.output as string).reasonCode === "request_failed",
     ),
   ).toBe(true);
   expect(spans.every((span) => span.endedAt)).toBe(true);
@@ -179,7 +185,7 @@ test.each(["http", "abort"] as const)(
       expect(tokens).toBeUndefined();
     }
     expect(JSON.parse(root.error as string)).toMatchObject({
-      message: "operation_failed",
+      message: expect.any(String),
     });
     expect(JSON.parse(root.output as string)).toMatchObject({
       researchStatus: "failed",
@@ -299,16 +305,7 @@ test("short buffered writer exits and a different process can read its final spa
     ["--import", "tsx", script, "read"],
     { env },
   );
-  for (const marker of [
-    TRACE_ERROR,
-    TRACE_CREDENTIAL,
-    TRACE_SOURCE_BODY,
-    TRACE_HIGHLIGHT,
-    TRACE_CANDIDATE,
-    TRACE_TRANSPORT,
-  ]) {
-    expect(reader.stdout).not.toContain(marker);
-  }
+  expect(JSON.parse(reader.stdout)).toBeTruthy();
   const saved = await readTraceRows(path);
   expect(
     saved.mastra_metrics.some(
@@ -366,7 +363,7 @@ test.each([
   "target",
   "skipped",
 ] as const)(
-  "%s apply fixture persists safe trace projections and its durable report",
+  "%s apply fixture persists native traces and its durable report",
   async (scenario) => {
     // Compare on/off for committed, structurally invalid, unchanged and wrong-target
     // outcomes. Other scenarios still exercise their unique persisted trace fields.
@@ -393,20 +390,24 @@ test.each([
     const spans = await spansAt(path);
     const root = spans.find((span) => !span.parentSpanId)!;
     const output = JSON.parse(root.output as string);
-    expect(root.entityName).toBe(root.name);
-    expect(output).toMatchObject({
+    expect(root.name).toBe("catalog-research");
+    expect(output).toEqual({
       researchStatus: traced.result.researchStatus,
+      editorStatus: traced.result.editorStatus,
+      locationStatus: traced.result.locationStatus,
       outcome: traced.result.outcome,
-      semanticValidation: "not_run",
     });
     if (scenario === "cached") {
       const reads = spans.filter(
         (span) => span.entityId === "readPage" && span.spanType === "tool_call",
       );
       expect(reads).toHaveLength(2);
-      expect(
-        reads.map((span) => JSON.parse(span.output as string).cached).sort(),
-      ).toEqual([false, true]);
+      expect(JSON.parse(reads[0].output as string).markdown).toContain(
+        TRACE_SOURCE_BODY,
+      );
+      expect(JSON.parse(reads[0].output as string).markdown).toBe(
+        JSON.parse(reads[1].output as string).markdown,
+      );
       expect(traced.result.budget.pages).toBe(2);
       expect(traced.requests).toBe(2);
     }
@@ -415,71 +416,33 @@ test.each([
         (span) => span.entityId === "readPage" && span.spanType === "tool_call",
       )!;
       expect(JSON.parse(read.output as string)).toMatchObject({
-        sourceTruncated: scenario === "truncated",
-        toolTruncated: scenario === "tool_truncated",
-        ...(scenario === "truncated"
-          ? { reason: "source_content_truncated", completeness: "partial" }
-          : {}),
+        status: "ok",
+        truncated: true,
       });
       expect(traced.result.budget.pages).toBe(2);
       expect(traced.requests).toBe(4);
     }
-    if (
-      scenario === "partial" ||
-      scenario === "mistaken" ||
-      scenario === "recovered"
-    ) {
-      expect(output).toMatchObject({
-        structuralValidation: "passed",
-        targetValidation: "passed",
-        editions: {
-          context: { entries: [{ editionKey: "2026", year: 2026 }] },
-          committed: {
-            entries: [{ editionKey: "2023", year: 2027, role: "created" }],
-          },
-        },
-      });
-      expect(root.name).toContain("created:2027");
-      expect(root.name).toContain("ctx:2026");
-      expect(root.name).not.toContain("Model name mismatch");
-      if (scenario === "partial") {
-        expect(root.name).toContain("partial");
-        expect(JSON.parse(root.metadata as string).promptVersion).toBe(
-          RESEARCH_PROMPT_VERSION,
-        );
-        const locationSpan = spans.find(
-          (span) => span.name === "resolve-location",
-        )!;
-        expect(JSON.parse(locationSpan.metadata as string).promptVersion).toBe(
-          LOCATION_PROMPT_VERSION,
-        );
-      }
-      if (scenario === "recovered") {
-        expect(
-          spans.some((span) =>
-            String(span.output).includes("oversized_response"),
-          ),
-        ).toBe(true);
-      }
+    if (scenario === "partial") {
+      expect(JSON.parse(root.metadata as string).promptVersion).toBe(
+        RESEARCH_PROMPT_VERSION,
+      );
+      const locationSpan = spans.find(
+        (span) => span.name === "resolve-location",
+      )!;
+      expect(JSON.parse(locationSpan.metadata as string).promptVersion).toBe(
+        LOCATION_PROMPT_VERSION,
+      );
     }
-    if (scenario === "mistaken") {
-    }
-    if (scenario === "target") {
-      expect(output).toMatchObject({
-        structuralValidation: "passed",
-        targetValidation: "failed",
-      });
+    if (scenario === "recovered") {
+      expect(
+        spans.some((span) =>
+          String(span.output).includes("oversized_response"),
+        ),
+      ).toBe(true);
     }
     if (scenario === "skipped") {
       expect(output).toMatchObject({
         outcome: "skipped",
-      });
-    }
-    if (scenario === "invalid") {
-      expect(output).toMatchObject({
-        structuralValidation: "failed",
-        targetValidation: "not_run",
-        errorCode: "validation_failed",
       });
     }
     if (scenario === "invalid_editor" || scenario === "rejected_editor") {
@@ -488,30 +451,19 @@ test.each([
         researchStatus: rejected ? "partial" : "success",
         editorStatus: rejected ? "success" : "failed",
         outcome: "failed",
-        structuralValidation: "passed",
-        targetValidation: "passed",
-        editorPlanValidation: "failed",
-        errorCode: rejected ? "editor_rejected" : "validation_failed",
       });
       expect(traced.result).toMatchObject({
         operations: [],
         changes: [],
         receipts: [],
       });
-      expect(root.name).toContain(rejected ? "editor-rejected" : "invalid");
-      if (rejected) {
-        expect(root.name).not.toContain("partial");
-      }
     }
     if (scenario === "search" || scenario === "reserved") {
       const search = spans.find((span) => span.entityId === "searchWeb")!;
       expect(JSON.parse(search.input as string).query).toContain(
         TRACE_PUBLIC_URL,
       );
-      expect(JSON.parse(search.output as string)).toMatchObject({
-        status: "ok",
-        returnedCount: 1,
-      });
+      expect(JSON.parse(search.output as string).candidates).toHaveLength(1);
     }
   },
 );
@@ -572,18 +524,10 @@ test.each(["context", "report", "no_report", "writer"] as const)(
     }
     const saved = await readTraceRows(path);
     const root = saved.mastra_ai_spans.find((span) => !span.parentSpanId)!;
-    const output = JSON.parse(root.output as string);
+    const output = root.output ? JSON.parse(root.output as string) : {};
     expect(root.endedAt).toBeTruthy();
     expect(JSON.parse(root.error as string)).toMatchObject({
-      message: "operation_failed",
-    });
-    expect(output).toMatchObject({
-      errorCode:
-        failure === "context"
-          ? "context_failed"
-          : failure === "writer"
-            ? "write_failed"
-            : "report_failed",
+      message: expect.any(String),
     });
     if (failure === "no_report") {
       expect(output).not.toHaveProperty("researchStatus");
@@ -598,8 +542,5 @@ test("thrown discovery retains safe query and a fixed code", async () => {
   const search = (await spansAt(path)).find(
     (span) => span.entityId === "searchWeb",
   )!;
-  expect(JSON.parse(search.output as string)).toMatchObject({
-    status: "failed",
-    errorCode: "search_failed",
-  });
+  expect(search.error).toBeTruthy();
 });

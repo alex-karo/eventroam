@@ -52,18 +52,16 @@
       "finalUrl": "https://harborechofestival.co.uk/",
       "retrievedAt": "2026-10-15T12:00:00Z",
       "method": "http",
-      "outcome": "blocked",
-      "completeness": "none",
+      "status": "failed",
       "markdownFile": "blocked.md",
-      "reason": "http_403"
+      "reasonCode": "http_403"
     },
     {
       "attemptedUrl": "https://harborechofestival.co.uk/programme",
       "finalUrl": "https://harborechofestival.co.uk/programme",
       "retrievedAt": "2026-10-15T12:00:00Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "official.md"
     }
   ],

@@ -8,7 +8,71 @@ tags: [catalog, ingestion, evals]
 
 # Ingestion evals
 
-Evals measure catalog quality and protect specific workflow behavior. They use fixed inputs so that model comparisons can separate model changes from changes to source websites. This guide explains how to design and maintain cases. See the [development guide](development.md#catalog-evals) for commands, model settings, storage and Studio, and the [evaluation spec](../openspec/specs/operations/ingestion-evaluation/spec.md) for the current contract.
+Evals measure catalog quality and protect specific workflow behavior. They use fixed inputs so that model comparisons can separate model changes from changes to source websites. This guide covers commands, result inspection, and case maintenance. The [evaluation spec](../openspec/specs/operations/ingestion-evaluation/spec.md) defines the current contract.
+
+## Run evals
+
+`npm run catalog:eval -- --help` lists options. The default runs five main cases once. Main applies the normal Research → Editor → Location → writer flow in a fresh in-memory catalog. Workflow regressions use dry runs; isolated Location cases use complete inputs without a catalog or writer. The owner's catalog stays untouched. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. CI does not run evals or tests of the eval code, and application coverage excludes eval code and its CLI. Run evals through the CLI when needed.
+
+```sh
+npm run catalog:eval
+npm run catalog:eval -- --all
+npm run catalog:eval -- --group regression/pipeline
+npm run catalog:eval -- --editor-only
+npm run catalog:eval -- --location-only
+npm run catalog:eval -- --case sziget --repeat 3 --model openai/gpt-6-luna
+npm run catalog:eval -- --label before
+npm run catalog:eval -- --label after
+```
+
+Cases form four separate experiment groups. Use CLI help for the current selection:
+
+| Group | Purpose |
+| --- | --- |
+| `main/pipeline` | Catalog quality and scenario success |
+| `regression/pipeline` | Targeted workflow behavior |
+| `regression/editor` | Captured Editor handoffs and eligible Location |
+| `regression/location` | Direct Location execution |
+
+Use repeated `--group GROUP` or `--case ID` flags for a selection. A case selection without a mode flag can span groups. Use one of `--all`, `--group`, `--editor-only`, or `--location-only`; an incompatible case selection fails before provider setup. `--repeat N` accepts 1–20 and applies equally to all selected cases. Location retains separate completion, correction, and preservation summaries. Its positive cases require the declared changes; keep-only output cannot pass them. The provider adapter tests cover raw Geoapify parsing; eval fixtures cover normalized client responses.
+
+### Model settings
+
+`--model X` selects X for all three agents, including direct Location, and overrides `CATALOG_LOCATION_MODEL`. Without it, Research and Editor use `OPENROUTER_MODEL` or the default; Location uses `CATALOG_LOCATION_MODEL` or falls back to the same model. Experiments save resolved stage models, prompt versions, workflow revision, reasoning effort, service tier, and limits. Injected handoffs do not claim Research usage.
+
+### Results and failures
+
+Results are saved as Mastra datasets, experiments, and scores. The eval command has no `--report` option and writes no separate JSON report. Ordinary ingestion reports are unchanged. Each workflow result contains one current ingestion report in `output.report`; main also retains `before`, `after`, and `quality`. Direct Location retains its actual execution, observations, run ID, and available trace ID without a fabricated workflow report. A returned failure report is scored against the case.
+
+Unexpected task errors have null output and a bounded diagnostic; scorer errors remain distinct from intentional N/A. Other cases and groups continue.
+
+Failed scenarios, task/scorer errors, or missing required scores cause exit code 1. Mastra task completion counts are not quality pass counts.
+
+### Experiment names
+
+Experiment names use `<branch> · <group> · <model>` and append `--label` when supplied. For example, `feature/location · main/pipeline · openai/gpt-6-luna · before`. The isolated Location group uses its resolved model. Detached HEAD uses the first eight commit characters instead of a branch. Each experiment saves the full commit, branch, dirty flag and label in metadata. The dirty flag includes tracked and untracked files. It does not save their contents. Names can repeat; IDs stay unique. Branch, commit, dirty state, label and model do not change dataset identity.
+
+The CLI shows counts, metrics, N/A applicability, failed checks, experiment IDs, and duration. Use the [score definitions](#keep-completeness-and-errors-separate) to interpret them.
+
+Edit cases and checks in the [source locations below](#define-what-the-sources-can-support). Review source identity, Edition identity, venue versus office addresses, and ticket links versus signup forms when refreshing captures. Follow the [revision rules](#compare-models-on-the-same-revision) before comparing results.
+
+### Inspect and compare in Studio
+
+Start `npm run catalog:studio`, open `http://127.0.0.1:4111`, and choose **Experiments**. Open an experiment to inspect item outputs and per-scorer values. Select **Compare**, choose two runs of the same group and dataset revision, then select **Compare Experiments**. Stable item IDs align repetitions. Run new experiments from the CLI; the Studio inline target is not an executable eval entry point. Use each dimension, not Studio's generic overall average. N/A appears as a dash; inspect saved quality counts or the CLI summary for applicability. Do not rank failed or incomplete runs by partial means. Changed cases, inputs, expectations, scorer rules, or repeat counts require fresh runs for both models.
+
+### Usage and storage failures
+
+Duration is separate from quality. Set `CATALOG_TRACING=true` to collect native tokens and cost. Eval traces and metrics carry the experiment ID, and saved result rows link to their real trace. Concurrent cases share one DuckDB store for the full CLI run; the CLI closes it after all cases finish. Studio shows the native Tokens/Cost summary when metrics are available; evals add no usage totals or metric queries.
+
+Eval runs and Studio must use the same `CATALOG_OBSERVABILITY_DATABASE_PATH`. Close Studio before CLI evals and reopen it after they finish: separate processes cannot write to the same DuckDB file at the same time. Old runs without this correlation are not backfilled. See [execution metrics](ingestion-process.md#execution-metrics). Missing metrics are unknown.
+
+Experiment storage write failures retain Mastra's native errors or warnings; no custom retry, recovery, post-run storage check, or JSON fallback is added. For this exceptional case, scores can be incomplete and the exit code might not indicate failure.
+
+## Local eval storage
+
+Mastra datasets, experiment results, and scores use `CATALOG_EVAL_DATABASE_PATH`, which defaults to `data/mastra-evals.sqlite`. This file is separate from the catalog and DuckDB observability. Relative paths resolve from the project root. `npm run catalog:studio` passes the same absolute path to Studio; set it explicitly for `studio:start` if you use a custom path. Studio can inspect saved datasets and experiments without model credentials. Keep eval execution in the CLI.
+
+Known issue: [intermittent `SQLITE_BUSY_SNAPSHOT` failures](known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) can leave saved scores incomplete or fail an experiment update.
 
 ## Separate case purpose from source origin
 
@@ -16,7 +80,7 @@ Main cases measure the final catalog after the full Research → Editor → Loca
 
 Source origin is a different property. Both main and regression cases can use captured or synthetic sources. Fill, verify and correct are separate tasks, even when they use the same pages. A blocked-source case can pass by returning the expected failure and preserving the catalog.
 
-Add a case for a distinct task or an observed failure. Reuse pages when useful, but avoid cases that repeat the same input and checks without adding coverage. The current suite has five main cases and 45 regression cases.
+Add a case for a distinct task or an observed failure. Reuse pages when useful, but avoid cases that repeat the same input and checks without adding coverage. Use the CLI group selection to see the current cases.
 
 ## Define what the sources can support
 
@@ -71,9 +135,11 @@ For saved Editions, populated fields remain protected unless a case declares a s
 
 ## Use realistic, bounded fixtures
 
-Prefer real pages read through the production reader. Preserve useful navigation, unrelated content and page controls. Keep actual partial, truncated, unsupported and failed outcomes; do not turn a failed response into a successful page.
+Prefer real pages read through the production reader. Preserve useful navigation, unrelated content and page controls. Keep source statuses (`ok`, `unsupported`, `failed`) and retrieval reasons. Map captured `partial` reads to `ok` with their retrieval reason and captured `blocked` reads to `failed`. Keep captured Markdown unchanged, including text cut by an earlier reader. Do not treat that text as a new projection cut or turn a failed response into a successful page. Replay keeps links in Markdown; it does not build a separate link list.
 
-Synthetic pages must state their origin and edits in provenance. When they represent a real site in a different state, retain its structure and normal content. Check body text, links and metadata for facts that contradict the scenario. Glastonbury models an unannounced next festival, with an unedited official History 2025 capture. Its optional draft 2025 Edition earns additional credit for year, country GB and the GBP 378.50 base price. Returned offer prices must match that amount and currency. This historical case does not check offer URLs because the page provides no admission product URL; other main ticket checks still require URL, amount and currency. Neither history page gives programme dates. Capacity 210,000 is not participant attendance and must not become `sizeEstimate`. Other new Editions, invented historical dates, and publication fail the case; the saved 2027 data stays protected.
+Synthetic pages must state their origin and edits in provenance. When they represent a real site in a different state, retain its structure and normal content. Check body text, links and metadata for facts that contradict the scenario.
+
+Glastonbury models an unannounced next festival, with an unedited official History 2025 capture. Its optional draft 2025 Edition earns additional credit for year, country GB and the GBP 378.50 base price. Returned offer prices must match that amount and currency. This historical case does not check offer URLs because the page provides no admission product URL; other main ticket checks still require URL, amount and currency. Neither history page gives programme dates. Capacity 210,000 is not participant attendance and must not become `sizeEstimate`. Other new Editions, invented historical dates, and publication fail the case; the saved 2027 data stays protected.
 
 Cover the assigned research path, not every possible link or query. Main source and geocoding fixture misses are diagnostics only. Required omissions, wrong checked facts and failed task conditions still fail main. Regression fixture-miss rules stay strict. There is no live fallback, wildcard response or invented provider result. An explicit provider no-match is different from a missing fixture.
 
@@ -92,13 +158,17 @@ Compare the actual value with the supplied source, expected alternatives and too
 
 Do not weaken a rule only because a model failed it. Do not demand an additional fact that the supplied pages cannot support.
 
-There are no separate eval unit tests, model-substitute eval runs, or eval persistence tests. CI does not run evals, and application coverage excludes the eval code and CLI. Run the eval CLI when checking model behavior or changed fixtures and review its saved outputs. The five main cases and all 45 regression cases remain available.
+There are no separate eval unit tests, model-substitute eval runs, or eval persistence tests. Run the eval CLI when checking model behavior or changed fixtures. Review its saved outputs.
 
 ## Compare models on the same revision
 
-Use the same group, cases, inputs, expectations, scoring rules and repeat count. Dataset identity uses a coarse hash of all case JSON/MD/TypeScript files, main evaluator/helper sources, `case-research.ts` and `research.ts`, plus group, selected case IDs, repeats and scorer version. Even whitespace or changes to unselected cases can create new datasets. Other scoring changes require an `EVAL_SCORER_VERSION` update. Existing datasets are reused without content checks or source snapshots. Edit definitions in repository files; manual Studio changes are not detected or imported.
+Use the same group, cases, inputs, expectations, scoring rules and repeat count.
 
-Experiment names identify the branch, group and model. Use `--label before` and `--label after` to compare code changes with the same model. To compare models, keep code and settings fixed. Other labels can describe prompt or limit changes. Git metadata records the commit, branch and dirty flag; it does not save uncommitted file contents. These fields and the model do not change dataset identity. See the [CLI guide](development.md#catalog-evals) for naming details.
+Dataset identity uses a coarse hash of all case JSON/MD/TypeScript files, main evaluator/helper sources, `case-research.ts` and `research.ts`, plus group, selected case IDs, repeats and scorer version. Even whitespace or changes to unselected cases can create new datasets. Other scoring changes require an `EVAL_SCORER_VERSION` update.
+
+Existing datasets are reused without content checks or source snapshots. Edit definitions in repository files; manual Studio changes are not detected or imported.
+
+Experiment names identify the branch, group and model. Use `--label before` and `--label after` to compare code changes with the same model. To compare models, keep code and settings fixed. Other labels can describe prompt or limit changes. Git metadata records the commit, branch and dirty flag; it does not save uncommitted file contents. These fields and the model do not change dataset identity. See [Run evals](#run-evals) for naming details.
 
 Compare the share of cases without checked errors, then required completeness, then additional completeness. Use duration and available native usage when quality is close. Keep N/A applicability visible and exclude incomplete runs. Do not use Studio's generic overall average as the model ranking.
 

@@ -8,8 +8,6 @@ tags: [architecture]
 
 # Eventroam project structure
 
-Status: Implemented core structure · Updated: 2026-10-27
-
 Eventroam is one npm package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. An owner-initiated Mastra research agent collects findings; a tool-free editor chooses non-location actions. A bounded Location agent resolves place fields before the same writer.
 
 ```text
@@ -44,43 +42,21 @@ src/
 ├── site/
 │   ├── discovery-context.ts   # Tab-local visit snapshots and context tokens
 │   └── server/                # Public request adapters and metadata builders
-├── ingestion/                 # Research/editor/Location agents, typed adapter, sources and limits
-│   ├── research/
-│   │   ├── agent/             # Agent implementation and adjacent tests
-│   │   │   ├── index.ts       # Model execution, step policy, callbacks and cleanup
-│   │   │   ├── usage.ts       # Provider usage projection and accumulation
-│   │   │   ├── prompt.ts      # Fixed model instructions
-│   │   │   ├── input.ts       # JSON input, saved context and source projections
-│   │   │   └── wire.ts        # Provider schema and optional-null compatibility
-│   │   ├── context.ts         # Private read context
-│   │   ├── contracts.ts       # Strict research candidate contracts
-│   │   └── money.ts           # Currency precision conversions
-│   ├── location/              # Place contracts, input, preparation, agent and point checks
-│   ├── editor/                # Typed plans, tool-free agent and operation conversion
-│   ├── tools/                 # Read/search capabilities and Mastra adapters
-│   │   ├── read-page/       # Tool, reader, extraction, fallback and contracts
-│   │   ├── search-web/  # Tool, search provider and contracts
-│   │   ├── session.ts         # Shared run budget, cache and read history
-│   │   ├── network.ts         # Safe bounded HTTP transport
-│   │   ├── contracts.ts       # Shared schemas and execution context
-│   │   └── index.ts           # Tool composition
-│   └── evals/                 # Captured website cases, Mastra runner and code scorers
-├── mastra/                    # Studio workflow, production server, and observability registration
-│   └── catalog-assistant/
-│       ├── index.ts           # Agent composition
-│       ├── prompt.ts          # Fixed agent instructions
-│       ├── execution-context.ts # Trusted request context initialization
-│       ├── memory.ts          # Separate chat storage
-│       └── tools/
-│           ├── index.ts       # Tool composition
-│           ├── query-catalog/ # SQL tool, adapter, contracts, guide and tests
-│           └── refresh-events/ # Refresh tool, workflow contracts and tests
+├── ingestion/                 # Research, Editor, Location, sources, evals and runtime
+│   ├── research/              # Research context, contracts and agent
+│   ├── editor/                # Field decisions and operation preparation
+│   ├── location/              # Place decisions and point validation
+│   ├── tools/                 # Source reading, search and geocoding
+│   ├── evals/                 # Fixed cases, evaluators and experiment runner
+│   └── runtime/               # Model setup, workflow storage and observability
+├── mastra/                    # Studio registration and production server
+│   └── catalog-assistant/     # Chat agent, tools, memory and catalog-sql skill
 ├── db/                        # Schema, connections, and SQL migrations
 └── test/                      # Temporary databases and data builders
 
 commands/                     # Catalog research CLI, migrations, development fixtures
 public/                       # Local website assets, catalog preview, and licensed fonts
-openspec/specs/               # Implemented behavior, grouped by catalog/ and website/
+openspec/specs/               # Implemented behavior, grouped by catalog/, website/ and operations/
 openspec/changes/             # Approved future work; delta specs use matching domain paths
 docs/                         # Decisions and development guidance
 data/                         # Ignored local database and runtime data
@@ -102,16 +78,23 @@ ESLint enforces these import boundaries. The writer runs without Next.js. Avoid 
 
 Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `editor/agent.ts` → `location/agent.ts` → `editor/prepare.ts` → catalog writer → `report.ts`. Use `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) explains the eleven steps and their observable behavior.
 
-- `workflow.ts` owns the shared CLI/Studio graph, native serializable state, step results and engine-run-to-attempt lookup. `attempt.ts` owns runtime resources, a memoized finalization promise and idempotent cleanup. Terminal hooks recover paths that bypass the final step without retrying final persistence.
-- `research/context.ts` builds private catalog context and owns its inferred type. `research/agent/index.ts` owns model execution, iteration/deadline policy, retries and cleanup. Adjacent `prompt.ts`, `input.ts` and `wire.ts` own fixed instructions, input/saved-price projection and provider-schema/null adaptation. `runtime/model-errors.ts` classifies host/provider failures and selects safe diagnostics.
-- `research/context.ts` loads the catalog snapshot and one frozen currentDate; model rules live in `research/agent/prompt.ts`. Scope comes from the invocation input. `research/guards.ts` checks simple scope bounds and countries directly from saved Editions, including the baseline reread inside atomic apply. No separate refresh context or field registry is maintained. Returned facts stay in the raw model response; actual mutations use the existing writer audit.
-- `tools/index.ts` composes read/search capabilities. Each tool directory keeps its adapter, implementation, contracts and observations together. `tools/session.ts` owns shared budgets, caching and read history; `tools/network.ts` provides bounded safe HTTP. Initial reads and eval fixtures reuse the session. `tools/read-page/response.ts` projects source text for the tool and initial prompt.
-- `editor/prepare.ts` checks findings/plan targets, converts typed actions and prices into operations and proposes eligible publication. The catalog writer validates the resulting committed records. `report.ts` combines three agent outputs, actual changes and budget counters. `runs.ts` persists durable start/final records outside catalog item transactions, so previews retain history.
-- `evals/main/` checks final catalog facts and task conditions. `evals/score.ts` adapts workflow changes and Location results to shared pass/fail checks; Research conditions live in each case's `checks.ts`, registered by `evals/case-research.ts`, with small helpers in `evals/research.ts`. `evals/tool-use.ts` supplies tool conditions. Main Research conditions stay in the corresponding main evaluator. `evals/run.ts` runs file-defined cases as Mastra dataset experiments. Each attempt owns a temporary catalog or an isolated Location input. `evals/scorers.ts` exposes the computed results without repeating checks: four main metrics or one regression `scenario-success`. Saved experiment outputs retain the real report or Location execution. The CLI prints failed checks and experiment IDs; there is no separate eval JSON report.
-- `runtime/workflow-storage.ts` composes native LibSQL workflow storage with optional Studio DuckDB domains. It owns safe storage errors and provider closure. `runtime/storage-paths.ts` checks diagnostic file separation, including sidecars and aliases, before opening providers. CLI owns one history host per Event; Studio owns its providers for server lifetime. Snapshot failures recover available attempt state without replay or duplicate finalization.
-- `runtime/logging/` uses Mastra PinoLogger methods and scoped context. Producers select plain fields and explicitly shorten model text. A small delivery bridge preserves child context and run/trace/span correlation in Studio.
-- `runtime/tracing/run.ts` observes apply attempts through explicit host fields and a narrow SDK-content exclusion. `runtime/observability/` owns DuckDB storage, optional signals, diagnostics and cleanup. Its exporter forwards native metric events without a separate application projection; the span processor preserves the usage/cost fields needed for native extraction and the SDK propagates execution context. Only eligible traced runs persist metrics. Native agent/model/tool metrics own operation timing; application logs keep timestamped events without duplicate timers. Durable usage/report accounting and budget counters remain independent. Studio lends its initialized store to attempts; attempt cleanup leaves that shared store open.
-- `src/mastra/index.ts` registers Studio's workflow and catalog assistant. Within `src/mastra/catalog-assistant/`, `index.ts` composes the agent, `prompt.ts` owns fixed instructions, and `execution-context.ts` initializes trusted request context. `tools/index.ts` composes the two tools. Each tool directory keeps its adapter, contracts, implementation and tests together. `skills/catalog-sql/` owns the catalog schema guide and SQL examples; native Mastra skill tools load them from disk. `query_catalog` opens a separate read-only catalog connection per call. `refresh_events` validates one to three Event IDs, then starts fresh workflow runs in sequence. Host request context limits each assistant execution to one selection; a process-local guard prevents overlapping refreshes in the same conversation. Memory receives its own LibSQLStore. Mastra uses a composite store for workflow SQLite and DuckDB observations. StudioMastra closes the composite and chat storage during shutdown. Studio opens an existing migrated catalog lazily and closes its owned connection. CLI callers retain injected dependencies and connection ownership. Workflow data contains inspectable research results, while credentials, prompts, provider transport payloads and live resources remain outside it.
+Paths below are relative to `src/ingestion/` unless stated otherwise. Read code for internal algorithms and current limits.
+
+| Area | Owner |
+| --- | --- |
+| Workflow and terminal cleanup | `workflow.ts`, `attempt.ts` |
+| Saved context, research instructions and output | `research/context.ts`, `research/agent/`, `research/contracts.ts` |
+| Scope and country checks | `research/guards.ts` |
+| Source tools, shared budgets and network access | `tools/` |
+| Editor decisions and writer-operation preparation | `editor/` |
+| Place fields, coordinate selection and donor checks | `location/`, `tools/geocode/` |
+| Private reports and durable attempts | `report.ts`, `runs.ts` |
+| Evals and experiment results | `evals/`; see [Ingestion evals](ingestion-evals.md) |
+| Workflow storage, logging and tracing | `runtime/`; see [Ingestion tools](ingestion-tools.md) |
+| Studio workflow registration | `src/mastra/index.ts` |
+| Studio chat, SQL and refresh tools, memory and schema guidance | `src/mastra/catalog-assistant/` |
+
+The writer owns catalog validation and atomic changes. CLI callers own injected connections. Studio owns its catalog connection and storage providers. Saved workflow state excludes live resources and credentials. See the [ingestion process](ingestion-process.md) for behavior and [Infrastructure](infrastructure.md) for storage operations.
 
 ## Discovery
 
@@ -119,30 +102,18 @@ Discovery loads complete public summaries for the active scope and applies the s
 
 ## Routes and scope
 
-The Edition page owns the full festival view in one column. Its location map owns one saved point, a precision-based initial zoom, and map loading errors. It uses the same Mapbox token and style as discovery. The Event page contains only its name, optional summary, navigation, and public history. Both pages use the shared `EditionHistory` component. Shared catalog views own price units, historical labels, fact icons, external link names, and native link titles. See the [festival detail contract](../openspec/specs/website/festival-details/spec.md).
+- `app/` composes the apex presentation, Festivals discovery, Event and Edition pages, and crawler routes.
+- `site/server/` resolves request sites and public identity. `site.ts` owns configured origins and paths. Unknown hosts do not expose a default catalog.
+- `site/discovery-context.ts` and the discovery feature preserve a visit across detail navigation.
+- `components/catalog/` owns shared fact, ticket, link and history views.
+- `site/server/metadata.ts` and `structured-data.ts` build metadata and optional Event JSON-LD. `app/robots.ts` and `app/sitemap.ts` serve current crawler output.
 
-`site/discovery-context.ts` stores one visit snapshot in session storage. It contains the root filter URL, camera, list scroll, selected ID, and card expansion state. History state and detail URLs carry only its opaque token. `Discovery` saves and restores this context for browser Back and Back to results. It reloads selected details and removes an ineligible selection. The discovery map restores the camera before its first fit and uses the rendered card bounds to keep the selected point visible. Direct details without a matching token return to default discovery.
-
-The application has a root page, Event and Edition pages, two discovery API routes, and per-host crawler routes. The root renders the project presentation or Festivals discovery according to the allowed host. The apex has three sections: system introduction, festival example, and services with a direct LinkedIn contact link. Its [presentation spec](../openspec/specs/website/project-presentation/spec.md) defines this content. The apex uses a local preview image, local fonts, and a labeled source-to-record-to-catalog illustration. It does not query the catalog. Unknown hosts do not expose a default catalog. Detail requests resolve public identity and canonical hosts through `site/server` and `catalog/read`. The [scoped website specification](../openspec/specs/website/routing/spec.md) owns routing behavior; [website discoverability](../openspec/specs/website/discoverability/spec.md) owns metadata and crawler output.
-
-`site/server/metadata.ts` builds Next.js metadata from public DTOs. Page adapters share detail reads and the current time within each request through React memoization. `site.ts` owns configured origins and paths. Metadata does not use arbitrary request hosts or add a publication gate. The HTTP checks in `src/test/site-smoke.ts` run against the built app.
-
-`app/robots.ts` and `app/sitemap.ts` use Next.js metadata routes and request-site resolution. The sitemap reads only slugs and Edition keys through `catalog/read/public-catalog.ts`, with the same publication conditions as detail reads. It does not use discovery eligibility or load full details. Next.js owns crawler text and XML serialization; each response uses current runtime origins and publication state.
-
-`site/server/structured-data.ts` builds an optional Event object from public Edition facts and safely serializes its script data. The Edition route inserts the script; metadata and page indexing do not depend on its eligibility. The small adjacent test table checks eligibility, date and status fields, and safe serialization. The same HTTP smoke suite checks script presence or absence in rendered pages.
-
-About and privacy pages and dedicated error pages remain future work. Add their files when the behavior is implemented; do not publish placeholder routes.
+Behavior belongs in the [routing](../openspec/specs/website/routing/spec.md), [festival detail](../openspec/specs/website/festival-details/spec.md), [project presentation](../openspec/specs/website/project-presentation/spec.md), and [discoverability](../openspec/specs/website/discoverability/spec.md) specs. Use [Testing](testing.md) for built-site HTTP checks.
 
 ## Database operations
 
-Run `npm run db:migrate` for reviewed SQL migrations and `npm run db:fixtures` for repeatable fictional development data. Both enter through `commands/catalog-db.ts`. See the [development guide](development.md) for checks and local setup.
-
-Release the web application, writer, and schema as one compatible version. For a schema change, stop web and writer processes, retain a compatible closed data copy if rollback is needed, apply the migration, and start the matching version. Keep SQLite transactions short and verify WAL file permissions for reader access. A read-only SQLite connection does not guarantee that a read-only volume mount works in every WAL lifecycle state. Follow the [SQLite decision](decisions/001-sqlite-and-drizzle.md) for consistent-copy rules and deferred backup work.
+`commands/catalog-db.ts` runs reviewed migrations and fictional development fixtures. Release the application, writer, and schema as one compatible version. See [Infrastructure](infrastructure.md) for stopped-user migrations, WAL-safe copies, file permissions, transfers, and rollback limits. The [SQLite decision](decisions/001-sqlite-and-drizzle.md) owns the storage rationale.
 
 ## Future additions
 
-Add `src/components/ui/` for common React primitives, and `src/shared/` for small domain-independent utilities. Add more local event-detail components as their roles become concrete.
-
-Open-view freshness and concrete release compatibility checks remain undecided. Collection uses the local TypeScript CLI, loopback Studio, or hosted Studio with external ingress authentication. Scheduling remains deferred. One Dockerfile provides separate web and Studio targets; the Studio image also carries the explicit migration command and SQL files. Both services share one named data volume in application Compose. See [application containers](development.md#application-containers) for commands and inputs. External infrastructure and the public rollout belong in the self-hosted project.
-
-Location owns five place text fields and coordinates. `tools/geocode/` owns the bounded Geoapify adapter, forward tool, Event cache, six-call limit and point map. `location/initial.ts` deduplicates initial forward/reverse requests. `editor/prepare.ts` validates editor actions first, then combines Location actions before operation and publication preparation. `location/donor-guard.ts` rechecks inherited donor versions and points inside the existing writer transaction. No agent sends messages to another agent.
+Add common UI primitives or domain-independent utilities only when code needs them. About, privacy, and dedicated error pages remain future work. Do not publish placeholder routes. Scheduling remains deferred. Read [remaining release decisions](proposals/release-open-decisions.md) for unresolved choices.
