@@ -106,3 +106,17 @@ Address follow-up: Roskilde now accepts `Festivalpladsen, Darupvej 19, 4000 Rosk
 - [x] 15.1 Adapt real Glastonbury reader output with navigation, unrelated news, information sections, and page controls. Remove programme confirmation from text, links, and metadata. Keep archive years as navigation only, the current seed, and preservation checks. Record the edits in provenance, test fixed-source replay, and run checks without model calls.
 
 Section 15 validation: ten adapted pages retain the real reader structure, with 13 fixed responses including the observed tickets-path redirect, the Info Tickets anchor and the production Instagram stub. The test model output now removes duplicate final URLs and excludes unreadable sources. The full sequential run passed all 822 tests in 71 files. Type, lint, documentation, OpenSpec, edited-code format and diff checks passed. The seed, input and expectations are unchanged; all 45 regression case definitions are unchanged. The focused run encountered the known Mastra SQLITE_BUSY_SNAPSHOT error before the successful full run. No model calls or saved experiment edits were made.
+
+## 16. Identify development experiments
+
+- [x] 16.1 Name experiments with the current branch, group, model and optional `--label`. Use a short commit for detached HEAD. Save the full commit, branch, dirty flag and label in experiment metadata without changing dataset identity. Test CLI parsing, saved names, dataset reuse and detached HEAD with model substitutes. Update the guide and specs, and run checks without model calls.
+
+Section 16 validation: all 182 eval tests in 16 files passed with model substitutes. Saved names and Git metadata survive reopening storage; branch, commit, dirty state and label changes reuse the dataset. Detached HEAD, the separate Location model and CLI label errors are covered. Type, lint, dependency, documentation, OpenSpec, format and diff checks passed. No live model calls or existing experiment edits were made.
+
+## 17. Use a coarse file hash for dataset identity
+
+This section replaces resolved-content hashing, saved source snapshots and stored-item validation in earlier tasks.
+
+- [x] 17.1 Hash all case JSON/MD files and main evaluator/helper source files. Add group, selected case IDs, repeat count and scorer version to dataset identity. Reuse existing datasets without reading or comparing saved items; remove source snapshots and obsolete verification tests. Keep version pinning, small hash/import tests and model-substitute integration coverage. Update specs and guides, and run checks without model calls.
+
+Section 17 validation: all 182 eval tests in 16 files passed; after type and lint fixes, all nine dataset/runner integration tests passed again. Hash tests cover file names, whitespace, fixtures, main rules and selection settings. Native imports reuse item IDs without reading stored items, accept manual Studio edits and pin the current version. Type, lint, dependency, documentation, OpenSpec, format and diff checks passed. The dataset module and the two affected test files decreased from 804 to 667 lines. No live model calls or existing experiment edits were made.

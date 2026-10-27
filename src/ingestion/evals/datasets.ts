@@ -1,47 +1,41 @@
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Mastra } from "@mastra/core/mastra";
-import type { DatasetItem, DatasetItemPayload } from "@mastra/core/storage";
+import type { DatasetItemPayload } from "@mastra/core/storage";
 import type { EvalCase, EvalSuite } from "./fixtures";
 import type { EvalGroup } from "./selection";
 
-// Change this version when a scoring rule changes.
+// Increase this version when rules outside the hashed files change.
 export const EVAL_SCORER_VERSION = "2";
 
-/** Keep the exact expected values and shared rules with each main dataset. */
-export function mainEvaluatorSources() {
-  const directory = new URL("./main/", import.meta.url);
-  return Object.fromEntries([
-    ["main.ts", readFileSync(new URL("./main.ts", import.meta.url), "utf8")],
-    ...readdirSync(directory)
+/** Hash all fixture files and main rules, including whitespace changes. */
+export function evalFileHash(
+  directory = fileURLToPath(new URL("./", import.meta.url)),
+) {
+  const files = [
+    "main.ts",
+    ...readdirSync(join(directory, "cases"), {
+      recursive: true,
+      encoding: "utf8",
+    })
+      .filter((name) => /\.(json|md)$/.test(name))
+      .map((name) => join("cases", name)),
+    ...readdirSync(join(directory, "main"), {
+      recursive: true,
+      encoding: "utf8",
+    })
       .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
-      .sort((a, b) => a.localeCompare(b))
-      .map((name) => [
-        `main/${name}`,
-        readFileSync(new URL(name, directory), "utf8"),
-      ]),
-  ]);
-}
-
-export function canonicalJson(value: unknown): string {
-  if (value === undefined) {
-    return "undefined";
+      .map((name) => join("main", name)),
+  ].sort((a, b) => a.localeCompare(b));
+  const hash = createHash("sha256");
+  for (const file of files) {
+    hash.update(
+      JSON.stringify([file, readFileSync(join(directory, file), "utf8")]),
+    );
   }
-  const clean = JSON.parse(JSON.stringify(value));
-  const sort = (item: unknown): unknown => {
-    if (Array.isArray(item)) {
-      return item.map(sort);
-    }
-    if (item && typeof item === "object") {
-      return Object.fromEntries(
-        Object.entries(item)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([key, child]) => [key, sort(child)]),
-      );
-    }
-    return item;
-  };
-  return JSON.stringify(sort(clean));
+  return hash.digest("hex");
 }
 
 export function evalDataset(
@@ -50,7 +44,7 @@ export function evalDataset(
   group: EvalGroup,
   repeat: number,
   scorerVersion = EVAL_SCORER_VERSION,
-  evaluatorSources?: Record<string, string>,
+  fileHash = evalFileHash(),
 ) {
   const items: DatasetItemPayload[] = [...cases]
     .sort((a, b) => a.id.localeCompare(b.id))
@@ -76,19 +70,16 @@ export function evalDataset(
         },
       }));
     });
-  const resolvedItems: DatasetItemPayload[] = JSON.parse(canonicalJson(items));
-  const rules =
-    group === "main/pipeline"
-      ? { evaluatorSources: evaluatorSources ?? mainEvaluatorSources() }
-      : {};
   const revision = createHash("sha256")
     .update(
-      canonicalJson({
+      JSON.stringify({
+        fileHash,
         group,
         repeat,
         scorerVersion,
-        ...rules,
-        items: resolvedItems,
+        caseIds: cases
+          .map((item) => item.id)
+          .sort((a, b) => a.localeCompare(b)),
       }),
     )
     .digest("hex");
@@ -96,12 +87,13 @@ export function evalDataset(
     id: `ingestion-${group.replaceAll("/", "-")}-${revision}`,
     revision,
     group,
-    items: resolvedItems,
-    metadata: { revision, group, repeat, scorerVersion, ...rules },
+    // Native storage rejects undefined optional fields.
+    items: JSON.parse(JSON.stringify(items)) as DatasetItemPayload[],
+    metadata: { revision, group, repeat, scorerVersion, fileHash },
   };
 }
 
-/** Files own the dataset. Verify the current snapshot, then pin its version. */
+/** Files own the dataset. Reuse its ID without checking stored items. */
 export async function prepareEvalDataset(
   mastra: Mastra,
   definition: ReturnType<typeof evalDataset>,
@@ -119,39 +111,5 @@ export async function prepareEvalDataset(
     await dataset.addItems({ items: definition.items });
   }
   const details = await dataset.getDetails();
-  const items: DatasetItem[] = [];
-  for (let page = 0; ; page++) {
-    const result = await store!.listItems({
-      datasetId: definition.id,
-      version: details.version,
-      pagination: { page, perPage: 100 },
-    });
-    items.push(...result.items);
-    if (!result.pagination.hasMore) {
-      break;
-    }
-  }
-  const payload = (item: DatasetItem) => ({
-    externalId: item.externalId,
-    input: item.input,
-    groundTruth: item.groundTruth,
-    metadata: item.metadata,
-  });
-  const sorted = <T extends { externalId?: string | null }>(values: T[]) =>
-    values.toSorted((a, b) =>
-      (a.externalId ?? "").localeCompare(b.externalId ?? ""),
-    );
-  if (
-    Object.entries(definition.metadata).some(
-      ([key, value]) =>
-        canonicalJson(details.metadata?.[key]) !== canonicalJson(value),
-    ) ||
-    canonicalJson(sorted(items.map(payload))) !==
-      canonicalJson(sorted([...definition.items]))
-  ) {
-    throw new Error(
-      `Stored eval dataset differs from repository files: ${definition.id}`,
-    );
-  }
-  return { dataset, version: details.version, items, definition };
+  return { dataset, version: details.version, definition };
 }

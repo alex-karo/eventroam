@@ -53,6 +53,7 @@ export async function runTraceFixture(
     cost?: number;
     stepCosts?: (number | null)[];
     model?: string;
+    experimentId?: string;
     searchStatus?: number;
     sourceErrorCount?: number;
     onAbortRequest?: () => void;
@@ -291,6 +292,7 @@ export async function runTraceFixture(
         client,
         workflowStorage,
         config,
+        experimentId: modelText.experimentId,
         readPage: async (url, { budget }) => {
           if (scenario === "truncated" && !url.endsWith("/initial")) {
             return readPage(url, {

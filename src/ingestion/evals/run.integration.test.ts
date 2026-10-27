@@ -1,9 +1,10 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import * as childProcess from "node:child_process";
+import { isDeepStrictEqual } from "node:util";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { Agent } from "@mastra/core/agent";
-import { Mastra } from "@mastra/core/mastra";
 import * as workflow from "../workflow";
 import { runCatalogEvals, evaluationConfig, evalItemPassed } from "./run";
 import {
@@ -11,8 +12,6 @@ import {
   type PipelineEvalCase,
   type LocationEvalCase,
 } from "./fixtures";
-import { createEvalStore } from "./storage";
-import { canonicalJson, evalDataset, prepareEvalDataset } from "./datasets";
 import { mainCandidate } from "@/test/eval-main";
 import {
   generateFixtureEditor,
@@ -20,12 +19,16 @@ import {
 } from "@/test/ingestion";
 import { locationDecision } from "@/test/eval-location";
 import { readSavedResults } from "@/test/eval-storage";
+import { readTraceRows } from "@/test/tracing-fixture";
 import type { LocationInput } from "../location/input";
 import type { RegisteredPoint } from "../location/contracts";
 import {
   executeCatalogEvalCommand,
   parseEvalArgs,
 } from "../../../commands/catalog-eval";
+
+vi.mock("node:child_process", { spy: true });
+
 const suite = loadEvalSuite();
 const executeResearch = workflow.runCatalogResearch;
 let directory: string;
@@ -35,6 +38,12 @@ beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), "eventroam-full-evals-"));
   vi.stubEnv("CATALOG_EVAL_DATABASE_PATH", join(directory, "evals.sqlite"));
   vi.stubEnv("DATABASE_PATH", join(directory, "catalog.sqlite"));
+  vi.stubEnv("CATALOG_TRACING", "false");
+  vi.stubEnv("CATALOG_LOGGING", "false");
+  vi.stubEnv(
+    "CATALOG_OBSERVABILITY_DATABASE_PATH",
+    join(directory, "observations.duckdb"),
+  );
   vi.stubEnv("OPENROUTER_API_KEY", "fixture");
   writeFileSync(join(directory, "catalog.sqlite"), "owner catalog sentinel");
 });
@@ -104,15 +113,15 @@ function substituteModels() {
     const candidates = suite.cases.filter(
       (item): item is LocationEvalCase =>
         !!item.location &&
-        canonicalJson(item.location.input) ===
-          canonicalJson(
-            Object.fromEntries(
-              Object.keys(item.location.input).map((key) => [
-                key,
-                prompt[key as keyof LocationInput],
-              ]),
-            ),
+        isDeepStrictEqual(
+          item.location.input,
+          Object.fromEntries(
+            Object.keys(item.location.input).map((key) => [
+              key,
+              prompt[key as keyof LocationInput],
+            ]),
           ),
+        ),
     );
     const prepared = (
       prompt as unknown as { prepared: { request: unknown; result: unknown }[] }
@@ -122,10 +131,8 @@ function substituteModels() {
         prepared.every((observation) =>
           candidate.geocoding?.some(
             (fixture) =>
-              canonicalJson(fixture.request) ===
-                canonicalJson(observation.request) &&
-              canonicalJson(fixture.response) ===
-                canonicalJson(observation.result),
+              isDeepStrictEqual(fixture.request, observation.request) &&
+              isDeepStrictEqual(fixture.response, observation.result),
           ),
         ),
       ) ?? candidates[0];
@@ -262,8 +269,38 @@ test("all 50 cases run as four saved experiments; a failed Location case does no
 
 test("default main runs save comparable experiments with the same native item IDs and honest N/A", async () => {
   const execute = substituteModels();
-  const first = await runCatalogEvals({ model: "fixture/selected" });
-  const second = await runCatalogEvals({ model: "fixture/selected" });
+  const git = vi.spyOn(childProcess, "execFileSync");
+  git
+    .mockReturnValueOnce("a".repeat(40))
+    .mockReturnValueOnce("feature/location\n")
+    .mockReturnValueOnce("");
+  const first = await runCatalogEvals({
+    model: "fixture/selected",
+    label: "before",
+  });
+  git
+    .mockReturnValueOnce("b".repeat(40))
+    .mockReturnValueOnce("other-branch\n")
+    .mockReturnValueOnce(" M src/ingestion/workflow.ts\n");
+  const second = await runCatalogEvals({
+    model: "fixture/selected",
+    label: "after",
+  });
+  for (const [run, branch, revision, dirty, label] of [
+    [first, "feature/location", "a".repeat(40), false, "before"],
+    [second, "other-branch", "b".repeat(40), true, "after"],
+  ] as const) {
+    const saved = await readSavedResults(run.groups[0]);
+    expect(saved.experiment).toMatchObject({
+      name: `${branch} · main/pipeline · fixture/selected · ${label}`,
+      metadata: {
+        workflowBranch: branch,
+        workflowRevision: revision,
+        workflowDirty: dirty,
+        label,
+      },
+    });
+  }
   expect(first.groups).toHaveLength(1);
   expect(first.groups[0].caseCount).toBe(5);
   expect(first.groups[0].results.every(evalItemPassed)).toBe(true);
@@ -291,6 +328,7 @@ test("default main runs save comparable experiments with the same native item ID
   });
   expect(code).toBe(0);
   expect(stdout.mock.calls.flat().join("")).toContain("checked errors: 0");
+  expect(stdout.mock.calls.flat().join("")).toContain(first.groups[0].name);
   blocked.output!.quality!.errorCount = 2;
   blocked.output!.quality!.noCheckedErrors = 0;
   blocked.output!.quality!.passed = false;
@@ -302,28 +340,79 @@ test("default main runs save comparable experiments with the same native item ID
   expect(stdout.mock.calls.flat().join("")).toContain("checked errors: 2");
 });
 
-test("stored edits reject before provider setup and generation", async () => {
-  const main = suite.cases.filter((item) => item.suite === "main");
-  const store = await createEvalStore();
-  try {
-    await store.init();
-    const ready = await prepareEvalDataset(
-      new Mastra({ storage: store, logger: false }),
-      evalDataset(suite, main, "main/pipeline", 1),
-    );
-    await ready.dataset.updateItem({
-      itemId: ready.items[0].id,
-      groundTruth: { changedInStudio: true },
-    });
-  } finally {
-    await store.close();
+test("detached HEAD uses a short commit and the resolved Location model without a label", async () => {
+  vi.stubEnv("OPENROUTER_MODEL", "fixture/research");
+  vi.stubEnv("CATALOG_LOCATION_MODEL", "fixture/location");
+  substituteModels();
+  vi.spyOn(childProcess, "execFileSync")
+    .mockReturnValueOnce("c".repeat(40))
+    .mockReturnValueOnce("")
+    .mockReturnValueOnce("?? notes.md\n");
+  const run = await runCatalogEvals({
+    caseIds: [suite.cases.find((item) => item.location)!.id],
+  });
+  const saved = await readSavedResults(run.groups[0]);
+  expect(saved.experiment).toMatchObject({
+    name: "cccccccc · regression/location · fixture/location",
+    metadata: {
+      workflowBranch: null,
+      workflowRevision: "c".repeat(40),
+      workflowDirty: true,
+      label: null,
+    },
+  });
+});
+
+test("the CLI accepts a label and rejects missing or blank values", () => {
+  expect(
+    parseEvalArgs(["--label", "prompt v2", "--model", "fixture/test"]),
+  ).toEqual({ label: "prompt v2", model: "fixture/test" });
+  for (const args of [["--label"], ["--label", "--all"], ["--label", " "]]) {
+    expect(() => parseEvalArgs(args)).toThrow("Missing value for --label");
   }
-  vi.stubEnv("OPENROUTER_API_KEY", "");
-  const generate = vi.spyOn(Agent.prototype, "generate");
-  await expect(runCatalogEvals()).rejects.toThrow(
-    "differs from repository files",
-  );
-  expect(generate).not.toHaveBeenCalled();
+});
+
+test("traced pipeline and Location repetitions retain native experiment links", async () => {
+  vi.stubEnv("CATALOG_TRACING", "true");
+  const execute = substituteModels();
+  const caseIds = [
+    suite.cases.find((item) => item.suite === "main")!.id,
+    suite.cases.find((item) => item.location)!.id,
+  ];
+  const { groups } = await runCatalogEvals({
+    model: "fixture/selected",
+    caseIds,
+    repeat: 2,
+  });
+  const traces = new Set<string>();
+  for (const group of groups) {
+    const saved = await readSavedResults(group);
+    expect(saved.results).toHaveLength(2);
+    for (const row of saved.results) {
+      const output = row.output as {
+        traceId?: string;
+        report?: { traceId?: string };
+      };
+      expect(row.traceId).toBeTruthy();
+      expect(row.traceId).toBe(output.report?.traceId ?? output.traceId);
+      traces.add(row.traceId!);
+    }
+  }
+  expect(traces.size).toBe(4);
+  expect(
+    execute.mock.calls.every(
+      ([, deps]) => deps.experimentId === groups[0].experimentId,
+    ),
+  ).toBe(true);
+  const rows = await readTraceRows(join(directory, "observations.duckdb"));
+  for (const group of groups) {
+    expect(
+      rows.mastra_ai_spans.some(
+        (row) => row.experimentId === group.experimentId,
+      ),
+    ).toBe(true);
+  }
+  expect(fetch).not.toHaveBeenCalled();
 });
 
 test("model selection resolves all stages and retains environment fallback", () => {

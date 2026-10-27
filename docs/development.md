@@ -126,6 +126,8 @@ Find the durable `runId` in the report, then inspect `data/catalog-debug/<runId>
 
 ### Catalog evals
 
+See [Ingestion evals](ingestion-evals.md) for the approach and requirements for cases, checks and fixtures.
+
 `npm run catalog:eval -- --help` lists options. The default runs five main cases once. Main applies the normal Research → Editor → Location → writer flow in a fresh in-memory catalog. Workflow regressions use dry runs; isolated Location cases use complete inputs without a catalog or writer. The owner's catalog stays untouched. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. Tests use model substitutes.
 
 ```sh
@@ -135,6 +137,8 @@ npm run catalog:eval -- --group regression/pipeline
 npm run catalog:eval -- --editor-only
 npm run catalog:eval -- --location-only
 npm run catalog:eval -- --case sziget --repeat 3 --model openai/gpt-6-luna
+npm run catalog:eval -- --label before
+npm run catalog:eval -- --label after
 ```
 
 The 50 cases form four separate experiment groups:
@@ -152,15 +156,17 @@ Use repeated `--group GROUP` or `--case ID` flags for a selection. A case select
 
 Results are saved as Mastra datasets, experiments, and scores. The eval command has no `--report` option and writes no separate JSON report. Ordinary ingestion reports are unchanged. Each workflow result contains one v7 report in `output.report`; main also retains `before`, `after`, and `quality`. Direct Location retains its actual execution, observations, run ID, and available trace ID without a fabricated workflow report. A returned failure report is scored against the case. Unexpected task errors have null output and a bounded diagnostic; scorer errors remain distinct from intentional N/A. Other cases and groups continue. Failed scenarios, task/scorer errors, or missing required scores cause exit code 1. Mastra task completion counts are not quality pass counts.
 
+Experiment names use `<branch> · <group> · <model>` and append `--label` when supplied. For example, `feature/location · main/pipeline · openai/gpt-6-luna · before`. The isolated Location group uses its resolved model. Detached HEAD uses the first eight commit characters instead of a branch. Each experiment saves the full commit, branch, dirty flag and label in metadata. The dirty flag includes tracked changes and untracked files; it does not save their contents. Names can repeat; IDs stay unique. Branch, commit, dirty state, label and model do not change dataset identity.
+
 The CLI shows group/case counts, separate metrics, applicable and N/A counts, failed checks, experiment IDs, and duration. Main facts and conditions are computed once. Thin Mastra scorers expose `required-completeness`, `additional-completeness`, `no-checked-errors`, and `scenario-success`. A zero completeness denominator is N/A. The binary error score is 1 only with no wrong checked facts; raw error counts remain in `output.quality`. Scenario success also needs correct available required facts, publication, assigned task conditions, protected records, source policy, and successful execution. Missing additional data alone lowers completeness. Regression groups retain their assertions and diagnostics under `output.score`, with one native `scenario-success` score.
 
-Edit inputs in `src/ingestion/evals/cases/` and main expectations in `src/ingestion/evals/main/`, then rerun. Main evaluator and shared-helper sources are stored once in dataset metadata and hashed automatically. Bump `EVAL_SCORER_VERSION` when other scoring rules change. Imports reuse unchanged case/repetition IDs and verify owned data before provider setup; execution pins that dataset version. Unused Mastra item fields and extra dataset metadata are ignored. See [evaluation revisions](../openspec/specs/operations/ingestion-evaluation/spec.md#requirement-valid-model-comparisons-use-the-same-evaluation-revision) for comparison requirements. Review source identity, Edition identity, venue versus office addresses, and ticket links versus signup forms when refreshing captures.
+Edit inputs in `src/ingestion/evals/cases/` and main expectations in `src/ingestion/evals/main/`, then rerun. One shared hash covers the names and full contents of all case JSON/MD files, `main.ts` and non-test TypeScript files under `main/`. Whitespace and edits to unselected cases can create new datasets. Bump `EVAL_SCORER_VERSION` when scoring rules outside those files change. Dataset identity also includes group, sorted selected case IDs and repeat count. Existing IDs are reused without reading or comparing saved items; new IDs create datasets. Each experiment pins the current native dataset version. Edit definitions in repository files only: manual Studio edits are not detected or imported. Metadata stores the hash without source snapshots. See [evaluation revisions](../openspec/specs/operations/ingestion-evaluation/spec.md#requirement-valid-model-comparisons-use-the-same-evaluation-revision) for comparison requirements. Review source identity, Edition identity, venue versus office addresses, and ticket links versus signup forms when refreshing captures.
 
 Start `npm run catalog:studio`, open `http://127.0.0.1:4111`, and choose **Experiments**. Open an experiment to inspect item outputs and per-scorer values. Select **Compare**, choose two runs of the same group and dataset revision, then select **Compare Experiments**. Stable item IDs align repetitions. Run new experiments from the CLI; the Studio inline target is not an executable eval entry point. Use each dimension, not Studio's generic overall average. N/A appears as a dash; inspect saved quality counts or the CLI summary for applicability. Do not rank failed or incomplete runs by partial means. Changed cases, inputs, expectations, scorer rules, or repeat counts require fresh runs for both models.
 
 For model choice, compare the share of cases without checked errors first, then required completeness, then additional completeness. Use duration and native usage when quality is close. Recommend three repetitions per main case for each model on the same revision. This is guidance, not a CLI minimum or proof of statistical superiority. Before replacing a model, run all 50 cases for both models and review new regression failures. Check whether the cause is model behavior, a narrow expectation, or variable output. Fixed sources cover a limited sample; add cases from observed failures instead of growing the suite without a specific reason.
 
-Duration is separate from quality. Tokens and cost remain in optional native observability; evals add no usage totals or metric queries. See [execution metrics](ingestion-process.md#execution-metrics). Missing metrics are unknown. Keep real run/trace IDs for correlation. Experiment storage write failures retain Mastra's native errors or warnings; no custom retry, recovery, post-run storage check, or JSON fallback is added. Complete saved scores and a failed exit are not guaranteed for this exceptional case.
+Duration is separate from quality. Set `CATALOG_TRACING=true` to collect native tokens and cost. Eval traces and metrics carry the experiment ID, and saved result rows link to their real trace. Studio shows the native Tokens/Cost summary when metrics are available; evals add no usage totals or metric queries. Eval runs and Studio must use the same `CATALOG_OBSERVABILITY_DATABASE_PATH`. Close Studio before CLI evals and reopen it after they finish: separate processes cannot write to the same DuckDB file at the same time. Old runs without this correlation are not backfilled. See [execution metrics](ingestion-process.md#execution-metrics). Missing metrics are unknown. Experiment storage write failures retain Mastra's native errors or warnings; no custom retry, recovery, post-run storage check, or JSON fallback is added. Complete saved scores and a failed exit are not guaranteed for this exceptional case.
 
 ### Fixed geocoding fixtures
 
@@ -179,6 +185,8 @@ Each returned offer must match an accepted product URL, amount, and currency. Mi
 ### Local eval storage
 
 Mastra datasets, experiment results, and scores use `CATALOG_EVAL_DATABASE_PATH`, which defaults to `data/mastra-evals.sqlite`. This file is separate from the catalog and DuckDB observability. Relative paths resolve from the project root. `npm run catalog:studio` passes the same absolute path to Studio; set it explicitly for `studio:start` if you use a custom path. Studio can inspect saved datasets and experiments without model credentials. Keep eval execution in the CLI.
+
+Known issue: [intermittent `SQLITE_BUSY_SNAPSHOT` failures](research/2026-10-27-mastra-sqlite-busy-snapshot.md) can leave saved scores incomplete or fail an experiment update.
 
 ### Local Studio ingestion
 

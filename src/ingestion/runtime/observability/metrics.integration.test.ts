@@ -69,7 +69,7 @@ test("real research/editor lifecycles retain native usage/cost and persist nativ
     false,
     "partial",
     false,
-    { cost: 0.012 },
+    { cost: 0.012, experimentId: "eval-experiment" },
   );
   expect(durableReport).toEqual(result);
   const rows = await readTraceRows(file);
@@ -120,6 +120,7 @@ test("real research/editor lifecycles retain native usage/cost and persist nativ
   }
   for (const metric of rows.mastra_metrics) {
     expect(metric.runId).toBe(result.runId);
+    expect(metric.experimentId).toBe("eval-experiment");
     expect(
       rows.mastra_ai_spans.some(
         (span) =>
@@ -137,6 +138,7 @@ test("real research/editor lifecycles retain native usage/cost and persist nativ
       name: totals,
       aggregation: "sum",
       groupBy: ["entityId", "model"],
+      filters: { experimentId: "eval-experiment" },
     });
     expect(groups).toHaveLength(3);
     for (const [entityId, tokens, cost] of [
@@ -153,6 +155,14 @@ test("real research/editor lifecycles retain native usage/cost and persist nativ
         costUnit: "USD",
       });
     }
+    // This is the query used by Studio's experiment Tokens/Cost summary.
+    expect(
+      await domain.getMetricAggregate({
+        name: totals,
+        aggregation: "sum",
+        filters: { experimentId: "eval-experiment" },
+      }),
+    ).toMatchObject({ value: 120, estimatedCost: 0.048, costUnit: "USD" });
   });
 });
 

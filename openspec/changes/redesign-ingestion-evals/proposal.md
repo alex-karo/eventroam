@@ -13,6 +13,8 @@ Current evals mix representative examples with regressions and score selected mu
 - Run the five main cases by default; use `--all` for all 50 cases. Save results in Mastra Experiments and compare models in Studio, without an overall score across groups.
 - Run main cases through Research, Editor, and Location with fixed geocoding responses. Retain run and available trace IDs for native token and cost inspection; do not rebuild usage totals.
 - Apply explicit `--model X` to Research, Editor, and Location in every eval mode. Without this option, retain environment-based model selection.
+- Name experiments by branch, group, model and optional `--label`. Save commit and dirty state separately from dataset identity.
+- Use a coarse file hash for dataset identity. Reuse saved datasets without content checks or source snapshots; edit definitions in repository files only.
 - Document model selection: prioritize factual accuracy, then completeness; use repeated main runs and check all regressions before replacing a model. Limit conclusions to the tested scenarios.
 - Keep fill, verify, and correct as distinct cases.
 - **BREAKING**: Replace the main scoring contract. Remove eval JSON report files and the eval `--report` option. Use saved Mastra results and CLI summaries. Keep regression checks as an active test contract, without old report readers.

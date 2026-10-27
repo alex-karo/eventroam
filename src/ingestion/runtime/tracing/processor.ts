@@ -15,6 +15,7 @@ export type TraceFields = {
 };
 export type TraceMetadata = {
   runId?: string;
+  experimentId?: string;
   mode: CatalogResearchInput["mode"];
   eventId?: string;
   model: string;

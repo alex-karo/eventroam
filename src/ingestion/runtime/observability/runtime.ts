@@ -66,6 +66,7 @@ export async function createResearchObservability(
   runId?: string,
   protectedPaths: string[] = [],
   sharedStore?: DuckDBStore,
+  experimentId?: string,
 ) {
   const traceEnabled = process.env.CATALOG_TRACING === "true";
   const loggingEnabled = process.env.CATALOG_LOGGING === "true";
@@ -99,6 +100,7 @@ export async function createResearchObservability(
     }
     const metadata: TraceMetadata = {
       ...(runId ? { runId } : {}),
+      ...(experimentId ? { experimentId } : {}),
       mode: input.mode,
       ...(input.eventId ? { eventId: traceText(input.eventId, 160) } : {}),
       model: traceText(model, 160),
@@ -193,6 +195,7 @@ export async function createRunObservability(
   runId: string,
   protectedPaths: string[] = [],
   sharedStore?: DuckDBStore,
+  experimentId?: string,
 ) {
   const tracing = await createResearchObservability(
     input,
@@ -200,6 +203,7 @@ export async function createRunObservability(
     runId,
     protectedPaths,
     sharedStore,
+    experimentId,
   );
   if (!tracing) {
     return undefined;

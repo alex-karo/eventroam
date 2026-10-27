@@ -46,7 +46,7 @@ import type { EvalToolCall } from "./tool-use";
 import { execFileSync } from "node:child_process";
 import { EDITOR_PROMPT_VERSION } from "../editor/contracts";
 import { createEvalStore, evalDatabasePath } from "./storage";
-import { evalDataset, prepareEvalDataset } from "./datasets";
+import { evalDataset, evalFileHash, prepareEvalDataset } from "./datasets";
 import {
   caseGroup,
   evalGroups,
@@ -246,6 +246,7 @@ export function fixedSources(
 
 export type EvalOptions = EvalSelection & {
   model?: string;
+  label?: string;
   repeat?: number;
   suite?: EvalSuite;
 };
@@ -275,6 +276,7 @@ async function executeCase(
   suite: EvalSuite,
   item: EvalCase,
   config: ReturnType<typeof evaluationConfig>,
+  experimentId?: string,
 ): Promise<EvalCaseOutput> {
   const calls: EvalToolCall[] = [];
   if (item.location) {
@@ -284,6 +286,8 @@ async function executeCase(
       config.locationModel ?? config.model,
       runId,
       [evalDatabasePath()],
+      undefined,
+      experimentId,
     );
     try {
       const location = await resolveLocation(
@@ -320,6 +324,7 @@ async function executeCase(
         {
           client: connection.client,
           workflowStorage,
+          experimentId,
           config,
           todayUtc: item.todayUtc ?? suite.todayUtc,
           geocodingClient: fixedGeocoding(item),
@@ -363,10 +368,14 @@ async function executeCase(
   }
 }
 
-function workflowRevision() {
-  return execFileSync("/usr/bin/git", ["rev-parse", "HEAD"], {
-    encoding: "utf8",
-  }).trim();
+function workflowIdentity() {
+  const git = (args: string[]) =>
+    execFileSync("/usr/bin/git", args, { encoding: "utf8" }).trim();
+  return {
+    workflowRevision: git(["rev-parse", "HEAD"]),
+    workflowBranch: git(["branch", "--show-current"]) || null,
+    workflowDirty: git(["status", "--porcelain"]) !== "",
+  };
 }
 
 export async function runCatalogEvals(options: EvalOptions = {}) {
@@ -385,7 +394,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   try {
     await store.init();
     const mastra = new Mastra({ storage: store, logger: false });
-    // Verify every selected dataset before provider configuration or model calls.
+    const fileHash = evalFileHash();
     const prepared = [];
     for (const group of evalGroups) {
       const cases = selected.filter((item) => caseGroup(item) === group);
@@ -393,14 +402,15 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
         prepared.push(
           await prepareEvalDataset(
             mastra,
-            evalDataset(suite, cases, group, repeat),
+            evalDataset(suite, cases, group, repeat, undefined, fileHash),
           ),
         );
       }
     }
     const config = evaluationConfig(options);
     const metadata = {
-      workflowRevision: workflowRevision(),
+      ...workflowIdentity(),
+      label: options.label?.trim() || null,
       models: {
         research: config.model,
         editor: config.model,
@@ -417,18 +427,62 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     };
     const byId = new Map(selected.map((item) => [item.id, item]));
     const groups = [];
+    const experimentsStore = (await store.getStore("experiments"))!;
     for (const ready of prepared) {
       const group = ready.definition.group;
+      const model =
+        group === "regression/location"
+          ? metadata.models.location
+          : config.model;
+      const name = [
+        metadata.workflowBranch ?? metadata.workflowRevision.slice(0, 8),
+        group,
+        model,
+        metadata.label,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      let experimentId: string | undefined;
       const experiment = await ready.dataset.startExperiment({
         version: ready.version,
-        name: `${group} — ${config.model}`,
+        name,
         metadata: { ...metadata, ...ready.definition.metadata },
         scorers: Object.values(createEvalScorers(group === "main/pipeline")),
         maxConcurrency: 3,
+        beforeAll: (args) => {
+          experimentId = args.experimentId;
+        },
+        // Inline tasks do not expose their trace identity to Mastra's runner.
+        // Add our real trace to its saved row through the native storage API.
+        afterEach: async ({ experimentId, result }) => {
+          const output = result.output as EvalCaseOutput | null;
+          const traceId = output?.report?.traceId ?? output?.traceId;
+          if (traceId) {
+            await experimentsStore.upsertExperimentResult({
+              experimentId,
+              itemId: result.itemId,
+              itemDatasetVersion: result.itemVersion,
+              input: result.input,
+              output: result.output,
+              groundTruth: result.groundTruth,
+              metadata: result.metadata,
+              error: result.error,
+              startedAt: result.startedAt,
+              completedAt: result.completedAt,
+              retryCount: result.retryCount,
+              traceId,
+            });
+          }
+        },
         task: async ({ input }): Promise<EvalCaseOutput> => {
           const { caseId } = input as { caseId: string };
           try {
-            return await executeCase(suite, byId.get(caseId)!, config);
+            return await executeCase(
+              suite,
+              byId.get(caseId)!,
+              config,
+              experimentId,
+            );
           } catch {
             throw new Error("Evaluation task failed");
           }
@@ -457,6 +511,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
         datasetVersion: ready.version,
         metadata,
         ...experiment,
+        name,
         results,
       });
     }

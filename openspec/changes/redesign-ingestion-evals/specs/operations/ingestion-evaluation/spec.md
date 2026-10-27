@@ -192,13 +192,13 @@ Main comparisons SHALL distinguish Event and Edition identities without relying 
 
 ### Requirement: Experiment results remain available for inspection
 
-Saved experiments SHALL retain case identity, task output, check diagnostics, relevant tool observations, model/prompt configuration, and evaluation revision. Main results SHALL also retain before/after catalogs. Results SHALL remain available after restart for viewing and comparison. Files SHALL remain the source of case definitions. Before execution, validation SHALL compare item identities, inputs, expectations, item metadata, and owned dataset metadata against repository files. Unused Mastra item fields and extra dataset metadata SHALL NOT be part of this comparison.
+Saved experiments SHALL retain case identity, task output, check diagnostics, relevant tool observations, model/prompt configuration, and evaluation revision. Main results SHALL also retain before/after catalogs. Results SHALL remain available after restart for viewing and comparison. Files SHALL remain the source of case definitions. The CLI SHALL reuse an existing dataset by ID without reading saved items or comparing saved content. It SHALL create and populate a dataset only when that ID is absent, then pin its current native version for the experiment.
 
-#### Scenario: Stored data changes
+#### Scenario: Reuse a saved dataset
 
-- **WHEN** a stored input, expectation, or evaluator source snapshot differs from repository files
-- **THEN** execution is rejected before model calls
-- **AND** changes to unused Mastra fields do not cause this rejection
+- **WHEN** a dataset with the computed ID already exists
+- **THEN** the CLI reuses it without adding duplicate items or checking saved content
+- **AND** manual Studio edits are not detected or imported back to repository files
 
 #### Scenario: Inspect a completed experiment
 
@@ -218,16 +218,34 @@ Saved experiments SHALL retain case identity, task output, check diagnostics, re
 - **THEN** Mastra's native error or warning behavior applies without custom recovery or post-run storage checks
 - **AND** complete saved results and a nonzero CLI exit are not guaranteed for this exceptional case
 
+### Requirement: Experiment names identify development runs
+
+Experiment names SHALL contain the current Git branch, eval group and model, with an optional `--label` suffix. Isolated Location SHALL use its resolved model. Detached HEAD SHALL use the first eight commit characters in place of a branch. Experiment metadata SHALL retain the full commit, branch or null, a dirty flag for tracked changes or untracked files, and the label or null. The CLI SHALL display the name. Branch, commit, dirty state, label and model SHALL NOT change dataset identity. Each run SHALL create a separate experiment even when names match.
+
+#### Scenario: Compare before and after a code change
+
+- **WHEN** unchanged evaluation cases and rules run with different commits or labels
+- **THEN** each experiment retains its own name and Git metadata
+- **AND** both experiments use the same dataset
+
+#### Scenario: Run without a branch or label
+
+- **WHEN** a detached HEAD runs an eval without `--label`
+- **THEN** its name uses the short commit, group and model without a label suffix
+- **AND** metadata retains null branch and label values
+
 ### Requirement: Valid model comparisons use the same evaluation revision
 
 Valid comparisons SHALL use the same group, selected cases, inputs, expectations, scorer rules, and uniform repeat count. Inputs SHALL include geocoding fixtures and complete isolated Location inputs. Experiment metadata SHALL expose stage models, prompt versions, workflow, and runtime settings. N/A SHALL be excluded with applicable counts visible. Partial results SHALL NOT be presented as a complete comparison.
 
 #### Scenario: Inputs or scoring rules change
 
-- **WHEN** source content, geocoding fixtures, Location inputs, evaluator expected values, regression expectations, or scorer rules change
-- **THEN** new runs use a different evaluation revision
-- **AND** main revisions include the source text of case evaluators and their shared scoring helpers, stored once in dataset metadata
-- **AND** each item ground truth contains only its case expectations
+- **WHEN** any JSON/MD file under cases, main.ts, or a non-test TypeScript file under main changes
+- **THEN** its file name and full contents affect one shared file hash for all groups
+- **AND** dataset identity combines that hash with the group, sorted selected case IDs, repeat count and explicit scorer version
+- **AND** whitespace and changes to unselected cases may create new datasets
+- **AND** metadata stores the hash without source snapshots, and each item ground truth contains only its case expectations
+- **AND** scoring changes outside the hashed files need an explicit scorer-version update
 - **AND** old and new runs remain inspectable but are not a valid quality comparison
 
 #### Scenario: Repeat counts or case sets differ
@@ -266,6 +284,8 @@ Eval outputs SHALL retain run IDs and available real trace IDs. Tokens and cost 
 
 - **WHEN** enabled tracing records an eval that executes Location
 - **THEN** the saved output retains available correlation to its native observations
+- **AND** each saved experiment result links to its real trace
+- **AND** native traces and metrics carry the experiment ID for Studio's token and cost queries
 - **AND** Location usage can be inspected separately from Research and Editor without an eval spending total
 
 ### Requirement: Execution and quality failure stay distinct

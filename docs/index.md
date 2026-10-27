@@ -34,7 +34,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 - [Development guide](development.md) — commands, workflow, and working practices.
 - [Ingestion process](ingestion-process.md) — plain-language steps for festival research and catalog updates, including [Location resolution](../openspec/specs/catalog/location-resolution/spec.md).
-- [Ingestion evaluation](../openspec/specs/operations/ingestion-evaluation/spec.md) — fixed inputs, separate main and regression results, and saved model experiments. See the [eval guide](development.md#catalog-evals) for commands and score rules.
+- [Ingestion evals](ingestion-evals.md) — approach, case requirements, scoring boundaries, fixtures and model comparison. See the [eval commands](development.md#catalog-evals) and [evaluation contract](../openspec/specs/operations/ingestion-evaluation/spec.md).
 - [Project structure](project-structure.md) — directories and dependency boundaries.
 - [Mapbox deployment gate](mapbox-deployment-gate.md) — checks required before public map deployment.
 
@@ -45,6 +45,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 ## Research
 
+- [Mastra eval storage snapshot failure](research/2026-10-27-mastra-sqlite-busy-snapshot.md) — unresolved known issue, related upstream fixes, and pending checks.
 - [Geocoding service research](research/2026-10-24-geocoding-services.md) — dated provider and community findings; selection and location tests remain open.
 - [Facebook and Instagram text access](research/2026-10-05-facebook-instagram-text-access.md) — dated retrieval checks and per-item costs for public posts.
 - [Competitor scan](research/2026-09-14-competitor-scan.md) — dated rival observations; later specs supersede recommendations.

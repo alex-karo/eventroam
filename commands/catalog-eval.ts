@@ -28,6 +28,9 @@ function setValueOption(options: EvalOptions, arg: string, value: string) {
     case "--model":
       options.model = value;
       break;
+    case "--label":
+      options.label = value;
+      break;
     case "--repeat":
       options.repeat = Number(value);
       break;
@@ -49,11 +52,13 @@ export function parseEvalArgs(args: string[]): EvalOptions {
         options.editorOnly = true;
         continue;
     }
-    if (!["--case", "--group", "--model", "--repeat"].includes(arg)) {
+    if (
+      !["--case", "--group", "--model", "--repeat", "--label"].includes(arg)
+    ) {
       throw new Error(`Unknown eval option: ${arg}`);
     }
     const value = args[++index];
-    if (!value || value.startsWith("--")) {
+    if (!value?.trim() || value.startsWith("--")) {
       throw new Error(`Missing value for ${arg}`);
     }
     setValueOption(options, arg, value);
@@ -123,7 +128,7 @@ function printGroup(group: EvalGroupResult, output: Output) {
     `${group.group}: ${group.caseCount} cases, ${items.length} attempts; ${passed}/${items.length} passed; ${duration.toFixed(1)}s\n`,
   );
   output(
-    `  experiment: ${group.experimentId}; dataset: ${group.datasetId}; version: ${group.datasetVersion}\n`,
+    `  experiment: ${group.experimentId}; name: ${group.name}; dataset: ${group.datasetId}; version: ${group.datasetVersion}\n`,
   );
   if (group.group === "main/pipeline") {
     printMainScores(items, output);
@@ -163,7 +168,7 @@ export async function executeCatalogEvalCommand(
     deps.stdout ?? ((value: string) => process.stdout.write(value));
   if (args.includes("--help") || args.includes("-h")) {
     output(
-      "Usage: npm run catalog:eval -- [--all | --group GROUP | --editor-only | --location-only] [--case ID] [--model MODEL] [--repeat N]\nDefault: five main cases, one repetition. Groups: " +
+      "Usage: npm run catalog:eval -- [--all | --group GROUP | --editor-only | --location-only] [--case ID] [--model MODEL] [--repeat N] [--label LABEL]\nDefault: five main cases, one repetition. Groups: " +
         evalGroups.join(", ") +
         ".\nResults are saved as Mastra experiments. Inspect them in catalog:studio.\n",
     );
@@ -193,7 +198,7 @@ if (
     .catch((error: unknown) => {
       const message =
         error instanceof Error &&
-        /^(OPENROUTER_|Unknown eval|Unknown or incompatible|Use one of|Missing value for|repeat must be|Stored eval dataset differs|Main case needs|Eval storage must)/.test(
+        /^(OPENROUTER_|Unknown eval|Unknown or incompatible|Use one of|Missing value for|repeat must be|Main case needs|Eval storage must)/.test(
           error.message,
         )
           ? error.message

@@ -87,6 +87,7 @@ export class CatalogAttempt {
       ],
       this.engineRunId,
       this.deps.observabilityStore,
+      this.deps.experimentId,
     );
     this.trace?.log?.info("Research started", {
       stage: "context",
