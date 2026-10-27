@@ -43,9 +43,14 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 - [ADR 001: SQLite and Drizzle](decisions/001-sqlite-and-drizzle.md) — accepted database choice.
 - [ADR 002: Runtime and tooling](decisions/002-runtime-and-tooling.md) — accepted runtime and application container baseline.
 
+## Known issues
+
+- [Roskilde ticket link preference](known-issues/2026-10-27-roskilde-edition-ticket-link.md) — the eval requires an overview that the agent instructions do not prefer.
+- [Invalid Edition key rejects Wacken research](known-issues/2026-10-27-wacken-invalid-edition-key.md) — malformed model output rejects a full research result.
+- [Mastra eval storage snapshot failure](known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) — intermittent storage errors, related upstream fixes, and pending checks.
+
 ## Research
 
-- [Mastra eval storage snapshot failure](research/2026-10-27-mastra-sqlite-busy-snapshot.md) — unresolved known issue, related upstream fixes, and pending checks.
 - [Geocoding service research](research/2026-10-24-geocoding-services.md) — dated provider and community findings; selection and location tests remain open.
 - [Facebook and Instagram text access](research/2026-10-05-facebook-instagram-text-access.md) — dated retrieval checks and per-item costs for public posts.
 - [Competitor scan](research/2026-09-14-competitor-scan.md) — dated rival observations; later specs supersede recommendations.

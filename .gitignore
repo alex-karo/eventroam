@@ -12,6 +12,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Runtime data
 /data/
 /.mastra/
+/src/mastra/public/data/
 pids
 *.pid
 *.seed
