@@ -46,9 +46,7 @@
       "festival": {
         "name": "Palencia Sonora",
         "summary": "Recurring music festival in Palencia, with live concerts and DJ programming, including performances at Parque del Sotillo and across city locations.",
-        "format": [
-          "openair"
-        ]
+        "format": ["openair"]
       },
       "scope": "full",
       "currentDate": "2026-10-24T12:00:00Z",

@@ -187,9 +187,7 @@
         }
       ],
       "hasUnresolved": true,
-      "unresolvedEditionKeys": [
-        "2027"
-      ],
+      "unresolvedEditionKeys": ["2027"],
       "previousEdition": null,
       "currentOrNextEdition": "2027"
     }

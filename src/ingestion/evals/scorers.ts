@@ -56,8 +56,8 @@ export function createEvalScorers(main = false) {
       .generateScore(({ run }) => (run.output.quality.passed ? 1 : 0))
       .generateReason(
         ({ run }) =>
-          run.output
-            .quality.conditions.filter((c) => !c.passed)
+          run.output.quality.conditions
+            .filter((c) => !c.passed)
             .map((c) => `${c.path}: ${c.message}`)
             .join("; ") || "See fact checks in task output",
       ),

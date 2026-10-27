@@ -46,9 +46,7 @@
       "festival": {
         "name": "Hallowindie",
         "summary": "Hallowindie is a recurring Halloween festival in León, Spain.",
-        "format": [
-          "indoor"
-        ]
+        "format": ["indoor"]
       },
       "scope": "full",
       "currentDate": "2026-10-24T12:00:00Z",

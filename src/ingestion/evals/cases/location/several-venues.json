@@ -21,9 +21,7 @@
       "festival": {
         "name": "Ageas Cooljazz",
         "summary": "Ageas Cooljazz is a recurring summer music festival in Cascais, with performances at Hipódromo Manuel Possolo and Parque Marechal Carmona.",
-        "format": [
-          "openair"
-        ]
+        "format": ["openair"]
       },
       "scope": "full",
       "currentDate": "2026-10-24T12:00:00Z",

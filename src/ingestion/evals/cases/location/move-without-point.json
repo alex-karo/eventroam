@@ -21,9 +21,7 @@
       "festival": {
         "name": "Synthetic venue move",
         "summary": "A recurring Galician festival combining live music, gastronomy and community, with additional cultural programming.",
-        "format": [
-          "openair"
-        ]
+        "format": ["openair"]
       },
       "scope": "full",
       "currentDate": "2026-10-24T12:00:00Z",

@@ -80,9 +80,7 @@
     "forbidden": [],
     "research": {
       "status": "partial",
-      "unresolvedEditionKeys": [
-        "historic-weekend"
-      ],
+      "unresolvedEditionKeys": ["historic-weekend"],
       "facts": [
         {
           "editionKey": "announced-weekend",
