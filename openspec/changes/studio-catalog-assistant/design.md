@@ -6,9 +6,9 @@ Medium. The change adds an owner-facing agent, SQL execution, and chat memory. I
 
 ## Approach
 
-Register one `catalog-assistant` agent in the existing Mastra instance. Give it two tools: `query_catalog` and `refresh_events`. The agent selects Events with SQL, runs a small explicit selection through the existing workflow, and explains saved results. See the [proposal](proposal.md) and [assistant contract](specs/catalog/studio-assistant/spec.md).
+Register one `catalog-assistant` agent in the existing Mastra instance. Give it two catalog tools: `query_catalog` and `refresh_events`. The agent selects Events with SQL, runs a small explicit selection through the existing workflow, and explains saved results. See the [proposal](proposal.md) and [assistant contract](specs/catalog/studio-assistant/spec.md).
 
-`src/mastra/index.ts` currently registers only `catalog-ingestion`. `src/mastra/ingestion.ts` supplies configured catalog connections and the shared observability store. Reuse that workflow factory and its fresh-run entry point. Do not execute shell commands or make HTTP requests back to Studio to refresh Events.
+`src/mastra/index.ts` registers the assistant and `catalog-ingestion`. `src/mastra/ingestion.ts` supplies configured catalog connections and the shared observability store. Both entry points use the same workflow factory and fresh-run entry point. Do not execute shell commands or make HTTP requests back to Studio to refresh Events.
 
 ## Contracts
 
@@ -19,14 +19,16 @@ The defaults above are proposed implementation settings for this MVP. They are n
 
 ## Architecture
 
-Keep the agent, schema guide, tools, and SQL adapter together under `src/mastra/catalog-assistant/`. Define tools with Mastra createTool and inputSchema validation. Use the supplied requestContext and abortSignal; do not add a custom tool dispatcher, context container, or cancellation protocol. Existing ingestion and catalog operations continue to own business validation and writes.
+Keep the agent, filesystem skill, tools, and SQL adapter together under `src/mastra/catalog-assistant/`. Define tools with Mastra createTool and inputSchema validation. Use the supplied requestContext and abortSignal; do not add a custom tool dispatcher, context container, or cancellation protocol. Existing ingestion and catalog operations continue to own business validation and writes.
 
 ```text
 Studio chat --> Catalog assistant --> SQL adapter --> Read-only catalog and saved reports
                                  --> Existing ingestion workflow --> Catalog writer
 ```
 
-The schema guide describes tables, joins, Event versus Edition identity, calendar dates, publication states, and run lifecycle fields. Keep it aligned with `src/db/schema.ts` and migrations. Permit catalog tables, including private run history, within the existing owner-only Studio surface. Do not expose runtime stores or arbitrary filesystem paths to SQL. Include ingestion_runs and report_json in the guide. Report reads use the same SQL row and byte limits. Prefer selected structured fields over the complete JSON document. Raw responses remain readable through SQL; this preference is not an access restriction.
+The `skills/catalog-sql/` directory owns the catalog schema, report instructions, and SQL examples. Register its filesystem path through native `Agent.skills`; no Workspace or custom loader is needed. Mastra supplies `skill`, `skill_read`, and `skill_search`. Keep owner authorization, refresh limits, and treatment of untrusted data in the permanent prompt.
+
+The skill describes the configured catalog, including private run history. It does not grant access to runtime stores or arbitrary files. Read-only enforcement and output limits remain in the SQL adapter. The dev launcher supplies an absolute skill path before Mastra changes its working directory. The build copies the skill beside the built Studio entry points; the container retains it with the command files.
 
 ## Key decisions
 
@@ -43,11 +45,11 @@ The SQL adapter limits result output even if model SQL contains comments or term
 
 ### Reports use the SQL tool
 
-Read ingestion_runs by its id, which is the ingestionRunId returned by refresh. The guide describes lifecycle columns and the current version 7 report in src/ingestion/contracts.ts. Provide two main SQL examples: one guarded inspect-run query and one evidence-array query. The first reads row presence, lifecycle, report presence, JSON validity, schemaVersion, dryRun, outcome, and researchStatus together. The second selects relevant entries from changes, sources, errors, or unresolved questions. These are editable examples, not fixed queries or new tools. Read preview/apply from input_json.dryRun, as defined in src/ingestion/runs.ts; report_json does not contain dryRun. The stored mode is add or refresh, not preview or apply. Use JSON extraction and array queries to select relevant evidence instead of returning the whole report.
+Read ingestion_runs by ingestionRunId, not engineRunId. The catalog-sql skill owns report version 7 guidance and direct JSON extraction examples. Read preview/apply from input_json.dryRun; report_json has no dryRun. Check the returned version before interpreting report fields or reading evidence arrays.
 
-Agent instructions use the inspect-run example to check available evidence in one query before reading details. Do not require a separate query for each check. No row means an unknown run; a null report means no saved final report. Neither proves success or failure. Malformed JSON, an unfamiliar version, or missing evidence must be stated, without inventing a result. Use guarded JSON expressions so invalid JSON can be inspected without an extraction error. These are query examples and agent instructions, not a report-specific validator or typed error protocol in the SQL adapter.
+Malformed report or input JSON can reject the extraction query. The skill supplies a separate state query without JSON extraction to inspect lifecycle, report presence, and JSON validity. A query error alone proves neither malformed JSON nor an absent run. Missing reports, unsupported versions, and truncated results limit analysis.
 
-Do not add a report reader, summary DTO, 32 KiB report limit, field-shortening algorithm, or pagination API. Generic SQL errors and truncation markers apply. The agent can issue narrower follow-up queries for missing evidence. It must not treat an empty truncated result as an unknown run or claim that a selected subset is the full report. Stored reports stay unchanged.
+Use the same SQL adapter and output limits for reports and other catalog reads. Full reports remain stored. No report reader, summary DTO, field-shortening algorithm, or pagination API is added.
 
 ### Existing workflow owns refresh
 
@@ -63,7 +65,9 @@ Agent instructions require an explicit owner update request for apply. A clear r
 
 Use Mastra message-history memory for conversation references. Do not add embeddings, semantic recall, or a custom selection database. The installed DuckDBStore supports observability only. Add compatible pinned `@mastra/memory` and `@mastra/libsql` packages. Pass a dedicated LibSQLStore directly to the agent's Memory instance and store chat history in a separate local file under the existing data volume. Keep the existing Mastra storage set to DuckDB for observability. Do not add store composition. Keep one owner for each store, close both on shutdown, and preserve existing workflow store injection. Verify Studio history operations use the agent's Memory storage.
 
-Use the existing configured OpenRouter model for the assistant initially. Chat execution needs model credentials. Existing inspection without credentials must still work. Conversation history supplies references; tools supply current catalog facts. New conversations do not inherit another conversation's selection.
+Use the existing configured OpenRouter model by default. Native Studio model selection can select another provider for chat; that provider uses its own credentials without requiring an OpenRouter key. A native prepareStep hook checks the resolved provider. For OpenRouter only, it validates the research configuration and adds reasoning and service tier defaults, with explicit call options taking precedence. Ingestion keeps its separate model configuration. Existing inspection without credentials must still work.
+
+Keep at most 40 remembered messages and use native Memory messageHistory with maxTokens 16000 and atMaxRemoveTokens 4000. Mastra counts the full prompt and removes oldest remembered messages when needed. It retains removed messages in storage and protects system instructions and the current turn; this is not a hard limit on the full prompt. Conversation history supplies references; tools supply current facts. New conversations do not inherit another conversation's selection.
 
 ### Assistant tool logs
 

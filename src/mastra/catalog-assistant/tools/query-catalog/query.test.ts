@@ -5,7 +5,11 @@ import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { queryCatalog } from "./query";
 import { SQL_LIMITS } from "./contracts";
-import { INSPECT_RUN_SQL, RUN_EVIDENCE_SQL } from "./guide";
+import {
+  INSPECT_RUN_SQL,
+  INSPECT_RUN_STATE_SQL,
+  RUN_EVIDENCE_SQL,
+} from "@/test/catalog-sql";
 
 test("SQLite accepts joins, CTEs, comments, parameters, and metadata reads", () => {
   const db = testDatabase();
@@ -119,6 +123,11 @@ test("report SQL examples inspect absent, unfinished, malformed, unfamiliar and 
   insert.run("null", JSON.stringify({ dryRun: true }), null);
   insert.run("invalid", "{}", "bad json");
   insert.run(
+    "invalid-input",
+    "bad input",
+    JSON.stringify({ schemaVersion: 7 }),
+  );
+  insert.run(
     "future",
     "{}",
     JSON.stringify({ schemaVersion: 999, outcome: "invented" }),
@@ -139,8 +148,8 @@ test("report SQL examples inspect absent, unfinished, malformed, unfamiliar and 
   const inspect = (id: string) =>
     queryCatalog(db.path, { sql: INSPECT_RUN_SQL, parameters: [id] });
   expect(inspect("missing")).toMatchObject({ rows: [], truncated: false });
-  const mapped = (id: string) => {
-    const result = inspect(id);
+  const mapped = (id: string, sql = INSPECT_RUN_SQL) => {
+    const result = queryCatalog(db.path, { sql, parameters: [id] });
     if (!result.ok) {
       throw new Error("query failed");
     }
@@ -153,11 +162,24 @@ test("report SQL examples inspect absent, unfinished, malformed, unfamiliar and 
     dryRun: 1,
     outcome: null,
   });
-  expect(mapped("invalid")).toMatchObject({
+  for (const id of ["invalid", "invalid-input"]) {
+    expect(inspect(id)).toEqual({ ok: false, error: "query_rejected" });
+  }
+  expect(mapped("invalid", INSPECT_RUN_STATE_SQL)).toMatchObject({
+    status: "failed",
+    reportPresent: 1,
     reportValid: 0,
-    schemaVersion: null,
+    inputValid: 1,
   });
-  expect(mapped("future")).toMatchObject({ schemaVersion: 999, outcome: null });
+  expect(mapped("invalid-input", INSPECT_RUN_STATE_SQL)).toMatchObject({
+    reportPresent: 1,
+    reportValid: 1,
+    inputValid: 0,
+  });
+  expect(mapped("future")).toMatchObject({
+    schemaVersion: 999,
+    outcome: "invented",
+  });
   expect(mapped("valid")).toMatchObject({
     dryRun: 0,
     outcome: "unchanged",
@@ -168,5 +190,5 @@ test("report SQL examples inspect absent, unfinished, malformed, unfamiliar and 
   ).toMatchObject({ ok: true, truncated: true });
   expect(
     queryCatalog(db.path, { sql: RUN_EVIDENCE_SQL, parameters: ["invalid"] }),
-  ).toMatchObject({ ok: true, rows: [] });
+  ).toEqual({ ok: false, error: "query_rejected" });
 });

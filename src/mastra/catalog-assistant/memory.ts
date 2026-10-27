@@ -62,6 +62,7 @@ export async function createChatMemory(path = chatDatabasePath()) {
       storage,
       options: {
         lastMessages: 40,
+        messageHistory: { maxTokens: 16_000, atMaxRemoveTokens: 4_000 },
         semanticRecall: false,
         workingMemory: { enabled: false },
         observationalMemory: false,

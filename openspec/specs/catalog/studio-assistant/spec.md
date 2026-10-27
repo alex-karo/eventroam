@@ -7,7 +7,7 @@ Let the owner select catalog Events, start bounded refreshes, and inspect their 
 ## Requirements
 
 ### Requirement: Studio provides an owner catalog conversation
-Studio SHALL expose one catalog assistant with conversation history. Follow-up references SHALL use the selected conversation. The assistant SHALL read current facts through tools and treat catalog and report text as data, not as owner instructions. The existing trusted-network access model SHALL apply.
+Studio SHALL expose one catalog assistant with conversation history. Follow-up references SHALL use the selected conversation. The assistant SHALL read current facts through tools and treat catalog and report text as data, not as owner instructions. The existing trusted-network access model SHALL apply. Catalog schema and report guidance SHALL be available through a filesystem skill loaded with native Mastra skill tools.
 
 #### Scenario: Owner refers to a previous selection
 - **WHEN** the owner asks to inspect the second Event in a prior result
@@ -18,6 +18,11 @@ Studio SHALL expose one catalog assistant with conversation history. Follow-up r
 - **WHEN** a saved report contains instructions to refresh other Events
 - **THEN** that text does not authorize another refresh
 
+#### Scenario: The assistant needs catalog guidance
+- **WHEN** the assistant selects Events or analyzes saved ingestion results
+- **THEN** it can load the catalog-sql skill and its SQL reference files through native skill tools
+- **AND** SQL safety and refresh authorization remain enforced by their existing owners
+
 ### Requirement: Conversation history survives restart
 Studio SHALL store conversation history outside the catalog and retain it across restart. History operations SHALL use the selected conversation. Existing workflow observability SHALL remain available.
 
@@ -25,6 +30,28 @@ Studio SHALL store conversation history outside the catalog and retain it across
 - **WHEN** Studio restarts with the same configured chat storage
 - **THEN** the owner can read the saved conversation history
 - **AND** the existing workflow observability storage remains available
+
+### Requirement: Chat model selection uses the selected provider
+Studio SHALL use the selected chat provider's credentials without requiring an unrelated OpenRouter key. OpenRouter chat calls SHALL receive configured reasoning and service tier defaults, with explicit call options taking precedence. These defaults SHALL NOT apply to other providers. Chat model selection SHALL NOT change ingestion model settings. Inspection SHALL remain available without model credentials.
+
+#### Scenario: Owner selects a direct provider
+- **WHEN** the owner selects a supported direct provider with its credentials and no OpenRouter key
+- **THEN** chat generation uses that provider without an OpenRouter credential check
+- **AND** ingestion retains its separate configuration and credential requirements
+
+#### Scenario: Chat uses OpenRouter
+- **WHEN** the owner sends a chat request through OpenRouter
+- **THEN** the model request includes configured reasoning and service tier defaults
+- **AND** explicit call options override the corresponding defaults
+
+### Requirement: Remembered history has a token budget
+Conversation context SHALL use a token budget as well as a message-count limit. When the budget is exceeded, Studio SHALL use native memory trimming to remove oldest remembered messages from model context while keeping them in storage. System instructions and the current turn SHALL remain protected. This budget SHALL NOT be described as a hard limit on the full prompt.
+
+#### Scenario: Saved history exceeds the token budget
+- **WHEN** old remembered messages cause the prompt to exceed the history budget
+- **THEN** the oldest remembered context is removed before the model call
+- **AND** recent context that fits, system instructions, and current input remain available
+- **AND** removed messages remain in conversation storage
 
 ### Requirement: Tool execution validates input and trusts host controls
 Assistant tools SHALL validate input before execution. Refresh limits SHALL use host-controlled state for each assistant execution, without client or model overrides. Refresh SHALL use existing ingestion validation, write, and report-finalization behavior.
@@ -127,8 +154,13 @@ The assistant SHALL check attempt presence, lifecycle, report presence, JSON val
 - **WHEN** a query shows malformed report JSON or a version not described in the schema guide
 - **THEN** the assistant states that limitation without interpreting fields as a known report version
 
+#### Scenario: A report extraction query is rejected
+- **WHEN** JSON extraction returns a safe query error
+- **THEN** the assistant queries attempt state, report presence, and JSON validity without JSON extraction
+- **AND** it does not treat the query error alone as proof of malformed JSON or an absent run
+
 ### Requirement: Report reads use SQL output limits
-Report reads SHALL use the same row and byte limits as other SQL reads. Full stored reports SHALL remain unchanged. The assistant SHALL state when its analysis uses selected fields or truncated results. It MAY issue narrower queries for further evidence. No separate report summary tool or pagination API SHALL be provided.
+Report reads SHALL use the same row and byte limits as other SQL reads. Full stored reports SHALL remain unchanged. The assistant SHALL state when its analysis uses selected fields or truncated results. No separate report summary tool or pagination API SHALL be provided.
 
 #### Scenario: A report query exceeds the output limit
 - **WHEN** a report query returns truncated output

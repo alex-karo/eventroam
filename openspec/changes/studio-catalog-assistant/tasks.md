@@ -4,7 +4,7 @@
 
 - [x] 1.1 Add the synchronous SQL adapter inside Studio with a separate read-only connection and the design's input limits. Verify real SQLite tests reject writes, scripts, connection changes, external access, and malformed input while joins and CTEs work.
 - [x] 1.2 Enforce output bounds and close the query connection after success or failure. Verify oversized results show truncation, known cancellation prevents query startup, and later queries work after a query error. Use finite queries; do not require a hard timeout or active-query interruption.
-- [x] 1.3 Add schema guidance and the query tool. Include ingestion_runs and current report fields. Add two main SQL examples: one guarded inspect-run query that combines presence, lifecycle, JSON validity, version, dryRun, and outcome checks; and one evidence-array query. Verify examples against a migrated fixture catalog with missing runs, null reports, invalid JSON, unfamiliar versions, and large evidence arrays. Document the query scope, output limits, and blocking behavior in the ingestion guide.
+- [x] 1.3 Add schema guidance and the query tool. Include ingestion_runs and current report fields. Add two main SQL examples with direct JSON extraction: an inspect-run query and an evidence-array query. Keep report version checks in agent instructions. After a query error, use a separate query without JSON extraction to check attempt state, report presence, and JSON validity. Verify examples against a migrated fixture catalog with missing runs, null reports, invalid JSON, unfamiliar versions, and large evidence arrays. Document the query scope, output limits, and blocking behavior in the ingestion guide.
 
 ## 2. Refresh tool
 
@@ -31,3 +31,14 @@
 ## 5. Assistant tool logging
 
 - [x] 5.1 Connect the existing logger to Studio and the catalog assistant. Log tool start, completion, cancellation, and safe failures with execution context and refresh run IDs. Reuse existing logging flags, levels, stderr, and Studio storage. Verify stored logs, level filtering, disabled logging, private payload exclusion, and continued tool execution after log failure. Update the owning spec and guide, then run focused tests and project checks.
+
+## 6. Catalog filesystem skill
+
+- [x] 6.1 Move the catalog schema and report SQL examples to catalog-sql/SKILL.md and reference files. Use native Agent.skills path loading and retain permanent authorization instructions. Verify the agent loads the skill before SQL use and keeps authorization rules in permanent instructions.
+- [x] 6.2 Retain skill files in dev, built Studio, and container command assets. Verify skill discovery and reference reads through native tools.
+- [x] 6.3 Shorten assistant documentation, align the owning contracts, and repeat focused tests and project checks.
+
+## 7. Chat model options and history budget
+
+- [x] 7.1 Use the selected chat provider's credentials. Apply configured OpenRouter reasoning and service tier only to OpenRouter calls, preserving explicit call options and separate ingestion settings. Verify real provider request bodies with offline HTTP responses, direct provider selection without an OpenRouter key, and inspection without credentials.
+- [x] 7.2 Add the native history token budget. Verify large old messages leave the model prompt but remain stored, and recent context and current input remain available. Update the owning specs and development guide, then repeat focused tests, project checks, and the Studio build.

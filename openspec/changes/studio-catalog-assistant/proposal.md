@@ -6,13 +6,14 @@ The owner can run ingestion in Studio but cannot use a conversation to select Ev
 
 ## What Changes
 
-- Add one catalog assistant with two tools: query_catalog and refresh_events.
+- Add one catalog assistant with two catalog tools: query_catalog and refresh_events. Load catalog and report guidance from a filesystem skill when needed.
 - Give the assistant a SQL tool with database-enforced read-only access and bounded output. Execute queries synchronously inside Studio through a separate read-only connection. Do not add a child process, a hard query timeout, or cancellation of an executing query.
-- Use Mastra createTool with input schemas, requestContext, and abortSignal for the assistant tools. Keep refresh as a thin wrapper around the existing ingestion workflow for an explicit selection of Events. Keep preview and apply behavior through the existing dryRun flag, and keep current and full scopes.
-- Read saved ingestion reports through SQL by run ID. Give the agent report field guidance and two main SQL examples: inspect a run and read evidence arrays. Use the same SQL output limits for catalog and report reads. Keep full reports in storage. Do not add a separate report reader, summary tool, or report pagination protocol.
+- Validate tool input and keep refresh within the existing ingestion workflow. Keep preview and explicit apply, with current and full scopes.
+- Read saved ingestion reports through SQL by run ID, with the same output limits as catalog reads. Check available evidence before explaining results. Keep full reports in storage; add no separate report reader or pagination protocol.
 - Reuse the existing logger for assistant tool calls in stderr and Studio. Use the existing logging flag and level. Record selected context and safe outcomes without query text or report bodies.
 - Keep conversation history for follow-up references. Read current catalog facts from tools.
-- Keep at most three Events per refresh call and one selection per assistant execution. Use one host-owned refreshConsumed flag, without a separate turn ID. Keep sequential execution and no automatic recovery after process failure.
+- Allow Studio to select the chat provider without an unrelated OpenRouter key. Apply configured reasoning and service tier to OpenRouter chat calls. Keep ingestion model settings separate. Bound remembered history by tokens as well as message count.
+- Keep at most three Events per refresh call and one selection per assistant execution. Keep sequential execution and no automatic recovery after process failure.
 - Exclude schedules, durable batch queues, new Event discovery, separate web research, Telegram, and a custom chat UI.
 
 ## Capabilities
@@ -31,5 +32,5 @@ The owner can run ingestion in Studio but cannot use a conversation to select Ev
 
 - Extend `src/mastra` with the assistant and its tools. Reuse `src/ingestion` execution, validation, and durable reports.
 - Add a direct SQL adapter and schema guidance. Queries cannot mutate storage, but a costly query can block Studio until it returns. Output limits do not bound computation time.
-- Give Memory its own compatible LibSQL storage adapter outside the catalog schema. Keep the existing Mastra DuckDB storage for observability. Do not add store composition.
+- Store conversation history separately from the catalog and existing observability data.
 - Update Studio build coverage, development instructions, and focused adapter and chat tests. Reuse existing ingestion tests for its internal behavior. The trusted-network and external ingress access model stays in place.

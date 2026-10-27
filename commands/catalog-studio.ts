@@ -23,6 +23,10 @@ const child = spawn(
       DATABASE_PATH: resolve(root, readDatabaseEnvironment().DATABASE_PATH),
       CATALOG_OBSERVABILITY_DATABASE_PATH: observabilityDatabasePath(),
       CATALOG_CHAT_DATABASE_PATH: chatDatabasePath(),
+      CATALOG_ASSISTANT_SKILL_PATH: resolve(
+        root,
+        "src/mastra/catalog-assistant/skills/catalog-sql",
+      ),
     },
   },
 );

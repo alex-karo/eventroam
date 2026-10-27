@@ -52,6 +52,14 @@ test("agent protocol supports selection, conversation follow-ups, preview, expli
   const ask = (text: string, thread = "one") =>
     assistant.generate(text, { memory: { thread, resource: "owner" } });
   try {
+    expect(await assistant.getSkill("catalog-sql")).toMatchObject({
+      name: "catalog-sql",
+      references: expect.arrayContaining([
+        "inspect-run.sql",
+        "inspect-run-state.sql",
+        "run-evidence.sql",
+      ]),
+    });
     const selected = await ask("select Events");
     expect(selected.text).toContain(ids[0]);
     expect(selected.text).toContain(ids[1]);
@@ -105,6 +113,11 @@ test("agent protocol supports selection, conversation follow-ups, preview, expli
         }),
       );
     const analyzed = await ask("analyze run saved-run");
+    expect(
+      analyzed.steps.flatMap((step) =>
+        step.toolCalls.map((call) => call.payload.toolName),
+      ),
+    ).toEqual(expect.arrayContaining(["skill", "skill_read", "query_catalog"]));
     expect(analyzed.text).toContain("partial");
     expect(analyzed.text).toContain("unchanged");
     expect(analyzed.text).toContain("proposed");
@@ -115,7 +128,15 @@ test("agent protocol supports selection, conversation follow-ups, preview, expli
     );
     saveAttempt.run("no-report", null);
     saveAttempt.run("bad-json", "{");
-    saveAttempt.run("future", JSON.stringify({ schemaVersion: 99 }));
+    saveAttempt.run(
+      "future",
+      JSON.stringify({ schemaVersion: 99, outcome: "unsupported-outcome" }),
+    );
+    db.client
+      .prepare(
+        "INSERT INTO ingestion_runs(id,mode,status,started_at,input_json,report_json) VALUES ('bad-input','refresh','failed','2026-10-27','{',?)",
+      )
+      .run(JSON.stringify({ schemaVersion: 7 }));
     saveAttempt.run(
       "large",
       JSON.stringify({ schemaVersion: 7, outcome: "x".repeat(70_000) }),
@@ -123,7 +144,7 @@ test("agent protocol supports selection, conversation follow-ups, preview, expli
     expect((await ask("analyze run no-report")).text).toContain(
       "without a saved final report",
     );
-    for (const id of ["bad-json", "future"]) {
+    for (const id of ["bad-json", "bad-input", "future"]) {
       expect((await ask(`analyze run ${id}`)).text).toContain(
         "cannot be interpreted",
       );
