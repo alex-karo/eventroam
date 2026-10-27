@@ -46,8 +46,7 @@
       "finalUrl": "https://www.roskilde-festival.dk/",
       "retrievedAt": "2026-10-03T16:33:58.662Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../roskilde/page.md"
     },
     {
@@ -55,10 +54,9 @@
       "finalUrl": "https://www.roskilde-festival.dk/kontakt",
       "retrievedAt": "2026-10-04T00:50:16.361Z",
       "method": "http",
-      "outcome": "partial",
-      "completeness": "partial",
+      "status": "ok",
       "markdownFile": "office-partial.md",
-      "reason": "Captured contact page cut off after the office address"
+      "reasonCode": "Captured contact page cut off after the office address"
     }
   ],
   "expectations": {

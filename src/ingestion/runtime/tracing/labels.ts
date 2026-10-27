@@ -202,7 +202,6 @@ const reasons = new Set([
   "invalid_url",
   "social_content_unsupported",
   "unsupported_media_type",
-  "source_content_truncated",
   "javascript_required",
   "unsafe_url",
   "unsafe_address",

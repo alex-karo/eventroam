@@ -22,11 +22,10 @@ const page = (url: string): ReadPageResult => ({
   attemptedUrl: url,
   finalUrl: url,
   retrievedAt: "2026-10-04T00:00:00Z",
-  outcome: "ok",
+  status: "ok",
   method: "http",
-  completeness: "full",
+
   markdown: "Festival information",
-  links: [],
 });
 
 test("long linked-page chains share accounting, caching and the deadline", async () => {
@@ -41,7 +40,7 @@ test("long linked-page chains share accounting, caching and the deadline", async
     async (url, options) => {
       options.budget.consumePage();
       const next = url === homepage ? chain[0] : chain[chain.indexOf(url) + 1];
-      return { ...page(url), links: next ? [next] : [] };
+      return { ...page(url), markdown: next ? `[Next](${next})` : "End" };
     },
   );
   const sources = createSourceSession(budget, config, knownLinks, {
@@ -67,8 +66,10 @@ test("long linked-page chains share accounting, caching and the deadline", async
   await sources.readInitialSource();
   await sources.readPage(tickets);
   for (const url of chain) {
-    expect(sources.reads.some((read) => read.links.includes(url))).toBe(true);
-    expect(await sources.readPage(url)).toMatchObject({ outcome: "ok" });
+    expect(sources.reads.some((read) => read.markdown.includes(url))).toBe(
+      true,
+    );
+    expect(await sources.readPage(url)).toMatchObject({ status: "ok" });
   }
   expect(
     (await sources.searchWeb("Festival tickets")).candidates[0].highlights,
@@ -161,3 +162,55 @@ test("cache observations belong to each call, including concurrent duplicates an
   expect(readPage).toHaveBeenCalledTimes(1);
   expect(budget.snapshot().pages).toBe(1);
 });
+
+test.each(["ok", "unsupported", "failed"] as const)(
+  "source logs keep %s diagnostics without page content",
+  async (status) => {
+    const log = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn(),
+    };
+    log.child.mockReturnValue(log);
+    const budget = createResearchBudget();
+    const sources = createSourceSession(
+      budget,
+      { apiKey: "fixture", model: "fixture", limits: budget.limits },
+      [],
+      {
+        readPage: async (url) => ({
+          ...page(url),
+          status,
+          reasonCode: "test_limit",
+          markdown: "PRIVATE_PAGE_BODY",
+        }),
+      },
+      log,
+    );
+    await sources.readPage(homepage);
+    const calls = [...log.info.mock.calls, ...log.warn.mock.calls];
+    const finished = calls.find(
+      ([message]) => message === "Source read finished",
+    )![1];
+    expect(finished).toMatchObject({
+      status,
+      reasonCode: "test_limit",
+      sourceCharacters: 17,
+    });
+    for (const field of [
+      "outcome",
+      "reason",
+      "completeness",
+      "sourceTruncated",
+      "toolTruncated",
+      "truncated",
+      "markdown",
+      "links",
+    ]) {
+      expect(finished).not.toHaveProperty(field);
+    }
+    expect(JSON.stringify(calls)).not.toContain("PRIVATE_PAGE_BODY");
+  },
+);

@@ -44,10 +44,9 @@
       "finalUrl": "https://www.glastonburyfestivals.co.uk/",
       "retrievedAt": "2026-10-03T16:33:58.662Z",
       "method": "http",
-      "outcome": "failed",
-      "completeness": "none",
+      "status": "failed",
       "markdownFile": "unavailable.md",
-      "reason": "Injected source unavailable"
+      "reasonCode": "Injected source unavailable"
     }
   ],
   "expectations": {

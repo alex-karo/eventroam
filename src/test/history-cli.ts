@@ -56,10 +56,8 @@ executeCatalogCommand(
           finalUrl: url,
           retrievedAt: "2026-10-27T00:00:00Z",
           method: "http",
-          outcome: "ok",
-          completeness: "full",
+          status: "ok",
           markdown: "PRIVATE_CLI_PAGE_BODY",
-          links: [],
         };
       },
       searchWeb: async () => {

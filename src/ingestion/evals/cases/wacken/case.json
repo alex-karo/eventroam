@@ -44,8 +44,7 @@
       "finalUrl": "https://www.wacken.com/de/",
       "retrievedAt": "2026-10-27T13:33:25.433Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "page.md"
     },
     {
@@ -53,8 +52,7 @@
       "finalUrl": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
       "retrievedAt": "2026-10-27T13:33:26.239Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "tickets.md"
     },
     {
@@ -62,8 +60,7 @@
       "finalUrl": "https://www.wacken.com/de/camping-travel/die-uebersicht/",
       "retrievedAt": "2026-10-27T13:33:26.396Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "travel.md"
     },
     {
@@ -71,95 +68,84 @@
       "finalUrl": "https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/",
       "retrievedAt": "2026-10-27T13:33:26.636Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "aftermovie.md"
+      "markdownFile": "aftermovie.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.wacken.com/de/alle-news/",
       "finalUrl": "https://www.wacken.com/de/alle-news/",
       "retrievedAt": "2026-10-27T13:33:26.808Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "news.md"
+      "markdownFile": "news.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.wacken.com/de/historie/",
       "finalUrl": "https://www.wacken.com/de/historie/",
       "retrievedAt": "2026-10-27T13:33:27.012Z",
       "method": "http",
-      "outcome": "partial",
-      "reason": "javascript_required",
-      "completeness": "partial",
-      "markdownFile": "history.md"
+      "markdownFile": "history.md",
+      "status": "ok",
+      "reasonCode": "javascript_required"
     },
     {
       "attemptedUrl": "https://www.wacken.com/de/kontakt/",
       "finalUrl": "https://www.wacken.com/de/kontakt/",
       "retrievedAt": "2026-10-27T13:33:27.171Z",
       "method": "http",
-      "outcome": "partial",
-      "reason": "javascript_required",
-      "completeness": "partial",
-      "markdownFile": "contact.md"
+      "markdownFile": "contact.md",
+      "status": "ok",
+      "reasonCode": "javascript_required"
     },
     {
       "attemptedUrl": "https://www.wacken.com/de/impressum/",
       "finalUrl": "https://www.wacken.com/de/impressum/",
       "retrievedAt": "2026-10-27T13:33:27.323Z",
       "method": "http",
-      "outcome": "failed",
-      "reason": "http_404",
-      "completeness": "none",
-      "markdownFile": "impressum.md"
+      "markdownFile": "impressum.md",
+      "status": "failed",
+      "reasonCode": "http_404"
     },
     {
       "attemptedUrl": "https://www.wacken.com/de/news-details/die-ticketboerse-fuer-das-woa-2027-ist-online/",
       "finalUrl": "https://www.wacken.com/de/news-details/die-ticketboerse-fuer-das-woa-2027-ist-online/",
       "retrievedAt": "2026-10-27T13:58:04.408Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "ticket-exchange.md"
+      "markdownFile": "ticket-exchange.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.wacken.com/de/rechtliches/impressum/",
       "finalUrl": "https://www.wacken.com/de/rechtliches/impressum/",
       "retrievedAt": "2026-10-27T13:58:05.136Z",
       "method": "http",
-      "outcome": "ok",
-      "reason": "source_content_truncated",
-      "completeness": "partial",
-      "markdownFile": "legal-impressum.md"
+      "markdownFile": "legal-impressum.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.wacken.com/de/line-up/bands/",
       "finalUrl": "https://www.wacken.com/de/line-up/bands/",
       "retrievedAt": "2026-10-27T14:07:22.606Z",
       "method": "http",
-      "outcome": "partial",
-      "reason": "javascript_required",
-      "completeness": "partial",
-      "markdownFile": "bands.md"
+      "markdownFile": "bands.md",
+      "status": "ok",
+      "reasonCode": "javascript_required"
     },
     {
       "attemptedUrl": "https://www.wacken.com/de/news-details/ein-gaensehautmoment-auf-dem-wacken-open-air-ein-letzter-wunsch-wird-wahr/",
       "finalUrl": "https://www.wacken.com/de/news-details/ein-gaensehautmoment-auf-dem-wacken-open-air-ein-letzter-wunsch-wird-wahr/",
       "retrievedAt": "2026-10-27T14:07:23.324Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "last-wish.md"
+      "markdownFile": "last-wish.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.wacken.com/de/news-details/heavy-metal-erobert-die-reeperbahn-wacken-open-air-showcase-morecore-music-awards/",
       "finalUrl": "https://www.wacken.com/de/news-details/heavy-metal-erobert-die-reeperbahn-wacken-open-air-showcase-morecore-music-awards/",
       "retrievedAt": "2026-10-27T14:07:23.497Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "showcase.md"
+      "markdownFile": "showcase.md",
+      "status": "ok"
     }
   ],
   "expectations": {},

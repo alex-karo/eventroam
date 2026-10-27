@@ -160,12 +160,9 @@ function sourceReadMetadata(read: ReadPageResult): SourceReadMetadata {
     finalUrl: read.finalUrl,
     retrievedAt: read.retrievedAt,
     method: read.method,
-    outcome: read.outcome,
-    reason: read.reason,
-    sourceTruncated: read.sourceTruncated,
+    status: read.status,
+    reasonCode: read.reasonCode,
     httpStatus: read.httpStatus,
-    links: read.links,
-    completeness: read.completeness,
   };
 }
 

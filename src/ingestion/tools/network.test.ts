@@ -161,7 +161,7 @@ it("retries in Got and counts each page attempt", async () => {
     budget,
     resolver,
   });
-  expect(result.outcome).toBe("ok");
+  expect(result.status).toBe("ok");
   expect(requests).toHaveLength(2);
   expect(budget.snapshot().pages).toBe(2);
   expect(resolver).toHaveBeenCalledTimes(2);
@@ -175,7 +175,7 @@ it("retries beyond the former page cap", async () => {
   const budget = createResearchBudget();
   expect(
     await readPage("http://fixture.example/start", { budget, resolver }),
-  ).toMatchObject({ outcome: "failed" });
+  ).toMatchObject({ status: "failed" });
   expect(requests.length).toBeGreaterThan(1);
   expect(budget.snapshot().pages).toBe(requests.length);
 });

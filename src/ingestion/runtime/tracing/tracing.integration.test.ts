@@ -140,12 +140,31 @@ test("offline real agent persists sanitized model/tool relationships and bounded
   expect(JSON.parse(root.metadata as string).runId).toBe(result.result.runId);
   const reads = spans.filter((span) => span.entityId === "readPage");
   expect(reads).toHaveLength(2);
+  for (const read of reads) {
+    const output = JSON.parse(read.output as string);
+    expect(output).toHaveProperty("status");
+    for (const field of [
+      "outcome",
+      "reason",
+      "completeness",
+      "sourceTruncated",
+      "toolTruncated",
+      "markdown",
+      "links",
+    ]) {
+      expect(output).not.toHaveProperty(field);
+    }
+    if (read.spanType !== "tool_call") {
+      expect(output).not.toHaveProperty("truncated");
+    }
+  }
   expect(
     reads.some((span) => JSON.stringify(span).includes(TRACE_PUBLIC_URL)),
   ).toBe(true);
   expect(
     reads.some(
-      (span) => JSON.parse(span.output as string).reason === "request_failed",
+      (span) =>
+        JSON.parse(span.output as string).reasonCode === "request_failed",
     ),
   ).toBe(true);
   expect(spans.every((span) => span.endedAt)).toBe(true);
@@ -415,11 +434,8 @@ test.each([
         (span) => span.entityId === "readPage" && span.spanType === "tool_call",
       )!;
       expect(JSON.parse(read.output as string)).toMatchObject({
-        sourceTruncated: scenario === "truncated",
-        toolTruncated: scenario === "tool_truncated",
-        ...(scenario === "truncated"
-          ? { reason: "source_content_truncated", completeness: "partial" }
-          : {}),
+        status: "ok",
+        truncated: true,
       });
       expect(traced.result.budget.pages).toBe(2);
       expect(traced.requests).toBe(4);

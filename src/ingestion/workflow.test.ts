@@ -63,9 +63,7 @@ const source: ReadPageResult = {
   finalUrl: url,
   retrievedAt: "2026-10-03T12:00:00Z",
   method: "http",
-  outcome: "ok",
-  completeness: "full",
-  links: [],
+  status: "ok",
   markdown: "Example Fest 2027, July 1–3, Lisbon, Portugal.",
 };
 const reason = "The official page states this for the 2027 festival.";
@@ -166,10 +164,9 @@ test("concurrent and repeated failed source reads are cached and charged once", 
     options.budget.consumePage();
     return {
       ...source,
-      outcome: "failed",
-      reason: "http_503",
+      status: "failed",
+      reasonCode: "http_503",
       markdown: "",
-      completeness: "none",
     };
   });
   const result = await runCatalogResearch(input, {
@@ -414,47 +411,56 @@ test.each([
   },
 );
 
-test("recovered source failure retains staged error beside successful research", async () => {
-  const { client, readPage } = fixture();
-  readPage.mockImplementation(async (_url, options) => {
-    options.budget.consumePage();
-    return {
-      ...source,
-      outcome: "failed",
-      reason: "http_503",
-      markdown: "",
-      completeness: "none",
-    };
-  });
-  const proposal = candidate([]);
-  proposal.errors = [
-    {
+test.each([
+  { status: "failed" as const, reasonCode: "http_503" },
+  { status: "unsupported" as const, reasonCode: "unsupported_media_type" },
+])(
+  "source $status retains diagnostics beside successful research",
+  async ({ status, reasonCode }) => {
+    const { client, readPage } = fixture();
+    readPage.mockImplementation(async (_url, options) => {
+      options.budget.consumePage();
+      return {
+        ...source,
+        status,
+        reasonCode,
+        markdown: "",
+      };
+    });
+    const proposal = candidate([]);
+    proposal.errors = [
+      {
+        code: "source_unavailable",
+        message: "The first page returned a temporary error.",
+        url,
+      },
+    ];
+    proposal.data!.sources = [];
+    const result = await runCatalogResearch(input, {
+      client,
+      readPage,
+      generateCandidate: async (_prompt, context) => {
+        await context.readPage(url);
+        return proposal;
+      },
+    });
+    expect(result.researchStatus).toBe("success");
+    expect(result.errors).toContainEqual({
       code: "source_unavailable",
       message: "The first page returned a temporary error.",
       url,
-    },
-  ];
-  proposal.data!.sources = [];
-  const result = await runCatalogResearch(input, {
-    client,
-    readPage,
-    generateCandidate: async (_prompt, context) => {
-      await context.readPage(url);
-      return proposal;
-    },
-  });
-  expect(result.researchStatus).toBe("success");
-  expect(result.errors).toContainEqual({
-    code: "source_unavailable",
-    message: "The first page returned a temporary error.",
-    url,
-    stage: "source",
-  });
-  expect(result.sources).toEqual([
-    expect.objectContaining({ outcome: "failed", reason: "http_503" }),
-  ]);
-  expect(result.sourceSummaries).toEqual([]);
-});
+      stage: "source",
+    });
+    expect(result.sources).toEqual([
+      expect.objectContaining({ outcome: status, reason: reasonCode }),
+    ]);
+    expect(result.sourceSummaries).toEqual([]);
+    expect(result.schemaVersion).toBe(7);
+    expect(result.sources[0]).not.toHaveProperty("status");
+    expect(result.sources[0]).not.toHaveProperty("reasonCode");
+    expect(result.sources[0]).not.toHaveProperty("markdown");
+  },
+);
 
 test("duplicate add skips every proposed write while retaining research and name mismatch", async () => {
   const { client, termIds, readPage } = fixture();
@@ -1282,7 +1288,7 @@ test("the public runner accumulates research in native state without runtime res
   expect(stepOutput("load-context")).toHaveProperty("catalog");
   expect(stepOutput("research-festival")).toMatchObject({
     research: { ok: true, candidate: proposal },
-    reads: [expect.objectContaining({ attemptedUrl: url, outcome: "ok" })],
+    reads: [expect.objectContaining({ attemptedUrl: url, status: "ok" })],
   });
   expect(stepOutput("research-festival")).not.toHaveProperty("prepared");
   expect(stepOutput("resolve-location")).toHaveProperty("status", "success");

@@ -75,7 +75,7 @@ export type CatalogResearchResult = {
     attemptedUrl: string;
     finalUrl: string;
     retrievedAt: string;
-    outcome: ReadPageResult["outcome"];
+    outcome: ReadPageResult["status"];
     reason?: string;
   }[];
   sourceSummaries: { url: string; information: string }[];

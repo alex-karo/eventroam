@@ -44,84 +44,74 @@
       "finalUrl": "https://szigetfestival.com/en/",
       "retrievedAt": "2026-10-27T13:33:25.433Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "page.md"
+      "markdownFile": "page.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://szigetfestival.com/en/tickets",
       "finalUrl": "https://szigetfestival.com/en/tickets",
       "retrievedAt": "2026-10-27T13:33:26.866Z",
       "method": "http",
-      "outcome": "partial",
-      "reason": "javascript_required",
-      "completeness": "partial",
-      "markdownFile": "tickets.md"
+      "markdownFile": "tickets.md",
+      "status": "ok",
+      "reasonCode": "javascript_required"
     },
     {
       "attemptedUrl": "https://szigetfestival.com/en/travel",
       "finalUrl": "https://szigetfestival.com/en/travel/",
       "retrievedAt": "2026-10-27T13:33:27.419Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "travel.md"
+      "markdownFile": "travel.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://szigetfestival.com/en/festival-info",
       "finalUrl": "https://szigetfestival.com/en/festival-info",
       "retrievedAt": "2026-10-27T13:33:28.002Z",
       "method": "http",
-      "outcome": "ok",
-      "reason": "source_content_truncated",
-      "completeness": "partial",
-      "markdownFile": "info.md"
+      "markdownFile": "info.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://szigetfestival.com/en/experience",
       "finalUrl": "https://szigetfestival.com/en/experience",
       "retrievedAt": "2026-10-27T13:33:28.342Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "experience.md"
+      "markdownFile": "experience.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://szigetfestival.com/en/stages",
       "finalUrl": "https://szigetfestival.com/en/stages/",
       "retrievedAt": "2026-10-27T13:33:28.735Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "stages.md"
+      "markdownFile": "stages.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://szigetfestival.com/en/programs-lineup-2026",
       "finalUrl": "https://szigetfestival.com/en/programs-lineup-2026",
       "retrievedAt": "2026-10-27T13:58:05.370Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "lineup-2026.md"
+      "markdownFile": "lineup-2026.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://szigetfestival.com/en/contact",
       "finalUrl": "https://szigetfestival.com/en/contact",
       "retrievedAt": "2026-10-27T13:58:05.768Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "contact.md"
+      "markdownFile": "contact.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://szigetfestival.com/en/gallery",
       "finalUrl": "https://szigetfestival.com/en/gallery",
       "retrievedAt": "2026-10-27T13:58:06.152Z",
       "method": "http",
-      "outcome": "partial",
-      "reason": "javascript_required",
-      "completeness": "partial",
-      "markdownFile": "gallery.md"
+      "markdownFile": "gallery.md",
+      "status": "ok",
+      "reasonCode": "javascript_required"
     }
   ],
   "expectations": {},

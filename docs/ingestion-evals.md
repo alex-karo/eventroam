@@ -62,7 +62,7 @@ Start `npm run catalog:studio`, open `http://127.0.0.1:4111`, and choose **Exper
 
 ### Usage and storage failures
 
-Duration is separate from quality. Set `CATALOG_TRACING=true` to collect native tokens and cost. Eval traces and metrics carry the experiment ID, and saved result rows link to their real trace. Studio shows the native Tokens/Cost summary when metrics are available; evals add no usage totals or metric queries.
+Duration is separate from quality. Set `CATALOG_TRACING=true` to collect native tokens and cost. Eval traces and metrics carry the experiment ID, and saved result rows link to their real trace. Concurrent cases share one DuckDB store for the full CLI run; the CLI closes it after all cases finish. Studio shows the native Tokens/Cost summary when metrics are available; evals add no usage totals or metric queries.
 
 Eval runs and Studio must use the same `CATALOG_OBSERVABILITY_DATABASE_PATH`. Close Studio before CLI evals and reopen it after they finish: separate processes cannot write to the same DuckDB file at the same time. Old runs without this correlation are not backfilled. See [execution metrics](ingestion-process.md#execution-metrics). Missing metrics are unknown.
 
@@ -135,7 +135,7 @@ For saved Editions, populated fields remain protected unless a case declares a s
 
 ## Use realistic, bounded fixtures
 
-Prefer real pages read through the production reader. Preserve useful navigation, unrelated content and page controls. Keep actual partial, truncated, unsupported and failed outcomes; do not turn a failed response into a successful page.
+Prefer real pages read through the production reader. Preserve useful navigation, unrelated content and page controls. Keep source statuses (`ok`, `unsupported`, `failed`) and retrieval reasons. Map captured `partial` reads to `ok` with their retrieval reason and captured `blocked` reads to `failed`. Keep captured Markdown unchanged, including text cut by an earlier reader. Do not treat that text as a new projection cut or turn a failed response into a successful page. Replay keeps links in Markdown; it does not build a separate link list.
 
 Synthetic pages must state their origin and edits in provenance. When they represent a real site in a different state, retain its structure and normal content. Check body text, links and metadata for facts that contradict the scenario.
 

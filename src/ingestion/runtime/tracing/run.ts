@@ -192,7 +192,7 @@ export async function readInitialWithTrace(
         const finalUrl = read ? traceUrl(read.finalUrl) : undefined;
         observeTrace(trace?.tracing, span, {
           name: traceText(
-            `readPage · ${sources.initialUrl} · ${read?.outcome ?? "failed"}:${traceReason(read?.reason)}`,
+            `readPage · ${sources.initialUrl} · ${read?.status ?? "failed"}:${traceReason(read?.reasonCode)}`,
             512,
           ),
           input: {
@@ -203,14 +203,9 @@ export async function readInitialWithTrace(
             ...(finalUrl
               ? { finalUrl: finalUrl.url, urlTruncated: finalUrl.truncated }
               : {}),
-            outcome: read?.outcome ?? "failed",
-            reason: traceReason(read?.reason),
+            status: read?.status ?? "failed",
+            reasonCode: traceReason(read?.reasonCode),
             method: read?.method ?? "unknown",
-            completeness: read?.completeness ?? "unknown",
-            sourceTruncated:
-              read?.sourceTruncated ??
-              (read?.reason === "source_content_truncated" ? true : "unknown"),
-            toolTruncated: false,
             cached: false,
           },
         });

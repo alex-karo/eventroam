@@ -37,7 +37,6 @@ import {
   type PipelineEvalCase,
   type EvalSuite,
 } from "./fixtures";
-import { sourceLinks } from "./source-links";
 import { scoreCase } from "./score";
 import type { ScenarioResult } from "./checks";
 import { createEvalScorers } from "./scorers";
@@ -45,7 +44,12 @@ import { createEvalScorers } from "./scorers";
 import type { EvalToolCall } from "./tool-use";
 import { execFileSync } from "node:child_process";
 import { EDITOR_PROMPT_VERSION } from "../editor/contracts";
-import { createEvalStore, evalDatabasePath } from "./storage";
+import {
+  createEvalStore,
+  createEvalObservability,
+  evalDatabasePath,
+} from "./storage";
+import type { DuckDBStore } from "@mastra/duckdb";
 import { evalDataset, evalFileHash, prepareEvalDataset } from "./datasets";
 import {
   caseGroup,
@@ -197,12 +201,8 @@ function fixedSources(
 ) {
   const byUrl = new Map<string, ReadPageResult>();
   for (const source of item.sources) {
-    const read = {
-      ...source,
-      links: sourceLinks(source.markdown, source.finalUrl),
-    };
-    byUrl.set(new URL(source.attemptedUrl).toString(), read);
-    byUrl.set(new URL(source.finalUrl).toString(), read);
+    byUrl.set(new URL(source.attemptedUrl).toString(), source);
+    byUrl.set(new URL(source.finalUrl).toString(), source);
   }
   return {
     readPage: async (
@@ -219,11 +219,9 @@ function fixedSources(
             finalUrl: url,
             retrievedAt: `${todayUtc}T00:00:00.000Z`,
             method: "http",
-            outcome: "blocked",
-            reason: "not_in_eval_fixture",
+            status: "failed",
+            reasonCode: "not_in_eval_fixture",
             markdown: "",
-            links: [],
-            completeness: "none",
           };
     },
     searchWeb: async (
@@ -277,6 +275,7 @@ async function executeCase(
   item: EvalCase,
   config: ReturnType<typeof evaluationConfig>,
   experimentId?: string,
+  observabilityStore?: DuckDBStore,
 ): Promise<EvalCaseOutput> {
   const calls: EvalToolCall[] = [];
   if (item.location) {
@@ -286,7 +285,7 @@ async function executeCase(
       config.locationModel ?? config.model,
       runId,
       [evalDatabasePath()],
-      undefined,
+      observabilityStore,
       experimentId,
     );
     try {
@@ -325,6 +324,7 @@ async function executeCase(
           client: connection.client,
           workflowStorage,
           experimentId,
+          observabilityStore,
           config,
           todayUtc: item.todayUtc ?? suite.todayUtc,
           geocodingClient: fixedGeocoding(item),
@@ -386,6 +386,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     throw new Error("repeat must be 1–20");
   }
   const store = await createEvalStore();
+  const observations = await createEvalObservability();
   try {
     await store.init();
     const mastra = new Mastra({ storage: store, logger: false });
@@ -477,6 +478,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
               byId.get(caseId)!,
               config,
               experimentId,
+              observations?.storage,
             );
           } catch {
             throw new Error("Evaluation task failed");
@@ -512,6 +514,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     }
     return { groups };
   } finally {
+    await observations?.close();
     await store.close();
   }
 }
