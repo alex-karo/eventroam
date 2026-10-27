@@ -11,6 +11,9 @@ import { evaluate, fact, linkFact } from "./facts";
 
 export function sziget(context: MainContext) {
   const { event, next } = context;
+  const previous = event?.editions.find(
+    (edition) => edition.id === context.original?.editions[0]?.id,
+  );
   // page.md: standard, age-restricted, and VIP five-day passes with stated fees.
   const offers = [
     {
@@ -63,7 +66,16 @@ export function sziget(context: MainContext) {
       savedEditions(context.original, event, {
         displayName: "Sziget Festival 2026",
         // The recap confirms the past music festival; saved dates and country satisfy the other publication gates.
-        termIds: ["validation:festival", "validation:music"],
+        termIds: [
+          "validation:festival",
+          "validation:music",
+          // experience.md describes recurring electronic music and links the 2026 programme.
+          ...(previous?.terms.some(
+            (term) => term.id === "catalog:term:genre:electronic",
+          )
+            ? ["catalog:term:genre:electronic"]
+            : []),
+        ],
         publicationState: "published",
         venueName: "Óbuda Island",
         venueAddress: "Május 9. park, Budapest, Hungary, 1033",

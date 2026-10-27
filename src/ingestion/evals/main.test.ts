@@ -87,6 +87,29 @@ test("Wacken accepts its resale portal as a ticket link, without adding offer al
   ).toMatchObject({ errorCount: 1, passed: false });
 });
 
+test("Wacken accepts both historical names but protects a populated name", () => {
+  const run = attempt("wacken");
+  const original = run.before[0].editions[0];
+  const saved = run.after[0].editions.find(
+    (edition) => edition.id === original.id,
+  )!;
+  for (const name of ["W:O:A 2026", "Wacken Open Air 2026"]) {
+    saved.displayName = name;
+    expect(
+      evaluateMainCase(run.item, run.before, run.after, run.report).passed,
+    ).toBe(true);
+  }
+  saved.displayName = "Wacken Open Air 2025";
+  expect(
+    evaluateMainCase(run.item, run.before, run.after, run.report),
+  ).toMatchObject({ errorCount: 1, passed: false });
+  original.displayName = "W:O:A 2026";
+  saved.displayName = "Wacken Open Air 2026";
+  expect(
+    evaluateMainCase(run.item, run.before, run.after, run.report),
+  ).toMatchObject({ errorCount: 1, passed: false });
+});
+
 test.each([
   [
     "wacken",
@@ -215,6 +238,18 @@ test.each(["wacken", "sziget", "roskilde"])(
     expect(
       evaluateMainCase(run.item, run.before, run.after, run.report).passed,
     ).toBe(true);
+    if (id === "sziget") {
+      saved.terms.push({
+        id: "catalog:term:genre:electronic",
+        facet: "genre",
+        slug: "electronic",
+        name: "Electronic",
+        parentId: null,
+      });
+      expect(
+        evaluateMainCase(run.item, run.before, run.after, run.report).passed,
+      ).toBe(true);
+    }
     saved.terms.push({
       id: "validation:unsupported",
       facet: "genre",

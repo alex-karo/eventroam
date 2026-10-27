@@ -12,6 +12,9 @@ import { evaluate, fact, linkFact } from "./facts";
 
 export function wacken(context: MainContext) {
   const { event, next } = context;
+  const previous = event?.editions.find(
+    (edition) => edition.id === context.original?.editions[0]?.id,
+  );
   // tickets.md: overview and store links, with or without tracking parameters.
   const urls = [
     "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
@@ -49,7 +52,11 @@ export function wacken(context: MainContext) {
     correctness: [
       // Full refresh can add these details to the selected completed Edition.
       savedEditions(context.original, event, {
-        displayName: "W:O:A 2026",
+        // aftermovie.md uses both names for the same Edition.
+        displayName:
+          previous?.displayName === "Wacken Open Air 2026"
+            ? "Wacken Open Air 2026"
+            : "W:O:A 2026",
         termIds: ["validation:festival", "validation:music"],
         publicationState: "published",
         locality: "Wacken",
