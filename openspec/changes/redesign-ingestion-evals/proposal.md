@@ -6,7 +6,7 @@ Current evals mix representative examples with regressions and score selected mu
 
 ## What Changes
 
-- Use explicit TypeScript evaluators and shared helpers for five captured main cases. Remove Tomorrowland until one festival identity can be tested. Remove the old scorer, gold schema, and gold files.
+- Use explicit TypeScript evaluators and shared helpers for five main cases (four captured, one synthetic). Remove Tomorrowland until one festival identity can be tested. Remove the old scorer, gold schema, and gold files.
 - Keep the other 45 cases in `regression` with their current targeted checks. Report pipeline, editor, and Location results separately. Keep Location completion, correction, and preservation summaries.
 - Score main cases after isolated apply. Separate required completeness, additional completeness, checked-data errors, and scenario success.
 - Check returned ticket URL, amount, and currency combinations with explicit alternatives. Score base price as one additional fact; offer extraction has no completeness obligation. Missing optional data lowers completeness; wrong optional data fails the scenario.

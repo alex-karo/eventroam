@@ -8,13 +8,22 @@ Define controlled ingestion experiments that separate catalog quality from targe
 
 ### Requirement: Cases have separate purpose and source labels
 
-Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The initial main set SHALL contain five captured festival cases: Wacken, Roskilde, Sziget, Glastonbury, and Afro Nation Portugal. The remaining 45 cases SHALL retain their targeted regression checks, including 13 isolated Location cases.
+Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The initial main set SHALL contain five festival cases: captured Wacken, Roskilde, Sziget, and Afro Nation Portugal cases, and a synthetic Glastonbury case without source confirmation of its saved programme. The remaining 45 cases SHALL retain their targeted regression checks, including 13 isolated Location cases.
 
 #### Scenario: Shared sources serve different tasks
 
 - **WHEN** fill and verify cases use the same pages
 - **THEN** each has its own identity, seed, and expectations
 - **AND** source origin does not determine its suite
+
+#### Scenario: Synthetic verification retains realistic source noise
+
+- **WHEN** the Glastonbury verification case adapts the official site to a scenario without a next-festival announcement
+- **THEN** its pages retain navigation, unrelated news, separate local events and page controls
+- **AND** archive years are navigation only, without readable historical programme pages
+- **AND** body text, links and metadata do not confirm the main festival programme
+- **AND** the current saved Edition and draft Event checks remain in use
+- **AND** provenance identifies the source captures and the synthetic edits
 
 ### Requirement: All groups can run together
 
@@ -51,11 +60,13 @@ Workflow attempts SHALL start from their declared seed and date in a disposable 
 - **WHEN** a case repeats and requests an uncaptured page
 - **THEN** it starts from a fresh seed and reports fixture access failure without a live read
 
-#### Scenario: Main geocoding fixture is missing
+#### Scenario: Main source or geocoding fixture is missing
 
-- **WHEN** initial preparation or the Location agent requests an uncaptured geocoding response in a main case
-- **THEN** the case fails with a retained fixture_miss observation, even if a later Location decision is valid
+- **WHEN** a main case requests an uncaptured page or geocoding response
+- **THEN** the result retains the source failure or fixture_miss observation as a diagnostic without an independent scenario failure
+- **AND** required facts, checked errors, execution, and task conditions still determine success
 - **AND** no live request or invented provider result replaces the missing fixture
+- **AND** regression fixture-miss checks stay unchanged
 
 ### Requirement: Main evaluators define the checked data boundary
 
@@ -67,21 +78,42 @@ Main SHALL use explicit TypeScript case evaluators and shared fact, identity, pr
 - **THEN** required and additional completeness are N/A
 - **AND** the case checks unchanged saved data, the expected source failure, and an unresolved question
 
-#### Scenario: Saved Editions are outside the fill target
+#### Scenario: Full refresh also checks a saved Edition
 
-- **WHEN** a fill case creates its next Edition
-- **THEN** complete saved Editions must remain equal to their before values
-- **AND** preservation earns no completeness credit
+- **WHEN** a fill case creates its next Edition and updates a selected saved Edition
+- **THEN** declared additions must match their expectations
+- **AND** additions to empty optional fields without expectations remain unchecked and earn no completeness credit
+- **AND** populated saved fields, required fields, identities, publication, and declared coordinate rules stay protected
+
+#### Scenario: An unchecked optional saved field is filled
+
+- **WHEN** a saved Edition has no administrative area and its evaluator declares no expectation for that field
+- **THEN** an added administrative area does not fail the case or earn completeness credit
+- **AND** changing or clearing a populated saved administrative area still fails
+
+#### Scenario: Add a declared locality point
+
+- **WHEN** a saved Edition has no coordinates and its case permits a specific locality point
+- **THEN** that exact point and locality precision may be added
+- **AND** an existing point or a claim of exact precision remains protected
+
+#### Scenario: Complete and publish a saved Edition
+
+- **WHEN** the pages support a declared classification for an unclassified saved Edition
+- **AND** its saved year, dates, and country satisfy the other publication gates
+- **THEN** the case may accept that classification and publication
+- **AND** other saved facts remain protected and earn no completeness credit
+- **AND** generated version and update time do not count as factual changes
 
 #### Scenario: Unlisted fields
 
 - **WHEN** a field or ticket label has no explicit check
 - **THEN** it earns no completeness credit and contributes no factual errors
-- **AND** a preserved saved record still has to remain equal
+- **AND** populated saved fields still have to remain equal
 
 ### Requirement: Equivalent values pass without hiding errors
 
-Main comparisons SHALL accept declared alternatives and defined normalization. They SHALL distinguish missing facts from wrong assertions, including wrong extras. Errors SHALL identify their record and field or fact unit. The error count SHALL count failed factual checks. Equivalent forms SHALL NOT earn extra credit.
+Main comparisons SHALL accept declared alternatives and defined normalization. Main checks SHALL treat `announced` and `scheduled` as equivalent, including saved Edition preservation. This exception SHALL NOT cover `cancelled` or `postponed`. They SHALL distinguish missing facts from wrong assertions, including wrong extras. Errors SHALL identify their record and field or fact unit. The error count SHALL count failed factual checks. Equivalent forms SHALL NOT earn extra credit.
 
 #### Scenario: URL alternatives
 
@@ -97,7 +129,7 @@ Main comparisons SHALL accept declared alternatives and defined normalization. T
 
 ### Requirement: Ticket checks use declared structured facts
 
-Main SHALL check each returned admission offer against accepted URL, amount, and currency combinations. Missing offers SHALL NOT reduce completeness. A returned offer SHALL need all three values to match. Labels, terms, availability, and duplicate offers SHALL remain outside this check. Base price, including mandatory fees and full-programme coverage, SHALL be one independent additional fact. General interpretation of ticket prose SHALL remain outside scoring.
+Main SHALL check each returned admission offer against accepted URL, amount, and currency combinations. Missing offers SHALL NOT reduce completeness. A returned offer SHALL need all three values to match. Labels, terms, availability, and duplicate offers SHALL remain outside this check. Base price with full-programme coverage SHALL be one independent additional fact. A case MAY accept both the displayed price and its declared mandatory-fee total. General interpretation of ticket prose SHALL remain outside scoring.
 
 #### Scenario: An offer and base price repeat a wrong price
 
@@ -115,7 +147,7 @@ Main SHALL check each returned admission offer against accepted URL, amount, and
 
 - **WHEN** the source lists an offer price and a separate mandatory fee
 - **THEN** its offer may use the declared displayed or total amount
-- **AND** the full-programme base price must include the mandatory fee
+- **AND** the full-programme base price may use either amount when both are declared alternatives
 
 ### Requirement: Main completeness separates required and additional facts
 
