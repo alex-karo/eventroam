@@ -56,9 +56,14 @@ test("the pinned native adapter saves, closes and reopens only workflow tables",
     const client = new Database(path, { readonly: true });
     try {
       const tables = client
-        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+        )
         .all();
-      expect(tables).toEqual([{ name: "mastra_workflow_snapshot" }]);
+      expect(tables).toEqual([
+        { name: "mastra_workflow_run_owners" },
+        { name: "mastra_workflow_snapshot" },
+      ]);
     } finally {
       client.close();
     }
