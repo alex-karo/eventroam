@@ -1,0 +1,3 @@
+# Architecture & contracts
+
+Own component boundaries and compatibility: caller/callee assumptions, API shapes and semantics, persistence schemas and migrations, integration behavior, and multiple sources of truth. Trace producers and consumers before recommending a boundary change. Assess the project's existing design and actual requirements, not an idealized architecture. Assess whether the chosen design preserves contracts and boundaries. Leave the necessity of mechanisms and alternative approaches primarily to Design Simplicity, local organization primarily to Code Clarity & Decomposition, and algorithmic behavior to Correctness.
