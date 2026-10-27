@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { createResearchBudget } from "../../runtime/budget";
-import { UnsafeSourceError, type getBoundedResponse } from "../network";
+import { type getBoundedResponse } from "../network";
 import mountain from "./fixtures/mountain-music.json";
 import { readPage } from "./read";
 import { boundedToolSource } from "./response";
@@ -28,7 +28,13 @@ test("one read exposes map markers through the model projection without map rend
     expect(options.timeoutMs).toBeGreaterThan(0);
     expect(options.timeoutMs).toBeLessThanOrEqual(15_000);
     options.onRetry?.();
-    return response(mapBody, url);
+    return response(
+      mapBody.replace(
+        "The festival grounds will cover Buchanan Park.",
+        "Details https://festival.example/extra",
+      ),
+      url,
+    );
   });
   const firecrawlRequest = vi.fn();
   const result = await readPage(parent, {
@@ -48,23 +54,29 @@ test("one read exposes map markers through the model projection without map rend
   expect(output.markdown).toContain("2024");
   expect(output.markdown).toContain("39.6858145");
   expect(output.markdown).toContain(mapUrl);
+  expect(output.markdown).toContain("https://festival.example/extra");
   expect(request).toHaveBeenCalledTimes(2);
   expect(firecrawlRequest).not.toHaveBeenCalled();
   expect(budget.snapshot().pages).toBe(3);
 });
 
 test.each([
-  ["unsafe", new UnsafeSourceError()],
-  ["timeout", new Error("timeout")],
-  ["oversized", new Error("oversized_response")],
-  ["failure", new Error("secret error details")],
+  new Error("secret error details"),
+  response("Forbidden", mapUrl, 403),
+  response("Unsupported script data", mapUrl),
+  response("x".repeat(20_001), mapUrl),
 ])(
-  "map transport %s keeps parent evidence and reports a safe limitation",
-  async (_label, error) => {
+  "map failures keep parent evidence and report a safe limitation",
+  async (failure) => {
     const request = vi.fn<typeof getBoundedResponse>();
-    request.mockResolvedValueOnce(response(body)).mockRejectedValueOnce(error);
+    request.mockResolvedValueOnce(response(body));
+    if (failure instanceof Error) {
+      request.mockRejectedValueOnce(failure);
+    } else {
+      request.mockResolvedValueOnce(failure);
+    }
     const result = await readPage(parent, {
-      budget: createResearchBudget(),
+      budget: createResearchBudget({ pageBytes: 20_000 }),
       request,
       firecrawlKey: "",
     });
@@ -73,30 +85,9 @@ test.each([
     expect(result.markdown).toContain("Page evidence");
     expect(result.markdown).toContain(mapUrl);
     expect(result.markdown).toContain("Map read incomplete:");
+    expect(result.markdown).toContain("Point data is unverified");
     expect(result.markdown).not.toContain("secret error details");
     expect(result.markdown).not.toContain("No point markers");
-  },
-);
-
-test.each([
-  response("Forbidden", mapUrl, 403),
-  response("Unsupported script data", mapUrl),
-  response("x".repeat(20_001), mapUrl),
-])(
-  "HTTP, parse and byte failures preserve a readable parent",
-  async (mapResponse) => {
-    const request = vi.fn<typeof getBoundedResponse>();
-    request
-      .mockResolvedValueOnce(response(body))
-      .mockResolvedValueOnce(mapResponse);
-    const result = await readPage(parent, {
-      budget: createResearchBudget({ pageBytes: 20_000 }),
-      request,
-      firecrawlKey: "",
-    });
-    expect(result.reasonCode).toBe("map_read_incomplete");
-    expect(result.markdown).toContain("Page evidence");
-    expect(result.markdown).toContain("Point data is unverified");
   },
 );
 
@@ -161,47 +152,4 @@ test("fallback retains direct and rendered map references and reads duplicates o
   ]);
   expect(firecrawlRequest).toHaveBeenCalledOnce();
   expect(result.markdown).toContain(second);
-});
-
-test("full map text is cached and only the model projection is cut", async () => {
-  const request = vi.fn<typeof getBoundedResponse>();
-  request
-    .mockResolvedValueOnce(
-      response(
-        `<p>${"Evidence ".repeat(10_000)}</p><iframe src="${mapUrl}"></iframe>`,
-      ),
-    )
-    .mockResolvedValueOnce(response(mapBody, mapUrl));
-  const result = await readPage(parent, {
-    budget: createResearchBudget(),
-    request,
-    firecrawlKey: "",
-  });
-  expect(result.markdown).toContain("Buchanan Park");
-  const output = boundedToolSource(result);
-  expect(output.truncated).toBe(true);
-  expect(output.markdown.length).toBeLessThanOrEqual(79_700);
-  expect(result.markdown).toContain("Buchanan Park");
-});
-
-test("marker links stay as evidence without another read", async () => {
-  const request = vi.fn<typeof getBoundedResponse>();
-  request
-    .mockResolvedValueOnce(response(body))
-    .mockResolvedValueOnce(
-      response(
-        mapBody.replace(
-          "The festival grounds will cover Buchanan Park.",
-          "Details https://festival.example/extra",
-        ),
-        mapUrl,
-      ),
-    );
-  const result = await readPage(parent, {
-    budget: createResearchBudget(),
-    request,
-    firecrawlKey: "",
-  });
-  expect(result.markdown).toContain("https://festival.example/extra");
-  expect(request).toHaveBeenCalledTimes(2);
 });

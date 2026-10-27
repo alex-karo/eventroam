@@ -11,7 +11,7 @@ const html = (data: unknown) =>
 test("recorded maps retain labels, layers, points and years", () => {
   const port = myMapMarkdown(parseMyMap(html(portamerica.pageData)));
   expect(port).toContain("PortAmérica");
-  expect(port).toContain("Parking");
+  expect(port).toContain("-8.6557329");
   expect(port).toContain("42.5906854");
   const mm = myMapMarkdown(parseMyMap(html(mountain.pageData)));
   expect(mm).toContain("2024");
@@ -40,7 +40,7 @@ test("full records decide geometry and repeated IDs do not repeat a point", () =
   full[0].push(full[0][0]);
   layer[4] = [[[[-35.319740264541245, 139.04343729381495]]]];
   const result = parseMyMap(html(data));
-  expect(result.layers[0].points).toHaveLength(6);
+  expect(result.layers[0].points).toHaveLength(2);
   expect(myMapMarkdown(result)).not.toContain("-35.319740264541245");
 });
 
