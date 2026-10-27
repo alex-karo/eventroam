@@ -4,7 +4,7 @@ Eventroam helps keep event information up to date through AI-assisted source res
 
 **Status:** live in production and under active development.
 
-- [eventroam.org](https://eventroam.org) — project overview and services.
+- [eventroam.org](https://eventroam.org/?utm_source=github&utm_medium=readme&utm_campaign=eventroam&utm_content=eventroam) — project overview and services.
 - [festivals.eventroam.org](https://festivals.eventroam.org) — festival discovery and event details.
 
 ## Product idea
@@ -66,6 +66,7 @@ Studio chat can query the catalog through a read-only SQL tool and refresh one t
 | AI agents | Mastra workflows and Studio chat; OpenRouter for ingestion |
 | Source processing | Got, Cheerio, Turndown; optional Firecrawl fallback |
 | Geocoding | Geoapify |
+| Analytics | PostHog |
 | Runtime | Separate web and Studio containers with a shared catalog volume |
 | Validation and quality | Zod, ESLint, Prettier, Vitest, Playwright |
 

@@ -29,6 +29,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 ## Development and operations
 
 - [Development guide](development.md) — commands, workflow, and working practices.
+- [Analytics](analytics.md) — PostHog setup, tracked events, GitHub campaign links, and owner opt-out.
 - [Infrastructure](infrastructure.md) — deployment ownership and database transfer commands.
 - [Ingestion process](ingestion-process.md) — plain-language steps for festival research and catalog updates, including [Location resolution](../openspec/specs/catalog/location-resolution/spec.md).
 - [Ingestion evals](ingestion-evals.md) — approach, case requirements, scoring boundaries, fixtures and model comparison. See the [eval commands](development.md#catalog-evals) and [evaluation contract](../openspec/specs/operations/ingestion-evaluation/spec.md).

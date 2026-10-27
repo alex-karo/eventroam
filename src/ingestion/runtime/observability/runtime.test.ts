@@ -40,9 +40,32 @@ afterEach(() => {
   }
 });
 
-test("tracing defaults off and never opens storage", async () => {
-  const path = join(directory(), "off.duckdb");
+test.each(["test", "development"])(
+  "tracing defaults off in %s and never opens storage",
+  async (environment) => {
+    vi.stubEnv("NODE_ENV", environment);
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "");
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_HOST", "");
+    vi.stubEnv("CATALOG_LOGGING", "false");
+    const path = join(directory(), "off.duckdb");
+    vi.stubEnv("CATALOG_TRACING", "false");
+    vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", path);
+    expect(
+      await createResearchObservability(
+        { mode: "add", name: "Fixture", actor: "test", initiatedBy: "test" },
+        "fixture/model",
+      ),
+    ).toBeUndefined();
+    expect(existsSync(path)).toBe(false);
+  },
+);
+
+test("website analytics does not enable ingestion tracing", async () => {
+  vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "test-project");
+  vi.stubEnv("NEXT_PUBLIC_POSTHOG_HOST", "https://example.org");
   vi.stubEnv("CATALOG_TRACING", "false");
+  vi.stubEnv("CATALOG_LOGGING", "false");
+  const path = join(directory(), "off.duckdb");
   vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", path);
   expect(
     await createResearchObservability(

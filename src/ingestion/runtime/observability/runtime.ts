@@ -6,6 +6,7 @@ import {
   Observability,
   SamplingStrategyType,
 } from "@mastra/observability";
+import { PosthogExporter } from "@mastra/posthog";
 import type { CatalogResearchInput } from "../../contracts";
 import { RESEARCH_PROMPT_VERSION } from "../../research/contracts";
 import {
@@ -60,6 +61,13 @@ export class ResearchObservabilityExporter extends MastraStorageExporter {
   }
 }
 
+function readPostHogConfig() {
+  const projectToken = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
+  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim();
+
+  return { projectToken, host };
+}
+
 export async function createResearchObservability(
   input: CatalogResearchInput,
   model: string,
@@ -68,7 +76,11 @@ export async function createResearchObservability(
   sharedStore?: DuckDBStore,
   experimentId?: string,
 ) {
+  const { projectToken: posthogProjectToken, host: posthogHost } =
+    readPostHogConfig();
   const traceEnabled = process.env.CATALOG_TRACING === "true";
+  const posthogEnabled =
+    traceEnabled && Boolean(posthogProjectToken && posthogHost);
   const loggingEnabled = process.env.CATALOG_LOGGING === "true";
   if (!traceEnabled && !loggingEnabled) {
     return undefined;
@@ -99,7 +111,7 @@ export async function createResearchObservability(
       throw new Error("Trace storage unavailable");
     }
     const metadata: TraceMetadata = {
-      ...(runId ? { runId } : {}),
+      ...(runId ? { runId, sessionId: runId } : {}),
       ...(experimentId ? { experimentId } : {}),
       mode: input.mode,
       ...(input.eventId ? { eventId: traceText(input.eventId, 160) } : {}),
@@ -123,6 +135,14 @@ export async function createResearchObservability(
           },
           exporters: [
             new ResearchObservabilityExporter(diagnose, traceEnabled),
+            ...(posthogEnabled
+              ? [
+                  new PosthogExporter({
+                    apiKey: posthogProjectToken!,
+                    host: posthogHost!,
+                  }),
+                ]
+              : []),
           ],
           spanOutputProcessors: [processor],
         },

@@ -1,3 +1,4 @@
+import { captureOpenRouterGeneration } from "../../runtime/observability/ai";
 import type { ResearchLogger } from "../../runtime/logging";
 import { ResearchLimitError, type ResearchBudget } from "../../runtime/budget";
 import type { ResearchConfig } from "../../runtime/config";
@@ -14,6 +15,7 @@ interface Citation {
 
 interface SearchResponse {
   choices?: { message?: { annotations?: Citation[] } }[];
+  usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
 }
 
 export interface SearchWebOptions {
@@ -22,6 +24,7 @@ export interface SearchWebOptions {
   fetch?: typeof fetch;
   now?: () => Date;
   log?: ResearchLogger;
+  ai?: { sessionId?: string; traceId?: string; parentId?: string };
 }
 
 async function boundedJson(
@@ -58,6 +61,10 @@ async function boundedJson(
   return JSON.parse(new TextDecoder().decode(combined));
 }
 
+function searchPrompt(query: string) {
+  return `Find official festival/organizer pages and edition ticket links for: ${query}. Return only a short list of candidate links.`;
+}
+
 function requestSearch(
   query: string,
   maxResults: number,
@@ -82,12 +89,7 @@ function requestSearch(
         ...(options.config.reasoningEffort && {
           reasoning: { effort: options.config.reasoningEffort },
         }),
-        messages: [
-          {
-            role: "user",
-            content: `Find official festival/organizer pages and edition ticket links for: ${query}. Return only a short list of candidate links.`,
-          },
-        ],
+        messages: [{ role: "user", content: searchPrompt(query) }],
         plugins: [{ id: "web", engine: "exa", max_results: maxResults }],
         max_tokens: Math.min(500, options.budget.limits.modelOutputTokens),
       }),
@@ -174,10 +176,17 @@ async function waitBeforeRetry(
   options.budget.assertTime();
 }
 
+function tokenCount(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined;
+}
+
 export async function searchWeb(
   query: string,
   options: SearchWebOptions,
 ): Promise<SearchWebResult> {
+  const startedAt = Date.now();
   const normalized = searchQuerySchema.parse(query);
   const maxResults = Math.min(
     Math.max(1, options.budget.limits.searchResults),
@@ -230,6 +239,15 @@ export async function searchWeb(
     throw lastError ?? new Error("search_failed");
   }
 
+  captureOpenRouterGeneration({
+    sessionId: options.ai?.sessionId,
+    traceId: options.ai?.traceId,
+    parentId: options.ai?.parentId,
+    model: options.config.model,
+    inputTokens: tokenCount(data.usage?.prompt_tokens),
+    outputTokens: tokenCount(data.usage?.completion_tokens),
+    latencyMs: Date.now() - startedAt,
+  });
   const candidates = sourceCandidates(data, maxResults);
   return {
     query: normalized,
