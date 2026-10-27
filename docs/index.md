@@ -31,6 +31,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 - [Development guide](development.md) — commands, workflow, and working practices.
 - [Infrastructure](infrastructure.md) — deployment ownership and database transfer commands.
 - [Ingestion process](ingestion-process.md) — plain-language steps for festival research and catalog updates, including [Location resolution](../openspec/specs/catalog/location-resolution/spec.md).
+- [Ingestion evals](ingestion-evals.md) — approach, case requirements, scoring boundaries, fixtures and model comparison. See the [eval commands](development.md#catalog-evals) and [evaluation contract](../openspec/specs/operations/ingestion-evaluation/spec.md).
 - [Project structure](project-structure.md) — directories and dependency boundaries.
 - [Mapbox deployment gate](mapbox-deployment-gate.md) — checks required before public map deployment.
 
@@ -38,6 +39,12 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 - [ADR 001: SQLite and Drizzle](decisions/001-sqlite-and-drizzle.md) — accepted database choice.
 - [ADR 002: Runtime and tooling](decisions/002-runtime-and-tooling.md) — accepted runtime and application container baseline.
+
+## Known issues
+
+- [Roskilde ticket link preference](known-issues/2026-10-27-roskilde-edition-ticket-link.md) — the eval requires an overview that the agent instructions do not prefer.
+- [Invalid Edition key rejects Wacken research](known-issues/2026-10-27-wacken-invalid-edition-key.md) — malformed model output rejects a full research result.
+- [Mastra eval storage snapshot failure](known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) — intermittent storage errors, related upstream fixes, and pending checks.
 
 ## Research
 

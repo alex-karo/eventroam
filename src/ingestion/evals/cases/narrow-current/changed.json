@@ -1,5 +1,8 @@
 {
   "id": "narrow-current-changed",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check narrow current changed",
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-current-regression",
@@ -107,67 +110,6 @@
         "contains": "catalog:term:genre:electronic",
         "editionYear": 2027
       }
-    ],
-    "research": {
-      "status": "success",
-      "facts": [
-        {
-          "field": "classification",
-          "value": "validation:festival",
-          "editionYear": 2027
-        },
-        {
-          "field": "classification",
-          "value": "validation:mixed",
-          "editionYear": 2027
-        },
-        {
-          "field": "classification",
-          "value": "validation:music",
-          "editionYear": 2027
-        },
-        {
-          "field": "classification",
-          "value": "catalog:term:genre:metal",
-          "editionYear": 2027
-        },
-        {
-          "editionYear": 2027,
-          "field": "dates",
-          "value": {
-            "startsOn": "2027-06-04",
-            "endsOn": "2027-06-05",
-            "state": "confirmed"
-          }
-        }
-      ],
-      "absentFields": [
-        {
-          "field": "summary"
-        },
-        {
-          "field": "links.website"
-        },
-        {
-          "field": "links.socials.instagram"
-        },
-        {
-          "field": "links.socials.facebook"
-        },
-        {
-          "field": "links.socials.youtube"
-        },
-        {
-          "field": "links.socials.tiktok"
-        },
-        {
-          "field": "links.socials.x"
-        },
-        {
-          "field": "links.socials.other"
-        }
-      ],
-      "newEditionYear": 2027
-    }
+    ]
   }
 }

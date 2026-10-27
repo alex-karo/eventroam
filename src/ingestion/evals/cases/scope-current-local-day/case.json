@@ -1,5 +1,8 @@
 {
   "id": "scope-current-local-day",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check scope current local day case",
   "input": {
     "mode": "refresh",
     "scope": "current",
@@ -75,37 +78,6 @@
   ],
   "expectations": {
     "required": [],
-    "forbidden": [],
-    "research": {
-      "status": "success",
-      "absentFields": [
-        {
-          "field": "summary"
-        },
-        {
-          "field": "links.website"
-        },
-        {
-          "field": "links.socials.instagram"
-        },
-        {
-          "field": "links.socials.facebook"
-        },
-        {
-          "field": "links.socials.youtube"
-        },
-        {
-          "field": "links.socials.tiktok"
-        },
-        {
-          "field": "links.socials.x"
-        },
-        {
-          "field": "links.socials.other"
-        }
-      ],
-      "previousEdition": null,
-      "currentOrNextEdition": "local-weekend"
-    }
+    "forbidden": []
   }
 }

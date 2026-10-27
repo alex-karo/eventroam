@@ -10,7 +10,7 @@ TageStundenMinuten
 
 Suche nach
 
-[Newsletter](https://www.wacken.com/de/2026/news/etter-abonnieren/)Wacken-Radio
+Newsletter Wacken-Radio
 
 [DE](https://www.wacken.com/de/ "Deutsch")
 
@@ -80,8 +80,6 @@ Suche nach
     
     ###### Metal Battle
     
-    [Bewerbt Euch!](https://www.wacken.com/de/line-up/bewerbt-euch/ "Bewerbt Euch!")
-    
 -   [Camping & Travel](https://www.wacken.com/de/camping-travel/die-uebersicht/ "Camping & Travel")
     
     ###### Camping-Areas
@@ -116,8 +114,6 @@ Suche nach
     
     ###### Unser Engagement
     
-    [Green Wacken](https://www.wacken.com/de/community/green-wacken/ "Green Wacken")
-    
     [Wacken Foundation](https://www.wacken.com/de/community/wacken-foundation/ "Wacken Foundation")
     
     [Wacken Metal Academy](https://www.wacken.com/de/community/wacken-metal-academy/ "Wacken Metal Academy")
@@ -143,8 +139,6 @@ Suche nach
 [/Page header]
 
 [Main content]
-
-[28.07. - 31.07.2027](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817)
 
 [Electric Callboy](https://www.wacken.com/de/line-up/bands/#/bandfilter/electric-callboy#artistdetail)
 
@@ -186,9 +180,15 @@ Suche nach
 
 ## Alle News
 
-03.10.2026: 2026-10-03
+Erstellt von WackenHelge
 
-[Wacken X Zellerfeld - Hier kommen die W:O:A 3D Sneaker Schuhe aus dem 3D Drucker? Das gibt es wirklich!](https://www.wacken.com/de/news-details/wacken-x-zellerfeld-hier-kommen-die-woa-3d-sneaker/ "Wacken X Zellerfeld - Hier kommen die W:O:A 3D Sneaker")
+22.10.2026: 2026-10-22
+
+[Der Bloody X-Mas Markt kommt nach Hamburg! Blut spenden, Gutes tun und gemeinsam die Vorweihnachtszeit rocken](https://www.wacken.com/de/news-details/der-bloody-x-mas-markt-kommt-nach-hamburg/ "Der Bloody X-Mas Markt kommt nach Hamburg!")
+
+06.10.2026: 2026-10-06
+
+[Ein Gänsehautmoment auf dem Wacken Open Air: Ein letzter Wunsch wird wahr! Der letzte Wunsch: Noch einmal Judas Priest live auf dem Wacken Open Air erleben. Und dies wurde wahr...](https://www.wacken.com/de/news-details/ein-gaensehautmoment-auf-dem-wacken-open-air-ein-letzter-wunsch-wird-wahr/ "Ein Gänsehautmoment auf dem Wacken Open Air: Ein letzter Wunsch wird wahr! ")
 
 02.10.2026: 2026-10-02
 
@@ -210,10 +210,6 @@ Erstellt von wackenpeachy
 
 [Das Wacken Metal Battle Aftermovie 2026 ist da! Kommt mit uns und erkundet den internationalen Wettbewerb auf dem Holy Ground, bei dem auch gerne mal die ein oder andere Kauleiste zu Bruch geht. Ein…](https://www.wacken.com/de/news-details/das-wacken-metal-battle-aftermovie-2026-ist-da/ "Das Wacken Metal Battle Aftermovie 2026 ist da!")
 
-23.08.2026: 2026-08-23
-
-[W:O:A 2026 - Das offizielle Aftermovie ist da! Das 35. Jubiläum des W:O:A war eine der schönsten Ausgaben aller Zeiten und hier kommt zum Abschluss nun das offizielle Aftermovie!](https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/ "W:O:A 2026 - Das offizielle Aftermovie ist da!")
-
 [Alle News](https://www.wacken.com/de/alle-news/)
 
 ## WackenTV!
@@ -226,8 +222,8 @@ Erstellt von wackenpeachy
 
 ## Auf nach Wacken!
 
--   [Newsletter abonnieren](https://www.wacken.com/de/2026/news/etter-abonnieren/)
--   [Bands](https://www.wacken.com/de/2026/line-up/bands/)
+-   Newsletter abonnieren
+-   Bands
 -   [Tickets & Shop](https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/)
 -   Medien
 

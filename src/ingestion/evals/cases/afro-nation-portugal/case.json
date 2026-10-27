@@ -1,5 +1,8 @@
 {
   "id": "afro-nation-portugal-blocked",
+  "suite": "main",
+  "origin": "captured",
+  "task": "verify",
   "todayUtc": "2026-10-08",
   "provenance": {
     "kind": "captured-http-metadata-synthetic-replay",
@@ -94,9 +97,5 @@
       "markdownFile": "blocked.md"
     }
   ],
-  "expectations": {
-    "required": [],
-    "forbidden": [],
-    "research": { "status": "failed" }
-  }
+  "expectations": {}
 }

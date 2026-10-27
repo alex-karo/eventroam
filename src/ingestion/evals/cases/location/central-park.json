@@ -1,5 +1,8 @@
 {
   "id": "location-central-park",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location central park",
   "provenance": {
     "kind": "captured-adapted",
     "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",

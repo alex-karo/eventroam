@@ -1,5 +1,8 @@
 {
   "id": "narrow-current-partial-tickets",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check narrow current partial tickets",
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-current-regression",
@@ -135,58 +138,6 @@
         "editionKey": "2027",
         "field": "price_qualification"
       }
-    ],
-    "research": {
-      "status": "partial",
-      "facts": [
-        {
-          "editionKey": "2027",
-          "field": "tickets",
-          "value": {
-            "variants": {
-              "amount": 110,
-              "currency": "EUR"
-            },
-            "basePrice": {
-              "kind": "exact",
-              "currency": "EUR",
-              "minAmount": 110,
-              "maxAmount": 110,
-              "coverage": "full_programme"
-            }
-          }
-        }
-      ],
-      "absentFields": [
-        {
-          "field": "summary"
-        },
-        {
-          "field": "links.website"
-        },
-        {
-          "field": "links.socials.instagram"
-        },
-        {
-          "field": "links.socials.facebook"
-        },
-        {
-          "field": "links.socials.youtube"
-        },
-        {
-          "field": "links.socials.tiktok"
-        },
-        {
-          "field": "links.socials.x"
-        },
-        {
-          "field": "links.socials.other"
-        }
-      ],
-      "hasUnresolved": true,
-      "unresolvedEditionKeys": ["2027"],
-      "previousEdition": null,
-      "currentOrNextEdition": "2027"
-    }
+    ]
   }
 }

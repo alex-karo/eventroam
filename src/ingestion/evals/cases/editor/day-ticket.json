@@ -1,5 +1,8 @@
 {
   "id": "editor-day-ticket",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check editor day ticket",
   "input": {
     "mode": "refresh",
     "eventId": "event:87b1f34093d76b709011",

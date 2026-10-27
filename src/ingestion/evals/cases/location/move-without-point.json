@@ -1,5 +1,8 @@
 {
   "id": "location-move-without-point",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location move without point",
   "provenance": {
     "kind": "synthetic",
     "sourceReport": "openspec/changes/separate-location-resolution/design.md",

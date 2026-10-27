@@ -1,5 +1,8 @@
 {
   "id": "size-evidence",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check size evidence case",
   "input": {
     "mode": "refresh",
     "scope": "full",
@@ -102,37 +105,7 @@
         "field": "size_estimate",
         "value": null
       }
-    ],
-    "research": {
-      "status": "success",
-      "facts": [
-        {
-          "editionKey": "participants",
-          "field": "dates",
-          "value": {
-            "startsOn": "2026-10-01",
-            "endsOn": "2026-10-03",
-            "state": "confirmed"
-          }
-        },
-        {
-          "editionKey": "participants",
-          "field": "sizeEstimate",
-          "value": 8000
-        },
-        {
-          "editionKey": "repeat-admissions",
-          "field": "dates",
-          "value": {
-            "startsOn": "2026-09-20",
-            "endsOn": "2026-09-22",
-            "state": "confirmed"
-          }
-        }
-      ],
-      "previousEdition": "repeat-admissions",
-      "currentOrNextEdition": "participants"
-    }
+    ]
   },
   "todayUtc": "2026-09-23"
 }

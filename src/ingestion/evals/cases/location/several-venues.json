@@ -1,5 +1,8 @@
 {
   "id": "location-several-venues",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location several venues",
   "provenance": {
     "kind": "captured-adapted",
     "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",

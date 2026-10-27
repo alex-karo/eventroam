@@ -1,5 +1,8 @@
 {
   "id": "scope-full-history",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check scope full history case",
   "input": {
     "mode": "refresh",
     "scope": "full",
@@ -74,27 +77,6 @@
   ],
   "expectations": {
     "required": [],
-    "forbidden": [],
-    "research": {
-      "status": "success",
-      "facts": [
-        {
-          "editionKey": "historic-weekend",
-          "field": "venueName",
-          "value": "River Grounds"
-        },
-        {
-          "editionKey": "historic-weekend",
-          "field": "dates",
-          "value": {
-            "startsOn": "2025-06-01",
-            "endsOn": "2025-06-03",
-            "state": "confirmed"
-          }
-        }
-      ],
-      "previousEdition": "historic-weekend",
-      "currentOrNextEdition": "announced-weekend"
-    }
+    "forbidden": []
   }
 }

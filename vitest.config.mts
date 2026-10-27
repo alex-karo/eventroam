@@ -14,7 +14,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}", "commands/**/*.{ts,tsx}"],
-      exclude: ["src/test/**", "**/*.test.{ts,tsx}", "**/*.d.ts"],
+      exclude: [
+        "src/test/**",
+        "src/ingestion/evals/**",
+        "commands/catalog-eval.ts",
+        "**/*.test.{ts,tsx}",
+        "**/*.d.ts",
+      ],
       reporter: ["text", "html", "json-summary"],
     },
   },

@@ -1,5 +1,8 @@
 {
   "id": "narrow-current-stable",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check narrow current stable",
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-current-regression",
@@ -82,50 +85,6 @@
         "editionKey": "2027",
         "field": "terms"
       }
-    ],
-    "research": {
-      "status": "success",
-      "facts": [],
-      "absentFields": [
-        {
-          "field": "summary"
-        },
-        {
-          "field": "links.website"
-        },
-        {
-          "field": "links.socials.instagram"
-        },
-        {
-          "editionKey": "2027",
-          "field": "sizeEstimate"
-        },
-        {
-          "editionKey": "2027",
-          "field": "venueAddress"
-        },
-        {
-          "editionKey": "2027",
-          "field": "coordinates"
-        },
-        {
-          "field": "links.socials.facebook"
-        },
-        {
-          "field": "links.socials.youtube"
-        },
-        {
-          "field": "links.socials.tiktok"
-        },
-        {
-          "field": "links.socials.x"
-        },
-        {
-          "field": "links.socials.other"
-        }
-      ],
-      "previousEdition": null,
-      "currentOrNextEdition": "2027"
-    }
+    ]
   }
 }

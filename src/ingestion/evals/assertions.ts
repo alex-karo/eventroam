@@ -1,11 +1,30 @@
 import type { CatalogResearchResult } from "../contracts";
 import type { EvalAssertion, PipelineEvalCase } from "./fixtures";
+import { check } from "./checks";
 
 type EvalChange = CatalogResearchResult["changes"][number];
-export type AssertionResult = {
-  assertion: EvalAssertion;
-  matched: boolean;
-};
+
+export function checkAssertions(
+  expected: { required: EvalAssertion[]; forbidden: EvalAssertion[] },
+  matches: (assertion: EvalAssertion) => boolean,
+) {
+  return [
+    ...expected.required.map((assertion) =>
+      check(
+        describeAssertion(assertion),
+        matches(assertion),
+        "Missing required change",
+      ),
+    ),
+    ...expected.forbidden.map((assertion) =>
+      check(
+        describeAssertion(assertion),
+        !matches(assertion),
+        "Forbidden change",
+      ),
+    ),
+  ];
+}
 
 export function contains(actual: unknown, expected: unknown): boolean {
   if (Array.isArray(actual)) {
@@ -85,7 +104,7 @@ export function assertionMatches(
   });
 }
 
-export function describeAssertion(assertion: EvalAssertion): string {
+function describeAssertion(assertion: EvalAssertion): string {
   const edition = assertion.editionKey || assertion.editionYear;
   const editionSuffix = edition ? `/${edition}` : "";
   let description = `${assertion.owner}${editionSuffix}.${assertion.field}`;

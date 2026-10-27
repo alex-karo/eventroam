@@ -1,4 +1,8 @@
 {
+  "id": "editor-recovered-website",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check editor recovered website",
   "todayUtc": "2026-10-15",
   "provenance": {
     "kind": "captured-research-editor-regression",
@@ -82,13 +86,7 @@
         }
       }
     ],
-    "forbidden": [],
-    "research": {
-      "status": "success",
-      "previousEdition": null,
-      "currentOrNextEdition": "2027"
-    }
+    "forbidden": []
   },
-  "id": "editor-recovered-website",
   "researchHandoffFile": "recovered-website.research.json"
 }

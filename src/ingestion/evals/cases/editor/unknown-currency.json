@@ -1,5 +1,8 @@
 {
   "id": "editor-unknown-currency",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check editor unknown currency",
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "captured-research-editor-regression",
@@ -146,22 +149,7 @@
           }
         ]
       }
-    ],
-    "research": {
-      "status": "partial",
-      "hasUnresolved": true,
-      "facts": [
-        {
-          "editionKey": "2027",
-          "field": "tickets",
-          "value": {
-            "basePrice": null
-          }
-        }
-      ],
-      "previousEdition": null,
-      "currentOrNextEdition": "2027"
-    }
+    ]
   },
   "researchHandoffFile": "unknown-currency.research.json"
 }

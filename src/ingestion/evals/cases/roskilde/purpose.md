@@ -18,6 +18,8 @@ Log ind
 
 [Bliv frivillig](https://www.roskilde-festival.dk/bliv-frivillig)
 
+[Køb RF-merch](https://shop.roskilde-festival.dk/)
+
 [Camping](https://www.roskilde-festival.dk/camping)
 
 [Kontakt os](https://www.roskilde-festival.dk/kontakt)
@@ -78,7 +80,7 @@ Rising samler vores indsatser for nye kunstnere, ideer og fællesskaber, der peg
 
 **Rising blev lanceret i 2025 og er støttet af Tuborgfondet.**
 
-[Rising](https://www.roskilde-festival.dk/rising)
+[Læs mere om Rising](https://www.roskilde-festival.dk/rising)
 
 ## En festival skabt af fællesskab
 

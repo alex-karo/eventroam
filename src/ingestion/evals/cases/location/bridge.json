@@ -1,5 +1,8 @@
 {
   "id": "location-bridge",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location bridge",
   "provenance": {
     "kind": "captured-adapted",
     "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",

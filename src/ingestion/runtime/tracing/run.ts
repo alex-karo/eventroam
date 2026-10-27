@@ -41,6 +41,7 @@ export async function createCatalogRunTrace(
   protectedPaths: string[] = [],
   engineRunId?: string,
   sharedStore?: DuckDBStore,
+  experimentId?: string,
 ) {
   const tracing = await createRunObservability(
     input,
@@ -48,6 +49,7 @@ export async function createCatalogRunTrace(
     runId,
     protectedPaths,
     sharedStore,
+    experimentId,
   );
   if (!tracing) {
     return undefined;

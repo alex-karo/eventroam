@@ -8,7 +8,7 @@ Accessibility Options [Instagram](https://instagram.com/glastofest)[TikTok](http
 
 Search
 
-# [Glastonbury Festival 2025](https://www.glastonburyfestivals.co.uk/)
+# [Glastonbury Festival](https://www.glastonburyfestivals.co.uk/)
 
 [Navigation]
 
@@ -31,18 +31,13 @@ Search
 
 [View All News](https://www.glastonburyfestivals.co.uk/news/)
 
--   [GLASTONBURY 2027 TICKET INFORMATION CONFIRMED 08 September 2026](https://www.glastonburyfestivals.co.uk/news/glastonbury-2027-ticket-information-confirmed/)
--   [Glastonbury’s support for charities and good causes reaches £4.2m in 2025 12 December 2025](https://www.glastonburyfestivals.co.uk/news/glastonburys-support-for-charities-and-good-causes-reaches-4-2m-in-2025/)
+-   [Sheelagh Allen 1947-2026 06 October 2026](https://www.glastonburyfestivals.co.uk/news/sheelagh-allen-1947-2026/)
 -   [“It’s all been a long story of excitement”: Michael Eavis turns 90 17 October 2025](https://www.glastonburyfestivals.co.uk/news/its-all-been-a-long-story-of-excitement-michael-eavis-turns-90/)
--   [WIN GLASTONBURY FESTIVAL 2027 TICKETS IN OUR PRIZE DRAW 25 September 2025](https://www.glastonburyfestivals.co.uk/news/win-glastonbury-festival-2027-tickets-in-our-prize-draw/)
 -   [Pilton Party 2025 in photos 07 September 2025](https://www.glastonburyfestivals.co.uk/news/pilton-party-2025-in-photos/)
 -   [Photos from the 2025 Glastonbury Abbey Extravaganza 11 August 2025](https://www.glastonburyfestivals.co.uk/news/photos-from-the-2025-glastonbury-abbey-extravaganza/)
 -   [Raye and Inhaler ​to play Pilton Party 2025 24 July 2025](https://www.glastonburyfestivals.co.uk/news/raye-and-inhaler-to-play-pilton-party-2025/)
--   [Heat advice for Monday departures 29 June 2025](https://www.glastonburyfestivals.co.uk/news/heat-advice-for-monday-departures/)
--   [Live updates from Glastonbury 2025 29 June 2025](https://www.glastonburyfestivals.co.uk/news/live-updates/)
--   [Sunday in pictures 29 June 2025](https://www.glastonburyfestivals.co.uk/news/sunday-in-pictures-10/)
--   [Sunday crowds update 29 June 2025](https://www.glastonburyfestivals.co.uk/news/sunday-crowds-update/)
--   [Read the wonderful poems of our poet-in-residence, John Berkavitch 29 June 2025](https://www.glastonburyfestivals.co.uk/news/introducing-2025s-poet-in-residence-john-berkavitch/)
+
+[Festival information](https://www.glastonburyfestivals.co.uk/info/) · [Tickets](https://www.glastonburyfestivals.co.uk/info/#tickets)
 
 [/Main content]
 
@@ -158,7 +153,7 @@ Some pages include embeds from [Twitter](https://help.twitter.com/en/rules-and-p
 
 ## Structured data
 
-- @graph: @type: WebPage · name: Home - Glastonbury Festivals · description: Glastonbury Festival - Wed 25th Jun - Sun 29th Jun 2025 · url: https://www.glastonburyfestivals.co.uk/
+- @graph: @type: WebPage · name: Home - Glastonbury Festivals · description: Glastonbury Festival official website · url: https://www.glastonburyfestivals.co.uk/
 
 - @graph: @type: BreadcrumbList
 

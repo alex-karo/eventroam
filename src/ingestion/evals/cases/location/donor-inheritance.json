@@ -1,5 +1,8 @@
 {
   "id": "location-donor-inheritance",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location donor inheritance",
   "provenance": {
     "kind": "synthetic",
     "sourceReport": "openspec/changes/separate-location-resolution/design.md",

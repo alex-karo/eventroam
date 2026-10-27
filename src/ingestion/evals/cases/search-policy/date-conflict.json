@@ -1,4 +1,8 @@
 {
+  "id": "search-date-conflict",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check search policy date conflict",
   "todayUtc": "2026-10-15",
   "provenance": {
     "kind": "synthetic-search-policy",
@@ -65,21 +69,6 @@
   "expectations": {
     "required": [],
     "forbidden": [],
-    "research": {
-      "status": "success",
-      "facts": [
-        {
-          "editionKey": "2027",
-          "field": "dates",
-          "value": {
-            "startsOn": "2027-01-23",
-            "endsOn": "2027-01-30"
-          }
-        }
-      ],
-      "previousEdition": null,
-      "currentOrNextEdition": "2027"
-    },
     "toolUse": {
       "minSearches": 1,
       "maxSearches": 1,
@@ -91,7 +80,6 @@
       ]
     }
   },
-  "id": "search-date-conflict",
   "discoveries": [
     {
       "queryPattern": ".*",

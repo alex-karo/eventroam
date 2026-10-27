@@ -29,7 +29,7 @@ Open
 -   [Best moments](https://szigetfestival.com/en/gallery)
 -   [Sziget TV](https://szigetfestival.com/en/stream)
 
-[Login](https://szigetfestival.com/en/account/)
+[Login](https://szigetfestival.com/en/account)
 
 -   en
     
@@ -51,8 +51,6 @@ Open
 [Local travel to Sziget](https://szigetfestival.com/en/travel/local-travel-to-sziget)
 
 ### Choose from our departure locations
-
-CHOOSE WHERE YOU COME FROM General Austria Croatia France Germany Italy Netherlands Romania Slovakia Slovenia
 
 **Sziget Festival takes place on Óbuda Island, right in the heart of Budapest.**  
 The official address is: [_Május 9. park, Budapest, Hungary, 1033._](https://maps.app.goo.gl/chG26FXpJ9WkJwGw8)

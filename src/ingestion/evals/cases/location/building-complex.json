@@ -1,5 +1,8 @@
 {
   "id": "location-building-complex",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location building complex",
   "provenance": {
     "kind": "captured-adapted",
     "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",

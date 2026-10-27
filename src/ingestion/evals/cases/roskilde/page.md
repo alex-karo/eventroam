@@ -18,6 +18,8 @@ Log ind
 
 [Bliv frivillig](https://www.roskilde-festival.dk/bliv-frivillig)
 
+[Køb RF-merch](https://shop.roskilde-festival.dk/)
+
 [Camping](https://www.roskilde-festival.dk/camping)
 
 [Kontakt os](https://www.roskilde-festival.dk/kontakt)
@@ -28,9 +30,9 @@ Log ind
 
 [Main content]
 
-# Billetsalget til RF27 er i gang
+# Billetsalget er i gang!
 
-Vælg din billet og gør dig klar til musik, fællesskab og otte festivaldage på en uafhængig og non-profit festival.
+Vælg mellem partoutbillet, endagsbillet og todagesbillet – eller Smart Ticket med fem rater á 524 kr.
 
 [Køb billet her](https://www.roskilde-festival.dk/billetter)
 
@@ -38,23 +40,15 @@ SCROLL NED
 
 ## Seneste nyt
 
+[22.10.2026 Festivalen Smart Ticket er tilbage – nu med 5 raterReservér en partoutbillet til RF27 og indbetal billetprisen i 5 rater á 524 kr. Du kan vælge Smart Ticket til og med 26. november.](https://www.roskilde-festival.dk/nyheder/smart-ticket-er-tilbage)
+
+[Kristian Gade 08.10.2026 Året rundt Nyt turnéformat styrker nye stemmerMed RoFH x Rising Tour kan du opleve nye stemmer i dansk musik på landevejen, mens elever fra Roskilde Festival Højskole prøver kræfter med arbejdet bag koncerterne.](https://www.roskilde-festival.dk/nyheder/nyt-turneformat-styrker-nye-stemmer)
+
 [30.09.2026 Program RF27: De første 18 navne er klar!Tame Impala, Caroline Polachek, Kacey Musgraves, Underscores, Patti Smith Quartet og 13 andre navne er klar til næste sommer. Køb din billet nu.](https://www.roskilde-festival.dk/nyheder/rf27-de-foerste-18-navne-er-klar)
 
 [Emil Lyders 30.09.2026 Engagement Bliv frivillig på RF27Vil du på festival og samtidig gøre en kæmpe forskel? Så bliv frivillig med nye og gamle venner!](https://www.roskilde-festival.dk/nyheder/bliv-frivillig-paa-rf27)
 
-[Peter Troest 29.09.2026 Festivalen Køb billet til RF27 fra onsdagGør dig klar! Onsdag kl. 8.00 åbner billetsalget til Roskilde Festival 2027. Få styr på priser, datoer og billettyper her – og glæd dig til de første musiknavne senere på dagen.](https://www.roskilde-festival.dk/nyheder/goer-dig-klar-til-at-koebe-billet-til-rf27)
-
-[Emil Lyders 25.09.2026 Engagement Vi hylder festivalens helteMød nogle af de fantastiske frivillige, der altid går forrest og inspirerer alle andre til at følge med dem.](https://www.roskilde-festival.dk/nyheder/vi-hylder-festivalens-helte)
-
 [Se flere nyheder](https://www.roskilde-festival.dk/nyheder)
-
-## Oplev Headline Flip i Pumpehuset
-
-5\. november vender vi koncertformatet på hovedet med **Masiv**, **Ayla**, **Inga Bari** og **en hemmelig gæst**. Billetten koster kun 210 kr.
-
-Køb din billet nu og glæd dig til en aften fuld af overraskelser.
-
-[Køb billet her](https://ticket.roskilde-festival.dk/da/ekxtjekynuuae5p/products)
 
 Peter Troest
 
@@ -66,13 +60,29 @@ Få styr på, hvad non-profit, frivillighed og uafhængighed betyder.
 
 [Læs mere her](https://www.roskilde-festival.dk/festival-med-formaal)
 
+## Oplev Headline Flip i Pumpehuset
+
+**5\. november** vender vi koncertformatet på hovedet, når **Den Sorte Skole** varmer op for **Masiv**, **Ayla** og **Inga Bari**. Billetten koster kun 210 kr.
+
+Køb din billet nu og glæd dig til en aften fuld af overraskelser.
+
+[Køb billet her](https://ticket.roskilde-festival.dk/da/ekxtjekynuuae5p/products)
+
+Nicolai Hegelund
+
+## Kom i praktik hos Roskilde Festival
+
+Er du studerende og på udkig efter en **praktikplads** til **foråret 2027**?
+
+Hos Roskilde Festival Gruppen kan du få praktisk erfaring med blandt andet **kommunikation**, **sociale medier**, **marketing**, **grafisk produktion** og andre fagområder – tæt på både Roskilde Festival og vores arbejde året rundt.
+
+[Se alle praktikopslag](https://roskildefestivalgruppen.dk/kontakt/job-og-praktik)
+
 ## Tilmeld dig vores nyhedsbrev
 
 Fornavn\*
 
 Land\*
-
-\- select your country-AfghanistanÅland IslandsAlbaniaAlgeriaAmerican SamoaAndorrAAngolaAnguillaAntarcticaAntigua and BarbudaArgentinaArmeniaArubaAustraliaAustriaAzerbaijanBahamasBahrainBangladeshBarbadosBelarusBelgiumBelizeBeninBermudaBhutanBoliviaBosnia and HerzegovinaBotswanaBouvet IslandBrazilBritish Indian Ocean TerritoryBrunei DarussalamBulgariaBurkina FasoBurundiCambodiaCameroonCanadaCape VerdeCayman IslandsCentral African RepublicChadChileChinaChristmas IslandCocos (Keeling) IslandsColombiaComorosCongoCongo, The Democratic Republic of theCook IslandsCosta RicaCote D'IvoireCroatiaCubaCyprusCzech RepublicDenmarkDjiboutiDominicaDominican RepublicEcuadorEgyptEl SalvadorEquatorial GuineaEritreaEstoniaEthiopiaFalkland Islands (Malvinas)Faroe IslandsFijiFinlandFranceFrench GuianaFrench PolynesiaFrench Southern TerritoriesGabonGambiaGeorgiaGermanyGhanaGibraltarGreeceGreenlandGrenadaGuadeloupeGuamGuatemalaGuernseyGuineaGuinea-BissauGuyanaHaitiHeard Island and Mcdonald IslandsHoly See (Vatican City State)HondurasHong KongHungaryIcelandIndiaIndonesiaIran, Islamic Republic OfIraqIrelandIsle of ManIsraelItalyJamaicaJapanJerseyJordanKazakhstanKenyaKiribatiKorea, Democratic People'S Republic ofKorea, Republic ofKuwaitKyrgyzstanLao People'S Democratic RepublicLatviaLebanonLesothoLiberiaLibyan Arab JamahiriyaLiechtensteinLithuaniaLuxembourgMacaoMacedonia, The Former Yugoslav Republic ofMadagascarMalawiMalaysiaMaldivesMaliMaltaMarshall IslandsMartiniqueMauritaniaMauritiusMayotteMexicoMicronesia, Federated States ofMoldova, Republic ofMonacoMongoliaMontserratMoroccoMozambiqueMyanmarNamibiaNauruNepalNetherlandsNetherlands AntillesNew CaledoniaNew ZealandNicaraguaNigerNigeriaNiueNorfolk IslandNorthern Mariana IslandsNorwayOmanPakistanPalauPalestinian Territory, OccupiedPanamaPapua New GuineaParaguayPeruPhilippinesPitcairnPolandPortugalPuerto RicoQatarReunionRomaniaRussian FederationRWANDASaint HelenaSaint Kitts and NevisSaint LuciaSaint Pierre and MiquelonSaint Vincent and the GrenadinesSamoaSan MarinoSao Tome and PrincipeSaudi ArabiaSenegalSerbia and MontenegroSeychellesSierra LeoneSingaporeSlovakiaSloveniaSolomon IslandsSomaliaSouth AfricaSouth Georgia and the South Sandwich IslandsSpainSri LankaSudanSurinameSvalbard and Jan MayenSwazilandSwedenSwitzerlandSyrian Arab RepublicTaiwan, Province of ChinaTajikistanTanzania, United Republic ofThailandTimor-LesteTogoTokelauTongaTrinidad and TobagoTunisiaTurkeyTurkmenistanTurks and Caicos IslandsTuvaluUgandaUkraineUnited Arab EmiratesUnited KingdomUnited StatesUnited States Minor Outlying IslandsUruguayUzbekistanVanuatuVenezuelaViet NamVirgin Islands, BritishVirgin Islands, U.S.Wallis and FutunaWestern SaharaYemenZambiaZimbabwe
 
 E-mail\*
 

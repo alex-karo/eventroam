@@ -1,5 +1,8 @@
 {
   "id": "location-donor-correction",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location donor correction",
   "provenance": {
     "kind": "synthetic",
     "sourceReport": "openspec/changes/separate-location-resolution/design.md",

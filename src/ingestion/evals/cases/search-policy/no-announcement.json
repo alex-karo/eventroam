@@ -1,4 +1,8 @@
 {
+  "id": "search-no-announcement",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check search policy no announcement",
   "todayUtc": "2026-10-15",
   "provenance": {
     "kind": "synthetic-search-policy",
@@ -56,14 +60,8 @@
   "expectations": {
     "required": [],
     "forbidden": [],
-    "research": {
-      "status": "success",
-      "previousEdition": "2026",
-      "currentOrNextEdition": null
-    },
     "toolUse": {
       "maxSearches": 0
     }
-  },
-  "id": "search-no-announcement"
+  }
 }

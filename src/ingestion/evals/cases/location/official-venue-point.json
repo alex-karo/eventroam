@@ -1,5 +1,8 @@
 {
   "id": "location-official-venue-point",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location official venue point",
   "provenance": {
     "kind": "synthetic",
     "sourceReport": "openspec/changes/separate-location-resolution/design.md",

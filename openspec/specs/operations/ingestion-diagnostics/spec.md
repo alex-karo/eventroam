@@ -190,13 +190,13 @@ Location evaluation SHALL report missing-point completion, known-error correctio
 
 ### Requirement: Location evaluation uses captured geocoding
 
-Isolated Location evaluation SHALL use real preparation and execution with captured, normalized forward and reverse geocoding-client results, without live fallback. An unmatched initial or agent request SHALL return bounded fixture_miss and fail its case even after a valid plan. The artifact SHALL retain available output, observations, actual tool calls, errors, scores, and valid siblings without a fabricated ingestion report. The command SHALL save it before exiting nonzero for failed cases.
+Isolated Location evaluation SHALL use real preparation and execution with captured, normalized forward and reverse geocoding-client results, without live fallback. An unmatched initial or agent request SHALL return bounded fixture_miss and fail its case even after a valid plan. Saved Mastra experiment items SHALL retain available output, observations, actual tool calls, errors, scores, and valid siblings without a fabricated ingestion report. The command SHALL exit nonzero for failed cases. Experiment storage failures SHALL use native Mastra behavior without custom recovery or post-run storage checks.
 
 #### Scenario: An initial reverse fixture is missing
 
 - **WHEN** initial preparation requests a reverse response absent from the fixture
 - **THEN** the case retains a fixture_miss observation and fails without a live request
-- **AND** available later Location output and valid sibling results remain in the saved artifact
+- **AND** available later Location output and valid sibling results remain in saved Mastra experiment items
 
 #### Scenario: The agent requests an uncaptured spelling
 
@@ -210,7 +210,7 @@ Isolated Location evaluation SHALL use real preparation and execution with captu
 
 ### Requirement: Evaluation artifacts separate reports from execution errors
 
-A completed ingestion workflow evaluation SHALL retain one real ingestion report per available task output, without flat report copies. Execution errors and scorer results SHALL remain separate. The artifact SHALL preserve case identity, repetition, provenance, assertion details, tool calls, and valid sibling results. The command SHALL exit nonzero for task or scorer errors, missing required scores, or failed cases. Saved errors SHALL follow the existing bounded safe-error rules.
+A completed ingestion workflow evaluation SHALL retain one real ingestion report per available task output, without flat report copies. Execution errors and scorer results SHALL remain separate. Saved Mastra experiment items SHALL preserve case identity, repetition, provenance, assertion details, tool calls, and valid sibling results without a separate eval JSON file. The command SHALL exit nonzero for task or scorer errors, missing required scores, or failed cases. Saved errors SHALL follow the existing bounded safe-error rules. Experiment storage failures SHALL use native Mastra behavior; complete persistence and a failed CLI exit are not guaranteed for that exceptional case.
 
 #### Scenario: The workflow returns a failed report
 
@@ -227,13 +227,13 @@ A completed ingestion workflow evaluation SHALL retain one real ingestion report
 
 - **WHEN** an evaluation task throws without an available ingestion report
 - **THEN** the saved item has an execution error and no fabricated report
-- **AND** valid sibling results remain in the completed artifact and the command exits nonzero
+- **AND** valid sibling results remain in saved experiment items and the command exits nonzero
 
 #### Scenario: A scorer fails
 
 - **WHEN** a scorer fails or a required score is absent
-- **THEN** the completed artifact retains available task output and scores without substituting success
-- **AND** the command exits nonzero after writing the artifact
+- **THEN** the experiment retains available task output and scores without substituting success
+- **AND** the command exits nonzero after the experiment completes
 
 ### Requirement: New executions share saved workflow history
 

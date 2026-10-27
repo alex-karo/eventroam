@@ -1,5 +1,8 @@
 {
   "id": "location-target-before-donor",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check location target before donor",
   "provenance": {
     "kind": "synthetic",
     "sourceReport": "openspec/changes/separate-location-resolution/design.md",

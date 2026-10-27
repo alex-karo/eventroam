@@ -1,5 +1,8 @@
 {
   "id": "editor-wrong-year",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check editor wrong year",
   "input": {
     "mode": "refresh",
     "eventId": "event:792d44feb71838d4b28b",

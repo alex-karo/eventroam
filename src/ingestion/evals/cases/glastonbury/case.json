@@ -1,5 +1,8 @@
 {
   "id": "glastonbury",
+  "suite": "main",
+  "origin": "synthetic",
+  "task": "verify",
   "input": {
     "mode": "refresh",
     "eventId": "event:2d90837f6b8f1217f50c",
@@ -39,51 +42,136 @@
     {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/",
-      "retrievedAt": "2026-10-03T16:33:58.662Z",
+      "retrievedAt": "2026-10-27T15:35:46.163Z",
       "method": "http",
       "outcome": "ok",
       "completeness": "full",
       "markdownFile": "page.md"
+    },
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/news/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/news/",
+      "retrievedAt": "2026-10-27T15:35:46.166Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "news.md"
+    },
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/info/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/info/",
+      "retrievedAt": "2026-10-27T15:35:46.166Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "info.md"
+    },
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/line-up/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/line-up/",
+      "retrievedAt": "2026-10-27T15:35:46.778Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "line-up.md"
+    },
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/history/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/history/",
+      "retrievedAt": "2026-10-27T15:35:46.778Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "history.md"
+    },
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/history/history-2025/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/history/history-2025/",
+      "retrievedAt": "2026-10-27T21:15:15.476Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "history-2025.md"
+    },
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/areas/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/areas/",
+      "retrievedAt": "2026-10-27T15:35:47.168Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "areas.md"
+    },
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/worthy-causes/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/worthy-causes/",
+      "retrievedAt": "2026-10-27T15:35:47.168Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "causes.md"
+    },
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/contact/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/contact/",
+      "retrievedAt": "2026-10-27T15:35:47.168Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "contact.md"
+    },
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/news/its-all-been-a-long-story-of-excitement-michael-eavis-turns-90/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/news/its-all-been-a-long-story-of-excitement-michael-eavis-turns-90/",
+      "retrievedAt": "2026-10-27T15:40:11.835Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "birthday.md"
+    },
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/news/pilton-party-2025-in-photos/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/news/pilton-party-2025-in-photos/",
+      "retrievedAt": "2026-10-27T15:40:11.838Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "pilton-party.md"
+    },
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/info/tickets/",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/",
+      "retrievedAt": "2026-10-27T15:35:46.777Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "page.md"
+    },
+    {
+      "attemptedUrl": "https://www.glastonburyfestivals.co.uk/info/#tickets",
+      "finalUrl": "https://www.glastonburyfestivals.co.uk/info/",
+      "retrievedAt": "2026-10-27T15:35:46.166Z",
+      "method": "http",
+      "outcome": "ok",
+      "completeness": "full",
+      "markdownFile": "info.md"
+    },
+    {
+      "attemptedUrl": "https://instagram.com/glastofest",
+      "finalUrl": "https://instagram.com/glastofest",
+      "retrievedAt": "2026-10-27T00:00:00.000Z",
+      "method": "social_stub",
+      "outcome": "unsupported",
+      "reason": "social_content_unsupported",
+      "completeness": "none",
+      "markdownFile": "instagram.md"
     }
   ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "event",
-        "field": "links",
-        "contains": {
-          "url": "https://www.glastonburyfestivals.co.uk/",
-          "kind": "official_site"
-        }
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "event",
-        "field": "publication_state",
-        "value": "published"
-      },
-      {
-        "owner": "edition",
-        "field": "publication_state",
-        "value": "published"
-      },
-      {
-        "owner": "event",
-        "field": "links",
-        "contains": {
-          "url": "https://glastonbury.seetickets.com/mailinglist/subscribe",
-          "kind": "ticketing"
-        }
-      },
-      {
-        "owner": "edition",
-        "field": "links",
-        "contains": {
-          "url": "https://glastonbury.seetickets.com/mailinglist/subscribe",
-          "kind": "ticketing"
-        }
-      }
-    ]
+  "expectations": {},
+  "todayUtc": "2026-10-27",
+  "provenance": {
+    "kind": "synthetic",
+    "sourceReport": "docs/development.md#main-fact-checks",
+    "note": "Owner-requested synthetic replay, adapted from official pages read on 2026-10-27 with the production HTTP reader and rendering disabled. Retain page regions, desktop and mobile menus, news publication dates, separate local events, contact links, charity content, newsletter, accessibility and cookie controls. Remove main-festival announcement, ticket-sale and prize-draw cards, past-programme text, and dated programme metadata; remove the year from the logo. Replace the Info announcement with a natural notice that next-festival details are not announced, and add general information under its section headings. Shorten and adapt charity content without a dated festival report. Archive navigation and the unedited official History 2025 page support a draft 2025 Edition with country GB and unknown dates. History 2025 was captured separately on 2026-10-27 through the production HTTP reader with rendering disabled. It states a GBP 378.50 ticket price and capacity 210,000; it does not give programme dates or participant attendance. Historical year, country and base price earn additional completeness credit. Capacity alone does not support sizeEstimate. Keep the observed tickets-path redirect and map the real Info Tickets anchor. Instagram uses the production social stub. Response times for adapted pages record the base capture, not an unedited response; History 2025 is an unedited capture. Preserve the saved 2027 Edition and draft Event; unrelated event dates and archive links do not confirm its programme."
   }
 }

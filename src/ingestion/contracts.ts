@@ -112,6 +112,8 @@ export type ResearchDependencies = {
   /** Injected workflow storage is owned by the caller. */
   workflowStorage?: WorkflowStorage;
   workflowDatabasePath?: string;
+  /** Link native observations to the eval experiment. */
+  experimentId?: string;
   config?: ResearchConfig;
   /** Protect the selected optional report destination from observability writes. */
   reportPath?: string;

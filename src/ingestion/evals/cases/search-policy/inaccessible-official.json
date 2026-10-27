@@ -1,4 +1,8 @@
 {
+  "id": "search-inaccessible-official",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check search policy inaccessible official",
   "todayUtc": "2026-10-15",
   "provenance": {
     "kind": "synthetic-search-policy",
@@ -66,11 +70,6 @@
   "expectations": {
     "required": [],
     "forbidden": [],
-    "research": {
-      "status": "success",
-      "previousEdition": null,
-      "currentOrNextEdition": "2027"
-    },
     "toolUse": {
       "minSearches": 1,
       "maxSearches": 1,
@@ -82,7 +81,6 @@
       ]
     }
   },
-  "id": "search-inaccessible-official",
   "discoveries": [
     {
       "queryPattern": ".*",
@@ -90,7 +88,7 @@
         {
           "url": "https://harborechofestival.co.uk/programme",
           "title": "Harbor Echo official programme",
-          "highlights": ["Castlewellan, 23\u201330 January 2027."]
+          "highlights": ["Castlewellan, 23–30 January 2027."]
         }
       ]
     }

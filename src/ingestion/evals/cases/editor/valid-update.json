@@ -1,5 +1,8 @@
 {
   "id": "editor-valid-update",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check editor valid update",
   "input": {
     "mode": "refresh",
     "eventId": "event:a22324dcf0078266ed4e",

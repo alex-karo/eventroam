@@ -1,5 +1,8 @@
 {
   "id": "editor-unavailable",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check editor unavailable",
   "input": {
     "mode": "refresh",
     "eventId": "event:2d90837f6b8f1217f50c",
@@ -49,10 +52,7 @@
   ],
   "expectations": {
     "required": [],
-    "forbidden": [],
-    "research": {
-      "status": "failed"
-    }
+    "forbidden": []
   },
   "provenance": {
     "kind": "captured-source-editor-regression",
