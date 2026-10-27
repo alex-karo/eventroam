@@ -80,7 +80,7 @@ test("real research/editor lifecycles retain native usage/cost and persist nativ
       ({ span }) => span.type === "model_generation" && span.entityId === agent,
     );
     expect(new Set(generations.map(({ type }) => type))).toEqual(
-      new Set(["span_started", "span_ended"]),
+      new Set(["span_started", "span_updated", "span_ended"]),
     );
     const ended = generations.find(({ type }) => type === "span_ended")!.span;
     expect(ended).toMatchObject({
