@@ -18,10 +18,6 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 - [Website routing and indexing defaults](proposals/website-routing-and-indexing.md) — unselected cross-scope and public-launch policies.
 - [Festival taxonomy vocabulary proposal](proposals/festival-taxonomy-vocabulary.md) — starter terms loaded by catalog migrations and assignment guidance.
 
-## Active change proposals
-
-- [Ingestion eval redesign](../openspec/changes/redesign-ingestion-evals/proposal.md) — implemented case groups, checks, scoring, and model comparison. The change awaits archive.
-
 ## Historical specifications
 
 - [Product foundation](archive/legacy-specs/000-product-foundation.md) — original first-release scope and acceptance text.

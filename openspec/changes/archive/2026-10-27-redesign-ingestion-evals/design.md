@@ -97,7 +97,7 @@ Use the same repeat count for every case in a comparison. Native means then give
 
 Show experiment/task duration separately from quality. Inspect tokens and cost through existing optional Mastra observability, using retained run/trace IDs. With `CATALOG_TRACING=true`, current tracing includes dry-run and injected-source evals. Keep Research, Editor, and Location distinguishable by their native agent IDs. Reuse existing flush and storage ownership; do not add another telemetry collector.
 
-Do not add token/cost fields, metric queries, or replacement totals to eval output or CLI summaries. Link the existing [metrics guide](../../../docs/ingestion-process.md#execution-metrics) from eval documentation. Missing metrics remain unknown, not zero. Native reported and estimated costs stay distinct; cache/reasoning token details are subsets, and model costs do not represent search or geocoding bills. Budget counters remain available for source/tool policy checks without tracing.
+Do not add token/cost fields, metric queries, or replacement totals to eval output or CLI summaries. Link the existing [metrics guide](../../../../docs/ingestion-process.md#execution-metrics) from eval documentation. Missing metrics remain unknown, not zero. Native reported and estimated costs stay distinct; cache/reasoning token details are subsets, and model costs do not represent search or geocoding bills. Budget counters remain available for source/tool policy checks without tracing.
 
 ### Model selection guidance
 

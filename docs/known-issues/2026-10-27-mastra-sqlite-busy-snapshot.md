@@ -8,7 +8,7 @@ tags: [evals, storage, mastra]
 
 # Mastra eval storage snapshot failure
 
-Observed on 2026-10-27 with `@mastra/core 1.74.0`, `@mastra/libsql 1.25.0`, and `@libsql/client 0.18.0`. Full test runs can fail in Mastra storage while isolated reruns pass. The editor-only integration test logged score writes that failed after five attempts, followed by a failure in `ExperimentsLibSQL.updateExperiment`. The error has primary code `SQLITE_BUSY`, extended code `SQLITE_BUSY_SNAPSHOT`, and numeric code 517. Scores can be missing even before the experiment update fails. See the [validation record](../../openspec/changes/redesign-ingestion-evals/tasks.md).
+Observed on 2026-10-27 with `@mastra/core 1.74.0`, `@mastra/libsql 1.25.0`, and `@libsql/client 0.18.0`. Full test runs can fail in Mastra storage while isolated reruns pass. The editor-only integration test logged score writes that failed after five attempts, followed by a failure in `ExperimentsLibSQL.updateExperiment`. The error has primary code `SQLITE_BUSY`, extended code `SQLITE_BUSY_SNAPSHOT`, and numeric code 517. Scores can be missing even before the experiment update fails. See the [validation record](../../openspec/changes/archive/2026-10-27-redesign-ingestion-evals/tasks.md).
 
 [SQLite defines this error](https://sqlite.org/isolation.html) as a write attempted from an old read snapshot after another connection commits. Waiting alone does not refresh that snapshot. This explains the error type; the connection or transaction that retains the snapshot in our run is not yet known.
 
