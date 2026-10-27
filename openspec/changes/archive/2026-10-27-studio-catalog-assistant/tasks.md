@@ -17,7 +17,7 @@
 
 ## 3. Studio conversation
 
-- [x] 3.1 Pin compatible memory and LibSQL packages and pass a dedicated LibSQLStore directly to Memory. Keep existing Mastra DuckDB storage and workflow injection without store composition. Verify Studio history operations use Memory storage, history survives restart, and shutdown releases both stores without changing catalog files.
+- [x] 3.1 Pin compatible memory and LibSQL packages and pass a dedicated LibSQLStore directly to Memory. Keep Memory outside the existing workflow and observability composite store, and preserve workflow injection. Verify Studio history operations use Memory storage, history survives restart, and shutdown releases all storage providers without changing catalog files.
 - [x] 3.2 Register the assistant with two createTool tools, input schemas, schema guidance, and the existing configured model. Use the supplied requestContext and abortSignal. Verify read-only requests, explicit apply intent, ambiguous targets, follow-up IDs, conversation separation, and untrusted report instructions with deterministic agent/tool fixtures. Use saved result fixtures to check ingestionRunId, preview/apply, partial research, missing evidence, persistence failure results, and truncated SQL interpretation. Do not recreate ingestion failure injection in chat tests.
 - [x] 3.3 Configure the chat storage path for local and production Studio. Verify studio:build and an image smoke check can query the catalog directly inside Studio and retain chat history on the existing volume.
 - [x] 3.4 Update development and project-structure documentation for the assistant, dependencies, storage, and commands. Run docs:check and retain inspection without model credentials.
