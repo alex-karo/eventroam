@@ -1,3 +1,4 @@
+import { createWorkflowStorage } from "../ingestion/runtime/workflow-storage";
 import { fixtureEditorForProvider } from "./ingestion";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -274,6 +275,7 @@ export async function runTraceFixture(
       { headers: { "x-private-header": TRACE_TRANSPORT } },
     );
   };
+  const workflowStorage = createWorkflowStorage({ path: ":memory:" });
   try {
     const result = await runCatalogResearch(
       {
@@ -287,6 +289,7 @@ export async function runTraceFixture(
       },
       {
         client,
+        workflowStorage,
         config,
         readPage: async (url, { budget }) => {
           if (scenario === "truncated" && !url.endsWith("/initial")) {
@@ -381,6 +384,7 @@ export async function runTraceFixture(
       effects,
     };
   } finally {
+    await workflowStorage.close();
     globalThis.fetch = original;
     client.close();
     rmSync(directory, { recursive: true, force: true });

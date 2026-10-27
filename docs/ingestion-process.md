@@ -29,23 +29,33 @@ Ingestion finds or refreshes festival facts in the catalog. An owner starts each
 
 Each festival attempt runs one Mastra workflow with eleven sequential steps:
 
-| Step                  | Responsibility                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------------- |
-| `initialize-run`      | Initialize native state after the shared start hook validates settings and creates the durable attempt. |
-| `load-context`        | Load saved Event facts, editions, links, and vocabulary.                                                |
-| `read-initial-source` | Create the shared source session and read its initial saved link when available.                        |
-| `research-festival`   | Run the research agent with the shared source session and budget.                                       |
-| `validate-research`   | Check findings, targets, scope and country before editing.                                              |
-| `edit-research`       | Run one tool-free editor to choose explicit actions.                                                    |
-| `validate-editor-plan` | Validate editor actions and targets without preparing writes.                                            |
-| `resolve-location` | Prepare shared geocoding, run Location, and prepare the combined item plan. |
-| `apply-catalog-item`  | Preview or atomically apply eligible operations; retain write failures for the report.                  |
-| `build-report`        | Combine three agent outputs, actual changes, source history, questions, and budget counters.             |
-| `finalize-run`        | Persist the private report, return the bounded summary and release owned resources.                     |
+| Step                   | Responsibility                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------- |
+| `initialize-run`       | Initialize native state after the shared start hook validates settings and creates the durable attempt. |
+| `load-context`         | Load saved Event facts, editions, links, and vocabulary.                                                |
+| `read-initial-source`  | Create the shared source session and read its initial saved link when available.                        |
+| `research-festival`    | Run the research agent with the shared source session and budget.                                       |
+| `validate-research`    | Check findings, targets, scope and country before editing.                                              |
+| `edit-research`        | Run one tool-free editor to choose explicit actions.                                                    |
+| `validate-editor-plan` | Validate editor actions and targets without preparing writes.                                           |
+| `resolve-location`     | Prepare shared geocoding, run Location, and prepare the combined item plan.                             |
+| `apply-catalog-item`   | Preview or atomically apply eligible operations; retain write failures for the report.                  |
+| `build-report`         | Combine three agent outputs, actual changes, source history, questions, and budget counters.            |
+| `finalize-run`         | Persist the private report, return the bounded summary and release owned resources.                     |
 
 CLI and Studio execute this same graph in their own Node process. Native Mastra workflow state accumulates research context, source-read metadata, model output, prepared changes, receipts and reports. Page Markdown stays in the in-memory source session for research and is excluded from workflow state and step outputs. Each step returns its own inspectable result; the server-owned attempt retains only budget, source session, connections, trace and terminal lifecycle. The application does not separately attach credentials, prompts or live resources to workflow data. Retained model responses can repeat prompt or public source text without filtering. The final step persists once; terminal hooks recover from their final state. Mastra discards state updates from throwing steps, so an interrupted phase finalizes its available local data before propagating a safe error. Cleanup waits for active work. Finalization failure remains visible without repeating research or writes.
 
-Workflow retries, snapshots and automatic restart are disabled. Per-step execution, resume, restart and time travel are unsupported. Start a fresh attempt against current catalog state after interruption.
+Intermediate native snapshots are required for CLI and Studio. Workflow retries and automatic restart are disabled. Per-step execution, resume, restart and time travel are unsupported. Start a fresh attempt against current catalog state after interruption.
+
+## Inspect saved runs
+
+In Studio, open Workflows → catalog-ingestion → Recent runs. The shared private workflow store retains new CLI and Studio previews and apply runs after process exit, independently of logs and traces. It retains input, step progress, results, and execution/ingestion IDs; inspection needs no catalog connection or model credentials. See [storage and cleanup](development.md#workflow-history).
+
+The UI can show which steps reached a saved result, research findings, editor and Location decisions, geocoding observations, prepared operations, and confirmed writes where saved. Workflow success, research status, editor status, Location status, catalog outcome, and report persistence status remain separate. Native success does not certify the other results. Token and cost totals require optional observability.
+
+The UI shows the last saved state and accumulated results, not every snapshot revision or unsaved work. A stopped process may leave `running`. A catalog commit can succeed before its snapshot fails; durable reports and audit records remain the authority for writes. A history failure stops work and gives a nonzero CLI result even when a completed report exists. Native `/start` acknowledges early and cannot return a later failure; calls that await execution receive it. Start a fresh attempt after interruption; do not replay an old ID.
+
+Saved state keeps current allowed model text and Location/geocoding results. Full source Markdown, credentials, prompts, provider transport data, raw exceptions, and separate request context are excluded. History covers the selected host and store only; previous reports receive no backfill.
 
 ## Start a run
 
