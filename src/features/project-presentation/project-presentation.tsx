@@ -230,6 +230,9 @@ export function ProjectPresentation({ festivalsHref }: Readonly<Props>) {
             </div>
           </section>
         </main>
+        <footer className="privacy-footer">
+          <a href="/privacy">Privacy policy</a>
+        </footer>
       </div>
     </div>
   );

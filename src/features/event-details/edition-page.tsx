@@ -111,6 +111,9 @@ export function EditionDetailsPage({
             token={token}
           />
         </section>
+        <footer className="privacy-footer">
+          <a href="/privacy">Privacy policy</a>
+        </footer>
       </main>
     </>
   );
