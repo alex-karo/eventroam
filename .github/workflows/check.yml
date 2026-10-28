@@ -17,24 +17,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
-          cache: npm
+          cache: pnpm
       - name: Verify runtime
         run: |
           test "$(node --version)" = "v26.11.1"
-          test "$(npm --version)" = "11.20.0"
-      - run: npm ci
-      - run: npm run type-check
-      - run: npm run lint
-      - run: npm run deps:check
-      - run: npm run format:check
-      - run: npm run docs:check
-      - run: npm run test:db-transfer
+          test "$(pnpm --version)" = "12.15.0"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run type-check
+      - run: pnpm run lint
+      - run: pnpm run deps:check
+      - run: pnpm run format:check
+      - run: pnpm run docs:check
+      - run: pnpm run test:db-transfer
       - name: Validate implemented OpenSpec specs
-        run: npm exec -- openspec validate --specs --strict
-      - run: npm run test:coverage
+        run: pnpm exec openspec validate --specs --strict
+      - run: pnpm run test:coverage
       - name: Coverage summary
         if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
         run: node scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
@@ -46,4 +47,4 @@ jobs:
           path: coverage/
           retention-days: 14
       - name: Build images and check Compose
-        run: npm run docker:smoke
+        run: pnpm run docker:smoke

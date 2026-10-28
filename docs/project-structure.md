@@ -8,7 +8,7 @@ tags: [architecture]
 
 # Eventroam project structure
 
-Eventroam is one npm package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. An owner-initiated Mastra research agent collects findings; a tool-free editor chooses non-location actions. A bounded Location agent resolves place fields before the same writer.
+Eventroam is one package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. An owner-initiated Mastra research agent collects findings; a tool-free editor chooses non-location actions. A bounded Location agent resolves place fields before the same writer.
 
 ```text
 Commands → research → editor → initial geocoding → Location → typed adapter → catalog writer → SQLite ← Next.js public reads

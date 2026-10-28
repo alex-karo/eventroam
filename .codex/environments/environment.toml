@@ -7,5 +7,6 @@ script = """
 set -e
 cd "$CODEX_WORKTREE_PATH"
 ln -s "$CODEX_SOURCE_TREE_PATH/.env" "$CODEX_WORKTREE_PATH/.env"
-npm ci
+test "$(pnpm --version)" = "12.15.0"
+pnpm install --frozen-lockfile
 """

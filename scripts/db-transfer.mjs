@@ -71,7 +71,7 @@ function options(args) {
 async function run(args, env = process.env) {
   const { direction, help, stopped, withMastra } = options(args);
   if (help) {
-    console.log(`Usage: npm run db:${direction} -- --local-stopped [--with-mastra]
+    console.log(`Usage: pnpm run db:${direction} --local-stopped [--with-mastra]
 Stop local web, Studio, and catalog commands first.
 Transfers the catalog. Add --with-mastra for workflow history, chats, and diagnostics.
 Each target backup is kept in its adjacent backups directory. All selected source files must exist.

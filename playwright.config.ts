@@ -5,7 +5,7 @@ if (
   process.env.DATABASE_PATH !== process.env.E2E_DATABASE_PATH
 ) {
   throw new Error(
-    "Run Playwright through npm run test:e2e to use a temporary fixture database.",
+    "Run Playwright through pnpm run test:e2e to use a temporary fixture database.",
   );
 }
 
@@ -28,7 +28,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1 --port 3137",
+    command: "pnpm run dev --hostname 127.0.0.1 --port 3137",
     url: "http://festivals.localhost:3137",
     reuseExistingServer: false,
     timeout: 120_000,

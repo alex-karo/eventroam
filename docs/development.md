@@ -12,19 +12,21 @@ Use this guide to start local work. Read only the task guide needed for your cha
 
 ## Local setup
 
-Use the Node.js and npm versions pinned in `.node-version` and `package.json`. From the repository root:
+Use the Node.js and pnpm versions pinned in `.node-version` and `package.json`. Install pnpm once with `npm install --global pnpm@12.15.0`. From the repository root:
 
 ```sh
-npm ci
-npm run db:fixtures
-npm run dev
+pnpm install --frozen-lockfile
+pnpm run db:fixtures
+pnpm run dev
 ```
 
 Open `http://localhost:3000` for the project presentation or `http://festivals.localhost:3000` for discovery. Fixtures create a migrated database at `./data/eventroam.sqlite` and add repeatable fictional records.
 
-Copy `.env.example` to `.env.local` for Next.js settings. A Mapbox token is optional locally; the list and filters work without one. Migration and fixture commands read the shell environment, not `.env.local`. For a custom database, run `DATABASE_PATH=./data/custom.sqlite npm run db:fixtures` and set the same path in `.env.local`. Catalog research, eval, and Studio commands load `.env`. Keep credentials in ignored local env files.
+Copy `.env.example` to `.env.local` for Next.js settings. A Mapbox token is optional locally; the list and filters work without one. Migration and fixture commands read the shell environment, not `.env.local`. For a custom database, run `DATABASE_PATH=./data/custom.sqlite pnpm run db:fixtures` and set the same path in `.env.local`. Catalog research, eval, and Studio commands load `.env`. Keep credentials in ignored local env files.
 
-Codex worktrees use `.codex/environments/environment.toml` to link the source checkout’s `.env` and run `npm ci` in the new worktree. The setup requires the pinned Node.js and npm versions to be available on `PATH`.
+Codex worktrees use `.codex/environments/environment.toml` to link the source checkout’s `.env` and run `pnpm install --frozen-lockfile` in the new worktree. The setup requires the pinned Node.js and pnpm versions to be available on `PATH`.
+
+Each worktree has its own dependency tree. pnpm shares package files through its content-addressable store. Keep `pnpm-workspace.yaml` with the lockfile; it lists the dependency build scripts allowed during installation.
 
 ## Analytics
 
@@ -35,14 +37,14 @@ See the [analytics guide](analytics.md) for PostHog settings, events, campaign l
 Run checks that apply to your change:
 
 ```sh
-npm run type-check
-npm run lint
-npm test
-npm run build
-npm run docs:check
+pnpm run type-check
+pnpm run lint
+pnpm test
+pnpm run build
+pnpm run docs:check
 ```
 
-Use `npm run format:check` for application formatting and `npm run openspec:validate` for OpenSpec edits. See [Testing](testing.md) for browser tests, coverage, fixtures, and CI differences. Follow the [change workflow](change-workflow.md) for behavior changes and review.
+Use `pnpm run format:check` for application formatting and `pnpm run openspec:validate` for OpenSpec edits. See [Testing](testing.md) for browser tests, coverage, fixtures, and CI differences. Follow the [change workflow](change-workflow.md) for behavior changes and review.
 
 ## Task guides
 

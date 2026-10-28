@@ -37,7 +37,10 @@ function run(command, args) {
 }
 
 try {
-  if (run("npm", ["run", "db:migrate"]) && run("npm", ["run", "db:fixtures"])) {
+  if (
+    run("pnpm", ["run", "db:migrate"]) &&
+    run("pnpm", ["run", "db:fixtures"])
+  ) {
     run(process.execPath, [
       "node_modules/@playwright/test/cli.js",
       "test",
