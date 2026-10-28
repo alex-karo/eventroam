@@ -1,3 +1,4 @@
+import type { PlanDiagnostics } from "./stage";
 import type { LocationExecution } from "./location/agent";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
@@ -10,7 +11,7 @@ import {
   type ResearchError,
   type ResearchQuestion,
 } from "./research/contracts";
-import type { PlanDiagnostics, ReadyCatalogPlan } from "./editor/prepare";
+import type { ReadyCatalogPlan } from "./editor/prepare";
 import { EDITOR_PROMPT_VERSION } from "./editor/contracts";
 import type { EditorExecution } from "./editor/agent";
 import type { ResearchExecution } from "./research/agent";

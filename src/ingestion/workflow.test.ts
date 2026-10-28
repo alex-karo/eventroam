@@ -21,6 +21,7 @@ import { testFixtures } from "@/test/fixtures";
 import { studioIngestionInputSchema } from "./workflow";
 import * as contextModule from "./research/context";
 import * as prepareModule from "./editor/prepare";
+import * as researchValidationModule from "./research/validate";
 import * as reportModule from "./report";
 import * as applyModule from "@/catalog/write/apply-operation";
 import * as runTraceModule from "./runtime/tracing";
@@ -1023,7 +1024,10 @@ test.each(["context", "preparation", "report"] as const)(
       );
     }
     if (stage === "preparation") {
-      vi.spyOn(prepareModule, "validateResearch").mockImplementationOnce(() => {
+      vi.spyOn(
+        researchValidationModule,
+        "validateResearch",
+      ).mockImplementationOnce(() => {
         throw secret;
       });
     }
@@ -1199,11 +1203,20 @@ test("the public runner accumulates research in native state without runtime res
       return loadContext(...args);
     },
   );
-  const prepare = prepareModule.validateResearch;
-  vi.spyOn(prepareModule, "validateResearch").mockImplementation((...args) => {
-    phases.push("validate-research");
-    return prepare(...args);
-  });
+  const prepare = researchValidationModule.validateResearch;
+  vi.spyOn(researchValidationModule, "validateResearch").mockImplementation(
+    (...args) => {
+      phases.push("validate-research");
+      return prepare(...args);
+    },
+  );
+  const prepareCatalog = prepareModule.prepareCatalogPlan;
+  vi.spyOn(prepareModule, "prepareCatalogPlan").mockImplementation(
+    (...args) => {
+      phases.push("prepare-catalog-plan");
+      return prepareCatalog(...args);
+    },
+  );
   const apply = applyModule.applyCatalogItem;
   vi.spyOn(applyModule, "applyCatalogItem").mockImplementation((...args) => {
     phases.push("apply-catalog-item");
@@ -1262,6 +1275,7 @@ test("the public runner accumulates research in native state without runtime res
     "edit-research",
     "validate-editor-plan",
     "resolve-location",
+    "prepare-catalog-plan",
     "apply-catalog-item",
     "build-report",
     "finalize-run",
@@ -1271,6 +1285,7 @@ test("the public runner accumulates research in native state without runtime res
     "read-initial-source",
     "research-festival",
     "validate-research",
+    "prepare-catalog-plan",
     "apply-catalog-item",
     "build-report",
   ]);
@@ -1291,6 +1306,11 @@ test("the public runner accumulates research in native state without runtime res
   });
   expect(stepOutput("research-festival")).not.toHaveProperty("prepared");
   expect(stepOutput("resolve-location")).toHaveProperty("status", "success");
+  expect(stepOutput("resolve-location")).not.toHaveProperty("operations");
+  expect(stepOutput("prepare-catalog-plan")).toMatchObject({
+    status: "continue",
+    value: { operations: result.operations },
+  });
   expect(stepOutput("apply-catalog-item")).toHaveProperty("applied");
   expect(stepOutput("build-report")).toMatchObject({ outcome: "published" });
   expect(engineResult.state.data).toMatchObject({
@@ -1930,6 +1950,7 @@ test.each([
 ])(
   "Location $name preserves successful Research and stops all writes",
   async ({ decision, status, error }) => {
+    const prepare = vi.spyOn(prepareModule, "prepareCatalogPlan");
     const { client, termIds } = fixture();
     const result = await runCatalogResearch(
       { ...input, dryRun: false },
@@ -1940,6 +1961,7 @@ test.each([
       },
     );
     expect(result.researchStatus).toBe("success");
+    expect(prepare).not.toHaveBeenCalled();
     expect(result.locationStatus).toBe(status);
     expect(result.locationResponse?.object).toEqual({ decision });
     expect(result.errors).toContainEqual({ ...error, stage: "location" });

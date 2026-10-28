@@ -1,3 +1,5 @@
+import { validateResearch } from "./research/validate";
+import { stageDiagnostics } from "./stage";
 import { locationExecutionSchema } from "./location/execution";
 import { resolveLocation } from "./location/agent";
 import { buildLocationInput } from "./location/input";
@@ -33,14 +35,9 @@ import type {
 } from "./tools/read-page/contracts";
 import { readInitialWithTrace } from "./runtime/tracing";
 import { researchFestival } from "./research/agent";
-import {
-  prepareEditorPlan,
-  prepareCatalogPlan,
-  validateResearch,
-} from "./editor/prepare";
+import { prepareEditorPlan, prepareCatalogPlan } from "./editor/prepare";
 import { editResearch } from "./editor/agent";
 import { readyCatalogPlan, catalogWriteOutcome } from "./pipeline";
-import { stageDiagnostics } from "./editor/prepare";
 import { buildResearchReport } from "./report";
 import {
   logPreparation,
@@ -515,11 +512,6 @@ export function createCatalogIngestionWorkflow(
       const hasTargets =
         prepared.editorPlan.previousEdition ||
         prepared.editorPlan.currentOrNextEdition;
-      let materialized = {
-        slots: {},
-        donors: [],
-        unresolved: [],
-      } as NonNullable<IngestionData["location"]["materialized"]>;
       if (hasTargets) {
         const locationInput = buildLocationInput(
           prepared.editorPlan,
@@ -542,8 +534,32 @@ export function createCatalogIngestionWorkflow(
           data.outcome = "failed";
           return data.location;
         }
-        materialized = data.location.materialized;
       }
+      return data.location;
+    },
+  );
+  const prepareOperations = phase(
+    "prepare-catalog-plan",
+    "Prepare catalog operations from accepted Editor and Location results",
+    (owned, data) => {
+      if (data.editorValidation?.status !== "continue") {
+        return null;
+      }
+      const prepared = data.editorValidation.value;
+      const hasTargets =
+        prepared.editorPlan.previousEdition ||
+        prepared.editorPlan.currentOrNextEdition;
+      if (
+        hasTargets &&
+        (data.location.status !== "success" || !data.location.materialized)
+      ) {
+        return null;
+      }
+      const materialized = data.location.materialized ?? {
+        slots: {},
+        donors: [],
+        unresolved: [],
+      };
       data.catalogPreparation = prepareCatalogPlan(
         prepared,
         data.context!.catalog,
@@ -563,7 +579,7 @@ export function createCatalogIngestionWorkflow(
         data.catalogPreparation,
         prepared.candidate,
       );
-      return data.location;
+      return data.catalogPreparation;
     },
   );
   const apply = phase(
@@ -758,6 +774,7 @@ export function createCatalogIngestionWorkflow(
     .then(edit)
     .then(prepare)
     .then(location)
+    .then(prepareOperations)
     .then(apply)
     .then(buildReport)
     .then(finalize)

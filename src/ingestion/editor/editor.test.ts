@@ -1,3 +1,4 @@
+import { validateResearch } from "../research/validate";
 import { continueStage, inspectPreparation } from "@/test/ingestion";
 import { generateFixtureLocation, fixtureLocationPlan } from "@/test/ingestion";
 import {
@@ -94,11 +95,7 @@ test("ready output requires both Edition slots and rejects old arrays", () => {
     false,
   );
 });
-import {
-  prepareEditorPlan,
-  prepareCatalogPlan,
-  validateResearch,
-} from "./prepare";
+import { prepareEditorPlan, prepareCatalogPlan } from "./prepare";
 import { runCatalogResearch } from "../workflow";
 import { DEFAULT_RESEARCH_LIMITS } from "../runtime/budget";
 import {

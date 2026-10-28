@@ -76,7 +76,7 @@ ESLint enforces these import boundaries. The writer runs without Next.js. Avoid 
 
 ## Ingestion ownership
 
-Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `editor/agent.ts` → `location/agent.ts` → `editor/prepare.ts` → catalog writer → `report.ts`. Use `pipeline.ts` for stage diagnostics and write outcomes, and `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) explains the eleven steps and their observable behavior.
+Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `research/validate.ts` → `editor/agent.ts` → `location/agent.ts` → `editor/prepare.ts` → catalog writer → `report.ts`. Research owns `research/validate.ts`. Location resolution and catalog operation preparation run as separate workflow steps. Use `stage.ts` for shared stage results and diagnostics, `pipeline.ts` for report projections and write outcomes, and `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) explains the twelve steps and their observable behavior.
 
 Paths below are relative to `src/ingestion/` unless stated otherwise. Read code for internal algorithms and current limits.
 

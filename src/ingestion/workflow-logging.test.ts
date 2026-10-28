@@ -1,6 +1,7 @@
+import { validateResearch } from "./research/validate";
 import { expect, test, vi } from "vitest";
 import { logPreparation } from "./workflow-logging";
-import { prepareEditorPlan, validateResearch } from "./editor/prepare";
+import { prepareEditorPlan } from "./editor/prepare";
 import type { CatalogResearchInput } from "./contracts";
 
 const input: CatalogResearchInput = {

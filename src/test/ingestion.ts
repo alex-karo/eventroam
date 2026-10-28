@@ -1,3 +1,7 @@
+import { validateResearch } from "@/ingestion/research/validate";
+import { stageDiagnostics } from "@/ingestion/stage";
+import type { StageResult } from "@/ingestion/stage";
+import type { CheckedResearch } from "@/ingestion/research/validate";
 import { Mastra } from "@mastra/core/mastra";
 import { createWorkflowStorage } from "@/ingestion/runtime/workflow-storage";
 import { trackFixtureWorkflowStore } from "./workflow-stores";
@@ -12,12 +16,8 @@ import type {
 } from "@/ingestion/research/contracts";
 import type { ResearchCatalog } from "@/ingestion/research/context";
 import {
-  validateResearch,
   prepareEditorPlan,
   prepareCatalogPlan,
-  stageDiagnostics,
-  type StageResult,
-  type CheckedResearch,
   type AcceptedEditorPlan,
   type ReadyCatalogPlan,
 } from "@/ingestion/editor/prepare";

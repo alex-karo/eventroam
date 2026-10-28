@@ -43,6 +43,7 @@ test("graph inspection is lazy and execution never creates a missing catalog", a
     "edit-research",
     "validate-editor-plan",
     "resolve-location",
+    "prepare-catalog-plan",
     "apply-catalog-item",
     "build-report",
     "finalize-run",

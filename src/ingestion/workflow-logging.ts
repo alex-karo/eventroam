@@ -1,16 +1,15 @@
+import type { CheckedResearch } from "./research/validate";
+import {
+  stageDiagnostics,
+  type PlanDiagnostics,
+  type StageResult,
+} from "./stage";
 import { editionSlotNames } from "./research/contracts";
 import { shrinkText, type ResearchLogger } from "./runtime/logging";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
-import type {
-  CheckedResearch,
-  PlanDiagnostics,
-  StageResult,
-  AcceptedEditorPlan,
-  ReadyCatalogPlan,
-} from "./editor/prepare";
-import { stageDiagnostics } from "./editor/prepare";
+import type { AcceptedEditorPlan, ReadyCatalogPlan } from "./editor/prepare";
 
 export function logPreparation(
   log: ResearchLogger | undefined,

@@ -1,3 +1,5 @@
+import type { CheckedResearch } from "./research/validate";
+import type { StageResult } from "./stage";
 import {
   emptyLocationExecution,
   type LocationExecution,
@@ -7,12 +9,7 @@ import type { GeocodingClient } from "./tools/geocode/contracts";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { ResearchContext } from "./research/context";
 import type { ResearchExecution } from "./research/agent";
-import type {
-  CheckedResearch,
-  AcceptedEditorPlan,
-  ReadyCatalogPlan,
-  StageResult,
-} from "./editor/prepare";
+import type { AcceptedEditorPlan, ReadyCatalogPlan } from "./editor/prepare";
 import { emptyEditorExecution, type EditorExecution } from "./editor/agent";
 import type Database from "better-sqlite3";
 import type { DuckDBStore } from "@mastra/duckdb";
