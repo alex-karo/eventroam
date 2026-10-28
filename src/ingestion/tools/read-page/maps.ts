@@ -125,7 +125,10 @@ export function extractMapReferences(
 
 // Escape source text so map labels cannot create Markdown structure.
 export function mapText(value: string): string {
-  return text(load(value, {}, false).text()).replace(/[\\`*_[\]<>#]/g, "\\$&");
+  const $ = load(value, {}, false);
+  $("br").replaceWith(" ");
+  $("p, div, li, h1, h2, h3, h4, h5, h6, tr, td, th").append(" ");
+  return text($.text()).replace(/[\\`*_[\]<>#]/g, "\\$&");
 }
 
 export function referenceMarkdown(ref: MapReference): string {

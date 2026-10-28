@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import portamerica from "./fixtures/portamerica.json";
 import handpicked from "./fixtures/handpicked.json";
 import mountain from "./fixtures/mountain-music.json";
-import { mapReference } from "./maps";
+import { mapReference, mapText } from "./maps";
 import { myMapMarkdown, parseMyMap } from "./my-maps";
 
 const html = (data: unknown) =>
@@ -13,10 +13,21 @@ test("recorded maps retain labels, layers, points and years", () => {
   expect(port).toContain("PortAmérica");
   expect(port).toContain("-8.6557329");
   expect(port).toContain("42.5906854");
-  const mm = myMapMarkdown(parseMyMap(html(mountain.pageData)));
+  const mountainMap = parseMyMap(html(mountain.pageData));
+  expect(mountainMap.layers[0].points).toEqual([
+    {
+      name: "Venue: Buchanan Park",
+      coordinates: [39.6858145, -105.3640047],
+      description: "The festival grounds will cover Buchanan Park.",
+    },
+    {
+      name: "Parking: Hwy 66/103 | Squaw Pass Road",
+      coordinates: [39.6853228, -105.3665267],
+      description: expect.stringContaining("Walking distance: 0.2 mi+"),
+    },
+  ]);
+  const mm = myMapMarkdown(mountainMap);
   expect(mm).toContain("2024");
-  expect(mm).toContain("Venue: Buchanan Park");
-  expect(mm).toContain("39.6858145");
   expect(mm).toContain("Venue and Parking");
   const hp = myMapMarkdown(parseMyMap(html(handpicked.pageData)));
   for (const label of [
@@ -30,6 +41,13 @@ test("recorded maps retain labels, layers, points and years", () => {
   expect(hp).toContain("Lines and polygons were skipped");
   expect(hp).not.toContain("-35.319740264541245");
   expect(hp).not.toContain("Festival Site · latitude");
+});
+
+test.each([
+  "Venue: Field<br>Year: 2026",
+  "<p>Venue: Field</p><p>Year: 2026</p>",
+])("map text keeps word boundaries in HTML descriptions", (description) => {
+  expect(mapText(description)).toBe("Venue: Field Year: 2026");
 });
 
 test("full records decide geometry and repeated IDs do not repeat a point", () => {
