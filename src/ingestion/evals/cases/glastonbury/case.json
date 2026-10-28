@@ -44,8 +44,7 @@
       "finalUrl": "https://www.glastonburyfestivals.co.uk/",
       "retrievedAt": "2026-10-27T15:35:46.163Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "page.md"
     },
     {
@@ -53,118 +52,105 @@
       "finalUrl": "https://www.glastonburyfestivals.co.uk/news/",
       "retrievedAt": "2026-10-27T15:35:46.166Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "news.md"
+      "markdownFile": "news.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/info/",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/info/",
       "retrievedAt": "2026-10-27T15:35:46.166Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "info.md"
+      "markdownFile": "info.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/line-up/",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/line-up/",
       "retrievedAt": "2026-10-27T15:35:46.778Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "line-up.md"
+      "markdownFile": "line-up.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/history/",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/history/",
       "retrievedAt": "2026-10-27T15:35:46.778Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "history.md"
+      "markdownFile": "history.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/history/history-2025/",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/history/history-2025/",
       "retrievedAt": "2026-10-27T21:15:15.476Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "history-2025.md"
+      "markdownFile": "history-2025.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/areas/",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/areas/",
       "retrievedAt": "2026-10-27T15:35:47.168Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "areas.md"
+      "markdownFile": "areas.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/worthy-causes/",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/worthy-causes/",
       "retrievedAt": "2026-10-27T15:35:47.168Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "causes.md"
+      "markdownFile": "causes.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/contact/",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/contact/",
       "retrievedAt": "2026-10-27T15:35:47.168Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "contact.md"
+      "markdownFile": "contact.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/news/its-all-been-a-long-story-of-excitement-michael-eavis-turns-90/",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/news/its-all-been-a-long-story-of-excitement-michael-eavis-turns-90/",
       "retrievedAt": "2026-10-27T15:40:11.835Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "birthday.md"
+      "markdownFile": "birthday.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/news/pilton-party-2025-in-photos/",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/news/pilton-party-2025-in-photos/",
       "retrievedAt": "2026-10-27T15:40:11.838Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "pilton-party.md"
+      "markdownFile": "pilton-party.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/info/tickets/",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/",
       "retrievedAt": "2026-10-27T15:35:46.777Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "page.md"
+      "markdownFile": "page.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.glastonburyfestivals.co.uk/info/#tickets",
       "finalUrl": "https://www.glastonburyfestivals.co.uk/info/",
       "retrievedAt": "2026-10-27T15:35:46.166Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "info.md"
+      "markdownFile": "info.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://instagram.com/glastofest",
       "finalUrl": "https://instagram.com/glastofest",
       "retrievedAt": "2026-10-27T00:00:00.000Z",
       "method": "social_stub",
-      "outcome": "unsupported",
-      "reason": "social_content_unsupported",
-      "completeness": "none",
-      "markdownFile": "instagram.md"
+      "markdownFile": "instagram.md",
+      "status": "unsupported",
+      "reasonCode": "social_content_unsupported"
     }
   ],
   "expectations": {},

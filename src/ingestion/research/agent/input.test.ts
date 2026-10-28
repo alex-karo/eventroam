@@ -9,6 +9,9 @@ import { readResearchCatalog } from "@/catalog/read/research";
 import { createResearchBudget } from "../../runtime/budget";
 import type { ReadPageResult } from "../../tools/read-page/contracts";
 import { modelContext, promptFor } from "./input";
+import { createSourceSession } from "../../tools/session";
+import { createResearchTools } from "../../tools";
+import { vi } from "vitest";
 import type { CatalogResearchInput } from "../../contracts";
 import { loadResearchContext } from "../context";
 
@@ -17,13 +20,10 @@ const source: ReadPageResult = {
   finalUrl: "https://example.org/2027",
   retrievedAt: "2026-10-08T12:00:00Z",
   method: "http",
-  outcome: "partial",
-  reason: "Only announcement text was readable",
-  completeness: "partial",
+  status: "ok",
+  reasonCode: "javascript_required",
   markdown: "Example Fest 2027.\n\nTicket information follows.",
-  links: ["https://example.org/tickets"],
   httpStatus: 200,
-  sourceTruncated: true,
 };
 
 test("captured initial source is the same bounded projection as the prompt", () => {
@@ -156,27 +156,35 @@ test.each([
     );
     expect(prompt.inspectedSources).toEqual([
       {
-        attemptedUrl: source.attemptedUrl,
-        finalUrl: source.finalUrl,
-        retrievedAt: source.retrievedAt,
-        outcome: source.outcome,
-        reason: source.reason,
+        url: source.finalUrl,
+        status: source.status,
+        reasonCode: source.reasonCode,
         markdown: expected,
         truncated: markdown.length > expected.length,
-        completeness: "partial",
       },
     ]);
   },
 );
 
-test("initial sources share the existing prompt content allowance", () => {
+test("a later tool read gets more cached text than the shared initial projection", async () => {
+  const budget = createResearchBudget({}, () => 0);
+  const readPage = vi.fn(async () => ({
+    ...source,
+    markdown: "a".repeat(81_000) + "CACHE_TAIL",
+  }));
+  const sources = createSourceSession(
+    budget,
+    { apiKey: "fixture", model: "fixture", limits: budget.limits },
+    [],
+    { readPage },
+  );
+  const cached = await sources.readPage(source.attemptedUrl);
   const reads = [
-    { ...source, markdown: "a".repeat(40_000), completeness: "full" as const },
+    cached,
     {
       ...source,
       markdown: "short",
-      reason: undefined,
-      completeness: "full" as const,
+      reasonCode: undefined,
     },
   ];
   const prompt = JSON.parse(
@@ -193,16 +201,29 @@ test("initial sources share the existing prompt content allowance", () => {
   expect(prompt.inspectedSources[0]).toMatchObject({
     markdown: "a".repeat(39_700),
     truncated: true,
-    completeness: "partial",
   });
+  const tools = createResearchTools(sources, budget, () => ({
+    stage: "research",
+    step: 1,
+    attempt: 1,
+  }));
+  const later = await tools.readPage.execute!(
+    { url: source.finalUrl },
+    {} as never,
+  );
+  expect(later).toMatchObject({
+    markdown: "a".repeat(79_700),
+    truncated: true,
+  });
+  expect(readPage).toHaveBeenCalledOnce();
+  expect(sources.reads[0]).toBe(cached);
+  expect(reads[0].markdown).toHaveLength(81_010);
+  expect(reads[0].reasonCode).toBe(source.reasonCode);
   expect(prompt.inspectedSources[1]).toEqual({
-    attemptedUrl: source.attemptedUrl,
-    finalUrl: source.finalUrl,
-    retrievedAt: source.retrievedAt,
-    outcome: source.outcome,
+    url: source.finalUrl,
+    status: source.status,
     markdown: "short",
     truncated: false,
-    completeness: "full",
   });
 });
 
@@ -480,8 +501,6 @@ test.each(["add", "full", "current"] as const)(
 );
 
 import { editorInstructions } from "../../editor/prompt";
-import { createResearchTools } from "../../tools";
-import { createSourceSession } from "../../tools/session";
 
 test("both models receive the same classification rules", () => {
   for (const text of [

@@ -24,6 +24,7 @@ export function createSourceSession(
   knownLinks: KnownSourceLink[],
   deps: Pick<ResearchDependencies, "readPage" | "searchWeb">,
   log?: ResearchLogger,
+  ai?: { sessionId?: string },
 ) {
   const reads: ReadPageResult[] = [];
   const inFlight = new Map<string, Promise<ReadPageResult>>();
@@ -39,24 +40,22 @@ export function createSourceSession(
       operationLog?.info("Reading source", { attemptedUrl: url });
     }
     const finished = (result: ReadPageResult, cached: boolean) => {
-      if (result.reason?.endsWith("_budget_exhausted")) {
+      if (result.reasonCode?.endsWith("_budget_exhausted")) {
         operationLog?.warn("Research budget exhausted", {
-          budgetKind: result.reason.replace("_budget_exhausted", ""),
+          budgetKind: result.reasonCode.replace("_budget_exhausted", ""),
           remaining: budget.remaining(),
         });
       }
       if (!operation.tool) {
-        operationLog?.[result.outcome === "ok" ? "info" : "warn"](
+        operationLog?.[result.status === "ok" ? "info" : "warn"](
           "Source read finished",
           {
             attemptedUrl: url,
             response: { status: result.httpStatus, url: result.finalUrl },
-            outcome: result.outcome,
-            reason: result.reason,
+            status: result.status,
+            reasonCode: result.reasonCode,
             method: result.method,
-            completeness: result.completeness,
             sourceCharacters: result.markdown.length,
-            sourceTruncated: result.sourceTruncated,
             cached,
             durationMs: Date.now() - started,
             remaining: budget.remaining(),
@@ -99,7 +98,7 @@ export function createSourceSession(
       if (!operation.tool) {
         operationLog?.warn("Source read finished", {
           attemptedUrl: url,
-          outcome: "failed",
+          status: "failed",
           durationMs: Date.now() - started,
         });
       }
@@ -142,6 +141,11 @@ export function createSourceSession(
         budget,
         config,
         log: operationLog,
+        ai: {
+          ...ai,
+          ...(operation.traceId ? { traceId: operation.traceId } : {}),
+          ...(operation.spanId ? { parentId: operation.spanId } : {}),
+        },
       });
     } catch (error) {
       if (!operation.tool) {

@@ -4,6 +4,8 @@ services:
       context: .
       target: web
       args:
+        EVENTROAM_POSTHOG_KEY: ${EVENTROAM_POSTHOG_KEY:-}
+        EVENTROAM_POSTHOG_HOST: ${EVENTROAM_POSTHOG_HOST:-}
         EVENTROAM_MAPBOX_TOKEN: ${EVENTROAM_MAPBOX_TOKEN:-}
         EVENTROAM_MAPBOX_STYLE: ${EVENTROAM_MAPBOX_STYLE:-mapbox://styles/mapbox/streets-v12}
     environment:
@@ -20,6 +22,8 @@ services:
       context: .
       target: studio
     environment:
+      NEXT_PUBLIC_POSTHOG_KEY: ${EVENTROAM_POSTHOG_KEY:-}
+      NEXT_PUBLIC_POSTHOG_HOST: ${EVENTROAM_POSTHOG_HOST:-}
       DATABASE_PATH: /data/eventroam.sqlite
       CATALOG_OBSERVABILITY_DATABASE_PATH: /data/mastra-observability.duckdb
       CATALOG_EVAL_DATABASE_PATH: /data/mastra-evals.sqlite

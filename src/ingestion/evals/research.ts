@@ -198,16 +198,14 @@ export function refusedResearch(report: CatalogResearchResult) {
 export function unavailableSources(report: CatalogResearchResult) {
   const unavailable = new Set(
     report.sources
-      .filter((source) =>
-        ["blocked", "failed", "unsupported"].includes(source.outcome),
-      )
+      .filter((source) => ["failed", "unsupported"].includes(source.outcome))
       .map((source) => source.attemptedUrl),
   );
   return [
     check(
       "research.sources.unavailable",
       report.sources.every((source) =>
-        ["blocked", "failed", "unsupported"].includes(source.outcome),
+        ["failed", "unsupported"].includes(source.outcome),
       ),
       "Expected all inspected sources to be unavailable",
     ),

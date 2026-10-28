@@ -51,9 +51,8 @@
       "finalUrl": "https://www.afronation.com/book-tickets-2027",
       "retrievedAt": "2026-10-08T11:32:56.734Z",
       "method": "http",
-      "outcome": "blocked",
-      "reason": "http_403",
-      "completeness": "none",
+      "status": "failed",
+      "reasonCode": "http_403",
       "markdownFile": "blocked.md"
     },
     {
@@ -61,9 +60,8 @@
       "finalUrl": "https://www.afronation.com/",
       "retrievedAt": "2026-10-08T11:33:08.365Z",
       "method": "http",
-      "outcome": "blocked",
-      "reason": "http_403",
-      "completeness": "none",
+      "status": "failed",
+      "reasonCode": "http_403",
       "markdownFile": "blocked.md"
     },
     {
@@ -71,9 +69,8 @@
       "finalUrl": "https://www.afronation.com/ANP2027",
       "retrievedAt": "2026-10-08T11:33:08.364Z",
       "method": "http",
-      "outcome": "blocked",
-      "reason": "http_403",
-      "completeness": "none",
+      "status": "failed",
+      "reasonCode": "http_403",
       "markdownFile": "blocked.md"
     },
     {
@@ -81,9 +78,8 @@
       "finalUrl": "https://www.afronation.com/terms_and_conditions",
       "retrievedAt": "2026-10-08T11:33:24.708Z",
       "method": "http",
-      "outcome": "blocked",
-      "reason": "http_403",
-      "completeness": "none",
+      "status": "failed",
+      "reasonCode": "http_403",
       "markdownFile": "blocked.md"
     },
     {
@@ -91,9 +87,8 @@
       "finalUrl": "https://www.afronation.com/faqs",
       "retrievedAt": "2026-10-08T11:33:24.708Z",
       "method": "http",
-      "outcome": "blocked",
-      "reason": "http_403",
-      "completeness": "none",
+      "status": "failed",
+      "reasonCode": "http_403",
       "markdownFile": "blocked.md"
     }
   ],

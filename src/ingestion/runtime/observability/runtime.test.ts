@@ -20,9 +20,7 @@ import {
   createRunObservability,
   finishResearchObservability,
   finishRunObservability,
-  ResearchObservabilityExporter,
 } from "./runtime";
-import { researchSpanProcessor } from "../tracing/processor";
 import { createObservabilityStore, observabilityDatabasePath } from "./storage";
 import { readTraceRows } from "@/test/tracing-fixture";
 
@@ -40,9 +38,32 @@ afterEach(() => {
   }
 });
 
-test("tracing defaults off and never opens storage", async () => {
-  const path = join(directory(), "off.duckdb");
+test.each(["test", "development"])(
+  "tracing defaults off in %s and never opens storage",
+  async (environment) => {
+    vi.stubEnv("NODE_ENV", environment);
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "");
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_HOST", "");
+    vi.stubEnv("CATALOG_LOGGING", "false");
+    const path = join(directory(), "off.duckdb");
+    vi.stubEnv("CATALOG_TRACING", "false");
+    vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", path);
+    expect(
+      await createResearchObservability(
+        { mode: "add", name: "Fixture", actor: "test", initiatedBy: "test" },
+        "fixture/model",
+      ),
+    ).toBeUndefined();
+    expect(existsSync(path)).toBe(false);
+  },
+);
+
+test("website analytics does not enable ingestion tracing", async () => {
+  vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "test-project");
+  vi.stubEnv("NEXT_PUBLIC_POSTHOG_HOST", "https://example.org");
   vi.stubEnv("CATALOG_TRACING", "false");
+  vi.stubEnv("CATALOG_LOGGING", "false");
+  const path = join(directory(), "off.duckdb");
   vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", path);
   expect(
     await createResearchObservability(
@@ -78,6 +99,44 @@ test("a registered run leaves its caller-owned observability store open", async 
   } finally {
     await store.close();
   }
+});
+
+test("concurrent runs retain both traces after their shared store closes", async () => {
+  vi.stubEnv("CATALOG_TRACING", "true");
+  vi.stubEnv("CATALOG_LOGGING", "false");
+  const path = join(directory(), "concurrent.duckdb");
+  vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", path);
+  const store = await createObservabilityStore();
+  await store.init();
+  const runs = await Promise.all(
+    ["first", "second"].map((runId) =>
+      createRunObservability(
+        { mode: "add", name: "Fixture", actor: "test" },
+        "fixture/model",
+        runId,
+        [],
+        store,
+        "concurrent-experiment",
+      ),
+    ),
+  );
+  try {
+    expect(runs.every((run) => !!run?.root)).toBe(true);
+    await Promise.all(runs.map((run) => finishRunObservability(run)));
+  } finally {
+    await store.close();
+  }
+  const rows = await readTraceRows(path);
+  expect(new Set(rows.mastra_ai_spans.map((span) => span.traceId))).toEqual(
+    new Set(runs.map((run) => run!.root!.traceId)),
+  );
+  expect(rows.mastra_ai_spans).toHaveLength(2);
+  expect(rows.mastra_ai_spans.every((span) => !!span.endedAt)).toBe(true);
+  expect(
+    rows.mastra_ai_spans.every(
+      (span) => span.experimentId === "concurrent-experiment",
+    ),
+  ).toBe(true);
 });
 
 test.each(["rejection", "timeout"] as const)(
@@ -223,58 +282,28 @@ test.each([false, true])(
   },
 );
 
-test("sanitization mutates a live span, excludes residual contents and drops on failure", async () => {
+test("native sensitive data filtering preserves content and redacts secret fields", async () => {
   const tracing = await enabledTracing();
   const mastra = new Mastra({
     logger: false,
     storage: tracing.storage,
     observability: tracing.observability,
   });
-  tracing.observability.setLogger({ logger: tracing.logger });
-  const instance = tracing.observability.getDefaultInstance()!;
-  const forwardedLogs = vi.spyOn(
-    ResearchObservabilityExporter.prototype,
-    "onLogEvent",
-  );
-  const span = instance.startSpan({
-    type: SpanType.AGENT_RUN,
-    name: "unsafe root",
-    input: "PRIVATE_PROMPT",
+  const span = tracing.observability.getDefaultInstance()!.startSpan({
+    type: SpanType.GENERIC,
+    name: "native-filter",
+    input: { prompt: "Inspect this public page", password: "PRIVATE_PASSWORD" },
   });
-  instance
-    .getLoggerContext?.(span)
-    .error("PRIVATE_SDK_LOG", { secret: "PRIVATE_LOG_METADATA" });
-  expect(forwardedLogs).not.toHaveBeenCalled();
-  const diagnose = vi.fn();
-  const processor = researchSpanProcessor(
-    { mode: "refresh", model: "fixture/model", promptVersion: "v1" },
-    diagnose,
-  );
-  span.attributes = {
-    instructions: "PRIVATE_INSTRUCTIONS",
-    prompt: "PRIVATE_PROMPT",
-  };
-  span.metadata = { providerMetadata: "PRIVATE_METADATA" };
-  span.requestContext = { authorization: "PRIVATE_KEY" };
-  span.errorInfo = {
-    message: "PRIVATE_ERROR",
-    details: { responseBody: "PRIVATE_BODY" },
-  };
-  expect(processor.process(span)).toBe(span);
-  expect(JSON.stringify(span.exportSpan())).not.toContain("PRIVATE_");
-  expect(span.errorInfo).toEqual({ message: "operation_failed" });
-  // A getter failure exercises the fail-closed path, rather than an SDK catch.
-  Object.defineProperty(span, "attributes", {
-    get: () => {
-      throw new Error("PRIVATE_PROCESSOR_ERROR");
-    },
-    configurable: true,
-  });
-  expect(processor.process(span)).toBeUndefined();
-  expect(diagnose).toHaveBeenCalledWith("trace_sanitization_failed");
-  Object.defineProperty(span, "attributes", { value: {}, writable: true });
-  span.end();
+  span.end({ output: { text: "Public result", apiKey: "PRIVATE_API_KEY" } });
   await finishResearchObservability(mastra, tracing.diagnose);
+  const rows = await readTraceRows(
+    process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!,
+  );
+  const saved = JSON.stringify(rows);
+  expect(saved).toContain("Inspect this public page");
+  expect(saved).toContain("Public result");
+  expect(saved).not.toContain("PRIVATE_PASSWORD");
+  expect(saved).not.toContain("PRIVATE_API_KEY");
 });
 
 async function enabledTracing() {
@@ -298,7 +327,7 @@ async function enabledTracing() {
   return tracing;
 }
 
-test("internally handled exporter write failures and drops emit only fixed codes", async () => {
+test("exporter write failures use native SDK diagnostics", async () => {
   const tracing = await enabledTracing();
   const store = (await tracing.storage.getStore("observability"))!;
   vi.spyOn(store, "batchCreateSpans").mockRejectedValue(
@@ -316,80 +345,9 @@ test("internally handled exporter write failures and drops emit only fixed codes
     .startSpan({ type: SpanType.AGENT_RUN, name: "test" });
   span.end();
   await finishResearchObservability(mastra, tracing.diagnose);
-  expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
-    "trace_export_failed\n",
+  expect(stderr.mock.calls.map((call) => call[0]).join("")).toContain(
+    "PRIVATE_WRITE_FAILURE",
   );
-});
-
-test("missing mandatory processor disables tracing before creating a run", async () => {
-  const { Observability } = await import("@mastra/observability");
-  vi.spyOn(Observability.prototype, "getDefaultInstance").mockReturnValue(
-    undefined,
-  );
-  vi.stubEnv("CATALOG_TRACING", "true");
-  vi.stubEnv(
-    "CATALOG_OBSERVABILITY_DATABASE_PATH",
-    join(directory(), "unavailable.duckdb"),
-  );
-  const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
-  expect(
-    await createResearchObservability(
-      { mode: "add", name: "Fixture", actor: "test" },
-      "fixture/model",
-    ),
-  ).toBeUndefined();
-  expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
-    "trace_initialization_failed\n",
-  );
-});
-
-test("generic spans retain native entity context and exclude raw content across start/update/end", async () => {
-  const tracing = await enabledTracing();
-  expect(tracing.options).toMatchObject({
-    hideInput: false,
-    hideOutput: false,
-  });
-  const mastra = new Mastra({
-    logger: false,
-    storage: tracing.storage,
-    observability: tracing.observability,
-  });
-  tracing.observability.setLogger({ logger: tracing.logger });
-  const exported: string[] = [];
-  const original = ResearchObservabilityExporter.prototype._exportTracingEvent;
-  vi.spyOn(
-    ResearchObservabilityExporter.prototype,
-    "_exportTracingEvent",
-  ).mockImplementation(async function (
-    this: ResearchObservabilityExporter,
-    event,
-  ) {
-    exported.push(JSON.stringify(event.exportedSpan));
-    await original.call(this, event);
-  });
-  const span = tracing.observability.getDefaultInstance()!.startSpan({
-    type: SpanType.GENERIC,
-    name: "PRIVATE_NAME",
-    input: "PRIVATE_INPUT",
-    metadata: { secret: "PRIVATE_KEY" },
-    entityName: "Fixture entity",
-  });
-  span.update({
-    input: "PRIVATE_UPDATE",
-    output: "PRIVATE_OUTPUT",
-    attributes: { inputTokens: 12, secret: "PRIVATE_ATTRIBUTES" } as never,
-  });
-  span.end({ output: "PRIVATE_FINAL" });
-  await finishResearchObservability(mastra, tracing.diagnose);
-  expect(exported).toHaveLength(3);
-  for (const event of exported) {
-    expect(JSON.parse(event).entityName).toBe("Fixture entity");
-  }
-  expect(exported.join("")).not.toContain("PRIVATE_");
-  const rows = await readTraceRows(
-    process.env.CATALOG_OBSERVABILITY_DATABASE_PATH!,
-  );
-  expect(JSON.stringify(rows)).not.toContain("PRIVATE_");
 });
 
 test("tracing ignores logging level when application logging is disabled", async () => {

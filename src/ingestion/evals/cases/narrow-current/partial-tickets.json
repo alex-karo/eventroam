@@ -82,8 +82,7 @@
       "finalUrl": "https://narrow-fixture.example/partial-tickets",
       "retrievedAt": "2026-10-14T12:00:00Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "partial-tickets.md"
     },
     {
@@ -91,9 +90,8 @@
       "finalUrl": "https://narrow-fixture.example/checkout",
       "retrievedAt": "2026-10-14T12:00:00Z",
       "method": "http",
-      "outcome": "blocked",
-      "reason": "checkout_requires_login",
-      "completeness": "none",
+      "status": "failed",
+      "reasonCode": "checkout_requires_login",
       "markdownFile": "checkout.md"
     }
   ],

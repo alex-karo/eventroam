@@ -6,10 +6,7 @@ import { Mastra } from "@mastra/core/mastra";
 import { LibSQLStore } from "@mastra/libsql";
 import { Memory } from "@mastra/memory";
 import { observabilityDatabasePath } from "../../ingestion/runtime/observability/storage";
-import {
-  createDiagnostics,
-  ObservabilityLogger,
-} from "../../ingestion/runtime/observability/diagnostics";
+import { createDiagnostics } from "../../ingestion/runtime/observability/diagnostics";
 import { flushObservability } from "../../ingestion/runtime/observability/runtime";
 
 export function chatDatabasePath(
@@ -84,11 +81,6 @@ export class StudioMastra extends Mastra {
     private readonly chat: Awaited<ReturnType<typeof createChatMemory>>,
   ) {
     super(config);
-    config?.observability?.setLogger({
-      logger: new ObservabilityLogger(() =>
-        this.diagnose("trace_export_failed"),
-      ),
-    });
   }
   override async shutdown(options?: Parameters<Mastra["shutdown"]>[0]) {
     try {

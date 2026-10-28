@@ -1,5 +1,4 @@
 import { createTool } from "@mastra/core/tools";
-import { observeTrace, traceUrl } from "../../runtime/tracing";
 import type { ResearchToolContext } from "../contracts";
 import { readPageInputSchema, readPageOutputSchema } from "./contracts";
 import { boundedToolSource } from "./response";
@@ -40,39 +39,18 @@ export function createReadPageTool({
         const result = await read(url, { ...context, tool: true });
         abortSignal?.throwIfAborted();
         const bounded = boundedToolSource(result);
-        observeTrace(tracing, span, {
-          name: "readPage",
-          input: {
-            attemptedUrl: traceUrl(url).url,
-            urlTruncated: traceUrl(url).truncated,
-          },
-          output: {
-            finalUrl: traceUrl(result.finalUrl).url,
-            urlTruncated: traceUrl(result.finalUrl).truncated,
-            outcome: result.outcome,
-            method: result.method,
-            reason: result.reason,
-            completeness: result.completeness,
-            httpStatus: result.httpStatus,
-            sourceCharacters: result.markdown.length,
-            sourceTruncated: result.sourceTruncated,
-            toolTruncated: bounded.truncated,
-            cached,
-          },
-        });
-        toolLog?.[result.outcome === "ok" ? "info" : "warn"](
+
+        toolLog?.[result.status === "ok" ? "info" : "warn"](
           "Tool call finished",
           {
             tool: "readPage",
             attemptedUrl: url,
             response: { status: result.httpStatus, url: result.finalUrl },
-            outcome: result.outcome,
+            status: result.status,
             method: result.method,
-            reason: result.reason,
-            completeness: result.completeness,
+            reasonCode: result.reasonCode,
             sourceCharacters: result.markdown.length,
-            sourceTruncated: result.sourceTruncated,
-            toolTruncated: bounded.truncated,
+            truncated: bounded.truncated,
             cached,
             remaining: budget.remaining(),
           },
@@ -88,14 +66,7 @@ export function createReadPageTool({
           attemptedUrl: url,
           errorCode: "source_failed",
         });
-        observeTrace(tracing, span, {
-          name: "readPage",
-          input: {
-            attemptedUrl: traceUrl(url).url,
-            urlTruncated: traceUrl(url).truncated,
-          },
-          output: { outcome: "failed" },
-        });
+
         throw error;
       }
     },

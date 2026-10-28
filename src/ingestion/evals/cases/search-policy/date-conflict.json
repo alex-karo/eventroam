@@ -52,8 +52,7 @@
       "finalUrl": "https://harborechofestival.co.uk/",
       "retrievedAt": "2026-10-15T12:00:00Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "conflicting.md"
     },
     {
@@ -61,8 +60,7 @@
       "finalUrl": "https://castlewellangrounds.co.uk/events/harbor-echo-2027",
       "retrievedAt": "2026-10-15T12:00:00Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "venue.md"
     }
   ],

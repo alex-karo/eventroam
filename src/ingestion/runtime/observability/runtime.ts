@@ -6,45 +6,23 @@ import {
   Observability,
   SamplingStrategyType,
 } from "@mastra/observability";
+import { PosthogExporter } from "@mastra/posthog";
 import type { CatalogResearchInput } from "../../contracts";
 import { RESEARCH_PROMPT_VERSION } from "../../research/contracts";
 import {
   createPinoLogger,
+  researchLogLevel,
   createApplicationLogger,
   type ResearchLogLevel,
 } from "../logging";
 import { traceText } from "../tracing/labels";
-import {
-  researchSpanProcessor,
-  type TraceMetadata,
-} from "../tracing/processor";
-import {
-  createDiagnostics,
-  ObservabilityLogger,
-  type Diagnose,
-} from "./diagnostics";
+import { createDiagnostics, type Diagnose } from "./diagnostics";
 import { createObservabilityStore } from "./storage";
 
-/** Drop notifications may contain raw error messages: deliberately ignore them. */
+/** Keep metrics disabled when tracing is disabled. */
 export class ResearchObservabilityExporter extends MastraStorageExporter {
-  constructor(
-    private readonly diagnose: Diagnose,
-    private readonly metricsEnabled = false,
-  ) {
+  constructor(private readonly metricsEnabled = false) {
     super({ maxRetries: 0, strategy: "event-sourced" });
-  }
-  override async onLogEvent(
-    event: Parameters<MastraStorageExporter["onLogEvent"]>[0],
-  ) {
-    if (event.log.metadata?.catalogApplicationLog === true) {
-      await super.onLogEvent({
-        ...event,
-        log: { ...event.log, metadata: undefined },
-      });
-    }
-  }
-  onDroppedEvent() {
-    this.diagnose("trace_export_failed");
   }
   override async onMetricEvent(
     event: Parameters<MastraStorageExporter["onMetricEvent"]>[0],
@@ -52,12 +30,36 @@ export class ResearchObservabilityExporter extends MastraStorageExporter {
     if (!this.metricsEnabled) {
       return;
     }
-    try {
-      await super.onMetricEvent(event);
-    } catch {
-      this.diagnose("trace_export_failed");
-    }
+    await super.onMetricEvent(event);
   }
+}
+
+export function createCatalogObservability(options: {
+  traceEnabled: boolean;
+  loggingEnabled: boolean;
+  level: ResearchLogLevel;
+}) {
+  const projectToken = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
+  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim();
+  return new Observability({
+    configs: {
+      catalog: {
+        serviceName: "eventroam-research",
+        sampling: {
+          type: options.traceEnabled
+            ? SamplingStrategyType.ALWAYS
+            : SamplingStrategyType.NEVER,
+        },
+        logging: { enabled: options.loggingEnabled, level: options.level },
+        exporters: [
+          new ResearchObservabilityExporter(options.traceEnabled),
+          ...(options.traceEnabled && projectToken && host
+            ? [new PosthogExporter({ apiKey: projectToken, host })]
+            : []),
+        ],
+      },
+    },
+  });
 }
 
 export async function createResearchObservability(
@@ -75,19 +77,9 @@ export async function createResearchObservability(
   }
   const diagnose = createDiagnostics();
   let storage: DuckDBStore | undefined;
-  let initializing = true;
-  const logger = new ObservabilityLogger(() =>
-    diagnose(
-      initializing ? "trace_initialization_failed" : "trace_export_failed",
-    ),
-  );
+  const logger = createPinoLogger("warn", () => diagnose("log_write_failed"));
   try {
-    const level = loggingEnabled
-      ? process.env.CATALOG_LOG_LEVEL?.trim() || "info"
-      : "info";
-    if (!["debug", "info", "warn", "error"].includes(level)) {
-      throw new Error("Invalid log level");
-    }
+    const level = researchLogLevel(loggingEnabled);
     storage =
       sharedStore ??
       (await createObservabilityStore(process.env, protectedPaths));
@@ -98,49 +90,23 @@ export async function createResearchObservability(
     if (!(await storage.getStore("observability"))) {
       throw new Error("Trace storage unavailable");
     }
-    const metadata: TraceMetadata = {
-      ...(runId ? { runId } : {}),
+    const metadata = {
+      ...(runId ? { runId, sessionId: runId } : {}),
       ...(experimentId ? { experimentId } : {}),
       mode: input.mode,
       ...(input.eventId ? { eventId: traceText(input.eventId, 160) } : {}),
       model: traceText(model, 160),
       promptVersion: RESEARCH_PROMPT_VERSION,
     };
-    const processor = researchSpanProcessor(metadata, diagnose);
-    const observability = new Observability({
-      sensitiveDataFilter: false,
-      configs: {
-        research: {
-          serviceName: "eventroam-research",
-          sampling: {
-            type: traceEnabled
-              ? SamplingStrategyType.ALWAYS
-              : SamplingStrategyType.NEVER,
-          },
-          logging: {
-            enabled: loggingEnabled,
-            level: level as ResearchLogLevel,
-          },
-          exporters: [
-            new ResearchObservabilityExporter(diagnose, traceEnabled),
-          ],
-          spanOutputProcessors: [processor],
-        },
-      },
+    const observability = createCatalogObservability({
+      traceEnabled,
+      loggingEnabled,
+      level,
     });
-    if (
-      !observability
-        .getDefaultInstance()
-        ?.getSpanOutputProcessors()
-        .includes(processor)
-    ) {
-      throw new Error("Mandatory processor unavailable");
-    }
-    initializing = false;
     return {
       traceEnabled,
       loggingEnabled,
-      level: level as ResearchLogLevel,
+      level,
       storage,
       sharedStore: !!sharedStore,
       observability,
@@ -219,8 +185,8 @@ export async function createRunObservability(
       ? { eventId: input.eventId }
       : {};
     mastra = new Mastra({
-      logger: native?.child({ runId, ...eventContext }) ?? false,
-      loggerOptions: { export: false },
+      logger: native ?? tracing.logger,
+      loggerOptions: { export: tracing.loggingEnabled },
       storage: tracing.storage,
       observability: tracing.observability,
     });
@@ -237,27 +203,20 @@ export async function createRunObservability(
       ? createApplicationLogger({
           native,
           eventContext,
-          observability: tracing.observability,
           runId,
-          level: tracing.level,
-          root,
           diagnose: tracing.diagnose,
         })
       : undefined;
-    const instance = mastra;
     const setEventId = (eventId: string | null | undefined) => {
       if (!eventId || eventId === eventContext.eventId) {
         return;
       }
       eventContext.eventId = eventId;
-      if (native) {
+      if (root) {
         try {
-          instance.setLogger({
-            logger: native.child({ runId, ...eventContext }),
-          });
-          tracing.observability.setLogger({ logger: tracing.logger });
+          root.update({ metadata: { ...root.metadata, eventId } });
         } catch {
-          tracing.diagnose("log_write_failed");
+          tracing.diagnose("trace_export_failed");
         }
       }
     };

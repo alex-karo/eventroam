@@ -1,18 +1,19 @@
 import { LoggerTransport } from "@mastra/core/logger";
-import {
-  EntityType,
-  type AnySpan,
-  type CorrelationContext,
-} from "@mastra/core/observability";
+import type { CorrelationContext } from "@mastra/core/observability";
 import { PinoLogger } from "@mastra/loggers";
-import {
-  LoggerContextImpl,
-  type DefaultObservabilityInstance,
-  type Observability,
-} from "@mastra/observability";
 import { writeObservabilityStderr } from "../observability/stderr";
 
 export type ResearchLogLevel = "debug" | "info" | "warn" | "error";
+export function researchLogLevel(enabled: boolean): ResearchLogLevel {
+  const level = enabled
+    ? process.env.CATALOG_LOG_LEVEL?.trim() || "info"
+    : "info";
+  if (!["debug", "info", "warn", "error"].includes(level)) {
+    throw new Error("Invalid log level");
+  }
+  return level as ResearchLogLevel;
+}
+
 export interface ResearchLogger {
   debug(message: string, fields?: Record<string, unknown>): void;
   info(message: string, fields?: Record<string, unknown>): void;
@@ -49,41 +50,14 @@ export function createPinoLogger(
   });
 }
 
-/**
- * PinoLogger writes selected records to stderr. The installed logger exports
- * original call arguments without child bindings, so emit one matching Studio
- * event through Mastra's bus with explicit correlation and selected metadata.
- */
+/** Pass bound fields as call data so native Pino export retains them. */
 export function createApplicationLogger(options: {
   native: PinoLogger;
-  observability: Observability;
   runId?: string;
   eventContext?: { eventId?: string };
   correlationContext?: CorrelationContext;
-  level: ResearchLogLevel;
-  root?: AnySpan;
   diagnose: (code: "log_write_failed") => void;
 }): ResearchLogger {
-  const failed = () => options.diagnose("log_write_failed");
-  const native = options.native;
-  const bus = (
-    options.observability.getDefaultInstance() as DefaultObservabilityInstance
-  ).getObservabilityBus();
-  const correlationContext = {
-    serviceName: "eventroam-research",
-    entityType: EntityType.WORKFLOW_RUN,
-    entityId: "catalog-research",
-    entityName: "Catalog research",
-    ...options.correlationContext,
-    runId: options.runId,
-  };
-  const base = {
-    ...correlationContext,
-    ...(options.root
-      ? { traceId: options.root.traceId, spanId: options.root.id }
-      : {}),
-  };
-
   function bind(context: Record<string, unknown>): ResearchLogger {
     const write = (
       level: ResearchLogLevel,
@@ -91,37 +65,14 @@ export function createApplicationLogger(options: {
       fields: Record<string, unknown> = {},
     ) => {
       try {
-        const data: Record<string, unknown> = {
+        options.native[level](message, {
           ...context,
           ...fields,
           ...options.eventContext,
           runId: options.runId,
-        };
-        const traceId =
-          typeof data.traceId === "string" ? data.traceId : undefined;
-        const spanId =
-          typeof data.spanId === "string" ? data.spanId : undefined;
-        try {
-          // One flat set of child bindings keeps native JSON identical to the
-          // selected Studio data, including per-call overrides.
-          native.child(data)[level](message);
-        } catch {
-          failed();
-        }
-        try {
-          new LoggerContextImpl({
-            observabilityBus: bus,
-            correlationContext,
-            traceId,
-            spanId,
-            metadata: { catalogApplicationLog: true },
-            minLevel: options.level,
-          })[level](message, data);
-        } catch {
-          failed();
-        }
+        });
       } catch {
-        failed();
+        options.diagnose("log_write_failed");
       }
     };
     return {
@@ -129,16 +80,8 @@ export function createApplicationLogger(options: {
       info: (message, fields) => write("info", message, fields),
       warn: (message, fields) => write("warn", message, fields),
       error: (message, fields) => write("error", message, fields),
-      child(bindings) {
-        try {
-          const next = { ...context, ...bindings, runId: options.runId };
-          return bind(next);
-        } catch {
-          failed();
-          return bind(context);
-        }
-      },
+      child: (bindings) => bind({ ...context, ...bindings }),
     };
   }
-  return bind(base);
+  return bind({ ...options.correlationContext });
 }

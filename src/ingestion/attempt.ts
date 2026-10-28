@@ -146,9 +146,9 @@ export class CatalogAttempt {
       return;
     }
     if (cancelled) {
-      this.trace?.terminalFailed("cancelled");
+      this.trace?.failed("cancelled");
     } else {
-      this.trace?.workflowFailed();
+      this.trace?.failed("workflow_failed");
     }
     data.errors.push({
       code: "workflow_failed",
@@ -173,7 +173,7 @@ export class CatalogAttempt {
         return result;
       } catch (error) {
         if (data.report) {
-          this.trace?.terminalFailed("run_persistence_failed");
+          this.trace?.failed("run_persistence_failed");
           if (error instanceof RunPersistenceError) {
             this.trace?.log?.error("Required run finalization failed", {
               stage: "report",
@@ -181,7 +181,7 @@ export class CatalogAttempt {
             });
           }
         } else {
-          this.trace?.workflowFailed();
+          this.trace?.failed("workflow_failed");
         }
         throw error;
       } finally {

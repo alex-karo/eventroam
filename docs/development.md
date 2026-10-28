@@ -28,6 +28,10 @@ Codex worktrees use `.codex/environments/environment.toml` to link the source ch
 
 Each worktree has its own dependency tree. pnpm shares package files through its content-addressable store. Keep `pnpm-workspace.yaml` with the lockfile; it lists the dependency build scripts allowed during installation.
 
+## Analytics
+
+See the [analytics guide](analytics.md) for PostHog settings, events, campaign links, and browser opt-out.
+
 ## Common checks
 
 Run checks that apply to your change:

@@ -44,8 +44,7 @@
       "finalUrl": "https://www.roskilde-festival.dk/",
       "retrievedAt": "2026-10-27T13:33:25.433Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "page.md"
     },
     {
@@ -53,8 +52,7 @@
       "finalUrl": "https://www.roskilde-festival.dk/billetter",
       "retrievedAt": "2026-10-27T13:33:25.753Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "tickets.md"
     },
     {
@@ -62,8 +60,7 @@
       "finalUrl": "https://www.roskilde-festival.dk/kontakt",
       "retrievedAt": "2026-10-27T13:33:25.831Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "contact.md"
     },
     {
@@ -71,8 +68,7 @@
       "finalUrl": "https://www.roskilde-festival.dk/festival-med-formaal",
       "retrievedAt": "2026-10-27T13:33:26.196Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "purpose.md"
     },
     {
@@ -80,73 +76,64 @@
       "finalUrl": "https://www.roskilde-festival.dk/nyheder/rf27-de-foerste-18-navne-er-klar",
       "retrievedAt": "2026-10-27T13:33:26.501Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "first-artists.md"
+      "markdownFile": "first-artists.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.roskilde-festival.dk/program",
       "finalUrl": "https://www.roskilde-festival.dk/program",
       "retrievedAt": "2026-10-27T13:33:26.794Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "program.md"
+      "markdownFile": "program.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.roskilde-festival.dk/nyheder/goer-dig-klar-til-at-koebe-billet-til-rf27",
       "finalUrl": "https://www.roskilde-festival.dk/nyheder/goer-dig-klar-til-at-koebe-billet-til-rf27",
       "retrievedAt": "2026-10-27T13:33:27.185Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "ticket-sale.md"
+      "markdownFile": "ticket-sale.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.roskilde-festival.dk/nyheder/tessa-sender-aarets-orange-donation-til-amnesty",
       "finalUrl": "https://www.roskilde-festival.dk/nyheder/tessa-sender-aarets-orange-donation-til-amnesty",
       "retrievedAt": "2026-10-27T13:33:27.497Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "donation.md"
+      "markdownFile": "donation.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.roskilde-festival.dk/nyheder",
       "finalUrl": "https://www.roskilde-festival.dk/nyheder",
       "retrievedAt": "2026-10-27T13:58:06.531Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "news.md"
+      "markdownFile": "news.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.roskilde-festival.dk/saadan-er-roskilde",
       "finalUrl": "https://www.roskilde-festival.dk/saadan-er-roskilde",
       "retrievedAt": "2026-10-27T13:58:07.239Z",
       "method": "http",
-      "outcome": "ok",
-      "reason": "source_content_truncated",
-      "completeness": "partial",
-      "markdownFile": "about.md"
+      "markdownFile": "about.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://faq.roskilde-festival.dk/hc/da/categories/10127594054813-Roskilde-Festival",
       "finalUrl": "https://faq.roskilde-festival.dk/hc/da/categories/10127594054813-Roskilde-Festival",
       "retrievedAt": "2026-10-27T13:58:07.635Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "faq.md"
+      "markdownFile": "faq.md",
+      "status": "ok"
     },
     {
       "attemptedUrl": "https://www.roskilde-festival.dk/nyheder/tak-for-i-aar-vi-ses-i-2027",
       "finalUrl": "https://www.roskilde-festival.dk/nyheder/tak-for-i-aar-vi-ses-i-2027",
       "retrievedAt": "2026-10-27T14:15:46.285Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
-      "markdownFile": "wrap-up.md"
+      "markdownFile": "wrap-up.md",
+      "status": "ok"
     }
   ],
   "expectations": {},

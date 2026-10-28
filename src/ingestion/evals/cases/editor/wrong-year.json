@@ -44,8 +44,7 @@
       "finalUrl": "https://www.wacken.com/de/",
       "retrievedAt": "2026-10-03T16:33:58.662Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../wacken/page.md"
     },
     {
@@ -53,8 +52,7 @@
       "finalUrl": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
       "retrievedAt": "2026-10-03T23:49:31.171Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../wacken/tickets.md"
     },
     {
@@ -62,8 +60,7 @@
       "finalUrl": "https://www.wacken.com/de/camping-travel/die-uebersicht/",
       "retrievedAt": "2026-10-03T23:49:31.172Z",
       "method": "http",
-      "outcome": "ok",
-      "completeness": "full",
+      "status": "ok",
       "markdownFile": "../wacken/travel.md"
     }
   ],

@@ -2,8 +2,6 @@ import { load, type CheerioAPI } from "cheerio";
 import TurndownService from "turndown";
 import { tables } from "turndown-plugin-gfm";
 
-const MAX_MARKDOWN_CHARS = 20_000;
-const MAX_LINKS = 120;
 const REGION_ATTRIBUTE = "data-source-region";
 export const MIN_RENDERED_TEXT_CHARS = 200;
 
@@ -80,22 +78,15 @@ function safeLink(href: string, baseUrl: string): string | null {
   }
 }
 
-function appendLink(links: string[], url: string): void {
-  if (links.length < MAX_LINKS && !links.includes(url)) {
-    links.push(url);
-  }
-}
-
 function structuredItems(
   value: unknown,
   items: string[],
-  links: string[],
   baseUrl: string,
   path = "",
 ): void {
   if (Array.isArray(value)) {
     for (const item of value) {
-      structuredItems(item, items, links, baseUrl, path);
+      structuredItems(item, items, baseUrl, path);
     }
     return;
   }
@@ -127,16 +118,13 @@ function structuredItems(
       (field) =>
         typeof record[field] === "string" || typeof record[field] === "number",
     )
-    .map((field) => `${field}: ${clean(String(record[field]))}`);
+    .map((field) => {
+      const value = clean(String(record[field]));
+      return `${field}: ${field === "url" ? (safeLink(value, baseUrl) ?? value) : value}`;
+    });
   const label = path ? `${path}: ` : "";
   if (values.length) {
     items.push(`- ${label}${values.join(" · ")}`);
-  }
-  if (typeof record.url === "string") {
-    const url = safeLink(record.url, baseUrl);
-    if (url) {
-      appendLink(links, url);
-    }
   }
   for (const nested of [
     "@graph",
@@ -150,60 +138,10 @@ function structuredItems(
     structuredItems(
       record[nested],
       items,
-      links,
       baseUrl,
       path ? `${path}.${nested}` : nested,
     );
   }
-}
-
-function finalWordBoundary(text: string): number {
-  let index = text.length - 1;
-  while (index >= 0 && !/\s/.test(text[index])) {
-    index -= 1;
-  }
-  if (index < 0) {
-    return -1;
-  }
-  while (index >= 0 && /\s/.test(text[index])) {
-    index -= 1;
-  }
-  return index + 1;
-}
-
-function boundMarkdown(markdown: string): {
-  markdown: string;
-  truncated: boolean;
-} {
-  const content = markdown.trim();
-  if (content.length <= MAX_MARKDOWN_CHARS) {
-    return { markdown: content, truncated: false };
-  }
-
-  const prefix = content.slice(0, MAX_MARKDOWN_CHARS);
-  // Keep the final paragraph, line, or word whole where possible. A page
-  // without whitespace still retains a bounded prefix instead of vanishing.
-  const paragraphEnd = prefix.lastIndexOf("\n\n");
-  const lineEnd = prefix.lastIndexOf("\n");
-  let end = finalWordBoundary(prefix);
-  if (paragraphEnd > MAX_MARKDOWN_CHARS - 2_000) {
-    end = paragraphEnd;
-  } else if (lineEnd > MAX_MARKDOWN_CHARS - 2_000) {
-    end = lineEnd;
-  }
-  if (end <= 0) {
-    end = MAX_MARKDOWN_CHARS;
-  }
-  // A Markdown link is atomic: do not emit a dangling label or destination.
-  const openLabel = prefix.lastIndexOf("[") > prefix.lastIndexOf("]");
-  const openDestination = prefix.lastIndexOf("](") > prefix.lastIndexOf(")");
-  if (openLabel || openDestination) {
-    const linkStart = prefix.lastIndexOf("[");
-    if (linkStart > 0 && linkStart < end) {
-      end = linkStart;
-    }
-  }
-  return { markdown: prefix.slice(0, end).trimEnd(), truncated: true };
 }
 
 export function extractSource(
@@ -212,33 +150,28 @@ export function extractSource(
   contentType: string,
 ): {
   markdown: string;
-  links: string[];
   needsJavascript: boolean;
   nonNavigationTextLength: number;
-  truncated: boolean;
 } {
-  const links: string[] = [];
   if (
     contentType.includes("application/json") ||
     contentType.includes("application/ld+json")
   ) {
     const items: string[] = [];
     try {
-      structuredItems(JSON.parse(body), items, links, finalUrl);
+      structuredItems(JSON.parse(body), items, finalUrl);
     } catch {
       items.push(body);
     }
     return {
-      ...boundMarkdown(items.join("\n\n")),
-      links,
+      markdown: items.join("\n\n").trim(),
       needsJavascript: false,
       nonNavigationTextLength: 0,
     };
   }
   if (contentType.includes("text/plain")) {
     return {
-      ...boundMarkdown(body.replace(/\r\n?/g, "\n")),
-      links,
+      markdown: body.replace(/\r\n?/g, "\n").trim(),
       needsJavascript: false,
       nonNavigationTextLength: 0,
     };
@@ -257,7 +190,6 @@ export function extractSource(
       structuredItems(
         JSON.parse($(element).html() ?? ""),
         structured,
-        links,
         finalUrl,
       );
     } catch {
@@ -291,7 +223,6 @@ export function extractSource(
       clean($(element).find("img[alt]").first().attr("alt") ?? "");
     const url = safeLink(href, finalUrl);
     if (url) {
-      appendLink(links, url);
       $(element).attr("href", url);
     } else {
       $(element).removeAttr("href");
@@ -351,7 +282,7 @@ export function extractSource(
         return "";
       }
       const label = node.getAttribute(REGION_ATTRIBUTE);
-      return `\n\n[${label}]\n\n${content.trim()}\n\n[/${label}]\n\n`;
+      return `\n\n<!-- ${label} -->\n\n${content.trim()}\n\n<!-- /${label} -->\n\n`;
     },
   });
   const visible = turndown.turndown($("body").html() ?? "").trim();
@@ -361,32 +292,9 @@ export function extractSource(
     structured.length ? `## Structured data\n\n${structured.join("\n\n")}` : "",
   ].filter(Boolean);
   return {
-    ...boundMarkdown(parts.join("\n\n")),
-    links,
+    markdown: parts.join("\n\n").trim(),
     needsJavascript:
       hasApplicationScripts && contentText.length < MIN_RENDERED_TEXT_CHARS,
     nonNavigationTextLength: contentText.length,
-  };
-}
-
-export function combineSourceExtractions(
-  rendered: ReturnType<typeof extractSource>,
-  direct: ReturnType<typeof extractSource>,
-): { markdown: string; links: string[]; truncated: boolean } {
-  const combined = boundMarkdown(
-    [
-      rendered.markdown,
-      direct.markdown ? `## Direct HTTP response\n\n${direct.markdown}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n"),
-  );
-  return {
-    markdown: combined.markdown,
-    links: [...new Set([...rendered.links, ...direct.links])].slice(
-      0,
-      MAX_LINKS,
-    ),
-    truncated: combined.truncated || rendered.truncated || direct.truncated,
   };
 }

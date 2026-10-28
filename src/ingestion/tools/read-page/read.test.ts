@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createResearchBudget } from "../../runtime/budget";
 import { readPage } from "./read";
+import { boundedToolSource } from "./response";
 import {
   assertPublicUrl,
   isPublicAddress,
@@ -67,7 +68,6 @@ describe("readPage", () => {
       method: "firecrawl",
       attemptedUrl: sourceUrl,
       finalUrl: sourceUrl,
-      links: ["https://festival.example/tickets"],
     });
     expect(result.markdown).toContain("Festival 2027");
     expect(result.markdown).not.toContain("secret");
@@ -95,7 +95,7 @@ describe("readPage", () => {
     },
   );
 
-  it("keeps 403 blocked without a key", async () => {
+  it("reports 403 as failed without a key", async () => {
     const request = mockResponse("Forbidden");
     request.mockResolvedValueOnce({
       finalUrl: sourceUrl,
@@ -111,8 +111,8 @@ describe("readPage", () => {
     });
     expect(result).toMatchObject({
       method: "http",
-      outcome: "blocked",
-      reason: "http_403",
+      status: "failed",
+      reasonCode: "http_403",
     });
     expect(firecrawlRequest).not.toHaveBeenCalled();
   });
@@ -133,7 +133,7 @@ describe("readPage", () => {
       firecrawlKey: "test-key",
     });
     expect(result).toMatchObject({
-      outcome: "ok",
+      status: "ok",
     });
     expect(firecrawlRequest).toHaveBeenCalledOnce();
   });
@@ -157,9 +157,8 @@ describe("readPage", () => {
     });
     expect(result).toMatchObject({
       method: "firecrawl",
-      outcome: "failed",
-      reason: "firecrawl_http_402",
-      completeness: "none",
+      status: "failed",
+      reasonCode: "firecrawl_http_402",
     });
     expect(firecrawlRequest).toHaveBeenCalledOnce();
   });
@@ -237,8 +236,7 @@ describe("readPage", () => {
         <a href="/tickets?${"x".repeat(2_000)}">Ticket page</a>
         <p>Second announcement</p></body></html>`),
     });
-    expect(result.completeness).toBe("full");
-    expect(result.reason).toBeUndefined();
+    expect(result.reasonCode).toBeUndefined();
     expect(result.markdown).toContain("Second announcement");
     expect(result.markdown).toContain("](https://festival.example/tickets?");
   });
@@ -250,10 +248,9 @@ describe("readPage", () => {
       request: mockResponse(`<html><body><p>${paragraph}</p></body></html>`),
     });
     expect(result.markdown).toContain(paragraph);
-    expect(result.completeness).toBe("full");
   });
 
-  it("bounds total Markdown at a natural boundary and marks the read partial", async () => {
+  it("keeps full Markdown and bounds only the model projection", async () => {
     const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(
@@ -261,14 +258,14 @@ describe("readPage", () => {
         "text/plain",
       ),
     });
-    expect(result.markdown.length).toBeLessThanOrEqual(20_000);
-    expect(result.markdown.endsWith(".")).toBe(true);
-    expect(result.markdown).not.toContain("Later announcement");
-    expect(result).toMatchObject({
-      outcome: "ok",
-      completeness: "partial",
-      reason: "source_content_truncated",
-    });
+    expect(result.markdown.length).toBeGreaterThan(80_000);
+    expect(result.markdown).toContain("Later announcement");
+    const projected = boundedToolSource(result);
+    expect(projected.markdown.length).toBeLessThanOrEqual(79_700);
+    expect(projected.markdown).toMatch(/(?:Festival|programme|details\.)$/);
+    expect(projected.markdown).not.toContain("Later announcement");
+    expect(projected).toMatchObject({ status: "ok", truncated: true });
+    expect(projected).not.toHaveProperty("reasonCode");
   });
 
   it("does not cut a Markdown link when it crosses the total bound", async () => {
@@ -280,12 +277,84 @@ describe("readPage", () => {
       ),
     });
     expect(result.markdown).toContain("Programme.");
-    expect(result.markdown).not.toContain("[Tickets](");
-    expect(result.markdown).not.toContain("/tickets?");
-    expect(result).toMatchObject({
-      completeness: "partial",
-      reason: "source_content_truncated",
+    expect(result.markdown).toContain("[Tickets](");
+    const projected = boundedToolSource(result);
+    expect(projected.truncated).toBe(true);
+    expect(projected.markdown).not.toContain("[Tickets](");
+    expect(projected.markdown).not.toContain("/tickets?");
+  });
+
+  it("keeps escaped label brackets and URL brackets inside a whole link", async () => {
+    const result = await readPage(sourceUrl, {
+      budget: createResearchBudget(),
+      request: mockResponse(
+        `<p>${"a".repeat(79_670)} <a href="/tickets?group=[early]">Tickets [early] passes</a> Later details.</p>`,
+      ),
     });
+    const linkStart = result.markdown.indexOf("[Tickets");
+    const linkEnd = result.markdown.indexOf(")", linkStart) + 1;
+    expect(linkStart).toBeGreaterThan(0);
+    expect(result.markdown).toContain("\\[early\\]");
+    for (let end = linkStart + 1; end < linkEnd; end += 1) {
+      const projected = boundedToolSource(result, end + 300);
+      expect(projected.truncated).toBe(true);
+      expect(projected.markdown).not.toContain("[Tickets");
+    }
+    expect(boundedToolSource(result).markdown).not.toContain("[Tickets");
+  });
+
+  it.each([
+    "<!-- Navigation -->",
+    "<!-- /Navigation -->",
+    "<!-- Main content -->",
+  ])("does not cut the region comment %s", (comment) => {
+    const result = {
+      attemptedUrl: sourceUrl,
+      finalUrl: sourceUrl,
+      retrievedAt: "2026-10-03T12:00:00Z",
+      method: "http" as const,
+      status: "ok" as const,
+      markdown: "",
+    };
+    for (let offset = 1; offset < comment.length; offset += 1) {
+      result.markdown = "a".repeat(1_000 - offset) + comment + "Later";
+      const projected = boundedToolSource(result, 1_300);
+      expect(projected.truncated).toBe(true);
+      expect(projected.markdown).toBe("a".repeat(1_000 - offset));
+    }
+  });
+
+  it("omits a link that starts at the projection start and crosses its bound", () => {
+    const result = {
+      attemptedUrl: sourceUrl,
+      finalUrl: sourceUrl,
+      retrievedAt: "2026-10-03T12:00:00Z",
+      method: "http" as const,
+      status: "ok" as const,
+      markdown: `[Tickets](${sourceUrl}?${"x".repeat(2_000)})`,
+    };
+    expect(boundedToolSource(result, 1_300)).toMatchObject({
+      markdown: "",
+      truncated: true,
+    });
+  });
+
+  it.each([
+    ["Plain [ text ", "Tail"],
+    ["Plain [ text with a later closing bracket ", "] Tail"],
+  ])("keeps ordinary bracket text in a long projection: %s", (start, tail) => {
+    const markdown = start + "Festival details. ".repeat(6_000) + tail;
+    const projected = boundedToolSource({
+      attemptedUrl: sourceUrl,
+      finalUrl: sourceUrl,
+      retrievedAt: "2026-10-03T12:00:00Z",
+      method: "http",
+      status: "ok",
+      markdown,
+    });
+    expect(projected.truncated).toBe(true);
+    expect(projected.markdown.length).toBeGreaterThan(79_000);
+    expect(projected.markdown).toContain(start);
   });
 
   it("extracts continuous text, structured event data, timestamps and ticket links", async () => {
@@ -304,13 +373,12 @@ describe("readPage", () => {
       finalUrl: sourceUrl,
       retrievedAt: "2026-10-03T12:00:00.000Z",
       method: "http",
-      outcome: "ok",
-      completeness: "full",
+      status: "ok",
     });
     expect(result).not.toHaveProperty("blocks");
     expect(result.markdown).toContain("startDate: 2027-06-10");
     expect(result.markdown).toContain("Thursday: 2027-06-10");
-    expect(result.links).toContain("https://festival.example/tickets");
+    expect(result.markdown).toContain("https://festival.example/tickets");
   });
 
   it("keeps a date shown only in a header anchor and organizer text in the footer", async () => {
@@ -322,7 +390,7 @@ describe("readPage", () => {
         <footer><div><span>Organised by Example Events Ltd</span></div></footer>
       </body></html>`),
     });
-    expect(result.outcome).toBe("ok");
+    expect(result.status).toBe("ok");
     expect(result.markdown).toContain("7TH-10THJULY2027");
     expect(result.markdown).toContain("Organised by Example Events Ltd");
   });
@@ -352,6 +420,38 @@ describe("readPage", () => {
     expect(result.markdown).toContain("Example Events Ltd");
   });
 
+  it.each(["application/ld+json", "text/html"])(
+    "resolves structured-only URLs against the final page URL in %s",
+    async (contentType) => {
+      const data = JSON.stringify({
+        "@type": "MusicEvent",
+        offers: { url: "../tickets" },
+        organizer: { url: "https://organizer.example/" },
+      });
+      const request = mockResponse(data, contentType);
+      request.mockResolvedValueOnce({
+        finalUrl: "https://festival.example/redirected/2027/",
+        status: 200,
+        contentType,
+        body: Buffer.from(
+          contentType === "text/html"
+            ? `<script type="application/ld+json">${data}</script><p>Festival details.</p>`
+            : data,
+        ),
+      });
+      const result = await readPage(sourceUrl, {
+        budget: createResearchBudget(),
+        request,
+      });
+      expect(result.markdown).toContain(
+        "offers: url: https://festival.example/redirected/tickets",
+      );
+      expect(result.markdown).toContain(
+        "organizer: url: https://organizer.example/",
+      );
+    },
+  );
+
   it("keeps JSON-LD location and organizer properties under distinct paths", async () => {
     const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
@@ -377,15 +477,14 @@ describe("readPage", () => {
     });
     expect(result).toMatchObject({
       method: "social_stub",
-      outcome: "unsupported",
-      reason: "social_content_unsupported",
-      completeness: "none",
+      status: "unsupported",
+      reasonCode: "social_content_unsupported",
     });
-    expect(result.links[0]).toBe("https://www.instagram.com/festival/");
+    expect(result.finalUrl).toBe("https://www.instagram.com/festival/");
     expect(request).not.toHaveBeenCalled();
   });
 
-  it("reports sparse JavaScript pages as partial without executing scripts", async () => {
+  it("reports sparse JavaScript page limits without executing scripts", async () => {
     const firecrawlRequest = mockResponse("<main>Rendered page</main>");
     const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
@@ -396,9 +495,9 @@ describe("readPage", () => {
     });
     expect(result).toMatchObject({
       method: "http",
-      outcome: "partial",
-      completeness: "partial",
-      reason: "javascript_required",
+      status: "ok",
+
+      reasonCode: "javascript_required",
     });
     expect(result.markdown).toContain("Loading festival details");
     expect(firecrawlRequest).not.toHaveBeenCalled();
@@ -431,8 +530,7 @@ describe("readPage", () => {
     expect(result).toMatchObject({
       method: "firecrawl",
       finalUrl: `${sourceUrl}/rendered`,
-      outcome: "ok",
-      completeness: "full",
+      status: "ok",
     });
     expect(result.markdown).toContain("Festival programme");
     expect(budget.snapshot().pages).toBe(2);
@@ -453,9 +551,9 @@ describe("readPage", () => {
     expect(firecrawlRequest).toHaveBeenCalledOnce();
     expect(result).toMatchObject({
       method: "http",
-      outcome: "partial",
-      completeness: "partial",
-      reason: "javascript_required",
+      status: "ok",
+
+      reasonCode: "javascript_required",
     });
     expect(result.markdown).toContain("Loading");
     expect(result.markdown).not.toContain("Menu item");
@@ -477,41 +575,47 @@ describe("readPage", () => {
     });
     expect(result).toMatchObject({
       method: "firecrawl",
-      outcome: "ok",
-      completeness: "full",
+      status: "ok",
     });
     expect(result.markdown).toContain("Festival programme");
     expect(result.markdown).toContain("## Direct HTTP response");
     expect(result.markdown).toContain("startDate: 2027-06-10");
-    expect(result.links).toEqual([
-      "https://festival.example/tickets",
-      "https://festival.example/programme",
-      "https://festival.example/details",
-    ]);
+    expect(result.markdown).toContain(
+      "[Tickets](https://festival.example/tickets)",
+    );
+    expect(result.markdown).toContain(
+      "[Programme](https://festival.example/programme)",
+    );
+    expect(result.markdown).toContain(
+      "[Details](https://festival.example/details)",
+    );
     expect(budget.snapshot().pages).toBe(2);
   });
 
-  it("marks combined rendered and direct text partial when their total is truncated", async () => {
+  it("keeps complete rendered and direct text above the former extraction bound", async () => {
     const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(`<main>Loading</main>
         <script type="application/ld+json">${JSON.stringify({
           "@type": "MusicEvent",
-          description: "Extra detail ".repeat(400),
+          description: "Extra detail ".repeat(2_000) + "DirectTail",
         })}</script><script src="/app.js"></script>`),
       firecrawlRequest: mockResponse(
-        `<main>${"Festival programme ".repeat(1_000)}</main>`,
+        `<main>${"Festival programme ".repeat(2_000)}RenderedTail</main>`,
       ),
       firecrawlKey: "test-key",
     });
     expect(result).toMatchObject({
       method: "firecrawl",
-      outcome: "ok",
-      completeness: "partial",
-      reason: "source_content_truncated",
-      sourceTruncated: true,
+      status: "ok",
     });
-    expect(result.markdown.length).toBeLessThanOrEqual(20_000);
+    expect(result.markdown.length).toBeGreaterThan(20_000);
+    expect(result.markdown).toContain("DirectTail");
+    expect(result.markdown).toContain("RenderedTail");
+    expect(result.markdown.indexOf("Festival programme")).toBeLessThan(
+      result.markdown.indexOf("## Direct HTTP response"),
+    );
+    expect(result.reasonCode).toBeUndefined();
     expect(result.markdown).toContain("## Direct HTTP response");
   });
 
@@ -530,9 +634,9 @@ describe("readPage", () => {
     expect(firecrawlRequest).toHaveBeenCalledOnce();
     expect(result).toMatchObject({
       method: "http",
-      outcome: "partial",
-      completeness: "partial",
-      reason: "javascript_required",
+      status: "ok",
+
+      reasonCode: "javascript_required",
     });
     expect(result.markdown).toContain("Festival dates and tickets");
   });
@@ -565,7 +669,7 @@ describe("readPage", () => {
     });
     expect(firecrawlRequest).not.toHaveBeenCalled();
     expect(budget.snapshot().pages).toBe(1);
-    expect(result).toMatchObject({ method: "http", outcome: "partial" });
+    expect(result).toMatchObject({ method: "http", status: "ok" });
   });
 
   it("keeps direct content and logs a safe code when rendering fails", async () => {
@@ -595,8 +699,8 @@ describe("readPage", () => {
     );
     expect(result).toMatchObject({
       method: "http",
-      outcome: "partial",
-      reason: "javascript_required",
+      status: "ok",
+      reasonCode: "javascript_required",
     });
     expect(result.markdown).toContain("Loading");
   });
@@ -621,9 +725,8 @@ describe("readPage", () => {
     expect(firecrawlRequest).toHaveBeenCalledOnce();
     expect(result).toMatchObject({
       method: "http",
-      outcome: "partial",
-      reason: "javascript_required",
-      links: ["https://festival.example/details"],
+      status: "ok",
+      reasonCode: "javascript_required",
     });
     expect(result.markdown).toContain("Loading");
     expect(result.markdown).not.toContain("Access denied");
@@ -638,9 +741,22 @@ describe("readPage", () => {
     });
     expect(result).toMatchObject({
       method: "http",
-      outcome: "partial",
-      completeness: "partial",
-      reason: "javascript_required",
+      status: "ok",
+
+      reasonCode: "javascript_required",
+    });
+  });
+
+  it("returns ok for an empty supported response", async () => {
+    const result = await readPage(sourceUrl, {
+      budget: createResearchBudget(),
+      request: mockResponse("", "text/plain"),
+    });
+    expect(boundedToolSource(result)).toEqual({
+      url: sourceUrl,
+      status: "ok",
+      markdown: "",
+      truncated: false,
     });
   });
 
@@ -649,15 +765,15 @@ describe("readPage", () => {
       budget: createResearchBudget({ pageBytes: 2 }),
       request: mockResponse("too large"),
     });
-    expect(oversized.reason).toBe("oversized_response");
+    expect(oversized.reasonCode).toBe("oversized_response");
     const pdf = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse("%PDF", "application/pdf"),
     });
-    expect(pdf.outcome).toBe("unsupported");
+    expect(pdf.status).toBe("unsupported");
   });
 
-  it("returns a safe reason without exposing a URL in a network error", async () => {
+  it("returns a safe reasonCode without exposing a URL in a network error", async () => {
     const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: vi
@@ -666,7 +782,7 @@ describe("readPage", () => {
           new Error("failure at https://secret.example/?token=private"),
         ),
     });
-    expect(result.reason).toBe("request_failed");
+    expect(result.reasonCode).toBe("request_failed");
   });
 });
 

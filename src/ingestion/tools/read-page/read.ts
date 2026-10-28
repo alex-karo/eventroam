@@ -2,11 +2,7 @@ import type { ResearchLogger } from "../../runtime/logging";
 import type { ResearchBudget } from "../../runtime/budget";
 import { ResearchLimitError } from "../../runtime/budget";
 import type { ReadPageResult } from "./contracts";
-import {
-  combineSourceExtractions,
-  extractSource,
-  MIN_RENDERED_TEXT_CHARS,
-} from "./extract";
+import { extractSource, MIN_RENDERED_TEXT_CHARS } from "./extract";
 import { FirecrawlError, getFirecrawlResponse } from "./firecrawl";
 import {
   getBoundedResponse,
@@ -37,10 +33,8 @@ function baseResult(url: string, at: string): ReadPageResult {
     finalUrl: url,
     retrievedAt: at,
     method: "http",
-    outcome: "failed",
+    status: "failed",
     markdown: "",
-    links: [],
-    completeness: "none",
   };
 }
 
@@ -156,16 +150,20 @@ async function tryRenderedFallback(
     if (rendered.nonNavigationTextLength < MIN_RENDERED_TEXT_CHARS) {
       return;
     }
-    const combined = combineSourceExtractions(rendered, extracted);
+    const markdown = [
+      rendered.markdown,
+      extracted.markdown
+        ? `## Direct HTTP response\n\n${extracted.markdown}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
     result.finalUrl = renderedResponse.finalUrl;
     result.httpStatus = renderedResponse.status;
     result.method = "firecrawl";
-    result.markdown = combined.markdown;
-    result.links = combined.links;
-    result.sourceTruncated = combined.truncated;
-    result.outcome = "ok";
-    result.completeness = combined.truncated ? "partial" : "full";
-    result.reason = combined.truncated ? "source_content_truncated" : undefined;
+    result.markdown = markdown;
+    result.status = "ok";
+    result.reasonCode = undefined;
   } catch (error) {
     options.log?.warn("JavaScript source Firecrawl fallback failed", {
       attemptedUrl: response.finalUrl,
@@ -190,8 +188,8 @@ export async function readPage(
     if (error instanceof ResearchLimitError) {
       return {
         ...result,
-        outcome: "blocked",
-        reason: `${error.limit}_budget_exhausted`,
+        status: "failed",
+        reasonCode: `${error.limit}_budget_exhausted`,
       };
     }
     throw error;
@@ -208,16 +206,15 @@ export async function readPage(
       throw new Error("unsafe_url");
     }
   } catch {
-    return { ...result, outcome: "blocked", reason: "invalid_url" };
+    return { ...result, status: "failed", reasonCode: "invalid_url" };
   }
   if (socialHost(parsed.hostname)) {
     return {
       ...result,
       finalUrl: parsed.href,
       method: "social_stub",
-      outcome: "unsupported",
-      reason: "social_content_unsupported",
-      links: [parsed.href],
+      status: "unsupported",
+      reasonCode: "social_content_unsupported",
     };
   }
 
@@ -227,12 +224,8 @@ export async function readPage(
   } catch (error) {
     return {
       ...result,
-      outcome:
-        error instanceof UnsafeSourceError ||
-        error instanceof ResearchLimitError
-          ? "blocked"
-          : "failed",
-      reason:
+      status: "failed",
+      reasonCode:
         error instanceof ResearchLimitError
           ? `${error.limit}_budget_exhausted`
           : requestReason(error),
@@ -242,13 +235,14 @@ export async function readPage(
   result.finalUrl = response.finalUrl;
   result.httpStatus = response.status;
   if (response.body.length > options.budget.limits.pageBytes) {
-    return { ...result, outcome: "failed", reason: "oversized_response" };
-  }
-  if ([401, 403, 429].includes(response.status)) {
-    return { ...result, outcome: "blocked", reason: `http_${response.status}` };
+    return { ...result, status: "failed", reasonCode: "oversized_response" };
   }
   if (response.status < 200 || response.status >= 300) {
-    return { ...result, outcome: "failed", reason: `http_${response.status}` };
+    return {
+      ...result,
+      status: "failed",
+      reasonCode: `http_${response.status}`,
+    };
   }
   const supported = [
     "text/html",
@@ -260,8 +254,8 @@ export async function readPage(
   if (!supported) {
     return {
       ...result,
-      outcome: "unsupported",
-      reason: "unsupported_media_type",
+      status: "unsupported",
+      reasonCode: "unsupported_media_type",
     };
   }
   const body = response.body.toString("utf8");
@@ -270,20 +264,10 @@ export async function readPage(
     response.finalUrl,
     response.contentType,
   );
-  result.sourceTruncated = extracted.truncated;
   result.markdown = extracted.markdown;
-  result.links = extracted.links;
-  result.outcome = extracted.markdown ? "ok" : "partial";
-  result.completeness =
-    extracted.markdown && !extracted.truncated ? "full" : "partial";
-  if (extracted.truncated) {
-    result.reason = "source_content_truncated";
-  }
-
+  result.status = "ok";
   if (extracted.needsJavascript) {
-    result.outcome = "partial";
-    result.completeness = "partial";
-    result.reason ??= "javascript_required";
+    result.reasonCode = "javascript_required";
   }
 
   await tryRenderedFallback(response, extracted, result, options);

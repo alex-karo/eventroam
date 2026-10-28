@@ -1,7 +1,6 @@
 import Database from "better-sqlite3";
-import { execFileSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
-import { resolve } from "node:path";
+import { readTraceRows } from "../test/read-observability";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import {
   startStudioFixture,
@@ -354,7 +353,7 @@ test("final persistence failure keeps the committed catalog change and hides the
   }
 }, 60_000);
 
-test("recorded apply traces and logs stay private while the shared store serves later runs", async () => {
+test("native apply traces retain model content while the shared store serves later runs", async () => {
   const server = await startStudioFixture("recording");
   let stopped = false;
   try {
@@ -455,21 +454,7 @@ test("recorded apply traces and logs stay private while the shared store serves 
     await server.stop(true);
     stopped = true;
     expect(server.child.exitCode).toBe(0);
-    const saved = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [
-          resolve("node_modules/tsx/dist/cli.mjs"),
-          resolve("src/test/read-observability.ts"),
-          server.tracePath,
-        ],
-        { encoding: "utf8" },
-      ),
-    ) as {
-      mastra_ai_spans: Record<string, unknown>[];
-      mastra_logs: Record<string, unknown>[];
-      mastra_metrics: Record<string, unknown>[];
-    };
+    const saved = await readTraceRows(server.tracePath);
     expect(saved.mastra_ai_spans.length).toBeGreaterThan(0);
     expect(saved.mastra_logs.length).toBeGreaterThan(0);
     expect(
@@ -487,9 +472,7 @@ test("recorded apply traces and logs stay private while the shared store serves 
         (record) => record.runId === previewSummary.ingestionRunId,
       ),
     ).toBe(true);
-    expect(JSON.stringify(saved)).not.toContain(
-      "PRIVATE_STUDIO_FIXTURE_SENTINEL",
-    );
+    expect(JSON.stringify(saved)).toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
     const spans = JSON.stringify(saved.mastra_ai_spans);
     expect(spans).toContain(applied.runId);
     expect(spans).toContain(String(appliedSummary.ingestionRunId));

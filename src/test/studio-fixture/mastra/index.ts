@@ -141,11 +141,9 @@ export async function createFixtureMastra() {
             finalUrl: url,
             retrievedAt: "2026-10-10T12:00:00Z",
             method: "http" as const,
-            outcome: "ok" as const,
-            completeness: "full" as const,
+            status: "ok" as const,
             markdown:
               "PRIVATE_STUDIO_PAGE_BODY Fixture festival starts July 1, 2027.",
-            links: [],
           };
         },
         searchWeb: async (query, { budget }) => {
@@ -181,9 +179,8 @@ export async function createFixtureMastra() {
         ),
       },
       storage,
-      logger: logging?.sdk ?? false,
+      logger: logging?.native ?? false,
       observability: logging?.observability,
-      loggerOptions: { export: false },
       server: {
         host: "127.0.0.1",
         port: Number(process.env.STUDIO_FIXTURE_PORT ?? 4111),

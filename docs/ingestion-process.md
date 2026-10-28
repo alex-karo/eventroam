@@ -81,7 +81,13 @@ For an existing Event, the run first reads a saved official-site link, or anothe
 
 When a direct page request returns HTTP 403 and `FIRECRAWL_KEY` is set in `.env`, ingestion tries Firecrawl once for that URL. It also tries Firecrawl once for an HTTP 200 HTML page when the existing JavaScript signal finds a script other than JSON-LD and fewer than 200 characters of body text outside navigation. A short ordinary page with an analytics script can meet that signal.
 
-The HTTP 200 path uses rendered HTML only if it contains at least 200 such characters; otherwise the direct page remains partial with `javascript_required`. A selected render keeps its Markdown and available direct HTTP text, including JSON-LD, within the usual source limits. Firecrawl failure leaves the direct page partial. The 403 path continues to use raw HTML and remains blocked without a key.
+The HTTP 200 path uses rendered HTML only if it contains at least 200 such characters; otherwise the direct page returns `status: ok` with `reasonCode: javascript_required`. A selected render keeps its full Markdown and available direct HTTP text, including JSON-LD. Firecrawl failure keeps the direct page and its read limit. The 403 path continues to use raw HTML and returns `failed` without a key.
+
+`readPage({ url })` returns only `url`, `status`, `markdown`, `truncated`, optional `reasonCode`, and `remaining: { searches, durationMs }`. The URL is the final destination when known. Page status is `ok`, `unsupported`, or `failed`; it does not assess research completion. A supported empty response is `ok`.
+
+The run caches full extracted Markdown within the response byte bounds, including failed reads. Repeated requested or final URLs reuse that result. Text is cut only for model input: a tool call has an 80,000-character allowance less a 300-character reserve, and initial sources divide the same allowance. `truncated` reports only that projection cut. Projection does not change cached text or reason codes. Capture files contain the model projection.
+
+Page links stay inline in Markdown. There is no separate link list or completeness field. Identified page regions use paired HTML comments, such as `<!-- Navigation -->` and `<!-- /Navigation -->`, with the same form for Main content, Page header, Page footer, and Aside. A bounded prefix can end before a region's closing comment.
 
 Both fallbacks consume another page request and respect the remaining run time and response-size limit; other HTTP errors do not trigger Firecrawl.
 
@@ -259,14 +265,18 @@ Use `--model X` to select X for all three agents, including isolated Location. C
 
 Logs and traces help diagnose execution. They are optional and best effort. They do not replace the durable run report or writer audit. See [Ingestion tools](ingestion-tools.md#local-trace-inspection) for recording, queries, and cleanup.
 
-- Set `CATALOG_TRACING=true` for traces and native metrics. Set `CATALOG_LOGGING=true` independently for selected application events. Both default off.
+- Set `CATALOG_TRACING=true` for traces and native metrics. Set `CATALOG_LOGGING=true` independently for application and native SDK logs. Both default off.
 - Close Studio before a separate CLI process records data. Only one process can own the DuckDB file. Reopen Studio after the CLI exits.
 - Correlate saved runs, logs, and traces through the durable `runId` and any available real trace/span IDs. A missing trace does not mean the catalog write failed.
-- Inspect retrieval outcome and completeness separately from tool execution status. A completed tool can return a failed retrieval. Native technical success does not verify facts or catalog changes.
-- Trace labels distinguish saved context from created or changed Editions. Years are not inferred from Edition keys.
-- Keep diagnostics private. Selected commentary and reasoning can contain model text. Public source URLs can contain token-like values; no general secret detector is promised. Full source capture needs separate opt-in.
+- Inspect retrieval status and reason codes separately from tool execution status. A completed tool can return a failed retrieval. Native technical success does not verify facts or catalog changes.
+- The root has the fixed name `catalog-research`. Metadata identifies the Event, mode and durable run ID, with workflow and experiment IDs when available. Output copies only `researchStatus`, `editorStatus`, `locationStatus` and catalog `outcome`. Workflow steps and the report hold phase, validation and Edition details.
+- Keep diagnostics private. Native spans and SDK logs can retain prompts, messages, model responses, tool results and errors. Mastra's standard `SensitiveDataFilter` redacts supported span secret fields; arbitrary text and logs have no general redaction guarantee. The application does not attach configuration credentials. Separate source capture needs its own opt-in.
 
-Application telemetry selects bounded fields. SDK model/tool content is suppressed or excluded from export; a failed exclusion drops the affected span with a content-free diagnostic. Shutdown, interruption, or storage failures can lose telemetry. Logging and tracing do not add model requests or change budgets, retries, catalog writes, or exit status. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) and `src/ingestion/runtime/` for exact fields and implementation.
+Native tool spans retain their standard results. Application logs retain retrieval status, reason codes, method, URLs, caching and projection truncation. The initial read span retains retrieval metadata without a projection truncation claim. No processor restores custom span fields after SDK completion.
+
+Pino writes JSON to stderr and Mastra forwards calls to Studio Logs. Delivery uses native Mastra behavior. Events outside SDK contexts can have no top-level correlation; application log data retains the durable `runId`. Completed model commentary and returned reasoning are separate events, each limited to 4,000 Unicode code points. Studio assistant tools use the same logging configuration without enabling chat traces.
+
+The workflow ends its root after report construction, settles children, then attempts flush before shutdown. CLI closes its owned store; Studio lends its store across attempts. SDK observability warnings and errors use native messages; application lifecycle guards retain fixed codes. Telemetry remains best effort and does not change model requests, budgets, retries, catalog writes, reports, scoring or exit status. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) and `src/ingestion/runtime/` for the contract and implementation.
 
 ### Execution metrics
 
