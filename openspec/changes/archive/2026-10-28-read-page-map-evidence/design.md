@@ -40,6 +40,10 @@ Extend the existing structured data walk for `Event.location.geo` and `Place.geo
 
 Return all supported points within the output bound, including parking and camping. The reader does not rank markers, choose a venue, infer a year, or change saved coordinates. Existing research and write rules still apply.
 
+Research instructions require a coordinate finding when the map clearly identifies the selected Edition's venue. Research checks the map year and distinguishes venue markers from parking and camping. Location keeps the final coordinate decision.
+
+The source reader guide documents extraction, fallback, maps, caching, and validation. The ingestion guide and documentation index link to it.
+
 ## Simpler options
 
 Links alone would be smaller, but would not supply the agreed markers in one Research call. The selected approach adds only My Maps point reads. General map providers, short-link expansion, script configuration parsing, polygon coordinates, centers, pagination, and a new model tool are excluded.

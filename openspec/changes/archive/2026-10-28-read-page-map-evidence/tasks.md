@@ -10,7 +10,7 @@
 - [x] 2.1 Add the focused My Maps URL and point parser with small recorded fixtures and source metadata. Verify PortAmérica, Handpicked, and Mountain Music Fest cases, including map years, duplicate representations, malformed data, and polygon display coordinates.
 - [x] 2.2 Integrate one-level map reads into the page reader using the existing bounded transport and budget. Verify unique mid reads, request URLs, byte limits, timeouts, retry accounting, page retention after transport errors, and no render or recursive reads. Reuse existing network tests for redirect safety and enforcement of byte and time limits.
 - [x] 2.3 Append map Markdown to the page response and preserve map limit reasons and projection truncation. Verify full tool tests expose markers to Research and retain page text on failure. Extend the existing source-session cache test with map Markdown to verify reuse of the complete parent result.
-- [x] 2.4 Update the existing ingestion guide to describe automatic My Maps reads and their limits. Verify `npm run docs:check`; update the documentation index only if the document set changes.
+- [x] 2.4 Document automatic My Maps reads and their limits in the source reader guide. Link it from the ingestion guide and documentation index. Verify `npm run docs:check`.
 
 ## 3. Verify the integrated change
 
