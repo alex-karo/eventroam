@@ -33,6 +33,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 - [Testing](testing.md) — application checks, browser tests, and temporary test data.
 - [Change workflow](change-workflow.md) — planning, implementation, and review.
 - [Ingestion tools](ingestion-tools.md) — CLI, Studio, saved runs, and diagnostics.
+- [Source reader](source-reader.md) — page extraction, map evidence, fallback, and checks for `readPage`.
 - [Infrastructure](infrastructure.md) — application containers, deployment inputs, and database maintenance and transfers.
 - [Ingestion process](ingestion-process.md) — plain-language steps for festival research and catalog updates, including [Location resolution](../openspec/specs/catalog/location-resolution/spec.md).
 - [Ingestion evals](ingestion-evals.md) — commands, Studio experiments, case design, scoring, fixtures, and model comparison.

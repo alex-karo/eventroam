@@ -1,4 +1,9 @@
 import { load, type CheerioAPI } from "cheerio";
+import {
+  coordinatePair,
+  extractMapReferences,
+  type MapReference,
+} from "./maps";
 import TurndownService from "turndown";
 import { tables } from "turndown-plugin-gfm";
 
@@ -122,6 +127,20 @@ function structuredItems(
       const value = clean(String(record[field]));
       return `${field}: ${field === "url" ? (safeLink(value, baseUrl) ?? value) : value}`;
     });
+  const types = Array.isArray(record["@type"])
+    ? record["@type"]
+    : [record["@type"]];
+  if (
+    (types.includes("Place") || path.split(".").at(-1) === "location") &&
+    record.geo &&
+    typeof record.geo === "object"
+  ) {
+    const geo = record.geo as Record<string, unknown>;
+    const pair = coordinatePair(geo.latitude, geo.longitude);
+    if (pair) {
+      values.push(`latitude: ${pair[0]}`, `longitude: ${pair[1]}`);
+    }
+  }
   const label = path ? `${path}: ` : "";
   if (values.length) {
     items.push(`- ${label}${values.join(" · ")}`);
@@ -150,6 +169,7 @@ export function extractSource(
   contentType: string,
 ): {
   markdown: string;
+  maps: MapReference[];
   needsJavascript: boolean;
   nonNavigationTextLength: number;
 } {
@@ -165,6 +185,7 @@ export function extractSource(
     }
     return {
       markdown: items.join("\n\n").trim(),
+      maps: [],
       needsJavascript: false,
       nonNavigationTextLength: 0,
     };
@@ -172,12 +193,14 @@ export function extractSource(
   if (contentType.includes("text/plain")) {
     return {
       markdown: body.replace(/\r\n?/g, "\n").trim(),
+      maps: [],
       needsJavascript: false,
       nonNavigationTextLength: 0,
     };
   }
 
   const $ = load(body);
+  const maps = extractMapReferences($, finalUrl);
   const hasApplicationScripts = $("script")
     .toArray()
     .some(
@@ -293,6 +316,7 @@ export function extractSource(
   ].filter(Boolean);
   return {
     markdown: parts.join("\n\n").trim(),
+    maps,
     needsJavascript:
       hasApplicationScripts && contentText.length < MIN_RENDERED_TEXT_CHARS,
     nonNavigationTextLength: contentText.length,

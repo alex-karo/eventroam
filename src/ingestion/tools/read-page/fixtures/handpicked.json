@@ -1,0 +1,193 @@
+{
+  "sourceUrl": "https://www.google.com/maps/d/viewer?mid=1lxJnSGcCMfkx-ZvZDlTN27PbUpLQlJc",
+  "capturedAt": "2026-10-27",
+  "pageData": [
+    null,
+    [
+      null,
+      null,
+      "Handpicked Festival 2026",
+      null,
+      null,
+      null,
+      [
+        [
+          null,
+          null,
+          "Parking",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "5763024301BF68DB",
+                    [[[-35.3170966, 139.0381226]]],
+                    null,
+                    null,
+                    0,
+                    [["name", ["Carpark 1"], 1]],
+                    [1, ["Carpark 1"]],
+                    0
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          null,
+          null,
+          "Caravan Camping",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "576D80C46A38DBF3",
+                    null,
+                    null,
+                    [[[[[[[-35.3157283, 139.0404898]]]]]]],
+                    0,
+                    [["name", ["Caravan Camping"], 1]],
+                    [1, ["Caravan Camping"]],
+                    21
+                  ],
+                  [
+                    "576D818173AAA6FF",
+                    [[[-35.31577, 139.0412058]]],
+                    null,
+                    null,
+                    1,
+                    [["name", ["Caravan Camping"], 1]],
+                    [1, ["Caravan Camping"]],
+                    22
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          null,
+          null,
+          "Festival Entry",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "576D8415FDD1137E",
+                    [[[-35.3202615, 139.0419844]]],
+                    null,
+                    null,
+                    0,
+                    [["name", ["Festival Entry Gate"], 1]],
+                    [1, ["Festival Entry Gate"]],
+                    24
+                  ],
+                  [
+                    "576D941F5AF6D238",
+                    null,
+                    null,
+                    [[[[[[[-35.3204876, 139.0421116]]]]]]],
+                    1,
+                    [["name", ["Festival Site"], 1]],
+                    [1, ["Festival Site"]],
+                    25
+                  ],
+                  [
+                    "576D94D003B1FD8A",
+                    [[[-35.3185869, 139.0437102]]],
+                    null,
+                    null,
+                    2,
+                    [["name", ["Stage"], 1]],
+                    [1, ["Stage"]],
+                    26
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      ""
+    ]
+  ],
+  "fixtureNotes": "Recorded map excerpt. Only test records are kept. Unused fields and compact records are removed. Polygon geometry is reduced to one source vertex."
+}

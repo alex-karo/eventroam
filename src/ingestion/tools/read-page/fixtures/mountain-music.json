@@ -1,0 +1,99 @@
+{
+  "sourceUrl": "https://www.google.com/maps/d/viewer?mid=12_TFl3M_zF6-MQpycLq4LJghWwgAqNY",
+  "capturedAt": "2026-10-27",
+  "pageData": [
+    null,
+    [
+      null,
+      null,
+      "Mountain Music Fest",
+      null,
+      null,
+      null,
+      [
+        [
+          null,
+          null,
+          "Venue and Parking",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "4E368FB7A4B8955C",
+                    [[[39.6858145, -105.3640047]]],
+                    null,
+                    null,
+                    0,
+                    [
+                      ["name", ["Venue: Buchanan Park"], 1],
+                      [
+                        "description",
+                        ["The festival grounds will cover Buchanan Park."],
+                        1
+                      ]
+                    ],
+                    null,
+                    0
+                  ],
+                  [
+                    "4E3691CA4AF64819",
+                    [[[39.6853228, -105.3665267]]],
+                    null,
+                    null,
+                    1,
+                    [
+                      ["name", ["Parking: Hwy 66/103 | Squaw Pass Road"], 1],
+                      [
+                        "description",
+                        [
+                          "Walking distance: 0.2 mi+\n\nHwy 66/103 (Squaw Pass Road) - Please park your car on the side of the road inside the white line. Cars will be ticketed if any part of the car crosses the white line. While the road is right across the street from the venue, your walking distance will depend on how far up you park.\n"
+                        ],
+                        1
+                      ]
+                    ],
+                    null,
+                    1
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "Venue location and parking for the event - Saturday, August 3, 2024"
+    ]
+  ],
+  "fixtureNotes": "Recorded map excerpt. Only test records are kept. Unused fields and compact records are removed. Polygon geometry is reduced to one source vertex."
+}
