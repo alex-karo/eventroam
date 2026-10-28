@@ -43,6 +43,8 @@ Use the repository's [plan-review skill](../.agents/skills/plan-review/SKILL.md)
 
 Use the project-local [code-review skill](../.agents/skills/code-review/SKILL.md) with `$code-review` to review changes and fix clear bugs and simple improvements. Use `$complex-code-review` for review only. The linked skills define delegation, finding outcomes, and repeat-review conditions.
 
+After spec implementation, use the project-local [project-cleanup skill](../.agents/skills/project-cleanup/SKILL.md) with `$project-cleanup <change-name>` before final verification and archive. The agent finds and applies safe cleanup, removes unnecessary code and tests, and compares custom mechanisms with framework features. Substantial changes and changes to requirements need user confirmation. After cleanup, verify the final implementation against the specs.
+
 Use the project-local [docs-refactor skill](../.agents/skills/docs-refactor/SKILL.md) for substantive documentation reviews or cleanup. Select `review` for findings only or `refactor` for edits.
 
 ## Product reference
