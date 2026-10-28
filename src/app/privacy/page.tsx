@@ -40,8 +40,8 @@ export default async function PrivacyPage() {
         <p>
           We use request data to deliver and protect the website. We use basic
           usage statistics to understand which pages and features are useful and
-          to improve the catalog. We use a persistent analytics
-          identifier only with your consent.
+          to improve the catalog. We use a persistent analytics identifier only
+          with your consent.
         </p>
       </section>
       <section>
@@ -53,12 +53,13 @@ export default async function PrivacyPage() {
           strings and fragments from analytics URLs.
         </p>
         <p>
-          Before you choose and with Basic statistics, analytics uses no persistent
-          tracking identifier in your browser. PostHog receives your IP address and browser data and uses
-          a daily identifier to count visitors and link events within a day.
-          This does not make the data fully anonymous. Allow cookies enables a random browser
-          ID in cookies and local storage, with session data in session storage,
-          to measure return visits.
+          Before you choose and with Basic statistics, analytics uses no
+          persistent tracking identifier in your browser. PostHog receives your
+          IP address and browser data and uses a daily identifier to count
+          visitors and link events within a day. This does not make the data
+          fully anonymous. Allow cookies enables a random browser ID in cookies
+          and local storage, with session data in session storage, to measure
+          return visits.
         </p>
       </section>
       <section>
@@ -68,16 +69,19 @@ export default async function PrivacyPage() {
           <a href="/privacy?analytics=basic">use basic statistics</a>, or{" "}
           <a href="/privacy?analytics=on">allow cookies</a>. You can change your
           choice at any time. We save it in local storage, separately for{" "}
-          <a href="https://eventroam.org/privacy?analytics=off">eventroam.org</a>{" "}
+          <a href="https://eventroam.org/privacy?analytics=off">
+            eventroam.org
+          </a>{" "}
           and{" "}
           <a href="https://festivals.eventroam.org/privacy?analytics=off">
             festivals.eventroam.org
           </a>
-          . Basic statistics removes the stored analytics identity. Disable analytics
-          also stops new analytics events. Events collected before the change
-          can finish delivery and are not deleted. If browser storage is blocked,
-          your choice applies only to the current page. These controls affect
-          PostHog analytics; hosting, security, and map requests still operate.
+          . Basic statistics removes the stored analytics identity. Disable
+          analytics also stops new analytics events. Events collected before the
+          change can finish delivery and are not deleted. If browser storage is
+          blocked, your choice applies only to the current page. These controls
+          affect PostHog analytics; hosting, security, and map requests still
+          operate.
         </p>
       </section>
       <section>
@@ -102,7 +106,9 @@ export default async function PrivacyPage() {
                   <a href="https://posthog.com/privacy">PostHog</a>
                 </th>
                 <td>Website analytics, EU project</td>
-                <td>Usage events, request data, and browser ID after Allow cookies</td>
+                <td>
+                  Usage events, request data, and browser ID after Allow cookies
+                </td>
               </tr>
               <tr>
                 <th scope="row">
@@ -132,7 +138,6 @@ export default async function PrivacyPage() {
             </tbody>
           </table>
         </div>
-
       </section>
       <section>
         <h2>Storage and your rights</h2>

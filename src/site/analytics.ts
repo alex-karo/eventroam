@@ -6,13 +6,17 @@ let pageChoice: AnalyticsChoice = null;
 let storageUnavailable = false;
 
 export function getAnalyticsChoice(): AnalyticsChoice {
-  if (storageUnavailable) {return pageChoice;}
+  if (storageUnavailable) {
+    return pageChoice;
+  }
   try {
     const value = window.localStorage.getItem(preferenceKey);
     if (value === "1") {
       return "accepted";
     }
-    if (value === "disabled") {return "disabled";}
+    if (value === "disabled") {
+      return "disabled";
+    }
     return value === "0" ? "rejected" : null;
   } catch {
     return pageChoice;
@@ -33,7 +37,11 @@ export function setAnalyticsChoice(choice: Exclude<AnalyticsChoice, null>) {
 export function applyAnalyticsUrlChoice() {
   const value = new URLSearchParams(window.location.search).get("analytics");
   if (value === "off" || value === "basic" || value === "on") {
-    const choices = { on: "accepted", off: "disabled", basic: "rejected" } as const;
+    const choices = {
+      on: "accepted",
+      off: "disabled",
+      basic: "rejected",
+    } as const;
     setAnalyticsChoice(choices[value]);
   }
 }
@@ -48,7 +56,11 @@ const events = new Set([
 ]);
 
 export function limitAnalyticsEvent(event: CaptureResult | null) {
-  if (getAnalyticsChoice() === "disabled" || !event || !events.has(event.event)) {
+  if (
+    getAnalyticsChoice() === "disabled" ||
+    !event ||
+    !events.has(event.event)
+  ) {
     return null;
   }
   for (const key of [

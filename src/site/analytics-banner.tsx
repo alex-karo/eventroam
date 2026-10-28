@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  getAnalyticsChoice,
-  type AnalyticsChoice,
-} from "@/site/analytics";
+import { getAnalyticsChoice, type AnalyticsChoice } from "@/site/analytics";
 import { chooseAnalytics, initializeAnalytics } from "@/site/analytics-client";
 
 export function AnalyticsBanner() {
@@ -23,7 +20,9 @@ export function AnalyticsBanner() {
 
   useEffect(() => {
     const element = banner.current;
-    if (!element) {return;}
+    if (!element) {
+      return;
+    }
     const resize = new ResizeObserver(() => {
       document.documentElement.style.setProperty(
         "--analytics-banner-height",
@@ -39,7 +38,9 @@ export function AnalyticsBanner() {
     };
   }, [choice]);
 
-  if (choice !== null) {return null;}
+  if (choice !== null) {
+    return null;
+  }
 
   function choose(next: Exclude<AnalyticsChoice, null>) {
     chooseAnalytics(next);

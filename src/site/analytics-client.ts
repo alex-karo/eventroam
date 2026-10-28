@@ -53,7 +53,9 @@ export function chooseAnalytics(choice: Exclude<AnalyticsChoice, null>) {
   // The SDK writes its consent value before it emits a transition page view.
   disabling = choice === "disabled";
   try {
-    if (disabling) {setAnalyticsChoice(choice);}
+    if (disabling) {
+      setAnalyticsChoice(choice);
+    }
     initializeAnalytics();
     if (initialized) {
       if (choice === "accepted") {
@@ -75,7 +77,9 @@ function clearCookielessSessionStorage() {
   }
   try {
     window.sessionStorage.removeItem(`ph_${projectToken}_window_id`);
-    window.sessionStorage.removeItem(`ph_${projectToken}_primary_window_exists`);
+    window.sessionStorage.removeItem(
+      `ph_${projectToken}_primary_window_exists`,
+    );
   } catch {
     // Storage can be blocked by the browser.
   }
