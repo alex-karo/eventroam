@@ -387,6 +387,9 @@ export function Discovery({
           Eventroam<span aria-hidden="true">.</span>
         </a>
         <span className="discovery-scope">Festivals</span>
+        <a className="discovery-privacy" href="/privacy">
+          Privacy policy
+        </a>
         <form
           className="name-search"
           role="search"

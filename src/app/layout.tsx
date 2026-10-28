@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "@/app/globals.css";
+import { AnalyticsBanner } from "@/site/analytics-banner";
 
 export const metadata: Metadata = {
   title: "Eventroam",
@@ -11,7 +12,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <AnalyticsBanner />
+      </body>
     </html>
   );
 }

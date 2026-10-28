@@ -204,7 +204,7 @@ a:hover {
 }
 .discovery-stage {
   position: relative;
-  height: calc(100dvh - 64px);
+  height: calc(100dvh - 64px - var(--analytics-banner-height, 0px));
   min-height: 460px;
 }
 .discovery-results-shell {
@@ -693,7 +693,7 @@ a:hover {
     font-size: 16px;
   }
   .discovery-stage {
-    height: calc(100dvh - 64px);
+    height: calc(100dvh - 64px - var(--analytics-banner-height, 0px));
     min-height: 450px;
   }
   .filter-toolbar {
@@ -1410,5 +1410,111 @@ a:focus-visible {
   }
   .edition-title .edition-date strong {
     font-size: 28px;
+  }
+}
+
+.privacy-footer {
+  padding: 24px 0;
+  font-size: 0.875rem;
+}
+.privacy-page {
+  max-width: 52rem;
+}
+.privacy-page section {
+  margin-top: 2rem;
+}
+.discovery-privacy {
+  color: var(--tint);
+  font-size: 0.75rem;
+}
+
+.privacy-summary {
+  font-size: 1.125rem;
+}
+.privacy-table-scroll {
+  overflow-x: auto;
+}
+.privacy-page table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.privacy-page caption {
+  text-align: left;
+  padding-bottom: 0.75rem;
+}
+.privacy-page th,
+.privacy-page td {
+  padding: 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+body {
+  padding-bottom: var(--analytics-banner-height, 0px);
+}
+.analytics-banner {
+  position: fixed;
+  z-index: 100;
+  inset: auto 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px max(24px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+  background: var(--ink);
+  color: white;
+  border-top: 1px solid var(--control);
+  font: 400 14px/1.5 var(--font-sans);
+}
+.analytics-banner p {
+  margin: 0;
+  max-width: 72ch;
+}
+.analytics-banner a {
+  color: var(--tint);
+  text-underline-offset: 3px;
+}
+.analytics-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.analytics-banner button {
+  min-width: 96px;
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 1px solid var(--tint);
+  border-radius: var(--radius);
+  background: transparent;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+.analytics-banner button:last-child {
+  background: var(--tint);
+  color: var(--ink);
+}
+.analytics-banner button:hover {
+  background: white;
+  color: var(--ink);
+}
+.analytics-banner :focus-visible {
+  outline: 3px solid white;
+  outline-offset: 3px;
+}
+@media (max-width: 960px) {
+  .analytics-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .analytics-banner-actions button {
+    flex: 1;
   }
 }
