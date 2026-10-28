@@ -74,22 +74,63 @@ export type EventNameMismatch = {
   storedName: string;
   observedName: string;
 };
-export type PreparedPlan = {
-  editorPlan?: ResolvedEditorPlan;
+export type PlanDiagnostics = {
   validation: {
     structural: "passed" | "failed";
     target: "passed" | "failed" | "not_run";
   };
-  candidate: ResearchCandidate | null;
-  operations: CatalogOperation[];
   errors: ResearchError[];
   validationIssues?: { code: string; field: string; stage: "validation" }[];
   unresolved: ResearchQuestion[];
   matchedEventId?: string;
-  skipped: boolean;
   eventNameMismatch: EventNameMismatch | null;
+};
+
+export type StageResult<T> =
+  | { status: "continue"; value: T }
+  | { status: "skip" | "reject"; diagnostics: PlanDiagnostics };
+
+export type CheckedResearch = PlanDiagnostics & {
+  candidate: Omit<ResearchCandidate, "status" | "data"> & {
+    status: "success" | "partial";
+    data: ResearchData;
+  };
+};
+export type AcceptedEditorPlan = CheckedResearch & {
+  editorPlan: Omit<ResolvedEditorPlan, "event"> & {
+    event: NonNullable<ResolvedEditorPlan["event"]>;
+  };
+};
+export type ReadyCatalogPlan = AcceptedEditorPlan & {
+  operations: CatalogOperation[];
   explanations: Record<string, Reasons>;
 };
+
+export function stageDiagnostics<T extends PlanDiagnostics>(
+  result: StageResult<T>,
+): PlanDiagnostics {
+  return result.status === "continue"
+    ? diagnosticsOnly(result.value)
+    : result.diagnostics;
+}
+
+function diagnosticsOnly({
+  validation,
+  errors,
+  validationIssues,
+  unresolved,
+  matchedEventId,
+  eventNameMismatch,
+}: PlanDiagnostics): PlanDiagnostics {
+  return {
+    validation,
+    errors,
+    validationIssues,
+    unresolved,
+    matchedEventId,
+    eventNameMismatch,
+  };
+}
 
 function slug(value: string): string {
   const ascii = value
@@ -118,19 +159,16 @@ function mayPublish(
 function fieldName(value: string): string {
   return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
-function invalid(result: PreparedPlan, message: string): PreparedPlan {
-  result.candidate = null;
-  result.operations = [];
-  result.explanations = {};
+function invalid(result: PlanDiagnostics, message: string): StageResult<never> {
   result.errors.push({
     code: "invalid_candidate",
     stage: "validation",
     message,
   });
-  return result;
+  return { status: "reject", diagnostics: diagnosticsOnly(result) };
 }
 function adder(
-  result: PreparedPlan,
+  result: ReadyCatalogPlan,
   input: CatalogResearchInput,
 ): AddOperation {
   return (draft, reasons = {}, expectedVersion, tempKey) => {
@@ -177,16 +215,12 @@ export function validateResearch(
   raw: unknown,
   catalog: ResearchCatalog,
   input: CatalogResearchInput,
-): PreparedPlan {
-  const result: PreparedPlan = {
+): StageResult<CheckedResearch> {
+  const result: PlanDiagnostics = {
     validation: { structural: "failed", target: "not_run" },
-    candidate: null,
-    operations: [],
     errors: [],
     unresolved: [],
-    skipped: false,
     eventNameMismatch: null,
-    explanations: {},
   };
   const parsed = researchCandidateSchema.safeParse(raw);
   if (!parsed.success) {
@@ -205,14 +239,13 @@ export function validateResearch(
   }
   result.validation.structural = "passed";
   const candidate = parsed.data;
-  result.candidate = candidate;
   result.errors = candidate.errors.map((error) => ({
     ...error,
     stage: error.code === "limit_reached" ? "research" : "source",
   }));
   result.unresolved = candidate.unresolved;
   if (candidate.status === "failed") {
-    return result;
+    return { status: "reject", diagnostics: diagnosticsOnly(result) };
   }
   const data = candidate.data!;
   const matchedEventId = data.eventId ?? input.eventId;
@@ -238,18 +271,22 @@ export function validateResearch(
     };
   }
   if (input.mode === "add" && event) {
-    result.skipped = true;
-    return result;
+    return { status: "skip", diagnostics: diagnosticsOnly(result) };
   }
   if (input.mode === "refresh") {
     const error = validateRefresh(candidate, event!.editions, input.scope);
     if (error) {
-      result.candidate = null;
       result.errors.push(error);
-      return result;
+      return { status: "reject", diagnostics: diagnosticsOnly(result) };
     }
   }
-  return result;
+  return {
+    status: "continue",
+    value: {
+      ...result,
+      candidate: { ...candidate, status: candidate.status, data },
+    },
+  };
 }
 
 type FieldAction<T> =
@@ -264,9 +301,11 @@ function valueOf<T>(action: FieldAction<T> | undefined): T | null | undefined {
   }
   return undefined;
 }
-function planInvalid(result: PreparedPlan, field: string, message: string) {
-  result.operations = [];
-  result.explanations = {};
+function planInvalid(
+  result: PlanDiagnostics,
+  field: string,
+  message: string,
+): StageResult<never> {
   result.validationIssues = [
     { code: "invalid_plan", field, stage: "validation" },
   ];
@@ -276,7 +315,7 @@ function planInvalid(result: PreparedPlan, field: string, message: string) {
     field,
     message,
   });
-  return result;
+  return { status: "reject", diagnostics: diagnosticsOnly(result) };
 }
 function linksToOperations(
   add: AddOperation,
@@ -390,19 +429,12 @@ function hasClear(value: unknown): boolean {
 /** Explicit domain conversions from the editor's plan to existing operations. */
 export function prepareEditorPlan(
   raw: unknown,
-  validated: PreparedPlan,
+  validated: CheckedResearch,
   catalog: ResearchCatalog,
   input: CatalogResearchInput,
   terms: Term[],
-): PreparedPlan {
+): StageResult<AcceptedEditorPlan> {
   const result = structuredClone(validated);
-  if (
-    !result.candidate ||
-    result.candidate.status === "failed" ||
-    result.skipped
-  ) {
-    return result;
-  }
   const parsed = editorPlanSchema.safeParse(normalizeEditorWire(raw));
   if (!parsed.success) {
     return planInvalid(
@@ -412,13 +444,12 @@ export function prepareEditorPlan(
     );
   }
   if (parsed.data.status === "rejected") {
-    result.operations = [];
     result.errors.push({
       code: "editor_rejected",
       stage: "editor",
       message: parsed.data.reason,
     });
-    return result;
+    return { status: "reject", diagnostics: diagnosticsOnly(result) };
   }
   if (
     input.mode === "refresh" &&
@@ -431,7 +462,7 @@ export function prepareEditorPlan(
       "Current refresh cannot address Event fields",
     );
   }
-  const resolved = resolveEditorFields(parsed.data, result.candidate.data!);
+  const resolved = resolveEditorFields(parsed.data, result.candidate.data);
   if (!resolved.ok) {
     return planInvalid(result, resolved.issue.field, resolved.issue.message);
   }
@@ -445,8 +476,7 @@ export function prepareEditorPlan(
         "Refresh requires an existing Event target",
       );
     }
-    result.skipped = true;
-    return result;
+    return { status: "skip", diagnostics: diagnosticsOnly(result) };
   }
   const event = catalog.find((item) => item.id === result.matchedEventId);
   if (!event && !plan.event.reason) {
@@ -468,31 +498,25 @@ export function prepareEditorPlan(
     return planInvalid(result, issue.field, issue.message);
   }
   normalizeEditionClassifications(plan, terms);
-  result.editorPlan = plan;
-  return result;
+  return {
+    status: "continue",
+    value: { ...result, editorPlan: { ...plan, event: plan.event } },
+  };
 }
 
 /** Prepare one combined plan after both agents have completed validation. */
 export function prepareCatalogPlan(
-  validated: PreparedPlan,
+  validated: AcceptedEditorPlan,
   catalog: ResearchCatalog,
   input: CatalogResearchInput,
   terms: Term[],
   location: MaterializedLocation,
-): PreparedPlan {
-  const result = structuredClone(validated);
-  if (
-    !result.editorPlan ||
-    result.skipped ||
-    result.errors.some((error) =>
-      ["invalid_plan", "editor_rejected"].includes(error.code),
-    )
-  ) {
-    return result;
-  }
-  if (!result.candidate || !result.editorPlan.event) {
-    return result;
-  }
+): StageResult<ReadyCatalogPlan> {
+  const result: ReadyCatalogPlan = {
+    ...structuredClone(validated),
+    operations: [],
+    explanations: {},
+  };
   const plan: CombinedPlan = structuredClone(result.editorPlan);
   for (const slot of editionSlotNames) {
     if (!!plan[slot] !== !!location.slots[slot]) {
@@ -507,7 +531,7 @@ export function prepareCatalogPlan(
   const add = adder(result, input);
 
   const eventRef = event?.id ?? "$event";
-  prepareEvent(plan.event!, event, result.candidate.data!.eventName, add);
+  prepareEvent(plan.event!, event, result.candidate.data.eventName, add);
   let willPublishEdition = false;
   for (const [index, slot] of editionSlotNames.entries()) {
     const edition = plan[slot];
@@ -527,7 +551,7 @@ export function prepareCatalogPlan(
   ) {
     add({ kind: "publishEvent", id: eventRef }, {}, event?.version ?? 1);
   }
-  return result;
+  return { status: "continue", value: result };
 }
 
 type AcceptAction = { action: "accept" };

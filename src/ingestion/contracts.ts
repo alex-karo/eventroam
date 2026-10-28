@@ -7,7 +7,12 @@ import type { GeocodingClient } from "./tools/geocode/contracts";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { ResearchContext } from "./research/context";
 import type { ResearchExecution } from "./research/agent";
-import type { prepareEditorPlan } from "./editor/prepare";
+import type {
+  CheckedResearch,
+  AcceptedEditorPlan,
+  ReadyCatalogPlan,
+  StageResult,
+} from "./editor/prepare";
 import { emptyEditorExecution, type EditorExecution } from "./editor/agent";
 import type Database from "better-sqlite3";
 import type { DuckDBStore } from "@mastra/duckdb";
@@ -146,9 +151,11 @@ export type IngestionData = {
   research: ResearchExecution;
   editor: EditorExecution;
   location: LocationExecution;
-  prepared: ReturnType<typeof prepareEditorPlan> | null;
+  researchValidation: StageResult<CheckedResearch> | null;
+  editorValidation: StageResult<AcceptedEditorPlan> | null;
+  catalogPreparation: StageResult<ReadyCatalogPlan> | null;
+  outcome: CatalogResearchResult["outcome"] | null;
   applied: ReturnType<typeof applyCatalogItem> | null;
-  writeFailed: boolean;
   errors: ResearchError[];
   unresolved: ResearchQuestion[];
   report: CatalogResearchResult | null;
@@ -165,9 +172,11 @@ export function createIngestionData(): IngestionData {
     },
     editor: emptyEditorExecution(),
     location: emptyLocationExecution(),
-    prepared: null,
+    researchValidation: null,
+    editorValidation: null,
+    catalogPreparation: null,
+    outcome: null,
     applied: null,
-    writeFailed: false,
     errors: [],
     unresolved: [],
     report: null,

@@ -1,3 +1,4 @@
+import { continueStage, inspectPreparation } from "@/test/ingestion";
 import { generateFixtureLocation, fixtureLocationPlan } from "@/test/ingestion";
 import {
   LOCATION_PROMPT_VERSION,
@@ -196,15 +197,17 @@ test("Location receives the writer's default status for a new Edition", () => {
         reason: "The organizer announced a new Edition",
       },
     },
-    validateResearch(f.research, f.catalog, f.input),
+    continueStage(validateResearch(f.research, f.catalog, f.input)),
     f.catalog,
     f.input,
     f.vocabulary,
   );
-  expect(prepared.errors).toEqual([]);
+  expect(prepared.status).toBe("continue");
+  const accepted = continueStage(prepared);
+  expect(accepted.errors).toEqual([]);
   const location = buildLocationInput(
-    prepared.editorPlan!,
-    prepared.candidate!.data!,
+    accepted.editorPlan,
+    accepted.candidate.data,
     {
       catalog: f.catalog,
       terms: f.vocabulary,
@@ -233,17 +236,17 @@ test("Location receives the writer's default status for a new Edition", () => {
 function prepare(f: ReturnType<typeof fixture>, plan: unknown) {
   const prepared = prepareEditorPlan(
     plan,
-    validateResearch(f.research, f.catalog, f.input),
+    continueStage(validateResearch(f.research, f.catalog, f.input)),
     f.catalog,
     f.input,
     f.vocabulary,
   );
-  if (!prepared.editorPlan) {
-    return prepared;
+  if (prepared.status !== "continue") {
+    return inspectPreparation(prepared);
   }
   const locationInput = buildLocationInput(
-    prepared.editorPlan,
-    prepared.candidate!.data!,
+    prepared.value.editorPlan,
+    prepared.value.candidate.data,
     {
       catalog: f.catalog,
       terms: f.vocabulary,
@@ -274,12 +277,14 @@ function prepare(f: ReturnType<typeof fixture>, plan: unknown) {
     locationInput,
     createGeocodingSession(locationInput, createResearchBudget()),
   );
-  return prepareCatalogPlan(
-    prepared,
-    f.catalog,
-    f.input,
-    f.vocabulary,
-    location,
+  return inspectPreparation(
+    prepareCatalogPlan(
+      prepared.value,
+      f.catalog,
+      f.input,
+      f.vocabulary,
+      location,
+    ),
   );
 }
 
@@ -1296,7 +1301,7 @@ test("add derives Event identity from research and requires a creation reason", 
   delete f.research.data!.eventId;
   f.research.data!.summary = { value: "", reason };
   const input = { mode: "add" as const, actor: "test", dryRun: true };
-  const validated = validateResearch(f.research, [], input);
+  const validated = continueStage(validateResearch(f.research, [], input));
   const run = (event: unknown) =>
     prepareEditorPlan(
       { ...f.plan, event, previousEdition: null, currentOrNextEdition: null },
@@ -1306,12 +1311,15 @@ test("add derives Event identity from research and requires a creation reason", 
       f.vocabulary,
     );
   const editor = run({ reason, fields: {} });
-  expect(editor.operations).toEqual([]);
-  const result = prepareCatalogPlan(editor, [], input, f.vocabulary, {
-    slots: {},
-    donors: [],
-    unresolved: [],
-  });
+  expect(editor.status).toBe("continue");
+  expect(continueStage(editor)).not.toHaveProperty("operations");
+  const result = continueStage(
+    prepareCatalogPlan(continueStage(editor), [], input, f.vocabulary, {
+      slots: {},
+      donors: [],
+      unresolved: [],
+    }),
+  );
   expect(result.errors).toEqual([]);
   expect(result.operations).toContainEqual(
     expect.objectContaining({
@@ -1323,7 +1331,9 @@ test("add derives Event identity from research and requires a creation reason", 
     canonical_name: [reason],
   });
   for (const fields of [undefined, { summary: { action: "clear", reason } }]) {
-    const rejected = run(fields ? { reason, fields } : { fields: {} });
+    const rejected = inspectPreparation(
+      run(fields ? { reason, fields } : { fields: {} }),
+    );
     expect(rejected.operations).toEqual([]);
     expect(rejected.errors.at(-1)?.code).toBe("invalid_plan");
   }

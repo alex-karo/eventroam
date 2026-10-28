@@ -76,7 +76,7 @@ ESLint enforces these import boundaries. The writer runs without Next.js. Avoid 
 
 ## Ingestion ownership
 
-Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `editor/agent.ts` → `location/agent.ts` → `editor/prepare.ts` → catalog writer → `report.ts`. Use `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) explains the eleven steps and their observable behavior.
+Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `editor/agent.ts` → `location/agent.ts` → `editor/prepare.ts` → catalog writer → `report.ts`. Use `pipeline.ts` for stage diagnostics and write outcomes, and `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) explains the eleven steps and their observable behavior.
 
 Paths below are relative to `src/ingestion/` unless stated otherwise. Read code for internal algorithms and current limits.
 
@@ -93,6 +93,10 @@ Paths below are relative to `src/ingestion/` unless stated otherwise. Read code 
 | Workflow storage, logging and tracing | `runtime/`; see [Ingestion tools](ingestion-tools.md) |
 | Studio workflow registration | `src/mastra/index.ts` |
 | Studio chat, SQL and refresh tools, memory and schema guidance | `src/mastra/catalog-assistant/` |
+
+Each preparation function returns `continue`, `skip`, or `reject`. Only `continue` carries input for the next stage: `CheckedResearch` → `AcceptedEditorPlan` → `ReadyCatalogPlan`. Research and Editor results have no writer operations. Workflow state retains each stage result for inspection. The workflow uses those results to choose its next action and sets an explicit outcome. Reports project that outcome, stage diagnostics, and writer receipts; error codes do not control the report outcome.
+
+`CatalogAttempt` owns failure finalization, active-work settlement, terminal persistence, and resource cleanup. Cancellation and workflow-history errors use this same owner. Terminal persistence and cleanup each run once. Shared Studio resources remain with Studio.
 
 The writer owns catalog validation and atomic changes. CLI callers own injected connections. Studio owns its catalog connection and storage providers. Saved workflow state excludes live resources and credentials. See the [ingestion process](ingestion-process.md) for behavior and [Infrastructure](infrastructure.md) for storage operations.
 

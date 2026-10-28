@@ -15,6 +15,11 @@ import {
   validateResearch,
   prepareEditorPlan,
   prepareCatalogPlan,
+  stageDiagnostics,
+  type StageResult,
+  type CheckedResearch,
+  type AcceptedEditorPlan,
+  type ReadyCatalogPlan,
 } from "@/ingestion/editor/prepare";
 import type {
   CatalogResearchInput,
@@ -109,6 +114,32 @@ export const generateFixtureEditor: NonNullable<
   const { research, catalog } = JSON.parse(prompt);
   return fixtureEditorPlan(research, catalog);
 };
+/** Assert that a fixture can enter the next stage. */
+export function continueStage<T>(result: StageResult<T>): T {
+  if (result.status !== "continue") {
+    throw new Error(
+      `Fixture stage stopped: ${JSON.stringify(result.diagnostics)}`,
+    );
+  }
+  return result.value;
+}
+
+/** A compact view for assertions about operations and diagnostics. */
+export function inspectPreparation(
+  result: StageResult<CheckedResearch | AcceptedEditorPlan | ReadyCatalogPlan>,
+) {
+  const plan =
+    result.status === "continue" && "operations" in result.value
+      ? result.value
+      : null;
+  return {
+    ...stageDiagnostics(result),
+    status: result.status,
+    operations: plan?.operations ?? [],
+    explanations: plan?.explanations ?? {},
+  };
+}
+
 export function prepareEditorialFixture(
   raw: unknown,
   catalog: ResearchCatalog,
@@ -116,27 +147,28 @@ export function prepareEditorialFixture(
   terms: { id: string; facet: string; slug: string }[],
 ) {
   const validated = validateResearch(raw, catalog, input);
-  if (
-    !validated.candidate ||
-    validated.candidate.status === "failed" ||
-    validated.skipped
-  ) {
-    return validated;
+  if (validated.status !== "continue") {
+    return inspectPreparation(validated);
   }
-  const saved = catalog.find((event) => event.id === validated.matchedEventId);
+  const saved = catalog.find(
+    (event) => event.id === validated.value.matchedEventId,
+  );
   const prepared = prepareEditorPlan(
-    fixtureEditorPlan(validated.candidate, saved ? modelContext(saved) : null),
-    validated,
+    fixtureEditorPlan(
+      validated.value.candidate,
+      saved ? modelContext(saved) : null,
+    ),
+    validated.value,
     catalog,
     input,
     terms,
   );
-  if (!prepared.editorPlan) {
-    return prepared;
+  if (prepared.status !== "continue") {
+    return inspectPreparation(prepared);
   }
   const locationInput = buildLocationInput(
-    prepared.editorPlan,
-    prepared.candidate!.data!,
+    prepared.value.editorPlan,
+    prepared.value.candidate.data,
     { catalog, terms: [], knownLinks: [], currentDate: "2026-10-03T12:00:00Z" },
     input,
   );
@@ -146,7 +178,9 @@ export function prepareEditorialFixture(
     locationInput,
     session,
   );
-  return prepareCatalogPlan(prepared, catalog, input, terms, location);
+  return inspectPreparation(
+    prepareCatalogPlan(prepared.value, catalog, input, terms, location),
+  );
 }
 export const runFixtureResearch: typeof executeResearch = async (
   input,

@@ -39,6 +39,8 @@ import {
   validateResearch,
 } from "./editor/prepare";
 import { editResearch } from "./editor/agent";
+import { readyCatalogPlan, catalogWriteOutcome } from "./pipeline";
+import { stageDiagnostics } from "./editor/prepare";
 import { buildResearchReport } from "./report";
 import {
   logPreparation,
@@ -88,9 +90,13 @@ const dataSchema = z.object({
   research: z.json(),
   editor: z.json(),
   location: locationExecutionSchema,
-  prepared: z.json().nullable(),
+  researchValidation: z.json().nullable(),
+  editorValidation: z.json().nullable(),
+  catalogPreparation: z.json().nullable(),
+  outcome: z
+    .enum(["created", "updated", "published", "unchanged", "skipped", "failed"])
+    .nullable(),
   applied: z.json().nullable(),
-  writeFailed: z.boolean(),
   errors: z.array(z.json()),
   unresolved: z.array(z.json()),
   report: z.json().nullable(),
@@ -166,24 +172,6 @@ function sourceReadMetadata(read: ReadPageResult): SourceReadMetadata {
   };
 }
 
-async function finalizeFailure(
-  owned: CatalogAttempt,
-  data: IngestionData,
-  cancelled = false,
-) {
-  await owned.settle();
-  try {
-    owned.fail(data, cancelled);
-  } catch {
-    /* Finalization records report failures. */
-  }
-  try {
-    await owned.finalize(data);
-  } catch {
-    /* Preserve the engine's safe terminal error. */
-  }
-}
-
 async function safePhase(
   owned: CatalogAttempt,
   data: IngestionData,
@@ -199,7 +187,7 @@ async function safePhase(
     if (abortSignal.aborted) {
       // Failed steps discard buffered state updates in the installed engine.
       // Persist their local accounting before throwing; no private checkpoint.
-      await finalizeFailure(owned, data, true);
+      await owned.finalizeFailure(data, true);
       throw new Error("Ingestion cancelled");
     }
     await safeStep(() => owned.fail(data));
@@ -280,7 +268,7 @@ export function createCatalogIngestionWorkflow(
     }
     try {
       if (!owned.finalization) {
-        await finalizeFailure(owned, data, cancelled);
+        await owned.finalizeFailure(data, cancelled);
       }
     } finally {
       await release(runId, owned, data.report ?? undefined);
@@ -342,7 +330,7 @@ export function createCatalogIngestionWorkflow(
           return serialize(output ?? null) as z.infer<typeof stepSchema>;
         } catch {
           // Unserializable state cannot replace the last completed native state.
-          await finalizeFailure(owned, data, abortSignal.aborted);
+          await owned.finalizeFailure(data, abortSignal.aborted);
           throw new Error("Ingestion workflow failed");
         }
       },
@@ -369,6 +357,7 @@ export function createCatalogIngestionWorkflow(
               message: "Saved Edition countries conflict",
             },
           ];
+          data.outcome = "failed";
           data.report = buildResearchReport(owned.reportInput(data));
           return data.context;
         }
@@ -427,36 +416,38 @@ export function createCatalogIngestionWorkflow(
     "Validate research, target, scope and country before editing",
     (owned, data) => {
       if (data.research.ok) {
-        data.prepared = validateResearch(
+        data.researchValidation = validateResearch(
           data.research.candidate,
           data.context!.catalog,
           owned.input,
         );
 
-        owned.trace?.tracing.setEventId(data.prepared.matchedEventId);
-        data.errors = data.prepared.errors;
-        data.unresolved = data.prepared.unresolved;
+        const diagnostics = stageDiagnostics(data.researchValidation);
+        owned.trace?.tracing.setEventId(diagnostics.matchedEventId);
+        data.errors = diagnostics.errors;
+        data.unresolved = diagnostics.unresolved;
+        if (data.researchValidation.status !== "continue") {
+          data.outcome =
+            data.researchValidation.status === "skip" ? "skipped" : "failed";
+        }
       } else {
         data.errors = data.research.errors;
+        data.outcome = "failed";
       }
-      return data.prepared;
+      return data.researchValidation;
     },
   );
   const edit = phase(
     "edit-research",
     "Decide explicit field actions from research and saved state",
     async (owned, data, signal) => {
-      if (
-        !data.prepared?.candidate ||
-        data.prepared.candidate.status === "failed" ||
-        data.prepared.skipped
-      ) {
+      if (data.researchValidation?.status !== "continue") {
         return data.editor;
       }
 
       data.editor = await owned.track(
         editResearch(
-          data.prepared.candidate,
+          data.researchValidation.value.candidate,
           owned.input,
           data.context!,
           owned.budget,
@@ -467,6 +458,9 @@ export function createCatalogIngestionWorkflow(
         ),
       );
       data.errors.push(...data.editor.errors);
+      if (data.editor.status !== "success") {
+        data.outcome = "failed";
+      }
       return data.editor;
     },
   );
@@ -474,47 +468,50 @@ export function createCatalogIngestionWorkflow(
     "validate-editor-plan",
     "Validate editorial actions before Location",
     (owned, data) => {
-      if (data.editor.status !== "success" || !data.prepared) {
+      if (
+        data.editor.status !== "success" ||
+        data.researchValidation?.status !== "continue"
+      ) {
         return null;
       }
 
-      data.prepared = prepareEditorPlan(
+      data.editorValidation = prepareEditorPlan(
         data.editor.modelResponse?.object,
-        data.prepared,
+        data.researchValidation.value,
         data.context!.catalog,
         owned.input,
         data.context!.terms,
       );
-      if (data.prepared.errors.some((error) => error.code === "invalid_plan")) {
+      const diagnostics = stageDiagnostics(data.editorValidation);
+      if (
+        diagnostics.validationIssues?.some(
+          (issue) => issue.code === "invalid_plan",
+        )
+      ) {
         data.editor.status = "failed";
       }
-      data.errors = data.prepared.errors;
-      data.unresolved = data.prepared.unresolved;
-
-      logPreparation(owned.trace?.log, data.prepared);
-      // The normalized plan exists only during preparation; editorResponse is retained once.
-      return {
-        validation: data.prepared.validation,
-        operationCount: data.prepared.operations.length,
-      };
+      data.errors = diagnostics.errors;
+      data.unresolved = diagnostics.unresolved;
+      if (data.editorValidation.status !== "continue") {
+        data.outcome =
+          data.editorValidation.status === "skip" ? "skipped" : "failed";
+      }
+      logPreparation(
+        owned.trace?.log,
+        data.editorValidation,
+        data.researchValidation.value.candidate,
+      );
+      return data.editorValidation;
     },
   );
   const location = phase(
     "resolve-location",
     "Prepare geocoding and resolve the complete accepted place block",
     async (owned, data, signal) => {
-      const prepared = data.prepared;
-      if (
-        !prepared?.editorPlan ||
-        !prepared.candidate?.data ||
-        prepared.skipped ||
-        data.editor.status !== "success" ||
-        prepared.errors.some((error) =>
-          ["invalid_plan", "editor_rejected"].includes(error.code),
-        )
-      ) {
+      if (data.editorValidation?.status !== "continue") {
         return data.location;
       }
+      const prepared = data.editorValidation.value;
       const hasTargets =
         prepared.editorPlan.previousEdition ||
         prepared.editorPlan.currentOrNextEdition;
@@ -542,20 +539,30 @@ export function createCatalogIngestionWorkflow(
         );
         data.errors.push(...data.location.errors);
         if (data.location.status !== "success" || !data.location.materialized) {
+          data.outcome = "failed";
           return data.location;
         }
         materialized = data.location.materialized;
       }
-      data.prepared = prepareCatalogPlan(
+      data.catalogPreparation = prepareCatalogPlan(
         prepared,
         data.context!.catalog,
         owned.input,
         data.context!.terms,
         materialized,
       );
-      data.errors = data.prepared.errors;
-      data.unresolved = data.prepared.unresolved;
-      logPreparation(owned.trace?.log, data.prepared);
+      const diagnostics = stageDiagnostics(data.catalogPreparation);
+      data.errors = diagnostics.errors;
+      data.unresolved = diagnostics.unresolved;
+      if (data.catalogPreparation.status !== "continue") {
+        data.outcome =
+          data.catalogPreparation.status === "skip" ? "skipped" : "failed";
+      }
+      logPreparation(
+        owned.trace?.log,
+        data.catalogPreparation,
+        prepared.candidate,
+      );
       return data.location;
     },
   );
@@ -564,47 +571,46 @@ export function createCatalogIngestionWorkflow(
     "Apply the item atomically or roll back a dry run",
     (owned, data, signal) => {
       signal.throwIfAborted();
-      if (
-        !data.prepared?.operations.length ||
-        data.prepared.candidate?.status === "failed"
-      ) {
+      const plan = readyCatalogPlan(data);
+      if (!plan) {
+        return;
+      }
+      if (!plan.operations.length) {
+        data.outcome = "unchanged";
         return;
       }
       try {
-        data.applied = applyCatalogItem(
-          owned.deps.client,
-          data.prepared.operations,
-          {
-            dryRun: owned.input.dryRun,
-            beforeApply: (client) => {
-              if (owned.input.mode === "refresh") {
-                assertRefreshBaseline(
-                  client,
-                  owned.input.eventId!,
-                  data.context!.catalog[0].editions,
-                );
-              }
-              assertLocationDonors(
+        data.applied = applyCatalogItem(owned.deps.client, plan.operations, {
+          dryRun: owned.input.dryRun,
+          beforeApply: (client) => {
+            if (owned.input.mode === "refresh") {
+              assertRefreshBaseline(
                 client,
-                data.location.materialized?.donors ?? [],
+                owned.input.eventId!,
+                data.context!.catalog[0].editions,
               );
-            },
+            }
+            assertLocationDonors(
+              client,
+              data.location.materialized?.donors ?? [],
+            );
           },
-        );
+        });
+        data.outcome = catalogWriteOutcome(plan, data.applied);
         owned.trace?.tracing.setEventId(
-          reportEventId(owned.input, data.prepared, data.applied),
+          reportEventId(owned.input, plan, data.applied),
         );
 
         owned.trace?.log?.info("Catalog write finished", {
           stage: "write",
           dryRun: owned.input.dryRun,
-          fields: attemptedCatalogFields(data.prepared.operations),
+          fields: attemptedCatalogFields(plan.operations),
         });
       } catch (error) {
         if (signal.aborted) {
           throw error;
         }
-        data.writeFailed = true;
+        data.outcome = "failed";
         owned.trace?.failed("write_failed");
         data.errors.push({
           code: "write_failed",
@@ -612,7 +618,7 @@ export function createCatalogIngestionWorkflow(
           message: "Catalog write failed",
         });
       }
-      return { applied: data.applied, writeFailed: data.writeFailed };
+      return { applied: data.applied, outcome: data.outcome };
     },
   );
   const buildReport = phase(

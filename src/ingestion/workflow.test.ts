@@ -1297,6 +1297,23 @@ test("the public runner accumulates research in native state without runtime res
     research: { ok: true, candidate: proposal },
     report: { outcome: "published" },
   });
+  const { researchValidation, editorValidation, catalogPreparation } =
+    engineResult.state.data;
+  expect(researchValidation?.status).toBe("continue");
+  expect(editorValidation?.status).toBe("continue");
+  expect(catalogPreparation?.status).toBe("continue");
+  if (
+    researchValidation?.status !== "continue" ||
+    editorValidation?.status !== "continue" ||
+    catalogPreparation?.status !== "continue"
+  ) {
+    throw new Error("Expected all preparation stages to pass");
+  }
+  expect(researchValidation.value).not.toHaveProperty("editorPlan");
+  expect(researchValidation.value).not.toHaveProperty("operations");
+  expect(editorValidation.value).not.toHaveProperty("operations");
+  expect(catalogPreparation.value.operations).toEqual(result.operations);
+  expect(engineResult.state.data.outcome).toBe(result.outcome);
   expect(engineResult.state.data.reads[0]).not.toHaveProperty("markdown");
   const execution = JSON.stringify(engineResult);
   expect(execution).not.toContain(privatePage);
