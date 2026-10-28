@@ -60,9 +60,9 @@ Saved state keeps current allowed model text and Location/geocoding results. Ful
 ## Start a run
 
 ```sh
-npm run catalog -- add --name "Festival name"
-npm run catalog -- refresh --event EVENT_ID
-npm run catalog -- refresh --event EVENT_ID --event ANOTHER_EVENT_ID --scope current
+pnpm run catalog add --name "Festival name"
+pnpm run catalog refresh --event EVENT_ID
+pnpm run catalog refresh --event EVENT_ID --event ANOTHER_EVENT_ID --scope current
 ```
 
 `add` researches a festival by name and creates it only when new. A recognized existing Event returns `skipped` and its ID without changes; use `refresh` to update it. `refresh` researches distinct Events independently. Add and `--scope full` (default) check Event summary/shared links, the latest completed Edition, and the ongoing or nearest announced future Edition. Both Edition slots may create new records. `--scope current` checks only the ongoing or nearest announced future Edition. Other saved history and farther future Editions provide context for matching, country checks, and classification reuse.
@@ -245,7 +245,7 @@ Abrupt interruption may leave a running row with null report, finish time, and f
 
 ## Evaluate ingestion
 
-`npm run catalog:eval` runs five main cases once against fixed pages, searches, and geocoding responses. Each attempt starts from a fresh seed and applies the normal Research, Editor, Location, and writer flow in a disposable catalog. The owner's catalog is not changed. `--all` also runs all targeted regressions, for 50 cases in four separate groups.
+`pnpm run catalog:eval` runs five main cases once against fixed pages, searches, and geocoding responses. Each attempt starts from a fresh seed and applies the normal Research, Editor, Location, and writer flow in a disposable catalog. The owner's catalog is not changed. `--all` also runs all targeted regressions, for 50 cases in four separate groups.
 
 Main results show required completeness, additional completeness, no checked errors, and scenario success. Missing additional facts lower completeness; wrong checked facts fail the case. A dimension with no expected facts is N/A. Gold data stays outside model input.
 

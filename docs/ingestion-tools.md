@@ -12,20 +12,20 @@ Use this guide to run ingestion and inspect results. Read the [ingestion process
 
 ## CLI research
 
-Use the [local setup](development.md#local-setup) for runtime versions and dependencies. Set `OPENROUTER_API_KEY` in `.env`. The selected database must exist and be migrated; migrations supply the starter taxonomy needed for classification. `npm run catalog -- --help` lists options.
+Use the [local setup](development.md#local-setup) for runtime versions and dependencies. Set `OPENROUTER_API_KEY` in `.env`. The selected database must exist and be migrated; migrations supply the starter taxonomy needed for classification. `ppnpm run catalog --help` lists options.
 
 For a separate research catalog, migrate it first:
 
 ```sh
-DATABASE_PATH=./data/research.sqlite npm run db:migrate
+DATABASE_PATH=./data/research.sqlite ppnpm run db:migrate
 ```
 
 Then run research:
 
 ```sh
-npm run catalog -- add --name "Festival name" --database data/research.sqlite
-npm run catalog -- refresh --event EVENT_ID --database data/research.sqlite --report data/refresh.json
-npm run catalog -- refresh --event EVENT_ID --database data/research.sqlite --apply
+ppnpm run catalog add --name "Festival name" --database data/research.sqlite
+ppnpm run catalog refresh --event EVENT_ID --database data/research.sqlite --report data/refresh.json
+ppnpm run catalog refresh --event EVENT_ID --database data/research.sqlite --apply
 ```
 
 `add` creates new Events; use `refresh` for existing ones. Refresh supports repeated `--event` and `--scope full|current`; each Event has an independent atomic attempt. Preview is the default and still needs a writable database: catalog changes roll back, while the private run report persists. `--apply` starts fresh research rather than applying a saved preview. Use `--republish` to permit withdrawn records to publish again.
@@ -39,7 +39,7 @@ The [ingestion guide](ingestion-process.md) explains source handling, fact selec
 To inspect exactly what the research agent received from its initial source, `readPage`, and `searchWeb`, set `CATALOG_CAPTURE_TOOL_OUTPUTS=true` for a local CLI or loopback Studio process. Capture works for previews and apply runs and is off by default. For example:
 
 ```sh
-CATALOG_CAPTURE_TOOL_OUTPUTS=true npm run catalog -- add --name "Festival name" --database data/research.sqlite
+CATALOG_CAPTURE_TOOL_OUTPUTS=true ppnpm run catalog add --name "Festival name" --database data/research.sqlite
 ```
 
 Find the durable `runId` in the report, then inspect `data/catalog-debug/<runId>/`. Numbered JSON files contain each agent-visible response and its origin; page responses also have Markdown files. Numbers follow tool invocation order, even when concurrent calls finish out of order.
@@ -48,7 +48,7 @@ The directory is ignored by Git and contains sensitive source text and search re
 
 ## Local Studio ingestion
 
-Run `npm run catalog:studio`, open `http://127.0.0.1:4111` in the built-in Browser, and choose Workflows → `catalog-ingestion`. Inspection needs no model credentials or catalog; execution needs the migrated `DATABASE_PATH` and OpenRouter settings from `.env`.
+Run `ppnpm run catalog:studio`, open `http://127.0.0.1:4111` in the built-in Browser, and choose Workflows → `catalog-ingestion`. Inspection needs no model credentials or catalog; execution needs the migrated `DATABASE_PATH` and OpenRouter settings from `.env`.
 
 ```json
 { "mode": "add", "name": "Festival name" }
@@ -82,13 +82,13 @@ Conversation memory is bounded; older messages can leave the active context whil
 
 `CATALOG_CHAT_DATABASE_PATH` selects a separate SQLite file, default `data/mastra-chat.sqlite`. The local launcher resolves this path before Mastra changes its working directory. Retain it across restart for conversation history. The file and its SQLite sidecars must be separate from the catalog, workflow history, and DuckDB files. SDK shutdown closes all storage providers. Chat history can contain private catalog and report text.
 
-Use `npx tsx src/test/studio-fixture.ts success` for an offline Studio fixture. It uses temporary storage and a deterministic provider, with no paid research. Its chat model tests the tool protocol, not production model reasoning. See the [chat limits and report examples](ingestion-process.md#studio-catalog-chat).
+Use `pnpm exec tsx src/test/studio-fixture.ts success` for an offline Studio fixture. It uses temporary storage and a deterministic provider, with no paid research. Its chat model tests the tool protocol, not production model reasoning. See the [chat limits and report examples](ingestion-process.md#studio-catalog-chat).
 
 ## Workflow history
 
 CLI and Studio always save workflow snapshots, including intermediate results, to `CATALOG_WORKFLOW_DATABASE_PATH` (default `data/mastra-workflows.sqlite`). Relative paths use the project root. Use the same path for both commands and keep this store separate from other data files.
 
-After a CLI run, start `npm run catalog:studio` and open Workflows → catalog-ingestion → Recent runs. Inspection needs no catalog connection or model key. History supports inspection only; start a new run after interruption.
+After a CLI run, start `ppnpm run catalog:studio` and open Workflows → catalog-ingestion → Recent runs. Inspection needs no catalog connection or model key. History supports inspection only; start a new run after interruption.
 
 A history storage failure stops execution with `workflow_history_failed` and CLI exit code 1. Confirmed catalog writes and completed reports remain.
 
@@ -107,8 +107,8 @@ Logging and tracing are independently opt-in and default off. Tracing supports a
 Close Studio before recording from a separate CLI process: DuckDB requires exclusive process ownership of its file.
 
 ```sh
-CATALOG_LOGGING=true CATALOG_TRACING=true npm run catalog -- refresh --event EVENT_ID --apply --report data/research-report.json
-npm run catalog:studio
+CATALOG_LOGGING=true CATALOG_TRACING=true ppnpm run catalog refresh --event EVENT_ID --apply --report data/research-report.json
+ppnpm run catalog:studio
 ```
 
 In Studio, open Observability → Logs, Traces or Metrics. Both commands use `CATALOG_OBSERVABILITY_DATABASE_PATH`, defaulting to `data/mastra-observability.duckdb`. Use the durable runId to correlate records. The [ingestion guide](ingestion-process.md#execution-metrics) describes metric eligibility, recorded fields, cost semantics and privacy boundaries.
@@ -116,9 +116,9 @@ In Studio, open Observability → Logs, Traces or Metrics. Both commands use `CA
 With Studio running, use the native Mastra CLI to inspect saved records without model credentials or a research run:
 
 ```sh
-npx mastra api --url http://127.0.0.1:4111 trace list '{"page":0,"perPage":20}'
-npx mastra api --url http://127.0.0.1:4111 log list '{"level":"error","page":0,"perPage":50}'
-npx mastra api --url http://127.0.0.1:4111 metric aggregate '{"name":["mastra_model_total_input_tokens","mastra_model_total_output_tokens"],"aggregation":"sum"}'
+pnpm exec mastra api --url http://127.0.0.1:4111 trace list '{"page":0,"perPage":20}'
+pnpm exec mastra api --url http://127.0.0.1:4111 log list '{"level":"error","page":0,"perPage":50}'
+pnpm exec mastra api --url http://127.0.0.1:4111 metric aggregate '{"name":["mastra_model_total_input_tokens","mastra_model_total_output_tokens"],"aggregation":"sum"}'
 ```
 
 Use `--schema` on a command to check its filter fields. Sum cost over total input/output metrics only; adding cache/reasoning detail costs can double count consumption.

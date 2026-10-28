@@ -4,8 +4,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 FROM base AS dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY package.json package-lock.json .npmrc ./
-RUN npm ci
+RUN npm install --global pnpm@12.15.0
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+RUN pnpm install --frozen-lockfile
 
 FROM dependencies AS source
 COPY src ./src
@@ -15,13 +16,15 @@ COPY tsconfig.json next-env.d.ts next.config.ts postcss.config.mjs ./
 
 FROM source AS web-build
 COPY public ./public
+ARG EVENTROAM_POSTHOG_KEY=""
+ARG EVENTROAM_POSTHOG_HOST=""
 ARG EVENTROAM_MAPBOX_TOKEN=""
 ARG EVENTROAM_MAPBOX_STYLE="mapbox://styles/mapbox/streets-v12"
-RUN NEXT_PUBLIC_MAPBOX_TOKEN="$EVENTROAM_MAPBOX_TOKEN" NEXT_PUBLIC_MAPBOX_STYLE="$EVENTROAM_MAPBOX_STYLE" npm run build
+RUN NEXT_PUBLIC_POSTHOG_KEY="$EVENTROAM_POSTHOG_KEY" NEXT_PUBLIC_POSTHOG_HOST="$EVENTROAM_POSTHOG_HOST" NEXT_PUBLIC_MAPBOX_TOKEN="$EVENTROAM_MAPBOX_TOKEN" NEXT_PUBLIC_MAPBOX_STYLE="$EVENTROAM_MAPBOX_STYLE" pnpm run build
 
 FROM source AS studio-build
-RUN DATABASE_PATH=/tmp/build/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/build/history.duckdb CATALOG_WORKFLOW_DATABASE_PATH=/tmp/build/workflows.sqlite CATALOG_CHAT_DATABASE_PATH=/tmp/build/chat.sqlite npm run studio:build
-RUN npm prune --omit=dev
+RUN DATABASE_PATH=/tmp/build/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/build/history.duckdb CATALOG_WORKFLOW_DATABASE_PATH=/tmp/build/workflows.sqlite CATALOG_CHAT_DATABASE_PATH=/tmp/build/chat.sqlite pnpm run studio:build
+RUN pnpm prune --prod
 
 FROM base AS runtime
 ENV NODE_ENV=production

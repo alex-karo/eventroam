@@ -8,4 +8,4 @@ These fictional cases isolate failures observed in the ten-festival run. They ar
 | `source-stale-language-other-programme` | Use current Student dates and booking link; preserve confirmed dates and their confirmed state. Do not borrow archived English prices or prices from the separate International programme. Report the incomplete current booking render. |
 | `source-homonym-wrong-saved-website` | Recover the Castlewellan festival from a wrong Australian namesake link. Correct the official website and add the supported address, preserving country and dates. |
 
-Run a model case with `npm run catalog:eval -- --case CASE_ID --repeat 3`. Review saved results in Mastra Experiments.
+Run a model case with `pnpm run catalog:eval --case CASE_ID --repeat 3`. Review saved results in Mastra Experiments.

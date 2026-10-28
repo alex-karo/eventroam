@@ -4,7 +4,7 @@ Eventroam helps keep event information up to date through AI-assisted source res
 
 **Status:** live in production and under active development.
 
-- [eventroam.org](https://eventroam.org) — project overview and services.
+- [eventroam.org](https://eventroam.org/?utm_source=github&utm_medium=readme&utm_campaign=eventroam&utm_content=eventroam) — project overview and services.
 - [festivals.eventroam.org](https://festivals.eventroam.org) — festival discovery and event details.
 
 ## Product idea
@@ -66,10 +66,11 @@ Studio chat can query the catalog through a read-only SQL tool and refresh one t
 | AI agents | Mastra workflows and Studio chat; OpenRouter for ingestion |
 | Source processing | Got, Cheerio, Turndown; optional Firecrawl fallback |
 | Geocoding | Geoapify |
+| Analytics | PostHog |
 | Runtime | Separate web and Studio containers with a shared catalog volume |
 | Validation and quality | Zod, ESLint, Prettier, Vitest, Playwright |
 
-Run `npm run type-check`, `npm run lint`, `npm test`, and `npm run build` for application checks.
+Run `pnpm run type-check`, `pnpm run lint`, `pnpm test`, and `pnpm run build` for application checks.
 
 ## Documentation
 
@@ -85,12 +86,12 @@ Proprietary. All rights reserved. See [LICENSE](LICENSE).
 
 ## Run locally
 
-Requires Node.js **26.11.1** and npm **11.20.0**.
+Requires Node.js **26.11.1** and pnpm **12.15.0**. Install pnpm with `npm install --global pnpm@12.15.0`.
 
 ```sh
-npm ci
-npm run db:fixtures
-npm run dev
+pnpm install --frozen-lockfile
+pnpm run db:fixtures
+pnpm run dev
 ```
 
 Open [localhost:3000](http://localhost:3000) for the project presentation or [festivals.localhost:3000](http://festivals.localhost:3000) for festivals. Mapbox is optional. See the [development guide](docs/development.md) for configuration, ingestion, and application Compose commands.

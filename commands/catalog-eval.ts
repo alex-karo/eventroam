@@ -157,7 +157,7 @@ async function executeCatalogEvalCommand(args: string[]) {
   const output = (value: string) => process.stdout.write(value);
   if (args.includes("--help") || args.includes("-h")) {
     output(
-      "Usage: npm run catalog:eval -- [--all | --group GROUP | --editor-only | --location-only] [--case ID] [--model MODEL] [--repeat N] [--label LABEL]\nDefault: five main cases, one repetition. Groups: " +
+      "Usage: pnpm run catalog:eval [--all | --group GROUP | --editor-only | --location-only] [--case ID] [--model MODEL] [--repeat N] [--label LABEL]\nDefault: five main cases, one repetition. Groups: " +
         evalGroups.join(", ") +
         ".\nResults are saved as Mastra experiments. Inspect them in catalog:studio.\n",
     );

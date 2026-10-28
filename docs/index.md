@@ -6,7 +6,7 @@ For a short introduction to the product, architecture, technology, and local set
 
 ## Maintaining the docs
 
-Every substantive file under `docs/` has OKF-style `type`, `title`, `description`, and `status` frontmatter; `tags` are optional. Index files and `AGENTS.md` are navigation and instructions, not concepts. Keep unapproved choices in draft proposals. Do not add `generated`, `verified`, or `stale_after` without evidence. Update this index when adding or removing a document. Run `npm run docs:check` after editing docs.
+Every substantive file under `docs/` has OKF-style `type`, `title`, `description`, and `status` frontmatter; `tags` are optional. Index files and `AGENTS.md` are navigation and instructions, not concepts. Keep unapproved choices in draft proposals. Do not add `generated`, `verified`, or `stale_after` without evidence. Update this index when adding or removing a document. Run `pnpm run docs:check` after editing docs.
 
 ## Website design
 
@@ -28,6 +28,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 ## Development and operations
 
+- [Analytics](analytics.md) — PostHog setup, tracked events, GitHub campaign links, and owner opt-out.
 - [Development guide](development.md) — local setup, common commands, and task routes.
 - [Testing](testing.md) — application checks, browser tests, and temporary test data.
 - [Change workflow](change-workflow.md) — planning, implementation, and review.

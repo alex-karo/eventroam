@@ -128,7 +128,12 @@ function fakeTrace() {
   const finish = vi.fn(async () => {});
   const failed = vi.fn();
   const trace = {
-    tracing: { root: undefined, diagnose: vi.fn(), setEventId: vi.fn() },
+    tracing: {
+      root: undefined,
+      diagnose: vi.fn(),
+      setEventId: vi.fn(),
+      options: { metadata: {} },
+    },
     finish,
     failed,
   } as unknown as CatalogRunTrace;

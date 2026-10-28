@@ -24,6 +24,7 @@ export function createSourceSession(
   knownLinks: KnownSourceLink[],
   deps: Pick<ResearchDependencies, "readPage" | "searchWeb">,
   log?: ResearchLogger,
+  ai?: { sessionId?: string },
 ) {
   const reads: ReadPageResult[] = [];
   const inFlight = new Map<string, Promise<ReadPageResult>>();
@@ -140,6 +141,11 @@ export function createSourceSession(
         budget,
         config,
         log: operationLog,
+        ai: {
+          ...ai,
+          ...(operation.traceId ? { traceId: operation.traceId } : {}),
+          ...(operation.spanId ? { parentId: operation.spanId } : {}),
+        },
       });
     } catch (error) {
       if (!operation.tool) {

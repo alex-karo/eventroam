@@ -1,0 +1,10 @@
+allowBuilds:
+  better-sqlite3: true
+  core-js: false
+  esbuild: true
+  fsevents: true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@posthog/core@1.61.1'
+  - '@posthog/types@1.417.0'
+  - posthog-js@1.440.0

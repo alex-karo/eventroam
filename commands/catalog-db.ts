@@ -4,7 +4,7 @@ import { seedDevelopmentFixtures } from "./development-fixtures";
 
 const command = process.argv[2];
 if (command !== "migrate" && command !== "fixtures") {
-  throw new Error("Usage: npm run db:migrate or npm run db:fixtures");
+  throw new Error("Usage: pnpm run db:migrate or pnpm run db:fixtures");
 }
 const connection = openDatabase();
 try {

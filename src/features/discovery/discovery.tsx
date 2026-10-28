@@ -43,6 +43,7 @@ import {
   removeSelection,
   type FilterSelection,
 } from "@/features/discovery/model/filter-feedback";
+import posthog from "posthog-js";
 
 type Catalog = { summaries: DiscoverySummary[]; genres: Genre[] };
 type FilterGroup = "when" | "where" | "genre" | "more";
@@ -276,6 +277,23 @@ export function Discovery({
     }
     try {
       const valid = normalizeFilters(next, catalog.genres);
+      const resultCount = filterSummaries(
+        catalog.summaries,
+        valid,
+        catalog.genres,
+        today,
+      ).length;
+      const properties = {
+        active_filter_count: filterSelections(valid, catalog.genres).length,
+        has_search_query: Boolean(valid.q),
+        result_count: resultCount,
+      };
+      posthog.capture(
+        source === "search"
+          ? "discovery_search_submitted"
+          : "discovery_filters_applied",
+        properties,
+      );
       saveContext();
       setVisitToken(pushDiscoveryFilters(valid));
       setApplied(valid);
@@ -299,6 +317,7 @@ export function Discovery({
     }
     saveContext();
     pendingListScroll.current = listScroll.current;
+    posthog.capture("discovery_view_changed", { view: next });
     setView(next);
     setVisitToken(pushDiscoveryView(next));
   }
@@ -332,7 +351,10 @@ export function Discovery({
       clearIneligibleSelection();
     }
   }, [selectedEligible]);
-  function selectResult(id: string) {
+  function selectResult(id: string, selectionSource: "list" | "map") {
+    posthog.capture("edition_details_selected", {
+      selection_source: selectionSource,
+    });
     setPreserveSelectionCamera(false);
     setExpanded(false);
     void selectEdition(id);
@@ -525,7 +547,7 @@ export function Discovery({
               results={results}
               selectedId={selectedId}
               error={urlError}
-              onSelect={selectResult}
+              onSelect={(id) => selectResult(id, "list")}
               onClear={() => apply(emptyFilters())}
               token={visitToken}
               onNavigate={saveContext}
@@ -536,7 +558,7 @@ export function Discovery({
               <DiscoveryMap
                 summaries={results}
                 selectedId={selectedId}
-                onSelect={selectResult}
+                onSelect={(id) => selectResult(id, "map")}
                 visible={view === "map"}
                 cardRef={detailPanel}
                 restoreCamera={restoreCamera}

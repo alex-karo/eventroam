@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 
-export const catalogUsage = `Usage: npm run catalog -- <add|refresh> [options]
+export const catalogUsage = `Usage: pnpm run catalog <add|refresh> [options]
   add      --name <festival>
   refresh  --event <Event ID> ... [--scope full|current] (default full)
   --dry-run (default) | --apply
