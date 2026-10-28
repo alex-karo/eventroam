@@ -12,17 +12,17 @@ Evals measure catalog quality and protect specific workflow behavior. They use f
 
 ## Run evals
 
-`npm run catalog:eval -- --help` lists options. The default runs five main cases once. Main applies the normal Research → Editor → Location → writer flow in a fresh in-memory catalog. Workflow regressions use dry runs; isolated Location cases use complete inputs without a catalog or writer. The owner's catalog stays untouched. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. CI does not run evals or tests of the eval code, and application coverage excludes eval code and its CLI. Run evals through the CLI when needed.
+`pnpm run catalog:eval --help` lists options. The default runs five main cases once. Main applies the normal Research → Editor → Location → writer flow in a fresh in-memory catalog. Workflow regressions use dry runs; isolated Location cases use complete inputs without a catalog or writer. The owner's catalog stays untouched. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. CI does not run evals or tests of the eval code, and application coverage excludes eval code and its CLI. Run evals through the CLI when needed.
 
 ```sh
-npm run catalog:eval
-npm run catalog:eval -- --all
-npm run catalog:eval -- --group regression/pipeline
-npm run catalog:eval -- --editor-only
-npm run catalog:eval -- --location-only
-npm run catalog:eval -- --case sziget --repeat 3 --model openai/gpt-6-luna
-npm run catalog:eval -- --label before
-npm run catalog:eval -- --label after
+pnpm run catalog:eval
+pnpm run catalog:eval --all
+pnpm run catalog:eval --group regression/pipeline
+pnpm run catalog:eval --editor-only
+pnpm run catalog:eval --location-only
+pnpm run catalog:eval --case sziget --repeat 3 --model openai/gpt-6-luna
+pnpm run catalog:eval --label before
+pnpm run catalog:eval --label after
 ```
 
 Cases form four separate experiment groups. Use CLI help for the current selection:
@@ -58,7 +58,7 @@ Edit cases and checks in the [source locations below](#define-what-the-sources-c
 
 ### Inspect and compare in Studio
 
-Start `npm run catalog:studio`, open `http://127.0.0.1:4111`, and choose **Experiments**. Open an experiment to inspect item outputs and per-scorer values. Select **Compare**, choose two runs of the same group and dataset revision, then select **Compare Experiments**. Stable item IDs align repetitions. Run new experiments from the CLI; the Studio inline target is not an executable eval entry point. Use each dimension, not Studio's generic overall average. N/A appears as a dash; inspect saved quality counts or the CLI summary for applicability. Do not rank failed or incomplete runs by partial means. Changed cases, inputs, expectations, scorer rules, or repeat counts require fresh runs for both models.
+Start `pnpm run catalog:studio`, open `http://127.0.0.1:4111`, and choose **Experiments**. Open an experiment to inspect item outputs and per-scorer values. Select **Compare**, choose two runs of the same group and dataset revision, then select **Compare Experiments**. Stable item IDs align repetitions. Run new experiments from the CLI; the Studio inline target is not an executable eval entry point. Use each dimension, not Studio's generic overall average. N/A appears as a dash; inspect saved quality counts or the CLI summary for applicability. Do not rank failed or incomplete runs by partial means. Changed cases, inputs, expectations, scorer rules, or repeat counts require fresh runs for both models.
 
 ### Usage and storage failures
 
@@ -70,7 +70,7 @@ Experiment storage write failures retain Mastra's native errors or warnings; no 
 
 ## Local eval storage
 
-Mastra datasets, experiment results, and scores use `CATALOG_EVAL_DATABASE_PATH`, which defaults to `data/mastra-evals.sqlite`. This file is separate from the catalog and DuckDB observability. Relative paths resolve from the project root. `npm run catalog:studio` passes the same absolute path to Studio; set it explicitly for `studio:start` if you use a custom path. Studio can inspect saved datasets and experiments without model credentials. Keep eval execution in the CLI.
+Mastra datasets, experiment results, and scores use `CATALOG_EVAL_DATABASE_PATH`, which defaults to `data/mastra-evals.sqlite`. This file is separate from the catalog and DuckDB observability. Relative paths resolve from the project root. `pnpm run catalog:studio` passes the same absolute path to Studio; set it explicitly for `studio:start` if you use a custom path. Studio can inspect saved datasets and experiments without model credentials. Keep eval execution in the CLI.
 
 Known issue: [intermittent `SQLITE_BUSY_SNAPSHOT` failures](known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) can leave saved scores incomplete or fail an experiment update.
 

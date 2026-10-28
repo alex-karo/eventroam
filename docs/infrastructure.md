@@ -22,7 +22,7 @@ After deployment, verify ownership of both hosts in Google Search Console. Submi
 
 ## Application containers
 
-One Dockerfile has `web` and `studio` targets. See `Dockerfile` for the pinned Node base image. Dependencies come from `package-lock.json` and are installed for the target Linux architecture. The website uses Next standalone output. Studio includes its UI, Mastra's production Node server, and a separate migration command. Neither startup command runs migrations or loads fixtures.
+One Dockerfile has `web` and `studio` targets. See `Dockerfile` for the pinned Node base image. Dependencies come from `pnpm-lock.yaml` and are installed for the target Linux architecture. The website uses Next standalone output. Studio includes its UI, Mastra's production Node server, and a separate migration command. Neither startup command runs migrations or loads fixtures.
 
 Before running these commands:
 
@@ -71,17 +71,17 @@ Database paths are Compose constants, without deployment inputs. Direct image us
 For a production Studio build outside Docker, use temporary build storage, then select runtime storage explicitly:
 
 ```sh
-DATABASE_PATH=/tmp/eventroam-build/catalog.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/eventroam-build/history.duckdb CATALOG_WORKFLOW_DATABASE_PATH=/tmp/eventroam-build/workflows.sqlite CATALOG_CHAT_DATABASE_PATH=/tmp/eventroam-build/chat.sqlite npm run studio:build
-DATABASE_PATH=./data/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=./data/mastra-observability.duckdb CATALOG_WORKFLOW_DATABASE_PATH=./data/mastra-workflows.sqlite CATALOG_CHAT_DATABASE_PATH=./data/mastra-chat.sqlite npm run studio:start
+DATABASE_PATH=/tmp/eventroam-build/catalog.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=/tmp/eventroam-build/history.duckdb CATALOG_WORKFLOW_DATABASE_PATH=/tmp/eventroam-build/workflows.sqlite CATALOG_CHAT_DATABASE_PATH=/tmp/eventroam-build/chat.sqlite pnpm run studio:build
+DATABASE_PATH=./data/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=./data/mastra-observability.duckdb CATALOG_WORKFLOW_DATABASE_PATH=./data/mastra-workflows.sqlite CATALOG_CHAT_DATABASE_PATH=./data/mastra-chat.sqlite pnpm run studio:start
 ```
 
-`studio:start` serves the built UI and API on all interfaces without application authentication. It reads shell inputs; it does not load `.env`. Keep `npm run catalog:studio` for loopback development. Both servers preserve default preview, explicit apply, native cancellation, and the existing unsupported-execution guards. Hosted inspection alone makes no model call.
+`studio:start` serves the built UI and API on all interfaces without application authentication. It reads shell inputs; it does not load `.env`. Keep `pnpm run catalog:studio` for loopback development. Both servers preserve default preview, explicit apply, native cancellation, and the existing unsupported-execution guards. Hosted inspection alone makes no model call.
 
 ### Health and image verification
 
 Both images include Node health probes. Website `GET /health` returns `200 {"status":"ok"}` for a readable public schema or generic `503 {"status":"unavailable"}`. It does not create or migrate a missing catalog. Studio uses its existing `GET /health`. These internal checks need no model or login inputs.
 
-Run `npm run docker:smoke` to build both targets, prepare an empty test catalog with one explicit migration, and wait for both container health checks to pass. The script uses the application Compose file without host ports, a random project, and a temporary named volume. It supplies no owner data or provider credentials, makes no paid calls, and removes only its test project's containers and volume after success or failure. CI runs the same command instead of a separate host website build. Website health tests and full offline workflow execution remain outside the images.
+Run `pnpm run docker:smoke` to build both targets, prepare an empty test catalog with one explicit migration, and wait for both container health checks to pass. The script uses the application Compose file without host ports, a random project, and a temporary named volume. It supplies no owner data or provider credentials, makes no paid calls, and removes only its test project's containers and volume after success or failure. CI runs the same command instead of a separate host website build. Website health tests and full offline workflow execution remain outside the images.
 
 ### Replace supplied data
 
@@ -95,8 +95,8 @@ Stop local Next.js, Studio, and catalog commands first. Run one transfer at a
 time, with no deployment or other database users active:
 
 ```sh
-npm run db:pull -- --local-stopped  # Remote catalog to local
-npm run db:push -- --local-stopped  # Local catalog to remote
+pnpm run db:pull --local-stopped  # Remote catalog to local
+pnpm run db:push --local-stopped  # Local catalog to remote
 ```
 
 Both commands load `.env`. `DATABASE_PATH` selects the local file (default
@@ -105,8 +105,8 @@ By default, only the catalog is transferred. Add `--with-mastra` to either comma
 to include workflow history, chats, and all stored logs, traces, and metrics:
 
 ```sh
-npm run db:pull -- --local-stopped --with-mastra
-npm run db:push -- --local-stopped --with-mastra
+pnpm run db:pull --local-stopped --with-mastra
+pnpm run db:push --local-stopped --with-mastra
 ```
 
 Mastra local paths use `CATALOG_WORKFLOW_DATABASE_PATH`,
@@ -132,7 +132,7 @@ service health. Use compatible application releases and check health afterward.
 
 ## Local database maintenance
 
-`npm run db:migrate` applies reviewed migrations to `DATABASE_PATH`, including the [starter taxonomy](proposals/festival-taxonomy-vocabulary.md). Existing terms and Edition assignments are preserved; new terms do not classify or publish records. `npm run db:fixtures` also loads fictional development data. Fixtures are separate from schema migrations and omit audit history. Normal catalog mutations must use the validated writer; seed loaders must use shared catalog validators.
+`pnpm run db:migrate` applies reviewed migrations to `DATABASE_PATH`, including the [starter taxonomy](proposals/festival-taxonomy-vocabulary.md). Existing terms and Edition assignments are preserved; new terms do not classify or publish records. `pnpm run db:fixtures` also loads fictional development data. Fixtures are separate from schema migrations and omit audit history. Normal catalog mutations must use the validated writer; seed loaders must use shared catalog validators.
 
 Migration files live in `src/db/migrations/`. A database from the earlier nine-migration history must be recreated; `db:migrate` does not upgrade it.
 
@@ -141,7 +141,7 @@ Before replacing a database:
 1. Stop all processes that use it.
 2. Preserve valuable research data with a consistent SQLite backup. Keep that backup separate for manual recovery. SQLite's backup API includes committed WAL data; copying only a live main file is insufficient.
 3. Verify the backup with `PRAGMA integrity_check`.
-4. For a disposable database, recreate fictional data with `npm run db:fixtures`. Use `npm run db:migrate` for an empty catalog with starter vocabulary.
+4. For a disposable database, recreate fictional data with `pnpm run db:fixtures`. Use `pnpm run db:migrate` for an empty catalog with starter vocabulary.
 
 Historical reports remain opaque storage; current report and eval consumers do not support them. See the [SQLite decision](decisions/001-sqlite-and-drizzle.md) for storage rationale.
 

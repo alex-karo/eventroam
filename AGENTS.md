@@ -16,7 +16,7 @@ Start at the [documentation index](docs/index.md), then read only the documents 
 - Code layout or commands: [project structure](docs/project-structure.md) and [development guide](docs/development.md).
 - Technology rationale: [decisions](docs/index.md#decisions).
 
-Use current OpenSpec specs and accepted decisions for implemented behavior; check code and progress docs for exact implementation status. Do not treat active changes or draft proposals as completed behavior. Dated research and [legacy specs](docs/archive/legacy-specs/) are background evidence. For behavior changes, use the standard OpenSpec change workflow and update the owning spec when implementation is complete. Update the documentation index if the document set changes. Run `npm run openspec:validate` for OpenSpec edits and `npm run docs:check` for documentation edits.
+Use current OpenSpec specs and accepted decisions for implemented behavior; check code and progress docs for exact implementation status. Do not treat active changes or draft proposals as completed behavior. Dated research and [legacy specs](docs/archive/legacy-specs/) are background evidence. For behavior changes, use the standard OpenSpec change workflow and update the owning spec when implementation is complete. Update the documentation index if the document set changes. Run `pnpm run openspec:validate` for OpenSpec edits and `pnpm run docs:check` for documentation edits.
 
 ## Database validation
 

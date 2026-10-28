@@ -73,7 +73,7 @@ Keep application tests separate from the image startup check:
 | Website health, outside Docker | Use real SQLite files to check valid, missing, and incompatible schemas, generic responses, and no catalog creation or mutation. |
 | Images | Build both targets, prepare an empty test catalog with one explicit migration, and wait for both container health checks to pass. |
 
-Use one local/CI Compose smoke script with a random project and an isolated temporary named volume. Reuse the application Compose file without publishing host ports. Build the images, run the migration once to prepare the test catalog, and use `docker compose up --wait` to check startup and container health. Remove only the test project's containers and volume after success or failure. Use no owner data or provider credentials, call no paid providers, and fail nonzero when a command or health check fails. Replace CI's host `npm run build` with this command; keep other checks. Full workflow execution stays in offline transport tests, outside release images.
+Use one local/CI Compose smoke script with a random project and an isolated temporary named volume. Reuse the application Compose file without publishing host ports. Build the images, run the migration once to prepare the test catalog, and use `docker compose up --wait` to check startup and container health. Remove only the test project's containers and volume after success or failure. Use no owner data or provider credentials, call no paid providers, and fail nonzero when a command or health check fails. Replace CI's host `pnpm run build` with this command; keep other checks. Full workflow execution stays in offline transport tests, outside release images.
 
 ## Risks / Trade-offs
 
