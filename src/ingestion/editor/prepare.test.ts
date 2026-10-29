@@ -76,7 +76,7 @@ test("failed research and invalid target produce no operations", () => {
     { ...input, mode: "refresh", eventId },
     [],
   );
-  expect(result.candidate).toBeNull();
+  expect(result.status).toBe("reject");
   expect(result.operations).toEqual([]);
   expect(result.matchedEventId).toBeUndefined();
   expect(result.errors[0].stage).toBe("validation");
@@ -99,7 +99,7 @@ test("preparation accepts source summaries beyond the former page cap", () => {
     structural: "passed",
     target: "passed",
   });
-  expect(overBudget.candidate).not.toBeNull();
+  expect(overBudget.status).toBe("continue");
 });
 
 test("add with recognized existing ID skips every proposed update and logs name difference", () => {
@@ -131,7 +131,7 @@ test("add with recognized existing ID skips every proposed update and logs name 
     input,
     [],
   );
-  expect(result.skipped).toBe(true);
+  expect(result.status).toBe("skip");
   expect(result.validation).toEqual({ structural: "passed", target: "passed" });
   expect(result.matchedEventId).toBe(eventId);
   expect(result.operations).toEqual([]);

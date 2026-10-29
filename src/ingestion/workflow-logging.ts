@@ -1,64 +1,69 @@
+import type { CheckedResearch } from "./research/validate";
+import {
+  stageDiagnostics,
+  type PlanDiagnostics,
+  type StageResult,
+} from "./stage";
 import { editionSlotNames } from "./research/contracts";
 import { shrinkText, type ResearchLogger } from "./runtime/logging";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
-import { prepareEditorPlan } from "./editor/prepare";
+import type { AcceptedEditorPlan, ReadyCatalogPlan } from "./editor/prepare";
 
 export function logPreparation(
   log: ResearchLogger | undefined,
-  prepared: ReturnType<typeof prepareEditorPlan>,
+  result: StageResult<AcceptedEditorPlan | ReadyCatalogPlan>,
+  candidate: CheckedResearch["candidate"],
 ) {
-  const accepted =
-    prepared.candidate &&
-    prepared.candidate.status !== "failed" &&
-    prepared.validation.target === "passed" &&
-    !prepared.errors.some(
-      (error) =>
-        error.code === "invalid_plan" || error.code === "editor_rejected",
-    );
-  log?.[accepted ? "info" : "warn"](
-    accepted ? "Editorial plan prepared" : "Editorial plan rejected",
-    {
-      stage: "validation",
-      status: prepared.candidate?.status ?? "invalid",
-      eventId: prepared.matchedEventId,
-      eventName: prepared.candidate?.data?.eventName,
-      editions: editionSlotNames.flatMap((slot) => {
-        const edition = prepared.candidate?.data?.[slot];
-        return edition
-          ? [
-              {
-                role: slot,
-                editionKey: edition.key,
-                year: edition.year?.value ?? null,
-              },
-            ]
-          : [];
+  const accepted = result.status === "continue";
+  const prepared = stageDiagnostics(result);
+  const operations =
+    accepted && "operations" in result.value ? result.value.operations : [];
+  const message = {
+    continue: "Editorial plan prepared",
+    skip: "Editorial plan skipped",
+    reject: "Editorial plan rejected",
+  }[result.status];
+  log?.[result.status === "reject" ? "warn" : "info"](message, {
+    stage: "validation",
+    status: candidate.status,
+    eventId: prepared.matchedEventId,
+    eventName: candidate.data.eventName,
+    editions: editionSlotNames.flatMap((slot) => {
+      const edition = candidate.data[slot];
+      return edition
+        ? [
+            {
+              role: slot,
+              editionKey: edition.key,
+              year: edition.year?.value ?? null,
+            },
+          ]
+        : [];
+    }),
+    operationCount: operations.length,
+    fields: attemptedCatalogFields(operations),
+    validation: prepared.validation,
+    errors: [...(prepared.validationIssues ?? []), ...prepared.errors].map(
+      (error) => ({
+        code: error.code,
+        stage: error.stage,
+        ...("message" in error
+          ? { message: shrinkText(error.message, 512) }
+          : { field: error.field }),
       }),
-      operationCount: prepared.operations.length,
-      fields: attemptedCatalogFields(prepared.operations),
-      validation: prepared.validation,
-      errors: [...(prepared.validationIssues ?? []), ...prepared.errors].map(
-        (error) => ({
-          code: error.code,
-          stage: error.stage,
-          ...("message" in error
-            ? { message: shrinkText(error.message, 512) }
-            : { field: error.field }),
-        }),
-      ),
-      unresolved: prepared.unresolved.map((q) => shrinkText(q.message, 512)),
-      unresolvedOrigin: "model-reported",
-    },
-  );
+    ),
+    unresolved: prepared.unresolved.map((q) => shrinkText(q.message, 512)),
+    unresolvedOrigin: "model-reported",
+  });
 }
 
 export function logCompletion(
   log: ResearchLogger | undefined,
   finalized: CatalogResearchResult,
   input: CatalogResearchInput,
-  prepared: ReturnType<typeof prepareEditorPlan> | null,
+  prepared: PlanDiagnostics | null,
 ) {
   log?.[
     finalized.outcome === "failed" ||
@@ -82,7 +87,7 @@ export function logCompletion(
 
 export function reportEventId(
   input: CatalogResearchInput,
-  prepared: ReturnType<typeof prepareEditorPlan> | null,
+  prepared: PlanDiagnostics | null,
   applied: ReturnType<typeof applyCatalogItem> | null,
 ) {
   let persistentEventId = input.eventId ?? null;

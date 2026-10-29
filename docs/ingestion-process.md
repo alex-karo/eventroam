@@ -27,7 +27,7 @@ Ingestion finds or refreshes festival facts in the catalog. An owner starts each
 
 ## Workflow steps
 
-Each festival attempt runs one Mastra workflow with eleven sequential steps:
+Each festival attempt runs one Mastra workflow with twelve sequential steps:
 
 | Step                   | Responsibility                                                                                          |
 | ---------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -38,7 +38,8 @@ Each festival attempt runs one Mastra workflow with eleven sequential steps:
 | `validate-research`    | Check findings, targets, scope and country before editing.                                              |
 | `edit-research`        | Run one tool-free editor to choose explicit actions.                                                    |
 | `validate-editor-plan` | Validate editor actions and targets without preparing writes.                                           |
-| `resolve-location`     | Prepare shared geocoding, run Location, and prepare the combined item plan.                             |
+| `resolve-location`     | Prepare shared geocoding and run Location.                                                              |
+| `prepare-catalog-plan` | Prepare catalog operations from accepted Editor and Location results.                                   |
 | `apply-catalog-item`   | Preview or atomically apply eligible operations; retain write failures for the report.                  |
 | `build-report`         | Combine three agent outputs, actual changes, source history, questions, and budget counters.            |
 | `finalize-run`         | Persist the private report, return the bounded summary and release owned resources.                     |

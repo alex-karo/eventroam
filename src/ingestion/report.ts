@@ -1,3 +1,4 @@
+import type { PlanDiagnostics } from "./stage";
 import type { LocationExecution } from "./location/agent";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
@@ -10,7 +11,7 @@ import {
   type ResearchError,
   type ResearchQuestion,
 } from "./research/contracts";
-import type { prepareEditorPlan } from "./editor/prepare";
+import type { ReadyCatalogPlan } from "./editor/prepare";
 import { EDITOR_PROMPT_VERSION } from "./editor/contracts";
 import type { EditorExecution } from "./editor/agent";
 import type { ResearchExecution } from "./research/agent";
@@ -23,12 +24,13 @@ export type ReportInput = {
   runId: string;
   input: CatalogResearchInput;
   config: ResearchConfig;
-  prepared: ReturnType<typeof prepareEditorPlan> | null;
+  diagnostics: PlanDiagnostics | null;
+  plan: ReadyCatalogPlan | null;
+  outcome: CatalogResearchResult["outcome"];
   research: ResearchExecution;
   editor: EditorExecution;
   location: LocationExecution;
   applied: ReturnType<typeof applyCatalogItem> | null;
-  writeFailed: boolean;
   errors: ResearchError[];
   unresolved: ResearchQuestion[];
   reads: SourceReadMetadata[];
@@ -46,7 +48,7 @@ export function buildWorkflowFailureReport(
   input: ReportInput,
 ): CatalogResearchResult {
   const report = assembleReport(input);
-  if (!input.prepared && input.research.ok) {
+  if (!input.diagnostics && input.research.ok) {
     const candidate = researchCandidateSchema.safeParse(
       input.research.candidate,
     );
@@ -64,12 +66,13 @@ function assembleReport({
   limits,
   input,
   config,
-  prepared,
+  diagnostics,
+  plan,
+  outcome,
   research,
   editor,
   location,
   applied,
-  writeFailed,
   errors,
   unresolved,
   reads,
@@ -77,7 +80,7 @@ function assembleReport({
   started,
   finished,
 }: ReportInput): CatalogResearchResult {
-  const operations = prepared?.operations ?? [];
+  const operations = plan?.operations ?? [];
   const receipts = applied?.operations ?? [];
   const references = applied?.references ?? {};
   const changes = (applied?.changes ?? []).flatMap((change) =>
@@ -87,7 +90,7 @@ function assembleReport({
       oldValue: field.oldValue,
       newValue: field.newValue,
       explanations:
-        prepared?.explanations[change.operationKey]?.[field.field] ?? [],
+        plan?.explanations[change.operationKey]?.[field.field] ?? [],
     })),
   );
   const finalCandidate = research.ok
@@ -97,9 +100,6 @@ function assembleReport({
     !research.ok || !finalCandidate?.success
       ? "failed"
       : finalCandidate.data.status;
-  const changedKinds = operations
-    .filter((_, index) => receipts[index]?.changed)
-    .map((operation) => operation.kind);
   return {
     schemaVersion: 7,
     ...(traceId ? { traceId } : {}),
@@ -121,30 +121,9 @@ function assembleReport({
     },
     runId,
     mode: input.mode,
-    outcome: researchOutcome({
-      changedKinds,
-      writeFailed:
-        writeFailed ||
-        editor.status === "failed" ||
-        location.status === "rejected" ||
-        location.status === "failed" ||
-        !!(prepared && !prepared.candidate && !prepared.skipped) ||
-        !!errors.some(
-          (error) =>
-            [
-              "invalid_candidate",
-              "invalid_plan",
-              "country_conflict",
-              "editor_rejected",
-              "country_baseline_conflict",
-            ].includes(error.code) ||
-            (error.code === "workflow_failed" && !applied),
-        ),
-      researchStatus,
-      skipped: prepared?.skipped ?? false,
-    }),
+    outcome,
     researchStatus,
-    eventId: prepared?.matchedEventId ?? references.event ?? input.eventId,
+    eventId: diagnostics?.matchedEventId ?? references.event ?? input.eventId,
     modelResponse: research.modelResponse ?? null,
     editorResponse: editor.modelResponse,
     editorStatus: editor.status,
@@ -155,12 +134,12 @@ function assembleReport({
     changes,
     sources: reads.map(safeSource),
     sourceSummaries:
-      prepared?.validation.target === "passed" && finalCandidate?.success
+      diagnostics?.validation.target === "passed" && finalCandidate?.success
         ? (finalCandidate.data.data?.sources ?? [])
         : [],
     errors,
     unresolved,
-    eventNameMismatch: prepared?.eventNameMismatch ?? null,
+    eventNameMismatch: diagnostics?.eventNameMismatch ?? null,
     budget,
     locationResponse: location.modelResponse,
     locationStatus: location.status,
@@ -175,44 +154,6 @@ function assembleReport({
     promptVersion: RESEARCH_PROMPT_VERSION,
     durationMs: finished - started,
   };
-}
-
-function researchOutcome({
-  changedKinds,
-  writeFailed,
-  researchStatus,
-  skipped,
-}: {
-  changedKinds: CatalogResearchResult["operations"][number]["kind"][];
-  writeFailed: boolean;
-  researchStatus: CatalogResearchResult["researchStatus"];
-  skipped: boolean;
-}): CatalogResearchResult["outcome"] {
-  if (writeFailed) {
-    return "failed";
-  }
-  if (researchStatus === "failed") {
-    return "failed";
-  }
-  if (skipped) {
-    return "skipped";
-  }
-  if (
-    changedKinds.includes("publishEvent") ||
-    changedKinds.includes("publishEdition")
-  ) {
-    return "published";
-  }
-  if (
-    changedKinds.includes("createEvent") ||
-    changedKinds.includes("createEdition")
-  ) {
-    return "created";
-  }
-  if (changedKinds.length) {
-    return "updated";
-  }
-  return "unchanged";
 }
 
 function safeSource(read: SourceReadMetadata) {

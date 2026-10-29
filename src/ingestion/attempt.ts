@@ -4,6 +4,7 @@ import type {
   ResearchDependencies,
   IngestionData,
 } from "./contracts";
+import { preparationDiagnostics, readyCatalogPlan } from "./pipeline";
 import { createResearchBudget, type ResearchBudget } from "./runtime/budget";
 import { loadResearchConfig, type ResearchConfig } from "./runtime/config";
 import { createCatalogRunTrace, type CatalogRunTrace } from "./runtime/tracing";
@@ -108,14 +109,15 @@ export class CatalogAttempt {
         : {}),
       input: this.input,
       config: this.config,
-      prepared: data.prepared,
+      diagnostics: preparationDiagnostics(data),
+      plan: readyCatalogPlan(data),
+      outcome: data.outcome ?? "failed",
       context: data.context,
       limits: this.budget.limits,
       research: data.research,
       editor: data.editor,
       location: data.location,
       applied: data.applied,
-      writeFailed: data.writeFailed,
       errors: data.errors,
       unresolved: data.unresolved,
       reads: data.reads,
@@ -150,6 +152,9 @@ export class CatalogAttempt {
     } else {
       this.trace?.failed("workflow_failed");
     }
+    if (!data.applied) {
+      data.outcome = "failed";
+    }
     data.errors.push({
       code: "workflow_failed",
       stage: "workflow",
@@ -158,18 +163,39 @@ export class CatalogAttempt {
     data.report = buildWorkflowFailureReport(this.reportInput(data));
   }
 
+  /** All engine failure paths use the same settlement and terminal persistence. */
+  async finalizeFailure(data: IngestionData, cancelled = false) {
+    await this.settle();
+    try {
+      this.fail(data, cancelled);
+    } catch {
+      // Finalization records report failures.
+    }
+    try {
+      await this.finalize(data);
+    } catch {
+      // Keep the engine's safe terminal error.
+    }
+  }
+
   finalize(data: IngestionData): Promise<CatalogResearchResult> {
     this.finalization ??= Promise.resolve().then(async () => {
+      await this.settle();
       try {
         data.report ??= buildResearchReport(this.reportInput(data));
         const result = finalizeIngestionRun(
           this.deps.client,
           this.ingestionRunId,
           data.report,
-          reportEventId(this.input, data.prepared, data.applied),
+          reportEventId(this.input, preparationDiagnostics(data), data.applied),
           Date.now(),
         );
-        logCompletion(this.trace?.log, result, this.input, data.prepared);
+        logCompletion(
+          this.trace?.log,
+          result,
+          this.input,
+          preparationDiagnostics(data),
+        );
         return result;
       } catch (error) {
         if (data.report) {

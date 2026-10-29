@@ -22,15 +22,13 @@ import type {
 } from "@/catalog/operations/operation";
 import type { ResearchCatalog } from "../research/context";
 import type { CatalogResearchInput } from "../contracts";
+import { editionSlotNames, type ResearchData } from "../research/contracts";
+import type { CheckedResearch } from "../research/validate";
 import {
-  researchCandidateSchema,
-  editionSlotNames,
-  type ResearchCandidate,
-  type ResearchData,
-  type ResearchError,
-  type ResearchQuestion,
-} from "../research/contracts";
-import { validateRefresh } from "../research/guards";
+  diagnosticsOnly,
+  type PlanDiagnostics,
+  type StageResult,
+} from "../stage";
 import { majorToMinor } from "../research/money";
 
 type CombinedEditionPlan = NonNullable<
@@ -69,25 +67,13 @@ type AddOperation = (
   expectedVersion?: number,
   tempKey?: string,
 ) => void;
-export type EventNameMismatch = {
-  eventId: string;
-  storedName: string;
-  observedName: string;
-};
-export type PreparedPlan = {
-  editorPlan?: ResolvedEditorPlan;
-  validation: {
-    structural: "passed" | "failed";
-    target: "passed" | "failed" | "not_run";
+export type AcceptedEditorPlan = CheckedResearch & {
+  editorPlan: Omit<ResolvedEditorPlan, "event"> & {
+    event: NonNullable<ResolvedEditorPlan["event"]>;
   };
-  candidate: ResearchCandidate | null;
+};
+export type ReadyCatalogPlan = AcceptedEditorPlan & {
   operations: CatalogOperation[];
-  errors: ResearchError[];
-  validationIssues?: { code: string; field: string; stage: "validation" }[];
-  unresolved: ResearchQuestion[];
-  matchedEventId?: string;
-  skipped: boolean;
-  eventNameMismatch: EventNameMismatch | null;
   explanations: Record<string, Reasons>;
 };
 
@@ -118,19 +104,8 @@ function mayPublish(
 function fieldName(value: string): string {
   return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
-function invalid(result: PreparedPlan, message: string): PreparedPlan {
-  result.candidate = null;
-  result.operations = [];
-  result.explanations = {};
-  result.errors.push({
-    code: "invalid_candidate",
-    stage: "validation",
-    message,
-  });
-  return result;
-}
 function adder(
-  result: PreparedPlan,
+  result: ReadyCatalogPlan,
   input: CatalogResearchInput,
 ): AddOperation {
   return (draft, reasons = {}, expectedVersion, tempKey) => {
@@ -172,86 +147,6 @@ function catalogBasePrice(
     ...(value.qualification ? { qualification: value.qualification } : {}),
   };
 }
-/** Validate research and assignment before editing. Never creates mutations. */
-export function validateResearch(
-  raw: unknown,
-  catalog: ResearchCatalog,
-  input: CatalogResearchInput,
-): PreparedPlan {
-  const result: PreparedPlan = {
-    validation: { structural: "failed", target: "not_run" },
-    candidate: null,
-    operations: [],
-    errors: [],
-    unresolved: [],
-    skipped: false,
-    eventNameMismatch: null,
-    explanations: {},
-  };
-  const parsed = researchCandidateSchema.safeParse(raw);
-  if (!parsed.success) {
-    result.validationIssues = parsed.error.issues.map((issue) => ({
-      code: issue.code,
-      field: issue.path.join(".") || "$",
-      stage: "validation",
-    }));
-    return invalid(
-      result,
-      parsed.error.issues
-        .slice(0, 3)
-        .map((issue) => `${issue.path.join(".")}:${issue.code}`)
-        .join(", "),
-    );
-  }
-  result.validation.structural = "passed";
-  const candidate = parsed.data;
-  result.candidate = candidate;
-  result.errors = candidate.errors.map((error) => ({
-    ...error,
-    stage: error.code === "limit_reached" ? "research" : "source",
-  }));
-  result.unresolved = candidate.unresolved;
-  if (candidate.status === "failed") {
-    return result;
-  }
-  const data = candidate.data!;
-  const matchedEventId = data.eventId ?? input.eventId;
-  const event = catalog.find((item) => item.id === matchedEventId);
-  if (
-    (matchedEventId && !event) ||
-    (input.eventId && data.eventId && input.eventId !== data.eventId) ||
-    (!event && input.mode !== "add")
-  ) {
-    result.validation.target = "failed";
-    result.validationIssues = [
-      { code: "invalid_target", field: "data.eventId", stage: "validation" },
-    ];
-    return invalid(result, "Event is outside the requested catalog target");
-  }
-  result.validation.target = "passed";
-  result.matchedEventId = matchedEventId;
-  if (event && event.canonicalName.trim() !== data.eventName.trim()) {
-    result.eventNameMismatch = {
-      eventId: event.id,
-      storedName: event.canonicalName,
-      observedName: data.eventName,
-    };
-  }
-  if (input.mode === "add" && event) {
-    result.skipped = true;
-    return result;
-  }
-  if (input.mode === "refresh") {
-    const error = validateRefresh(candidate, event!.editions, input.scope);
-    if (error) {
-      result.candidate = null;
-      result.errors.push(error);
-      return result;
-    }
-  }
-  return result;
-}
-
 type FieldAction<T> =
   | { action: "set"; value: T; reason: string }
   | { action: "clear" | "keep"; reason: string };
@@ -264,9 +159,11 @@ function valueOf<T>(action: FieldAction<T> | undefined): T | null | undefined {
   }
   return undefined;
 }
-function planInvalid(result: PreparedPlan, field: string, message: string) {
-  result.operations = [];
-  result.explanations = {};
+function planInvalid(
+  result: PlanDiagnostics,
+  field: string,
+  message: string,
+): StageResult<never> {
   result.validationIssues = [
     { code: "invalid_plan", field, stage: "validation" },
   ];
@@ -276,7 +173,7 @@ function planInvalid(result: PreparedPlan, field: string, message: string) {
     field,
     message,
   });
-  return result;
+  return { status: "reject", diagnostics: diagnosticsOnly(result) };
 }
 function linksToOperations(
   add: AddOperation,
@@ -387,22 +284,15 @@ function hasClear(value: unknown): boolean {
   );
 }
 
-/** Explicit domain conversions from the editor's plan to existing operations. */
+/** Validate and resolve editor actions before Location runs. */
 export function prepareEditorPlan(
   raw: unknown,
-  validated: PreparedPlan,
+  validated: CheckedResearch,
   catalog: ResearchCatalog,
   input: CatalogResearchInput,
   terms: Term[],
-): PreparedPlan {
+): StageResult<AcceptedEditorPlan> {
   const result = structuredClone(validated);
-  if (
-    !result.candidate ||
-    result.candidate.status === "failed" ||
-    result.skipped
-  ) {
-    return result;
-  }
   const parsed = editorPlanSchema.safeParse(normalizeEditorWire(raw));
   if (!parsed.success) {
     return planInvalid(
@@ -412,13 +302,12 @@ export function prepareEditorPlan(
     );
   }
   if (parsed.data.status === "rejected") {
-    result.operations = [];
     result.errors.push({
       code: "editor_rejected",
       stage: "editor",
       message: parsed.data.reason,
     });
-    return result;
+    return { status: "reject", diagnostics: diagnosticsOnly(result) };
   }
   if (
     input.mode === "refresh" &&
@@ -431,7 +320,7 @@ export function prepareEditorPlan(
       "Current refresh cannot address Event fields",
     );
   }
-  const resolved = resolveEditorFields(parsed.data, result.candidate.data!);
+  const resolved = resolveEditorFields(parsed.data, result.candidate.data);
   if (!resolved.ok) {
     return planInvalid(result, resolved.issue.field, resolved.issue.message);
   }
@@ -445,8 +334,7 @@ export function prepareEditorPlan(
         "Refresh requires an existing Event target",
       );
     }
-    result.skipped = true;
-    return result;
+    return { status: "skip", diagnostics: diagnosticsOnly(result) };
   }
   const event = catalog.find((item) => item.id === result.matchedEventId);
   if (!event && !plan.event.reason) {
@@ -468,31 +356,25 @@ export function prepareEditorPlan(
     return planInvalid(result, issue.field, issue.message);
   }
   normalizeEditionClassifications(plan, terms);
-  result.editorPlan = plan;
-  return result;
+  return {
+    status: "continue",
+    value: { ...result, editorPlan: { ...plan, event: plan.event } },
+  };
 }
 
 /** Prepare one combined plan after both agents have completed validation. */
 export function prepareCatalogPlan(
-  validated: PreparedPlan,
+  validated: AcceptedEditorPlan,
   catalog: ResearchCatalog,
   input: CatalogResearchInput,
   terms: Term[],
   location: MaterializedLocation,
-): PreparedPlan {
-  const result = structuredClone(validated);
-  if (
-    !result.editorPlan ||
-    result.skipped ||
-    result.errors.some((error) =>
-      ["invalid_plan", "editor_rejected"].includes(error.code),
-    )
-  ) {
-    return result;
-  }
-  if (!result.candidate || !result.editorPlan.event) {
-    return result;
-  }
+): StageResult<ReadyCatalogPlan> {
+  const result: ReadyCatalogPlan = {
+    ...structuredClone(validated),
+    operations: [],
+    explanations: {},
+  };
   const plan: CombinedPlan = structuredClone(result.editorPlan);
   for (const slot of editionSlotNames) {
     if (!!plan[slot] !== !!location.slots[slot]) {
@@ -507,7 +389,7 @@ export function prepareCatalogPlan(
   const add = adder(result, input);
 
   const eventRef = event?.id ?? "$event";
-  prepareEvent(plan.event!, event, result.candidate.data!.eventName, add);
+  prepareEvent(plan.event!, event, result.candidate.data.eventName, add);
   let willPublishEdition = false;
   for (const [index, slot] of editionSlotNames.entries()) {
     const edition = plan[slot];
@@ -527,7 +409,7 @@ export function prepareCatalogPlan(
   ) {
     add({ kind: "publishEvent", id: eventRef }, {}, event?.version ?? 1);
   }
-  return result;
+  return { status: "continue", value: result };
 }
 
 type AcceptAction = { action: "accept" };
