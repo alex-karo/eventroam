@@ -2,7 +2,7 @@
   "name": "eventroam",
   "version": "0.1.0",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "engines": {
     "node": "26.11.1",
     "pnpm": "12.15.0"
