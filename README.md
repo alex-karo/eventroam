@@ -82,7 +82,7 @@ Run `pnpm run type-check`, `pnpm run lint`, `pnpm test`, and `pnpm run build` fo
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE)
+[PolyForm Noncommercial 1.0.0](LICENSE.md)
 
 ## Run locally
 
