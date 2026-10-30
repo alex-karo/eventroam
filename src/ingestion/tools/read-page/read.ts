@@ -2,7 +2,7 @@ import type { ResearchLogger } from "../../runtime/logging";
 import type { ResearchBudget } from "../../runtime/budget";
 import { ResearchLimitError } from "../../runtime/budget";
 import type { ReadPageResult } from "./contracts";
-import { extractSource, MIN_RENDERED_TEXT_CHARS } from "./extract";
+import { extractSource } from "./extract";
 import {
   mergeMapReferences,
   referenceMarkdown,
@@ -153,9 +153,6 @@ async function tryRenderedFallback(
       renderedResponse.finalUrl,
       renderedResponse.contentType,
     );
-    if (rendered.nonNavigationTextLength < MIN_RENDERED_TEXT_CHARS) {
-      return extracted.maps;
-    }
     const markdown = [
       rendered.markdown,
       extracted.markdown

@@ -9,7 +9,7 @@ import {
 } from "./maps";
 
 const REGION_ATTRIBUTE = "data-source-region";
-export const MIN_RENDERED_TEXT_CHARS = 200;
+const MIN_SCRIPTED_TEXT_CHARS = 200;
 
 function markRegions($: CheerioAPI, finalUrl: string): void {
   // Only converter-assigned labels are used by the region plugin below.
@@ -342,7 +342,7 @@ export function extractSource(
     markdown: parts.join("\n\n").trim(),
     maps,
     needsJavascript:
-      hasApplicationScripts && contentText.length < MIN_RENDERED_TEXT_CHARS,
+      hasApplicationScripts && contentText.length < MIN_SCRIPTED_TEXT_CHARS,
     nonNavigationTextLength: contentText.length,
   };
 }
