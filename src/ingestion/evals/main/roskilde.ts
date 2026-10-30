@@ -54,8 +54,6 @@ export function roskilde(context: MainContext) {
       fact("next.sizeEstimate", next?.sizeEstimate, [130000]),
       linkFact("next.tickets", next?.links, "ticketing", [
         "https://www.roskilde-festival.dk/billetter",
-        // tickets.md: direct admission for all eight festival days.
-        "https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09",
       ]),
       basePrice(next, "DKK", 265000),
     ],
