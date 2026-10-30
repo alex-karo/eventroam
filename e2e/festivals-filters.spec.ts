@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Page, type TestInfo } from "./fixtures";
 
 const year = "/?from=2027-01-01&to=2027-12-31";
 const list = (page: Page) => page.getByRole("region", { name: "List results" });
@@ -295,7 +295,7 @@ test("country search and keyboard suggestions keep location edits pending", asyn
   ).toBeVisible();
 });
 
-test("native unfinished numbers and dates suppress the preview until cleared", async ({
+test("native unfinished numbers suppress the preview until cleared", async ({
   page,
 }, testInfo) => {
   await page.goto(year);
@@ -319,6 +319,17 @@ test("native unfinished numbers and dates suppress the preview until cleared", a
     page.getByRole("button", { name: "Show 4 events" }),
   ).toBeEnabled();
   await page.getByRole("button", { name: "Cancel" }).click();
+});
+
+test("native unfinished dates suppress the preview until cleared", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(
+    isMobile,
+    "Mobile date pickers do not have keyboard date segments.",
+  );
+  await page.goto(year);
   await page.getByRole("button", { name: "When", exact: true }).click();
   await page.getByLabel("From", { exact: true }).fill("");
   await page.getByLabel("To", { exact: true }).fill("");

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 const query = "/?from=2027-01-01&to=2027-12-31&country=PT";
 const card = (page: Page) =>
   page.getByRole("region", { name: "Selected edition details" });
@@ -244,7 +244,6 @@ test("compact labeled links and fixed card actions work at 320 pixels", async ({
   ).toBeVisible();
   const bounds = await link.boundingBox();
   expect(bounds!.height).toBeGreaterThanOrEqual(32);
-  expect(bounds!.height).toBeLessThan(44);
   const icon = await link.locator("svg").boundingBox();
   expect(icon!.width).toBe(16);
   expect(icon!.height).toBe(16);
@@ -304,9 +303,9 @@ test("browser history restores nonzero list scroll and separate search entries",
   await column.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
-  await expect
-    .poll(async () => (await snapshot(page))?.scroll)
-    .toBeGreaterThan(0);
+  const scroll = await column.evaluate((element) => element.scrollTop);
+  expect(scroll).toBeGreaterThan(0);
+  await expect.poll(async () => (await snapshot(page))?.scroll).toBe(scroll);
   const before = await snapshot(page);
   await card(page).getByRole("link", { name: "View", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(field);

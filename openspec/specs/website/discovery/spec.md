@@ -334,7 +334,7 @@ Desktop discovery SHALL use a side card. Narrow screens SHALL use a bottom card 
 - **THEN** the card stays within the viewport and its content can scroll
 - **AND** the linked title and 44-pixel icon controls stay visible above the scrolling content
 - **AND** View stays visible in the bottom-right corner outside the scrolling content
-- **AND** the fixed desktop width and compact and expanded mobile sizes remain unchanged
+- **AND** card size adapts to the space available for content and map interaction
 - **AND** required compact facts, navigation, and card controls remain reachable
 
 #### Scenario: A visitor uses list view without a working map

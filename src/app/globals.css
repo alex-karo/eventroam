@@ -775,7 +775,7 @@ a:hover {
   }
   .discovery-results-shell.view-map .discovery-notices {
     position: absolute;
-    z-index: 4;
+    z-index: 5;
     top: 60px;
     left: 10px;
     right: 10px;
@@ -1297,6 +1297,11 @@ a:focus-visible {
   }
   .detail-panel.is-expanded {
     height: min(540px, calc(100% - 136px));
+  }
+  .view-map .detail-panel:not(.is-expanded) {
+    /* Leave space above the card for the selected point and map gestures. */
+    height: auto;
+    max-height: calc(100% - 240px);
   }
   .detail-panel .card-header h2 {
     font-size: 18px;

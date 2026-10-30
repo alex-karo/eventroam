@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page, type Route } from "./fixtures";
 
 const year = "/?from=2027-01-01&to=2027-12-31";
 const preview = (page: Page) =>

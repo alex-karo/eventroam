@@ -159,7 +159,7 @@ export function DiscoveryMap({
       rect,
       cardRef.current?.getBoundingClientRect() ?? null,
     );
-    if (Math.abs(offset.x) > 1 || Math.abs(offset.y) > 1) {
+    if (Math.abs(offset.x) > 0.5 || Math.abs(offset.y) > 0.5) {
       instance.panBy([offset.x, offset.y], { duration: 0 });
     }
   }, [cardRef, updateSelectedMarker]);
