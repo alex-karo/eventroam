@@ -13,7 +13,6 @@
   },
   "provenance": {
     "kind": "synthetic-scope-regression",
-    "sourceReport": "openspec/specs/catalog/refresh-scope/spec.md",
     "note": "Synthetic source facts for model selection/completeness; no live HTTP/search fallback."
   },
   "initial": {

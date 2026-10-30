@@ -6,7 +6,6 @@
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "captured-research-editor-regression",
-    "sourceReport": "data/catalog-evals/narrow-current-verify-2026-10-15T11-47-11-170Z.json",
     "note": "Exact research handoff from the unknown-currency editor failure; original fictional source fixtures retained."
   },
   "input": {

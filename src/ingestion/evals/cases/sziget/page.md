@@ -1,4 +1,10 @@
-# Homepage - #SZIGET2027
+---
+title: "Homepage - #SZIGET2027"
+meta:
+  description: "Sziget Festival 2026 Budapest. Join The Island of Freedom to explore all kinds of magic and unexpected surprises."
+  "og:description": "Join The Island of Freedom await you with all kinds of unexpected surprises."
+  "og:title": "Sziget Festival 2027, Budapest"
+---
 
 Sziget Festival App
 
@@ -6,49 +12,43 @@ Sziget Festival app
 
 Open
 
-[Page header]
 
-[Navigation]
+
+<!-- Page header -->
+
+
+
+<!-- Navigation -->
 
 [2027 10 - 14 AUG](https://szigetfestival.com/en/)
 
--   en
-    
-    [Magyar](https://szigetfestival.com/hu/)
-    
+- en [Magyar](https://szigetfestival.com/hu/)
 
--   [Tickets](https://szigetfestival.com/en/tickets)
--   [Discover Sziget](https://szigetfestival.com/en/experience)
-    
-    [The Island of Freedom](https://szigetfestival.com/en/experience)[Exciting venues](https://szigetfestival.com/en/stages)[Sziget City](https://szigetfestival.com/en/programs_outside)[Green Sziget](https://szigetfestival.com/en/greensziget)
-    
--   [Need to know](https://szigetfestival.com/en/festival-info)
-    
-    [FAQ](https://szigetfestival.com/en/festival-info)[Get the Sziget App](https://szigetfestival.com/en/mobileapp)[How to get here?](https://szigetfestival.com/en/travel)
-    
--   [Best moments](https://szigetfestival.com/en/gallery)
--   [Sziget TV](https://szigetfestival.com/en/stream)
+- [Tickets](https://szigetfestival.com/en/tickets)
+- [Discover Sziget](https://szigetfestival.com/en/experience) [The Island of Freedom](https://szigetfestival.com/en/experience) [Sziget TV](https://szigetfestival.com/en/stream) [Best moments](https://szigetfestival.com/en/gallery)
+- [Need to know](https://szigetfestival.com/en/festival-info) [FAQ](https://szigetfestival.com/en/festival-info) [Get the Sziget App](https://szigetfestival.com/en/mobileapp)
 
 [Login](https://szigetfestival.com/en/account)
 
--   en
-    
-    [Magyar](https://szigetfestival.com/hu/)
-    
+- en [Magyar](https://szigetfestival.com/hu/)
 
 [Tickets](https://szigetfestival.com/en/tickets)
 
-[/Navigation]
 
-[/Page header]
 
-[Main content]
+<!-- /Navigation -->
 
-# Until we meet again!
 
-Sziget returns: 10 - 14 August 2027
 
-[JOIN US](https://www.facebook.com/events/2605844039849461)
+<!-- /Page header -->
+
+
+
+<!-- Main content -->
+
+# Relive the best moments of 2026
+
+[Watch the aftermovie](https://szigetfestival.com/en/aftermovie)
 
 ## LOCK IN YOUR SPOT
 
@@ -92,7 +92,7 @@ The festival is over, but we are staying right here. Keep the app and turn on pu
 
 [DOWNLOAD THE APP](https://szigetfestival.com/en/mobileapp)
 
-## What is your CO2 footprint at the festival?
+## What is your CO<sub>2</sub> footprint at the festival?
 
 Everyone leaves their carbon footprint at the festival, depending on their travel and consumption choices. Calculate your CO2 emissions and compare it with that of an average Szitizen.
 
@@ -102,7 +102,7 @@ How many days are you spending with us at Sziget?
 
 ### How many days are you spending with us at Sziget?
 
- 1 2  3  4  The whole week!
+1 2 3 4 The whole week!
 
 Next
 
@@ -110,13 +110,13 @@ What mode of transport are you using to get here? (for the majority of your jour
 
 ### What mode of transport are you using to get here? (for the majority of your journey)
 
- Car (fossil fuel) Car (electric)  Public transport (metro, tram)  Public transport (local bus)  Long distance bus  Airplane  Train  Bicycle  My legs
+Car (fossil fuel) Car (electric) Public transport (metro, tram) Public transport (local bus) Long distance bus Airplane Train Bicycle My legs
 
 Next
 
 ### If you are coming by car, how many people are you sharing the car with?
 
- 1 2  3  4  5
+1 2 3 4 5
 
 Next
 
@@ -128,37 +128,37 @@ Next
 
 ### How many meals per day do you eat at Sziget's caterers?
 
- 0 1  2  3
+0 1 2 3
 
 Next
 
 ### What protein sources are you choosing at Sziget?
 
- Plant-based (vegan) Meat-free (vegetarian)  Fish  White meat (poultry, pork)  Red meet (beef, sheep, goat)
+Plant-based (vegan) Meat-free (vegetarian) Fish White meat (poultry, pork) Red meet (beef, sheep, goat)
 
 Next
 
 ### What's your signature drink?
 
- Beer Water (bottles)  Soft drink  Wine/spritzer  Cocktail/long-drink  Shots
+Beer Water (bottles) Soft drink Wine/spritzer Cocktail/long-drink Shots
 
 Next
 
 ### How many cups per day do you usually drink?
 
- 1 2  3  4  4+
+1 2 3 4 4+
 
 Next
 
 ### Where are you staying during the festival?
 
- At home/with family/friends Camping  Hotel/airbnb, etc
+At home/with family/friends Camping Hotel/airbnb, etc
 
 Next
 
 ### Do you return your Reusable Cup?
 
- Yes No
+Yes No
 
 Next
 
@@ -276,17 +276,23 @@ My first @szigetofficial was pure magic, unforgettable xx see you next year and 
 
 @filipefernandestv
 
-@yukisai_chan
+@yukisai\_chan
 
 Honestly….it’s been incredibleeeeee!!!! ✨Thank you Sziget!!!!!! ✨♥️? Ti amiamoooo!!!!
 
 @yukisai\_chan
 
-[/Main content]
+
+
+<!-- /Main content -->
 
 ###### Our awesome sponsors and partners
 
-[Page footer]
+<https://www.revolut.com/> <https://dreher.hu/> <https://budapest.hu/> <https://www.redbull.com/hu-hu/> <https://bolt.eu/hu-hu/>
+
+
+
+<!-- Page footer -->
 
 #### Get all the News
 
@@ -294,18 +300,30 @@ Artist drops, promotions, giveaways, ticket alerts & basically everything to be 
 
 [SIGN UP NOW](https://szigetfestival.com/en/newsletter)
 
--   [Press](https://szigetfestival.com/en/press)
--   [Sziget Crew](https://szigetfestival.com/en/sziget-crew)
--   [Policy & General terms](https://szigetfestival.com/en/policy-gctc)
--   [For brand partners](https://szigetfestival.com/en/sponsors)
--   [Contact us](https://szigetfestival.com/en/contact)
--   [Cookie settings](https://szigetfestival.com/en/#)
+- [Press](https://szigetfestival.com/en/press)
+- [Sziget Crew](https://szigetfestival.com/en/sziget-crew)
+- [Policy & General terms](https://szigetfestival.com/en/policy-gctc)
+- [For brand partners](https://szigetfestival.com/en/sponsors)
+- [Contact us](https://szigetfestival.com/en/contact)
+- [Cookie settings](https://szigetfestival.com/en/#)
+
+<https://apps.apple.com/app/sziget-festival/id886794508>
+
+<https://play.google.com/store/apps/details?id=com.greencopper.android.sziget>
 
 Sziget management proudly presents:
 
+<https://gyereksziget.hu/><https://gourmetfesztival.hu/en/>
+
 Our Green Certifications
 
-[/Page footer]
+
+
+<!-- /Page footer -->
+
+<https://www.facebook.com/SzigetFestival> <https://instagram.com/szigetofficial/> <http://www.youtube.com/user/szigetofficial> <https://www.tiktok.com/@szigetofficial/> <https://open.spotify.com/user/szigetfestivalofficial> <https://szigetfestival.com/en/newsletter>
+
+##
 
 ## Structured data
 

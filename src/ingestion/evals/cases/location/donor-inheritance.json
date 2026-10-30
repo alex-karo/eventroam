@@ -5,7 +5,6 @@
   "task": "Check location donor inheritance",
   "provenance": {
     "kind": "synthetic",
-    "sourceReport": "openspec/changes/separate-location-resolution/design.md",
     "note": "The 2027 Edition has no coordinates. It uses the same venue as the 2026 Edition, which has a saved approximate point. Geocoding returns only the city. Inheritance must retain donor precision without claiming fresh verification. Provider results are synthetic."
   },
   "input": {

@@ -559,17 +559,18 @@ describe("readPage", () => {
     expect(result.markdown).not.toContain("Menu item");
   });
 
-  it("keeps direct JSON-LD and safe links alongside selected rendered content", async () => {
+  it("keeps direct metadata, JSON-LD and safe links alongside rendered content", async () => {
     const budget = createResearchBudget();
     const firecrawlRequest = mockResponse(
       `<main><p>${"Festival programme ".repeat(20)}</p><a href="/tickets">Tickets</a><a href="/programme">Programme</a></main>`,
     );
     const result = await readPage(sourceUrl, {
       budget,
-      request: mockResponse(`<main>Loading</main>
+      request:
+        mockResponse(`<head><meta name="description" content="Festival on 10 June 2027"></head><body><main>Loading</main>
         <a href="/details">Details</a>
         <script type="application/ld+json">{"@type":"MusicEvent","startDate":"2027-06-10","url":"https://festival.example/tickets"}</script>
-        <script src="/app.js"></script>`),
+        <script src="/app.js"></script></body>`),
       firecrawlRequest,
       firecrawlKey: "test-key",
     });
@@ -579,6 +580,11 @@ describe("readPage", () => {
     });
     expect(result.markdown).toContain("Festival programme");
     expect(result.markdown).toContain("## Direct HTTP response");
+    const direct = result.markdown.split("## Direct HTTP response")[1];
+    expect(direct).toContain('description: "Festival on 10 June 2027"');
+    expect(result.markdown.split("## Direct HTTP response")[0]).not.toContain(
+      "description:",
+    );
     expect(result.markdown).toContain("startDate: 2027-06-10");
     expect(result.markdown).toContain(
       "[Tickets](https://festival.example/tickets)",

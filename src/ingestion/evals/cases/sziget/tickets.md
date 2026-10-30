@@ -1,44 +1,52 @@
-# Tickets - #SZIGET2027
+---
+title: "Tickets - #SZIGET2027"
+meta:
+  description: "Sziget tickets, passes, accommodations, campings and all the goodies you need for a perfect stay on The Island of Freedom. Grab your ticket!"
+  "og:description": "Sziget tickets, passes, accommodations, campings and all the goodies you need for a perfect stay on The Island of Freedom. Grab your ticket!"
+  "og:title": "Tickets - #SZIGET2027"
+---
 
-[Page header]
 
-[Navigation]
+
+<!-- Page header -->
+
+
+
+<!-- Navigation -->
 
 [2027 10 - 14 AUG](https://szigetfestival.com/en/)
 
--   en
-    
-    [Magyar](https://szigetfestival.com/hu/jegyek)
-    
+- en [Magyar](https://szigetfestival.com/hu/jegyek)
 
--   [Tickets](https://szigetfestival.com/en/tickets)
--   [Discover Sziget](https://szigetfestival.com/en/experience)
-    
-    [The Island of Freedom](https://szigetfestival.com/en/experience)[Exciting venues](https://szigetfestival.com/en/stages)[Sziget City](https://szigetfestival.com/en/programs_outside)[Green Sziget](https://szigetfestival.com/en/greensziget)
-    
--   [Need to know](https://szigetfestival.com/en/festival-info)
-    
-    [FAQ](https://szigetfestival.com/en/festival-info)[Get the Sziget App](https://szigetfestival.com/en/mobileapp)[How to get here?](https://szigetfestival.com/en/travel)
-    
--   [Best moments](https://szigetfestival.com/en/gallery)
--   [Sziget TV](https://szigetfestival.com/en/stream)
+- [Tickets](https://szigetfestival.com/en/tickets)
+- [Discover Sziget](https://szigetfestival.com/en/experience) [The Island of Freedom](https://szigetfestival.com/en/experience) [Sziget TV](https://szigetfestival.com/en/stream) [Best moments](https://szigetfestival.com/en/gallery)
+- [Need to know](https://szigetfestival.com/en/festival-info) [FAQ](https://szigetfestival.com/en/festival-info) [Get the Sziget App](https://szigetfestival.com/en/mobileapp)
 
 [Login](https://szigetfestival.com/en/account)
 
--   en
-    
-    [Magyar](https://szigetfestival.com/hu/jegyek)
-    
+- en [Magyar](https://szigetfestival.com/hu/jegyek)
 
 [Tickets](https://szigetfestival.com/en/tickets)
 
-[/Navigation]
 
-[/Page header]
+
+<!-- /Navigation -->
+
+
+
+<!-- /Page header -->
+
+
+
+
 
 ###### Our awesome sponsors and partners
 
-[Page footer]
+<https://www.revolut.com/> <https://dreher.hu/> <https://budapest.hu/> <https://www.redbull.com/hu-hu/> <https://bolt.eu/hu-hu/>
+
+
+
+<!-- Page footer -->
 
 #### Get all the News
 
@@ -46,18 +54,30 @@ Artist drops, promotions, giveaways, ticket alerts & basically everything to be 
 
 [SIGN UP NOW](https://szigetfestival.com/en/newsletter)
 
--   [Press](https://szigetfestival.com/en/press)
--   [Sziget Crew](https://szigetfestival.com/en/sziget-crew)
--   [Policy & General terms](https://szigetfestival.com/en/policy-gctc)
--   [For brand partners](https://szigetfestival.com/en/sponsors)
--   [Contact us](https://szigetfestival.com/en/contact)
--   [Cookie settings](https://szigetfestival.com/en/tickets#)
+- [Press](https://szigetfestival.com/en/press)
+- [Sziget Crew](https://szigetfestival.com/en/sziget-crew)
+- [Policy & General terms](https://szigetfestival.com/en/policy-gctc)
+- [For brand partners](https://szigetfestival.com/en/sponsors)
+- [Contact us](https://szigetfestival.com/en/contact)
+- [Cookie settings](https://szigetfestival.com/en/tickets#)
+
+<https://apps.apple.com/app/sziget-festival/id886794508>
+
+<https://play.google.com/store/apps/details?id=com.greencopper.android.sziget>
 
 Sziget management proudly presents:
 
+<https://gyereksziget.hu/><https://gourmetfesztival.hu/en/>
+
 Our Green Certifications
 
-[/Page footer]
+
+
+<!-- /Page footer -->
+
+<https://www.facebook.com/SzigetFestival> <https://instagram.com/szigetofficial/> <https://www.youtube.com/user/szigetofficial> <https://www.tiktok.com/@szigetofficial/> <https://open.spotify.com/user/szigetfestivalofficial> <https://szigetfestival.com/en/newsletter>
+
+##
 
 ## Structured data
 

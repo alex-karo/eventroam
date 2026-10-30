@@ -1,9 +1,10 @@
 import { expect, test } from "vitest";
+import { parse } from "yaml";
 import { extractSource } from "./extract";
 
 const url = "https://festival.example/";
 const markdown = (html: string) =>
-  extractSource(html, url, "text/html").markdown;
+  extractSource(html, url, "text/html").markdown.replace(/\n{3,}/g, "\n\n");
 
 test("navigation has an explicit end even without a main region", () => {
   const page = markdown(
@@ -31,6 +32,72 @@ test("inline links keep safe destinations and each label", () => {
     "[Buy passes](https://festival.example/tickets)",
   );
 });
+
+test("anchors without text use retained labels and safe destinations in order", () => {
+  const page = markdown(`<main>
+    <a href="/tickets?utm_source=home#buy" aria-label="Tickets 2027"><svg><title>Icon</title></svg></a>
+    <a href="/tickets" title="Buy passes"><img src="/ticket.png"></a>
+    <a href="/tickets" aria-label="Accessible label"><img alt="Ticket image" src="/ticket.png"></a>
+    <a href="/tickets" aria-label="Other label" title="Other title">Ticket text</a>
+    <a href="/faq"><img src="/faq.png"></a>
+    <a href="/safe" aria-label="&lt;b&gt;Label&lt;/b&gt;"></a>
+    <a href="javascript:alert(1)" aria-label="Unsafe"></a>
+    <a href="https://user:pass@festival.example/" title="Credentials"></a>
+    <a href="mailto:info@festival.example">Email</a>
+    <a href="http://[" title="Malformed"></a>
+    <a href="/hidden" hidden aria-label="Hidden link"></a>
+    </main>`);
+  const links = [
+    "[Tickets 2027](https://festival.example/tickets?utm_source=home#buy)",
+    "[Buy passes](https://festival.example/tickets)",
+    "[Ticket image](https://festival.example/tickets)",
+    '[Ticket text](https://festival.example/tickets "Other title")',
+    "<https://festival.example/faq>",
+  ];
+  let previous = -1;
+  for (const link of links) {
+    expect(page).toContain(link);
+    expect(page.indexOf(link)).toBeGreaterThan(previous);
+    previous = page.indexOf(link);
+  }
+  expect(page).toContain("[\\<b>Label\\</b>](https://festival.example/safe)");
+  for (const text of ["Unsafe", "Credentials", "Email", "Malformed"]) {
+    expect(page).toContain(text);
+  }
+  for (const removed of [
+    "javascript:",
+    "user:pass",
+    "mailto:",
+    "http://[",
+    "/hidden",
+    ".png",
+    "Accessible label",
+  ]) {
+    expect(page).not.toContain(removed);
+  }
+});
+
+test.each([199, 200])(
+  "metadata and new labels do not change the %i character render signal",
+  (length) => {
+    const body = "a".repeat(length);
+    const result = extractSource(
+      `<head><meta name="description" content="${"Metadata ".repeat(50)}"></head>
+    <body><main>${body}<a href="/destination-with-a-long-label"></a>
+    <a href="/tickets" aria-label="${"Tickets ".repeat(50)}"></a>
+    <a href="/image"><img alt="${"Image ".repeat(50)}" src="/poster.jpg"></a></main>
+    <script src="/app.js"></script></body>`,
+      url,
+      "text/html",
+    );
+    expect(result.nonNavigationTextLength).toBe(length);
+    expect(result.needsJavascript).toBe(length < 200);
+    expect(result.markdown).toContain(
+      "https://festival.example/destination-with-a-long-label",
+    );
+    expect(result.markdown).toContain('description: "Metadata');
+  },
+);
 
 test("a Wacken-style skip link identifies content and keeps nested headers local", () => {
   const page = markdown(`<a href="#page-content">Zum Hauptinhalt springen</a>
@@ -108,23 +175,71 @@ test("JSON-LD alone does not count as an application script", () => {
   expect(result.markdown).toContain("Festival 2027");
 });
 
-test("200 body characters clear the sparse-page signal", () => {
-  const result = extractSource(
-    `<main>${"a".repeat(200)}</main><script src="/app.js"></script>`,
-    url,
-    "text/html",
-  );
-  expect(result.nonNavigationTextLength).toBe(200);
-  expect(result.needsJavascript).toBe(false);
+test("head metadata keeps source fields and conflicting body dates", () => {
+  const page = markdown(`<html><head><title>Festival 2027</title>
+    <meta name="description" content="1–3 July 2027">
+    <meta property="og:title" content="Tickets on sale">
+    <meta property="og:description" content="Green Valley venue">
+    <meta name="twitter:title" content="Festival news">
+    <meta name="twitter:description" content="Programme details">
+    <meta name="keywords" content="music, camping">
+    <meta name="author" content="Festival team">
+    <meta name="date" content="2026-10-28">
+    </head><body><h2>Programme 2026</h2><h1>Festival news</h1>
+    <p>Last year's festival ran in 2026.</p><iframe><title>Video service</title></iframe></body></html>`);
+  expect(page).toMatch(/^---\n/);
+  expect(parse(page.split("---")[1])).toEqual({
+    title: "Festival 2027",
+    meta: {
+      description: "1–3 July 2027",
+      "og:title": "Tickets on sale",
+      "og:description": "Green Valley venue",
+      "twitter:title": "Festival news",
+      "twitter:description": "Programme details",
+      keywords: "music, camping",
+      author: "Festival team",
+      date: "2026-10-28",
+    },
+  });
+  expect(page).not.toContain("# Festival 2027");
+  expect(page).toMatch(/^## Programme 2026\n[\s\S]*^# Festival news$/m);
+  expect(page).toContain("Last year's festival ran in 2026.");
+  expect(page).not.toContain('title: "Video service"');
+});
+
+test("repeated head fields keep the last nonempty value", () => {
+  const page = markdown(`<head><meta name="description" content="Earlier dates">
+    <meta name="description" content="Later dates"><meta name="description" content=""></head><body>Programme</body>`);
+  expect(page).toContain('description: "Later dates"');
+  expect(page).not.toContain("Earlier dates");
+  expect(page).not.toContain("Page metadata");
+});
+
+test.each([
+  `<main><h2>Festival</h2><title>Video service</title><meta name="description" content="Embedded claim"></main>`,
+  `<main><h2>Festival</h2><iframe><title>Video service</title></iframe></main>`,
+])("body and embedded titles do not become page metadata", (html) => {
+  const page = markdown(html);
+  expect(page).not.toMatch(/^---/);
+  expect(page).not.toContain("# Video service");
+  expect(page).toContain("## Festival");
 });
 
 test("table cell line breaks keep programme details in one row", () => {
   const page =
     markdown(`<table><thead><tr><th>Day</th><th>Programme</th><th>Stage</th></tr></thead>
-    <tbody><tr><td>Friday</td><td>Opening concert<br>18:00–19:00</td><td>Main stage</td></tr></tbody></table>`);
-  expect(page).toContain(
-    "| Friday | Opening concert; 18:00–19:00 | Main stage |",
+    <tbody><tr><td>Friday</td><td><a href="/programme">Opening concert</a><br>18:00–19:00</td><td>Main stage</td></tr></tbody></table>`);
+  const cells = page
+    .split("\n")
+    .find((line) => line.startsWith("| Friday"))!
+    .split("|")
+    .map((cell) => cell.trim());
+  expect(cells[1]).toBe("Friday");
+  expect(cells[2]).toContain(
+    "[Opening concert](https://festival.example/programme)",
   );
+  expect(cells[2]).toContain("18:00–19:00");
+  expect(cells[3]).toBe("Main stage");
 });
 
 test("select options are omitted while ticket facts stay in one row", () => {
@@ -133,8 +248,30 @@ test("select options are omitted while ticket facts stay in one row", () => {
     <tbody><tr><td>Dauerkarte<br><small>Verfügbar bis Freitag</small></td>
     <td>199,00 €</td><td><select name="quantity">
     <option>1</option><option>2</option><option>3</option></select></td></tr></tbody></table>`);
-  expect(page).toContain("| Dauerkarte; Verfügbar bis Freitag | 199,00 € |  |");
+  const cells = page
+    .split("\n")
+    .find((line) => line.startsWith("| Dauerkarte"))!
+    .split("|")
+    .map((cell) => cell.trim());
+  expect(cells[1]).toContain("Dauerkarte");
+  expect(cells[1]).toContain("Verfügbar bis Freitag");
+  expect(cells[2]).toBe("199,00 €");
+  expect(cells[3]).toBe("");
   expect(page).not.toContain("Other day");
+});
+
+test("empty nested regions are omitted and image alt keeps its time context", () => {
+  const page =
+    markdown(`<header><nav> </nav></header><main><aside><nav></nav></aside>
+    <p><img alt="Festival site" src="/poster.jpg"> <time datetime="2027-07-01">Thursday</time></p></main>`);
+  expect(page).not.toContain("<!-- Page header -->");
+  expect(page).not.toContain("<!-- Navigation -->");
+  expect(page).not.toContain("<!-- Aside -->");
+  expect(page).toContain("<!-- Main content -->");
+  expect(page).toContain("<!-- /Main content -->");
+  expect(page).toContain("Festival site");
+  expect(page).toContain("Thursday: 2027-07-01");
+  expect(page).not.toContain("poster.jpg");
 });
 
 test("selection options are removed before link labels are flattened", () => {
@@ -166,6 +303,38 @@ test("map references keep lazy, noscript and anchor context in source order", ()
   expect(result.maps[1].context).toContain("Fallback map");
   expect(result.maps[1].context).toContain("Site map");
   expect(result.markdown).not.toContain("Fallback map");
+});
+
+test("all image labels in an anchor stay available without media URLs", () => {
+  const page = markdown(
+    `<a href="/dates"><img alt="Festival" src="/logo.png"><img alt="20–23 August 2027" src="/dates.png"></a>`,
+  );
+  expect(page).toContain(
+    "[Festival 20–23 August 2027](https://festival.example/dates)",
+  );
+  expect(page).not.toContain(".png");
+});
+
+test("empty-region cleanup keeps literal comments in metadata and code", () => {
+  const html = `<head><meta name="description" content="Before &lt;!-- Aside --&gt; &lt;!-- /Aside --&gt; After"></head>
+    <body><header><nav></nav></header><main><pre>&lt;!-- Aside --&gt; &lt;!-- /Aside --&gt;</pre></main></body>`;
+  const page = markdown(html);
+  expect(parse(page.split("---")[1]).meta.description).toBe(
+    "Before <!-- Aside --> <!-- /Aside --> After",
+  );
+  expect(page).toContain("```\n<!-- Aside --> <!-- /Aside -->\n```");
+  expect(page).not.toContain("<!-- Page header -->");
+  expect(page).not.toContain("<!-- Navigation -->");
+  expect(page).toContain("<!-- Main content -->");
+  expect(markdown(html)).toBe(page);
+});
+
+test("adjacent calendar buttons keep separate day numbers", () => {
+  const page = markdown(
+    `<main><h2>October 2026</h2><div><button><abbr>27</abbr></button><button><abbr>28</abbr></button><button><abbr>29</abbr></button></div></main>`,
+  );
+  expect(page).toMatch(/27\s+28\s+29/);
+  expect(page).not.toContain("272829");
 });
 
 test("structured coordinates stay with their owner and reject invalid pairs", () => {

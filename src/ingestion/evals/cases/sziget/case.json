@@ -42,7 +42,7 @@
     {
       "attemptedUrl": "https://www.szigetfestival.com/",
       "finalUrl": "https://szigetfestival.com/en/",
-      "retrievedAt": "2026-10-27T13:33:25.433Z",
+      "retrievedAt": "2026-10-30T01:31:59.336Z",
       "method": "http",
       "markdownFile": "page.md",
       "status": "ok"
@@ -50,7 +50,7 @@
     {
       "attemptedUrl": "https://szigetfestival.com/en/tickets",
       "finalUrl": "https://szigetfestival.com/en/tickets",
-      "retrievedAt": "2026-10-27T13:33:26.866Z",
+      "retrievedAt": "2026-10-30T01:31:59.354Z",
       "method": "http",
       "markdownFile": "tickets.md",
       "status": "ok",
@@ -59,7 +59,7 @@
     {
       "attemptedUrl": "https://szigetfestival.com/en/travel",
       "finalUrl": "https://szigetfestival.com/en/travel/",
-      "retrievedAt": "2026-10-27T13:33:27.419Z",
+      "retrievedAt": "2026-10-30T01:31:59.421Z",
       "method": "http",
       "markdownFile": "travel.md",
       "status": "ok"
@@ -67,7 +67,7 @@
     {
       "attemptedUrl": "https://szigetfestival.com/en/festival-info",
       "finalUrl": "https://szigetfestival.com/en/festival-info",
-      "retrievedAt": "2026-10-27T13:33:28.002Z",
+      "retrievedAt": "2026-10-30T01:31:59.924Z",
       "method": "http",
       "markdownFile": "info.md",
       "status": "ok"
@@ -75,7 +75,7 @@
     {
       "attemptedUrl": "https://szigetfestival.com/en/experience",
       "finalUrl": "https://szigetfestival.com/en/experience",
-      "retrievedAt": "2026-10-27T13:33:28.342Z",
+      "retrievedAt": "2026-10-30T01:32:00.024Z",
       "method": "http",
       "markdownFile": "experience.md",
       "status": "ok"
@@ -83,7 +83,7 @@
     {
       "attemptedUrl": "https://szigetfestival.com/en/stages",
       "finalUrl": "https://szigetfestival.com/en/stages/",
-      "retrievedAt": "2026-10-27T13:33:28.735Z",
+      "retrievedAt": "2026-10-30T01:32:00.286Z",
       "method": "http",
       "markdownFile": "stages.md",
       "status": "ok"
@@ -91,7 +91,7 @@
     {
       "attemptedUrl": "https://szigetfestival.com/en/programs-lineup-2026",
       "finalUrl": "https://szigetfestival.com/en/programs-lineup-2026",
-      "retrievedAt": "2026-10-27T13:58:05.370Z",
+      "retrievedAt": "2026-10-30T01:32:00.439Z",
       "method": "http",
       "markdownFile": "lineup-2026.md",
       "status": "ok"
@@ -99,7 +99,7 @@
     {
       "attemptedUrl": "https://szigetfestival.com/en/contact",
       "finalUrl": "https://szigetfestival.com/en/contact",
-      "retrievedAt": "2026-10-27T13:58:05.768Z",
+      "retrievedAt": "2026-10-30T01:32:00.504Z",
       "method": "http",
       "markdownFile": "contact.md",
       "status": "ok"
@@ -107,7 +107,7 @@
     {
       "attemptedUrl": "https://szigetfestival.com/en/gallery",
       "finalUrl": "https://szigetfestival.com/en/gallery",
-      "retrievedAt": "2026-10-27T13:58:06.152Z",
+      "retrievedAt": "2026-10-30T01:32:00.807Z",
       "method": "http",
       "markdownFile": "gallery.md",
       "status": "ok",
@@ -397,10 +397,9 @@
       "provenance": "https://www.geonames.org/3054643/; read 2026-10-26. GeoNames CC BY. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel/contact text. This point is a locality fallback, not the venue. Observed city query in experiment c8fa18ac-8cf2-4d2d-98a6-15f9d633241e."
     }
   ],
-  "todayUtc": "2026-10-27",
+  "todayUtc": "2026-10-30",
   "provenance": {
     "kind": "captured",
-    "sourceReport": "docs/development.md#main-fact-checks",
-    "note": "Captured from official websites on 2026-10-27 through the production readPage tool with rendering disabled. Replaces the previous page set and adds URLs requested in the saved main run. Markdown is reader output with trailing spaces removed. Partial, truncated, and failed HTTP responses keep their actual outcomes. No generated page content or live fallback. Expanded with real HTTP responses for URLs requested in experiment a2bef149-7ecb-47b5-9794-db4dbfb898c3; trailing spaces removed."
+    "note": "Official pages captured on 2026-10-30 through the production HTTP readPage tool with @mdream/js@2.0.3 and standard frontmatterPlugin(). Rendering was disabled. Markdown is the full reader output. HTTP status, redirects and javascript_required outcomes retain the observed results. Raw response bodies and reader results are saved locally under data/main-fixtures-mdream-20261030/sziget/. This set replaces the 2026-10-27 Markdown captures. The task, initial catalog, fixed geocoding responses and scoring rules are unchanged. Only the fixed evaluation date moves to the capture date. No live source fallback is used during evals."
   }
 }

@@ -1,14 +1,26 @@
-# Billetter | Roskilde Festival
+---
+title: "Billetter | Roskilde Festival"
+meta:
+  "og:description": "Køb billet til Roskilde Festival 2027. Se priser på partoutbillet, endagsbillet og todagesbillet, og find den billet, der passer til dig."
+  "og:title": Billetter
+---
 
-[Page header]
 
-[Navigation]
+
+<!-- Page header -->
+
+
+
+<!-- Navigation -->
 
 [26/6 – 3/7 2027](https://www.roskilde-festival.dk/)
 
+<https://www.roskilde-festival.dk/en/tickets>[Søg](https://www.roskilde-festival.dk/search)
 Log ind
 
-[/Navigation]
+
+
+<!-- /Navigation -->
 
 [Nyheder](https://www.roskilde-festival.dk/nyheder)
 
@@ -26,9 +38,23 @@ Log ind
 
 [Find praktisk info](https://faq.roskilde-festival.dk/hc/da)
 
-[/Page header]
+<https://www.instagram.com/roskildefestival/>
 
-[Main content]
+<https://www.tiktok.com/@roskildefestival>
+
+<https://www.facebook.com/orangefeeling>
+
+<https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW>
+
+<https://dk.linkedin.com/company/roskilde-festival>
+
+
+
+<!-- /Page header -->
+
+
+
+<!-- Main content -->
 
 # Billetter
 
@@ -84,7 +110,7 @@ En særlig Roskilde Festival-aften i Pumpehuset med fire acts, overraskelser og 
 
 kr. inkl. billetgebyr.
 
-[Køb her](https://ticket.roskilde-festival.dk/da/ekxtjekynuuae5p/products)
+[Sidste chance](https://ticket.roskilde-festival.dk/da/ekxtjekynuuae5p/products)
 
 ## Onsdag
 
@@ -126,7 +152,7 @@ kr. inkl. billetgebyr.
 
 [Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=9rdr0dv)
 
-Peter Troest
+*Peter Troest*
 
 ## Din billet gør mere end du tror
 
@@ -146,33 +172,48 @@ Få styr på, hvad non-profit, frivillighed og uafhængighed betyder.
 
 [Få vores nyhedsbrev Modtag nyt om festivalen, programmet, billetsalget og meget mere direkte i din indbakke.](https://www.roskilde-festival.dk/nyhedsbrev)
 
-[/Main content]
 
-[Page footer]
+
+<!-- /Main content -->
+
+
+
+<!-- Page footer -->
 
 ## Om Roskilde Festival
 
--   [Om os – og vores formål](https://www.roskilde-festival.dk/festival-med-formaal)
--   [Job og praktik](https://roskildefestivalgruppen.dk/kontakt/job-og-praktik)
--   [Praktisk info](https://faq.roskilde-festival.dk/hc/da)
--   [Kontakt os](https://www.roskilde-festival.dk/kontakt)
+- [Om os – og vores formål](https://www.roskilde-festival.dk/festival-med-formaal)
+- [Job og praktik](https://roskildefestivalgruppen.dk/kontakt/job-og-praktik)
+- [Praktisk info](https://faq.roskilde-festival.dk/hc/da)
+- [Kontakt os](https://www.roskilde-festival.dk/kontakt)
 
 ## Mere end festival
 
--   [Roskilde Festival Gruppen](https://roskildefestivalgruppen.dk/da/)
--   [RFX](https://rfexperience.dk/)
--   [GRASP](https://graspfestival.dk/)
--   [Roskilde Festival Højskole](https://rofh.dk/)
+- [Roskilde Festival Gruppen](https://roskildefestivalgruppen.dk/da/)
+- [RFX](https://rfexperience.dk/)
+- [GRASP](https://graspfestival.dk/)
+- [Roskilde Festival Højskole](https://rofh.dk/)
 
 ## Professionelt
 
--   [Partnerskaber](https://www.roskilde-festival.dk/partnerskaber)
--   [Foreninger og boder](https://www.roskilde-festival.dk/foreninger-og-boder)
--   [Presse](https://www.roskilde-festival.dk/presse)
--   [Persondatapolitik](https://www.roskilde-festival.dk/persondatapolitik)
+- [Partnerskaber](https://www.roskilde-festival.dk/partnerskaber)
+- [Foreninger og boder](https://www.roskilde-festival.dk/foreninger-og-boder)
+- [Presse](https://www.roskilde-festival.dk/presse)
+- [Persondatapolitik](https://www.roskilde-festival.dk/persondatapolitik)
 
-* * *
+---
+
+- [Instagram](https://www.instagram.com/roskildefestival/)
+- [TikTok](https://www.tiktok.com/@roskildefestival)
+- [Facebook](https://www.facebook.com/orangefeeling)
+- [Spotify](https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW)
+- [LinkedIn](https://dk.linkedin.com/company/roskilde-festival)
+
+- [Tuborg](https://tuborg.dk/)
+- [RF26 bliver Nordens første svanemærkede festival](https://www.roskilde-festival.dk/nyheder/rf26-bliver-nordens-foerste-svanemaerkede-festival)
 
 ©2026 Roskilde Festival Gruppen
 
-[/Page footer]
+
+
+<!-- /Page footer -->

@@ -64,7 +64,7 @@ Studio chat can query the catalog through a read-only SQL tool and refresh one t
 | Data | SQLite, Drizzle ORM, `better-sqlite3` |
 | UI and map | Tailwind CSS, Mapbox GL JS |
 | AI agents | Mastra workflows and Studio chat; OpenRouter for ingestion |
-| Source processing | Got, Cheerio, Turndown; optional Firecrawl fallback |
+| Source processing | Got, Cheerio, `@mdream/js`; optional Firecrawl fallback |
 | Geocoding | Geoapify |
 | Analytics | PostHog |
 | Runtime | Separate web and Studio containers with a shared catalog volume |

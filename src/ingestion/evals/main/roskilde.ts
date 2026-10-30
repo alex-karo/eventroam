@@ -44,9 +44,11 @@ export function roskilde(context: MainContext) {
       ]),
       linkFact("event.links.instagram", event?.links, "instagram", [
         "https://instagram.com/roskildefestival",
+        "https://www.instagram.com/roskildefestival/",
       ]),
       linkFact("event.links.facebook", event?.links, "facebook", [
         "https://www.facebook.com/orangefeeling/",
+        "https://www.facebook.com/orangefeeling",
       ]),
       // purpose.md: participants, volunteers, artists, and staff.
       fact("next.sizeEstimate", next?.sizeEstimate, [130000]),

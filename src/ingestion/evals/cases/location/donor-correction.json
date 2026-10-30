@@ -5,7 +5,6 @@
   "task": "Check location donor correction",
   "provenance": {
     "kind": "synthetic",
-    "sourceReport": "openspec/changes/separate-location-resolution/design.md",
     "note": "The 2027 saved point was placed at the wrong park. The 2026 point is the official River Park venue; no move occurred. Provider results are synthetic."
   },
   "input": {
