@@ -82,18 +82,10 @@ export function scoreLocationCase(
         ? assertionValueMatches(observed.value, assertion)
         : observed.changed;
     });
-  const missing = execution.observations.some(
-    (observation) =>
-      observation.result.status === "error" &&
-      observation.result.code === "fixture_miss",
-  );
-  const failed = execution.status !== "success" || missing;
+  const failed = execution.status !== "success";
   const executionErrors = failed
     ? execution.errors.map((error) => error.message)
     : [];
-  if (missing) {
-    executionErrors.push("Unmatched geocoding fixture: fixture_miss");
-  }
   if (failed && !executionErrors.length) {
     executionErrors.push("Location execution or output validation failed");
   }

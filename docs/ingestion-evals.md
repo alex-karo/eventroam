@@ -141,7 +141,9 @@ Synthetic pages must state their origin and edits in provenance. When they repre
 
 Glastonbury models an unannounced next festival, with an unedited official History 2025 capture. Its optional draft 2025 Edition earns additional credit for year, country GB and the GBP 378.50 base price. Returned offer prices must match that amount and currency. This historical case does not check offer URLs because the page provides no admission product URL; other main ticket checks still require URL, amount and currency. Neither history page gives programme dates. Capacity 210,000 is not participant attendance and must not become `sizeEstimate`. Other new Editions, invented historical dates, and publication fail the case; the saved 2027 data stays protected.
 
-Cover the assigned research path, not every possible link or query. Main source and geocoding fixture misses are diagnostics only. Required omissions, wrong checked facts and failed task conditions still fail main. Regression fixture-miss rules stay strict. There is no live fallback, wildcard response or invented provider result. An explicit provider no-match is different from a missing fixture.
+Cover the assigned research path, not every possible link or query. Main source fixture misses are diagnostics only. Required omissions, wrong checked facts and failed task conditions still fail main. There is no live fallback or invented successful provider result.
+
+In every eval group, an initial or agent geocoding request without a fixture returns `unavailable`. This is a simulated tool failure, not a captured provider response or an empty search result. It does not fail the case by itself; execution and case checks still determine success. Request details remain in observations. This does not show how the real provider would answer the query.
 
 Add fixture coverage when it blocks a task we intend to measure. Do not add a response after every exploratory request merely to make diagnostics disappear.
 

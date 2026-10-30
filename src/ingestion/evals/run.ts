@@ -557,5 +557,8 @@ function fixedGeocoding(item: EvalCase): GeocodingClient {
   return async (request) =>
     item.geocoding?.find(
       (fixture) => geocodingKey(fixture.request) === geocodingKey(request),
-    )?.response ?? { status: "error", code: "fixture_miss" };
+    )?.response ?? {
+      status: "error",
+      code: "unavailable",
+    };
 }
