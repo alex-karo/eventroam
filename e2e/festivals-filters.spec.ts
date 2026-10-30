@@ -7,7 +7,7 @@ const count = (page: Page) => page.locator(".results-summary strong");
 async function expectNames(page: Page, names: string[]) {
   await expect(list(page).locator(".edition-name")).toHaveText(names);
   await expect(count(page)).toHaveText(
-    `${names.length} ${names.length === 1 ? "edition" : "editions"}`,
+    `${names.length} ${names.length === 1 ? "event" : "events"}`,
   );
 }
 
@@ -44,20 +44,18 @@ test("direct date ranges include overlap and history but exclude cancellations",
   page,
 }, testInfo) => {
   await page.goto("/?from=2025-07-02&to=2025-07-02");
-  await expectNames(page, ["Fictional Field Days 2025"]);
+  await expectNames(page, ["Fictional Field Days"]);
   await expect(page.locator(".results-geography")).toHaveText(
     "On map: 0 · Not mapped: 1",
   );
   await expectViews(page, testInfo);
 
   await page.goto("/?from=2026-07-02&to=2026-07-02");
-  await expect(count(page)).toHaveText("0 editions");
-  await expect(
-    page.getByText("No editions match these filters."),
-  ).toBeVisible();
+  await expect(count(page)).toHaveText("0 events");
+  await expect(page.getByText("No events match these filters.")).toBeVisible();
 
   await page.goto("/?from=2027-07-02&to=2027-07-02");
-  await expectNames(page, ["Fictional Field Days 2027"]);
+  await expectNames(page, ["Fictional Field Days"]);
   await expect(list(page).getByText("Tentative dates")).toBeVisible();
 });
 
@@ -68,25 +66,25 @@ test("combined date, country, place, and name filters survive reload and view sw
   await page.getByRole("button", { name: "When", exact: true }).click();
   await page.getByLabel("From", { exact: true }).fill("2027-06-01");
   await page.getByLabel("To", { exact: true }).fill("2027-07-31");
-  await page.getByRole("button", { name: /^Show \d+ editions?$/ }).click();
+  await page.getByRole("button", { name: /^Show \d+ events?$/ }).click();
   await expectNames(page, [
-    "Fictional Atlantic Sounds 2027",
-    "Fictional Field Days 2027",
-    "Fictional Mediterranean Nights 2027",
+    "Fictional Atlantic Sounds",
+    "Fictional Field Days",
+    "Fictional Mediterranean Nights",
   ]);
 
   await page.getByRole("button", { name: "Where", exact: true }).click();
   await page.getByLabel("Portugal", { exact: true }).check();
-  await page.getByRole("button", { name: /^Show \d+ editions?$/ }).click();
+  await page.getByRole("button", { name: /^Show \d+ events?$/ }).click();
   await expectNames(page, [
-    "Fictional Atlantic Sounds 2027",
-    "Fictional Field Days 2027",
+    "Fictional Atlantic Sounds",
+    "Fictional Field Days",
   ]);
 
   await page.getByRole("button", { name: "Where", exact: true }).click();
   await page.getByRole("combobox", { name: "City or region" }).fill("lisbon");
-  await page.getByRole("button", { name: /^Show \d+ editions?$/ }).click();
-  await expectNames(page, ["Fictional Atlantic Sounds 2027"]);
+  await page.getByRole("button", { name: /^Show \d+ events?$/ }).click();
+  await expectNames(page, ["Fictional Atlantic Sounds"]);
 
   const search = page.getByRole("search");
   const searchInput = search.getByRole("textbox", {
@@ -97,11 +95,11 @@ test("combined date, country, place, and name filters survive reload and view sw
   });
   await searchInput.fill("no-such-festival");
   await searchButton.click();
-  await expect(count(page)).toHaveText("0 editions");
+  await expect(count(page)).toHaveText("0 events");
   await searchInput.fill("atlantic");
   await searchButton.click();
 
-  await expectNames(page, ["Fictional Atlantic Sounds 2027"]);
+  await expectNames(page, ["Fictional Atlantic Sounds"]);
   await expect(page.locator(".results-geography")).toHaveText(
     "On map: 1 · Not mapped: 0",
   );
@@ -110,7 +108,7 @@ test("combined date, country, place, and name filters survive reload and view sw
   );
   await expectViews(page, testInfo);
   await page.reload();
-  await expectNames(page, ["Fictional Atlantic Sounds 2027"]);
+  await expectNames(page, ["Fictional Atlantic Sounds"]);
   await expect(
     page
       .getByRole("search")
@@ -122,27 +120,27 @@ test("Cancel discards pending edits; Apply and browser history restore them", as
   page,
 }, testInfo) => {
   await page.goto(year);
-  await expect(count(page)).toHaveText("4 editions");
+  await expect(count(page)).toHaveText("4 events");
   const where = page.getByRole("button", { name: "Where", exact: true });
   await where.click();
   await page.getByLabel("Spain", { exact: true }).check();
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(where).toBeFocused();
-  await expect(count(page)).toHaveText("4 editions");
+  await expect(count(page)).toHaveText("4 events");
   await expect(page).toHaveURL(/to=2027-12-31$/);
 
   await where.click();
   await expect(page.getByLabel("Spain", { exact: true })).not.toBeChecked();
   await page.getByLabel("Spain", { exact: true }).check();
-  await page.getByRole("button", { name: /^Show \d+ editions?$/ }).click();
-  await expectNames(page, ["Fictional Mediterranean Nights 2027"]);
+  await page.getByRole("button", { name: /^Show \d+ events?$/ }).click();
+  await expectNames(page, ["Fictional Mediterranean Nights"]);
   await expect(page).toHaveURL(/country=ES/);
 
   await page.goBack();
-  await expect(count(page)).toHaveText("4 editions");
+  await expect(count(page)).toHaveText("4 events");
   await expect(page).not.toHaveURL(/country=ES/);
   await page.goForward();
-  await expectNames(page, ["Fictional Mediterranean Nights 2027"]);
+  await expectNames(page, ["Fictional Mediterranean Nights"]);
   await expectViews(page, testInfo);
 });
 
@@ -152,18 +150,16 @@ test("duration and unknown size produce honest empty states and Clear all resets
   await page.goto(year);
   await openMore(page, testInfo);
   await page.getByRole("button", { name: "2–3 days" }).click();
-  await page.getByRole("button", { name: /^Show \d+ editions?$/ }).click();
-  await expect(count(page)).toHaveText("4 editions");
+  await page.getByRole("button", { name: /^Show \d+ events?$/ }).click();
+  await expect(count(page)).toHaveText("4 events");
   await expect(page).toHaveURL(/durationMin=2&durationMax=3/);
 
   await openMore(page, testInfo);
   await page.getByRole("button", { name: "4+ days" }).click();
-  await page.getByRole("button", { name: /^Show \d+ editions?$/ }).click();
-  await expect(count(page)).toHaveText("0 editions");
+  await page.getByRole("button", { name: /^Show \d+ events?$/ }).click();
+  await expect(count(page)).toHaveText("0 events");
   await expect(page).toHaveURL(/durationMin=4/);
-  await expect(
-    page.getByText("No editions match these filters."),
-  ).toBeVisible();
+  await expect(page.getByText("No events match these filters.")).toBeVisible();
   const search = page.getByRole("search");
   const searchInput = search.getByRole("textbox", {
     name: "Search festival names",
@@ -171,18 +167,18 @@ test("duration and unknown size produce honest empty states and Clear all resets
   await searchInput.fill("atlantic");
   await search.getByRole("button", { name: "Search festival names" }).click();
   await expect(page).toHaveURL(/q=atlantic/);
-  await expect(count(page)).toHaveText("0 editions");
+  await expect(count(page)).toHaveText("0 events");
   await page.getByRole("button", { name: "Clear all", exact: true }).click();
   await expect(page).toHaveURL("http://festivals.localhost:3137/");
   await expect(page.locator(".chips")).toHaveCount(0);
   await expect(searchInput).toHaveValue("");
-  await expect(count(page)).toHaveText("4 editions");
+  await expect(count(page)).toHaveText("4 events");
 
   await page.goto(year);
   await openMore(page, testInfo);
   await page.getByLabel("Under 1,000").check();
-  await page.getByRole("button", { name: /^Show \d+ editions?$/ }).click();
-  await expect(count(page)).toHaveText("0 editions");
+  await page.getByRole("button", { name: /^Show \d+ events?$/ }).click();
+  await expect(count(page)).toHaveText("0 events");
   await expect(page).toHaveURL(/size=lt-1000/);
   await expectViews(page, testInfo);
 });
@@ -231,14 +227,14 @@ test("pending counts and validation preserve applied state and applied name quer
     .fill("field");
   await page.getByRole("button", { name: "When", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Show 1 edition", exact: true }),
+    page.getByRole("button", { name: "Show 1 event", exact: true }),
   ).toBeEnabled();
   await page.getByLabel("To", { exact: true }).fill("");
   await expect(
     page.getByRole("button", { name: "Apply filters" }),
   ).toBeDisabled();
   await expect(page.locator("#filter-feedback")).toContainText("date range");
-  await expect(count(page)).toHaveText("1 edition");
+  await expect(count(page)).toHaveText("1 event");
   await expect(page).toHaveURL(/q=atlantic/);
   await page.getByLabel("To", { exact: true }).fill("2027-12-31");
   await page.getByLabel("To", { exact: true }).press("Escape");
@@ -256,12 +252,12 @@ test("pending counts and validation preserve applied state and applied name quer
   );
   await page.getByLabel("Maximum days").fill("");
   await expect(
-    page.getByRole("button", { name: "Show 0 editions", exact: true }),
+    page.getByRole("button", { name: "Show 0 events", exact: true }),
   ).toBeEnabled();
   await page
-    .getByRole("button", { name: "Show 0 editions", exact: true })
+    .getByRole("button", { name: "Show 0 events", exact: true })
     .click();
-  await expect(count(page)).toHaveText("0 editions");
+  await expect(count(page)).toHaveText("0 events");
   await expect(
     page.getByRole("button", { name: "Remove atlantic filter" }),
   ).toBeVisible();
@@ -290,11 +286,9 @@ test("country search and keyboard suggestions keep location edits pending", asyn
   await expect(page.locator("#filter-panel")).toBeVisible();
   await expect(page.getByLabel("Spain", { exact: true })).toBeChecked();
   await expect(page.getByLabel("Portugal", { exact: true })).toBeChecked();
-  await expect(count(page)).toHaveText("1 edition");
+  await expect(count(page)).toHaveText("1 event");
   await expect(page).not.toHaveURL(/place=/);
-  await page
-    .getByRole("button", { name: "Show 1 edition", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Show 1 event", exact: true }).click();
   await expect(page).toHaveURL(/country=ES&country=PT&place=Lisbon/);
   await expect(
     page.getByRole("button", { name: "Remove Lisbon filter" }),
@@ -317,12 +311,12 @@ test("native unfinished numbers and dates suppress the preview until cleared", a
   );
   await number.press("Backspace");
   await expect(
-    page.getByRole("button", { name: "Show 4 editions" }),
+    page.getByRole("button", { name: "Show 4 events" }),
   ).toBeEnabled();
   await number.press("-");
   await page.getByRole("button", { name: "2–3 days" }).click();
   await expect(
-    page.getByRole("button", { name: "Show 4 editions" }),
+    page.getByRole("button", { name: "Show 4 events" }),
   ).toBeEnabled();
   await page.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("button", { name: "When", exact: true }).click();
@@ -344,7 +338,7 @@ test("native unfinished numbers and dates suppress the preview until cleared", a
   await month.click();
   await expect(month).toHaveAttribute("aria-pressed", "true");
   await expect(
-    page.getByRole("button", { name: /^Show \d+ editions?$/ }),
+    page.getByRole("button", { name: /^Show \d+ events?$/ }),
   ).toBeEnabled();
 });
 
@@ -366,11 +360,11 @@ test("selected countries outside inventory and invalid direct URLs stay recovera
   await page.getByRole("button", { name: "Where", exact: true }).click();
   await page.getByRole("combobox", { name: "City or region" }).fill("unlisted");
   await expect(
-    page.getByRole("button", { name: "Show 0 editions" }),
+    page.getByRole("button", { name: "Show 0 events" }),
   ).toBeEnabled();
   await expect(count(page)).toHaveText("Invalid filters");
-  await page.getByRole("button", { name: "Show 0 editions" }).click();
-  await expect(count(page)).toHaveText("0 editions");
+  await page.getByRole("button", { name: "Show 0 events" }).click();
+  await expect(count(page)).toHaveText("0 events");
   await expect(page).toHaveURL(/place=unlisted/);
 });
 
@@ -396,16 +390,16 @@ test("catalog refresh recomputes an open picker preview", async ({ page }) => {
   await page.goto(year);
   await page.getByRole("button", { name: "Where", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Show 4 editions", exact: true }),
+    page.getByRole("button", { name: "Show 4 events", exact: true }),
   ).toBeEnabled();
   release();
   await expect(
-    page.getByRole("button", { name: "Show 5 editions", exact: true }),
+    page.getByRole("button", { name: "Show 5 events", exact: true }),
   ).toBeEnabled();
   await page
-    .getByRole("button", { name: "Show 5 editions", exact: true })
+    .getByRole("button", { name: "Show 5 events", exact: true })
     .click();
-  await expect(count(page)).toHaveText("5 editions");
+  await expect(count(page)).toHaveText("5 events");
 });
 
 test("readable ranges survive reload and dates restore default matching when removed", async ({
@@ -425,11 +419,11 @@ test("readable ranges survive reload and dates restore default matching when rem
   await page.reload();
   await expect(dates).toBeVisible();
   await page.goto("/?from=2025-07-01&to=2025-07-03");
-  await expect(count(page)).toHaveText("1 edition");
+  await expect(count(page)).toHaveText("1 event");
   await page.locator(".chips button").click();
-  await expect(count(page)).toHaveText("4 editions");
+  await expect(count(page)).toHaveText("4 events");
   await expect(
-    list(page).getByText("Fictional Field Days 2025", { exact: true }),
+    list(page).locator('a[href*="/events/fictional-field-days/2025"]'),
   ).toHaveCount(0);
 });
 
@@ -471,7 +465,7 @@ test("nearby month buttons fill dates and preserve explicit apply", async ({
   }
   const from = await page.getByLabel("From", { exact: true }).inputValue();
   const to = await page.getByLabel("To", { exact: true }).inputValue();
-  await page.getByRole("button", { name: /^Show \d+ editions?$/ }).click();
+  await page.getByRole("button", { name: /^Show \d+ events?$/ }).click();
   expect(new URL(page.url()).searchParams.get("from")).toBe(from);
   expect(new URL(page.url()).searchParams.get("to")).toBe(to);
 });

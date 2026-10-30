@@ -119,6 +119,7 @@ a:hover {
   padding: 0;
 }
 .discovery {
+  --discovery-footer-height: 24px;
   color: var(--ink);
   background: var(--surface);
   font: 400 14px/1.5 var(--font-sans);
@@ -204,7 +205,10 @@ a:hover {
 }
 .discovery-stage {
   position: relative;
-  height: calc(100dvh - 64px - var(--analytics-banner-height, 0px));
+  height: calc(
+    100dvh - 64px - var(--discovery-footer-height) -
+      var(--analytics-banner-height, 0px)
+  );
   min-height: 460px;
 }
 .discovery-results-shell {
@@ -693,7 +697,6 @@ a:hover {
     font-size: 16px;
   }
   .discovery-stage {
-    height: calc(100dvh - 64px - var(--analytics-banner-height, 0px));
     min-height: 450px;
   }
   .filter-toolbar {
@@ -1423,9 +1426,19 @@ a:focus-visible {
 .privacy-page section {
   margin-top: 2rem;
 }
-.discovery-privacy {
-  color: var(--tint);
-  font-size: 0.75rem;
+.discovery-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: var(--discovery-footer-height);
+  padding: 0 16px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.discovery-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--discovery-footer-height);
 }
 
 .privacy-summary {

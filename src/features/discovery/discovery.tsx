@@ -49,6 +49,7 @@ type Catalog = { summaries: DiscoverySummary[]; genres: Genre[] };
 type FilterGroup = "when" | "where" | "genre" | "more";
 export function Discovery({
   apexHref,
+  festivalsHref,
   initialCatalog,
   initialFilters,
   initialError,
@@ -56,6 +57,7 @@ export function Discovery({
   initialView,
 }: Readonly<{
   apexHref: string;
+  festivalsHref: string;
   initialCatalog: Catalog;
   initialFilters: Filters;
   initialError: string | null;
@@ -359,7 +361,7 @@ export function Discovery({
     setExpanded(false);
     void selectEdition(id);
   }
-  const editionLabel = results.length === 1 ? "edition" : "editions";
+  const eventLabel = results.length === 1 ? "event" : "events";
   const mapped = results.filter(hasMapPoint).length;
   const active = filterSelections(applied, catalog.genres);
   function remove(selection: FilterSelection) {
@@ -381,15 +383,12 @@ export function Discovery({
       <header className="discovery-header">
         <a
           className="discovery-brand"
-          href={apexHref}
-          aria-label="Eventroam home"
+          href={festivalsHref}
+          aria-label="Eventroam festivals"
         >
           Eventroam<span aria-hidden="true">.</span>
         </a>
         <span className="discovery-scope">Festivals</span>
-        <a className="discovery-privacy" href="/privacy">
-          Privacy policy
-        </a>
         <form
           className="name-search"
           role="search"
@@ -477,7 +476,7 @@ export function Discovery({
                 <strong aria-live="polite">
                   {invalidUrl
                     ? "Invalid filters"
-                    : `${results.length} ${editionLabel}`}
+                    : `${results.length} ${eventLabel}`}
                 </strong>
                 <span className="results-geography">
                   On map: {mapped} ·{" "}
@@ -614,6 +613,10 @@ export function Discovery({
           </button>
         </div>
       </div>
+      <footer className="discovery-footer">
+        <a href="/privacy">Privacy policy</a>
+        <a href={apexHref}>About project</a>
+      </footer>
     </div>
   );
 }

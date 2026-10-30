@@ -180,19 +180,19 @@ Removing a chip SHALL immediately commit removal of only that selection and upda
 
 ### Requirement: Picker actions preview the pending result count
 
-For valid pending filters, each picker SHALL show an updating action labeled "Show N editions", singular for one. N SHALL count all matching editions, including those without coordinates, using the same catalog, time reference, and matching rules as applied results. Previewing SHALL NOT change applied results, chips, or the URL. Applying SHALL commit the previewed filters; dismissing SHALL discard them.
+For valid pending filters, each picker SHALL show an action with the current matching result count. The count SHALL include all matching editions, including those without coordinates, using the same catalog, time reference, and matching rules as applied results. Previewing SHALL NOT change applied results, chips, or the URL. Applying SHALL commit the previewed filters; dismissing SHALL discard them.
 
 #### Scenario: A preview includes unlocated editions
 
 - **GIVEN** pending filters match two editions with coordinates and one without
 - **WHEN** the picker displays its action
-- **THEN** the action reads Show 3 editions
+- **THEN** the action shows three matching results
 - **AND** applying produces three list results and two mapped results if the catalog and time reference have not changed
 
 #### Scenario: Pending filters match no editions
 
 - **WHEN** valid pending filters match zero editions
-- **THEN** the enabled action reads Show 0 editions
+- **THEN** the enabled action shows zero matching results
 - **AND** the visitor can apply them or continue editing
 
 #### Scenario: Dismissing a preview retains applied state
@@ -298,7 +298,7 @@ Discovery SHALL show one selected card shared by list and map. A selected marker
 - **WHEN** a marker or list selection is activated
 - **THEN** the same card shows the selected Edition
 - **AND** its title and a visible View action link to the Edition page
-- **AND** provisional dates and approximate locations are qualified next to those facts
+- **AND** provisional dates are qualified next to the date facts
 - **AND** View is the primary action in the bottom-right corner of the card
 - **AND** duration stays together, provisional dates use a badge after the date range, and schedule status sits beside date facts
 - **AND** the base amount is more prominent than its full qualification, while genres precede quieter general types

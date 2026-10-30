@@ -54,7 +54,7 @@ export function SelectedPreview({
         <h2>
           {detail ? (
             <a href={path} onClick={onNavigate}>
-              {detail.name ?? `${detail.eventName} ${detail.year}`}
+              {detail.eventName}
             </a>
           ) : (
             "Edition details"
