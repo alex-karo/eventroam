@@ -1,6 +1,5 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { randomUUID } from "node:crypto";
 import type { ResearchBudget } from "../../runtime/budget";
 import type { RegisteredPoint } from "../../location/contracts";
 import type { LocationInput } from "../../location/input";
@@ -36,12 +35,13 @@ export function createGeocodingSession(
   >();
   const observations: GeocodingObservation[] = [];
   let calls = 0;
+  let nextPointId = 1;
   const signal = AbortSignal.any([
     AbortSignal.timeout(Math.max(1, budget.remaining().durationMs)),
     ...(options.abortSignal ? [options.abortSignal] : []),
   ]);
   const register = (point: Omit<RegisteredPoint, "id">) => {
-    const id = randomUUID();
+    const id = `p${nextPointId++}`;
     points.set(id, { ...point, id });
     return id;
   };

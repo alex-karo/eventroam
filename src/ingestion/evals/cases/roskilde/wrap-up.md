@@ -1,14 +1,26 @@
-# Tak for i år – vi ses i 2027 | Roskilde Festival
+---
+title: "Tak for i år – vi ses i 2027 | Roskilde Festival"
+meta:
+  "og:description": "Tak for en uge med store øjeblikke, nye fællesskaber og minder for livet. Vi vender tilbage 26. juni – 3. juli 2027. Du kan allerede nu sikre dig billet og skrive dig op som frivillig."
+  "og:title": "Tak for i år – vi ses i 2027"
+---
 
-[Page header]
 
-[Navigation]
+
+<!-- Page header -->
+
+
+
+<!-- Navigation -->
 
 [26/6 – 3/7 2027](https://www.roskilde-festival.dk/)
 
+<https://www.roskilde-festival.dk/en/news/thank-you-roskilde-see-you-in-2027>[Søg](https://www.roskilde-festival.dk/search)
 Log ind
 
-[/Navigation]
+
+
+<!-- /Navigation -->
 
 [Nyheder](https://www.roskilde-festival.dk/nyheder)
 
@@ -26,11 +38,27 @@ Log ind
 
 [Find praktisk info](https://faq.roskilde-festival.dk/hc/da)
 
-[/Page header]
+<https://www.instagram.com/roskildefestival/>
 
-[Main content]
+<https://www.tiktok.com/@roskildefestival>
+
+<https://www.facebook.com/orangefeeling>
+
+<https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW>
+
+<https://dk.linkedin.com/company/roskilde-festival>
+
+
+
+<!-- /Page header -->
+
+
+
+<!-- Main content -->
 
 20260703 Orangefoto Fyrværkeri Petertroest TR5 2196 1600Px (1)
+
+<https://www.roskilde-festival.dk/nyheder>
 
 # Tak for i år – vi ses i 2027
 
@@ -46,11 +74,11 @@ Tak, fordi du var med. Tak for fællesskabet, omsorgen og energien. Sammen har v
 
 Som **uafhængig, non-profit festival** er Roskilde Festival sat i verden for at gøre en forskel. Med en udsolgt festival forventer vi et flot overskud, som kan doneres til initiativer, der skaber positiv forandring for børn og unge.
 
-Nicolai Hegelund
+*Nicolai Hegelund*
 
 ## Køb Smart Ticket til RF27
 
-Roskilde Festival 2027 finder sted **26\. juni – 3. juli 2027**.
+Roskilde Festival 2027 finder sted **26. juni – 3. juli 2027**.
 
 Du kan allerede nu købe en **Smart Ticket** og betale din partoutbillet i otte rater á 327 kr. plus et billetgebyr på 100 kr.
 
@@ -60,7 +88,7 @@ Den samlede pris er 2.720 kr.
 
 [Køb Smart Ticket](https://ticket.roskilde-festival.dk/da/p2muh1c6jz61zhd/products)
 
-Emil Lyders
+*Emil Lyders*
 
 ## Bliv frivillig på RF27
 
@@ -68,7 +96,7 @@ Vil du være med til at skabe Roskilde Festival 2027 for 130.000 deltagere? Som 
 
 Skriv dig op allerede nu, så kontakter vi dig, når vi åbner for rekrutteringen til Roskilde Festival 2027.
 
-[Skriv dig op her](https://roskildefestival.typeform.com/to/oveDeLTe?typeform-source=www.roskilde-festival.dk)[Se mere om at være frivillig](https://www.roskilde-festival.dk/bliv-frivillig)
+[Skriv dig op her](https://roskildefestival.typeform.com/to/oveDeLTe?typeform-source=www.roskilde-festival.dk) [Se mere om at være frivillig](https://www.roskilde-festival.dk/bliv-frivillig)
 
 ## Vi glæder os allerede til at byde dig velkommen tilbage næste sommer.
 
@@ -84,33 +112,48 @@ Skriv dig op allerede nu, så kontakter vi dig, når vi åbner for rekrutteringe
 
 [Se alle nyheder](https://www.roskilde-festival.dk/nyheder)
 
-[/Main content]
 
-[Page footer]
+
+<!-- /Main content -->
+
+
+
+<!-- Page footer -->
 
 ## Om Roskilde Festival
 
--   [Om os – og vores formål](https://www.roskilde-festival.dk/festival-med-formaal)
--   [Job og praktik](https://roskildefestivalgruppen.dk/kontakt/job-og-praktik)
--   [Praktisk info](https://faq.roskilde-festival.dk/hc/da)
--   [Kontakt os](https://www.roskilde-festival.dk/kontakt)
+- [Om os – og vores formål](https://www.roskilde-festival.dk/festival-med-formaal)
+- [Job og praktik](https://roskildefestivalgruppen.dk/kontakt/job-og-praktik)
+- [Praktisk info](https://faq.roskilde-festival.dk/hc/da)
+- [Kontakt os](https://www.roskilde-festival.dk/kontakt)
 
 ## Mere end festival
 
--   [Roskilde Festival Gruppen](https://roskildefestivalgruppen.dk/da/)
--   [RFX](https://rfexperience.dk/)
--   [GRASP](https://graspfestival.dk/)
--   [Roskilde Festival Højskole](https://rofh.dk/)
+- [Roskilde Festival Gruppen](https://roskildefestivalgruppen.dk/da/)
+- [RFX](https://rfexperience.dk/)
+- [GRASP](https://graspfestival.dk/)
+- [Roskilde Festival Højskole](https://rofh.dk/)
 
 ## Professionelt
 
--   [Partnerskaber](https://www.roskilde-festival.dk/partnerskaber)
--   [Foreninger og boder](https://www.roskilde-festival.dk/foreninger-og-boder)
--   [Presse](https://www.roskilde-festival.dk/presse)
--   [Persondatapolitik](https://www.roskilde-festival.dk/persondatapolitik)
+- [Partnerskaber](https://www.roskilde-festival.dk/partnerskaber)
+- [Foreninger og boder](https://www.roskilde-festival.dk/foreninger-og-boder)
+- [Presse](https://www.roskilde-festival.dk/presse)
+- [Persondatapolitik](https://www.roskilde-festival.dk/persondatapolitik)
 
-* * *
+---
+
+- [Instagram](https://www.instagram.com/roskildefestival/)
+- [TikTok](https://www.tiktok.com/@roskildefestival)
+- [Facebook](https://www.facebook.com/orangefeeling)
+- [Spotify](https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW)
+- [LinkedIn](https://dk.linkedin.com/company/roskilde-festival)
+
+- [Tuborg](https://tuborg.dk/)
+- [RF26 bliver Nordens første svanemærkede festival](https://www.roskilde-festival.dk/nyheder/rf26-bliver-nordens-foerste-svanemaerkede-festival)
 
 ©2026 Roskilde Festival Gruppen
 
-[/Page footer]
+
+
+<!-- /Page footer -->

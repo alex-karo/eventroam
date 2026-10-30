@@ -1,14 +1,26 @@
-# Sådan er Roskilde | Roskilde Festival
+---
+title: "Sådan er Roskilde | Roskilde Festival"
+meta:
+  "og:description": "Bliv klar til Roskilde Festival – vi guider dig til campinglivet, den trygge oplevelse, pakkelisten, madudvalget og mødet med musikken."
+  "og:title": "Sådan er Roskilde"
+---
 
-[Page header]
 
-[Navigation]
+
+<!-- Page header -->
+
+
+
+<!-- Navigation -->
 
 [26/6 – 3/7 2027](https://www.roskilde-festival.dk/)
 
+<https://www.roskilde-festival.dk/en/this-is-roskilde>[Søg](https://www.roskilde-festival.dk/search)
 Log ind
 
-[/Navigation]
+
+
+<!-- /Navigation -->
 
 [Nyheder](https://www.roskilde-festival.dk/nyheder)
 
@@ -26,9 +38,23 @@ Log ind
 
 [Find praktisk info](https://faq.roskilde-festival.dk/hc/da)
 
-[/Page header]
+<https://www.instagram.com/roskildefestival/>
 
-[Main content]
+<https://www.tiktok.com/@roskildefestival>
+
+<https://www.facebook.com/orangefeeling>
+
+<https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW>
+
+<https://dk.linkedin.com/company/roskilde-festival>
+
+
+
+<!-- /Page header -->
+
+
+
+<!-- Main content -->
 
 # Sådan er Roskilde
 
@@ -56,10 +82,10 @@ For nogle er campingområdet stedet, hvor man slapper af, spiller spil og tager 
 
 ### Camping er inddelt i fire områder:
 
--   **Regular Camping**, hvor du selv finder en plads til dit eget telt
--   [**Special Camping**](https://www.roskilde-festival.dk/camping/special-camping "Special Camping"), hvor du kan vælge særlige rammer og løsninger, der er klar på forhånd
--   [**Community Camping**](https://www.roskilde-festival.dk/camping/community-camping "Community Camping"), hvor man bor i fællesskaber med fælles interesser eller aktiviteter
--   **Volunteer Camping**, hvor frivillige bor sammen med andre, der også er en del af festivalens afvikling
+- **Regular Camping**, hvor du selv finder en plads til dit eget telt
+- [**Special Camping**](https://www.roskilde-festival.dk/saadan-er-roskilde# "Special Camping"), hvor du kan vælge særlige rammer og løsninger, der er klar på forhånd
+- [**Community Camping**](https://www.roskilde-festival.dk/saadan-er-roskilde# "Community Camping"), hvor man bor i fællesskaber med fælles interesser eller aktiviteter
+- **Volunteer Camping**, hvor frivillige bor sammen med andre, der også er en del af festivalens afvikling
 
 I campingområdet finder du **toiletter**, **badefaciliteter** og **vandposter**. Der er også **madboder** og små **indkøbsmuligheder**, så du kan klare meget af det praktiske tæt på din camp.
 
@@ -75,10 +101,10 @@ Hvis du kommer i bil, er der mulighed for drop-off tæt på festivalen. Der vil 
 
 Early Entry giver adgang til campingområdet før den officielle åbning. Det er især relevant, hvis du:
 
--   vil ankomme tidligt og undgå kø
--   planlægger at bo i Regular Camping og gerne vil have bedre mulighed for at vælge plads
--   ankommer med en gruppe og vil slå lejr sammen
--   vil have god tid til at falde på plads, før festivalen åbner
+- vil ankomme tidligt og undgå kø
+- planlægger at bo i Regular Camping og gerne vil have bedre mulighed for at vælge plads
+- ankommer med en gruppe og vil slå lejr sammen
+- vil have god tid til at falde på plads, før festivalen åbner
 
 **Salget af Early Entry til RF27 åbner i foråret 2027.**
 
@@ -92,7 +118,7 @@ Hvis du tager alene afsted, giver det mening at være lidt ekstra opmærksom på
 
 Du kan også overveje at [**blive frivillig**](https://www.roskilde-festival.dk/bliv-frivillig "Bliv frivillig"). Det er en god måde at møde andre festivalgæster på og blive en del af et fællesskab fra starten.
 
-I flere campingområder, især i [**Community Camping**](https://www.roskilde-festival.dk/camping/community-camping "Community Camping"), bliver der også arrangeret fælles aktiviteter, hvor det er nemt at møde nye mennesker.
+I flere campingområder, især i [**Community Camping**](https://www.roskilde-festival.dk/saadan-er-roskilde# "Community Camping"), bliver der også arrangeret fælles aktiviteter, hvor det er nemt at møde nye mennesker.
 
 Hvad skal jeg pakke?
 
@@ -106,9 +132,9 @@ Gode ekstra ting er vådservietter, håndsprit, powerbank, vandflaske, gaffertap
 
 Skraldesække er også gode at have med. De kan bruges til affald i campen og til at holde ting tørre, hvis vejret skifter.
 
-Det er også en god idé at tjekke, **[hvad du _ikke_ må tage med](https://faq.roskilde-festival.dk/hc/da/sections/11285875641885-Campingomr%C3%A5det?articleId=19418354624285),** inden du pakker, så du undgår at skulle efterlade ting ved indgangen.
+Det er også en god idé at tjekke, **[hvad du *ikke* må tage med](https://faq.roskilde-festival.dk/hc/da/sections/11285875641885-Campingomr%C3%A5det?articleId=19418354624285),** inden du pakker, så du undgår at skulle efterlade ting ved indgangen.
 
-**Mangler du noget undervejs?**
+**Mangler du noget undervejs?**  
 Meget kan købes eller lejes på festivalen, og der plejer at være muligheder for både opladning, praktisk udstyr og kolde drikkevarer.
 
 Derudover ligger der både supermarkeder og butikker i Roskilde by og på ruten mellem byen og festivalen, hvis du mangler noget undervejs.
@@ -167,7 +193,7 @@ Det vigtigste er, at du har styr på det grundlæggende: din billet, hvordan du 
 
 På vores side med [**praktisk info**](https://faq.roskilde-festival.dk/hc/da) samler vi løbende det vigtigste, du har brug for at vide før festivalen. Du kan også tilmelde dig [**nyhedsbrevet**](https://www.roskilde-festival.dk/nyhedsbrev "Nyhedsbrev"), så du får guides og vigtig information frem mod festivalen.
 
-Når festivalen nærmer sig, er [**appen**](https://roskil.de/app) god at have. Her finder du kort over området, program, opdateringer og praktisk info samlet ét sted.
+Når festivalen nærmer sig, er  [**appen**](https://roskil.de/app) god at have. Her finder du kort over området, program, opdateringer og praktisk info samlet ét sted.
 
 ## Sådan er campinglivet
 
@@ -177,17 +203,17 @@ Her får du svar på nogle af de ting, der former hverdagen på festivalen: hvor
 
 Hvordan finder jeg rundt på festivalen?
 
-Forestil dig at du er ankommet til en stor by med beboelseskvarterer, handelsgader, spillesteder, parker og tusindvis af mennesker på vej i alle retninger. Sådan kan Roskilde Festival godt føles den første dag.
+Forestil dig at du er ankommet til en stor by med beboelseskvarterer, handelsgader, spillesteder, parker og tusindvis af mennesker på vej i alle retninger. Sådan kan Roskilde Festival godt føles den første dag. 
 
 Med over 130.000 deltagere er festivalen faktisk Danmarks fjerdestørste “by” under festivalugen. Området strækker sig over cirka 350 fodboldbaner med campingområder, scener, madsteder, kunst, aktiviteter og fællesskaber fordelt rundt omkring på pladsen.
 
-Heldigvis finder de fleste hurtigt deres egne ruter.
+Heldigvis finder de fleste hurtigt deres egne ruter. 
 
 Der er tydelig skiltning på hele området. Og når festivalen nærmer sig, finder du et kort i [**appen**](https://roskil.de/app), som gør det lettere at orientere sig mellem camping, scener, madområder, toiletter og andre faciliteter.
 
 De første dage foregår primært i campingområdet, hvor du kan lande, lære området at kende og opleve de aktiviteter og koncerter, der allerede er i gang under First Days.
 
-Og hvis du bliver i tvivl undervejs, er der altid frivillige og medarbejdere i området, som kan hjælpe dig med at finde vej.
+Og hvis du bliver i tvivl undervejs, er der altid frivillige og medarbejdere i området, som kan hjælpe dig med at finde vej. 
 
 Er der steder, hvor man kan slappe af?
 
@@ -211,7 +237,7 @@ Hvordan forbereder jeg mig på vejret?
 
 Dansk sommer kan skifte hurtigt fra høj sol og varme til regn, blæst og kølige aftener.
 
-Derfor er det en god idé at pakke til lidt af det hele, så du kan være ude og få mest muligt ud af festivalen uanset vejret.
+Derfor er det en god idé at pakke til lidt af det hele, så du kan være ude og få mest muligt ud af festivalen uanset vejret. 
 
 Du kommer langt med gode sko, varmt tøj til natten, solcreme, regntøj og tørt skiftetøj. Rundt omkring på pladsen finder du både skygge, overdækkede områder, lounges og steder, hvor du kan tage en pause, søge læ eller mødes med venner. Du kan også køle af i **Badesøen** på Camping East i dagtimerne.
 
@@ -255,24 +281,24 @@ Begge dele fungerer. Men de fleste oplever, at man får mest ud af festivalen ve
 
 På Roskilde Festival er der plads til at være sig selv og til at være en del af noget større. Det er et frirum for musik, fællesskab og oplevelser. Det er et sted, hvor du skal kunne føle dig tryg, uanset hvem du er.
 
-Når mange mennesker er samlet, opstår der både energi og intensitet. Det fungerer, fordi vi tager hensyn til hinanden og giver plads til forskellige måder at være med på.
-
+Når mange mennesker er samlet, opstår der både energi og intensitet. Det fungerer, fordi vi tager hensyn til hinanden og giver plads til forskellige måder at være med på.    
+   
 Men det kan også blive udmattende og overvældende. Derfor har vi lavet en guide til en tryg og sikker festival – og om din rolle er i fællesskabet.
 
 Hvad er festivalens adfærdskodeks – og hvordan bruger jeg det?
 
-Du (og alle dine venner) spiller en rolle i at festivalen tryggere, sjovere og mere overskudsagtig for alle.
-
-Derfor har vi lavet [**et adfærdskodeks**](https://www.roskilde-festival.dk/saadan-er-roskilde/saadan-er-vores-adfaerdskodeks "Sådan er vores adfærdskodeks"), som er en slags spilleregler for alle 130.000 deltagere.
-
+Du (og alle dine venner) spiller en rolle i at festivalen tryggere, sjovere og mere overskudsagtig for alle.    
+   
+Derfor har vi lavet [**et adfærdskodeks**](https://www.roskilde-festival.dk/saadan-er-roskilde/saadan-er-vores-adfaerdskodeks "Sådan er vores adfærdskodeks"), som er en slags spilleregler for alle 130.000 deltagere.   
+   
 Roskilde Festival handler om at bidrage til en stemning, hvor alle kan være med, og de fem spilleregler gøre være oplevelsen sjovere, tryggere og mere respektfuld.
 
 Når du følger kodeksets spilleregler, er du aktivt med til at tage ansvar for vores enestående orange fællesskab.
 
 Hvor er det bedste sted at stå til koncerterne?
 
-Noget af det allerbedste ved koncerter er, at vi oplever dem sammen. Men når vi står mange samlet foran scenen, kan det også blive intenst og rigtig tæt.
-
+Noget af det allerbedste ved koncerter er, at vi oplever dem sammen. Men når vi står mange samlet foran scenen, kan det også blive intenst og rigtig tæt.  
+   
 Den bedste plads er ikke nødvendigvis helt oppe foran scenen, men der hvor du har den bedste følelse af plads og fællesskab omkring dig. Derfor har vi fire tips til at finde den allerbedste plads, uanset om du står ved Orange Scene, Arena eller Eos.
 
 [**SE DE FIRE TIPS**](https://www.roskilde-festival.dk/saadan-er-roskilde/saadan-faar-du-den-bedste-plads-til-koncerterne "Sådan får du den bedste plads til koncerterne")
@@ -291,7 +317,7 @@ Roskilde Festival er mange ting på én gang. Tæt, larmende og levende, men ogs
 
 Hvis du har nedsat bevægelighed, en funktionsnedsættelse, hurtigt bliver træt, har brug for rolige omgivelser eller bare gerne vil planlægge din festival med lidt ekstra omtanke, er der hjælp at hente.
 
-Vi har samlet fem tips, der er gode at have med i baghovedet, når du skal planlægge den mest tilgængelige festivalrejse fra ankomst til koncert og med pauser undervejs.
+Vi har samlet fem tips [Roskilde Festival](https://www.roskilde-festival.dk/), der er gode at have med i baghovedet, når du skal planlægge den mest tilgængelige festivalrejse fra ankomst til koncert og med pauser undervejs.
 
 [**SE DE FEM TIPS**](https://www.roskilde-festival.dk/saadan-er-roskilde/saadan-faar-du-den-mest-tilgaengelige-oplevelse "Et trygt og tilgængeligt rum")
 
@@ -312,3 +338,135 @@ Hvad er Orange Together?
 Vi startede indsatsen tilbage i 2018 for at forebygge grænseoverskridende adfærd og skabe en fælles forståelse for, hvordan vi er sammen. Udgangspunktet var enkelt: Festivalen skal være et frirum, hvor du kan udfolde dig – uden at det går ud over andre.
 
 Det kræver både klare rammer og et fælles ansvar. I dag er Orange Together blevet en central del af vores måde at tænke fællesskab og omsorg.
+
+Det handler ikke kun om at reagere, når noget går galt, men om at skabe gode oplevelser fra starten. Derfor arbejder vi med viden, dialog og konkrete tiltag, der gør det lettere at navigere i fællesskabet og tage hensyn til hinanden. 
+
+På festivalen møder du Orange Together gennem forskellige aktiviteter og steder, hvor du kan tage en pause, deltage i en aktivitet eller få en snak om blandt andet trivsel, grænser og fællesskab.
+
+Du kan kigge forbi, tage en pause, deltage i en aktivitet eller bare få en snak. Og når du giver plads, passer på dem omkring dig og reagerer, hvis noget ikke føles rigtigt, er du selv med til at gøre Orange Together til virkelighed. 
+
+**Den bedste måde**, at du kan bakke op om Orange Together, er at starte med **[adfærdskodekset](https://www.roskilde-festival.dk/saadan-er-roskilde/saadan-er-vores-adfaerdskodeks "Sådan er vores adfærdskodeks")** og dele det med din camp – her får I** fem enkle spilleregler** for, hvordan vi passer på hinanden og fællesskabet.
+
+*Sofija Ninesa*
+
+## Sådan holder vi festivalen ren
+
+På Roskilde Festival gør vi det let så let som muligt at tage hensyn til både pladsen og dem omkring dig. Der er klare løsninger for affald og gode muligheder for at holde din camp ryddelig.
+
+Det handler ikke om store beslutninger, men om de små ting i løbet af dagen – hvor du lægger dit affald, hvad du tager med hjem, og hvordan du efterlader din camp.
+
+Herunder kan du se, hvordan det fungerer i praksis, og hvordan du nemt kan være med.
+
+Hvordan skal jeg sortere mit affald?
+
+Du sorterer dit affald på Roskilde Festival, som du gør derhjemme. Det er enkelt og genkendeligt – og gør en stor forskel, når vi er så mange samlet.  
+
+I campen bruger du sorteringsposer til de forskellige typer affald. Når de er fyldt, afleverer du dem ved de nærmeste sorteringspunkter eller sorteringspladser, som du finder mange steder på campingområdet.
+
+Jo bedre vi sorterer, desto mere kan blive genanvendt i stedet for at ende som restaffald.
+
+Tjek hvordan det fungerer i praksis, og hvordan du nemt kommer i gang.
+
+[**SE MERE HER**](https://www.roskilde-festival.dk/saadan-er-roskilde/faa-styr-paa-affaldssorteringen "Få styr på affaldssorteringen")
+
+Må jeg stadig tage en pavillon med?
+
+Ja. Men engangspavilloner er ikke tilladt på campingområdet.
+
+Du må stadig gerne overdække op til 9 m² i din camp. Det kan du gøre med en holdbar pavillon, som kan holde til en uge på festival, og som du tager med hjem igen.
+
+Folde- og saksepavilloner er helt i orden da de ofte er designet til at blive brugt igen og igen.
+
+De lette, hvide engangspavilloner er derimod ikke længere tilladt. De går ofte i stykker og bliver efterladt som affald.
+
+Hvis du ikke vil have en pavillon med hjemmefra, kan du leje en af os på pladsen.    
+   
+Det er et tilbud – ikke et krav. Det vigtigste er, at pavilloner ikke ender som affald, når festivalen er slut.
+
+[**SE ALLE IKKE-TILLADTE GENSTANDE**](https://faq.roskilde-festival.dk/hc/da/articles/19418354624285-Ikke-tilladte-genstande)
+
+Hvad gør jeg med min camp, når jeg skal hjem?
+
+Du skal efterlade pladsen, som du fandt den. Helt enkelt! 
+
+Ligesom vi har festet sammen, rydder vi også op sammen.  
+
+Når du pakker din camp ned, tager du dit udstyr og dine ting med hjem. Telte, pavilloner og grej kan sagtens bruges igen – enten af dig selv eller andre.
+
+Hvis noget er gået i stykker, kan du aflevere det på en genbrugsstation på pladsen. Dem finder du flere steder på campingområdet, og de frivillige hjælper dig gerne, hvis du er i tvivl om, hvordan noget skal sorteres.
+
+Har du lejet udstyr gennem festivalen, skal det afleveres igen, så det kan blive brugt på ny.
+
+Og så er der affaldet: Sørg for at få det samlet og sorteret korrekt, inden du går.
+
+Vi sorterer i de samme typer, som du kender hjemmefra, og når det bliver gjort rigtigt, kan langt mere blive genanvendt. 
+
+Når du forlader din camp ryddet og sorteret, er du med til at gøre festivalen klar til næste år – og vi kan bruge vores ressourcer til at lave endnu mere fedt indhold på festivalen.
+
+Hvad gør I egentligt selv for miljøet?
+
+Vi arbejder konkret med at mindske vores klimaaftryk i alt fra energi og mad til affald og materialer.
+
+Vi udfaser fossile brændsler som diesel og gas, stiller krav til boder og leverandører, udvikler nye løsninger med partnere og måler vores udledning, så vi ved, hvor vi kan rykke mest i en klimavenligere retning.
+
+I guiden nedenfor kan du læse, hvad vi gør, og hvordan det hænger sammen med de valg, du selv træffer undervejs. 
+
+[**LÆS MERE HER**](https://www.roskilde-festival.dk/saadan-er-roskilde/mindre-aftryk-mere-omtanke "Mindre aftryk, mere omtanke")
+
+## Er du klar?
+
+[Køb billet Vælg mellem en partoutbillet til alle otte dage, en endagsbillet eller en todagesbillet, hvor du selv kan mixe og matche dagene.](https://www.roskilde-festival.dk/billetter)
+
+[Download appen Med appen kan du sammensætte dit program, finde vej, læse guides og finde praktisk info, når du får brug for dem.](https://roskil.de/app)
+
+[Tilmeld dig nyhedsbrevet Vi skriver til dig, når der er nyt om transportmuligheder, Early Entry, programmet og praktisk info.](https://www.roskilde-festival.dk/nyhedsbrev)
+
+### Udforsk programmet
+
+Hvem spiller til sommer? Gå på opdagelse i det fantastiske program her.
+
+
+
+<!-- /Main content -->
+
+
+
+<!-- Page footer -->
+
+## Om Roskilde Festival
+
+- [Om os – og vores formål](https://www.roskilde-festival.dk/festival-med-formaal)
+- [Job og praktik](https://roskildefestivalgruppen.dk/kontakt/job-og-praktik)
+- [Praktisk info](https://faq.roskilde-festival.dk/hc/da)
+- [Kontakt os](https://www.roskilde-festival.dk/kontakt)
+
+## Mere end festival
+
+- [Roskilde Festival Gruppen](https://roskildefestivalgruppen.dk/da/)
+- [RFX](https://rfexperience.dk/)
+- [GRASP](https://graspfestival.dk/)
+- [Roskilde Festival Højskole](https://rofh.dk/)
+
+## Professionelt
+
+- [Partnerskaber](https://www.roskilde-festival.dk/partnerskaber)
+- [Foreninger og boder](https://www.roskilde-festival.dk/foreninger-og-boder)
+- [Presse](https://www.roskilde-festival.dk/presse)
+- [Persondatapolitik](https://www.roskilde-festival.dk/persondatapolitik)
+
+---
+
+- [Instagram](https://www.instagram.com/roskildefestival/)
+- [TikTok](https://www.tiktok.com/@roskildefestival)
+- [Facebook](https://www.facebook.com/orangefeeling)
+- [Spotify](https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW)
+- [LinkedIn](https://dk.linkedin.com/company/roskilde-festival)
+
+- [Tuborg](https://tuborg.dk/)
+- [RF26 bliver Nordens første svanemærkede festival](https://www.roskilde-festival.dk/nyheder/rf26-bliver-nordens-foerste-svanemaerkede-festival)
+
+©2026 Roskilde Festival Gruppen
+
+
+
+<!-- /Page footer -->

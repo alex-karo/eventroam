@@ -5,7 +5,6 @@
   "task": "Check location target before donor",
   "provenance": {
     "kind": "synthetic",
-    "sourceReport": "openspec/changes/separate-location-resolution/design.md",
     "note": "The festival moved from the 2026 park to River Park in 2027. The saved 2027 point is the official current venue. The historical point no longer applies. Provider results are synthetic."
   },
   "input": {

@@ -6,7 +6,6 @@
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-source-regression",
-    "sourceReport": "data/source-workflow-validation/2026-10-13-editor-ten/comparison.md",
     "note": "Fictional sources isolate stale-language and wrong-festival ticket failures. Saved Event is explicitly Snow Meadow Student; International is a separate festival under the same brand. No live website/search fallback."
   },
   "input": {

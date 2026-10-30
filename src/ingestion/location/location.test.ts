@@ -146,6 +146,7 @@ test("initial requests deduplicate across slots and agent cache hits count", asy
   await prepareInitialGeocoding(data, session);
   expect(client).toHaveBeenCalledTimes(1);
   expect(session.observations[0].slots).toHaveLength(2);
+  expect(session.observations[0].pointIds).toEqual(["p1"]);
   const request = session.observations[0].request;
   if (request.direction !== "forward") {
     throw new Error("Expected forward request");
@@ -160,11 +161,35 @@ test("initial requests deduplicate across slots and agent cache hits count", asy
     request: { ...request, countryCode: "PT" },
     slots: ["previousEdition", "currentOrNextEdition"],
     cacheHit: true,
+    pointIds: ["p1"],
   });
+  expect([...session.points.keys()]).toEqual(["p1"]);
   expect(session.observations.at(-1)?.result).toEqual({
     status: "error",
     code: "limit_reached",
   });
+});
+test("short point IDs are local to each Location session", async () => {
+  const first = createGeocodingSession(input(), createResearchBudget(), {
+    client: async () => forward,
+  });
+  const second = createGeocodingSession(input(), createResearchBudget(), {
+    client: async () => ({
+      ...forward,
+      candidates: [{ ...forward.candidates[0], latitude: 38.8 }],
+    }),
+  });
+  const query = { query: "Lisbon", countryCode: "PT" };
+  const results = await Promise.all([
+    first.forward(query),
+    second.forward(query),
+  ]);
+  expect(results.map((result) => result.pointIds)).toEqual([["p1"], ["p1"]]);
+  expect(first.points.get("p1")?.latitude).toBe(38.72);
+  expect(second.points.get("p1")?.latitude).toBe(38.8);
+  await first.forward({ ...query, query: "Central Park, Lisbon" });
+  expect([...first.points.keys()]).toEqual(["p1", "p2"]);
+  expect([...second.points.keys()]).toEqual(["p1"]);
 });
 test("new venue never appends an old address and withdrawn text stays absent", async () => {
   const data = input();
@@ -216,6 +241,7 @@ test("source selection, accepted slots, city precision and unknown IDs are check
   const session = createGeocodingSession(data, createResearchBudget(), {
     client: async (request) => response(request),
   });
+  expect(session.targets.currentOrNextEdition!.sourceId).toBe("p1");
   const raw = output();
   const slot = raw.decision.currentOrNextEdition;
   Object.assign(slot.coordinates, {
@@ -227,9 +253,10 @@ test("source selection, accepted slots, city precision and unknown IDs are check
     validateLocation(raw, data, session).slots.currentOrNextEdition?.coordinates
       .action,
   ).toBe("set");
-  Object.assign(slot.coordinates, { pointId: "another-assignment" });
+  Object.assign(slot.coordinates, { pointId: "p3" });
   expect(() => validateLocation(raw, data, session)).toThrow("Unknown");
   await prepareInitialGeocoding(data, session);
+  expect([...session.points.keys()]).toEqual(["p1", "p2"]);
   const city = [...session.points.values()].find(
     (point) => point.kind === "candidate",
   )!;

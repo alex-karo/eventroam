@@ -1,8 +1,8 @@
 ---
 type: Known issue
 title: Roskilde eval expects an unspecified ticket link preference
-description: The eval rejects a direct Edition ticket link that the agent instructions allow.
-status: draft
+description: The eval now accepts the source-backed direct Edition ticket link and the ticket overview.
+status: stable
 tags: [evals, ingestion, tickets]
 ---
 
@@ -14,4 +14,4 @@ The [Research instructions](../../src/ingestion/research/agent/prompt.ts) ask fo
 
 The experiment ID was `7fa1e43a-4060-46b2-ba51-fc18f15f991a`; the Roskilde run ID was `5ae3c1b4-11dc-49ae-999d-f3a0c5281e2f`.
 
-Status: unresolved. Decide whether the Edition ticket link should prefer an official overview for that Edition, with a direct offer as a fallback when no supported overview is available. If this rule is accepted, align the Research and Editor instructions, the relevant spec, and the eval. Links for individual ticket variants can still point to their own offers.
+Resolved on 2026-10-30. The eval now accepts both the ticket overview and the direct full-festival admission link. This follows the current Research instructions, which do not require an overview preference. The same correction adds the Instagram and Facebook URL forms present in the official page fixtures. URL matching remains exact apart from its existing normalization; other paths and queries do not pass because the host matches. Saved experiment results remain unchanged.

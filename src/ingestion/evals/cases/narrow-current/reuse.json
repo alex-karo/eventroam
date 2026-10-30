@@ -6,7 +6,6 @@
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-current-regression",
-    "sourceReport": "openspec/changes/narrow-current-refresh/design.md",
     "note": "Synthetic official announcements isolate scope and continuity decisions; no live source fallback."
   },
   "input": {

@@ -14,6 +14,12 @@ tags: [catalog, ingestion, sources]
 
 HTML and XHTML retain headings, tables, inline links, and image alternative text. Identified regions use paired HTML comments for Navigation, Main content, Page header, Page footer, and Aside.
 
+The HTML converter is `@mdream/js` with its standard `frontmatterPlugin()`. Markdown starts with YAML when the page head has a title or supported metadata. The page title uses YAML `title`; the reader does not add a page-title heading. Body headings stay in source order. Titles in body content or embedded documents do not supply the YAML title.
+
+The plugin's default metadata fields are `description`, `keywords`, `author`, `date`, `og:title`, `og:description`, `twitter:title`, and `twitter:description`, under YAML `meta`. Repeated fields keep the last value with nonempty `content`. These are source claims. A metadata date is not a verified Edition date, and body text stays when it differs. Earlier repeated values are not collected separately.
+
+Links use retained text, image alternative text, `aria-label`, or `title`, in that order. If all labels are empty, the resolved destination becomes the label. Allowed destinations use HTTP(S) without credentials; queries and fragments stay. The reader does not infer labels from image filenames. Existing cleanup still removes scripts, SVG, and nodes marked `hidden` or `aria-hidden="true"`; this fallback does not recover their content or links.
+
 JSON-LD adds selected structured fields. Valid coordinates from `Event.location.geo` and `Place.geo` stay with their owner's name and path. Malformed JSON-LD does not invalidate visible content. JSON responses use the same field extraction; invalid JSON stays as text. Plain text keeps normalized line endings. Other media types, Facebook, and Instagram return an unsupported result.
 
 ## Fallback
@@ -22,7 +28,9 @@ With `FIRECRAWL_KEY`, the reader tries Firecrawl once after HTTP 403, using raw 
 
 For HTTP 200 HTML, rendered fallback needs a script other than JSON-LD, fewer than 200 characters of body text outside navigation, and at least one second remaining. A short page with an analytics script can meet this signal. The rendered response must contain at least 200 such characters. Otherwise the direct page stays `ok` with `javascript_required`.
 
-A selected render keeps available direct text, JSON-LD, and map references. Fallback uses the shared request, time, and byte limits.
+Head metadata, generated link labels, and output-only image text do not count toward this signal.
+
+A selected render keeps available direct text, YAML metadata, JSON-LD, and map references in the direct-response section. Rendered content keeps its own source section. The reader does not merge metadata across these sections. Fallback uses the shared request, time, and byte limits.
 
 ## Maps
 

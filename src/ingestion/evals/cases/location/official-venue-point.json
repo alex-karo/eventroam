@@ -5,7 +5,6 @@
   "task": "Check location official venue point",
   "provenance": {
     "kind": "synthetic",
-    "sourceReport": "openspec/changes/separate-location-resolution/design.md",
     "note": "Explicit official venue coordinates differ by more than 10 km from the saved target and historical donor. Geocoding returns only a locality. The official point must take priority and the unexplained discrepancy must remain unresolved. All source and provider data are synthetic."
   },
   "input": {

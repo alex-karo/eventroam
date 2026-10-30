@@ -6,7 +6,6 @@
   "todayUtc": "2026-10-08",
   "provenance": {
     "kind": "captured-http-metadata-synthetic-replay",
-    "sourceReport": "/tmp/eventroam-live-ten-20261008/03.json",
     "note": "Initial catalog facts came from baseline.sqlite in the same capture directory. Five URL, retrieval-time, blocked-outcome and http_403 fields came from the live dry run. Empty Markdown and fixed discovery with no candidates are synthetic deterministic replay; no website or search fallback is used. The live model returned partial with empty data, which this regression expects to reject."
   },
   "input": {

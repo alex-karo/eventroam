@@ -42,7 +42,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/",
       "finalUrl": "https://www.wacken.com/de/",
-      "retrievedAt": "2026-10-27T13:33:25.433Z",
+      "retrievedAt": "2026-10-30T01:31:57.940Z",
       "method": "http",
       "status": "ok",
       "markdownFile": "page.md"
@@ -50,7 +50,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
       "finalUrl": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
-      "retrievedAt": "2026-10-27T13:33:26.239Z",
+      "retrievedAt": "2026-10-30T01:31:58.129Z",
       "method": "http",
       "status": "ok",
       "markdownFile": "tickets.md"
@@ -58,7 +58,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/de/camping-travel/die-uebersicht/",
       "finalUrl": "https://www.wacken.com/de/camping-travel/die-uebersicht/",
-      "retrievedAt": "2026-10-27T13:33:26.396Z",
+      "retrievedAt": "2026-10-30T01:31:58.323Z",
       "method": "http",
       "status": "ok",
       "markdownFile": "travel.md"
@@ -66,7 +66,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/",
       "finalUrl": "https://www.wacken.com/de/news-details/woa-2026-das-offizielle-aftermovie-ist-da/",
-      "retrievedAt": "2026-10-27T13:33:26.636Z",
+      "retrievedAt": "2026-10-30T01:31:58.666Z",
       "method": "http",
       "markdownFile": "aftermovie.md",
       "status": "ok"
@@ -74,7 +74,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/de/alle-news/",
       "finalUrl": "https://www.wacken.com/de/alle-news/",
-      "retrievedAt": "2026-10-27T13:33:26.808Z",
+      "retrievedAt": "2026-10-30T01:31:58.801Z",
       "method": "http",
       "markdownFile": "news.md",
       "status": "ok"
@@ -82,7 +82,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/de/historie/",
       "finalUrl": "https://www.wacken.com/de/historie/",
-      "retrievedAt": "2026-10-27T13:33:27.012Z",
+      "retrievedAt": "2026-10-30T01:31:58.822Z",
       "method": "http",
       "markdownFile": "history.md",
       "status": "ok",
@@ -91,7 +91,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/de/kontakt/",
       "finalUrl": "https://www.wacken.com/de/kontakt/",
-      "retrievedAt": "2026-10-27T13:33:27.171Z",
+      "retrievedAt": "2026-10-30T01:31:58.834Z",
       "method": "http",
       "markdownFile": "contact.md",
       "status": "ok",
@@ -100,7 +100,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/de/impressum/",
       "finalUrl": "https://www.wacken.com/de/impressum/",
-      "retrievedAt": "2026-10-27T13:33:27.323Z",
+      "retrievedAt": "2026-10-30T01:31:58.975Z",
       "method": "http",
       "markdownFile": "impressum.md",
       "status": "failed",
@@ -109,7 +109,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/de/news-details/die-ticketboerse-fuer-das-woa-2027-ist-online/",
       "finalUrl": "https://www.wacken.com/de/news-details/die-ticketboerse-fuer-das-woa-2027-ist-online/",
-      "retrievedAt": "2026-10-27T13:58:04.408Z",
+      "retrievedAt": "2026-10-30T01:31:58.987Z",
       "method": "http",
       "markdownFile": "ticket-exchange.md",
       "status": "ok"
@@ -117,7 +117,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/de/rechtliches/impressum/",
       "finalUrl": "https://www.wacken.com/de/rechtliches/impressum/",
-      "retrievedAt": "2026-10-27T13:58:05.136Z",
+      "retrievedAt": "2026-10-30T01:31:59.129Z",
       "method": "http",
       "markdownFile": "legal-impressum.md",
       "status": "ok"
@@ -125,7 +125,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/de/line-up/bands/",
       "finalUrl": "https://www.wacken.com/de/line-up/bands/",
-      "retrievedAt": "2026-10-27T14:07:22.606Z",
+      "retrievedAt": "2026-10-30T01:31:59.189Z",
       "method": "http",
       "markdownFile": "bands.md",
       "status": "ok",
@@ -134,7 +134,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/de/news-details/ein-gaensehautmoment-auf-dem-wacken-open-air-ein-letzter-wunsch-wird-wahr/",
       "finalUrl": "https://www.wacken.com/de/news-details/ein-gaensehautmoment-auf-dem-wacken-open-air-ein-letzter-wunsch-wird-wahr/",
-      "retrievedAt": "2026-10-27T14:07:23.324Z",
+      "retrievedAt": "2026-10-30T01:31:59.218Z",
       "method": "http",
       "markdownFile": "last-wish.md",
       "status": "ok"
@@ -142,7 +142,7 @@
     {
       "attemptedUrl": "https://www.wacken.com/de/news-details/heavy-metal-erobert-die-reeperbahn-wacken-open-air-showcase-morecore-music-awards/",
       "finalUrl": "https://www.wacken.com/de/news-details/heavy-metal-erobert-die-reeperbahn-wacken-open-air-showcase-morecore-music-awards/",
-      "retrievedAt": "2026-10-27T14:07:23.497Z",
+      "retrievedAt": "2026-10-30T01:31:59.279Z",
       "method": "http",
       "markdownFile": "showcase.md",
       "status": "ok"
@@ -319,10 +319,9 @@
       "provenance": "https://www.geonames.org/search.html?q=Steinburg&startRow=250; read 2026-10-26, Wacken populated-place entry. GeoNames CC BY 4.0. Source-backed normalized locality fixture, not a Geoapify capture. Query aliases use captured travel text. Locality fallback, not the venue. This explicit alias was observed in the main run on 2026-10-27; it returns the same locality fallback, not a venue match."
     }
   ],
-  "todayUtc": "2026-10-27",
+  "todayUtc": "2026-10-30",
   "provenance": {
     "kind": "captured",
-    "sourceReport": "docs/development.md#main-fact-checks",
-    "note": "Captured from official websites on 2026-10-27 through the production readPage tool with rendering disabled. Replaces the previous page set and adds URLs requested in the saved main run. Markdown is unchanged reader output. Partial, truncated, and failed HTTP responses keep their actual outcomes. No generated page content or live fallback. Expanded with real HTTP responses for URLs requested in experiment a2bef149-7ecb-47b5-9794-db4dbfb898c3; trailing spaces removed. Expanded with real HTTP responses for URLs requested in experiment c8fa18ac-8cf2-4d2d-98a6-15f9d633241e; trailing spaces removed."
+    "note": "Official pages captured on 2026-10-30 through the production HTTP readPage tool with @mdream/js@2.0.3 and standard frontmatterPlugin(). Rendering was disabled. Markdown is the full reader output. HTTP status, redirects and javascript_required outcomes retain the observed results. Raw response bodies and reader results are saved locally under data/main-fixtures-mdream-20261030/wacken/. This set replaces the 2026-10-27 Markdown captures. The task, initial catalog, fixed geocoding responses and scoring rules are unchanged. Only the fixed evaluation date moves to the capture date. No live source fallback is used during evals."
   }
 }

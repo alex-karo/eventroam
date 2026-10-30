@@ -175,7 +175,7 @@ Location has at most eight model steps. `CATALOG_LOCATION_MODEL` defaults to the
 
 Location returns decisions in the same named slots without repeating Edition keys. Code uses the accepted input key for each slot, including unresolved questions. Location input omits the constant editor status and keeps its available explanations. It includes the full bounded `editor.unresolved` array without filtering or merging Research questions. Location uses relevant questions as context and need not repeat them in its output; they cannot restore a declined slot.
 
-Every accepted Location slot must return keep, set or clear with a reason for each text field. Coordinate actions are keep, inherit a registered donor, select a registered point, or clear a disproved saved point. The agent returns point IDs, never numeric coordinates.
+Every accepted Location slot must return keep, set or clear with a reason for each text field. Coordinate actions are keep, inherit a registered donor, select a registered point, or clear a disproved saved point. The agent returns point IDs, never numeric coordinates. Each Location session assigns short IDs (`p1`, `p2`, and so on) to its registered points. Cached results keep their IDs within that session.
 
 Keep preserves the target only. If the target has no point and its donor is unsuitable, keep leaves coordinates absent without inheriting. Clear requires an existing saved value in that target; it cannot clear an absent value or remove a donor.
 
