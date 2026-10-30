@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 test.skip(
   process.env.E2E_REAL_MAP !== "1",
   "Needs an opt-in local Mapbox token.",
@@ -20,6 +20,25 @@ async function renderedCamera(page: Page) {
     )
     .getAttribute("href");
   return new URL(href!).hash.slice(2).split("/").map(Number);
+}
+async function expectClearSelection(page: Page) {
+  const point = page.locator(".selected-map-point");
+  const card = page.getByRole("region", { name: "Selected edition details" });
+  await expect
+    .poll(async () => {
+      const marker = await point.boundingBox();
+      const panel = await card.boundingBox();
+      if (!marker || !panel) {
+        return -Infinity;
+      }
+      return Math.max(
+        panel.x - marker.x - marker.width,
+        marker.x - panel.x - panel.width,
+        panel.y - marker.y - marker.height,
+        marker.y - panel.y - panel.height,
+      );
+    })
+    .toBeGreaterThanOrEqual(27);
 }
 for (const change of ["moved", "removed"] as const) {
   test(`catalog retry updates a selected point when coordinates are ${change}`, async ({
@@ -58,7 +77,7 @@ for (const change of ["moved", "removed"] as const) {
       .click();
     const card = page.getByRole("region", { name: "Selected edition details" });
     await expect(card.getByRole("heading")).toHaveText(
-      "Fictional Atlantic Sounds 2027",
+      "Fictional Atlantic Sounds",
     );
     if (info.project.name === "mobile") {
       await page
@@ -84,7 +103,7 @@ for (const change of ["moved", "removed"] as const) {
     }
     expect(await renderedCamera(page)).toEqual(before);
     await expect(card.getByRole("heading")).toHaveText(
-      "Fictional Atlantic Sounds 2027",
+      "Fictional Atlantic Sounds",
     );
   });
 }
@@ -99,7 +118,7 @@ for (const returnPath of ["browser Back", "Back to results"] as const) {
     });
     await select.click();
     await expect(card.getByRole("heading")).toHaveText(
-      "Fictional Atlantic Sounds 2027",
+      "Fictional Atlantic Sounds",
     );
     const views = page.getByRole("group", { name: "Discovery view" });
     if (info.project.name === "mobile") {
@@ -109,7 +128,9 @@ for (const returnPath of ["browser Back", "Back to results"] as const) {
       .poll(() => camera(page))
       .toMatchObject({ zoom: expect.any(Number) });
     const map = await page.locator(".map-canvas").boundingBox();
-    const y = map!.y + 160;
+    const panel = await card.boundingBox();
+    const y =
+      info.project.name === "mobile" ? (map!.y + panel!.y) / 2 : map!.y + 160;
     const point = page.locator(".selected-map-point");
     const pointOutside = async () => {
       const marker = await point.boundingBox();
@@ -142,7 +163,7 @@ for (const returnPath of ["browser Back", "Back to results"] as const) {
       await page.getByRole("link", { name: returnPath, exact: true }).click();
     }
     await expect(card.getByRole("heading")).toHaveText(
-      "Fictional Atlantic Sounds 2027",
+      "Fictional Atlantic Sounds",
     );
     await expect(point).toHaveCount(1);
     await expect.poll(() => renderedCamera(page)).toEqual(rendered);
@@ -167,7 +188,7 @@ for (const returnPath of ["browser Back", "Back to results"] as const) {
     }
     await select.click();
     await expect(card.getByRole("heading")).toHaveText(
-      "Fictional Atlantic Sounds 2027",
+      "Fictional Atlantic Sounds",
     );
     if (info.project.name === "mobile") {
       await views.getByRole("button", { name: "Map", exact: true }).click();
@@ -213,7 +234,7 @@ test("clustered selection stays visible, preserves zoom, and returns to the same
     .click();
   const card = page.getByRole("region", { name: "Selected edition details" });
   await expect(card.getByRole("heading")).toHaveText(
-    "Fictional Atlantic Sounds 2027",
+    "Fictional Atlantic Sounds",
   );
   if (info.project.name === "mobile") {
     await page
@@ -223,14 +244,7 @@ test("clustered selection stays visible, preserves zoom, and returns to the same
   }
   const point = page.locator(".selected-map-point");
   await expect(point).toBeVisible();
-  const marker = await point.boundingBox(),
-    panel = await card.boundingBox();
-  expect(
-    marker!.x + marker!.width + 27 <= panel!.x ||
-      marker!.x >= panel!.x + panel!.width + 27 ||
-      marker!.y + marker!.height + 27 <= panel!.y ||
-      marker!.y >= panel!.y + panel!.height + 27,
-  ).toBe(true);
+  await expectClearSelection(page);
   expect((await camera(page)).zoom).toBeCloseTo(before.zoom, 6);
   const selected = await camera(page);
   await card.getByRole("button", { name: "Close details" }).click();
@@ -255,7 +269,7 @@ test("clustered selection stays visible, preserves zoom, and returns to the same
     .getByRole("link", { name: "Back to results", exact: true })
     .click();
   await expect(card.getByRole("heading")).toHaveText(
-    "Fictional Atlantic Sounds 2027",
+    "Fictional Atlantic Sounds",
   );
   await expect.poll(() => camera(page)).toMatchObject({ zoom: selected.zoom });
   const restored = await camera(page);
@@ -278,7 +292,7 @@ test("marker hover resumes after close and unlocated selection leaves the camera
     })
     .click();
   await expect(card.getByRole("heading")).toHaveText(
-    "Fictional Atlantic Sounds 2027",
+    "Fictional Atlantic Sounds",
   );
   const point = await page.locator(".selected-map-point").boundingBox();
   const position = {
@@ -291,20 +305,51 @@ test("marker hover resumes after close and unlocated selection leaves the camera
   await page.mouse.move(0, 0);
   await page.mouse.move(position.x, position.y);
   await expect(page.locator(".mapboxgl-popup")).toContainText(
-    "Fictional Atlantic Sounds 2027",
+    "Fictional Atlantic Sounds",
   );
   await page.mouse.click(position.x, position.y);
   await expect(card.getByRole("heading")).toHaveText(
-    "Fictional Atlantic Sounds 2027",
+    "Fictional Atlantic Sounds",
   );
   await expect(page.locator(".mapboxgl-popup")).toHaveCount(0);
   const before = await camera(page);
   await page
     .getByRole("button", { name: "Show details for Fictional Field Days 2027" })
     .click();
-  await expect(card.getByRole("heading")).toHaveText(
-    "Fictional Field Days 2027",
-  );
+  await expect(card.getByRole("heading")).toHaveText("Fictional Field Days");
   await expect(page.locator(".selected-map-point")).toHaveCount(0);
   expect(await camera(page)).toEqual(before);
+});
+
+test.describe("with the analytics banner", () => {
+  test.use({ showAnalyticsBanner: true });
+
+  test("the selected point stays clear of the compact card", async ({
+    page,
+  }, info) => {
+    await page.goto("/?from=2027-01-01&to=2027-12-31");
+    const banner = page.getByRole("complementary", {
+      name: "Analytics choice",
+    });
+    await expect(banner).toBeVisible();
+    await page
+      .getByRole("button", {
+        name: "Show details for Fictional Atlantic Sounds 2027",
+      })
+      .click();
+    const card = page.getByRole("region", { name: "Selected edition details" });
+    await expect(card.getByRole("heading")).toHaveText(
+      "Fictional Atlantic Sounds",
+    );
+    if (info.project.name === "mobile") {
+      await page
+        .getByRole("group", { name: "Discovery view" })
+        .getByRole("button", { name: "Map", exact: true })
+        .click();
+    }
+    await expectClearSelection(page);
+    await banner.getByRole("button", { name: "Disable analytics" }).click();
+    await expect(banner).toHaveCount(0);
+    await expectClearSelection(page);
+  });
 });

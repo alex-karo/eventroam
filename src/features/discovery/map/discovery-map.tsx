@@ -44,8 +44,6 @@ export function mapFeatures(
       },
       properties: {
         id: summary.id,
-        name: summary.name ?? `${summary.eventName} ${summary.year}`,
-        approximate: summary.coordinatePrecision !== "exact",
       },
     })),
   };
@@ -85,20 +83,15 @@ function previewContent(summary: DiscoverySummary) {
   const content = document.createElement("div");
   content.className = styles.previewContent;
   const name = document.createElement("strong");
-  name.textContent = summary.name ?? `${summary.eventName} ${summary.year}`;
+  name.textContent = summary.eventName;
   content.append(name);
   const dates = document.createElement("span");
   dates.textContent = dateRange(summary.startsOn, summary.endsOn);
   content.append(dates);
-  const status = [
-    summary.dateState === "provisional" ? "Tentative dates" : "Confirmed dates",
-    summary.coordinatePrecision !== "exact" ? "Approximate location" : null,
-  ].filter(Boolean);
-  if (status.length) {
-    const line = document.createElement("span");
-    line.textContent = status.join(" · ");
-    content.append(line);
-  }
+  const status = document.createElement("span");
+  status.textContent =
+    summary.dateState === "provisional" ? "Tentative dates" : "Confirmed dates";
+  content.append(status);
   return content;
 }
 
@@ -166,7 +159,7 @@ export function DiscoveryMap({
       rect,
       cardRef.current?.getBoundingClientRect() ?? null,
     );
-    if (Math.abs(offset.x) > 1 || Math.abs(offset.y) > 1) {
+    if (Math.abs(offset.x) > 0.5 || Math.abs(offset.y) > 0.5) {
       instance.panBy([offset.x, offset.y], { duration: 0 });
     }
   }, [cardRef, updateSelectedMarker]);
@@ -593,8 +586,7 @@ export function DiscoveryMap({
         </div>
       )}
       <p className="map-caption">
-        Points may represent approximate locations. Select a result in the list
-        for keyboard access.
+        Select a result in the list for keyboard access.
       </p>
     </div>
   );

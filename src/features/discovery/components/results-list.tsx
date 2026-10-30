@@ -28,7 +28,7 @@ export function ResultsList({
         (results.length ? (
           <ul className="edition-list">
             {results.map((edition) => {
-              const name =
+              const detailLabel =
                 edition.name ?? `${edition.eventName} ${edition.year}`;
               const place = placeName(edition);
               const [first, last] = dateRangeParts(
@@ -53,7 +53,7 @@ export function ResultsList({
                       )}
                       onClick={onNavigate}
                     >
-                      {name}
+                      {edition.eventName}
                     </a>
                     <span className="edition-place">
                       {place || "Location not announced"}
@@ -80,18 +80,13 @@ export function ResultsList({
                         edition.longitude === null) && (
                         <span title="Map location unavailable">Not mapped</span>
                       )}
-                      {edition.latitude !== null &&
-                        edition.longitude !== null &&
-                        edition.coordinatePrecision !== "exact" && (
-                          <span>Approximate location</span>
-                        )}
                     </span>
                   </div>
                   <button
                     className="edition-details"
                     type="button"
                     onClick={() => onSelect(edition.id)}
-                    aria-label={`Show details for ${name}`}
+                    aria-label={`Show details for ${detailLabel}`}
                     aria-pressed={selectedId === edition.id}
                   >
                     Details
@@ -102,7 +97,7 @@ export function ResultsList({
           </ul>
         ) : (
           <div className="notice empty-results">
-            <p>No editions match these filters.</p>
+            <p>No events match these filters.</p>
             <button type="button" onClick={onClear}>
               Clear all filters
             </button>

@@ -40,14 +40,18 @@ export function Dates({ edition }: Readonly<{ edition: PublicEdition }>) {
     </p>
   );
 }
-export function Location({ edition }: Readonly<{ edition: PublicEdition }>) {
+export function Location({
+  edition,
+  showPrecision = false,
+}: Readonly<{ edition: PublicEdition; showPrecision?: boolean }>) {
   const located = edition.latitude !== null && edition.longitude !== null;
   return (
     <p className="fact">
       <Icon name="place" />
       <span>
         {placeName(edition)}
-        {located &&
+        {showPrecision &&
+          located &&
           edition.coordinatePrecision !== "exact" &&
           " · Approximate location"}
         {!located && (

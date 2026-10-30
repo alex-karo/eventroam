@@ -123,11 +123,11 @@ export function FilterPanel({
   }
   const feedback = nativeError ?? error;
   const feedbackId = feedback ? "filter-feedback" : undefined;
-  const editionLabel = previewCount === 1 ? "edition" : "editions";
+  const eventLabel = previewCount === 1 ? "event" : "events";
   const action =
     feedback || previewCount === null
       ? "Apply filters"
-      : `Show ${previewCount} ${editionLabel}`;
+      : `Show ${previewCount} ${eventLabel}`;
   return (
     <div
       ref={panelRef}
@@ -141,7 +141,7 @@ export function FilterPanel({
         {group === "when" && (
           <fieldset aria-describedby={feedbackId}>
             <legend className="sr-only">When</legend>
-            <p>Matches editions that overlap your dates.</p>
+            <p>Matches events that overlap your dates.</p>
             <div className="filter-input-pair filter-date-pair">
               <label>
                 From{" "}
@@ -307,7 +307,7 @@ export function FilterPanel({
         </p>
       )}
       <span className="sr-only" role="status" aria-live="polite">
-        {feedback ? "Correct filters to preview editions." : action}
+        {feedback ? "Correct filters to preview events." : action}
       </span>
       <div className="filter-actions">
         <button

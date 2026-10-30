@@ -14,8 +14,8 @@ The apex homepage SHALL contain three main sections in this order: system presen
 
 - **WHEN** a visitor opens the apex root
 - **THEN** the page presents a structured data catalog with agents to collect new records and update existing ones
-- **AND** it shows three labeled steps: Source text, Structured record, and Data catalog
-- **AND** the same fictional event appears in the source, record, and highlighted new catalog row
+- **AND** it shows the flow from website text through a structured record to a catalog
+- **AND** the same example event appears in the website text, record, and new catalog row
 - **AND** an Agents label identifies the collection mechanism
 - **AND** the festival example precedes the cooperation options
 - **AND** the author statement stays within the cooperation section
@@ -23,14 +23,14 @@ The apex homepage SHALL contain three main sections in this order: system presen
 
 ### Requirement: The catalog is a clear and reachable example
 
-The example section SHALL show a preview image of the festival catalog, describe its search, filters, and map, and state that the current demo uses fictional event data. "See an example" SHALL move to this section. "Explore the festival catalog" SHALL link to the configured Festivals origin.
+The example section SHALL show the festival catalog and describe its search, filters, and map. An example action SHALL move to this section. A catalog action SHALL link to the configured Festivals origin.
 
 #### Scenario: A visitor inspects the example
 
-- **WHEN** a visitor follows "See an example"
+- **WHEN** a visitor uses the example action
 - **THEN** the page moves to the festival example section
-- **AND** the preview and fictional-data notice are visible in that section
-- **AND** "Explore the festival catalog" points to the configured Festivals root
+- **AND** the catalog preview is visible in that section
+- **AND** the catalog action points to the configured Festivals root
 
 ### Requirement: Both service options lead to the author
 

@@ -51,14 +51,12 @@ export function ProjectPresentation({ festivalsHref }: Readonly<Props>) {
             </div>
             <figure
               className={styles.transformation}
-              aria-label="Source text becomes a structured record in a data catalog"
+              aria-label="Text from website becomes a structured record in a data catalog"
             >
               <div className={styles.pipeline}>
                 <div className={styles.source}>
-                  <p className={styles.label}>Source text</p>
-                  <p className={styles.sourceTitle}>
-                    Fictional Atlantic Sounds
-                  </p>
+                  <p className={styles.label}>Text from website</p>
+                  <p className={styles.sourceTitle}>Atlantic Sounds</p>
                   <p>
                     Join us on <mark>June 10–12, 2027</mark> for three days of
                     music in <mark>Lisbon, Portugal.</mark>
@@ -80,7 +78,7 @@ export function ProjectPresentation({ festivalsHref }: Readonly<Props>) {
                   <dl>
                     <div>
                       <dt>Event</dt>
-                      <dd>Fictional Atlantic Sounds</dd>
+                      <dd>Atlantic Sounds</dd>
                     </div>
                     <div>
                       <dt>Dates</dt>
@@ -101,7 +99,7 @@ export function ProjectPresentation({ festivalsHref }: Readonly<Props>) {
                 </div>
                 <div className={styles.catalog}>
                   <p className={styles.label}>Data catalog</p>
-                  <table aria-label="Illustrative data catalog">
+                  <table aria-label="Data catalog">
                     <thead>
                       <tr>
                         <th scope="col">Event</th>
@@ -110,20 +108,20 @@ export function ProjectPresentation({ festivalsHref }: Readonly<Props>) {
                     </thead>
                     <tbody>
                       <tr>
-                        <td>Fictional Field Days</td>
+                        <td>Field Days</td>
                         <td>
-                          1–3 Jul 2027<span>Example Valley, Portugal</span>
+                          1–3 Jul 2027<span>Porto, Portugal</span>
                         </td>
                       </tr>
                       <tr>
-                        <td>Fictional Mediterranean Nights</td>
+                        <td>Mediterranean Nights</td>
                         <td>
                           15–18 Jul 2027<span>Barcelona, Spain</span>
                         </td>
                       </tr>
                       <tr className={styles.newRecord}>
                         <td>
-                          Fictional Atlantic Sounds
+                          Atlantic Sounds
                           <span className={styles.newLabel}>New record</span>
                         </td>
                         <td>
@@ -134,9 +132,6 @@ export function ProjectPresentation({ festivalsHref }: Readonly<Props>) {
                   </table>
                 </div>
               </div>
-              <figcaption>
-                Illustrative example · Fictional event data
-              </figcaption>
             </figure>
           </section>
 
@@ -172,19 +167,14 @@ export function ProjectPresentation({ festivalsHref }: Readonly<Props>) {
                 tabIndex={0}
               >
                 <Image
-                  src="/festival-catalog-preview.webp"
-                  alt="Festival catalog with four fictional editions, search, filters, and a map. Map attribution is shown at the bottom."
-                  width={1265}
-                  height={712}
+                  src="/festival-catalog-preview.jpg"
+                  alt="Festival catalog at festivals.eventroam.org with events, search, filters, and a map."
+                  width={1250}
+                  height={704}
                   sizes="(max-width: 740px) 640px, (max-width: 1200px) 62vw, 700px"
                 />
               </div>
-              <figcaption>
-                Built with fictional event data for this demo.
-                <span className={styles.scrollHint}>
-                  Scroll the preview to see the map →
-                </span>
-              </figcaption>
+              <figcaption>Scroll the preview to see the map →</figcaption>
             </figure>
           </section>
 

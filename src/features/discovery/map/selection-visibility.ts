@@ -5,7 +5,8 @@ export function selectionOffset(
   card: Rect | null,
 ) {
   const markerRadius = 15;
-  const clearance = 24 + markerRadius;
+  // Mapbox rounds marker positions to whole CSS pixels.
+  const clearance = 24 + markerRadius + 1;
   const safe = {
     left: viewport.left + 28,
     right: viewport.right - 28,

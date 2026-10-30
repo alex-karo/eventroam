@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page, type Route } from "./fixtures";
 
 const year = "/?from=2027-01-01&to=2027-12-31";
 const preview = (page: Page) =>
@@ -39,11 +39,11 @@ test("a late first response cannot replace a newer selection", async ({
 
   await fulfillAndSettle(page, pending[1]);
   await expect(preview(page).getByRole("heading", { level: 2 })).toHaveText(
-    "Fictional Field Days 2027",
+    "Fictional Field Days",
   );
   await fulfillAndSettle(page, pending[0]);
   await expect(preview(page).getByRole("heading", { level: 2 })).toHaveText(
-    "Fictional Field Days 2027",
+    "Fictional Field Days",
   );
   await expect(details(page, "Fictional Field Days 2027")).toHaveAttribute(
     "aria-pressed",
@@ -95,7 +95,7 @@ test("retry keeps the original opener and Escape closes filters before details",
   await expect(preview(page).getByRole("alert")).toBeVisible();
   await preview(page).getByRole("button", { name: "Retry details" }).click();
   await expect(preview(page).getByRole("heading", { level: 2 })).toHaveText(
-    "Fictional Atlantic Sounds 2027",
+    "Fictional Atlantic Sounds",
   );
   await expect.poll(() => attempts).toBe(2);
 

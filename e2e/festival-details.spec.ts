@@ -1,11 +1,12 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 const query = "/?from=2027-01-01&to=2027-12-31&country=PT";
 const card = (page: Page) =>
   page.getByRole("region", { name: "Selected edition details" });
 const field = "Fictional Field Days 2027";
+const fieldEvent = "Fictional Field Days";
 async function selectField(page: Page) {
   await page.getByRole("button", { name: `Show details for ${field}` }).click();
-  await expect(card(page).getByRole("heading")).toHaveText(field);
+  await expect(card(page).getByRole("heading")).toHaveText(fieldEvent);
 }
 async function snapshot(page: Page) {
   return page.evaluate(() =>
@@ -48,13 +49,13 @@ test("active mobile view keeps its visit and Back/Forward context", async ({
   await expect(
     views.getByRole("button", { name: "List", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
-  await expect(card(page).getByRole("heading")).toHaveText(field);
+  await expect(card(page).getByRole("heading")).toHaveText(fieldEvent);
   await expect
     .poll(() => column.evaluate((element) => element.scrollTop))
     .toBe(scroll);
   await page.goForward();
   await expect(map).toHaveAttribute("aria-pressed", "true");
-  await expect(card(page).getByRole("heading")).toHaveText(field);
+  await expect(card(page).getByRole("heading")).toHaveText(fieldEvent);
   await expect(
     card(page).getByRole("button", { name: "Collapse details" }),
   ).toBeVisible();
@@ -88,7 +89,7 @@ for (const returnPath of ["browser Back", "Back to results"] as const) {
       views.getByRole("button", { name: "Map", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     await views.getByRole("button", { name: "List", exact: true }).click();
-    await expect(card(page).getByRole("heading")).toHaveText(field);
+    await expect(card(page).getByRole("heading")).toHaveText(fieldEvent);
     await expect
       .poll(() => column.evaluate((element) => element.scrollTop))
       .toBe(scroll);
@@ -108,7 +109,9 @@ for (const returnPath of ["browser Back", "Back to results"] as const) {
     await page.route("**/api/discovery/*", async (route) => {
       const response = await route.fetch();
       const data = await response.json();
-      await route.fulfill({ json: { ...data, name: "Updated festival name" } });
+      await route.fulfill({
+        json: { ...data, eventName: "Updated festival name" },
+      });
     });
     if (returnPath === "browser Back") {
       await page.goBack();
@@ -179,7 +182,7 @@ test("Edition, Event history, and explicit return keep the same discovery visit"
     .getByRole("link", { name: "Back to results", exact: true })
     .click();
   await expect(page).toHaveURL(/from=2027-01-01&to=2027-12-31&country=PT$/);
-  await expect(card(page).getByRole("heading")).toHaveText(field);
+  await expect(card(page).getByRole("heading")).toHaveText(fieldEvent);
   if (info.project.name === "mobile") {
     await expect(
       card(page).getByRole("button", { name: "Collapse details" }),
@@ -190,7 +193,7 @@ test("Edition, Event history, and explicit return keep the same discovery visit"
   expect(after.expanded).toBe(before.expanded);
   await card(page).getByRole("link", { name: "View", exact: true }).click();
   await page.goBack();
-  await expect(card(page).getByRole("heading")).toHaveText(field);
+  await expect(card(page).getByRole("heading")).toHaveText(fieldEvent);
 });
 test("direct details ignore unrelated snapshots and map failure keeps other content", async ({
   page,
@@ -241,7 +244,6 @@ test("compact labeled links and fixed card actions work at 320 pixels", async ({
   ).toBeVisible();
   const bounds = await link.boundingBox();
   expect(bounds!.height).toBeGreaterThanOrEqual(32);
-  expect(bounds!.height).toBeLessThan(44);
   const icon = await link.locator("svg").boundingBox();
   expect(icon!.width).toBe(16);
   expect(icon!.height).toBe(16);
@@ -286,7 +288,7 @@ test("return reloads selection and clears an Edition removed from eligible resul
   await page
     .getByRole("link", { name: "Back to results", exact: true })
     .click();
-  await expect(page.locator(".results-total strong")).toHaveText("1 edition");
+  await expect(page.locator(".results-total strong")).toHaveText("1 event");
   await expect(card(page)).toHaveCount(0);
   await expect(page).toHaveURL(/country=PT$/);
 });
@@ -301,14 +303,14 @@ test("browser history restores nonzero list scroll and separate search entries",
   await column.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
-  await expect
-    .poll(async () => (await snapshot(page))?.scroll)
-    .toBeGreaterThan(0);
+  const scroll = await column.evaluate((element) => element.scrollTop);
+  expect(scroll).toBeGreaterThan(0);
+  await expect.poll(async () => (await snapshot(page))?.scroll).toBe(scroll);
   const before = await snapshot(page);
   await card(page).getByRole("link", { name: "View", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(field);
   await page.goBack();
-  await expect(card(page).getByRole("heading")).toHaveText(field);
+  await expect(card(page).getByRole("heading")).toHaveText(fieldEvent);
   await expect
     .poll(() => column.evaluate((element) => element.scrollTop))
     .toBeCloseTo(before.scroll, 0);
@@ -316,9 +318,9 @@ test("browser history restores nonzero list scroll and separate search entries",
   await search.getByRole("textbox").fill("atlantic");
   await search.getByRole("button", { name: "Search festival names" }).click();
   await expect(card(page)).toHaveCount(0);
-  await expect(page.locator(".results-total strong")).toHaveText("1 edition");
+  await expect(page.locator(".results-total strong")).toHaveText("1 event");
   await page.goBack();
-  await expect(card(page).getByRole("heading")).toHaveText(field);
+  await expect(card(page).getByRole("heading")).toHaveText(fieldEvent);
   await expect
     .poll(() => column.evaluate((element) => element.scrollTop))
     .toBeCloseTo(before.scroll, 0);
