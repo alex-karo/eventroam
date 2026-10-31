@@ -117,6 +117,18 @@ A source-based change SHALL retain enough source context to identify its meaning
 - **WHEN** a page description leaves out an eligibility condition or table qualification
 - **THEN** a ticket change must still respect the original source condition
 
+#### Scenario: A compact reference identifies a long passage
+
+- **WHEN** extraction identifies a passage by its unique literal opening and closing text
+- **THEN** saved support retains the complete original passage and its required context
+- **AND** ambiguous, reversed, overlapping, or unmatched boundaries do not authorize a change
+
+#### Scenario: A processing input omits empty metadata
+
+- **WHEN** a downstream input omits empty context or optional metadata
+- **THEN** all nonempty qualifications and the complete supporting passage remain available
+- **AND** saved source provenance remains inspectable
+
 ### Requirement: Ingestion uses a shared run budget
 
 All ingestion work SHALL share a bounded run budget and deadline. Relevant follow-up pages SHALL remain permitted while time remains, without an independent page-count or link-depth cap. Geocoding SHALL share one finite Event-level allowance. Geocoding calls SHALL count even on cache hits; sharing a prepared result SHALL NOT count as another call. Each uncached geocoding call SHALL make at most one HTTP request without automatic retries. Cancellation and hard limits SHALL stop further external work. Limits SHALL remain visible and SHALL NOT turn unread text into verified absence.

@@ -46,7 +46,7 @@ flowchart TD
     Validate --> Write[Preview or atomic write]
 ```
 
-Code selects evidence by the assigned topics and includes its inline context. Tags are nonexclusive; packets from the same frozen corpus may overlap. If a required packet exceeds its input bound, the stage reports a limit failure instead of silently dropping evidence. Code supplies relevant saved fields to each specialist; the arrows from General carry the fixed target context, not a new summary of the evidence. A confirmed duplicate add exits after General without specialists, Editor, or writes. Otherwise, Tickets, Classification, Location, and Links run in parallel after General. No branch consumes another branch's result. Code joins the results before Editor. Links can propose assigned public links even when Tickets is skipped or proposes no price block.
+Code selects evidence by the assigned topics and includes its inline context. Tags are nonexclusive; packets from the same frozen corpus may overlap. If a required packet exceeds its input bound, the stage reports a limit failure instead of silently dropping evidence. Location receives one shared evidence packet for both targets; each target retains its own saved values and previous point. Code supplies relevant saved fields to each specialist; the arrows from General carry the fixed target context, not a new summary of the evidence. A confirmed duplicate add exits after General without specialists, Editor, or writes. Otherwise, Tickets, Classification, Location, and Links run in parallel after General. No branch consumes another branch's result. Code joins the results before Editor. Links can propose assigned public links even when Tickets is skipped or proposes no price block.
 
 Every add uses the normal collection checks and stop rules before General compares Event identity with supplied catalog candidates. This keeps one collection path and removes the suspected-duplicate handoff. Actual duplicates can require additional source reads and Reader calls. Existing limits and partial-result rules still apply.
 
@@ -102,6 +102,8 @@ PageOverview: sourceId, content description, topics, stated years, coverage limi
 LinkCandidate: sourceId, URL, label, evidenceIds[]
 Lead: URL, label, purpose hint
 ```
+
+Reader can return a quote as a literal string or as `{ start, end }` literal boundaries. Each boundary must have one unique exact match in the original canonical page, contain at most 250 characters, and appear in order without overlap. Code restores the complete passage, including both boundaries, within the 24,000-character quote limit. Saved evidence and downstream inputs always contain the full restored quote; the boundary form is only a Reader output optimization. Invalid boundaries exclude that item under the same rules as an invalid literal quote. No fuzzy matching, semantic correction, or second extraction pass is added.
 
 The Reader response nests context quotes under each quotation and supplies no offsets or evidence IDs. Reader copies enough adjacent source text to make each quote and context quote unambiguous. A bare price or repeated label is insufficient when a longer literal passage can identify it. Reader does not paraphrase or join separate passages into one quote; separate headings, years, and qualifications belong in `context[]`. Code finds exact text in the canonical page input and assigns the evidence ID. Only a unique match becomes an anchored span. A missing or ambiguous quote or context match excludes that evidence item from usable support and retains a diagnostic; code does not silently correct it or assign the first match. Other valid evidence items remain usable. Relevant failed extraction checks remain unfinished. Use half-open UTF-16 offsets against the immutable JavaScript string; displayed line numbers are derived by code.
 
@@ -184,7 +186,7 @@ Every prompt treats source text as data, uses the frozen date, and forbids unsup
 
 **Input:** One full canonical page within the configured input limit, source metadata, compact identity clues, and extraction topics and exclusions. No full catalog, earlier model overview, or other page history.
 
-**Output:** Bounded page overview, exact quotations with inline context quotations, topic tags, literal Edition clues, relevant anchor quotations, and uncertainty notes. Code binds citations and derives leads from retained anchor URLs. Reader does not create links between evidence items. Historical ticket material found incidentally remains source context; it does not authorize a historical ticket proposal.
+**Output:** Bounded page overview, exact quotations with inline context quotations, topic tags, literal Edition clues, relevant anchor quotations, and uncertainty notes. Code binds citations and parses anchors from the matched quotes and context. Reader does not return a separate anchor array. Code also extracts actual Markdown links as navigation leads, independently of Reader evidence selection. These leads do not prove destination content. Reader does not create links between evidence items. Historical ticket material found incidentally remains source context; it does not authorize a historical ticket proposal.
 
 **Tools:** None. Code handles loading, input-limit checks, persistence, exact matching, and ID assignment.
 
@@ -208,7 +210,7 @@ Every prompt treats source text as data, uses the frozen date, and forbids unsup
 
 **Description:** Interpret offers only for the selected current-or-next Edition, including an ongoing one.
 
-**Prompt outline:** Separate general full-programme admission from day tickets, packages, and concessions. Preserve offer conditions and per-offer availability. Do not infer currency. Closed sales differ from sold out. Replace only the offers supported by this check; do not copy unchecked old offers. Without a supported price, preserve the saved block.
+**Prompt outline:** Separate general full-programme admission from day tickets, packages, and concessions. Preserve offer conditions and per-offer availability. Normalize local notation only when source context identifies the currency; an ambiguous symbol alone is insufficient. Numeric amounts require a supported ISO currency code. Closed sales differ from sold out. Replace only the offers supported by this check; do not copy unchecked old offers. Without a supported price, preserve the saved block.
 
 **Input:** The selected current-or-next target, its saved ticket prices and offer conditions, ticket evidence, and the applicable field assignment. Per-offer URL fields, the previous-Edition price block, and the Links result are not sent for interpretation.
 
@@ -281,6 +283,28 @@ Every prompt treats source text as data, uses the frozen date, and forbids unsup
 The user requested one full page reading and shared evidence. Reader gets one page in one call so that distant headings and qualifications remain available together. Its separate context prevents Research from sending the full page again on later steps. The page-input limit bounds this work; oversized pages remain saved but unprocessed. Cited validation reads remain allowed. Extraction can miss relevant text; retaining Markdown makes the omission inspectable but does not automatically repair it.
 
 The alternatives were bounded windows with carried exact context, or windows followed by targeted reads to recover missing context. Carried context needs rules for retaining and binding earlier headings and later qualifications. Recovery reads add calls and decisions about what to reread. Use the full-page call for this version: it removes context transfer between windows, at the cost of leaving pages above the input limit unprocessed. A larger page must not silently fall back to chunking or a truncated prefix.
+
+### Compact model inputs
+
+Keep the complete frozen corpus and saved records in the host. Model inputs contain only the fields the role needs. Classification receives saved chronology and terms; Links receives saved chronology and links; Tickets receives saved chronology and prices. Selected-target context keeps the key, selection reason, support and temporal proposals. Location receives selection explanations without General's unrelated field proposals. Quotation text, necessary context, topic routing and uncertainty remain available. Parsed anchors are included for Links and Editor only; other roles still receive the exact linked source text.
+
+Model evidence packets omit empty context, Edition clues and anchor arrays, null uncertainty, and repeated retrieval timestamps. They retain evidence/source IDs, the final source URL, the complete quote, topic tags and all nonempty semantic context. Complete provenance and anchored spans stay in the saved corpus. Omitted empty fields do not mean missing source coverage.
+
+Research receives each exact navigation URL and label pair once in its conversation. Keep different labels and query parameters. Source records retain every original page lead; navigation suppression changes neither artifacts nor evidence. Later page results retain their source identity, overview and processing coverage even when all their leads were shown earlier. No relevance filter or new page limit is added.
+
+Reader uses a short page overview and avoids repeating facts in Edition clues or uncertainty notes. Prefer the shortest unique literal passage that retains its object, dates, conditions, negations and exceptions. Use one evidence item with several topic tags rather than overlapping copies. These instructions do not permit truncating source text, removing necessary context or dropping ambiguous facts. Compare main quality and native usage before accepting a cost improvement.
+
+### Selected inference settings and cache policy
+
+The default model is `openai/gpt-6-luna`. The shared reasoning default is `low`. When that setting is low, Research, Editor and Location use `medium`; General, Tickets, Classification and Links use low. Reader always uses low. Other explicit reasoning settings are preserved by the three medium overrides. Eval model overrides still apply to every role, including Location. These are implementation settings, not catalog acceptance rules.
+
+Reader disables prompt caching with OpenRouter `prompt_cache_options: { mode: "explicit" }` and no content cache breakpoints. Other roles keep provider caching. This is prompt caching only: source-session caching and one Reader call per admitted source remain unchanged. The native provider integration test checks request forwarding and absence of breakpoints.
+
+The shared model output limit is 16,000 tokens per step; Reader has a separate 12,000-token output limit. Collection admits at most 18 Reader calls, bounds full-page input at 360,000 characters with a 72,000-character instruction/output reserve, and reserves 180 seconds for downstream work. Research allows 15 ordinary steps, Editor six, Location eight, and the other roles one. Research and Editor use the shared tool concurrency limit of three. The common run deadline remains ten minutes. Standard-tier evals set the tier explicitly; the runtime default remains flex. Explicit provider-unavailability recovery remains separate from these ordinary step limits.
+
+For cost review, separate ordinary input, cache writes, cache reads, output and available reasoning tokens by role. Separate agent invocations from model steps. Provider-reported cost remains outside catalog reports. Cache writes are not cache hits. Verify uncached Reader accounting against ordinary input/output usage rather than treating absent cache metrics alone as proof.
+
+The latest uncached-Reader check uses five cases once at standard tier: USD 0.063246255, all five scenarios pass, required facts 15/15 and additional facts 32/33. USD 0.12649251 for ten is a projection, not a measured ten-attempt run. Repricing the earlier ten-attempt final on the same tokens without Reader caching gives USD 0.132019; the observed USD 0.120927055 included Reader cache effects. The preferred ten-cent target is not met. See [the evaluation comparison](../../../docs/proposals/source-evidence-eval-comparison.md) for experiment IDs, scorer replay, quality limits and earlier trials. No new eval was run for this specification update.
 
 ### Application references over general filesystem tools
 
