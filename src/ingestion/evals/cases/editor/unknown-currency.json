@@ -147,5 +147,5 @@
       }
     ]
   },
-  "researchHandoffFile": "unknown-currency.research.json"
+  "roleHandoffFile": "unknown-currency.roles.json"
 }

@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 2,
+  "provenance": "Captured editor-day-ticket research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Evidence references bind to Reader output during fixture execution; no expected assertions enter prompts.",
+  "roles": {
+    "general": {
+      "decision": "targets",
+      "eventId": "event:87b1f34093d76b709011",
+      "observedEventName": "Roskilde Festival",
+      "reason": "Captured identity support",
+      "evidenceIds": [],
+      "event": {},
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "editionKey": "rf27",
+        "reason": "Captured Edition selection",
+        "evidenceIds": [],
+        "fields": {
+          "year": {
+            "action": "set",
+            "value": 2027,
+            "reason": "The official homepage displays the 2027 edition dates, and the official ticket page describes its full festival ticket as covering all eight days.",
+            "evidenceIds": []
+          },
+          "dates": {
+            "action": "set",
+            "value": {
+              "startsOn": "2027-06-26",
+              "endsOn": "2027-07-03",
+              "state": "confirmed"
+            },
+            "reason": "The official homepage displays 26 June–3 July 2027.",
+            "evidenceIds": []
+          },
+          "scheduleStatus": {
+            "action": "set",
+            "value": "scheduled",
+            "reason": "The official site displays confirmed 2027 dates and is selling tickets for the edition.",
+            "evidenceIds": []
+          },
+          "displayName": {
+            "action": "set",
+            "value": "Roskilde Festival 2027",
+            "reason": "The official homepage identifies the event as Roskilde Festival and displays the 2027 dates.",
+            "evidenceIds": []
+          }
+        }
+      },
+      "checks": [],
+      "unresolved": [
+        {
+          "message": "Full refresh requires checking the saved 2026 edition, including its dates/status, venue/location, classification and ticket block. Discovery returned no usable historical 2026 source, and the linked official programme page was blocked, so those edition checks could not be completed.",
+          "editionKey": "source-row"
+        }
+      ]
+    },
+    "tickets": {
+      "currentOrNextEdition": {
+        "tickets": {
+          "action": "set",
+          "value": {
+            "variants": [
+              {
+                "label": "Two-day ticket",
+                "amount": 2230,
+                "currency": "DKK",
+                "terms": "Price includes ticket fee.",
+                "availability": "unknown"
+              },
+              {
+                "label": "Wednesday day ticket",
+                "amount": 1530,
+                "currency": "DKK",
+                "terms": "Price includes ticket fee.",
+                "availability": "unknown"
+              },
+              {
+                "label": "Thursday day ticket",
+                "amount": 1530,
+                "currency": "DKK",
+                "terms": "Price includes ticket fee.",
+                "availability": "unknown"
+              },
+              {
+                "label": "Friday day ticket",
+                "amount": 1530,
+                "currency": "DKK",
+                "terms": "Price includes ticket fee.",
+                "availability": "unknown"
+              },
+              {
+                "label": "Saturday day ticket",
+                "amount": 1530,
+                "currency": "DKK",
+                "terms": "Price includes ticket fee.",
+                "availability": "unknown"
+              }
+            ],
+            "basePrice": {
+              "kind": "exact",
+              "currency": "DKK",
+              "minAmount": 2650,
+              "maxAmount": 2650,
+              "coverage": "full_programme",
+              "qualification": "Eight-day full festival ticket; price includes ticket fee."
+            }
+          },
+          "reason": "The official ticket page lists the eight-day full ticket at DKK 2,650, the two-day ticket at DKK 2,230 and four day-ticket options at DKK 1,530 each. It provides purchase links but does not establish each ticket category’s availability.",
+          "evidenceIds": []
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "classification": {
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "classification": {
+          "action": "set",
+          "value": ["validation:festival", "validation:music"],
+          "reason": "The official site presents Roskilde Festival as a festival with music; its 2027 homepage announcement names music performers.",
+          "evidenceIds": []
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "links": {
+      "event": {
+        "socials": {
+          "instagram": {
+            "action": "set",
+            "value": "https://instagram.com/roskildefestival",
+            "reason": "Captured official source association",
+            "evidenceIds": []
+          },
+          "facebook": {
+            "action": "set",
+            "value": "https://www.facebook.com/orangefeeling/",
+            "reason": "Captured official source association",
+            "evidenceIds": []
+          }
+        },
+        "website": {
+          "action": "set",
+          "value": "https://www.roskilde-festival.dk/",
+          "reason": "Captured official source association",
+          "evidenceIds": []
+        }
+      },
+      "currentOrNextEdition": {
+        "tickets": {
+          "action": "set",
+          "value": "https://www.roskilde-festival.dk/billetter",
+          "reason": "Captured official source association",
+          "evidenceIds": []
+        }
+      },
+      "omitted": [],
+      "checks": [],
+      "unresolved": []
+    }
+  }
+}

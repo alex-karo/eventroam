@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 2,
+  "provenance": "Captured editor-wrong-year research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Evidence references bind to Reader output during fixture execution; no expected assertions enter prompts.",
+  "roles": {
+    "general": {
+      "decision": "targets",
+      "eventId": "event:792d44feb71838d4b28b",
+      "observedEventName": "Wacken Open Air",
+      "reason": "Captured identity support",
+      "evidenceIds": [],
+      "event": {
+        "summary": {
+          "action": "set",
+          "value": "Wacken Open Air is a heavy metal festival in Wacken, Germany.",
+          "reason": "The official homepage identifies Wacken Open Air and describes its concerts and metal community.",
+          "evidenceIds": []
+        }
+      },
+      "previousEdition": {
+        "editionKey": "source-row",
+        "reason": "Captured Edition selection",
+        "evidenceIds": [],
+        "fields": {
+          "year": {
+            "action": "set",
+            "value": 2026,
+            "reason": "The official homepage references the W:O:A 2026 aftermovie and describes 2026 as the festival’s 35th anniversary edition; this verifies the saved edition year, but not its dates or other saved details.",
+            "evidenceIds": []
+          }
+        }
+      },
+      "currentOrNextEdition": {
+        "editionKey": "wacken-open-air-2027",
+        "reason": "Captured Edition selection",
+        "evidenceIds": [],
+        "fields": {
+          "year": {
+            "action": "set",
+            "value": 2027,
+            "reason": "The official ticket overview is specifically for Wacken Open Air 2027.",
+            "evidenceIds": []
+          },
+          "dates": {
+            "action": "set",
+            "value": {
+              "startsOn": "2027-07-28",
+              "endsOn": "2027-07-31",
+              "state": "confirmed"
+            },
+            "reason": "The official 2027 ticket overview displays 28–31 July 2027.",
+            "evidenceIds": []
+          },
+          "scheduleStatus": {
+            "action": "set",
+            "value": "scheduled",
+            "reason": "The official site presents dated 2027 festival tickets for sale.",
+            "evidenceIds": []
+          }
+        }
+      },
+      "checks": [],
+      "unresolved": [
+        {
+          "message": "The saved 2026 edition’s dates, venue/location, and ticket details remain unchecked: the official history page and relevant 2026 aftermovie page were blocked, and the inspected homepage did not establish these details.",
+          "editionKey": "source-row"
+        },
+        {
+          "message": "Availability of the published 2027 ticket categories remains unverified because the linked ticket shop could not be inspected.",
+          "editionKey": "wacken-open-air-2027",
+          "field": "tickets"
+        }
+      ]
+    },
+    "tickets": {
+      "currentOrNextEdition": {
+        "tickets": {
+          "action": "set",
+          "value": {
+            "variants": [
+              {
+                "label": "Louder-Ticket",
+                "amount": 364,
+                "currency": "EUR",
+                "terms": "Plus €2 ticket fee.",
+                "availability": "unknown"
+              },
+              {
+                "label": "Younger-Ticket",
+                "amount": 279,
+                "currency": "EUR",
+                "terms": "Discounted ticket for attendees up to and including age 25 at the start of the festival; plus €2 ticket fee.",
+                "availability": "unknown"
+              },
+              {
+                "label": "The Pit-Ticket",
+                "amount": 1399,
+                "currency": "EUR",
+                "availability": "unknown"
+              },
+              {
+                "label": "The Pit Upgrade",
+                "amount": 1049,
+                "currency": "EUR",
+                "terms": "Upgrade for holders of a W:O:A 2027 ticket; not a standalone festival admission ticket.",
+                "availability": "unknown"
+              }
+            ],
+            "basePrice": {
+              "kind": "exact",
+              "currency": "EUR",
+              "minAmount": 364,
+              "maxAmount": 364,
+              "coverage": "full_programme",
+              "qualification": "Louder-Ticket price; €2 ticket fee is additional."
+            }
+          },
+          "reason": "The official overview publishes the listed ticket prices and identifies the Younger ticket as age-restricted. The linked ticket shop was inaccessible, so availability could not be checked.",
+          "evidenceIds": []
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "classification": {
+      "previousEdition": {},
+      "currentOrNextEdition": {
+        "classification": {
+          "action": "set",
+          "value": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music",
+            "catalog:term:genre:metal"
+          ],
+          "reason": "The official pages describe the event as Wacken Open Air and promote four days of concerts in a metal community.",
+          "evidenceIds": []
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "links": {
+      "event": {
+        "socials": {
+          "youtube": {
+            "action": "set",
+            "value": "https://www.youtube.com/channel/UCvQT6N9nu2BJ-lJuMg1jEZQ",
+            "reason": "Captured official source association",
+            "evidenceIds": []
+          }
+        },
+        "website": {
+          "action": "set",
+          "value": "https://www.wacken.com/de/",
+          "reason": "Captured official source association",
+          "evidenceIds": []
+        }
+      },
+      "currentOrNextEdition": {
+        "tickets": {
+          "action": "set",
+          "value": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817",
+          "reason": "Captured official source association",
+          "evidenceIds": []
+        }
+      },
+      "omitted": [],
+      "checks": [],
+      "unresolved": []
+    }
+  }
+}

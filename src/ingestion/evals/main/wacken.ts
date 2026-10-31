@@ -40,6 +40,7 @@ export function wacken(context: MainContext) {
       ]),
       linkFact("event.links.youtube", event?.links, "youtube", [
         "https://www.youtube.com/wackentv",
+        "https://www.youtube.com/wackentv/",
         "https://www.youtube.com/channel/UCvQT6N9nu2BJ-lJuMg1jEZQ",
       ]),
       // ticket-exchange.md: the official resale portal also serves this Edition.

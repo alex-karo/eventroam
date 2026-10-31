@@ -69,15 +69,6 @@
           "coordinatePrecision": "approximate"
         }
       ],
-      "editor": {
-        "eventReason": null,
-        "previousEdition": null,
-        "currentOrNextEdition": {
-          "editionKey": "2027",
-          "reason": null
-        },
-        "unresolved": []
-      },
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "2027",
@@ -103,7 +94,7 @@
           "longitude": -9.14,
           "coordinatePrecision": "approximate"
         },
-        "donor": {
+        "previousPoint": {
           "venueName": "River Park",
           "venueAddress": null,
           "locality": "Lisbon",
@@ -120,22 +111,61 @@
           "latitude": 38.73,
           "longitude": -9.16,
           "coordinatePrecision": "approximate"
-        },
-        "findings": {
-          "venueName": {
-            "value": "River Park",
-            "reason": "The festival moved from the 2026 park to River Park in 2027. The saved 2027 point is the official current venue. The historical point no longer applies."
-          },
-          "locality": {
-            "value": "Lisbon",
-            "reason": "The festival moved from the 2026 park to River Park in 2027. The saved 2027 point is the official current venue. The historical point no longer applies."
-          },
-          "countryCode": {
-            "value": "PT",
-            "reason": "The festival moved from the 2026 park to River Park in 2027. The saved 2027 point is the official current venue. The historical point no longer applies."
-          }
         }
-      }
+      },
+      "selection": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "2027",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "evidence": [
+        {
+          "id": "currentOrNextEdition-location-1",
+          "sourceId": "fixture-source",
+          "quote": "venueName: \"River Park\"",
+          "context": [
+            {
+              "quote": "The festival moved from the 2026 park to River Park in 2027. The saved 2027 point is the official current venue. The historical point no longer applies."
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-2",
+          "sourceId": "fixture-source",
+          "quote": "locality: \"Lisbon\"",
+          "context": [
+            {
+              "quote": "The festival moved from the 2026 park to River Park in 2027. The saved 2027 point is the official current venue. The historical point no longer applies."
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-3",
+          "sourceId": "fixture-source",
+          "quote": "countryCode: \"PT\"",
+          "context": [
+            {
+              "quote": "The festival moved from the 2026 park to River Park in 2027. The saved 2027 point is the official current venue. The historical point no longer applies."
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        }
+      ]
     }
   },
   "geocoding": [

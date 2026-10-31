@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 2,
+  "provenance": "Captured editor-clear research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract; Event link finding removed for current scope. Adapted to fixed domain roles. Evidence references bind to Reader output during fixture execution; no expected assertions enter prompts.",
+  "roles": {
+    "general": {
+      "decision": "targets",
+      "eventId": "event:87b1f34093d76b709011",
+      "observedEventName": "Roskilde Festival",
+      "reason": "Captured identity support",
+      "evidenceIds": [],
+      "event": {},
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "editionKey": "source-row",
+        "reason": "Captured Edition selection",
+        "evidenceIds": [],
+        "fields": {
+          "year": {
+            "action": "set",
+            "value": 2027,
+            "reason": "The official homepage labels the upcoming edition RF27 and displays its dates in 2027.",
+            "evidenceIds": []
+          },
+          "dates": {
+            "action": "set",
+            "value": {
+              "startsOn": "2027-06-26",
+              "endsOn": "2027-07-03",
+              "state": "confirmed"
+            },
+            "reason": "The official homepage displays “26/6 – 3/7 2027,” confirming the edition dates.",
+            "evidenceIds": []
+          },
+          "scheduleStatus": {
+            "action": "set",
+            "value": "scheduled",
+            "reason": "The official homepage advertises RF27, says ticket sales are underway, and displays its 2027 dates.",
+            "evidenceIds": []
+          }
+        }
+      },
+      "checks": [],
+      "unresolved": [
+        {
+          "message": "The full 2027 ticket block, including categories, readable prices, and availability, remains unverified because the linked official ticket page was blocked.",
+          "editionKey": "source-row",
+          "field": "tickets"
+        },
+        {
+          "message": "The actual 2027 venue and its locality/address remain unverified. The inspected contact page identifies the saved address as a secretariat office, while the linked practical-information page was blocked.",
+          "editionKey": "source-row",
+          "field": "venueName"
+        },
+        {
+          "message": "The programme page was blocked, so a complete check of edition-specific programme classification could not be finished.",
+          "editionKey": "source-row",
+          "field": "classification"
+        }
+      ]
+    },
+    "tickets": {
+      "currentOrNextEdition": {},
+      "checks": [],
+      "unresolved": []
+    },
+    "classification": {
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "classification": {
+          "action": "set",
+          "value": ["validation:festival", "validation:music"],
+          "reason": "The official homepage presents RF27 as a festival and describes its programme as music, with the first artists announced.",
+          "evidenceIds": []
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "links": {
+      "event": {
+        "socials": {}
+      },
+      "currentOrNextEdition": {
+        "tickets": {
+          "action": "set",
+          "value": "https://www.roskilde-festival.dk/billetter",
+          "reason": "Captured official source association",
+          "evidenceIds": []
+        }
+      },
+      "omitted": [],
+      "checks": [],
+      "unresolved": []
+    }
+  }
+}

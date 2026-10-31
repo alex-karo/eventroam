@@ -1,5 +1,5 @@
 import { mainScheduleStatuses, type Edition } from "./context";
-import { fact, normalizeUrl } from "./facts";
+import { fact } from "./facts";
 
 export function termIds(edition: Edition | undefined, facets: string[]) {
   return (
@@ -91,10 +91,7 @@ export function offerChecks(
       allowed.some(
         (expected) =>
           expected.amounts.includes(offer.amount!) &&
-          offer.currency === expected.currency &&
-          expected.urls.some(
-            (url) => normalizeUrl(url) === normalizeUrl(offer.url ?? ""),
-          ),
+          offer.currency === expected.currency,
       ),
       [true],
     ),

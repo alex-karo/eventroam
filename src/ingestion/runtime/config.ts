@@ -34,7 +34,7 @@ export function loadResearchConfig(
     throw new Error("OPENROUTER_MODEL must not enable automatic web search");
   }
 
-  const effort = env.OPENROUTER_REASONING_EFFORT?.trim() || "medium";
+  const effort = env.OPENROUTER_REASONING_EFFORT?.trim() || "low";
   if (
     effort &&
     !["none", "minimal", "low", "medium", "high", "xhigh"].includes(effort)

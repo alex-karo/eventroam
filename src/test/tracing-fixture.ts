@@ -1,5 +1,6 @@
 import { createWorkflowStorage } from "../ingestion/runtime/workflow-storage";
-import { fixtureEditorForProvider } from "./ingestion";
+import { runFixtureResearch } from "./ingestion";
+import { fixtureRoleForProvider, providerRole } from "./ingestion-provider";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -65,8 +66,7 @@ export async function runTraceFixture(
     model: modelText.model ?? "fixture/provider-model",
     limits: {
       ...DEFAULT_RESEARCH_LIMITS,
-      agentSteps:
-        scenario === "search" || scenario === "search_failure" ? 3 : 2,
+      agentSteps: fixtureAgentSteps(scenario),
       // This includes workflow/observability startup and the first model step.
       // Leave CI with coverage enough time to reach the hanging second request.
       durationMs: ending === "abort" ? 5_000 : 30_000,
@@ -156,6 +156,7 @@ export async function runTraceFixture(
   }
   addFixtureDateScenario(candidate, scenario);
   let requests = 0;
+  let researchRequests = 0;
   const providerInputs: string[] = [];
   const original = globalThis.fetch;
   globalThis.fetch = async (_request, init) => {
@@ -164,26 +165,24 @@ export async function runTraceFixture(
     }
     providerInputs.push(String(init?.body));
     requests++;
-    let editorCandidate = fixtureEditorForProvider(
-      JSON.parse(String(init?.body)),
-    );
-    if (editorCandidate && scenario === "rejected_editor") {
-      editorCandidate = {
-        status: "rejected",
-        reason: "Research concerns a different same-name festival",
-        event: null,
-        previousEdition: null,
-        currentOrNextEdition: null,
-        unresolved: [],
-      };
+    const body = JSON.parse(String(init?.body));
+    const role = providerRole(body);
+    if (role === "research") {
+      researchRequests += 1;
     }
-    if (requests === 2 && ending === "http") {
+    const toolCall = role === "research" && researchRequests === 1;
+    let editorCandidate = fixtureRoleForProvider(
+      body,
+      candidate as import("../ingestion/research/contracts").ResearchCandidate,
+    );
+    editorCandidate = rejectedEditorFixture(editorCandidate, role, scenario);
+    if (role === "research" && researchRequests === 2 && ending === "http") {
       return Response.json(
         { error: { message: TRACE_TRANSPORT } },
         { status: 503 },
       );
     }
-    if (requests === 2 && ending === "abort") {
+    if (role === "research" && researchRequests === 2 && ending === "abort") {
       return new Promise<Response>((_resolve, reject) => {
         const signal = init?.signal;
         if (signal?.aborted) {
@@ -205,59 +204,58 @@ export async function runTraceFixture(
         choices: [
           {
             index: 0,
-            message:
-              requests === 1
-                ? {
-                    role: "assistant",
-                    content: modelText.commentary ?? null,
-                    ...(modelText.reasoning
-                      ? { reasoning: modelText.reasoning }
-                      : {}),
-                    tool_calls: [
-                      ...Array.from(
-                        { length: scenario === "cached" ? 2 : 1 },
-                        (_, index) => ({
-                          id: `fixture-tool-${index}`,
-                          type: "function",
-                          function: {
-                            name:
-                              scenario === "search" ||
+            message: toolCall
+              ? {
+                  role: "assistant",
+                  content: modelText.commentary ?? null,
+                  ...(modelText.reasoning
+                    ? { reasoning: modelText.reasoning }
+                    : {}),
+                  tool_calls: [
+                    ...Array.from(
+                      { length: scenario === "cached" ? 2 : 1 },
+                      (_, index) => ({
+                        id: `fixture-tool-${index}`,
+                        type: "function",
+                        function: {
+                          name:
+                            scenario === "search" ||
+                            scenario === "reserved" ||
+                            scenario === "search_failure"
+                              ? "searchWeb"
+                              : "inspectPage",
+                          arguments: JSON.stringify(
+                            scenario === "search" ||
                               scenario === "reserved" ||
                               scenario === "search_failure"
-                                ? "searchWeb"
-                                : "readPage",
-                            arguments: JSON.stringify(
-                              scenario === "search" ||
-                                scenario === "reserved" ||
-                                scenario === "search_failure"
-                                ? { query: `Festival ${TRACE_PUBLIC_URL}` }
-                                : { url: TRACE_PUBLIC_URL },
-                            ),
-                          },
-                        }),
-                      ),
-                    ],
-                  }
-                : {
-                    role: "assistant",
-                    content: JSON.stringify(
-                      (editorCandidate && scenario === "invalid_editor"
-                        ? {
-                            ...editorCandidate,
-                            event: {
-                              target: { eventId: "other-event" },
-                              fields: {},
-                            },
-                          }
-                        : editorCandidate) ??
-                        wireFixture(
-                          candidate,
-                          JSON.parse(String(init?.body)).response_format
-                            ?.json_schema?.schema,
-                        ),
+                              ? { query: `Festival ${TRACE_PUBLIC_URL}` }
+                              : { url: TRACE_PUBLIC_URL },
+                          ),
+                        },
+                      }),
                     ),
-                  },
-            finish_reason: requests === 1 ? "tool_calls" : "stop",
+                  ],
+                }
+              : {
+                  role: "assistant",
+                  content: JSON.stringify(
+                    (role === "editor" && scenario === "invalid_editor"
+                      ? {
+                          ...editorCandidate,
+                          event: {
+                            target: { eventId: "other-event" },
+                            fields: {},
+                          },
+                        }
+                      : editorCandidate) ??
+                      wireFixture(
+                        candidate,
+                        JSON.parse(String(init?.body)).response_format
+                          ?.json_schema?.schema,
+                      ),
+                  ),
+                },
+            finish_reason: toolCall ? "tool_calls" : "stop",
           },
         ],
         ...(scenario === "mistaken" && requests === 2
@@ -267,7 +265,11 @@ export async function runTraceFixture(
                 prompt_tokens: 10,
                 completion_tokens: 20,
                 total_tokens: 30,
-                ...fixtureCost(modelText.cost, modelText.stepCosts, requests),
+                ...fixtureCost(
+                  modelText.cost,
+                  modelText.stepCosts,
+                  role === "research" ? researchRequests : 0,
+                ),
                 prompt_tokens_details: { cached_tokens: 3 },
                 completion_tokens_details: { reasoning_tokens: 4 },
               },
@@ -278,7 +280,7 @@ export async function runTraceFixture(
   };
   const workflowStorage = createWorkflowStorage({ path: ":memory:" });
   try {
-    const result = await runCatalogResearch(
+    const result = await (injected ? runFixtureResearch : runCatalogResearch)(
       {
         mode: scenario === "skipped" ? "add" : "refresh",
         ...(scenario === "skipped"
@@ -474,6 +476,30 @@ function fixtureCost(
   stepCosts: (number | null)[] | undefined,
   request: number,
 ) {
-  const selected = stepCosts ? stepCosts[request - 1] : (cost ?? 0);
+  let selected: number | null | undefined = cost ?? 0;
+  if (stepCosts) {
+    selected = request === 0 ? 0 : stepCosts[request - 1];
+  }
   return selected == null ? {} : { cost: selected };
+}
+
+function rejectedEditorFixture(
+  candidate: Record<string, unknown>,
+  role: string,
+  scenario: TraceFixtureScenario,
+) {
+  if (role !== "editor" || scenario !== "rejected_editor") {
+    return candidate;
+  }
+  return {
+    ...candidate,
+    item: {
+      decision: "reject",
+      reason: "Research concerns a different same-name festival",
+    },
+  };
+}
+
+function fixtureAgentSteps(scenario: TraceFixtureScenario) {
+  return ["search", "search_failure"].includes(scenario) ? 3 : 2;
 }

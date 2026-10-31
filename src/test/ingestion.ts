@@ -1,12 +1,13 @@
-import { validateResearch } from "@/ingestion/research/validate";
+import { fixtureRoleDependencies } from "./ingestion-roles";
+import { validateResearch } from "@/test/ingestion-fixtures/research-validate";
 import { stageDiagnostics } from "@/ingestion/stage";
 import type { StageResult } from "@/ingestion/stage";
-import type { CheckedResearch } from "@/ingestion/research/validate";
+import type { CheckedResearch } from "@/test/ingestion-fixtures/research-validate";
 import { Mastra } from "@mastra/core/mastra";
 import { createWorkflowStorage } from "@/ingestion/runtime/workflow-storage";
 import { trackFixtureWorkflowStore } from "./workflow-stores";
 import { locationTextFields } from "@/ingestion/location/contracts";
-import { buildLocationInput } from "@/ingestion/location/input";
+import { buildFixtureLocationInput as buildLocationInput } from "./ingestion-location";
 import { createGeocodingSession } from "@/ingestion/tools/geocode/tool";
 import { createResearchBudget } from "@/ingestion/runtime/budget";
 import { validateLocation } from "@/ingestion/location/validate";
@@ -20,13 +21,16 @@ import {
   prepareCatalogPlan,
   type AcceptedEditorPlan,
   type ReadyCatalogPlan,
-} from "@/ingestion/editor/prepare";
+} from "@/test/ingestion-fixtures/editor-prepare";
 import type {
   CatalogResearchInput,
   ResearchDependencies,
 } from "@/ingestion/contracts";
-import type { EditionPlan, EditorPlan } from "@/ingestion/editor/contracts";
-import { modelContext } from "@/ingestion/research/agent/input";
+import type {
+  EditionPlan,
+  EditorPlan,
+} from "@/test/ingestion-fixtures/editor-contracts";
+import { modelContext } from "@/test/ingestion-fixtures/research-input";
 import {
   runCatalogResearch as executeResearch,
   createCatalogIngestionWorkflow as createWorkflow,
@@ -189,12 +193,14 @@ export const runFixtureResearch: typeof executeResearch = async (
   const storage =
     deps.workflowStorage ?? createWorkflowStorage({ path: ":memory:" });
   try {
-    return await executeResearch(input, {
-      generateEditor: generateFixtureEditor,
-      generateLocation: generateFixtureLocation,
-      ...deps,
-      workflowStorage: storage,
-    });
+    return await executeResearch(
+      input,
+      fixtureRoleDependencies(input, {
+        generateEditor: generateFixtureEditor,
+        ...deps,
+        workflowStorage: storage,
+      }),
+    );
   } finally {
     if (!deps.workflowStorage) {
       await storage.close();
@@ -209,11 +215,13 @@ export const createFixtureIngestionWorkflow: typeof createWorkflow = (
     const resolved = await resolve(input);
     return {
       ...resolved,
-      deps: {
-        generateEditor: generateFixtureEditor,
-        generateLocation: generateFixtureLocation,
-        ...resolved.deps,
-      },
+      deps: fixtureRoleDependencies(
+        { ...input, actor: "fixture" },
+        {
+          generateEditor: generateFixtureEditor,
+          ...resolved.deps,
+        },
+      ),
     };
   }, options);
   const storage = createWorkflowStorage({
@@ -269,7 +277,7 @@ export function fixtureEditorForProvider(
   return editorWireFixture(fixtureEditorPlan(research, catalog), schema!);
 }
 
-function editorWireFixture(
+export function editorWireFixture(
   value: unknown,
   schema: Record<string, unknown>,
 ): unknown {
@@ -329,7 +337,26 @@ export function fixtureLocationPlan(
     }
     const fields = Object.fromEntries(
       locationTextFields.map((field) => {
-        const fact = target.findings[field];
+        const item = input.evidence
+          .filter(
+            (item) =>
+              item &&
+              typeof item === "object" &&
+              !Array.isArray(item) &&
+              Array.isArray(item.editionClues) &&
+              item.editionClues.includes(target.editionKey),
+          )
+          .find(
+            (item) =>
+              item &&
+              typeof item === "object" &&
+              !Array.isArray(item) &&
+              typeof item.quote === "string" &&
+              item.quote.startsWith(`${field}: `),
+          ) as { quote: string } | undefined;
+        const fact = item
+          ? JSON.parse(item.quote.slice(field.length + 2))
+          : undefined;
         let action: import("@/ingestion/location/contracts").LocationFields["venueName"] =
           { action: "keep", reason: "Fixture preserves saved data" };
         if (fact?.value != null) {
@@ -343,25 +370,56 @@ export function fixtureLocationPlan(
     const id = input.targetPoints?.[name]?.sourceId;
     let coordinates: import("@/ingestion/location/contracts").LocationSlot["coordinates"] =
       { action: "keep", reason: "Fixture preserves saved point" };
-    if (
-      target.findings.coordinates?.value === null &&
-      target.saved?.latitude != null
-    ) {
-      coordinates = {
-        action: "clear",
-        reason: target.findings.coordinates.reason,
-      };
+    const coordinateItem = input.evidence
+      .filter(
+        (item) =>
+          item &&
+          typeof item === "object" &&
+          !Array.isArray(item) &&
+          Array.isArray(item.editionClues) &&
+          item.editionClues.includes(target.editionKey),
+      )
+      .find(
+        (item) =>
+          item &&
+          typeof item === "object" &&
+          !Array.isArray(item) &&
+          typeof item.quote === "string" &&
+          item.quote.startsWith("coordinates: "),
+      ) as { quote: string } | undefined;
+    const coordinateFact = coordinateItem
+      ? JSON.parse(coordinateItem.quote.slice(13))
+      : undefined;
+    if (coordinateFact?.value === null && target.saved?.latitude != null) {
+      coordinates = { action: "clear", reason: "Fixture disproves point" };
     } else if (id) {
       coordinates = {
         action: "select",
         pointId: id,
-        precision: target.findings.coordinates!.value!.precision,
-        reason: target.findings.coordinates!.reason,
+        precision: coordinateFact?.value?.precision ?? "approximate",
+        reason: coordinateFact?.reason ?? "Fixture map point",
       };
     }
     return {
       fields,
       coordinates,
+      evidenceIds: input.evidence
+        .filter(
+          (item) =>
+            item &&
+            typeof item === "object" &&
+            !Array.isArray(item) &&
+            Array.isArray(item.editionClues) &&
+            item.editionClues.includes(target.editionKey),
+        )
+        .flatMap((item) =>
+          item &&
+          typeof item === "object" &&
+          !Array.isArray(item) &&
+          typeof item.id === "string"
+            ? [item.id]
+            : [],
+        ),
       unresolved: [],
     };
   };

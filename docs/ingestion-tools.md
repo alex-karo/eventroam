@@ -34,17 +34,13 @@ See `.env.example` for current model defaults and execution limits. Set `OPENROU
 
 The [ingestion guide](ingestion-process.md) explains source handling, fact selection, previews, publication, and reports. Research is model-led and can make factual mistakes. Inspect the report before deciding on an apply run. After interruption, start a fresh run against current state; already committed changes remain.
 
-### Capture source tool output
+### Saved source evidence
 
-To inspect exactly what the research agent received from its initial source, `readPage`, and `searchWeb`, set `CATALOG_CAPTURE_TOOL_OUTPUTS=true` for a local CLI or loopback Studio process. Capture works for previews and apply runs and is off by default. For example:
+Each ingestion run saves private canonical Markdown and separate evidence JSON under `data/ingestion-sources/<runId>/`. Set `CATALOG_SOURCE_DIRECTORY` to change the root. Relative paths resolve from the application root, independently of the process working directory. Markdown has application provenance frontmatter followed by the unchanged canonical page, including source metadata as source claims.
 
-```sh
-CATALOG_CAPTURE_TOOL_OUTPUTS=true ppnpm run catalog add --name "Festival name" --database data/research.sqlite
-```
+The workflow collection result contains the source list and artifact paths. There is no manifest file or opt-in capture flag. Reader failure and input-limit cases retain available Markdown. Storage failure stops dependent work. Files use private directory and file permissions.
 
-Find the durable `runId` in the report, then inspect `data/catalog-debug/<runId>/`. Numbered JSON files contain each agent-visible response and its origin; page responses also have Markdown files. Numbers follow tool invocation order, even when concurrent calls finish out of order.
-
-The directory is ignored by Git and contains sensitive source text and search results. Keep it local and remove it when no longer needed. If capture cannot write, the process prints one bounded diagnostic to stderr; the catalog outcome is unaffected. Injected eval candidates do not use this capture.
+Source artifacts have no automatic retention. Deleting workflow history does not delete them. Remove a run directory explicitly after it is no longer needed. Preserve files referenced by runs you still need to inspect. Hosted Studio must mount this directory on persistent private storage.
 
 ## Local Studio ingestion
 

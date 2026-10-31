@@ -5,7 +5,10 @@ import { expect, test, vi } from "vitest";
 import { Mastra } from "@mastra/core/mastra";
 import { RequestContext } from "@mastra/core/request-context";
 import { __hookHandlerCount } from "@mastra/core/hooks";
-import { createCatalogIngestionWorkflow, runCatalogResearch } from "./workflow";
+import {
+  createFixtureIngestionWorkflow as createCatalogIngestionWorkflow,
+  runFixtureResearch as runCatalogResearch,
+} from "@/test/ingestion";
 import {
   createWorkflowStorage,
   WorkflowHistoryError,
@@ -165,6 +168,7 @@ test.each([
           ],
           {
             stdout,
+            research: runCatalogResearch,
             researchDependencies: { ...f.deps, workflowStorage: storage },
           },
         ),
@@ -375,7 +379,11 @@ test("a real CLI report collision is rejected before either file changes", async
         "--report",
         f.path,
       ],
-      { stdout: vi.fn(), researchDependencies: f.deps },
+      {
+        stdout: vi.fn(),
+        research: runCatalogResearch,
+        researchDependencies: f.deps,
+      },
     ),
   ).rejects.toThrow("separate");
   expect(readFileSync(f.path, "utf8")).toBe("history sentinel");

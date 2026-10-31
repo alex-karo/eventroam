@@ -19,12 +19,22 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { toolUseExpectationSchema } from "./tool-use";
 import { catalogPriceBlockSchema } from "@/catalog/operations/operation";
-import { researchCandidateSchema } from "../research/contracts";
+import {
+  generalOutputSchema,
+  ticketsOutputSchema,
+  classificationOutputSchema,
+  linksOutputSchema,
+} from "../roles/contracts";
 
-const researchHandoffSchema = z.strictObject({
-  schemaVersion: z.literal(1),
+const roleHandoffSchema = z.strictObject({
+  schemaVersion: z.literal(2),
   provenance: z.string().min(1),
-  candidate: researchCandidateSchema,
+  roles: z.strictObject({
+    general: generalOutputSchema.optional(),
+    tickets: ticketsOutputSchema.optional(),
+    classification: classificationOutputSchema.optional(),
+    links: linksOutputSchema.optional(),
+  }),
 });
 
 const link = z.object({
@@ -94,7 +104,7 @@ const commonCaseSchema = z.object({
   id: z.string().min(1),
   origin: z.enum(["captured", "synthetic"]),
   task: z.string().min(1),
-  researchHandoff: researchHandoffSchema.optional(),
+  roleHandoff: roleHandoffSchema.optional(),
   geocoding: z
     .array(
       z.strictObject({
@@ -212,15 +222,15 @@ const sourceFilesSchema = z.array(
 const handoffFileSchema = z.string().min(1).optional();
 const caseFileSchema = z.union([
   mainPipelineEvalCaseSchema.extend({
-    researchHandoffFile: handoffFileSchema,
+    roleHandoffFile: handoffFileSchema,
     sources: sourceFilesSchema,
   }),
   regressionPipelineEvalCaseSchema.extend({
-    researchHandoffFile: handoffFileSchema,
+    roleHandoffFile: handoffFileSchema,
     sources: sourceFilesSchema,
   }),
   locationEvalCaseSchema.extend({
-    researchHandoffFile: handoffFileSchema,
+    roleHandoffFile: handoffFileSchema,
     sources: sourceFilesSchema.default([]),
   }),
 ]);
@@ -242,11 +252,11 @@ export function loadEvalSuite(): EvalSuite {
       );
       return {
         ...item,
-        researchHandoff: item.researchHandoffFile
-          ? researchHandoffSchema.parse(
+        roleHandoff: item.roleHandoffFile
+          ? roleHandoffSchema.parse(
               JSON.parse(
                 readFileSync(
-                  resolve(dirname(absolutePath), item.researchHandoffFile),
+                  resolve(dirname(absolutePath), item.roleHandoffFile),
                   "utf8",
                 ),
               ),

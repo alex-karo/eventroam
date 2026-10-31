@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 2,
+  "provenance": "Exact normalized source-known-offers-blocked-checkout research from narrow-current-verify-2026-10-15T11-47-11-170Z.json; preserves unknown-currency amount in terms.. Adapted to fixed domain roles. Evidence references bind to Reader output during fixture execution; no expected assertions enter prompts.",
+  "roles": {
+    "general": {
+      "decision": "targets",
+      "eventId": "source-known-offers-blocked-checkout",
+      "observedEventName": "Sound Trail",
+      "reason": "Captured identity support",
+      "evidenceIds": [],
+      "event": {},
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "editionKey": "2027",
+        "reason": "Captured Edition selection",
+        "evidenceIds": [],
+        "fields": {
+          "year": {
+            "action": "set",
+            "value": 2027,
+            "reason": "The official page is titled “Sound Trail 2027” and gives programme dates in January 2027.",
+            "evidenceIds": []
+          },
+          "dates": {
+            "action": "set",
+            "value": {
+              "startsOn": "2027-01-23",
+              "endsOn": "2027-01-30",
+              "state": "confirmed"
+            },
+            "reason": "The official page explicitly states that 23–30 January 2027 are confirmed programme dates.",
+            "evidenceIds": []
+          },
+          "scheduleStatus": {
+            "action": "set",
+            "value": "scheduled",
+            "reason": "The official page confirms the programme dates for the upcoming festival; this is consistent with the saved scheduled status.",
+            "evidenceIds": []
+          }
+        }
+      },
+      "checks": [],
+      "unresolved": [
+        {
+          "message": "What additional ticket categories and offers are listed on the linked checkout and extras pages, and what are their availability states? Those relevant official pages could not be inspected.",
+          "editionKey": "2027",
+          "field": "tickets"
+        }
+      ]
+    },
+    "tickets": {
+      "currentOrNextEdition": {
+        "tickets": {
+          "action": "set",
+          "value": {
+            "variants": [
+              {
+                "label": "Three-concert pass",
+                "amount": 9.99,
+                "currency": "GBP",
+                "terms": "Access to three paid concerts of the holder’s choice; does not cover the full programme. Other activities are free.",
+                "availability": "unknown"
+              },
+              {
+                "label": "Stay package",
+                "amount": 899,
+                "currency": "GBP",
+                "terms": "Includes lodging and the Three-concert pass only; does not include full-programme admission.",
+                "availability": "unknown"
+              },
+              {
+                "label": "All-programme pass",
+                "terms": "The page gives a price of $615.35 but provides no country or currency code; the currency cannot be established.",
+                "availability": "unknown"
+              }
+            ],
+            "basePrice": null
+          },
+          "reason": "The official page publishes these three offers and prices for the first two. The all-programme pass is a full-programme offer, but its currency is unspecified, so no reliable base price can be reported. The page says availability is not stated; checkout and extras are linked for remaining categories and offers, but could not be inspected.",
+          "evidenceIds": []
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "classification": {
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "classification": {
+          "action": "set",
+          "value": ["validation:festival", "validation:music"],
+          "reason": "The official page describes Sound Trail as a music festival. No specific music genre or substantial outdoor programme is established by the inspected page.",
+          "evidenceIds": []
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "links": {
+      "event": {
+        "socials": {}
+      },
+      "currentOrNextEdition": {
+        "tickets": {
+          "action": "set",
+          "value": "https://sound-trail.example/checkout",
+          "reason": "Captured official source association",
+          "evidenceIds": []
+        }
+      },
+      "omitted": [],
+      "checks": [],
+      "unresolved": []
+    }
+  }
+}

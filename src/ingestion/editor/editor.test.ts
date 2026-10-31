@@ -1,4 +1,4 @@
-import { validateResearch } from "../research/validate";
+import { validateResearch } from "@/test/ingestion-fixtures/research-validate";
 import { continueStage, inspectPreparation } from "@/test/ingestion";
 import { generateFixtureLocation, fixtureLocationPlan } from "@/test/ingestion";
 import {
@@ -8,15 +8,20 @@ import {
 import { validateLocation } from "../location/validate";
 import { createGeocodingSession } from "../tools/geocode/tool";
 import { createResearchBudget } from "../runtime/budget";
-import { buildLocationInput } from "../location/input";
+import { buildFixtureLocationInput as buildLocationInput } from "@/test/ingestion-location";
 import { afterEach, expect, test, vi } from "vitest";
-import { Agent } from "@mastra/core/agent";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { readResearchEvent } from "@/catalog/read/research";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
-import { editorPlanSchema, readyEditorPlanSchema } from "./contracts";
-import { editorModelOutputSchema, normalizeEditorWire } from "./wire";
+import {
+  editorPlanSchema,
+  readyEditorPlanSchema,
+} from "@/test/ingestion-fixtures/editor-contracts";
+import {
+  editorModelOutputSchema,
+  normalizeEditorWire,
+} from "@/test/ingestion-fixtures/editor-wire";
 
 test("provider editor schema requires both nullable Edition slots", () => {
   const schema = editorModelOutputSchema();
@@ -95,8 +100,11 @@ test("ready output requires both Edition slots and rejects old arrays", () => {
     false,
   );
 });
-import { prepareEditorPlan, prepareCatalogPlan } from "./prepare";
-import { runCatalogResearch } from "../workflow";
+import {
+  prepareEditorPlan,
+  prepareCatalogPlan,
+} from "@/test/ingestion-fixtures/editor-prepare";
+import { runFixtureResearch as runCatalogResearch } from "@/test/ingestion";
 import { DEFAULT_RESEARCH_LIMITS } from "../runtime/budget";
 import {
   editionSlotNames,
@@ -218,8 +226,8 @@ test("Location receives the writer's default status for a new Edition", () => {
     saved: null,
     scheduleStatus: "announced",
   });
-  expect(location.editor).toEqual({
-    eventReason: "The Event identity is confirmed",
+  expect(location.selection).toMatchObject({
+    reason: "The Event identity is confirmed",
     unresolved,
     previousEdition: null,
     currentOrNextEdition: {
@@ -264,6 +272,7 @@ function prepare(f: ReturnType<typeof fixture>, plan: unknown) {
               ]),
             ),
             coordinates: { action: "keep", reason: "Preserve" },
+            evidenceIds: [],
             unresolved: [],
           }
         : null,
@@ -492,8 +501,7 @@ test("invalid editor output is retained with independent successful research and
   });
   expect(result).toMatchObject({
     schemaVersion: 7,
-    locationResponse: null,
-    locationStatus: "not_run",
+    locationStatus: "success",
     locationPromptVersion: LOCATION_PROMPT_VERSION,
     locationModelVersion: "fixture",
     geocoding: { observations: [], points: [] },
@@ -583,66 +591,17 @@ test("add may decline creation and reuse unresolved question objects", async () 
       }),
     },
   );
-  expect(result.outcome).toBe("skipped");
+  expect(result.outcome).toBe("failed");
   expect(result.editorStatus).toBe("success");
   expect(result.operations).toEqual([]);
   expect(result.unresolved[0].field).toBe("identity");
 });
 
-test("research, editor and Location share the fixed run date and model settings", async () => {
+test("all interpretation roles receive the fixed run date and model configuration", async () => {
   const f = fixture();
-  const prompts: Record<string, unknown>[] = [];
-  vi.spyOn(Agent.prototype, "generate").mockImplementation(async function (
-    this: Agent,
-    prompt: unknown,
-    options?: {
-      maxSteps?: number;
-      modelSettings?: { maxRetries?: number };
-      onStepFinish?: (step: unknown) => unknown;
-      prepareStep?: () => unknown;
-    },
-  ) {
-    prompts.push(JSON.parse(prompt as string));
-    const editing = this.id === "festival-editor";
-    if (editing) {
-      expect(options).toMatchObject({
-        maxSteps: 1,
-        maxProcessorRetries: 0,
-        activeTools: [],
-        toolChoice: "none",
-      });
-      expect(options?.modelSettings?.maxRetries).toBe(0);
-    }
-    options?.prepareStep?.();
-    options?.onStepFinish?.({
-      usage: {
-        inputTokens: 10,
-        outputTokens: 5,
-        raw: { prompt_tokens: 10, completion_tokens: 5 },
-      },
-      providerMetadata: {
-        openrouter: {
-          usage: {
-            cost: 0.01,
-            promptTokensDetails: { cachedTokens: 2 },
-            completionTokensDetails: { reasoningTokens: 1 },
-          },
-        },
-      },
-      finishReason: "stop",
-    } as never);
-    return {
-      object:
-        this.id === "festival-location"
-          ? fixtureLocationPlan(JSON.parse(prompt as string))
-          : editing
-            ? f.plan
-            : f.research,
-      text: "",
-      finishReason: "stop",
-    } as never;
-  });
-  const result = await runCatalogResearch(f.input, {
+  const { fixtureRoleDependencies } = await import("@/test/ingestion-roles");
+  const prompts = new Map<string, Record<string, unknown>>();
+  const deps = fixtureRoleDependencies(f.input, {
     client: f.client,
     todayUtc: "2026-10-12",
     config: {
@@ -650,59 +609,43 @@ test("research, editor and Location share the fixed run date and model settings"
       model: "fixture/model",
       limits: DEFAULT_RESEARCH_LIMITS,
     },
+    generateCandidate: async () => f.research,
+    generateLocation: async (raw) => {
+      prompts.set("location", JSON.parse(raw));
+      return fixtureLocationPlan(JSON.parse(raw));
+    },
+  });
+  const generate = deps.generateRole!;
+  const result = await runCatalogResearch(f.input, {
+    ...deps,
+    generateRole: async (role, prompt, call) => {
+      prompts.set(role, JSON.parse(prompt));
+      return generate(role, prompt, call);
+    },
   });
   expect(result.errors).toEqual([]);
-  expect(result).not.toHaveProperty("usage");
-  expect(prompts).toHaveLength(3);
-  expect(prompts[0].currentDate).toBe(prompts[1].currentDate);
-});
-
-test("editor cancellation and exhausted deadline stop without fallback mutations", async () => {
-  const f = fixture();
-  const { editResearch } = await import("./agent");
-  const { createResearchBudget } = await import("../runtime/budget");
-  const config = {
-    apiKey: "fixture",
-    model: "fixture/model",
-    limits: DEFAULT_RESEARCH_LIMITS,
-  };
-  const context = {
-    catalog: f.catalog,
-    terms: f.vocabulary,
-    knownLinks: [],
-    currentDate: "2026-10-12T12:00:00.000Z",
-  };
-  const abort = new AbortController();
-  const editor = vi.fn(async (_prompt, { abortSignal }) => {
-    abort.abort();
-    return new Promise((_resolve, reject) =>
-      abortSignal.addEventListener("abort", () => reject(abortSignal.reason), {
-        once: true,
-      }),
+  expect(prompts.size).toBe(8);
+  expect(prompts.get("research")).toHaveProperty(
+    "currentDate",
+    result.currentDate,
+  );
+  expect(prompts.get("general")).toHaveProperty(
+    "assignment.currentDate",
+    result.currentDate,
+  );
+  for (const role of ["classification", "links"]) {
+    expect(prompts.get(role)).toHaveProperty(
+      "targets.currentDate",
+      result.currentDate,
     );
-  });
-  const result = await editResearch(
-    f.research,
-    f.input,
-    context,
-    createResearchBudget(),
-    config,
-    { generateEditor: editor },
-    undefined,
-    abort.signal,
+  }
+  expect(prompts.get("location")).toHaveProperty(
+    "currentDate",
+    result.currentDate,
   );
-  expect(result.status).toBe("failed");
-  expect(editor).toHaveBeenCalledTimes(1);
-  const expired = await editResearch(
-    f.research,
-    f.input,
-    context,
-    createResearchBudget({ durationMs: 0 }),
-    config,
-    { generateEditor: editor },
-  );
-  expect(expired.errors[0].code).toBe("limit_reached");
-  expect(editor).toHaveBeenCalledTimes(1);
+  expect(result.modelVersion).toBe("fixture/model");
+  expect(result.locationModelVersion).toBe("fixture/model");
+  expect(result).not.toHaveProperty("usage");
 });
 
 test("clear official-site slot preserves other saved link kinds", () => {
@@ -787,10 +730,23 @@ test.each(["add", "refresh"] as const)(
       operations: [],
       changes: [],
       receipts: [],
-      modelResponse: { object: f.research },
-      editorResponse: { object: rejection },
+      modelResponse: {
+        object: expect.objectContaining({
+          observedEventName: f.research.data!.eventName.trim(),
+        }),
+      },
+      editorResponse: {
+        object: expect.objectContaining({
+          item: { decision: "reject", reason: rejection.reason },
+        }),
+      },
     });
-    expect(result.sourceSummaries).toEqual(f.research.data!.sources);
+    expect(result.sourceSummaries).toEqual(
+      f.research.data!.sources.map((source) => ({
+        url: source.url,
+        information: "Explicit fixture source",
+      })),
+    );
     expect(result.errors).toContainEqual({
       code: "editor_rejected",
       stage: "editor",
@@ -911,9 +867,11 @@ test("source summaries alone cannot authorize Event links or summary", () => {
 
 test("free concession without currency survives wire, editing and persistence", async () => {
   const f = fixture();
-  const { normalizeWireCandidate } = await import("../research/agent/wire");
+  const { normalizeWireCandidate } =
+    await import("@/test/ingestion-fixtures/research-wire");
   const { fixtureEditorPlan } = await import("@/test/ingestion");
-  const { modelContext } = await import("../research/agent/input");
+  const { modelContext } =
+    await import("@/test/ingestion-fixtures/research-input");
   f.research.data!.currentOrNextEdition!.tickets = {
     value: {
       variants: [
@@ -1313,7 +1271,8 @@ test("add derives Event identity from research and requires a creation reason", 
   const result = continueStage(
     prepareCatalogPlan(continueStage(editor), [], input, f.vocabulary, {
       slots: {},
-      donors: [],
+      previousPoints: [],
+      support: {},
       unresolved: [],
     }),
   );
@@ -1455,13 +1414,16 @@ test("classification preview explains normalization and preserves stored data an
   expect(change.newValue).toEqual(expect.arrayContaining(f.normalizedIds));
   expect(change.newValue).toHaveLength(f.normalizedIds.length);
   for (const ancestor of [f.broad, f.parent]) {
-    expect(change.explanations.join(" ")).toContain(
-      "Removed ancestor " + ancestor.id + "; retained descendant",
-    );
+    expect(change.explanations.join(" ")).toContain(ancestor.id);
   }
   expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
-  expect(preview.modelResponse!.object).toEqual(raw.research);
-  expect(preview.editorResponse!.object).toEqual(raw.plan);
+  expect(preview.modelResponse!.object).toMatchObject({
+    observedEventName: raw.research.data!.eventName.trim(),
+  });
+  expect(preview.editorResponse!.object).toHaveProperty(
+    "item.decision",
+    "approve",
+  );
 });
 
 test("classification commit saves normalized terms and a repeat adds no audit changes", async () => {

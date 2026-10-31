@@ -52,6 +52,8 @@ Both images run as `node` (UID/GID 1000). The volume directory and supplied file
 
 Compose exposes web port 3000 and Studio port 4111 only on the Docker network. It publishes no host ports. Studio listens on `0.0.0.0:4111` and has no application login or credentials. Authentication for the complete public Studio host is an external ingress prerequisite. Network attachment, ingress authentication, DNS, TLS, Komodo, webhooks, and deployment automation belong in the self-hosted repository. Both services use `restart: unless-stopped`.
 
+The ingestion host must persist `data/ingestion-sources/` (or `CATALOG_SOURCE_DIRECTORY`) beside the private catalog and workflow stores. Source Markdown and evidence are required artifacts. Deleting run history does not remove them; cleanup is explicit. Keep this mount private and writable by the application user.
+
 ### Container inputs
 
 Compose reads deployment inputs with `EVENTROAM_` and maps them to current application names. Existing local `.env` names and defaults stay unchanged. Set these inputs in the deployment environment or a selected Compose env file; do not commit credentials.

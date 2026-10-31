@@ -1,4 +1,9 @@
-import type { CheckedResearch } from "./research/validate";
+import type { Targets, CollectionOutput } from "./roles/contracts";
+import type { PlanDiagnostics } from "./stage";
+import type { RoleExecution } from "./roles/invoke";
+import type { FrozenCorpus } from "./evidence/contracts";
+import type { PreparedProposals, AcceptedProposals } from "./proposals";
+import type { ReadyCatalogPlan } from "./catalog-plan";
 import type { StageResult } from "./stage";
 import {
   emptyLocationExecution,
@@ -8,9 +13,10 @@ import {
 import type { GeocodingClient } from "./tools/geocode/contracts";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { ResearchContext } from "./research/context";
-import type { ResearchExecution } from "./research/agent";
-import type { AcceptedEditorPlan, ReadyCatalogPlan } from "./editor/prepare";
-import { emptyEditorExecution, type EditorExecution } from "./editor/agent";
+import {
+  emptyEditorExecution,
+  type EditorExecution,
+} from "./roles/editor-execution";
 import type Database from "better-sqlite3";
 import type { DuckDBStore } from "@mastra/duckdb";
 import type { WorkflowStorage } from "./runtime/workflow-storage";
@@ -108,6 +114,10 @@ export type CatalogResearchResult = {
 };
 
 export type ResearchDependencies = {
+  generateRole?: import("./roles/invoke").GenerateRole;
+  generateRoles?: Partial<
+    Record<import("./roles/invoke").Role, import("./roles/invoke").GenerateRole>
+  >;
   client: Database.Database;
   /** Shared local Studio observability store; the caller owns its lifetime. */
   observabilityStore?: DuckDBStore;
@@ -145,11 +155,15 @@ export type IngestionData = {
   context: ResearchContext | null;
   reads: SourceReadMetadata[];
   discovery: SearchWebResult[];
-  research: ResearchExecution;
+  research: RoleExecution<CollectionOutput>;
+  general: RoleExecution<import("./roles/contracts").GeneralOutput>;
+  specialists: Record<string, RoleExecution>;
+  corpus: FrozenCorpus | null;
+  prepared: StageResult<PreparedProposals> | null;
   editor: EditorExecution;
   location: LocationExecution;
-  researchValidation: StageResult<CheckedResearch> | null;
-  editorValidation: StageResult<AcceptedEditorPlan> | null;
+  researchValidation: StageResult<Targets & PlanDiagnostics> | null;
+  editorValidation: StageResult<AcceptedProposals> | null;
   catalogPreparation: StageResult<ReadyCatalogPlan> | null;
   outcome: CatalogResearchResult["outcome"] | null;
   applied: ReturnType<typeof applyCatalogItem> | null;
@@ -164,9 +178,24 @@ export function createIngestionData(): IngestionData {
     reads: [],
     discovery: [],
     research: {
-      ok: false,
+      status: "not_run",
       errors: [],
+      modelResponse: null,
+      model: "",
+      promptVersion: "",
+      durationMs: 0,
     },
+    general: {
+      status: "not_run",
+      errors: [],
+      modelResponse: null,
+      model: "",
+      promptVersion: "",
+      durationMs: 0,
+    },
+    specialists: {},
+    corpus: null,
+    prepared: null,
     editor: emptyEditorExecution(),
     location: emptyLocationExecution(),
     researchValidation: null,

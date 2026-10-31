@@ -84,5 +84,5 @@
     ],
     "forbidden": []
   },
-  "researchHandoffFile": "recovered-website.research.json"
+  "roleHandoffFile": "recovered-website.roles.json"
 }

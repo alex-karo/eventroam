@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { modelOutputSchema } from "../research/agent/wire";
+import { modelOutputSchema } from "../runtime/model-output";
 import { pointSchema } from "../tools/geocode/contracts";
 
-export const LOCATION_PROMPT_VERSION = "catalog-location-v6";
+export const LOCATION_PROMPT_VERSION = "catalog-location-v14";
 export const locationTextFields = [
   "venueName",
   "venueAddress",
@@ -36,8 +36,7 @@ export const coordinateDecisionSchema = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("keep"), reason }),
   z.strictObject({ action: z.literal("clear"), reason }),
   z.strictObject({
-    action: z.literal("inherit"),
-    donorPointId: z.string().min(1),
+    action: z.literal("reusePrevious"),
     reason,
   }),
   z.strictObject({
@@ -49,6 +48,7 @@ export const coordinateDecisionSchema = z.discriminatedUnion("action", [
 ]);
 export const locationSlotSchema = z.strictObject({
   fields: locationFieldsSchema,
+  evidenceIds: z.array(z.string().min(1)).max(100),
   coordinates: coordinateDecisionSchema,
   unresolved: z
     .array(
@@ -74,7 +74,8 @@ export type LocationFields = z.infer<typeof locationFieldsSchema>;
 export type Point = z.infer<typeof pointSchema>;
 export const registeredPointSchema = pointSchema.extend({
   id: z.string(),
-  kind: z.enum(["target", "donor", "source", "candidate"]),
+  evidenceIds: z.array(z.string()).optional(),
+  kind: z.enum(["target", "previousPoint", "source", "candidate"]),
   precision: precisionSchema,
   editionKey: z.string().optional(),
   editionId: z.string().optional(),
@@ -89,7 +90,7 @@ export const registeredPointSchema = pointSchema.extend({
       z.strictObject({
         slot: z.enum(["previousEdition", "currentOrNextEdition"]),
         targetKm: z.number().nonnegative().nullable(),
-        donorKm: z.number().nonnegative().nullable(),
+        previousPointKm: z.number().nonnegative().nullable(),
       }),
     )
     .optional(),

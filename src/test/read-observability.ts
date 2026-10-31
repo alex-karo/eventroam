@@ -15,9 +15,18 @@ export async function readTraceRows(path: string) {
     const logs = await domain.listLogs({
       pagination: { page: 0, perPage: 100 },
     });
-    const metrics = await domain.listMetrics({
-      pagination: { page: 0, perPage: 100 },
-    });
+    const metrics = [];
+    let page = 0;
+    while (true) {
+      const result = await domain.listMetrics({
+        pagination: { page, perPage: 100 },
+      });
+      metrics.push(...result.metrics);
+      if (!result.pagination?.hasMore) {
+        break;
+      }
+      page += 1;
+    }
     return {
       mastra_ai_spans: spans.map((span) =>
         Object.fromEntries(
@@ -31,7 +40,7 @@ export async function readTraceRows(path: string) {
         ),
       ),
       mastra_logs: logs.logs,
-      mastra_metrics: metrics.metrics,
+      mastra_metrics: metrics,
     };
   } finally {
     await storage.close();

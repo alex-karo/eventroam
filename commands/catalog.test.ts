@@ -1,4 +1,4 @@
-import { generateFixtureEditor } from "@/test/ingestion";
+import { runFixtureResearch, generateFixtureEditor } from "@/test/ingestion";
 import { DEFAULT_RESEARCH_LIMITS } from "@/ingestion/runtime/budget";
 import { afterEach, expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
@@ -326,6 +326,7 @@ test("real CLI stores/exports the same report and prints runId and stage models"
   expect(
     await executeCatalogCommand([...args, "--json"], {
       stdout,
+      research: runFixtureResearch,
       researchDependencies: {
         generateEditor: generateFixtureEditor,
         generateCandidate: async () => {
@@ -379,6 +380,7 @@ test.each(["workflow", "persistence"] as const)(
       ],
       {
         stdout,
+        research: runFixtureResearch,
         researchDependencies: {
           generateEditor: generateFixtureEditor,
           generateCandidate: async (prompt) => {
@@ -454,6 +456,7 @@ test("optional file failure keeps the completed run and help/preflight do not st
       ],
       {
         stdout,
+        research: runFixtureResearch,
         researchDependencies: {
           generateEditor: generateFixtureEditor,
           generateCandidate: async () => {

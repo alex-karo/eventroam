@@ -96,15 +96,6 @@
           "coordinatePrecision": "approximate"
         }
       ],
-      "editor": {
-        "eventReason": null,
-        "previousEdition": null,
-        "currentOrNextEdition": {
-          "editionKey": "2027",
-          "reason": null
-        },
-        "unresolved": []
-      },
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "2027",
@@ -130,26 +121,75 @@
           "longitude": -4.5253,
           "coordinatePrecision": "approximate"
         },
-        "donor": null,
-        "findings": {
-          "venueName": {
-            "value": "Parque del Sotillo",
-            "reason": "Captured catalog location description"
-          },
-          "locality": {
-            "value": "Palencia",
-            "reason": "Captured catalog location description"
-          },
-          "administrativeArea": {
-            "value": "Castilla y León",
-            "reason": "Captured catalog location description"
-          },
-          "countryCode": {
-            "value": "ES",
-            "reason": "Captured catalog location description"
-          }
+        "previousPoint": null
+      },
+      "selection": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "2027",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "evidence": [
+        {
+          "id": "currentOrNextEdition-location-1",
+          "sourceId": "fixture-source",
+          "quote": "venueName: \"Parque del Sotillo\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-2",
+          "sourceId": "fixture-source",
+          "quote": "locality: \"Palencia\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-3",
+          "sourceId": "fixture-source",
+          "quote": "administrativeArea: \"Castilla y León\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-4",
+          "sourceId": "fixture-source",
+          "quote": "countryCode: \"ES\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
         }
-      }
+      ]
     }
   },
   "geocoding": [

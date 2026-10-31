@@ -8,7 +8,7 @@ import type { EvalCase, EvalSuite } from "./fixtures";
 import type { EvalGroup } from "./selection";
 
 // Increase this version when rules outside the hashed files change.
-export const EVAL_SCORER_VERSION = "6";
+export const EVAL_SCORER_VERSION = "12";
 
 /** Hash all case data, case checks, and main rules, including whitespace changes. */
 export function evalFileHash() {

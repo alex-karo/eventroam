@@ -1,4 +1,5 @@
-import type { CheckedResearch } from "./research/validate";
+import type { AcceptedProposals } from "./proposals";
+import type { Targets } from "./roles/contracts";
 import {
   stageDiagnostics,
   type PlanDiagnostics,
@@ -9,12 +10,12 @@ import { shrinkText, type ResearchLogger } from "./runtime/logging";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
-import type { AcceptedEditorPlan, ReadyCatalogPlan } from "./editor/prepare";
+import type { ReadyCatalogPlan } from "./catalog-plan";
 
 export function logPreparation(
   log: ResearchLogger | undefined,
-  result: StageResult<AcceptedEditorPlan | ReadyCatalogPlan>,
-  candidate: CheckedResearch["candidate"],
+  result: StageResult<AcceptedProposals | ReadyCatalogPlan>,
+  targets: Targets,
 ) {
   const accepted = result.status === "continue";
   const prepared = stageDiagnostics(result);
@@ -27,17 +28,20 @@ export function logPreparation(
   }[result.status];
   log?.[result.status === "reject" ? "warn" : "info"](message, {
     stage: "validation",
-    status: candidate.status,
+    status: "targets",
     eventId: prepared.matchedEventId,
-    eventName: candidate.data.eventName,
+    eventName: targets.observedEventName,
     editions: editionSlotNames.flatMap((slot) => {
-      const edition = candidate.data[slot];
+      const edition = targets[slot];
       return edition
         ? [
             {
               role: slot,
-              editionKey: edition.key,
-              year: edition.year?.value ?? null,
+              editionKey: edition.editionKey,
+              year:
+                edition.fields.year?.action === "set"
+                  ? edition.fields.year.value
+                  : null,
             },
           ]
         : [];

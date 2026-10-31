@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 2,
+  "provenance": "Exact search-wrong-official research from narrow-current-main-merge.json; openai/gpt-6-luna, narrow-current-focused-search-v1; provider wire-null omission normalized, findings unchanged.. Adapted to fixed domain roles. Evidence references bind to Reader output during fixture execution; no expected assertions enter prompts.",
+  "roles": {
+    "general": {
+      "decision": "targets",
+      "eventId": "search-policy-event",
+      "observedEventName": "Harbor Echo",
+      "reason": "Captured identity support",
+      "evidenceIds": [],
+      "event": {
+        "summary": {
+          "action": "set",
+          "value": "Recurring outdoor music festival held at Castlewellan Grounds in Northern Ireland.",
+          "reason": "The official programme identifies Harbor Echo as the recurring Castlewellan festival and describes its 2027 programme as outdoor music.",
+          "evidenceIds": []
+        }
+      },
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "editionKey": "2027",
+        "reason": "Captured Edition selection",
+        "evidenceIds": [],
+        "fields": {
+          "year": {
+            "action": "set",
+            "value": 2027,
+            "reason": "The official programme identifies this as Harbor Echo Castlewellan 2027.",
+            "evidenceIds": []
+          },
+          "dates": {
+            "action": "set",
+            "value": {
+              "startsOn": "2027-01-23",
+              "endsOn": "2027-01-30",
+              "state": "confirmed"
+            },
+            "reason": "The official programme confirms the festival dates as 23\u201330 January 2027.",
+            "evidenceIds": []
+          },
+          "scheduleStatus": {
+            "action": "set",
+            "value": "scheduled",
+            "reason": "The official programme publishes the 2027 programme and confirmed dates.",
+            "evidenceIds": []
+          },
+          "displayName": {
+            "action": "set",
+            "value": "Harbor Echo Castlewellan 2027",
+            "reason": "This is the edition heading on the official programme.",
+            "evidenceIds": []
+          }
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "tickets": {
+      "currentOrNextEdition": {},
+      "checks": [],
+      "unresolved": []
+    },
+    "classification": {
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "classification": {
+          "action": "set",
+          "value": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ],
+          "reason": "The official programme describes a festival with a confirmed outdoor music programme. These supported terms form the classification for this edition.",
+          "evidenceIds": []
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "links": {
+      "event": {
+        "socials": {},
+        "website": {
+          "action": "set",
+          "value": "https://harborechofestival.co.uk/",
+          "reason": "Captured official source association",
+          "evidenceIds": []
+        }
+      },
+      "currentOrNextEdition": {},
+      "omitted": [],
+      "checks": [],
+      "unresolved": []
+    }
+  }
+}

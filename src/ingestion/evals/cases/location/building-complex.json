@@ -73,15 +73,6 @@
         }
       ],
       "history": [],
-      "editor": {
-        "eventReason": null,
-        "previousEdition": null,
-        "currentOrNextEdition": {
-          "editionKey": "hallowindie-2025",
-          "reason": null
-        },
-        "unresolved": []
-      },
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "hallowindie-2025",
@@ -90,22 +81,61 @@
         "endsOn": "2025-11-01",
         "scheduleStatus": "announced",
         "saved": null,
-        "donor": null,
-        "findings": {
-          "venueName": {
-            "value": "Palacio de Congresos y Exposiciones de León",
-            "reason": "Captured catalog location description"
-          },
-          "locality": {
-            "value": "León",
-            "reason": "Captured catalog location description"
-          },
-          "countryCode": {
-            "value": "ES",
-            "reason": "Captured catalog location description"
-          }
+        "previousPoint": null
+      },
+      "selection": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "hallowindie-2025",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "evidence": [
+        {
+          "id": "currentOrNextEdition-location-1",
+          "sourceId": "fixture-source",
+          "quote": "venueName: \"Palacio de Congresos y Exposiciones de León\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["hallowindie-2025"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-2",
+          "sourceId": "fixture-source",
+          "quote": "locality: \"León\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["hallowindie-2025"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-3",
+          "sourceId": "fixture-source",
+          "quote": "countryCode: \"ES\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["hallowindie-2025"],
+          "uncertainty": null,
+          "anchors": []
         }
-      }
+      ]
     }
   },
   "geocoding": [

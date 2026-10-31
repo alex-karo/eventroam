@@ -22,7 +22,7 @@ export function assertMainCase(item: PipelineEvalCase) {
   if (
     !Object.hasOwn(evaluators, item.id) ||
     item.location ||
-    item.researchHandoff
+    item.roleHandoff
   ) {
     throw new Error(
       `Main case needs a registered pipeline evaluator: ${item.id}`,

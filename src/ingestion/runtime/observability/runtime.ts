@@ -8,7 +8,7 @@ import {
 } from "@mastra/observability";
 import { PosthogExporter } from "@mastra/posthog";
 import type { CatalogResearchInput } from "../../contracts";
-import { RESEARCH_PROMPT_VERSION } from "../../research/contracts";
+import { PROMPT_VERSIONS } from "../../roles/versions";
 import {
   createPinoLogger,
   researchLogLevel,
@@ -96,7 +96,7 @@ export async function createResearchObservability(
       mode: input.mode,
       ...(input.eventId ? { eventId: traceText(input.eventId, 160) } : {}),
       model: traceText(model, 160),
-      promptVersion: RESEARCH_PROMPT_VERSION,
+      promptVersion: PROMPT_VERSIONS.research,
     };
     const observability = createCatalogObservability({
       traceEnabled,

@@ -1,7 +1,12 @@
 // Offline owner CLI process used by history reopen and interruption checks.
 import Database from "better-sqlite3";
+import { createWorkflowStorage } from "../ingestion/runtime/workflow-storage";
 import { executeCatalogCommand } from "../../commands/catalog";
-import { generateFixtureEditor, generateFixtureLocation } from "./ingestion";
+import {
+  runFixtureResearch,
+  generateFixtureEditor,
+  generateFixtureLocation,
+} from "./ingestion";
 
 const args = process.argv.slice(2);
 const interrupt = args.includes("--fixture-interrupt");
@@ -14,6 +19,17 @@ catalog.close();
 executeCatalogCommand(
   args.filter((arg) => !arg.startsWith("--fixture-")),
   {
+    research: async (input, deps) => {
+      const storage = createWorkflowStorage();
+      try {
+        return await runFixtureResearch(input, {
+          ...deps,
+          workflowStorage: storage,
+        });
+      } finally {
+        await storage.close();
+      }
+    },
     researchDependencies: {
       generateEditor: generateFixtureEditor,
       generateLocation: generateFixtureLocation,

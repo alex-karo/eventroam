@@ -75,15 +75,6 @@
           "coordinatePrecision": "approximate"
         }
       ],
-      "editor": {
-        "eventReason": null,
-        "previousEdition": null,
-        "currentOrNextEdition": {
-          "editionKey": "warm-up-estrella-de-levante-2027",
-          "reason": null
-        },
-        "unresolved": []
-      },
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "warm-up-estrella-de-levante-2027",
@@ -109,26 +100,75 @@
           "longitude": -1.129,
           "coordinatePrecision": "approximate"
         },
-        "donor": null,
-        "findings": {
-          "venueName": {
-            "value": "La Fica",
-            "reason": "Captured catalog location description"
-          },
-          "venueAddress": {
-            "value": "Diseminado Primero Mayo, 19, 30003 Murcia",
-            "reason": "Captured catalog location description"
-          },
-          "locality": {
-            "value": "Murcia",
-            "reason": "Captured catalog location description"
-          },
-          "countryCode": {
-            "value": "ES",
-            "reason": "Captured catalog location description"
-          }
+        "previousPoint": null
+      },
+      "selection": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "warm-up-estrella-de-levante-2027",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "evidence": [
+        {
+          "id": "currentOrNextEdition-location-1",
+          "sourceId": "fixture-source",
+          "quote": "venueName: \"La Fica\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["warm-up-estrella-de-levante-2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-2",
+          "sourceId": "fixture-source",
+          "quote": "venueAddress: \"Diseminado Primero Mayo, 19, 30003 Murcia\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["warm-up-estrella-de-levante-2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-3",
+          "sourceId": "fixture-source",
+          "quote": "locality: \"Murcia\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["warm-up-estrella-de-levante-2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-4",
+          "sourceId": "fixture-source",
+          "quote": "countryCode: \"ES\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["warm-up-estrella-de-levante-2027"],
+          "uncertainty": null,
+          "anchors": []
         }
-      }
+      ]
     }
   },
   "geocoding": [
