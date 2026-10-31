@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 2,
+  "provenance": "Captured editor-unavailable research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Evidence references bind to Reader output during fixture execution; no expected assertions enter prompts.",
+  "roles": {}
+}

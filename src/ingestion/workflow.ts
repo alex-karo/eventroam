@@ -1,9 +1,33 @@
-import { validateResearch } from "./research/validate";
+import { logPreparation } from "./workflow-logging";
+import { createCollection } from "./evidence/collection";
+import { buildAssignment } from "./roles/assignment";
+import {
+  collectResearch,
+  runGeneral,
+  runTickets,
+  runClassification,
+  runLinks,
+  runEditor,
+  type RoleOptions,
+} from "./roles/run";
+import {
+  validateGeneral,
+  assembleProposals,
+  applyReview,
+  initialDiagnostics,
+} from "./proposals";
+import { prepareCatalogPlan } from "./catalog-plan";
+import type { RoleExecution } from "./roles/invoke";
+import type {
+  TicketsOutput,
+  ClassificationOutput,
+  LinksOutput,
+} from "./roles/contracts";
 import { stageDiagnostics } from "./stage";
 import { locationExecutionSchema } from "./location/execution";
 import { resolveLocation } from "./location/agent";
 import { buildLocationInput } from "./location/input";
-import { assertLocationDonors } from "./location/donor-guard";
+import { assertLocationPreviousPoints } from "./location/donor-guard";
 import {
   assertRefreshBaseline,
   countryBaselineConflict,
@@ -33,18 +57,18 @@ import type {
   ReadPageResult,
   SourceReadMetadata,
 } from "./tools/read-page/contracts";
-import { readInitialWithTrace } from "./runtime/tracing";
-import { researchFestival } from "./research/agent";
-import { prepareEditorPlan, prepareCatalogPlan } from "./editor/prepare";
-import { editResearch } from "./editor/agent";
 import { readyCatalogPlan, catalogWriteOutcome } from "./pipeline";
 import { buildResearchReport } from "./report";
-import {
-  logPreparation,
-  reportEventId,
-  attemptedCatalogFields,
-} from "./workflow-logging";
+import { reportEventId, attemptedCatalogFields } from "./workflow-logging";
 
+function sourceErrorCode(source: { status: string; reasonCode?: string }) {
+  if (source.status === "unsupported") {
+    return "source_unsupported" as const;
+  }
+  return source.reasonCode?.includes("block")
+    ? ("source_blocked" as const)
+    : ("source_unavailable" as const);
+}
 export type {
   CatalogResearchInput,
   CatalogResearchResult,
@@ -85,6 +109,10 @@ const dataSchema = z.object({
   reads: z.array(z.json()),
   discovery: z.array(z.json()),
   research: z.json(),
+  general: z.json(),
+  specialists: z.json(),
+  corpus: z.json().nullable(),
+  prepared: z.json().nullable(),
   editor: z.json(),
   location: locationExecutionSchema,
   researchValidation: z.json().nullable(),
@@ -186,6 +214,10 @@ async function safePhase(
       // Persist their local accounting before throwing; no private checkpoint.
       await owned.finalizeFailure(data, true);
       throw new Error("Ingestion cancelled");
+    }
+    await owned.settle();
+    if (owned.collection && !data.corpus) {
+      data.corpus = await owned.collection.freeze();
     }
     await safeStep(() => owned.fail(data));
     return null;
@@ -293,6 +325,7 @@ export function createCatalogIngestionWorkflow(
       owned: CatalogAttempt,
       data: IngestionData,
       signal: AbortSignal,
+      inputData?: unknown,
     ) => unknown | Promise<unknown>,
   ) =>
     createStep({
@@ -302,7 +335,7 @@ export function createCatalogIngestionWorkflow(
       outputSchema: stepSchema,
       retries: 0,
       stateSchema: stepStateSchema,
-      execute: async ({ runId, state, setState, abortSignal }) => {
+      execute: async ({ runId, state, setState, abortSignal, inputData }) => {
         const owned = attempt(runId);
         const data = structuredClone(state.data);
         const output = await safePhase(
@@ -310,7 +343,7 @@ export function createCatalogIngestionWorkflow(
           data,
           async () => {
             try {
-              return await execute(owned, data, abortSignal);
+              return await execute(owned, data, abortSignal, inputData);
             } finally {
               // Capture requests even when a phase fails or is cancelled,
               // before failure finalization reads the source history.
@@ -363,222 +396,404 @@ export function createCatalogIngestionWorkflow(
       return data.context;
     },
   );
+  const roleOptions = (
+    owned: CatalogAttempt,
+    data: IngestionData,
+    signal: AbortSignal,
+  ): RoleOptions => ({
+    input: owned.input,
+    context: data.context!,
+    corpus: data.corpus!,
+    budget: owned.budget,
+    config: owned.config,
+    deps: owned.deps,
+    signal,
+    tracing: owned.trace?.tracing,
+  });
   const readInitial = phase(
     "read-initial-source",
-    "Read the initial known source within the run budget",
+    "Save and inspect the initial official source",
     async (owned, data, signal) => {
-      signal.throwIfAborted();
+      if (data.report) {
+        return null;
+      }
       owned.sources = createSourceSession(
         owned.budget,
         owned.config,
         data.context!.knownLinks,
         owned.deps,
         owned.trace?.log,
-        { sessionId: owned.trace?.tracing.options.metadata.sessionId },
       );
-      await owned.track(readInitialWithTrace(owned.sources, owned.trace));
-      signal.throwIfAborted();
-      return {
-        reads: owned.sources.reads.map(sourceReadMetadata),
-        discovery: owned.sources.discovery,
-      };
+      const assignment = buildAssignment(owned.input, data.context!);
+      owned.collection = createCollection({
+        runId: owned.ingestionRunId,
+        sources: owned.sources,
+        budget: owned.budget,
+        config: owned.config,
+        deps: owned.deps,
+        assignment: {
+          instructions: assignment.instructions,
+          requestedName: assignment.identityContext.requestedName,
+          currentDate: assignment.currentDate,
+        },
+        signal,
+        tracing: owned.trace?.tracing,
+      });
+      if (owned.sources.initialUrl) {
+        await owned.track(
+          owned.collection.inspectPage(owned.sources.initialUrl),
+        );
+      }
+      return { sources: owned.collection.sources };
     },
   );
   const research = phase(
-    "research-festival",
-    "Research the festival using bounded source tools",
+    "collect-sources",
+    "Navigate sources, finish collection and freeze evidence",
     async (owned, data, signal) => {
-      data.research = await owned.track(
-        researchFestival(
-          owned.input,
-          data.context!,
-          owned.sources!,
-          owned.budget,
-          owned.config,
-          owned.deps,
-          owned.trace?.tracing,
-          signal,
-          owned.capture,
-        ),
-      );
+      if (data.report || !owned.collection) {
+        return null;
+      }
+      try {
+        data.research = await owned.track(
+          collectResearch({
+            ...roleOptions(owned, data, signal),
+            collection: owned.collection,
+            sourceSession: owned.sources!,
+          }),
+        );
+      } finally {
+        data.corpus = await owned.collection.freeze();
+      }
+      data.errors.push(...data.research.errors, ...owned.collection.errors);
+      data.unresolved.push(...(data.research.output?.unresolved ?? []));
+      if (
+        owned.collection.fatal ||
+        data.research.status !== "success" ||
+        !data.corpus.evidence.length
+      ) {
+        data.outcome = "failed";
+      }
+      for (const source of data.corpus.sources) {
+        if (source.status !== "ok") {
+          data.errors.push({
+            code: sourceErrorCode(source),
+            stage: "source",
+            url: source.attemptedUrl,
+            message: `Source retrieval ${source.reasonCode ?? source.status}`,
+          });
+        }
+      }
+      const assignment = buildAssignment(owned.input, data.context!);
+      const checks = data.research.output?.checks ?? [];
+      if (
+        checks.some(
+          (check) =>
+            !assignment.checks.some(
+              (assigned) => assigned.key === check.check,
+            ) ||
+            check.evidenceIds.length ||
+            check.sourceIds.some(
+              (id) => !data.corpus!.sources.some((source) => source.id === id),
+            ),
+        )
+      ) {
+        data.errors.push({
+          code: "invalid_candidate",
+          stage: "validation",
+          message: "Collection check references are invalid",
+        });
+        data.outcome = "failed";
+      }
       return {
-        research: data.research,
-        reads: owned.sources!.reads.map(sourceReadMetadata),
-        discovery: owned.sources!.discovery,
+        collection: data.research,
+        sources: data.corpus.sources,
+        corpusVersion: data.corpus.version,
       };
     },
   );
-  const validate = phase(
-    "validate-research",
-    "Validate research, target, scope and country before editing",
-    (owned, data) => {
-      if (data.research.ok) {
-        data.researchValidation = validateResearch(
-          data.research.candidate,
-          data.context!.catalog,
-          owned.input,
-        );
-
-        const diagnostics = stageDiagnostics(data.researchValidation);
-        owned.trace?.tracing.setEventId(diagnostics.matchedEventId);
-        data.errors = diagnostics.errors;
-        data.unresolved = diagnostics.unresolved;
-        if (data.researchValidation.status !== "continue") {
-          data.outcome =
-            data.researchValidation.status === "skip" ? "skipped" : "failed";
-        }
-      } else {
-        data.errors = data.research.errors;
-        data.outcome = "failed";
-      }
-      return data.researchValidation;
-    },
-  );
-  const edit = phase(
-    "edit-research",
-    "Decide explicit field actions from research and saved state",
+  const general = phase(
+    "general-facts",
+    "Confirm identity and select Edition targets",
     async (owned, data, signal) => {
-      if (data.researchValidation?.status !== "continue") {
-        return data.editor;
+      if (data.report || data.outcome === "failed") {
+        return null;
       }
-
-      data.editor = await owned.track(
-        editResearch(
-          data.researchValidation.value.candidate,
-          owned.input,
-          data.context!,
-          owned.budget,
-          owned.config,
-          owned.deps,
-          owned.trace?.tracing,
-          signal,
-        ),
+      data.general = await owned.track(
+        runGeneral(roleOptions(owned, data, signal)),
       );
-      data.errors.push(...data.editor.errors);
-      if (data.editor.status !== "success") {
+      data.errors.push(...data.general.errors);
+      if (!data.general.output) {
         data.outcome = "failed";
+        return data.general;
       }
-      return data.editor;
+      data.researchValidation = validateGeneral(
+        data.general.output,
+        data.context!,
+        owned.input,
+        data.corpus!,
+      );
+      const diagnostics = stageDiagnostics(data.researchValidation);
+      data.errors.push(...diagnostics.errors);
+      data.unresolved.push(...diagnostics.unresolved);
+      if (data.researchValidation.status !== "continue") {
+        data.outcome =
+          data.researchValidation.status === "skip" ? "skipped" : "failed";
+      }
+      return { execution: data.general, targets: data.researchValidation };
     },
   );
-  const prepare = phase(
-    "validate-editor-plan",
-    "Validate editorial actions before Location",
-    (owned, data) => {
+  // Branch steps return their own records. They do not race to replace shared state.
+  const specialist = (
+    role: "tickets" | "classification" | "links" | "location",
+  ) =>
+    createStep({
+      id: role,
+      inputSchema: stepSchema,
+      outputSchema: stepSchema,
+      retries: 0,
+      stateSchema: stepStateSchema,
+      execute: async ({ runId, state, abortSignal }) => {
+        const owned = attempt(runId),
+          data = state.data;
+        const targets =
+          data.researchValidation?.status === "continue"
+            ? data.researchValidation.value
+            : null;
+        if (
+          !targets ||
+          data.report ||
+          data.outcome === "failed" ||
+          (role === "tickets" && !targets.currentOrNextEdition) ||
+          (role !== "links" &&
+            !targets.previousEdition &&
+            !targets.currentOrNextEdition)
+        ) {
+          return {
+            status: "not_run",
+            skipReason: "No assigned target",
+            modelResponse: null,
+            errors: [],
+            model: owned.config.model,
+            promptVersion: role,
+            durationMs: 0,
+          };
+        }
+        const options = roleOptions(owned, data, abortSignal);
+        try {
+          const work = () => {
+            if (role === "location") {
+              return resolveLocation(
+                buildLocationInput(
+                  targets,
+                  data.corpus!,
+                  data.context!,
+                  owned.input,
+                ),
+                owned.budget,
+                owned.config,
+                owned.deps,
+                owned.trace?.tracing,
+                abortSignal,
+              );
+            }
+            if (role === "tickets") {
+              return runTickets(options, targets);
+            }
+            if (role === "classification") {
+              return runClassification(options, targets);
+            }
+            return runLinks(options, targets);
+          };
+          return (await owned.track<unknown>(work())) as z.infer<
+            typeof stepSchema
+          >;
+        } catch {
+          return {
+            status: "failed",
+            modelResponse: null,
+            errors: [
+              {
+                code: "workflow_failed",
+                stage: "workflow",
+                message: `${role} branch failed`,
+              },
+            ],
+            model: owned.config.model,
+            promptVersion: role,
+            durationMs: 0,
+          };
+        }
+      },
+    });
+  const join = phase(
+    "assemble-proposals",
+    "Join independent results and validate fixed proposals",
+    (owned, data, _signal, inputData) => {
       if (
-        data.editor.status !== "success" ||
-        data.researchValidation?.status !== "continue"
+        data.researchValidation?.status !== "continue" ||
+        data.outcome === "failed" ||
+        data.report
       ) {
         return null;
       }
-
-      data.editorValidation = prepareEditorPlan(
-        data.editor.modelResponse?.object,
-        data.researchValidation.value,
-        data.context!.catalog,
-        owned.input,
-        data.context!.terms,
-      );
-      const diagnostics = stageDiagnostics(data.editorValidation);
+      const results = inputData as Record<string, RoleExecution>;
+      for (const role of ["tickets", "classification", "links"]) {
+        data.specialists[role] = results[role];
+      }
+      if (results.location.status !== "not_run") {
+        data.location =
+          results.location as unknown as IngestionData["location"];
+      }
+      for (const result of Object.values(results)) {
+        const output = result.output as
+          | {
+              checks?: import("./roles/contracts").CollectionOutput["checks"];
+              unresolved?: import("./research/contracts").ResearchQuestion[];
+            }
+          | undefined;
+        if (!output) {
+          continue;
+        }
+        data.unresolved.push(...(output.unresolved ?? []));
+        if (
+          output.checks?.some(
+            (check) =>
+              check.evidenceIds.some(
+                (id) => !data.corpus!.evidence.some((item) => item.id === id),
+              ) ||
+              check.sourceIds.some(
+                (id) =>
+                  !data.corpus!.sources.some((source) => source.id === id),
+              ),
+          )
+        ) {
+          data.errors.push({
+            code: "invalid_candidate",
+            stage: "validation",
+            message: "Specialist check references are invalid",
+          });
+          data.outcome = "failed";
+        }
+      }
+      data.unresolved.push(...(data.location.materialized?.unresolved ?? []));
+      const errors = Object.values(results).flatMap((result) => result.errors);
+      data.errors.push(...errors);
       if (
-        diagnostics.validationIssues?.some(
-          (issue) => issue.code === "invalid_plan",
+        data.outcome === "failed" ||
+        Object.values(results).some(
+          (result) =>
+            result.status === "failed" ||
+            (result.status as string) === "rejected",
         )
       ) {
-        data.editor.status = "failed";
+        data.outcome = "failed";
+        return results;
       }
-      data.errors = diagnostics.errors;
-      data.unresolved = diagnostics.unresolved;
-      if (data.editorValidation.status !== "continue") {
-        data.outcome =
-          data.editorValidation.status === "skip" ? "skipped" : "failed";
+      const targets = data.researchValidation.value;
+      data.prepared = assembleProposals({
+        targets,
+        tickets: (results.tickets.output as TicketsOutput) ?? null,
+        classification:
+          (results.classification.output as ClassificationOutput) ?? null,
+        links: results.links.output as LinksOutput,
+        location: data.location.materialized ?? {
+          support: {},
+          slots: {},
+          previousPoints: [],
+          unresolved: [],
+        },
+        points: data.location.points,
+        corpus: data.corpus!,
+        context: data.context!,
+        input: owned.input,
+      });
+      if (data.prepared.status !== "continue") {
+        data.outcome = "failed";
+        data.errors.push(...data.prepared.diagnostics.errors);
       }
+      return data.prepared;
+    },
+  );
+  const edit = phase(
+    "review-proposals",
+    "Approve or reject fixed proposal groups",
+    async (owned, data, signal) => {
+      if (data.prepared?.status !== "continue" || data.outcome === "failed") {
+        return null;
+      }
+      const execution = await owned.track(
+        runEditor(roleOptions(owned, data, signal), data.prepared.value),
+      );
+      data.specialists.editor = execution;
+      data.editor = {
+        status: execution.status,
+        modelResponse: execution.modelResponse,
+        errors: execution.errors,
+      };
+      data.errors.push(...execution.errors);
+      if (execution.status !== "success") {
+        logPreparation(
+          owned.trace?.log,
+          {
+            status: "reject",
+            diagnostics: { ...initialDiagnostics(), errors: execution.errors },
+          },
+          data.prepared.value.targets,
+        );
+        data.outcome = "failed";
+        return execution;
+      }
+      data.unresolved.push(
+        ...((
+          execution.output as {
+            unresolved?: import("./research/contracts").ResearchQuestion[];
+          }
+        ).unresolved ?? []),
+      );
+      data.editorValidation = applyReview(
+        data.prepared.value,
+        execution.output,
+      );
       logPreparation(
         owned.trace?.log,
         data.editorValidation,
-        data.researchValidation.value.candidate,
+        data.prepared.value.targets,
       );
+      if (data.editorValidation.status !== "continue") {
+        data.outcome = "failed";
+        data.errors.push(...data.editorValidation.diagnostics.errors);
+      }
       return data.editorValidation;
-    },
-  );
-  const location = phase(
-    "resolve-location",
-    "Prepare geocoding and resolve the complete accepted place block",
-    async (owned, data, signal) => {
-      if (data.editorValidation?.status !== "continue") {
-        return data.location;
-      }
-      const prepared = data.editorValidation.value;
-      const hasTargets =
-        prepared.editorPlan.previousEdition ||
-        prepared.editorPlan.currentOrNextEdition;
-      if (hasTargets) {
-        const locationInput = buildLocationInput(
-          prepared.editorPlan,
-          prepared.candidate.data,
-          data.context!,
-          owned.input,
-        );
-        data.location = await owned.track(
-          resolveLocation(
-            locationInput,
-            owned.budget,
-            owned.config,
-            owned.deps,
-            owned.trace?.tracing,
-            signal,
-          ),
-        );
-        data.errors.push(...data.location.errors);
-        if (data.location.status !== "success" || !data.location.materialized) {
-          data.outcome = "failed";
-          return data.location;
-        }
-      }
-      return data.location;
     },
   );
   const prepareOperations = phase(
     "prepare-catalog-plan",
-    "Prepare catalog operations from accepted Editor and Location results",
+    "Prepare operations from approved proposals",
     (owned, data) => {
-      if (data.editorValidation?.status !== "continue") {
-        return null;
-      }
-      const prepared = data.editorValidation.value;
-      const hasTargets =
-        prepared.editorPlan.previousEdition ||
-        prepared.editorPlan.currentOrNextEdition;
       if (
-        hasTargets &&
-        (data.location.status !== "success" || !data.location.materialized)
+        data.editorValidation?.status !== "continue" ||
+        data.outcome === "failed"
       ) {
         return null;
       }
-      const materialized = data.location.materialized ?? {
-        slots: {},
-        donors: [],
-        unresolved: [],
-      };
+      const accepted = data.editorValidation.value;
       data.catalogPreparation = prepareCatalogPlan(
-        prepared,
+        accepted,
         data.context!.catalog,
         owned.input,
         data.context!.terms,
-        materialized,
+        accepted.location,
       );
-      const diagnostics = stageDiagnostics(data.catalogPreparation);
-      data.errors = diagnostics.errors;
-      data.unresolved = diagnostics.unresolved;
-      if (data.catalogPreparation.status !== "continue") {
-        data.outcome =
-          data.catalogPreparation.status === "skip" ? "skipped" : "failed";
-      }
       logPreparation(
         owned.trace?.log,
         data.catalogPreparation,
-        prepared.candidate,
+        accepted.targets,
       );
+      if (data.catalogPreparation.status !== "continue") {
+        data.outcome = "failed";
+        data.errors.push(...data.catalogPreparation.diagnostics.errors);
+      }
       return data.catalogPreparation;
     },
   );
@@ -606,9 +821,11 @@ export function createCatalogIngestionWorkflow(
                 data.context!.catalog[0].editions,
               );
             }
-            assertLocationDonors(
+            assertLocationPreviousPoints(
               client,
-              data.location.materialized?.donors ?? [],
+              data.editorValidation?.status === "continue"
+                ? data.editorValidation.value.location.previousPoints
+                : [],
             );
           },
         });
@@ -770,10 +987,15 @@ export function createCatalogIngestionWorkflow(
     .then(loadContext)
     .then(readInitial)
     .then(research)
-    .then(validate)
+    .then(general)
+    .parallel([
+      specialist("tickets"),
+      specialist("classification"),
+      specialist("location"),
+      specialist("links"),
+    ])
+    .then(join)
     .then(edit)
-    .then(prepare)
-    .then(location)
     .then(prepareOperations)
     .then(apply)
     .then(buildReport)

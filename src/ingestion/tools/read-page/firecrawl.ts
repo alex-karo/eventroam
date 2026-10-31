@@ -49,6 +49,7 @@ export async function getFirecrawlResponse(
   options: {
     apiKey: string;
     maxBytes: number;
+    signal?: AbortSignal;
     timeoutMs: number;
     format?: "html" | "rawHtml";
     resolver?: LookupHost;
@@ -61,7 +62,10 @@ export async function getFirecrawlResponse(
     throw new FirecrawlError("timeout");
   }
   const format = options.format ?? "rawHtml";
-  const signal = AbortSignal.timeout(options.timeoutMs);
+  const signal = AbortSignal.any([
+    AbortSignal.timeout(options.timeoutMs),
+    ...(options.signal ? [options.signal] : []),
+  ]);
   try {
     await validateSourceUrl(target, options.resolver, signal);
     const response = await (options.request ?? fetch)(

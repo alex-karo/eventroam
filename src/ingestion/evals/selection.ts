@@ -18,7 +18,7 @@ export function caseGroup(item: EvalCase): EvalGroup {
   if (item.location) {
     return "regression/location";
   }
-  if (item.researchHandoff) {
+  if (item.roleHandoff) {
     return "regression/editor";
   }
   return item.suite === "main" ? "main/pipeline" : "regression/pipeline";
@@ -46,7 +46,7 @@ export function selectEvalCases(suite: EvalSuite, options: EvalSelection) {
       return false;
     }
     if (options.editorOnly) {
-      return !!item.researchHandoff;
+      return !!item.roleHandoff;
     }
     if (options.locationOnly) {
       return !!item.location;

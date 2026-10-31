@@ -1,62 +1,44 @@
-import { validateResearch } from "./research/validate";
 import { expect, test, vi } from "vitest";
 import { logPreparation } from "./workflow-logging";
-import { prepareEditorPlan } from "./editor/prepare";
-import type { CatalogResearchInput } from "./contracts";
+import { initialDiagnostics } from "./proposals";
+import type { Targets } from "./roles/contracts";
 
-const input: CatalogResearchInput = {
-  mode: "add",
-  name: "Example Fest",
-  actor: "catalog-research",
-};
-
-function checkedResearch() {
-  const result = validateResearch(
-    {
-      status: "success",
-      errors: [],
-      unresolved: [],
-      data: {
-        eventName: "Example Fest",
-        sources: [],
-        links: { socials: {} },
-        previousEdition: { key: "2026", links: {} },
-        currentOrNextEdition: null,
-      },
+function targets(): Targets {
+  return {
+    decision: "targets",
+    eventId: null,
+    observedEventName: "Example Fest",
+    reason: "Inspected identity",
+    evidenceIds: ["s1-e1"],
+    event: {},
+    previousEdition: {
+      editionKey: "2026",
+      reason: "Completed Edition",
+      evidenceIds: ["s1-e1"],
+      fields: {},
     },
-    [],
-    input,
-  );
-  if (result.status !== "continue") {
-    throw new Error("Expected valid research");
-  }
-  return result.value;
+    currentOrNextEdition: null,
+    checks: [],
+    unresolved: [],
+  };
 }
 
 const knownContext = {
   stage: "validation",
-  status: "success",
+  status: "targets",
   eventName: "Example Fest",
   editions: [{ role: "previousEdition", editionKey: "2026", year: null }],
   operationCount: 0,
 };
 
 test("a valid creation skip logs at info level with its research context", () => {
-  const checked = checkedResearch();
-  const result = prepareEditorPlan(
-    {
-      status: "ready",
-      event: null,
-      previousEdition: null,
-      currentOrNextEdition: null,
+  const result = {
+    status: "skip" as const,
+    diagnostics: {
+      ...initialDiagnostics(),
       unresolved: [{ field: "identity", message: "Identity is not confirmed" }],
     },
-    checked,
-    [],
-    input,
-    [],
-  );
-  expect(result.status).toBe("skip");
+  };
   const log = {
     info: vi.fn(),
     warn: vi.fn(),
@@ -64,7 +46,7 @@ test("a valid creation skip logs at info level with its research context", () =>
     debug: vi.fn(),
     child: vi.fn(),
   };
-  logPreparation(log, result, checked.candidate);
+  logPreparation(log, result, targets());
   expect(log.warn).not.toHaveBeenCalled();
   expect(log.info).toHaveBeenCalledExactlyOnceWith(
     "Editorial plan skipped",
@@ -76,9 +58,19 @@ test("a valid creation skip logs at info level with its research context", () =>
 });
 
 test("a rejected editor plan keeps successful research context in its warning", () => {
-  const checked = checkedResearch();
-  const result = prepareEditorPlan({}, checked, [], input, []);
-  expect(result.status).toBe("reject");
+  const result = {
+    status: "reject" as const,
+    diagnostics: {
+      ...initialDiagnostics(),
+      errors: [
+        {
+          code: "invalid_plan" as const,
+          stage: "validation" as const,
+          message: "Invalid decision keys",
+        },
+      ],
+    },
+  };
   const log = {
     info: vi.fn(),
     warn: vi.fn(),
@@ -86,7 +78,7 @@ test("a rejected editor plan keeps successful research context in its warning", 
     debug: vi.fn(),
     child: vi.fn(),
   };
-  logPreparation(log, result, checked.candidate);
+  logPreparation(log, result, targets());
   expect(log.info).not.toHaveBeenCalled();
   expect(log.warn).toHaveBeenCalledExactlyOnceWith(
     "Editorial plan rejected",

@@ -32,6 +32,7 @@ export function createSourceSession(
   const read = async (
     url: string,
     operation: SourceLogContext & { tool?: boolean } = {},
+    signal?: AbortSignal,
   ) => {
     const started = Date.now();
     const context = { stage: "source", ...operation };
@@ -86,6 +87,7 @@ export function createSourceSession(
     const request = (async () => {
       const result = await (deps.readPage ?? readPage)(key, {
         budget,
+        signal,
         log: operationLog,
       });
       reads.push(result);

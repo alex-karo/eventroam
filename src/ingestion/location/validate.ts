@@ -27,11 +27,23 @@ const materializedSlotSchema = locationFieldsSchema.extend({
   coordinates: coordinatesActionSchema,
 });
 export const materializedLocationSchema = z.strictObject({
+  support: z
+    .strictObject({
+      previousEdition: z.array(z.string()).optional(),
+      currentOrNextEdition: z.array(z.string()).optional(),
+    })
+    .default({}),
   slots: z.strictObject({
     previousEdition: materializedSlotSchema.optional(),
     currentOrNextEdition: materializedSlotSchema.optional(),
   }),
-  donors: z.array(registeredPointSchema),
+  previousPoints: z.array(registeredPointSchema),
+  reusedFrom: z
+    .strictObject({
+      previousEdition: registeredPointSchema.optional(),
+      currentOrNextEdition: registeredPointSchema.optional(),
+    })
+    .optional(),
   unresolved: z.array(
     z.strictObject({
       message: z.string(),
@@ -43,6 +55,11 @@ export const materializedLocationSchema = z.strictObject({
 export type MaterializedLocation = z.infer<typeof materializedLocationSchema>;
 type PointContext = Pick<GeocodingSession, "points" | "targets">;
 export class LocationValidationError extends Error {}
+export class LocationCountryConflictError extends LocationValidationError {
+  constructor(readonly editionKey: string) {
+    super("Location country conflicts with saved country");
+  }
+}
 function validateText(
   plan: LocationSlot,
   target: LocationTarget,
@@ -64,9 +81,7 @@ function validateText(
     action.action !== "keep" &&
     country !== input.countryBaseline
   ) {
-    throw new LocationValidationError(
-      "Location country conflicts with saved country",
-    );
+    throw new LocationCountryConflictError(target.editionKey);
   }
   for (const field of locationTextFields) {
     if (plan.fields[field].action === "clear" && !target.saved?.[field]) {
@@ -83,8 +98,10 @@ function validateSelection(
 ) {
   const rank = precisionSchema.options.indexOf(precision);
   const oldRank = precisionSchema.options.indexOf(point.precision);
-  if (point.kind === "donor") {
-    throw new LocationValidationError("Historical points require inherit");
+  if (point.kind === "previousPoint") {
+    throw new LocationValidationError(
+      "Historical points require reusePrevious",
+    );
   }
   if (point.kind === "target" && (point.id !== targetId || rank <= oldRank)) {
     throw new LocationValidationError(
@@ -115,7 +132,7 @@ function materializePoint(
   slot: (typeof editionSlotNames)[number],
   country: string | null,
   session: PointContext,
-  donors: RegisteredPoint[],
+  previousPoints: RegisteredPoint[],
 ): CoordinatesAction {
   const coords = plan.coordinates;
   if (coords.action === "keep" || coords.action === "clear") {
@@ -126,8 +143,11 @@ function materializePoint(
     }
     return coords;
   }
-  const id = coords.action === "inherit" ? coords.donorPointId : coords.pointId;
-  const point = session.points.get(id);
+  const id =
+    coords.action === "reusePrevious"
+      ? session.targets[slot]?.previousPointId
+      : coords.pointId;
+  const point = id ? session.points.get(id) : undefined;
   if (!point) {
     throw new LocationValidationError("Unknown Location point");
   }
@@ -135,11 +155,14 @@ function materializePoint(
     throw new LocationValidationError("Point country conflicts with target");
   }
   let precision = point.precision;
-  if (coords.action === "inherit") {
-    if (point.kind !== "donor" || session.targets[slot]?.donorId !== id) {
-      throw new LocationValidationError("Invalid historical donor");
+  if (coords.action === "reusePrevious") {
+    if (
+      point.kind !== "previousPoint" ||
+      session.targets[slot]?.previousPointId !== id
+    ) {
+      throw new LocationValidationError("Invalid historical previousPoint");
     }
-    donors.push(point);
+    previousPoints.push(point);
   } else {
     precision = coords.precision;
     validateSelection(
@@ -166,8 +189,9 @@ export function validateLocation(
     throw new LocationValidationError("Location rejected the item");
   }
   const result: MaterializedLocation = {
+    support: {},
     slots: {},
-    donors: [],
+    previousPoints: [],
     unresolved: [],
   };
   for (const slot of editionSlotNames) {
@@ -182,15 +206,41 @@ export function validateLocation(
       );
     }
     const country = validateText(plan, target, input);
+    const ids = new Set(
+      input.evidence.flatMap((item) =>
+        item &&
+        typeof item === "object" &&
+        !Array.isArray(item) &&
+        typeof item.id === "string"
+          ? [item.id]
+          : [],
+      ),
+    );
+    if (
+      plan.evidenceIds.some((id) => !ids.has(id)) ||
+      (locationTextFields.some(
+        (field) => plan.fields[field].action !== "keep",
+      ) &&
+        !plan.evidenceIds.length)
+    ) {
+      throw new LocationValidationError(
+        "Location changes need applicable supplied evidence references",
+      );
+    }
+    result.support[slot] = plan.evidenceIds;
     const coordinates = materializePoint(
       plan,
       target,
       slot,
       country,
       session,
-      result.donors,
+      result.previousPoints,
     );
     result.slots[slot] = { ...plan.fields, coordinates };
+    if (plan.coordinates.action === "reusePrevious") {
+      result.reusedFrom ??= {};
+      result.reusedFrom[slot] = result.previousPoints.at(-1)!;
+    }
     result.unresolved.push(
       ...plan.unresolved.map(({ field, message }) => ({
         editionKey: target.editionKey,

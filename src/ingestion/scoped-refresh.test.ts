@@ -99,7 +99,9 @@ test.each(["full", "current"] as const)(
       },
     );
     expect(result.researchStatus).toBe("success");
-    expect(result.modelResponse!.object).toEqual(f.proposal);
+    expect(result.modelResponse!.object).toMatchObject({
+      observedEventName: f.proposal.data!.eventName.trim(),
+    });
     expect(result.scope).toBe(scope);
     expect(result.currentDate).toBe("2026-10-11T12:00:00.000Z");
     expect(result).not.toHaveProperty("refresh");
@@ -144,6 +146,10 @@ test.each([
         links: { tickets: "https://tickets.fixture.example/" },
       },
     });
+    if (editionKey === "source-row") {
+      f.proposal.data!.previousEdition = f.proposal.data!.currentOrNextEdition;
+      f.proposal.data!.currentOrNextEdition = null;
+    }
     const result = await runCatalogResearch(f.input, {
       ...f.deps,
       generateEditor,
@@ -158,9 +164,18 @@ test.each([
       changes: [],
       operations: [],
       receipts: [],
-      modelResponse: { object: f.proposal },
+      modelResponse: {
+        object: expect.objectContaining({
+          observedEventName: f.proposal.data!.eventName.trim(),
+        }),
+      },
     });
-    expect(result.sourceSummaries).toEqual(f.proposal.data!.sources);
+    expect(result.sourceSummaries).toEqual(
+      f.proposal.data!.sources.map((source) => ({
+        url: source.url,
+        information: "Explicit fixture source",
+      })),
+    );
     expect(result.errors).toContainEqual(
       expect.objectContaining({
         code: "country_conflict",
@@ -286,8 +301,8 @@ test("current updates the returned Edition only; full permits a historical Editi
         ...f.proposal,
         data: {
           ...f.proposal.data!,
-          previousEdition: null,
-          currentOrNextEdition: {
+          currentOrNextEdition: null,
+          previousEdition: {
             key: "source-row",
             year: { value: 2026, reason },
             venueName: { value: "Historic venue", reason },
@@ -356,7 +371,7 @@ test("CLI and Studio current previews reject Event website findings equivalently
     );
     expect(report.outcome).toBe("failed");
     expect(report.errors).toContainEqual(
-      expect.objectContaining({ code: "invalid_candidate" }),
+      expect.objectContaining({ code: "invalid_plan" }),
     );
     expect(report.operations).toEqual([]);
   }
@@ -385,7 +400,7 @@ test("current rejects a previous Edition before operations", async () => {
     { ...f.input, scope: "current" },
     { ...f.deps, generateCandidate: async () => f.proposal },
   );
-  expect(result.errors[0].code).toBe("invalid_candidate");
+  expect(result.errors[0].code).toBe("invalid_plan");
   expect(result.operations).toEqual([]);
   noWrites(f.client);
 });
@@ -417,7 +432,7 @@ test("full creates both selected Editions with more than twenty saved Editions",
     result.operations.filter((op) => op.kind === "createEdition"),
   ).toHaveLength(2);
 });
-test("current retains all saved context without imposing a full-history limit or temporal host gate", async () => {
+test("current retains all saved context and rejects a completed target", async () => {
   const f = fixture();
   for (let n = 0; n < 20; n++) {
     f.fx.edition(f.event, { editionKey: `saved-${n}`, countryCode: "IE" });
@@ -434,7 +449,8 @@ test("current retains all saved context without imposing a full-history limit or
     { ...f.input, scope: "current" },
     { ...f.deps, generateCandidate: async () => f.proposal },
   );
-  expect(result.outcome).toBe("updated");
+  expect(result.outcome).toBe("failed");
+  noWrites(f.client);
   expect(result.workload.savedEditions).toBe(21);
   expect(result.workload.returnedEditions).toBe(1);
   expect(result).not.toHaveProperty("refresh");
@@ -473,9 +489,18 @@ test.each(["success", "partial"] as const)(
       outcome: "unchanged",
       operations: [],
       changes: [],
-      modelResponse: { object: f.proposal },
+      modelResponse: {
+        object: expect.objectContaining({
+          observedEventName: f.proposal.data!.eventName.trim(),
+        }),
+      },
     });
-    expect(result.sourceSummaries).toEqual(f.proposal.data!.sources);
+    expect(result.sourceSummaries).toEqual(
+      f.proposal.data!.sources.map((source) => ({
+        url: source.url,
+        information: "Explicit fixture source",
+      })),
+    );
     expect(result.unresolved).toEqual(f.proposal.unresolved);
     expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
     noWrites(f.client);
@@ -513,7 +538,7 @@ test("current identity contradiction stops before editing and preserves the cata
     editorStatus: "not_run",
     operations: [],
     changes: [],
-    modelResponse: { object: candidate },
+    modelResponse: null,
   });
   expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
   noWrites(f.client);
@@ -571,6 +596,8 @@ test.each([true, false])(
       before.editions[0],
     );
     expect(saved.summary).toBe("Saved");
-    expect(result.modelResponse!.object).toEqual(f.proposal);
+    expect(result.modelResponse!.object).toMatchObject({
+      observedEventName: f.proposal.data!.eventName.trim(),
+    });
   },
 );

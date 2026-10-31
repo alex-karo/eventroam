@@ -8,11 +8,11 @@ import { preparationDiagnostics, readyCatalogPlan } from "./pipeline";
 import { createResearchBudget, type ResearchBudget } from "./runtime/budget";
 import { loadResearchConfig, type ResearchConfig } from "./runtime/config";
 import { createCatalogRunTrace, type CatalogRunTrace } from "./runtime/tracing";
-import { RESEARCH_PROMPT_VERSION } from "./research/contracts";
+import { PROMPT_VERSIONS } from "./roles/versions";
 import { logCompletion, reportEventId } from "./workflow-logging";
 import { RunPersistenceError } from "./runs";
 import type { SourceSession } from "./tools/session";
-import { createToolOutputCapture } from "./tool-output-capture";
+import type { Collection } from "./evidence/collection";
 import {
   buildResearchReport,
   buildWorkflowFailureReport,
@@ -32,12 +32,12 @@ export class CatalogAttempt {
   readonly budget: ResearchBudget;
   readonly started = Date.now();
   readonly ingestionRunId: string;
-  readonly capture;
+  collection: Collection | null = null;
   trace?: CatalogRunTrace;
   sources: SourceSession | null = null;
   finalization?: Promise<CatalogResearchResult>;
   private cleanupPromise?: Promise<void>;
-  private active: Promise<unknown> | undefined;
+  private active = new Set<Promise<unknown>>();
 
   constructor(
     readonly engineRunId: string,
@@ -49,7 +49,7 @@ export class CatalogAttempt {
       deps.client,
       requested,
       deps.config ??
-        (deps.generateCandidate
+        (deps.generateRole
           ? {
               apiKey: "fixture",
               model: "fixture",
@@ -69,9 +69,6 @@ export class CatalogAttempt {
       this.started,
       this.input.mode === "add" ? null : this.input.eventId!,
     );
-    this.capture = deps.generateCandidate
-      ? undefined
-      : createToolOutputCapture(this.ingestionRunId);
   }
 
   async initialize() {
@@ -97,7 +94,7 @@ export class CatalogAttempt {
       eventId: this.input.eventId,
       eventName: this.input.name,
       model: this.config.model,
-      promptVersion: RESEARCH_PROMPT_VERSION,
+      promptVersion: PROMPT_VERSIONS.research,
     });
   }
 
@@ -115,6 +112,9 @@ export class CatalogAttempt {
       context: data.context,
       limits: this.budget.limits,
       research: data.research,
+      general: data.general,
+      specialists: data.specialists,
+      corpus: data.corpus,
       editor: data.editor,
       location: data.location,
       applied: data.applied,
@@ -128,19 +128,17 @@ export class CatalogAttempt {
   }
 
   track<T>(work: Promise<T>): Promise<T> {
-    this.active = work;
+    this.active.add(work);
     void work
       .finally(() => {
-        if (this.active === work) {
-          this.active = undefined;
-        }
+        this.active.delete(work);
       })
       .catch(() => {});
     return work;
   }
 
   async settle() {
-    await this.active?.catch(() => {});
+    await Promise.allSettled([...this.active]);
   }
 
   fail(data: IngestionData, cancelled = false) {
@@ -166,6 +164,9 @@ export class CatalogAttempt {
   /** All engine failure paths use the same settlement and terminal persistence. */
   async finalizeFailure(data: IngestionData, cancelled = false) {
     await this.settle();
+    if (this.collection && !data.corpus) {
+      data.corpus = await this.collection.freeze();
+    }
     try {
       this.fail(data, cancelled);
     } catch {

@@ -1,13 +1,13 @@
-import type { MaterializedLocation } from "../location/validate";
+import type { MaterializedLocation } from "@/ingestion/location/validate";
 import {
   editorPlanSchema,
   eventFieldsSchema,
   editionFieldsSchema,
   type ResolvedEditorPlan,
   type EditorPlan as RawEditorPlan,
-} from "./contracts";
+} from "@/test/ingestion-fixtures/editor-contracts";
 import type { z } from "zod";
-import { normalizeEditorWire } from "./wire";
+import { normalizeEditorWire } from "@/test/ingestion-fixtures/editor-wire";
 import {
   isEditionPublishable,
   TermAssignmentCountError,
@@ -20,16 +20,19 @@ import type {
   CatalogOperationMeta,
   CatalogPrice,
 } from "@/catalog/operations/operation";
-import type { ResearchCatalog } from "../research/context";
-import type { CatalogResearchInput } from "../contracts";
-import { editionSlotNames, type ResearchData } from "../research/contracts";
-import type { CheckedResearch } from "../research/validate";
+import type { ResearchCatalog } from "@/ingestion/research/context";
+import type { CatalogResearchInput } from "@/ingestion/contracts";
+import {
+  editionSlotNames,
+  type ResearchData,
+} from "@/ingestion/research/contracts";
+import type { CheckedResearch } from "@/test/ingestion-fixtures/research-validate";
 import {
   diagnosticsOnly,
   type PlanDiagnostics,
   type StageResult,
-} from "../stage";
-import { majorToMinor } from "../research/money";
+} from "@/ingestion/stage";
+import { majorToMinor } from "@/ingestion/research/money";
 
 type CombinedEditionPlan = NonNullable<
   ResolvedEditorPlan["currentOrNextEdition"]

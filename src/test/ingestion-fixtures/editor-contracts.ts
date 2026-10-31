@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   editionFindingSchema,
   researchQuestionSchema,
-} from "../research/contracts";
+} from "@/ingestion/research/contracts";
 
 export const EDITOR_PROMPT_VERSION = "catalog-editor-v20";
 const reason = z

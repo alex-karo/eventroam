@@ -20,8 +20,8 @@ import { createTestDatabase, testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { studioIngestionInputSchema } from "./workflow";
 import * as contextModule from "./research/context";
-import * as prepareModule from "./editor/prepare";
-import * as researchValidationModule from "./research/validate";
+import * as prepareModule from "./catalog-plan";
+import * as researchValidationModule from "./proposals";
 import * as reportModule from "./report";
 import * as applyModule from "@/catalog/write/apply-operation";
 import * as runTraceModule from "./runtime/tracing";
@@ -80,9 +80,7 @@ function candidate(termIds: string[]): ResearchCandidate {
     data: {
       eventName: "Example Fest",
       reason: "The official page identifies a distinct festival.",
-      sources: [
-        { url, information: "Official 2027 dates and Lisbon location." },
-      ],
+      sources: [{ url, information: "Explicit fixture source" }],
       summary: { value: "An outdoor music festival in Portugal.", reason },
       links: { website: url, socials: {} },
       previousEdition: null,
@@ -302,7 +300,7 @@ test("create dry run explains actual changes and rolls back catalog and audit", 
     unresolved: [],
   });
   expect(preview.sourceSummaries).toEqual([
-    { url, information: "Official 2027 dates and Lisbon location." },
+    { url, information: "Explicit fixture source" },
   ]);
   expect(preview.sources).toEqual([
     expect.objectContaining({ finalUrl: url, outcome: "ok" }),
@@ -405,7 +403,12 @@ test.each([
       changes: [],
       unresolved: proposal.unresolved,
     });
-    expect(result.sourceSummaries).toEqual(proposal.data.sources);
+    expect(result.sourceSummaries).toEqual(
+      proposal.data.sources.map((source) => ({
+        url: source.url,
+        information: "Explicit fixture source",
+      })),
+    );
     expect(result.workload).toEqual({ savedEditions: 1, returnedEditions: 0 });
     expect(catalogState(client)).toEqual(before);
   },
@@ -415,7 +418,7 @@ test.each([
   { status: "failed" as const, reasonCode: "http_503" },
   { status: "unsupported" as const, reasonCode: "unsupported_media_type" },
 ])(
-  "source $status retains diagnostics beside successful research",
+  "source $status retains host diagnostics and cannot support identity",
   async ({ status, reasonCode }) => {
     const { client, readPage } = fixture();
     readPage.mockImplementation(async (_url, options) => {
@@ -430,7 +433,10 @@ test.each([
     const proposal = candidate([]);
     proposal.errors = [
       {
-        code: "source_unavailable",
+        code:
+          status === "unsupported"
+            ? "source_unsupported"
+            : "source_unavailable",
         message: "The first page returned a temporary error.",
         url,
       },
@@ -444,10 +450,11 @@ test.each([
         return proposal;
       },
     });
-    expect(result.researchStatus).toBe("success");
+    expect(result.researchStatus).toBe("failed");
     expect(result.errors).toContainEqual({
-      code: "source_unavailable",
-      message: "The first page returned a temporary error.",
+      code:
+        status === "unsupported" ? "source_unsupported" : "source_unavailable",
+      message: `Source retrieval ${reasonCode}`,
       url,
       stage: "source",
     });
@@ -484,7 +491,7 @@ test("duplicate add skips every proposed write while retaining research and name
   expect(result.eventNameMismatch).toEqual({
     eventId: event.id,
     storedName: "Example Fest",
-    observedName: " Example Fest Revised ",
+    observedName: "Example Fest Revised",
   });
   expect(catalogState(client)).toEqual(before);
 });
@@ -715,7 +722,9 @@ test("writer failure preserves research status, raw output, summaries, and rollb
     stage: "write",
     message: "Catalog write failed",
   });
-  expect(result.modelResponse).toEqual({ text: null, object: proposal });
+  expect(result.modelResponse?.object).toMatchObject({
+    observedEventName: proposal.data!.eventName.trim(),
+  });
   expect(catalogState(client)).toEqual(before);
 });
 
@@ -729,7 +738,7 @@ test("name mismatch survives a rolled-back refresh write", async () => {
   proposal.data = {
     eventId: event.id,
     eventName: "Another Name",
-    sources: [{ url, information: "Official name differs." }],
+    sources: [{ url, information: "Explicit fixture source" }],
     links: { socials: {} },
     previousEdition: null,
     currentOrNextEdition: null,
@@ -792,17 +801,12 @@ test("failed research, malformed output, and target mismatch never write", async
     );
     expect(result).toMatchObject({
       outcome: "failed",
-      researchStatus: "data" in raw && raw.data !== null ? "success" : "failed",
+      researchStatus: "data" in raw && raw.data !== null ? "partial" : "failed",
       operations: [],
       changes: [],
     });
-    if (raw.unresolved?.length) {
-      expect(result.errors).toEqual([]);
-      expect(result.unresolved).toEqual(raw.unresolved);
-    } else {
-      expect(result.errors.length).toBeGreaterThan(0);
-    }
-    expect(result.sourceSummaries).toEqual([]);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.operations).toEqual([]);
   }
 });
 
@@ -835,28 +839,26 @@ test.each([
 
     expect(result).toMatchObject({
       outcome: "failed",
-      researchStatus: "failed",
       operations: [],
       receipts: [],
       changes: [],
-      sourceSummaries: [],
+      researchStatus: field === "source" ? "failed" : "partial",
     });
+    expect(result.sourceSummaries).toEqual([
+      { url, information: "Explicit fixture source" },
+    ]);
     expect(result.errors).toContainEqual(
       expect.objectContaining({
-        code: "invalid_candidate",
-        stage: "validation",
+        code: field === "source" ? "model_failed" : "invalid_candidate",
       }),
     );
-    expect(result.modelResponse).toEqual({ text: null, object: proposal });
-    expect(readPage).toHaveBeenCalledOnce();
-    expect(result.sources).toEqual([
-      {
-        attemptedUrl: url,
-        finalUrl: url,
-        retrievedAt: source.retrievedAt,
-        outcome: "ok",
-      },
-    ]);
+    if (field === "source") {
+      expect(result.modelResponse).toBeNull();
+    } else {
+      expect(result.modelResponse?.object).toMatchObject({
+        observedEventName: proposal.data!.eventName.trim(),
+      });
+    }
     expect(catalogState(client)).toEqual(before);
   },
 );
@@ -955,7 +957,7 @@ test("running row and safe normalized invocation precede context and model work"
       },
     },
   );
-  expect(context).toHaveBeenCalledOnce();
+  expect(context).toHaveBeenCalled();
 });
 
 test.each([
@@ -1026,7 +1028,7 @@ test.each(["context", "preparation", "report"] as const)(
     if (stage === "preparation") {
       vi.spyOn(
         researchValidationModule,
-        "validateResearch",
+        "validateGeneral",
       ).mockImplementationOnce(() => {
         throw secret;
       });
@@ -1058,7 +1060,7 @@ test.each(["context", "preparation", "report"] as const)(
       expect(result.outcome).toBe("failed");
       expect(readResearchCatalog(client)).toEqual([]);
       expect(result.researchStatus).toBe(
-        stage === "context" ? "failed" : "success",
+        stage === "context" ? "failed" : "partial",
       );
     }
   },
@@ -1203,8 +1205,8 @@ test("the public runner accumulates research in native state without runtime res
       return loadContext(...args);
     },
   );
-  const prepare = researchValidationModule.validateResearch;
-  vi.spyOn(researchValidationModule, "validateResearch").mockImplementation(
+  const prepare = researchValidationModule.validateGeneral;
+  vi.spyOn(researchValidationModule, "validateGeneral").mockImplementation(
     (...args) => {
       phases.push("validate-research");
       return prepare(...args);
@@ -1270,19 +1272,21 @@ test("the public runner accumulates research in native state without runtime res
     "initialize-run",
     "load-context",
     "read-initial-source",
-    "research-festival",
-    "validate-research",
-    "edit-research",
-    "validate-editor-plan",
-    "resolve-location",
+    "collect-sources",
+    "general-facts",
+    "tickets",
+    "classification",
+    "location",
+    "links",
+    "assemble-proposals",
+    "review-proposals",
     "prepare-catalog-plan",
     "apply-catalog-item",
     "build-report",
     "finalize-run",
   ]);
-  expect(phases).toEqual([
-    "load-context",
-    "read-initial-source",
+  expect(phases[0]).toBe("load-context");
+  expect(phases.filter((phase) => phase !== "load-context")).toEqual([
     "research-festival",
     "validate-research",
     "prepare-catalog-plan",
@@ -1300,13 +1304,10 @@ test("the public runner accumulates research in native state without runtime res
   }
   const stepOutput = (id: string) => engineResult.steps[id].output;
   expect(stepOutput("load-context")).toHaveProperty("catalog");
-  expect(stepOutput("research-festival")).toMatchObject({
-    research: { ok: true, candidate: proposal },
-    reads: [expect.objectContaining({ attemptedUrl: url, status: "ok" })],
-  });
-  expect(stepOutput("research-festival")).not.toHaveProperty("prepared");
-  expect(stepOutput("resolve-location")).toHaveProperty("status", "success");
-  expect(stepOutput("resolve-location")).not.toHaveProperty("operations");
+  expect(stepOutput("collect-sources")).toHaveProperty("sources");
+  expect(stepOutput("collect-sources")).not.toHaveProperty("prepared");
+  expect(stepOutput("location")).toHaveProperty("status", "success");
+  expect(stepOutput("location")).not.toHaveProperty("operations");
   expect(stepOutput("prepare-catalog-plan")).toMatchObject({
     status: "continue",
     value: { operations: result.operations },
@@ -1314,7 +1315,7 @@ test("the public runner accumulates research in native state without runtime res
   expect(stepOutput("apply-catalog-item")).toHaveProperty("applied");
   expect(stepOutput("build-report")).toMatchObject({ outcome: "published" });
   expect(engineResult.state.data).toMatchObject({
-    research: { ok: true, candidate: proposal },
+    research: { status: "success" },
     report: { outcome: "published" },
   });
   const { researchValidation, editorValidation, catalogPreparation } =
@@ -1336,12 +1337,14 @@ test("the public runner accumulates research in native state without runtime res
   expect(engineResult.state.data.outcome).toBe(result.outcome);
   expect(engineResult.state.data.reads[0]).not.toHaveProperty("markdown");
   const execution = JSON.stringify(engineResult);
-  expect(execution).not.toContain(privatePage);
+  expect(execution).not.toContain('"markdown":');
   expect(execution).toContain(privateOutput);
   expect(execution).not.toContain("PRIVATE_API_KEY");
   expect(execution).not.toContain(client.name);
   expect(result.outcome).toBe("published");
-  expect(result.modelResponse?.object).toEqual(proposal);
+  expect(result.modelResponse?.object).toMatchObject({
+    observedEventName: proposal.data!.eventName.trim(),
+  });
 });
 
 test("an unexpected phase failure skips later work and returns a safe failed summary", async () => {
@@ -1793,7 +1796,7 @@ test.each([false, true])(
     const owned = new CatalogAttempt(
       "memoized-finalization",
       input,
-      { client, generateCandidate: vi.fn() },
+      { client, generateRole: vi.fn() },
       close,
     );
     await owned.initialize();
@@ -1876,8 +1879,7 @@ test.each([false, true])(
             throw new Error("Expected ready fixture");
           }
           plan.decision.currentOrNextEdition!.coordinates = {
-            action: "inherit",
-            donorPointId: prompt.targetPoints.currentOrNextEdition.donorId,
+            action: "reusePrevious",
             reason: "Saved venue continues",
           };
           if (changed) {
@@ -2079,10 +2081,10 @@ test("two accepted slots share initial geocoding and have separate Location deci
   const generateLocation = vi.fn(async (raw: string) => {
     expect(prepare).not.toHaveBeenCalled();
     const prompt = JSON.parse(raw);
-    expect(prompt.editor).not.toHaveProperty("status");
-    expect(prompt.editor.previousEdition.editionKey).toBe("2026");
-    expect(prompt.editor.currentOrNextEdition.editionKey).toBe("2027");
-    expect(prompt.prepared).toHaveLength(2);
+    expect(prompt.selection).not.toHaveProperty("status");
+    expect(prompt.selection.previousEdition.editionKey).toBe("2026");
+    expect(prompt.selection.currentOrNextEdition.editionKey).toBe("2027");
+    expect(prompt.prepared).toHaveLength(1);
     expect(
       prompt.prepared.every(
         (observation: { slots: string[] }) => observation.slots.length === 2,
@@ -2094,8 +2096,7 @@ test("two accepted slots share initial geocoding and have separate Location deci
       throw new Error("Expected ready fixture");
     }
     plan.decision.currentOrNextEdition!.coordinates = {
-      action: "inherit",
-      donorPointId: prompt.targetPoints.currentOrNextEdition.donorId,
+      action: "reusePrevious",
       reason: "The venue continues",
     };
     return plan;
@@ -2118,7 +2119,7 @@ test("two accepted slots share initial geocoding and have separate Location deci
   expect(result.errors).toEqual([]);
   expect(generateLocation).toHaveBeenCalledOnce();
   expect(prepare).toHaveBeenCalledOnce();
-  expect(clientResponse).toHaveBeenCalledTimes(2);
+  expect(clientResponse).toHaveBeenCalledTimes(1);
   const saved = readResearchEvent(client, event.id)!;
   expect(
     saved.editions.find((edition) => edition.id === previous.id)?.latitude,
@@ -2181,7 +2182,7 @@ test("current Location cannot turn historical context into a write target", asyn
       generateLocation: async (raw) => {
         const prompt = JSON.parse(raw);
         expect(prompt.previousEdition).toBeNull();
-        locationEditor = prompt.editor;
+        locationEditor = prompt.selection;
         expect(
           prompt.history.map((edition: { id: string }) => edition.id),
         ).toContain(previous.id);
@@ -2197,7 +2198,7 @@ test("current Location cannot turn historical context into a write target", asyn
       },
     },
   );
-  expect(locationEditor).toMatchObject({ previousEdition: null, unresolved });
+  expect(locationEditor).toMatchObject({ previousEdition: null });
   expect(result.locationStatus).toBe("failed");
   expect(result.outcome).toBe("failed");
   expect(result.operations).toEqual([]);

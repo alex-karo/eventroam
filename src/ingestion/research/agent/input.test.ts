@@ -1,14 +1,13 @@
 import { expect, test } from "vitest";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { ToolOutputCapture } from "../../tool-output-capture";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { createResearchBudget } from "../../runtime/budget";
 import type { ReadPageResult } from "../../tools/read-page/contracts";
-import { modelContext, promptFor } from "./input";
+import {
+  modelContext,
+  promptFor,
+} from "@/test/ingestion-fixtures/research-input";
 import { createSourceSession } from "../../tools/session";
 import { createResearchTools } from "../../tools";
 import { vi } from "vitest";
@@ -25,40 +24,6 @@ const source: ReadPageResult = {
   markdown: "Example Fest 2027.\n\nTicket information follows.",
   httpStatus: 200,
 };
-
-test("captured initial source is the same bounded projection as the prompt", () => {
-  const root = mkdtempSync(join(tmpdir(), "catalog-initial-"));
-  try {
-    const capture = new ToolOutputCapture("run-1", root);
-    const prompt = JSON.parse(
-      promptFor(
-        { mode: "add", name: "Example Fest", actor: "tester" },
-        [],
-        [],
-        [],
-        { searches: 2, durationMs: 1_000 },
-        [{ ...source, markdown: "A".repeat(81_000) }],
-        "2026-10-08T12:00:00.000Z",
-        (inspectedSources) => {
-          for (const inspected of inspectedSources) {
-            capture.save(capture.reserve(), "initial-source", inspected);
-          }
-        },
-      ),
-    );
-    const json = JSON.parse(
-      readFileSync(join(root, "run-1", "00001-initial-source.json"), "utf8"),
-    );
-    expect(json.result).toEqual(prompt.inspectedSources[0]);
-    expect(json.result.markdown).toHaveLength(79_700);
-    expect(
-      readFileSync(join(root, "run-1", "00001-initial-source.md"), "utf8"),
-    ).toBe(json.result.markdown);
-    expect(json.result).not.toHaveProperty("httpStatus");
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
 
 test("saved prices in model context use major units and omit aggregate availability", () => {
   const client = testDatabase().client;
@@ -500,7 +465,7 @@ test.each(["add", "full", "current"] as const)(
   },
 );
 
-import { editorInstructions } from "../../editor/prompt";
+import { editorInstructions } from "@/test/ingestion-fixtures/editor-prompt";
 
 test("both models receive the same classification rules", () => {
   for (const text of [

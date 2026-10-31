@@ -51,15 +51,6 @@
           "coordinatePrecision": "exact"
         }
       ],
-      "editor": {
-        "eventReason": null,
-        "previousEdition": null,
-        "currentOrNextEdition": {
-          "editionKey": "2027",
-          "reason": null
-        },
-        "unresolved": []
-      },
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "2027",
@@ -85,30 +76,89 @@
           "longitude": -8.669209,
           "coordinatePrecision": "exact"
         },
-        "donor": null,
-        "findings": {
-          "venueName": {
-            "value": "New field",
-            "reason": "Official announcement states a move to the new field"
-          },
-          "locality": {
-            "value": "Portas",
-            "reason": "Captured catalog location description"
-          },
-          "administrativeArea": {
-            "value": "Pontevedra",
-            "reason": "Captured catalog location description"
-          },
-          "countryCode": {
-            "value": "ES",
-            "reason": "Captured catalog location description"
-          },
-          "venueAddress": {
-            "value": null,
-            "reason": "Old road address no longer applies after the move"
-          }
+        "previousPoint": null
+      },
+      "selection": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "2027",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "evidence": [
+        {
+          "id": "currentOrNextEdition-location-1",
+          "sourceId": "fixture-source",
+          "quote": "venueName: \"New field\"",
+          "context": [
+            {
+              "quote": "Official announcement states a move to the new field"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-2",
+          "sourceId": "fixture-source",
+          "quote": "locality: \"Portas\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-3",
+          "sourceId": "fixture-source",
+          "quote": "administrativeArea: \"Pontevedra\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-4",
+          "sourceId": "fixture-source",
+          "quote": "countryCode: \"ES\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-5",
+          "sourceId": "fixture-source",
+          "quote": "venueAddress: null",
+          "context": [
+            {
+              "quote": "Old road address no longer applies after the move"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
         }
-      }
+      ]
     }
   },
   "geocoding": [

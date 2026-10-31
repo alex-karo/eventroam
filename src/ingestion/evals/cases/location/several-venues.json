@@ -44,15 +44,6 @@
         }
       ],
       "history": [],
-      "editor": {
-        "eventReason": null,
-        "previousEdition": null,
-        "currentOrNextEdition": {
-          "editionKey": "ageas-cooljazz-2027",
-          "reason": null
-        },
-        "unresolved": []
-      },
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "ageas-cooljazz-2027",
@@ -61,22 +52,61 @@
         "endsOn": "2027-07-31",
         "scheduleStatus": "scheduled",
         "saved": null,
-        "donor": null,
-        "findings": {
-          "venueName": {
-            "value": "Hipódromo Manuel Possolo and Parque Marechal Carmona",
-            "reason": "Captured catalog location description"
-          },
-          "locality": {
-            "value": "Cascais",
-            "reason": "Captured catalog location description"
-          },
-          "countryCode": {
-            "value": "PT",
-            "reason": "Captured catalog location description"
-          }
+        "previousPoint": null
+      },
+      "selection": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "ageas-cooljazz-2027",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "evidence": [
+        {
+          "id": "currentOrNextEdition-location-1",
+          "sourceId": "fixture-source",
+          "quote": "venueName: \"Hipódromo Manuel Possolo and Parque Marechal Carmona\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["ageas-cooljazz-2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-2",
+          "sourceId": "fixture-source",
+          "quote": "locality: \"Cascais\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["ageas-cooljazz-2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-3",
+          "sourceId": "fixture-source",
+          "quote": "countryCode: \"PT\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["ageas-cooljazz-2027"],
+          "uncertainty": null,
+          "anchors": []
         }
-      }
+      ]
     }
   },
   "geocoding": [

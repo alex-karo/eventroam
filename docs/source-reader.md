@@ -8,7 +8,7 @@ tags: [catalog, ingestion, sources]
 
 # Source reader
 
-`readPage` loads a public page, extracts Markdown, reads supported maps, and returns evidence to Research. It does not choose a venue or Edition. Research assesses the evidence; Location decides coordinates.
+`readPage` loads a public page, extracts Markdown, reads supported maps, and returns canonical Markdown to the collection layer. It does not choose a venue or Edition. Reader extracts literal evidence once; specialists interpret it; Location decides coordinates.
 
 ## Page content
 
@@ -46,16 +46,18 @@ A map failure keeps the readable page `ok`, with the map URL and a limitation no
 
 ## Response and limits
 
-`readPage({ url })` returns `url`, `status`, `markdown`, `truncated`, optional `reasonCode`, and `remaining: { searches, durationMs }`. The URL is the final destination when known. Status is `ok`, `unsupported`, or `failed`; it does not assess research completion. A supported empty response is `ok`.
+Retrieval returns full canonical Markdown and transport metadata to the shared collection session. Research uses `inspectPage`, which returns source identity, URLs, a bounded overview, lead URLs, retrieval and processing outcomes, limitations, and remaining budget. It receives neither page bodies nor evidence IDs. Lead URLs are not inspected-source records.
 
-Requests, retries, fallback, and map reads share the run budget and transport safety checks. The session caches full page and map Markdown, including failed reads. Repeated requested or final URLs reuse that result. Concurrent reads of the same requested URL share one request. There is no separate map cache.
+Requests, fallback and maps share transport safety checks and the run budget. Requested and final URLs share cached inspection results, including Reader processing and persistence. Concurrent inspection of one page shares the same in-flight work. Independent pages can run in parallel under bounded native tool concurrency.
 
-Only model input is cut: each tool response has an 80,000-character allowance less a 300-character reserve. Initial sources share the same allowance. `truncated` reports that cut without changing cached text or reason codes. Map blocks follow page text, so a cut can omit them or a region's closing comment. Links remain inline; there is no separate link list or completeness field.
+Reader receives each admitted whole page once. It returns unique literal quotes and literal context quotes. Code parses link anchors from those matched passages and resolves relative destinations against the source URL. Reader does not repeat destinations in a separate anchor array. Code binds them to half-open UTF-16 offsets in immutable canonical text. A quote can serve several topics. Unmatched, repeated or paraphrased passages are rejected; a context mismatch rejects that evidence item. Other valid items remain usable. The page overview supports navigation only. Code extracts actual Markdown links for navigation, including relative and reference links, before Reader selects evidence. These leads do not prove destination content. Reader uses low reasoning effort for literal extraction; interpretation roles use the configured effort.
+
+`CATALOG_READER_CALLS` defaults to 18. `CATALOG_READER_INPUT_CHARACTERS` defaults to 360000 with `CATALOG_READER_RESERVE_CHARACTERS` of 72000. `CATALOG_READER_OUTPUT_TOKENS` defaults to 12000. Pages over the input allowance stay saved and unprocessed; no prefix or chunk fallback runs. `CATALOG_DOWNSTREAM_RESERVE_MS` defaults to 180000. Collection closes before interpretation, settles admitted work and freezes one corpus for all specialists.
 
 ## Check a read
 
-Set `CATALOG_CAPTURE_TOOL_OUTPUTS=true` for a local preview run. Capture saves the exact responses seen by Research, including any text cut. Keep captures local.
+Inspect the source paths in the saved collection result and the [private source directory](ingestion-tools.md#saved-source-evidence).
 
 PortAmérica's [directions page](https://portamerica.es/comollegar/) is a useful example. Recorded data has a festival point, separate parking and camping points, and a layer marked 2026. Live content can change.
 
-Check the captured Markdown for labels, coordinates, source URL, year, truncation, and limitation notices. Then check the report's Location result for the chosen point and Edition. A successful page read alone does not establish a correct location choice.
+Check the saved canonical Markdown for labels, coordinates, source URL, year and limitation notices. Then check the report's Location result for the chosen point and Edition. A successful page read alone does not establish a correct location choice.

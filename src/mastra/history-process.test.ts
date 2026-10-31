@@ -129,7 +129,8 @@ test("CLI exits before credential-free Studio reopens previews, batch results an
       expect(text).toContain(preview.results[0].runId);
       expect(text).toContain(batch.results[0].runId);
       expect(text).toContain(batch.results[1].runId);
-      expect(text).not.toContain("PRIVATE_CLI_PAGE_BODY");
+      // Literal Reader quotes can retain source text. Snapshots must not copy the page body as a separate field.
+      expect(text).not.toContain('"markdown":');
       const interrupted = saved.find((entry) => entry.status === "running");
       expect(interrupted).toMatchObject({
         runId: expect.any(String),

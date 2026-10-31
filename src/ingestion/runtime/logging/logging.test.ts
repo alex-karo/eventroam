@@ -281,7 +281,7 @@ test("real research retains selected model/tool logs", async () => {
   expect(
     rows.mastra_logs.find((row) => row.message === "Research finished")?.data,
   ).toMatchObject({ durationMs: result.result.durationMs });
-  expect(result.result.budget.modelCalls).toBe(4);
+  expect(result.result.budget.modelCalls).toBe(9);
   expect(result.result.schemaVersion).toBe(7);
   expect(
     rows.mastra_logs.some((row) => row.message === "Research finished"),

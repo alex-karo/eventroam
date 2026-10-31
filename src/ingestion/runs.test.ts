@@ -7,7 +7,7 @@ import {
   storedRunInput,
   RunPersistenceError,
 } from "./runs";
-import { runCatalogResearch } from "./workflow";
+import { runFixtureResearch as runCatalogResearch } from "@/test/ingestion";
 
 const settings = storedRunInput(
   { mode: "add", name: "Test", actor: "owner" },

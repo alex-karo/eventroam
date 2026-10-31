@@ -1,16 +1,11 @@
 import { z } from "zod";
 import { scheduleStatuses } from "@/catalog/domain/vocabulary";
 import type { CatalogResearchInput } from "../contracts";
-import {
-  readyEditorPlanSchema,
-  type ResolvedEditorPlan,
-} from "../editor/contracts";
 import type { ResearchContext } from "../research/context";
-import {
-  editionFindingSchema,
-  editionSlotNames,
-  type ResearchData,
-} from "../research/contracts";
+import type { Targets } from "../roles/contracts";
+import { editionSlotNames } from "../research/contracts";
+import type { FrozenCorpus } from "../evidence/contracts";
+import { evidencePacket } from "../evidence/contracts";
 import { precisionSchema } from "./contracts";
 import { previousPoint } from "./geometry";
 const placeSchema = z.strictObject({
@@ -33,14 +28,7 @@ export const savedLocationSchema = placeSchema.extend({
   longitude: z.number().nullable(),
   coordinatePrecision: z.enum(["unknown", ...precisionSchema.options]),
 });
-const findingsSchema = editionFindingSchema.pick({
-  venueName: true,
-  venueAddress: true,
-  locality: true,
-  administrativeArea: true,
-  countryCode: true,
-  coordinates: true,
-});
+
 const targetSchema = z.strictObject({
   editionKey: z.string(),
   editionYear: z.number().int().nullable(),
@@ -48,8 +36,7 @@ const targetSchema = z.strictObject({
   endsOn: z.string().nullable(),
   scheduleStatus: z.enum(scheduleStatuses),
   saved: savedLocationSchema.nullable(),
-  donor: savedLocationSchema.nullable(),
-  findings: findingsSchema,
+  previousPoint: savedLocationSchema.nullable(),
 });
 export const locationInputSchema = z.strictObject({
   festival: z.strictObject({
@@ -64,16 +51,8 @@ export const locationInputSchema = z.strictObject({
     z.strictObject({ url: z.string(), information: z.string() }),
   ),
   history: z.array(savedLocationSchema),
-  editor: z.strictObject({
-    eventReason: z.string().nullable(),
-    unresolved: readyEditorPlanSchema.shape.unresolved,
-    previousEdition: z
-      .strictObject({ editionKey: z.string(), reason: z.string().nullable() })
-      .nullable(),
-    currentOrNextEdition: z
-      .strictObject({ editionKey: z.string(), reason: z.string().nullable() })
-      .nullable(),
-  }),
+  evidence: z.array(z.json()),
+  selection: z.json(),
   previousEdition: targetSchema.nullable(),
   currentOrNextEdition: targetSchema.nullable(),
 });
@@ -81,92 +60,96 @@ export type LocationInput = z.infer<typeof locationInputSchema>;
 export type LocationTarget = z.infer<typeof targetSchema>;
 export type SavedLocation = z.infer<typeof savedLocationSchema>;
 export function buildLocationInput(
-  plan: ResolvedEditorPlan,
-  research: ResearchData,
+  targets: Targets,
+  corpus: FrozenCorpus,
   context: ResearchContext,
   input: CatalogResearchInput,
 ): LocationInput {
   const event = context.catalog.find(
-    (item) => item.id === (input.eventId ?? research.eventId),
+    (event) => event.id === (input.eventId ?? targets.eventId),
   );
   const history =
     event?.editions.map((edition) =>
       savedLocationSchema.strip().parse(edition),
     ) ?? [];
+  const packet = evidencePacket(corpus, [
+    "location",
+    "description",
+    "dates",
+    "identity",
+  ]);
   const result: LocationInput = {
     festival: {
-      name: research.eventName,
-      summary: event?.summary ?? research.summary?.value ?? null,
-      format: [
-        ...new Set([
-          ...(event?.editions.flatMap((edition) =>
-            edition.terms
-              .filter((term) => term.facet === "format")
-              .map((term) => term.slug),
-          ) ?? []),
-          ...editionSlotNames.flatMap((slot) =>
-            (research[slot]?.classification?.value ?? []).flatMap((id) => {
-              const term = context.terms.find(
-                (item) => item.id === id && item.facet === "format",
-              );
-              return term ? [term.slug] : [];
-            }),
-          ),
-        ]),
-      ],
+      name: targets.observedEventName,
+      summary:
+        event?.summary ??
+        (targets.event.summary?.action === "set"
+          ? targets.event.summary.value
+          : null),
+      format: [],
     },
     scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
     currentDate: context.currentDate,
     countryBaseline:
       history.find((edition) => edition.countryCode)?.countryCode ?? null,
-    sources: research.sources,
+    sources: corpus.sources
+      .filter((source) => source.overview)
+      .map((source) => ({
+        url: source.finalUrl,
+        information: source.overview!,
+      })),
     history,
-    editor: {
-      eventReason: plan.event?.reason ?? null,
-      unresolved: plan.unresolved,
-      previousEdition: plan.previousEdition
-        ? {
-            editionKey: plan.previousEdition.editionKey,
-            reason: plan.previousEdition.reason ?? null,
-          }
-        : null,
-      currentOrNextEdition: plan.currentOrNextEdition
-        ? {
-            editionKey: plan.currentOrNextEdition.editionKey,
-            reason: plan.currentOrNextEdition.reason ?? null,
-          }
-        : null,
+    evidence: JSON.parse(JSON.stringify(packet.evidence)),
+    selection: {
+      reason: targets.reason,
+      evidenceIds: targets.evidenceIds,
+      unresolved: targets.unresolved,
+      ...Object.fromEntries(
+        editionSlotNames.map((slot) => [
+          slot,
+          targets[slot]
+            ? {
+                editionKey: targets[slot].editionKey,
+                reason: targets[slot].reason,
+                evidenceIds: targets[slot].evidenceIds,
+              }
+            : null,
+        ]),
+      ),
     },
     previousEdition: null,
     currentOrNextEdition: null,
   };
   for (const slot of editionSlotNames) {
-    const accepted = plan[slot];
-    if (!accepted) {
+    const selected = targets[slot];
+    if (!selected) {
       continue;
     }
-    const finding = research[slot]!;
     const saved =
-      history.find((edition) => edition.editionKey === accepted.editionKey) ??
+      history.find((edition) => edition.editionKey === selected.editionKey) ??
       null;
-    const dates = accepted.fields.dates;
-    const year = accepted.fields.year;
-    const status = accepted.fields.scheduleStatus;
-    const target = {
-      editionKey: accepted.editionKey,
+    const dates = selected.fields.dates,
+      year = selected.fields.year,
+      status = selected.fields.scheduleStatus;
+    const selectedDates = dates?.action === "set" ? dates.value : saved;
+    const startsOn =
+      dates?.action === "clear" ? null : (selectedDates?.startsOn ?? null);
+    const endsOn =
+      dates?.action === "clear" ? null : (selectedDates?.endsOn ?? null);
+    const target: LocationTarget = {
+      editionKey: selected.editionKey,
       editionYear:
         year?.action === "set" ? year.value : (saved?.editionYear ?? null),
-      startsOn: finalDate(dates, "startsOn", saved),
-      endsOn: finalDate(dates, "endsOn", saved),
+      startsOn,
+      endsOn,
       scheduleStatus:
         status?.action === "set"
           ? status.value
           : (saved?.scheduleStatus ?? "announced"),
       saved,
-      findings: findingsSchema.strip().parse(finding),
-      donor: null as SavedLocation | null,
+      previousPoint: null,
     };
-    target.donor = previousPoint(
+    target.previousPoint = previousPoint(
       {
         ...target,
         id: saved?.id ?? `$${slot}`,
@@ -179,20 +162,4 @@ export function buildLocationInput(
     result[slot] = target;
   }
   return locationInputSchema.parse(result);
-}
-
-function finalDate(
-  action: NonNullable<
-    ResolvedEditorPlan["currentOrNextEdition"]
-  >["fields"]["dates"],
-  field: "startsOn" | "endsOn",
-  saved: SavedLocation | null,
-) {
-  if (action?.action === "set") {
-    return action.value[field];
-  }
-  if (action?.action === "clear") {
-    return null;
-  }
-  return saved?.[field] ?? null;
 }

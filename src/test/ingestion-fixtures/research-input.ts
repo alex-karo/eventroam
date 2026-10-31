@@ -1,11 +1,11 @@
-import type { CatalogResearchInput } from "../../contracts";
-import type { ResearchBudget } from "../../runtime/budget";
-import type { KnownSourceLink } from "../../tools/contracts";
-import type { ReadPageResult } from "../../tools/read-page/contracts";
-import type { ResearchCatalog } from "../context";
-import { minorToMajor } from "../money";
-import { researchInstructionsFor } from "./prompt";
-import { boundedToolSource } from "../../tools/read-page/response";
+import type { CatalogResearchInput } from "@/ingestion/contracts";
+import type { ResearchBudget } from "@/ingestion/runtime/budget";
+import type { KnownSourceLink } from "@/ingestion/tools/contracts";
+import type { ReadPageResult } from "@/ingestion/tools/read-page/contracts";
+import type { ResearchCatalog } from "@/ingestion/research/context";
+import { minorToMajor } from "@/ingestion/research/money";
+import { researchInstructionsFor } from "@/test/ingestion-fixtures/research-prompt";
+import { boundedToolSource } from "@/ingestion/tools/read-page/response";
 
 export function promptFor(
   input: CatalogResearchInput,

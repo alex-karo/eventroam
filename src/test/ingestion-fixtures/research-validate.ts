@@ -1,16 +1,16 @@
-import type { CatalogResearchInput } from "../contracts";
-import type { ResearchCatalog } from "./context";
+import type { CatalogResearchInput } from "@/ingestion/contracts";
+import type { ResearchCatalog } from "@/ingestion/research/context";
 import {
   researchCandidateSchema,
   type ResearchCandidate,
   type ResearchData,
-} from "./contracts";
-import { validateRefresh } from "./guards";
+} from "@/ingestion/research/contracts";
+import { validateRefresh } from "@/ingestion/research/guards";
 import {
   diagnosticsOnly,
   type PlanDiagnostics,
   type StageResult,
-} from "../stage";
+} from "@/ingestion/stage";
 
 export type CheckedResearch = PlanDiagnostics & {
   candidate: Omit<ResearchCandidate, "status" | "data"> & {

@@ -13,8 +13,15 @@ export const locationExecutionSchema = z.strictObject({
   materialized: materializedLocationSchema.nullable(),
   errors: z.array(
     z.strictObject({
-      code: z.enum(["location_rejected", "location_failed", "limit_reached"]),
-      stage: z.literal("location"),
+      code: z.enum([
+        "location_rejected",
+        "location_failed",
+        "limit_reached",
+        "country_conflict",
+      ]),
+      stage: z.enum(["location", "validation"]),
+      editionKey: z.string().optional(),
+      field: z.string().optional(),
       message: z.string(),
     }),
   ),

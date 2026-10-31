@@ -118,6 +118,7 @@ export async function getBoundedResponse(
   target: string,
   options: {
     maxBytes: number;
+    signal?: AbortSignal;
     timeoutMs: number;
     resolver?: LookupHost;
     maxRedirects?: number;
@@ -128,6 +129,11 @@ export async function getBoundedResponse(
   const url = parseSourceUrl(target);
   const deadline = Date.now() + options.timeoutMs;
   const abort = new AbortController();
+  const onAbort = () => abort.abort(options.signal?.reason);
+  options.signal?.addEventListener("abort", onAbort, { once: true });
+  if (options.signal?.aborted) {
+    onAbort();
+  }
   const timer = setTimeout(
     () => abort.abort(new Error("timeout")),
     options.timeoutMs,
@@ -293,5 +299,6 @@ export async function getBoundedResponse(
     throw error;
   } finally {
     clearTimeout(timer);
+    options.signal?.removeEventListener("abort", onAbort);
   }
 }

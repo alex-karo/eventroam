@@ -15,6 +15,13 @@ export function sziget(context: MainContext) {
   const previous = event?.editions.find(
     (edition) => edition.id === context.original?.editions[0]?.id,
   );
+  const addresses = [
+    "Május 9. park",
+    "Május 9. park, Budapest, Hungary, 1033",
+    "Május 9. park, 1033 Budapest, Hungary",
+    "Május 9. park, 1033 Budapest",
+    "Május 9. park, 1033",
+  ];
   // page.md: standard, age-restricted, and VIP five-day passes with stated fees.
   const offers = [
     {
@@ -45,11 +52,7 @@ export function sziget(context: MainContext) {
         "Hajógyári Island",
         "Hajógyári-sziget",
       ]),
-      fact("next.address", next?.venueAddress, [
-        "Május 9. park",
-        "Május 9. park, Budapest, Hungary, 1033",
-        "Május 9. park, 1033 Budapest, Hungary",
-      ]),
+      fact("next.address", next?.venueAddress, addresses),
       linkFact("event.website", event?.links, "official_site", [
         "https://szigetfestival.com/en/",
         "https://www.szigetfestival.com/",
@@ -79,7 +82,9 @@ export function sziget(context: MainContext) {
         ],
         publicationState: "published",
         venueName: "Óbuda Island",
-        venueAddress: "Május 9. park, Budapest, Hungary, 1033",
+        venueAddress: addresses.includes(previous?.venueAddress ?? "")
+          ? previous!.venueAddress
+          : addresses[1],
         locality: "Budapest",
         // The declared geocoding response is a city point, not a venue point.
         latitude: 47.49835,

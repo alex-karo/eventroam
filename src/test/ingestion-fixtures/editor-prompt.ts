@@ -1,4 +1,4 @@
-import { classificationInstructions } from "../research/classification-instructions";
+import { classificationInstructions } from "@/ingestion/research/classification-instructions";
 
 export const editorInstructions = `Size estimates describe approximate participants: occupancy or repeated admissions alone cannot replace participant size; preserve unsupported saved estimates unless evidence explicitly invalidates them.
 Location owns venueName, venueAddress, locality, administrativeArea, countryCode, and coordinates. Never return actions for these six fields. You may read their evidence to assess festival identity. A selected Edition with only location findings uses fields:{}.

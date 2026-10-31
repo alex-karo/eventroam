@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { normalizeWireCandidate } from "./wire";
+import { normalizeWireCandidate } from "@/test/ingestion-fixtures/research-wire";
 import { researchCandidateSchema } from "../contracts";
 
 const raw = () => ({

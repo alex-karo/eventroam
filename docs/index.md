@@ -14,6 +14,8 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 ## Draft proposals
 
+- [Source evidence quality improvements](proposals/source-evidence-quality-log.md) — failure evidence, changes, and quality measurements.
+- [Source evidence eval comparison](proposals/source-evidence-eval-comparison.md) — baseline and trial measurements for the active ingestion change.
 - [Remaining release decisions](proposals/release-open-decisions.md) — unresolved launch-data, ingestion, and storage choices.
 - [Website routing and indexing defaults](proposals/website-routing-and-indexing.md) — remaining future-page and cross-scope proposals; current SEO is defined in [website discoverability](../openspec/specs/website/discoverability/spec.md).
 - [Festival taxonomy vocabulary proposal](proposals/festival-taxonomy-vocabulary.md) — starter terms loaded by catalog migrations and assignment guidance.

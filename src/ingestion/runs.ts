@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
 import { DEFAULT_RESEARCH_LIMITS, type ResearchLimits } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
-import { RESEARCH_PROMPT_VERSION } from "./research/contracts";
+import { PROMPT_VERSIONS } from "./roles/versions";
 
 const nonempty = z.string().trim().min(1).max(500);
 const limitsSchema = z.object(
@@ -108,7 +108,7 @@ export function storedRunInput(
     model: config.model,
     reasoningEffort: config.reasoningEffort ?? null,
     serviceTier: config.serviceTier ?? "standard",
-    promptVersion: RESEARCH_PROMPT_VERSION,
+    promptVersion: PROMPT_VERSIONS.research,
   };
 }
 

@@ -69,15 +69,6 @@
           "coordinatePrecision": "approximate"
         }
       ],
-      "editor": {
-        "eventReason": null,
-        "previousEdition": null,
-        "currentOrNextEdition": {
-          "editionKey": "2027",
-          "reason": null
-        },
-        "unresolved": []
-      },
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "2027",
@@ -103,7 +94,7 @@
           "longitude": -9.14,
           "coordinatePrecision": "approximate"
         },
-        "donor": {
+        "previousPoint": {
           "venueName": "River Park",
           "venueAddress": null,
           "locality": "Lisbon",
@@ -120,22 +111,61 @@
           "latitude": 38.73,
           "longitude": -9.16,
           "coordinatePrecision": "approximate"
-        },
-        "findings": {
-          "venueName": {
-            "value": "River Park",
-            "reason": "The 2027 saved point was placed at the wrong park. The 2026 point is the official River Park venue; no move occurred."
-          },
-          "locality": {
-            "value": "Lisbon",
-            "reason": "The 2027 saved point was placed at the wrong park. The 2026 point is the official River Park venue; no move occurred."
-          },
-          "countryCode": {
-            "value": "PT",
-            "reason": "The 2027 saved point was placed at the wrong park. The 2026 point is the official River Park venue; no move occurred."
-          }
         }
-      }
+      },
+      "selection": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "2027",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "evidence": [
+        {
+          "id": "currentOrNextEdition-location-1",
+          "sourceId": "fixture-source",
+          "quote": "venueName: \"River Park\"",
+          "context": [
+            {
+              "quote": "The 2027 saved point was placed at the wrong park. The 2026 point is the official River Park venue; no move occurred."
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-2",
+          "sourceId": "fixture-source",
+          "quote": "locality: \"Lisbon\"",
+          "context": [
+            {
+              "quote": "The 2027 saved point was placed at the wrong park. The 2026 point is the official River Park venue; no move occurred."
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-3",
+          "sourceId": "fixture-source",
+          "quote": "countryCode: \"PT\"",
+          "context": [
+            {
+              "quote": "The 2027 saved point was placed at the wrong park. The 2026 point is the official River Park venue; no move occurred."
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        }
+      ]
     }
   },
   "geocoding": [

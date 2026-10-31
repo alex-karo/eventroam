@@ -26,7 +26,7 @@ import {
 import { RunPersistenceError, persistenceFailureReport } from "../runs";
 import { runCatalogResearch, type CatalogResearchResult } from "../workflow";
 import { loadResearchConfig } from "../runtime/config";
-import { RESEARCH_PROMPT_VERSION } from "../research/contracts";
+import { PROMPT_VERSIONS } from "../roles/versions";
 import type { ReadPageResult } from "../tools/read-page/contracts";
 import type { SearchWebResult } from "../tools/search-web/contracts";
 import type { ReadPageOptions } from "../tools/read-page/read";
@@ -43,7 +43,6 @@ import { createEvalScorers } from "./scorers";
 
 import type { EvalToolCall } from "./tool-use";
 import { execFileSync } from "node:child_process";
-import { EDITOR_PROMPT_VERSION } from "../editor/contracts";
 import {
   createEvalStore,
   createEvalObservability,
@@ -329,10 +328,36 @@ async function executeCase(
           todayUtc: item.todayUtc ?? suite.todayUtc,
           geocodingClient: fixedGeocoding(item),
           ...fixedSources(item, item.todayUtc ?? suite.todayUtc, calls),
-          ...(item.researchHandoff
+          ...(item.roleHandoff
             ? {
-                generateCandidate: async () =>
-                  structuredClone(item.researchHandoff!.candidate),
+                generateRoles: Object.fromEntries(
+                  Object.entries(item.roleHandoff.roles).map(
+                    ([role, output]) => [
+                      role,
+                      async (_role: string, prompt: string) => {
+                        const packet = JSON.parse(prompt).corpus;
+                        const ids = (packet?.evidence ?? []).map(
+                          (item: { id: string }) => item.id,
+                        );
+                        const bind = (value: unknown): unknown => {
+                          if (Array.isArray(value)) {
+                            return value.map(bind);
+                          }
+                          if (!value || typeof value !== "object") {
+                            return value;
+                          }
+                          return Object.fromEntries(
+                            Object.entries(value).map(([key, part]) => [
+                              key,
+                              key === "evidenceIds" ? ids : bind(part),
+                            ]),
+                          );
+                        };
+                        return bind(structuredClone(output));
+                      },
+                    ],
+                  ),
+                ),
               }
             : {}),
         },
@@ -408,13 +433,13 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       ...workflowIdentity(),
       label: options.label?.trim() || null,
       models: {
-        research: config.model,
-        editor: config.model,
+        ...Object.fromEntries(
+          Object.keys(PROMPT_VERSIONS).map((role) => [role, config.model]),
+        ),
         location: config.locationModel ?? config.model,
       },
       promptVersions: {
-        research: RESEARCH_PROMPT_VERSION,
-        editor: EDITOR_PROMPT_VERSION,
+        ...PROMPT_VERSIONS,
         location: LOCATION_PROMPT_VERSION,
       },
       reasoningEffort: config.reasoningEffort ?? null,

@@ -7,7 +7,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { Mastra } from "@mastra/core/mastra";
 import { Observability } from "@mastra/observability";
 import { LOCATION_PROMPT_VERSION } from "../../location/contracts";
-import { RESEARCH_PROMPT_VERSION } from "../../research/contracts";
+import { PROMPT_VERSIONS } from "../../roles/versions";
 import {
   readTraceRows,
   runTraceFixture as executeTraceFixture,
@@ -76,9 +76,9 @@ test("offline real agent persists native model/tool relationships and run metada
   const path = tracePath();
   enable(path);
   const result = await runTraceFixture();
-  expect(result.requests).toBe(2);
+  expect(result.requests).toBe(4);
   expect(result.result).toMatchObject({
-    researchStatus: "failed",
+    researchStatus: "success",
   });
   expect(result.durableReport).toEqual(result.result);
   expect(JSON.stringify(result.result.modelResponse)).toContain(
@@ -120,39 +120,20 @@ test("offline real agent persists native model/tool relationships and run metada
   expect(root.entityId).toBe("catalog-research");
   expect(root.name).toBe("catalog-research");
   expect(JSON.parse(root.output as string)).toMatchObject({
-    researchStatus: "failed",
+    researchStatus: "success",
   });
   expect(JSON.parse(root.metadata as string).runId).toBe(result.result.runId);
-  const reads = spans.filter((span) => span.entityId === "readPage");
-  expect(reads).toHaveLength(2);
+  const reads = spans.filter((span) => span.entityId === "inspectPage");
+  expect(reads).toHaveLength(1);
   for (const read of reads) {
     const output = JSON.parse(read.output as string);
-    expect(output).toHaveProperty("status");
-    for (const field of [
-      "outcome",
-      "reason",
-      "completeness",
-      "sourceTruncated",
-      "toolTruncated",
-    ]) {
-      expect(output).not.toHaveProperty(field);
-    }
-    if (read.spanType !== "tool_call") {
-      expect(output).not.toHaveProperty("truncated");
-      expect(output).not.toHaveProperty("markdown");
-      expect(output).not.toHaveProperty("links");
-    } else {
-      expect(output.markdown).toContain(TRACE_SOURCE_BODY);
-    }
+    expect(output).toHaveProperty("retrieval", "ok");
+    expect(output).toHaveProperty("overview");
+    expect(output).not.toHaveProperty("markdown");
+    expect(output).not.toHaveProperty("evidenceIds");
   }
   expect(
     reads.some((span) => JSON.stringify(span).includes(TRACE_PUBLIC_URL)),
-  ).toBe(true);
-  expect(
-    reads.some(
-      (span) =>
-        JSON.parse(span.output as string).reasonCode === "request_failed",
-    ),
   ).toBe(true);
   expect(spans.every((span) => span.endedAt)).toBe(true);
 });
@@ -163,7 +144,7 @@ test.each(["http", "abort"] as const)(
     const path = tracePath();
     enable(path);
     const { result, requests } = await runTraceFixture(ending);
-    expect(requests).toBe(2);
+    expect(requests).toBe(3);
     expect(result).toMatchObject({});
     const saved = await readTraceRows(path);
     const root = saved.mastra_ai_spans.find((span) => !span.parentSpanId)!;
@@ -177,13 +158,7 @@ test.each(["http", "abort"] as const)(
     const tokens = saved.mastra_metrics.find(
       (metric) => metric.name === "mastra_model_total_input_tokens",
     );
-    if (ending === "http") {
-      expect(tokens).toMatchObject({ value: 10, runId: result.runId });
-    } else {
-      // Native cancellation can close a generation before SDK usage is attached.
-      // The independent report above still retains the completed step's usage.
-      expect(tokens).toBeUndefined();
-    }
+    expect(tokens).toMatchObject({ value: 10, runId: result.runId });
     expect(JSON.parse(root.error as string)).toMatchObject({
       message: expect.any(String),
     });
@@ -228,14 +203,16 @@ test.each(["http", "abort"] as const)(
     expect(traced.requests).toBe(baseline.requests);
     expect(traced.result).toMatchObject({
       researchStatus: "failed",
-      errors: [
-        ending === "http"
-          ? {
-              code: "model_failed",
-              diagnostic: expect.objectContaining({ httpStatus: 503 }),
-            }
-          : { code: "limit_reached" },
-      ],
+      errors: expect.arrayContaining([
+        expect.objectContaining(
+          ending === "http"
+            ? {
+                code: "model_failed",
+                diagnostic: expect.objectContaining({ httpStatus: 503 }),
+              }
+            : { code: "limit_reached" },
+        ),
+      ]),
     });
   },
   15_000,
@@ -247,8 +224,8 @@ test("tracing initialization failure falls back to identical research", async ()
   vi.stubEnv("DATABASE_PATH", path); // Forbidden store selection triggers fallback.
   const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
   const { result, requests } = await runTraceFixture();
-  expect(result.researchStatus).toBe("failed");
-  expect(requests).toBe(2);
+  expect(result.researchStatus).toBe("success");
+  expect(requests).toBe(4);
   expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
     "trace_initialization_failed\n",
   );
@@ -273,7 +250,7 @@ test.each(["success", "http", "abort"] as const)(
     );
     const { result, requests } = await runTraceFixture(ending);
     expect(shutdown).toHaveBeenCalledOnce();
-    expect(requests).toBe(2);
+    expect(requests).toBe(ending === "success" ? 4 : 3);
     expect(result).not.toHaveProperty("usage");
 
     const codes = stderr.mock.calls.map((call) => call[0]).join("");
@@ -297,7 +274,7 @@ test("short buffered writer exits and a different process can read its final spa
     ["--import", "tsx", script, "write"],
     { env },
   );
-  expect(JSON.parse(writer.stdout).result.researchStatus).toBe("failed");
+  expect(JSON.parse(writer.stdout).result.researchStatus).toBe("success");
   expect(JSON.parse(writer.stdout).durationMs).toBeLessThan(5_000);
   expect(writer.stderr).toBe("");
   const reader = await execute(
@@ -399,32 +376,43 @@ test.each([
     });
     if (scenario === "cached") {
       const reads = spans.filter(
-        (span) => span.entityId === "readPage" && span.spanType === "tool_call",
+        (span) =>
+          span.entityId === "inspectPage" && span.spanType === "tool_call",
       );
       expect(reads).toHaveLength(2);
-      expect(JSON.parse(reads[0].output as string).markdown).toContain(
-        TRACE_SOURCE_BODY,
-      );
-      expect(JSON.parse(reads[0].output as string).markdown).toBe(
-        JSON.parse(reads[1].output as string).markdown,
+      expect(JSON.parse(reads[0].output as string).sourceId).toBe(
+        JSON.parse(reads[1].output as string).sourceId,
       );
       expect(traced.result.budget.pages).toBe(2);
-      expect(traced.requests).toBe(2);
+      expect(traced.requests).toBe(4);
+      expect(
+        spans.filter(
+          (span) =>
+            span.entityId === "festival-reader" &&
+            span.spanType === "agent_run",
+        ),
+      ).toHaveLength(1);
     }
     if (scenario === "truncated" || scenario === "tool_truncated") {
       const read = spans.find(
-        (span) => span.entityId === "readPage" && span.spanType === "tool_call",
+        (span) =>
+          span.entityId === "inspectPage" && span.spanType === "tool_call",
       )!;
       expect(JSON.parse(read.output as string)).toMatchObject({
-        status: "ok",
-        truncated: true,
+        retrieval: "ok",
+        processing: "complete",
       });
+      expect(JSON.parse(read.output as string)).not.toHaveProperty("markdown");
+      const reader = spans.find(
+        (span) =>
+          span.entityId === "festival-reader" && span.spanType === "agent_run",
+      )!;
+      expect(String(reader.input).length).toBeGreaterThan(80_000);
       expect(traced.result.budget.pages).toBe(2);
-      expect(traced.requests).toBe(4);
     }
     if (scenario === "partial") {
       expect(JSON.parse(root.metadata as string).promptVersion).toBe(
-        RESEARCH_PROMPT_VERSION,
+        PROMPT_VERSIONS.research,
       );
       const locationSpan = spans.find(
         (span) => span.name === "resolve-location",
@@ -435,8 +423,8 @@ test.each([
     }
     if (scenario === "recovered") {
       expect(
-        spans.some((span) =>
-          String(span.output).includes("oversized_response"),
+        traced.result.sources.some(
+          (source) => source.reason === "oversized_response",
         ),
       ).toBe(true);
     }

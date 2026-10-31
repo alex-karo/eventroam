@@ -4,7 +4,6 @@ import {
   type GeocodingRequest,
 } from "../tools/geocode/contracts";
 import type { GeocodingSession } from "../tools/geocode/tool";
-import { locationTextFields } from "./contracts";
 import type { LocationInput } from "./input";
 export async function prepareInitialGeocoding(
   input: LocationInput,
@@ -34,41 +33,13 @@ export async function prepareInitialGeocoding(
     const old =
       target.saved?.latitude != null && target.saved.longitude != null
         ? target.saved
-        : target.donor;
+        : target.previousPoint;
     if (old?.latitude != null && old.longitude != null) {
       add(
         {
           direction: "reverse",
           latitude: old.latitude,
           longitude: old.longitude,
-        },
-        slot,
-      );
-    }
-    const hasNew = locationTextFields
-      .slice(0, 4)
-      .some((field) => target.findings[field] !== undefined);
-    const values = locationTextFields.map((field) =>
-      hasNew ? target.findings[field]?.value : target.saved?.[field],
-    );
-    // A new description never receives old address parts. Explicit withdrawals stay absent.
-    const query = [
-      ...new Set(
-        values
-          .filter((value): value is string => !!value?.trim())
-          .map((value) => value.trim()),
-      ),
-    ].join(", ");
-    if (values.slice(0, 4).some((value) => !!value?.trim())) {
-      add(
-        {
-          direction: "forward",
-          query,
-          countryCode:
-            input.countryBaseline ??
-            target.findings.countryCode?.value ??
-            target.saved?.countryCode ??
-            null,
         },
         slot,
       );

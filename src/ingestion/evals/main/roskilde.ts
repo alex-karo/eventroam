@@ -38,6 +38,7 @@ export function roskilde(context: MainContext) {
         "Darupvej 19",
         "Darupvej 19, 4000 Roskilde",
         "Festivalpladsen, Darupvej 19, 4000 Roskilde, Denmark",
+        "Festivalpladsen, Darupvej 19, 4000 Roskilde",
       ]),
       linkFact("event.website", event?.links, "official_site", [
         "https://www.roskilde-festival.dk/",

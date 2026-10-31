@@ -8,10 +8,10 @@ tags: [architecture]
 
 # Eventroam project structure
 
-Eventroam is one package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. An owner-initiated Mastra research agent collects findings; a tool-free editor chooses non-location actions. A bounded Location agent resolves place fields before the same writer.
+Eventroam is one package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. An owner-initiated Mastra workflow saves sources, extracts evidence, and prepares proposals through field specialists. Editor validates those proposals before the same writer.
 
 ```text
-Commands → research → editor → initial geocoding → Location → typed adapter → catalog writer → SQLite ← Next.js public reads
+Commands → Research + Reader → General → parallel specialists → Editor → catalog plan → catalog writer → SQLite ← Next.js public reads
 ```
 
 ## Current directories
@@ -43,8 +43,11 @@ src/
 │   ├── discovery-context.ts   # Tab-local visit snapshots and context tokens
 │   └── server/                # Public request adapters and metadata builders
 ├── ingestion/                 # Research, Editor, Location, sources, evals and runtime
-│   ├── research/              # Research context, contracts and agent
-│   ├── editor/                # Field decisions and operation preparation
+│   ├── research/              # Saved context and shared field contracts
+│   ├── evidence/              # Private sources, Reader and frozen evidence
+│   ├── roles/                 # Assignments, prompts and role calls
+│   ├── proposals.ts           # Proposal assembly and Editor decisions
+│   ├── catalog-plan.ts        # Operation preparation
 │   ├── location/              # Place decisions and point validation
 │   ├── tools/                 # Source reading, search and geocoding
 │   ├── evals/                 # Fixed cases, evaluators and experiment runner
@@ -69,32 +72,35 @@ Create additional folders when code needs them. Unit and integration tests live 
 - **Routes and presentation:** `app → features → components`. Routes resolve request parameters and site context, load public data, and compose features. Shared components do not import features.
 - **Public reads:** `app/site server → catalog/read → db`. Queries enforce publication rules and load composite responses in short read transactions. Web requests open existing SQLite databases read-only. Browser code imports public contracts and pure rules, never database queries or row types.
 - **Catalog writes:** `commands → catalog/write → db`. The writer validates operations and applies versions, publication changes, audit records, and operation receipts in transactions. Collection uses grouped operations with rollback-based dry-run, versions, and atomic item commits.
-- **Collection:** `commands → ingestion → catalog/read (private context), catalog/write`. Source adapters and OpenRouter remain outside Next.js. The research agent has only read/search tools; the model interprets sources and selects identity; research validation checks findings and targets; the editor compares supplied evidence with saved state, then the adapter passes explicit actions to the writer for atomic apply. Private reports persist in `ingestion_runs`, with optional JSON file export; SQLite also stores catalog facts, public links, classifications, URL aliases, audit changes, and operation receipts.
+- **Collection:** `commands → ingestion → catalog/read (private context), catalog/write`. Source adapters and OpenRouter remain outside Next.js. Research selects sources. Reader extracts evidence from each admitted full page. General selects identity and temporal targets. Tickets, Classification, Location, and Links prepare independent proposals from one frozen corpus. Editor approves or rejects fixed groups. Code prepares and applies atomic operations. Private reports persist in `ingestion_runs`, with optional JSON export. Source Markdown and evidence files remain in private per-run directories.
 - **Pure logic:** `catalog/domain`, `catalog/operations`, and `features/discovery/model` have no React, Next.js, or storage dependency.
 
 ESLint enforces these import boundaries. The writer runs without Next.js. Avoid exports that mix browser-safe contracts with server query implementations.
 
 ## Ingestion ownership
 
-Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `research/validate.ts` → `editor/agent.ts` → `location/agent.ts` → `editor/prepare.ts` → catalog writer → `report.ts`. Research owns `research/validate.ts`. Location resolution and catalog operation preparation run as separate workflow steps. Use `stage.ts` for shared stage results and diagnostics, `pipeline.ts` for report projections and write outcomes, and `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) explains the twelve steps and their observable behavior.
+Follow a refresh through `workflow.ts` → `evidence/collection.ts` and `roles/run.ts` → `proposals.ts` → `catalog-plan.ts` → catalog writer → `report.ts`. Location runs beside the other field specialists before Editor. Use `stage.ts` for shared stage results, `pipeline.ts` for report projections and write outcomes, and `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) describes the workflow steps.
 
 Paths below are relative to `src/ingestion/` unless stated otherwise. Read code for internal algorithms and current limits.
 
 | Area | Owner |
 | --- | --- |
 | Workflow and terminal cleanup | `workflow.ts`, `attempt.ts` |
-| Saved context, research instructions and output | `research/context.ts`, `research/agent/`, `research/contracts.ts` |
+| Saved context and shared field contracts | `research/context.ts`, `research/contracts.ts` |
+| Assignments and agent calls | `roles/` |
+| Saved sources, Reader and frozen corpus | `evidence/` |
 | Scope and country checks | `research/guards.ts` |
 | Source tools, shared budgets and network access | `tools/` |
-| Editor decisions and writer-operation preparation | `editor/` |
-| Place fields, coordinate selection and donor checks | `location/`, `tools/geocode/` |
+| Proposal assembly and Editor decisions | `proposals.ts` |
+| Writer-operation preparation | `catalog-plan.ts` |
+| Place fields, coordinate selection and earlier-point checks | `location/`, `tools/geocode/` |
 | Private reports and durable attempts | `report.ts`, `runs.ts` |
 | Evals and experiment results | `evals/`; see [Ingestion evals](ingestion-evals.md) |
 | Workflow storage, logging and tracing | `runtime/`; see [Ingestion tools](ingestion-tools.md) |
 | Studio workflow registration | `src/mastra/index.ts` |
 | Studio chat, SQL and refresh tools, memory and schema guidance | `src/mastra/catalog-assistant/` |
 
-Each preparation function returns `continue`, `skip`, or `reject`. Only `continue` carries input for the next stage: `CheckedResearch` → `AcceptedEditorPlan` → `ReadyCatalogPlan`. Research and Editor results have no writer operations. Workflow state retains each stage result for inspection. The workflow uses those results to choose its next action and sets an explicit outcome. Reports project that outcome, stage diagnostics, and writer receipts; error codes do not control the report outcome.
+Each preparation function returns `continue`, `skip`, or `reject`. Only `continue` carries input for the next stage: `PreparedProposals` → `AcceptedProposals` → `ReadyCatalogPlan`. Research and Editor results have no writer operations. Workflow state retains each stage result for inspection. The workflow uses those results to choose its next action and sets an explicit outcome. Reports project that outcome, stage diagnostics, and writer receipts; error codes do not control the report outcome.
 
 `CatalogAttempt` owns failure finalization, active-work settlement, terminal persistence, and resource cleanup. Cancellation and workflow-history errors use this same owner. Terminal persistence and cleanup each run once. Shared Studio resources remain with Studio.
 

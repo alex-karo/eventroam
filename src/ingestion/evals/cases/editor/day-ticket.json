@@ -154,5 +154,5 @@
     "kind": "captured-source-editor-regression",
     "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
   },
-  "researchHandoffFile": "day-ticket.research.json"
+  "roleHandoffFile": "day-ticket.roles.json"
 }

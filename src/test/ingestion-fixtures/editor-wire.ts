@@ -3,9 +3,9 @@ import {
   editorPlanSchema,
   readyEditorPlanSchema,
   editionFieldsSchema,
-} from "./contracts";
-import { editionSlotNames } from "../research/contracts";
-import { modelOutputSchema } from "../research/agent/wire";
+} from "@/test/ingestion-fixtures/editor-contracts";
+import { editionSlotNames } from "@/ingestion/research/contracts";
+import { modelOutputSchema } from "@/test/ingestion-fixtures/research-wire";
 
 // Strict providers require an object at the root. Branch requirements are
 // enforced by editorPlanSchema locally, not by a root anyOf in transport.

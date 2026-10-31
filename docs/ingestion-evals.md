@@ -38,7 +38,7 @@ Use repeated `--group GROUP` or `--case ID` flags for a selection. A case select
 
 ### Model settings
 
-`--model X` selects X for all three agents, including direct Location, and overrides `CATALOG_LOCATION_MODEL`. Without it, Research and Editor use `OPENROUTER_MODEL` or the default; Location uses `CATALOG_LOCATION_MODEL` or falls back to the same model. Experiments save resolved stage models, prompt versions, workflow revision, reasoning effort, service tier, and limits. Injected handoffs do not claim Research usage.
+`--model X` selects X for all eight agents, including direct Location, and overrides `CATALOG_LOCATION_MODEL`. Without it, Research and Editor use `OPENROUTER_MODEL` or the default; Location uses `CATALOG_LOCATION_MODEL` or falls back to the same model. Experiments save resolved stage models, prompt versions, workflow revision, reasoning effort, service tier, and limits. Reader uses low reasoning effort for literal extraction; other roles retain the configured effort. Native call logs retain the effective settings. Injected handoffs do not claim Research usage.
 
 ### Results and failures
 
@@ -145,7 +145,7 @@ Refresh Markdown from HTML when the reader format changes. Do not pass captured 
 
 Synthetic pages must state their origin and edits in provenance. When they represent a real site in a different state, retain its structure and normal content. Check body text, links and metadata for facts that contradict the scenario.
 
-Glastonbury models an unannounced next festival, with an unedited official History 2025 capture. Its optional draft 2025 Edition earns additional credit for year, country GB and the GBP 378.50 base price. Returned offer prices must match that amount and currency. This historical case does not check offer URLs because the page provides no admission product URL; other main ticket checks still require URL, amount and currency. Neither history page gives programme dates. Capacity 210,000 is not participant attendance and must not become `sizeEstimate`. Other new Editions, invented historical dates, and publication fail the case; the saved 2027 data stays protected.
+Glastonbury models an unannounced next festival, with an unedited official History 2025 capture. Its optional draft 2025 Edition earns additional credit for year, country GB with its historical ticket block preserved. Historical price extraction is outside ingestion scope. Current-or-next offer checks use amount and currency; new replacement offers must have no URL. Neither history page gives programme dates. Capacity 210,000 is not participant attendance and must not become `sizeEstimate`. Other new Editions, invented historical dates, and publication fail the case; the saved 2027 data stays protected.
 
 Cover the assigned research path, not every possible link or query. Main source fixture misses are diagnostics only. Required omissions, wrong checked facts and failed task conditions still fail main. There is no live fallback or invented successful provider result.
 
@@ -181,3 +181,7 @@ Experiment names identify the branch, group and model. Use `--label before` and 
 Compare the share of cases without checked errors, then required completeness, then additional completeness. Use duration and available native usage when quality is close. Keep N/A applicability visible and exclude incomplete runs. Do not use Studio's generic overall average as the model ranking.
 
 Three repetitions per main case are recommended, not a statistical guarantee. Before replacing a model, run the full suite for both candidates and review new regression failures. A rescore of saved output can check a scorer correction, but it does not test model behavior on changed fixtures. Keep original experiment results intact.
+
+Scorer revisions 8 and 9 add source-backed expected alternatives for the Wacken YouTube footer URL with a trailing slash and the Roskilde festival address with its venue label but no country suffix. These are the same factual destinations and address. Do not apply blanket URL or address normalization. Keep original experiment scores and show saved-output rescoring separately.
+
+Scorer revision 7 removes historical price extraction and per-offer URL expectations. Compare common fact units separately from this scope change. Editor handoff fixtures contain explicit domain role results; other assigned roles use the configured model. Gold assertions never enter prompts. Native usage and duration comparisons must include all role calls and report missing coverage as unknown.

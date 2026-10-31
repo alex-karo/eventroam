@@ -19,6 +19,7 @@ import {
 
 export interface ReadPageOptions {
   budget: ResearchBudget;
+  signal?: AbortSignal;
   resolver?: LookupHost;
   request?: typeof getBoundedResponse;
   firecrawlRequest?: typeof getFirecrawlResponse;
@@ -77,6 +78,7 @@ async function fetchSource(
   result: ReadPageResult,
 ): Promise<BoundedResponse> {
   const response = await (options.request ?? getBoundedResponse)(url, {
+    signal: options.signal,
     maxBytes: options.budget.limits.pageBytes,
     timeoutMs: Math.min(15_000, options.budget.remaining().durationMs),
     resolver: options.resolver,
@@ -97,6 +99,7 @@ async function fetchSource(
   });
   return (options.firecrawlRequest ?? getFirecrawlResponse)(response.finalUrl, {
     apiKey,
+    signal: options.signal,
     maxBytes: options.budget.limits.pageBytes,
     timeoutMs: Math.min(30_000, options.budget.remaining().durationMs),
     resolver: options.resolver,
@@ -129,6 +132,7 @@ async function tryRenderedFallback(
     )(response.finalUrl, {
       apiKey,
       format: "html",
+      signal: options.signal,
       maxBytes: options.budget.limits.pageBytes,
       timeoutMs: Math.min(30_000, options.budget.remaining().durationMs),
       resolver: options.resolver,
@@ -197,6 +201,7 @@ async function appendMapEvidence(
         const mapResponse = await (options.request ?? getBoundedResponse)(
           ref.url,
           {
+            signal: options.signal,
             maxBytes: options.budget.limits.pageBytes,
             timeoutMs: Math.min(15_000, options.budget.remaining().durationMs),
             resolver: options.resolver,
