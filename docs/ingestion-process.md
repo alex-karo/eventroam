@@ -97,7 +97,7 @@ A missing optional value can remain unknown without failure. An unfinished assig
 | Classification | Fixed targets, saved terms and history, vocabulary and relevant evidence. | Complete term lists; explicit earlier Edition key and continuity reason when reused. | None |
 | Location | Fixed targets, saved places, literal evidence, registered points and prepared reverse context. | Complete place decisions and registered point selection. | Forward `geocode` |
 | Links | Fixed public slots, saved links, permissions and link evidence. No Tickets output. | Event website/social actions and current-or-next ticket link; omitted candidates and reasons. | None |
-| Editor | Submitted proposals, cited evidence, saved values with owners and versions, and registered points. | Approve/reject at every supplied fixed key; no replacement values. | Bounded local `readEvidence` |
+| Editor | Submitted proposals, cited evidence, saved values with owners and versions, and registered points. | Approve/reject at every supplied fixed key; no replacement values. | Native Mastra workspace grep |
 
 See [role contracts](../src/ingestion/roles/contracts.ts), [proposal assembly](../src/ingestion/proposals.ts), and [catalog preparation](../src/ingestion/catalog-plan.ts). Quotes use code-assigned IDs beside their text. Models do not calculate line numbers or join separate saved-state reference arrays.
 
@@ -137,7 +137,7 @@ Links works independently from Tickets. It owns one Event website, social slots,
 
 ### Accepting research values
 
-Editor only approves or rejects submitted values. It receives cited source text and can read bounded surrounding text from saved Markdown for validation. An exact anchored quote can still refer to the wrong Edition or an office. Editor cannot research, rewrite values, geocode, or start a correction loop.
+Editor only approves or rejects submitted values. It receives cited source text. It uses native Mastra workspace grep when a submitted proposal needs more source context. Code supplies cited Markdown paths in a read-only workspace and checks the source hash before each search. Only exact cited file paths are permitted. The native regex search returns matching lines, line numbers and requested context; missing or shortened matches do not prove absence. An exact anchored quote can still refer to the wrong Edition or an office. Editor cannot research, rewrite values, geocode, or start a correction loop.
 
 ## Resolve location
 

@@ -108,10 +108,10 @@ it.each(["add", "full", "current"] as const)(
   },
 );
 
-it("reads only additional cited context and retains source access and hash checks", async () => {
+it("uses native Mastra grep with cited source files and hash checks", async () => {
   const root = await mkdtemp(join(tmpdir(), "eventroam-editor-context-"));
   try {
-    const body = "Before the quote. Festival in the park. After the quote.";
+    const body = "Before the quote.\nFestival in the park.\nAfter the quote.";
     const store = createCorpusStorage("editor-test", root);
     const source = await store.savePage({
       attemptedUrl: "https://example.org/",
@@ -142,6 +142,14 @@ it("reads only additional cited context and retains source access and hash check
       source.finalUrl,
     );
     await store.saveEvidence(source, bound.evidence);
+    const other = await store.savePage({
+      attemptedUrl: "https://example.org/other",
+      finalUrl: "https://example.org/other",
+      retrievedAt: "2026-11-01T00:00:00Z",
+      method: "http",
+      status: "ok",
+      markdown: "Unrelated Festival page.",
+    });
     const corpus = store.freeze();
     const prepared: PreparedProposals = {
       ...initialDiagnostics(),
@@ -195,29 +203,35 @@ it("reads only additional cited context and retains source access and hash check
             expect(input.prepared.basis.evidence[0].quote).toBe(
               bound.evidence[0].quote,
             );
-            const tool = call.tools!.readEvidence as {
-              inputSchema: z.ZodType;
-              execute: (input: unknown, context: unknown) => Promise<unknown>;
-            };
-            expect(
-              tool.inputSchema.safeParse({
-                ids: [bound.evidence[0].id],
-                context: 0,
-              }).success,
-            ).toBe(false);
-            const request = { ids: [bound.evidence[0].id], context: 2000 };
-            expect(await tool.execute(request, {})).toEqual([
-              {
-                id: bound.evidence[0].id,
-                sourceId: source.id,
-                url: source.finalUrl,
-                before: "Before the quote. ",
-                after: " After the quote.",
-              },
+            expect(Object.keys(call.tools!)).toEqual(["mastra_workspace_grep"]);
+            expect(input.sourceFiles).toEqual([
+              { sourceId: source.id, path: "s1.md" },
             ]);
-            await expect(
-              tool.execute({ ids: [bound.evidence[1].id], context: 10 }, {}),
-            ).rejects.toThrow("not cited");
+            const tool = call.tools!.mastra_workspace_grep as {
+              inputSchema: z.ZodType;
+              execute: (input: unknown, context: unknown) => Promise<string>;
+            };
+            const request = {
+              pattern: "Festival",
+              path: "s1.md",
+              contextLines: 1,
+              maxCount: 10,
+              caseSensitive: true,
+              includeHidden: false,
+            };
+            expect(tool.inputSchema.safeParse(request).success).toBe(true);
+            const output = await tool.execute(request, {});
+            expect(output).toMatch(/s1\.md:\d+:1: Festival in the park\./);
+            expect(output).toContain("Before the quote.");
+            expect(output).toContain("After the quote.");
+            expect(
+              await tool.execute({ ...request, pattern: "No match" }, {}),
+            ).toContain("0 matches");
+            for (const path of [".", "../outside.md", `${other.id}.md`]) {
+              await expect(
+                tool.execute({ ...request, path }, {}),
+              ).rejects.toThrow("not cited");
+            }
             await writeFile(
               source.markdownPath!,
               (await readFile(source.markdownPath!, "utf8")) + "Changed",

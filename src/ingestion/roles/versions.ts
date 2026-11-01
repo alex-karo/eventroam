@@ -5,5 +5,5 @@ export const PROMPT_VERSIONS = {
   tickets: "current-tickets-v6",
   classification: "edition-classification-v5",
   links: "public-links-v5",
-  editor: "proposal-review-v9",
+  editor: "proposal-review-v10",
 };

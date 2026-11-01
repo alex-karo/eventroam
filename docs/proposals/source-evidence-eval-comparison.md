@@ -8,6 +8,38 @@ tags: [ingestion, evals]
 
 # Source evidence ingestion eval comparison
 
+## Native Mastra grep experiment, 2026-11-01
+
+Editor v10 replaces `readEvidence` with the built-in `mastra_workspace_grep` from the installed Mastra package. Its implementation, arguments and output stay unchanged. `createWorkspaceTools` binds it to a read-only `LocalFilesystem`; all other workspace tools are disabled. An application hook permits only an exact cited Markdown filename and runs the existing source hash check. Editor receives `sourceFiles` beside the proposals and evidence. Regex search can validate a submitted proposal, but cannot introduce a new value or start more research. The prompt recommends three context lines and ten matches; these are guidance, not new hard limits.
+
+Compare one standard-tier main run against the preceding one-repeat run `94dd41ef-ca1d-42ba-9179-dfb75777f98a`. Candidate experiment `3bfdcd3f-1b9c-4f8a-8100-71306489d685`, label `cost-editor-mastra-grep-20261101`, uses the same five cases, dataset `ingestion-main-pipeline-9aa596b0cabd115b3aafabc88fb6cb6febc6eb18533e5850fb4c06bbbaf0fa0e`, version 1, Luna model and role effort settings. Reader caching remains disabled. Fixtures and scorers do not change. All four accessible cases reach Editor in both runs.
+
+| Measure, five attempts | Surrounding-text tool | Native Mastra grep |
+| --- | --- | --- |
+| Scenario passes | 5/5 | 5/5 |
+| Checked wrong values | 0 | 0 |
+| Required facts | 15/15 | 15/15 |
+| Additional facts | 30/33 | 31/33 |
+| Total model cost, USD | 0.050291145 | 0.051433835 |
+| All model steps | 79 | 88 |
+| Editor cost, USD | 0.005207075 | 0.006236015 |
+| Editor steps | 4 | 5 |
+| Editor tool calls | 0 | 1 |
+| Editor input tokens | 21,047 | 29,838 |
+| Editor cache-read tokens | 0 | 5,964 |
+| Editor cache-write tokens | 21,035 | 23,859 |
+| Editor output tokens | 5,153 | 6,385 |
+| Editor reported reasoning tokens | 2,840 | 4,185 |
+| Wall time, seconds | 124.6 | 123.5 |
+
+The one grep call checks Sziget's conflicting lineup years and dates in `s8.md`, using `11-15|2027|2026|August|AUG`, three context lines and ten matches. The native response has 2,195 characters. Editor approves the proposed 10–14 August 2027 dates and identifies the conflicting metadata as part of a 2026 lineup page. The other three reviews need no search. The response also spends three matches on application provenance: URL fields and retrieval time. That is observed noise from searching the saved file as-is; no custom filter is added.
+
+Both trials omit Wacken locality. The candidate also omits Sziget base price: its collection does not obtain usable ticket prices. It recovers the optional Glastonbury historical year and country upstream. These changes do not establish a quality gain from grep. Upstream outputs differ despite unchanged prompts; Research steps rise from 24 to 28, and Location steps from 5 to 8. No identical-handoff Editor replay was run.
+
+Editor cost rises 19.8% and whole-run cost rises 2.3%. This run does not show a saving. The baseline already made no source-tool calls, so it offered no extra read steps to remove. Native grep works in the full provider path and the sample has no checked wrong values, but one search cannot establish better validation quality. The owner selected this variant after the comparison. Retain native grep and the existing source access checks; do not describe the decision as a measured cost or quality improvement. Source access, hash checks, native context output and the fixed review response pass 33 focused tests; type check, affected lint, dependencies, formatting, documentation and OpenSpec validation pass.
+
+Local exports use `/tmp/eventroam-cost-editor-mastra-grep-*`. The previous Editor files are backed up in `/tmp/eventroam-editor-grep-trial-20261101/`. These are local diagnostics, not catalog artifacts.
+
 ## Smaller role inputs and outputs, 2026-11-01
 
 The worktree contains four changes from the trace analysis:

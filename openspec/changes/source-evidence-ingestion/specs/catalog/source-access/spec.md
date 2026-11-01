@@ -129,6 +129,12 @@ A source-based change SHALL retain enough source context to identify its meaning
 - **THEN** all nonempty qualifications and the complete supporting passage remain available
 - **AND** saved source provenance remains inspectable
 
+#### Scenario: A saved-source search has no complete match
+
+- **WHEN** validation searches saved source text and receives no matches or shortened matching lines
+- **THEN** that result alone does not establish that a fact or qualification is absent
+- **AND** a proposed change still needs applicable source support
+
 ### Requirement: Ingestion uses a shared run budget
 
 All ingestion work SHALL share a bounded run budget and deadline. Relevant follow-up pages SHALL remain permitted while time remains, without an independent page-count or link-depth cap. Geocoding SHALL share one finite Event-level allowance. Geocoding calls SHALL count even on cache hits; sharing a prepared result SHALL NOT count as another call. Each uncached geocoding call SHALL make at most one HTTP request without automatic retries. Cancellation and hard limits SHALL stop further external work. Limits SHALL remain visible and SHALL NOT turn unread text into verified absence.
