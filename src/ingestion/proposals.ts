@@ -540,7 +540,9 @@ const decision = z.strictObject({
   reason: reasonSchema,
 });
 /** Decisions mirror submitted fixed fields; no addresses or replacement values. */
-export function reviewSchema(prepared: PreparedProposals) {
+export function reviewSchema(
+  prepared: Pick<PreparedProposals, "plan" | "location">,
+) {
   function fields(value: unknown): z.ZodType {
     if (!value || typeof value !== "object") {
       throw new Error("Invalid proposal fields");

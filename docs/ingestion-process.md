@@ -90,7 +90,7 @@ A missing optional value can remain unknown without failure. An unfinished assig
 
 | Agent | Input and prompt purpose | Output | Tools |
 | --- | --- | --- | --- |
-| Research | Concrete collection instructions, permitted sources, checks, page overviews and remaining budget. No raw mode or scope. | Check findings, completion reason and questions. | `inspectPage`, permitted `searchWeb` |
+| Research | Concrete collection instructions, permitted sources, checks, page overviews and remaining budget. No raw mode or scope. | Check keys, findings and source IDs; short reasons for unfinished checks; distinct owner questions. | `inspectPage`, permitted `searchWeb` |
 | Reader | One whole canonical page and extraction instructions. Keep literal passages, distant headings and qualifications. | Page overview, topics, years, literal quotes with literal context. Code derives anchors. | None |
 | General | Identity candidates, saved chronology, assigned permissions and relevant evidence. | Identity decision, duplicate or uncertain decision, fixed Edition targets and common facts. | None |
 | Tickets | Current or next target, saved ticket block and ticket evidence. | One complete observed variants/base-price replacement, or omission. | None |
@@ -100,6 +100,10 @@ A missing optional value can remain unknown without failure. An unfinished assig
 | Editor | Submitted proposals, cited evidence, saved values with owners and versions, and registered points. | Approve/reject at every supplied fixed key; no replacement values. | Bounded local `readEvidence` |
 
 See [role contracts](../src/ingestion/roles/contracts.ts), [proposal assembly](../src/ingestion/proposals.ts), and [catalog preparation](../src/ingestion/catalog-plan.ts). Quotes use code-assigned IDs beside their text. Models do not calculate line numbers or join separate saved-state reference arrays.
+
+Research does not repeat source facts in its final response. Successful collection checks need no explanation. An unfinished check retains one short cause, at most 300 characters. Code copies the check key and cause into the report's unresolved items, even when no informative source summary is available. Separate model questions contain only a short message for an owner decision; they do not repeat check gaps or select fields or Editions. Research has no completion summary or empty evidence-reference arrays. General and specialists retain their source support and interpretation reasons. Saved evidence and report completion rules stay in use.
+
+Reader returns only `quote` and `topics` for self-contained evidence. It adds `context`, `editionClues` and `uncertainty` together when any is needed. Code restores empty metadata before binding and storage. Context that cannot be matched still invalidates its whole evidence item. General receives its identity task, field permissions, check keys and relevant saved facts, without other roles' instructions, prices, taxonomy or coordinates. Editor receives its decision schema through structured output, without a second copy in its user input. Links lists only material ambiguous candidates in `omitted`, not routine rejected navigation or unrelated URLs; supported social accounts still need a proposal or ambiguity explanation.
 
 ### Choose the refresh target
 

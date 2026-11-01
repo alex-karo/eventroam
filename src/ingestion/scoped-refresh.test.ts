@@ -501,7 +501,14 @@ test.each(["success", "partial"] as const)(
         information: "Explicit fixture source",
       })),
     );
-    expect(result.unresolved).toEqual(f.proposal.unresolved);
+    expect(result.unresolved).toEqual(
+      status === "partial"
+        ? expect.arrayContaining([
+            ...f.proposal.unresolved,
+            { message: "currentDates: Explicit fixture check" },
+          ])
+        : [],
+    );
     expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
     noWrites(f.client);
   },

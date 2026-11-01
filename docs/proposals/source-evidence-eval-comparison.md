@@ -8,6 +8,213 @@ tags: [ingestion, evals]
 
 # Source evidence ingestion eval comparison
 
+## Smaller role inputs and outputs, 2026-11-01
+
+The worktree contains four changes from the trace analysis:
+
+- Reader v11 permits a short evidence item with only `quote` and `topics`. Items that need extra information retain `context`, `editionClues` and `uncertainty` together. Code restores empty metadata before binding and storage. The contextual variant comes first in the strict union so native schema handling retains required null values. Literal matching and rejection of invalid context stay unchanged.
+- General v9 receives its identity task, identity context, fixed date, permissions and own check keys. Its candidate view retains identity, official Event URLs, versions, common facts, full saved chronology, time zones and place identity. It excludes prices, taxonomy, coordinates, storage timestamps, navigation settings and instructions for other roles. The complete catalog stays in the host.
+- Editor v9 receives its decision schema only through native structured output. The duplicate `decisionShape` is removed from user input. Fixed review keys, local validation, source tools and reasoning settings stay unchanged.
+- Links v5 lists only material ambiguous candidates for assigned public slots in `omitted`. Routine navigation and clearly unrelated destinations no longer need individual rejection notes. Supported social slots need a proposal or a material ambiguity explanation. URL values, support and official-association rules stay required.
+
+The attempted check is experiment `93d1a5b8-d60d-430f-81f8-24697dd2af82`, label `cost-role-payload-trim-20261101`, from 23:31:20.807 to 23:31:22.770 UTC. It selects five main cases twice, standard tier, `openai/gpt-6-luna`, low shared effort, and Reader prompt caching disabled. Editor and Location retain their medium override. It uses the same dataset and version as the two preceding comparisons.
+
+All ten attempts fail before a successful model response because OpenRouter returns non-retryable HTTP 403. The provider identifies the API key's weekly USD 5 spending limit and states a reset at 2026-11-02 00:00 UTC. This is separate from the blocked-page fixture. The batch has no billed input/output usage or cost records. Its 0/10 scenario result measures provider unavailability, not the quality of these changes; absent usage is not a saving. Do not compare its cost with the complete USD 0.115000840 Editor-context baseline or the USD 0.105939225 first minimal-Research trial.
+
+Local contract checks cover short and contextual evidence through the native adapter, retained null uncertainty, exact context binding, General inputs for add/full/current, complete fixed reviews without the duplicate schema, and cited-source access checks. Shared offline test responses now use the current minimal Research contract and native Editor schema. Report tests retain owner questions and host-generated unfinished causes without the removed question field keys. A complete main cost and quality comparison remains open; the ten-cent target is not established.
+
+Local exports use `/tmp/eventroam-cost-role-payload-trim-*`. The run log is `/tmp/eventroam-cost-role-payload-trim-eval.log`. These files are local diagnostics, not catalog artifacts.
+
+### Single retry
+
+The requested one-repeat retry completes on standard tier: experiment `94dd41ef-ca1d-42ba-9179-dfb75777f98a`, label `cost-role-payload-trim-retry-once-20261101`, starts at 23:41:16.721 UTC and takes 124.6 seconds. It uses the same role settings and disabled Reader cache. Dataset `ingestion-main-pipeline-9aa596b0cabd115b3aafabc88fb6cb6febc6eb18533e5850fb4c06bbbaf0fa0e`, version 1, differs from the earlier baseline identifier; this is not a controlled before/after comparison.
+
+All five scenarios pass, including the expected blocked-source refusal. Required facts are 15/15; additional facts are 30/33. No checked wrong values or model errors are recorded. Glastonbury lacks the historical year and country; Wacken lacks locality. All four accessible cases reach Editor.
+
+Native usage records give estimated model cost USD 0.050291145 for these five attempts, with 389,223 input tokens, 39,902 output tokens and 79 model steps. Reader accounts for USD 0.020997100, Research USD 0.007380615 and Editor USD 0.005207075. Reader has 32 calls and no cache reads or writes. Other roles can use prompt caching. Twice the observed cost is USD 0.100582290, an estimate for ten attempts, not a measured ten-attempt result. The repeated cost and quality check remains open.
+
+Retry exports use `/tmp/eventroam-cost-role-payload-trim-retry-once-*`. No code, fixtures or scorer rules change for this retry.
+
+## Minimal Research output, 2026-11-01
+
+Research v9 returns only collection checks and distinct owner questions. A verified check contains `check`, `finding`, and `sourceIds`. An unfinished check also has one short `explanation`, at most 300 characters. Questions contain only `message`, with the same length bound. The strict schema excludes successful-check explanations, `completionReason`, `evidenceIds`, and question field/Edition keys. The prompt excludes fact summaries and repeated questions. General and specialist support contracts stay unchanged. Code adds each unfinished collection check and its cause to the report's unresolved items, so the model states the cause once.
+
+The baseline is Editor-context experiment `54ae84c5-65b8-4dfc-ac8f-2a5a64e8271a`. The first trial is `f1ec31dd-24e1-4afb-9cbc-aa43085cc4f9`, label `cost-research-minimal-output-20261101`, from 23:04:02.520 to 23:09:01.682 UTC. Both use five main cases twice, standard tier, `openai/gpt-6-luna`, Reader v10 without prompt caching, and dataset `ingestion-main-pipeline-3f006e4c2e97815097b06cedaac4cc3a2f4f8d32013929b24387cec1b562f75b`, version 1. Fixtures and factual scorers are unchanged. All ten Research calls return valid domain output. Other model settings and prompts are unchanged.
+
+| Measure, ten attempts | Baseline | First minimal-output trial |
+| --- | --- | --- |
+| Research final-step output tokens | 8,036 | 3,545, down 55.9% |
+| Research total output tokens | 11,892 | 7,231, down 39.2% |
+| Research reported reasoning tokens | 204 | 51 |
+| Research input tokens | 316,720 | 272,797 |
+| Research cache-read tokens | 242,867 | 208,561 |
+| Research cache-write tokens | 73,697 | 64,083 |
+| Research model steps | 52 | 51 |
+| Research cost, USD | 0.017602395 | 0.013726785, down 22.0% |
+| Reader calls | 64 | 59 |
+| Editor calls | 8 | 7 |
+| Total model cost, USD | 0.115000840 | 0.105939225 |
+| Scenario passes | 10/10 | 6/10 |
+| No checked factual errors | 10/10 | 9/10 |
+| Required facts | 30/30 | 25/30 |
+| Additional facts | 65/66 | 55/66 |
+
+The shorter final response does not reduce earlier navigation inputs. Input and source-read differences also reflect different navigation and extraction results. Total cost is not evidence of a safe full-pipeline saving: one failed Wacken attempt does not reach Editor. The Research-stage comparison includes all ten calls in each batch.
+
+The first trial finds a report assembly defect and two other failures:
+
+- Both blocked-source cases fail only `task.unresolved`. Research gives the causes in unfinished checks and correctly leaves separate owner questions empty. The host previously copied only the separate questions into the report. The implemented host fix copies the check key and cause into unresolved items, including when there is no informative source overview.
+- Wacken #1 fails validation because General cites nonexistent `s7-e1` in its unfinished history check. The source does not exist in the frozen corpus. Validation rejects the item without writes; the guard was not relaxed.
+- Roskilde #1 accepts a Smart Ticket amount of DKK 2,620 without the DKK 100 handling fee. Its terms retain five payments of DKK 524 but omit the fee. This is one checked wrong offer. Roskilde #2 omits base price; Sziget #2 omits venue and address.
+
+The later-stage failures are observed quality losses. This small sample cannot show whether the shorter Research contract caused them; Research output is not passed to the interpreting agents. They receive the frozen evidence. Changed Research instructions can still change navigation and thus the corpus. Do not dismiss these failures as unrelated or claim preserved quality from the token reduction.
+
+A second full main batch tests the host fix: experiment `5e586611-4eff-4d34-b17e-adb60d056229`, label `cost-research-minimal-output-fixed-20261101`, from 23:09:16.700 to 23:11:19.080 UTC. It uses the same Research v9 and settings. Both blocked-source cases now pass, with their ten check causes retained in each report. Sziget #1 and Roskilde #1 pass with all checked facts. Glastonbury #1 passes but omits three social links. These five completed cases have no checked wrong values. The other five attempts fail with non-retryable provider HTTP 403 responses; four do not complete a model call. Do not report their missing usage as a saving or compare this batch's USD 0.046639585 with a complete ten-attempt cost. A complete quality check of the final host version remains unavailable.
+
+The implementation remains in the worktree as requested. The measured output reduction is supported; quality preservation is not established. The integrated regression and release tasks remain open. The preferred ten-cent target is not established by these trials.
+
+Validation: 36 affected tests pass. They cover the compact strict provider shape, rejection of removed fields and missing/oversized causes, partial reports, retained blocked-source causes without a separate question, and rejection of unknown source references. Type check, affected-file lint, dependency checks, formatting, documentation checks, and OpenSpec validation pass.
+
+Local exports use `/tmp/eventroam-cost-research-minimal-output-*` and `/tmp/eventroam-cost-research-minimal-output-fixed-*`. The comparison script and its output are `/tmp/eventroam-research-minimal-comparison.py` and `/tmp/eventroam-research-minimal-comparison.log`. These are local measurements, not catalog artifacts or replay support.
+
+## Editor surrounding-context experiment, 2026-11-01
+
+Experiment `54ae84c5-65b8-4dfc-ac8f-2a5a64e8271a`, label `cost-editor-extra-context-20261101`, removes repeated quotation reads from Editor. The initial input still supplies exact quotations and inline context. The prompt explains that code has verified their unique literal source matches, but Editor must still check meaning, Event, year and scope. It must use `readEvidence` only when a specific proposal needs more surrounding text. The tool now returns `before` and `after` text, source identity and URL. It does not repeat the quotation or inline context, and requires a positive context length. Cited-ID access, saved-file hash checks and output limits remain in force. Editor uses prompt v8 and medium effort. The repeated output schema is unchanged.
+
+Compare against the retained Research-low experiment `a3e8f3d6-68ac-473e-8e2e-0f77a6b2dfd1`. Both batches run five main cases twice, on standard tier with `openai/gpt-6-luna`, Reader v10 without prompt caching, and dataset `ingestion-main-pipeline-3f006e4c2e97815097b06cedaac4cc3a2f4f8d32013929b24387cec1b562f75b`, version 1. Other role settings, source fixtures and scorers are unchanged. The candidate runs from 22:40:22.113 to 22:44:55.837 UTC and exits 0. All ten outputs and native usage records are present. All eight accessible attempts reach Editor in both batches; the two blocked-source outcomes remain expected.
+
+| Measure, ten attempts | Retained Research low | Editor context trial, retained |
+| --- | --- | --- |
+| Total model cost, USD | 0.112733915 | 0.115000840 |
+| Scenario passes | 10/10 | 10/10 |
+| No checked wrong values | 10/10 | 10/10 |
+| Required facts | 30/30 | 30/30 |
+| Additional facts | 61/66 | 65/66 |
+| All model steps | 173 | 171 |
+| Editor invocations | 8 | 8 |
+| Editor steps | 20 | 9 |
+| Editor readEvidence calls | 23 | 1 |
+| Editor calls requesting zero context | 11 | 0 |
+| Editor tool output characters | 134,433 | 2,180 |
+| Editor input tokens | 183,776 | 63,508 |
+| Editor cache-read tokens | 92,076 | 10,658 |
+| Editor cache-write tokens | 91,640 | 52,823 |
+| Editor output tokens | 11,815 | 13,879 |
+| Editor reported reasoning tokens | 5,614 | 8,604 |
+| Editor model cost, USD | 0.018289260 | 0.013651655 |
+| Reader calls | 59 | 64 |
+| Research steps | 51 | 52 |
+| Location steps | 13 | 16 |
+
+Editor input falls 65.4%, or 2.89 times; steps fall 55%, or 2.22 times. Seven of eight reviews finish in one step without a tool call. Roskilde repeat 2 requests 1,000 characters around one festival-address quotation on the contact page, then approves the supported location. Tool output characters count the serialized output with Unicode characters preserved; this is not a token count. The baseline call count includes failed tool calls, so it is not a count of successful source reads.
+
+Editor costs 25.4% less, a measured saving of USD 0.004637605. The cost reduction is smaller than the input reduction: output tokens rise 17.5%, including more reported reasoning, and the cache-read share falls. The changed prompt also has a different cache state. These are observed batch costs, not a controlled cache experiment or proof of a fixed per-review saving.
+
+| Role model cost, USD | Baseline | Candidate |
+| --- | --- | --- |
+| Research | 0.016575745 | 0.017602395 |
+| Reader | 0.041521500 | 0.044829600 |
+| General | 0.007957130 | 0.008494070 |
+| Tickets | 0.004994675 | 0.004703925 |
+| Classification | 0.004810400 | 0.004898025 |
+| Links | 0.009684985 | 0.010125325 |
+| Location | 0.008900220 | 0.010695845 |
+| Editor | 0.018289260 | 0.013651655 |
+
+Whole-run cost rises 2.0%. Other roles cost USD 0.00690453 more in total, which exceeds the Editor saving. Reader adds five calls and Location adds three steps. Both run before Editor and their code is unchanged; variation in those stages prevents treating this batch as a measured whole-pipeline cost reduction. The USD 0.10 target remains unmet. Total input falls from 933,648 to 880,432 tokens, while output rises from 96,341 to 102,343.
+
+The sole absent additional fact is Sziget repeat 1 base price. Tickets supplies a standard-pass amount but omits its EUR 23 handling fee from the variant terms, despite mentioning it in the proposal reason. Editor rejects the whole ticket group for that omitted qualification using the supplied evidence, without another source read. The other seven accessible attempts have all checked facts. The higher pooled completeness does not prove a quality gain from this Editor change; upstream proposals also vary. No checked wrong values occur, but ten attempts do not establish general quality equivalence.
+
+Retain the Editor prompt and tool change for the observed stage-level reduction in repeated input and calls, with the whole-run limitation above. No scorer, fixture, model, reasoning effort or other prompt changes. A focused tool test covers surrounding text, rejection of zero context, rejection of uncited IDs and changed-file hash detection. All 21 focused tool, binding, proposal and workflow tests pass, as do TypeScript, affected-file ESLint, formatting, documentation checks and OpenSpec validation. The active change's remaining tasks stay open. Original outputs remain in eval storage; exports use `/tmp/eventroam-cost-editor-extra-context-*`, and the tool comparison is `/tmp/eventroam-editor-context-comparison.log`.
+
+## Research stopping experiment, 2026-11-01
+
+Experiment `5426351d-de57-4849-b4bd-d79ae04d96fb`, label `cost-research-coverage-stop-20261101`, tests a navigation signal and a prompt stopping rule. Code adds `evidenceTopics` from quotations successfully bound to each source, without exposing quotations or evidence IDs to Research. The prompt distinguishes collected material from verified facts, avoids replacing a limited page solely for unrelated binding failures, and forbids another rephrased or broader search for the same gap after an empty result. A different required gap remains searchable. No hard search limit changes. Research uses v9 and low effort; Reader stays v10 and uncached. All other role settings, source fixtures and scorers stay unchanged.
+
+The candidate and the retained Research-low baseline use the same dataset, five main cases twice, standard tier and `openai/gpt-6-luna`. The candidate runs from 20:13:39.931 to 20:18:47.296 UTC and exits 1 for a checked ticket error. All ten saved outputs and native usage records are present; no failed attempt is excluded.
+
+| Measure, ten attempts | Retained Research low | Stopping trial, rejected |
+| --- | --- | --- |
+| Total model cost, USD | 0.112733915 | 0.108512180 |
+| Scenario passes | 10/10 | 9/10 |
+| No checked wrong values | 10/10 | 9/10 |
+| Required facts | 30/30 | 30/30 |
+| Additional facts | 61/66 | 62/66 |
+| All model steps | 173 | 160 |
+| Research steps | 51 | 47 |
+| Research inspectPage calls | 92 | 86 |
+| Research searchWeb calls, all empty | 22 | 16 |
+| Reader calls | 59 | 54 |
+| Research input tokens | 300,669 | 253,551 |
+| Research cache-read tokens | 232,657 | 169,159 |
+| Research cache-write tokens | 67,859 | 84,251 |
+| Research output tokens | 11,503 | 10,790 |
+| Research model cost, USD | 0.016575745 | 0.017632065 |
+| Reader model cost, USD | 0.041521500 | 0.036939700 |
+
+Whole-run cost falls 3.7%, Research steps 7.8%, and Research input 15.7%. Research itself costs 6.4% more: cache-write tokens rise while cache-read tokens fall. The largest role saving is Reader, USD 0.0045818, with five fewer calls. All eight accessible attempts reach the downstream roles, so no failed handoff removes those costs. The result does not show that the added signal alone caused a saving. Search responses are empty fixed fixtures; this does not establish that live searches are useless. Search count falls, but some searches address distinct gaps, so it is not a count of eliminated duplicate queries.
+
+Sziget repeat 1 reads the travel page, but its three location quotations or contexts fail unique literal binding. Only date and social-link evidence remains from that page, and locality, venue and address are absent. This is extraction loss, not an unread travel page. Wacken repeat 1 also lacks locality. Other optional omissions from the baseline recover, which raises the pooled additional count despite the Sziget loss.
+
+Roskilde repeat 1 reads the correct ticket overview. Its bound Smart Ticket quote states five monthly payments of DKK 524 plus a DKK 100 fee. Tickets returns amount 2620 while mentioning the additional fee in terms; the amount excludes that fee. Editor approves the block. The unchanged scorer marks the offer wrong. This interpretation and approval failure is not proof that early stopping caused it. Required facts still pass, so required completeness alone hides the error.
+
+The candidate is not retained: the small saving does not meet the condition of no quality loss, and the intended Research cost saving is not established. Restore navigation v8, remove `evidenceTopics` and its trial-only test, and keep the previously accepted low-effort setting. No fixture, expected value or validator is changed. The retained implementation still has the preceding 10/10 result at USD 0.112733915; restoration is not a new model measurement. Further isolation of the prompt rule is deferred.
+
+Validation during the trial: 23 source, binding, role and workflow tests, TypeScript, affected-file ESLint, formatting, documentation checks and OpenSpec validation pass. The model quality failure remains recorded. Original results remain in Mastra storage. Exports use `/tmp/eventroam-cost-research-coverage-stop-*`; the exact trial code and full dirty worktree patch are saved in `/tmp/eventroam-research-coverage-stop-trial-20261101`. The earlier active-change tasks remain open.
+
+## Cost experiment after reset, 2026-11-01
+
+The worktree was restored to branch commit `23fd56c` before this experiment. The removed navigation-ranking changes and their reports are backed up in `/tmp/eventroam-before-cost-experiments-20261101`. Stored eval records remain available. This experiment does not retain the ranking model or its quality-fix prompts.
+
+Three independent sub-agents inspected the clean implementation and the five-attempt no-cache baseline `9bc42054-7a97-46fc-a203-50bee0082362`:
+
+| Experiment | Evidence and possible effect | Main risk |
+| --- | --- | --- |
+| Short Reader boundaries | Reader costs USD 0.0210137, 33.2% of the baseline. All 197 evidence items copy full quotes. A lossless offline substitution using unique boundaries of at least 40 characters reduces complete Reader JSON from 75,584 to 60,790 characters, or 19.6%. If output tokens follow this change, total cost could fall about 3.3%. | Wrong or repeated boundaries can lose evidence. Existing literal checks must stay strict. |
+| Research low reasoning | Research costs USD 0.01420982. Reasoning uses 9,665 of its 16,757 output tokens. Halving reasoning alone could save 3.8% of the whole run; removing all of it gives a direct ceiling of 7.6%. | More steps and page reads can erase the saving or omit required sources. |
+| Remove duplicate Editor schema | Editor user input repeats the review schema already supplied through structured output. Eight recent Editor inputs contain 44,706 duplicate-schema characters out of 181,144 user-input characters. Expected whole-run saving is about 1–2%. | The repeated schema may help the model follow the dynamic approval shape. |
+
+These are projections from measured cost and character counts, not measured savings. The selected experiment is short Reader boundaries: its expected benefit is comparable to the Research variant, but it keeps navigation reasoning and the available source text unchanged. It needs no new IDs, tools, output contract or model. For passages longer than about 180 characters, Reader should use unique opening and closing text, normally 30–60 characters each. Code restores the full passage, including conditions and links. Full literal quotes remain available when no valid boundary pair identifies the passage. Context quotes and strict source matching stay unchanged. Reader stays uncached.
+
+The baseline and candidate each run the five main cases twice on standard tier. Scores, fixtures, models and role reasoning settings stay unchanged. The comparison must include whole-run cost, required and additional facts, checked errors, Reader calls and boundary rejection notices. Lower cost from skipped downstream work is not a successful saving.
+
+The new baseline `a4e224ad-a058-4220-b1f9-0a8e521d76ca` runs from 19:33:40.940 to 19:39:26.985 UTC. It passes 9/10 attempts at USD 0.122234125. Sziget repeat 2 fails before the specialist handoff completes because a proposal has a missing or unknown evidence reference. This removes five required facts and eight additional facts and skips some downstream work. Other omissions are Roskilde social links and base price in repeat 1 and Glastonbury historical year and country in repeat 2.
+
+The short-boundary prompt trial `ca8bc2be-bc49-452f-9766-ef107548b258` runs from 19:39:53.967 to 19:47:22.941 UTC. It passes 10/10 attempts at USD 0.126016145, 3.1% above the fresh baseline. Reader output falls 8.0%, from 40,932 to 37,642 tokens. Reader cost falls 3.2%, but calls also fall from 61 to 58; cost per call rises. Research cost rises from USD 0.028505690 to USD 0.031013360, and Editor from USD 0.015308000 to USD 0.019739050. All eight accessible attempts now reach these roles, so the whole-run difference cannot isolate the prompt effect.
+
+The intended mechanism is not established: boundary items increase only from 10/379 to 13/439, while most quotes remain full strings. Valid boundary items are 8 and 10. Binding notices increase from 54 to 62, but the rejected share of all returned items is similar, 14.2% and 14.1%. Additional fact counts rise from 53/66 to 55/66, largely because Sziget repeat 2 no longer fails; Glastonbury repeat 1 loses historical year/country, and repeat 2 loses three social links. The prompt is not retained as a proven cost optimization. Reader returns to v10.
+
+The next selected experiment is Research low reasoning. It removes only the automatic low-to-medium promotion in collectResearch. Editor and Location retain medium effort, Reader retains low effort with no prompt cache, all navigation leads remain available, and no decision ranker is added. Research version v8 identifies the changed setting. The model, source fixtures, scorer and limits stay unchanged.
+
+The Research-low trial `a3e8f3d6-68ac-473e-8e2e-0f77a6b2dfd1` runs from 19:48:34.111 to 19:54:24.108 UTC. It passes 10/10 attempts at USD 0.112733915, 7.8% below the fresh baseline. All 51 Research model steps log low effort, compared with medium in the baseline. All eight accessible-source attempts reach General, Classification, Location and Editor; both blocked-source attempts retain the expected outcome. Reader has zero cache-read and cache-write tokens. No fixtures, expected values or scorer rules change.
+
+| Measure, ten attempts | Fresh branch baseline | Short-boundary Reader, rejected | Research low, retained |
+| --- | --- | --- | --- |
+| Total model cost, USD | 0.122234125 | 0.126016145 | 0.112733915 |
+| Scenario passes | 9/10 | 10/10 | 10/10 |
+| No checked wrong values | 10/10 | 10/10 | 10/10 |
+| Required facts | 25/30 | 30/30 | 30/30 |
+| Additional facts | 53/66 | 55/66 | 61/66 |
+| Total input tokens | 941,726 | 1,037,422 | 933,648 |
+| Total output tokens | 112,201 | 115,501 | 96,341 |
+| All model steps | 175 | 178 | 173 |
+| Reader calls | 61 | 58 | 59 |
+| Research steps | 51 | 55 | 51 |
+| Research input tokens | 310,007 | 368,307 | 300,669 |
+| Research output tokens | 31,581 | 35,459 | 11,503 |
+| Reported Research reasoning tokens | 18,165 | 21,943 | 0 |
+| Research cost, USD | 0.028505690 | 0.031013360 | 0.016575745 |
+
+Research cost falls 41.9% and output falls 63.6%, while its step count stays unchanged. Input falls only 3.0%. This supports reducing output/reasoning expense rather than a claim that filtering navigation context caused the saving. Reported reasoning tokens are zero in the low-effort run; this is an observed usage field, not proof of the model's internal computation. Some navigation and extraction variation remains: Reader calls fall by two, and Editor cost rises because eight rather than seven attempts reach it. The baseline's failed Sziget attempt makes its cost smaller and its completeness lower. The sample does not establish a stable quality gain from low effort alone. An independent sub-agent audit confirms the arithmetic and native reasoning usage. Excluding Sziget repeat 2 from both batches gives USD 0.109676970 versus USD 0.099715370, or 9.1% less. This is a matched-subset diagnostic for the skipped-work confound, not the headline batch result.
+
+The retained run has all checked facts for Sziget and Roskilde in both repeats. Glastonbury repeat 1 lacks three social links; Wacken repeat 1 lacks locality and repeat 2 lacks base price. These are five optional omissions. There are no checked wrong values or failed scenarios. The earlier discarded navigation-ranking quality-fix batch `a02d055a-f867-4cc5-b168-ff9fe6b85f69` cost USD 0.140007185 for ten attempts, with 10/10 passes, required facts 30/30 and additional facts 63/66. Research low is 19.5% cheaper, but has two fewer optional facts. That older batch changed several prompts and had ranking calls, so it is a historical comparison rather than a controlled attribution. Against twice the older no-cache five-attempt cost of USD 0.063246255, the retained batch is 10.9% cheaper; that comparison is a projection because the older baseline ran once.
+
+Keep the Research low setting. Do not keep the Reader v11 trial or restore ranking code. The preferred USD 0.10 per ten attempts target remains unmet by USD 0.012733915. The Editor duplicate-schema experiment remains an untested smaller option. The branch baseline, both candidate results and the older experiments remain in eval storage. Exports use `/tmp/eventroam-cost-reset-baseline-*`, `/tmp/eventroam-cost-reader-boundaries-*`, and `/tmp/eventroam-cost-research-low-*`. The role summaries, extraction statistics and results retain per-case evidence. The offline boundary estimate is `/tmp/eventroam-reader-boundary-estimate.py`.
+
+Validation: 26 affected role, workflow and native provider tests pass after the Research setting change. The earlier Reader trial passed 41 source-binding, workflow and provider tests; its prompt was then restored to the branch version. TypeScript, affected-file ESLint, documentation checks, OpenSpec validation and whitespace checks pass. No new tests mirror the prompt text. These checks do not close the active ingestion change's outstanding regression and main-spec tasks.
+
+
+
 ## Reader prompt cache disabled
 
 The later user check disables prompt caching only for Reader. OpenRouter documents `prompt_cache_options: {mode: "explicit"}` with no content-block breakpoints as the no-cache request form for GPT-5.6 and later. The installed OpenRouter adapter passes this field to the request body. A native HTTP test verifies it for Reader and verifies its absence for Research. Other role settings and all prompts remain unchanged. See [OpenRouter prompt caching](https://openrouter.ai/docs/guides/best-practices/prompt-caching#disabling-prompt-caching).

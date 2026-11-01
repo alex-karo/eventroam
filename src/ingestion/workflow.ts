@@ -467,6 +467,13 @@ export function createCatalogIngestionWorkflow(
       }
       data.errors.push(...data.research.errors, ...owned.collection.errors);
       data.unresolved.push(...(data.research.output?.unresolved ?? []));
+      data.unresolved.push(
+        ...(data.research.output?.checks ?? []).flatMap((check) =>
+          check.finding === "unfinished"
+            ? [{ message: `${check.check}: ${check.explanation}` }]
+            : [],
+        ),
+      );
       if (
         owned.collection.fatal ||
         data.research.status !== "success" ||
@@ -492,7 +499,6 @@ export function createCatalogIngestionWorkflow(
             !assignment.checks.some(
               (assigned) => assigned.key === check.check,
             ) ||
-            check.evidenceIds.length ||
             check.sourceIds.some(
               (id) => !data.corpus!.sources.some((source) => source.id === id),
             ),
@@ -648,7 +654,7 @@ export function createCatalogIngestionWorkflow(
       for (const result of Object.values(results)) {
         const output = result.output as
           | {
-              checks?: import("./roles/contracts").CollectionOutput["checks"];
+              checks?: import("./roles/contracts").CheckFinding[];
               unresolved?: import("./research/contracts").ResearchQuestion[];
             }
           | undefined;

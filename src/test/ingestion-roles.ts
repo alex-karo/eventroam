@@ -16,6 +16,8 @@ import type { ReadPageResult } from "@/ingestion/tools/read-page/contracts";
 import { editorPlanSchema } from "@/test/ingestion-fixtures/editor-contracts";
 import { sourceUrlSchema } from "@/ingestion/tools/contracts";
 import { locationTextFields } from "@/ingestion/location/contracts";
+import { z } from "zod";
+import { reviewSchema } from "@/ingestion/proposals";
 
 /** Migrate explicit outcome fixtures to role calls. No live generation fallback. */
 export function fixtureRoleDependencies(
@@ -138,9 +140,15 @@ export function fixtureRoleDependencies(
         checks: checks(
           data.checks.map((check: { key: string }) => check.key),
           candidate.status,
-        ),
-        completionReason: "Explicit fixture collection complete",
-        unresolved: candidate.unresolved ?? [],
+        ).map(({ check, finding, explanation, sourceIds }) => ({
+          check,
+          finding,
+          sourceIds,
+          ...(finding === "unfinished" ? { explanation } : {}),
+        })),
+        unresolved: (candidate.unresolved ?? []).map(({ message }) => ({
+          message,
+        })),
       };
     };
     if (role === "research") {
@@ -354,7 +362,10 @@ export function fixtureRoleDependencies(
         ]),
       );
     };
-    const review = decide(data.decisionShape, old) as Record<string, unknown>;
+    const review = decide(
+      z.toJSONSchema(reviewSchema(data.prepared)),
+      old,
+    ) as Record<string, unknown>;
     if (old && (old.status === "rejected" || old.event === null)) {
       review.item = {
         decision: "reject",

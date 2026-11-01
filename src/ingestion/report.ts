@@ -12,7 +12,11 @@ import {
 import type { ReadyCatalogPlan } from "./catalog-plan";
 import type { EditorExecution } from "./roles/editor-execution";
 import type { RoleExecution } from "./roles/invoke";
-import type { CollectionOutput, GeneralOutput } from "./roles/contracts";
+import type {
+  CheckFinding,
+  CollectionOutput,
+  GeneralOutput,
+} from "./roles/contracts";
 import type { FrozenCorpus } from "./evidence/contracts";
 import { buildAssignment, assignedRoleChecks } from "./roles/assignment";
 import { PROMPT_VERSIONS } from "./roles/versions";
@@ -99,10 +103,8 @@ function assembleReport({
     ...(general.output?.decision === "targets" ? general.output.checks : []),
     ...Object.values(specialists).flatMap(
       (execution) =>
-        (
-          execution.output as
-            { checks?: CollectionOutput["checks"] } | undefined
-        )?.checks ?? [],
+        (execution.output as { checks?: CheckFinding[] } | undefined)?.checks ??
+        [],
     ),
   ];
   const missingRoleCheck =
@@ -111,10 +113,8 @@ function assembleReport({
       (role) => {
         const execution = role === "general" ? general : specialists[role];
         const findings =
-          (
-            execution?.output as
-              { checks?: CollectionOutput["checks"] } | undefined
-          )?.checks ?? [];
+          (execution?.output as { checks?: CheckFinding[] } | undefined)
+            ?.checks ?? [];
         return assignedRoleChecks(role, input, targets).some(
           (key) =>
             !findings.some(
@@ -184,7 +184,9 @@ function assembleReport({
           source.overview,
           ...checks
             .filter((check) => check.sourceIds.includes(source.id))
-            .map((check) => check.explanation),
+            .flatMap((check) =>
+              "explanation" in check ? [check.explanation] : [],
+            ),
         ].join(" "),
       })),
     errors,

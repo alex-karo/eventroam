@@ -401,8 +401,17 @@ test.each([
       researchStatus: status,
       outcome: "unchanged",
       changes: [],
-      unresolved: proposal.unresolved,
+      unresolved:
+        status === "partial"
+          ? expect.arrayContaining([
+              { message: "Ticket prices could not be confirmed." },
+              { message: "currentTickets: Explicit fixture check" },
+            ])
+          : [],
     });
+    expect(
+      result.unresolved.every((question) => Object.keys(question).length === 1),
+    ).toBe(true);
     expect(result.sourceSummaries).toEqual(
       proposal.data.sources.map((source) => ({
         url: source.url,

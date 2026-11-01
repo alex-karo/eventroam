@@ -38,7 +38,7 @@ Use repeated `--group GROUP` or `--case ID` flags for a selection. A case select
 
 ### Model settings
 
-`--model X` selects X for all eight agents, including direct Location, and overrides `CATALOG_LOCATION_MODEL`. Without it, Research and Editor use `OPENROUTER_MODEL` or the default; Location uses `CATALOG_LOCATION_MODEL` or falls back to the same model. Experiments save resolved stage models, prompt versions, workflow revision, reasoning effort, service tier, and limits. Reader uses low reasoning effort for literal extraction; other roles retain the configured effort. Native call logs retain the effective settings. Injected handoffs do not claim Research usage.
+`--model X` selects X for all eight agents, including direct Location, and overrides `CATALOG_LOCATION_MODEL`. Without it, Research and Editor use `OPENROUTER_MODEL` or the default; Location uses `CATALOG_LOCATION_MODEL` or falls back to the same model. Experiments save resolved stage models, prompt versions, workflow revision, reasoning effort, service tier, and limits. Reader uses low reasoning effort for literal extraction. Research, General, Tickets, Classification and Links use the configured effort. Editor and Location use medium when the configured effort is low; other explicit settings stay unchanged. Native call logs retain the effective settings. Injected handoffs do not claim Research usage.
 
 ### Results and failures
 

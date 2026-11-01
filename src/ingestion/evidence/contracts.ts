@@ -15,33 +15,35 @@ export const topics = [
   "links",
 ] as const;
 const quote = z.string().min(1).max(24000);
+const readerEvidence = z.strictObject({
+  quote: z.union([
+    quote,
+    z.strictObject({
+      start: z.string().min(1).max(250),
+      end: z.string().min(1).max(250),
+    }),
+  ]),
+  topics: z.array(z.enum(topics)).min(1).max(9),
+});
+const contextualReaderEvidence = readerEvidence.extend({
+  context: z.array(quote).max(24),
+  editionClues: z.array(z.string().max(250)).max(20),
+  uncertainty: z.string().max(1000).nullable(),
+});
 export const readerOutputSchema = z.strictObject({
   overview: z.string().min(1).max(1500),
   topics: z.array(z.enum(topics)).max(9),
   statedYears: z.array(z.string().max(80)).max(100),
   limitations: z.array(z.string().max(500)).max(30),
+  // Keep full metadata first so native schema handling retains required null values.
   evidence: z
-    .array(
-      z.strictObject({
-        quote: z.union([
-          quote,
-          z.strictObject({
-            start: z.string().min(1).max(250),
-            end: z.string().min(1).max(250),
-          }),
-        ]),
-        context: z.array(quote).max(24),
-        topics: z.array(z.enum(topics)).min(1).max(9),
-        editionClues: z.array(z.string().max(250)).max(20),
-        uncertainty: z.string().max(1000).nullable(),
-      }),
-    )
+    .array(z.union([contextualReaderEvidence, readerEvidence]))
     .max(150),
 });
 export type ReaderOutput = z.infer<typeof readerOutputSchema>;
 export type Span = { start: number; end: number };
 export type Evidence = Omit<
-  ReaderOutput["evidence"][number],
+  z.infer<typeof contextualReaderEvidence>,
   "quote" | "context"
 > & {
   quote: string;
@@ -87,7 +89,13 @@ export function bindEvidence(
 ) {
   const evidence: Evidence[] = [];
   const limitations = [...output.limitations];
-  for (const [index, item] of output.evidence.entries()) {
+  for (const [index, supplied] of output.evidence.entries()) {
+    const item = {
+      context: [],
+      editionClues: [],
+      uncertainty: null,
+      ...supplied,
+    };
     let quote = typeof item.quote === "string" ? item.quote : null;
     if (typeof item.quote !== "string") {
       const start = uniqueSpan(body, item.quote.start);

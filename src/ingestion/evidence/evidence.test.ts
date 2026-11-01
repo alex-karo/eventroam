@@ -10,6 +10,38 @@ import {
 } from "./storage";
 
 describe("saved source evidence", () => {
+  it("restores empty metadata for short items and retains required context for full items", () => {
+    const page = "# 2027\nFull pass €100.\nChildren enter free.";
+    const short = { quote: "Full pass €100.", topics: ["tickets"] };
+    const full = {
+      quote: "Children enter free.",
+      topics: ["tickets"],
+      context: ["# 2027"],
+      editionClues: [],
+      uncertainty: "Age limit is not stated.",
+    };
+    const output = readerOutputSchema.parse({
+      overview: "Admission offers",
+      topics: ["tickets"],
+      statedYears: ["2027"],
+      limitations: [],
+      evidence: [short, full, { ...full, context: ["# Missing"] }],
+    });
+    const bound = bindEvidence("s1", page, output, "https://example.org/");
+    expect(output.evidence[0]).toEqual(short);
+    expect(bound.evidence).toHaveLength(2);
+    expect(bound.evidence[0]).toMatchObject({
+      context: [],
+      editionClues: [],
+      uncertainty: null,
+    });
+    expect(bound.evidence[1]).toMatchObject({
+      context: [{ quote: "# 2027" }],
+      uncertainty: full.uncertainty,
+    });
+    expect(bound.limitations).toHaveLength(1);
+  });
+
   it("recovers a complete passage between literal boundaries, with links and conditions", () => {
     const passage =
       "## Festival passes 2027\n" +

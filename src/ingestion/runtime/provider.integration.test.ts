@@ -6,6 +6,7 @@ import { collectionOutputSchema } from "../roles/contracts";
 import { createResearchBudget, DEFAULT_RESEARCH_LIMITS } from "./budget";
 import { loadResearchConfig } from "./config";
 import { sourceUrlSchema } from "../tools/contracts";
+import { readSource } from "../evidence/reader";
 
 const config = {
   apiKey: "PRIVATE_TEST_KEY",
@@ -13,9 +14,16 @@ const config = {
   limits: DEFAULT_RESEARCH_LIMITS,
 };
 const final = {
-  checks: [],
-  completionReason: "Assigned sources inspected",
-  unresolved: [],
+  checks: [
+    { check: "identity", finding: "verified", sourceIds: ["s1"] },
+    {
+      check: "currentTickets",
+      finding: "unfinished",
+      sourceIds: ["s2"],
+      explanation: "Ticket page is blocked.",
+    },
+  ],
+  unresolved: [{ message: "Which official domain is correct?" }],
 };
 const usage = { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 };
 function response(
@@ -117,6 +125,51 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+test.each([
+  "fixture/provider-model",
+  "openai/gpt-6-luna",
+  "openai/gpt-4.1-mini",
+])(
+  "native Reader accepts short and contextual evidence without nullable placeholders (%s)",
+  async (model) => {
+    const output = {
+      overview: "Admission offers",
+      topics: ["tickets"],
+      statedYears: ["2027"],
+      limitations: [],
+      evidence: [
+        { quote: "Full pass €100.", topics: ["tickets"] },
+        {
+          quote: "Children enter free.",
+          topics: ["tickets"],
+          context: ["# 2027"],
+          editionClues: [],
+          uncertainty: null,
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url, init) => {
+        const request = JSON.parse(String(init?.body));
+        const schema = request.response_format.json_schema.schema;
+        expect(strictProblems(schema)).toEqual([]);
+        const variants = schema.properties.evidence.items.anyOf;
+        expect(variants).toHaveLength(2);
+        expect(variants[1].required).toEqual(["quote", "topics"]);
+        return response({ content: JSON.stringify(output) });
+      }),
+    );
+    const result = await readSource({
+      input: { page: "# 2027\nFull pass €100.\nChildren enter free." },
+      config: { ...config, model },
+      budget: createResearchBudget(),
+    });
+    expect(result.status).toBe("success");
+    expect(result.output).toEqual(output);
+  },
+);
+
 test.each(["research", "reader"] as const)(
   "native %s requests retain output settings and use role-specific prompt caching",
   async (role) => {
@@ -178,6 +231,7 @@ test.each(["research", "reader"] as const)(
     expect(strictProblems(schema)).toEqual([]);
     expect(schema.properties).not.toHaveProperty("status");
     expect(schema.properties).not.toHaveProperty("errors");
+    expect(schema.properties).not.toHaveProperty("completionReason");
     expect(budget.snapshot().modelCalls).toBe(1);
   },
 );

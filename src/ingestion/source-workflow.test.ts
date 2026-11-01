@@ -7,7 +7,10 @@ import { testFixtures } from "@/test/fixtures";
 import { runCatalogResearch } from "./workflow";
 import { createWorkflowStorage } from "./runtime/workflow-storage";
 import type { GenerateRole } from "./roles/invoke";
+import type { CollectionOutput } from "./roles/contracts";
 import { locationTextFields } from "./location/contracts";
+import { z } from "zod";
+import { reviewSchema } from "./proposals";
 
 afterEach(() => vi.unstubAllEnvs());
 function approve(schema: Record<string, unknown>): unknown {
@@ -30,7 +33,13 @@ function approve(schema: Record<string, unknown>): unknown {
   );
 }
 
-async function fixture(invalidTickets = false) {
+async function fixture(
+  options: {
+    invalidTickets?: boolean;
+    sourceUnavailable?: boolean;
+    research?: (output: CollectionOutput) => CollectionOutput;
+  } = {},
+) {
   const root = await mkdtemp(join(tmpdir(), "eventroam-workflow-source-"));
   vi.stubEnv("CATALOG_SOURCE_DIRECTORY", root);
   vi.stubEnv("CATALOG_TRACING", "false");
@@ -76,19 +85,17 @@ async function fixture(invalidTickets = false) {
       };
     }
     if (role === "research") {
-      return {
+      const output: CollectionOutput = {
         checks: input.checks.map((check: { key: string }) => ({
           check: check.key,
           finding: "verified",
-          explanation: "Source was inspected",
-          evidenceIds: [],
           sourceIds: input.inspectedPages.map(
             (page: { sourceId: string }) => page.sourceId,
           ),
         })),
-        completionReason: "All assigned checks resolved",
         unresolved: [],
       };
+      return options.research?.(output) ?? output;
     }
     const checks = (input.assignedChecks ?? []).map((check: string) => ({
       check,
@@ -137,7 +144,7 @@ async function fixture(invalidTickets = false) {
     }
     if (role === "tickets") {
       await started;
-      return invalidTickets
+      return options.invalidTickets
         ? { invalid: true }
         : {
             currentOrNextEdition: {
@@ -189,7 +196,7 @@ async function fixture(invalidTickets = false) {
         unresolved: [],
       };
     }
-    return approve(input.decisionShape);
+    return approve(z.toJSONSchema(reviewSchema(input.prepared)));
   };
   try {
     const result = await runCatalogResearch(
@@ -199,15 +206,26 @@ async function fixture(invalidTickets = false) {
         workflowStorage: storage,
         todayUtc: "2026-10-31",
         generateRole: generate,
-        readPage: async (url) => ({
-          attemptedUrl: url,
-          finalUrl: url,
-          retrievedAt: "2026-10-31T00:00:00Z",
-          status: "ok",
-          method: "http",
-          markdown:
-            "# Example Festival 2027\n1–3 July 2027, Lisbon, Portugal. Full pass EUR 100. [Website](https://example.org/)",
-        }),
+        readPage: async (url) =>
+          options.sourceUnavailable
+            ? {
+                attemptedUrl: url,
+                finalUrl: url,
+                retrievedAt: "2026-10-31T00:00:00Z",
+                status: "failed",
+                reasonCode: "http_error",
+                method: "http",
+                markdown: "",
+              }
+            : {
+                attemptedUrl: url,
+                finalUrl: url,
+                retrievedAt: "2026-10-31T00:00:00Z",
+                status: "ok",
+                method: "http",
+                markdown:
+                  "# Example Festival 2027\n1–3 July 2027, Lisbon, Portugal. Full pass EUR 100. [Website](https://example.org/)",
+              },
         searchWeb: async () => {
           throw new Error("Unexpected discovery");
         },
@@ -260,11 +278,84 @@ it("runs independent specialists in parallel and applies one reviewed complete b
   ]);
 });
 it("waits for branches and prevents all writes on invalid required output", async () => {
-  const { result, calls } = await fixture(true);
+  const { result, calls } = await fixture({ invalidTickets: true });
   expect(result.outcome).toBe("failed");
   expect(calls).toContain("classification");
   expect(calls).toContain("location");
   expect(calls).not.toContain("editor");
+  expect(result.operations).toEqual([]);
+});
+
+it("keeps unfinished collection reasons and owner questions in a partial report", async () => {
+  const explanation = "The official travel page is blocked.";
+  const question = { message: "Which official travel domain should be used?" };
+  const { result } = await fixture({
+    research: (output) => ({
+      checks: output.checks.map((check) =>
+        check.check === "currentLocation"
+          ? { ...check, finding: "unfinished", explanation }
+          : check,
+      ),
+      unresolved: [question],
+    }),
+  });
+  expect(result.errors).toEqual([]);
+  expect(result.researchStatus).toBe("partial");
+  expect(result.unresolved).toContainEqual(question);
+  expect(result.unresolved).toContainEqual({
+    message: `currentLocation: ${explanation}`,
+  });
+  expect(
+    result.sourceSummaries.some((source) =>
+      source.information.includes(explanation),
+    ),
+  ).toBe(true);
+});
+
+it("retains an unfinished collection cause without a source or a separate owner question", async () => {
+  const explanation = "All relevant source requests are blocked.";
+  const { result, calls } = await fixture({
+    sourceUnavailable: true,
+    research: (output) => ({
+      checks: output.checks.map((check) =>
+        check.check === "currentTickets"
+          ? {
+              check: check.check,
+              finding: "unfinished",
+              sourceIds: [],
+              explanation,
+            }
+          : check,
+      ),
+      unresolved: [],
+    }),
+  });
+  expect(result.outcome).toBe("failed");
+  expect(result.researchStatus).toBe("failed");
+  expect(calls).not.toContain("general");
+  expect(result.unresolved).toContainEqual({
+    message: `currentTickets: ${explanation}`,
+  });
+});
+
+it("rejects an unknown collection source before interpretation or writes", async () => {
+  const { result, calls } = await fixture({
+    research: (output) => ({
+      ...output,
+      checks: output.checks.map((check) => ({
+        ...check,
+        sourceIds: ["unknown-source"],
+      })),
+    }),
+  });
+  expect(result.outcome).toBe("failed");
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({
+      code: "invalid_candidate",
+      message: "Collection check references are invalid",
+    }),
+  );
+  expect(calls).not.toContain("general");
   expect(result.operations).toEqual([]);
 });
 
@@ -320,7 +411,6 @@ it("keeps saved source references in workflow history after cancellation during 
     await inspect.execute({ url: "https://example.org/two" }, {});
     return {
       checks: [],
-      completionReason: "Cancelled fixture",
       unresolved: [],
     };
   };

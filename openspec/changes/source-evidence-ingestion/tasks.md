@@ -68,6 +68,9 @@ The new flow and its unit and integration tests are present. The main before/aft
 
 ## Optimization alignment
 
+- [x] Remove repeated role input and empty Reader output: use short or contextual evidence, keep General's own assignment and saved identity/common facts, supply Editor's decision schema only through structured output, and limit Links omissions to material ambiguities. Verify strict schemas, context binding, scope permissions and complete review keys.
+- [ ] Compare repeated standard-tier main evals for the role payload changes without claiming savings from failed attempts. The first 2026-11-01 batch is blocked by the provider spending limit. A requested single retry passes 5/5, with required facts 15/15, additional facts 30/33 and estimated model cost USD 0.050291145. Repeated validation and a controlled comparison remain open.
+- [x] Reduce Research output to collection checks and distinct owner questions. Omit successful-check explanations, evidence IDs, completion reasons, and question field/Edition keys. Keep short unfinished reasons, source references, specialist support, and report completion rules. Verify the strict provider shape, partial reports, and invalid source references.
 - [x] Record the implemented literal-boundary quote form, full-text restoration and unchanged strict anchoring in the design and source-access scenarios.
 - [x] Record compact evidence projections, role reasoning settings and Reader-only prompt cache disablement without changing source caching or the frozen-corpus contract.
 - [x] Link measured cost and quality evidence, distinguish five-attempt measurements from ten-attempt projections, and retain the unmet preferred cost target.

@@ -40,7 +40,7 @@ export function providerRole(body: ObjectValue) {
   if (fields.overview) {
     return "reader";
   }
-  if (fields.completionReason) {
+  if (fields.checks && Object.keys(fields).length === 2) {
     return "research";
   }
   if (fields.result) {
@@ -115,8 +115,8 @@ function general(
   if (!data) {
     return {
       decision: "uncertain",
-      reason: `Explicit fixture has no usable identity: ${candidate.errors[0]?.message ?? "No support"}`,
-      unresolved: candidate.unresolved,
+      reason: `Explicit fixture has no usable identity: ${candidate.errors?.[0]?.message ?? "No support"}`,
+      unresolved: candidate.unresolved ?? [],
     };
   }
   const identity = {
@@ -139,7 +139,7 @@ function general(
   };
 }
 function roleChecks(prompt: Prompt, candidate: ResearchCandidate) {
-  const keys =
+  const keys: string[] =
     prompt.assignedChecks ??
     prompt.checks?.map((item: { key: string }) => item.key) ??
     [];
@@ -231,9 +231,17 @@ export function fixtureRoleForProvider(
     }
     if (role === "research") {
       return {
-        checks: roleChecks(prompt, candidate),
-        completionReason: "Explicit fixture collection complete",
-        unresolved: candidate.unresolved,
+        checks: roleChecks(prompt, candidate).map(
+          ({ check, finding, explanation, sourceIds }) => ({
+            check,
+            finding,
+            sourceIds,
+            ...(finding === "unfinished" ? { explanation } : {}),
+          }),
+        ),
+        unresolved: (candidate.unresolved ?? []).map(({ message }) => ({
+          message,
+        })),
       };
     }
     if (role === "general") {
@@ -243,7 +251,7 @@ export function fixtureRoleForProvider(
       return location(prompt, candidate);
     }
     if (role === "editor") {
-      return approve(prompt.decisionShape);
+      return approve(schema);
     }
     if (role === "links") {
       return {

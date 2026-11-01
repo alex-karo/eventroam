@@ -34,11 +34,27 @@ const check = z.strictObject({
   sourceIds: z.array(z.string()).max(100),
 });
 export const checksSchema = z.array(check).max(40);
+export type CheckFinding = z.infer<typeof check>;
 export const questionsSchema = z.array(researchQuestionSchema).max(30);
+const collectionNote = z.string().trim().min(1).max(300);
+const collectionCheck = {
+  check: check.shape.check,
+  sourceIds: check.shape.sourceIds,
+};
 export const collectionOutputSchema = z.strictObject({
-  checks: checksSchema,
-  completionReason: reasonSchema,
-  unresolved: questionsSchema,
+  checks: z
+    .array(
+      z.discriminatedUnion("finding", [
+        z.strictObject({ ...collectionCheck, finding: z.literal("verified") }),
+        z.strictObject({
+          ...collectionCheck,
+          finding: z.literal("unfinished"),
+          explanation: collectionNote,
+        }),
+      ]),
+    )
+    .max(40),
+  unresolved: z.array(z.strictObject({ message: collectionNote })).max(30),
 });
 export const targetSchema = z.strictObject({
   editionKey: facts.key,
