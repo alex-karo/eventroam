@@ -54,16 +54,16 @@ Conversation context SHALL use a token budget as well as a message-count limit. 
 - **AND** removed messages remain in conversation storage
 
 ### Requirement: Tool execution validates input and trusts host controls
-Assistant tools SHALL validate input before execution. Refresh limits SHALL use host-controlled state for each assistant execution, without client or model overrides. Refresh SHALL use existing ingestion validation, write, and report-finalization behavior.
+Assistant tools SHALL validate input before execution. Submission limits SHALL use host-controlled state for each assistant execution, without client or model overrides. Job submission and request cancellation SHALL follow the ingestion-tasks contract.
 
 #### Scenario: Tool input is invalid
 - **WHEN** tool input does not match its input schema
 - **THEN** it is rejected before tool execution
 
 #### Scenario: The refresh request is aborted
-- **WHEN** the request is already cancelled or Studio processes cancellation during refresh
-- **THEN** the wrapper starts no further Events and forwards cancellation to any active run
-- **AND** the active attempt follows existing ingestion cancellation rules
+- **WHEN** cancellation is observed before submission
+- **THEN** the wrapper creates no jobs
+- **AND** the assistant does not report acceptance
 
 ### Requirement: SQL access is read only with bounded output
 The SQL tool SHALL accept one catalog read query. It SHALL enforce read-only access outside the model. It SHALL reject mutations, scripts, connection changes, attached databases, and extension loading. It SHALL bound result rows and result bytes. It SHALL report truncation and safe errors explicitly.
@@ -93,31 +93,38 @@ The SQL tool SHALL execute queries synchronously inside Studio with a separate r
 - **THEN** it does not start the query
 
 ### Requirement: Refresh uses an explicit bounded selection
-The refresh tool SHALL accept one to three distinct existing Event IDs, scope current or full, and a boolean dryRun that defaults to true. A true dryRun SHALL select preview; false SHALL select apply. It SHALL validate the whole selection before external work and execute Events sequentially. Each started Event SHALL use the existing ingestion workflow and receive its own run ID. Ordinary item failure SHALL not stop later items. The assistant SHALL NOT split a larger request to bypass the limit.
+The assistant SHALL resolve the complete Event ID selection before calling refresh_events under the ingestion-tasks contract. It SHALL NOT split requests to bypass the selection limit or submit a truncated selection as complete. It SHALL report accepted count and batch ID separately from ingestion completion.
 
 #### Scenario: Owner refreshes selected Events
-- **WHEN** the owner explicitly requests an update for three selected Events
-- **THEN** the assistant identifies the targets and selects dryRun false before execution
-- **AND** the tool starts separate apply attempts and returns results correlated by Event ID and run ID
+- **WHEN** the owner explicitly requests an update for 67 resolved Events
+- **THEN** the assistant submits them with dryRun false
+- **AND** it reports acceptance separately from completion
 
 #### Scenario: Selection is invalid
-- **WHEN** the request includes duplicate IDs, missing Events, or more than three IDs
-- **THEN** no ingestion attempt starts
+- **WHEN** submission rejects the selected Event IDs
+- **THEN** the assistant explains the rejection without reporting acceptance
+- **AND** it does not split or retry the selection to bypass the limit
 
 #### Scenario: One item fails
-- **WHEN** the first Event fails without cancellation
-- **THEN** the remaining selected Events are attempted and the failed result remains visible
+- **WHEN** saved run evidence shows an ingestion failure for a done job
+- **THEN** the assistant reports that attempt failure with available job and run IDs
+- **AND** it does not describe done as proof of success
+
+#### Scenario: Count alone does not resolve targets
+- **WHEN** the prior query returned only a count or a truncated list and the owner requests all selected Events
+- **THEN** the assistant resolves the complete Event ID selection before submission
+- **AND** it asks for a narrower selection if it cannot resolve the complete set within the limit
 
 ### Requirement: One assistant execution starts one refresh selection
-The host SHALL allow at most one valid refresh selection to start within one assistant execution. Parallel calls and retries SHALL share that limit, including after ingestion failure. Invalid selections SHALL NOT consume the limit. A new owner message SHALL start a new execution with a new limit.
+The host SHALL allow at most one validated selection to enter submission within one assistant execution. Parallel calls and retries SHALL share that limit. Invalid input SHALL NOT consume the limit. Once a validated selection enters submission, the host SHALL reject further submissions in that execution, including after a submission error. Later valid calls SHALL return selection_consumed without creating more jobs or returning a cached submission result. A lost submission response SHALL NOT authorize an automatic repeat. A new owner message SHALL start a new execution with a new limit.
 
 #### Scenario: The agent repeats a refresh call
-- **WHEN** a valid selection has started and the agent calls refresh again in the same execution
-- **THEN** the second call is rejected without a new ingestion attempt
+- **WHEN** submission has begun and the agent submits again in the same execution
+- **THEN** the second call creates no jobs and returns selection_consumed
 
 #### Scenario: Refresh calls arrive together
-- **WHEN** two valid refresh calls arrive concurrently in one assistant execution
-- **THEN** at most one selection starts
+- **WHEN** two valid submission calls arrive concurrently in one assistant execution
+- **THEN** at most one selection enters submission
 
 ### Requirement: Owner intent controls execution mode
 An explicit owner update request SHALL authorize apply for the resolved selection without a second confirmation. A preview request SHALL make no catalog changes. Unclear write intent or targets SHALL require clarification. Omitted scope SHALL use full. Republish SHALL remain off. Read and analysis requests SHALL NOT start ingestion by themselves.
@@ -131,11 +138,11 @@ An explicit owner update request SHALL authorize apply for the resolved selectio
 - **THEN** the tool starts current-scope attempts with dryRun true and republish off
 
 ### Requirement: Analysis uses saved evidence through SQL
-The assistant SHALL read saved attempts and reports through the SQL tool by ingestion run ID. It SHALL distinguish lifecycle, research completeness, and catalog outcome. It SHALL link conclusions to run IDs and available sources, distinguish proposed from applied changes, and state missing evidence. It SHALL NOT describe report analysis as a new independent source check.
+The assistant SHALL read saved attempts and reports through the SQL tool by ingestion run ID or job ID. It SHALL distinguish queue progress, each attempt lifecycle, research completeness, and catalog outcome. Several runs for one job SHALL remain distinct. It SHALL link conclusions to run IDs and available sources, distinguish proposed from applied changes, and state missing evidence. It SHALL NOT describe report analysis as a new independent source check.
 
 #### Scenario: Owner asks about a refresh result
-- **WHEN** refresh returns an ingestion run ID and an engine run ID
-- **THEN** the assistant uses the ingestion run ID to query the saved attempt and report
+- **WHEN** a job SQL read provides an ingestion run ID
+- **THEN** the assistant uses that ID to query the saved attempt and report
 - **AND** it selects evidence relevant to the owner's question
 
 #### Scenario: Research made no changes but is incomplete
@@ -167,26 +174,54 @@ Report reads SHALL use the same row and byte limits as other SQL reads. Full sto
 - **THEN** the assistant identifies the evidence as incomplete and can query a smaller part
 - **AND** it does not treat an empty truncated result as proof that the run is absent
 
-### Requirement: MVP execution has no automatic recovery
-Chat refresh SHALL run within the Studio process without a durable batch queue. Once Studio processes cancellation, it SHALL stop further Events and propagate cancellation to active ingestion. Known commits SHALL remain. Process failure SHALL NOT cause automatic replay or a claimed final result. Repeated execution SHALL require a new owner request and fresh catalog state.
-
-#### Scenario: Owner cancels a selection
-- **WHEN** Studio processes owner cancellation while the second Event runs
-- **THEN** the third Event does not start and the active attempt follows existing cancellation rules
-
-#### Scenario: Server stops during refresh
-- **WHEN** Studio stops after one Event commits
-- **THEN** the commit and available run history remain
-- **AND** unstarted Events do not run automatically after restart
-
 ### Requirement: Assistant tools use existing application logging
-Assistant tools SHALL use existing logging controls and sinks. Logs SHALL identify starts, safe outcomes, cancellation, elapsed time, and available agent, thread, tool call, and run IDs. Refresh logs SHALL retain Event and ingestion run IDs. Logs SHALL NOT copy query text, parameters, result rows, reports, prompts, or raw exceptions. Log failures SHALL NOT change tool results.
+Assistant tools and the job executor SHALL use existing logging controls and sinks. Logs SHALL identify starts, safe outcomes, cancellation, elapsed time, and available agent, thread, tool call, batch, job, Event, and run IDs. Application logs SHALL NOT copy query text, parameters, result rows, reports, prompts, or raw exceptions. Native SDK logs and traces SHALL follow the existing ingestion-diagnostics contract. Log failures SHALL NOT change execution results.
 
 #### Scenario: Owner inspects a tool call
-- **WHEN** logging is enabled and the assistant queries or refreshes the catalog
+- **WHEN** logging is enabled and the assistant queries or submits a selection
 - **THEN** stderr and Studio contain selected tool events at the configured level
-- **AND** refresh results can be linked to their ingestion runs
+- **AND** worker execution events use its selected diagnostic store and include available job and run identities
 
 #### Scenario: Logging is disabled or fails
 - **WHEN** logging is disabled or a log sink fails
-- **THEN** tool execution keeps its normal result and write behavior
+- **THEN** submission and processing keep their normal behavior
+
+### Requirement: Chat controls jobs explicitly
+The assistant SHALL use query_catalog for job progress and saved attempt evidence. Batch counts SHALL describe the full batch rather than a truncated item result. Stored job state SHALL NOT be treated as proof that the processor is active. An explicit owner request SHALL authorize cancellation of pending jobs in a resolved batch through a validated tool. Missing or ambiguous batch references SHALL require clarification. Status requests SHALL not start or cancel jobs. Unavailable catalog storage and unknown batches SHALL be stated explicitly.
+
+#### Scenario: Owner asks for progress
+- **WHEN** the owner asks how a submitted batch is progressing
+- **THEN** the assistant reads job counts and available run identities through query_catalog
+- **AND** it does not claim a done job proves ingestion success or complete research
+
+#### Scenario: Owner stops remaining work
+- **WHEN** the owner asks to stop a resolved batch
+- **THEN** the assistant calls the cancellation tool under the ingestion-tasks contract
+- **AND** it reports active jobs and any cancellation error
+
+#### Scenario: Job details exceed SQL output limits
+- **WHEN** a query returns a truncated subset of job details
+- **THEN** the assistant states the limit and obtains complete batch counts separately
+- **AND** it does not count the returned subset as the full batch
+
+#### Scenario: Batch does not exist
+- **WHEN** no stored jobs match the resolved batch ID
+- **THEN** the assistant states that no matching jobs were found without inventing a submission history
+
+### Requirement: Missing batch references use saved job evidence
+When a submission response is lost, the assistant SHALL use bounded catalog SQL reads to find saved batches by available time, Event IDs, and settings. Discovery SHALL work without logs and SHALL NOT submit jobs. Ambiguous candidates, truncated results, or missing evidence SHALL require clarification before selecting a batch.
+
+#### Scenario: Find a batch without logs
+- **WHEN** the submission response was lost, logging is disabled or failed, and saved job evidence identifies one matching batch
+- **THEN** the assistant resolves that batch ID and reads its progress through query_catalog
+- **AND** it creates no jobs
+
+#### Scenario: Several batches can match
+- **WHEN** several saved batches match the available request context
+- **THEN** the assistant presents the candidates and asks the owner to select one
+- **AND** it does not select the newest batch without sufficient evidence
+
+#### Scenario: Discovery evidence is incomplete
+- **WHEN** bounded queries are truncated or no saved batch can be identified
+- **THEN** the assistant states the evidence limit and asks for clarification
+- **AND** it does not infer that no submission committed or automatically submit again

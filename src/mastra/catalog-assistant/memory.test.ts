@@ -19,7 +19,6 @@ test("history token budget removes old prompt context without deleting saved mes
     prompts.push(JSON.stringify(options.prompt));
   };
   const assistant = createCatalogAssistant(
-    { createRun: vi.fn() },
     chat.memory,
     createMockModel({
       version: "v2",
@@ -121,7 +120,7 @@ test("Memory owns persistent history and Studio closes chat, workflow and observ
     closeWorkflow = vi.spyOn(storage, "close"),
     closeTrace = vi.spyOn(observability, "close");
   vi.stubEnv("OPENROUTER_API_KEY", "");
-  const assistant = createCatalogAssistant({ createRun: vi.fn() }, chat.memory);
+  const assistant = createCatalogAssistant(chat.memory);
   await expect(assistant.getModel()).resolves.toBeDefined();
   const mastra = new StudioMastra(
     {

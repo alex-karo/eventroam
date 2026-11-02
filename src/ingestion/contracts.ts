@@ -108,9 +108,15 @@ export type CatalogResearchResult = {
 };
 
 export type ResearchDependencies = {
+  /** Host-only queue identity; never read from workflow form input. */
+  jobId?: string;
   client: Database.Database;
-  /** Shared local Studio observability store; the caller owns its lifetime. */
-  observabilityStore?: DuckDBStore;
+  /**
+   * undefined: the attempt opens and closes its own store when diagnostics are enabled.
+   * null: disable observability without opening another store.
+   * A supplied store is shared; the caller owns its lifetime.
+   */
+  observabilityStore?: DuckDBStore | null;
   /** Injected workflow storage is owned by the caller. */
   workflowStorage?: WorkflowStorage;
   workflowDatabasePath?: string;

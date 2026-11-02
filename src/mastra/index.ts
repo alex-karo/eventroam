@@ -21,7 +21,6 @@ export const mastra = new Mastra(
   {
     agents: {
       "catalog-assistant": createCatalogAssistant(
-        workflow,
         chat.memory,
         undefined,
         logging,

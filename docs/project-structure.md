@@ -48,6 +48,7 @@ src/
 │   ├── location/              # Place decisions and point validation
 │   ├── tools/                 # Source reading, search and geocoding
 │   ├── evals/                 # Fixed cases, evaluators and experiment runner
+│   ├── jobs/                  # Durable queue operations and separate worker
 │   └── runtime/               # Model setup, workflow storage and observability
 ├── mastra/                    # Studio registration and production server
 │   └── catalog-assistant/     # Chat agent, tools, memory and catalog-sql skill
@@ -80,25 +81,26 @@ Follow a refresh through `workflow.ts` → `research/agent/index.ts` → `resear
 
 Paths below are relative to `src/ingestion/` unless stated otherwise. Read code for internal algorithms and current limits.
 
-| Area | Owner |
-| --- | --- |
-| Workflow and terminal cleanup | `workflow.ts`, `attempt.ts` |
-| Saved context, research instructions and output | `research/context.ts`, `research/agent/`, `research/contracts.ts` |
-| Scope and country checks | `research/guards.ts` |
-| Source tools, shared budgets and network access | `tools/` |
-| Editor decisions and writer-operation preparation | `editor/` |
-| Place fields, coordinate selection and donor checks | `location/`, `tools/geocode/` |
-| Private reports and durable attempts | `report.ts`, `runs.ts` |
-| Evals and experiment results | `evals/`; see [Ingestion evals](ingestion-evals.md) |
-| Workflow storage, logging and tracing | `runtime/`; see [Ingestion tools](ingestion-tools.md) |
-| Studio workflow registration | `src/mastra/index.ts` |
-| Studio chat, SQL and refresh tools, memory and schema guidance | `src/mastra/catalog-assistant/` |
+| Area                                                           | Owner                                                             |
+| -------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Workflow and terminal cleanup                                  | `workflow.ts`, `attempt.ts`                                       |
+| Saved context, research instructions and output                | `research/context.ts`, `research/agent/`, `research/contracts.ts` |
+| Scope and country checks                                       | `research/guards.ts`                                              |
+| Source tools, shared budgets and network access                | `tools/`                                                          |
+| Editor decisions and writer-operation preparation              | `editor/`                                                         |
+| Place fields, coordinate selection and donor checks            | `location/`, `tools/geocode/`                                     |
+| Background job submission, cancellation and execution          | `jobs/`; `commands/catalog-worker.ts` composes resources          |
+| Private reports and durable attempts                           | `report.ts`, `runs.ts`                                            |
+| Evals and experiment results                                   | `evals/`; see [Ingestion evals](ingestion-evals.md)               |
+| Workflow storage, logging and tracing                          | `runtime/`; see [Ingestion tools](ingestion-tools.md)             |
+| Studio workflow registration                                   | `src/mastra/index.ts`                                             |
+| Studio chat, SQL and refresh tools, memory and schema guidance | `src/mastra/catalog-assistant/`                                   |
 
 Each preparation function returns `continue`, `skip`, or `reject`. Only `continue` carries input for the next stage: `CheckedResearch` → `AcceptedEditorPlan` → `ReadyCatalogPlan`. Research and Editor results have no writer operations. Workflow state retains each stage result for inspection. The workflow uses those results to choose its next action and sets an explicit outcome. Reports project that outcome, stage diagnostics, and writer receipts; error codes do not control the report outcome.
 
 `CatalogAttempt` owns failure finalization, active-work settlement, terminal persistence, and resource cleanup. Cancellation and workflow-history errors use this same owner. Terminal persistence and cleanup each run once. Shared Studio resources remain with Studio.
 
-The writer owns catalog validation and atomic changes. CLI callers own injected connections. Studio owns its catalog connection and storage providers. Saved workflow state excludes live resources and credentials. See the [ingestion process](ingestion-process.md) for behavior and [Infrastructure](infrastructure.md) for storage operations.
+The writer owns catalog validation and atomic changes. CLI callers own injected connections. Studio owns its catalog connection and storage providers. The separate worker owns its queue connection and workflow resources. Jobs store queue state and settings; `ingestion_runs.job_id` links each fresh worker attempt. Several attempts can reference one job. Direct runs have no job ID. Saved workflow state excludes live resources and credentials. See the [ingestion process](ingestion-process.md) for behavior and [Infrastructure](infrastructure.md) for storage operations.
 
 ## Discovery
 

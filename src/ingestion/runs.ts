@@ -153,6 +153,7 @@ export function startIngestionRun(
   input: StoredRunInput,
   started: number,
   eventId: string | null,
+  jobId?: string,
 ) {
   if (client.inTransaction) {
     throw new RunPersistenceError();
@@ -161,16 +162,46 @@ export function startIngestionRun(
   try {
     const parsed = storedInputSchema.parse(input);
     client
-      .prepare(
-        "INSERT INTO ingestion_runs(id,event_id,mode,status,started_at,input_json) VALUES(?,?,?,'running',?,?)",
-      )
-      .run(
-        runId,
-        eventId,
-        parsed.mode,
-        new Date(started).toISOString(),
-        JSON.stringify(parsed),
-      );
+      .transaction(() => {
+        if (jobId !== undefined) {
+          const job = client
+            .prepare(
+              "SELECT event_id,scope,dry_run,status FROM ingestion_jobs WHERE id=?",
+            )
+            .get(jobId) as
+            | {
+                event_id: string;
+                scope: string;
+                dry_run: number;
+                status: string;
+              }
+            | undefined;
+          if (
+            job?.status !== "running" ||
+            parsed.mode !== "refresh" ||
+            job.event_id !== eventId ||
+            parsed.eventId !== eventId ||
+            job.scope !== (parsed.scope ?? "full") ||
+            Boolean(job.dry_run) !== parsed.dryRun ||
+            parsed.republish
+          ) {
+            throw new Error("Job input does not match");
+          }
+        }
+        client
+          .prepare(
+            "INSERT INTO ingestion_runs(id,event_id,job_id,mode,status,started_at,input_json) VALUES(?,?,?,?,'running',?,?)",
+          )
+          .run(
+            runId,
+            eventId,
+            jobId ?? null,
+            parsed.mode,
+            new Date(started).toISOString(),
+            JSON.stringify(parsed),
+          );
+      })
+      .immediate();
   } catch {
     throw new RunPersistenceError();
   }
