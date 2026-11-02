@@ -298,7 +298,7 @@ it("builds concrete assignments with current exclusions", () => {
   expect(current).not.toHaveProperty("mode");
   expect(current).not.toHaveProperty("scope");
   expect(current.sourcePolicy).toMatchObject({
-    discoveryAllowed: false,
+    discoveryAllowed: true,
     recoverWebsite: false,
   });
   expect(current.permissions).toEqual({

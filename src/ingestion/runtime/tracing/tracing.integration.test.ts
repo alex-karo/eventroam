@@ -39,7 +39,9 @@ async function runTraceFixture(
         throw new Error("Abort fixture completed before its hanging request");
       }),
     ]);
-    await vi.advanceTimersByTimeAsync(5_000);
+    // Restore real time before asynchronous storage cleanup starts.
+    vi.advanceTimersByTime(5_000);
+    vi.useRealTimers();
     return await pending;
   } finally {
     vi.useRealTimers();

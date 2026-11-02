@@ -344,3 +344,116 @@ The main total rises 15.7% because the control Roskilde attempt fails before int
 Only `search-inaccessible-official` passes in the affected pipeline selection. Research now finishes in one step and avoids extra reads for `search-no-optional-field` and `narrow-current-changed`, but other roles or completion findings still fail their checks. The missing-optional case still asks for a travel page after the homepage supplies venue and address. The noncomparable case still asks for a ticket overview after explicit free admission. Reader still sometimes puts ordinary missing data in `limitations`. Current refresh still explores a replacement website after an identity contradiction instead of stopping with full-refresh guidance. Wrong-site cases can stop on the wrong identity and skip later roles; part of their lower total cost comes from failed work. Keep these failures visible and do not accept the pipeline cost reduction as preserved quality.
 
 The accepted identity-refusal status check passes in both runs, while its separate source-policy and identity-guidance conditions fail. No catalog writes occur in that refusal. Focused application tests pass 52/52; all 50 eval inputs load. Type check, affected lint, formatting, documentation checks and strict OpenSpec validation pass. This experiment does not replace the earlier full-test result or the remaining full-suite and repeated-comparison work.
+
+## Full-suite stabilization, 2026-11-02
+
+The owner requested at least 90% passing scenarios and a separate list of questions for later discussion. Keep every case in the measured set. Do not lower source, scope, preservation or publication requirements to reach the target. A single passing run does not establish stability; repeat the full set on the same code and eval revision.
+
+The clean baseline is commit `0180a5eecfd9c9981f7fb708d920676c575ea4fb`. All eight roles use `openai/gpt-6-luna`, standard tier, configured low reasoning, medium Editor and Location, and no Reader prompt cache. One attempt per case returned all 50 outputs in about nine minutes. There were no task-level errors; domain validation failures remain failed scenarios.
+
+| Group               | Passed | Experiment                             |
+| ------------------- | ------ | -------------------------------------- |
+| Main                | 4/5    | `d28cb9ae-b6cf-4a81-a026-93728ada5571` |
+| Pipeline regression | 1/25   | `08f3699f-5538-43f6-9974-2243a7adba92` |
+| Editor regression   | 5/7    | `2ecde9b5-c432-484e-afd7-739756adb577` |
+| Location regression | 10/13  | `830d13da-e88e-48da-8154-71bf7f5a956b` |
+
+Main has no wrong checked values, but Wacken lacks current classification. Editor approves that classification; its unnecessary `reuseFrom` ties it to the rejected previous classification, so dependency validation removes it. Sziget also lacks the additional venue and address facts.
+
+Traces show these separate causes:
+
+- Editor has no `currentDate` input. It uses 3 October for size cases fixed at 23 September and 31 October, and rejects valid temporal targets. That date matches seed timestamps, but the trace does not prove why the model chose it.
+- All 25 pipeline reports are partial. Eight non-failed workflows fail only the completion-status check. Research and specialists treat explicit nonpublication, missing optional details or an absent current target as unfinished work. Two other status-only cases have real validation failures, so they are not harmless status differences.
+- Tickets and Editor confuse the observed offer list with a complete inaccessible checkout. Limited passes and admission/stay packages are lost, or all supported offers are rejected because unchecked categories are unavailable.
+- Classification can propose self-reuse. Links can propose an Event URL action when current scope forbids Event fields. Location can select the correct saved point instead of returning `keep`, which violates the point-action contract.
+- Wrong-site cases anchor on a bad saved URL. One Reader `editionClues` interpretation incorrectly merges distinct weekends despite retaining the literal source. Location also misses venue-first and new-locality fallback queries.
+
+The existing refresh-scope spec resolves temporal ambiguity: keep the uncertain Edition slot null and return partial findings. It is not an Event identity refusal. Preserve that distinction in General; do not change the ambiguity eval to accept a failed identity decision.
+
+### Questions for later discussion
+
+1. The unfinished-history eval requires the exact `historic-weekend` key on a question even when the blocked archive cannot establish that temporal target. Research questions intentionally have no Edition keys. Should the check require a historical question and protected history instead of that key? Keep the existing expectation until this is decided.
+2. Search-policy fixtures require at most one discovery query. This fits sources that explicitly publish all available details. Should that bound also apply to real sources with unresolved publication-required country information? Do not add one global search limit to make these cases pass.
+3. The León replay matches exact query strings. A translated administrative area gives simulated `unavailable`, not a real provider failure. Should it accept more declared query aliases? First fix the agent's venue-first strategy; do not add every observed exploratory query as an alias.
+4. The original main guidance accepts both `announced` and `scheduled`. A later choice can make this deterministic; it is outside this stabilization task.
+
+The baseline is one stochastic run, not evidence that the last cleanup caused these failures. Before push, rescoring 50 saved real outputs produced the same 98 scores before and after that cleanup.
+
+The first repair run (`stabilize-1`) passes Main 3/5, Pipeline 9/25, Editor 7/7 and Location 11/13. Its fixed Editor cases now accept recovered identity and known offers with an inaccessible checkout. The full workflow still fails in other places, so this is not a stability result. Wacken loses price quotations because repeated closing boundaries cannot bind. Sziget returns a quote boundary longer than 250 characters and fails Reader validation. Several remaining partial statuses arise from Reader scope comments or Research treating distinct programme dates as a conflict.
+
+Further inspection finds two clear contract defects:
+
+- The implementation disables all discovery in current scope. The source-access spec permits targeted discovery for a material date conflict or a missing publication-required Edition fact; it forbids current website recovery after an identity contradiction. Separate these rules. Give Research the bound saved country/locality clues, but do not send navigation instructions to Reader.
+- The partial-ticket regression projects the native `replacePriceBlock` operation, which uses `minMinor` and `maxMinor`, but expects the earlier model shape's `minAmount` and `maxAmount`. Require the same EUR 110 price as 11000 minor units at that boundary. Keep the offer, currency, full-programme coverage and catalog-mutation checks.
+
+The next repair keeps completion findings, strict quotation matching, temporal ambiguity checks and all catalog guards. It clarifies short literal quotations, unique bounded quote ends, actual extraction problems rather than page silence, preserved saved attendance without a specific retraction, current rather than archived booking URLs, and locality precision for a supported saved settlement point.
+
+The second full repair run (`stabilize-2`) passes Main 5/5, Pipeline 19/25, Editor 6/7 and Location 12/13: 42/50 in total. Main still lacks some additional place details. Its pass count does not mean every additional fact was collected. Pipeline failures include five collection/status problems and one incorrect unchanged-date check. The latter requires a proposal even though the confirmed saved January dates already match. Use the existing selected-date helper, and retain the same date values, independent-source search and read-order checks.
+
+The next trial promotes only Research from configured low reasoning to medium; General and the three fact specialists stay low, Reader stays low, and Editor and Location stay medium. It also explains that a coverage label need not repeat every extracted date or price. Explicit nonpublication completes the relevant collection check. Social-link collection does not require proof that no account exists. Reader uses short coverage labels with the existing 160-character limit. The limit and exact quote binding remain unchanged. Location must use `reusePrevious`, never `select`, for a historical point, including correction of a bad target point. Editor can approve removal of a saved venue address identified as an organiser office when no source also establishes it as the festival site; a replacement address is not required.
+
+The full unit run finds an obsolete scope-test error code after the new Links output boundary rejects forbidden Event changes earlier. Update that expectation while retaining failure, no-write and CLI/Studio equivalence checks. A separate abort tracing test advances asynchronous fake time through storage cleanup and triggers its cleanup timeout before the real DuckDB work finishes. Advance the abort timer synchronously, then restore real time before asynchronous cleanup. The tracing file then passes all 32 tests. Do not change production cleanup deadlines or remove metric-persistence assertions.
+
+The two-repeat focused trial (`stabilize-3`) returns all 16 outputs: Pipeline 8/12, Editor 1/2 and Location 2/2. Medium Research alone does not remove collection errors. The remaining failures show a more specific contract mismatch: Research requires locality/address although publication requires country only. Keep useful travel/contact leads, but do not require optional place facts after the country is established and useful leads are exhausted. Dated programme-status or attendance passages complete historical collection; General still decides realization. Reader must retain an explicit all-available-information statement and any conflict correction in its coverage. General must assess a later independent confirmation rather than keeping an earlier source's unresolved label as a permanent veto. Location and Editor must both apply the same office-address correction rule.
+
+The next measurement (`stabilize-4`) is the full 50-case set with two attempts per case on unchanged runtime and eval code. It keeps the Research medium setting and all other model, tier, scope and evidence guards. The full unit suite passes 796/796 with four workers after the tracing-timer repair.
+
+
+The full `stabilize-4` measurement returns all 100 outputs. Each repeat passes 44/50 (88%): Main 5/5 in both; Pipeline 22/25 and 20/25; Editor 6/7 and 7/7; Location 11/13 and 12/13. This does not meet the stability target. The experiments are Main `486c78d3-a247-40b3-bc9c-bf17efe4f4dc`, Pipeline `e2fa296b-8532-4401-9f76-ffb4539c378a`, Editor `a8554035-5ff4-4952-9217-61907f49733c`, and Location `550ced79-e1e6-4064-b9da-f4b24e20776f`.
+
+The next repair keeps the same checks and source inputs:
+
+- Reader must retain a literal Event name, including a heading when the body does not repeat it. An overview cannot establish identity. Do not repeat a long identity paragraph as context for self-contained dated facts or paraphrase that context. The failing size case adds a word to the shared context and loses several otherwise useful passages at binding.
+- General and Editor must distinguish evidence of realization from evidence of unique attendance. Reported actual gate admissions establish that a past dated programme took place, even when repeated entries cannot support a participant estimate.
+- Editor must judge Event identity separately from Edition selection. An ambiguous null Edition does not invalidate the established Event. Supported observed offers remain usable when other checkout categories are inaccessible. Unknown current availability does not require copying an unchecked saved state.
+- Links must still set a verified official website when the same URL is saved as unofficial or in another kind. Only a URL already official in the assigned slot needs no action.
+- Research must stop identity recovery after reading the linked official site that confirms the requested Event. Further description or identity confirmation does not justify another search.
+- Location must retain an unexplained material difference between official venue coordinates and a saved point as an unresolved coordinate question, even when the official point takes priority. The strict venue-query check remains in use.
+
+Token and cost exports need care. Timestamp-only metric pagination can repeat rows across pages and miss others. The stabilization report uses native metric aggregates filtered by experiment or trace IDs, not sums of paginated rows. Cost adds estimated input and output cost; cache-read tokens are a subset of input. These are model estimates, not invoices or external-service charges.
+
+For the same six Pipeline cases, `stabilize-2` has six attempts and the focused `stabilize-3` has twelve. Mean Research input falls from 6,274 to 5,416 tokens; output rises from 494 to 955; reasoning output rises from 200 to 731; steps fall from 3.17 to 2.50. Estimated Research cost per attempt rises from USD 0.000443499 to USD 0.000688679. The prompt also changes, so this comparison does not isolate reasoning effort. Medium effort alone did not establish stability. The full `stabilize-4` Main measurement costs USD 0.123244585 for ten attempts, including USD 0.0512868 for Reader and USD 0.020018725 for Research. Its required case passes do not establish complete additional facts.
+
+
+The `stabilize-5` Main result is 4/5 and 5/5. The failed Roskilde attempt keeps the instalment terms “five monthly instalments of DKK 524, plus a DKK 100 fee” but omits a numeric offer amount. The unchanged check accepts either the displayed DKK 524 instalment or DKK 2,720 total. This is a missing normalized price, not an incorrect base price. Both repeats retain all checked required Main facts. Additional place and price facts still have gaps. In Wacken's first repeat, Reader changes a German word in both Louder quotations; literal binding rejects those items, and the full-programme base price is absent. The second repeat retains it. The strict binder is not relaxed. Sziget also misses venue/address evidence, and one repeat misses locality. A passing scenario score does not establish full extraction recall or complete historical selection.
+
+
+### Final repeated measurement
+
+`stabilize-5` runs the complete unchanged 50-case set twice on standard tier. All 100 attempts return scored outputs. Repeat 1 passes 47/50 (94%); repeat 2 passes 48/50 (96%). The measured total is 95/100. Both repeats meet the owner's 90% target. Runtime and eval code stay unchanged throughout this measurement. The CLI exits 1 because five scenarios still fail; it does not report task or storage failure.
+
+| Group | Repeat 1 | Repeat 2 | Experiment |
+| --- | --- | --- | --- |
+| main/pipeline | 4/5 | 5/5 | `f1baccce-8d59-45f2-be85-c948322ba512` |
+| regression/pipeline | 23/25 | 23/25 | `709ca952-4b9c-4458-8380-81a1648cc37d` |
+| regression/editor | 7/7 | 7/7 | `47d22b81-6f9c-4e76-bd8b-ca1a8d272a09` |
+| regression/location | 13/13 | 13/13 | `0c2e2329-ff30-4789-9edd-a17f07361615` |
+
+The five remaining failed attempts are:
+
+- `roskilde #1`: the observed instalment has supported terms but no numeric amount. Its full-festival base price is correct.
+- `narrow-current-partial-tickets #1`: Tickets adds a Student placeholder from a category whose actual offer details are behind login. Editor accepts it because no price is asserted. The case still rejects that unsupported offer; the Regular EUR 110 offer and base price are correct.
+- `narrow-current-reuse #1`: Research leaves classification collection unfinished because the new announcement does not repeat genre names, despite source-backed programme continuity and a successful preserved classification.
+- `source-homonym-wrong-saved-website #2`: Research leaves description collection unfinished because it wants a broader description. The correct official website and source-backed Event update are accepted.
+- `narrow-current-changed #2`: General returns uncertain identity despite receiving both the Event-name heading and the same source's Lisbon, Portugal announcement. No Edition is written. This is an interpretation failure, not a missing Reader quotation.
+
+Main retains 30/30 checked required facts and 58/66 additional facts. Its remaining place and price gaps above stay visible. This result measures scenario stability; it does not establish complete extraction recall, full historical selection or quality equivalence for every optional fact.
+
+All roles use `openai/gpt-6-luna`. Research, Editor and Location use medium effort; Reader, General, Tickets, Classification and Links use low. Reader prompt caching stays disabled; native cache-read aggregates are zero. Other roles keep provider caching. No retry or correction loop is added. Source binding, scope checks, tool allowances and the frozen corpus remain in force. Versions are Research v15, Reader v17, General v13, Tickets v9, Classification v6, Links v8, Editor v15 and Location v19.
+
+The ten Main attempts cost an estimated USD 0.126707225. All 100 attempts cost USD 0.33971439; fixed Editor cases do not pay for Research or Reader. The Main cost is close to 13 cents and still above the preferred 10-cent target. The following native aggregates cover those ten Main attempts. Input includes cache reads; reasoning is part of output. Steps are model-step spans, including tool steps, not agent-run counts.
+
+| Role | Input tokens | Cache-read tokens | Output tokens | Reasoning tokens | Steps | Estimated USD |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Reader | 294,362 | 0 | 48,499 | 5,308 | 65 | 0.053685700 |
+| Research | 294,148 | 224,677 | 21,266 | 15,210 | 45 | 0.021560270 |
+| General | 50,002 | 18,186 | 8,666 | 2,273 | 8 | 0.008491260 |
+| Tickets | 31,043 | 6,936 | 4,548 | 1,384 | 6 | 0.005356285 |
+| Classification | 33,216 | 0 | 2,504 | 837 | 8 | 0.005403400 |
+| Links | 70,951 | 9,958 | 4,286 | 901 | 8 | 0.009866105 |
+| Location | 108,261 | 68,432 | 8,856 | 5,602 | 13 | 0.010089970 |
+| Editor | 62,198 | 10,816 | 11,448 | 6,820 | 9 | 0.012254235 |
+
+After the final prompt changes, all 796 unit tests pass with default workers. Type check, affected lint and formatting pass. Evidence, Location and tracing checks retain their strict assertions. Documentation checks, dependency checks and strict OpenSpec validation pass. The final edits repair two eval expectations without changing their required facts: native minor-unit prices and already-correct selected dates. All other assertions stay in force. No case is removed or excluded, and no disputed fixture decision is applied.
+
+The earlier questions remain for owner discussion. A further cost choice is whether to test low Research effort again with these corrected prompts. The present comparison changes both effort and prompt text, so it does not isolate the medium-effort benefit. Keep that later trial separate from the measured stability result.

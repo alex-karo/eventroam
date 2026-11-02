@@ -421,8 +421,8 @@ export const checks = {
         basePrice: {
           kind: "exact",
           currency: "EUR",
-          minAmount: 110,
-          maxAmount: 110,
+          minMinor: 11000,
+          maxMinor: 11000,
           coverage: "full_programme",
         },
       }),

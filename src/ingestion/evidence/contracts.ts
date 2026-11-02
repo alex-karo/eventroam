@@ -19,8 +19,20 @@ const readerEvidence = z.strictObject({
   quote: z.union([
     quote,
     z.strictObject({
-      start: z.string().min(1).max(250),
-      end: z.string().min(1).max(250),
+      start: z
+        .string()
+        .min(1)
+        .max(250)
+        .describe(
+          "Exact unique opening text, at most 250 characters. Preserve whitespace.",
+        ),
+      end: z
+        .string()
+        .min(1)
+        .max(250)
+        .describe(
+          "Exact unique closing text, at most 250 characters. It must follow the opening text. Never use a repeated bullet.",
+        ),
     }),
   ]),
   topics: z.array(z.enum(topics)).min(1).max(9),
@@ -31,17 +43,46 @@ const contextualReaderEvidence = readerEvidence.extend({
   uncertainty: z.string().max(1000).nullable(),
 });
 export const readerOutputSchema = z.strictObject({
-  overview: z.string().min(1).max(1500),
+  overview: z
+    .string()
+    .min(1)
+    .max(1500)
+    .describe(
+      "Describe only this page. Do not compare it with the requested Event or infer identity conflicts.",
+    ),
   coverage: z.strictObject({
-    found: z.array(z.string().min(1).max(160)).max(9),
+    found: z
+      .array(
+        z
+          .string()
+          .min(1)
+          .max(160)
+          .describe(
+            "Short label of collected information, normally under 100 characters; maximum 160 characters.",
+          ),
+      )
+      .max(9),
     notPublished: z
-      .array(z.string().min(1).max(160))
+      .array(
+        z
+          .string()
+          .min(1)
+          .max(160)
+          .describe(
+            "Short explicit absence statement, normally under 100 characters; maximum 160 characters.",
+          ),
+      )
       .max(6)
       .describe("Only explicit source statements of absence, not page silence"),
   }),
   topics: z.array(z.enum(topics)).max(9),
   statedYears: z.array(z.string().max(80)).max(100),
-  limitations: z.array(z.string().max(500)).max(30),
+  limitations: z
+    .array(z.string().max(500))
+    .max(30)
+    .describe(
+      "Actual extraction problems only, such as cut or unreadable source content. Return [] for absent optional facts, unmentioned topics or explicit nonpublication.",
+    ),
   // Keep full metadata first so native schema handling retains required null values.
   evidence: z
     .array(z.union([contextualReaderEvidence, readerEvidence]))

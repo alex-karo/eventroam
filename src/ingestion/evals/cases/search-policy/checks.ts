@@ -5,7 +5,7 @@ import type { RegressionEvaluator } from "../../regression";
 import {
   researchStatus,
   editionSlots,
-  editionByKey,
+  selectedEditionDates,
   returned,
 } from "../../research";
 
@@ -100,12 +100,10 @@ export const checks = {
     ];
   },
   "search-date-conflict": (context) => {
-    const { data } = context;
-    const edition = editionByKey(data, "2027");
     return [
       researchStatus(context, "success"),
       ...editionSlots(context, null, "2027"),
-      returned("research.2027.dates", edition?.dates, {
+      returned("research.2027.dates", selectedEditionDates(context, "2027"), {
         startsOn: "2027-01-23",
         endsOn: "2027-01-30",
       }),

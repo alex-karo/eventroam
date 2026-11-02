@@ -117,7 +117,7 @@ A cancelled or postponed Edition without a completed programme cannot be previou
 
 Run full before current to establish Event identity and shared links; this is an operating precondition, with no stored flag or run-history check.
 
-Current does not repeat that validation. If inspected material clearly contradicts identity, current returns failed/null with an identity question requesting full, without replacement-site discovery, editing or writes. Unavailable sources are diagnosed without website recovery.
+Current permits targeted discovery for an unresolved material date conflict or another publication-required Edition fact. It does not permit replacement-site recovery after an identity contradiction or discovery for missing optional details. Current does not repeat that identity audit. If inspected material clearly contradicts identity, current returns failed/null with an identity question requesting full, without replacement-site discovery, editing or writes. Unavailable sources are diagnosed without website recovery.
 
 Full retains wrong-site discovery and association inspection; search snippets/name matches are insufficient. Verified recovery can correct the Event website. An unresolved material identity contradiction prevents all writes/publication: full returns partial with useful target findings, otherwise failed/null.
 
@@ -137,7 +137,7 @@ Links works independently from Tickets. It owns one Event website, social slots,
 
 ### Accepting research values
 
-Editor only approves or rejects submitted values. It receives cited source text. It uses native Mastra workspace grep when a submitted proposal needs more source context. Code supplies cited Markdown paths in a read-only workspace and checks the source hash before each search. Only exact cited file paths are permitted. The native regex search returns matching lines, line numbers and requested context; missing or shortened matches do not prove absence. An exact anchored quote can still refer to the wrong Edition or an office. Editor cannot research, rewrite values, geocode, or start a correction loop.
+Editor uses the same fixed currentDate as General and Location, not saved record timestamps. It only approves or rejects submitted values. It receives cited source text. It uses native Mastra workspace grep when a submitted proposal needs more source context. Code supplies cited Markdown paths in a read-only workspace and checks the source hash before each search. Only exact cited file paths are permitted. The native regex search returns matching lines, line numbers and requested context; missing or shortened matches do not prove absence. An exact anchored quote can still refer to the wrong Edition or an office. Editor cannot research, rewrite values, geocode, or start a correction loop.
 
 ## Resolve location
 

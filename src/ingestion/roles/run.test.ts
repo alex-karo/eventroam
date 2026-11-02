@@ -199,6 +199,7 @@ it("uses native Mastra grep with cited source files and hash checks", async () =
           client: testDatabase().client,
           generateRole: async (_role, prompt, call) => {
             const input = JSON.parse(prompt);
+            expect(input.currentDate).toBe("2026-11-01T00:00:00Z");
             expect(input).not.toHaveProperty("decisionShape");
             expect(input.prepared.basis.evidence[0].quote).toBe(
               bound.evidence[0].quote,

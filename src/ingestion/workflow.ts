@@ -432,7 +432,6 @@ export function createCatalogIngestionWorkflow(
         config: owned.config,
         deps: owned.deps,
         assignment: {
-          instructions: assignment.instructions,
           requestedName: assignment.identityContext.requestedName,
           currentDate: assignment.currentDate,
         },

@@ -6,6 +6,9 @@ export function buildAssignment(
   context: ResearchContext,
 ) {
   const current = input.mode === "refresh" && input.scope === "current";
+  const savedEvent = context.catalog.find(
+    (event) => event.id === input.eventId,
+  );
   const checks = [
     "identity",
     "currentAnnouncement",
@@ -20,7 +23,7 @@ export function buildAssignment(
   ];
   return {
     instructions: current
-      ? "Inspect the saved official sources. Collect the ongoing festival or nearest announced future festival, dates, status, place, tickets, ticket overview and programme. Do not audit Event fields or history. Do not find a replacement website. Report an identity contradiction."
+      ? "Inspect the saved official sources. Collect the ongoing festival or nearest announced future festival, dates, status, place, tickets, ticket overview and programme. Do not audit Event fields or history. Do not find a replacement website. Stop on a material identity contradiction and request a full refresh. Targeted discovery for unresolved programme dates or another publication-required Edition fact is permitted; missing optional details do not permit discovery."
       : "Inspect relevant known official sources. Collect identity, description, public links, latest actually completed festival and ongoing or nearest announced future festival, dates, place and programme. Collect tickets only for the ongoing or next festival. Use permitted discovery only when needed. Do not infer an unannounced festival.",
     checks: checks.map((key) => ({
       key,
@@ -40,7 +43,7 @@ export function buildAssignment(
         currentLinks:
           "Find the official ticket overview and relevant public Edition links.",
         previousCompletedEdition:
-          "Identify the latest actually completed festival from history or a recap. Preserve saved dates when no inspected evidence contradicts them; do not audit every archive year.",
+          "Collect dated history or recap passages and their completion statements. General decides which programme is the latest completed festival; do not require its result before completing collection. Do not audit every archive year.",
         description:
           "Collect the Event description and any participant figure with its qualifications.",
         eventLinks:
@@ -48,7 +51,7 @@ export function buildAssignment(
       }[key],
     })),
     sourcePolicy: {
-      discoveryAllowed: !current,
+      discoveryAllowed: true,
       recoverWebsite: !current,
       historicalTickets: false,
     },
@@ -59,6 +62,20 @@ export function buildAssignment(
     identityContext: {
       requestedName: input.name ?? context.catalog[0]?.canonicalName,
       eventId: input.eventId ?? null,
+      countryCodes: [
+        ...new Set(
+          savedEvent?.editions.flatMap((edition) =>
+            edition.countryCode ? [edition.countryCode] : [],
+          ) ?? [],
+        ),
+      ],
+      localities: [
+        ...new Set(
+          savedEvent?.editions.flatMap((edition) =>
+            edition.locality ? [edition.locality] : [],
+          ) ?? [],
+        ),
+      ],
       knownNames: context.catalog.map((event) => ({
         id: event.id,
         name: event.canonicalName,

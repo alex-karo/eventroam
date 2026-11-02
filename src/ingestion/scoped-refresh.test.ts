@@ -371,7 +371,7 @@ test("CLI and Studio current previews reject Event website findings equivalently
     );
     expect(report.outcome).toBe("failed");
     expect(report.errors).toContainEqual(
-      expect.objectContaining({ code: "invalid_plan" }),
+      expect.objectContaining({ code: "invalid_candidate" }),
     );
     expect(report.operations).toEqual([]);
   }
