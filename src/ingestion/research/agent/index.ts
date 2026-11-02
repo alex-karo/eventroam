@@ -143,7 +143,7 @@ export async function researchFestival(
           structuredOutput: {
             schema: modelOutputSchema(),
             // Mastra also validates intermediate tool-call commentary.
-            // Final candidates still pass strict validation in prepareEditorPlan.
+            // Final candidates still pass strict validation in validateResearch.
             errorStrategy: "warn",
             logger: noopLogger,
           },

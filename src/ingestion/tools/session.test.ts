@@ -152,10 +152,16 @@ test("cache observations belong to each call, including concurrent duplicates an
   };
   const first = readWithObservation();
   const second = readWithObservation();
-  release({ ...page(homepage), finalUrl: tickets });
+  release({
+    ...page(homepage),
+    finalUrl: tickets,
+    markdown:
+      "## Map\n\nVenue: Buchanan Park · latitude: 39.6858145 · longitude: -105.3640047",
+  });
   const observations = await Promise.all([first, second]);
   expect(observations.map(({ cached }) => cached)).toEqual([false, true]);
   expect(observations[0].result).toBe(observations[1].result);
+  expect(observations[0].result.markdown).toContain("Venue: Buchanan Park");
   expect(sources.isReadCached(homepage)).toBe(true);
   expect(sources.isReadCached(tickets)).toBe(true);
   expect(await sources.readPage(tickets)).toBe(observations[0].result);

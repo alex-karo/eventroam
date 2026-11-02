@@ -1,0 +1,73 @@
+{
+  "sourceUrl": "https://www.google.com/maps/d/viewer?mid=1pxKSXse3dnVlqzRP9fQWBp0V1PWde9s",
+  "capturedAt": "2026-10-27",
+  "pageData": [
+    null,
+    [
+      null,
+      null,
+      "PortAmérica Parkings",
+      null,
+      null,
+      null,
+      [
+        [
+          null,
+          null,
+          "Cortes tráfico Portamérica 2026",
+          null,
+          [],
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              [
+                [
+                  [
+                    "5D318E7FF200000A",
+                    [[[42.5906854, -8.6557329]]],
+                    null,
+                    null,
+                    6,
+                    [["nombre", ["PortAmérica"], 1]],
+                    null,
+                    11
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      ""
+    ]
+  ],
+  "fixtureNotes": "Recorded map excerpt. Only test records are kept. Unused fields and compact records are removed. Polygon geometry is reduced to one source vertex."
+}

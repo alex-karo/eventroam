@@ -1,12 +1,18 @@
+import { randomUUID } from "node:crypto";
 import { load, type CheerioAPI } from "cheerio";
-import TurndownService from "turndown";
-import { tables } from "turndown-plugin-gfm";
+import { htmlToMarkdown, type TransformPlugin } from "@mdream/js";
+import { frontmatterPlugin } from "@mdream/js/plugins";
+import {
+  coordinatePair,
+  extractMapReferences,
+  type MapReference,
+} from "./maps";
 
 const REGION_ATTRIBUTE = "data-source-region";
-export const MIN_RENDERED_TEXT_CHARS = 200;
+const MIN_SCRIPTED_TEXT_CHARS = 200;
 
 function markRegions($: CheerioAPI, finalUrl: string): void {
-  // Only converter-assigned labels are used by the Turndown rule below.
+  // Only converter-assigned labels are used by the region plugin below.
   $(`[${REGION_ATTRIBUTE}]`).removeAttr(REGION_ATTRIBUTE);
   let main = $("main, [role='main']");
   if (!main.length) {
@@ -63,6 +69,38 @@ function markRegions($: CheerioAPI, finalUrl: string): void {
 
 function clean(value: string): string {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function regionPlugin(marker: string): TransformPlugin {
+  return {
+    onNodeEnter(node) {
+      const label = node.attributes[REGION_ATTRIBUTE];
+      if (label) {
+        return `\n\n<!-- ${label} ${marker} -->\n\n`;
+      }
+    },
+    onNodeExit(node) {
+      const label = node.attributes[REGION_ATTRIBUTE];
+      if (label) {
+        return `\n\n<!-- /${label} ${marker} -->\n\n`;
+      }
+    },
+  };
+}
+
+function removeEmptyRegions(markdown: string, marker: string): string {
+  // Only generated comments carry this conversion's marker.
+  const emptyPair = new RegExp(
+    `<!-- (Navigation|Main content|Page header|Page footer|Aside) ${marker} -->\\s*<!-- /\\1 ${marker} -->`,
+    "g",
+  );
+  // Repeat so an empty child cannot keep an empty parent region.
+  let previous: string;
+  do {
+    previous = markdown;
+    markdown = markdown.replace(emptyPair, "");
+  } while (markdown !== previous);
+  return markdown.replaceAll(` ${marker}`, "").trim();
 }
 
 function safeLink(href: string, baseUrl: string): string | null {
@@ -122,6 +160,20 @@ function structuredItems(
       const value = clean(String(record[field]));
       return `${field}: ${field === "url" ? (safeLink(value, baseUrl) ?? value) : value}`;
     });
+  const types = Array.isArray(record["@type"])
+    ? record["@type"]
+    : [record["@type"]];
+  if (
+    (types.includes("Place") || path.split(".").at(-1) === "location") &&
+    record.geo &&
+    typeof record.geo === "object"
+  ) {
+    const geo = record.geo as Record<string, unknown>;
+    const pair = coordinatePair(geo.latitude, geo.longitude);
+    if (pair) {
+      values.push(`latitude: ${pair[0]}`, `longitude: ${pair[1]}`);
+    }
+  }
   const label = path ? `${path}: ` : "";
   if (values.length) {
     items.push(`- ${label}${values.join(" · ")}`);
@@ -150,6 +202,7 @@ export function extractSource(
   contentType: string,
 ): {
   markdown: string;
+  maps: MapReference[];
   needsJavascript: boolean;
   nonNavigationTextLength: number;
 } {
@@ -165,6 +218,7 @@ export function extractSource(
     }
     return {
       markdown: items.join("\n\n").trim(),
+      maps: [],
       needsJavascript: false,
       nonNavigationTextLength: 0,
     };
@@ -172,12 +226,14 @@ export function extractSource(
   if (contentType.includes("text/plain")) {
     return {
       markdown: body.replace(/\r\n?/g, "\n").trim(),
+      maps: [],
       needsJavascript: false,
       nonNavigationTextLength: 0,
     };
   }
 
   const $ = load(body);
+  const maps = extractMapReferences($, finalUrl);
   const hasApplicationScripts = $("script")
     .toArray()
     .some(
@@ -227,19 +283,17 @@ export function extractSource(
     } else {
       $(element).removeAttr("href");
     }
-    if (!label) {
-      $(element).remove();
-      return;
-    }
-    // Turndown can emit a multiline Markdown link when an anchor wraps block
-    // elements. Flatten that label while preserving its place in page order.
+    // Flatten block content to keep each link label on one line.
     if (
+      label &&
       $(element).find("div, p, h1, h2, h3, h4, h5, h6, section, article, br")
         .length
     ) {
       $(element).text(label);
     }
   });
+  // Measure before adding image alt text and fallback labels. They must not
+  // change the sparse-page signal used to request rendering.
   const contentText = clean(
     $("body")
       .clone()
@@ -250,51 +304,45 @@ export function extractSource(
       .end()
       .text(),
   );
-  const title = clean($("title").first().text());
+  $("img").each((_index, element) => {
+    const alt = clean($(element).attr("alt") ?? "");
+    $(element).replaceWith($("<span>").text(alt ? ` ${alt} ` : ""));
+  });
+  $("a").each((_index, element) => {
+    if (clean($(element).text())) {
+      return;
+    }
+    const label = [
+      $(element).attr("aria-label"),
+      $(element).attr("title"),
+      $(element).attr("href"),
+    ]
+      .map((value) => clean(value ?? ""))
+      .find(Boolean);
+    if (label) {
+      $(element).text(label);
+    }
+  });
   markRegions($, finalUrl);
-  const turndown = new TurndownService({
-    headingStyle: "atx",
-    bulletListMarker: "-",
-    codeBlockStyle: "fenced",
-  });
-  turndown.addRule("imageAltWithoutMediaUrl", {
-    filter: "img",
-    replacement: (_content, node) => clean(node.getAttribute("alt") ?? ""),
-  });
-  turndown.use(tables);
-  turndown.addRule("singleLineTableCell", {
-    filter: ["th", "td"],
-    replacement: (content, node) => {
-      const inline = content
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .join("; ")
-        .replace(/[ \t]+/g, " ");
-      const prefix = node.parentNode?.firstChild === node ? "| " : " ";
-      return `${prefix}${inline} |`;
-    },
-  });
-  turndown.addRule("structuralRegion", {
-    filter: (node) => node.hasAttribute(REGION_ATTRIBUTE),
-    replacement: (content, node) => {
-      if (!content.trim()) {
-        return "";
-      }
-      const label = node.getAttribute(REGION_ATTRIBUTE);
-      return `\n\n<!-- ${label} -->\n\n${content.trim()}\n\n<!-- /${label} -->\n\n`;
-    },
-  });
-  const visible = turndown.turndown($("body").html() ?? "").trim();
+  const regionMarker = randomUUID();
+  const visible = removeEmptyRegions(
+    htmlToMarkdown($.html(), {
+      origin: finalUrl,
+      // Keep adjacent calendar days and other button labels separate.
+      tagOverrides: { button: { spacing: [1, 1] } },
+      plugins: [frontmatterPlugin(), regionPlugin(regionMarker)],
+    }),
+    regionMarker,
+  );
   const parts = [
-    title ? `# ${title}` : "",
     visible,
     structured.length ? `## Structured data\n\n${structured.join("\n\n")}` : "",
   ].filter(Boolean);
   return {
     markdown: parts.join("\n\n").trim(),
+    maps,
     needsJavascript:
-      hasApplicationScripts && contentText.length < MIN_RENDERED_TEXT_CHARS,
+      hasApplicationScripts && contentText.length < MIN_SCRIPTED_TEXT_CHARS,
     nonNavigationTextLength: contentText.length,
   };
 }

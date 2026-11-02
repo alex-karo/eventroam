@@ -6,7 +6,6 @@
   "todayUtc": "2026-10-15",
   "provenance": {
     "kind": "captured-research-editor-regression",
-    "sourceReport": "data/catalog-evals/narrow-current-main-merge.json",
     "note": "Exact failed search-wrong-official research, normalized from provider wire output. Correct GB replacement must be accepted despite the saved Australian namesake URL."
   },
   "input": {

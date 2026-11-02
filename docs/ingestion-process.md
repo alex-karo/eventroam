@@ -27,7 +27,7 @@ Ingestion finds or refreshes festival facts in the catalog. An owner starts each
 
 ## Workflow steps
 
-Each festival attempt runs one Mastra workflow with eleven sequential steps:
+Each festival attempt runs one Mastra workflow with twelve sequential steps:
 
 | Step                   | Responsibility                                                                                          |
 | ---------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -38,7 +38,8 @@ Each festival attempt runs one Mastra workflow with eleven sequential steps:
 | `validate-research`    | Check findings, targets, scope and country before editing.                                              |
 | `edit-research`        | Run one tool-free editor to choose explicit actions.                                                    |
 | `validate-editor-plan` | Validate editor actions and targets without preparing writes.                                           |
-| `resolve-location`     | Prepare shared geocoding, run Location, and prepare the combined item plan.                             |
+| `resolve-location`     | Prepare shared geocoding and run Location.                                                              |
+| `prepare-catalog-plan` | Prepare catalog operations from accepted Editor and Location results.                                   |
 | `apply-catalog-item`   | Preview or atomically apply eligible operations; retain write failures for the report.                  |
 | `build-report`         | Combine three agent outputs, actual changes, source history, questions, and budget counters.            |
 | `finalize-run`         | Persist the private report, return the bounded summary and release owned resources.                     |
@@ -79,17 +80,9 @@ Current assumes a prior full run established Event identity/shared links. It omi
 
 For an existing Event, the run first reads a saved official-site link, or another saved link if needed. The agent uses `readPage` for relevant known links and prior results first. `searchWeb` is permitted for an unknown, inaccessible, or wrong official source; a material identity/date conflict; or an essential identification, date, or publication-required gap in an already evidenced Edition. Permission does not require a search. An empty Edition slot or absent announcement alone does not justify search. A recurring Event description alone does not establish a specific past Edition for a search. Missing optional prices or size alone does not justify search. Explicit evidence that no next Edition is announced can complete the check. Stop when the relevant question is resolved. Current stops on an identity contradiction and requests full; it does not discover a replacement website. Search highlights are leads. Inspect destination pages before using their facts. Search and page reads share the run limits. OpenRouter's Exa plugin and default search mode remain in use.
 
-When a direct page request returns HTTP 403 and `FIRECRAWL_KEY` is set in `.env`, ingestion tries Firecrawl once for that URL. It also tries Firecrawl once for an HTTP 200 HTML page when the existing JavaScript signal finds a script other than JSON-LD and fewer than 200 characters of body text outside navigation. A short ordinary page with an analytics script can meet that signal.
+`readPage` returns page evidence as Markdown with retrieval status, a truncation signal, and remaining budget. It includes supported My Maps points in the same call and keeps source labels and years. Research assesses that evidence; the reader does not choose a venue or Edition. A readable page can still have a limitation, so inspect its reason code and notices.
 
-The HTTP 200 path uses rendered HTML only if it contains at least 200 such characters; otherwise the direct page returns `status: ok` with `reasonCode: javascript_required`. A selected render keeps its full Markdown and available direct HTTP text, including JSON-LD. Firecrawl failure keeps the direct page and its read limit. The 403 path continues to use raw HTML and returns `failed` without a key.
-
-`readPage({ url })` returns only `url`, `status`, `markdown`, `truncated`, optional `reasonCode`, and `remaining: { searches, durationMs }`. The URL is the final destination when known. Page status is `ok`, `unsupported`, or `failed`; it does not assess research completion. A supported empty response is `ok`.
-
-The run caches full extracted Markdown within the response byte bounds, including failed reads. Repeated requested or final URLs reuse that result. Text is cut only for model input: a tool call has an 80,000-character allowance less a 300-character reserve, and initial sources divide the same allowance. `truncated` reports only that projection cut. Projection does not change cached text or reason codes. Capture files contain the model projection.
-
-Page links stay inline in Markdown. There is no separate link list or completeness field. Identified page regions use paired HTML comments, such as `<!-- Navigation -->` and `<!-- /Navigation -->`, with the same form for Main content, Page header, Page footer, and Aside. A bounded prefix can end before a region's closing comment.
-
-Both fallbacks consume another page request and respect the remaining run time and response-size limit; other HTTP errors do not trigger Firecrawl.
+See the [source reader guide](source-reader.md) for extraction, Firecrawl fallback, map support, caching, response limits, and checks. The [source-access spec](../openspec/specs/catalog/source-access/spec.md) defines the contract.
 
 ### Choose facts and editions
 
@@ -183,7 +176,7 @@ Location has at most eight model steps. `CATALOG_LOCATION_MODEL` defaults to the
 
 Location returns decisions in the same named slots without repeating Edition keys. Code uses the accepted input key for each slot, including unresolved questions. Location input omits the constant editor status and keeps its available explanations. It includes the full bounded `editor.unresolved` array without filtering or merging Research questions. Location uses relevant questions as context and need not repeat them in its output; they cannot restore a declined slot.
 
-Every accepted Location slot must return keep, set or clear with a reason for each text field. Coordinate actions are keep, inherit a registered donor, select a registered point, or clear a disproved saved point. The agent returns point IDs, never numeric coordinates.
+Every accepted Location slot must return keep, set or clear with a reason for each text field. Coordinate actions are keep, inherit a registered donor, select a registered point, or clear a disproved saved point. The agent returns point IDs, never numeric coordinates. Each Location session assigns short IDs (`p1`, `p2`, and so on) to its registered points. Cached results keep their IDs within that session.
 
 Keep preserves the target only. If the target has no point and its donor is unsuitable, keep leaves coordinates absent without inheriting. Clear requires an existing saved value in that target; it cannot clear an absent value or remove a donor.
 

@@ -216,3 +216,18 @@ test("closing restores fallback focus when the original trigger is no longer vis
   });
   expect(document.activeElement).toBe(harness.fallback);
 });
+
+test("automatic clearing preserves focus outside the detail panel", async () => {
+  fetchMock.mockResolvedValue(response());
+  const harness = focusHarness();
+  harness.origin.focus();
+  await act(async () => {
+    await harness.current().select(edition.id);
+  });
+  harness.fallback.focus();
+  act(() => {
+    harness.current().close({ restoreFocus: false });
+  });
+  expect(harness.current().selectedId).toBeNull();
+  expect(document.activeElement).toBe(harness.fallback);
+});

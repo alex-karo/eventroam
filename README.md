@@ -67,7 +67,7 @@ Studio chat can submit one fixed selection of up to 200 Events and return its ba
 | Data | SQLite, Drizzle ORM, `better-sqlite3` |
 | UI and map | Tailwind CSS, Mapbox GL JS |
 | AI agents | Mastra workflows and Studio chat; OpenRouter for ingestion |
-| Source processing | Got, Cheerio, Turndown; optional Firecrawl fallback |
+| Source processing | Got, Cheerio, `@mdream/js`; optional Firecrawl fallback |
 | Geocoding | Geoapify |
 | Analytics | PostHog |
 | Runtime | Separate web, Studio, and worker containers with a shared catalog volume |
@@ -85,7 +85,7 @@ Run `pnpm run type-check`, `pnpm run lint`, `pnpm test`, and `pnpm run build` fo
 
 ## License
 
-Proprietary. All rights reserved. See [LICENSE](LICENSE).
+[PolyForm Noncommercial 1.0.0](LICENSE.md)
 
 ## Run locally
 

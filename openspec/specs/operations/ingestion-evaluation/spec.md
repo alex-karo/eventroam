@@ -45,7 +45,7 @@ One command SHALL support case and group selection. With no selection flags, it 
 
 ### Requirement: Quality and regression results stay separate
 
-Results SHALL separate main pipeline, regression pipeline, regression editor, and regression Location groups. Main SHALL report quality dimensions; regressions SHALL report scenario success and failed checks. Location SHALL retain completion, correction, and preservation summaries. No combined quality average SHALL mix groups. Regression evaluators SHALL return checks with `path`, `passed`, and `message`, and SHALL pass only when every check passes. They SHALL expose one binary `scenario-success` score without intermediate completeness, correctness, Research, or tool-use scores. Failed-check messages SHALL provide the CLI diagnostics and Mastra reason without separate diagnostic categories.
+Results SHALL separate main pipeline, regression pipeline, regression editor, and regression Location groups. Main SHALL report quality dimensions. Regressions SHALL report one binary `scenario-success` score and pass only when every check passes. Each check SHALL identify its path, result, and message. Location SHALL retain completion, correction, and preservation summaries. No combined quality average SHALL mix groups. Failed checks SHALL be explained in CLI output and saved results.
 
 #### Scenario: Location correction fails
 
@@ -53,22 +53,21 @@ Results SHALL separate main pipeline, regression pipeline, regression editor, an
 - **THEN** the correction case fails its existing checks
 - **AND** its subgroup result remains visible separately from preservation and main quality
 
-
 #### Scenario: Regression checks a required mutation
 
 - **WHEN** a dry-run regression requires a field change but the value is only present in the initial record
 - **THEN** the required-change check fails and scenario-success is zero
-- **AND** existing partial-object and collection matching rules remain in use
+- **AND** partial-object and collection checks compare only their declared conditions
 
 ### Requirement: Research checks belong to each case
 
-Research conditions SHALL use explicit TypeScript case functions and small shared helpers. The functions SHALL define expected statuses, Edition slots, returned and omitted facts, unresolved questions, and deliberate refusals. JSON fixtures SHALL retain mutation, tool-use and Location expectations without an `expectations.research` schema or shared interpreter. Loading SHALL require a registered evaluator for every workflow case. Moving the conditions SHALL preserve their check meanings, including partial matching and technical-failure rejection.
+Each workflow case SHALL define its expected Research statuses, Edition slots, returned and omitted facts, unresolved questions, and deliberate refusals. Cases SHALL also declare their required changes, tool-use conditions, and Location decisions. A case without an evaluator SHALL be rejected before model calls. Technical failure SHALL NOT satisfy an expected refusal.
 
 #### Scenario: Review a Research refusal
 
 - **WHEN** a case checks an identity-conflict refusal
-- **THEN** its function states the Editor, search, source and unresolved-question conditions
-- **AND** it reuses the common deliberate-refusal checks without branching on a JSON failure reason
+- **THEN** its checks state the Editor, search, source and unresolved-question conditions
+- **AND** a refusal passes only when those conditions are met
 
 ### Requirement: Experiment sources and writes are isolated
 
@@ -79,17 +78,42 @@ Workflow attempts SHALL start from their declared seed and date in a disposable 
 - **WHEN** a case repeats and requests an uncaptured page
 - **THEN** it starts from a fresh seed and reports fixture access failure without a live read
 
-#### Scenario: Main source or geocoding fixture is missing
+#### Scenario: A main source fixture is missing
 
-- **WHEN** a main case requests an uncaptured page or geocoding response
-- **THEN** the result retains the source failure or fixture_miss observation as a diagnostic without an independent scenario failure
+- **WHEN** a main case requests an uncaptured page
+- **THEN** the result retains the source failure as a diagnostic without an independent scenario failure
 - **AND** required facts, checked errors, execution, and task conditions still determine success
-- **AND** no live request or invented provider result replaces the missing fixture
-- **AND** regression fixture-miss checks stay unchanged
+- **AND** no live request or invented source result replaces the missing fixture
+
+### Requirement: Geocoding fixture gaps use a tool error
+
+In every eval group, an initial or agent geocoding request without a matching fixture SHALL return `unavailable`. This SHALL represent a simulated tool failure. It SHALL NOT trigger a live request or return an invented empty result. The request and error SHALL remain in observations. The error alone SHALL NOT fail the case. Execution and case checks SHALL determine success.
+
+#### Scenario: An initial geocoding fixture is missing
+
+- **WHEN** initial forward or reverse geocoding has no matching fixture in any eval group
+- **THEN** the request returns `unavailable` and its observation remains available
+- **AND** no live geocoding request is made
+
+#### Scenario: The agent changes request parameters
+
+- **WHEN** an agent makes another geocoding request with different parameters and no fixture matches
+- **THEN** that request also returns `unavailable`
+- **AND** the result does not claim that the real provider failed or found no candidates
+
+#### Scenario: A valid decision follows a missing fixture
+
+- **WHEN** a case receives `unavailable` for a missing fixture and execution and all case checks pass
+- **THEN** the case passes
+
+#### Scenario: A wrong decision follows a missing fixture
+
+- **WHEN** a case receives `unavailable` for a missing fixture and its decision fails a case check
+- **THEN** the case fails with the failed-check diagnostic
 
 ### Requirement: Main evaluators define the checked data boundary
 
-Main SHALL use explicit TypeScript case evaluators and shared fact, identity, preservation, and execution helpers. Only listed facts SHALL affect completeness or factual errors. Required and additional facts SHALL have explicit alternatives and source comments. Unlisted fields SHALL remain unchecked. Main fixtures SHALL NOT contain regression mutation assertions or a separate gold file. The old field-policy schema and scorer SHALL be removed. Tomorrowland SHALL remain outside the suite until a new case defines one festival identity.
+Only declared facts SHALL affect main completeness or factual errors. Required and additional facts SHALL state accepted values and the source evidence. Unlisted fields SHALL remain unchecked, subject to the saved-data protections below. Tomorrowland SHALL remain outside the suite until a case defines one festival identity.
 
 #### Scenario: No source-supported facts are available
 
@@ -218,12 +242,12 @@ Main comparisons SHALL distinguish Event and Edition identities without relying 
 
 ### Requirement: Experiment results remain available for inspection
 
-Saved experiments SHALL retain case identity, task output, check diagnostics, relevant tool observations, model/prompt configuration, and evaluation revision. Main results SHALL also retain before/after catalogs. Results SHALL remain available after restart for viewing and comparison. Files SHALL remain the source of case definitions. The CLI SHALL reuse an existing dataset by ID without reading saved items or comparing saved content. It SHALL create and populate a dataset only when that ID is absent, then pin its current native version for the experiment.
+Saved experiments SHALL retain case identity, task output, check diagnostics, relevant tool observations, model and prompt settings, and evaluation revision. Main results SHALL also retain before and after catalogs. Results SHALL remain available after restart for viewing and comparison. Repository files SHALL remain the source of case definitions. Viewer edits SHALL NOT update those files.
 
 #### Scenario: Reuse a saved dataset
 
-- **WHEN** a dataset with the computed ID already exists
-- **THEN** the CLI reuses it without adding duplicate items or checking saved content
+- **WHEN** an evaluation repeats with the same dataset identity
+- **THEN** it reuses the dataset without adding duplicate items
 - **AND** manual Studio edits are not detected or imported back to repository files
 
 #### Scenario: Inspect a completed experiment
@@ -241,7 +265,7 @@ Saved experiments SHALL retain case identity, task output, check diagnostics, re
 #### Scenario: Experiment storage rejects a write
 
 - **WHEN** experiment storage rejects a result or score write
-- **THEN** Mastra's native error or warning behavior applies without custom recovery or post-run storage checks
+- **THEN** the storage error or warning remains visible
 - **AND** complete saved results and a nonzero CLI exit are not guaranteed for this exceptional case
 
 ### Requirement: Experiment names identify development runs
@@ -266,19 +290,14 @@ Valid comparisons SHALL use the same group, selected cases, inputs, expectations
 
 #### Scenario: Inputs or scoring rules change
 
-- **WHEN** any JSON/MD/TypeScript file under cases, main.ts, case-research.ts, research.ts, or a non-test TypeScript file under main changes
-- **THEN** its file name and full contents affect one shared file hash for all groups
-- **AND** dataset identity combines that hash with the group, sorted selected case IDs, repeat count and explicit scorer version
-- **AND** whitespace and changes to unselected cases may create new datasets
-- **AND** metadata stores the hash without source snapshots, and each item ground truth contains only its case expectations
-- **AND** scoring changes outside the hashed files need an explicit scorer-version update
+- **WHEN** evaluation inputs, expectations, or scoring rules change
+- **THEN** the evaluation revision changes
 - **AND** old and new runs remain inspectable but are not a valid quality comparison
 
 #### Scenario: Repeat counts or case sets differ
 
 - **WHEN** selections or repeat counts differ
 - **THEN** results belong to different evaluation revisions
-- **AND** no custom common-subset or unequal-repeat comparison is required
 
 ### Requirement: Explicit model selection applies to every stage
 
@@ -296,9 +315,9 @@ The eval option `--model X` SHALL select X for Research, Editor, and Location in
 - **THEN** Research and Editor use `OPENROUTER_MODEL` or its default
 - **AND** Location uses `CATALOG_LOCATION_MODEL` when set, otherwise the same model
 
-### Requirement: Eval usage inspection uses native observability
+### Requirement: Eval usage inspection separates usage from quality
 
-Eval outputs SHALL retain run IDs and available real trace IDs. Tokens and cost SHALL remain in optional native observability without eval totals. Missing metrics SHALL NOT become zero or fail an eval. Duration SHALL remain separate from quality. Stage models and prompt versions SHALL identify Research, Editor, and Location.
+Eval outputs SHALL retain run IDs and available real trace IDs. Tokens and cost SHALL remain in optional execution observations without separate eval totals. Missing metrics SHALL NOT become zero or fail an eval. Duration SHALL remain separate from quality. Stage models and prompt versions SHALL identify Research, Editor, and Location.
 
 #### Scenario: Tracing is disabled
 
@@ -309,14 +328,14 @@ Eval outputs SHALL retain run IDs and available real trace IDs. Tokens and cost 
 #### Scenario: Tracing records Location execution
 
 - **WHEN** enabled tracing records an eval that executes Location
-- **THEN** the saved output retains available correlation to its native observations
+- **THEN** the saved output retains available correlation to its execution observations
 - **AND** each saved experiment result links to its real trace
-- **AND** native traces and metrics carry the experiment ID for Studio's token and cost queries
+- **AND** traces and metrics identify the experiment for token and cost inspection
 - **AND** Location usage can be inspected separately from Research and Editor without an eval spending total
 
 ### Requirement: Execution and quality failure stay distinct
 
-The command SHALL fail on rejected scenarios or unexpected task/scorer failures. Intentional N/A SHALL NOT independently fail it. Reports SHALL distinguish task completion from quality success and explain failed checks. Experiment storage failures SHALL retain Mastra's native behavior.
+The command SHALL fail on rejected scenarios or unexpected task or scorer failures. Intentional N/A SHALL NOT independently fail it. Reports SHALL distinguish task completion from quality success and explain failed checks. Storage failures SHALL follow the exception in [Experiment results remain available for inspection](#requirement-experiment-results-remain-available-for-inspection).
 
 #### Scenario: Completed task fails quality
 

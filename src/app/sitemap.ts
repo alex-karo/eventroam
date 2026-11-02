@@ -8,7 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { site, origins } = await requestSite();
   const origin = origins[site];
   if (site === "apex") {
-    return [{ url: `${origin}/` }];
+    return [{ url: `${origin}/` }, { url: `${origin}/privacy` }];
   }
   const { client } = openReadDatabase();
   try {
@@ -20,6 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     );
     return [
       { url: `${origin}/` },
+      { url: `${origin}/privacy` },
       ...Array.from(paths, (path) => ({ url: `${origin}${path}` })),
     ];
   } finally {

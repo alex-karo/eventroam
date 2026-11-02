@@ -73,7 +73,7 @@ An Edition with coordinates SHALL show one location point in its location sectio
 #### Scenario: A point is approximate
 
 - **WHEN** precision is approximate, locality, region, or unknown
-- **THEN** the map uses a broader view than an exact point and shows Approximate location
+- **THEN** the map uses a broader view than an exact point and explains its location precision
 - **AND** the UI does not describe the point as the venue entrance
 
 #### Scenario: The map cannot load
@@ -84,7 +84,7 @@ An Edition with coordinates SHALL show one location point in its location sectio
 
 ### Requirement: Location actions use the Edition point
 
-For an Edition with coordinates, Show on map SHALL move to the page's location section. A labeled external map link SHALL open the saved point. Its name SHALL be Open approximate location for non-exact precision. Both actions SHALL be absent without coordinates.
+For an Edition with coordinates, Show on map SHALL move to the page's location section. A labeled external map link SHALL open the saved point. Its accessible name SHALL indicate location uncertainty for non-exact precision. Both actions SHALL be absent without coordinates.
 
 #### Scenario: A visitor follows a location action
 

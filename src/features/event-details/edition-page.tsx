@@ -55,7 +55,7 @@ export function EditionDetailsPage({
           </div>
           <Status edition={edition} now={now} />
           <Dates edition={edition} />
-          <Location edition={edition} />
+          <Location edition={edition} showPrecision />
           {edition.venueAddress && <p>{edition.venueAddress}</p>}
           <Terms edition={edition} />
           <Size edition={edition} />
@@ -90,7 +90,7 @@ export function EditionDetailsPage({
         </section>
         <section id="location">
           <h2>Location</h2>
-          <Location edition={edition} />
+          <Location edition={edition} showPrecision />
           {edition.venueAddress && <p>{edition.venueAddress}</p>}
           {located && (
             <>
@@ -111,6 +111,9 @@ export function EditionDetailsPage({
             token={token}
           />
         </section>
+        <footer className="privacy-footer">
+          <a href="/privacy">Privacy policy</a>
+        </footer>
       </main>
     </>
   );

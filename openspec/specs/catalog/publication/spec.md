@@ -73,12 +73,12 @@ The Event page SHALL show its name, optional summary, and public Edition history
 
 ### Requirement: Location disclosure is qualified
 
-An Edition with a country MAY be public without an area, coordinates, or an exact venue. Public list and detail views SHALL identify an approximate location when the venue is unknown and SHALL identify map location as unavailable when coordinates are absent. A mapped point SHALL use its Edition coordinates and precision; an absent point SHALL never be represented with `(0, 0)`.
+An Edition with a country MAY be public without an area, coordinates, or an exact venue. Public details SHALL explain location uncertainty from stored precision. Public views SHALL identify map location as unavailable when coordinates are absent. A mapped point SHALL use its Edition coordinates and precision; an absent point SHALL never be represented with `(0, 0)`.
 
 #### Scenario: An edition has a region but no map point
 
 - **WHEN** it appears in public results or details
-- **THEN** it remains in the list with an approximate-location or map-unavailable label and does not appear as a map marker
+- **THEN** it remains in the list with an indication that its map location is unavailable and does not appear as a map marker
 
 ### Requirement: Public reads expose only eligible published records
 
@@ -159,7 +159,7 @@ The system SHALL validate model-proposed publication operations against the date
 - **THEN** the operation is rejected and the Edition remains a draft
 
 ### Requirement: Public uncertainty follows stored fact precision
-The system SHALL distinguish provisional dates and approximate locations according to stored values while keeping source retrieval times out of public freshness indicators.
+The system SHALL distinguish provisional dates according to stored values and explain location precision in public details. Public freshness indicators SHALL exclude source retrieval times.
 
 #### Scenario: Approximate locality
 - **WHEN** an Edition has a locality and country but no exact venue or coordinates

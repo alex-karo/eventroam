@@ -1,14 +1,26 @@
-# RF27: De første 18 navne er klar! | Roskilde Festival
+---
+title: "RF27: De første 18 navne er klar! | Roskilde Festival"
+meta:
+  "og:description": "Tame Impala, Caroline Polachek, Kacey Musgraves, Underscores, Patti Smith Quartet og 13 andre navne er klar til næste sommer. Køb din billet nu."
+  "og:title": "RF27: De første 18 navne er klar!"
+---
 
-[Page header]
 
-[Navigation]
+
+<!-- Page header -->
+
+
+
+<!-- Navigation -->
 
 [26/6 – 3/7 2027](https://www.roskilde-festival.dk/)
 
+<https://www.roskilde-festival.dk/en/news/rf27-first-18-acts-are-ready>[Søg](https://www.roskilde-festival.dk/search)
 Log ind
 
-[/Navigation]
+
+
+<!-- /Navigation -->
 
 [Nyheder](https://www.roskilde-festival.dk/nyheder)
 
@@ -26,11 +38,27 @@ Log ind
 
 [Find praktisk info](https://faq.roskilde-festival.dk/hc/da)
 
-[/Page header]
+<https://www.instagram.com/roskildefestival/>
 
-[Main content]
+<https://www.tiktok.com/@roskildefestival>
 
-TAME IMPALA_RF27_1920x1080.jpg
+<https://www.facebook.com/orangefeeling>
+
+<https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW>
+
+<https://dk.linkedin.com/company/roskilde-festival>
+
+
+
+<!-- /Page header -->
+
+
+
+<!-- Main content -->
+
+TAME IMPALA\_RF27\_1920x1080.jpg
+
+<https://www.roskilde-festival.dk/nyheder>
 
 # RF27: De første 18 navne er klar!
 
@@ -38,7 +66,7 @@ TAME IMPALA_RF27_1920x1080.jpg
 
 ## Tame Impala, Caroline Polachek, Kacey Musgraves, Underscores, Patti Smith Quartet og 13 andre navne er klar til næste sommer. Køb din billet nu.
 
-Så er de her! I dette øjeblik sætter de første **18 musiknavne** kursen mod Roskilde Festival 2027 – blandt de helt store nyheder finder du [**Tame Impala**](https://www.roskilde-festival.dk/program/musik/tame-impala "Tame Impala"), der til sommer indtager Orange Scene med et solbeskinnet trip af en anden verden.
+Så er de her! I dette øjeblik sætter de første **18 musiknavne** kursen mod Roskilde Festival 2027 – blandt de helt store nyheder finder du  [**Tame Impala**](https://www.roskilde-festival.dk/program/musik/tame-impala "Tame Impala"), der til sommer indtager Orange Scene med et solbeskinnet trip af en anden verden.
 
 Kevin Parkers projekt har gennem mere end 15 år betaget lyttere med skyhøje soniske ambitioner i krydsfeltet mellem psychpop, alternativ rock og klublyd. Til sommer vender den australske publikumsfavorit tilbage til Roskilde Festival efter 11 års fravær – og koncerten bliver Tame Impalas eneste på en skandinavisk festival i 2027.
 
@@ -48,9 +76,9 @@ Kevin Parkers projekt har gennem mere end 15 år betaget lyttere med skyhøje so
 
 ## Stærke stemmer på tværs af generationer
 
-[**Caroline Polachek**](https://www.roskilde-festival.dk/program/musik/caroline-polachek "Caroline Polachek") er klar til endnu et besøg på Roskilde Festival med sit eksperimenterende og dragende popunivers. Med _Pang_ og _Desire, I Want To Turn Into You_ har hun cementeret sin position som en af tidens mest særegne popstjerner.
+[**Caroline Polachek**](https://www.roskilde-festival.dk/program/musik/caroline-polachek "Caroline Polachek") er klar til endnu et besøg på Roskilde Festival med sit eksperimenterende og dragende popunivers. Med *Pang* og *Desire, I Want To Turn Into You* har hun cementeret sin position som en af tidens mest særegne popstjerner.
 
-Den ottedobbelte Grammy-vinder [**Kacey Musgraves**](https://www.roskilde-festival.dk/program/musik/kacey-musgraves "Kacey Musgraves") kommer med sin blanding af klassisk country og moderne popsangskrivning. På sit seneste album, _Middle of Nowhere_, søger hun tilbage mod sine texanske rødder og den musiktradition, hun selv kommer fra.
+Den ottedobbelte Grammy-vinder [**Kacey Musgraves**](https://www.roskilde-festival.dk/program/musik/kacey-musgraves "Kacey Musgraves") kommer med sin blanding af klassisk country og moderne popsangskrivning. På sit seneste album, *Middle of Nowhere*, søger hun tilbage mod sine texanske rødder og den musiktradition, hun selv kommer fra.
 
 Glæd dig også til [**Patti Smith Quartet**](https://www.roskilde-festival.dk/program/musik/patti-smith-quartet "Patti Smith Quartet"), der bringer mere end 50 års rockhistorie, poesi og samtidsrelevans til Roskilde Festival.
 
@@ -82,7 +110,7 @@ Og med [**Underscores**](https://www.roskilde-festival.dk/program/musik/undersco
 
 Florida-rapperen [**454**](https://www.roskilde-festival.dk/program/musik/454 "454") har opbygget en usædvanligt dedikeret fanskare med pitch-shiftet vokal, elastiske beats og en hiphoplyd helt for sig selv. Frank Ocean var tidligt fan, og siden har 454 arbejdet med blandt andre Playboi Carti og Freddie Gibbs.
 
-Britiske [**Suki Waterhouse**](https://www.roskilde-festival.dk/program/musik/suki-waterhouse "Suki Waterhouse") kommer med drømmende og filmisk indiepop fra sit tredje album, _Loveland_, mens New York-kunstneren [**James K**](https://www.roskilde-festival.dk/program/musik/james-k "James K") bevæger sig mellem dream pop, triphop, ambient og shoegaze med det roste album Friend og fuldt liveband.
+Britiske [**Suki Waterhouse**](https://www.roskilde-festival.dk/program/musik/suki-waterhouse "Suki Waterhouse") kommer med drømmende og filmisk indiepop fra sit tredje album, *Loveland*, mens New York-kunstneren [**James K**](https://www.roskilde-festival.dk/program/musik/james-k "James K") bevæger sig mellem dream pop, triphop, ambient og shoegaze med det roste album Friend og fuldt liveband.
 
 ## Meget mere på vej
 
@@ -136,33 +164,48 @@ Klik her for at opdatere indstillinger
 
 [Bliv frivillig på RF27 Bliv en del af fællesskabet bag festivalen og oplev Roskilde fra en helt anden side.](https://www.roskilde-festival.dk/bliv-frivillig)
 
-[/Main content]
 
-[Page footer]
+
+<!-- /Main content -->
+
+
+
+<!-- Page footer -->
 
 ## Om Roskilde Festival
 
--   [Om os – og vores formål](https://www.roskilde-festival.dk/festival-med-formaal)
--   [Job og praktik](https://roskildefestivalgruppen.dk/kontakt/job-og-praktik)
--   [Praktisk info](https://faq.roskilde-festival.dk/hc/da)
--   [Kontakt os](https://www.roskilde-festival.dk/kontakt)
+- [Om os – og vores formål](https://www.roskilde-festival.dk/festival-med-formaal)
+- [Job og praktik](https://roskildefestivalgruppen.dk/kontakt/job-og-praktik)
+- [Praktisk info](https://faq.roskilde-festival.dk/hc/da)
+- [Kontakt os](https://www.roskilde-festival.dk/kontakt)
 
 ## Mere end festival
 
--   [Roskilde Festival Gruppen](https://roskildefestivalgruppen.dk/da/)
--   [RFX](https://rfexperience.dk/)
--   [GRASP](https://graspfestival.dk/)
--   [Roskilde Festival Højskole](https://rofh.dk/)
+- [Roskilde Festival Gruppen](https://roskildefestivalgruppen.dk/da/)
+- [RFX](https://rfexperience.dk/)
+- [GRASP](https://graspfestival.dk/)
+- [Roskilde Festival Højskole](https://rofh.dk/)
 
 ## Professionelt
 
--   [Partnerskaber](https://www.roskilde-festival.dk/partnerskaber)
--   [Foreninger og boder](https://www.roskilde-festival.dk/foreninger-og-boder)
--   [Presse](https://www.roskilde-festival.dk/presse)
--   [Persondatapolitik](https://www.roskilde-festival.dk/persondatapolitik)
+- [Partnerskaber](https://www.roskilde-festival.dk/partnerskaber)
+- [Foreninger og boder](https://www.roskilde-festival.dk/foreninger-og-boder)
+- [Presse](https://www.roskilde-festival.dk/presse)
+- [Persondatapolitik](https://www.roskilde-festival.dk/persondatapolitik)
 
-* * *
+---
+
+- [Instagram](https://www.instagram.com/roskildefestival/)
+- [TikTok](https://www.tiktok.com/@roskildefestival)
+- [Facebook](https://www.facebook.com/orangefeeling)
+- [Spotify](https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW)
+- [LinkedIn](https://dk.linkedin.com/company/roskilde-festival)
+
+- [Tuborg](https://tuborg.dk/)
+- [RF26 bliver Nordens første svanemærkede festival](https://www.roskilde-festival.dk/nyheder/rf26-bliver-nordens-foerste-svanemaerkede-festival)
 
 ©2026 Roskilde Festival Gruppen
 
-[/Page footer]
+
+
+<!-- /Page footer -->

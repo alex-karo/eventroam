@@ -10,7 +10,6 @@ import {
   filterSelections,
   placeSuggestions,
   previewFilters,
-  removeSelection,
 } from "@/features/discovery/model/filter-feedback";
 const { build } = testFixtures();
 const genres = [
@@ -19,7 +18,7 @@ const genres = [
 ];
 const now = new Date("2026-10-01T12:00:00Z");
 
-test("chips show each value and removal preserves unrelated selections", () => {
+test("selection labels show readable dates, countries, genres and ranges", () => {
   const filters: Filters = {
     ...emptyFilters(),
     q: "Field",
@@ -44,41 +43,6 @@ test("chips show each value and removal preserves unrelated selections", () => {
     "Under 1,000",
     "50,000+",
   ]);
-  for (const chip of chips) {
-    const next = removeSelection(filters, chip);
-    switch (chip.field) {
-      case "countries":
-        expect(next).toEqual({
-          ...filters,
-          countries: filters.countries.filter((value) => value !== chip.value),
-        });
-        break;
-      case "genres":
-        expect(next).toEqual({
-          ...filters,
-          genres: filters.genres.filter((value) => value !== chip.value),
-        });
-        break;
-      case "sizes":
-        expect(next).toEqual({
-          ...filters,
-          sizes: filters.sizes.filter((value) => value !== chip.value),
-        });
-        break;
-      case "date":
-        expect(next).toEqual({ ...filters, from: "", to: "" });
-        break;
-      case "duration":
-        expect(next).toEqual({
-          ...filters,
-          durationMin: null,
-          durationMax: null,
-        });
-        break;
-      default:
-        expect(next).toEqual({ ...filters, [chip.field]: "" });
-    }
-  }
   expect(filters.countries).toEqual(["ES", "PT"]);
   expect(
     filterSelections({ ...emptyFilters(), durationMax: 1 }, []).map(

@@ -1,4 +1,8 @@
-# Travel - #SZIGET2027
+---
+title: "Travel - #SZIGET2027"
+meta:
+  "og:title": "Travel - #SZIGET2027"
+---
 
 Sziget Festival App
 
@@ -6,43 +10,39 @@ Sziget Festival app
 
 Open
 
-[Page header]
 
-[Navigation]
+
+<!-- Page header -->
+
+
+
+<!-- Navigation -->
 
 [2027 10 - 14 AUG](https://szigetfestival.com/en/)
 
--   en
-    
-    [Magyar](https://szigetfestival.com/hu/travel)
-    
+- en [Magyar](https://szigetfestival.com/hu/travel)
 
--   [Tickets](https://szigetfestival.com/en/tickets)
--   [Discover Sziget](https://szigetfestival.com/en/experience)
-    
-    [The Island of Freedom](https://szigetfestival.com/en/experience)[Exciting venues](https://szigetfestival.com/en/stages)[Sziget City](https://szigetfestival.com/en/programs_outside)[Green Sziget](https://szigetfestival.com/en/greensziget)
-    
--   [Need to know](https://szigetfestival.com/en/festival-info)
-    
-    [FAQ](https://szigetfestival.com/en/festival-info)[Get the Sziget App](https://szigetfestival.com/en/mobileapp)[How to get here?](https://szigetfestival.com/en/travel)
-    
--   [Best moments](https://szigetfestival.com/en/gallery)
--   [Sziget TV](https://szigetfestival.com/en/stream)
+- [Tickets](https://szigetfestival.com/en/tickets)
+- [Discover Sziget](https://szigetfestival.com/en/experience) [The Island of Freedom](https://szigetfestival.com/en/experience) [Sziget TV](https://szigetfestival.com/en/stream) [Best moments](https://szigetfestival.com/en/gallery)
+- [Need to know](https://szigetfestival.com/en/festival-info) [FAQ](https://szigetfestival.com/en/festival-info) [Get the Sziget App](https://szigetfestival.com/en/mobileapp)
 
 [Login](https://szigetfestival.com/en/account)
 
--   en
-    
-    [Magyar](https://szigetfestival.com/hu/travel)
-    
+- en [Magyar](https://szigetfestival.com/hu/travel)
 
 [Tickets](https://szigetfestival.com/en/tickets)
 
-[/Navigation]
 
-[/Page header]
 
-[Main content]
+<!-- /Navigation -->
+
+
+
+<!-- /Page header -->
+
+
+
+<!-- Main content -->
 
 # Travel
 
@@ -53,17 +53,17 @@ Open
 ### Choose from our departure locations
 
 **Sziget Festival takes place on Óbuda Island, right in the heart of Budapest.**  
-The official address is: [_Május 9. park, Budapest, Hungary, 1033._](https://maps.app.goo.gl/chG26FXpJ9WkJwGw8)
+The official address is: [*Május 9. park, Budapest, Hungary, 1033.*](https://maps.app.goo.gl/chG26FXpJ9WkJwGw8)
 
- [Plane Plane](https://szigetfestival.com/en/travel/#plane)
+[Plane Plane](https://szigetfestival.com/en/travel/#plane)
 
- [Train Train](https://szigetfestival.com/en/travel/#sziget-express-train)
+[Train Train](https://szigetfestival.com/en/travel/#sziget-express-train)
 
- [Bus Bus](https://szigetfestival.com/en/travel/#bus)
+[Bus Bus](https://szigetfestival.com/en/travel/#bus)
 
- [Car Car](https://szigetfestival.com/en/travel/#car)
+[Car Car](https://szigetfestival.com/en/travel/#car)
 
- [Bike Bike](https://szigetfestival.com/en/travel/#bike)
+[Bike Bike](https://szigetfestival.com/en/travel/#bike)
 
 ## GET YOUR TICKET ONLINE!
 
@@ -71,11 +71,8 @@ You can purchase domestic and international tickets online on this website or th
 
 Ticket purchase
 
- 
-
- 
-
-Search [Search for details](https://jegy.mav.hu/)
+Search
+[Search for details](https://jegy.mav.hu/)
 
 [Help](https://jegy.mav.hu/)
 
@@ -99,6 +96,8 @@ Sziget is promoting sustainable transport to and from the festival. We encourage
 
 Cycle2Sziget at least 250kms and be our guest at the Camping of Nations and get a raincoat for your seat! Register on the link below by 31 July, 2026.
 
+ 
+
 [EUROVELO 6 route](https://en.eurovelo.com/ev6) is yours to get right away to the Main Entrance.
 
 [REGISTER NOW](https://form.typeform.com/to/UTekhj21)
@@ -115,7 +114,7 @@ What if getting to a festival was part of the festival itself?
 
 This summer, our partner, European Alternatives invites you to arrive at Sziget by bicycle, following the flow of the Danube from Vienna to Budapest.
 
-By joining the cycling route you will travel alongside the group, becoming a part of a transnational initiative that reimagines rivers as rights holders and rethinks what democracy means. More details and registration [HERE](https://cryptpad.fr/form/#/2/form/view/TQiNLCGvzUUXyrdwQrfE3Z95pWMfdAykpAUuKZRdiIs/).  Deadline  24th of July.
+By joining the cycling route you will travel alongside the group, becoming a part of a transnational initiative that reimagines rivers as rights holders and rethinks what democracy means. More details and registration [HERE](https://cryptpad.fr/form/#/2/form/view/TQiNLCGvzUUXyrdwQrfE3Z95pWMfdAykpAUuKZRdiIs/).**  **Deadline  24th of July.
 
 [LEARN MORE & REGISTER](https://cryptpad.fr/form/#/2/form/view/TQiNLCGvzUUXyrdwQrfE3Z95pWMfdAykpAUuKZRdiIs/)
 
@@ -146,11 +145,17 @@ Lock in your spot for the ultimate festival holiday. Packed with love, joy, musi
 
 [Grab your ticket](https://szigetfestival.com/en/tickets)
 
-[/Main content]
+
+
+<!-- /Main content -->
 
 ###### Our awesome sponsors and partners
 
-[Page footer]
+<https://www.revolut.com/> <https://dreher.hu/> <https://budapest.hu/> <https://www.redbull.com/hu-hu/> <https://bolt.eu/hu-hu/>
+
+
+
+<!-- Page footer -->
 
 #### Get all the News
 
@@ -158,18 +163,30 @@ Artist drops, promotions, giveaways, ticket alerts & basically everything to be 
 
 [SIGN UP NOW](https://szigetfestival.com/en/newsletter)
 
--   [Press](https://szigetfestival.com/en/press)
--   [Sziget Crew](https://szigetfestival.com/en/sziget-crew)
--   [Policy & General terms](https://szigetfestival.com/en/policy-gctc)
--   [For brand partners](https://szigetfestival.com/en/sponsors)
--   [Contact us](https://szigetfestival.com/en/contact)
--   [Cookie settings](https://szigetfestival.com/en/travel/#)
+- [Press](https://szigetfestival.com/en/press)
+- [Sziget Crew](https://szigetfestival.com/en/sziget-crew)
+- [Policy & General terms](https://szigetfestival.com/en/policy-gctc)
+- [For brand partners](https://szigetfestival.com/en/sponsors)
+- [Contact us](https://szigetfestival.com/en/contact)
+- [Cookie settings](https://szigetfestival.com/en/travel/#)
+
+<https://apps.apple.com/app/sziget-festival/id886794508>
+
+<https://play.google.com/store/apps/details?id=com.greencopper.android.sziget>
 
 Sziget management proudly presents:
 
+<https://gyereksziget.hu/><https://gourmetfesztival.hu/en/>
+
 Our Green Certifications
 
-[/Page footer]
+
+
+<!-- /Page footer -->
+
+<https://www.facebook.com/SzigetFestival> <https://instagram.com/szigetofficial/> <http://www.youtube.com/user/szigetofficial> <https://www.tiktok.com/@szigetofficial/> <https://open.spotify.com/user/szigetfestivalofficial> <https://szigetfestival.com/en/newsletter>
+
+##
 
 ## Structured data
 
@@ -178,3 +195,15 @@ Our Green Certifications
 - @graph: @type: BreadcrumbList
 
 - @graph: @type: WebSite · name: #SZIGET2027 · description: The Island of Freedom · url: https://szigetfestival.com/en/
+
+## Map
+
+Source: https://maps.app.goo.gl/chG26FXpJ9WkJwGw8
+
+Május 9. park, Budapest, Hungary, 1033. · Sziget Festival takes place on Óbuda Island, right in the heart of Budapest.The official address is: Május 9. park, Budapest, Hungary, 1033.
+
+## Map
+
+Source: https://maps.app.goo.gl/yr6kC19rT8Gs21LXA
+
+Plan your route · By car · Plan your route BOOK YOUR PARKING

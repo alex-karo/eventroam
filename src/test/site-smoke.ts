@@ -200,6 +200,23 @@ async function main() {
       `${festivals}/events/smoke-festival/summer`,
       `Smoke Festival ${futureYear} | Scheduled | Eventroam`,
     );
+    for (const origin of [apex, festivals]) {
+      const privacy = checkMetadata(
+        await get(origin, "/privacy"),
+        `${origin}/privacy`,
+        "Privacy policy | Eventroam",
+      );
+      assert.equal(privacy("h1").text(), "Privacy policy");
+      assert(privacy("a[href='/privacy?analytics=off']").length > 0);
+      assert(privacy("a[href='/privacy?analytics=basic']").length > 0);
+    }
+    for (const page of [apexPage, discoveryPage, eventPage, editionPage]) {
+      assert.equal(page("a[href='/privacy']").length, 1);
+    }
+    assert.equal(
+      (await httpGet(port, "https://unknown.example", "/privacy")).status,
+      404,
+    );
     const jsonLdSelector = "script[type='application/ld+json']";
     for (const page of [apexPage, discoveryPage, eventPage]) {
       assert.equal(page(jsonLdSelector).length, 0);
@@ -233,9 +250,13 @@ async function main() {
       load(xml, { xml: true })("loc")
         .map((_, node) => load(node).text())
         .get();
-    assert.deepEqual(locations(await get(apex, "/sitemap.xml")), [`${apex}/`]);
+    assert.deepEqual(locations(await get(apex, "/sitemap.xml")), [
+      `${apex}/`,
+      `${apex}/privacy`,
+    ]);
     assert.deepEqual(locations(await get(festivals, "/sitemap.xml")), [
       `${festivals}/`,
+      `${festivals}/privacy`,
       `${festivals}/events/smoke-festival`,
       `${festivals}/events/smoke-festival/summer`,
       `${festivals}/events/sparse-festival`,
@@ -257,6 +278,7 @@ async function main() {
     });
     assert.deepEqual(locations(await get(festivals, "/sitemap.xml")), [
       `${festivals}/`,
+      `${festivals}/privacy`,
       `${festivals}/events/sparse-festival`,
       `${festivals}/events/sparse-festival/2025`,
     ]);

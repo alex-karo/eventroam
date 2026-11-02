@@ -68,7 +68,7 @@ The system SHALL derive canonical, social, sitemap, and structured-data identity
 
 ### Requirement: Each host serves its own crawler routes
 
-Each configured host SHALL serve `robots.txt` and `sitemap.xml`. Robots SHALL permit public pages and query variants and identify that host's absolute sitemap URL. The apex sitemap SHALL contain only its clean root. The Festivals sitemap SHALL contain its clean root and all current public Event and Edition URLs. Unconfigured hosts SHALL expose no site sitemap.
+Each configured host SHALL serve `robots.txt` and `sitemap.xml`. Robots SHALL permit public pages and query variants and identify that host's absolute sitemap URL. The apex sitemap SHALL contain its clean root and Privacy policy URL. The Festivals sitemap SHALL contain its clean root, Privacy policy URL, and all current public Event and Edition URLs. Unconfigured hosts SHALL expose no site sitemap.
 
 #### Scenario: The two configured hosts request crawler files
 - **WHEN** a crawler requests each host's robots and sitemap files

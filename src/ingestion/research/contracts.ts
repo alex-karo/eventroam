@@ -351,4 +351,4 @@ export type ResearchError = {
     retryable?: boolean;
   };
 };
-export const RESEARCH_PROMPT_VERSION = "edition-slots-v6";
+export const RESEARCH_PROMPT_VERSION = "edition-slots-v7";

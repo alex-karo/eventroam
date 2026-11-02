@@ -1,47 +1,63 @@
-# Glastonbury Festival - Info
+---
+title: "Glastonbury Festival - Info"
+---
 
 [Skip to main content](https://www.glastonburyfestivals.co.uk/info/#content)
 
-[Page header]
 
-Accessibility Options [Instagram](https://instagram.com/glastofest)[TikTok](https://tiktok.com/@glastonbury)[Facebook](https://www.facebook.com/glastonburyofficial)
+
+<!-- Page header -->
+
+Accessibility Options [Instagram](https://instagram.com/glastofest) [TikTok](https://tiktok.com/@glastonbury) [Facebook](https://www.facebook.com/glastonburyofficial)
 
 Search
 
 # [Glastonbury Festival](https://www.glastonburyfestivals.co.uk/)
 
-[Navigation]
 
--   [Home](https://www.glastonburyfestivals.co.uk/)
--   [News](https://www.glastonburyfestivals.co.uk/news/)
--   [Info](https://www.glastonburyfestivals.co.uk/info/)
--   [Line-Up](https://www.glastonburyfestivals.co.uk/line-up/)
--   [Areas](https://www.glastonburyfestivals.co.uk/areas/)
--   [History & Gallery](https://www.glastonburyfestivals.co.uk/history/)
--   [Worthy Causes](https://www.glastonburyfestivals.co.uk/worthy-causes/)
--   [Shop](https://shop.glastonburyfestivals.co.uk/)
 
-[/Navigation]
+<!-- Navigation -->
 
-[/Page header]
+- [Home](https://www.glastonburyfestivals.co.uk/)
+- [News](https://www.glastonburyfestivals.co.uk/news/)
+- [Info](https://www.glastonburyfestivals.co.uk/info/)
+- [Line-Up](https://www.glastonburyfestivals.co.uk/line-up/)
+- [Areas](https://www.glastonburyfestivals.co.uk/areas/)
+- [History & Gallery](https://www.glastonburyfestivals.co.uk/history/)
+- [Worthy Causes](https://www.glastonburyfestivals.co.uk/worthy-causes/)
+- [Shop](https://shop.glastonburyfestivals.co.uk/)
 
-[Main content]
+
+
+<!-- /Navigation -->
+
+
+
+<!-- /Page header -->
+
+
+
+<!-- Main content -->
 
 [Home](https://www.glastonburyfestivals.co.uk/) / [Info](https://www.glastonburyfestivals.co.uk/info/)
 
 # Info
 
-  
+ 
 
-The sections below aim to give you all the information you need about Glastonbury Festival: from ticket information and travel advice to suggestions for [what to bring](https://www.glastonburyfestivals.co.uk/info/#advice-and-facilities--packing-list). On site, during the Festival the [Information Points](https://www.glastonburyfestivals.co.uk/info/#information-points) are a veritable fount of knowledge and home of usefulness. 
+The sections below aim to give you all the information you need about Glastonbury Festival: from ticket information and travel advice to suggestions for  [what to bring](https://www.glastonburyfestivals.co.uk/info/#advice-and-facilities--packing-list). On site, during the Festival the  [Information Points](https://www.glastonburyfestivals.co.uk/info/#information-points) are a veritable fount of knowledge and home of usefulness. 
 
-If you’re not sure where to begin, a lot of people seem to head for the sections on  [Tickets](https://www.glastonburyfestivals.co.uk/info/#tickets), [G](https://www.glastonburyfestivals.co.uk/info/#getting-to-glastonbury)[etting here](https://www.glastonburyfestivals.co.uk/info/#getting-to-glastonbury) and [Camping.](https://www.glastonburyfestivals.co.uk/info/#accommodation) 
+If you’re not sure where to begin, a lot of people seem to head for the sections on   [Tickets](https://www.glastonburyfestivals.co.uk/info/#tickets), [G](https://www.glastonburyfestivals.co.uk/info/#getting-to-glastonbury) [etting here](https://www.glastonburyfestivals.co.uk/info/#getting-to-glastonbury) and  [Camping.](https://www.glastonburyfestivals.co.uk/info/#accommodation) 
 
-[Navigation]
+
+
+<!-- Navigation -->
 
 Jump to: [Tickets](https://www.glastonburyfestivals.co.uk/info/#tickets) [Accessibility Information](https://www.glastonburyfestivals.co.uk/info/#accessibility-information) [Accommodation](https://www.glastonburyfestivals.co.uk/info/#accommodation) [Introduction to Glastonbury](https://www.glastonburyfestivals.co.uk/info/#introduction-to-glastonbury) [Sustainability](https://www.glastonburyfestivals.co.uk/info/#sustainability) [Getting to Glastonbury](https://www.glastonburyfestivals.co.uk/info/#getting-to-glastonbury) [Advice & Facilities](https://www.glastonburyfestivals.co.uk/info/#advice-and-facilities) [Lost property](https://www.glastonburyfestivals.co.uk/info/#lost-property) [Food and shopping](https://www.glastonburyfestivals.co.uk/info/#food-and-shopping) [Map](https://www.glastonburyfestivals.co.uk/info/#map) [Information Points](https://www.glastonburyfestivals.co.uk/info/#information-points) [Emerging Talent / Performing](https://www.glastonburyfestivals.co.uk/info/#emerging-talent--performing) [Glastonbury Abbey Extravaganza](https://www.glastonburyfestivals.co.uk/info/#glastonbury-abbey-extravaganza) [Glastonbury town](https://www.glastonburyfestivals.co.uk/info/#glastonbury-town) [Jobs](https://www.glastonburyfestivals.co.uk/info/#jobs) [Media](https://www.glastonburyfestivals.co.uk/info/#media) [Pilton Party](https://www.glastonburyfestivals.co.uk/info/#pilton-party) [Student info](https://www.glastonburyfestivals.co.uk/info/#student-info) [Traders](https://www.glastonburyfestivals.co.uk/info/#traders) [Visit Somerset](https://www.glastonburyfestivals.co.uk/info/#visit-somerset) [Worthy Farm Reserve Cheddar](https://www.glastonburyfestivals.co.uk/info/#worthy-farm-reserve-cheddar) [Worthy FM](https://www.glastonburyfestivals.co.uk/info/#worthy-fm)
 
-[/Navigation]
+
+
+<!-- /Navigation -->
 
 ## Tickets
 
@@ -101,9 +117,13 @@ Worthy Farm milk is used to make cheddar. Look for it in Co-op shops.
 
 ## Worthy FM
 
-[/Main content]
 
-[Page footer]
+
+<!-- /Main content -->
+
+
+
+<!-- Page footer -->
 
 ## Sign Up To The Mailing List
 
@@ -111,61 +131,83 @@ Stay up to date on all the latest news, tickets updates and line-up info with Gl
 
 [Sign Up Now](https://glastonbury.seetickets.com/mailinglist/subscribe)
 
-[Oxfam](https://www.oxfam.org.uk/ "Visit Oxfam")[Greenpeace](https://www.greenpeace.org.uk/ "Visit Greenpeace")[WaterAid](https://www.wateraid.org/uk/ "Visit WaterAid")
+[Oxfam](https://www.oxfam.org.uk/ "Visit Oxfam") [Greenpeace](https://www.greenpeace.org.uk/ "Visit Greenpeace") [WaterAid](https://www.wateraid.org/uk/ "Visit WaterAid")
 
-[Navigation]
 
--   © 2026  Glastonbury Festival
--   [Sitemap](https://www.glastonburyfestivals.co.uk/sitemap/)
--   [Privacy Policy](https://www.glastonburyfestivals.co.uk/privacy-policy/)
--   [Cookie Settings](https://www.glastonburyfestivals.co.uk/info/#cookie-settings)
--   [Cookie Policy](https://www.glastonburyfestivals.co.uk/cookie-policy/)
--   [T&Cs](https://www.glastonburyfestivals.co.uk/tcs/)
--   [Anti-Slavery Statement](https://www.glastonburyfestivals.co.uk/anti-slavery-statement/)
--   [Diversity Statement](https://www.glastonburyfestivals.co.uk/diversity-statement/)
--   [Contact](https://www.glastonburyfestivals.co.uk/contact/)
--   [Newsletter Sign-Up](https://glastonbury.seetickets.com/mailinglist/subscribe)
 
-[/Navigation]
+<!-- Navigation -->
 
-[/Page footer]
+- © 2026  Glastonbury Festival
+- [Sitemap](https://www.glastonburyfestivals.co.uk/sitemap/)
+- [Privacy Policy](https://www.glastonburyfestivals.co.uk/privacy-policy/)
+- [Cookie Settings](https://www.glastonburyfestivals.co.uk/info/#cookie-settings)
+- [Cookie Policy](https://www.glastonburyfestivals.co.uk/cookie-policy/)
+- [T&Cs](https://www.glastonburyfestivals.co.uk/tcs/)
+- [Anti-Slavery Statement](https://www.glastonburyfestivals.co.uk/anti-slavery-statement/)
+- [Diversity Statement](https://www.glastonburyfestivals.co.uk/diversity-statement/)
+- [Contact](https://www.glastonburyfestivals.co.uk/contact/)
+- [Newsletter Sign-Up](https://glastonbury.seetickets.com/mailinglist/subscribe)
+
+
+
+<!-- /Navigation -->
+
+
+
+<!-- /Page footer -->
 
 [Accessibility](https://www.glastonburyfestivals.co.uk/info/#accessibility)
 
-[Navigation]
+
+
+<!-- Navigation -->
 
 Menu
 
-[/Navigation]
 
-[Navigation]
 
-Close
+<!-- /Navigation -->
 
-[/Navigation]
 
-[Navigation]
 
--   [Home](https://www.glastonburyfestivals.co.uk/)
--   [News](https://www.glastonburyfestivals.co.uk/news/)
--   [Info](https://www.glastonburyfestivals.co.uk/info/)
--   [Line-Up](https://www.glastonburyfestivals.co.uk/line-up/)
--   [Areas](https://www.glastonburyfestivals.co.uk/areas/)
--   [History & Gallery](https://www.glastonburyfestivals.co.uk/history/)
--   [Worthy Causes](https://www.glastonburyfestivals.co.uk/worthy-causes/)
--   [Shop](https://shop.glastonburyfestivals.co.uk/)
-
-[/Navigation]
-
- Search
-
-[Instagram](https://instagram.com/glastofest)[TikTok](https://tiktok.com/@glastonbury)[Facebook](https://www.facebook.com/glastonburyofficial)
-
-[Navigation]
+<!-- Navigation -->
 
 Close
 
-[/Navigation]
+
+
+<!-- /Navigation -->
+
+
+
+<!-- Navigation -->
+
+- [Home](https://www.glastonburyfestivals.co.uk/)
+- [News](https://www.glastonburyfestivals.co.uk/news/)
+- [Info](https://www.glastonburyfestivals.co.uk/info/)
+- [Line-Up](https://www.glastonburyfestivals.co.uk/line-up/)
+- [Areas](https://www.glastonburyfestivals.co.uk/areas/)
+- [History & Gallery](https://www.glastonburyfestivals.co.uk/history/)
+- [Worthy Causes](https://www.glastonburyfestivals.co.uk/worthy-causes/)
+- [Shop](https://shop.glastonburyfestivals.co.uk/)
+
+
+
+<!-- /Navigation -->
+
+Search
+
+[Instagram](https://instagram.com/glastofest) [TikTok](https://tiktok.com/@glastonbury) [Facebook](https://www.facebook.com/glastonburyofficial)
+
+
+
+<!-- Navigation -->
+
+Close
+
+
+
+<!-- /Navigation -->
 
 ## Colour Mode
 
@@ -179,7 +221,7 @@ Where you see the BSL Version button, a video is available covering that section
 
 BSL Version
 
- Search
+Search
 
 Close
 
@@ -189,7 +231,7 @@ Close
 
 We use cookies to provide you with a better browsing experience. More information on how we use cookies is available here. You can change your settings at any time here.
 
-For more detailed information please check our [Cookie Policy](https://www.glastonburyfestivals.co.uk/cookie-policy/).
+For more detailed information please check our  [Cookie Policy](https://www.glastonburyfestivals.co.uk/cookie-policy/).
 
 Accept All Reject All
 
@@ -216,7 +258,5 @@ Some pages include embeds from [Twitter](https://help.twitter.com/en/rules-and-p
 ## Structured data
 
 - @graph: @type: WebPage · name: Info - Glastonbury Festivals · url: https://www.glastonburyfestivals.co.uk/info/
-
 - @graph: @type: BreadcrumbList
-
-- @graph: @type: WebSite · name: Glastonbury Festivals · description:  · url: https://www.glastonburyfestivals.co.uk/
+- @graph: @type: WebSite · name: Glastonbury Festivals · description: · url: https://www.glastonburyfestivals.co.uk/

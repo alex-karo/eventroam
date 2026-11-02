@@ -44,7 +44,7 @@ The owner SHALL be able to enable local application logging independently of tra
 
 ### Requirement: Observability remains local and correlated
 
-Enabled logs, traces, and metrics SHALL be stored separately from the catalog and remain inspectable after exit through local or hosted Studio on the selected host without model credentials or a new ingestion run. Application logs SHALL retain the durable ingestion run ID in their data. Native SDK contexts SHALL supply available top-level trace/span/run correlation. Events outside those contexts MAY have no top-level correlation. Traces and metrics SHALL retain run correlation. Root names SHALL remain fixed. Metadata SHALL identify the Event and run. Root output SHALL contain the report research, editor, location and catalog outcome statuses. Workflow steps and the report SHALL hold phase, validation and Edition details. Technical operation success SHALL remain distinct from research and catalog outcomes.
+Enabled logs, traces, and metrics SHALL remain separate from the catalog. Studio SHALL expose them after exit on the selected host without model credentials or a new run. Application logs SHALL retain the durable run ID. Traces and metrics SHALL identify their run and Event. Inspection SHALL distinguish Research, Editor, Location, and catalog outcomes from technical execution status. Phase, validation, and Edition details SHALL remain available in saved execution results and reports.
 
 #### Scenario: Inspect a completed run
 
@@ -56,23 +56,23 @@ Enabled logs, traces, and metrics SHALL be stored separately from the catalog an
 - **WHEN** a source operation completes technically but returns a failed retrieval outcome
 - **THEN** diagnostics retain that retrieval failure rather than claiming a successful source check
 
-### Requirement: Traces use native Mastra content and filtering
+### Requirement: Private traces can retain detailed content
 
-Private stored traces MAY retain prompts, message history, source bodies, model responses, tool results, and SDK errors. The application SHALL use Mastra's standard SensitiveDataFilter and SHALL NOT attach configuration credentials. The filter SHALL NOT be treated as a guarantee that arbitrary text contains no secrets. Native tool outputs SHALL remain intact. Source status, cache and truncation summaries MAY remain in application logs without separate restored span fields.
+Private stored traces MAY retain prompts, message history, source bodies, model responses, tool results, and execution errors. Known sensitive fields SHALL be filtered, and the application SHALL NOT attach configuration credentials. Filtering SHALL NOT be presented as a guarantee that arbitrary text contains no secrets. Tool outputs SHALL remain intact except for sensitive-field filtering. Application logs MAY retain source status, cache, and truncation summaries.
 
 #### Scenario: A model span includes prompt content
 
 - **WHEN** tracing receives automatically attached prompts or message history
-- **THEN** native content may persist with standard Mastra sensitive-field filtering
+- **THEN** that content may persist in private traces with sensitive-field filtering
 
 #### Scenario: A source read is traced
 
 - **WHEN** an inspected source produces content and links
-- **THEN** the native tool result may persist and application logs may retain source status details
+- **THEN** the tool result may persist in private traces and application logs may retain source status details
 
 ### Requirement: Application logs use selected bounded fields
 
-Enabled logs SHALL identify severity, a short message, run ID, and selected run or source context. They SHALL cover retrieval, discovery, model, validation, write, and completion outcomes. Application log producers SHALL NOT separately copy full prompts, source content, transport data, configuration credentials, or raw exceptions. Native SDK logs MAY retain payloads and errors in the private observability store. SDK observability warnings and errors MAY use native messages in stderr; the application SHALL NOT replace them with fixed diagnostic codes. Logging SHALL use native Pino export without an independent application delivery guarantee for stderr and Studio. Selected public URLs and permitted model text SHALL NOT require secret detection or redaction. Unobserved outcomes SHALL NOT be fabricated.
+Enabled application logs SHALL identify severity, a short message, run ID, and selected run or source context. They SHALL cover retrieval, discovery, model, validation, write, and completion outcomes. They SHALL NOT separately copy full prompts, source content, transport data, configuration credentials, or raw exceptions. Public URLs and permitted model text MAY remain visible. Unobserved outcomes SHALL NOT be fabricated.
 
 #### Scenario: A source is fetched
 
@@ -84,9 +84,16 @@ Enabled logs SHALL identify severity, a short message, run ID, and selected run 
 - **WHEN** a preview reports proposed catalog changes
 - **THEN** logs distinguish the preview from committed writes
 
+#### Scenario: Observability emits its own diagnostics
+
+- **WHEN** observability emits a warning or error
+- **THEN** its message may appear in stderr
+- **AND** private observability logs may retain payloads and errors
+- **AND** delivery to both stderr and Studio is not guaranteed
+
 ### Requirement: Logged model text is separate and limited
 
-Logs MAY include two separate text fields from a completed model step: model commentary and reasoning text returned by the provider. Each field SHALL contain at most 4,000 Unicode code points and identify its original length and whether it was shortened. Application model-text events SHALL NOT collect incomplete streaming text, infer reasoning the provider did not return, or duplicate final structured results. Native SDK logs SHALL follow native Mastra behavior.
+Application logs MAY include two separate text fields from a completed model step: model commentary and reasoning text returned by the provider. Each field SHALL contain at most 4,000 Unicode code points and identify its original length and whether it was shortened. These events SHALL NOT collect incomplete streaming text, infer reasoning the provider did not return, or duplicate final structured results.
 
 #### Scenario: Completed model text is long
 
@@ -117,21 +124,22 @@ Local or hosted Studio SHALL expose the flow, progress, execution ID, run ID, an
 - **WHEN** the owner opens a saved ingestion execution after the writing process exits
 - **THEN** Studio exposes its input and available step states, times, outputs, and final summary
 - **AND** research findings, editorial actions, Location decisions, normalized geocoding observations, prepared operations, and confirmed write results remain distinguishable
-- **AND** native workflow success does not replace research status, editorial status, Location status, catalog outcome, or report persistence status
+- **AND** technical execution success does not replace research status, editorial status, Location status, catalog outcome, or report persistence status
 
 #### Scenario: A start request includes private request context
 
-- **WHEN** a native start request carries separate credentials, prompts, source bodies, or provider payloads in request context
+- **WHEN** a start request carries separate credentials, prompts, source bodies, or provider payloads in request context
 - **THEN** saved history excludes that request context while retaining allowed final model responses
 
 ### Requirement: Source-result capture is explicit and separate
 
-The owner MAY enable local capture with `CATALOG_CAPTURE_TOOL_OUTPUTS=true`. It SHALL save bounded source and discovery results supplied to research, including initial context and repeated cached results in call order. Capture SHALL be off by default, identified by run ID, and kept in ignored local debug storage. Capture SHALL NOT separately attach source bodies or search responses to runs or reports. Native traces MAY retain tool results under the trace-content rules above. Text repeated in model responses SHALL follow the model-output rules above. Capture write failure SHALL be visible without changing ingestion's outcome.
+The owner MAY enable local capture with `CATALOG_CAPTURE_TOOL_OUTPUTS=true`. It SHALL save bounded source and discovery results supplied to research, including initial context and repeated cached results in call order. Capture SHALL be off by default, identified by run ID, and kept in ignored local debug storage. Capture SHALL NOT separately attach source bodies or search responses to runs or reports. Capture write failure SHALL be visible without changing ingestion's outcome.
 
 #### Scenario: Capture is enabled
 
 - **WHEN** the owner enables capture and research reads a page and a discovery result
 - **THEN** the saved capture contains those agent-visible bounded results and identifies their order and run ID
+- **AND** traces and model responses follow their separate content rules above
 
 #### Scenario: Capture is disabled
 
@@ -176,7 +184,7 @@ Enabled tracing SHALL record available stage duration, technical status, token u
 
 ### Requirement: Location evaluation separates completion correction and preservation
 
-Location evaluation SHALL report missing-point completion, known-error correction, and correct-old-point preservation as separate case groups. It SHALL use the existing assertions and scores. Completion and correction cases SHALL require the expected point or precision change, so keeping every point SHALL NOT pass them. Preservation cases SHALL reject unwanted changes. Group results SHALL NOT claim an accuracy percentage or an untested quality guarantee.
+Location evaluation SHALL report missing-point completion, known-error correction, and correct-old-point preservation as separate case groups. Completion and correction cases SHALL require the expected point or precision change, so keeping every point SHALL NOT pass them. Preservation cases SHALL reject unwanted changes. Group results SHALL NOT claim an accuracy percentage or an untested quality guarantee.
 
 #### Scenario: A plan keeps every point
 
@@ -190,27 +198,30 @@ Location evaluation SHALL report missing-point completion, known-error correctio
 
 ### Requirement: Location evaluation uses captured geocoding
 
-Isolated Location evaluation SHALL use real preparation and execution with captured, normalized forward and reverse geocoding-client results, without live fallback. An unmatched initial or agent request SHALL return bounded fixture_miss and fail its case even after a valid plan. Saved Mastra experiment items SHALL retain available output, observations, actual tool calls, errors, scores, and valid siblings without a fabricated ingestion report. The command SHALL exit nonzero for failed cases. Experiment storage failures SHALL use native Mastra behavior without custom recovery or post-run storage checks.
+Isolated Location evaluation SHALL execute Location with recorded forward and reverse geocoding results. Missing fixtures SHALL follow [Geocoding fixture gaps use a tool error](../ingestion-evaluation/spec.md#requirement-geocoding-fixture-gaps-use-a-tool-error). Saved results SHALL retain available output, initial observations, agent tool calls, errors, and scores. They SHALL NOT contain a fabricated ingestion report.
 
 #### Scenario: An initial reverse fixture is missing
 
 - **WHEN** initial preparation requests a reverse response absent from the fixture
-- **THEN** the case retains a fixture_miss observation and fails without a live request
-- **AND** available later Location output and valid sibling results remain in saved Mastra experiment items
+- **THEN** the case retains the `unavailable` observation without a live request
+- **AND** available later Location output and other case results remain in saved experiments
+- **AND** the missing fixture alone does not fail the case
 
 #### Scenario: The agent requests an uncaptured spelling
 
 - **WHEN** an agent forward request has no matching fixture but a later decision is valid
-- **THEN** the case still fails and retains the tool error and available decision
+- **THEN** the case retains the `unavailable` tool error and available decision
+- **AND** it passes if execution and all case checks pass
 
-#### Scenario: The captured provider returns no match
+#### Scenario: A fixture records no match or a provider failure
 
 - **WHEN** a matching fixture contains a genuine empty result or provider failure
-- **THEN** the recorded outcome is supplied as test input rather than classified as fixture_miss
+- **THEN** the recorded outcome is supplied unchanged as test input
+- **AND** a recorded empty result remains distinct from a simulated `unavailable` error
 
 ### Requirement: Evaluation artifacts separate reports from execution errors
 
-A completed ingestion workflow evaluation SHALL retain one real ingestion report per available task output, without flat report copies. Execution errors and scorer results SHALL remain separate. Saved Mastra experiment items SHALL preserve case identity, repetition, provenance, assertion details, tool calls, and valid sibling results without a separate eval JSON file. The command SHALL exit nonzero for task or scorer errors, missing required scores, or failed cases. Saved errors SHALL follow the existing bounded safe-error rules. Experiment storage failures SHALL use native Mastra behavior; complete persistence and a failed CLI exit are not guaranteed for that exceptional case.
+A workflow evaluation SHALL retain its actual ingestion report when available. Execution errors and scorer results SHALL remain separate. Saved results SHALL preserve case identity, repetition, provenance, check details, tool calls, and other case results. Saved errors SHALL remain bounded and exclude private exception content. Command exit status and experiment storage failures SHALL follow [Ingestion evaluation](../ingestion-evaluation/spec.md).
 
 #### Scenario: The workflow returns a failed report
 
@@ -257,7 +268,7 @@ New CLI and local or hosted Studio ingestion executions SHALL save workflow hist
 
 ### Requirement: Saved execution IDs identify the durable attempt
 
-After initialization succeeds, saved execution data SHALL identify both the workflow execution and its durable ingestion attempt. Final summaries SHALL use those same IDs. Interrupted executions SHALL retain a saved association where available without claiming an unsaved result. Native entries created before valid attempt initialization SHALL NOT claim a durable ingestion attempt.
+After initialization succeeds, saved execution data SHALL identify both the workflow execution and its durable ingestion attempt. Final summaries SHALL use those same IDs. Interrupted executions SHALL retain a saved association where available without claiming an unsaved result. Entries created before valid attempt initialization SHALL NOT claim a durable ingestion attempt.
 
 #### Scenario: Work fails after initialization
 
@@ -271,9 +282,9 @@ After initialization succeeds, saved execution data SHALL identify both the work
 
 #### Scenario: Input is invalid
 
-- **WHEN** native execution creation is followed by rejected input
+- **WHEN** execution creation is followed by rejected input
 - **THEN** no durable ingestion attempt or external work starts
-- **AND** any native pending entry does not claim an ingestion run ID
+- **AND** any pending entry does not claim an ingestion run ID
 
 ### Requirement: Workflow history uses separate local storage
 
@@ -284,14 +295,14 @@ The owner SHALL be able to select a local workflow history file shared by CLI an
 - **WHEN** the owner selects a catalog through the CLI database option and configures workflow history to use that same file or its journal file
 - **THEN** startup rejects the collision before opening workflow storage or starting external work
 
-#### Scenario: Studio changes its build working directory
+#### Scenario: Studio starts from another working directory
 
-- **WHEN** the Studio launcher starts its generated server from another working directory
+- **WHEN** Studio starts from another working directory
 - **THEN** it opens the same configured workflow file as the CLI started from the project root
 
 ### Requirement: Workflow storage failures do not replay ingestion
 
-Workflow history storage SHALL be required for execution. Failure before start SHALL prevent external work. A later failure SHALL stop execution with a safe history error and a nonzero CLI result. Calls that await execution SHALL receive that error. An early native start response SHALL NOT certify execution completion or saved history. The system SHALL preserve confirmed catalog commits and durable reports, attempt normal cleanup and unfinished report finalization where possible, and SHALL NOT replay work. Optional logs, traces, and metrics SHALL keep their existing failure policy.
+Workflow history storage SHALL be required for execution. Failure before start SHALL prevent external work. A later failure SHALL stop execution with a safe history error and a nonzero CLI result. Calls that await execution SHALL receive that error. An early start response SHALL NOT certify execution completion or saved history. Confirmed catalog commits and durable reports SHALL remain unchanged. Storage failure SHALL NOT replay work. Optional observability SHALL keep its separate failure policy.
 
 #### Scenario: Workflow storage cannot open
 
@@ -352,7 +363,7 @@ Workflow snapshots SHALL remain until the owner deletes them. Deleting a saved e
 
 #### Scenario: The owner deletes a completed execution
 
-- **WHEN** the owner deletes a completed execution through the native workflow history API
+- **WHEN** the owner deletes a completed execution through the workflow history API
 - **THEN** it disappears from workflow history while its durable ingestion report and catalog records remain
 
 #### Scenario: The owner resets the workflow store

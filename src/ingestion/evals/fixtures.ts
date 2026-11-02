@@ -111,9 +111,7 @@ const commonCaseSchema = z.object({
     })
     .optional(),
   todayUtc: z.iso.date().optional(),
-  provenance: z
-    .object({ kind: z.string(), sourceReport: z.string(), note: z.string() })
-    .optional(),
+  provenance: z.object({ kind: z.string(), note: z.string() }).optional(),
   input: z.object({
     mode: z.enum(["add", "refresh"]),
     scope: z.enum(["full", "current"]).optional(),
@@ -187,7 +185,6 @@ const evalSuiteSchema = z.object({
   todayUtc: z.iso.date(),
   provenance: z.object({
     kind: z.string(),
-    sourceReport: z.string(),
     note: z.string().optional(),
   }),
   terms: z.array(

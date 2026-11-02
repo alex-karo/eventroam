@@ -19,6 +19,9 @@ export function EventDetailsPage({
           <h2>Published editions and history</h2>
           <EditionHistory editions={event.editions} token={token} />
         </section>
+        <footer className="privacy-footer">
+          <a href="/privacy">Privacy policy</a>
+        </footer>
       </main>
     </>
   );

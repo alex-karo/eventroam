@@ -269,11 +269,6 @@
   font-size: 15px;
   font-weight: 500;
 }
-.transformation figcaption {
-  margin: 16px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-}
 .example {
   display: grid;
   grid-template-columns: 0.7fr 1.3fr;
@@ -313,12 +308,10 @@
   max-width: none;
 }
 .preview figcaption {
+  display: none;
   margin-top: 12px;
   font-size: 12px;
   color: var(--muted);
-}
-.scrollHint {
-  display: none;
 }
 .cooperation {
   border-top: 1px solid var(--line);
@@ -417,10 +410,6 @@
   .record dl > div {
     grid-template-columns: 66px minmax(0, 1fr);
   }
-  .transformation figcaption {
-    max-width: 480px;
-    margin: 16px auto 0;
-  }
 }
 
 @media (max-width: 740px) {
@@ -461,9 +450,8 @@
   .preview img {
     width: 640px;
   }
-  .scrollHint {
+  .preview figcaption {
     display: block;
-    margin-top: 4px;
   }
   .cooperation {
     padding: 40px 0 24px;

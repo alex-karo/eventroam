@@ -60,17 +60,33 @@ The genre picker SHALL show known terms represented in eligible summaries togeth
 
 ### Requirement: Date and duration shortcuts resolve to ordinary bounds
 
-The UI SHALL offer six buttons for the visitor’s current local calendar month and the following five months, labeled with English month and year, plus inclusive custom date selection and one-day, two-to-three-day, and four-or-more-day duration shortcuts. A month button SHALL fill both pending date bounds with that entire calendar month and indicate selection only when both pending bounds exactly match it. The UI SHALL NOT display a native Month field, This weekend button, or Upcoming and ongoing button. Applied shortcuts SHALL serialize as resolved date or duration bounds.
+The UI SHALL show 12 months from the visitor's current local month above results. Year labels SHALL sit above equal-height month buttons, with a gap between years. All SHALL remain visible outside the horizontal scroll area. Month and All actions SHALL apply at once and preserve other applied filters. All SHALL clear explicit dates and restore upcoming and ongoing matching. Dates SHALL offer inclusive custom bounds. Duration SHALL retain one-day, two-to-three-day, and four-or-more-day shortcuts. Shortcuts SHALL serialize as ordinary bounds.
 
 #### Scenario: A nearby month is selected
 
 - **WHEN** a visitor selects a month button
-- **THEN** the pending From and To fields show the first and last dates of that month, the button indicates selection, and applying stores those dates in the URL
+- **THEN** the URL and results immediately use its first and last dates
+- **AND** only the exact applied month indicates selection
+- **AND** other applied filters remain unchanged and focus stays on the chosen month
 
 #### Scenario: Months cross the year boundary
 
 - **WHEN** the current month is December
-- **THEN** the six choices start with December of the current year and continue January through May of the next year
+- **THEN** the 12 choices run from December through November of the next year
+- **AND** year labels group the choices above one aligned button row without a vertical divider
+
+#### Scenario: All clears a date range
+
+- **GIVEN** explicit dates, a genre, and a country are applied
+- **WHEN** All is selected
+- **THEN** both date bounds are removed and default upcoming and ongoing matching resumes
+- **AND** genre and country remain applied
+
+#### Scenario: The month row exceeds the available width
+
+- **WHEN** all months cannot fit
+- **THEN** month buttons remain horizontally scrollable without a visible scrollbar
+- **AND** All remains visible and keyboard users can reach every month
 
 ### Requirement: Size and duration have deterministic boundaries
 
@@ -102,7 +118,7 @@ Applied state SHALL use `q`, `place`, `from`, `to`, repeated `country`, `genre`,
 
 ### Requirement: List and map share results and preserve selection
 
-Desktop SHALL show list and map together; narrow screens SHALL offer a keyboard-usable switch. Both SHALL share results. The map SHALL show located results with clustering, precision labels, attribution, and controls; the list SHALL retain unlocated results. Counts SHALL distinguish total, mapped, and unlocated results regardless of viewport. Selection SHALL fetch full details with retry and stale-response protection. View switches SHALL preserve filters. Ordinary edition links and list fallback SHALL remain usable.
+Desktop SHALL show list and map together; narrow screens SHALL offer a keyboard-usable switch. Both SHALL share results. The map SHALL show located results with clustering, precision labels, attribution, and controls; the list SHALL retain unlocated results. A small status SHALL show the total in both views and show mapped and unlocated counts when any result lacks coordinates. Selection SHALL fetch full details with retry and stale-response protection. View switches SHALL preserve filters. Ordinary edition links and list fallback SHALL remain usable.
 
 #### Scenario: Coordinates are missing
 
@@ -117,7 +133,7 @@ Desktop SHALL show list and map together; narrow screens SHALL offer a keyboard-
 
 ### Requirement: Compact controls remain accessible
 
-Name search, filter pickers, applied chips, result count, and Clear all SHALL remain accessible in the compact layout. Apply SHALL commit pending picker values; dismissing SHALL discard them and restore focus. Search SHALL submit by Enter or button, and an invalid search SHALL show associated visible feedback without replacing applied results. The layout SHALL remain usable at 320px. Map loading errors SHALL provide a clear fallback without losing list or filter state.
+Name search, filter pickers, result count, and Clear all SHALL remain accessible. One row above results SHALL contain All, scrolling nearby months, and desktop Where, Music, and More controls. Custom dates SHALL be in More. On narrow screens one fixed Filters button SHALL open a bottom sheet with these three groups. Apply SHALL commit the draft; dismissing SHALL discard it and restore focus. Search SHALL submit by Enter or button. Invalid search SHALL show associated visible feedback without replacing applied results. Map loading errors SHALL provide a fallback without losing list or filter state.
 
 #### Scenario: Search text is too long
 
@@ -126,8 +142,17 @@ Name search, filter pickers, applied chips, result count, and Clear all SHALL re
 
 #### Scenario: Controls move to a narrow layout
 
-- **WHEN** the viewport becomes narrow
-- **THEN** name search and When and Where remain visible above results, while Music genre, Duration, and Size remain reachable through the filter panel
+- **WHEN** the viewport is 320px wide
+- **THEN** All and Filters remain fixed at the edges of one row while nearby months scroll between them
+- **AND** years remain above their month groups and all buttons share one baseline
+- **AND** Filters opens a bottom sheet with Where, Music, and More
+
+#### Scenario: A mobile sheet is open
+
+- **WHEN** a visitor opens Filters on a narrow screen
+- **THEN** keyboard focus stays in the sheet and background controls cannot be activated
+- **AND** Escape, Cancel, the close button, or the backdrop dismisses the draft and returns focus to Filters
+- **AND** the fields can scroll while group controls and Apply remain available
 
 ### Requirement: Discovery does not display aggregate ticket availability
 Discovery summaries SHALL omit edition-wide ticket availability. Result lists, map markers, and popups SHALL NOT display aggregate sold-out/closed indicators or infer them from ticket variants. Availability SHALL remain outside filtering and ordering; schedule status rules SHALL remain unchanged.
@@ -138,67 +163,74 @@ Discovery summaries SHALL omit edition-wide ticket availability. Result lists, m
 
 ### Requirement: Applied selections display readable values
 
-Applied chips SHALL show each selected country, genre, and size band separately, and one chip each for a name query, city/region query, date range, and duration range. Labels SHALL use English country names, genre names, readable size bounds, and date bounds with years. Duration labels SHALL support one-sided bounds. Only applied values SHALL appear; each removal control SHALL identify its value accessibly.
+Desktop filter buttons SHALL summarize applied values without a separate applied chip row. Where and Music SHALL show the first readable value and the number of other selections. More SHALL identify active date, duration, and size conditions. Full country names, genres, dates with years, and readable duration and size values SHALL remain available in the corresponding picker. Mobile Filters SHALL show the number of active selections.
 
 #### Scenario: Multiple location selections are applied
 
 - **WHEN** Portugal, Spain, and a city/region query of Lisbon are applied
-- **THEN** separate removable chips display Portugal, Spain, and Lisbon
-- **AND** the overview does not replace those values with a single Where chip
+- **THEN** Where summarizes the applied location values
+- **AND** opening Where shows each selected country and Lisbon for editing or removal
 
 #### Scenario: A direct URL restores filters
 
 - **WHEN** a valid URL specifies dates from 2027-08-01 through 2027-08-31, a known genre, and only durationMin of 4
-- **THEN** chips show the actual date range including its year, the genre's display name, and a duration of 4 or more days
+- **THEN** Music shows the genre name and More identifies the active date and duration conditions
+- **AND** opening More shows the exact dates with years and the one-sided duration
 - **AND** the same values are restored after reload and browser history navigation
 
 #### Scenario: Pending changes are not yet applied
 
 - **WHEN** a visitor edits values inside a picker
-- **THEN** applied chips continue to describe the applied result set until the visitor commits
+- **THEN** row buttons continue to describe the applied result set until the visitor commits
 
 ### Requirement: Removing a selection preserves unrelated filters
 
-Removing a chip SHALL immediately commit removal of only that selection and update the URL and shared results. Removing date or duration chips SHALL clear both bounds of that range; clearing dates SHALL restore upcoming and ongoing matching. Removing a country SHALL retain other countries and the city/region query. Removal SHALL preserve the view preference and leave keyboard focus on a remaining removal control or Clear all.
+Visitors SHALL remove individual values through the picker controls. Removal SHALL update only the pending draft until Apply. Removing date or duration restrictions SHALL clear both bounds when the visitor clears that condition. Other countries, place text, genres, and view preference SHALL remain unchanged. Desktop Clear all SHALL reset applied filters. Clear all inside the sheet SHALL clear the pending draft, including the name query.
 
 #### Scenario: One of two countries is removed
 
 - **GIVEN** Portugal, Spain, a city/region query, and a genre are applied
-- **WHEN** the visitor removes Spain
+- **WHEN** the visitor deselects Spain in Where and applies
 - **THEN** only Spain is removed from applied state and the URL
 - **AND** Portugal, the city/region query, genre, and view preference remain
 
 #### Scenario: One size or genre is removed
 
-- **WHEN** a visitor removes one chip from multiple selected size bands or genres
+- **WHEN** a visitor removes one of multiple selected size bands or genres and applies
 - **THEN** other selected values in that group and other groups remain applied
+
+#### Scenario: A cleared draft is cancelled
+
+- **WHEN** a visitor clears all values inside the sheet and then cancels
+- **THEN** applied values, the name query, and the URL remain unchanged
 
 #### Scenario: The final chip is removed with the keyboard
 
-- **WHEN** a keyboard user removes the final applied chip
-- **THEN** focus moves to Clear all instead of being lost
+- **WHEN** a keyboard user removes the final selected genre chip in Music
+- **THEN** focus stays inside the picker on the genre search field
+- **AND** removal remains pending until Apply
 
 ### Requirement: Picker actions preview the pending result count
 
-For valid pending filters, each picker SHALL show an updating action labeled "Show N editions", singular for one. N SHALL count all matching editions, including those without coordinates, using the same catalog, time reference, and matching rules as applied results. Previewing SHALL NOT change applied results, chips, or the URL. Applying SHALL commit the previewed filters; dismissing SHALL discard them.
+For valid pending filters, each picker SHALL show an action with the current matching result count. The count SHALL include all matching editions, including those without coordinates, using the same catalog, time reference, and matching rules as applied results. Previewing SHALL NOT change applied results, row summaries, or the URL. Applying SHALL commit the previewed filters; dismissing SHALL discard them.
 
 #### Scenario: A preview includes unlocated editions
 
 - **GIVEN** pending filters match two editions with coordinates and one without
 - **WHEN** the picker displays its action
-- **THEN** the action reads Show 3 editions
+- **THEN** the action shows three matching results
 - **AND** applying produces three list results and two mapped results if the catalog and time reference have not changed
 
 #### Scenario: Pending filters match no editions
 
 - **WHEN** valid pending filters match zero editions
-- **THEN** the enabled action reads Show 0 editions
+- **THEN** the enabled action shows zero matching results
 - **AND** the visitor can apply them or continue editing
 
 #### Scenario: Dismissing a preview retains applied state
 
 - **WHEN** the visitor changes a picker selection and then cancels or presses Escape
-- **THEN** applied chips, results, and URL remain unchanged and focus returns to the picker trigger
+- **THEN** applied row summaries, results, and URL remain unchanged and focus returns to the picker trigger
 
 ### Requirement: Invalid pending input does not produce a result count
 
@@ -214,7 +246,7 @@ Incomplete or invalid pending filters SHALL display visible feedback associated 
 
 - **WHEN** the pending minimum duration exceeds the maximum
 - **THEN** associated feedback explains the invalid bounds and applying is prevented
-- **AND** the applied list, map, chips, and URL remain unchanged
+- **AND** the applied list, map, row summaries, and URL remain unchanged
 
 #### Scenario: A native input contains an unfinished value
 
@@ -242,7 +274,7 @@ The country picker SHALL display English names for countries represented in the 
 #### Scenario: A selected country has no catalog editions
 
 - **WHEN** a valid direct URL selects a country absent from the current catalog
-- **THEN** its English name is shown in the overview and picker, and it remains removable
+- **THEN** its English name is shown in the Where button and picker, and it remains removable
 
 ### Requirement: City or region entry suggests catalog values
 
@@ -279,7 +311,7 @@ The location text field SHALL be labeled City or region and suggest nonempty loc
 
 ### Requirement: Discovery uses estimated festival size
 
-Discovery SHALL use sizeEstimate for its existing size bands and thresholds. The Size filter SHALL explain approximate participant numbers; list results SHALL qualify known size as an estimate in people. Unrestricted size SHALL include unknowns; any selected band SHALL exclude them. Size URLs, readable chips, and all other matching rules SHALL remain unchanged.
+Discovery SHALL use sizeEstimate for its existing size bands and thresholds. The Size filter SHALL explain approximate participant numbers; list results SHALL qualify known size as an estimate in people. Unrestricted size SHALL include unknowns; any selected band SHALL exclude them. Size URLs, readable picker values, and all other matching rules SHALL remain unchanged.
 
 #### Scenario: Size filtering
 - **WHEN** a size band is selected
@@ -298,7 +330,7 @@ Discovery SHALL show one selected card shared by list and map. A selected marker
 - **WHEN** a marker or list selection is activated
 - **THEN** the same card shows the selected Edition
 - **AND** its title and a visible View action link to the Edition page
-- **AND** provisional dates and approximate locations are qualified next to those facts
+- **AND** provisional dates are qualified next to the date facts
 - **AND** View is the primary action in the bottom-right corner of the card
 - **AND** duration stays together, provisional dates use a badge after the date range, and schedule status sits beside date facts
 - **AND** the base amount is more prominent than its full qualification, while genres precede quieter general types
@@ -334,7 +366,7 @@ Desktop discovery SHALL use a side card. Narrow screens SHALL use a bottom card 
 - **THEN** the card stays within the viewport and its content can scroll
 - **AND** the linked title and 44-pixel icon controls stay visible above the scrolling content
 - **AND** View stays visible in the bottom-right corner outside the scrolling content
-- **AND** the fixed desktop width and compact and expanded mobile sizes remain unchanged
+- **AND** card size adapts to the space available for content and map interaction
 - **AND** required compact facts, navigation, and card controls remain reachable
 
 #### Scenario: A visitor uses list view without a working map
@@ -406,10 +438,73 @@ Returning from festival detail navigation SHALL restore applied filters, mobile 
 
 ### Requirement: Map coverage labels are consistent
 
-Discovery SHALL use On map and Not mapped for coverage counts in both list and map views. Missing-point labels SHALL use Not mapped. Each Not mapped label SHALL have the title Map location unavailable.
+Discovery SHALL show a small total result count below the list, without a summary block above event rows. The status SHALL also remain available in mobile map view. When results lack coordinates, it SHALL show On map and Not mapped counts. Each Not mapped label SHALL have the title Map location unavailable. When all results are mapped, the total alone SHALL be sufficient.
 
 #### Scenario: A result has no coordinates
 
 - **WHEN** matching results include an Edition without coordinates
-- **THEN** both coverage summaries use the same labels and counts
+- **THEN** the small result status uses On map and Not mapped for coverage
 - **AND** its list entry uses Not mapped with the title Map location unavailable
+
+#### Scenario: All results are mapped
+
+- **WHEN** every matching result has coordinates
+- **THEN** the result status shows the total without extra map statistics
+- **AND** event rows start directly below the shared filter row
+
+### Requirement: Genre choices use a compact searchable tree
+
+Music SHALL show a single-column tree with separate checkbox and branch controls. Search SHALL show matching names and their ancestor paths without changing selections or results. Selected genres SHALL remain removable during search. The list SHALL scroll within a bounded picker while search and Apply remain visible. The picker SHALL retain the existing preview and cancel rules.
+
+#### Scenario: A deep genre matches search
+
+- **WHEN** a visitor searches for Deep House
+- **THEN** the picker shows Electronic, House, and Deep House when those terms are eligible
+- **AND** searching and opening branches do not change pending or applied selections
+
+#### Scenario: A branch has selected descendants
+
+- **WHEN** a child genre is selected without its parent
+- **THEN** the parent checkbox shows partial selection and the row shows its selected descendant count
+- **AND** collapsing the parent preserves that selection
+
+### Requirement: Genre branch selection includes descendants
+
+Selecting a parent SHALL include its descendants through the existing ancestry matching rule. Selecting a parent SHALL replace redundant pending descendant selections. Descendants covered by a selected ancestor SHALL show checked, disabled controls and an Included label. Removing the parent SHALL make those descendants available again. Clear SHALL remove pending genre restrictions only.
+
+#### Scenario: A visitor selects the whole Electronic branch
+
+- **GIVEN** Deep House and Techno are pending selections
+- **WHEN** Electronic is selected
+- **THEN** Electronic replaces those pending selections
+- **AND** its visible children are checked and identified as included
+- **AND** applying uses the existing parent genre matching rule
+
+#### Scenario: A selected genre is outside search matches
+
+- **WHEN** the search excludes a selected genre
+- **THEN** the selected genre remains available in the selection summary for removal
+- **AND** removal changes only pending genres until Apply
+
+#### Scenario: A direct URL selects a parent and child
+
+- **GIVEN** both Electronic and Techno are in the applied URL
+- **WHEN** Electronic is removed in the picker
+- **THEN** both pending slugs are removed from that branch
+- **AND** cancelling leaves the original URL unchanged
+
+### Requirement: Switching filter groups retains the pending draft
+
+Switching between Where, Music, and More SHALL retain valid or invalid pending edits in the same draft. More SHALL contain custom dates, duration, and size. Apply SHALL commit the complete draft. Cancel, Escape, or closing the active picker SHALL discard it. A month or All action SHALL use applied filters and close the draft when those controls are available.
+
+#### Scenario: A visitor changes two groups
+
+- **WHEN** a visitor selects Portugal, switches to Music, selects a genre, and applies
+- **THEN** both pending selections are committed together
+- **AND** cancelling instead would preserve the previous applied state
+
+#### Scenario: Native input is unfinished during a group switch
+
+- **WHEN** a visitor leaves an unfinished native date or number in More and switches groups
+- **THEN** applying stays disabled until that input is completed or cleared
+- **AND** returning to More keeps the unfinished input available for correction

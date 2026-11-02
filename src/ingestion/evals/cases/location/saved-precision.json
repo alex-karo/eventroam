@@ -5,7 +5,6 @@
   "task": "Check location saved precision",
   "provenance": {
     "kind": "synthetic",
-    "sourceReport": "openspec/changes/separate-location-resolution/design.md",
     "note": "A synthetic source confirms that the saved point represents a locality, with overstated exact precision. Geocoding is unavailable. This case tests a precision change without a replacement point; the coordinates must stay unchanged."
   },
   "input": {

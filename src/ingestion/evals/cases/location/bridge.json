@@ -5,7 +5,6 @@
   "task": "Check location bridge",
   "provenance": {
     "kind": "captured-adapted",
-    "sourceReport": "data/geocoding-check/report-refresh-20261024T120049886Z.json",
     "note": "Saved descriptions, source summaries and Geoapify forward responses captured on 2026-10-24. Free-text replay hints use those captured responses. Responses use the client format and omit unused provider fields. Reverse was not captured and is explicitly unavailable. Expected actions are review assertions, not captured model output."
   },
   "input": {

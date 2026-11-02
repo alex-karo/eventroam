@@ -92,6 +92,7 @@ export default async function HomePage({ searchParams }: Readonly<Props>) {
     <main className="discovery-page">
       <Discovery
         apexHref={origins.apex}
+        festivalsHref={origins.festivals}
         initialCatalog={catalog}
         initialFilters={initial}
         initialError={error}

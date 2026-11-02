@@ -15,7 +15,11 @@ import {
   type Filters,
 } from "@/features/discovery/model/discovery";
 import type { DiscoverySummary, Genre } from "@/catalog/read/contracts";
-import { FilterPanel } from "@/features/discovery/components/filter-panel";
+import { MonthStrip } from "@/features/discovery/components/month-strip";
+import {
+  FilterPanel,
+  type FilterGroup,
+} from "@/features/discovery/components/filter-panel";
 import { ResultsList } from "@/features/discovery/components/results-list";
 import { SelectedPreview } from "@/features/discovery/components/selected-preview";
 import {
@@ -40,15 +44,13 @@ import { useSelectedEdition } from "@/features/discovery/hooks/use-selected-edit
 import {
   filterSelections,
   previewFilters,
-  removeSelection,
-  type FilterSelection,
 } from "@/features/discovery/model/filter-feedback";
 import posthog from "posthog-js";
 
 type Catalog = { summaries: DiscoverySummary[]; genres: Genre[] };
-type FilterGroup = "when" | "where" | "genre" | "more";
 export function Discovery({
   apexHref,
+  festivalsHref,
   initialCatalog,
   initialFilters,
   initialError,
@@ -56,6 +58,7 @@ export function Discovery({
   initialView,
 }: Readonly<{
   apexHref: string;
+  festivalsHref: string;
   initialCatalog: Catalog;
   initialFilters: Filters;
   initialError: string | null;
@@ -180,8 +183,6 @@ export function Discovery({
     };
   }, [view, visitToken, selectedId, expanded, applied]);
   const today = useMemo(() => new Date(initialNow), [initialNow]);
-  const chipButtons = useRef(new Map<string, HTMLButtonElement>());
-  const clearButton = useRef<HTMLButtonElement>(null);
   const preview = useMemo(
     () =>
       panel
@@ -190,6 +191,20 @@ export function Discovery({
     [panel, catalog.summaries, pending, catalog.genres, today],
   );
   const panelButton = useRef<HTMLButtonElement>(null);
+  function restoreFilterFocus() {
+    const opener = panelButton.current;
+    if (opener?.isConnected && opener.getClientRects().length) {
+      opener.focus();
+    } else {
+      document
+        .querySelector<HTMLButtonElement>(
+          window.matchMedia("(max-width: 740px)").matches
+            ? ".filter-mobile-trigger"
+            : `.filter-trigger-${panel ?? "where"}`,
+        )
+        ?.focus();
+    }
+  }
   const latest = useRef(0);
   const countries = [...new Set(catalog.summaries.map((s) => s.countryCode))];
   // These are uppercase ISO codes, so code-unit order is intentional.
@@ -249,7 +264,9 @@ export function Discovery({
   useEffect(() => {
     if (panel) {
       document
-        .querySelector<HTMLElement>("#filter-panel input, #filter-panel button")
+        .querySelector<HTMLElement>(
+          `#filter-panel [data-filter-group="${panel}"] input, #filter-panel [data-filter-group="${panel}"] button`,
+        )
         ?.focus();
     }
   }, [panel]);
@@ -257,7 +274,7 @@ export function Discovery({
     setPending(applied);
     setPanel(null);
     setFormError(null);
-    requestAnimationFrame(() => panelButton.current?.focus());
+    requestAnimationFrame(restoreFilterFocus);
   }
   function openPanel(group: FilterGroup, opener: HTMLButtonElement) {
     if (panel === group) {
@@ -265,11 +282,16 @@ export function Discovery({
       return;
     }
     panelButton.current = opener;
-    setPending(applied);
-    setFormError(null);
+    if (!panel) {
+      setPending(applied);
+      setFormError(null);
+    }
     setPanel(group);
   }
-  function apply(next: Filters, source: "search" | "filters" = "filters") {
+  function apply(
+    next: Filters,
+    source: "search" | "filters" | "months" = "filters",
+  ) {
     if (source === "search") {
       setPanel(null);
       setPending(applied);
@@ -304,7 +326,7 @@ export function Discovery({
       setSearchError(null);
       setPanel(null);
       if (panel && source === "filters") {
-        requestAnimationFrame(() => panelButton.current?.focus());
+        requestAnimationFrame(restoreFilterFocus);
       }
     } catch (caught) {
       const setError = source === "search" ? setSearchError : setFormError;
@@ -345,7 +367,12 @@ export function Discovery({
     : filterSummaries(catalog.summaries, applied, catalog.genres, today);
   const selectedEligible =
     !selectedId || results.some((item) => item.id === selectedId);
-  const clearIneligibleSelection = useEffectEvent(() => closeDetail());
+  const clearIneligibleSelection = useEffectEvent(() =>
+    closeDetail({
+      restoreFocus:
+        detailPanel.current?.contains(document.activeElement) ?? false,
+    }),
+  );
   useEffect(() => {
     if (!selectedEligible) {
       clearIneligibleSelection();
@@ -359,30 +386,30 @@ export function Discovery({
     setExpanded(false);
     void selectEdition(id);
   }
-  const editionLabel = results.length === 1 ? "edition" : "editions";
+  const eventLabel = results.length === 1 ? "event" : "events";
   const mapped = results.filter(hasMapPoint).length;
   const active = filterSelections(applied, catalog.genres);
-  function remove(selection: FilterSelection) {
-    const index = active.findIndex((item) => item.key === selection.key);
-    const nextFocus = active[index + 1]?.key ?? active[index - 1]?.key;
-    apply(removeSelection(applied, selection));
-    requestAnimationFrame(() =>
-      (nextFocus
-        ? chipButtons.current.get(nextFocus)
-        : clearButton.current
-      )?.focus(),
-    );
-  }
-  const secondaryGroups =
-    Number(applied.durationMin !== null || applied.durationMax !== null) +
-    Number(Boolean(applied.sizes.length));
+  const groupSelections = {
+    where: active.filter((item) => ["countries", "place"].includes(item.field)),
+    genre: active.filter((item) => item.field === "genres"),
+    more: active.filter((item) =>
+      ["date", "duration", "sizes"].includes(item.field),
+    ),
+  };
+  const secondaryGroups = new Set(
+    groupSelections.more.map((item) => item.field),
+  ).size;
+  const initialGroup =
+    (["where", "genre", "more"] as FilterGroup[]).find(
+      (group) => groupSelections[group].length > 0,
+    ) ?? "where";
   return (
     <div className="discovery">
       <header className="discovery-header">
         <a
           className="discovery-brand"
-          href={apexHref}
-          aria-label="Eventroam home"
+          href={festivalsHref}
+          aria-label="Eventroam festivals"
         >
           Eventroam<span aria-hidden="true">.</span>
         </a>
@@ -415,47 +442,75 @@ export function Discovery({
         </form>
       </header>
       <div className="discovery-stage">
-        <div
-          className="filter-toolbar"
-          role="group"
-          aria-label="Discovery filters"
-        >
-          {(["when", "where", "genre", "more"] as FilterGroup[]).map(
-            (group) => (
-              <button
-                key={group}
-                className={`filter-trigger filter-trigger-${group}`}
-                type="button"
-                aria-expanded={panel === group}
-                aria-controls="filter-panel"
-                onClick={(event) => openPanel(group, event.currentTarget)}
-              >
-                {group === "when" && "When"}
-                {group === "where" && "Where"}
-                {group === "genre" && "Music genre"}
-                {group === "more" && (
-                  <>
-                    <span className="desktop-filter-label">More filters</span>
-                    <span className="mobile-filter-label">Filters</span>
-                    <span className="desktop-filter-label">
-                      {secondaryGroups > 0 && ` · ${secondaryGroups}`}
-                    </span>
-                    <span className="mobile-filter-label">
-                      {secondaryGroups +
-                        Number(Boolean(applied.genres.length)) >
-                        0 &&
-                        ` · ${secondaryGroups + Number(Boolean(applied.genres.length))}`}
-                    </span>
-                  </>
-                )}
-              </button>
-            ),
-          )}
+        <div className="discovery-controls">
+          <MonthStrip
+            now={visitReady ? new Date() : null}
+            from={applied.from}
+            to={applied.to}
+            onChange={(from, to) => apply({ ...applied, from, to }, "months")}
+          />
+          <div
+            className="filter-toolbar"
+            role="group"
+            aria-label="Discovery filters"
+          >
+            {(["where", "genre", "more"] as FilterGroup[]).map((group) => {
+              const label = { where: "Where", genre: "Music", more: "More" }[
+                group
+              ];
+              const values = groupSelections[group];
+              const summary = values.map((item) => item.label).join(", ");
+              const name = summary ? `${label}: ${summary}` : label;
+              return (
+                <button
+                  key={group}
+                  className={`filter-trigger filter-trigger-${group}`}
+                  type="button"
+                  aria-expanded={panel === group}
+                  aria-controls="filter-panel"
+                  aria-label={name}
+                  title={name}
+                  data-active={values.length > 0}
+                  onClick={(event) => openPanel(group, event.currentTarget)}
+                >
+                  <span className="filter-trigger-value">
+                    {group === "more" || !values.length
+                      ? label
+                      : values[0].label}
+                  </span>
+                  {group !== "more" &&
+                    values.length > 1 &&
+                    ` +${values.length - 1}`}
+                  {group === "more" &&
+                    secondaryGroups > 0 &&
+                    ` · ${secondaryGroups}`}
+                </button>
+              );
+            })}
+            <button
+              className="clear-filters"
+              type="button"
+              aria-label="Clear all"
+              title="Clear all filters"
+              onClick={() => apply(emptyFilters())}
+            >
+              <span aria-hidden="true">↺</span>
+            </button>
+          </div>
+          <button
+            className="filter-mobile-trigger"
+            type="button"
+            aria-expanded={panel !== null}
+            aria-controls="filter-panel"
+            onClick={(event) => openPanel(initialGroup, event.currentTarget)}
+          >
+            Filters{active.length > 0 && ` · ${active.length}`}
+          </button>
         </div>
         {panel && (
           <FilterPanel
-            key={panel}
             group={panel}
+            onGroupChange={setPanel}
             pending={pending}
             setPending={setPending}
             countries={countries}
@@ -469,52 +524,6 @@ export function Discovery({
         )}
         <div className={`discovery-results-shell view-${view}`}>
           <div className="list-column" ref={listColumn} onScroll={saveContext}>
-            <div className="results-summary">
-              <div className="results-total">
-                <strong aria-live="polite">
-                  {invalidUrl
-                    ? "Invalid filters"
-                    : `${results.length} ${editionLabel}`}
-                </strong>
-                <span className="results-geography">
-                  On map: {mapped} ·{" "}
-                  <span title="Map location unavailable">Not mapped</span>:{" "}
-                  {results.length - mapped}
-                </span>
-              </div>
-              {active.length > 0 && (
-                <div className="chips" aria-label="Applied filters">
-                  {active.map((selection) => (
-                    <button
-                      type="button"
-                      key={selection.key}
-                      ref={(button) => {
-                        if (button) {
-                          chipButtons.current.set(selection.key, button);
-                        } else {
-                          chipButtons.current.delete(selection.key);
-                        }
-                      }}
-                      onClick={() => remove(selection)}
-                      aria-label={`Remove ${selection.label} filter`}
-                    >
-                      <span>{selection.label}</span>{" "}
-                      <span aria-hidden="true" className="chip-remove">
-                        ×
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button
-                ref={clearButton}
-                className="clear-filters"
-                type="button"
-                onClick={() => apply(emptyFilters())}
-              >
-                Clear all
-              </button>
-            </div>
             {(urlError || loadError || searchError) && (
               <div className="discovery-notices">
                 {searchError && (
@@ -569,11 +578,6 @@ export function Discovery({
                 }}
               />
             )}
-            <div className="map-result-count" aria-live="polite">
-              On map: {mapped} ·{" "}
-              <span title="Map location unavailable">Not mapped</span>:{" "}
-              {results.length - mapped}
-            </div>
           </section>
           <SelectedPreview
             detailState={detailState}
@@ -586,6 +590,18 @@ export function Discovery({
             onNavigate={saveContext}
             now={today}
           />
+        </div>
+        <div className="results-status" role="status" aria-live="polite">
+          <span className="results-count">
+            {invalidUrl ? "Invalid filters" : `${results.length} ${eventLabel}`}
+          </span>
+          {results.length > mapped && (
+            <span className="results-geography">
+              On map: {mapped} ·{" "}
+              <span title="Map location unavailable">Not mapped</span>:{" "}
+              {results.length - mapped}
+            </span>
+          )}
         </div>
         <div
           ref={viewSwitch}
@@ -611,6 +627,10 @@ export function Discovery({
           </button>
         </div>
       </div>
+      <footer className="discovery-footer">
+        <a href="/privacy">Privacy policy</a>
+        <a href={apexHref}>About project</a>
+      </footer>
     </div>
   );
 }

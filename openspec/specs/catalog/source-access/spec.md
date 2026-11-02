@@ -34,12 +34,16 @@ The source reader SHALL keep the factual text and links from each HTML table row
 - **THEN** the extracted text omits the control and option text
 
 ### Requirement: Page read limits remain explicit
-If direct retrieval cannot check an assigned fact, configured alternate retrieval SHALL stay within shared source bounds. Internal metadata SHALL identify the method. The reader SHALL retain available text from either method and report concrete limits through `reasonCode` or `truncated`. A successful read SHALL NOT prove that all page content was obtained. Research SHALL NOT treat unavailable content as verified absence. Research completion statuses SHALL remain separate from page-read statuses.
+If direct retrieval cannot check an assigned fact, configured alternate retrieval SHALL stay within shared source bounds. Internal metadata SHALL identify the method. The reader SHALL retain available text and links from either method and report concrete limits through `reasonCode` or `truncated`. A successful read SHALL NOT prove that all page content was obtained. Research SHALL NOT treat unavailable content as verified absence. Research completion statuses SHALL remain separate from page-read statuses.
 
 #### Scenario: Alternate retrieval returns evidence
 - **WHEN** an eligible page returns content relevant to an assigned check through configured alternate retrieval
 - **THEN** the result returns that content within the model text bound
 - **AND** internal metadata identifies the retrieval method
+
+#### Scenario: Alternate retrieval returns a link without text
+- **WHEN** successful alternate retrieval returns a safe link from an image with no ordinary body text
+- **THEN** the page result and model tool output retain the link within the model text bound
 
 #### Scenario: Alternate retrieval cannot complete the check
 - **WHEN** alternate retrieval cannot run, fails, or returns no evidence for the assigned check
@@ -217,3 +221,145 @@ Extracted HTML page regions SHALL use paired HTML comments for Navigation, Main 
 - **THEN** those regions use `<!-- Navigation -->` and `<!-- Main content -->` with matching closing comments
 - **AND** links remain at their place in the Markdown
 - **AND** visible labels such as `[Navigation]` are not generated
+
+### Requirement: Page reads retain map context
+The source reader SHALL include detected map URLs, available labels, and nearby text in Markdown. It SHALL inspect anchor links, iframe sources, and supported lazy attributes. It SHALL merge duplicate references while retaining distinct context. Ordinary Google Maps and short map links SHALL remain references without automatic map retrieval.
+
+#### Scenario: A lazy iframe contains a venue map
+- **WHEN** an iframe has `src="about:blank"` and a map URL in `data-lazy-src`
+- **THEN** the result includes the map URL, available title or accessible label, and nearby context
+
+#### Scenario: A map is repeated for desktop and mobile
+- **WHEN** the page repeats a map in normal, lazy, or noscript iframe markup
+- **THEN** the result merges the references and keeps distinct labels and context
+
+#### Scenario: A normal or short Maps link is present
+- **WHEN** a page links to ordinary Google Maps or a short Maps URL
+- **THEN** the result retains the reference and available context without fetching its map data
+
+### Requirement: My Maps points are read within the page call
+The source reader SHALL automatically read supported Google My Maps references with `mid` from iframe sources or direct links. It SHALL support `embed`, `viewer`, and `edit` forms and read each unique map once per page call. Internal reads SHALL use the shared budget and source safety bounds. They SHALL NOT render maps, execute scripts, or follow links from map content.
+
+#### Scenario: A page embeds a My Maps map
+- **WHEN** a readable page embeds a supported My Maps URL and budget remains
+- **THEN** the same `readPage` response includes its extracted point data without another Research tool call
+
+#### Scenario: An anchor uses the edit form
+- **WHEN** a page links to a public My Maps `edit` URL with `mid`
+- **THEN** the reader retrieves the viewer data for that map
+- **AND** duplicate embed or viewer references do not cause another map read in that call
+
+#### Scenario: A marker contains another link
+- **WHEN** a marker description contains a URL
+- **THEN** the reader does not follow it
+
+### Requirement: Map output keeps point meaning and source context
+My Maps output SHALL include the map URL, available title and description, layer names, and point names, descriptions, and coordinates. The reader SHALL retain source dates and years. It SHALL NOT select a venue or infer an Edition. It SHALL skip lines and polygons with a short notice and SHALL NOT convert their display coordinates to points.
+
+#### Scenario: Venue and parking points share a map
+- **WHEN** a supported map contains a venue point and parking or camping points
+- **THEN** the result includes their source names and layer context without ranking or choosing a point
+
+#### Scenario: The map has an old date
+- **WHEN** the map description names a past year
+- **THEN** the result retains that year without claiming it applies to a current Edition
+
+#### Scenario: A festival area is a polygon
+- **WHEN** a map has a festival polygon and separate stage and entry points
+- **THEN** the result includes the point markers and a notice that non-point geometry was skipped
+- **AND** it does not return the polygon's display coordinate as a point marker
+
+### Requirement: Map limitations preserve page evidence
+The reader SHALL retain readable page content when a map fails, is blocked, has an unsupported format, or exceeds a bound. It SHALL identify the affected map and limitation in Markdown and through a reason code while retaining the readable parent page status. The cache SHALL retain full combined Markdown. Model output SHALL use the existing projection limit and truncation signal, without separate map quotas or pagination. Unread map data SHALL NOT be reported as absent.
+
+#### Scenario: Google data cannot be parsed
+- **WHEN** the map response has an unsupported or malformed data structure
+- **THEN** the result retains page content and the map reference with an explicit limitation
+- **AND** it does not report that the map has no markers
+
+#### Scenario: An internal request is unsafe or exhausts the budget
+- **WHEN** a map request is blocked by source safety checks or cannot complete within the budget
+- **THEN** the result retains available page evidence and marks map retrieval incomplete
+
+#### Scenario: Combined text exceeds the Markdown limit
+- **WHEN** page text followed by map blocks exceeds the existing limit
+- **THEN** the result uses that limit and reports projection truncation
+
+### Requirement: Structured coordinates retain their owning object
+The source reader SHALL include valid coordinate pairs from `Event.location.geo` and `Place.geo` in Markdown with the owning object's available name and structured path. It SHALL NOT treat unrelated numbers as coordinates or select a festival venue from those values.
+
+#### Scenario: JSON-LD describes an Event location
+- **WHEN** JSON-LD provides a named Event location with latitude and longitude
+- **THEN** the result includes the coordinates with that location's name and structured path
+
+#### Scenario: Several Places have coordinates
+- **WHEN** JSON-LD contains several named Places with geo fields
+- **THEN** each valid coordinate pair remains associated with its own Place
+
+### Requirement: Page metadata retains its source fields
+The source reader SHALL return available page-head `description`, `keywords`, `author`, `date`, `og:title`, `og:description`, `twitter:title`, and `twitter:description` as YAML in Markdown, with their source field names. These values SHALL remain source claims, not verified Edition facts. Body text SHALL remain when metadata differs. For a repeated field, the reader SHALL return the last value with a nonempty `content` attribute, without adding earlier values.
+
+#### Scenario: Metadata supplies dates and a venue
+- **WHEN** the page description gives festival dates and the Open Graph description names a venue
+- **THEN** Markdown contains both values under their source field names
+- **AND** the reader does not convert them into a selected Edition or verified ticket status
+
+#### Scenario: Metadata conflicts with body text
+- **WHEN** metadata gives one year or sale claim and body text gives another
+- **THEN** Markdown keeps both claims with their page context
+- **AND** the reader does not choose which claim is current
+
+#### Scenario: Additional default fields exist
+- **WHEN** the page head supplies `keywords`, `author`, and `date`
+- **THEN** YAML includes those fields alongside the available description and social fields
+- **AND** the reader does not treat `date` as a verified Edition date
+
+#### Scenario: A metadata field repeats
+- **WHEN** the page head contains two different nonempty values for `description`, followed by an empty value
+- **THEN** YAML contains the last nonempty value for that field
+- **AND** the reader does not add the earlier value through a separate metadata section
+
+#### Scenario: No supported head values exist
+- **WHEN** the page has no head title or supported page-head metadata
+- **THEN** the reader omits YAML metadata
+- **AND** it does not use metadata from an embedded document as page metadata
+
+### Requirement: The page title comes from the page head
+The source reader SHALL return the available page-head title as YAML `title` without adding a generated page-title heading. A title inside body content or an embedded document SHALL NOT supply YAML `title`. If the page head has no title, the reader SHALL omit YAML `title`. It SHALL retain body headings in page order.
+
+#### Scenario: An embedded video supplies a title
+- **WHEN** processed HTML contains a video title inside the body and no page-head title
+- **THEN** the reader omits YAML `title` and does not add a page-title heading
+- **AND** festival headings in the body remain available
+
+#### Scenario: Page and embedded titles differ
+- **WHEN** the page head names the festival and an embedded document names a video service
+- **THEN** YAML `title` uses the festival title
+- **AND** the reader does not add a generated page-title heading
+
+### Requirement: Allowed anchors remain available without text
+For anchors retained after page cleanup, the source reader SHALL keep nonempty valid HTTP(S) destinations without credentials as inline links. It SHALL use nonempty anchor text, image alternative text, `aria-label`, or `title`, in that order. If none exists, it SHALL use the resolved destination as the label. It SHALL retain distinct labelled occurrences in page order and SHALL NOT infer a label from an image filename.
+
+#### Scenario: A ticket anchor contains only an SVG icon
+- **WHEN** a retained ticket anchor has `aria-label="Tickets 2027"`, an SVG child, and a relative HTTP(S) destination
+- **THEN** Markdown keeps the absolute destination with `Tickets 2027` as its label
+
+#### Scenario: An image anchor has no alternative text
+- **WHEN** a retained anchor has a valid destination but no text, image alternative text, accessible label, or title
+- **THEN** Markdown keeps that destination as both label and target
+- **AND** it does not invent an FAQ, ticket, or image-reading claim
+
+#### Scenario: Labels have different values
+- **WHEN** a retained anchor has text and a different accessible label
+- **THEN** Markdown uses the text
+- **AND** another anchor to the same destination can retain its different label
+
+#### Scenario: A destination is not allowed
+- **WHEN** an anchor destination is malformed, contains credentials, or uses a scheme other than HTTP(S)
+- **THEN** the reader does not emit that destination as a link
+- **AND** useful text can remain without the destination
+
+#### Scenario: A link is removed by existing page cleanup
+- **WHEN** an anchor is inside a node removed by the current hidden-content or script rules
+- **THEN** this requirement does not restore that anchor
+- **AND** retained anchors elsewhere on the page still use the label fallback

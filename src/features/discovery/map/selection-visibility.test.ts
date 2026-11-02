@@ -17,7 +17,7 @@ test("selection moves only enough to leave the actual side or bottom card", () =
       top: 110,
       bottom: 750,
     }),
-  ).toEqual({ x: 239, y: 0 });
+  ).toEqual({ x: 240, y: 0 });
   expect(
     selectionOffset({ x: 1200, y: 90 }, viewport, {
       left: 1000,
@@ -33,7 +33,7 @@ test("selection moves only enough to leave the actual side or bottom card", () =
       top: 130,
       bottom: 750,
     }),
-  ).toEqual({ x: 0, y: 49 });
+  ).toEqual({ x: 0, y: 50 });
   expect(
     selectionOffset({ x: 600, y: 750 }, viewport, {
       left: 410,
@@ -41,5 +41,5 @@ test("selection moves only enough to leave the actual side or bottom card", () =
       top: 600,
       bottom: 840,
     }),
-  ).toEqual({ x: 0, y: 189 });
+  ).toEqual({ x: 0, y: 190 });
 });

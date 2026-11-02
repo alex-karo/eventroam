@@ -5,7 +5,6 @@
   "task": "Check location move city fallback",
   "provenance": {
     "kind": "synthetic",
-    "sourceReport": "openspec/changes/separate-location-resolution/design.md",
     "note": "A synthetic move uses captured provider results for a city fallback. It tests contract and policy coverage, not a real festival move."
   },
   "input": {

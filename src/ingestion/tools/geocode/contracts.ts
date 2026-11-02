@@ -26,7 +26,6 @@ export const geocodingErrorSchema = z.strictObject({
     "provider_error",
     "invalid_response",
     "limit_reached",
-    "fixture_miss",
   ]),
 });
 export const candidateSchema = pointSchema.extend({

@@ -13,7 +13,6 @@
   },
   "provenance": {
     "kind": "synthetic-size-regression",
-    "sourceReport": "openspec/specs/catalog/ingestion-updates/spec.md",
     "note": "Checks a supported historical participant estimate and preservation when no estimate is published. No live HTTP or search fallback."
   },
   "initial": {

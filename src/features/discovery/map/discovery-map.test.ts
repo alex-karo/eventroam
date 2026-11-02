@@ -8,14 +8,11 @@ import {
   mapBounds,
 } from "@/features/discovery/map/discovery-map";
 
-test("map features retain approximate labels and exclude unlocated summaries", () => {
+test("map features retain point identity and exclude unlocated summaries", () => {
   const located = build.summary({
     id: "located",
-    eventName: "Fictional Festival",
-    year: 2027,
     latitude: 38,
     longitude: -9,
-    coordinatePrecision: "locality",
   });
   const unlocated = build.summary({
     id: "unlocated",
@@ -32,13 +29,10 @@ test("map features retain approximate labels and exclude unlocated summaries", (
         geometry: { type: "Point", coordinates: [-9, 38] },
         properties: {
           id: "located",
-          name: "Fictional Festival 2027",
-          approximate: true,
         },
       },
     ],
   });
-  expect(JSON.stringify(mapFeatures([located]))).not.toContain("soldOut");
 });
 
 test("map bounds keep dates-line neighbors together and ignore unlocated editions", () => {

@@ -38,6 +38,8 @@ E2E_REAL_MAP=1 node --env-file-if-exists=.env scripts/run-e2e.mjs e2e/real-map.s
 
 The real-map tests need provider access and browser rendering support. Keep the token local. The default suite skips them. See `e2e/real-map.spec.ts` for the scenarios.
 
+UI tests use `e2e/fixtures.ts` to set the analytics choice to disabled before the page loads. This keeps the banner out of unrelated journeys. Banner tests set `showAnalyticsBanner: true` to check the choices and the page layout with the banner open.
+
 ## Coverage
 
 Run `pnpm run test:coverage` for unit and integration coverage of application and command TypeScript, including unimported files. E2E, test helpers, declaration files, and child-process coverage from Studio and tracing fixtures are excluded. Reports go to ignored `coverage/`; CI publishes totals and retains the HTML `test-coverage` artifact for 14 days. Coverage thresholds are not enforced. React tests use a per-file `// @vitest-environment jsdom` directive and React Testing Library; other tests use Node.
