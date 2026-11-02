@@ -57,9 +57,12 @@ export function useSelectedEdition(fallbackFocus: () => HTMLElement | null) {
     }
   }
 
-  function close() {
+  function close({ restoreFocus = true } = {}) {
     ++requestGeneration.current;
     setState({ status: "idle" });
+    if (!restoreFocus) {
+      return;
+    }
     requestAnimationFrame(() => {
       if (origin.current?.getClientRects().length) {
         origin.current.focus();
