@@ -1,25 +1,175 @@
 {
-  "schemaVersion": 2,
-  "provenance": "Captured editor-day-ticket research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Evidence references bind to Reader output during fixture execution; no expected assertions enter prompts.",
+  "schemaVersion": 3,
+  "provenance": "Captured editor-day-ticket research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 17fea566-18fa-40b1-b812-d34db24348d6:s1, 17fea566-18fa-40b1-b812-d34db24348d6:s2, 17fea566-18fa-40b1-b812-d34db24348d6:s4. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. The Partoutbillet passage was restored as a literal quotation from the supplied ticket page. Its captured Reader quotation failed binding; this fixed Editor input now cites the source-backed passage explicitly. The obsolete binding limitation was removed. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
+  "pages": [
+    {
+      "url": "https://www.roskilde-festival.dk/",
+      "sourceId": "s1",
+      "reader": {
+        "overview": "Roskilde Festival is described as independent and non-profit. The page announces RF27 for 26 June–3 July 2027, ticket offers and the first 18 programme names; it does not give the latest completed festival’s dates or location.",
+        "topics": [
+          "identity",
+          "description",
+          "dates",
+          "status",
+          "tickets",
+          "classification",
+          "location",
+          "links"
+        ],
+        "statedYears": ["2027", "2026"],
+        "limitations": [
+          "This page does not state the latest completed festival’s dates, location, participant count or programme classification/genres. It also does not identify the festival grounds.",
+          "Quotation 1 or its context has no unique literal match"
+        ],
+        "evidence": [
+          {
+            "quote": "26. juni – 3. juli 2027. Uafhængig og non-profit. Køb Smart Ticket til Roskilde Festival 2027 allerede nu.",
+            "topics": ["description", "dates", "status", "classification"]
+          },
+          {
+            "quote": "[26/6 – 3/7 2027](https://www.roskilde-festival.dk/)",
+            "topics": ["dates", "links"]
+          },
+          {
+            "quote": "Vælg mellem partoutbillet, endagsbillet og todagesbillet – eller Smart Ticket med fem rater á 524 kr.\n\n[Køb billet her](https://www.roskilde-festival.dk/billetter)",
+            "topics": ["tickets", "links"]
+          },
+          {
+            "quote": "[30.09.2026 Program RF27: De første 18 navne er klar!Tame Impala, Caroline Polachek, Kacey Musgraves, Underscores, Patti Smith Quartet og 13 andre navne er klar til næste sommer. Køb din billet nu.](https://www.roskilde-festival.dk/nyheder/rf27-de-foerste-18-navne-er-klar)",
+            "topics": ["dates", "status", "links"]
+          },
+          {
+            "quote": "[Nyheder](https://www.roskilde-festival.dk/nyheder)\n\n[Billetter](https://www.roskilde-festival.dk/billetter)\n\n[Program](https://www.roskilde-festival.dk/program)\n\n[Bliv frivillig](https://www.roskilde-festival.dk/bliv-frivillig)\n\n[Køb RF-merch](https://shop.roskilde-festival.dk/)\n\n[Camping](https://www.roskilde-festival.dk/camping)\n\n[Kontakt os](https://www.roskilde-festival.dk/kontakt)\n\n[Find praktisk info](https://faq.roskilde-festival.dk/hc/da)\n\n<https://www.instagram.com/roskildefestival/>\n\n<https://www.tiktok.com/@roskildefestival>\n\n<https://www.facebook.com/orangefeeling>\n\n<https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW>\n\n<https://dk.linkedin.com/company/roskilde-festival>",
+            "topics": ["links"]
+          },
+          {
+            "quote": "[Om os – og vores formål](https://www.roskilde-festival.dk/festival-med-formaal)",
+            "topics": ["description", "links"]
+          },
+          {
+            "quote": "[Roskilde Festival Gruppen](https://roskildefestivalgruppen.dk/da/)",
+            "topics": ["identity", "links"]
+          },
+          {
+            "quote": "©2026 Roskilde Festival Gruppen",
+            "topics": ["dates", "identity"]
+          }
+        ],
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        }
+      }
+    },
+    {
+      "url": "https://www.roskilde-festival.dk/billetter",
+      "sourceId": "s2",
+      "reader": {
+        "overview": "Roskilde Festival’s official ticket page advertises 2027 admission, including eight-day, day, two-day and installment-plan tickets. It does not state festival grounds, programme details or participant count.",
+        "topics": ["identity", "dates", "tickets", "links"],
+        "statedYears": ["2027", "2026"],
+        "limitations": [
+          "This ticket page does not identify the festival location, describe its programme or report participant numbers, or establish the latest completed festival."
+        ],
+        "evidence": [
+          {
+            "quote": "[26/6 – 3/7 2027](https://www.roskilde-festival.dk/)",
+            "topics": ["identity", "dates", "links"]
+          },
+          {
+            "quote": "## Smart Ticket\n\nFordel betalingen for en partoutbillet til RF27 over fem måneder. Deadline: 26. november.\n\n524\n\nkr. om måneden plus 100,- i gebyr\n\n[Køb her](https://ticket.roskilde-festival.dk/da/3e9u8rgkhdlw9dg/products)",
+            "topics": ["tickets"]
+          },
+          {
+            "quote": "## Todagesbillet\n\nMix og match de dage, der passer dig bedst, og få dobbelt så meget festival som en endagsbillet.\n\n2230\n\nkr. inkl. billetgebyr.\n\n[Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=7g0tvpp)",
+            "topics": ["tickets"]
+          },
+          {
+            "quote": "## Onsdag\n\nEndagsbillet til onsdag\n\n1530\n\nkr. inkl. billetgebyr.\n\n[Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=2rrklcf)",
+            "topics": ["tickets"]
+          },
+          {
+            "quote": "## Torsdag\n\nEndagsbillet til torsdag\n\n1530\n\nkr. inkl. billetgebyr.\n\n[Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=pjkf5p5)",
+            "topics": ["tickets"]
+          },
+          {
+            "quote": "## Fredag\n\nEndagsbillet til fredag\n\n1530\n\nkr. inkl. billetgebyr.\n\n[Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=n9tcbkm)",
+            "topics": ["tickets"]
+          },
+          {
+            "quote": "## Lørdag\n\nEndagsbillet til lørdag\n\n1530\n\nkr. inkl. billetgebyr.\n\n[Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=9rdr0dv)",
+            "topics": ["tickets"]
+          },
+          {
+            "quote": "[Nyheder](https://www.roskilde-festival.dk/nyheder)\n\n[Billetter](https://www.roskilde-festival.dk/billetter)\n\n[Program](https://www.roskilde-festival.dk/program)\n\n[Bliv frivillig](https://www.roskilde-festival.dk/bliv-frivillig)\n\n[Køb RF-merch](https://shop.roskilde-festival.dk/)\n\n[Camping](https://www.roskilde-festival.dk/camping)\n\n[Kontakt os](https://www.roskilde-festival.dk/kontakt)\n\n[Find praktisk info](https://faq.roskilde-festival.dk/hc/da)\n\n<https://www.instagram.com/roskildefestival/>\n\n<https://www.tiktok.com/@roskildefestival>\n\n<https://www.facebook.com/orangefeeling>\n\n<https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW>\n\n<https://dk.linkedin.com/company/roskilde-festival>",
+            "topics": ["links"]
+          },
+          {
+            "quote": "## Partoutbillet\n\nAlle otte dage på Roskilde Festival 2027\n\n2650\n\nkr. inkl. billetgebyr.\n\n[Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09)",
+            "topics": ["tickets", "dates"]
+          }
+        ],
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        }
+      }
+    },
+    {
+      "url": "https://www.roskilde-festival.dk/kontakt",
+      "sourceId": "s3",
+      "reader": {
+        "overview": "Roskilde Festival’s official contact page gives the 2027 festival dates and festival address, along with official contact and social links. It does not describe the programme, attendance, or tickets.",
+        "topics": ["identity", "dates", "location", "links"],
+        "statedYears": ["2027", "2026"],
+        "limitations": [
+          "This contact page does not state the latest completed festival, participant count, admission tickets, or programme details."
+        ],
+        "evidence": [
+          {
+            "quote": "[26/6 – 3/7 2027](https://www.roskilde-festival.dk/)",
+            "topics": ["identity", "dates", "links"]
+          },
+          {
+            "quote": "**Adresse under festivalen:**  \nRoskilde Festival  \nFestivalpladsen  \nDarupvej 19  \n4000 Roskilde",
+            "topics": ["identity", "location"]
+          },
+          {
+            "quote": "[Instagram](https://www.instagram.com/roskildefestival/)\n- [TikTok](https://www.tiktok.com/@roskildefestival)\n- [Facebook](https://www.facebook.com/orangefeeling)\n- [Spotify](https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW)\n- [LinkedIn](https://dk.linkedin.com/company/roskilde-festival)",
+            "topics": ["links"]
+          }
+        ],
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        }
+      }
+    }
+  ],
+  "collection": {
+    "checks": [],
+    "unresolved": []
+  },
   "roles": {
     "general": {
       "decision": "targets",
       "eventId": "event:87b1f34093d76b709011",
       "observedEventName": "Roskilde Festival",
       "reason": "Captured identity support",
-      "evidenceIds": [],
+      "evidenceIds": ["s1-e7", "s1-e8", "s2-e1", "s3-e1", "s3-e2"],
       "event": {},
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "rf27",
         "reason": "Captured Edition selection",
-        "evidenceIds": [],
+        "evidenceIds": ["s1-e1", "s1-e2", "s2-e1", "s3-e1"],
         "fields": {
           "year": {
             "action": "set",
             "value": 2027,
             "reason": "The official homepage displays the 2027 edition dates, and the official ticket page describes its full festival ticket as covering all eight days.",
-            "evidenceIds": []
+            "evidenceIds": ["s1-e1", "s1-e2", "s2-e1", "s3-e1"]
           },
           "dates": {
             "action": "set",
@@ -29,26 +179,26 @@
               "state": "confirmed"
             },
             "reason": "The official homepage displays 26 June–3 July 2027.",
-            "evidenceIds": []
+            "evidenceIds": ["s1-e1", "s1-e2", "s2-e1", "s3-e1"]
           },
           "scheduleStatus": {
             "action": "set",
             "value": "scheduled",
             "reason": "The official site displays confirmed 2027 dates and is selling tickets for the edition.",
-            "evidenceIds": []
+            "evidenceIds": ["s1-e1", "s1-e2", "s2-e1", "s3-e1"]
           },
           "displayName": {
             "action": "set",
             "value": "Roskilde Festival 2027",
             "reason": "The official homepage identifies the event as Roskilde Festival and displays the 2027 dates.",
-            "evidenceIds": []
+            "evidenceIds": ["s1-e1", "s1-e2", "s2-e1", "s3-e1"]
           }
         }
       },
       "checks": [],
       "unresolved": [
         {
-          "message": "Full refresh requires checking the saved 2026 edition, including its dates/status, venue/location, classification and ticket block. Discovery returned no usable historical 2026 source, and the linked official programme page was blocked, so those edition checks could not be completed.",
+          "message": "The fixed sources do not establish the saved 2026 Edition dates, place or classification. Those checks remain unfinished.",
           "editionKey": "source-row"
         }
       ]
@@ -105,7 +255,16 @@
             }
           },
           "reason": "The official ticket page lists the eight-day full ticket at DKK 2,650, the two-day ticket at DKK 2,230 and four day-ticket options at DKK 1,530 each. It provides purchase links but does not establish each ticket category’s availability.",
-          "evidenceIds": []
+          "evidenceIds": [
+            "s1-e3",
+            "s2-e2",
+            "s2-e3",
+            "s2-e4",
+            "s2-e5",
+            "s2-e6",
+            "s2-e7",
+            "s2-e9"
+          ]
         }
       },
       "checks": [],
@@ -118,7 +277,7 @@
           "action": "set",
           "value": ["validation:festival", "validation:music"],
           "reason": "The official site presents Roskilde Festival as a festival with music; its 2027 homepage announcement names music performers.",
-          "evidenceIds": []
+          "evidenceIds": ["s1-e1", "s1-e6"]
         }
       },
       "checks": [],
@@ -131,20 +290,33 @@
             "action": "set",
             "value": "https://instagram.com/roskildefestival",
             "reason": "Captured official source association",
-            "evidenceIds": []
+            "evidenceIds": ["s1-e7", "s1-e8", "s2-e1", "s3-e1", "s3-e2"]
           },
           "facebook": {
             "action": "set",
             "value": "https://www.facebook.com/orangefeeling/",
             "reason": "Captured official source association",
-            "evidenceIds": []
+            "evidenceIds": ["s1-e7", "s1-e8", "s2-e1", "s3-e1", "s3-e2"]
           }
         },
         "website": {
           "action": "set",
           "value": "https://www.roskilde-festival.dk/",
           "reason": "Captured official source association",
-          "evidenceIds": []
+          "evidenceIds": [
+            "s1-e2",
+            "s1-e3",
+            "s1-e4",
+            "s1-e5",
+            "s1-e6",
+            "s1-e7",
+            "s1-e8",
+            "s2-e1",
+            "s2-e8",
+            "s3-e1",
+            "s3-e2",
+            "s3-e3"
+          ]
         }
       },
       "currentOrNextEdition": {
@@ -152,7 +324,15 @@
           "action": "set",
           "value": "https://www.roskilde-festival.dk/billetter",
           "reason": "Captured official source association",
-          "evidenceIds": []
+          "evidenceIds": [
+            "s1-e3",
+            "s2-e2",
+            "s2-e3",
+            "s2-e4",
+            "s2-e5",
+            "s2-e6",
+            "s2-e7"
+          ]
         }
       },
       "omitted": [],

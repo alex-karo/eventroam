@@ -298,36 +298,62 @@
           }
         ]
       }
-    }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "ageas-cooljazz-2027",
-        "field": "unresolved",
-        "contains": {
-          "field": "coordinates"
-        }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Cascais, Lisbon District, Portugal",
+        "countryCode": "PT"
       },
-      {
-        "owner": "edition",
-        "editionKey": "ageas-cooljazz-2027",
-        "field": "coordinates",
-        "value": {
-          "latitude": 38.6968919,
-          "longitude": -9.4204495,
-          "precision": "locality"
-        }
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "ageas-cooljazz-2027",
-        "field": "coordinate_action",
-        "value": "keep"
-      }
-    ]
-  }
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.6968919,
+            "longitude": -9.4204495,
+            "placeId": "51363d282845d722c05974acf7c033594340f00101f9013969520000000000c0020892030743617363616973",
+            "label": "Cascais, Portugal",
+            "name": "Cascais",
+            "countryCode": "PT",
+            "locality": "Cascais",
+            "address": "Cascais",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "administrative",
+            "confidence": 1
+          }
+        ]
+      },
+      "provenance": "Synthetic alias for the same locality query with its administrative area and country name. It reuses the captured locality response and does not establish a venue point."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Cascais, Portugal",
+        "countryCode": "PT"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 38.6968919,
+            "longitude": -9.4204495,
+            "placeId": "51363d282845d722c05974acf7c033594340f00101f9013969520000000000c0020892030743617363616973",
+            "label": "Cascais, Portugal",
+            "name": "Cascais",
+            "countryCode": "PT",
+            "locality": "Cascais",
+            "address": "Cascais",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "administrative",
+            "confidence": 1
+          }
+        ]
+      },
+      "provenance": "Synthetic alias for the same locality query with the country name instead of its code. It reuses the captured Cascais locality response and does not establish a venue point."
+    }
+  ]
 }

@@ -6,7 +6,7 @@
   "todayUtc": "2026-10-15",
   "provenance": {
     "kind": "captured-research-editor-regression",
-    "note": "Exact failed search-wrong-official research, normalized from provider wire output. Correct GB replacement must be accepted despite the saved Australian namesake URL."
+    "note": "Captured domain proposals test approval of the GB replacement despite the saved Australian namesake URL. Fixed source-backed Reader passages include both identities and the UK programme. Research and Reader do not call a model; Editor and eligible Location still run."
   },
   "input": {
     "mode": "refresh",
@@ -71,18 +71,5 @@
       "markdownFile": "../search-policy/official.md"
     }
   ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "event",
-        "field": "links",
-        "contains": {
-          "kind": "official_site",
-          "url": "https://harborechofestival.co.uk/"
-        }
-      }
-    ],
-    "forbidden": []
-  },
   "roleHandoffFile": "recovered-website.roles.json"
 }

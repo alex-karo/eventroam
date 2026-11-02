@@ -1,0 +1,197 @@
+import { z } from "zod";
+import { bindEvidence, readerOutputSchema } from "../evidence/contracts";
+import {
+  collectionOutputSchema,
+  generalOutputSchema,
+  ticketsOutputSchema,
+  classificationOutputSchema,
+  linksOutputSchema,
+} from "../roles/contracts";
+import type { ResearchDependencies } from "../contracts";
+import type { PipelineEvalCase } from "./fixtures";
+
+export const roleHandoffSchema = z.strictObject({
+  schemaVersion: z.literal(3),
+  provenance: z.string().min(1),
+  pages: z
+    .array(
+      z.strictObject({
+        url: z.url(),
+        sourceId: z.string().min(1),
+        reader: readerOutputSchema.optional(),
+      }),
+    )
+    .min(1),
+  collection: collectionOutputSchema,
+  roles: z.strictObject({
+    general: generalOutputSchema.optional(),
+    tickets: ticketsOutputSchema.optional(),
+    classification: classificationOutputSchema.optional(),
+    links: linksOutputSchema.optional(),
+  }),
+});
+
+const roleTopics = {
+  general: ["identity", "description", "dates", "status", "size"],
+  tickets: ["tickets", "dates", "identity", "location"],
+  classification: ["classification", "description", "dates"],
+  links: ["links", "tickets", "identity"],
+} as const;
+
+function support(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap(support);
+  }
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+  return Object.entries(value).flatMap(([key, part]) =>
+    key === "evidenceIds" ? (part as string[]) : support(part),
+  );
+}
+
+/** Check fixed citations before the CLI starts any model calls. */
+export function assertEditorFixture(item: PipelineEvalCase) {
+  const fixture = item.roleHandoff;
+  if (!fixture) {
+    return;
+  }
+  const evidence = fixture.pages.flatMap((page, index) => {
+    const source = item.sources.find(
+      (source) => source.attemptedUrl === page.url,
+    );
+    if (!source || page.sourceId !== `s${index + 1}`) {
+      throw new Error(`${item.id}: invalid fixed source ${page.url}`);
+    }
+    if (source.status !== "ok") {
+      if (page.reader) {
+        throw new Error(`${item.id}: failed source has Reader output`);
+      }
+      return [];
+    }
+    if (!page.reader) {
+      throw new Error(
+        `${item.id}: missing fixed Reader output for ${page.url}`,
+      );
+    }
+    const bound = bindEvidence(
+      page.sourceId,
+      source.markdown,
+      page.reader,
+      source.finalUrl,
+    );
+    if (bound.evidence.length !== page.reader.evidence.length) {
+      throw new Error(`${item.id}: fixed quotation does not match ${page.url}`);
+    }
+    return bound.evidence;
+  });
+  const urls = fixture.pages.map((page) => page.url);
+  const destinations = fixture.pages.map(
+    (page) =>
+      item.sources.find((source) => source.attemptedUrl === page.url)!.finalUrl,
+  );
+  const links = item.initial.event.links ?? [];
+  const initial = (
+    links.find((link) => link.kind === "official_site") ??
+    links.find((link) => link.official) ??
+    links[0]
+  )?.url;
+  if (
+    new Set(urls).size !== urls.length ||
+    new Set(destinations).size !== destinations.length ||
+    (initial && urls[0] !== initial)
+  ) {
+    throw new Error(
+      `${item.id}: fixed pages must start with the initial source`,
+    );
+  }
+  const sources = new Set(fixture.pages.map((page) => page.sourceId));
+  if (evidence.length && !fixture.roles.general) {
+    throw new Error(`${item.id}: missing fixed General input`);
+  }
+  for (const finding of fixture.collection.checks) {
+    if (finding.sourceIds.some((id) => !sources.has(id))) {
+      throw new Error(`${item.id}: unknown fixed collection source`);
+    }
+  }
+  for (const role of Object.keys(roleTopics) as (keyof typeof roleTopics)[]) {
+    if (fixture.roles.general?.decision === "targets" && !fixture.roles[role]) {
+      throw new Error(`${item.id}: missing fixed ${role} input`);
+    }
+    const allowed = new Set(
+      evidence
+        .filter((item) =>
+          item.topics.some((topic) =>
+            (roleTopics[role] as readonly string[]).includes(topic),
+          ),
+        )
+        .map((item) => item.id),
+    );
+    if (support(fixture.roles[role]).some((id) => !allowed.has(id))) {
+      throw new Error(`${item.id}: unknown fixed ${role} citation`);
+    }
+  }
+}
+
+/** Run normal collection and binding with fixed inputs; Editor and Location stay live. */
+export function editorFixtureRoles(
+  item: PipelineEvalCase,
+): ResearchDependencies["generateRoles"] {
+  const fixture = item.roleHandoff;
+  if (!fixture) {
+    return undefined;
+  }
+  return {
+    research: async (_role, _prompt, context) => {
+      const tool = context.tools?.inspectPage;
+      if (!tool || !("execute" in tool) || !tool.execute) {
+        throw new Error("Fixed Editor input requires inspectPage");
+      }
+      for (const page of fixture.pages) {
+        const result = await tool.execute(
+          { url: page.url },
+          { abortSignal: context.abortSignal },
+        );
+        if (
+          !result ||
+          typeof result !== "object" ||
+          !("sourceId" in result) ||
+          result.sourceId !== page.sourceId
+        ) {
+          throw new Error(`${item.id}: fixed source order changed`);
+        }
+      }
+      return structuredClone(fixture.collection);
+    },
+    reader: async (_role, prompt) => {
+      const input = JSON.parse(prompt);
+      const page = fixture.pages.find(
+        (page) => page.sourceId === input.source.id,
+      );
+      const source = item.sources.find(
+        (source) => source.attemptedUrl === page?.url,
+      );
+      if (
+        !page?.reader ||
+        !source ||
+        source.markdown !== input.page ||
+        source.finalUrl !== input.source.finalUrl
+      ) {
+        throw new Error(`${item.id}: unexpected fixed Reader input`);
+      }
+      return structuredClone(page.reader);
+    },
+    ...Object.fromEntries(
+      (Object.keys(roleTopics) as (keyof typeof roleTopics)[]).map((role) => [
+        role,
+        async () => {
+          const output = fixture.roles[role];
+          if (!output) {
+            throw new Error(`${item.id}: unexpected ${role} execution`);
+          }
+          return structuredClone(output);
+        },
+      ]),
+    ),
+  };
+}

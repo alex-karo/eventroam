@@ -1,21 +1,23 @@
 import type { ResearchData, ResearchEdition } from "../research/contracts";
-import type { Targets } from "../roles/contracts";
+import type { GeneralOutput } from "../roles/contracts";
 import type { CatalogResearchResult } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
-import { contains } from "./assertions";
-import { check, type Check } from "./checks";
+import { check, contains } from "./checks";
+
+function generalResult(report: CatalogResearchResult) {
+  const response = report.modelResponse?.object as
+    { result?: GeneralOutput } | GeneralOutput | undefined;
+  return response && "result" in response
+    ? response.result
+    : (response as GeneralOutput | undefined);
+}
 
 export function researchContext(
   item: PipelineEvalCase,
   report: CatalogResearchResult,
 ) {
   // General owns temporal selection. Other facts are checked at their operation or Location boundary.
-  const response = report.modelResponse?.object as
-    { result?: Targets } | Targets | undefined;
-  const raw =
-    response && "result" in response
-      ? response.result
-      : (response as Targets | undefined);
+  const raw = generalResult(report);
   let data: ResearchData | null = null;
   if (raw?.decision === "targets") {
     const fact = (action: unknown) => {
@@ -137,7 +139,6 @@ export function researchContext(
 }
 
 export type ResearchContext = ReturnType<typeof researchContext>;
-export type ResearchEvaluator = (context: ResearchContext) => Check[];
 
 export function researchDidNotFail(report: CatalogResearchResult) {
   return [
@@ -190,6 +191,44 @@ export function editionByKey(data: ResearchContext["data"], key: string) {
   return [data?.previousEdition, data?.currentOrNextEdition].find(
     (edition) => edition?.key === key,
   );
+}
+
+/** Resolve a selected target without requiring a proposal for an unchanged date. */
+export function selectedEditionDates(context: ResearchContext, key: string) {
+  const selected = editionByKey(context.data, key);
+  if (!selected) {
+    return undefined;
+  }
+  if (selected.dates !== undefined) {
+    return selected.dates;
+  }
+  const saved = context.item.initial.event.editions.find(
+    (edition) => edition.editionKey === key,
+  );
+  return saved?.startsOn && saved.endsOn
+    ? {
+        value: {
+          startsOn: saved.startsOn,
+          endsOn: saved.endsOn,
+          state: saved.dateState ?? "confirmed",
+        },
+      }
+    : undefined;
+}
+
+/** Resolve a selected year; required mutations still use catalogChanges. */
+export function selectedEditionYear(context: ResearchContext, key: string) {
+  const selected = editionByKey(context.data, key);
+  if (!selected) {
+    return undefined;
+  }
+  if (selected.year !== undefined) {
+    return selected.year;
+  }
+  const saved = context.item.initial.event.editions.find(
+    (edition) => edition.editionKey === key,
+  );
+  return saved?.editionYear != null ? { value: saved.editionYear } : undefined;
 }
 
 export function editionByYear(data: ResearchContext["data"], year: number) {
@@ -245,13 +284,16 @@ export function oneNewEdition({ item, data }: ResearchContext, year: number) {
 }
 
 /** Shared conditions for a deliberate Research refusal, not a technical failure. */
-export function refusedResearch(report: CatalogResearchResult) {
-  const candidate = report.modelResponse?.object;
+export function refusedResearch(
+  report: CatalogResearchResult,
+  status: "failed" | "partial" = "failed",
+) {
+  const candidate = generalResult(report);
   return [
     check(
       "research.status",
-      report.researchStatus === "failed",
-      "Expected researchStatus=failed",
+      report.researchStatus === status,
+      `Expected researchStatus=${status}`,
     ),
     check(
       "research.outcome",
@@ -280,11 +322,6 @@ export function refusedResearch(report: CatalogResearchResult) {
       "research.changes",
       report.changes.length === 0,
       "Expected no catalog changes",
-    ),
-    check(
-      "research.sourceSummaries",
-      report.sourceSummaries.length === 0,
-      "Expected no source summaries",
     ),
     check(
       "research.references",

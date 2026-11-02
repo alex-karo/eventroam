@@ -81,6 +81,12 @@ Each final report MUST identify attempt, mode, scope, source-check and validatio
 - **WHEN** refresh confirms accepted facts without a change
 - **THEN** the report identifies completed research and an unchanged catalog outcome
 
+#### Scenario: Usable collection ends in an identity refusal
+
+- **WHEN** source collection produces usable findings but Event identity cannot be confirmed
+- **THEN** the report retains `researchStatus: partial` and `outcome: failed`
+- **AND** the run makes no catalog changes and retains the findings and refusal reason
+
 #### Scenario: Reports retain the two-slot contract
 
 - **WHEN** add or refresh returns its final result

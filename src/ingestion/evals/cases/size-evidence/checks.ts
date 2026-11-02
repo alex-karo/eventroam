@@ -1,34 +1,79 @@
+import { check } from "../../checks";
+import type { RegressionEvaluator } from "../../regression";
 import {
   researchStatus,
   editionSlots,
   editionByKey,
   returned,
-  type ResearchEvaluator,
+  selectedEditionDates,
 } from "../../research";
 
-export const researchChecks = {
+export const checks = {
   "size-evidence": (context) => {
-    const { data } = context;
+    const { data, changes } = context;
     const edition = editionByKey(data, "participants");
-    const previous = editionByKey(data, "repeat-admissions");
     return [
+      check(
+        "catalog.edition.participants.size_estimate.set.1",
+        changes.edition(
+          { key: "participants" },
+          "size_estimate",
+          (value) => value === 8000,
+        ),
+        "Set participants participant estimate to 8000",
+      ),
+      check(
+        "catalog.edition.participants.size_estimate.preserve.1",
+        !changes.edition(
+          { key: "participants" },
+          "size_estimate",
+          (value) => value !== 8000 && value != null,
+        ),
+        "Keep participants participant estimate equal to 8000 when supplied",
+      ),
+      check(
+        "catalog.edition.repeat-admissions.size_estimate.preserve.2",
+        !changes.edition(
+          { key: "repeat-admissions" },
+          "size_estimate",
+          (value) => value !== 6000 && value != null,
+        ),
+        "Keep repeat-admissions participant estimate equal to 6000 when supplied",
+      ),
+      check(
+        "catalog.edition.repeat-admissions.size_estimate.preserve.3",
+        !changes.edition(
+          { key: "repeat-admissions" },
+          "size_estimate",
+          (value) => value === null,
+        ),
+        "Do not set repeat-admissions participant estimate to null",
+      ),
       researchStatus(context, "success"),
       ...editionSlots(context, "repeat-admissions", "participants"),
-      returned("research.participants.dates", edition?.dates, {
-        startsOn: "2026-10-01",
-        endsOn: "2026-10-03",
-        state: "confirmed",
-      }),
+      returned(
+        "research.participants.dates",
+        selectedEditionDates(context, "participants"),
+        {
+          startsOn: "2026-10-01",
+          endsOn: "2026-10-03",
+          state: "confirmed",
+        },
+      ),
       returned(
         "research.participants.sizeEstimate",
         edition?.sizeEstimate,
         8000,
       ),
-      returned("research.repeat-admissions.dates", previous?.dates, {
-        startsOn: "2026-09-20",
-        endsOn: "2026-09-22",
-        state: "confirmed",
-      }),
+      returned(
+        "research.repeat-admissions.dates",
+        selectedEditionDates(context, "repeat-admissions"),
+        {
+          startsOn: "2026-09-20",
+          endsOn: "2026-09-22",
+          state: "confirmed",
+        },
+      ),
     ];
   },
-} satisfies Record<string, ResearchEvaluator>;
+} satisfies Record<string, RegressionEvaluator>;

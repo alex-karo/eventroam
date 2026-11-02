@@ -1,5 +1,7 @@
 import { assertMainCase } from "./main";
-import { assertResearchCase } from "./case-research";
+import { assertRegressionCase } from "./regression";
+import { assertLocationCase } from "./location";
+import { roleHandoffSchema, assertEditorFixture } from "./editor-fixture";
 import { locationInputSchema } from "../location/input";
 import {
   geocodingRequestSchema,
@@ -17,25 +19,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { toolUseExpectationSchema } from "./tool-use";
 import { catalogPriceBlockSchema } from "@/catalog/operations/operation";
-import {
-  generalOutputSchema,
-  ticketsOutputSchema,
-  classificationOutputSchema,
-  linksOutputSchema,
-} from "../roles/contracts";
-
-const roleHandoffSchema = z.strictObject({
-  schemaVersion: z.literal(2),
-  provenance: z.string().min(1),
-  roles: z.strictObject({
-    general: generalOutputSchema.optional(),
-    tickets: ticketsOutputSchema.optional(),
-    classification: classificationOutputSchema.optional(),
-    links: linksOutputSchema.optional(),
-  }),
-});
 
 const link = z.object({
   kind: z.enum(linkKinds),
@@ -89,18 +73,7 @@ const source = z.strictObject({
   reasonCode: z.string().optional(),
   markdown: z.string(),
 });
-const assertionSchema = z.object({
-  owner: z.enum(["event", "edition"]),
-  editionKey: z.string().optional(),
-  editionYear: z.number().int().optional(),
-  field: z.string(),
-  value: z.unknown().optional(),
-  notValue: z.unknown().optional(),
-  contains: z.unknown().optional(),
-  containsAny: z.array(z.unknown()).min(1).optional(),
-  containsText: z.string().min(1).optional(),
-});
-const commonCaseSchema = z.object({
+const commonCaseSchema = z.strictObject({
   id: z.string().min(1),
   origin: z.enum(["captured", "synthetic"]),
   task: z.string().min(1),
@@ -146,15 +119,6 @@ const commonCaseSchema = z.object({
     )
     .optional(),
 });
-const taskExpectationsSchema = z.strictObject({
-  toolUse: toolUseExpectationSchema.optional(),
-});
-const regressionExpectationsSchema = z.strictObject({
-  ...taskExpectationsSchema.shape,
-  required: z.array(assertionSchema),
-  forbidden: z.array(assertionSchema),
-});
-
 const initialSchema = z.object({
   event,
   relatedEvents: z.array(event).optional(),
@@ -167,12 +131,10 @@ const pipelineCaseFields = {
 const mainPipelineEvalCaseSchema = commonCaseSchema.extend({
   ...pipelineCaseFields,
   suite: z.literal("main"),
-  expectations: taskExpectationsSchema,
 });
 const regressionPipelineEvalCaseSchema = commonCaseSchema.extend({
   ...pipelineCaseFields,
   suite: z.literal("regression"),
-  expectations: regressionExpectationsSchema,
 });
 const pipelineEvalCaseSchema = z.discriminatedUnion("suite", [
   mainPipelineEvalCaseSchema,
@@ -180,7 +142,6 @@ const pipelineEvalCaseSchema = z.discriminatedUnion("suite", [
 ]);
 const locationEvalCaseSchema = commonCaseSchema.extend({
   suite: z.literal("regression"),
-  expectations: regressionExpectationsSchema,
   location: commonCaseSchema.shape.location.unwrap(),
   // Only workflow integration cases need a separate catalog seed.
   initial: initialSchema.optional(),
@@ -214,7 +175,6 @@ export type RegressionPipelineEvalCase = z.infer<
 >;
 export type LocationEvalCase = z.infer<typeof locationEvalCaseSchema>;
 export type EvalSuite = z.infer<typeof evalSuiteSchema>;
-export type EvalAssertion = z.infer<typeof assertionSchema>;
 
 const sourceFilesSchema = z.array(
   source.omit({ markdown: true }).extend({ markdownFile: z.string().min(1) }),
@@ -247,16 +207,16 @@ export function loadEvalSuite(): EvalSuite {
     ...manifest,
     cases: manifest.cases.map((casePath) => {
       const absolutePath = resolve(dirname(path), casePath);
-      const item = caseFileSchema.parse(
+      const { roleHandoffFile, ...item } = caseFileSchema.parse(
         JSON.parse(readFileSync(absolutePath, "utf8")),
       );
       return {
         ...item,
-        roleHandoff: item.roleHandoffFile
+        roleHandoff: roleHandoffFile
           ? roleHandoffSchema.parse(
               JSON.parse(
                 readFileSync(
-                  resolve(dirname(absolutePath), item.roleHandoffFile),
+                  resolve(dirname(absolutePath), roleHandoffFile),
                   "utf8",
                 ),
               ),
@@ -279,8 +239,11 @@ export function loadEvalSuite(): EvalSuite {
   for (const item of suite.cases) {
     if (item.suite === "main") {
       assertMainCase(item);
-    } else if (!item.location) {
-      assertResearchCase(item);
+    } else if (item.location) {
+      assertLocationCase(item);
+    } else {
+      assertRegressionCase(item);
+      assertEditorFixture(item);
     }
   }
   return suite;

@@ -88,9 +88,9 @@ Each case needs a clear task, initial catalog, fixed date, source origin and pro
 
 Define expected facts from the supplied evidence, independently of a model answer or production validation. A structurally valid date can still be false. Check Event and Edition identity, the programme year, venue versus office addresses, and admission products versus unrelated purchases.
 
-Use explicit TypeScript main evaluators with shared helpers. Keep expected alternatives and source comments close to the checks. Do not add a general rule engine or require a policy for every possible field.
+Use explicit TypeScript evaluators with shared helpers. Keep expected alternatives and source comments close to the checks. Do not add a general rule engine or require a policy for every possible field.
 
-Case inputs and source files live in [`src/ingestion/evals/cases/`](../src/ingestion/evals/cases/). Main checks live in [`src/ingestion/evals/main/`](../src/ingestion/evals/main/). Regression Research checks live in adjacent `checks.ts` files under `cases/`; [`case-research.ts`](../src/ingestion/evals/case-research.ts) registers them. Register a new case in the suite manifest and its evaluator registry.
+Case inputs and source files live in [`src/ingestion/evals/cases/`](../src/ingestion/evals/cases/). Main checks live in [`src/ingestion/evals/main/`](../src/ingestion/evals/main/). Regression checks live in adjacent `checks.ts` files under `cases/`; [`regression.ts`](../src/ingestion/evals/regression.ts) registers workflow checks and [`location.ts`](../src/ingestion/evals/location.ts) registers direct Location checks. Register a new case in the suite manifest and its evaluator registry.
 
 ## Keep completeness and errors separate
 
@@ -115,7 +115,15 @@ For example, omitting a checked Instagram link lowers additional completeness. A
 
 Publication, identity, protected records and execution have separate conditions. High completeness cannot compensate for a failed condition.
 
-Regressions use the same pass/fail check format as main conditions. They expose one `scenario-success`: all checks must pass. Their saved output contains `checks` and `passed`, without intermediate percentages or separate diagnostic categories. The CLI and Mastra reason show failed-check messages. Keep mutation, tool-use and Location expectations in JSON. Define Research statuses, returned facts, omitted fields and deliberate refusals in each case function, using small helpers from `research.ts`. There is no `expectations.research` schema or shared interpreter. Keep dry-run change checks, partial-object and collection matching, and Location preservation rules. A correct value already in the seed does not satisfy a required mutation.
+Regressions use the same pass/fail check format as main conditions. They expose one `scenario-success`: all checks must pass. Their saved output contains `checks` and `passed`, without intermediate percentages or separate diagnostic categories. The CLI and Mastra reason show failed-check messages.
+
+Define all regression checks in the case directory's `checks.ts`: catalog mutations, source-check results, tool use, and Location decisions. Use plain TypeScript conditions and small helpers. JSON files hold inputs, source references, geocoding responses and captured role results. They have no `expectations` block or comparison language. The loader rejects an unregistered evaluator in every group before model calls. Dataset revisions include the check code; saved outputs retain each check's result and message. Expected values do not enter model input.
+
+Editor handoff fixtures use schema version 3. Each fixture fixes the ordered page reads, Reader outputs, collection result and specialist proposals with explicit evidence references. Research and Reader use these fixed results without model calls. Normal collection still binds literal quotations and saves source artifacts. Editor and eligible Location execution use the configured model. Before provider setup, the loader checks source order, unique destinations, captured roles, literal quotations and references within each role's evidence packet. These cases measure review of a fixed proposal and corpus; they do not measure Research or Reader quality.
+
+Pipeline checks use dry-run changes. Match saved Editions by their declared key or year, and new Editions through writer references. A correct value already in the seed does not satisfy a required mutation. Check individual offer or link fields when other fields are outside the case boundary. Direct Location checks distinguish changed coordinates, preserved coordinates, point actions and unresolved questions. Completion and correction require an actual change; preservation requires the saved point and precision to stay unchanged.
+
+Checks of a selected Edition's dates and year can resolve an omitted proposal from that exact saved Edition. An explicit proposal or clear takes precedence. This checks the selected value; it does not prove fresh source verification or satisfy a required mutation. A successful Location `keep` can retain the selected saved venue. Deliberate refusals can retain source summaries for inspection. Check the actual General result inside the provider response wrapper when checking its decision.
 
 ## Accept variation through explicit alternatives
 
@@ -123,7 +131,7 @@ Accept source-supported URL, address, classification and price alternatives. URL
 
 Link alternatives are choices. Extra or duplicate official links of a checked kind fail.
 
-Each returned ticket offer must match an accepted product URL, amount and currency combination. Missing offers do not lower completeness. Labels, terms, availability and duplicate offers are unchecked. Full-programme base price is a separate additional fact. A case can accept both the displayed price and the total with mandatory fees when both are declared alternatives.
+Each returned ticket offer in main must match an accepted amount and currency pair. Missing offers do not lower completeness. Labels, terms, availability and duplicate offers are unchecked. Full-programme base price is a separate additional fact. A case can accept both the displayed price and the total with mandatory fees when both are declared alternatives. Targeted regressions can check labels or availability for their specific task.
 
 Main currently accepts both `announced` and `scheduled`, including saved Edition preservation. TODO: define deterministic agent behavior and narrow this exception. `cancelled` and `postponed` remain distinct.
 
@@ -172,7 +180,7 @@ There are no separate eval unit tests, model-substitute eval runs, or eval persi
 
 Use the same group, cases, inputs, expectations, scoring rules and repeat count.
 
-Dataset identity uses a coarse hash of all case JSON/MD/TypeScript files, main evaluator/helper sources, `case-research.ts` and `research.ts`, plus group, selected case IDs, repeats and scorer version. Even whitespace or changes to unselected cases can create new datasets. Other scoring changes require an `EVAL_SCORER_VERSION` update.
+Dataset identity uses a coarse hash of all case JSON/MD/TypeScript files, main evaluator/helper sources, the regression registries, fixture loading and execution helpers, and shared mutation, finding, tool-use and scoring helpers, plus group, selected case IDs, repeats and scorer version. Even whitespace or changes to unselected cases can create new datasets. Other scoring changes require an `EVAL_SCORER_VERSION` update.
 
 Existing datasets are reused without content checks or source snapshots. Edit definitions in repository files; manual Studio changes are not detected or imported.
 
@@ -184,4 +192,12 @@ Three repetitions per main case are recommended, not a statistical guarantee. Be
 
 Scorer revisions 8 and 9 add source-backed expected alternatives for the Wacken YouTube footer URL with a trailing slash and the Roskilde festival address with its venue label but no country suffix. These are the same factual destinations and address. Do not apply blanket URL or address normalization. Keep original experiment scores and show saved-output rescoring separately.
 
-Scorer revision 7 removes historical price extraction and per-offer URL expectations. Compare common fact units separately from this scope change. Editor handoff fixtures contain explicit domain role results; other assigned roles use the configured model. Gold assertions never enter prompts. Native usage and duration comparisons must include all role calls and report missing coverage as unknown.
+Scorer revision 7 removes historical price extraction and per-offer URL expectations. Compare common fact units separately from this scope change. At that revision, Editor handoff fixtures contain explicit domain role results while other assigned roles use the configured model. Current Editor fixtures also fix collection and Reader outputs as described above. Gold assertions never enter prompts. Native usage and duration comparisons must include all role calls and report missing coverage as unknown.
+
+Scorer revision 13 moves all regression conditions from JSON to case code. It retains the declared mutation, source-check, tool-use and Location conditions. This changes the dataset revision. On 2026-11-02, local rescoring of one saved response for each of the 45 regression cases produced the same pass/fail decisions before and after migration. Pipeline mutation conditions were also compared separately, so a source-check failure could not hide a changed mutation result. Original experiments were not changed. This does not test current agent behavior or fix source and geocoding fixture gaps.
+
+Scorer revision 14 corrects selected-value and refusal checks after the full regression run. It also corrects the recovered-website Editor case: captured roles have no completion findings, so it checks a completed Editor review and a non-failed workflow rather than requiring complete Research. The required website change remains. All seven Editor cases now use fixed input evidence. Two Location fixtures add explicit synthetic aliases for valid locality and venue queries; city responses do not become venue points. The cemetery correction case adds labelled synthetic evidence that the saved point is wrong. See the [regression audit](proposals/source-evidence-quality-log.md#regression-audit-2026-11-02) for evidence, verification and unresolved choices. Original experiments remain unchanged.
+
+Scorer revision 15 accepts partial Research with a failed catalog outcome in `current-identity-contradiction`, as selected by the owner. Useful collection can precede an Event identity refusal. No-write, technical-error, source-policy and identity-guidance checks remain. Other refusal cases retain failed Research when they have no usable evidence.
+
+A comparison can span different coarse dataset hashes only after checking that every selected case input and its checks are identical. For example, adding page-coverage fields to unselected fixed Editor inputs changes the coarse hash but does not change main or pipeline case inputs. Record this check with the measurements; do not infer equal inputs from matching case IDs alone.

@@ -115,10 +115,19 @@ export const ingestionOfferSchema = z
       }
     }
   });
-export const ticketBlockSchema = z.strictObject({
-  variants: z.array(ingestionOfferSchema).min(1).max(100),
-  basePrice: researchBasePriceSchema.nullable(),
-});
+export const ticketBlockSchema = z
+  .strictObject({
+    variants: z.array(ingestionOfferSchema).max(100),
+    basePrice: researchBasePriceSchema.nullable(),
+  })
+  .refine(
+    (value) => value.variants.length > 0 || value.basePrice?.kind === "free",
+    {
+      path: ["variants"],
+      message:
+        "An empty offer list requires supported free full-programme admission",
+    },
+  );
 export const ticketsOutputSchema = z.strictObject({
   currentOrNextEdition: z.strictObject({
     tickets: change(ticketBlockSchema, false).optional(),

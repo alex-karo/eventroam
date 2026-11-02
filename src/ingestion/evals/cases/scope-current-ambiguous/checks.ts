@@ -1,12 +1,12 @@
+import type { RegressionEvaluator } from "../../regression";
 import {
   researchStatus,
   editionSlots,
   omittedEventFields,
-  type ResearchEvaluator,
 } from "../../research";
 import { check } from "../../checks";
 
-export const researchChecks = {
+export const checks = {
   "scope-current-ambiguous": (context) => {
     const { report, data } = context;
     return [
@@ -27,4 +27,4 @@ export const researchChecks = {
       ),
     ];
   },
-} satisfies Record<string, ResearchEvaluator>;
+} satisfies Record<string, RegressionEvaluator>;

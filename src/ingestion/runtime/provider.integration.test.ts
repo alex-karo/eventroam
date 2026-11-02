@@ -134,6 +134,10 @@ test.each([
   async (model) => {
     const output = {
       overview: "Admission offers",
+      coverage: {
+        found: ["Admission offers and concessions"],
+        notPublished: [],
+      },
       topics: ["tickets"],
       statedYears: ["2027"],
       limitations: [],

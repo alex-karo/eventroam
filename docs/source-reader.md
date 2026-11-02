@@ -46,7 +46,9 @@ A map failure keeps the readable page `ok`, with the map URL and a limitation no
 
 ## Response and limits
 
-Retrieval returns full canonical Markdown and transport metadata to the shared collection session. Research uses `inspectPage`, which returns source identity, URLs, a bounded overview, lead URLs, retrieval and processing outcomes, limitations, and remaining budget. It receives neither page bodies nor evidence IDs. Lead URLs are not inspected-source records.
+Retrieval returns full canonical Markdown and transport metadata to the shared collection session. Research uses `inspectPage`, which returns source identity, URLs, a bounded overview, page coverage, lead URLs, retrieval and processing outcomes, limitations, and remaining budget. It receives neither page bodies nor evidence IDs. Lead URLs are not inspected-source records.
+
+Reader reports page coverage in two short lists: `found` names information collected from that page; `notPublished` names only explicit source statements that information is unavailable or not yet announced. Page silence does not establish absence. Each entry has at most 160 characters, with at most nine found entries and six absence entries. Coverage is navigation context, not evidence or a completeness decision. Research can avoid a separate page for an already covered question, but must still account for required context and relevant blocked or unprocessed pages. Ordinary absent optional facts and explicit nonpublication are not extraction limitations. Catalog updates still require bound literal evidence.
 
 Requests, fallback and maps share transport safety checks and the run budget. Requested and final URLs share cached inspection results, including Reader processing and persistence. Concurrent inspection of one page shares the same in-flight work. Independent pages can run in parallel under bounded native tool concurrency.
 

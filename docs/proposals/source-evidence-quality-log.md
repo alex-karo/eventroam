@@ -244,3 +244,103 @@ Editor v10 uses the unchanged built-in workspace grep instead of `readEvidence`.
 One standard-tier main run, experiment `3bfdcd3f-1b9c-4f8a-8100-71306489d685`, passes 5/5 with no checked wrong values, required facts 15/15 and additional facts 31/33. Reader caching remains disabled. Editor calls grep once to check conflicting Sziget lineup years and dates, then approves the supported date proposal. The response includes three application-provenance matches, so native file search adds some noise. Sziget base price and Wacken locality remain absent.
 
 Against the preceding single run, Editor cost rises from USD 0.005207075 to USD 0.006236015 (19.8%) and steps rise from four to five. Whole-run cost rises from USD 0.050291145 to USD 0.051433835 (2.3%). The baseline made zero source-tool calls. Upstream extraction and navigation differ, so the additional Glastonbury facts do not establish a grep quality gain. No saving is shown. The owner selected native grep after this comparison. Retain it without a cost or quality improvement claim; see the [comparison](source-evidence-eval-comparison.md#native-mastra-grep-experiment-2026-11-01) for usage, actual search and limits. All 33 focused tests and applicable static, documentation and OpenSpec checks pass.
+
+## Regression audit, 2026-11-02
+
+The full standard-tier run uses `openai/gpt-6-luna`, one attempt per case and scorer revision 13. Shared reasoning is low; Editor and Location use medium. Reader prompt caching is disabled. Tracing is enabled. All 45 attempts finish, with 15 passes in 432.2 seconds:
+
+| Group | Passed | Experiment |
+| --- | --- | --- |
+| Pipeline | 2/25 | `0546d8e4-fe24-43ba-a5eb-34a6e727877e` |
+| Editor | 5/7 | `754d0af2-7c1d-4094-98e7-b2d36d2ce081` |
+| Location | 8/13 | `3fd3ff46-d6ea-4ce5-96a8-d9bd9294d11a` |
+
+Three specialist reviews compare the saved reports, source artifacts, case inputs, prompts and contracts. They identify these clear eval errors, corrected in scorer revision 14:
+
+- Temporal checks demand a repeated proposal for dates already correct in the selected saved Edition. Resolve omitted dates and year from that exact selected key. An explicit wrong proposal or clear still fails. Required mutations still need dry-run changes.
+- The historical venue check demands `set` for saved `River Grounds`. Accept a successful Location `keep` for the selected historical target. Missing or failed Location does not pass.
+- The homonym case demands another `set` for saved country GB. Keep its required website and price changes, and strengthen country preservation to reject both another country and a clear.
+- The refusal helper fails to unwrap General's provider result and demands empty source summaries. Inspect the real domain decision and allow retained source descriptions. Keep exact status, no-write and technical-failure checks.
+- The recovered-website Editor case has no UK search fixture and requires Research success although every captured role has empty check findings. The first repair adds the discovery response and requires a completed Editor review, a non-failed workflow and the actual UK website mutation. Research and Reader still run at that point. The later fixed-input implementation below replaces that variable preparation. No verified findings are fabricated.
+- Valid locality queries with administrative areas have no exact match in two Location fixtures. Add documented synthetic aliases for Cascais and León, using the existing locality responses. Do not return a venue point for a city query. Remove one duplicate León venue request.
+
+Before the owner's further decisions below, rescoring the 42 responses whose inputs did not change raises their passes from 15 to 16. Only `source-stale-language-other-programme` changes from fail to pass; nine failed check conditions are removed across six cases. Other cases still fail their remaining checks. This is saved-output rescoring, not a new model run. Original results are retained.
+
+The first fresh fixture check runs recovered website and two Location cases on standard tier. Editor experiment `c0ec756d-8002-444e-945c-3a34f9aac750` still fails: the UK evidence is now collected, but Editor treats the wrong saved Australian URL as decisive Event identity and rejects the supported UK replacement. Location experiment `4450f113-ec3c-44e1-92d9-9dbdaf9519ee` passes Cascais and fails León. Two further valid León query aliases are then added. Check `61421a95-404c-4d8b-9f14-0b242ccd185f` obtains the city point but misses the venue query fixture. After that alias is supplied, `6fc2fc3c-7e39-4f81-a90e-5a5dfdaa64d6` still stops at the city point without querying the named venue. Keep the strict venue completeness check. These are small diagnostic runs on different input revisions, not a new full-suite score.
+
+The main Research failure has a concrete information boundary. Reader artifacts retain correct venue/address and ticket quotations, but [`collection.compact`](../../src/ingestion/evidence/collection.ts) supplies navigation with an overview, topics, years and leads. The short overview can omit an address or an explicit statement that no further pages exist. Research then treats those details as absent from the page, guesses routes or searches again, and leaves checks unfinished. Thus most missing `/travel` or `/venue` fixtures in these small scenarios are symptoms of unnecessary exploration. Do not invent pages or remove search limits to hide them. The retained main experiment with additional navigation topics did not establish quality preservation; it is not evidence for accepting that earlier trial.
+
+Reader also puts ordinary absent optional facts in `limitations`. The recovered UK page says no participant estimate is published; Reader records this as a limitation even though its prompt forbids that use. Code marks the page processing limited, and the report stays partial. This is a separate completion cause from missing information in the overview.
+
+Other real failures remain checked: General combines separate October weekends into one date range, clears a saved attendance estimate without contradictory evidence, or returns identity uncertainty for an ambiguous Edition despite known Event identity. The original Tickets contract rejects an empty offer list in eight cases, including explicitly free admission. Classification reuse can name an invalid earlier Edition. Editor rejects supported observed offers because other ticket pages are blocked. Location can miss a locality refinement after a venue move or select a historical point with `select` instead of `reusePrevious`.
+
+The owner accepted three audit choices:
+
+- Allow empty offers for explicitly supported free full-programme admission. Paid or unknown admission still needs observed offers; a free concession does not establish free general admission. Keep evidence and Editor approval requirements.
+- Freeze source evidence for Editor cases. Research and Reader must not change their test input corpus between attempts.
+- Retain cemetery correction coverage with explicit, labelled synthetic evidence that the saved point is a known mapping error. Do not infer that error from a nearby reverse object.
+
+These choices are implemented. Tickets v7 permits an empty offer list only with `basePrice.kind: free`; paid and unknown blocks still require observed offers. Editor v11 recognizes that supported free block. Existing quotation binding, evidence references and Editor approval remain required. Tests cover invalid paid or unknown empty blocks, missing support and the accepted block through catalog writing.
+
+All seven Editor cases use schema-version-3 fixed inputs: ordered page reads, literal Reader output, collection result and domain proposals with explicit citations. The normal collector still creates immutable source artifacts and binds quotations. Research, Reader and captured specialists make no model calls. Editor and eligible Location execution remain live. Preflight rejects invalid source order, duplicate destinations, missing role results and invalid quotations or citations. A final preflight-only hardening followed the run snapshot; it changes neither supplied results nor runtime adapters, and all current fixtures pass it.
+
+The affected standard-tier check uses the same model and reasoning settings, with one attempt per selected case:
+
+| Group | Passed | Seconds | Experiment |
+| --- | --- | --- | --- |
+| Pipeline | 0/8 | 97.5 | `e4d848d4-b74f-459a-a696-c87f9bb07bf5` |
+| Editor | 4/7 | 67.2 | `c433eed4-0999-4597-8684-71563387a428` |
+| Location | 1/3 | 10.8 | `eb766038-4632-4864-8015-0586f99cb85d` |
+
+All 18 attempts return scored outputs. None has the former empty-offer schema error. Pipeline cases still fail mainly on unfinished Research, unnecessary searches, invalid classification reuse or failure to recover Event identity. Cemetery correction passes with explicit error evidence. León obtains a valid city response but stops before querying the named venue; its venue completeness failure remains.
+
+Two further fixture defects appear in this check. Cascais asks the valid query `Cascais, Portugal`, which lacks a declared response; add a labelled alias to the existing locality result. The day-ticket fixed Reader input lacks the full-festival quotation because the original literal binder rejected it. The source itself states all eight days at DKK 2,650. Repair that fixed quotation and its explicit Tickets citation from the unchanged source, with provenance; retain the required base price. These repairs do not establish agent improvements. Recovered website and unknown currency remain Editor failures with fixed valid evidence: the former treats the wrong saved URL as decisive identity, and the latter rejects observed offers because further categories are unavailable.
+
+Both repaired cases pass a fresh one-attempt standard-tier check: Editor day-ticket experiment `1857f4f6-2d44-4b3d-b06a-cf5ed2eb04bf` and Location several-venues experiment `9fd202a3-f7c2-4349-a8bd-b411b5c3ce72`. This is a two-case fixture check, not a full-suite rerun or a quality comparison with the original variable Editor inputs.
+
+Static checks pass: type check, affected lint, dependency check, formatting, documentation checks and strict OpenSpec validation (24/24). All 50 case inputs load, including the seven fixed Editor cases. The full unit run passes 794/795 tests; a tracing persistence assertion fails. The tracing file passes all 32 tests on a separate retry. No unrelated tracing change is made.
+
+The owner then selected compact page coverage for the next Research experiment: name collected information and explicit source statements of nonpublication. Quotations remain the basis for updates. The owner also selected partial Research with a failed catalog outcome after useful collection and General's Event identity refusal. Scorer revision 15 reflects that status choice; wrong source exploration and missing identity guidance remain failed checks. The experiment below measures the coverage change with that scorer in both runs.
+
+The following coverage choice remains open:
+
+- **Candidate discrimination:** the bridge and cemetery completion passes do not prove rejection of their unused decoy candidates. Add a focused candidate scenario if that distinction must be measured.
+
+Fixture repair in task 6.1 and the controlled comparison in task 7.2 remain open. This audit does not establish a new full-suite pass count or a production quality gain.
+
+## Page coverage experiment, 2026-11-02
+
+The owner selected two short page-coverage lists for Research. Reader v12 returns `coverage.found` and `coverage.notPublished`; Research v10 uses them for navigation. The lists have at most nine and six entries, each at most 160 characters. Only explicit source statements can enter `notPublished`. Source silence remains unknown. Coverage cannot support a catalog change or remove extraction limitations. Literal evidence, frozen source storage, mandatory checks and tool limits stay in use. No model call is added.
+
+Both runs use `openai/gpt-6-luna`, standard tier, one attempt per case, shared low effort, medium Editor and Location, and disabled Reader prompt caching. They use scorer revision 15. The selection is all five main cases and nine affected pipeline regressions. The latter cover ordinary missing optional data, unknown, inaccessible and wrong official sources, narrow current refresh and Event identity refusal. This is a focused experiment, not a full regression run.
+
+The coarse dataset hashes differ because the seven unselected fixed Editor inputs need the new required Reader coverage field. Before/after source snapshots show no change to selected checks, shared eval execution or scoring code. Each selected saved case input is also compared in full. Results from the older audit use different input and scorer revisions and are not a baseline for this experiment.
+
+The after run also makes the selected partial status explicit when General refuses Event identity after usable collection, even if all collection checks were verified. This changes report assembly only. It adds no agent work. A workflow test covers that case and verifies empty operations, receipts, changes and references; the existing no-usable-source test retains failed Research.
+
+| Measurement | Main before | Main after | Pipeline before | Pipeline after |
+| --- | --- | --- | --- | --- |
+| Cases passed | 4/5 | 5/5 | 0/9 | 1/9 |
+| Required facts | 10/15 | 15/15 | Not scored | Not scored |
+| Additional facts | 21/33 | 30/33 | Not scored | Not scored |
+| Research steps | 25 | 20 | 37 | 24 |
+| Research input tokens | 141,529 | 95,033 | 66,178 | 43,205 |
+| Research cache-read tokens | 106,640 | 62,104 | 48,200 | 25,934 |
+| Research output tokens | 3,763 | 3,009 | 5,600 | 3,524 |
+| Research estimated model cost, USD | 0.00730715 | 0.006240165 | 0.005526475 | 0.004178415 |
+| Reader calls | 31 | 28 | 11 | 9 |
+| Reader estimated model cost, USD | 0.0213315 | 0.0214248 | 0.0029573 | 0.0028649 |
+| Page reads | 52 | 41 | 36 | 19 |
+| Searches | 7 | 5 | 8 | 8 |
+| All model steps, report budget | 75 | 75 | 105 | 80 |
+| All estimated model cost, USD | 0.044201525 | 0.05113772 | 0.028712665 | 0.02276072 |
+
+Experiments are main before `c5ef5c4d-613b-4ea9-a1e2-f1e3f07e0506`, main after `af9a0556-582c-4b94-bc77-3e487cfeca81`, pipeline before `517a5389-4a7d-46f4-97cc-67a200ddddba` and pipeline after `14684095-6ce1-426e-8f90-cfe3e62ff7fa`. Each has a saved output for every attempt. Steps use completed model-step log events for Research and Reader, and the report counter for all roles. Costs and token counts use native metric events, including cached input. Native agent totals can aggregate several Research steps; their row count is not a step count. These are model cost estimates, not a provider invoice or a full external-service bill.
+
+Research input falls 32.9% in main and 34.7% in pipeline. Its estimated cost falls 14.6% and 24.4%. Much of the removed input was cached: the main Research cache-read share falls from 75.3% to 65.3%, while input without a cache read falls only from 34,889 to 32,929 tokens. Reader cost in main stays almost unchanged despite three fewer calls; large source pages remain and the coverage output adds text.
+
+The main total rises 15.7% because the control Roskilde attempt fails before interpretation on `reader: evidence.3.quote.start:too_big`. The after attempt reaches specialists, Location and Editor and passes. Do not attribute that recovery to coverage or compare the incomplete control as equivalent completed work. Excluding Roskilde, the same four main cases cost USD 0.03551773 before and USD 0.033605305 after, a 5.4% reduction. However, Sziget loses its venue and address: the control reads the travel page and binds its explicit venue/address quote; the after attempt does not read that page. Its Research steps fall from six to three, but additional facts fall from 8/8 to 6/8. Wacken still lacks locality. Thus this experiment does not establish cost reduction with equal fact completeness. Doubling the after main cost gives USD 0.10227544 for ten attempts; that is a projection from five, not a measured two-repeat result.
+
+Only `search-inaccessible-official` passes in the affected pipeline selection. Research now finishes in one step and avoids extra reads for `search-no-optional-field` and `narrow-current-changed`, but other roles or completion findings still fail their checks. The missing-optional case still asks for a travel page after the homepage supplies venue and address. The noncomparable case still asks for a ticket overview after explicit free admission. Reader still sometimes puts ordinary missing data in `limitations`. Current refresh still explores a replacement website after an identity contradiction instead of stopping with full-refresh guidance. Wrong-site cases can stop on the wrong identity and skip later roles; part of their lower total cost comes from failed work. Keep these failures visible and do not accept the pipeline cost reduction as preserved quality.
+
+The accepted identity-refusal status check passes in both runs, while its separate source-policy and identity-guidance conditions fail. No catalog writes occur in that refusal. Focused application tests pass 52/52; all 50 eval inputs load. Type check, affected lint, formatting, documentation checks and strict OpenSpec validation pass. This experiment does not replace the earlier full-test result or the remaining full-suite and repeated-comparison work.

@@ -38,6 +38,7 @@ import {
   type EvalSuite,
 } from "./fixtures";
 import { scoreCase } from "./score";
+import { editorFixtureRoles } from "./editor-fixture";
 import type { ScenarioResult } from "./checks";
 import { createEvalScorers } from "./scorers";
 
@@ -329,36 +330,7 @@ async function executeCase(
           geocodingClient: fixedGeocoding(item),
           ...fixedSources(item, item.todayUtc ?? suite.todayUtc, calls),
           ...(item.roleHandoff
-            ? {
-                generateRoles: Object.fromEntries(
-                  Object.entries(item.roleHandoff.roles).map(
-                    ([role, output]) => [
-                      role,
-                      async (_role: string, prompt: string) => {
-                        const packet = JSON.parse(prompt).corpus;
-                        const ids = (packet?.evidence ?? []).map(
-                          (item: { id: string }) => item.id,
-                        );
-                        const bind = (value: unknown): unknown => {
-                          if (Array.isArray(value)) {
-                            return value.map(bind);
-                          }
-                          if (!value || typeof value !== "object") {
-                            return value;
-                          }
-                          return Object.fromEntries(
-                            Object.entries(value).map(([key, part]) => [
-                              key,
-                              key === "evidenceIds" ? ids : bind(part),
-                            ]),
-                          );
-                        };
-                        return bind(structuredClone(output));
-                      },
-                    ],
-                  ),
-                ),
-              }
+            ? { generateRoles: editorFixtureRoles(item) }
             : {}),
         },
       );
@@ -375,7 +347,7 @@ async function executeCase(
     if (item.suite === "main") {
       const after = readResearchCatalog(connection.client);
       return {
-        quality: evaluateMainCase(item, before!, after, result, calls),
+        quality: evaluateMainCase(item, before!, after, result),
         before,
         after,
         report: result,

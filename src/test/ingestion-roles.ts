@@ -45,6 +45,7 @@ export function fixtureRoleDependencies(
       reads.push({ ...data.source, markdown: data.page });
       return {
         overview: "Explicit fixture source",
+        coverage: { found: [], notPublished: [] },
         topics: [
           "identity",
           "dates",

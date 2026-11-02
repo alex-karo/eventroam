@@ -3,7 +3,6 @@ import type { readResearchCatalog } from "@/catalog/read/research";
 import type { CatalogResearchResult } from "../../contracts";
 import { hasHostFailure } from "../../runs";
 import type { PipelineEvalCase } from "../fixtures";
-import { checkToolUse, type EvalToolCall } from "../tool-use";
 import { check } from "../checks";
 import { fact } from "./facts";
 
@@ -105,7 +104,6 @@ export function mainContext(
   before: Catalog,
   after: Catalog,
   report: CatalogResearchResult,
-  calls: EvalToolCall[],
 ) {
   const eventId = item.initial.event.id;
   const original = before.find((event) => event.id === eventId);
@@ -127,7 +125,6 @@ export function mainContext(
         !hasHostFailure(report),
         "Host workflow or run persistence failed",
       ),
-      ...checkToolUse(item.expectations.toolUse, calls),
       check(
         "event.identity",
         !!original &&

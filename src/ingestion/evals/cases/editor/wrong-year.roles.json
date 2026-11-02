@@ -1,44 +1,237 @@
 {
-  "schemaVersion": 2,
-  "provenance": "Captured editor-wrong-year research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Evidence references bind to Reader output during fixture execution; no expected assertions enter prompts.",
+  "schemaVersion": 3,
+  "provenance": "Captured editor-wrong-year research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 10a5037c-f9d1-46f1-a78c-7ac924784f80:s1, 10a5037c-f9d1-46f1-a78c-7ac924784f80:s2, 10a5037c-f9d1-46f1-a78c-7ac924784f80:s3. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
+  "pages": [
+    {
+      "url": "https://www.wacken.com/",
+      "sourceId": "s1",
+      "reader": {
+        "overview": "Wacken Open Air (W:O:A) is a Heavy Metal festival. The official page promotes W:O:A 2027 tickets, but this page provides no festival dates, location, or details of the latest completed edition.",
+        "topics": ["identity", "description", "status", "tickets", "links"],
+        "statedYears": ["2027", "2026"],
+        "limitations": [
+          "The page does not state W:O:A 2027 dates or location, identify the latest completed W:O:A edition, or give an attendee count or ticket prices. Ticket links are provided, but no ticket terms or availability details are stated.",
+          "Quotation 3 or its context has no unique literal match",
+          "Quotation 4 or its context has no unique literal match",
+          "Quotation 5 or its context has no unique literal match",
+          "Quotation 6 or its context has no unique literal match",
+          "Quotation 7 or its context has no unique literal match"
+        ],
+        "evidence": [
+          {
+            "quote": "meta:\n  description: \"W:O:A - Welcome to Heavy Metal Town, Metalheads! Wacken Open Air Festival\"",
+            "topics": ["identity", "description"]
+          },
+          {
+            "quote": "[W:O:A Wacken Open Air](https://www.wacken.com/de/ \"Wacken Start\")",
+            "topics": ["identity", "links"]
+          },
+          {
+            "quote": "[HOL DIR DEIN TICKET](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817)",
+            "topics": ["tickets", "links"]
+          },
+          {
+            "quote": "[Die Ticketbörse für das W:O:A 2027 ist online! Ab sofort könnt ihr wieder die Ticketbörse im Wacken Ticketcenter benutzen.](https://www.wacken.com/de/news-details/die-ticketboerse-fuer-das-woa-2027-ist-online/ \"Die Ticketbörse für das W:O:A 2027 ist online!\")",
+            "topics": ["status", "tickets", "links"]
+          },
+          {
+            "quote": "[DE](https://www.wacken.com/de/ \"Deutsch\")\n\n[EN](https://www.wacken.com/en/ \"English\")",
+            "topics": ["links"]
+          },
+          {
+            "quote": "<https://www.youtube.com/wackentv/>\n\n<https://www.facebook.com/WackenOpenAir.official>\n\n<https://www.instagram.com/wackenopenair.official/>\n\n<https://open.spotify.com/playlist/78NloPtEpD7pMMC6dQoLdt>",
+            "topics": ["links"]
+          },
+          {
+            "quote": "© 2005...2026 by [WOA Festival GmbH](http://www.ics-int.com/) - Hosting by ICS MEDIA SERVICE",
+            "topics": ["identity", "links"]
+          }
+        ],
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        }
+      }
+    },
+    {
+      "url": "https://www.wacken.com/de/tickets-shop/ticket-uebersicht-2027/",
+      "sourceId": "s2",
+      "reader": {
+        "overview": "Wacken Open Air is a metal festival. This official ticket page announces the 2027 festival for July 28–31 and lists LOUDER, YOUNGER and The Pit ticket offers.",
+        "topics": ["identity", "dates", "tickets", "links"],
+        "statedYears": ["2027"],
+        "limitations": [
+          "This ticket page does not establish the latest completed festival, participant count, or festival grounds/location."
+        ],
+        "evidence": [
+          {
+            "quote": "[28.07. - 31.07.2027](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817)",
+            "topics": ["identity", "dates", "links"]
+          },
+          {
+            "quote": "## LOUDER-TICKET\n\n### Der Ruf des Holy Ground wird immer lauter.\n\nDie ersten Ticketphasen sind vorbei – doch der Weg nach Wacken bleibt euch offen.\n\nMit dem LOUDER Ticket sichert ihr euch euren Festivalpass für das Wacken Open Air 2027 und werdet Teil einer der größten Metal-Communities der Welt. Ganz gleich, ob ihr jedes Jahr dabei seid oder euer erstes W:O:A erlebt: Vor euch liegen vier Tage voller Freundschaften, unvergesslicher Konzerte und einzigartiger Momente auf dem Holy Ground.\n\nPreis: 364 € zzgl. 2 € Ticketgebühr\n\nEure Vorteile\n\n- 333 THE CORE Punkte  \n- Exklusive Bundle-Artikel (wie T-Shirts, Souvenirtickets & Lanyards) optional erhältlich\n\n[Louder-Ticket](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802)\n\n## YOUNGER-Ticket\n\n### Die nächste Generation des Metal!\n\nAuch der Heavy Metal braucht Nachwuchs und die neue Generation steht bereits in den Startlöchern.\n\nMit dem YOUNGER TICKET zum vergünstigten Preis, wollen es auch den Jungen Metallern möglich machen, ihre ersten Schritte auf den Holy Ground zu machen.\n\nPreis: 279€ zzgl. 2 € Ticketgebühr\n\nEure Vorteile\n\n- Vergünstigter Preis\n- Streng limitiert\n- Bis einschließlich 25 Jahre (es zählt das Alter zu Beginn des Festivals)\n- 666 THE CORE Punkte\n- Exklusive Bundle-Artikel (wie T-Shirts, Souvenirtickets & Lanyards) optional erhältlich\n\n[Younger-Ticket](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802)\n\n## The Pit-Ticket\n\n### Es gibt Dinge, die ein großartiges Festival zum Besten werden lassen.\n\nEs gibt Dinge, die ein großartiges Festival zum Besten werden lassen, das ihr je erlebt habt. \n\nMit dem The Pit Ticket holt ihr euch nicht einfach nur das Wackenerlebnis – ihr lebt es auf einem ganz anderen Level. Mehr Komfort, mehr Atmosphäre, mehr Metal. \n\nWillkommen im inneren Kreis von Wacken United.\n\nPreis: 1399€\n\nDu hast schon ein W:O:A 2027 Ticket? Dann hole dir das The Pit Upgrade! \n\nPreis: 1049€\n\nEure Vorteile:\n\n- Exklusives Willkommenspaket\n- Check-in via Faster Lane\n- Camping mit Zusatzleistungen\n- Shuttle-Service\n- All Inclusive Catering\n- Der schnellste Weg zum Infield\n- The Pit Lounge & Festival-Flair\n- Persönliche Festival-Hosts\n- Backstage & Loge\n- Metal hautnah erleben\n- Der lauteste Stammtisch der Welt\n- Jedes Pit Ticket unterstützt die Wacken Foundation\n- 666 THE CORE Punkte\n\n[The Pit-Ticket](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802)",
+            "topics": ["identity", "tickets"],
+            "context": [
+              "[28.07. - 31.07.2027](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817)"
+            ],
+            "editionClues": [],
+            "uncertainty": null
+          },
+          {
+            "quote": "Es bleibt dabei! Für die Anreise zu allen W:O:A Camping-Areas mit einem Fahrzeug bleibt ein Access Pass notwendig!\n\nMehr Informationen findet ihr [**hier**](https://www.wacken.com/de/tickets-shop/access-pass/).",
+            "topics": ["tickets", "location", "links"]
+          },
+          {
+            "quote": "<https://www.youtube.com/wackentv/>\n\n<https://www.facebook.com/WackenOpenAir.official>\n\n<https://www.instagram.com/wackenopenair.official/>\n\n<https://open.spotify.com/playlist/78NloPtEpD7pMMC6dQoLdt>\n\n<https://www.wacken.com/app?lang=de>",
+            "topics": ["links"]
+          }
+        ],
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        }
+      }
+    },
+    {
+      "url": "https://www.wacken.com/de/camping-travel/die-uebersicht/",
+      "sourceId": "s3",
+      "reader": {
+        "overview": "This official Wacken Open Air camping page describes camping options and areas on the festival grounds. It does not state festival dates, attendance, general admission ticket details, or the latest completed or next festival edition.",
+        "topics": ["identity", "description", "location", "links"],
+        "statedYears": ["2027", "2026"],
+        "limitations": [
+          "The page is about camping; it does not identify a completed or upcoming festival edition or provide its dates or status.",
+          "No participant count or general festival-admission price or offer is stated. Links to 2027 ticket pages appear in site navigation and footer, but this page gives no ticket details.",
+          "Quotation 13 or its context has no unique literal match"
+        ],
+        "evidence": [
+          {
+            "quote": "# CAMPING: So wie ihr es braucht!\n\nMittendrin oder etwas ruhiger. Im eigenen Zelt oder in einer gemieteten Hütte mit Ausstattung. Auf dem Wacken Open Air könnt ihr so campen, wie es am besten zu euch passt.",
+            "topics": ["identity", "description"]
+          },
+          {
+            "quote": "##### Auf dieser Karte seht ihr, wo sich die Camping-Areas auf dem Festivalgelände befinden.<br>Bitte beachtet, dass die Karte derzeit nicht alle Camping-Areas abbildet. <br>Bleibt dran – es kommt noch mehr!",
+            "topics": ["description", "location"]
+          },
+          {
+            "quote": "## Die Komfort-Variante: Residenz Evil\n\nLust auf mehr? Könnt ihr haben. Hier erwarten euch bequeme Betten, ein Stromanschluss in allen Zelten, ein eigener Gastronomie- und Loungebereich, hochwertige Sanitäranlagen, Duschen und ein Willkommensgeschenk.",
+            "topics": ["description"]
+          },
+          {
+            "quote": "## Die Hotel-Variante: Moshtel\n\nIm Moshtel bekommt ihr ordentlich was geboten: ausgestattete Unterkünfte mit bezogenen Betten, Licht und Stromanschluss sowie eine Rezeption mit Bandausgabe, hochwertige Sanitäranlagen mit Duschen und ein Gastronomie- und Loungebereich mit WLAN. ",
+            "topics": ["description"]
+          },
+          {
+            "quote": "## Alles schon da: Tᴱ.N.T.\n\nSchluss mit „Heringe in den Boden hauen“ und „mit der Zeltplane kämpfen” – einfach ankommen, einchecken und einziehen. All das in einer autofreien und zentral gelegenen Camping-Area, die kurze Wege zu den Bühnen oder zum Farmers Market bietet.",
+            "topics": ["description", "location"]
+          },
+          {
+            "quote": "## Ideal für Gruppen: Bauer Uwes Garten\n\nEine Wiese im Nordosten auf dem Festivalgelände. Eine Parzelle. Und die gehört euch! Verschiedene Anreisetage? Kein Problem. Hier kommt ihr ganz unkompliziert zusammen. Auch mehrere Parzellen sind buchbar.",
+            "topics": ["description", "location"]
+          },
+          {
+            "quote": "## Für Wohnmobile & Co.: Camper-Park\n\nWer mit dem eigenen Fahrzeug - ob, Auto, Wohnmobil oder -anhänger - zum Wacken Open Air anreist, nimmt Kurs auf den Camper-Park. Er liegt im Westen des Festivalgeländes und alle Parzellen bieten einen Stromanschluss.",
+            "topics": ["description", "location"]
+          },
+          {
+            "quote": "## Autofreies Camping: Split Camping\n\nHier findet jeder einen Zeltplatz, egal ob man mit Bus, zu Fuß oder Fahrrad oder mit dem eigenen Auto ankommt. Die autofreie Camping-Area liegt nah am Festivalgelände. Nach Ende eines W:O:A-Tages seid ihr innerhalb weniger Minuten an eurem Campingplatz.",
+            "topics": ["description", "location"]
+          },
+          {
+            "quote": "## [Für Menschen mit Behinderung: Wheels Of Steel](https://www.wacken.com/de/camping-travel/wheels-of-steel/)\n\nEine eigene, barrierearme Area nur für euch – und ihr seid trotzdem mittendrin. Zusätzlich bietet unser Kooperationspartner Alsterarbeit vor Ort ein großes Unterstützungsangebot für Menschen mit Behinderung. Auch ständige Begleitpersonen sind willkommen – Voraussetzung ist ein „B“ im Schwerbehindertenausweis.",
+            "topics": ["description", "location", "links"]
+          },
+          {
+            "quote": "## Exklusiv für The Pit-Gäste: Party like a Rockstar\n\nFühlt euch auf dem Wacken Open Air wie echte Rockstars – bucht einen Nightliner für bis zu 18 Personen (nur mit The Pit-Ticket oder Upgrade).",
+            "topics": ["description", "tickets"]
+          },
+          {
+            "quote": "[W:O:A Wacken Open Air](https://www.wacken.com/de/ \"Wacken Start\")",
+            "topics": ["identity", "links"]
+          },
+          {
+            "quote": "<https://www.youtube.com/wackentv/>\n\n<https://www.facebook.com/WackenOpenAir.official>\n\n<https://www.instagram.com/wackenopenair.official/>",
+            "topics": ["links"]
+          },
+          {
+            "quote": "© 2005...2026 by [WOA Festival GmbH](http://www.ics-int.com/) - Hosting by ICS MEDIA SERVICE",
+            "topics": ["links"]
+          }
+        ],
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        }
+      }
+    }
+  ],
+  "collection": {
+    "checks": [],
+    "unresolved": []
+  },
   "roles": {
     "general": {
       "decision": "targets",
       "eventId": "event:792d44feb71838d4b28b",
       "observedEventName": "Wacken Open Air",
       "reason": "Captured identity support",
-      "evidenceIds": [],
+      "evidenceIds": [
+        "s1-e1",
+        "s1-e2",
+        "s1-e7",
+        "s2-e1",
+        "s2-e2",
+        "s3-e1",
+        "s3-e11"
+      ],
       "event": {
         "summary": {
           "action": "set",
           "value": "Wacken Open Air is a heavy metal festival in Wacken, Germany.",
           "reason": "The official homepage identifies Wacken Open Air and describes its concerts and metal community.",
-          "evidenceIds": []
+          "evidenceIds": [
+            "s1-e1",
+            "s1-e2",
+            "s1-e7",
+            "s2-e1",
+            "s2-e2",
+            "s3-e1",
+            "s3-e2",
+            "s3-e3",
+            "s3-e4",
+            "s3-e5",
+            "s3-e6",
+            "s3-e7",
+            "s3-e8",
+            "s3-e9",
+            "s3-e10",
+            "s3-e11"
+          ]
         }
       },
       "previousEdition": {
         "editionKey": "source-row",
         "reason": "Captured Edition selection",
-        "evidenceIds": [],
+        "evidenceIds": ["s2-e1"],
         "fields": {
           "year": {
             "action": "set",
             "value": 2026,
             "reason": "The official homepage references the W:O:A 2026 aftermovie and describes 2026 as the festival’s 35th anniversary edition; this verifies the saved edition year, but not its dates or other saved details.",
-            "evidenceIds": []
+            "evidenceIds": ["s2-e1"]
           }
         }
       },
       "currentOrNextEdition": {
         "editionKey": "wacken-open-air-2027",
         "reason": "Captured Edition selection",
-        "evidenceIds": [],
+        "evidenceIds": ["s1-e4", "s2-e1"],
         "fields": {
           "year": {
             "action": "set",
             "value": 2027,
             "reason": "The official ticket overview is specifically for Wacken Open Air 2027.",
-            "evidenceIds": []
+            "evidenceIds": ["s1-e4", "s2-e1"]
           },
           "dates": {
             "action": "set",
@@ -48,24 +241,24 @@
               "state": "confirmed"
             },
             "reason": "The official 2027 ticket overview displays 28–31 July 2027.",
-            "evidenceIds": []
+            "evidenceIds": ["s2-e1"]
           },
           "scheduleStatus": {
             "action": "set",
             "value": "scheduled",
             "reason": "The official site presents dated 2027 festival tickets for sale.",
-            "evidenceIds": []
+            "evidenceIds": ["s1-e4", "s2-e1"]
           }
         }
       },
       "checks": [],
       "unresolved": [
         {
-          "message": "The saved 2026 edition’s dates, venue/location, and ticket details remain unchecked: the official history page and relevant 2026 aftermovie page were blocked, and the inspected homepage did not establish these details.",
+          "message": "The fixed sources identify the 2026 Edition but do not establish its dates or place. Those saved values remain unchecked.",
           "editionKey": "source-row"
         },
         {
-          "message": "Availability of the published 2027 ticket categories remains unverified because the linked ticket shop could not be inspected.",
+          "message": "The fixed ticket overview lists the 2027 offers, but the fixed inputs do not establish their availability.",
           "editionKey": "wacken-open-air-2027",
           "field": "tickets"
         }
@@ -114,8 +307,8 @@
               "qualification": "Louder-Ticket price; €2 ticket fee is additional."
             }
           },
-          "reason": "The official overview publishes the listed ticket prices and identifies the Younger ticket as age-restricted. The linked ticket shop was inaccessible, so availability could not be checked.",
-          "evidenceIds": []
+          "reason": "The official overview publishes these ticket prices and identifies the Younger ticket as age-restricted. The fixed inputs contain no ticket-shop content, so availability remains unknown.",
+          "evidenceIds": ["s1-e3", "s1-e4", "s2-e2", "s2-e3", "s3-e10"]
         }
       },
       "checks": [],
@@ -133,7 +326,19 @@
             "catalog:term:genre:metal"
           ],
           "reason": "The official pages describe the event as Wacken Open Air and promote four days of concerts in a metal community.",
-          "evidenceIds": []
+          "evidenceIds": [
+            "s1-e1",
+            "s3-e1",
+            "s3-e2",
+            "s3-e3",
+            "s3-e4",
+            "s3-e5",
+            "s3-e6",
+            "s3-e7",
+            "s3-e8",
+            "s3-e9",
+            "s3-e10"
+          ]
         }
       },
       "checks": [],
@@ -146,14 +351,39 @@
             "action": "set",
             "value": "https://www.youtube.com/channel/UCvQT6N9nu2BJ-lJuMg1jEZQ",
             "reason": "Captured official source association",
-            "evidenceIds": []
+            "evidenceIds": [
+              "s1-e1",
+              "s1-e2",
+              "s1-e7",
+              "s2-e1",
+              "s2-e2",
+              "s3-e1",
+              "s3-e11"
+            ]
           }
         },
         "website": {
           "action": "set",
           "value": "https://www.wacken.com/de/",
           "reason": "Captured official source association",
-          "evidenceIds": []
+          "evidenceIds": [
+            "s1-e1",
+            "s1-e2",
+            "s1-e3",
+            "s1-e4",
+            "s1-e5",
+            "s1-e6",
+            "s1-e7",
+            "s2-e1",
+            "s2-e2",
+            "s2-e3",
+            "s2-e4",
+            "s3-e1",
+            "s3-e9",
+            "s3-e11",
+            "s3-e12",
+            "s3-e13"
+          ]
         }
       },
       "currentOrNextEdition": {
@@ -161,7 +391,7 @@
           "action": "set",
           "value": "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817",
           "reason": "Captured official source association",
-          "evidenceIds": []
+          "evidenceIds": ["s1-e3", "s1-e4", "s2-e2", "s2-e3", "s3-e10"]
         }
       },
       "omitted": [],

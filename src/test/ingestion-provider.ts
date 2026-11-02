@@ -212,6 +212,7 @@ export function fixtureRoleForProvider(
       return {
         overview:
           candidate.data?.sources[0]?.information ?? "Explicit fixture source",
+        coverage: { found: [], notPublished: [] },
         topics: allTopics,
         statedYears: [],
         limitations: [],

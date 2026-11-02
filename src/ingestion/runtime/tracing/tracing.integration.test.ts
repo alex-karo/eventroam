@@ -78,7 +78,8 @@ test("offline real agent persists native model/tool relationships and run metada
   const result = await runTraceFixture();
   expect(result.requests).toBe(4);
   expect(result.result).toMatchObject({
-    researchStatus: "success",
+    researchStatus: "partial",
+    outcome: "failed",
   });
   expect(result.durableReport).toEqual(result.result);
   expect(JSON.stringify(result.result.modelResponse)).toContain(
@@ -120,7 +121,7 @@ test("offline real agent persists native model/tool relationships and run metada
   expect(root.entityId).toBe("catalog-research");
   expect(root.name).toBe("catalog-research");
   expect(JSON.parse(root.output as string)).toMatchObject({
-    researchStatus: "success",
+    researchStatus: "partial",
   });
   expect(JSON.parse(root.metadata as string).runId).toBe(result.result.runId);
   const reads = spans.filter((span) => span.entityId === "inspectPage");
@@ -224,7 +225,7 @@ test("tracing initialization failure falls back to identical research", async ()
   vi.stubEnv("DATABASE_PATH", path); // Forbidden store selection triggers fallback.
   const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
   const { result, requests } = await runTraceFixture();
-  expect(result.researchStatus).toBe("success");
+  expect(result.researchStatus).toBe("partial");
   expect(requests).toBe(4);
   expect(stderr.mock.calls.map((call) => call[0]).join("")).toBe(
     "trace_initialization_failed\n",
@@ -274,7 +275,7 @@ test("short buffered writer exits and a different process can read its final spa
     ["--import", "tsx", script, "write"],
     { env },
   );
-  expect(JSON.parse(writer.stdout).result.researchStatus).toBe("success");
+  expect(JSON.parse(writer.stdout).result.researchStatus).toBe("partial");
   expect(JSON.parse(writer.stdout).durationMs).toBeLessThan(5_000);
   expect(writer.stderr).toBe("");
   const reader = await execute(

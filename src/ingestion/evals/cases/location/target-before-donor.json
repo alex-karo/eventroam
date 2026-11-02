@@ -226,22 +226,5 @@
         ]
       }
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinate_action",
-        "value": "keep"
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinates"
-      }
-    ]
-  }
+  ]
 }

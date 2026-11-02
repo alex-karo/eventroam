@@ -37,6 +37,7 @@ async function fixture(
   options: {
     invalidTickets?: boolean;
     sourceUnavailable?: boolean;
+    uncertainIdentity?: boolean;
     research?: (output: CollectionOutput) => CollectionOutput;
   } = {},
 ) {
@@ -62,6 +63,7 @@ async function fixture(
     if (role === "reader") {
       return {
         overview: "Official 2027 dates, place and tickets",
+        coverage: { found: [], notPublished: [] },
         topics: ["identity", "dates", "tickets", "location", "links"],
         statedYears: ["2027"],
         limitations: [],
@@ -107,6 +109,13 @@ async function fixture(
     const evidenceIds =
       input.corpus?.evidence.map((item: { id: string }) => item.id) ?? [];
     if (role === "general") {
+      if (options.uncertainIdentity) {
+        return {
+          decision: "uncertain",
+          reason: "The inspected source does not confirm the saved Event.",
+          unresolved: [{ message: "Confirm the Event identity." }],
+        };
+      }
       return {
         decision: "targets",
         eventId: event.id,
@@ -277,6 +286,19 @@ it("runs independent specialists in parallel and applies one reviewed complete b
     { label: "Full pass", amount: 100, currency: "EUR" },
   ]);
 });
+it("retains partial collection and prevents writes after General declines identity", async () => {
+  const { result, calls } = await fixture({ uncertainIdentity: true });
+  expect(result.outcome).toBe("failed");
+  expect(result.researchStatus).toBe("partial");
+  expect(result.modelResponse?.object).toHaveProperty("decision", "uncertain");
+  expect(result.sourceSummaries.length).toBeGreaterThan(0);
+  expect(result.operations).toEqual([]);
+  expect(result.receipts).toEqual([]);
+  expect(result.changes).toEqual([]);
+  expect(result.references).toEqual({});
+  expect(calls).toEqual(["reader", "research", "general"]);
+});
+
 it("waits for branches and prevents all writes on invalid required output", async () => {
   const { result, calls } = await fixture({ invalidTickets: true });
   expect(result.outcome).toBe("failed");
@@ -388,6 +410,7 @@ it("keeps saved source references in workflow history after cancellation during 
     if (role === "reader") {
       return {
         overview: "Official page",
+        coverage: { found: [], notPublished: [] },
         topics: ["identity"],
         statedYears: [],
         limitations: [],

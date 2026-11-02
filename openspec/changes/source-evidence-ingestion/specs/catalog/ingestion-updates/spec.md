@@ -112,7 +112,7 @@ Dates, tickets, and classification SHALL follow their complete-group or replacem
 
 ### Requirement: Supported ticket prices replace observed offers
 
-Only currentOrNextEdition, including an ongoing Edition, SHALL be eligible for ticket updates. A supported price SHALL permit a complete replacement with offers observed in that check, without unchecked saved offers. Unfinished offer checks SHALL remain visible. Without a supported price, ingestion SHALL preserve the saved block. Availability or sales closure alone SHALL NOT replace it. Historical tickets and their URLs SHALL remain unchanged.
+Only currentOrNextEdition, including an ongoing Edition, SHALL be eligible for ticket updates. A supported price SHALL permit a complete replacement with offers observed in that check, without unchecked saved offers. Unfinished offer checks SHALL remain visible. Without a supported price, ingestion SHALL preserve the saved block. Explicitly supported free full-programme admission SHALL permit an empty offer list when no ticket categories are published. Other replacements SHALL require at least one observed offer. The free claim SHALL retain source evidence and pass Editor review. Availability or sales closure alone SHALL NOT replace it. Historical tickets and their URLs SHALL remain unchanged.
 
 #### Scenario: A saved offer cannot be checked
 - **GIVEN** saved Regular and Student offers
@@ -123,6 +123,17 @@ Only currentOrNextEdition, including an ongoing Edition, SHALL be eligible for t
 #### Scenario: An observed category has availability but no amount
 - **WHEN** a supported price permits replacement and another observed category has known availability without a price
 - **THEN** the replacement may include that category without amount or currency
+
+#### Scenario: Free admission has no ticket categories
+
+- **WHEN** source evidence explicitly establishes free full-programme admission for currentOrNextEdition without ticket categories
+- **THEN** a reviewed replacement can contain a free base price and an empty offer list
+- **AND** it does not invent an offer or copy unchecked saved offers
+
+#### Scenario: An empty list has no supported free admission
+
+- **WHEN** a ticket proposal has no offers and its base price is unknown or paid
+- **THEN** validation rejects that proposal
 
 #### Scenario: No price is supported
 - **WHEN** relevant pages have no readable price or only announce closed sales

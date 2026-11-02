@@ -126,6 +126,7 @@ it("uses native Mastra grep with cited source files and hash checks", async () =
       body,
       {
         overview: "Festival page",
+        coverage: { found: [], notPublished: [] },
         topics: ["description"],
         statedYears: [],
         limitations: [],

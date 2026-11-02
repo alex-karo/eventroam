@@ -71,29 +71,6 @@
       "markdownFile": "official.md"
     }
   ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "event",
-        "field": "links",
-        "contains": {
-          "kind": "official_site",
-          "url": "https://harborechofestival.co.uk/"
-        }
-      }
-    ],
-    "forbidden": [],
-    "toolUse": {
-      "minSearches": 1,
-      "maxSearches": 1,
-      "readBeforeSearch": [
-        {
-          "url": "https://harborechofestival.co.uk/programme",
-          "searchIndex": 2
-        }
-      ]
-    }
-  },
   "discoveries": [
     {
       "queryPattern": ".*",

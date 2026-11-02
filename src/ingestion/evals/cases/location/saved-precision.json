@@ -192,35 +192,5 @@
         "code": "unavailable"
       }
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "unresolved",
-        "contains": {
-          "field": "coordinates"
-        }
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinates",
-        "value": {
-          "latitude": 42.579634,
-          "longitude": -8.669209,
-          "precision": "locality"
-        }
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinate_action",
-        "value": "keep"
-      }
-    ]
-  }
+  ]
 }

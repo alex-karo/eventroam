@@ -125,6 +125,7 @@ function assembleReport({
     );
   const usable = !!corpus?.evidence.length;
   const incomplete =
+    general.output?.decision === "uncertain" ||
     missingRoleCheck ||
     checks.some((check) => check.finding === "unfinished") ||
     assignment?.checks.some(

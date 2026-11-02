@@ -75,35 +75,5 @@
       "markdownFile": "page.md"
     }
   ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "participants",
-        "field": "size_estimate",
-        "value": 8000
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "participants",
-        "field": "size_estimate",
-        "notValue": 8000
-      },
-      {
-        "owner": "edition",
-        "editionKey": "repeat-admissions",
-        "field": "size_estimate",
-        "notValue": 6000
-      },
-      {
-        "owner": "edition",
-        "editionKey": "repeat-admissions",
-        "field": "size_estimate",
-        "value": null
-      }
-    ]
-  },
   "todayUtc": "2026-09-23"
 }

@@ -35,6 +35,13 @@ Ingestion SHALL retain a general content description for each informative inspec
 - **THEN** the description alone cannot support a ticket change
 - **AND** the change needs applicable source evidence and its qualifications
 
+#### Scenario: An inspected page states that a detail is not published
+
+- **WHEN** an inspected page explicitly says that a detail is unavailable or not yet announced
+- **THEN** collection can retain that page-local statement separately from extraction problems
+- **AND** a page that is silent or unprocessed does not establish the detail's absence
+- **AND** the coverage description alone does not authorize a catalog change
+
 ### Requirement: Source-read results distinguish status and limitations
 
 A source-read result SHALL identify its destination, retrieval status, known limitations, and remaining allowance. Retrieval statuses SHALL remain ok, unsupported, or failed, separate from ingestion completion. Success SHALL NOT certify complete retrieval or complete factual checking.

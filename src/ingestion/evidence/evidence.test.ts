@@ -22,6 +22,7 @@ describe("saved source evidence", () => {
     };
     const output = readerOutputSchema.parse({
       overview: "Admission offers",
+      coverage: { found: [], notPublished: [] },
       topics: ["tickets"],
       statedYears: ["2027"],
       limitations: [],
@@ -56,6 +57,7 @@ describe("saved source evidence", () => {
     };
     const output = readerOutputSchema.parse({
       overview: "Festival admission conditions",
+      coverage: { found: [], notPublished: [] },
       topics: ["tickets"],
       statedYears: ["2027"],
       limitations: [],
@@ -95,6 +97,7 @@ describe("saved source evidence", () => {
   ])("rejects %s and keeps other evidence", (_name, body, quote) => {
     const output = readerOutputSchema.parse({
       overview: "A source page",
+      coverage: { found: [], notPublished: [] },
       topics: ["tickets"],
       statedYears: [],
       limitations: [],
@@ -121,6 +124,7 @@ describe("saved source evidence", () => {
   it("requires short literal boundaries and a strict boundary object", () => {
     const output = {
       overview: "A source page",
+      coverage: { found: [], notPublished: [] },
       topics: [],
       statedYears: [],
       limitations: [],
@@ -153,6 +157,7 @@ describe("saved source evidence", () => {
       "Newsletter [Radio]()\n\n[Pass][buy]\n\n[buy]: ../shop?edition=2027";
     const output = readerOutputSchema.parse({
       overview: "A ticket link and an empty radio link",
+      coverage: { found: [], notPublished: [] },
       topics: ["links"],
       statedYears: ["2027"],
       limitations: [],
@@ -224,6 +229,7 @@ describe("saved source evidence", () => {
       "| Full | €100 |\n| Day | €50 |\n\nIncludes tax.\nSame\nSame";
     const output = readerOutputSchema.parse({
       overview: "A price page",
+      coverage: { found: [], notPublished: [] },
       topics: ["tickets"],
       statedYears: ["2027"],
       limitations: [],

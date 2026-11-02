@@ -59,55 +59,5 @@
       "status": "ok",
       "markdownFile": "changed.md"
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "field": "terms",
-        "contains": "validation:festival",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "field": "terms",
-        "contains": "validation:mixed",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "field": "terms",
-        "contains": "validation:music",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "field": "terms",
-        "contains": "catalog:term:genre:metal",
-        "editionYear": 2027
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "event",
-        "field": "summary"
-      },
-      {
-        "owner": "event",
-        "field": "links"
-      },
-      {
-        "owner": "edition",
-        "field": "terms",
-        "contains": "validation:openair",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "field": "terms",
-        "contains": "catalog:term:genre:electronic",
-        "editionYear": 2027
-      }
-    ]
-  }
+  ]
 }

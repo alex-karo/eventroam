@@ -1,25 +1,90 @@
 {
-  "schemaVersion": 2,
-  "provenance": "Exact normalized source-known-offers-blocked-checkout research from narrow-current-verify-2026-10-15T11-47-11-170Z.json; preserves unknown-currency amount in terms.. Adapted to fixed domain roles. Evidence references bind to Reader output during fixture execution; no expected assertions enter prompts.",
+  "schemaVersion": 3,
+  "provenance": "Exact normalized source-known-offers-blocked-checkout research from narrow-current-verify-2026-10-15T11-47-11-170Z.json; preserves unknown-currency amount in terms. Adapted to fixed domain roles. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: fc2d9fed-1ac5-4337-87fc-691723a3b0fc:s1. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
+  "pages": [
+    {
+      "url": "https://sound-trail.example/",
+      "sourceId": "s1",
+      "reader": {
+        "overview": "The page identifies Sound Trail as a music festival scheduled for 23–30 January 2027 at Meadow Grounds, York, and describes three admission offers. It does not provide programme details; the all-programme pass price has no stated currency.",
+        "topics": [
+          "identity",
+          "description",
+          "dates",
+          "tickets",
+          "location",
+          "links"
+        ],
+        "statedYears": ["2027"],
+        "limitations": [
+          "The source gives no festival status beyond describing the 2027 dates as confirmed programme dates.",
+          "No participant count or programme details are provided.",
+          "Ticket sales availability is not stated. The all-programme pass price is shown as $615.35, but the page gives no country or currency code and says the currency selector is missing.",
+          "The assignment requests an identity contradiction, but the saved source contains no conflicting festival identity."
+        ],
+        "evidence": [
+          {
+            "quote": "# Sound Trail 2027\n\nSound Trail is a music festival at Meadow Grounds, York, United Kingdom, on 23–30 January 2027. These are confirmed programme dates.",
+            "topics": ["identity", "description", "dates", "status", "location"]
+          },
+          {
+            "quote": "- Three-concert pass: GBP 9.99. Access to three paid concerts of your choice; it does not cover the full programme. Other activities are free. Sales availability is not stated.\n- Stay package: GBP 899. Includes lodging and the Three-concert pass only. It does not include full-programme admission. Sales availability is not stated.",
+            "topics": ["tickets"]
+          },
+          {
+            "quote": "- All-programme pass: $615.35. The currency selector is missing from this page; no country or currency code is given for this price. This site serves multiple countries. Sales availability is not stated.",
+            "topics": ["tickets"],
+            "context": [],
+            "editionClues": [],
+            "uncertainty": "The price's currency cannot be determined from the source."
+          },
+          {
+            "quote": "[Official checkout](https://sound-trail.example/checkout) lists the remaining categories and availability.",
+            "topics": ["links", "tickets"]
+          },
+          {
+            "quote": "[Extras](https://sound-trail.example/extras) lists additional offers.",
+            "topics": ["links", "tickets"]
+          }
+        ],
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        }
+      }
+    },
+    {
+      "url": "https://sound-trail.example/checkout",
+      "sourceId": "s2"
+    },
+    {
+      "url": "https://sound-trail.example/extras",
+      "sourceId": "s3"
+    }
+  ],
+  "collection": {
+    "checks": [],
+    "unresolved": []
+  },
   "roles": {
     "general": {
       "decision": "targets",
       "eventId": "source-known-offers-blocked-checkout",
       "observedEventName": "Sound Trail",
       "reason": "Captured identity support",
-      "evidenceIds": [],
+      "evidenceIds": ["s1-e1"],
       "event": {},
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "2027",
         "reason": "Captured Edition selection",
-        "evidenceIds": [],
+        "evidenceIds": ["s1-e1"],
         "fields": {
           "year": {
             "action": "set",
             "value": 2027,
             "reason": "The official page is titled “Sound Trail 2027” and gives programme dates in January 2027.",
-            "evidenceIds": []
+            "evidenceIds": ["s1-e1"]
           },
           "dates": {
             "action": "set",
@@ -29,13 +94,13 @@
               "state": "confirmed"
             },
             "reason": "The official page explicitly states that 23–30 January 2027 are confirmed programme dates.",
-            "evidenceIds": []
+            "evidenceIds": ["s1-e1"]
           },
           "scheduleStatus": {
             "action": "set",
             "value": "scheduled",
             "reason": "The official page confirms the programme dates for the upcoming festival; this is consistent with the saved scheduled status.",
-            "evidenceIds": []
+            "evidenceIds": ["s1-e1"]
           }
         }
       },
@@ -77,7 +142,7 @@
             "basePrice": null
           },
           "reason": "The official page publishes these three offers and prices for the first two. The all-programme pass is a full-programme offer, but its currency is unspecified, so no reliable base price can be reported. The page says availability is not stated; checkout and extras are linked for remaining categories and offers, but could not be inspected.",
-          "evidenceIds": []
+          "evidenceIds": ["s1-e2", "s1-e3", "s1-e4", "s1-e5"]
         }
       },
       "checks": [],
@@ -90,7 +155,7 @@
           "action": "set",
           "value": ["validation:festival", "validation:music"],
           "reason": "The official page describes Sound Trail as a music festival. No specific music genre or substantial outdoor programme is established by the inspected page.",
-          "evidenceIds": []
+          "evidenceIds": ["s1-e1"]
         }
       },
       "checks": [],
@@ -105,7 +170,7 @@
           "action": "set",
           "value": "https://sound-trail.example/checkout",
           "reason": "Captured official source association",
-          "evidenceIds": []
+          "evidenceIds": ["s1-e2", "s1-e3", "s1-e4", "s1-e5"]
         }
       },
       "omitted": [],

@@ -3,6 +3,7 @@ import {
   collectionOutputSchema,
   generalOutputSchema,
   refreshGeneralOutputSchema,
+  ticketBlockSchema,
 } from "./contracts";
 
 const collected = { check: "identity", finding: "verified", sourceIds: ["s1"] };
@@ -73,3 +74,40 @@ it("allows duplicate adds but excludes a duplicate decision during refresh", () 
     }).success,
   ).toBe(true);
 });
+
+it("accepts free full-programme admission without invented ticket offers", () => {
+  expect(
+    ticketBlockSchema.parse({
+      variants: [],
+      basePrice: { kind: "free", coverage: "full_programme" },
+    }),
+  ).toEqual({
+    variants: [],
+    basePrice: { kind: "free", coverage: "full_programme" },
+  });
+});
+
+it.each([
+  null,
+  {
+    kind: "exact",
+    currency: "EUR",
+    minAmount: 0,
+    maxAmount: 0,
+    coverage: "full_programme",
+  },
+  {
+    kind: "from",
+    currency: "EUR",
+    minAmount: 100,
+    maxAmount: 100,
+    coverage: "full_programme",
+  },
+])(
+  "rejects empty ticket offers without an explicit free base price: %j",
+  (basePrice) => {
+    expect(
+      ticketBlockSchema.safeParse({ variants: [], basePrice }).success,
+    ).toBe(false);
+  },
+);

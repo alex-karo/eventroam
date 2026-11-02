@@ -32,6 +32,13 @@ const contextualReaderEvidence = readerEvidence.extend({
 });
 export const readerOutputSchema = z.strictObject({
   overview: z.string().min(1).max(1500),
+  coverage: z.strictObject({
+    found: z.array(z.string().min(1).max(160)).max(9),
+    notPublished: z
+      .array(z.string().min(1).max(160))
+      .max(6)
+      .describe("Only explicit source statements of absence, not page silence"),
+  }),
   topics: z.array(z.enum(topics)).max(9),
   statedYears: z.array(z.string().max(80)).max(100),
   limitations: z.array(z.string().max(500)).max(30),
@@ -60,6 +67,7 @@ export type Source = SourceReadMetadata & {
   evidencePath?: string;
   processing: "unprocessed" | "complete" | "limited" | "failed";
   overview?: string;
+  coverage?: ReaderOutput["coverage"];
   leads?: { url: string; label: string }[];
   topics?: ReaderOutput["topics"];
   statedYears?: string[];

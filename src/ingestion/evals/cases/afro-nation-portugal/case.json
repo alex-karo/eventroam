@@ -90,6 +90,5 @@
       "reasonCode": "http_403",
       "markdownFile": "blocked.md"
     }
-  ],
-  "expectations": {}
+  ]
 }

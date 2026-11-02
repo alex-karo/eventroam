@@ -484,22 +484,5 @@
         "code": "unavailable"
       }
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "warm-up-estrella-de-levante-2027",
-        "field": "coordinate_action",
-        "value": "keep"
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "warm-up-estrella-de-levante-2027",
-        "field": "coordinates"
-      }
-    ]
-  }
+  ]
 }

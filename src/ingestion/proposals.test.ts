@@ -1,6 +1,8 @@
 import { expect, it } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
+import { applyCatalogItem } from "@/catalog/write/apply-operation";
+import { readResearchCatalog } from "@/catalog/read/research";
 import { loadResearchContext } from "./research/context";
 import {
   validateGeneral,
@@ -14,9 +16,10 @@ import {
   classificationOutputSchema,
   linksOutputSchema,
 } from "./roles/contracts";
-import type { Targets } from "./roles/contracts";
+import type { Targets, TicketsOutput } from "./roles/contracts";
 import type { FrozenCorpus } from "./evidence/contracts";
 import { buildAssignment } from "./roles/assignment";
+import { prepareCatalogPlan } from "./catalog-plan";
 
 function fixture() {
   const db = testDatabase();
@@ -76,6 +79,7 @@ function fixture() {
     selected = terms.map((term) => term.id),
     evidenceIds: string[] = [],
     reuseFrom?: { editionKey: string; reason: string },
+    tickets: TicketsOutput | null = null,
   ) => {
     const checked = validateGeneral(targets, context, input, corpus);
     if (checked.status !== "continue") {
@@ -88,7 +92,7 @@ function fixture() {
       input,
       points: [],
       location: { slots: {}, support: {}, previousPoints: [], unresolved: [] },
-      tickets: null,
+      tickets,
       links: {
         event: { socials: {} },
         currentOrNextEdition: {},
@@ -378,3 +382,103 @@ function approveReview(schema: Record<string, unknown>): unknown {
     ]),
   );
 }
+
+function freeTickets(evidenceIds: string[]): TicketsOutput {
+  return ticketsOutputSchema.parse({
+    currentOrNextEdition: {
+      tickets: {
+        action: "set",
+        value: {
+          variants: [],
+          basePrice: { kind: "free", coverage: "full_programme" },
+        },
+        reason: "The official page confirms free admission with no tickets.",
+        evidenceIds,
+      },
+    },
+    checks: [],
+    unresolved: [],
+  });
+}
+
+it.each([{ evidenceIds: [] }, { evidenceIds: ["unknown"] }])(
+  "requires source support for free admission without offers: %j",
+  ({ evidenceIds }) => {
+    const f = fixture();
+    expect(
+      f.assemble(undefined, [], undefined, freeTickets(evidenceIds)).status,
+    ).toBe("reject");
+  },
+);
+
+it("writes reviewed free admission without ticket offers", () => {
+  const f = fixture();
+  const quote =
+    "Admission to the full 2027 programme is free. No tickets are needed.";
+  f.corpus.evidence.push({
+    ...f.corpus.evidence[0],
+    id: "s1-e2",
+    quote,
+    span: { start: 22, end: 22 + quote.length },
+    topics: ["tickets"],
+  });
+  const prepared = f.assemble(undefined, [], undefined, freeTickets(["s1-e2"]));
+  if (prepared.status !== "continue") {
+    throw new Error("Free admission proposal rejected");
+  }
+  expect(prepared.value.basis.evidence.map((item) => item.id)).toContain(
+    "s1-e2",
+  );
+  const accepted = applyReview(
+    prepared.value,
+    approveReview(awaitSchema(prepared.value)),
+  );
+  if (accepted.status !== "continue") {
+    throw new Error("Free admission review rejected");
+  }
+  const keep = { action: "keep" as const, reason: "Preserve saved location" };
+  const location = {
+    ...accepted.value.location,
+    slots: {
+      currentOrNextEdition: {
+        venueName: keep,
+        venueAddress: keep,
+        locality: keep,
+        administrativeArea: keep,
+        countryCode: keep,
+        coordinates: keep,
+      },
+    },
+  };
+  const plan = prepareCatalogPlan(
+    accepted.value,
+    f.context.catalog,
+    f.input,
+    f.context.terms,
+    location,
+  );
+  if (plan.status !== "continue") {
+    throw new Error("Free admission catalog plan rejected");
+  }
+  expect(
+    plan.value.operations.find(
+      (operation) => operation.kind === "replacePriceBlock",
+    ),
+  ).toMatchObject({
+    priceDetails: [],
+    basePrice: {
+      kind: "free",
+      minMinor: 0,
+      maxMinor: 0,
+      coverage: "full_programme",
+    },
+  });
+  applyCatalogItem(f.client, plan.value.operations);
+  expect(readResearchCatalog(f.client)[0].editions[0]).toMatchObject({
+    priceDetails: [],
+    priceKind: "free",
+    priceMinMinor: 0,
+    priceMaxMinor: 0,
+    priceCoverage: "full_programme",
+  });
+});

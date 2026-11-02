@@ -10,6 +10,10 @@ import type { GenerateRole } from "../roles/invoke";
 it("shares a complete inspection, reserves concurrent Reader calls and freezes after settlement", async () => {
   const root = await mkdtemp(join(tmpdir(), "eventroam-collection-"));
   try {
+    const coverage = {
+      found: ["Festival identity"],
+      notPublished: ["The source says no street address is published."],
+    };
     const budget = createResearchBudget();
     const config = {
       apiKey: "fixture",
@@ -22,7 +26,7 @@ it("shares a complete inspection, reserves concurrent Reader calls and freezes a
       retrievedAt: "2026-10-31T00:00:00Z",
       status: "ok" as const,
       method: "http" as const,
-      markdown: `# Festival 2027\n${url}`,
+      markdown: `# Festival 2027\n${url}\nNo street address is published.`,
     }));
     let release!: () => void;
     const barrier = new Promise<void>((resolve) => {
@@ -33,6 +37,7 @@ it("shares a complete inspection, reserves concurrent Reader calls and freezes a
       const input = JSON.parse(prompt);
       return {
         overview: "Festival page",
+        coverage,
         topics: ["identity"],
         statedYears: ["2027"],
         limitations: [],
@@ -87,6 +92,19 @@ it("shares a complete inspection, reserves concurrent Reader calls and freezes a
       "unprocessed",
     ]);
     expect(corpus.evidence).toHaveLength(1);
+    const processed = [a, c].find(
+      (result) => result.processing === "complete",
+    )!;
+    const unprocessed = [a, c].find(
+      (result) => result.processing === "unprocessed",
+    )!;
+    expect(processed.coverage).toEqual(coverage);
+    expect(
+      corpus.sources.find((source) => source.id === processed.sourceId)
+        ?.coverage,
+    ).toEqual(coverage);
+    expect(unprocessed.coverage).toBeNull();
+    expect(processed.limitations).toEqual([]);
     expect(JSON.stringify(a)).not.toContain("evidenceIds");
     expect(JSON.stringify(a)).not.toContain("Festival 2027");
     await expect(
@@ -105,6 +123,7 @@ it("keeps an oversized whole page without calling Reader or processing a prefix"
     const result = await collection.inspectPage("https://example.org/large");
     const corpus = await collection.freeze();
     expect(result.processing).toBe("unprocessed");
+    expect(result.coverage).toBeNull();
     expect(generate).not.toHaveBeenCalled();
     expect(corpus.evidence).toEqual([]);
     expect(await readCanonicalSource(corpus.sources[0])).toBe(page);
@@ -143,6 +162,7 @@ function collectionFixture(
   const config = { apiKey: "fixture", model: "fixture", limits: budget.limits };
   const generate = vi.fn<GenerateRole>(async () => ({
     overview: "Page",
+    coverage: { found: [], notPublished: [] },
     topics: [],
     statedYears: [],
     limitations: [],
@@ -198,6 +218,7 @@ it("gives Reader the full page and reuses a redirected source for later inspecti
       expect(JSON.parse(prompt).page).toBe(page);
       return {
         overview: "Price table for 2027",
+        coverage: { found: [], notPublished: [] },
         topics: ["tickets"],
         statedYears: ["2027"],
         limitations: [],

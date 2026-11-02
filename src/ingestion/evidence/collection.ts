@@ -96,6 +96,7 @@ export function createCollection(options: {
       attemptedUrl: source.attemptedUrl,
       finalUrl: source.finalUrl,
       overview: source.overview ?? null,
+      coverage: source.coverage ?? null,
       retrieval: source.status,
       reasonCode: source.reasonCode ?? null,
       processing: source.processing,
@@ -187,6 +188,7 @@ export function createCollection(options: {
               read.finalUrl,
             );
             source.overview = execution.output.overview;
+            source.coverage = execution.output.coverage;
             source.topics = execution.output.topics;
             source.statedYears = execution.output.statedYears;
             source.limitations = bound.limitations;
@@ -231,7 +233,7 @@ export function createCollection(options: {
     tool: createTool({
       id: "inspectPage",
       description:
-        "Inspect one permitted source. Return a page overview, lead URLs and processing coverage. Independent URLs can be inspected in parallel.",
+        "Inspect one permitted source. Return a page overview, page-local coverage, lead URLs and processing limits. Independent URLs can be inspected in parallel.",
       inputSchema: z.strictObject({ url: sourceUrlSchema }),
       outputSchema: z.json(),
       execute: async ({ url }, context) => {

@@ -59,38 +59,5 @@
       "status": "ok",
       "markdownFile": "none.md"
     }
-  ],
-  "expectations": {
-    "required": [],
-    "forbidden": [
-      {
-        "owner": "event",
-        "field": "summary"
-      },
-      {
-        "owner": "event",
-        "field": "links"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2026",
-        "field": "starts_on"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2026",
-        "field": "ends_on"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2026",
-        "field": "terms"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2026",
-        "field": "venue_name"
-      }
-    ]
-  }
+  ]
 }

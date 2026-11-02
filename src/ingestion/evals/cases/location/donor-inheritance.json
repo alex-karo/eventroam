@@ -226,37 +226,5 @@
         ]
       }
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinates",
-        "value": {
-          "latitude": 38.73,
-          "longitude": -9.16,
-          "precision": "approximate"
-        }
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinate_action",
-        "value": "reusePrevious"
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinates",
-        "value": {
-          "latitude": 38.72,
-          "longitude": -9.15,
-          "precision": "locality"
-        }
-      }
-    ]
-  }
+  ]
 }

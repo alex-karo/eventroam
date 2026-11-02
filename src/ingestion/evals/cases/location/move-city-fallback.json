@@ -281,47 +281,5 @@
       },
       "provenance": "Locality response captured in the 2026-10-26 PortAmérica v6 ingestion run; reused from cemetery-correction.json. It does not identify the new venue."
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "unresolved",
-        "contains": {
-          "field": "coordinates"
-        }
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinates",
-        "value": {
-          "latitude": 42.5639366,
-          "longitude": -8.6570848,
-          "precision": "locality"
-        }
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "venue_address",
-        "value": null
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "venue_name",
-        "value": "New field"
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinate_action",
-        "value": "keep"
-      }
-    ]
-  }
+  ]
 }

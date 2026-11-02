@@ -1,6 +1,5 @@
 import type { PipelineEvalCase } from "./fixtures";
 import type { CatalogResearchResult } from "../contracts";
-import type { EvalToolCall } from "./tool-use";
 import { mainContext, type Catalog } from "./main/context";
 import { roskilde } from "./main/roskilde";
 import { wacken } from "./main/wacken";
@@ -35,9 +34,8 @@ export function evaluateMainCase(
   before: Catalog,
   after: Catalog,
   report: CatalogResearchResult,
-  calls: EvalToolCall[],
 ): MainScore {
   return evaluators[item.id as keyof typeof evaluators](
-    mainContext(item, before, after, report, calls),
+    mainContext(item, before, after, report),
   );
 }

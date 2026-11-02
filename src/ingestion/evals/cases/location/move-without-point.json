@@ -197,43 +197,5 @@
         "candidates": []
       }
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "unresolved",
-        "contains": {
-          "field": "coordinates"
-        }
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinates",
-        "value": null
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "venue_address",
-        "value": null
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "venue_name",
-        "value": "New field"
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinate_action",
-        "value": "keep"
-      }
-    ]
-  }
+  ]
 }
