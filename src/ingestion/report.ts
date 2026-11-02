@@ -112,26 +112,33 @@ function assembleReport({
         [],
     ),
   ];
-  const missingRoleCheck =
-    targets &&
-    (["general", "tickets", "classification", "links"] as const).some(
-      (role) => {
-        const execution = role === "general" ? general : specialists[role];
-        const findings =
-          (execution?.output as { checks?: CheckFinding[] } | undefined)
-            ?.checks ?? [];
-        return assignedRoleChecks(role, input, targets).some(
-          (key) =>
-            !findings.some(
+  const roleGaps = targets
+    ? (["general", "tickets", "classification", "links"] as const).flatMap(
+        (role) => {
+          const execution = role === "general" ? general : specialists[role];
+          const findings =
+            (execution?.output as { checks?: CheckFinding[] } | undefined)
+              ?.checks ?? [];
+          return assignedRoleChecks(role, input, targets).flatMap((key) => {
+            const finding = findings.find(
+              (check) => check.check === key && check.finding === "unfinished",
+            );
+            if (finding) {
+              return [{ message: `${key}: ${finding.explanation}` }];
+            }
+            return findings.some(
               (check) => check.check === key && check.finding === "verified",
-            ),
-        );
-      },
-    );
+            )
+              ? []
+              : [{ message: `Interpretation check ${key} was not returned.` }];
+          });
+        },
+      )
+    : [];
   const usable = !!corpus?.evidence.length;
   const incomplete =
     general.output?.decision === "uncertain" ||
-    missingRoleCheck ||
+    roleGaps.length > 0 ||
     collectionChecks.some((check) => check.blocker !== null) ||
     checks.some((check) => check.finding === "unfinished") ||
     missingCollectionChecks.length > 0 ||
@@ -194,6 +201,9 @@ function assembleReport({
     errors,
     unresolved: [
       ...unresolved,
+      ...roleGaps.filter(
+        (gap) => !unresolved.some((item) => item.message === gap.message),
+      ),
       ...(research.output
         ? missingCollectionChecks.map(({ key }) => ({
             message: `Collection check ${key} was not returned.`,

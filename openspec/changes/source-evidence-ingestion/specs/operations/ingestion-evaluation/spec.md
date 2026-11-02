@@ -2,7 +2,7 @@
 
 ### Requirement: Cases have separate purpose and source labels
 
-Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The initial main set SHALL contain five festival cases: captured Wacken, Roskilde, Sziget, and Afro Nation Portugal cases, and a synthetic Glastonbury case without source confirmation of its saved programme. The remaining 45 cases SHALL retain their targeted regression checks, including 13 isolated Location cases.
+Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The initial main set SHALL contain five festival cases: captured Wacken, Roskilde, Sziget, and Afro Nation Portugal cases, and a synthetic Glastonbury case without source confirmation of its saved programme. The existing 45 regression cases SHALL retain their targeted checks, including 13 isolated Location cases. Three additional isolated source-extraction cases SHALL reuse existing pages and preserve their origin labels.
 
 #### Scenario: Shared sources serve different tasks
 
@@ -20,45 +20,6 @@ Each case SHALL declare its task, source origin, and `main` or `regression` suit
 - **AND** no new Edition or one draft 2025 Edition with country GB and unknown dates is accepted; other new Editions, supplied historical dates and publication fail the case
 - **AND** the historical year and country earn additional completeness credit; historical tickets and ticket links remain untouched and earn no completeness credit; capacity 210,000 does not support participant attendance
 - **AND** provenance identifies the source captures and the synthetic edits
-
-### Requirement: Research checks belong to each case
-
-Each workflow case SHALL define expected source-check outcomes, Edition roles, supported and omitted facts, unresolved questions, and deliberate refusals. It SHALL declare required catalog changes, tool-use conditions, and place expectations. A case without an evaluator SHALL be rejected before model calls. A technical failure SHALL NOT satisfy an expected refusal.
-
-#### Scenario: Review a Research refusal
-
-- **WHEN** a case checks an identity-conflict refusal
-- **THEN** its checks state the final decision, search, source and unresolved-question conditions
-- **AND** a refusal passes only when those conditions are met
-
-#### Scenario: One quote supports two facts
-
-- **WHEN** one passage establishes the venue and supports the Event description
-- **THEN** both resulting facts can use the same saved passage
-- **AND** the case checks the two meanings without requiring independent sources
-
-### Requirement: Experiment sources and writes are isolated
-
-Workflow attempts SHALL start from declared seed data and date in a disposable catalog. Main SHALL use normal apply; workflow regressions SHALL retain dry runs. Isolated place evaluations SHALL use complete fixture input without catalog writes. No case SHALL modify the owner's catalog. Reads, searches, and geocoding SHALL use fixtures without live fallback. Evaluator expectations SHALL NOT enter model input.
-
-#### Scenario: Repeated attempts and uncaptured sources
-
-- **WHEN** a case repeats and requests an uncaptured page
-- **THEN** it starts from a fresh seed and reports fixture access failure without a live read
-
-#### Scenario: A main source fixture is missing
-
-- **WHEN** a main case requests an uncaptured page
-- **THEN** the result retains the source failure as a diagnostic without an independent scenario failure
-- **AND** required facts, checked errors, execution, and task conditions still determine success
-- **AND** no live request or invented source result replaces the missing fixture
-
-#### Scenario: The page fixture is long
-
-- **WHEN** a fixture contains a long page with relevant facts near its end
-- **THEN** the case checks source-supported facts beyond an initial text prefix
-- **AND** the result retains any processing limitation without claiming missing facts are absent
-- **AND** no model receives evaluator expectations
 
 ### Requirement: Ticket checks use declared structured facts
 
@@ -123,83 +84,67 @@ The eval option --model X SHALL select X for every executed model call in each s
 - **THEN** all calls except place-resolution calls use `OPENROUTER_MODEL` or its default
 - **AND** Location uses `CATALOG_LOCATION_MODEL` when set, otherwise the same model
 
+### Requirement: All groups can run together
+
+One command SHALL support case and group selection. With no selection flags, it SHALL select five main cases. The `--all` option SHALL select all 53 cases. The repeat count SHALL default to one. CLI output SHALL identify selected groups and case counts.
+
+#### Scenario: Default run selects main cases
+
+- **WHEN** the command runs without selection or repeat flags
+- **THEN** it selects each of the five main cases once
+- **AND** the CLI identifies the main pipeline group and five selected cases
+
+#### Scenario: Full run includes a rejected scenario
+
+- **WHEN** `--all` selects all 53 cases and one scenario fails its checks
+- **THEN** other groups still run and retain their results
+- **AND** the command exits nonzero with separate group summaries
+
+
+### Requirement: Quality and regression results stay separate
+
+Results SHALL separate main pipeline, regression pipeline, regression editor, regression Location, and regression Reader groups. Main SHALL report quality dimensions. Regressions SHALL report a binary `scenario-success` score and pass only when every check passes. Isolated source extraction SHALL also report declared evidence recall and literal binding validity. Each check SHALL identify its path, result, and message. Location SHALL retain completion, correction, and preservation summaries. No combined quality average SHALL mix groups. Failed checks SHALL be explained in CLI output and saved results.
+
+#### Scenario: Location correction fails
+
+- **WHEN** Location preservation cases pass but a correction case keeps a known wrong point
+- **THEN** the correction case fails its existing checks
+- **AND** its subgroup result remains visible separately from preservation and main quality
+
+#### Scenario: Regression checks a required mutation
+
+- **WHEN** a dry-run regression requires a field change but the value is only present in the initial record
+- **THEN** the required-change check fails and scenario-success is zero
+- **AND** partial-object and collection checks compare only their declared conditions
+
+
 ## ADDED Requirements
 
-### Requirement: Geocoding replay accepts equivalent query forms
+### Requirement: Source evidence extraction can be assessed alone
 
-Eval geocoding SHALL prefer an exact recorded request. Forward replay SHALL also match equivalent spelling, punctuation, word order and country labels under the same explicit country filter. It SHALL retain place qualifiers and SHALL NOT substitute a city request for a venue request. Conflicting normalized responses or unsupported geographic qualifiers SHALL return `unavailable`. Reverse replay SHALL require exact coordinates. Replay SHALL never use a live service or invent a response.
+Isolated source-extraction cases SHALL use fixed complete pages and code-defined requirements. They SHALL assess literal source binding, declared fact coverage with necessary context, specialist topics and declared metadata conditions. Expectations SHALL NOT enter the model input. A valid alternative quotation layout SHALL pass when it retains the same required passages and context. These cases SHALL run without discovery, downstream interpretation, catalog writes or a model judge.
 
-#### Scenario: Equivalent forward queries differ in formatting
+#### Scenario: A date correction is omitted
 
-- **WHEN** a forward request differs only in normalized spelling, punctuation, word order or a supported country label
-- **THEN** replay returns the recorded response under the same country filter
-- **AND** observations retain the actual request
+- **WHEN** a source gives confirmed dates and explicitly rejects other dates
+- **AND** a requirement declares both the confirmed dates and their correction
+- **THEN** retaining only the confirmed dates fails that requirement
+- **AND** reporting the correction only in a navigation summary does not satisfy it
 
-#### Scenario: Normalized matches disagree
+#### Scenario: Ticket conditions remain attached
 
-- **WHEN** multiple normalized matches have different responses and no exact request matches
-- **THEN** replay returns `unavailable` rather than choosing one
+- **WHEN** a requirement declares an admission product, price, fee and applicability
+- **THEN** its evidence must retain those passages together with the ticket topic
+- **AND** a quotation with literal context can pass without matching one fixed response layout
 
-#### Scenario: A place or country differs
+#### Scenario: Invalid quotations are discarded
 
-- **WHEN** a request changes the country filter or includes unmatched place qualifiers
-- **THEN** replay returns `unavailable` without substituting another place
+- **WHEN** source binding discards a returned quotation or its context
+- **THEN** the case reports the binding failure even if other quotations remain usable
+- **AND** an empty result does not receive full binding credit
 
+#### Scenario: Extraction volume is visible
 
-### Requirement: Missing geocoding fixtures return unavailable
-
-In every eval group, a geocoding request without a matching fixture SHALL return `unavailable`. This SHALL represent a simulated tool failure. It SHALL NOT trigger a live request or return an invented empty result. The request and error SHALL remain in observations. The error alone SHALL NOT fail the case. Execution and case checks SHALL determine success.
-
-#### Scenario: An initial geocoding fixture is missing
-
-- **WHEN** reverse or forward geocoding has no matching fixture in any eval group
-- **THEN** the request returns `unavailable` and its observation remains available
-- **AND** no live geocoding request is made
-
-#### Scenario: A request uses different parameters
-
-- **WHEN** ingestion makes another geocoding request with different parameters and no fixture matches
-- **THEN** that request also returns `unavailable`
-- **AND** the result does not claim that the real provider failed or found no candidates
-
-#### Scenario: A valid decision follows a missing fixture
-
-- **WHEN** a case receives `unavailable` for a missing fixture and execution and all case checks pass
-- **THEN** the case passes
-
-#### Scenario: A wrong decision follows a missing fixture
-
-- **WHEN** a case receives `unavailable` for a missing fixture and its decision fails a case check
-- **THEN** the case fails with the failed-check diagnostic
-
-### Requirement: Eval observations separate execution usage and quality
-
-Eval outputs SHALL retain run IDs and available real trace IDs. Tokens and cost SHALL remain in optional execution observations without separate eval totals. Missing metrics SHALL NOT become zero or fail an eval. Duration SHALL remain separate from quality. Stage models and prompt versions SHALL identify the executed model configuration.
-
-#### Scenario: Tracing is disabled
-
-- **WHEN** a workflow or isolated Location eval runs without tracing
-- **THEN** its output retains its run ID and available decisions without a fabricated trace ID, token count, or cost
-- **AND** budget counters and tool observations remain usable by checks
-
-#### Scenario: Tracing records place checks
-
-- **WHEN** enabled tracing records an eval with place checks
-- **THEN** the saved output retains available correlation to its execution observations
-- **AND** each saved experiment result links to its real trace
-- **AND** traces and metrics identify the experiment for token and cost inspection
-- **AND** Place-check usage can be inspected separately from other execution work without an eval spending total
-
-## REMOVED Requirements
-
-### Requirement: Geocoding fixture gaps use a tool error
-
-**Reason**: The old block mixes domain outcomes with internal execution requirements.
-
-**Migration**: The replacement "Missing geocoding fixtures return unavailable" retains the domain checks. Internal contracts belong in the design.
-
-### Requirement: Eval usage inspection separates usage from quality
-
-**Reason**: The old block mixes domain outcomes with internal execution requirements.
-
-**Migration**: The replacement "Eval observations separate execution usage and quality" retains the domain checks. Internal contracts belong in the design.
+- **WHEN** a case retains a large passage or repeats shared context
+- **THEN** saved results report unique source coverage and extracted text volume
+- **AND** these measurements do not replace the declared correctness checks

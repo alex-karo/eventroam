@@ -1,24 +1,11 @@
-import type {
-  ResearchCandidate,
-  ResearchEdition,
-} from "@/ingestion/research/contracts";
-import { locationTextFields } from "@/ingestion/location/contracts";
-import { editorWireFixture } from "./ingestion";
+import { fixtureRoleGenerator, fixtureLocationPlan } from "./ingestion";
+import type { GenerateRole, Role } from "@/ingestion/roles/invoke";
+import { createResearchBudget } from "@/ingestion/runtime/budget";
 
 type ObjectValue = Record<string, unknown>;
-type Prompt = ReturnType<typeof JSON.parse>;
-const allTopics = [
-  "identity",
-  "description",
-  "dates",
-  "status",
-  "size",
-  "tickets",
-  "classification",
-  "location",
-  "links",
-];
-export function providerPrompt(body: ObjectValue): Prompt {
+export function providerPrompt(
+  body: ObjectValue,
+): ReturnType<typeof JSON.parse> {
   const messages = body.messages as {
     role: string;
     content: string | { text?: string }[];
@@ -33,10 +20,9 @@ export function providerPrompt(body: ObjectValue): Prompt {
   );
 }
 export function providerRole(body: ObjectValue) {
-  const schema = (
+  const fields = (
     body.response_format as { json_schema: { schema: ObjectValue } }
-  ).json_schema.schema;
-  const fields = schema.properties as ObjectValue;
+  ).json_schema.schema.properties as ObjectValue;
   if (fields.overview) {
     return "reader";
   }
@@ -60,221 +46,85 @@ export function providerRole(body: ObjectValue) {
   }
   return "tickets";
 }
-function approve(schema: ObjectValue): unknown {
-  if (schema.type === "null") {
-    return null;
+/** Fill optional transport slots with null, as required by strict provider schemas. */
+export function modelWireFixture(value: unknown, schema: ObjectValue): unknown {
+  if (value == null) {
+    return value;
   }
-  if (schema.type === "array") {
-    return [];
+  const choices = schema.anyOf as ObjectValue[] | undefined;
+  if (choices) {
+    const entries = typeof value === "object" ? Object.entries(value) : [];
+    const matchingChoices = choices.filter((choice) => {
+      if (choice.type !== (Array.isArray(value) ? "array" : typeof value)) {
+        return false;
+      }
+      const properties = choice.properties as
+        Record<string, { const?: unknown }> | undefined;
+      return (
+        !properties ||
+        entries.every(
+          ([key, part]) =>
+            key in properties &&
+            (properties[key].const === undefined ||
+              properties[key].const === part),
+        )
+      );
+    });
+    const matching =
+      matchingChoices.find((choice) =>
+        ((choice.required ?? []) as string[]).every((key) =>
+          entries.some(([supplied]) => supplied === key),
+        ),
+      ) ?? matchingChoices[0];
+    return modelWireFixture(value, matching ?? choices[0]);
   }
-  const properties = schema.properties as Record<string, ObjectValue>;
-  if (properties.decision) {
-    return { decision: "approve", reason: "Explicit fixture review" };
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      modelWireFixture(item, schema.items as ObjectValue),
+    );
   }
+  if (typeof value !== "object" || !schema.properties) {
+    return value;
+  }
+  const record = value as ObjectValue;
   return Object.fromEntries(
-    Object.entries(properties).map(([key, value]) => [key, approve(value)]),
+    Object.entries(schema.properties as Record<string, ObjectValue>).map(
+      ([key, part]) => [
+        key,
+        key in record ? modelWireFixture(record[key], part) : null,
+      ],
+    ),
   );
 }
-function target(
-  value: ResearchEdition | null,
-  action: (fact: { value: unknown; reason: string }) => unknown,
-  ids: string[],
-) {
-  if (!value) {
-    return null;
-  }
-  return {
-    editionKey: value.key,
-    reason: "Explicit fixture target",
-    evidenceIds: ids,
-    fields: Object.fromEntries(
-      Object.entries(value)
-        .filter(([key]) =>
-          [
-            "year",
-            "dates",
-            "scheduleStatus",
-            "displayName",
-            "sizeEstimate",
-          ].includes(key),
-        )
-        .map(([key, fact]) => [
-          key,
-          action(fact as { value: unknown; reason: string }),
-        ]),
-    ),
-  };
-}
-function general(
-  prompt: Prompt,
-  candidate: ResearchCandidate,
-  ids: string[],
-  action: (fact: { value: unknown; reason: string }) => unknown,
-) {
-  const data = candidate.data;
-  if (!data) {
-    return {
-      decision: "uncertain",
-      reason: `Explicit fixture has no usable identity: ${candidate.errors?.[0]?.message ?? "No support"}`,
-      unresolved: candidate.unresolved ?? [],
-    };
-  }
-  const identity = {
-    eventId: data.eventId ?? prompt.assignment.identityContext.eventId,
-    observedEventName: data.eventName,
-    reason: data.reason ?? "Explicit fixture identity",
-    evidenceIds: ids,
-  };
-  if (!prompt.assignment.identityContext.eventId && data.eventId) {
-    return { decision: "duplicate", ...identity };
-  }
-  return {
-    decision: "targets",
-    ...identity,
-    event: data.summary ? { summary: action(data.summary) } : {},
-    previousEdition: target(data.previousEdition, action, ids),
-    currentOrNextEdition: target(data.currentOrNextEdition, action, ids),
-    checks: roleChecks(prompt, candidate),
-    unresolved: [],
-  };
-}
-function roleChecks(prompt: Prompt, candidate: ResearchCandidate) {
-  const keys: string[] =
-    prompt.assignedChecks ??
-    prompt.checks?.map((item: { key: string }) => item.key) ??
-    [];
-  return keys.map((check: string) => ({
-    check,
-    finding: candidate.status === "partial" ? "unfinished" : "verified",
-    explanation: "Explicit fixture check",
-    evidenceIds: [],
-    sourceIds: [],
-  }));
-}
-function location(prompt: Prompt, candidate: ResearchCandidate) {
-  const slot = (name: "previousEdition" | "currentOrNextEdition") => {
-    if (!prompt[name]) {
-      return null;
-    }
-    const finding = candidate.data?.[name];
-    return {
-      fields: Object.fromEntries(
-        locationTextFields.map((field) => {
-          const fact = finding?.[field];
-          return [
-            field,
-            fact
-              ? {
-                  action: fact.value === null ? "clear" : "set",
-                  ...(fact.value === null ? {} : { value: fact.value }),
-                  reason: fact.reason,
-                }
-              : { action: "keep", reason: "Explicit fixture preserves place" },
-          ];
-        }),
-      ),
-      coordinates: {
-        action: "keep",
-        reason: "Explicit fixture preserves point",
-      },
-      evidenceIds: prompt.evidence.map((item: { id: string }) => item.id),
-      unresolved: [],
-    };
-  };
-  return {
-    decision: {
-      status: "ready",
-      previousEdition: slot("previousEdition"),
-      currentOrNextEdition: slot("currentOrNextEdition"),
-    },
-  };
-}
-/** Offline domain fixtures selected by the requested role, never a live fallback. */
-export function fixtureRoleForProvider(
+/** Encode a direct role answer for the offline HTTP provider. */
+export async function fixtureRoleForProvider(
   body: ObjectValue,
-  candidate: ResearchCandidate,
-): Record<string, unknown> {
+  responses: Partial<Record<Role, unknown | GenerateRole>> = {},
+): Promise<ObjectValue> {
   const prompt = providerPrompt(body);
   const role = providerRole(body);
+  const answer =
+    role === "location"
+      ? fixtureLocationPlan(prompt)
+      : await fixtureRoleGenerator({
+          research: async (_role: unknown, raw: string) => ({
+            checks: JSON.parse(raw).checks.map(({ key }: { key: string }) => ({
+              check: key,
+              sourceIds: [],
+              blocker: null,
+            })),
+            unresolved: [],
+          }),
+          ...responses,
+        })(role, JSON.stringify(prompt), {
+          budget: createResearchBudget(),
+          abortSignal: new AbortController().signal,
+        });
   const schema = (
     body.response_format as { json_schema: { schema: ObjectValue } }
   ).json_schema.schema;
-  const ids =
-    prompt.corpus?.evidence.map((item: { id: string }) => item.id) ?? [];
-  const action = (fact: { value: unknown; reason: string }) => ({
-    action: fact.value === null ? "clear" : "set",
-    ...(fact.value === null ? {} : { value: fact.value }),
-    reason: fact.reason,
-    evidenceIds: ids,
-  });
-  const values = () => {
-    if (role === "reader") {
-      return {
-        overview:
-          candidate.data?.sources[0]?.information ?? "Explicit fixture source",
-        coverage: { found: [], notPublished: [] },
-        topics: allTopics,
-        statedYears: [],
-        limitations: [],
-        evidence:
-          prompt.page.length <= 24000
-            ? [
-                {
-                  quote: prompt.page,
-                  context: [],
-                  topics: allTopics,
-                  editionClues: [],
-                  uncertainty: null,
-                },
-              ]
-            : [],
-      };
-    }
-    if (role === "research") {
-      return {
-        checks: roleChecks(prompt, candidate).map(
-          ({ check, finding, explanation, sourceIds }) => ({
-            check,
-            sourceIds,
-            blocker: finding === "unfinished" ? explanation : null,
-          }),
-        ),
-        unresolved: (candidate.unresolved ?? []).map(({ message }) => ({
-          message,
-        })),
-      };
-    }
-    if (role === "general") {
-      return { result: general(prompt, candidate, ids, action) };
-    }
-    if (role === "location") {
-      return location(prompt, candidate);
-    }
-    if (role === "editor") {
-      return approve(schema);
-    }
-    if (role === "links") {
-      return {
-        event: { socials: {} },
-        currentOrNextEdition: prompt.targets.currentOrNextEdition ? {} : null,
-        checks: roleChecks(prompt, candidate),
-        omitted: [],
-        unresolved: [],
-      };
-    }
-    if (role === "classification") {
-      return {
-        previousEdition: prompt.targets.previousEdition ? {} : null,
-        currentOrNextEdition: prompt.targets.currentOrNextEdition ? {} : null,
-        checks: roleChecks(prompt, candidate),
-        unresolved: [],
-      };
-    }
-    return {
-      currentOrNextEdition: {},
-      checks: roleChecks(prompt, candidate),
-      unresolved: [],
-    };
-  };
-  return editorWireFixture(values(), schema) as Record<string, unknown>;
+  return modelWireFixture(
+    role === "general" ? { result: answer } : answer,
+    schema,
+  ) as ObjectValue;
 }

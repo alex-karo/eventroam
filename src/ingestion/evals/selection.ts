@@ -1,10 +1,14 @@
-import type { EvalCase, EvalSuite } from "./fixtures";
+import type { EvalCase } from "./fixtures";
+import type { ReaderEvalCase } from "./reader";
+
+export type SelectedEvalCase = EvalCase | ReaderEvalCase;
 
 export const evalGroups = [
   "main/pipeline",
   "regression/pipeline",
   "regression/editor",
   "regression/location",
+  "regression/reader",
 ] as const;
 export type EvalGroup = (typeof evalGroups)[number];
 export type EvalSelection = {
@@ -14,7 +18,10 @@ export type EvalSelection = {
   caseIds?: string[];
   groups?: EvalGroup[];
 };
-export function caseGroup(item: EvalCase): EvalGroup {
+export function caseGroup(item: SelectedEvalCase): EvalGroup {
+  if ("reader" in item) {
+    return "regression/reader";
+  }
   if (item.location) {
     return "regression/location";
   }
@@ -23,7 +30,10 @@ export function caseGroup(item: EvalCase): EvalGroup {
   }
   return item.suite === "main" ? "main/pipeline" : "regression/pipeline";
 }
-export function selectEvalCases(suite: EvalSuite, options: EvalSelection) {
+export function selectEvalCases(
+  suite: { cases: SelectedEvalCase[] },
+  options: EvalSelection,
+) {
   if (
     [
       options.all,
@@ -46,10 +56,10 @@ export function selectEvalCases(suite: EvalSuite, options: EvalSelection) {
       return false;
     }
     if (options.editorOnly) {
-      return !!item.roleHandoff;
+      return "roleHandoff" in item && !!item.roleHandoff;
     }
     if (options.locationOnly) {
-      return !!item.location;
+      return "location" in item && !!item.location;
     }
     if (options.groups?.length) {
       return options.groups.includes(caseGroup(item));

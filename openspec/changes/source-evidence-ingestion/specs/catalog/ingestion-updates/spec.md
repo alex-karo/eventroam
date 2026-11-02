@@ -1,26 +1,5 @@
 ## MODIFIED Requirements
 
-### Requirement: Existing Event identity remains stable during refresh
-Refresh and duplicate add SHALL not rename an existing Event or change its aliases or slug from a source suggestion. The system SHALL compare trimmed names case-sensitively and retain differences as private `eventNameMismatch` metadata with Event ID and original stored and observed names. A mismatch SHALL not change status, exit code, update eligibility, or audit.
-
-#### Scenario: A source uses a different name
-- **WHEN** ingestion observes a name differing from the targeted Event
-- **THEN** the stored name, aliases, and slug remain and `eventNameMismatch` reports the original names and Event ID without changing outcome or audit
-
-#### Scenario: Name differs during a no-op or later failure
-- **WHEN** a differing observed name accompanies a duplicate add, preview, no-op, or later write failure
-- **THEN** CLI text and private structured reports retain the mismatch independently of the catalog outcome
-
-#### Scenario: Names match after trimming
-- **WHEN** stored and observed names differ only in surrounding whitespace or no existing Event is resolved
-- **THEN** `eventNameMismatch` is absent
-
-#### Scenario: A new Event has a supported identity
-
-- **WHEN** add establishes a new Event rather than a duplicate
-- **THEN** the new record has a supported Event name and creation reason
-- **AND** no unsupported name is substituted
-
 ### Requirement: Partial research identifies known unfinished checks
 
 Ingestion SHALL report partial research when useful evidence remains with a known unfinished mandatory check. It SHALL identify that check and preserve unsupported fields. Missing optional facts or an unannounced next Edition alone SHALL NOT require partial status. Omission SHALL NOT imply completed verification. A hard limit without a usable result SHALL follow [ingestion runs](../ingestion-runs/spec.md).
@@ -204,27 +183,56 @@ Official links SHALL be valid HTTP(S) destinations supported for their Event or 
 - **WHEN** ingestion encounters a ticket URL for previousEdition
 - **THEN** that historical slot and its offer URLs remain unchanged
 
+### Requirement: Research and editing use fixed Edition roles
+
+The result MUST distinguish previousEdition and currentOrNextEdition, each with one supported key or null. One key MUST NOT occupy both roles. Accepted changes MUST retain their selected keys and roles. A declined or unresolved target MUST preserve saved state and skip creation and publication. Missing roles, invalid targets, or inconsistent final changes MUST reject the item.
+
+#### Scenario: Both roles have supported findings
+
+- **WHEN** evidence supports a completed Edition and a distinct current or next Edition
+- **THEN** the result identifies each in its named role
+- **AND** changes to both are applied in one atomic item
+
+#### Scenario: The editor declines one Edition
+
+- **WHEN** one selected Edition is unsupported and the other has a valid update
+- **THEN** only the accepted Edition enters operation and publication evaluation
+- **AND** declining a target does not clear, withdraw, or delete a saved Edition
+
+#### Scenario: A required slot is missing
+
+- **WHEN** the final result omits a required Edition role or supplies an Edition array
+- **THEN** the item is rejected before writes
+
+#### Scenario: Editor changes the selected key or role
+
+- **WHEN** the final update addresses another key, swaps roles, or addresses an unselected Edition
+- **THEN** the whole item is rejected, including preservation-only actions
+
+#### Scenario: Slot null differs from a disproven field
+
+- **WHEN** the result has a null Edition slot
+- **THEN** it means no selected Edition for that role
+- **AND** it does not clear a saved field
+- **AND** unresolved questions distinguish an absent Edition from unfinished selection
+
+#### Scenario: Location restores a declined Edition
+
+- **WHEN** the final update includes a place change for a declined target
+- **THEN** the whole item is rejected before writes
+
+#### Scenario: A temporal premise is rejected
+
+- **WHEN** a date or identity premise used to select a target or earlier saved Edition is rejected
+- **THEN** changes that rely on it are not applied or silently reassigned
+
+#### Scenario: An accepted target has no field changes
+
+- **WHEN** the selected target is supported but its proposed field changes are declined
+- **THEN** preserved saved content still follows normal publication evaluation for that target
+- **AND** a new target still requires a valid creation reason and catalog validation
+
 ## ADDED Requirements
-
-### Requirement: Ingestion schedule status follows programme dates
-
-For a supported Edition announcement, ingestion SHALL use `scheduled` with a complete programme date range and `announced` without one. This SHALL include provisional dates. `dateState` SHALL retain date certainty separately. An explicit cancellation or postponement SHALL take priority. Missing dates alone SHALL NOT establish cancellation or postponement. These rules SHALL apply to the selected supported Edition; they SHALL NOT authorize changes to unchecked saved Editions.
-
-#### Scenario: An announcement has provisional dates
-
-- **WHEN** a selected supported Edition has a complete provisional programme date range
-- **THEN** ingestion uses `scheduled` and retains `dateState: provisional`
-
-#### Scenario: An announcement has no complete date range
-
-- **WHEN** a selected supported Edition is announced without a complete programme date range
-- **THEN** ingestion uses `announced` without inventing dates
-
-#### Scenario: An explicit exception applies
-
-- **WHEN** inspected evidence explicitly cancels or postpones a selected Edition
-- **THEN** that status takes priority over the presence of saved or published dates
-
 
 ### Requirement: Ticket replacements omit per-offer URLs
 
@@ -241,60 +249,3 @@ Ingestion ticket proposals and accepted replacements SHALL omit per-offer URL fi
 - **WHEN** no complete ticket replacement is accepted
 - **THEN** saved offers and their existing URLs remain unchanged
 - **AND** an independently supported Edition ticket link can still change
-
-### Requirement: Ingestion uses fixed Edition roles
-
-The result MUST distinguish previousEdition and currentOrNextEdition, each with one supported key or null. One key MUST NOT occupy both roles. Accepted changes MUST retain their selected keys and roles. A declined or unresolved target MUST preserve saved state and skip creation and publication. Missing roles, invalid targets, or inconsistent final changes MUST reject the item.
-
-#### Scenario: Both roles have supported findings
-
-- **WHEN** evidence supports a completed Edition and a distinct current or next Edition
-- **THEN** the result identifies each in its named role
-- **AND** changes to both are applied in one atomic item
-
-#### Scenario: One Edition is declined
-
-- **WHEN** one selected Edition is unsupported and the other has a valid update
-- **THEN** only the accepted Edition enters operation and publication evaluation
-- **AND** declining a target does not clear, withdraw, or delete a saved Edition
-
-#### Scenario: A required slot is missing
-
-- **WHEN** the final result omits a required Edition role or supplies an Edition array
-- **THEN** the item is rejected before writes
-
-#### Scenario: An update changes the selected key or role
-
-- **WHEN** the final update addresses another key, swaps roles, or addresses an unselected Edition
-- **THEN** the whole item is rejected, including preservation-only actions
-
-#### Scenario: Slot null differs from a disproven field
-
-- **WHEN** the result has a null Edition slot
-- **THEN** it means no selected Edition for that role
-- **AND** it does not clear a saved field
-- **AND** unresolved questions distinguish an absent Edition from unfinished selection
-
-#### Scenario: A place update addresses a declined Edition
-
-- **WHEN** the final update includes a place change for a declined target
-- **THEN** the whole item is rejected before writes
-
-#### Scenario: A temporal premise is rejected
-
-- **WHEN** a date or identity premise used to select a target or earlier saved Edition is rejected
-- **THEN** changes that rely on it are not applied or silently reassigned
-
-#### Scenario: An accepted target has no field changes
-
-- **WHEN** the selected target is supported but its proposed field changes are declined
-- **THEN** preserved saved content still follows normal publication evaluation for that target
-- **AND** a new target still requires a valid creation reason and catalog validation
-
-## REMOVED Requirements
-
-### Requirement: Research and editing use fixed Edition roles
-
-**Reason**: The old block mixes domain outcomes with internal execution requirements.
-
-**Migration**: The replacement "Ingestion uses fixed Edition roles" retains the domain checks. Internal contracts belong in the design.

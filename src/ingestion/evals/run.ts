@@ -33,7 +33,6 @@ import type { ReadPageOptions } from "../tools/read-page/read";
 import type { SearchWebOptions } from "../tools/search-web/search";
 import {
   loadEvalSuite,
-  type EvalCase,
   type PipelineEvalCase,
   type EvalSuite,
 } from "./fixtures";
@@ -56,7 +55,10 @@ import {
   evalGroups,
   selectEvalCases,
   type EvalSelection,
+  type SelectedEvalCase,
 } from "./selection";
+import { readerCases, type ReaderEvalOutput } from "./reader";
+import { executeReaderCase } from "./reader/run";
 
 const timestamp = "2026-10-03T00:00:00.000Z";
 
@@ -251,6 +253,7 @@ export type EvalOptions = EvalSelection & {
 export type EvalCaseOutput = {
   report?: CatalogResearchResult;
   location?: LocationExecution;
+  reader?: ReaderEvalOutput;
   runId?: string;
   traceId?: string;
   toolCalls: EvalToolCall[];
@@ -272,11 +275,20 @@ function evaluationConfig(options: Pick<EvalOptions, "model">) {
 
 async function executeCase(
   suite: EvalSuite,
-  item: EvalCase,
+  item: SelectedEvalCase,
   config: ReturnType<typeof evaluationConfig>,
   experimentId?: string,
   observabilityStore?: DuckDBStore,
 ): Promise<EvalCaseOutput> {
+  if ("reader" in item) {
+    return executeReaderCase(
+      item,
+      item.todayUtc ?? suite.todayUtc,
+      config,
+      experimentId,
+      observabilityStore,
+    );
+  }
   const calls: EvalToolCall[] = [];
   if (item.location) {
     const runId = `location-eval-${randomUUID()}`;
@@ -377,7 +389,10 @@ function workflowIdentity() {
 
 export async function runCatalogEvals(options: EvalOptions = {}) {
   const suite = loadEvalSuite();
-  const selected = selectEvalCases(suite, options);
+  const selected = selectEvalCases(
+    { cases: [...suite.cases, ...readerCases(suite)] },
+    options,
+  );
   const repeat = options.repeat ?? 1;
   if (!Number.isSafeInteger(repeat) || repeat < 1 || repeat > 20) {
     throw new Error("repeat must be 1–20");
@@ -440,7 +455,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
         version: ready.version,
         name,
         metadata: { ...metadata, ...ready.definition.metadata },
-        scorers: Object.values(createEvalScorers(group === "main/pipeline")),
+        scorers: Object.values(createEvalScorers(group)),
         maxConcurrency: 3,
         beforeAll: (args) => {
           experimentId = args.experimentId;
@@ -485,12 +500,14 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       const results = experiment.results
         .map((attempt) => {
           const input = attempt.input as { caseId: string; repetition: number };
+          const item = byId.get(input.caseId)!;
           return {
             ...attempt,
             caseId: input.caseId,
             repetition: input.repetition,
             output: attempt.output as EvalCaseOutput | null,
-            locationGroup: byId.get(input.caseId)!.location?.group ?? null,
+            locationGroup:
+              "location" in item ? (item.location?.group ?? null) : null,
           };
         })
         .sort(
@@ -527,8 +544,11 @@ export function evalItemPassed(item: {
   }[];
 }) {
   const output = item.output as EvalCaseOutput | null;
-  const main = !!output?.quality;
-  const required = Object.values(createEvalScorers(main)).map(
+  const regressionGroup = output?.reader
+    ? "regression/reader"
+    : "regression/pipeline";
+  const group = output?.quality ? "main/pipeline" : regressionGroup;
+  const required = Object.values(createEvalScorers(group)).map(
     (scorer) => scorer.id,
   );
   return (

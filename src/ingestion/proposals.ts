@@ -20,42 +20,12 @@ import {
   type StageResult,
 } from "./stage";
 
-type PlanAction<T> =
-  | {
-      action: "set";
-      value: T;
-      reason: string;
-      evidenceIds?: string[];
-      reuseFrom?: { editionKey: string; reason: string };
-    }
-  | { action: "keep" | "clear"; reason: string };
-type LinkFields = {
-  website?: PlanAction<string>;
-  socials?: Partial<
-    Record<
-      "instagram" | "facebook" | "youtube" | "tiktok" | "x" | "other",
-      PlanAction<string>
-    >
-  >;
-};
-type EditionFields = {
-  year?: PlanAction<number>;
-  dates?: PlanAction<{
-    startsOn: string;
-    endsOn: string;
-    state: "confirmed" | "provisional";
-  }>;
-  scheduleStatus?: PlanAction<
-    "announced" | "scheduled" | "postponed" | "cancelled"
-  >;
-  displayName?: PlanAction<string>;
-  sizeEstimate?: PlanAction<number>;
-  tickets?: PlanAction<
-    z.infer<typeof import("./roles/contracts").ticketBlockSchema>
-  >;
-  classification?: PlanAction<string[]>;
-  links?: { tickets?: PlanAction<string> };
-};
+type LinkFields = LinksOutput["event"];
+type EditionFields = NonNullable<Targets["currentOrNextEdition"]>["fields"] &
+  TicketsOutput["currentOrNextEdition"] &
+  NonNullable<ClassificationOutput["currentOrNextEdition"]> & {
+    links?: NonNullable<LinksOutput["currentOrNextEdition"]>;
+  };
 type EditionPlan = {
   editionKey: string;
   reason?: string;
@@ -66,7 +36,10 @@ export type ApplicationPlan = {
   status: "ready";
   event: {
     reason?: string;
-    fields: { summary?: PlanAction<string>; links?: LinkFields };
+    fields: {
+      summary?: NonNullable<Targets["event"]["summary"]>;
+      links?: LinkFields;
+    };
   } | null;
   previousEdition: EditionPlan | null;
   currentOrNextEdition: EditionPlan | null;
@@ -573,11 +546,15 @@ function discardRejectedDependencies(
   review: Record<string, unknown>,
 ) {
   const rejected = new Set<string>();
+  const rejectedTargets = new Set<string>();
   for (const slot of editionSlotNames) {
     const source = prepared.plan[slot];
     const decision = review[slot] as {
       fields?: { classification?: { decision: string } };
     } | null;
+    if (source && !accepted.plan[slot]) {
+      rejectedTargets.add(source.editionKey);
+    }
     if (
       source &&
       (!accepted.plan[slot] ||
@@ -596,7 +573,7 @@ function discardRejectedDependencies(
       delete accepted.plan[slot]!.fields.classification;
     }
     const reused = accepted.location.reusedFrom?.[slot];
-    if (!reused?.editionKey || !rejected.has(reused.editionKey)) {
+    if (!reused?.editionKey || !rejectedTargets.has(reused.editionKey)) {
       continue;
     }
     const fields = accepted.location.slots[slot];

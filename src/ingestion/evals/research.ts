@@ -1,16 +1,34 @@
-import type { ResearchData, ResearchEdition } from "../research/contracts";
+import type { z } from "zod";
+import type { generalFieldsSchema } from "../roles/contracts";
 import type { GeneralOutput } from "../roles/contracts";
 import type { LocationOutput } from "../location/contracts";
 import type { CatalogResearchResult } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
 import { check, contains } from "./checks";
 
-type ValueOnly<T> = T extends { value: unknown } ? Pick<T, "value"> : T;
-type EvalEdition = {
-  [K in keyof Omit<ResearchEdition, "links">]: ValueOnly<ResearchEdition[K]>;
+type ActionValue<T> = T extends { action: "set"; value: infer V }
+  ? { value: V }
+  : T extends { action: "clear" }
+    ? { value: null }
+    : never;
+type GeneralFields = z.infer<typeof generalFieldsSchema>;
+type EvalEdition = { key: string } & {
+  [K in keyof GeneralFields]?: ActionValue<NonNullable<GeneralFields[K]>>;
+} & {
+  classification?: { value: string[] };
+  tickets?: { value: unknown };
+  venueName?: { value: string | null };
+  venueAddress?: { value: string | null };
+  locality?: { value: string | null };
+  administrativeArea?: { value: string | null };
+  countryCode?: { value: string | null };
+  coordinates?: {
+    value: { latitude: number; longitude: number; precision: string } | null;
+  };
 };
-type EvalResearchData = Pick<ResearchData, "links"> & {
-  summary?: ValueOnly<NonNullable<ResearchData["summary"]>>;
+type EvalFacts = {
+  links: { website?: string; socials: Record<string, string> };
+  summary?: { value: string | null };
   previousEdition: EvalEdition | null;
   currentOrNextEdition: EvalEdition | null;
 };
@@ -29,7 +47,7 @@ export function researchContext(
 ) {
   // General owns temporal selection. Other facts are checked at their operation or Location boundary.
   const raw = generalResult(report);
-  let data: EvalResearchData | null = null;
+  let data: EvalFacts | null = null;
   if (raw?.decision === "targets") {
     const fact = (action: unknown) => {
       if (!action || typeof action !== "object" || !("action" in action)) {
@@ -104,7 +122,7 @@ export function researchContext(
     );
     const links = eventLinks?.kind === "replaceLinks" ? eventLinks.links : [];
     data = {
-      summary: fact(raw.event.summary) as EvalResearchData["summary"],
+      summary: fact(raw.event.summary) as EvalFacts["summary"],
       links: {
         website: links.find((link) => link.kind === "official_site")?.url,
         socials: Object.fromEntries(

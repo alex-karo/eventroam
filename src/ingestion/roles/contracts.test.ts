@@ -125,3 +125,26 @@ it.each([
     ).toBe(false);
   },
 );
+
+import { expectTypeOf } from "vitest";
+import { z } from "zod";
+import { generalFieldsSchema, ticketsOutputSchema } from "./contracts";
+import { editionKeySchema } from "../research/contracts";
+import { modelOutputSchema } from "../runtime/model-output";
+it("exposes key syntax to the model and retains strict local validation", () => {
+  const wire = modelOutputSchema(z.strictObject({ key: editionKeySchema }));
+  expect(JSON.stringify(wire)).toContain("1-63 lowercase ASCII");
+  expect(editionKeySchema.safeParse("edition:2027").success).toBe(false);
+  expect(editionKeySchema.parse("2027-weekend-2")).toBe("2027-weekend-2");
+});
+it("keeps set-only actions in inferred role types", () => {
+  type Fields = z.infer<typeof generalFieldsSchema>;
+  type Tickets = z.infer<typeof ticketsOutputSchema>;
+  expectTypeOf<NonNullable<Fields["year"]>["action"]>().toEqualTypeOf<"set">();
+  expectTypeOf<
+    NonNullable<Fields["scheduleStatus"]>["action"]
+  >().toEqualTypeOf<"set">();
+  expectTypeOf<
+    NonNullable<Tickets["currentOrNextEdition"]["tickets"]>["action"]
+  >().toEqualTypeOf<"set">();
+});

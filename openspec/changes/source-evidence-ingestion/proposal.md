@@ -15,39 +15,38 @@ Broad model tasks and repeated page context make ingestion harder to check and l
 - Limit ticket updates to `currentOrNextEdition`, including an ongoing Edition. Preserve historical prices, availability, offer URLs, and primary ticket links. This is an intentional scope change, separate from the refactor.
 - **BREAKING** Omit per-offer URLs from ingestion ticket replacements. Keep the selected Edition's ticket link independent and prefer an established overview, as required by the Roskilde regression. Product pages can still be read as sources.
 
-The delta specs also remove inherited requirements about which agent acts and when. Those edits preserve the domain rules and their observable scenarios. They do not create a new product feature for each internal role. The agent split does not require a new owner-facing report format or report-version change.
+Delta specs cover changed behavior and the contracts needed by the new flow. Unchanged requirements remain in the main specs. Internal role changes belong in the design. The agent split does not require a new report format or report version.
 
 ## Capabilities
 
 ### Modified Capabilities
 
-- `catalog/ingestion-workflow`:
-  - **Before**: Add and refresh requirements include instructions for model work.
-  - **After**: They define the same requested checks and accepted catalog results, with the ticket-scope exception.
 - `catalog/refresh-scope`:
-  - **Before**: Full checks supported fields in both Edition roles and names internal selection responsibilities.
-  - **After**: The same temporal and ownership rules apply to ingestion as a whole; ticket checks cover only the current-or-next role.
+  - **Before**: Full checks all supported fields in both Edition roles.
+  - **After**: Historical ticket fields are excluded; current-or-next ticket checks include ongoing Editions.
 - `catalog/source-access`:
-  - **Before**: Specs prescribe model response fields and bounded Markdown prefixes; complete text is kept in the run cache.
-  - **After**: Specs define safe retrieval, preserved source text, explicit limits, and inspectable provenance, without prescribing a model handoff.
+  - **Before**: Complete source text stays in the run cache; model input uses a bounded prefix.
+  - **After**: Private source artifacts retain full text and provenance after exit. Processing limits remain explicit, and source support retains its context.
 - `catalog/ingestion-updates`:
-  - **Before**: Supported-update rules also assign work to individual agents.
-  - **After**: The result must satisfy the same evidence, identity, and coherent-field rules; historical tickets are protected and new ticket replacements omit per-offer URLs.
+  - **Before**: Editor can replace finding values, Location runs after Editor, and ticket offers can contain URLs.
+  - **After**: Editor reviews supported proposals for all fields. Historical tickets are preserved; current replacements omit offer URLs and keep link selection independent.
 - `catalog/classification`:
-  - **Before**: Classification rules include model instructions and an Editor correction contract.
-  - **After**: Complete lists, facet limits, and preservation rules apply to the final result. Supported reuse can use a preceding comparable Edition without requiring the nearest one.
+  - **Before**: Reuse requires the nearest preceding comparable saved Edition.
+  - **After**: Reuse can use another preceding comparable saved Edition with its key and continuity basis.
 - `catalog/location-resolution`:
-  - **Before**: Place rules prescribe agent order, input preparation, and agent output decisions.
-  - **After**: They define accepted targets, coherent place data, applicable evidence, and valid point choices.
+  - **Before**: Location receives Editor's accepted targets and prepared forward and reverse context.
+  - **After**: Location proposes changes before Editor review, using applicable saved and source evidence. Code prepares reverse context; Location chooses forward queries.
 - `catalog/ingestion-runs`:
-  - **Before**: Reports are specified through a fixed set of agent responses.
-  - **After**: Reports retain the same owner-facing findings, decisions, errors, and catalog outcomes without fixing the internal agent set.
+  - **Before**: Reports use Research's findings and source summaries.
+  - **After**: Reports use selected targets and saved sources. They retain source-storage failures and useful partial research after an identity refusal.
 - `operations/ingestion-diagnostics`:
-  - **Before**: Inspection requirements name a fixed set of agents and provide optional source-tool capture.
-  - **After**: Inspection explains execution and domain outcomes through required saved sources and workflow results; optional source-tool capture is removed.
+  - **Before**: Optional source-tool capture supplies a separate debug record.
+  - **After**: Required source artifacts support inspection and survive workflow-history deletion. Optional capture is removed.
 - `operations/ingestion-evaluation`:
-  - **Before**: Checks depend on internal responses and include historical ticket expectations.
-  - **After**: Quality checks target ingestion results and preserved data; historical tickets remain unchanged and current offer checks use amount and currency without per-offer URLs.
+  - **Before**: Ticket checks include historical offers and offer URLs; model overrides name three agents.
+  - **After**: Checks preserve historical tickets and compare current offers by amount and currency. Explicit model selection applies to every executed role.
+
+- Add three isolated Reader eval cases from existing source fixtures, with code-based evidence and context checks.
 
 ## Impact
 

@@ -8,7 +8,7 @@ Define controlled ingestion experiments that separate catalog quality from targe
 
 ### Requirement: Cases have separate purpose and source labels
 
-Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The initial main set SHALL contain five festival cases: captured Wacken, Roskilde, Sziget, and Afro Nation Portugal cases, and a synthetic Glastonbury case without source confirmation of its saved programme. The remaining 45 cases SHALL retain their targeted regression checks, including 13 isolated Location cases.
+Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The initial main set SHALL contain five festival cases: captured Wacken, Roskilde, Sziget, and Afro Nation Portugal cases, and a synthetic Glastonbury case without source confirmation of its saved programme. The existing 45 regression cases SHALL retain their targeted checks, including 13 isolated Location cases. Three additional isolated source-extraction cases SHALL reuse existing pages and preserve their origin labels.
 
 #### Scenario: Shared sources serve different tasks
 
@@ -29,7 +29,7 @@ Each case SHALL declare its task, source origin, and `main` or `regression` suit
 
 ### Requirement: All groups can run together
 
-One command SHALL support case and group selection. With no selection flags, it SHALL select five main cases. The `--all` option SHALL select all 50 cases. The repeat count SHALL default to one. CLI output SHALL identify selected groups and case counts.
+One command SHALL support case and group selection. With no selection flags, it SHALL select five main cases. The `--all` option SHALL select all 53 cases. The repeat count SHALL default to one. CLI output SHALL identify selected groups and case counts.
 
 #### Scenario: Default run selects main cases
 
@@ -39,13 +39,13 @@ One command SHALL support case and group selection. With no selection flags, it 
 
 #### Scenario: Full run includes a rejected scenario
 
-- **WHEN** `--all` selects all 50 cases and one scenario fails its checks
+- **WHEN** `--all` selects all 53 cases and one scenario fails its checks
 - **THEN** other groups still run and retain their results
 - **AND** the command exits nonzero with separate group summaries
 
 ### Requirement: Quality and regression results stay separate
 
-Results SHALL separate main pipeline, regression pipeline, regression editor, and regression Location groups. Main SHALL report quality dimensions. Regressions SHALL report one binary `scenario-success` score and pass only when every check passes. Each check SHALL identify its path, result, and message. Location SHALL retain completion, correction, and preservation summaries. No combined quality average SHALL mix groups. Failed checks SHALL be explained in CLI output and saved results.
+Results SHALL separate main pipeline, regression pipeline, regression editor, regression Location, and regression Reader groups. Main SHALL report quality dimensions. Regressions SHALL report a binary `scenario-success` score and pass only when every check passes. Isolated source extraction SHALL also report declared evidence recall and literal binding validity. Each check SHALL identify its path, result, and message. Location SHALL retain completion, correction, and preservation summaries. No combined quality average SHALL mix groups. Failed checks SHALL be explained in CLI output and saved results.
 
 #### Scenario: Location correction fails
 
@@ -367,3 +367,32 @@ Eval geocoding SHALL prefer an exact recorded request. Forward replay SHALL also
 
 - **WHEN** a request changes the country filter or includes unmatched place qualifiers
 - **THEN** replay returns `unavailable` without substituting another place
+
+### Requirement: Source evidence extraction can be assessed alone
+
+Isolated source-extraction cases SHALL use fixed complete pages and code-defined requirements. They SHALL assess literal source binding, declared fact coverage with necessary context, specialist topics and declared metadata conditions. Expectations SHALL NOT enter the model input. A valid alternative quotation layout SHALL pass when it retains the same required passages and context. These cases SHALL run without discovery, downstream interpretation, catalog writes or a model judge.
+
+#### Scenario: A date correction is omitted
+
+- **WHEN** a source gives confirmed dates and explicitly rejects other dates
+- **AND** a requirement declares both the confirmed dates and their correction
+- **THEN** retaining only the confirmed dates fails that requirement
+- **AND** reporting the correction only in a navigation summary does not satisfy it
+
+#### Scenario: Ticket conditions remain attached
+
+- **WHEN** a requirement declares an admission product, price, fee and applicability
+- **THEN** its evidence must retain those passages together with the ticket topic
+- **AND** a quotation with literal context can pass without matching one fixed response layout
+
+#### Scenario: Invalid quotations are discarded
+
+- **WHEN** source binding discards a returned quotation or its context
+- **THEN** the case reports the binding failure even if other quotations remain usable
+- **AND** an empty result does not receive full binding credit
+
+#### Scenario: Extraction volume is visible
+
+- **WHEN** a case retains a large passage or repeats shared context
+- **THEN** saved results report unique source coverage and extracted text volume
+- **AND** these measurements do not replace the declared correctness checks

@@ -1,14 +1,16 @@
 import { z } from "zod";
+import { scheduleStatuses } from "@/catalog/domain/vocabulary";
 import type { topics } from "../evidence/contracts";
 import {
-  editionFindingSchema,
+  editionKeySchema,
+  dateBlockSchema,
   researchBasePriceSchema,
   researchQuestionSchema,
   ticketOfferSchema,
 } from "../research/contracts";
 
 export const roleEvidenceTopics = {
-  general: ["identity", "description", "dates", "status", "size"],
+  general: ["identity", "description", "dates", "status", "size", "location"],
   tickets: ["tickets", "dates", "identity", "location"],
   classification: ["classification", "description", "dates"],
   links: ["links", "tickets", "identity"],
@@ -23,20 +25,25 @@ export const reasonSchema = z
   );
 export const supportSchema = z.array(z.string().min(1)).max(100);
 const common = { reason: reasonSchema, evidenceIds: supportSchema };
+const setChange = <T extends z.ZodType>(value: T) =>
+  z.strictObject({ action: z.literal("set"), value, ...common });
+const clearChange = z.strictObject({ action: z.literal("clear"), ...common });
+export function change<T extends z.ZodType>(
+  value: T,
+  clearable: false,
+): ReturnType<typeof setChange<T>>;
+export function change<T extends z.ZodType>(
+  value: T,
+  clearable?: true,
+): z.ZodUnion<[ReturnType<typeof setChange<T>>, typeof clearChange]>;
 export function change<T extends z.ZodType>(value: T, clearable = true) {
-  const set = z.strictObject({ action: z.literal("set"), value, ...common });
-  return clearable
-    ? z.union([set, z.strictObject({ action: z.literal("clear"), ...common })])
-    : set;
+  const set = setChange(value);
+  return clearable ? z.union([set, clearChange]) : set;
 }
-const facts = editionFindingSchema.shape;
 export const generalFieldsSchema = z.strictObject({
-  year: change(facts.year.unwrap().shape.value, false).optional(),
-  dates: change(facts.dates.unwrap().shape.value.unwrap()).optional(),
-  scheduleStatus: change(
-    facts.scheduleStatus.unwrap().shape.value,
-    false,
-  ).optional(),
+  year: change(z.number().int().min(1).max(9999), false).optional(),
+  dates: change(dateBlockSchema).optional(),
+  scheduleStatus: change(z.enum(scheduleStatuses), false).optional(),
   displayName: change(z.string().min(1).max(250)).optional(),
   sizeEstimate: change(z.number().int().positive()).optional(),
 });
@@ -71,7 +78,7 @@ export const collectionOutputSchema = z.strictObject({
   unresolved: z.array(z.strictObject({ message: collectionNote })).max(30),
 });
 export const targetSchema = z.strictObject({
-  editionKey: facts.key,
+  editionKey: editionKeySchema,
   reason: reasonSchema,
   evidenceIds: supportSchema,
   fields: generalFieldsSchema,
@@ -137,7 +144,7 @@ const classificationChange = z.strictObject({
   value: z.array(z.string().min(1)).max(50),
   ...common,
   reuseFrom: z
-    .strictObject({ editionKey: facts.key, reason: reasonSchema })
+    .strictObject({ editionKey: editionKeySchema, reason: reasonSchema })
     .optional(),
 });
 const classificationSlot = z

@@ -22,37 +22,58 @@ flowchart TD
     CLI --> Ingestion[Catalog ingestion workflow]
     Studio --> Ingestion
     Sources[External sources] --> Ingestion
+    DB -->|Saved catalog context| Ingestion
     Ingestion -->|Validated writes| DB[(SQLite catalog)]
+    Ingestion -->|Save Markdown and evidence| Evidence[(Private source files)]
+    Ingestion -->|Save steps and results| History[(Private workflow history)]
+    History -->|Inspect saved runs| Studio
     Studio -->|Read-only catalog queries| DB
     DB -->|Published data| Web[Next.js web application]
     Web --> Apex[eventroam.org: project and services]
     Web --> Festivals[festivals.eventroam.org: list, filters and map]
 ```
 
-The website reads published catalog data. The owner starts ingestion through the local CLI, local Studio, or hosted Studio. Studio chat can select Events, start refreshes, and inspect saved results. The web application does not run ingestion.
+The website reads published catalog data. The owner starts ingestion through the local CLI, local Studio, or hosted Studio. Studio chat can select Events, start refreshes, and inspect saved reports. The Studio workflow view shows saved steps and results. Source Markdown and evidence remain in private files until explicit cleanup. The web application does not run ingestion.
 
 ## Ingestion
 
-The Mastra workflow separates source research, editing, location resolution, and catalog writes.
+The Mastra workflow collects evidence, proposes changes, and reviews them before a catalog write. The diagrams reflect the current branch and its [source-evidence change](openspec/changes/source-evidence-ingestion/). Final model-quality checks and the remaining spec updates are still open.
 
 ```mermaid
 flowchart TD
-    Context[Load catalog context] --> Initial[Read initial source]
-    Initial --> Research[Research agent]
-    Research --> Validate[Validate findings]
-    Validate --> Editor[Editor agent: no tools]
-    Editor --> Plan[Validate editor plan]
-    Plan --> Location[Initial geocoding and Location agent]
-    Location --> Prepare[Prepare combined operations]
+    Context[Load catalog context and build assignments] --> Research[Research: select pages]
+    Research -->|inspectPage| Read[Retrieve Markdown with readPage]
+    Read --> Reader[Reader: extract exact quotations and context]
+    Reader -->|Page overview and leads| Research
+    Research <-->|Find source URLs| Search[searchWeb]
+    Read -->|Save Markdown| Corpus[(Private Markdown and evidence)]
+    Reader -->|Save bound evidence| Corpus
+    Research -->|Finish collection| Freeze[Freeze evidence corpus]
+    Corpus --> Freeze
+    Freeze --> General[General: identity, Edition targets and common facts]
+    General -->|Confirmed duplicate add| Skip[Skip without catalog writes]
+    General --> Tickets[Tickets: current or next Edition]
+    General --> Classification[Classification]
+    General --> Location[Location]
+    General --> Links[Links: public URLs]
+    General --> Assemble[Assemble and validate proposals]
+    Tickets --> Assemble
+    Classification --> Assemble
+    Location --> Assemble
+    Links --> Assemble
+    Location <-->|Resolve places and coordinates| Geo[Geoapify geocoding]
+    Assemble --> Editor[Editor: approve or reject proposals]
+    Editor -.->|Check cited text with grep| Corpus
+    Editor --> Prepare[Validate review and prepare operations]
     Prepare --> Writer[Catalog writer: preview or apply]
     Writer --> Report[Save private report]
-
-    Research <-->|Read known pages| Read[readPage]
-    Research <-->|Find source URLs| Search[searchWeb]
-    Location <-->|Resolve places and coordinates| Geo[Geoapify geocoding]
 ```
 
-Research uses saved facts, links, and vocabulary as context. It reads known pages and searches when permitted. Search results must be read before their facts can be used. The editor chooses field actions from findings and saved context. The Location agent resolves place fields and coordinates. The writer validates the combined operations and commits changes in one transaction per Event. Preview runs save a report without retaining catalog changes.
+Code loads saved facts, links, and vocabulary and builds concrete assignments. The workflow inspects an initial saved source when available. Research selects further pages and searches when permitted. Reader extracts exact quotations and context from each admitted full page. Code binds them to saved Markdown. Page overviews and search results guide navigation; changes require source evidence.
+
+After collection, all interpretation roles use the same fixed evidence corpus and relevant saved facts. General confirms identity, selects Edition targets, and proposes common facts. A confirmed duplicate add stops here. Tickets, Classification, Location, and Links then run in parallel. Location resolves places and coordinates before Editor review. Tickets covers only the current or next Edition, including an ongoing Edition; historical ticket data stays unchanged. Links selects public URLs independently of ticket prices.
+
+Code assembles the proposals. Editor approves or rejects them and can check cited source text with grep. It cannot replace proposed values. Code validates the review and prepares catalog operations. The writer validates those operations and commits changes in one transaction per Event. A required role failure prevents catalog writes. Preview runs save a report without retaining catalog changes.
 
 Studio chat can query the catalog through a read-only SQL tool and refresh one to three selected Events in sequence. Each Event uses a new workflow run. Preview is the default; an explicit owner update request permits apply. Refreshes are started by the owner; there is no scheduled refresh.
 

@@ -2,7 +2,7 @@
 
 ## Change size
 
-Large. The change replaces the model contracts across collection, interpretation, review, reports, and evaluations. It adds private source artifacts and changes Location ordering. Catalog field types, write operations, and publication gates remain in use. The main uncertainty is extraction recall and total inference cost on large pages.
+Large. The change replaces the model contracts across collection, interpretation, review, reports, and evaluations. It adds private source artifacts and changes Location ordering. Catalog field types, write operations, and publication gates remain in use. The remaining uncertainty is extraction recall. The owner accepts the current inference cost; further cost optimization and controlled cost comparisons are not completion requirements.
 
 ## Approach
 
@@ -16,7 +16,7 @@ This is a fixed workflow, not an agent network. It has eight model roles. Reader
 
 The specifications describe the complete ingestion result by domain. They define which facts can change, required support, preserved data, publication, errors, and owner inspection. Agent names, prompts, tool schemas, call order, and internal proposal types are design decisions in this document. A later internal refactor can change them while satisfying the same specifications.
 
-Existing agent-specific requirements are rewritten as outcome requirements in this change. This is a one-time removal of implementation constraints, not a separate behavior change for each agent. Historical ticket exclusion, removal of per-offer URLs from ingestion, saved source artifacts, and removal of optional source-tool capture are the explicit scope and inspection changes. Existing temporal, classification, location, and write rules remain the baseline for the refactor.
+Delta specs change only the requirements affected by this flow. They retain existing requirement names where possible. Unchanged requirements and already synced follow-up rules remain in the main specs. Historical ticket exclusion, removal of per-offer URLs, saved source artifacts, and removal of optional source-tool capture are explicit scope and inspection changes. Existing temporal selection, classification limits, location integrity, and atomic writes remain the baseline.
 
 ## Architecture
 
@@ -399,3 +399,10 @@ The owner accepted four follow-up choices. An unresolved historical check needs 
 Geocoding replay first uses the exact request, then a normalized forward-query comparison under the same explicit country filter. Normalize Unicode accents, case, punctuation, word order and country labels in English, Spanish, Portuguese, French and German. Keep all other place tokens, so city requests do not become venue requests. Conflicting normalized responses return `unavailable`; reverse requests stay exact. This broadens matching without a model call, new query aliases or live fallback. It does not infer arbitrary place-name translations. Scorer revision 16 and the dataset hash separate the new checks and replay behavior from earlier experiments.
 
 A controlled low-versus-medium Research comparison remains a separate experiment. These choices do not establish new model quality or close the remaining full-change validation tasks.
+
+
+## Isolated Reader evaluation
+
+The `regression/reader` group uses three existing full-page fixtures without source copies: Sziget homepage, Roskilde ticket overview and Harbor Echo venue confirmation. Each page has a small TypeScript requirement list. The runner supplies the production Reader input and limits, binds literal output and saves the execution plus accepted evidence as a normal Mastra experiment. It does not run collection, other roles or writes, and it does not expose requirements to Reader.
+
+Code checks complete passage groups under the required topic, literal binding, empty limitations and nonpublication lists for these readable pages, and nonempty navigation coverage. Mastra presents scenario success, evidence recall and literal validity. Unique source coverage and extracted text with repeated context remain diagnostics. No judge model or new package is required. This narrow group does not replace full-flow quality checks or claim exhaustive page recall.

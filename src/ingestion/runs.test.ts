@@ -7,7 +7,10 @@ import {
   storedRunInput,
   RunPersistenceError,
 } from "./runs";
-import { runFixtureResearch as runCatalogResearch } from "@/test/ingestion";
+import {
+  fixtureDependencies,
+  runFixtureResearch as runCatalogResearch,
+} from "@/test/ingestion";
 
 const settings = storedRunInput(
   { mode: "add", name: "Test", actor: "owner" },
@@ -58,11 +61,12 @@ test("finalization preserves normalized report, zero/unknown values and guards t
     { mode: "add", name: "Test", actor: "owner" },
     {
       client,
-      generateCandidate: async () => ({
-        status: "failed",
-        data: null,
-        errors: [],
-        unresolved: [],
+      ...fixtureDependencies({
+        general: {
+          decision: "uncertain",
+          reason: "No supported identity",
+          unresolved: [],
+        },
       }),
     },
   );
@@ -143,11 +147,12 @@ test.each([NaN, Infinity, -1, 1.5])(
       { mode: "add", name: "Test", actor: "owner" },
       {
         client,
-        generateCandidate: async () => ({
-          status: "failed",
-          data: null,
-          errors: [],
-          unresolved: [],
+        ...fixtureDependencies({
+          general: {
+            decision: "uncertain",
+            reason: "No supported identity",
+            unresolved: [],
+          },
         }),
       },
     );
@@ -227,11 +232,12 @@ test("a new run leaves historical report JSON unchanged", async () => {
     { mode: "add", name: "Test", actor: "owner" },
     {
       client,
-      generateCandidate: async () => ({
-        status: "failed",
-        data: null,
-        errors: [],
-        unresolved: [],
+      ...fixtureDependencies({
+        general: {
+          decision: "uncertain",
+          reason: "No supported identity",
+          unresolved: [],
+        },
       }),
     },
   );

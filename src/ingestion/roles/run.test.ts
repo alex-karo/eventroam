@@ -49,7 +49,39 @@ it.each(["add", "full", "current"] as const)(
     const execution = await runGeneral({
       input,
       context,
-      corpus: { version: "fixture", sources: [], evidence: [] },
+      corpus: {
+        version: "fixture",
+        sources: [
+          {
+            id: "s1",
+            attemptedUrl: "https://example.org/",
+            finalUrl: "https://example.org/",
+            retrievedAt: context.currentDate,
+            method: "http",
+            status: "ok",
+            processing: "complete",
+            limitations: [],
+          },
+        ],
+        evidence: bindEvidence(
+          "s1",
+          "The festival takes place in Ireland.",
+          {
+            overview: "Festival location",
+            coverage: { found: ["Festival country"], notPublished: [] },
+            topics: ["location"],
+            statedYears: [],
+            limitations: [],
+            evidence: [
+              {
+                quote: "The festival takes place in Ireland.",
+                topics: ["location"],
+              },
+            ],
+          },
+          "https://example.org/",
+        ).evidence,
+      },
       budget,
       config: { apiKey: "fixture", model: "fixture", limits: budget.limits },
       signal: new AbortController().signal,
@@ -63,6 +95,14 @@ it.each(["add", "full", "current"] as const)(
             "identityTask",
             "permissions",
           ]);
+          expect(data.corpus.evidence).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                quote: "The festival takes place in Ireland.",
+                topics: ["location"],
+              }),
+            ]),
+          );
           expect(data.assignment.permissions.eventFields).toBe(
             mode !== "current",
           );
@@ -187,7 +227,9 @@ it("uses native Mastra grep with cited source files and hash checks", async () =
         input: { mode: "add", actor: "test" },
         context: {
           catalog: [],
-          terms: [],
+          terms: [
+            { id: "opaque-id", facet: "genre", slug: "jazz", parentId: null },
+          ],
           knownLinks: [],
           currentDate: "2026-11-01T00:00:00Z",
         },
@@ -199,6 +241,9 @@ it("uses native Mastra grep with cited source files and hash checks", async () =
           client: testDatabase().client,
           generateRole: async (_role, prompt, call) => {
             const input = JSON.parse(prompt);
+            expect(input.vocabulary).toEqual([
+              { id: "opaque-id", facet: "genre", slug: "jazz", parentId: null },
+            ]);
             expect(input.currentDate).toBe("2026-11-01T00:00:00Z");
             expect(input).not.toHaveProperty("decisionShape");
             expect(input.prepared.basis.evidence[0].quote).toBe(

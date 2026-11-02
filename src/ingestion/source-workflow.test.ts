@@ -360,6 +360,9 @@ it("keeps a semantic check unfinished without an acquisition blocker", async () 
   });
   expect(result.errors).toEqual([]);
   expect(result.researchStatus).toBe("partial");
+  expect(result.unresolved).toContainEqual({
+    message: "currentClassification: Fixture completes interpretation",
+  });
 });
 
 it("rejects repeated collection keys before interpretation", async () => {

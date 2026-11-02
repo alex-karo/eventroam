@@ -616,3 +616,33 @@ The audit retains catalog text validation, identifier validation, external searc
 The affected prompt versions are Research v20, Reader v19, General v18, Tickets v12, Classification v8, Links v10, Editor v19 and Location v20. The eval revision is 19; Editor handoff schema version 5 stays in use. No live model evaluation is part of this follow-up.
 
 All 802 unit tests across 77 files and all 50 eval fixture loads pass. The regressions retain long text through role acceptance, source blocker reports and literal evidence binding. Existing invalid-boundary and oversized-quote checks still pass. Type checking, affected ESLint, formatting, documentation checks and strict OpenSpec validation pass. These checks establish acceptance and preservation of long text; model quality and output length in live runs remain unmeasured.
+
+
+## Final-contract affected repeats, 2026-11-02
+
+The owner accepts the current inference cost and removes further cost optimization and controlled cost comparison from the completion requirements. Historical measurements remain evidence, not pending cost targets.
+
+`problem-repeats-final` runs Roskilde and `search-date-conflict` twice each with `openai/gpt-6-luna` on standard tier. The runtime uses the current text-blocker and text-length contracts after merge commit `37602d1`. Scenario checks and model settings are unchanged. Both groups pass 2/2, for 4/4 attempts without checked errors or task failures.
+
+Roskilde retains 10/10 required facts and 21/22 additional facts. Attempt 2 omits `next.basePrice`; it has partial Research and a published outcome. Attempt 1 has successful Research and a published outcome. Both Editor calls complete normally. The earlier incomplete-JSON failure does not recur in these two attempts; this does not prove it cannot recur.
+
+Both date-conflict attempts have successful Research, successful Editor and a published dry-run outcome. The existing independent-confirmation conditions pass. Optional venue coordinates remain unresolved without a matching geocoding result; they do not fail this scenario.
+
+Main experiment: `33429526-1c07-4193-b85c-9417db8edb5a`. Pipeline experiment: `603d42d6-b176-4375-8941-f0858f87ed00`. Native results are saved in `data/eval-problem-repeats-20261102.duckdb` (LibSQL storage despite the filename extension); console logs are in `/tmp/eventroam-problem-repeats-final.log`. This focused run does not replace a full-suite measurement.
+
+
+## First isolated Reader evaluation, 2026-11-02
+
+The owner selected three existing pages for a separate Reader group. `reader-first` runs the captured Sziget homepage, captured Roskilde ticket overview and synthetic Harbor Echo venue confirmation once each on standard tier with `openai/gpt-6-luna`, Reader v20 and low reasoning. Source bodies and provenance are unchanged. Only Reader calls the model. Requirements are code checks and are not sent to the model. Normal output binding runs before evidence checks.
+
+All three model calls return valid structured output, but all three scenarios fail. Original native results are kept unchanged in `data/eval-reader-first-20261102.sqlite`, experiment `cc35eb12-6e97-4c6d-bcbb-ebab19debb6b`. Logs are in `/tmp/eventroam-reader-first.log`. The experiment takes 9.5 seconds; this is a focused extraction measurement, not a full-flow or cost comparison.
+
+| Case | Complete requirements | Literal binding | Remaining failures |
+| --- | --- | --- | --- |
+| Harbor Echo venue confirmation | 5/6 | 3/3 | The outdoor music passage lacks the classification topic. |
+| Roskilde ticket overview | 9/11 | 15/15 | The identity item says only `Billetter`; the Event name is in ticket evidence without the identity topic. The ticket-overview URL is omitted from link evidence. |
+| Sziget homepage, current-check rescore | 7/8 | 21/22 | The completed-festival passage lacks attached year context and the status topic. A returned short ticket link occurs twice in the source and cannot bind uniquely. |
+
+The initial Sziget identity check required the full phrase `Sziget Festival` and reported 6/8 requirements. Review found a valid literal `Be part of Sziget 2027` passage tagged identity. The requirement now accepts the source brand `Sziget`. Rescoring the same real output gives 7/8 and retains the failed scenario. The original native experiment still has the initial 6/8 score; it was not overwritten. Current-check rescore details are in `/tmp/eventroam-reader-first-rescore.jsonl`. No new model quality is claimed from that rescore.
+
+These checks measure the declared passage groups and metadata conditions, not all possible relevant facts. Volume diagnostics show unique source characters covered and extracted characters including repeated context. They do not enforce a compression threshold or assess summary semantics. No production Reader prompt was changed to make these cases pass.

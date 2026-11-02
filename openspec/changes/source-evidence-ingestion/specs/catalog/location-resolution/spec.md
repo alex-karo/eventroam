@@ -1,8 +1,3 @@
-## RENAMED Requirements
-
-- FROM: `### Requirement: Location decisions retain their evidence`
-- TO: `### Requirement: Place changes retain their evidence`
-
 ## MODIFIED Requirements
 
 ### Requirement: Geocoding is bounded and independent of old points
@@ -20,7 +15,7 @@ Geocoding SHALL return bounded candidates and safe provider failures. Forward re
 - **THEN** the tool returns unavailable without exposing configuration
 - **AND** ingestion can still return a supported source-point or preservation decision
 
-### Requirement: Place changes retain their evidence
+### Requirement: Location decisions retain their evidence
 
 Each changed or cleared place field SHALL retain its target and reason grounded in source evidence or saved state. Coordinate choices SHALL retain the source point or geocoding candidate basis. Reuse of an earlier saved point SHALL identify its Edition. Unsupported point or saved-Edition references SHALL be rejected.
 
@@ -35,32 +30,16 @@ Each changed or cleared place field SHALL retain its target and reason grounded 
 - **THEN** uncertainty about B does not turn A into a confirmed current venue
 - **AND** the decision retains the evidence against A
 
-### Requirement: Inheritance uses a stable historical source
-
-Reuse of an earlier saved point SHALL identify its Edition and copied coordinates. That Edition SHALL NOT be defined solely by the previousEdition role. A tentative point chosen for another slot in the same run SHALL NOT become an earlier saved point. The application SHALL recheck the earlier Edition's version and point in the write transaction.
-
-#### Scenario: The donor is not an update target
-
-- **WHEN** an earlier saved Edition changes after research and before its point is copied
-- **THEN** the whole item is rejected instead of copying a stale point
-
-#### Scenario: Completion order is ambiguous
-
-- **WHEN** the saved chronology cannot establish a suitable unique earlier Edition
-- **THEN** the application does not silently choose one by row order or matching year
-
-## ADDED Requirements
-
-### Requirement: Location changes address only accepted Edition targets
+### Requirement: Location runs only for accepted Edition targets
 
 Ingestion SHALL apply place changes only to accepted Edition targets. A duplicate add, declined creation, rejected identity, or absent Edition target SHALL produce no place changes for that target. Saved history SHALL remain context without becoming an update target. A place change SHALL NOT alter Event or Edition identity.
 
-#### Scenario: The festival association is rejected
+#### Scenario: The editor rejects the festival association
 
 - **WHEN** evidence concerns another festival
 - **THEN** no catalog changes are made
 
-#### Scenario: Only the current-or-next Edition is accepted
+#### Scenario: Only the next Edition is accepted
 
 - **WHEN** currentOrNextEdition is accepted and previousEdition is null
 - **THEN** only the current-or-next key can receive place changes
@@ -71,22 +50,23 @@ Ingestion SHALL apply place changes only to accepted Edition targets. A duplicat
 - **WHEN** two distinct Edition targets are accepted
 - **THEN** each can receive its own supported place change in the same atomic item
 
-#### Scenario: Saved questions remain unresolved
+#### Scenario: Editor context is available
 
-- **WHEN** a selected target has unresolved place questions
-- **THEN** those questions remain visible without fabricated explanations or unsupported changes
+- **WHEN** Editor reviews selected targets and place proposals
+- **THEN** it receives applicable source evidence, saved values, point records and available place questions
+- **AND** absent explanations are not invented and rejected targets cannot be restored by a place proposal
 
-### Requirement: Place checks use applicable source and saved context
+### Requirement: Initial geocoding prepares Location context
 
-Place checks SHALL distinguish new venue evidence from target points and earlier saved points. A new venue SHALL NOT be combined with a withdrawn address. Source coordinates SHALL retain their owning object and year context. Equivalent geocoding inputs SHALL reuse available results while each Edition's applicability is assessed separately.
+Before Location runs, the application SHALL prepare available reverse context for the saved target point or its earlier saved point. Location SHALL choose forward queries within the shared budget. Place checks SHALL distinguish new venue evidence from saved points. A new venue SHALL NOT be combined with a withdrawn address. Source coordinates SHALL retain their owning object and year context. Equivalent geocoding inputs SHALL reuse available results while each Edition's applicability is assessed separately.
 
-#### Scenario: A new venue replaces the saved venue
+#### Scenario: Research establishes a new venue
 
 - **WHEN** evidence establishes a new venue and disproves the saved address
 - **THEN** the saved point remains available for comparison
 - **AND** a forward query does not combine the new venue with that withdrawn address
 
-#### Scenario: Two targets share an old point
+#### Scenario: Two slots share their location inputs
 
 - **WHEN** two selected Editions have the same saved coordinates
 - **THEN** one available reverse result can serve as context for both without another provider request
@@ -98,9 +78,11 @@ Place checks SHALL distinguish new venue evidence from target points and earlier
 - **THEN** a place update can use that exact pair when it applies to the target
 - **AND** ingestion does not generate latitude or longitude
 
-### Requirement: Location updates preserve a coherent place description
+### Requirement: Location owns a coherent place description
 
 The final venueName, venueAddress, locality, administrativeArea, countryCode, and coordinates SHALL describe one coherent place for each addressed Edition. A changed venue SHALL NOT retain an address or point disproved by the same evidence. Unsupported fields SHALL preserve saved data without claiming fresh verification. Invalid or inconsistent final place data SHALL reject the item.
+
+Location SHALL supply explicit decisions for all place fields. Editor SHALL approve or reject those proposals without supplying replacement values. Other specialists SHALL NOT supply place changes.
 
 #### Scenario: A new venue has an old address
 
@@ -113,22 +95,12 @@ The final venueName, venueAddress, locality, administrativeArea, countryCode, an
 - **WHEN** a field has no supported replacement or evidence against its saved value
 - **THEN** the saved value is preserved without claiming fresh verification
 
-## REMOVED Requirements
+#### Scenario: A text action is missing
 
-### Requirement: Location runs only for accepted Edition targets
+- **WHEN** a Location proposal omits a decision for a place text field
+- **THEN** validation rejects the whole item before writes
 
-**Reason**: The old block mixes domain outcomes with internal execution requirements.
+#### Scenario: Plans overlap in field ownership
 
-**Migration**: The replacement "Location changes address only accepted Edition targets" retains the domain checks. Internal contracts belong in the design.
-
-### Requirement: Initial geocoding prepares Location context
-
-**Reason**: The old block mixes domain outcomes with internal execution requirements.
-
-**Migration**: The replacement "Place checks use applicable source and saved context" retains the domain checks. Internal contracts belong in the design.
-
-### Requirement: Location owns a coherent place description
-
-**Reason**: The old block mixes domain outcomes with internal execution requirements.
-
-**Migration**: The replacement "Location updates preserve a coherent place description" retains the domain checks. Internal contracts belong in the design.
+- **WHEN** Editor supplies a replacement place value or Location supplies a non-location change
+- **THEN** validation rejects the whole item before writes

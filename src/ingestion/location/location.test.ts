@@ -310,6 +310,17 @@ test("literal source points retain evidence support and malformed pairs are abse
   ];
   const session = createGeocodingSession(data, createResearchBudget());
   expect(session.targets.currentOrNextEdition!.sourceId).toBe("p1");
+  const raw = output();
+  raw.decision.currentOrNextEdition.evidenceIds = [];
+  Object.assign(raw.decision.currentOrNextEdition.coordinates, {
+    action: "select",
+    pointId: "p1",
+    precision: "exact",
+  });
+  expect(
+    validateLocation(raw, data, session).support.currentOrNextEdition,
+  ).toEqual(["e1"]);
+
   expect(session.points.get("p1")).toMatchObject({
     kind: "source",
     evidenceIds: ["e1"],

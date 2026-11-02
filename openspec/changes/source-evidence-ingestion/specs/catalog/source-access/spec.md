@@ -1,60 +1,4 @@
-## RENAMED Requirements
-
-- FROM: `### Requirement: Page reads use a small model response`
-- TO: `### Requirement: Source-read results distinguish status and limitations`
-
 ## MODIFIED Requirements
-
-### Requirement: Discovery is limited to material source needs
-
-Discovery MUST serve an unknown official source, source recovery, a material identity or date conflict, or an essential missing Edition fact.
-Research MUST use relevant known links and prior results before another search.
-The last case MUST concern an Edition supported by inspected evidence.
-Essential facts MUST concern Edition identification, dates, or publication requirements.
-Missing optional facts or an unannounced next Edition alone MUST NOT justify search.
-Current source-recovery restrictions MUST still apply. Search count SHALL depend on the unresolved permitted need within the shared budget, not a universal one-query limit.
-
-#### Scenario: Official sources contain no next announcement
-
-- **WHEN** relevant accessible official sources have been checked without finding a next announcement
-- **THEN** research reports that finding without searching solely for the missing announcement
-- **AND** an empty `currentOrNextEdition` slot alone does not authorize discovery
-
-#### Scenario: A known source conflicts with Event identity
-
-- **WHEN** relevant known links cannot resolve a material identity or date conflict
-- **THEN** research can discover and inspect a candidate within the budget if the scope permits source recovery
-- **AND** current identity contradictions still require full refresh without replacement-site search
-
-#### Scenario: An identified Edition lacks an essential fact
-
-- **WHEN** inspected evidence supports an Edition but relevant known pages leave identification, dates, or a publication-required fact unresolved
-- **THEN** research can make a targeted search for that fact within the shared budget
-- **AND** it uses relevant prior results before another search
-- **AND** search highlights remain leads until the destination is inspected
-
-#### Scenario: Optional information is missing
-
-- **WHEN** only optional prices or participant size remain unknown
-- **THEN** those gaps alone do not authorize discovery
-
-#### Scenario: Sources explicitly state that no next Edition is announced
-
-- **WHEN** inspected official material states that the next Edition has not been announced
-- **THEN** research can complete that announcement check without further search
-
-#### Scenario: A search question is resolved
-
-- **WHEN** inspected evidence resolves the question that authorized discovery
-- **THEN** that question no longer authorizes another search
-- **AND** permission does not require a search for every missing field
-
-#### Scenario: The first search leaves an essential fact unresolved
-
-- **WHEN** an identified Edition still lacks a publication-required country after relevant known links and useful search results have been inspected
-- **THEN** another targeted search is permitted within the shared budget
-- **AND** resolving that need ends its permission for further search
-
 
 ### Requirement: Public pages are read within safety bounds
 
@@ -93,7 +37,7 @@ Ingestion SHALL retain a general content description for each informative inspec
 - **AND** a page that is silent or unprocessed does not establish the detail's absence
 - **AND** the coverage description alone does not authorize a catalog change
 
-### Requirement: Source-read results distinguish status and limitations
+### Requirement: Page reads use a small model response
 
 A source-read result SHALL identify its destination, retrieval status, known limitations, and remaining allowance. Retrieval statuses SHALL remain ok, unsupported, or failed, separate from ingestion completion. Success SHALL NOT certify complete retrieval or complete factual checking.
 
@@ -193,49 +137,6 @@ A source-based change SHALL retain enough source context to identify its meaning
 - **THEN** that result alone does not establish that a fact or qualification is absent
 - **AND** a proposed change still needs applicable source support
 
-### Requirement: Ingestion uses a shared run budget
-
-All ingestion work SHALL share a bounded run budget and deadline. Relevant follow-up pages SHALL remain permitted while time remains, without an independent page-count or link-depth cap. Geocoding SHALL share one finite Event-level allowance. Geocoding calls SHALL count even on cache hits; sharing a prepared result SHALL NOT count as another call. Each uncached geocoding call SHALL make at most one HTTP request without automatic retries. Cancellation and hard limits SHALL stop further external work. Limits SHALL remain visible and SHALL NOT turn unread text into verified absence.
-
-#### Scenario: A relevant linked page remains available
-
-- **WHEN** a source links to a more specific ticket or announcement page and budget remains
-- **THEN** research may inspect that page before returning findings
-
-#### Scenario: The budget expires
-
-- **WHEN** the budget expires before a usable final result
-- **THEN** the run reports the limit with available diagnostics and makes no catalog changes
-- **AND** no complete list of unfinished checks is required
-
-#### Scenario: Geocoding reaches its call bound
-
-- **WHEN** the configured geocoding call limit is reached
-- **THEN** further tool invocations return the limit result without a provider request
-- **AND** ingestion can return a valid preservation decision with the unfinished refinement question while time remains
-
-#### Scenario: A geocoding request fails temporarily
-
-- **WHEN** an HTTP request fails with a timeout, rate limit, or provider error
-- **THEN** preparation or the tool returns a safe failure without an automatic retry
-- **AND** ingestion can make another explicit call within the remaining call and time limits or return a valid unresolved decision
-
-#### Scenario: Initial requests consume the shared allowance
-
-- **WHEN** geocoding context is prepared for two selected slots
-- **THEN** each distinct request consumes one call from the shared Event limit
-- **AND** shared results consume no extra calls and later requests use only the remaining allowance
-
-#### Scenario: A required place check reaches the deadline
-
-- **WHEN** a required place check cannot complete before the run deadline
-- **THEN** the run retains the limit reason and available diagnostics without partial item writes
-
-#### Scenario: The run is cancelled during geocoding
-
-- **WHEN** the owner cancels an active run
-- **THEN** active provider requests stop and subsequent catalog writes do not start
-
 ### Requirement: Saved source text survives partial processing
 
 Ingestion SHALL retain full extracted Markdown within retrieval bounds. Partial processing SHALL NOT shorten that saved text. Unprocessed content SHALL remain unverified. Repeated inspection of a requested or final URL SHALL reuse its available read result, including failures, within the run.
@@ -259,14 +160,8 @@ Ingestion SHALL retain full extracted Markdown within retrieval bounds. Partial 
 
 ## REMOVED Requirements
 
-### Requirement: Research stays within a shared run budget
-
-**Reason**: The old block mixes domain outcomes with internal execution requirements.
-
-**Migration**: The replacement "Ingestion uses a shared run budget" retains the domain checks. Internal contracts belong in the design.
-
 ### Requirement: Cached Markdown is cut only for model input
 
-**Reason**: The old block mixes domain outcomes with internal execution requirements.
+**Reason**: Processing limits no longer use a truncated Markdown prefix. The complete source is saved for later validation.
 
-**Migration**: The replacement "Saved source text survives partial processing" retains the domain checks. Internal contracts belong in the design.
+**Migration**: Use "Saved source text survives partial processing" for full-text retention and explicit processing limits.

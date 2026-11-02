@@ -133,22 +133,8 @@ export type ResearchDependencies = {
   todayUtc?: string;
   generateLocation?: GenerateLocation;
   geocodingClient?: GeocodingClient;
-  generateEditor?: (
-    prompt: string,
-    context: { budget: ResearchBudget; abortSignal: AbortSignal },
-  ) => Promise<unknown>;
   readPage?: typeof readPage;
   searchWeb?: typeof searchWeb;
-  /** Fixture provider receives the same bounded prompt as the real Mastra agent. */
-  generateCandidate?: (
-    prompt: string,
-    context: {
-      budget: ResearchBudget;
-      reads: ReadPageResult[];
-      readPage: (url: string) => Promise<ReadPageResult>;
-      searchWeb: (query: string) => Promise<SearchWebResult>;
-    },
-  ) => Promise<unknown>;
 };
 /** Serializable research accumulated by native Mastra workflow state. */
 export type IngestionData = {

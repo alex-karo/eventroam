@@ -1,35 +1,20 @@
 import { z } from "zod";
 import { currency } from "@/catalog/domain/price";
-import { isAssignedCountryCode } from "@/catalog/domain/country-codes";
-import {
-  scheduleStatuses,
-  ticketAvailabilities,
-} from "@/catalog/domain/vocabulary";
-import { normalizeCatalogUrl } from "@/catalog/domain/urls";
+import { ticketAvailabilities } from "@/catalog/domain/vocabulary";
 import { majorToMinor } from "./money";
 
-const editionKey = z
+export const editionKeySchema = z
   .string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
-  .max(63);
+  .max(63)
+  .describe(
+    "Edition key: 1-63 lowercase ASCII letters or digits, with single hyphens between groups. No colons, spaces, leading or trailing hyphens. Copy an existing Edition key exactly; for a new Edition use a key such as 2027 or 2027-weekend-2.",
+  );
 const diagnosticMessage = z
   .string()
   .trim()
   .min(1)
   .describe("Use a short factual message, normally under 500 characters.");
-const reason = z
-  .string()
-  .trim()
-  .min(1)
-  .describe("Explain the finding or identity decision in 1-3 short sentences.");
-const url = z
-  .url()
-  .refine((value) => /^https?:\/\//.test(value), "HTTP(S) URL required");
-const optionalLink = z.union([url, z.literal("")]).optional();
-const fact = <T extends z.ZodType>(value: T) =>
-  z.object({ value, reason }).strict();
-const nullableText = (max: number) =>
-  z.string().trim().min(1).max(max).nullable();
 const amount = z.number().nonnegative();
 const monetaryAmount = (code: string, value: number) => {
   try {
@@ -40,7 +25,7 @@ const monetaryAmount = (code: string, value: number) => {
   }
 };
 
-const dateBlock = z
+export const dateBlockSchema = z
   .object({
     startsOn: z.iso.date(),
     endsOn: z.iso.date(),
@@ -51,13 +36,6 @@ const dateBlock = z
     (value) => value.endsOn >= value.startsOn,
     "End date precedes start date",
   );
-const coordinateBlock = z
-  .object({
-    latitude: z.number().min(-90).max(90),
-    longitude: z.number().min(-180).max(180),
-    precision: z.enum(["exact", "approximate", "locality", "region"]),
-  })
-  .strict();
 const paidBase = z
   .object({
     kind: z.enum(["exact", "from", "range"]),
@@ -125,118 +103,12 @@ export const ticketOfferSchema = z
       });
     }
   });
-export const ticketVariantSchema = ticketOfferSchema.safeExtend({
-  url: url.optional(),
-});
-const ticketBlock = z
-  .object({
-    variants: z.array(ticketVariantSchema).max(100),
-    basePrice: researchBasePriceSchema
-      .nullable()
-      .describe(
-        "Full-programme base price excluding eligibility-restricted concessions, including free child, youth, student, senior, or resident tickets. Keep concessions in variants; use null when only concession prices are known.",
-      ),
-  })
-  .strict();
-const socialLinks = z
-  .object({
-    instagram: optionalLink,
-    facebook: optionalLink,
-    youtube: optionalLink,
-    tiktok: optionalLink,
-    x: z
-      .union([
-        z.literal(""),
-        url.refine(
-          (value) =>
-            URL.canParse(value) &&
-            ["x.com", "twitter.com", "www.x.com", "www.twitter.com"].includes(
-              new URL(value).hostname.toLowerCase(),
-            ),
-          "X/Twitter account URL required",
-        ),
-      ])
-      .optional(),
-    other: optionalLink,
-  })
-  .strict();
-export const editionFindingSchema = z
-  .object({
-    key: editionKey,
-    year: fact(z.number().int().min(1).max(9999)).optional(),
-    dates: fact(dateBlock.nullable()).optional(),
-    scheduleStatus: fact(z.enum(scheduleStatuses)).optional(),
-    displayName: fact(nullableText(250)).optional(),
-    venueName: fact(nullableText(250)).optional(),
-    venueAddress: fact(nullableText(500)).optional(),
-    locality: fact(nullableText(250)).optional(),
-    administrativeArea: fact(nullableText(250)).optional(),
-    countryCode: fact(
-      z
-        .string()
-        .regex(/^[A-Z]{2}$/)
-        .refine(isAssignedCountryCode)
-        .nullable(),
-    ).optional(),
-    coordinates: fact(coordinateBlock.nullable()).optional(),
-    sizeEstimate: fact(z.number().int().positive().nullable()).optional(),
-    classification: fact(z.array(z.string().min(1)).max(50)).optional(),
-    tickets: fact(ticketBlock).optional(),
-    links: z.object({ tickets: optionalLink }).strict(),
-  })
-  .strict();
-
-export const researchDataSchema = z
-  .object({
-    eventId: z.string().min(1).optional(),
-    eventName: z
-      .string()
-      .max(250)
-      .refine((value) => value.trim().length > 0, "Event name required"),
-    reason: reason.optional(),
-    sources: z.array(
-      z.object({ url, information: diagnosticMessage }).strict(),
-    ),
-    summary: fact(z.string().max(2000)).optional(),
-    links: z.object({ website: optionalLink, socials: socialLinks }).strict(),
-    previousEdition: editionFindingSchema.nullable(),
-    currentOrNextEdition: editionFindingSchema.nullable(),
-  })
-  .strict()
-  .superRefine((data, ctx) => {
-    if (
-      data.previousEdition &&
-      data.previousEdition.key === data.currentOrNextEdition?.key
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["currentOrNextEdition", "key"],
-        message: "One Edition cannot occupy both roles",
-      });
-    }
-    const urls = new Set<string>();
-    for (const [index, item] of data.sources.entries()) {
-      if (!URL.canParse(item.url)) {
-        continue;
-      }
-      const normalized = normalizeCatalogUrl(item.url);
-      if (urls.has(normalized)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["sources", index, "url"],
-          message: "Duplicate source URL",
-        });
-      }
-      urls.add(normalized);
-    }
-  });
-
 export const researchQuestionSchema = z
   .object({
     message: diagnosticMessage.describe(
       "Describe the unknown question, normally under 500 characters. For partial, name the unfinished core check and its cause; merely unpublished or optional details do not require partial.",
     ),
-    editionKey: editionKey.optional(),
+    editionKey: editionKeySchema.optional(),
     field: z
       .string()
       .min(1)
@@ -247,88 +119,18 @@ export const researchQuestionSchema = z
       ),
   })
   .strict();
-export const modelResearchErrorSchema = z
-  .object({
-    code: z.enum([
-      "source_unavailable",
-      "source_unsupported",
-      "source_blocked",
-      "limit_reached",
-    ]),
-    message: diagnosticMessage,
-    url: url.optional(),
-    editionKey: editionKey.optional(),
-    field: z
-      .string()
-      .min(1)
-      .max(100)
-      .optional()
-      .describe(
-        "Optional single field name, at most 100 characters. For an error covering several fields, omit this slot and describe them in message.",
-      ),
-  })
-  .strict();
-export const researchCandidateSchema = z
-  .object({
-    status: z
-      .enum(["success", "partial", "failed"])
-      .describe(
-        "Research completion: success when relevant checks are complete even if the selected Edition announcement lacks details; partial only for useful source findings with an unfinished core check; failed with data:null and a source error when refresh has no usable inspected-source findings. Repeating saved/input identity, facts, or URLs is not a finding; verified unchanged facts count. Duplicate add may use a matching supplied catalog identity alone.",
-      ),
-    data: researchDataSchema.nullable(),
-    errors: z.array(modelResearchErrorSchema).max(30),
-    unresolved: z
-      .array(researchQuestionSchema)
-      .max(30)
-      .describe(
-        "Unanswered questions; partial requires at least one specific unfinished core check and its cause. Optional unknowns may coexist with success.",
-      ),
-  })
-  .strict()
-  .superRefine((candidate, ctx) => {
-    if (
-      candidate.status === "failed"
-        ? candidate.data !== null
-        : candidate.data === null
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["data"],
-        message: "Status and data disagree",
-      });
-    }
-    if (candidate.status === "partial" && candidate.unresolved.length === 0) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["unresolved"],
-        message: "Partial research needs an unresolved question",
-      });
-    }
-    if (
-      candidate.status === "failed" &&
-      candidate.errors.length + candidate.unresolved.length === 0
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["errors"],
-        message: "Failed research needs a diagnostic",
-      });
-    }
-  });
-
 export const editionSlotNames = [
   "previousEdition",
   "currentOrNextEdition",
 ] as const;
-export type ResearchEdition = z.infer<typeof editionFindingSchema>;
-
-export type ResearchCandidate = z.infer<typeof researchCandidateSchema>;
-export type ResearchStatus = ResearchCandidate["status"];
-export type ResearchData = z.infer<typeof researchDataSchema>;
+export type ResearchStatus = "success" | "partial" | "failed";
 export type ResearchQuestion = z.infer<typeof researchQuestionSchema>;
 export type ResearchError = {
   code:
-    | z.infer<typeof modelResearchErrorSchema>["code"]
+    | "source_unavailable"
+    | "source_unsupported"
+    | "source_blocked"
+    | "limit_reached"
     | "model_failed"
     | "invalid_candidate"
     | "invalid_plan"
@@ -359,4 +161,3 @@ export type ResearchError = {
     retryable?: boolean;
   };
 };
-export const RESEARCH_PROMPT_VERSION = "edition-slots-v7";

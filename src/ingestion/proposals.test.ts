@@ -482,3 +482,73 @@ it("writes reviewed free admission without ticket offers", () => {
     priceCoverage: "full_programme",
   });
 });
+
+it("keeps approved Location reuse when only donor classification is rejected", () => {
+  const f = fixture();
+  const result = f.assemble();
+  if (result.status !== "continue") {
+    throw new Error("Fixture rejected");
+  }
+  const p = result.value;
+  p.plan.previousEdition = {
+    editionKey: "2025",
+    fields: {
+      classification: {
+        action: "set",
+        value: f.terms.map((t) => t.id),
+        reason: "Programme",
+        evidenceIds: ["s1-e1"],
+      },
+    },
+  };
+  const keep = { action: "keep" as const, reason: "Preserve" };
+  const donor = {
+    id: "donor",
+    kind: "previousPoint" as const,
+    editionKey: "2025",
+    editionId: "old",
+    version: 1,
+    latitude: 38,
+    longitude: -8,
+    precision: "exact" as const,
+  };
+  const place = {
+    venueName: keep,
+    venueAddress: keep,
+    locality: keep,
+    administrativeArea: keep,
+    countryCode: {
+      action: "set" as const,
+      value: "PT",
+      reason: "Same country",
+    },
+    coordinates: {
+      action: "set" as const,
+      value: { latitude: 38, longitude: -8, precision: "exact" as const },
+      reason: "Same venue",
+    },
+  };
+  p.location = {
+    support: {},
+    slots: { currentOrNextEdition: place },
+    previousPoints: [donor],
+    reusedFrom: { currentOrNextEdition: donor },
+    unresolved: [],
+  };
+  const review = approveReview(awaitSchema(p)) as {
+    previousEdition: { fields: { classification: unknown } };
+  };
+  review.previousEdition.fields.classification = {
+    decision: "reject",
+    reason: "Wrong genre",
+  };
+  const accepted = applyReview(p, review);
+  expect(accepted.status).toBe("continue");
+  if (accepted.status !== "continue") {
+    throw new Error("Review rejected");
+  }
+  expect(accepted.value.location.slots.currentOrNextEdition).toEqual(place);
+  expect(accepted.value.location.reusedFrom?.currentOrNextEdition).toEqual(
+    donor,
+  );
+});

@@ -227,7 +227,18 @@ export function validateLocation(
         "Location changes need applicable supplied evidence references",
       );
     }
-    result.support[slot] = plan.evidenceIds;
+    const selectedPoint =
+      plan.coordinates.action === "select"
+        ? session.points.get(plan.coordinates.pointId)
+        : undefined;
+    result.support[slot] = [
+      ...new Set([
+        ...plan.evidenceIds,
+        ...(selectedPoint?.kind === "source"
+          ? (selectedPoint.evidenceIds ?? [])
+          : []),
+      ]),
+    ];
     const coordinates = materializePoint(
       plan,
       target,

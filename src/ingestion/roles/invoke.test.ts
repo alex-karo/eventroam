@@ -82,3 +82,75 @@ it("accepts a valid domain decision with a reason above the length guidance", as
   });
   expect(result.errors).toEqual([]);
 });
+
+it.each([
+  {
+    field: {
+      action: "set",
+      value: null,
+      reason: "Invalid null set",
+      evidenceIds: ["s1-e1"],
+    },
+    valid: false,
+  },
+  {
+    field: {
+      action: "set",
+      value: 2027,
+      reason: "Official year",
+      evidenceIds: ["s1-e1"],
+    },
+    valid: true,
+  },
+])(
+  "validates required action values after nullable wire normalization: $valid",
+  async ({ field, valid }) => {
+    const budget = createResearchBudget();
+    const raw = {
+      decision: "targets",
+      eventId: null,
+      observedEventName: "Festival",
+      reason: "Official identity",
+      evidenceIds: ["s1-e1"],
+      event: { summary: null },
+      previousEdition: null,
+      currentOrNextEdition: {
+        editionKey: "2027",
+        reason: "Announced Edition",
+        evidenceIds: ["s1-e1"],
+        fields: { year: field, dates: null, sizeEstimate: null },
+      },
+      checks: [],
+      unresolved: [],
+    };
+    const result = await invokeRole({
+      role: "general",
+      version: "test",
+      instructions: "Fixture",
+      input: {},
+      schema: generalOutputSchema,
+      budget,
+      config: {
+        apiKey: "fixture",
+        model: "fixture/model",
+        limits: budget.limits,
+      },
+      generate: async () => raw,
+    });
+    expect(result.status).toBe(valid ? "success" : "failed");
+    expect(result.modelResponse?.object).toEqual(raw);
+    if (valid) {
+      expect(result.output).toMatchObject({
+        event: {},
+        currentOrNextEdition: { fields: { year: field } },
+      });
+      if (result.output?.decision === "targets") {
+        expect(result.output.currentOrNextEdition!.fields).not.toHaveProperty(
+          "dates",
+        );
+      }
+    } else {
+      expect(result.errors[0].message).toContain("value");
+    }
+  },
+);

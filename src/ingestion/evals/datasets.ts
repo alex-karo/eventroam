@@ -4,11 +4,11 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Mastra } from "@mastra/core/mastra";
 import type { DatasetItemPayload } from "@mastra/core/storage";
-import type { EvalCase, EvalSuite } from "./fixtures";
-import type { EvalGroup } from "./selection";
+import type { EvalSuite } from "./fixtures";
+import type { EvalGroup, SelectedEvalCase } from "./selection";
 
 // Increase this version when rules outside the hashed files change.
-export const EVAL_SCORER_VERSION = "19";
+export const EVAL_SCORER_VERSION = "20";
 
 /** Hash all case data, case checks, and main rules, including whitespace changes. */
 export function evalFileHash() {
@@ -40,6 +40,12 @@ export function evalFileHash() {
     })
       .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
       .map((name) => join("main", name)),
+    ...readdirSync(join(directory, "reader"), {
+      recursive: true,
+      encoding: "utf8",
+    })
+      .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
+      .map((name) => join("reader", name)),
   ].sort((a, b) => a.localeCompare(b));
   const hash = createHash("sha256");
   for (const file of files) {
@@ -52,7 +58,7 @@ export function evalFileHash() {
 
 export function evalDataset(
   suite: EvalSuite,
-  cases: EvalCase[],
+  cases: SelectedEvalCase[],
   group: EvalGroup,
   repeat: number,
   fileHash: string,
@@ -76,7 +82,8 @@ export function evalDataset(
           suite: item.suite,
           origin: item.origin,
           task: item.task,
-          locationGroup: item.location?.group ?? null,
+          locationGroup:
+            "location" in item ? (item.location?.group ?? null) : null,
         },
       }));
     });

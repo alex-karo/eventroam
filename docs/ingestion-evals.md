@@ -12,7 +12,7 @@ Evals measure catalog quality and protect specific workflow behavior. They use f
 
 ## Run evals
 
-`pnpm run catalog:eval --help` lists options. The default runs five main cases once. Main applies the normal Research → Editor → Location → writer flow in a fresh in-memory catalog. Workflow regressions use dry runs; isolated Location cases use complete inputs without a catalog or writer. The owner's catalog stays untouched. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. CI does not run evals or tests of the eval code, and application coverage excludes eval code and its CLI. Run evals through the CLI when needed.
+`pnpm run catalog:eval --help` lists options. The default runs five main cases once. Main runs the complete ingestion flow in a fresh in-memory catalog. Workflow regressions use dry runs; isolated Location cases use complete inputs without a catalog or writer. The owner's catalog stays untouched. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. CI does not run evals or tests of the eval code, and application coverage excludes eval code and its CLI. Run evals through the CLI when needed.
 
 ```sh
 pnpm run catalog:eval
@@ -20,12 +20,13 @@ pnpm run catalog:eval --all
 pnpm run catalog:eval --group regression/pipeline
 pnpm run catalog:eval --editor-only
 pnpm run catalog:eval --location-only
+pnpm run catalog:eval --group regression/reader
 pnpm run catalog:eval --case sziget --repeat 3 --model openai/gpt-6-luna
 pnpm run catalog:eval --label before
 pnpm run catalog:eval --label after
 ```
 
-Cases form four separate experiment groups. Use CLI help for the current selection:
+Cases form five separate experiment groups. Use CLI help for the current selection:
 
 | Group | Purpose |
 | --- | --- |
@@ -33,6 +34,7 @@ Cases form four separate experiment groups. Use CLI help for the current selecti
 | `regression/pipeline` | Targeted workflow behavior |
 | `regression/editor` | Captured Editor handoffs and eligible Location |
 | `regression/location` | Direct Location execution |
+| `regression/reader` | Full-page extraction, literal binding and evidence context |
 
 Use repeated `--group GROUP` or `--case ID` flags for a selection. A case selection without a mode flag can span groups. Use one of `--all`, `--group`, `--editor-only`, or `--location-only`; an incompatible case selection fails before provider setup. `--repeat N` accepts 1–20 and applies equally to all selected cases. Location retains separate completion, correction, and preservation summaries. Its positive cases require the declared changes; keep-only output cannot pass them. The provider adapter tests cover raw Geoapify parsing; eval fixtures cover normalized client responses.
 
@@ -115,9 +117,9 @@ For example, omitting a checked Instagram link lowers additional completeness. A
 
 Publication, identity, protected records and execution have separate conditions. High completeness cannot compensate for a failed condition.
 
-Regressions use the same pass/fail check format as main conditions. They expose one `scenario-success`: all checks must pass. Their saved output contains `checks` and `passed`, without intermediate percentages or separate diagnostic categories. The CLI and Mastra reason show failed-check messages.
+Regressions use the same pass/fail check format as main conditions. They expose `scenario-success`: all checks must pass. Workflow, Editor and Location regressions save `checks` and `passed`, without intermediate percentages or separate diagnostic categories. Reader also exposes evidence recall and literal validity, as described [below](#isolated-reader-cases). The CLI and Mastra reason show failed-check messages.
 
-Define all regression checks in the case directory's `checks.ts`: catalog mutations, source-check results, tool use, and Location decisions. Use plain TypeScript conditions and small helpers. JSON files hold inputs, source references, geocoding responses and captured role results. They have no `expectations` block or comparison language. The loader rejects an unregistered evaluator in every group before model calls. Dataset revisions include the check code; saved outputs retain each check's result and message. Expected values do not enter model input.
+Define workflow, Editor and Location regression checks in the case directory's `checks.ts`: catalog mutations, source-check results, tool use, and Location decisions. Use plain TypeScript conditions and small helpers. JSON files hold inputs, source references, geocoding responses and captured role results. They have no `expectations` block or comparison language. The loader rejects an unregistered evaluator in every group before model calls. Dataset revisions include the check code; saved outputs retain each check's result and message. Expected values do not enter model input.
 
 Editor handoff fixtures use schema version 5. Collection checks use nullable text reasons for source acquisition blockers rather than interpretation findings. Each fixture fixes the ordered page reads, Reader outputs, collection result and specialist proposals with explicit evidence references. Research and Reader use these fixed results without model calls. Normal collection still binds literal quotations and saves source artifacts. Editor and eligible Location execution use the configured model. Before provider setup, the loader checks source order, unique destinations, captured roles, literal quotations and references within each role's evidence packet. These cases measure review of a fixed proposal and corpus; they do not measure Research or Reader quality.
 
@@ -161,6 +163,18 @@ In every eval group, an initial or agent geocoding request without a fixture ret
 
 Add fixture coverage when it blocks a task we intend to measure. Do not add a response after every exploratory request merely to make diagnostics disappear.
 
+## Isolated Reader cases
+
+`--group regression/reader` runs three full-page inputs already used by the pipeline fixtures: the captured Sziget homepage, the captured Roskilde ticket page and the synthetic Harbor Echo venue confirmation. The existing source text, URLs, date and provenance are reused without copies or edits. The default command still selects five main cases. `--all` now selects 53 cases, including the three Reader cases.
+
+Only Reader calls the configured model. Its production prompt, low reasoning, page input bound, output allowance and literal binding stay in use. The input contains the normal requested name, fixed date, source metadata and full page. Case expectations never enter the prompt. The result includes the raw execution and accepted evidence; no source fetch, other agent, catalog write or model judge runs.
+
+Requirements live in `src/ingestion/evals/reader/`, one file per page. Each requirement names a topic and literal source passages that must reach that specialist together in one quotation and its context. Longer quotations, boundary quotations and a different evidence order are accepted. The checks do not compare the whole JSON or infer final catalog values. Fixture loading rejects expected passages absent from the original source.
+
+The three scores are `scenario-success`, `evidence-recall` (complete requirements divided by declared requirements) and `literal-validity` (accepted quotations divided by returned quotations, zero for an empty output). A scenario passes only when all requirements and structural checks pass. A discarded quotation remains a failure even if other evidence covers the same fact. The readable fixtures require no extraction limitations or unsupported nonpublication claims and require nonempty navigation coverage.
+
+CLI output also shows unique source characters covered and extracted characters including repeated context. These are diagnostics, not pass thresholds: copying a whole page is not evidence of efficient extraction. The checks cover only the named passages and metadata conditions. They do not establish exhaustive recall, semantic accuracy of the overview or coverage wording, absence of all irrelevant material, or downstream catalog quality.
+
 ## Review failures before changing expectations
 
 Compare the actual value with the supplied source, expected alternatives and tool observations. Classify the cause before editing:
@@ -203,3 +217,5 @@ Scorer revision 15 accepts partial Research with a failed catalog outcome in `cu
 A comparison can span different coarse dataset hashes only after checking that every selected case input and its checks are identical. For example, adding page-coverage fields to unselected fixed Editor inputs changes the coarse hash but does not change main or pipeline case inputs. Record this check with the measurements; do not infer equal inputs from matching case IDs alone.
 
 Scorer revision 16 removes the exact historical Edition key from the unfinished-history question check and requires historical context plus preservation of the saved historical record. Search counts remain case-specific: another targeted search is allowed for an unresolved permitted need within the shared budget, after useful known leads are used. Resolved needs and optional gaps do not authorize more searches. Geocoding replay uses the normalization above, and main requires `scheduled` for dated announcements. Earlier experiment scores stay unchanged.
+
+Scorer revision 20 adds the isolated Reader group and hashes its case requirements and execution helpers. Existing pipeline, Editor and Location checks retain their meaning.

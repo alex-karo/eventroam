@@ -17,8 +17,9 @@ import { executeCatalogCommand } from "../../commands/catalog";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import {
-  generateFixtureEditor,
-  generateFixtureLocation,
+  fixtureDependencies,
+  fixtureTargets,
+  set,
   createFixtureIngestionWorkflow,
 } from "@/test/ingestion";
 import { closeFixtureWorkflowStores } from "@/test/workflow-stores";
@@ -29,22 +30,17 @@ function fixture() {
   const path = join(dirname(database.path), "workflows.sqlite");
   const deps = {
     client: database.client,
-    generateEditor: generateFixtureEditor,
-    generateLocation: generateFixtureLocation,
-    generateCandidate: vi.fn(async () => ({
-      status: "success",
-      errors: [],
-      unresolved: [],
-      data: {
-        eventId: event.id,
-        eventName: event.canonicalName,
-        summary: { value: "ALLOWED_MODEL_TEXT", reason: "Official source" },
-        sources: [],
-        links: { socials: {} },
-        previousEdition: null,
-        currentOrNextEdition: null,
-      },
-    })),
+    ...fixtureDependencies(),
+    generateRole: vi.fn(
+      fixtureDependencies({
+        general: {
+          ...fixtureTargets(event.id),
+          observedEventName: event.canonicalName,
+          event: { summary: set("ALLOWED_MODEL_TEXT") },
+          currentOrNextEdition: null,
+        },
+      }).generateRole,
+    ),
   };
   return {
     database,
@@ -194,7 +190,7 @@ test.each([
         expect(JSON.parse(rows[0].report_json)).toEqual(report.results[0]);
       }
       if (!applied) {
-        expect(f.deps.generateCandidate).not.toHaveBeenCalled();
+        expect(f.deps.generateRole).not.toHaveBeenCalled();
       }
     } finally {
       await storage.close();
@@ -388,7 +384,7 @@ test("a real CLI report collision is rejected before either file changes", async
   ).rejects.toThrow("separate");
   expect(readFileSync(f.path, "utf8")).toBe("history sentinel");
   expect(readFileSync(f.database.path)).toEqual(before);
-  expect(f.deps.generateCandidate).not.toHaveBeenCalled();
+  expect(f.deps.generateRole).not.toHaveBeenCalled();
 });
 
 test("deleting a completed native run preserves catalog audit and reports", async () => {
@@ -506,7 +502,7 @@ test.each(["first later snapshot", "start acknowledgment"] as const)(
       .prepare("SELECT * FROM ingestion_runs")
       .all();
     expect(attempts).toHaveLength(boundary === "first later snapshot" ? 1 : 0);
-    expect(f.deps.generateCandidate).not.toHaveBeenCalled();
+    expect(f.deps.generateRole).not.toHaveBeenCalled();
     await host.shutdown();
     storage = createWorkflowStorage({ path: f.path });
     await storage.init();

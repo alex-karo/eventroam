@@ -58,6 +58,8 @@ Tests live beside their implementation. Use `testDatabase()` for a fresh migrate
 
 Set values that affect the scenario or assertions. Omitted fields receive defaults. Explicit `null` is preserved; `undefined` overrides are ignored. Tests do not load development fixtures or fetch live source pages. Use direct SQL only for database constraints or deliberately invalid data.
 
+Ingestion tests supply direct role responses through `generateRole` or `generateRoles`. The helpers in `src/test/ingestion.ts` provide current role answers and temporary workflow storage. Set each role response that affects the test. HTTP provider fixtures add the required transport envelope and nullable slots; they do not convert a combined research result into role answers.
+
 ## Dependency checks
 
 Run `pnpm run deps:check` to check runtime dependencies in `src/` and `commands/` for circular dependencies, unresolved imports, and production imports of test code. Type-only imports and other dependencies erased by TypeScript compilation are excluded. CI runs the same check.
