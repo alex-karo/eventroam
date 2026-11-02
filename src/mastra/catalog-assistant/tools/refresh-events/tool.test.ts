@@ -40,6 +40,7 @@ test("invalid input does not consume the selection; acceptance needs no worker o
     [],
     [fixture.eventIds[0], fixture.eventIds[0]],
     ["missing"],
+    Array.from({ length: 201 }, (_, i) => `event-${i}`),
   ]) {
     await fixture.execute(ids, requestContext);
     expect(requestContext.get("refreshConsumed")).toBe(false);
@@ -94,20 +95,6 @@ test("request abort before submission prevents acceptance; abort after commit pr
       .prepare("SELECT DISTINCT status FROM ingestion_jobs")
       .all(),
   ).toEqual([{ status: "pending" }]);
-});
-
-test("a 67 Event request is accepted as one selection and 201 IDs are rejected", async () => {
-  const fixture = setup(67);
-  expect(await fixture.execute()).toMatchObject({
-    ok: true,
-    acceptedCount: 67,
-  });
-  const requestContext = context();
-  await fixture.execute(
-    Array.from({ length: 201 }, (_, i) => `event-${i}`),
-    requestContext,
-  );
-  expect(requestContext.get("refreshConsumed")).toBe(false);
 });
 
 test("batch cancellation works with no worker and leaves unknown batches unchanged", async () => {

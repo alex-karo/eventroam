@@ -71,14 +71,12 @@ export function startToolLog(
   }
   log?.info("Assistant tool started");
   return {
-    log,
     finish<T extends { ok: boolean; error?: string }>(
       result: T,
       details: Record<string, unknown> = {},
-      failed = false,
     ): T {
-      let level: ResearchLogLevel = !result.ok || failed ? "error" : "info";
-      if (result.error === "cancelled" || details.cancelled) {
+      let level: ResearchLogLevel = result.ok ? "info" : "error";
+      if (result.error === "cancelled") {
         level = "warn";
       }
       log?.[level]("Assistant tool completed", {

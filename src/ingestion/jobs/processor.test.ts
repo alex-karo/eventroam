@@ -21,7 +21,6 @@ test("one awaited loop preserves order, continues ordinary failures, and never o
   const work = processJobs({
     client,
     signal: controller.signal,
-    idleMs: 5,
     execute: async (job) => {
       started.push(job.event_id);
       maxActive = Math.max(maxActive, ++active);

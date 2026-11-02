@@ -14,7 +14,7 @@ import {
   createCatalogObservability,
   flushObservability,
 } from "../runtime/observability/runtime";
-import { diagnosticStoragePaths, filesAlias } from "../runtime/storage-paths";
+import { diagnosticStoragePaths } from "../runtime/storage-paths";
 import { createWorkflowStorage } from "../runtime/workflow-storage";
 import { createCatalogIngestionWorkflow } from "../workflow";
 import { processJobs } from "./processor";
@@ -22,22 +22,16 @@ import { openJobCatalog, type IngestionJob } from "./store";
 
 export function workerStoragePaths(env: NodeJS.ProcessEnv = process.env) {
   const studio = diagnosticStoragePaths(env);
-  const worker = diagnosticStoragePaths({
-    ...env,
-    CATALOG_OBSERVABILITY_DATABASE_PATH:
-      env.CATALOG_WORKER_OBSERVABILITY_DATABASE_PATH?.trim() ||
-      "data/mastra-worker-observability.duckdb",
-  });
-  if (
-    [studio.observability, `${studio.observability}.wal`].some((file) =>
-      [worker.observability, `${worker.observability}.wal`].some((other) =>
-        filesAlias(file, other),
-      ),
-    )
-  ) {
-    throw new Error("Worker observations must use a separate DuckDB file");
-  }
-  return worker;
+  return diagnosticStoragePaths(
+    {
+      ...env,
+      CATALOG_OBSERVABILITY_DATABASE_PATH:
+        env.CATALOG_WORKER_OBSERVABILITY_DATABASE_PATH?.trim() ||
+        "data/mastra-worker-observability.duckdb",
+    },
+    process.cwd(),
+    [studio.observability, `${studio.observability}.wal`],
+  );
 }
 
 /** No HTTP, chat, or eval stores. The caller owns the shutdown signal. */

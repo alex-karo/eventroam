@@ -9,19 +9,16 @@ export async function processJobs(options: {
   signal: AbortSignal;
   execute: (job: IngestionJob, signal: AbortSignal) => Promise<unknown>;
   log?: ResearchLogger;
-  idleMs?: number;
 }) {
   const { client, signal, execute, log } = options;
   while (!signal.aborted) {
     const job = nextJob(client);
     if (!job) {
-      await delay(options.idleMs ?? 1000, undefined, { signal }).catch(
-        (error) => {
-          if (!signal.aborted) {
-            throw error;
-          }
-        },
-      );
+      await delay(1000, undefined, { signal }).catch((error) => {
+        if (!signal.aborted) {
+          throw error;
+        }
+      });
       continue;
     }
     const started = performance.now();

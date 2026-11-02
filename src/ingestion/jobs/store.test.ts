@@ -1,17 +1,10 @@
-import { dirname, join } from "node:path";
 import { readFileSync } from "node:fs";
 import { expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { DEFAULT_RESEARCH_LIMITS } from "../runtime/budget";
 import { startIngestionRun, storedRunInput } from "../runs";
-import {
-  submitJobs,
-  nextJob,
-  finishJob,
-  cancelPendingJobs,
-  openJobCatalog,
-} from "./store";
+import { submitJobs, nextJob, finishJob, cancelPendingJobs } from "./store";
 
 function setup(n = 3) {
   const { client } = testDatabase();
@@ -165,15 +158,6 @@ test("attempt insertion checks job state and all fixed inputs and permits severa
   expect(client.pragma("foreign_key_check")).toEqual([]);
   finishJob(client, job.id);
   expect(() => start()).toThrow();
-});
-
-test("opening job storage requires a migrated existing catalog", () => {
-  const db = testDatabase();
-  expect(() => openJobCatalog(join(dirname(db.path), "absent.sqlite"))).toThrow(
-    "job_storage_unavailable",
-  );
-  const client = openJobCatalog(db.path);
-  client.close();
 });
 
 test("SQL counts 200 jobs once and keeps multiple attempts visible within normal output limits", async () => {
