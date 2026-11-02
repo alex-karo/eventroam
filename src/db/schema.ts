@@ -215,15 +215,45 @@ export const operationReceipts = sqliteTable("operation_receipts", {
   appliedAt: text("applied_at").notNull(),
 });
 
+export const ingestionJobs = sqliteTable(
+  "ingestion_jobs",
+  {
+    id: text("id").primaryKey(),
+    batchId: text("batch_id").notNull(),
+    position: integer("position").notNull(),
+    eventId: text("event_id").notNull(),
+    scope: text("scope", { enum: ["current", "full"] }).notNull(),
+    dryRun: integer("dry_run", { mode: "boolean" }).notNull(),
+    status: text("status", {
+      enum: ["pending", "running", "done", "cancelled"],
+    }).notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("ingestion_jobs_batch_position_uq").on(t.batchId, t.position),
+    index("ingestion_jobs_queue_idx").on(
+      t.status,
+      t.createdAt,
+      t.batchId,
+      t.position,
+    ),
+  ],
+);
+
 /** Private attempt history. Event IDs may refer to deleted catalog records. */
-export const ingestionRuns = sqliteTable("ingestion_runs", {
-  id: text("id").primaryKey(),
-  eventId: text("event_id"),
-  mode: text("mode").notNull(),
-  status: text("status").notNull(),
-  startedAt: text("started_at").notNull(),
-  finishedAt: text("finished_at"),
-  inputJson: text("input_json", { mode: "json" }).$type<unknown>().notNull(),
-  reportJson: text("report_json", { mode: "json" }).$type<unknown>(),
-  durationMs: integer("duration_ms"),
-});
+export const ingestionRuns = sqliteTable(
+  "ingestion_runs",
+  {
+    jobId: text("job_id").references(() => ingestionJobs.id),
+    id: text("id").primaryKey(),
+    eventId: text("event_id"),
+    mode: text("mode").notNull(),
+    status: text("status").notNull(),
+    startedAt: text("started_at").notNull(),
+    finishedAt: text("finished_at"),
+    inputJson: text("input_json", { mode: "json" }).$type<unknown>().notNull(),
+    reportJson: text("report_json", { mode: "json" }).$type<unknown>(),
+    durationMs: integer("duration_ms"),
+  },
+  (t) => [index("ingestion_runs_job_idx").on(t.jobId)],
+);

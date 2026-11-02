@@ -31,6 +31,13 @@ export function createAssistantFixtureModel() {
       call = { name: "skill", input: { name: "catalog-sql" } };
     } else if (results.length === 0) {
       ({ call, text } = initialReply(owner, prompt, lastUser));
+    } else if (
+      /update all France Events/i.test(owner) &&
+      results.length === 1
+    ) {
+      ({ call, text } = selectedEventsReply(results[0]));
+    } else if (/find lost batch/i.test(owner)) {
+      text = savedBatchReply(results[0]);
     } else if (/analyze run/i.test(owner) && results.length === 1) {
       ({ call, text } = inspectRunReply(
         results[0],
@@ -44,7 +51,7 @@ export function createAssistantFixtureModel() {
         text = `Saved run evidence (selected fields; no independent source check): ${JSON.stringify(results)}. dryRun true means proposed changes; false means apply. An unchanged outcome can have partial research. Missing evidence remains unresolved.`;
       }
     } else {
-      text = `Tool result: ${JSON.stringify(results)}. Use ingestionRunId for saved reports; engineRunId is engine correlation. A preview proposes changes. Persistence failure can coexist with known commits.`;
+      text = `Tool result: ${JSON.stringify(results)}. Accepted jobs are not completed ingestion. Done means processing ended, not success. Stored running state does not prove worker health. Read saved reports through query_catalog. A preview proposes changes.`;
     }
     if (call?.name === "query_catalog") {
       const sql = (call.input as { sql: string }).sql;
@@ -192,7 +199,39 @@ function initialReply(
   let call: { name: string; input: unknown } | undefined;
   let text = "";
   const ids = owner.match(/[0-9a-f]{8}-[0-9a-f-]{27}/gi) ?? [];
-  if (/\b(update|preview)\b/i.test(owner)) {
+  if (/count France Events/i.test(owner)) {
+    call = {
+      name: "query_catalog",
+      input: {
+        sql: "SELECT count(DISTINCT event_id) AS count FROM editions WHERE country_code='FR'",
+      },
+    };
+  } else if (/update all France Events/i.test(owner)) {
+    call = {
+      name: "query_catalog",
+      input: {
+        sql: "SELECT DISTINCT event_id FROM editions WHERE country_code='FR' ORDER BY event_id",
+      },
+    };
+  } else if (/progress batch/i.test(owner) && ids.length === 1) {
+    call = {
+      name: "query_catalog",
+      input: {
+        sql: "SELECT status,count(*) AS count FROM ingestion_jobs WHERE batch_id=? GROUP BY status",
+        parameters: ids,
+      },
+    };
+  } else if (/cancel batch/i.test(owner) && ids.length === 1) {
+    call = { name: "cancel_refresh", input: { batchId: ids[0] } };
+  } else if (/find lost batch/i.test(owner) && ids.length) {
+    call = {
+      name: "query_catalog",
+      input: {
+        sql: `SELECT batch_id,created_at,scope,dry_run,count(*) FROM ingestion_jobs GROUP BY batch_id HAVING count(*)=? AND sum(event_id IN (${ids.map(() => "?").join(",")}))=? AND scope='full' AND dry_run=1 ORDER BY created_at,batch_id`,
+        parameters: [ids.length, ...ids, ids.length],
+      },
+    };
+  } else if (/\b(update|preview)\b/i.test(owner)) {
     if (!ids.length) {
       text = "Specify the Event IDs to refresh.";
     } else {
@@ -214,31 +253,7 @@ function initialReply(
       },
     };
   } else if (/second/i.test(owner)) {
-    const previous = prompt
-      .slice(0, lastUser)
-      .filter((message) => message.role === "tool")
-      .flatMap((message) => message.content)
-      .filter(
-        (part) =>
-          part.type === "tool-result" && part.toolName === "query_catalog",
-      );
-    const last = previous.at(-1);
-    const data =
-      last?.type === "tool-result" && last.output.type === "json"
-        ? (last.output.value as { rows?: string[][] })
-        : undefined;
-    const priorIds = data?.rows?.map((row) => row[0]) ?? [];
-    if (priorIds.length < 2) {
-      text = "No prior second Event in this conversation. Specify an Event ID.";
-    } else {
-      call = {
-        name: "query_catalog",
-        input: {
-          sql: "SELECT id, canonical_name FROM events WHERE id=?",
-          parameters: [priorIds[1]],
-        },
-      };
-    }
+    return previousEventReply(prompt, lastUser);
   } else {
     call = {
       name: "query_catalog",
@@ -249,4 +264,75 @@ function initialReply(
   }
 
   return { call, text };
+}
+
+function selectedEventsReply(value: unknown) {
+  const selected = value as {
+    ok?: boolean;
+    truncated?: boolean;
+    rows?: string[][];
+  };
+  if (!selected.ok || selected.truncated || !selected.rows?.length) {
+    return {
+      text: "The complete Event selection is unavailable. Please narrow or clarify the selection.",
+    };
+  }
+  return {
+    text: "",
+    call: {
+      name: "refresh_events",
+      input: {
+        eventIds: selected.rows.map((row) => row[0]),
+        scope: "full",
+        dryRun: false,
+      },
+    },
+  };
+}
+
+function savedBatchReply(value: unknown) {
+  const found = value as {
+    ok?: boolean;
+    truncated?: boolean;
+    rows?: unknown[][];
+  };
+  if (!found.ok || found.truncated || found.rows?.length !== 1) {
+    return "Saved batch evidence is incomplete or ambiguous. Please select a batch or clarify the request. No work was submitted.";
+  }
+  return `Resolved saved batch ${found.rows[0][0]}. Read progress through query_catalog; no work was submitted.`;
+}
+
+function previousEventReply(
+  prompt: Parameters<MastraLanguageModelV2Mock["doStream"]>[0]["prompt"],
+  lastUser: number,
+) {
+  const previous = prompt
+    .slice(0, lastUser)
+    .filter((message) => message.role === "tool")
+    .flatMap((message) => message.content)
+    .filter(
+      (part) =>
+        part.type === "tool-result" && part.toolName === "query_catalog",
+    );
+  const last = previous.at(-1);
+  const data =
+    last?.type === "tool-result" && last.output.type === "json"
+      ? (last.output.value as { rows?: string[][] })
+      : undefined;
+  const priorIds = data?.rows?.map((row) => row[0]) ?? [];
+  if (priorIds.length < 2) {
+    return {
+      text: "No prior second Event in this conversation. Specify an Event ID.",
+    };
+  }
+  return {
+    text: "",
+    call: {
+      name: "query_catalog",
+      input: {
+        sql: "SELECT id, canonical_name FROM events WHERE id=?",
+        parameters: [priorIds[1]],
+      },
+    },
+  };
 }

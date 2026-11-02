@@ -12,20 +12,20 @@ Use this guide to run ingestion and inspect results. Read the [ingestion process
 
 ## CLI research
 
-Use the [local setup](development.md#local-setup) for runtime versions and dependencies. Set `OPENROUTER_API_KEY` in `.env`. The selected database must exist and be migrated; migrations supply the starter taxonomy needed for classification. `ppnpm run catalog --help` lists options.
+Use the [local setup](development.md#local-setup) for runtime versions and dependencies. Set `OPENROUTER_API_KEY` in `.env`. The selected database must exist and be migrated; migrations supply the starter taxonomy needed for classification. `pnpm run catalog --help` lists options.
 
 For a separate research catalog, migrate it first:
 
 ```sh
-DATABASE_PATH=./data/research.sqlite ppnpm run db:migrate
+DATABASE_PATH=./data/research.sqlite pnpm run db:migrate
 ```
 
 Then run research:
 
 ```sh
-ppnpm run catalog add --name "Festival name" --database data/research.sqlite
-ppnpm run catalog refresh --event EVENT_ID --database data/research.sqlite --report data/refresh.json
-ppnpm run catalog refresh --event EVENT_ID --database data/research.sqlite --apply
+pnpm run catalog add --name "Festival name" --database data/research.sqlite
+pnpm run catalog refresh --event EVENT_ID --database data/research.sqlite --report data/refresh.json
+pnpm run catalog refresh --event EVENT_ID --database data/research.sqlite --apply
 ```
 
 `add` creates new Events; use `refresh` for existing ones. Refresh supports repeated `--event` and `--scope full|current`; each Event has an independent atomic attempt. Preview is the default and still needs a writable database: catalog changes roll back, while the private run report persists. `--apply` starts fresh research rather than applying a saved preview. Use `--republish` to permit withdrawn records to publish again.
@@ -39,7 +39,7 @@ The [ingestion guide](ingestion-process.md) explains source handling, fact selec
 To inspect exactly what the research agent received from its initial source, `readPage`, and `searchWeb`, set `CATALOG_CAPTURE_TOOL_OUTPUTS=true` for a local CLI or loopback Studio process. Capture works for previews and apply runs and is off by default. For example:
 
 ```sh
-CATALOG_CAPTURE_TOOL_OUTPUTS=true ppnpm run catalog add --name "Festival name" --database data/research.sqlite
+CATALOG_CAPTURE_TOOL_OUTPUTS=true pnpm run catalog add --name "Festival name" --database data/research.sqlite
 ```
 
 Find the durable `runId` in the report, then inspect `data/catalog-debug/<runId>/`. Numbered JSON files contain each agent-visible response and its origin; page responses also have Markdown files. Numbers follow tool invocation order, even when concurrent calls finish out of order.
@@ -48,7 +48,7 @@ The directory is ignored by Git and contains sensitive source text and search re
 
 ## Local Studio ingestion
 
-Run `ppnpm run catalog:studio`, open `http://127.0.0.1:4111` in the built-in Browser, and choose Workflows → `catalog-ingestion`. Inspection needs no model credentials or catalog; execution needs the migrated `DATABASE_PATH` and OpenRouter settings from `.env`.
+Run `pnpm run catalog:studio`, open `http://127.0.0.1:4111` in the built-in Browser, and choose Workflows → `catalog-ingestion`. Inspection needs no model credentials or catalog; execution needs the migrated `DATABASE_PATH` and OpenRouter settings from `.env`.
 
 ```json
 { "mode": "add", "name": "Festival name" }
@@ -70,13 +70,13 @@ Preview is the default. Inspect intermediate results and the final report in the
 
 ## Studio catalog assistant
 
-Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview one to three Events, update a clear selection, or explain saved results. Follow-up references use the selected conversation. An explicit update request permits apply without a second confirmation. Unclear targets or write intent require clarification.
+Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview up to 200 Events, update a clear selection, or explain saved results. Follow-up references use the selected conversation. An explicit update request permits apply without a second confirmation. Unclear targets or write intent require clarification.
 
-The assistant has two catalog tools: `query_catalog({sql, parameters?})` and `refresh_events({eventIds, scope?, dryRun?})`. It loads schema and report guidance from the catalog-sql filesystem skill through native Mastra skill tools. SQL reads need a migrated catalog but no provider key.
+The assistant has three catalog tools: `query_catalog({sql, parameters?})`, `refresh_events({eventIds, scope?, dryRun?})`, and `cancel_refresh({batchId})`. It loads schema and report guidance from the catalog-sql filesystem skill through native Mastra skill tools. SQL reads need a migrated catalog but no provider key.
 
 Chat uses the configured OpenRouter model by default. Native Studio model selection can use another provider and its credentials without an OpenRouter key. OpenRouter chat calls use the configured reasoning and service tier; explicit call options override those defaults. Other providers do not receive these defaults.
 
-Refresh keeps its separate OpenRouter settings and key requirement. Inspection needs no model key.
+Submission and inspection need no ingestion key or running worker. The worker uses its own OpenRouter settings and credentials when it executes a job. Chat generation still needs its selected provider credentials.
 
 Conversation memory is bounded; older messages can leave the active context while remaining stored. There are no embeddings or background model calls. See `src/mastra/catalog-assistant/memory.ts` for the current limits.
 
@@ -84,11 +84,33 @@ Conversation memory is bounded; older messages can leave the active context whil
 
 Use `pnpm exec tsx src/test/studio-fixture.ts success` for an offline Studio fixture. It uses temporary storage and a deterministic provider, with no paid research. Its chat model tests the tool protocol, not production model reasoning. See the [chat limits and report examples](ingestion-process.md#studio-catalog-chat).
 
+## Background worker
+
+Run `pnpm run catalog:worker` in a separate terminal from Studio. Both commands load `.env` from the project root. Set the same `DATABASE_PATH` and `CATALOG_WORKFLOW_DATABASE_PATH`. The catalog must already exist and be migrated. Neither worker startup nor submission creates or migrates it. Run only one worker per catalog; several workers can execute the same job. There is no processor lock.
+
+Chat submits a fixed selection of 1–200 distinct existing Event IDs in one transaction. Preview is the default; explicit update intent selects apply. Scope defaults to full; republish stays off. The response contains `batchId` and `acceptedCount`. Acceptance is not ingestion completion. Each Event gets one private `ingestion_jobs` row. Jobs store settings, queue state, and creation time. Attempts, timing, reports, and errors remain in `ingestion_runs`. Its nullable `job_id` links worker attempts; direct runs have no job association.
+
+The worker executes one job at a time using current catalog facts. Queue states are pending, running, done, and cancelled. Done means processing ended, including failure or validation before an attempt could start. It does not mean ingestion succeeded. Read attempt results separately. Ordinary processing failures allow later jobs; queue storage failures stop the worker.
+
+Use `query_catalog` to aggregate the full batch by job status before reading bounded details. Join runs by `job_id`, keeping every attempt distinct. Count jobs before joining: a restart can give one job several attempts. SQL keeps its 200-row and 64 KiB limits. Report truncated or missing evidence. Stored running state does not establish worker health.
+
+If the acceptance response is lost, find recent batches through catalog SQL using the available time, Event IDs, and settings. Logs are not required. Ask for clarification if matches are ambiguous or evidence is incomplete. Do not automatically submit again. One validated selection consumes the current assistant execution even if its transaction fails; invalid input does not consume it.
+
+An explicit cancellation request uses `cancel_refresh` for a resolved batch. It cancels pending jobs together. Running and terminal jobs remain unchanged, including interrupted running jobs waiting for fresh execution. Cancellation and progress reads work with the worker stopped. Cancelling chat or closing Studio does not cancel accepted jobs or stop the worker.
+
+On SIGINT or SIGTERM, the worker stops taking jobs, cancels its active workflow, waits for cleanup, and closes its stores. An interrupted job remains running. After restart, the same loop takes pending and saved running jobs in queue order and starts each from the beginning. Each new execution uses fresh workflow and attempt IDs. Earlier reports and committed changes remain. Research and paid calls can repeat, including when a report was saved before the job became done. Done and cancelled jobs do not restart. Stop the old worker before starting its replacement.
+
+Jobs and runs remain in private catalog history without automatic expiry. Studio restart does not change queue state. The CLI and Studio workflow form still execute directly; the queue does not serialize those runs.
+
+The worker uses `CATALOG_WORKER_OBSERVABILITY_DATABASE_PATH`, default `data/mastra-worker-observability.duckdb`. It shares workflow SQLite history with Studio, but uses a separate DuckDB file so both processes can run together. Worker observations are not merged into live Studio. To inspect them, stop the worker and start Studio with `CATALOG_OBSERVABILITY_DATABASE_PATH` set to the worker file. Set a different worker path before any later concurrent launch. Logging and tracing remain optional; observation failures do not change ingestion results.
+
+Use `pnpm run worker:start` for the built worker after `pnpm run studio:build`. Built launch reads runtime environment inputs and does not load `.env`; use explicit absolute paths. It starts no HTTP server or chat/eval stores. See [Infrastructure](infrastructure.md#application-containers) for the Compose service and database transfers.
+
 ## Workflow history
 
-CLI and Studio always save workflow snapshots, including intermediate results, to `CATALOG_WORKFLOW_DATABASE_PATH` (default `data/mastra-workflows.sqlite`). Relative paths use the project root. Use the same path for both commands and keep this store separate from other data files.
+CLI, Studio, and the worker always save workflow snapshots, including intermediate results, to `CATALOG_WORKFLOW_DATABASE_PATH` (default `data/mastra-workflows.sqlite`). Relative paths use the project root. Use the same path for all three processes and keep this store separate from other data files.
 
-After a CLI run, start `ppnpm run catalog:studio` and open Workflows → catalog-ingestion → Recent runs. Inspection needs no catalog connection or model key. History supports inspection only; start a new run after interruption.
+After a CLI run, start `pnpm run catalog:studio` and open Workflows → catalog-ingestion → Recent runs. Inspection needs no catalog connection or model key. History supports inspection only; start a new run after interruption.
 
 A history storage failure stops execution with `workflow_history_failed` and CLI exit code 1. Confirmed catalog writes and completed reports remain.
 
@@ -107,8 +129,8 @@ Logging and tracing are independently opt-in and default off. Tracing supports a
 Close Studio before recording from a separate CLI process: DuckDB requires exclusive process ownership of its file.
 
 ```sh
-CATALOG_LOGGING=true CATALOG_TRACING=true ppnpm run catalog refresh --event EVENT_ID --apply --report data/research-report.json
-ppnpm run catalog:studio
+CATALOG_LOGGING=true CATALOG_TRACING=true pnpm run catalog refresh --event EVENT_ID --apply --report data/research-report.json
+pnpm run catalog:studio
 ```
 
 In Studio, open Observability → Logs, Traces or Metrics. Both commands use `CATALOG_OBSERVABILITY_DATABASE_PATH`, defaulting to `data/mastra-observability.duckdb`. Use the durable runId to correlate records. The [ingestion guide](ingestion-process.md#execution-metrics) describes metric eligibility, recorded fields, cost semantics and privacy boundaries.

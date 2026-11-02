@@ -2,7 +2,6 @@ import { dirname, join } from "node:path";
 import { noopObserve } from "@mastra/core/tools";
 import { afterEach, expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
-import { assistantIngestionResult } from "@/test/assistant-ingestion";
 import { testFixtures } from "@/test/fixtures";
 import { createAssistantFixtureModel } from "@/test/assistant-model";
 import { readTraceRows } from "@/test/read-observability";
@@ -33,32 +32,6 @@ async function setupLogging(level: "debug" | "error") {
   const chat = await createChatMemory(join(dirname(db.path), "chat.sqlite"));
   const logging = createAssistantLogging()!;
   const assistant = createCatalogAssistant(
-    {
-      createRun: async () => ({
-        runId: "engine-one",
-        cancel: async () => {},
-        start: async ({ inputData }) => ({
-          status: "failed",
-          error: {
-            message: JSON.stringify({
-              code: "run_persistence_failed",
-              summary: assistantIngestionResult({
-                engineRunId: "engine-one",
-                ingestionRunId: "ingestion-one",
-                dryRun: inputData.dryRun,
-                persistenceStatus: "failed",
-                eventId: id,
-                savedEditionCount: 0,
-                returnedEditionCount: 0,
-                readCount: 0,
-                changedCount: 1,
-                errorCodes: ["run_persistence_failed"],
-              }),
-            }),
-          },
-        }),
-      }),
-    },
     chat.memory,
     createAssistantFixtureModel(),
     logging,
@@ -134,20 +107,17 @@ test("assistant logs use both sinks with native execution context", async () => 
     await readTraceRows(file);
   expect(spans).toHaveLength(0);
   const result = rows.find(
-    (row) => row.message === "Assistant refresh result",
+    (row) =>
+      row.message === "Assistant tool completed" &&
+      row.data?.toolName === "refresh_events",
   )!;
   expect(result).toMatchObject({
-    level: "error",
-    entityId: "refresh_events",
+    level: "info",
     threadId: "owner-chat",
     data: {
       toolName: "refresh_events",
-      eventId: id,
-      engineRunId: "engine-one",
-      ingestionRunId: "ingestion-one",
-      changedCount: 1,
-      persistenceStatus: "failed",
-      errorCodes: ["run_persistence_failed"],
+      acceptedCount: 1,
+      batchId: expect.any(String),
     },
   });
   expect(result.data).toMatchObject({ toolCallId: expect.any(String) });
@@ -162,7 +132,7 @@ test("assistant logs use both sinks with native execution context", async () => 
         }),
       }),
       expect.objectContaining({
-        data: expect.objectContaining({ failedCount: 1 }),
+        data: expect.objectContaining({ acceptedCount: 1 }),
       }),
     ]),
   );
@@ -180,7 +150,7 @@ test("assistant logs use both sinks with native execution context", async () => 
     rows.some((row) => (row.data as Record<string, unknown>).rowCount === 1),
   ).toBe(true);
   const lines = stderr.mock.calls.map(([chunk]) => String(chunk)).join("");
-  expect(lines).toContain('"msg":"Assistant refresh result"');
+  expect(lines).toContain('"msg":"Assistant tool completed"');
   expect(lines).toContain('"msg":"PRIVATE_SDK_WARNING"');
   for (const secret of ["PRIVATE_LOG_ERROR", "PRIVATE_BUS_ERROR"]) {
     expect(JSON.stringify(rows)).not.toContain(secret);

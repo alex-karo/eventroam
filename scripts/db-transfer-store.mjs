@@ -15,9 +15,14 @@ function filesFor(env, withMastra, remote = false) {
       "CATALOG_OBSERVABILITY_DATABASE_PATH",
       "duckdb",
     ],
+    [
+      "mastra-worker-observability.duckdb",
+      "CATALOG_WORKER_OBSERVABILITY_DATABASE_PATH",
+      "duckdb",
+    ],
   ];
   const files = definitions
-    .slice(0, withMastra ? 4 : 1)
+    .slice(0, withMastra ? definitions.length : 1)
     .map(([name, key, kind]) => ({
       name,
       kind,

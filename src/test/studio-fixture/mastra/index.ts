@@ -172,7 +172,6 @@ export async function createFixtureMastra() {
       workflows: { "catalog-ingestion": workflow },
       agents: {
         "catalog-assistant": createCatalogAssistant(
-          workflow,
           chat.memory,
           createAssistantFixtureModel(),
           logging,

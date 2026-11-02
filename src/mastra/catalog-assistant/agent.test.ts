@@ -1,12 +1,10 @@
 import { dirname, join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
-import { assistantIngestionResult } from "@/test/assistant-ingestion";
 import { testFixtures } from "@/test/fixtures";
 import { createAssistantFixtureModel } from "@/test/assistant-model";
 import { createCatalogAssistant } from ".";
 import { createChatMemory } from "./memory";
-import type { RefreshRun } from "./tools/refresh-events/contracts";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -19,33 +17,7 @@ test("agent protocol supports selection, conversation follow-ups, preview, expli
   ];
   vi.stubEnv("DATABASE_PATH", db.path);
   const chat = await createChatMemory(join(dirname(db.path), "chat.sqlite"));
-  const start = vi
-    .fn<RefreshRun["start"]>()
-    .mockImplementation(async ({ inputData }) => ({
-      status: "failed",
-      error: {
-        message: JSON.stringify({
-          code: "run_persistence_failed",
-          summary: assistantIngestionResult({
-            engineRunId: "engine-only",
-            ingestionRunId: "saved-run",
-            dryRun: inputData.dryRun,
-            persistenceStatus: "failed",
-            eventId: ids[0],
-            changedCount: 1,
-            errorCodes: ["run_persistence_failed"],
-          }),
-        }),
-      },
-    }));
   const assistant = createCatalogAssistant(
-    {
-      createRun: async () => ({
-        runId: "engine-only",
-        start,
-        cancel: async () => {},
-      }),
-    },
     chat.memory,
     createAssistantFixtureModel(),
   );
@@ -68,32 +40,27 @@ test("agent protocol supports selection, conversation follow-ups, preview, expli
       "No prior second",
     );
     await ask("why does this Event have no dates?");
-    expect(start).not.toHaveBeenCalled();
+    expect(
+      db.client.prepare("SELECT count(*) AS n FROM ingestion_jobs").get(),
+    ).toEqual({ n: 0 });
     expect((await ask("update Events")).text).toContain("Specify");
-    expect(start).not.toHaveBeenCalled();
+    expect(
+      db.client.prepare("SELECT count(*) AS n FROM ingestion_jobs").get(),
+    ).toEqual({ n: 0 });
     await ask(`preview ${ids[0]}`);
-    expect(start).toHaveBeenLastCalledWith({
-      inputData: {
-        mode: "refresh",
-        eventId: ids[0],
-        scope: "full",
-        dryRun: true,
-        republish: false,
-      },
-    });
+    expect(
+      db.client
+        .prepare("SELECT event_id,scope,dry_run FROM ingestion_jobs")
+        .all(),
+    ).toEqual([{ event_id: ids[0], scope: "full", dry_run: 1 }]);
     const applied = await ask(`update ${ids[0]}`);
-    expect(start).toHaveBeenLastCalledWith({
-      inputData: {
-        mode: "refresh",
-        eventId: ids[0],
-        scope: "full",
-        dryRun: false,
-        republish: false,
-      },
-    });
-    expect(applied.text).toContain("saved-run");
-    expect(applied.text).toContain("run_persistence_failed");
-    expect(applied.text).toContain('"dryRun":false');
+    expect(
+      db.client
+        .prepare("SELECT dry_run FROM ingestion_jobs ORDER BY rowid")
+        .all(),
+    ).toEqual([{ dry_run: 1 }, { dry_run: 0 }]);
+    expect(applied.text).toContain("batchId");
+    expect(applied.text).toContain("acceptedCount");
     db.client
       .prepare(
         "INSERT INTO ingestion_runs(id,mode,status,started_at,input_json,report_json) VALUES ('saved-run','refresh','completed','2026-10-27',?,?)",
@@ -121,7 +88,9 @@ test("agent protocol supports selection, conversation follow-ups, preview, expli
     expect(analyzed.text).toContain("partial");
     expect(analyzed.text).toContain("unchanged");
     expect(analyzed.text).toContain("proposed");
-    expect(start).toHaveBeenCalledTimes(2);
+    expect(
+      db.client.prepare("SELECT count(*) AS n FROM ingestion_jobs").get(),
+    ).toEqual({ n: 2 });
     expect((await ask("analyze run missing")).text).toContain("unknown");
     const saveAttempt = db.client.prepare(
       "INSERT INTO ingestion_runs(id,mode,status,started_at,input_json,report_json) VALUES (?,'refresh','running','2026-10-27','{}',?)",
@@ -152,7 +121,98 @@ test("agent protocol supports selection, conversation follow-ups, preview, expli
     expect((await ask("analyze run large")).text).toContain(
       "does not prove the run is absent",
     );
-    expect(start).toHaveBeenCalledTimes(2);
+    expect(
+      db.client.prepare("SELECT count(*) AS n FROM ingestion_jobs").get(),
+    ).toEqual({ n: 2 });
+  } finally {
+    await chat.memory.settled();
+    await chat.storage.close();
+  }
+});
+
+test("country count is resolved to 67 Event IDs before one apply submission; progress and cancellation create no jobs", async () => {
+  const db = testDatabase(),
+    fx = testFixtures();
+  for (let i = 0; i < 67; i++) {
+    fx.edition(fx.event(), { countryCode: "FR" });
+  }
+  vi.stubEnv("DATABASE_PATH", db.path);
+  const chat = await createChatMemory(join(dirname(db.path), "chat.sqlite"));
+  const assistant = createCatalogAssistant(
+    chat.memory,
+    createAssistantFixtureModel(),
+  );
+  const ask = (text: string) =>
+    assistant.generate(text, {
+      memory: { thread: "france", resource: "owner" },
+    });
+  try {
+    expect((await ask("count France Events")).text).toContain("67");
+    const accepted = await ask("update all France Events");
+    const calls = accepted.steps.flatMap((step) =>
+      step.toolCalls.map((call) => call.payload.toolName),
+    );
+    expect(calls.filter((name) => name === "refresh_events")).toHaveLength(1);
+    expect(calls).toContain("query_catalog");
+    expect(accepted.text).toContain('"acceptedCount":67');
+    const batch = db.client
+      .prepare(
+        "SELECT batch_id,dry_run,count(*) n FROM ingestion_jobs GROUP BY batch_id",
+      )
+      .get() as { batch_id: string; dry_run: number; n: number };
+    expect(batch).toMatchObject({ n: 67, dry_run: 0 });
+    expect((await ask(`progress batch ${batch.batch_id}`)).text).toContain(
+      "pending",
+    );
+    expect((await ask(`cancel batch ${batch.batch_id}`)).text).toContain(
+      '"cancelledCount":67',
+    );
+    expect(
+      db.client.prepare("SELECT count(*) FROM ingestion_jobs").pluck().get(),
+    ).toBe(67);
+    for (let i = 67; i < 201; i++) {
+      fx.edition(fx.event(), { countryCode: "FR" });
+    }
+    const truncated = await ask("update all France Events");
+    expect(truncated.text).toContain("narrow or clarify");
+    expect(
+      db.client.prepare("SELECT count(*) FROM ingestion_jobs").pluck().get(),
+    ).toBe(67);
+  } finally {
+    await chat.memory.settled();
+    await chat.storage.close();
+  }
+});
+
+test("lost-response discovery uses saved SQL evidence without logs and asks when candidates are ambiguous or absent", async () => {
+  const { submitJobs } = await import("../../ingestion/jobs/store");
+  const db = testDatabase(),
+    eventId = testFixtures().event().id;
+  vi.stubEnv("DATABASE_PATH", db.path);
+  const chat = await createChatMemory(join(dirname(db.path), "chat.sqlite"));
+  const assistant = createCatalogAssistant(
+    chat.memory,
+    createAssistantFixtureModel(),
+  );
+  const ask = () =>
+    assistant.generate(`find lost batch ${eventId}`, {
+      memory: { thread: "lost", resource: "owner" },
+    });
+  try {
+    expect((await ask()).text).toContain("incomplete or ambiguous");
+    const first = submitJobs(db.client, { eventIds: [eventId] });
+    const resolved = await ask();
+    expect(resolved.text).toContain(first.batchId);
+    expect(
+      resolved.steps.flatMap((step) =>
+        step.toolCalls.map((call) => call.payload.toolName),
+      ),
+    ).not.toContain("refresh_events");
+    submitJobs(db.client, { eventIds: [eventId] });
+    expect((await ask()).text).toContain("incomplete or ambiguous");
+    expect(
+      db.client.prepare("SELECT count(*) FROM ingestion_jobs").pluck().get(),
+    ).toBe(2);
   } finally {
     await chat.memory.settled();
     await chat.storage.close();

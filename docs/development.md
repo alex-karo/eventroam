@@ -28,6 +28,8 @@ Codex worktrees use `.codex/environments/environment.toml` to link the source ch
 
 Each worktree has its own dependency tree. pnpm shares package files through its content-addressable store. Keep `pnpm-workspace.yaml` with the lockfile; it lists the dependency build scripts allowed during installation.
 
+For background ingestion, run `pnpm run catalog:worker` in a separate terminal from `pnpm run catalog:studio`. Use one worker per catalog. See [Background worker](ingestion-tools.md#background-worker) for storage, credentials, shutdown, and restart behavior.
+
 ## Analytics
 
 See the [analytics guide](analytics.md) for PostHog settings, events, campaign links, and browser opt-out.
@@ -48,12 +50,12 @@ Use `pnpm run format:check` for application formatting and `pnpm run openspec:va
 
 ## Task guides
 
-| Task | Read |
-| --- | --- |
-| Find code owners and dependency boundaries | [Project structure](project-structure.md) |
-| Plan or review a change | [Change workflow](change-workflow.md) |
-| Test application or browser behavior | [Testing](testing.md) |
-| Run research through CLI or Studio | [Ingestion tools](ingestion-tools.md) |
+| Task                                                         | Read                                      |
+| ------------------------------------------------------------ | ----------------------------------------- |
+| Find code owners and dependency boundaries                   | [Project structure](project-structure.md) |
+| Plan or review a change                                      | [Change workflow](change-workflow.md)     |
+| Test application or browser behavior                         | [Testing](testing.md)                     |
+| Run research through CLI or Studio                           | [Ingestion tools](ingestion-tools.md)     |
 | Understand source selection, field decisions, or publication | [Ingestion process](ingestion-process.md) |
-| Run evals, inspect experiments, or compare models | [Ingestion evals](ingestion-evals.md) |
-| Build containers, migrate data, or transfer a catalog | [Infrastructure](infrastructure.md) |
+| Run evals, inspect experiments, or compare models            | [Ingestion evals](ingestion-evals.md)     |
+| Build containers, migrate data, or transfer a catalog        | [Infrastructure](infrastructure.md)       |

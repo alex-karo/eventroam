@@ -13,23 +13,26 @@ Bring scattered announcements and event details into one catalog that helps peop
 
 ## Architecture
 
-Eventroam uses one Next.js application and one SQLite catalog. The apex site presents the data collection system, a festival catalog example, and services for data collection and custom system development. The Festivals site serves discovery and event details from the catalog. Separate web and Studio containers share the catalog database.
+Eventroam uses one Next.js application and one SQLite catalog. The apex site presents the data collection system, a festival catalog example, and services for data collection and custom system development. The Festivals site serves discovery and event details from the catalog. Separate web, Studio, and worker containers share the catalog database.
 
 ```mermaid
 flowchart TD
     Owner[Owner] --> CLI[Local CLI]
     Owner --> Studio[Mastra Studio: workflow form or catalog chat]
     CLI --> Ingestion[Catalog ingestion workflow]
-    Studio --> Ingestion
+    Studio -->|Direct form| Ingestion
+    Studio -->|Chat submits jobs| DB[(SQLite catalog)]
+    DB -->|Pending or running jobs| Worker[Separate ingestion worker]
+    Worker --> Ingestion
     Sources[External sources] --> Ingestion
-    Ingestion -->|Validated writes| DB[(SQLite catalog)]
+    Ingestion -->|Validated writes and reports| DB
     Studio -->|Read-only catalog queries| DB
     DB -->|Published data| Web[Next.js web application]
     Web --> Apex[eventroam.org: project and services]
     Web --> Festivals[festivals.eventroam.org: list, filters and map]
 ```
 
-The website reads published catalog data. The owner starts ingestion through the local CLI, local Studio, or hosted Studio. Studio chat can select Events, start refreshes, and inspect saved results. The web application does not run ingestion.
+The website reads published catalog data. The owner starts ingestion through the local CLI, local Studio, or hosted Studio. Studio chat selects Events and saves refresh jobs. The worker processes those jobs independently of Studio. Chat reads progress and saved results through catalog SQL.
 
 ## Ingestion
 
@@ -54,7 +57,7 @@ flowchart TD
 
 Research uses saved facts, links, and vocabulary as context. It reads known pages and searches when permitted. Search results must be read before their facts can be used. The editor chooses field actions from findings and saved context. The Location agent resolves place fields and coordinates. The writer validates the combined operations and commits changes in one transaction per Event. Preview runs save a report without retaining catalog changes.
 
-Studio chat can query the catalog through a read-only SQL tool and refresh one to three selected Events in sequence. Each Event uses a new workflow run. Preview is the default; an explicit owner update request permits apply. Refreshes are started by the owner; there is no scheduled refresh.
+Studio chat can submit one fixed selection of up to 200 Events and return its batch ID. One worker per catalog processes jobs in order. Preview is the default; an explicit owner update request permits apply. The owner can cancel pending jobs. After a worker restart, pending and saved running jobs start from the beginning with new workflow runs. Earlier reports and commits remain available. The owner starts every batch.
 
 ## Technology and approach
 
@@ -67,7 +70,7 @@ Studio chat can query the catalog through a read-only SQL tool and refresh one t
 | Source processing | Got, Cheerio, Turndown; optional Firecrawl fallback |
 | Geocoding | Geoapify |
 | Analytics | PostHog |
-| Runtime | Separate web and Studio containers with a shared catalog volume |
+| Runtime | Separate web, Studio, and worker containers with a shared catalog volume |
 | Validation and quality | Zod, ESLint, Prettier, Vitest, Playwright |
 
 Run `pnpm run type-check`, `pnpm run lint`, `pnpm test`, and `pnpm run build` for application checks.

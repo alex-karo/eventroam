@@ -41,7 +41,7 @@ function command(extra, capture = false) {
 try {
   console.log(`Compose smoke project: ${project}`);
   command(["build"]);
-  // Prepare the empty test catalog before starting either service.
+  // Prepare the empty test catalog before starting the services.
   command([
     "run",
     "--rm",
@@ -51,6 +51,20 @@ try {
     "commands/migrate.mjs",
   ]);
   command(["up", "-d", "--wait", "--wait-timeout", "60"]);
+  command([
+    "exec",
+    "-T",
+    "worker",
+    "node",
+    "--input-type=module",
+    "-e",
+    `
+    import {existsSync} from "node:fs";
+    if (!existsSync("/data/mastra-workflows.sqlite")) throw new Error("Missing workflow store");
+    try { await fetch("http://127.0.0.1:4111/health"); throw new Error("Worker started HTTP"); }
+    catch (error) { if (error.message === "Worker started HTTP") throw error; }
+  `,
+  ]);
   const endpoint = "http://127.0.0.1:4111/api/workflows/catalog-ingestion";
   const runId = JSON.parse(
     command(
@@ -86,7 +100,7 @@ try {
     "node",
     "--input-type=module",
     "-e",
-    `import {existsSync} from "node:fs"; const response = await fetch("${endpoint}/runs/${encodeURIComponent(runId)}"); const run = await response.json(); if (!response.ok || run.runId !== ${JSON.stringify(runId)} || run.status !== "pending") throw new Error("Pending history did not survive replacement"); for (const path of ["/data/eventroam.sqlite", "/data/mastra-workflows.sqlite", "/data/mastra-observability.duckdb"]) if (!existsSync(path)) throw new Error("Missing storage file: " + path);`,
+    `import {existsSync} from "node:fs"; const response = await fetch("${endpoint}/runs/${encodeURIComponent(runId)}"); const run = await response.json(); if (!response.ok || run.runId !== ${JSON.stringify(runId)} || run.status !== "pending") throw new Error("Pending history did not survive replacement"); for (const path of ["/data/eventroam.sqlite", "/data/mastra-workflows.sqlite", "/data/mastra-observability.duckdb", "/data/mastra-worker-observability.duckdb"]) if (!existsSync(path)) throw new Error("Missing storage file: " + path);`,
   ]);
   console.log(
     "Compose smoke passed: health and saved history after replacement.",
