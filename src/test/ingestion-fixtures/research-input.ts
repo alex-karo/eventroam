@@ -5,7 +5,6 @@ import type { ReadPageResult } from "@/ingestion/tools/read-page/contracts";
 import type { ResearchCatalog } from "@/ingestion/research/context";
 import { minorToMajor } from "@/ingestion/research/money";
 import { researchInstructionsFor } from "@/test/ingestion-fixtures/research-prompt";
-import { boundedToolSource } from "@/ingestion/tools/read-page/response";
 
 export function promptFor(
   input: CatalogResearchInput,
@@ -15,18 +14,18 @@ export function promptFor(
   remaining: ReturnType<ResearchBudget["remaining"]>,
   reads: ReadPageResult[],
   currentDate = new Date().toISOString(),
-  onInspectedSources?: (
-    sources: ReturnType<typeof boundedToolSource>[],
-  ) => void,
 ) {
   const target = catalog.find((event) => event.id === input.eventId);
   const project =
     input.mode === "refresh" && input.scope === "current"
       ? currentModelContext
       : modelContext;
-  const inspectedSources = reads.map((read) =>
-    boundedToolSource(read, Math.floor(80_000 / Math.max(1, reads.length))),
-  );
+  const inspectedSources = reads.map((read) => ({
+    url: read.finalUrl,
+    status: read.status,
+    markdown: read.markdown,
+    ...(read.reasonCode ? { reasonCode: read.reasonCode } : {}),
+  }));
   const prompt = JSON.stringify({
     task: researchInstructionsFor(input),
     currentDate,
@@ -54,7 +53,6 @@ export function promptFor(
     terms,
     inspectedSources,
   });
-  onInspectedSources?.(inspectedSources);
   return prompt;
 }
 

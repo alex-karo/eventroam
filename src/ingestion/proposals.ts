@@ -81,7 +81,6 @@ export type PreparedProposals = PlanDiagnostics & {
     savedEvent: ResearchContext["catalog"][number] | null;
     evidence: FrozenCorpus["evidence"];
     points: RegisteredPoint[];
-    proposals: unknown;
   };
 };
 export type AcceptedProposals = Omit<PreparedProposals, "basis">;
@@ -288,17 +287,22 @@ export function commonPlan(targets: Targets): ApplicationPlan {
   };
 }
 
-function inspectProposalSupport(value: unknown, corpus: FrozenCorpus) {
+function inspectProposalSupport(
+  value: unknown,
+  corpus: FrozenCorpus,
+  cited: Set<string>,
+) {
   if (!value || typeof value !== "object") {
     return;
   }
   if (Array.isArray(value)) {
-    value.forEach((part) => inspectProposalSupport(part, corpus));
+    value.forEach((part) => inspectProposalSupport(part, corpus, cited));
     return;
   }
   const record = value as Record<string, unknown>;
   if (Array.isArray(record.evidenceIds)) {
     requireSupport(record.evidenceIds as string[], corpus, true);
+    (record.evidenceIds as string[]).forEach((id) => cited.add(id));
   }
   if (record.action === "clear" || record.action === "set") {
     requireSupport(
@@ -307,7 +311,9 @@ function inspectProposalSupport(value: unknown, corpus: FrozenCorpus) {
       !!record.reuseFrom || Array.isArray(record.value),
     );
   }
-  Object.values(record).forEach((part) => inspectProposalSupport(part, corpus));
+  Object.values(record).forEach((part) =>
+    inspectProposalSupport(part, corpus, cited),
+  );
 }
 
 function validateLocationSupport(
@@ -420,29 +426,6 @@ function attachClassification(
   };
 }
 
-function citedEvidence(submitted: unknown, location: MaterializedLocation) {
-  const cited = new Set<string>();
-  const collect = (value: unknown) => {
-    if (!value || typeof value !== "object") {
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach(collect);
-      return;
-    }
-    const obj = value as Record<string, unknown>;
-    if (Array.isArray(obj.evidenceIds)) {
-      (obj.evidenceIds as string[]).forEach((id) => cited.add(id));
-    }
-    Object.values(obj).forEach(collect);
-  };
-  collect(submitted);
-  Object.values(location.support)
-    .flat()
-    .forEach((id) => cited.add(id));
-  return cited;
-}
-
 function assignEventLinks(
   plan: ApplicationPlan,
   links: LinksOutput,
@@ -482,7 +465,8 @@ export function assembleProposals(options: {
     links: options.links,
   };
   try {
-    inspectProposalSupport(submitted, corpus);
+    const cited = new Set(Object.values(options.location.support).flat());
+    inspectProposalSupport(submitted, corpus, cited);
     validateLocationSupport(options.location, options.points, corpus);
     if (
       !targets.currentOrNextEdition &&
@@ -510,7 +494,6 @@ export function assembleProposals(options: {
         attachClassification(target, classification, event, context, corpus);
       }
     }
-    const cited = citedEvidence(submitted, options.location);
     return {
       status: "continue",
       value: {
@@ -523,7 +506,6 @@ export function assembleProposals(options: {
           savedEvent: event ?? null,
           evidence: corpus.evidence.filter((item) => cited.has(item.id)),
           points: options.points,
-          proposals: submitted,
         },
       },
     };

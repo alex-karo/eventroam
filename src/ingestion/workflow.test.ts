@@ -1200,13 +1200,6 @@ test("the public runner accumulates research in native state without runtime res
     });
   });
   const phases: string[] = [];
-  const readInitial = runTraceModule.readInitialWithTrace;
-  vi.spyOn(runTraceModule, "readInitialWithTrace").mockImplementation(
-    (...args) => {
-      phases.push("read-initial-source");
-      return readInitial(...args);
-    },
-  );
   const loadContext = contextModule.loadResearchContext;
   vi.spyOn(contextModule, "loadResearchContext").mockImplementation(
     (...args) => {

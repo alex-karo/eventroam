@@ -398,7 +398,6 @@ export async function runEditor(
         },
         basis: {
           ...prepared.basis,
-          proposals: undefined,
           evidence: evidencePacket(
             { ...options.corpus, evidence: prepared.basis.evidence },
             topics,

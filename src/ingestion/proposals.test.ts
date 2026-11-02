@@ -174,7 +174,23 @@ it("preserves saved terms without new evidence and rejects unsupported removal",
   expect(f.assemble().status).toBe("continue");
   expect(f.assemble([f.terms[0].id]).status).toBe("reject");
   expect(f.assemble([f.terms[0].id], ["s1-e1"]).status).toBe("continue");
+  expect(f.assemble([f.terms[0].id], ["unknown"]).status).toBe("reject");
   expect(f.targets.currentOrNextEdition!.fields).toEqual({});
+});
+it("retains nested proposal citations without unrelated evidence", () => {
+  const f = fixture();
+  f.corpus.evidence.push(
+    { ...f.corpus.evidence[0], id: "s1-e2" },
+    { ...f.corpus.evidence[0], id: "s1-e3" },
+  );
+  const prepared = f.assemble([f.terms[0].id], ["s1-e2"]);
+  if (prepared.status !== "continue") {
+    throw new Error("Rejected fixture");
+  }
+  expect(prepared.value.basis.evidence.map((item) => item.id)).toEqual([
+    "s1-e1",
+    "s1-e2",
+  ]);
 });
 it("rejects cross-role fields and removed reference fields", () => {
   const f = fixture();

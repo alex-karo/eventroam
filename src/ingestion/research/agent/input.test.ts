@@ -8,9 +8,6 @@ import {
   modelContext,
   promptFor,
 } from "@/test/ingestion-fixtures/research-input";
-import { createSourceSession } from "../../tools/session";
-import { createResearchTools } from "../../tools";
-import { vi } from "vitest";
 import type { CatalogResearchInput } from "../../contracts";
 import { loadResearchContext } from "../context";
 
@@ -97,98 +94,6 @@ test("saved prices in model context use major units and omit aggregate availabil
   expect(JSON.parse(prompt).remaining).toEqual({
     searches: 3,
     durationMs: 600_000,
-  });
-});
-
-test.each([
-  ["short", "short"],
-  ["a".repeat(79_700), "a".repeat(79_700)],
-  ["a".repeat(79_701), "a".repeat(79_700)],
-  ["Opening paragraph.\n\n" + "a".repeat(80_000), "Opening paragraph."],
-])(
-  "source projection preserves metadata and paragraph boundaries (%#)",
-  (markdown, expected) => {
-    const prompt = JSON.parse(
-      promptFor(
-        { mode: "add", name: "Example Fest", actor: "tester" },
-        [],
-        [],
-        [],
-        { searches: 2, durationMs: 1_000 },
-        [{ ...source, markdown }],
-        "2026-10-08T12:00:00.000Z",
-      ),
-    );
-    expect(prompt.inspectedSources).toEqual([
-      {
-        url: source.finalUrl,
-        status: source.status,
-        reasonCode: source.reasonCode,
-        markdown: expected,
-        truncated: markdown.length > expected.length,
-      },
-    ]);
-  },
-);
-
-test("a later tool read gets more cached text than the shared initial projection", async () => {
-  const budget = createResearchBudget({}, () => 0);
-  const readPage = vi.fn(async () => ({
-    ...source,
-    markdown: "a".repeat(81_000) + "CACHE_TAIL",
-  }));
-  const sources = createSourceSession(
-    budget,
-    { apiKey: "fixture", model: "fixture", limits: budget.limits },
-    [],
-    { readPage },
-  );
-  const cached = await sources.readPage(source.attemptedUrl);
-  const reads = [
-    cached,
-    {
-      ...source,
-      markdown: "short",
-      reasonCode: undefined,
-    },
-  ];
-  const prompt = JSON.parse(
-    promptFor(
-      { mode: "add", name: "Example Fest", actor: "tester" },
-      [],
-      [],
-      [],
-      { searches: 2, durationMs: 1_000 },
-      reads,
-      "2026-10-08T12:00:00.000Z",
-    ),
-  );
-  expect(prompt.inspectedSources[0]).toMatchObject({
-    markdown: "a".repeat(39_700),
-    truncated: true,
-  });
-  const tools = createResearchTools(sources, budget, () => ({
-    stage: "research",
-    step: 1,
-    attempt: 1,
-  }));
-  const later = await tools.readPage.execute!(
-    { url: source.finalUrl },
-    {} as never,
-  );
-  expect(later).toMatchObject({
-    markdown: "a".repeat(79_700),
-    truncated: true,
-  });
-  expect(readPage).toHaveBeenCalledOnce();
-  expect(sources.reads[0]).toBe(cached);
-  expect(reads[0].markdown).toHaveLength(81_010);
-  expect(reads[0].reasonCode).toBe(source.reasonCode);
-  expect(prompt.inspectedSources[1]).toEqual({
-    url: source.finalUrl,
-    status: source.status,
-    markdown: "short",
-    truncated: false,
   });
 });
 
@@ -491,46 +396,4 @@ test("both models receive the same classification rules", () => {
   expect(editorInstructions).toContain(
     "Never accept a classification list that exceeds a facet limit",
   );
-});
-
-test("research owns search policy and the tool describes search results", () => {
-  const budget = createResearchBudget({}, () => 0);
-  const sources = createSourceSession(
-    budget,
-    { apiKey: "fixture", model: "fixture", limits: budget.limits },
-    [],
-    {},
-  );
-  const tools = createResearchTools(sources, budget, () => ({
-    stage: "research",
-    step: 1,
-    attempt: 1,
-  }));
-  for (const input of [
-    { mode: "add", name: "New", actor: "tester" },
-    { mode: "refresh", scope: "full", eventId: "saved", actor: "tester" },
-    { mode: "refresh", scope: "current", eventId: "saved", actor: "tester" },
-  ] satisfies CatalogResearchInput[]) {
-    const task = assignment(input).task;
-    expect(task).not.toContain(tools.searchWeb.description);
-    for (const rule of [
-      "essential missing fact about an Edition supported by inspected evidence",
-      "Edition identification, dates or publication requirements",
-      "known links and prior results first",
-      "no announcement, alone do not justify search",
-      "Permission does not require search",
-    ]) {
-      expect(task).toContain(rule);
-      expect(tools.searchWeb.description).not.toContain(rule);
-    }
-  }
-  expect(tools.searchWeb.description).toContain(
-    "query allowed by the research assignment",
-  );
-  expect(tools.searchWeb.description).toContain(
-    "inspect a destination with readPage",
-  );
-  expect(tools.searchWeb.description).toContain("shared search budget");
-  expect(tools.searchWeb.description).not.toContain("failed");
-  expect(tools.searchWeb.description).not.toContain("Edition");
 });

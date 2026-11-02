@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createResearchBudget } from "../../runtime/budget";
 import { readPage } from "./read";
-import { boundedToolSource } from "./response";
 import {
   assertPublicUrl,
   isPublicAddress,
@@ -250,7 +249,7 @@ describe("readPage", () => {
     expect(result.markdown).toContain(paragraph);
   });
 
-  it("keeps full Markdown and bounds only the model projection", async () => {
+  it("keeps full Markdown after the old model input limit", async () => {
     const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(
@@ -260,101 +259,18 @@ describe("readPage", () => {
     });
     expect(result.markdown.length).toBeGreaterThan(80_000);
     expect(result.markdown).toContain("Later announcement");
-    const projected = boundedToolSource(result);
-    expect(projected.markdown.length).toBeLessThanOrEqual(79_700);
-    expect(projected.markdown).toMatch(/(?:Festival|programme|details\.)$/);
-    expect(projected.markdown).not.toContain("Later announcement");
-    expect(projected).toMatchObject({ status: "ok", truncated: true });
-    expect(projected).not.toHaveProperty("reasonCode");
   });
 
-  it("does not cut a Markdown link when it crosses the total bound", async () => {
-    const prefix = `${"Programme. ".repeat(7_000)} `;
-    const result = await readPage(sourceUrl, {
-      budget: createResearchBudget(),
-      request: mockResponse(
-        `<html><body><p>${prefix}<a href="/tickets?${"x".repeat(8_000)}">Tickets</a></p></body></html>`,
-      ),
-    });
-    expect(result.markdown).toContain("Programme.");
-    expect(result.markdown).toContain("[Tickets](");
-    const projected = boundedToolSource(result);
-    expect(projected.truncated).toBe(true);
-    expect(projected.markdown).not.toContain("[Tickets](");
-    expect(projected.markdown).not.toContain("/tickets?");
-  });
-
-  it("keeps escaped label brackets and URL brackets inside a whole link", async () => {
+  it("keeps escaped label brackets and URL brackets in Markdown links", async () => {
     const result = await readPage(sourceUrl, {
       budget: createResearchBudget(),
       request: mockResponse(
         `<p>${"a".repeat(79_670)} <a href="/tickets?group=[early]">Tickets [early] passes</a> Later details.</p>`,
       ),
     });
-    const linkStart = result.markdown.indexOf("[Tickets");
-    const linkEnd = result.markdown.indexOf(")", linkStart) + 1;
-    expect(linkStart).toBeGreaterThan(0);
     expect(result.markdown).toContain("\\[early\\]");
-    for (let end = linkStart + 1; end < linkEnd; end += 1) {
-      const projected = boundedToolSource(result, end + 300);
-      expect(projected.truncated).toBe(true);
-      expect(projected.markdown).not.toContain("[Tickets");
-    }
-    expect(boundedToolSource(result).markdown).not.toContain("[Tickets");
-  });
-
-  it.each([
-    "<!-- Navigation -->",
-    "<!-- /Navigation -->",
-    "<!-- Main content -->",
-  ])("does not cut the region comment %s", (comment) => {
-    const result = {
-      attemptedUrl: sourceUrl,
-      finalUrl: sourceUrl,
-      retrievedAt: "2026-10-03T12:00:00Z",
-      method: "http" as const,
-      status: "ok" as const,
-      markdown: "",
-    };
-    for (let offset = 1; offset < comment.length; offset += 1) {
-      result.markdown = "a".repeat(1_000 - offset) + comment + "Later";
-      const projected = boundedToolSource(result, 1_300);
-      expect(projected.truncated).toBe(true);
-      expect(projected.markdown).toBe("a".repeat(1_000 - offset));
-    }
-  });
-
-  it("omits a link that starts at the projection start and crosses its bound", () => {
-    const result = {
-      attemptedUrl: sourceUrl,
-      finalUrl: sourceUrl,
-      retrievedAt: "2026-10-03T12:00:00Z",
-      method: "http" as const,
-      status: "ok" as const,
-      markdown: `[Tickets](${sourceUrl}?${"x".repeat(2_000)})`,
-    };
-    expect(boundedToolSource(result, 1_300)).toMatchObject({
-      markdown: "",
-      truncated: true,
-    });
-  });
-
-  it.each([
-    ["Plain [ text ", "Tail"],
-    ["Plain [ text with a later closing bracket ", "] Tail"],
-  ])("keeps ordinary bracket text in a long projection: %s", (start, tail) => {
-    const markdown = start + "Festival details. ".repeat(6_000) + tail;
-    const projected = boundedToolSource({
-      attemptedUrl: sourceUrl,
-      finalUrl: sourceUrl,
-      retrievedAt: "2026-10-03T12:00:00Z",
-      method: "http",
-      status: "ok",
-      markdown,
-    });
-    expect(projected.truncated).toBe(true);
-    expect(projected.markdown.length).toBeGreaterThan(79_000);
-    expect(projected.markdown).toContain(start);
+    expect(result.markdown).toContain("/tickets?group=[early]");
+    expect(result.markdown).toContain("Later details.");
   });
 
   it("extracts continuous text, structured event data, timestamps and ticket links", async () => {
@@ -758,11 +674,10 @@ describe("readPage", () => {
       budget: createResearchBudget(),
       request: mockResponse("", "text/plain"),
     });
-    expect(boundedToolSource(result)).toEqual({
-      url: sourceUrl,
+    expect(result).toMatchObject({
+      finalUrl: sourceUrl,
       status: "ok",
       markdown: "",
-      truncated: false,
     });
   });
 

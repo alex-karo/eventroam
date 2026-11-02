@@ -178,7 +178,6 @@ it("uses native Mastra grep with cited source files and hash checks", async () =
         savedEvent: null,
         evidence: [bound.evidence[0]],
         points: [],
-        proposals: {},
       },
     };
     const budget = createResearchBudget();

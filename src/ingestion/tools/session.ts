@@ -171,31 +171,12 @@ export function createSourceSession(
     knownLinks.find((link) => link.kind === "official_site")?.url ??
     knownLinks.find((link) => link.official)?.url ??
     knownLinks[0]?.url;
-  async function readInitialSource(operation: SourceLogContext = {}) {
-    if (initialUrl) {
-      try {
-        await read(initialUrl, operation);
-      } catch (error) {
-        if (!(error instanceof ResearchLimitError)) {
-          throw error;
-        }
-      }
-    }
-  }
   return {
     reads,
     discovery,
     readPage: read,
     searchWeb: search,
-    readInitialSource,
     initialUrl,
-    isReadCached: (url: string) => {
-      const key = new URL(url).toString();
-      return (
-        inFlight.has(key) ||
-        reads.some((item) => item.attemptedUrl === key || item.finalUrl === key)
-      );
-    },
   };
 }
 
