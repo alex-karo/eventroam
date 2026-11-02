@@ -1,0 +1,29 @@
+# Tasks
+
+## Implementation status
+
+The plan uses application-owned jobs and a separate worker. The unfinished native-task prototype is not the implementation of this plan. No job processing is enabled. The earlier Mastra recovery failure is no longer an implementation gate.
+
+## 1. Catalog jobs and attempt association
+
+- [ ] 1.1 Add ingestion_jobs and nullable indexed ingestion_runs.job_id with application validators and shared write operations. Verify migration, direct attempts without jobs, multiple runs for one job, atomic batch rollback, fixed settings, ordering, and the 200-Event bound using catalog SQLite fixtures. Keep only created_at on jobs; verify attempt start and finish times remain in ingestion_runs.
+- [ ] 1.2 Pass trusted job identity through the existing workflow to attempt insertion. Verify that failed insertion stops research and that job settings match the attempted input. Reuse CatalogAttempt validation and add only job state and input-association checks. Keep report version and existing run lifecycle unchanged. Document job/run ownership in docs/ingestion-tools.md and docs/project-structure.md; run `pnpm run docs:check`.
+
+## 2. Separate worker
+
+- [ ] 2.1 Add a sequential loop that selects pending and running jobs in queue order under the one-worker-per-catalog operating constraint, without locks or leases. Verify ticks do not overlap, jobs become done after normal success or failure, and later jobs continue. Jobs must store no ingestion result or error. Read results only through associated runs, without the old chat result parser.
+- [ ] 2.2 Add worker shutdown and verify restart through the same processing loop without resetting running jobs to pending. Use a process fixture to verify fresh execution in queue order, distinct attempts, and preservation of earlier evidence before attempt insertion and after finalization. Verify signal cancellation, cleanup before observability flush and storage closure, and safe repeated shutdown. Document repeated work after worker restart and the one-worker constraint.
+- [ ] 2.3 Add the local and built worker commands with independent resources, shared workflow history, and a separate worker DuckDB path. Verify that missing or unmigrated catalog storage fails without creating a catalog, required workflow storage opens before the loop, and a failed done update stops dispatch. Verify concurrent workflow snapshots, Studio history reads, direct form execution, and Studio restart while the worker runs. Verify operation with Studio stopped and worker observation inspection after worker shutdown. Remove the obsolete native-task prototype; keep workflow and eval storage tests passing. Update docs/ingestion-tools.md, docs/development.md, and docs/project-structure.md; run `pnpm run docs:check`.
+- [ ] 2.4 Bundle the worker command in the existing application build and add the worker Compose service as described in design.md. Extend the container smoke check to verify that worker and Studio start together with an empty queue and no provider keys. Verify the built worker entry starts without HTTP, chat, or eval resources. Document the service, configuration, and replacement procedure in docs/infrastructure.md; run `pnpm run docs:check`.
+- [ ] 2.5 Include the worker in database transfer stop/restore handling and its DuckDB file in --with-mastra transfers. Extend existing transfer tests to verify all catalog users stop before a copy or replacement and previously stopped services remain stopped. Update maintenance and transfer instructions; run the transfer tests and `pnpm run docs:check`.
+
+## 3. Chat submission and controls
+
+- [ ] 3.1 Replace synchronous chat refresh with atomic job submission. Reuse selection_consumed after selection validation inside the synchronous submission transaction. Verify invalid input does not consume it, concurrent valid calls submit at most once, transaction failure creates no subset, acceptance returns only batchId and acceptedCount, lost responses do not trigger a new submission, and abort before/after commit has the documented result. Verify acceptance without a running worker or ingestion credentials in Studio. Remove request-to-active-workflow cancellation wiring.
+- [ ] 3.2 Add transactional pending cancellation through a validated tool. Verify missing batch and catalog errors and claim/cancellation in both orders. Running and terminal jobs must remain unchanged, including an interrupted running job waiting for fresh execution. Verify cancellation works with the worker stopped.
+- [ ] 3.3 Update assistant instructions, tool logging, and catalog-sql guidance for batch discovery, aggregate progress counts, job details, and run joins. Verify counts for 200 jobs and several attempts per job under existing SQL output limits. Extend existing protocol tests for all 67 France Events, count-only or truncated selections, apply intent, selection_consumed, and progress reads without submission or unsupported worker-health claims. Verify lost-response batch discovery with disabled and failed logging, ambiguous candidates, and incomplete evidence. Document acceptance, discovery, cancellation, and history lifetime in docs/ingestion-tools.md; run `pnpm run docs:check`.
+
+## 4. Integration validation
+
+- [ ] 4.1 Run a mixed-batch process test with repeated running jobs, preserved committed facts, multiple unfinished and finalized attempts per job, worker restart, and pending cancellation. Keep direct CLI and Studio form checks passing. Reuse the process fixture from group 2.
+- [ ] 4.2 Run focused job, workflow, assistant, migration, worker, and Studio tests plus `pnpm run type-check`, `pnpm run lint`, `pnpm run deps:check`, `pnpm run docs:check`, and `pnpm run openspec:validate`. Resolve failures and record relevant results.
