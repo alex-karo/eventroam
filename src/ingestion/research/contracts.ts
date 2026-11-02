@@ -12,7 +12,11 @@ const editionKey = z
   .string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   .max(63);
-const boundedMessage = z.string().trim().min(1).max(500);
+const diagnosticMessage = z
+  .string()
+  .trim()
+  .min(1)
+  .describe("Use a short factual message, normally under 500 characters.");
 const reason = z
   .string()
   .trim()
@@ -90,14 +94,13 @@ const freeBase = z
   })
   .strict();
 export const researchBasePriceSchema = z.union([freeBase, paidBase]);
-export const ticketVariantSchema = z
+export const ticketOfferSchema = z
   .object({
     label: z.string().trim().min(1).max(250),
     amount: amount.optional(),
     currency: currency.optional(),
     terms: z.string().trim().min(1).max(1000).optional(),
     availability: z.enum(ticketAvailabilities).optional(),
-    url: url.optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -122,6 +125,9 @@ export const ticketVariantSchema = z
       });
     }
   });
+export const ticketVariantSchema = ticketOfferSchema.safeExtend({
+  url: url.optional(),
+});
 const ticketBlock = z
   .object({
     variants: z.array(ticketVariantSchema).max(100),
@@ -188,7 +194,9 @@ export const researchDataSchema = z
       .max(250)
       .refine((value) => value.trim().length > 0, "Event name required"),
     reason: reason.optional(),
-    sources: z.array(z.object({ url, information: boundedMessage }).strict()),
+    sources: z.array(
+      z.object({ url, information: diagnosticMessage }).strict(),
+    ),
     summary: fact(z.string().max(2000)).optional(),
     links: z.object({ website: optionalLink, socials: socialLinks }).strict(),
     previousEdition: editionFindingSchema.nullable(),
@@ -225,8 +233,8 @@ export const researchDataSchema = z
 
 export const researchQuestionSchema = z
   .object({
-    message: boundedMessage.describe(
-      "Describe the unknown question. For partial, name the unfinished core check and its cause; merely unpublished or optional details do not require partial.",
+    message: diagnosticMessage.describe(
+      "Describe the unknown question, normally under 500 characters. For partial, name the unfinished core check and its cause; merely unpublished or optional details do not require partial.",
     ),
     editionKey: editionKey.optional(),
     field: z
@@ -235,7 +243,7 @@ export const researchQuestionSchema = z
       .max(100)
       .optional()
       .describe(
-        "Optional single field name, at most 100 characters. For a question covering several fields, omit this slot and describe them in message.",
+        "Single field name, at most 100 characters. If no single field applies, return null in structured model output and describe the question in message.",
       ),
   })
   .strict();
@@ -247,7 +255,7 @@ export const modelResearchErrorSchema = z
       "source_blocked",
       "limit_reached",
     ]),
-    message: boundedMessage,
+    message: diagnosticMessage,
     url: url.optional(),
     editionKey: editionKey.optional(),
     field: z

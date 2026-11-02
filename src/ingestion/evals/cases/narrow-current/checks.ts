@@ -379,10 +379,10 @@ export const checks = {
           { key: "2027" },
           "price_details",
           (value) =>
-            !value?.some((item) => item.label === "Student") &&
-            value?.some(
-              (item) => item.amount === 110 && item.currency === "EUR",
-            ) === true,
+            value?.length === 1 &&
+            value[0].label !== "Student" &&
+            value[0].amount === 110 &&
+            value[0].currency === "EUR",
         ),
         "Include the supported ticket offers for 2027 without the unsupported offer",
       ),

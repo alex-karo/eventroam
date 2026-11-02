@@ -2,7 +2,7 @@ import { z } from "zod";
 import { modelOutputSchema } from "../runtime/model-output";
 import { pointSchema } from "../tools/geocode/contracts";
 
-export const LOCATION_PROMPT_VERSION = "catalog-location-v19";
+export const LOCATION_PROMPT_VERSION = "catalog-location-v20";
 export const locationTextFields = [
   "venueName",
   "venueAddress",
@@ -17,7 +17,13 @@ export const precisionSchema = z.enum([
   "region",
 ]);
 export type Precision = z.infer<typeof precisionSchema>;
-const reason = z.string().trim().min(1).max(2000);
+const reason = z
+  .string()
+  .trim()
+  .min(1)
+  .describe(
+    "Explain the location decision or question in 1-3 short sentences, normally under 2000 characters.",
+  );
 function textAction(value: z.ZodString) {
   return z.discriminatedUnion("action", [
     z.strictObject({ action: z.literal("set"), value, reason }),

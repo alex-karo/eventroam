@@ -235,9 +235,8 @@ export function fixtureRoleForProvider(
         checks: roleChecks(prompt, candidate).map(
           ({ check, finding, explanation, sourceIds }) => ({
             check,
-            finding,
             sourceIds,
-            ...(finding === "unfinished" ? { explanation } : {}),
+            blocker: finding === "unfinished" ? explanation : null,
           }),
         ),
         unresolved: (candidate.unresolved ?? []).map(({ message }) => ({

@@ -14,11 +14,22 @@ Research SHALL report success, partial, or failure separately from the catalog o
 - **THEN** research may succeed while the catalog remains unchanged
 
 ### Requirement: Partial research identifies known unfinished checks
-The research model SHALL report partial research when it returns useful findings with a known unfinished mandatory check. It SHALL identify that check. Missing optional facts or an unannounced next Edition alone SHALL NOT require partial status. The application SHALL NOT infer check completion from omitted fields. A hard limit without a usable result SHALL follow the failure rules in [ingestion runs](../ingestion-runs/spec.md).
+Ingestion SHALL report partial research when it returns useful findings with a known unfinished mandatory source acquisition or interpretation check. It SHALL identify that check. Missing optional facts or an unannounced next Edition alone SHALL NOT require partial status. The application SHALL NOT infer check completion from omitted fields. A hard limit without a usable result SHALL follow the failure rules in [ingestion runs](../ingestion-runs/spec.md).
 
 #### Scenario: A mandatory check is blocked
 - **WHEN** inspected sources support some findings but an assigned source cannot be checked
 - **THEN** research is partial, identifies the unfinished check, and preserves affected saved values
+
+#### Scenario: A source gap remains after a useful interpretation
+
+- **WHEN** useful evidence supports a field proposal but another relevant required source is blocked, unread or unprocessed
+- **THEN** research remains partial and identifies that source gap even if the field check is verified
+
+#### Scenario: Collected evidence needs interpretation
+
+- **WHEN** relevant source collection is complete and an assigned interpretation check remains unresolved
+- **THEN** research remains partial and identifies that interpretation gap
+- **AND** missing optional prose or fresh genre names alone does not require another source
 
 ### Requirement: Failed research makes no catalog changes
 Failed research SHALL have no usable findings and SHALL produce no catalog operations.
@@ -165,6 +176,13 @@ When an inspected source supports an Edition ticket price, ingestion SHALL propo
 #### Scenario: An observed category has availability but no amount
 - **WHEN** a supported price permits replacement and another observed category has known availability without a price
 - **THEN** the replacement may include that category without amount or currency
+
+#### Scenario: A category name refers to unread offer details
+
+- **WHEN** a current source supports a Regular price and names a Student category whose details are only in an unread checkout
+- **THEN** the replacement includes Regular without a Student placeholder, even with an absent amount and currency
+- **AND** the Student question remains unresolved
+- **AND** a proposed replacement that includes that unsupported placeholder is rejected as a complete ticket block
 
 #### Scenario: No price is supported
 - **WHEN** relevant pages have no readable price or only announce closed sales

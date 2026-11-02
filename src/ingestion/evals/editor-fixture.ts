@@ -12,7 +12,7 @@ import type { ResearchDependencies } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
 
 export const roleHandoffSchema = z.strictObject({
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(5),
   provenance: z.string().min(1),
   pages: z
     .array(

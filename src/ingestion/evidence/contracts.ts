@@ -22,16 +22,14 @@ const readerEvidence = z.strictObject({
       start: z
         .string()
         .min(1)
-        .max(250)
         .describe(
-          "Exact unique opening text, at most 250 characters. Preserve whitespace.",
+          "Exact unique opening text, normally at most 250 characters. Preserve whitespace.",
         ),
       end: z
         .string()
         .min(1)
-        .max(250)
         .describe(
-          "Exact unique closing text, at most 250 characters. It must follow the opening text. Never use a repeated bullet.",
+          "Exact unique closing text, normally at most 250 characters. It must follow the opening text. Never use a repeated bullet.",
         ),
     }),
   ]),
@@ -39,16 +37,24 @@ const readerEvidence = z.strictObject({
 });
 const contextualReaderEvidence = readerEvidence.extend({
   context: z.array(quote).max(24),
-  editionClues: z.array(z.string().max(250)).max(20),
-  uncertainty: z.string().max(1000).nullable(),
+  editionClues: z
+    .array(
+      z
+        .string()
+        .describe("Short literal scope hint, normally under 250 characters."),
+    )
+    .max(20),
+  uncertainty: z
+    .string()
+    .describe("Briefly explain the ambiguity, normally under 1000 characters.")
+    .nullable(),
 });
 export const readerOutputSchema = z.strictObject({
   overview: z
     .string()
     .min(1)
-    .max(1500)
     .describe(
-      "Describe only this page. Do not compare it with the requested Event or infer identity conflicts.",
+      "Describe only this page in 1-2 sentences, normally under 300 characters. Do not compare it with the requested Event or infer identity conflicts.",
     ),
   coverage: z.strictObject({
     found: z
@@ -56,9 +62,8 @@ export const readerOutputSchema = z.strictObject({
         z
           .string()
           .min(1)
-          .max(160)
           .describe(
-            "Short label of collected information, normally under 100 characters; maximum 160 characters.",
+            "Short label of collected information, normally under 100 characters.",
           ),
       )
       .max(9),
@@ -67,18 +72,31 @@ export const readerOutputSchema = z.strictObject({
         z
           .string()
           .min(1)
-          .max(160)
           .describe(
-            "Short explicit absence statement, normally under 100 characters; maximum 160 characters.",
+            "Short explicit absence statement, normally under 100 characters.",
           ),
       )
       .max(6)
       .describe("Only explicit source statements of absence, not page silence"),
   }),
   topics: z.array(z.enum(topics)).max(9),
-  statedYears: z.array(z.string().max(80)).max(100),
+  statedYears: z
+    .array(
+      z
+        .string()
+        .describe(
+          "Short literal year or date label, normally under 80 characters.",
+        ),
+    )
+    .max(100),
   limitations: z
-    .array(z.string().max(500))
+    .array(
+      z
+        .string()
+        .describe(
+          "Briefly name the extraction problem, normally under 500 characters.",
+        ),
+    )
     .max(30)
     .describe(
       "Actual extraction problems only, such as cut or unreadable source content. Return [] for absent optional facts, unmentioned topics or explicit nonpublication.",

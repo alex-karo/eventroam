@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 5,
   "provenance": "Exact search-wrong-official research from narrow-current-main-merge.json; openai/gpt-6-luna, narrow-current-focused-search-v1; provider wire-null omission normalized, findings unchanged. Adapted to fixed domain roles. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 5550e1f9-71d5-4c92-9a11-b608a2cd0606:s1, d49da0ea-52fe-4649-ada1-711ae62fe65a:s3. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
   "pages": [
     {

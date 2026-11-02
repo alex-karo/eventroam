@@ -39,7 +39,7 @@ export function buildAssignment(
         currentTickets:
           "Inspect the current official ticket overview, with prices, mandatory fees, pass duration and conditions.",
         currentClassification:
-          "Collect programme and physical setting descriptions, not only links to artists.",
+          "Collect available programme, physical setting and continuity statements from relevant known pages and useful leads. Classification decides whether these support new or retained terms; missing fresh genre names alone does not require another source.",
         currentLinks:
           "Find the official ticket overview and relevant public Edition links.",
         previousCompletedEdition:

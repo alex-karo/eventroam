@@ -25,11 +25,19 @@ const valid = (value: unknown) =>
 test("envelope keeps research completion separate from diagnostics", () => {
   const success = candidate();
   expect(valid(success)).toBe(true);
-  success.unresolved = [{ message: "Unannounced next year" }];
+  success.data!.sources = [
+    {
+      url: "https://example.org/",
+      information: "A source summary. ".repeat(40).trim(),
+    },
+  ];
+  success.unresolved = [
+    { message: "Unannounced next year. ".repeat(30).trim() },
+  ];
   success.errors = [
     {
       code: "source_unavailable",
-      message: "A source failed",
+      message: "A source failed. ".repeat(40).trim(),
       url: "https://old.example/",
     },
   ];

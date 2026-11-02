@@ -141,7 +141,10 @@ test("strict decisions reject numeric coordinates and removed reference fields",
   expect(locationOutputSchema.safeParse(output()).success).toBe(true);
   expect(
     locationOutputSchema.safeParse({
-      decision: { status: "rejected", reason: "Wrong festival" },
+      decision: {
+        status: "rejected",
+        reason: "Wrong festival. ".repeat(150).trim(),
+      },
     }).success,
   ).toBe(true);
   for (const patch of [

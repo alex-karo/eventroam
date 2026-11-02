@@ -71,6 +71,13 @@ The application MUST enforce the slot and Event-field restrictions.
 It MUST trust the model's temporal selection and account of its checks.
 Target ownership, country, field, and catalog guards MUST still apply.
 
+#### Scenario: The next Edition changes venue and programme
+
+- **WHEN** an inspected official announcement supports the same Event name and association, gives the saved country, and announces a different venue, locality or programme for the next Edition
+- **THEN** current refresh can continue with that Edition without requesting full refresh solely because of those changes
+- **AND** an absent saved locality is not an identity contradiction
+- **AND** Event fields remain outside the current assignment and the country guard still applies
+
 #### Scenario: Current refresh has saved history
 
 - **WHEN** current selects one future Edition and another Edition is saved

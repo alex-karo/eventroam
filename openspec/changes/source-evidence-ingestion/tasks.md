@@ -87,3 +87,36 @@ The new flow and its unit and integration tests are present. The main before/aft
 - [x] Clarify need-based discovery within the shared budget without relaxing the existing sufficient-source search fixtures.
 - [x] Match equivalent geocoding query forms without new aliases, invented responses or live fallback; verify ambiguous, country and place mismatches.
 - [x] Define dated announcements as scheduled, retain provisional date state and explicit exceptions, and align prompts, main checks, docs and specs.
+
+## Source acquisition and evidence input experiments, 2026-11-02
+
+- [x] Separate Research source acquisition blockers from semantic check findings. Preserve real gaps, missing checks, strict source references and no-write rules.
+- [x] Compare flat and source-grouped General evidence on fixed repeated inputs. Revert the grouped input if the measured quality does not improve.
+- [x] Run affected full-workflow cases on standard tier, inspect source policy and remaining failures, and record the limits. The focused measurement passes 10/12; both failures are unsupported Student offers. Retain that strict check.
+- [x] Run unit, contract, documentation and OpenSpec checks for the retained implementation. All 805 unit tests and required checks pass.
+
+## Unsupported ticket category correction, 2026-11-02
+
+- [x] Require observed offer details in Tickets and reject category-only variants in Editor. Preserve supported unknown-price offers and complete-block review.
+- [x] Repeat the same six Pipeline cases twice on standard tier, inspect failures, and record the result without changing scenario checks. Pipeline passes 11/12, with both ticket attempts passing; the remaining failure is General identity. Both affected fixed-input Editor checks and all 805 unit tests pass.
+
+## Edition venue and Event identity correction, 2026-11-02
+
+- [x] Clarify that a supported venue, locality or programme change within the same country does not alone contradict Event identity. Preserve explicit unrelated-Event and country-conflict refusal.
+- [x] Repeat narrow-current-changed twice on standard tier and check current-identity-contradiction twice with unchanged scenario checks. All 4 attempts pass. All 805 unit tests, type checking, affected lint, formatting, documentation and OpenSpec checks pass.
+
+## Reader and Editor clarification follow-up, 2026-11-02
+
+- [x] Keep adjacent corrections and negations in Reader quotations. Clarify null field output for questions without a single applicable field. Update affected prompt versions and verify existing output contracts. All 51 affected tests, type checking, lint and formatting pass.
+- [x] Run Roskilde and search-date-conflict once each on standard tier. Inspect quotation completeness, Editor completion, scenario quality and available native cost against the last full run. Keep case checks unchanged and record any remaining failure. Both cases pass; Reader retains the date correction and Roskilde Editor completes normally. Record the limits of the single-repeat comparison.
+
+## Source blocker text follow-up, 2026-11-02
+
+- [x] Replace typed source blockers with nullable text reasons of at most 300 characters, as selected by the owner. Update Research instructions, report consumers and fixed inputs. Preserve partial status, missing-check diagnostics and source references.
+- [x] Run contract, workflow, provider and fixture checks, type checking, affected lint, formatting, documentation and OpenSpec validation. All 801 tests and all 50 fixture loads pass. No new model evaluation was run; earlier typed-blocker measurements do not establish equivalent model quality for the text contract.
+
+
+## Model text length guidance follow-up, 2026-11-02
+
+- [x] Put length recommendations in field descriptions for decision reasons, owner questions, source summaries, diagnostics and Reader metadata, including literal boundary text. Accept and retain longer text. Preserve catalog validation, exact quotation matching and resource budgets.
+- [x] Verify long output through role acceptance, source reporting and evidence binding. All 802 unit tests, all 50 fixture loads, type checking, affected lint, formatting, documentation and strict OpenSpec validation pass. No live model evaluation was run.

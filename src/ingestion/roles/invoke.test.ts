@@ -54,7 +54,7 @@ it("uses an object transport envelope for General and retains the actual respons
   expect(result.modelResponse?.object).toEqual({ result: domain });
   expect(fetch).toHaveBeenCalledTimes(1);
 });
-it("keeps host failure separate from a valid domain decision", async () => {
+it("accepts a valid domain decision with a reason above the length guidance", async () => {
   const budget = createResearchBudget();
   const result = await invokeRole({
     role: "general",
@@ -70,11 +70,15 @@ it("keeps host failure separate from a valid domain decision", async () => {
     },
     generate: async () => ({
       decision: "uncertain",
-      reason: "No identity support",
+      reason: "No identity support. ".repeat(101).trim(),
       unresolved: [],
     }),
   });
   expect(result.status).toBe("success");
-  expect(result.output?.decision).toBe("uncertain");
+  expect(result.output).toEqual({
+    decision: "uncertain",
+    reason: "No identity support. ".repeat(101).trim(),
+    unresolved: [],
+  });
   expect(result.errors).toEqual([]);
 });

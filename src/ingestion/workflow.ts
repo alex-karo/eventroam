@@ -468,8 +468,8 @@ export function createCatalogIngestionWorkflow(
       data.unresolved.push(...(data.research.output?.unresolved ?? []));
       data.unresolved.push(
         ...(data.research.output?.checks ?? []).flatMap((check) =>
-          check.finding === "unfinished"
-            ? [{ message: `${check.check}: ${check.explanation}` }]
+          check.blocker
+            ? [{ message: `${check.check}: ${check.blocker}` }]
             : [],
         ),
       );
@@ -493,6 +493,7 @@ export function createCatalogIngestionWorkflow(
       const assignment = buildAssignment(owned.input, data.context!);
       const checks = data.research.output?.checks ?? [];
       if (
+        new Set(checks.map((check) => check.check)).size !== checks.length ||
         checks.some(
           (check) =>
             !assignment.checks.some(

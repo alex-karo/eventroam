@@ -43,6 +43,41 @@ describe("saved source evidence", () => {
     expect(bound.limitations).toHaveLength(1);
   });
 
+  it("retains literal evidence when navigation text exceeds length guidance", () => {
+    const start = `Start ${"a".repeat(251)}`;
+    const end = `End ${"b".repeat(251)}`;
+    const page = `${start}\nFull pass €100.\n${end}`;
+    const longText = "Source detail. ".repeat(150);
+    const output = readerOutputSchema.parse({
+      overview: longText,
+      coverage: { found: [longText], notPublished: [longText] },
+      topics: ["tickets"],
+      statedYears: [longText],
+      limitations: [longText],
+      evidence: [
+        {
+          quote: { start, end },
+          topics: ["tickets"],
+          context: [],
+          editionClues: [longText],
+          uncertainty: longText,
+        },
+      ],
+    });
+    const bound = bindEvidence("s1", page, output, "https://example.org/");
+    expect(output.overview).toBe(longText);
+    expect(output.coverage.found).toEqual([longText]);
+    expect(output.coverage.notPublished).toEqual([longText]);
+    expect(output.statedYears).toEqual([longText]);
+    expect(bound.limitations).toEqual([longText]);
+    expect(bound.evidence).toHaveLength(1);
+    expect(bound.evidence[0]).toMatchObject({
+      quote: page,
+      editionClues: [longText],
+      uncertainty: longText,
+    });
+  });
+
   it("recovers a complete passage between literal boundaries, with links and conditions", () => {
     const passage =
       "## Festival passes 2027\n" +
@@ -121,7 +156,7 @@ describe("saved source evidence", () => {
     expect(bound.evidence[0].id).toBe("s1-e2");
   });
 
-  it("requires short literal boundaries and a strict boundary object", () => {
+  it("requires nonempty literal boundaries and a strict boundary object", () => {
     const output = {
       overview: "A source page",
       coverage: { found: [], notPublished: [] },
@@ -140,7 +175,6 @@ describe("saved source evidence", () => {
     };
     for (const quote of [
       { start: "", end: "End" },
-      { start: "Start", end: "x".repeat(251) },
       { start: "Start", end: "End", extra: true },
     ]) {
       expect(

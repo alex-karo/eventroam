@@ -29,6 +29,18 @@ Ingestion SHALL report partial research when useful evidence remains with a know
 - **WHEN** inspected sources support some findings but an assigned source cannot be checked
 - **THEN** research is partial, identifies the unfinished check, and preserves affected saved values
 
+
+#### Scenario: A source gap remains after a useful interpretation
+
+- **WHEN** useful evidence supports a field proposal but another relevant required source is blocked, unread or unprocessed
+- **THEN** research remains partial and identifies that source gap even if the field check is verified
+
+#### Scenario: Collected evidence needs interpretation
+
+- **WHEN** relevant source collection is complete and an assigned interpretation check remains unresolved
+- **THEN** research remains partial and identifies that interpretation gap
+- **AND** missing optional prose or fresh genre names alone does not require another source
+
 ### Requirement: Findings alone do not authorize writes
 
 Catalog changes SHALL require a valid, supported update for the selected Event and Editions. Ingestion SHALL check identity, scope, field meaning, country, and catalog constraints. Exact quotation matching SHALL NOT prove semantic support. A required execution failure or invalid final update SHALL produce no item writes. Raw findings SHALL NOT bypass validation.
@@ -123,6 +135,13 @@ Only currentOrNextEdition, including an ongoing Edition, SHALL be eligible for t
 #### Scenario: An observed category has availability but no amount
 - **WHEN** a supported price permits replacement and another observed category has known availability without a price
 - **THEN** the replacement may include that category without amount or currency
+
+#### Scenario: A category name refers to unread offer details
+
+- **WHEN** a current source supports a Regular price and names a Student category whose details are only in an unread checkout
+- **THEN** the replacement includes Regular without a Student placeholder, even with an absent amount and currency
+- **AND** the Student question remains unresolved
+- **AND** a proposed replacement that includes that unsupported placeholder is rejected as a complete ticket block
 
 #### Scenario: Free admission has no ticket categories
 

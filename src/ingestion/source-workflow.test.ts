@@ -38,6 +38,7 @@ async function fixture(
     invalidTickets?: boolean;
     sourceUnavailable?: boolean;
     uncertainIdentity?: boolean;
+    unfinishedCheck?: string;
     research?: (output: CollectionOutput) => CollectionOutput;
   } = {},
 ) {
@@ -90,7 +91,7 @@ async function fixture(
       const output: CollectionOutput = {
         checks: input.checks.map((check: { key: string }) => ({
           check: check.key,
-          finding: "verified",
+          blocker: null,
           sourceIds: input.inspectedPages.map(
             (page: { sourceId: string }) => page.sourceId,
           ),
@@ -101,7 +102,7 @@ async function fixture(
     }
     const checks = (input.assignedChecks ?? []).map((check: string) => ({
       check,
-      finding: "verified",
+      finding: check === options.unfinishedCheck ? "unfinished" : "verified",
       explanation: "Fixture completes interpretation",
       evidenceIds: [],
       sourceIds: [],
@@ -308,14 +309,16 @@ it("waits for branches and prevents all writes on invalid required output", asyn
   expect(result.operations).toEqual([]);
 });
 
-it("keeps unfinished collection reasons and owner questions in a partial report", async () => {
-  const explanation = "The official travel page is blocked.";
-  const question = { message: "Which official travel domain should be used?" };
+it("keeps a long source blocker partial even when specialists verify their checks", async () => {
+  const explanation = "The official travel page is blocked. ".repeat(12).trim();
+  const question = {
+    message: "Which official travel domain should be used? ".repeat(12).trim(),
+  };
   const { result } = await fixture({
     research: (output) => ({
       checks: output.checks.map((check) =>
         check.check === "currentLocation"
-          ? { ...check, finding: "unfinished", explanation }
+          ? { ...check, blocker: explanation }
           : check,
       ),
       unresolved: [question],
@@ -334,6 +337,43 @@ it("keeps unfinished collection reasons and owner questions in a partial report"
   ).toBe(true);
 });
 
+it("does not treat a specialist finding as a completed missing collection check", async () => {
+  const { result } = await fixture({
+    research: (output) => ({
+      ...output,
+      checks: output.checks.filter(
+        (check) => check.check !== "currentClassification",
+      ),
+    }),
+  });
+  expect(result.errors).toEqual([]);
+  expect(result.outcome).toBe("created");
+  expect(result.researchStatus).toBe("partial");
+  expect(result.unresolved).toContainEqual({
+    message: "Collection check currentClassification was not returned.",
+  });
+});
+
+it("keeps a semantic check unfinished without an acquisition blocker", async () => {
+  const { result } = await fixture({
+    unfinishedCheck: "currentClassification",
+  });
+  expect(result.errors).toEqual([]);
+  expect(result.researchStatus).toBe("partial");
+});
+
+it("rejects repeated collection keys before interpretation", async () => {
+  const { result, calls } = await fixture({
+    research: (output) => ({
+      ...output,
+      checks: [...output.checks, output.checks[0]],
+    }),
+  });
+  expect(result.outcome).toBe("failed");
+  expect(calls).not.toContain("general");
+  expect(result.operations).toEqual([]);
+});
+
 it("retains an unfinished collection cause without a source or a separate owner question", async () => {
   const explanation = "All relevant source requests are blocked.";
   const { result, calls } = await fixture({
@@ -343,9 +383,8 @@ it("retains an unfinished collection cause without a source or a separate owner 
         check.check === "currentTickets"
           ? {
               check: check.check,
-              finding: "unfinished",
               sourceIds: [],
-              explanation,
+              blocker: explanation,
             }
           : check,
       ),

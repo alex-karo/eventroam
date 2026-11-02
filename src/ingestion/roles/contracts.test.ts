@@ -6,15 +6,14 @@ import {
   ticketBlockSchema,
 } from "./contracts";
 
-const collected = { check: "identity", finding: "verified", sourceIds: ["s1"] };
+const collected = { check: "identity", blocker: null, sourceIds: ["s1"] };
 const blocked = {
   check: "currentTickets",
-  finding: "unfinished",
   sourceIds: ["s2"],
-  explanation: "The ticket page is blocked.",
+  blocker: "The ticket page is blocked.",
 };
 
-it("retains collection coverage, unfinished causes and distinct owner questions", () => {
+it("retains acquisition blockers and distinct owner questions without semantic findings", () => {
   const output = {
     checks: [collected, blocked],
     unresolved: [{ message: "Which official domain is correct?" }],
@@ -22,8 +21,8 @@ it("retains collection coverage, unfinished causes and distinct owner questions"
   expect(collectionOutputSchema.parse(output)).toEqual(output);
   const withoutCause = {
     check: blocked.check,
-    finding: blocked.finding,
     sourceIds: blocked.sourceIds,
+    blocker: "   ",
   };
   expect(
     collectionOutputSchema.safeParse({ checks: [withoutCause], unresolved: [] })
@@ -31,15 +30,30 @@ it("retains collection coverage, unfinished causes and distinct owner questions"
   ).toBe(false);
   expect(
     collectionOutputSchema.safeParse({
-      checks: [{ ...blocked, explanation: "x".repeat(301) }],
+      checks: [
+        {
+          ...blocked,
+          blocker: "x".repeat(301),
+        },
+      ],
       unresolved: [],
     }).success,
-  ).toBe(false);
+  ).toBe(true);
 });
 
 it.each([
   { checks: [collected], unresolved: [], completionReason: "Done" },
   { checks: [{ ...collected, evidenceIds: [] }], unresolved: [] },
+  { checks: [{ ...collected, finding: "verified" }], unresolved: [] },
+  {
+    checks: [
+      {
+        ...collected,
+        blocker: { explanation: "The ticket page is blocked." },
+      },
+    ],
+    unresolved: [],
+  },
   {
     checks: [{ ...collected, explanation: "Already covered by the source." }],
     unresolved: [],

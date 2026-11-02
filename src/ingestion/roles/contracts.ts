@@ -4,7 +4,7 @@ import {
   editionFindingSchema,
   researchBasePriceSchema,
   researchQuestionSchema,
-  ticketVariantSchema,
+  ticketOfferSchema,
 } from "../research/contracts";
 
 export const roleEvidenceTopics = {
@@ -14,7 +14,13 @@ export const roleEvidenceTopics = {
   links: ["links", "tickets", "identity"],
 } as const satisfies Record<string, readonly (typeof topics)[number][]>;
 
-export const reasonSchema = z.string().trim().min(1).max(2000);
+export const reasonSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .describe(
+    "Explain the decision in 1-3 short sentences, normally under 2000 characters.",
+  );
 export const supportSchema = z.array(z.string().min(1)).max(100);
 const common = { reason: reasonSchema, evidenceIds: supportSchema };
 export function change<T extends z.ZodType>(value: T, clearable = true) {
@@ -44,7 +50,11 @@ const check = z.strictObject({
 export const checksSchema = z.array(check).max(40);
 export type CheckFinding = z.infer<typeof check>;
 export const questionsSchema = z.array(researchQuestionSchema).max(30);
-const collectionNote = z.string().trim().min(1).max(300);
+const collectionNote = z
+  .string()
+  .trim()
+  .min(1)
+  .describe("Use one short sentence, normally at most 300 characters.");
 const collectionCheck = {
   check: check.shape.check,
   sourceIds: check.shape.sourceIds,
@@ -52,14 +62,10 @@ const collectionCheck = {
 export const collectionOutputSchema = z.strictObject({
   checks: z
     .array(
-      z.discriminatedUnion("finding", [
-        z.strictObject({ ...collectionCheck, finding: z.literal("verified") }),
-        z.strictObject({
-          ...collectionCheck,
-          finding: z.literal("unfinished"),
-          explanation: collectionNote,
-        }),
-      ]),
+      z.strictObject({
+        ...collectionCheck,
+        blocker: collectionNote.nullable(),
+      }),
     )
     .max(40),
   unresolved: z.array(z.strictObject({ message: collectionNote })).max(30),
@@ -106,26 +112,9 @@ export const refreshGeneralOutputSchema = z.discriminatedUnion("decision", [
 export type GeneralOutput = z.infer<typeof generalOutputSchema>;
 export type Targets = Extract<GeneralOutput, { decision: "targets" }>;
 
-const offerFields = z
-  .strictObject(ticketVariantSchema.shape)
-  .omit({ url: true }).shape;
-export const ingestionOfferSchema = z
-  .strictObject(offerFields)
-  .superRefine((value, ctx) => {
-    const parsed = ticketVariantSchema.safeParse(value);
-    if (!parsed.success) {
-      for (const issue of parsed.error.issues) {
-        ctx.addIssue({
-          code: "custom",
-          path: issue.path,
-          message: issue.message,
-        });
-      }
-    }
-  });
 export const ticketBlockSchema = z
   .strictObject({
-    variants: z.array(ingestionOfferSchema).max(100),
+    variants: z.array(ticketOfferSchema).max(100),
     basePrice: researchBasePriceSchema.nullable(),
   })
   .refine(

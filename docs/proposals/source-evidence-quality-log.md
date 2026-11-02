@@ -470,3 +470,149 @@ The owner resolved the four earlier questions:
 Scorer revision 16 identifies these follow-up changes. The measured stabilization scores above belong to revision 15 and are not a measurement of the changed prompts or checks. The separate low-versus-medium Research experiment remains open.
 
 Follow-up verification uses no model calls. All 50 cases load. All 89 exact geocoding requests retain their recorded responses; three normalized variants match; five country/place/reverse mismatches and conflicting normalized responses remain unavailable. An exact recorded failure keeps priority. Saved unfinished-history outputs pass without an Edition key, while an unrelated ticket question and an attempted historical mutation fail. Rescoring ten saved Main outputs under revision 16 additionally rejects Sziget repeat 1 for announced despite confirmed dates; this is a stricter-rule result, not a fresh model run. Original experiment scores remain unchanged. The 27 affected unit tests, type check, affected ESLint, documentation and OpenSpec checks pass. Changed prompts still need a fresh model evaluation before claiming new scenario stability.
+
+### Source acquisition and General input experiments, 2026-11-02
+
+The owner selected two Astra suggestions: separate source acquisition from interpretation, and test source-grouped General evidence with location context. Scorer revision 17 identifies the collection contract change. Research v18 returns one nullable acquisition blocker per assigned check. General and specialists keep semantic findings. Code retains real blockers and missing collection checks even when a specialist verifies its own check. No automatic blocker override, retry or new collection round is added.
+
+A report-only replay uses ten saved attempts from five Pipeline cases. Converting the old collection findings to blockers reproduces all ten original research statuses. Manually removing only the two documented semantic-only causes changes those two statuses from partial to success. The two blocked-checkout, two unfinished-history and two identity-conflict attempts remain partial. Proposals, review inputs and operations stay equal. This verifies composition; it does not show that Research will emit the right blockers.
+
+A separate Research-only trial uses ten saved compact inputs and recorded tool responses. All ten outputs pass the new schema. One reuse attempt still requests fresh programme prose; blocked history and checkout sometimes affect unrelated current-link checks. Unrecorded requests have no captured page response, so this trial cannot measure full workflow quality. A preliminary trial with redacted check keys is excluded. Research v18 then clarifies source ownership, explicit nonpublication, classification continuity and check-specific blockers. The full-workflow measurement below uses real eval fixture tools.
+
+The General comparison uses four fixed inputs, two arms and ten attempts per input per arm: 80 native General calls on standard tier. Both arms use low effort and provider prompt caching. Two River inputs come from the final stabilization traces. One negative input is the recorded Australia/GB homonym. The other is an explicit synthetic country conflict made from the River input, with saved GB/London identity instead of PT/Lisbon. Source quotes stay fixed. Reader and other roles are not called.
+
+| General input | Flat control | Grouped sources plus location |
+| --- | ---: | ---: |
+| Two valid River inputs | 20/20 | 19/20 |
+| Two identity/country conflicts, correctly refused | 20/20 | 20/20 |
+| Structurally valid output | 40/40 | 40/40 |
+| Input tokens, including cache reads | 128,060 | 129,640 |
+| Cache-read tokens | 123,117 | 124,785 |
+| Output tokens | 15,766 | 16,477 |
+| Available native estimated model cost, USD | 0.009729045 | 0.010090225 |
+
+The grouped arm mistakes a supported venue change for an Event identity conflict in one attempt. It shows no quality benefit and uses 3.7% more estimated model cost. This small sample does not prove a general quality difference. Revert grouping, the added location projection and its prompt rule. Keep General v14 and its flat evidence input. Native costs are available model estimates, not provider invoices or full ingestion cost. Artifacts are in `/tmp/eventroam-quality-12/`; native role observations are in `data/quality-12.duckdb` and `data/quality-12-research-fixed.duckdb`.
+
+The full-workflow check runs six affected Pipeline cases twice on standard tier, with unchanged code throughout the measurement. Experiment `f955a9ba-f19f-4b23-824f-25bf93ab38ee` returns all 12 scored outputs: 10/12 pass, or 5/6 per repeat. Both reuse and recovered-website attempts now finish successfully without the former classification/description acquisition gaps. Both changed-venue attempts pass. Both inaccessible-history and both identity-conflict attempts retain partial research; identity conflicts make no search or writes. Both blocked-checkout attempts retain the ticket blocker. Historical and checkout gaps no longer block unrelated current links.
+
+Both failures are the existing unsupported Student placeholder: Tickets creates an offer from a category name without its actual terms or price, and Editor approves it. The supported Regular EUR 110 offer and base price remain correct. Keep the strict check. One checkout attempt also adds a location blocker and one permitted search because compact coverage does not establish country for Research, although downstream evidence does. This remains a navigation-coverage limitation; this change does not establish perfect blocker recall or precision.
+
+For context, these same six cases passed 8/12 in the earlier `stabilize-5` measurement. That is a historical comparison with different prompt/scorer revisions, not a controlled gain from this change. The focused result does not replace the complete 50-case measurement and makes no full-suite stability claim. Total available estimated model cost is USD 0.038940155 for 12 attempts; Research accounts for USD 0.005781835, with 50,409 input tokens (37,541 cache reads), 7,599 output tokens and 4,833 reasoning tokens. Native data is in `data/eval-quality-12.duckdb`. Full results, traces and aggregates are saved under `/tmp/eventroam-full-eval-0180a5e/quality-12-*`.
+
+Verification passes all 805 unit tests across 77 files, type checking, affected ESLint, dependency checking, repository formatting, documentation checks and strict OpenSpec validation. No scenario is removed or weakened. Editor handoff fixtures move to schema version 4 for the collection contract; their fixed proposals and source quotations stay unchanged. Retain source acquisition ownership; leave General grouping reverted.
+
+### Unsupported ticket category correction, 2026-11-02
+
+The two `quality-12` ticket failures share one cause. Tickets treats a named Student category with an unread checkout as an offer with null amount and currency. It places the referral text in `terms`; Editor accepts it because the category name is present in the source. The old prompt forbids an unsupported priced offer but leaves this unpriced interpretation unclear.
+
+Tickets v10 requires observed price, explicit availability or concrete admission terms for every variant. A name, link or referral to details elsewhere alone is insufficient, and eligibility cannot be inferred from a label. Such a category stays in an unresolved question. Editor v17 applies the same rule to every variant and rejects the complete ticket block if it contains an unsupported placeholder. It cannot remove individual variants or supply a replacement. Unknown-price offers with explicit availability or admission terms remain valid. No schema, scenario check, source input, retry policy or model setting changes.
+
+The same six Pipeline cases run twice on standard tier. Experiment `76877e40-0ead-4bc9-8f91-ca95d5820c9b` returns all 12 outputs and passes 11/12 (5/6 in repeat 1, 6/6 in repeat 2), compared with 10/12 in `quality-12`. Both `narrow-current-partial-tickets` attempts pass. Each replacement contains only Regular, EUR 110, full programme; each keeps a Student question and an unfinished ticket check. Both Editor responses approve the supported block and explicitly identify the omitted Student category as unverified.
+
+The only failed attempt is `narrow-current-changed #1`. General mistakes the change from Old Grounds to New Grounds for a material Event identity conflict and requests a full refresh. This failure already occurred in earlier measurements. General and its inputs are unchanged in this correction. Keep the scenario strict and record the failure; the ticket repair does not establish full workflow stability.
+
+Available native model cost is USD 0.03847269 for the 12 attempts. Tickets accounts for USD 0.00190581 and Editor for USD 0.008246935. Do not infer a cost saving: the General refusal skips downstream work in one attempt. Results, traces and aggregates are under `/tmp/eventroam-full-eval-0180a5e/tickets-fix-*`; logs are in `/tmp/eventroam-tickets-fix/`; native observations are in `data/eval-tickets-fix.duckdb`.
+
+Two fixed-input Editor regressions also pass on standard tier: `editor-day-ticket` and `editor-unknown-currency`, experiment `ea743e3e-8e64-4cfb-91e8-3e27c2d56477`. These check that the stricter category rule still allows supported day passes and observed prices with unresolved currency. They do not call live Research, Reader or Tickets. All 805 unit tests, type checking, affected ESLint, formatting, documentation checks and strict OpenSpec validation pass. The full-workflow scenario rules remain unchanged.
+
+### Edition venue and Event identity correction, 2026-11-02
+
+The failed `narrow-current-changed #1` from `tickets-fix` contains both a literal River Festival name and the Portugal announcement. The saved country is PT and the saved locality is absent. General treats Old Grounds to New Grounds as an Event identity conflict and requests full refresh. This is an interpretation error, not missing Reader evidence.
+
+General v16 separates Event identity from Edition changes. Literal name, official association and country context establish identity. Venue, locality, genres and programme format can change within that country; those changes alone do not require full refresh. An absent saved locality is unknown. Explicit unrelated-Event evidence or a conflicting country still requires refusal under current permissions. Name or URL equality alone does not override a real conflict. The evidence projection, model, reasoning, source policy, Editor and other roles remain unchanged. Version 15 was used for the rejected source-grouping experiment; this correction uses version 16.
+
+Experiment `cd613ffb-291e-499c-862a-cb9dcdb31580` runs `narrow-current-changed` and `current-identity-contradiction` twice each on standard tier. All four complete and pass their unchanged scenario checks. Both changed-venue attempts select Edition 2027 with success research and accepted current proposals, without Event field changes. Their identity reasons explicitly distinguish the supported venue, programme and format changes from Event identity. Both conflicting-country attempts return uncertain identity, partial research, a full-refresh question and no catalog operations or searches. This focused result does not establish full-suite or long-run stability.
+
+All 805 unit tests across 77 files, type checking, affected ESLint, formatting, documentation checks and strict OpenSpec validation pass. Results and traces are under `/tmp/eventroam-full-eval-0180a5e/general-venue-fix-*`; logs are in `/tmp/eventroam-general-venue-fix/`; native observations are in `data/eval-general-venue-fix.duckdb`.
+
+### Full standard-tier comparison, 2026-11-02
+
+The owner requested all 50 cases once on standard tier. Run `full-standard-once` completes all four groups, with 50 saved outputs and no unexpected task errors. It takes about 11 minutes 44 seconds. The CLI exits with code 1 because two scenarios fail. No failed case is repeated or excluded. This measurement uses the code, checks and fixtures loaded when the process started at 20:22 UTC.
+
+The previous full run is `stabilize-5`, with two attempts per case. Its original scorer revision is 15; the new run uses revision 17. Rescoring its saved outputs with the checks loaded for this measurement requires no model calls and leaves the original experiment scores unchanged. This adds one old failure: Sziget repeat 1 uses `announced` despite complete confirmed dates. All source pages, initial records, discovery and geocoding fixtures match. The seven fixed Editor handoffs differ only in their schema version, 3 to 4.
+
+| Group | Previous repeat 1, original | Previous repeat 2, original | Previous repeat 1, rescored | Previous repeat 2, rescored | New single repeat |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| main/pipeline | 4/5 | 5/5 | 3/5 | 5/5 | 4/5 |
+| regression/pipeline | 23/25 | 23/25 | 23/25 | 23/25 | 24/25 |
+| regression/editor | 7/7 | 7/7 | 7/7 | 7/7 | 7/7 |
+| regression/location | 13/13 | 13/13 | 13/13 | 13/13 | 13/13 |
+| All scenario attempts | 47/50 | 48/50 | 46/50 | 48/50 | 48/50 |
+
+These counts summarize scenario success, not an average of the groups' quality dimensions. The current result matches the better previous repeat. A single new repeat does not establish a stable quality improvement.
+
+The two failed cases have different causes:
+
+- `roskilde`: Editor returns an incomplete JSON response, then repeats whitespace until its 16,000-token output limit. Native `finishReason` is `length`; the response fails structural validation with `invalid_plan`. Research and specialists had produced useful proposals, but the invalid required review prevents all writes. This is a different failure from the old unpriced instalment offer. No automatic retry is added. Trace: `8c88a380e198a2f9f741e9c8532e73eb`; run: `08e79cff-0cd8-4bc7-8db9-9a36439630be`.
+- `search-date-conflict`: Reader copies the venue's January booking but omits the next two sentences, which explicitly confirm January and reject the February headline. General receives the first page's conflict and an incomplete account of its resolution, so it leaves `currentDates` unfinished. Research has no acquisition blocker. The expected saved January dates remain, and the outcome is published, but research is partial. The scenario correctly requires successful verification. The first information loss is in Reader; this is not evidence that General ignored a supplied correction. Trace: `6488d1a0449db7fd43014e13164867ed`; run: `dba7cb94-07c2-4b48-a85b-c738f3fef056`.
+
+The four previously unstable Pipeline cases now pass: changed venue, unsupported Student offer, reused classification and recovery of the correct official website. Sziget also uses the required scheduled status. Its locality, venue and address remain absent. Editor passes all seven fixed handoffs. Direct Location passes all four completion, six correction and three preservation cases.
+
+Main required facts fall from 15/15 in each previous repeat to 10/15. All five missing required facts belong to Roskilde, where no update is written. Additional facts are 19/33, compared with 28/33 and 29/33 after rescoring the old outputs. The original scores were 29/33 and 29/33. Missing optional facts alone do not fail Main, and missing values are not scored as incorrect assertions. The broad 48/50 result must not hide this loss of useful Main output.
+
+Native estimated model cost is USD 0.17777937 for the new 50 attempts. The previous 100 attempts cost USD 0.33971439, or USD 0.169857195 per 50 attempts. The new estimate is 4.7% higher. These estimates are not provider invoices or complete operating costs.
+
+| Group | Previous estimated USD per single repeat | New estimated USD |
+| --- | ---: | ---: |
+| Main, 5 cases | 0.063354 | 0.067715 |
+| Pipeline, 25 cases | 0.086609 | 0.086873 |
+| Editor, 7 cases | 0.012936 | 0.015068 |
+| Location, 13 cases | 0.006958 | 0.008123 |
+
+Main cost rises 6.9%. The equivalent cost for ten Main attempts is about 13.54 cents, compared with 12.67 cents before; only five new Main attempts were measured. Editor accounts for the largest Main cost increase: USD 0.013930825 versus USD 0.0061271175 per previous repeat. Its output rises from a mean 5,724 to 21,225 tokens, including the failed Roskilde response's 16,000 tokens. Reader cost falls from USD 0.02684285 to USD 0.0230505. Research cost rises from USD 0.010780135 to USD 0.01306185; its input rises from a mean 147,074 to 176,673 tokens and model steps from 22.5 to 25. Reader model steps fall from 32.5 to 29. These are historical differences, not isolated effects of one prompt edit.
+
+All roles use `openai/gpt-6-luna`. Research, Editor and Location use medium effort; other roles use low. Reader prompt caching stays off. Other roles retain provider caching. Total input is 1,458,662 tokens, including 839,667 cache reads; output is 193,584 tokens. The previous per-repeat means are 1,398,072.5 input, 757,452 cache reads and 174,932 output tokens.
+
+| Group | New experiment ID |
+| --- | --- |
+| main/pipeline | `182ff793-2836-49f9-827c-c68104cdd9e7` |
+| regression/pipeline | `f31a0b53-8e83-4570-9e69-5b9a2690978a` |
+| regression/editor | `c9e9c470-4723-4852-a016-cefef67a444c` |
+| regression/location | `2a824b13-81d4-4248-ac58-79ed221192db` |
+
+Results, traces and native aggregates are under `/tmp/eventroam-full-eval-0180a5e/full-standard-once-*`. Logs, the initial working diff, baseline rescoring and comparison data are under `/tmp/eventroam-full-standard-once/`. Native observations are in `data/eval-full-standard-once.duckdb`; experiment results stay in `data/mastra-evals.sqlite`.
+
+Other work changed report code, ticket schema reuse, a ticket regression check and related tests/spec text at 20:29 UTC while the run was active. The eval process loads these modules, the suite and its file hash before starting the groups. Those later edits are not part of this measurement. Both the initial diff and the later workspace diff are saved. This run does not validate the later edits. No agent or check code was changed by this evaluation task.
+
+### Reader quotation and question field clarification, 2026-11-02
+
+The owner requested two small clarifications and one standard-tier repeat of Roskilde and `search-date-conflict`. Reader v18 requires adjacent sentences that correct, reject or limit an extracted claim to stay in literal evidence with the relevant topic. Mentioning the correction only in coverage is insufficient. The shared question field description now tells the model to return `null` when no single field applies. The domain schema, strict model output shape and null normalization stay unchanged. The five roles that use this question schema receive new prompt versions: General v17, Tickets v11, Classification v7, Links v9 and Editor v18. Research stays v18.
+
+Both cases pass their unchanged checks. The code and checks remain fixed throughout this run; the saved diff before and after execution matches. No failed attempt is repeated. All roles use `openai/gpt-6-luna` on standard tier. Reasoning settings, budgets and provider caching stay unchanged, including disabled Reader prompt caching.
+
+| Case | Last full run | New single repeat | Result |
+| --- | --- | --- | --- |
+| Roskilde | Failed: incomplete Editor output | Passed | 5/5 required facts, 11/11 additional facts, no checked errors |
+| search-date-conflict | Failed: partial date verification | Passed | January dates verified, published outcome, successful research |
+
+For `search-date-conflict`, Reader now keeps the complete venue passage, including both the independent January confirmation and the explicit rejection of the February headline. The correction appears in bound `dates` evidence and coverage. General cites the same passage and marks `currentDates` verified. It does not invent a resolution from a navigation summary.
+
+Roskilde Editor ends normally with `finishReason: stop` and 1,542 output tokens, compared with the previous failed response's 16,000. Its response passes structural validation and permits the catalog update. Research remains partial because the linked ticket checkout is unavailable; this does not prevent the supported observed offers and their correct base price from being written. Editor returns `unresolved: []`, so this attempt does not directly exercise the former failure location before a null question field. The successful repeat therefore does not prove that the field description caused or prevents the rare whitespace failure.
+
+Native estimated model cost for the two cases is USD 0.025680965, compared with USD 0.0302596 in the last full run, about 15.1% lower. Roskilde costs USD 0.021489205 versus USD 0.0257458; the date-conflict case costs USD 0.00419176 versus USD 0.0045138. Roskilde Editor alone costs USD 0.001861175 versus USD 0.0089768. The comparison includes a previously failed output at its token limit, so it does not establish a general cost saving. Current input totals 204,447 tokens and output totals 21,811, compared with 220,257 input and 35,041 output for the two previous attempts. These are available native estimates, not provider invoices.
+
+The comparison is historical rather than a controlled prompt-only A/B: the current workspace also includes the report and schema cleanup noted above. The measured case sources and checks are unchanged. One attempt per case does not establish repeated reliability or full-suite quality. A broader Reader-only comparison remains useful for correction, negation and qualification retention.
+
+| Case | Experiment ID | Run ID |
+| --- | --- | --- |
+| Roskilde | `385bb7da-3ba2-4c57-bc7d-2d445a4ad250` | `ee6e08dc-4b32-4499-910c-f8be5bc9f37c` |
+| search-date-conflict | `347dfc8a-20a8-4d5e-9e09-919f2b4f2abf` | `b85fce5b-71b0-45bb-886b-af9968e38433` |
+
+Results and traces are under `/tmp/eventroam-full-eval-0180a5e/reader-editor-clarifications-*`; logs, cost comparisons and measured diffs are under `/tmp/eventroam-reader-editor-clarifications/`. Native observations are in `data/eval-reader-editor-clarifications.duckdb`. All 51 affected unit and provider contract tests, type checking, affected ESLint and formatting pass.
+
+### Source blocker text decision, 2026-11-02
+
+The owner selected review proposal R1/SIM1: remove blocker categories and keep one nullable text reason. Research v19 returns `blocker: string | null`, with a nonempty reason of at most 300 characters. Consumers use the same reason for unresolved items and source summaries. Collection blockers still keep research partial independently of semantic findings, and omitted collection checks still receive a diagnostic. Source references and write guards remain in place.
+
+Editor handoff fixtures use schema version 5 and the eval revision is 18. All seven handoffs retain their fixed source text and proposals. All 50 cases load with citation and reference checks. All 801 unit tests across 77 files, type checking, affected ESLint, formatting, documentation checks and strict OpenSpec validation pass. No new model calls were made for this simplification. Earlier typed-blocker measurements remain historical evidence; they do not establish equivalent model quality for Research v19. The separate fixed Editor mixed-ticket-block proposal remains open.
+
+
+### Model text length guidance decision, 2026-11-02
+
+The owner selected field descriptions instead of hard character limits for explanatory model text. This replaces the 300-character blocker limit above. Collection blockers and owner questions, shared decision reasons, Location reasons, report questions, source summaries and diagnostic messages now accept longer text without truncation. Reader overviews, coverage labels, Edition clues, uncertainty, year labels, limitations and literal boundaries use the same rule. Required nonempty text and strict result shapes remain in use.
+
+The audit retains catalog text validation, identifier validation, external search and geocoding contracts, array counts, the 24,000-character literal quote limit and model context and output budgets. A long literal boundary must still have one exact unique match and produce a quote within its limit.
+
+The affected prompt versions are Research v20, Reader v19, General v18, Tickets v12, Classification v8, Links v10, Editor v19 and Location v20. The eval revision is 19; Editor handoff schema version 5 stays in use. No live model evaluation is part of this follow-up.
+
+All 802 unit tests across 77 files and all 50 eval fixture loads pass. The regressions retain long text through role acceptance, source blocker reports and literal evidence binding. Existing invalid-boundary and oversized-quote checks still pass. Type checking, affected ESLint, formatting, documentation checks and strict OpenSpec validation pass. These checks establish acceptance and preservation of long text; model quality and output length in live runs remain unmeasured.

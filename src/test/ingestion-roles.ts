@@ -143,9 +143,8 @@ export function fixtureRoleDependencies(
           candidate.status,
         ).map(({ check, finding, explanation, sourceIds }) => ({
           check,
-          finding,
           sourceIds,
-          ...(finding === "unfinished" ? { explanation } : {}),
+          blocker: finding === "unfinished" ? explanation : null,
         })),
         unresolved: (candidate.unresolved ?? []).map(({ message }) => ({
           message,

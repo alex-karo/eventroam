@@ -15,12 +15,11 @@ const config = {
 };
 const final = {
   checks: [
-    { check: "identity", finding: "verified", sourceIds: ["s1"] },
+    { check: "identity", blocker: null, sourceIds: ["s1"] },
     {
       check: "currentTickets",
-      finding: "unfinished",
       sourceIds: ["s2"],
-      explanation: "Ticket page is blocked.",
+      blocker: "Ticket page is blocked.",
     },
   ],
   unresolved: [{ message: "Which official domain is correct?" }],

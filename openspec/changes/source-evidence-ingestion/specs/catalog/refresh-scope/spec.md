@@ -44,6 +44,13 @@ Full refresh MUST check Event summary and shared links, the latest completed Edi
 
 Current refresh MUST check announcement, dates, schedule status, location, tickets, and classification for currentOrNextEdition only. Its previousEdition MUST be null. Size, source coordinates, and detailed address can remain opportunistic. It MUST NOT audit Event fields, history, or the established identity baseline. Only the selected Edition can receive changes or publication evaluation. Ownership, country, and catalog guards MUST apply.
 
+#### Scenario: The next Edition changes venue and programme
+
+- **WHEN** an inspected official announcement supports the same Event name and association, gives the saved country, and announces a different venue, locality or programme for the next Edition
+- **THEN** current refresh can continue with that Edition without requesting full refresh solely because of those changes
+- **AND** an absent saved locality is not an identity contradiction
+- **AND** Event fields remain outside the current assignment and the country guard still applies
+
 #### Scenario: Current refresh has saved history
 
 - **WHEN** current selects one future Edition and another Edition is saved

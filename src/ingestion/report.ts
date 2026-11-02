@@ -98,9 +98,14 @@ function assembleReport({
   const targets =
     general.output?.decision === "targets" ? general.output : null;
   const assignment = context ? buildAssignment(input, context) : null;
+  const collectionChecks = research.output?.checks ?? [];
+  const missingCollectionChecks =
+    assignment?.checks.filter(
+      (assigned) =>
+        !collectionChecks.some((check) => check.check === assigned.key),
+    ) ?? [];
   const checks = [
-    ...(research.output?.checks ?? []),
-    ...(general.output?.decision === "targets" ? general.output.checks : []),
+    ...(targets?.checks ?? []),
     ...Object.values(specialists).flatMap(
       (execution) =>
         (execution.output as { checks?: CheckFinding[] } | undefined)?.checks ??
@@ -127,14 +132,9 @@ function assembleReport({
   const incomplete =
     general.output?.decision === "uncertain" ||
     missingRoleCheck ||
+    collectionChecks.some((check) => check.blocker !== null) ||
     checks.some((check) => check.finding === "unfinished") ||
-    assignment?.checks.some(
-      (assigned) =>
-        !checks.some(
-          (check) =>
-            check.check === assigned.key && check.finding === "verified",
-        ),
-    ) ||
+    missingCollectionChecks.length > 0 ||
     corpus?.sources.some(
       (source) => source.status === "ok" && source.processing !== "complete",
     );
@@ -183,15 +183,23 @@ function assembleReport({
         url: source.finalUrl,
         information: [
           source.overview,
+          ...collectionChecks
+            .filter((check) => check.sourceIds.includes(source.id))
+            .flatMap((check) => (check.blocker ? [check.blocker] : [])),
           ...checks
             .filter((check) => check.sourceIds.includes(source.id))
-            .flatMap((check) =>
-              "explanation" in check ? [check.explanation] : [],
-            ),
+            .map((check) => check.explanation),
         ].join(" "),
       })),
     errors,
-    unresolved,
+    unresolved: [
+      ...unresolved,
+      ...(research.output
+        ? missingCollectionChecks.map(({ key }) => ({
+            message: `Collection check ${key} was not returned.`,
+          }))
+        : []),
+    ],
     eventNameMismatch: diagnostics?.eventNameMismatch ?? null,
     budget,
     locationResponse: location.modelResponse,
