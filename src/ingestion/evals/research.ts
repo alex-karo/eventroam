@@ -1,8 +1,19 @@
 import type { ResearchData, ResearchEdition } from "../research/contracts";
 import type { GeneralOutput } from "../roles/contracts";
+import type { LocationOutput } from "../location/contracts";
 import type { CatalogResearchResult } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
 import { check, contains } from "./checks";
+
+type ValueOnly<T> = T extends { value: unknown } ? Pick<T, "value"> : T;
+type EvalEdition = {
+  [K in keyof Omit<ResearchEdition, "links">]: ValueOnly<ResearchEdition[K]>;
+};
+type EvalResearchData = Pick<ResearchData, "links"> & {
+  summary?: ValueOnly<NonNullable<ResearchData["summary"]>>;
+  previousEdition: EvalEdition | null;
+  currentOrNextEdition: EvalEdition | null;
+};
 
 function generalResult(report: CatalogResearchResult) {
   const response = report.modelResponse?.object as
@@ -18,27 +29,25 @@ export function researchContext(
 ) {
   // General owns temporal selection. Other facts are checked at their operation or Location boundary.
   const raw = generalResult(report);
-  let data: ResearchData | null = null;
+  let data: EvalResearchData | null = null;
   if (raw?.decision === "targets") {
     const fact = (action: unknown) => {
       if (!action || typeof action !== "object" || !("action" in action)) {
         return undefined;
       }
-      const reason = (action as unknown as { reason: string }).reason;
       if (action.action === "set") {
         return {
           value: (action as unknown as { value: unknown }).value,
-          reason,
         };
       }
       if (action.action === "clear") {
-        return { value: null, reason };
+        return { value: null };
       }
       return undefined;
     };
     const edition = (
       slot: "previousEdition" | "currentOrNextEdition",
-    ): ResearchEdition | null => {
+    ): EvalEdition | null => {
       const target = raw[slot];
       if (!target) {
         return null;
@@ -65,25 +74,16 @@ export function researchContext(
       if (terms?.kind === "replaceTerms") {
         fields.classification = {
           value: terms.termIds,
-          reason: "Accepted classification",
         };
       }
       const prices = operations.find((op) => op.kind === "replacePriceBlock");
       if (prices?.kind === "replacePriceBlock") {
         fields.tickets = {
           value: { variants: prices.priceDetails, basePrice: prices.basePrice },
-          reason: "Accepted ticket block",
         };
       }
       const location = report.locationResponse?.object as
-        | {
-            decision?: {
-              status: string;
-              previousEdition?: { fields: Record<string, unknown> };
-              currentOrNextEdition?: { fields: Record<string, unknown> };
-            };
-          }
-        | undefined;
+        LocationOutput | undefined;
       if (location?.decision?.status === "ready") {
         for (const [key, value] of Object.entries(
           location.decision[slot]?.fields ?? {},
@@ -94,19 +94,9 @@ export function researchContext(
           }
         }
       }
-      const links = operations.find((op) => op.kind === "replaceLinks");
       return {
         key: target.editionKey,
         ...fields,
-        links: {
-          ...(links?.kind === "replaceLinks" &&
-          links.links.find((link) => link.kind === "ticketing")
-            ? {
-                tickets: links.links.find((link) => link.kind === "ticketing")!
-                  .url,
-              }
-            : {}),
-        },
       };
     };
     const eventLinks = report.operations.find(
@@ -114,11 +104,7 @@ export function researchContext(
     );
     const links = eventLinks?.kind === "replaceLinks" ? eventLinks.links : [];
     data = {
-      eventId: raw.eventId ?? undefined,
-      eventName: raw.observedEventName,
-      reason: raw.reason,
-      sources: report.sourceSummaries,
-      summary: fact(raw.event.summary) as ResearchData["summary"],
+      summary: fact(raw.event.summary) as EvalResearchData["summary"],
       links: {
         website: links.find((link) => link.kind === "official_site")?.url,
         socials: Object.fromEntries(
@@ -134,8 +120,7 @@ export function researchContext(
       currentOrNextEdition: edition("currentOrNextEdition"),
     };
   }
-  const candidate = data ? { status: report.researchStatus, data } : null;
-  return { item, report, candidate, data };
+  return { item, report, data };
 }
 
 export type ResearchContext = ReturnType<typeof researchContext>;
@@ -156,32 +141,32 @@ export function researchDidNotFail(report: CatalogResearchResult) {
 }
 
 export function researchStatus(
-  { report, candidate }: ResearchContext,
+  { report, data }: ResearchContext,
   status: "success" | "partial",
 ) {
   return check(
     "research.status",
     report.outcome !== "failed" &&
       report.researchStatus === status &&
-      candidate?.status === status,
+      data !== null,
     `researchStatus=${status} with non-failed catalog outcome`,
   );
 }
 
 export function editionSlots(
-  { candidate, data }: ResearchContext,
+  { data }: ResearchContext,
   previous: string | null,
   next: string | null,
 ) {
   return [
     check(
       "research.previousEdition",
-      candidate !== null && (data?.previousEdition?.key ?? null) === previous,
+      data !== null && (data.previousEdition?.key ?? null) === previous,
       `previousEdition=${previous}`,
     ),
     check(
       "research.currentOrNextEdition",
-      candidate !== null && (data?.currentOrNextEdition?.key ?? null) === next,
+      data !== null && (data.currentOrNextEdition?.key ?? null) === next,
       `currentOrNextEdition=${next}`,
     ),
   ];

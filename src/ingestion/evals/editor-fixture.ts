@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { bindEvidence, readerOutputSchema } from "../evidence/contracts";
 import {
+  roleEvidenceTopics,
   collectionOutputSchema,
   generalOutputSchema,
   ticketsOutputSchema,
@@ -30,13 +31,6 @@ export const roleHandoffSchema = z.strictObject({
     links: linksOutputSchema.optional(),
   }),
 });
-
-const roleTopics = {
-  general: ["identity", "description", "dates", "status", "size"],
-  tickets: ["tickets", "dates", "identity", "location"],
-  classification: ["classification", "description", "dates"],
-  links: ["links", "tickets", "identity"],
-} as const;
 
 function support(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -114,7 +108,9 @@ export function assertEditorFixture(item: PipelineEvalCase) {
       throw new Error(`${item.id}: unknown fixed collection source`);
     }
   }
-  for (const role of Object.keys(roleTopics) as (keyof typeof roleTopics)[]) {
+  for (const role of Object.keys(
+    roleEvidenceTopics,
+  ) as (keyof typeof roleEvidenceTopics)[]) {
     if (fixture.roles.general?.decision === "targets" && !fixture.roles[role]) {
       throw new Error(`${item.id}: missing fixed ${role} input`);
     }
@@ -122,7 +118,7 @@ export function assertEditorFixture(item: PipelineEvalCase) {
       evidence
         .filter((item) =>
           item.topics.some((topic) =>
-            (roleTopics[role] as readonly string[]).includes(topic),
+            (roleEvidenceTopics[role] as readonly string[]).includes(topic),
           ),
         )
         .map((item) => item.id),
@@ -182,7 +178,9 @@ export function editorFixtureRoles(
       return structuredClone(page.reader);
     },
     ...Object.fromEntries(
-      (Object.keys(roleTopics) as (keyof typeof roleTopics)[]).map((role) => [
+      (
+        Object.keys(roleEvidenceTopics) as (keyof typeof roleEvidenceTopics)[]
+      ).map((role) => [
         role,
         async () => {
           const output = fixture.roles[role];

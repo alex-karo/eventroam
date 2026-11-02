@@ -25,6 +25,7 @@ import {
 import { readCanonicalSource } from "../evidence/storage";
 import { buildAssignment, assignedRoleChecks } from "./assignment";
 import {
+  roleEvidenceTopics,
   collectionOutputSchema,
   generalOutputSchema,
   refreshGeneralOutputSchema,
@@ -162,13 +163,7 @@ export function runGeneral(options: RoleOptions) {
           publicationState: edition.publicationState,
         })),
       })),
-      corpus: evidencePacket(options.corpus, [
-        "identity",
-        "description",
-        "dates",
-        "status",
-        "size",
-      ]),
+      corpus: evidencePacket(options.corpus, roleEvidenceTopics.general),
     },
     schema:
       options.input.mode === "refresh"
@@ -268,12 +263,7 @@ export function runTickets(options: RoleOptions, targets: Targets) {
             },
           }
         : null,
-      corpus: evidencePacket(options.corpus, [
-        "tickets",
-        "dates",
-        "identity",
-        "location",
-      ]),
+      corpus: evidencePacket(options.corpus, roleEvidenceTopics.tickets),
     },
     schema: ticketsOutputSchema,
   });
@@ -297,11 +287,7 @@ export function runClassification(options: RoleOptions, targets: Targets) {
         )
         ?.editions.map(classificationHistory),
       vocabulary: options.context.terms,
-      corpus: evidencePacket(options.corpus, [
-        "classification",
-        "description",
-        "dates",
-      ]),
+      corpus: evidencePacket(options.corpus, roleEvidenceTopics.classification),
     },
     schema: classificationOutputSchema.extend({
       previousEdition: targets.previousEdition
@@ -326,7 +312,7 @@ export function runLinks(options: RoleOptions, targets: Targets) {
       savedEventLinks: options.context.catalog.find(
         (event) => event.id === (options.input.eventId ?? targets.eventId),
       )?.links,
-      corpus: evidencePacket(options.corpus, ["links", "tickets", "identity"], {
+      corpus: evidencePacket(options.corpus, roleEvidenceTopics.links, {
         anchors: true,
       }),
     },

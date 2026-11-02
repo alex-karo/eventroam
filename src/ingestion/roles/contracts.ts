@@ -1,10 +1,18 @@
 import { z } from "zod";
+import type { topics } from "../evidence/contracts";
 import {
   editionFindingSchema,
   researchBasePriceSchema,
   researchQuestionSchema,
   ticketVariantSchema,
 } from "../research/contracts";
+
+export const roleEvidenceTopics = {
+  general: ["identity", "description", "dates", "status", "size"],
+  tickets: ["tickets", "dates", "identity", "location"],
+  classification: ["classification", "description", "dates"],
+  links: ["links", "tickets", "identity"],
+} as const satisfies Record<string, readonly (typeof topics)[number][]>;
 
 export const reasonSchema = z.string().trim().min(1).max(2000);
 export const supportSchema = z.array(z.string().min(1)).max(100);
