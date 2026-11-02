@@ -68,6 +68,7 @@ export class CatalogAttempt {
       storedRunInput(this.input, this.config, this.budget.limits),
       this.started,
       this.input.mode === "add" ? null : this.input.eventId!,
+      deps.jobId,
     );
   }
 
@@ -89,6 +90,7 @@ export class CatalogAttempt {
     );
     this.trace?.log?.info("Research started", {
       stage: "context",
+      ...(this.deps.jobId ? { jobId: this.deps.jobId } : {}),
       mode: this.input.mode,
       dryRun: this.input.dryRun,
       eventId: this.input.eventId,

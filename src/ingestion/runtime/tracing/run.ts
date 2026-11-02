@@ -16,7 +16,7 @@ export async function createCatalogRunTrace(
   runId: string,
   protectedPaths: string[] = [],
   engineRunId?: string,
-  sharedStore?: DuckDBStore,
+  sharedStore?: DuckDBStore | null,
   experimentId?: string,
 ) {
   const tracing = await createRunObservability(

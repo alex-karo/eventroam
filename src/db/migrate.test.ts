@@ -22,6 +22,7 @@ test("fresh migration creates the current catalog structure", () => {
     "editions",
     "events",
     "external_links",
+    "ingestion_jobs",
     "ingestion_runs",
     "operation_receipts",
     "taxonomy_terms",
@@ -40,6 +41,9 @@ test("fresh migration creates the current catalog structure", () => {
     "events_slug_uq",
     "external_links_edition_uq",
     "external_links_event_uq",
+    "ingestion_jobs_batch_position_uq",
+    "ingestion_jobs_queue_idx",
+    "ingestion_runs_job_idx",
     "taxonomy_terms_facet_slug_uq",
   ]);
   expect(
@@ -52,7 +56,7 @@ test("fresh migration creates the current catalog structure", () => {
   ]);
   expect(
     client.prepare("SELECT * FROM __drizzle_migrations").all(),
-  ).toHaveLength(3);
+  ).toHaveLength(4);
   expect(client.pragma("foreign_keys", { simple: true })).toBe(1);
   expect(client.pragma("foreign_key_check")).toEqual([]);
   expect(client.pragma("integrity_check", { simple: true })).toBe("ok");

@@ -67,12 +67,12 @@ export async function createResearchObservability(
   model: string,
   runId?: string,
   protectedPaths: string[] = [],
-  sharedStore?: DuckDBStore,
+  sharedStore?: DuckDBStore | null,
   experimentId?: string,
 ) {
   const traceEnabled = process.env.CATALOG_TRACING === "true";
   const loggingEnabled = process.env.CATALOG_LOGGING === "true";
-  if (!traceEnabled && !loggingEnabled) {
+  if (sharedStore === null || (!traceEnabled && !loggingEnabled)) {
     return undefined;
   }
   const diagnose = createDiagnostics();
@@ -160,7 +160,7 @@ export async function createRunObservability(
   model: string,
   runId: string,
   protectedPaths: string[] = [],
-  sharedStore?: DuckDBStore,
+  sharedStore?: DuckDBStore | null,
   experimentId?: string,
 ) {
   const tracing = await createResearchObservability(

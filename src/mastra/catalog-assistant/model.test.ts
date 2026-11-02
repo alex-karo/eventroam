@@ -15,7 +15,7 @@ test("inspection needs no key but default OpenRouter execution does", async () =
   const chat = await createChatMemory(
     join(dirname(testDatabase().path), "chat.sqlite"),
   );
-  const assistant = createCatalogAssistant({ createRun: vi.fn() }, chat.memory);
+  const assistant = createCatalogAssistant(chat.memory);
   try {
     await expect(assistant.getModel()).resolves.toBeDefined();
     await expect(
@@ -47,10 +47,7 @@ test.each([
     const chat = await createChatMemory(
       join(dirname(testDatabase().path), "chat.sqlite"),
     );
-    const assistant = createCatalogAssistant(
-      { createRun: vi.fn() },
-      chat.memory,
-    );
+    const assistant = createCatalogAssistant(chat.memory);
     try {
       const result = await assistant.generate("Hello", {
         model: settings.model,
@@ -115,10 +112,7 @@ test.each([
     const chat = await createChatMemory(
       join(dirname(testDatabase().path), "chat.sqlite"),
     );
-    const assistant = createCatalogAssistant(
-      { createRun: vi.fn() },
-      chat.memory,
-    );
+    const assistant = createCatalogAssistant(chat.memory);
     try {
       const result = await assistant.generate("Hello", {
         model,

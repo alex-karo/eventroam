@@ -247,9 +247,9 @@ Use the [total-token query](ingestion-tools.md#local-trace-inspection) to inspec
 
 ## Studio catalog chat
 
-Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview or update one to three Events, or explain a saved ingestion result. Reads and explanations do not start ingestion. An explicit update request permits apply; preview uses dryRun true. Unclear targets or write intent require clarification.
+Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview or update up to 200 Events, or explain a saved ingestion result. Reads and explanations do not start ingestion. An explicit update request permits apply; preview uses dryRun true. Unclear targets or write intent require clarification.
 
-Refresh uses existing ingestion rules, one Event at a time, with one selection per owner message. Scope defaults to full; current is also supported. Republish stays off. Cancellation stops later Events and preserves known commits. Closing a tab does not guarantee cancellation; inspect saved attempts after interruption. Process restart does not replay work.
+Chat submits one fixed selection per owner message and returns a batch ID before research. A separate worker uses existing ingestion rules, one Event at a time. Scope defaults to full; current is also supported. Republish stays off. Batch cancellation affects only pending jobs. Studio can stop while the worker continues. After worker restart, pending and saved running jobs start from the beginning with fresh attempts; earlier evidence and commits remain. See [Background worker](ingestion-tools.md#background-worker) for execution and inspection.
 
 The assistant loads catalog schema, report guidance, and SQL examples from the [catalog-sql skill](../src/mastra/catalog-assistant/skills/catalog-sql/SKILL.md). It reads current facts and private reports through read-only SQL. Results are limited to 200 rows and 64 KiB and identify truncation. SQL runs inside Studio without a hard timeout or active-query cancellation; costly queries can block other work. Report analysis uses saved evidence and is not a new source check.
 

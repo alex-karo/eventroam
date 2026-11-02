@@ -18,10 +18,12 @@ const settings = storedRunInput(
   DEFAULT_RESEARCH_LIMITS,
 );
 
-test("fresh storage has 9 columns, no Event foreign key and accepts future mode names", () => {
+test("fresh storage has 10 columns, no Event foreign key and accepts future mode names", () => {
   const { client } = testDatabase();
-  expect(client.pragma("table_info('ingestion_runs')")).toHaveLength(9);
-  expect(client.pragma("foreign_key_list('ingestion_runs')")).toEqual([]);
+  expect(client.pragma("table_info('ingestion_runs')")).toHaveLength(10);
+  expect(client.pragma("foreign_key_list('ingestion_runs')")).toEqual([
+    expect.objectContaining({ table: "ingestion_jobs", from: "job_id" }),
+  ]);
   const id = startIngestionRun(
     client,
     { ...settings, mode: "reconcile" },
