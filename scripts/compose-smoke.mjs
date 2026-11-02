@@ -50,7 +50,8 @@ try {
     "node",
     "commands/migrate.mjs",
   ]);
-  command(["up", "-d", "--wait", "--wait-timeout", "60"]);
+  command(["up", "-d", "--wait", "--wait-timeout", "60", "web", "studio"]);
+  command(["up", "-d", "--no-deps", "worker"]);
   command([
     "exec",
     "-T",
