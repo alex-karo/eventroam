@@ -20,6 +20,13 @@ Ingestion SHALL report partial research when useful evidence remains with a know
 - **THEN** research remains partial and identifies that interpretation gap
 - **AND** missing optional prose or fresh genre names alone does not require another source
 
+#### Scenario: An unassigned historical check remains unfinished
+
+- **WHEN** current scope completes its assigned checks and a role also returns an unfinished historical check
+- **THEN** that extra check alone does not make research partial
+- **AND** any missing or unfinished assigned check still makes useful research partial
+
+
 ### Requirement: Findings alone do not authorize writes
 
 Catalog changes SHALL require a valid, supported update for the selected Event and Editions. Ingestion SHALL check identity, scope, field meaning, country, and catalog constraints. Exact quotation matching SHALL NOT prove semantic support. A required execution failure or invalid final update SHALL produce no item writes. Raw findings SHALL NOT bypass validation.
@@ -121,6 +128,7 @@ Only currentOrNextEdition, including an ongoing Edition, SHALL be eligible for t
 - **THEN** the replacement includes Regular without a Student placeholder, even with an absent amount and currency
 - **AND** the Student question remains unresolved
 - **AND** a proposed replacement that includes that unsupported placeholder is rejected as a complete ticket block
+- **AND** a category present only in saved state, source mentions or unresolved questions is not part of a new replacement and does not invalidate it
 
 #### Scenario: Free admission has no ticket categories
 
@@ -141,6 +149,13 @@ Only currentOrNextEdition, including an ongoing Edition, SHALL be eligible for t
 - **WHEN** collection finds prices for previousEdition but no current-or-next ticket evidence
 - **THEN** historical ticket blocks and their URLs remain unchanged
 - **AND** the historical omission is not an unfinished assigned check
+
+#### Scenario: A published offer has unresolved currency
+
+- **WHEN** an inspected source publishes a numeric ticket price but its currency cannot be established
+- **THEN** the observed offer can omit both amount and currency with basePrice null only if its terms retain the literal published price and unresolved currency
+- **AND** Editor does not require separate availability or admission terms merely because that currency is unresolved
+- **AND** a category label or unread link without price evidence still does not establish an observed offer
 
 ### Requirement: Official link findings preserve ownership
 

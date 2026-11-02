@@ -56,7 +56,8 @@ export function classification(
 export function basePrice(
   edition: Edition | undefined,
   currency: string,
-  ...amountsMinor: number[]
+  amountsMinor: number[],
+  kinds: ("exact" | "from")[] = ["exact"],
 ) {
   return fact(
     "next.basePrice",
@@ -69,21 +70,25 @@ export function basePrice(
           coverage: edition.priceCoverage,
         }
       : null,
-    amountsMinor.map((amountMinor) => ({
-      kind: "exact",
-      currency,
-      minMinor: amountMinor,
-      maxMinor: amountMinor,
-      coverage: "full_programme",
-    })),
+    amountsMinor.flatMap((amountMinor) =>
+      kinds.map((kind) => ({
+        kind,
+        currency,
+        minMinor: amountMinor,
+        maxMinor: amountMinor,
+        coverage: "full_programme",
+      })),
+    ),
   );
 }
 
 export type Offer = { urls: string[]; amounts: number[]; currency: string };
-/** Check returned offers only. Labels, terms, availability, and duplicates are outside this boundary. */
+/** Check returned prices, or an explicit case rule for supported unpriced offers. */
 export function offerChecks(
   edition: Pick<Edition, "priceDetails"> | undefined,
   allowed: Offer[],
+  allowUnpriced: (offer: Edition["priceDetails"][number]) => boolean = () =>
+    false,
 ) {
   return (edition?.priceDetails ?? []).map((offer, index) =>
     fact(
@@ -92,7 +97,10 @@ export function offerChecks(
         (expected) =>
           expected.amounts.includes(offer.amount!) &&
           offer.currency === expected.currency,
-      ),
+      ) ||
+        (offer.amount == null &&
+          offer.currency == null &&
+          allowUnpriced(offer)),
       [true],
     ),
   );

@@ -119,11 +119,146 @@ describe("saved source evidence", () => {
   });
 
   it.each([
+    String.raw`## Passes 2027\nFull pass €100 \\+ handling fee €18.`,
+    {
+      start: "## Passes 2027",
+      end: String.raw`Full pass €100 \\+ handling fee €18.`,
+    },
+  ])(
+    "binds an extra wire escape only to complete original text: %j",
+    (quote) => {
+      const page =
+        "## Passes 2027\nFull pass €100 \\+ handling fee €18.\nConditions apply.";
+      const output = readerOutputSchema.parse({
+        overview: "Admission with a mandatory fee",
+        coverage: { found: [], notPublished: [] },
+        topics: ["tickets"],
+        statedYears: ["2027"],
+        limitations: [],
+        evidence: [{ quote, topics: ["tickets"] }],
+      });
+      const bound = bindEvidence("s1", page, output, "https://example.org/");
+      expect(bound.limitations).toEqual([]);
+      expect(bound.evidence[0].quote).toBe(
+        page.split("\n").slice(0, 2).join("\n"),
+      );
+      const span = bound.evidence[0].span;
+      expect(page.slice(span.start, span.end)).toBe(bound.evidence[0].quote);
+    },
+  );
+
+  it("preserves literal backslashes when the supplied text already matches", () => {
+    const quote = String.raw`A literal \\+ sequence`;
+    const output = readerOutputSchema.parse({
+      overview: "A literal source sequence",
+      coverage: { found: [], notPublished: [] },
+      topics: ["description"],
+      statedYears: [],
+      limitations: [],
+      evidence: [{ quote, topics: ["description"] }],
+    });
+    expect(
+      bindEvidence("s1", quote, output, "https://example.org/").evidence[0]
+        .quote,
+    ).toBe(quote);
+  });
+
+  it("resolves reference links from restored literal context", () => {
+    const output = readerOutputSchema.parse({
+      overview: "A festival pass link",
+      coverage: { found: [], notPublished: [] },
+      topics: ["links"],
+      statedYears: ["2027"],
+      limitations: [],
+      evidence: [
+        {
+          quote: "[Pass][buy]",
+          topics: ["links"],
+          context: [String.raw`# 2027\n[buy]: /shop`],
+          editionClues: [],
+          uncertainty: null,
+        },
+      ],
+    });
+    const bound = bindEvidence(
+      "s1",
+      "[Pass][buy]\n\n# 2027\n[buy]: /shop",
+      output,
+      "https://example.org/",
+    );
+    expect(bound.limitations).toEqual([]);
+    expect(bound.evidence[0].context[0].quote).toBe("# 2027\n[buy]: /shop");
+    expect(bound.evidence[0].anchors).toEqual([
+      { url: "https://example.org/shop", label: "Pass" },
+    ]);
+  });
+
+  it.each([
+    [
+      "identical boundaries",
+      { start: "Full pass €100.", end: "Full pass €100." },
+    ],
+    ["a closing suffix", { start: "Full pass €100.", end: "€100." }],
+  ])("accepts a complete literal opening with %s", (_name, quote) => {
+    const page = "# 2027\nFull pass €100.\nOther content";
+    const output = readerOutputSchema.parse({
+      overview: "A festival pass",
+      coverage: { found: [], notPublished: [] },
+      topics: ["tickets"],
+      statedYears: ["2027"],
+      limitations: [],
+      evidence: [
+        {
+          quote,
+          topics: ["tickets"],
+          context: ["# 2027"],
+          editionClues: [],
+          uncertainty: null,
+        },
+      ],
+    });
+    const bound = bindEvidence("s1", page, output, "https://example.org/");
+    expect(bound.limitations).toEqual([]);
+    expect(bound.evidence[0]).toMatchObject({
+      quote: "Full pass €100.",
+      context: [{ quote: "# 2027" }],
+    });
+    const span = bound.evidence[0].span;
+    expect(page.slice(span.start, span.end)).toBe("Full pass €100.");
+  });
+
+  it.each([
     ["ambiguous start", "Start\nStart\nEnd", { start: "Start", end: "End" }],
     ["ambiguous end", "Start\nEnd\nEnd", { start: "Start", end: "End" }],
     ["missing boundary", "Start\nEnd", { start: "Absent", end: "End" }],
     ["reversed boundaries", "End\nStart", { start: "Start", end: "End" }],
     ["overlapping boundaries", "StartEnd", { start: "StartE", end: "tEnd" }],
+    [
+      "a repeated complete opening",
+      "Pass €100.\nPass €100.",
+      { start: "Pass €100.", end: "Pass €100." },
+    ],
+    ["an invented price", "Pass €100.", { start: "Pass €110.", end: "€110." }],
+    [
+      "a repaired but invented price",
+      "Pass €100.\nFee €5.",
+      String.raw`Pass €110.\nFee €5.`,
+    ],
+    [
+      "a repeated repaired quote",
+      "Pass €100.\nFee €5.\nPass €100.\nFee €5.",
+      String.raw`Pass €100.\nFee €5.`,
+    ],
+    [
+      "a repeated original quote",
+      String.raw`Fee \\+ €5. repeated: Fee \\+ €5. versus Fee \+ €5.`,
+      String.raw`Fee \\+ €5.`,
+    ],
+    [
+      "a suffix over the limit",
+      "x".repeat(24001),
+      { start: "x".repeat(24001), end: "x".repeat(24001) },
+    ],
     [
       "span over the limit",
       `Start${"x".repeat(24000)}End`,

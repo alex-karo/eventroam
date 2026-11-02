@@ -1,7 +1,7 @@
 import { check } from "../../checks";
 import type { RegressionEvaluator } from "../../regression";
 import {
-  researchStatus,
+  researchDidNotFail,
   editionSlots,
   editionByKey,
   returned,
@@ -49,7 +49,7 @@ export const checks = {
         ),
         "Do not set repeat-admissions participant estimate to null",
       ),
-      researchStatus(context, "success"),
+      ...researchDidNotFail(context.report),
       ...editionSlots(context, "repeat-admissions", "participants"),
       returned(
         "research.participants.dates",

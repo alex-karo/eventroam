@@ -16,7 +16,8 @@ export function createEvalScorers(group: EvalGroup) {
         ? {
             recall: createScorer<EvalInput, { reader: ReaderEvalOutput }>({
               id: "evidence-recall",
-              description: "Complete required evidence with the correct topic",
+              description:
+                "Complete required evidence available to its specialist",
             })
               .generateScore(
                 ({ run }) =>

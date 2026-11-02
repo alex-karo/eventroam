@@ -22,4 +22,4 @@ The repeat experiment `84022c9e-f4de-4a71-8551-beffbf568186` passed with the wid
 
 Archived at the owner's request. [Links instructions](../../../src/ingestion/roles/prompts.ts) now explicitly prefer an official ticket overview over product pages. Links selects public URLs independently of Tickets; individual offers no longer have URL fields.
 
-Both Roskilde attempts in the [final repeated measurement](../../proposals/source-evidence-quality-log.md#final-repeated-measurement), experiment `f1baccce-8d59-45f2-be85-c948322ba512`, select the required overview URL. One attempt still fails a separate instalment-amount check; that failure does not concern the ticket link.
+Both Roskilde attempts in the final repeated measurement, experiment `f1baccce-8d59-45f2-be85-c948322ba512`, select the required overview URL. One attempt still fails a separate instalment-amount check; that failure does not concern the ticket link.

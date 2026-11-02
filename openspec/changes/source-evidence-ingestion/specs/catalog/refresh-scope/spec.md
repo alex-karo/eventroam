@@ -91,3 +91,33 @@ Current refresh MUST check announcement, dates, schedule status, location, ticke
 #### Scenario: The current-or-next role is empty
 - **WHEN** no current-or-next Edition is selected
 - **THEN** no historical ticket work is substituted and saved historical tickets remain unchanged
+
+### Requirement: Edition matching preserves durable keys
+
+Research MUST match each selected Edition to saved keys before proposing creation.
+Calendar year alone MUST NOT determine identity. Corrected dates or years MUST preserve a matching saved key.
+Multiple programme periods of one realization MUST use one Edition and its first-to-last date range.
+Distinct realizations in one year MUST remain distinguishable.
+Unresolved matching MUST remain unfinished instead of creating a possible duplicate.
+
+#### Scenario: Imported key differs from year
+
+- **WHEN** a source corrects dates for an Edition stored under a non-year key
+- **THEN** the update retains that key and Edition ID
+
+#### Scenario: Two weekends occur in one year
+
+- **WHEN** an Event has two distinct Editions in the same year
+- **THEN** their programme identities govern matching rather than year equality
+
+#### Scenario: Several periods describe one realization
+
+- **WHEN** inspected sources describe several dates as parts of one Edition
+- **THEN** research returns one finding under one matched or new key
+- **AND** it does not use a second key or the other role for another period of that same Edition
+
+#### Scenario: A later annual Edition repeats its programme
+
+- **WHEN** an inspected source announces a later annual or seasonal occurrence with the same programme, venue or classification as a saved Edition
+- **THEN** continuity alone does not make it the same realization or authorize reuse of that saved key
+- **AND** a source that explicitly corrects or reschedules the same realization can still retain its saved key

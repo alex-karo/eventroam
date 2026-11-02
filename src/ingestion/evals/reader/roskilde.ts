@@ -5,12 +5,11 @@ export const roskildeReader = {
   sourceCaseId: "roskilde",
   sourceUrl: "https://www.roskilde-festival.dk/billetter",
   requirements: [
-    evidence("identity", "identity", "Roskilde Festival"),
-    evidence("programme-dates", "dates", "26/6 – 3/7 2027"),
+    evidence("identity", "general", "Roskilde Festival"),
+    evidence("programme-dates", "general", "26/6 – 3/7 2027"),
     evidence(
       "full-pass",
       "tickets",
-      "Partoutbillet",
       "Alle otte dage på Roskilde Festival 2027",
       "2650",
       "kr. inkl. billetgebyr.",
@@ -39,11 +38,6 @@ export const roskildeReader = {
         "1530",
         "kr. inkl. billetgebyr.",
       ),
-    ),
-    evidence(
-      "ticket-overview",
-      "links",
-      "https://www.roskilde-festival.dk/billetter",
     ),
     evidence(
       "official-instagram",

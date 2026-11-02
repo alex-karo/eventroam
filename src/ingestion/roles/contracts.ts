@@ -45,7 +45,11 @@ export const generalFieldsSchema = z.strictObject({
   dates: change(dateBlockSchema).optional(),
   scheduleStatus: change(z.enum(scheduleStatuses), false).optional(),
   displayName: change(z.string().min(1).max(250)).optional(),
-  sizeEstimate: change(z.number().int().positive()).optional(),
+  sizeEstimate: change(z.number().int().positive())
+    .optional()
+    .describe(
+      "Assess each selected Edition independently. A cited past participant count with an explicit similar-scale expectation for this Edition can support an estimate even when no current attendance total is published. This does not establish a measured total.",
+    ),
 });
 const check = z.strictObject({
   check: z.string().min(1).max(100),
@@ -80,7 +84,11 @@ export const collectionOutputSchema = z.strictObject({
 export const targetSchema = z.strictObject({
   editionKey: editionKeySchema,
   reason: reasonSchema,
-  evidenceIds: supportSchema,
+  evidenceIds: supportSchema
+    .min(1)
+    .describe(
+      "Cite inspected source evidence for this target's temporal role, including saved Editions. If unsupported, return a null target instead.",
+    ),
   fields: generalFieldsSchema,
 });
 const identity = {
@@ -106,8 +114,16 @@ export const generalOutputSchema = z.discriminatedUnion("decision", [
     event: z.strictObject({
       summary: change(z.string().min(1).max(2000)).optional(),
     }),
-    previousEdition: targetSchema.nullable(),
-    currentOrNextEdition: targetSchema.nullable(),
+    previousEdition: targetSchema
+      .nullable()
+      .describe(
+        "Latest actually completed Edition, or null when completion is not established. Never return an unsupported saved candidate with empty evidence. Explain that uncertainty in checks and unresolved.",
+      ),
+    currentOrNextEdition: targetSchema
+      .nullable()
+      .describe(
+        "Ongoing or nearest announced future Edition with source support, or null if no such target is established.",
+      ),
     checks: checksSchema,
     unresolved: questionsSchema,
   }),

@@ -177,6 +177,13 @@ The research model SHALL summarize inspected sources that informed findings and 
 - **WHEN** research finds a URL but does not inspect it
 - **THEN** the research model omits that URL from its informative inspected sources
 
+#### Scenario: A historical passage establishes realization
+
+- **WHEN** an inspected dated passage explicitly states that a festival took place or reports actual admissions
+- **THEN** navigation coverage retains that status with its year
+- **AND** a shorter summary does not create a collection blocker merely because it omits the realization statement
+- **AND** General still checks realization from literal evidence; a useful unread or inaccessible historical source remains a collection gap
+
 ### Requirement: Unsupported social retrieval is reported
 When automated Facebook or Instagram content retrieval is unsupported, the run SHALL report that limitation without blocking other supported findings. [Ingestion updates](../ingestion-updates/spec.md) governs link preservation.
 
@@ -369,3 +376,59 @@ For anchors retained after page cleanup, the source reader SHALL keep nonempty v
 - **WHEN** an anchor is inside a node removed by the current hidden-content or script rules
 - **THEN** this requirement does not restore that anchor
 - **AND** retained anchors elsewhere on the page still use the label fallback
+
+
+### Requirement: Source support retains context and identity
+
+A source-based change SHALL retain enough source context to identify its meaning and applicable Event or Edition. A matching quote SHALL NOT prove factual support by itself. Missing, ambiguous, or unrelated source references SHALL NOT authorize a change. The same source passage can support more than one field.
+
+#### Scenario: The same passage supports two fields
+
+- **WHEN** one passage establishes a venue and supports the Event description
+- **THEN** both changes can use the same source passage without treating it as independent sources
+
+#### Scenario: A quotation is ambiguous
+
+- **WHEN** a reference cannot identify which repeated passage supports the claim
+- **THEN** it is not accepted as attributable support and the limitation remains visible
+
+#### Scenario: A quotation concerns another year
+
+- **WHEN** a quote exists but concerns another Edition
+- **THEN** it does not support changing the selected Edition
+
+#### Scenario: A page description omits a condition
+
+- **WHEN** a page description leaves out an eligibility condition or table qualification
+- **THEN** a ticket change must still respect the original source condition
+
+#### Scenario: A compact reference identifies a long passage
+
+- **WHEN** extraction identifies a passage by its unique literal opening and closing text
+- **THEN** saved support retains the complete original passage and its required context
+- **AND** ambiguous, reversed, partially overlapping, or unmatched boundaries do not authorize a change
+
+#### Scenario: The opening text is already the complete quotation
+
+- **WHEN** unique literal opening text already contains the unique closing text as its exact suffix, including identical boundaries
+- **THEN** the complete opening text can be bound as a normal literal quotation within the same size limit
+- **AND** other partial overlaps remain invalid
+
+#### Scenario: A quotation contains one extra wire escape
+
+- **WHEN** a supplied quote or context has no literal match and contains a literal escaped newline or doubled backslash before Markdown punctuation
+- **THEN** code may restore those escapes only if the whole resulting string has one exact source match
+- **AND** saved evidence contains the exact original source text and span
+- **AND** existing ambiguous literal matches, invented prices and unsupported text are not repaired
+
+#### Scenario: A processing input omits empty metadata
+
+- **WHEN** a downstream input omits empty context or optional metadata
+- **THEN** all nonempty qualifications and the complete supporting passage remain available
+- **AND** saved source provenance remains inspectable
+
+#### Scenario: A saved-source search has no complete match
+
+- **WHEN** validation searches saved source text and receives no matches or shortened matching lines
+- **THEN** that result alone does not establish that a fact or qualification is absent
+- **AND** a proposed change still needs applicable source support

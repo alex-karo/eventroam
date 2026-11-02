@@ -248,6 +248,13 @@ For an Edition with several venues, Location SHALL select one point only when su
 - **WHEN** evidence names venues in two towns without a primary location
 - **THEN** Location does not choose a hotel or average the towns to fabricate one festival point
 
+#### Scenario: Several venues share one locality
+
+- **WHEN** several venues share one supported locality, no primary venue is established, and no applicable saved point exists
+- **THEN** Location selects a supported locality point with locality precision and keeps the venue choice unresolved
+- **AND** one confirmed show at a venue does not make that venue the representative point of the whole Edition
+
+
 ### Requirement: Geocoding is bounded and independent of old points
 
 Forward geocoding SHALL return bounded candidates and safe provider failures. Forward requests SHALL use the applicable country constraint and SHALL NOT bias results toward saved coordinates. The agent's only tool SHALL be forward geocode for useful refinements or alternate spellings when prepared results are unsuitable. Location SHALL have no page, web search, or write tool. Provider success SHALL NOT certify that a candidate is the festival venue.

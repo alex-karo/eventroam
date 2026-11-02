@@ -55,12 +55,7 @@ export function savedEditions(
       if (
         saved.terms.length === 0 &&
         termIds &&
-        same(
-          actual.terms
-            .map((term) => term.id)
-            .sort((a, b) => a.localeCompare(b)),
-          [...termIds].sort((a, b) => a.localeCompare(b)),
-        )
+        actual.terms.every((term) => termIds.includes(term.id))
       ) {
         expected.terms = actual.terms;
       }

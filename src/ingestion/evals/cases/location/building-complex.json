@@ -5,7 +5,7 @@
   "task": "Check location building complex",
   "provenance": {
     "kind": "captured-adapted",
-    "note": "Saved descriptions, source summaries and Geoapify forward responses captured on 2026-10-24. Free-text replay hints use those captured responses. Responses use the client format and omit unused provider fields. Reverse was not captured and is explicitly unavailable. Expected actions are review assertions, not captured model output."
+    "note": "Saved descriptions, source summaries and Geoapify forward responses captured on 2026-10-24. Free-text replay hints use those captured responses. Responses use the client format and omit unused provider fields. Reverse was not captured and is explicitly unavailable. Expected actions are review assertions, not captured model output. The location evidence is an explicit synthetic statement for Hallowindie 2025 based on the captured catalog description. It replaces field-label projections and is not a quotation captured from the festival website. It supplies no point or expected action."
   },
   "input": {
     "mode": "refresh",
@@ -94,40 +94,12 @@
       },
       "evidence": [
         {
-          "id": "currentOrNextEdition-location-1",
-          "sourceId": "fixture-source",
-          "quote": "venueName: \"Palacio de Congresos y Exposiciones de León\"",
+          "id": "currentOrNextEdition-location-venue",
+          "sourceId": "synthetic-hallowindie-2025-location",
+          "quote": "Hallowindie 2025 takes place at Palacio de Congresos y Exposiciones de León, in León, Spain.",
           "context": [
             {
-              "quote": "Captured catalog location description"
-            }
-          ],
-          "topics": ["location"],
-          "editionClues": ["hallowindie-2025"],
-          "uncertainty": null,
-          "anchors": []
-        },
-        {
-          "id": "currentOrNextEdition-location-2",
-          "sourceId": "fixture-source",
-          "quote": "locality: \"León\"",
-          "context": [
-            {
-              "quote": "Captured catalog location description"
-            }
-          ],
-          "topics": ["location"],
-          "editionClues": ["hallowindie-2025"],
-          "uncertainty": null,
-          "anchors": []
-        },
-        {
-          "id": "currentOrNextEdition-location-3",
-          "sourceId": "fixture-source",
-          "quote": "countryCode: \"ES\"",
-          "context": [
-            {
-              "quote": "Captured catalog location description"
+              "quote": "Synthetic location statement based on the captured catalog description. This is not a quotation captured from the festival website."
             }
           ],
           "topics": ["location"],

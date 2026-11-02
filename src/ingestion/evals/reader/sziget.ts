@@ -5,8 +5,8 @@ export const szigetReader = {
   sourceCaseId: "sziget",
   sourceUrl: "https://szigetfestival.com/en/",
   requirements: [
-    evidence("identity", "identity", "Sziget"),
-    evidence("programme-dates", "dates", "2027 10 - 14 AUG"),
+    evidence("identity", "general", "Sziget"),
+    evidence("programme-dates", "general", "2027 10 - 14 AUG"),
     evidence(
       "full-pass-and-fee",
       "tickets",
@@ -33,7 +33,7 @@ export const szigetReader = {
     ),
     evidence(
       "completed-festival-context",
-      "status",
+      "general",
       "BEST MOMENTS OF 2026",
       "we just lived the time of our lives",
     ),

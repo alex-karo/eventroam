@@ -36,7 +36,12 @@ const readerEvidence = z.strictObject({
   topics: z.array(z.enum(topics)).min(1).max(9),
 });
 const contextualReaderEvidence = readerEvidence.extend({
-  context: z.array(quote).max(24),
+  context: z
+    .array(quote)
+    .max(24)
+    .describe(
+      "Return [] unless a separate source passage supplies missing year, object or qualification. Copy each context exactly, including its original heading markers. Do not attach a generic page heading to an already complete quotation or reconstruct a section title.",
+    ),
   editionClues: z
     .array(
       z
@@ -63,7 +68,7 @@ export const readerOutputSchema = z.strictObject({
           .string()
           .min(1)
           .describe(
-            "Short label of collected information, normally under 100 characters.",
+            "Short label of collected information, normally under 100 characters. In location labels, keep the explicit source country, not only the venue name.",
           ),
       )
       .max(9),
@@ -77,7 +82,9 @@ export const readerOutputSchema = z.strictObject({
           ),
       )
       .max(6)
-      .describe("Only explicit source statements of absence, not page silence"),
+      .describe(
+        'Return [] when there is no statement, never [""], [" "] or ["None"]. Include only what the page author explicitly says is unavailable or not announced. Never include your observation that a fact is not stated. For example, a ticket page without an attendance count still needs [].',
+      ),
   }),
   topics: z.array(z.enum(topics)).max(9),
   statedYears: z
@@ -148,6 +155,21 @@ export function uniqueSpan(body: string, quote: string): Span | null {
   return { start, end: start + quote.length };
 }
 
+/** Restore one extra wire escape only when the complete source text matches. */
+function literalMatch(body: string, supplied: string) {
+  let quote = supplied;
+  let span = uniqueSpan(body, quote);
+  if (!span && !body.includes(supplied)) {
+    quote = supplied
+      .replace(/(?<!\\)\\n/g, "\n")
+      .replace(/(?<!\\)\\\\([!-\/:-@[-`{-~])/g, (match, punctuation: string) =>
+        punctuation === "\\" ? match : `\\${punctuation}`,
+      );
+    span = uniqueSpan(body, quote);
+  }
+  return { quote, span };
+}
+
 export function bindEvidence(
   sourceId: string,
   body: string,
@@ -163,31 +185,36 @@ export function bindEvidence(
       uncertainty: null,
       ...supplied,
     };
-    let quote = typeof item.quote === "string" ? item.quote : null;
+    let quote =
+      typeof item.quote === "string"
+        ? literalMatch(body, item.quote).quote
+        : null;
     if (typeof item.quote !== "string") {
-      const start = uniqueSpan(body, item.quote.start);
-      const end = uniqueSpan(body, item.quote.end);
+      const opening = literalMatch(body, item.quote.start);
+      const closing = literalMatch(body, item.quote.end);
+      const start = opening.span;
+      const end = closing.span;
       if (
         start &&
         end &&
-        end.start >= start.end &&
+        (end.start >= start.end || opening.quote.endsWith(closing.quote)) &&
         end.end - start.start <= 24000
       ) {
         quote = body.slice(start.start, end.end);
       }
     }
     const span = quote ? uniqueSpan(body, quote) : null;
-    const context = item.context.map((quote) => ({
-      quote,
-      span: uniqueSpan(body, quote),
-    }));
+    const context = item.context.map((quote) => literalMatch(body, quote));
     if (!quote || !span || context.some((item) => !item.span)) {
       limitations.push(
         `Quotation ${index + 1} or its context has no unique literal match`,
       );
       continue;
     }
-    const anchors = pageLinks([quote, ...item.context].join("\n\n"), sourceUrl);
+    const anchors = pageLinks(
+      [quote, ...context.map((part) => part.quote)].join("\n\n"),
+      sourceUrl,
+    );
     evidence.push({
       ...item,
       quote,

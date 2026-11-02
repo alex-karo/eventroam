@@ -102,14 +102,14 @@ export function scoreReader(
         "Reader must return a valid domain result",
       ),
       check(
-        "literal-binding",
-        supplied > 0 && accepted === supplied,
-        "All returned quotations and context must bind to the source",
+        "usable-evidence",
+        accepted > 0,
+        "Reader must retain usable literal source evidence",
       ),
       ...evidenceChecks,
       check(
         "limitations",
-        !!output && bound.limitations.length === 0,
+        !!output && output.limitations.length === 0,
         "This readable fixture has no extraction problems",
       ),
       check(

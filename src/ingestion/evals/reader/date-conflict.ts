@@ -5,17 +5,22 @@ export const dateConflictReader = {
   sourceCaseId: "search-date-conflict",
   sourceUrl: "https://castlewellangrounds.co.uk/events/harbor-echo-2027",
   requirements: [
-    evidence("identity", "identity", "Harbor Echo"),
+    evidence("identity", "general", "Harbor Echo"),
     evidence(
-      "dates-with-correction",
-      "dates",
+      "confirmed-venue-dates",
+      "general",
+      "official venue announcement",
+      "Harbor Echo",
       "23–30 January 2027",
-      "This independently confirms the organiser's January programme dates.",
+    ),
+    evidence(
+      "rejected-headline",
+      "general",
       "The festival is NOT booked for 1–3 February 2027; that headline is incorrect.",
     ),
     evidence(
       "venue-address",
-      "location",
+      "general",
       "Castlewellan Grounds",
       "Festival Lane, Castlewellan, Northern Ireland, United Kingdom",
     ),

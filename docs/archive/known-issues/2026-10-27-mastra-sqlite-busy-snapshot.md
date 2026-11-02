@@ -16,6 +16,6 @@ Observed on 2026-10-27 with `@mastra/core 1.74.0`, `@mastra/libsql 1.25.0`, and 
 
 ## Archive decision, 2026-11-02
 
-Archived at the owner's request. The [current dependencies](../../../package.json) use `@mastra/core 1.79.0` and `@mastra/libsql 1.27.0`. The [final repeated measurement](../../proposals/source-evidence-quality-log.md#final-repeated-measurement) returned all 100 scored outputs with no task or storage failures, including 14 Editor regression attempts. The earlier eval integration tests have been removed.
+Archived at the owner's request. The [current dependencies](../../../package.json) use `@mastra/core 1.79.0` and `@mastra/libsql 1.27.0`. The final repeated measurement returned all 100 scored outputs with no task or storage failures, including 14 Editor regression attempts. The earlier eval integration tests have been removed.
 
 The error did not recur in that measurement. This does not prove that the upstream change fixed the original failure: a separate concurrency check was not run, and the original connection or transaction cause remains unknown. Keep native storage errors and warnings; no custom recovery is added by this archive decision.

@@ -152,6 +152,11 @@ function printGroup(group: EvalGroupResult, output: Output) {
       output(
         `    evidence: ${reader.recall.found}/${reader.recall.expected}; literal binding: ${reader.binding.accepted}/${reader.binding.supplied}; source covered: ${reader.coveredCharacters}/${reader.sourceCharacters} chars; extracted with repeats: ${reader.extractedCharacters} chars\n`,
       );
+      if (reader.limitations.length) {
+        output(
+          `    extraction limitations: ${reader.limitations.length}; details retained in saved output\n`,
+        );
+      }
     }
     if (!passed) {
       printFailure(item, output);

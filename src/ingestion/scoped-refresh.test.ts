@@ -308,6 +308,31 @@ test.each(["verified", "unfinished"] as const)(
     noWrites(f);
   },
 );
+test.each(["previousCompletedEdition", "latestCompletedEdition"])(
+  "current status ignores an unassigned unfinished %s check",
+  async (check) => {
+    const f = fixture();
+    const before = readResearchEvent(f.client, f.event.id);
+    const question = { message: "Which historical Edition took place?" };
+    f.general.checks = [
+      ...fixtureChecks(["identity", "currentAnnouncement", "currentDates"]),
+      ...fixtureChecks([check], "unfinished"),
+    ];
+    f.general.unresolved = [question];
+    const result = await runCatalogResearch(
+      { ...f.input, scope: "current" },
+      f.deps,
+    );
+    expect(result).toMatchObject({
+      outcome: "unchanged",
+      researchStatus: "success",
+      operations: [],
+    });
+    expect(result.unresolved).toContainEqual(question);
+    expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
+    noWrites(f);
+  },
+);
 test("an identity contradiction stops before Editor", async () => {
   const f = fixture();
   const editor = vi.fn();

@@ -122,7 +122,8 @@ function base(options: RoleOptions, role: import("./invoke").Role) {
   return {
     budget: options.budget,
     config:
-      role === "editor" && options.config.reasoningEffort === "low"
+      (role === "editor" || role === "general") &&
+      options.config.reasoningEffort === "low"
         ? { ...options.config, reasoningEffort: "medium" as const }
         : options.config,
     signal: options.signal,

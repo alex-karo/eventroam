@@ -63,7 +63,7 @@ export function sziget(context: MainContext) {
         ...offers.flatMap((offer) => offer.urls),
       ]),
       // Unrestricted pass: EUR 349 plus mandatory EUR 23 handling fee.
-      basePrice(next, "EUR", 34900, 37200),
+      basePrice(next, "EUR", [34900, 37200]),
     ],
     correctness: [
       // Recap and shared travel page also describe the selected 2026 Edition.

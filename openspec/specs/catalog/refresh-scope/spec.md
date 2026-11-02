@@ -195,6 +195,13 @@ Unresolved matching MUST remain unfinished instead of creating a possible duplic
 - **THEN** research returns one finding under one matched or new key
 - **AND** it does not use a second key or the other role for another period of that same Edition
 
+#### Scenario: A later annual Edition repeats its programme
+
+- **WHEN** an inspected source announces a later annual or seasonal occurrence with the same programme, venue or classification as a saved Edition
+- **THEN** continuity alone does not make it the same realization or authorize reuse of that saved key
+- **AND** a source that explicitly corrects or reschedules the same realization can still retain its saved key
+
+
 ### Requirement: Full refresh can recover a wrong source association
 Full refresh MAY recover a wrong website association using an inspected known link or replacement. If Event identity remains unresolved, full refresh SHALL make no catalog or publication changes. The report MAY retain supported findings as partial research.
 

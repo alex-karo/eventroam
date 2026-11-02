@@ -104,3 +104,18 @@ Location SHALL supply explicit decisions for all place fields. Editor SHALL appr
 
 - **WHEN** Editor supplies a replacement place value or Location supplies a non-location change
 - **THEN** validation rejects the whole item before writes
+
+### Requirement: Several venues do not imply an arbitrary point
+
+For an Edition with several venues, Location SHALL select one point only when supplied evidence establishes a suitable primary venue or representative point. It SHALL NOT compute a centre or choose the venue nearest to history as a substitute for that evidence. Unresolved cases SHALL follow the saved-point applicability policy.
+
+#### Scenario: A festival spans two towns
+
+- **WHEN** evidence names venues in two towns without a primary location
+- **THEN** Location does not choose a hotel or average the towns to fabricate one festival point
+
+#### Scenario: Several venues share one locality
+
+- **WHEN** several venues share one supported locality, no primary venue is established, and no applicable saved point exists
+- **THEN** Location selects a supported locality point with locality precision and keeps the venue choice unresolved
+- **AND** one confirmed show at a venue does not make that venue the representative point of the whole Edition

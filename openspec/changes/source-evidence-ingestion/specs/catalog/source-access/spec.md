@@ -37,6 +37,13 @@ Ingestion SHALL retain a general content description for each informative inspec
 - **AND** a page that is silent or unprocessed does not establish the detail's absence
 - **AND** the coverage description alone does not authorize a catalog change
 
+#### Scenario: A historical passage establishes realization
+
+- **WHEN** an inspected dated passage explicitly states that a festival took place or reports actual admissions
+- **THEN** navigation coverage retains that status with its year
+- **AND** a shorter summary does not create a collection blocker merely because it omits the realization statement
+- **AND** General still checks realization from literal evidence; a useful unread or inaccessible historical source remains a collection gap
+
 ### Requirement: Page reads use a small model response
 
 A source-read result SHALL identify its destination, retrieval status, known limitations, and remaining allowance. Retrieval statuses SHALL remain ok, unsupported, or failed, separate from ingestion completion. Success SHALL NOT certify complete retrieval or complete factual checking.
@@ -123,7 +130,20 @@ A source-based change SHALL retain enough source context to identify its meaning
 
 - **WHEN** extraction identifies a passage by its unique literal opening and closing text
 - **THEN** saved support retains the complete original passage and its required context
-- **AND** ambiguous, reversed, overlapping, or unmatched boundaries do not authorize a change
+- **AND** ambiguous, reversed, partially overlapping, or unmatched boundaries do not authorize a change
+
+#### Scenario: The opening text is already the complete quotation
+
+- **WHEN** unique literal opening text already contains the unique closing text as its exact suffix, including identical boundaries
+- **THEN** the complete opening text can be bound as a normal literal quotation within the same size limit
+- **AND** other partial overlaps remain invalid
+
+#### Scenario: A quotation contains one extra wire escape
+
+- **WHEN** a supplied quote or context has no literal match and contains a literal escaped newline or doubled backslash before Markdown punctuation
+- **THEN** code may restore those escapes only if the whole resulting string has one exact source match
+- **AND** saved evidence contains the exact original source text and span
+- **AND** existing ambiguous literal matches, invented prices and unsupported text are not repaired
 
 #### Scenario: A processing input omits empty metadata
 

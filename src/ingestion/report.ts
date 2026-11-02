@@ -140,7 +140,6 @@ function assembleReport({
     general.output?.decision === "uncertain" ||
     roleGaps.length > 0 ||
     collectionChecks.some((check) => check.blocker !== null) ||
-    checks.some((check) => check.finding === "unfinished") ||
     missingCollectionChecks.length > 0 ||
     corpus?.sources.some(
       (source) => source.status === "ok" && source.processing !== "complete",

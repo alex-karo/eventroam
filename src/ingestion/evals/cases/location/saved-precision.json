@@ -5,7 +5,7 @@
   "task": "Check location saved precision",
   "provenance": {
     "kind": "synthetic",
-    "note": "A synthetic source confirms that the saved point represents a locality, with overstated exact precision. Geocoding is unavailable. This case tests a precision change without a replacement point; the coordinates must stay unchanged."
+    "note": "A synthetic source confirms that the saved point represents a locality, with overstated exact precision. Geocoding is unavailable. This case tests a precision change without a replacement point; the coordinates must stay unchanged. The precision notice is now supplied as explicit synthetic evidence, not only as a source summary. It states the existing locality meaning without giving an expected action."
   },
   "input": {
     "mode": "refresh",
@@ -88,6 +88,20 @@
         "unresolved": []
       },
       "evidence": [
+        {
+          "id": "currentOrNextEdition-location-precision",
+          "sourceId": "synthetic-precision-notice",
+          "quote": "The saved 2027 point at (42.579634, -8.669209) represents the centre of Portas, Pontevedra, Spain. It is a valid locality point, but it does not identify Azucreira de Portas. The festival venue remains Azucreira de Portas. No venue point has been established.",
+          "context": [
+            {
+              "quote": "Synthetic precision notice for the 2027 Edition. This is a stated locality meaning, not a reverse-geocoding inference."
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
         {
           "id": "currentOrNextEdition-location-1",
           "sourceId": "fixture-source",

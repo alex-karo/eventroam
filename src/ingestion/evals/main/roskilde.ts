@@ -56,7 +56,7 @@ export function roskilde(context: MainContext) {
       linkFact("next.tickets", next?.links, "ticketing", [
         "https://www.roskilde-festival.dk/billetter",
       ]),
-      basePrice(next, "DKK", 265000),
+      basePrice(next, "DKK", [265000]),
     ],
     // Neither pages nor fixed geocoding responses state a region.
     correctness: [

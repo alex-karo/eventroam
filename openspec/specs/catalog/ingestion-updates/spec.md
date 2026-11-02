@@ -31,6 +31,13 @@ Ingestion SHALL report partial research when it returns useful findings with a k
 - **THEN** research remains partial and identifies that interpretation gap
 - **AND** missing optional prose or fresh genre names alone does not require another source
 
+#### Scenario: An unassigned historical check remains unfinished
+
+- **WHEN** current scope completes its assigned checks and a role also returns an unfinished historical check
+- **THEN** that extra check alone does not make research partial
+- **AND** any missing or unfinished assigned check still makes useful research partial
+
+
 ### Requirement: Failed research makes no catalog changes
 Failed research SHALL have no usable findings and SHALL produce no catalog operations.
 
@@ -183,10 +190,18 @@ When an inspected source supports an Edition ticket price, ingestion SHALL propo
 - **THEN** the replacement includes Regular without a Student placeholder, even with an absent amount and currency
 - **AND** the Student question remains unresolved
 - **AND** a proposed replacement that includes that unsupported placeholder is rejected as a complete ticket block
+- **AND** a category present only in saved state, source mentions or unresolved questions is not part of a new replacement and does not invalidate it
 
 #### Scenario: No price is supported
 - **WHEN** relevant pages have no readable price or only announce closed sales
 - **THEN** the saved ticket block remains unchanged
+
+#### Scenario: A published offer has unresolved currency
+
+- **WHEN** an inspected source publishes a numeric ticket price but its currency cannot be established
+- **THEN** the observed offer can omit both amount and currency with basePrice null only if its terms retain the literal published price and unresolved currency
+- **AND** Editor does not require separate availability or admission terms merely because that currency is unresolved
+- **AND** a category label or unread link without price evidence still does not establish an observed offer
 
 ### Requirement: Official link findings preserve ownership
 Proposed official links SHALL be valid HTTP(S) destinations associated with the Event or the appropriate Edition. An unverified link SHALL not displace a saved link; an omitted link slot SHALL remain unchanged. A verified replacement or explicit, supported removal MAY change only the matching owner and link-kind slot, preserving other links. Evidence pages SHALL not be published as official links solely because they were inspected.

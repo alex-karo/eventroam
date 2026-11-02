@@ -89,6 +89,43 @@ it("allows duplicate adds but excludes a duplicate decision during refresh", () 
   ).toBe(true);
 });
 
+it("allows an unsupported past candidate to stay null without losing the supported next target", () => {
+  const next = {
+    editionKey: "2027",
+    reason: "The official page announces the next festival.",
+    evidenceIds: ["s1-e1"],
+    fields: {},
+  };
+  const output = {
+    decision: "targets",
+    eventId: "existing",
+    observedEventName: "Festival",
+    reason: "The official identity matches.",
+    evidenceIds: ["s1-e1"],
+    event: {},
+    previousEdition: null,
+    currentOrNextEdition: next,
+    checks: [
+      {
+        check: "previousCompletedEdition",
+        finding: "unfinished",
+        explanation:
+          "The saved dates do not prove that the festival took place.",
+        evidenceIds: [],
+        sourceIds: [],
+      },
+    ],
+    unresolved: [],
+  };
+  expect(refreshGeneralOutputSchema.parse(output)).toEqual(output);
+  expect(
+    refreshGeneralOutputSchema.safeParse({
+      ...output,
+      previousEdition: { ...next, editionKey: "saved-2026", evidenceIds: [] },
+    }).success,
+  ).toBe(false);
+});
+
 it("accepts free full-programme admission without invented ticket offers", () => {
   expect(
     ticketBlockSchema.parse({
