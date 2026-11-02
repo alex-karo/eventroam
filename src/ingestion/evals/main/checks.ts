@@ -1,4 +1,4 @@
-import { mainScheduleStatuses, type Edition } from "./context";
+import type { Edition } from "./context";
 import { fact } from "./facts";
 
 export function termIds(edition: Edition | undefined, facets: string[]) {
@@ -37,7 +37,7 @@ export function requiredFacts(
 export function statusFacts(edition: Edition | undefined) {
   return [
     fact("next.dateState", edition?.dateState, ["confirmed"]),
-    fact("next.scheduleStatus", edition?.scheduleStatus, mainScheduleStatuses),
+    fact("next.scheduleStatus", edition?.scheduleStatus, ["scheduled"]),
   ];
 }
 

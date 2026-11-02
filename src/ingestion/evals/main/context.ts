@@ -9,9 +9,6 @@ import { fact } from "./facts";
 export type Catalog = ReturnType<typeof readResearchCatalog>;
 export type Edition = Catalog[number]["editions"][number];
 
-// Accept both until agent status rules are deterministic. See the eval guide follow-up.
-export const mainScheduleStatuses = ["announced", "scheduled"] as const;
-
 const optionalEditionFields = [
   "displayName",
   "sizeEstimate",
@@ -66,14 +63,6 @@ export function savedEditions(
         )
       ) {
         expected.terms = actual.terms;
-      }
-      if (
-        mainScheduleStatuses.some(
-          (status) => status === saved.scheduleStatus,
-        ) &&
-        mainScheduleStatuses.some((status) => status === actual.scheduleStatus)
-      ) {
-        expected.scheduleStatus = actual.scheduleStatus;
       }
       for (const [field, value] of Object.entries(fields)) {
         if (

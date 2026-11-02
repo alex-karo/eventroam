@@ -322,7 +322,7 @@ Mastra provides filesystem grep. Editor uses that tool with a read-only workspac
 
 ### Independent price and link proposals
 
-The owner removed per-offer URLs from ingestion to avoid an offer-to-link join. Tickets prepares a complete price block and Links selects the Event and Edition links in parallel. The Roskilde overview rule remains recorded in [the known issue](../../../docs/known-issues/2026-10-27-roskilde-edition-ticket-link.md).
+The owner removed per-offer URLs from ingestion to avoid an offer-to-link join. Tickets prepares a complete price block and Links selects the Event and Edition links in parallel. The Roskilde overview rule and its resolution are recorded in [the archived issue](../../../docs/archive/known-issues/2026-10-27-roskilde-edition-ticket-link.md).
 
 ### Parallel page inspection
 
@@ -381,3 +381,11 @@ Keep description and small facts with General instead of creating another role. 
 - **Extra short calls cost more:** measure per-role duration and available input/output/cost observations on the same fixtures. No numeric cost or quality improvement is claimed before those runs. Historical ticket and per-offer URL work are deliberately removed; do not count those scope reductions as extraction quality gains.
 
 Implement in contract, corpus, agents, assembly, and consumer stages as listed in [tasks](tasks.md). Do not expose the new pipeline through normal execution until the required contract and integration checks pass. Existing old reports remain inspection data, not inputs for migration or replay.
+
+## Follow-up decisions, 2026-11-02
+
+The owner accepted four follow-up choices. An unresolved historical check needs a clear historical question and preservation of the unchecked record, without an exact Edition key. Search limits depend on the unresolved permitted need; synthetic cases retain their declared zero/one-query limits when their sources suffice. General and Editor use `scheduled` for a complete programme date range, including provisional dates, and `announced` without one; explicit cancellation/postponement takes priority.
+
+Geocoding replay first uses the exact request, then a normalized forward-query comparison under the same explicit country filter. Normalize Unicode accents, case, punctuation, word order and country labels in English, Spanish, Portuguese, French and German. Keep all other place tokens, so city requests do not become venue requests. Conflicting normalized responses return `unavailable`; reverse requests stay exact. This broadens matching without a model call, new query aliases or live fallback. It does not infer arbitrary place-name translations. Scorer revision 16 and the dataset hash separate the new checks and replay behavior from earlier experiments.
+
+A controlled low-versus-medium Research comparison remains a separate experiment. These choices do not establish new model quality or close the remaining full-change validation tasks.

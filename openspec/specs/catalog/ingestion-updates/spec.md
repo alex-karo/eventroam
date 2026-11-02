@@ -258,3 +258,22 @@ Non-null research data and ready editor plans MUST contain previousEdition and c
 
 - **WHEN** Location supplies a non-null slot that the editor declined
 - **THEN** validation rejects the whole item before writes
+
+### Requirement: Ingestion schedule status follows programme dates
+
+For a supported Edition announcement, ingestion SHALL use `scheduled` with a complete programme date range and `announced` without one. This SHALL include provisional dates. `dateState` SHALL retain date certainty separately. An explicit cancellation or postponement SHALL take priority. Missing dates alone SHALL NOT establish cancellation or postponement. These rules SHALL apply to the selected supported Edition; they SHALL NOT authorize changes to unchecked saved Editions.
+
+#### Scenario: An announcement has provisional dates
+
+- **WHEN** a selected supported Edition has a complete provisional programme date range
+- **THEN** ingestion uses `scheduled` and retains `dateState: provisional`
+
+#### Scenario: An announcement has no complete date range
+
+- **WHEN** a selected supported Edition is announced without a complete programme date range
+- **THEN** ingestion uses `announced` without inventing dates
+
+#### Scenario: An explicit exception applies
+
+- **WHEN** inspected evidence explicitly cancels or postpones a selected Edition
+- **THEN** that status takes priority over the presence of saved or published dates

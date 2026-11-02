@@ -370,7 +370,7 @@ Traces show these separate causes:
 
 The existing refresh-scope spec resolves temporal ambiguity: keep the uncertain Edition slot null and return partial findings. It is not an Event identity refusal. Preserve that distinction in General; do not change the ambiguity eval to accept a failed identity decision.
 
-### Questions for later discussion
+### Questions raised during stabilization
 
 1. The unfinished-history eval requires the exact `historic-weekend` key on a question even when the blocked archive cannot establish that temporal target. Research questions intentionally have no Edition keys. Should the check require a historical question and protected history instead of that key? Keep the existing expectation until this is decided.
 2. Search-policy fixtures require at most one discovery query. This fits sources that explicitly publish all available details. Should that bound also apply to real sources with unresolved publication-required country information? Do not add one global search limit to make these cases pass.
@@ -456,4 +456,17 @@ The ten Main attempts cost an estimated USD 0.126707225. All 100 attempts cost U
 
 After the final prompt changes, all 796 unit tests pass with default workers. Type check, affected lint and formatting pass. Evidence, Location and tracing checks retain their strict assertions. Documentation checks, dependency checks and strict OpenSpec validation pass. The final edits repair two eval expectations without changing their required facts: native minor-unit prices and already-correct selected dates. All other assertions stay in force. No case is removed or excluded, and no disputed fixture decision is applied.
 
-The earlier questions remain for owner discussion. A further cost choice is whether to test low Research effort again with these corrected prompts. The present comparison changes both effort and prompt text, so it does not isolate the medium-effort benefit. Keep that later trial separate from the measured stability result.
+The four questions above were later resolved by the owner; see the follow-up decisions below. A further cost choice is whether to test low Research effort again with these corrected prompts. The present comparison changes both effort and prompt text, so it does not isolate the medium-effort benefit. Keep that later trial separate from the measured stability result.
+
+### Owner follow-up decisions, 2026-11-02
+
+The owner resolved the four earlier questions:
+
+1. The unfinished-history question does not need the exact saved Edition key. Require historical context and preserve the unchecked historical record.
+2. Discovery depends on the unresolved permitted need within the shared budget. Keep existing zero/one-query assertions where the synthetic sources suffice; do not impose that bound on every source.
+3. Geocoding replay uses general query normalization rather than a growing alias list. Exact requests take priority; normalized forward matches retain country filters and place qualifiers. Ambiguous responses stay unavailable. Normalization covers case, accents, punctuation, word order and country names in five languages, not arbitrary translations of place names.
+4. A supported announcement with complete programme dates uses scheduled, including provisional dates. Date certainty stays separate; explicit cancellation or postponement takes priority. Main no longer accepts announced as an alternative for its dated announcements.
+
+Scorer revision 16 identifies these follow-up changes. The measured stabilization scores above belong to revision 15 and are not a measurement of the changed prompts or checks. The separate low-versus-medium Research experiment remains open.
+
+Follow-up verification uses no model calls. All 50 cases load. All 89 exact geocoding requests retain their recorded responses; three normalized variants match; five country/place/reverse mismatches and conflicting normalized responses remain unavailable. An exact recorded failure keeps priority. Saved unfinished-history outputs pass without an Edition key, while an unrelated ticket question and an attempted historical mutation fail. Rescoring ten saved Main outputs under revision 16 additionally rejects Sziget repeat 1 for announced despite confirmed dates; this is a stricter-rule result, not a fresh model run. Original experiment scores remain unchanged. The 27 affected unit tests, type check, affected ESLint, documentation and OpenSpec checks pass. Changed prompts still need a fresh model evaluation before claiming new scenario stability.

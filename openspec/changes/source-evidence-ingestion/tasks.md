@@ -80,3 +80,10 @@ The new flow and its unit and integration tests are present. The main before/aft
 - [x] Record compact evidence projections, role reasoning settings and Reader-only prompt cache disablement without changing source caching or the frozen-corpus contract.
 - [x] Link measured cost and quality evidence, distinguish five-attempt measurements from ten-attempt projections, and retain the unmet preferred cost target.
 - [ ] Complete the remaining regression and main-spec sync tasks above. This optimization alignment does not close them.
+
+## Owner follow-up decisions, 2026-11-02
+
+- [x] Remove the exact historical-question Edition key, retain historical context and saved-record preservation, and verify the scorer with positive and negative saved outputs.
+- [x] Clarify need-based discovery within the shared budget without relaxing the existing sufficient-source search fixtures.
+- [x] Match equivalent geocoding query forms without new aliases, invented responses or live fallback; verify ambiguous, country and place mismatches.
+- [x] Define dated announcements as scheduled, retain provisional date state and explicit exceptions, and align prompts, main checks, docs and specs.

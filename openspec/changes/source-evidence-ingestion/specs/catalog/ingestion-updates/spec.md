@@ -187,6 +187,26 @@ Official links SHALL be valid HTTP(S) destinations supported for their Event or 
 
 ## ADDED Requirements
 
+### Requirement: Ingestion schedule status follows programme dates
+
+For a supported Edition announcement, ingestion SHALL use `scheduled` with a complete programme date range and `announced` without one. This SHALL include provisional dates. `dateState` SHALL retain date certainty separately. An explicit cancellation or postponement SHALL take priority. Missing dates alone SHALL NOT establish cancellation or postponement. These rules SHALL apply to the selected supported Edition; they SHALL NOT authorize changes to unchecked saved Editions.
+
+#### Scenario: An announcement has provisional dates
+
+- **WHEN** a selected supported Edition has a complete provisional programme date range
+- **THEN** ingestion uses `scheduled` and retains `dateState: provisional`
+
+#### Scenario: An announcement has no complete date range
+
+- **WHEN** a selected supported Edition is announced without a complete programme date range
+- **THEN** ingestion uses `announced` without inventing dates
+
+#### Scenario: An explicit exception applies
+
+- **WHEN** inspected evidence explicitly cancels or postpones a selected Edition
+- **THEN** that status takes priority over the presence of saved or published dates
+
+
 ### Requirement: Ticket replacements omit per-offer URLs
 
 Ingestion ticket proposals and accepted replacements SHALL omit per-offer URL fields. A supported complete replacement SHALL replace the saved price block without those fields. Without an accepted replacement, saved offers and their existing URLs SHALL remain unchanged. The Edition ticket link SHALL be a separate update and SHALL NOT require a price replacement.

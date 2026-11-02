@@ -8,7 +8,7 @@ import type { EvalCase, EvalSuite } from "./fixtures";
 import type { EvalGroup } from "./selection";
 
 // Increase this version when rules outside the hashed files change.
-export const EVAL_SCORER_VERSION = "15";
+export const EVAL_SCORER_VERSION = "16";
 
 /** Hash all case data, case checks, and main rules, including whitespace changes. */
 export function evalFileHash() {
@@ -18,6 +18,7 @@ export function evalFileHash() {
     "fixtures.ts",
     "editor-fixture.ts",
     "run.ts",
+    "geocoding.ts",
     "research.ts",
     "regression.ts",
     "changes.ts",

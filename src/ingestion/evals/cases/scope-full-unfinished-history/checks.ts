@@ -24,12 +24,17 @@ export const checks = {
       ),
       check(
         "research.unresolved.historic-weekend",
-        report.unresolved.some(
-          (question) =>
-            question.editionKey === "historic-weekend" &&
-            question.message.trim().length > 0,
+        report.unresolved.some((question) =>
+          /histor|archive|2025|previous|past edition/i.test(question.message),
         ),
-        "Unfinished historic-weekend",
+        "Explain the unresolved historical check without requiring an Edition key",
+      ),
+      check(
+        "catalog.history.preserved",
+        !report.changes.some(
+          (change) => change.subject === "scope-edition-historic-weekend",
+        ),
+        "Preserve the unverified saved historical Edition",
       ),
     ];
   },

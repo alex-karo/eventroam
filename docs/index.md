@@ -49,9 +49,12 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 ## Known issues
 
 - [Studio and CLI share a DuckDB writer lock](known-issues/2026-10-27-studio-cli-duckdb-conflict.md) — current workaround and a possible move to native Mastra server execution.
-- [Roskilde ticket link preference](known-issues/2026-10-27-roskilde-edition-ticket-link.md) — the eval requires the ticket overview; agent instructions still need this rule.
 - [Invalid Edition key rejects Wacken research](known-issues/2026-10-27-wacken-invalid-edition-key.md) — malformed model output rejects a full research result.
-- [Mastra eval storage snapshot failure](known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) — intermittent storage errors, related upstream fixes, and pending checks.
+
+## Archived issues
+
+- [Roskilde ticket link preference](archive/known-issues/2026-10-27-roskilde-edition-ticket-link.md) — Links now prefers the overview; both repeated checks selected it.
+- [Mastra eval storage snapshot failure](archive/known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) — archived after a dependency update and 100 scored attempts without storage failures; no separate concurrency check was run.
 
 ## Research
 

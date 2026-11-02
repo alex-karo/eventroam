@@ -347,3 +347,23 @@ The command SHALL fail on rejected scenarios or unexpected task or scorer failur
 - **WHEN** a dimension has no expected facts
 - **THEN** it is N/A rather than a scorer exception
 - **AND** unexpected scorer exceptions still fail execution
+
+### Requirement: Geocoding replay accepts equivalent query forms
+
+Eval geocoding SHALL prefer an exact recorded request. Forward replay SHALL also match equivalent spelling, punctuation, word order and country labels under the same explicit country filter. It SHALL retain place qualifiers and SHALL NOT substitute a city request for a venue request. Conflicting normalized responses or unsupported geographic qualifiers SHALL return `unavailable`. Reverse replay SHALL require exact coordinates. Replay SHALL never use a live service or invent a response.
+
+#### Scenario: Equivalent forward queries differ in formatting
+
+- **WHEN** a forward request differs only in normalized spelling, punctuation, word order or a supported country label
+- **THEN** replay returns the recorded response under the same country filter
+- **AND** observations retain the actual request
+
+#### Scenario: Normalized matches disagree
+
+- **WHEN** multiple normalized matches have different responses and no exact request matches
+- **THEN** replay returns `unavailable` rather than choosing one
+
+#### Scenario: A place or country differs
+
+- **WHEN** a request changes the country filter or includes unmatched place qualifiers
+- **THEN** replay returns `unavailable` without substituting another place

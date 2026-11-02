@@ -72,6 +72,8 @@ Current assumes a prior full run established Event identity/shared links. It omi
 
 ## Research and propose facts
 
+A supported announcement with a complete programme date range uses `scheduled`, including provisional dates. Without a complete range it uses `announced`. `dateState` records date certainty separately. Explicit cancellation or postponement takes priority.
+
 ### Find and read sources
 
 For an existing Event, the run first reads a saved official-site link, or another saved link if needed. Research uses `inspectPage` for relevant known links and prior results first. `searchWeb` is permitted for an unknown, inaccessible, or wrong official source; a material identity/date conflict; or an essential identification, date, or publication-required gap in an already evidenced Edition. Permission does not require a search. An empty Edition slot or absent announcement alone does not justify search. A recurring Event description alone does not establish a specific past Edition for a search. Missing optional prices or size alone does not justify search. Explicit evidence that no next Edition is announced can complete the check. Stop when the relevant question is resolved. Current stops on an identity contradiction and requests full; it does not discover a replacement website. Search highlights are leads. Inspect destination pages before using their facts. Search and page reads share the run limits. OpenRouter's Exa plugin and default search mode remain in use.

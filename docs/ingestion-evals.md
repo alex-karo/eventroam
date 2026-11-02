@@ -72,7 +72,7 @@ Experiment storage write failures retain Mastra's native errors or warnings; no 
 
 Mastra datasets, experiment results, and scores use `CATALOG_EVAL_DATABASE_PATH`, which defaults to `data/mastra-evals.sqlite`. This file is separate from the catalog and DuckDB observability. Relative paths resolve from the project root. `pnpm run catalog:studio` passes the same absolute path to Studio; set it explicitly for `studio:start` if you use a custom path. Studio can inspect saved datasets and experiments without model credentials. Keep eval execution in the CLI.
 
-Known issue: [intermittent `SQLITE_BUSY_SNAPSHOT` failures](known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) can leave saved scores incomplete or fail an experiment update.
+The [archived `SQLITE_BUSY_SNAPSHOT` issue](archive/known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) records earlier incomplete score writes and experiment update failures. The error did not recur in the final 100-attempt measurement after the dependency update; no separate concurrency check was run.
 
 ## Separate case purpose from source origin
 
@@ -133,7 +133,7 @@ Link alternatives are choices. Extra or duplicate official links of a checked ki
 
 Each returned ticket offer in main must match an accepted amount and currency pair. Missing offers do not lower completeness. Labels, terms, availability and duplicate offers are unchecked. Full-programme base price is a separate additional fact. A case can accept both the displayed price and the total with mandatory fees when both are declared alternatives. Targeted regressions can check labels or availability for their specific task.
 
-Main currently accepts both `announced` and `scheduled`, including saved Edition preservation. TODO: define deterministic agent behavior and narrow this exception. `cancelled` and `postponed` remain distinct.
+Main requires `scheduled` for its dated festival announcements. Ingestion uses `announced` without a complete programme date range and `scheduled` with one, including provisional dates. `dateState` records date certainty separately. Explicit cancellation or postponement takes priority. Saved Edition preservation no longer treats `announced` and `scheduled` as interchangeable.
 
 ## Keep the check boundary explicit
 
@@ -157,7 +157,7 @@ Glastonbury models an unannounced next festival, with an unedited official Histo
 
 Cover the assigned research path, not every possible link or query. Main source fixture misses are diagnostics only. Required omissions, wrong checked facts and failed task conditions still fail main. There is no live fallback or invented successful provider result.
 
-In every eval group, an initial or agent geocoding request without a fixture returns `unavailable`. This is a simulated tool failure, not a captured provider response or an empty search result. It does not fail the case by itself; execution and case checks still determine success. Request details remain in observations. This does not show how the real provider would answer the query.
+In every eval group, an initial or agent geocoding request without a fixture returns `unavailable`. This is a simulated tool failure, not a captured provider response or an empty search result. It does not fail the case by itself; execution and case checks still determine success. Request details remain in observations. Exact recorded requests take priority. Forward replay also matches normalized case, accents, punctuation, word order and country names in English, Spanish, Portuguese, French and German against the same explicit country filter. Other place qualifiers stay in the comparison. Conflicting normalized responses and unknown qualifiers return `unavailable`; reverse coordinates still require an exact match. This does not show how the real provider would answer the query.
 
 Add fixture coverage when it blocks a task we intend to measure. Do not add a response after every exploratory request merely to make diagnostics disappear.
 
@@ -201,3 +201,5 @@ Scorer revision 14 corrects selected-value and refusal checks after the full reg
 Scorer revision 15 accepts partial Research with a failed catalog outcome in `current-identity-contradiction`, as selected by the owner. Useful collection can precede an Event identity refusal. No-write, technical-error, source-policy and identity-guidance checks remain. Other refusal cases retain failed Research when they have no usable evidence.
 
 A comparison can span different coarse dataset hashes only after checking that every selected case input and its checks are identical. For example, adding page-coverage fields to unselected fixed Editor inputs changes the coarse hash but does not change main or pipeline case inputs. Record this check with the measurements; do not infer equal inputs from matching case IDs alone.
+
+Scorer revision 16 removes the exact historical Edition key from the unfinished-history question check and requires historical context plus preservation of the saved historical record. Search counts remain case-specific: another targeted search is allowed for an unresolved permitted need within the shared budget, after useful known leads are used. Resolved needs and optional gaps do not authorize more searches. Geocoding replay uses the normalization above, and main requires `scheduled` for dated announcements. Earlier experiment scores stay unchanged.

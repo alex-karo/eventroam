@@ -8,7 +8,7 @@ import {
   createRunObservability,
   finishRunObservability,
 } from "../runtime/observability/runtime";
-import { geocodingKey, type GeocodingClient } from "../tools/geocode/contracts";
+import { fixedGeocoding } from "./geocoding";
 import { scoreLocationCase } from "./score";
 import { validateCatalogValues } from "@/catalog/write/validate-values";
 import { randomUUID } from "node:crypto";
@@ -548,14 +548,4 @@ export function evalItemPassed(item: {
       ),
     )
   );
-}
-
-function fixedGeocoding(item: EvalCase): GeocodingClient {
-  return async (request) =>
-    item.geocoding?.find(
-      (fixture) => geocodingKey(fixture.request) === geocodingKey(request),
-    )?.response ?? {
-      status: "error",
-      code: "unavailable",
-    };
 }

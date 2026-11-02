@@ -119,7 +119,7 @@ Research MUST use relevant known links and prior results before another search.
 The last case MUST concern an Edition supported by inspected evidence.
 Essential facts MUST concern Edition identification, dates, or publication requirements.
 Missing optional facts or an unannounced next Edition alone MUST NOT justify search.
-Current source-recovery restrictions MUST still apply.
+Current source-recovery restrictions MUST still apply. Search count SHALL depend on the unresolved permitted need within the shared budget, not a universal one-query limit.
 
 #### Scenario: Official sources contain no next announcement
 
@@ -155,6 +155,12 @@ Current source-recovery restrictions MUST still apply.
 - **WHEN** inspected evidence resolves the question that authorized discovery
 - **THEN** that question no longer authorizes another search
 - **AND** permission does not require a search for every missing field
+
+#### Scenario: The first search leaves an essential fact unresolved
+
+- **WHEN** an identified Edition still lacks a publication-required country after relevant known links and useful search results have been inspected
+- **THEN** another targeted search is permitted within the shared budget
+- **AND** resolving that need ends its permission for further search
 
 ### Requirement: Source summaries identify useful inspected evidence
 The research model SHALL summarize inspected sources that informed findings and SHALL distinguish them from unread leads. A useful partial page MAY support a fact while its missing information remains unverified. The application SHALL retain model summaries without independently checking their claims against source-read history. Source summaries SHALL remain available for no-op and failed-write outcomes.
