@@ -2,7 +2,7 @@
 
 ## Implementation status
 
-All 12 tasks are implemented and verified. The obsolete native-task prototype is removed. The full suite passes with 746 tests in 71 files. Type, lint, dependency, format, documentation, transfer, strict OpenSpec, and Docker Compose checks pass. Astra reviewed the change with eight specialist roles and one verifier. All three findings are fixed: concurrent snapshot coverage, discovery truncation guidance, and the README. Main specs are synced; the change remains active.
+All 12 tasks are implemented and verified. The obsolete native-task prototype is removed. The full suite passes with 802 tests in 78 files. Type, lint, dependency, format, documentation, transfer, strict OpenSpec, and Docker Compose checks pass. Astra reviewed the change with eight specialist roles and one verifier. All three findings are fixed: concurrent snapshot coverage, discovery truncation guidance, and the README. Verification confirms all 17 added or changed requirements and all 42 scenarios. The removed synchronous chat execution path is absent. The implementation follows the design and project code patterns. No verification findings remain. Main specs are synced; the change is archived.
 
 ## 1. Catalog jobs and attempt association
 
