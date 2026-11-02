@@ -288,7 +288,7 @@ test("return reloads selection and clears an Edition removed from eligible resul
   await page
     .getByRole("link", { name: "Back to results", exact: true })
     .click();
-  await expect(page.locator(".results-total strong")).toHaveText("1 event");
+  await expect(page.locator(".results-count")).toHaveText("1 event");
   await expect(card(page)).toHaveCount(0);
   await expect(page).toHaveURL(/country=PT$/);
 });
@@ -318,7 +318,7 @@ test("browser history restores nonzero list scroll and separate search entries",
   await search.getByRole("textbox").fill("atlantic");
   await search.getByRole("button", { name: "Search festival names" }).click();
   await expect(card(page)).toHaveCount(0);
-  await expect(page.locator(".results-total strong")).toHaveText("1 event");
+  await expect(page.locator(".results-count")).toHaveText("1 event");
   await page.goBack();
   await expect(card(page).getByRole("heading")).toHaveText(fieldEvent);
   await expect

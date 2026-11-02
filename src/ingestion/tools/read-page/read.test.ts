@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createResearchBudget } from "../../runtime/budget";
 import { readPage } from "./read";
+import { extractSource } from "./extract";
+import { createSourceSession } from "../session";
 import {
   assertPublicUrl,
   isPublicAddress,
@@ -419,7 +421,7 @@ describe("readPage", () => {
     expect(firecrawlRequest).not.toHaveBeenCalled();
   });
 
-  it("selects rendered HTML with at least 200 non-navigation characters", async () => {
+  it("selects successful rendered HTML", async () => {
     const budget = createResearchBudget();
     const firecrawlRequest = mockResponse(
       `<main>${"Festival programme ".repeat(20)}</main>`,
@@ -452,27 +454,48 @@ describe("readPage", () => {
     expect(budget.snapshot().pages).toBe(2);
   });
 
-  it("does not select a render padded by ARIA navigation", async () => {
-    const firecrawlRequest = mockResponse(
-      `<div role="navigation">${"Menu item ".repeat(30)}</div><main>Loading</main>`,
-    );
-    const result = await readPage(sourceUrl, {
-      budget: createResearchBudget(),
-      request: mockResponse(
-        '<main>Loading</main><script src="/app.js"></script>',
-      ),
-      firecrawlRequest,
-      firecrawlKey: "test-key",
+  it.each([
+    '<main><a href="https://raffle.festival.example/"><img src="/raffle.png"></a></main>',
+    '<main><a href="https://raffle.festival.example/">Raffle</a></main>',
+    "<main></main>",
+  ])("keeps successful short HTML in page output: %s", async (html) => {
+    const budget = createResearchBudget();
+    const config = {
+      apiKey: "fixture",
+      model: "fixture",
+      limits: budget.limits,
+    };
+    const extracted = extractSource(html, sourceUrl, "text/html");
+    expect(extracted.nonNavigationTextLength).toBeLessThan(200);
+    if (html.includes("<img")) {
+      expect(extracted.nonNavigationTextLength).toBe(0);
+    }
+    const firecrawlRequest = mockResponse(html);
+    const sources = createSourceSession(budget, config, [], {
+      readPage: (url, options) =>
+        readPage(url, {
+          ...options,
+          request: mockResponse(
+            '<main>Direct details</main><script src="/app.js"></script>',
+          ),
+          firecrawlRequest,
+          firecrawlKey: "test-key",
+        }),
     });
-    expect(firecrawlRequest).toHaveBeenCalledOnce();
-    expect(result).toMatchObject({
-      method: "http",
+    const page = await sources.readPage(sourceUrl);
+    expect(page).toMatchObject({
+      method: "firecrawl",
       status: "ok",
-
-      reasonCode: "javascript_required",
+      httpStatus: 200,
     });
-    expect(result.markdown).toContain("Loading");
-    expect(result.markdown).not.toContain("Menu item");
+    expect(page.reasonCode).toBeUndefined();
+    expect(page.markdown).toContain("## Direct HTTP response");
+    expect(page.markdown).toContain("Direct details");
+    if (html.includes("<a")) {
+      expect(page.markdown).toContain("https://raffle.festival.example/");
+    }
+    expect(firecrawlRequest).toHaveBeenCalledOnce();
+    expect(budget.snapshot().pages).toBe(2);
   });
 
   it("keeps direct metadata, JSON-LD and safe links alongside rendered content", async () => {
@@ -541,7 +564,7 @@ describe("readPage", () => {
     expect(result.markdown).toContain("## Direct HTTP response");
   });
 
-  it("keeps a short ordinary scripted page when rendering adds only a placeholder", async () => {
+  it("keeps direct content when a successful render contains a short placeholder", async () => {
     const firecrawlRequest = mockResponse(
       `<main>${"Loading festival details ".repeat(5)}</main>`,
     );
@@ -555,12 +578,12 @@ describe("readPage", () => {
     });
     expect(firecrawlRequest).toHaveBeenCalledOnce();
     expect(result).toMatchObject({
-      method: "http",
+      method: "firecrawl",
       status: "ok",
-
-      reasonCode: "javascript_required",
     });
     expect(result.markdown).toContain("Festival dates and tickets");
+    expect(result.markdown).toContain("Loading festival details");
+    expect(result.reasonCode).toBeUndefined();
   });
 
   it("keeps the direct page when less than one second remains", async () => {

@@ -26,7 +26,7 @@ JSON-LD adds selected structured fields. Valid coordinates from `Event.location.
 
 With `FIRECRAWL_KEY`, the reader tries Firecrawl once after HTTP 403, using raw HTML. Without a key, that read fails. Other HTTP errors do not trigger fallback.
 
-For HTTP 200 HTML, rendered fallback needs a script other than JSON-LD, fewer than 200 characters of body text outside navigation, and at least one second remaining. A short page with an analytics script can meet this signal. The rendered response must contain at least 200 such characters. Otherwise the direct page stays `ok` with `javascript_required`.
+For HTTP 200 HTML, rendered fallback needs a script other than JSON-LD, fewer than 200 characters of body text outside navigation, and at least one second remaining. A short page with an analytics script can meet this signal. A successful Firecrawl HTML response has no minimum text length. The reader keeps its extracted content, including links from images with no ordinary body text. If fallback cannot run or fails, the direct page stays `ok` with `javascript_required`.
 
 Head metadata, generated link labels, and output-only image text do not count toward this signal.
 

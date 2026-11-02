@@ -1,3 +1,4 @@
+import { openFilter } from "./discovery-controls";
 import { expect, test, type Page, type Route } from "./fixtures";
 
 const year = "/?from=2027-01-01&to=2027-12-31";
@@ -18,6 +19,19 @@ async function fulfillAndSettle(page: Page, route: Route) {
       ),
   );
 }
+
+test("a month that excludes the selected edition keeps month focus", async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date(2026, 11, 15, 12) });
+  await page.goto(year);
+  await details(page, "Fictional Atlantic Sounds 2027").click();
+  await expect(preview(page)).toBeVisible();
+  const month = page.getByRole("button", { name: "Dec 2026", exact: true });
+  await month.click();
+  await expect(preview(page)).toHaveCount(0);
+  await expect(month).toBeFocused();
+});
 
 test("a late first response cannot replace a newer selection", async ({
   page,
@@ -99,7 +113,7 @@ test("retry keeps the original opener and Escape closes filters before details",
   );
   await expect.poll(() => attempts).toBe(2);
 
-  await page.getByRole("button", { name: "When", exact: true }).click();
+  await openFilter(page, "More");
   await expect(page.locator("#filter-panel")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.locator("#filter-panel")).toHaveCount(0);

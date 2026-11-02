@@ -21,12 +21,7 @@ export const sizeLabels: Record<SizeBand, string> = {
 };
 type SelectionField =
   "q" | "place" | "date" | "duration" | "countries" | "genres" | "sizes";
-export type FilterSelection = {
-  key: string;
-  field: SelectionField;
-  value: string;
-  label: string;
-};
+type FilterSelection = { field: SelectionField; label: string };
 const dateLabel = (value: string) =>
   new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
@@ -51,73 +46,31 @@ export function filterSelections(
   genres: Genre[],
 ): FilterSelection[] {
   const selections: FilterSelection[] = [];
-  const add = (field: SelectionField, value: string, label = value) => {
-    selections.push({ key: `${field}:${value}`, field, value, label });
+  const add = (field: SelectionField, label: string) => {
+    selections.push({ field, label });
   };
   if (filters.q) {
     add("q", filters.q);
   }
   if (filters.from) {
-    add(
-      "date",
-      "range",
-      `${dateLabel(filters.from)} – ${dateLabel(filters.to)}`,
-    );
+    add("date", `${dateLabel(filters.from)} – ${dateLabel(filters.to)}`);
   }
   for (const code of filters.countries) {
-    add("countries", code, countryName(code));
+    add("countries", countryName(code));
   }
   if (filters.place) {
     add("place", filters.place);
   }
   for (const slug of filters.genres) {
-    add(
-      "genres",
-      slug,
-      genres.find((genre) => genre.slug === slug)?.name ?? slug,
-    );
+    add("genres", genres.find((genre) => genre.slug === slug)?.name ?? slug);
   }
   if (filters.durationMin !== null || filters.durationMax !== null) {
-    add(
-      "duration",
-      "range",
-      durationLabel(filters.durationMin, filters.durationMax),
-    );
+    add("duration", durationLabel(filters.durationMin, filters.durationMax));
   }
   for (const band of filters.sizes) {
-    add("sizes", band, sizeLabels[band]);
+    add("sizes", sizeLabels[band]);
   }
   return selections;
-}
-export function removeSelection(
-  filters: Filters,
-  selection: FilterSelection,
-): Filters {
-  const { field, value } = selection;
-  switch (field) {
-    case "date":
-      return { ...filters, from: "", to: "" };
-    case "duration":
-      return { ...filters, durationMin: null, durationMax: null };
-    case "q":
-    case "place":
-      return { ...filters, [field]: "" };
-    case "countries":
-      return {
-        ...filters,
-        countries: filters.countries.filter((item) => item !== value),
-      };
-    case "genres":
-      return {
-        ...filters,
-        genres: filters.genres.filter((item) => item !== value),
-      };
-    case "sizes":
-      return {
-        ...filters,
-        sizes: filters.sizes.filter((item) => item !== value),
-      };
-  }
 }
 export function previewFilters(
   summaries: DiscoverySummary[],
