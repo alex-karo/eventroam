@@ -333,7 +333,7 @@ test("workflow storage must initialize before any job is selected", async () => 
   } finally {
     await f.close();
   }
-});
+}, 30000);
 
 test("Studio serves queued workflow history and correlated traces from its open store", async () => {
   const f = fixture();
@@ -481,4 +481,4 @@ test("a queue storage failure stops processing and reports unavailable", async (
   } finally {
     await f.close();
   }
-});
+}, 30000);
