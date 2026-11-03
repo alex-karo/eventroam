@@ -28,7 +28,7 @@ Codex worktrees use `.codex/environments/environment.toml` to link the source ch
 
 Each worktree has its own dependency tree. pnpm shares package files through its content-addressable store. Keep `pnpm-workspace.yaml` with the lockfile; it lists the dependency build scripts allowed during installation.
 
-For background ingestion, run `pnpm run catalog:worker` in a separate terminal from `pnpm run catalog:studio`. Use one worker per catalog. See [Background worker](ingestion-tools.md#background-worker) for storage, credentials, shutdown, and restart behavior.
+Studio processes background ingestion while `pnpm run catalog:studio` is running. Use one Studio server per catalog. See [Background execution](ingestion-tools.md#background-execution) for storage, credentials, shutdown, and restart behavior.
 
 ## Analytics
 

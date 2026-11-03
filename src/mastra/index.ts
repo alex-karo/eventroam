@@ -7,6 +7,8 @@ import {
 import { createStudioStorage } from "../ingestion/evals/storage";
 import { createStudioIngestionWorkflow } from "./ingestion";
 import { ingestionExecutionGuard } from "./ingestion-guard";
+import { createStudioJobs } from "./jobs";
+import { createApplicationLogger } from "../ingestion/runtime/logging";
 import { createAssistantLogging } from "./catalog-assistant/logging";
 
 const chatPath = chatDatabasePath();
@@ -16,6 +18,10 @@ const chat = await createChatMemory(chatPath).catch(async () => {
   throw new Error("Studio chat storage unavailable");
 });
 const logging = createAssistantLogging();
+const jobs = createStudioJobs(
+  workflow,
+  logging && createApplicationLogger(logging),
+);
 
 export const mastra = new Mastra(
   {
@@ -33,10 +39,13 @@ export const mastra = new Mastra(
     server: {
       host: "127.0.0.1",
       port: 4111,
+      drainTimeout: 55_000,
+      apiRoutes: [jobs.route],
       middleware: [ingestionExecutionGuard(workflow.historyControl, storage)],
     },
   },
   chat,
+  jobs,
 );
 
 async function studioResources() {

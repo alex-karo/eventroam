@@ -42,7 +42,7 @@ Prefer selected structured fields. Full reports and raw responses remain readabl
 
 Resolve all Event IDs before refresh_events. A count or truncated list does not identify a complete selection. Submit at most 200 distinct Events. Return batchId and acceptedCount as acceptance only.
 
-For full batch counts, query `SELECT status,count(*) AS count FROM ingestion_jobs WHERE batch_id=? GROUP BY status`. Count jobs before joining runs: each job can have several attempts. Done means processing ended; it does not mean success. Running can be saved from an interrupted worker and does not prove worker health.
+For full batch counts, query `SELECT status,count(*) AS count FROM ingestion_jobs WHERE batch_id=? GROUP BY status`. Count jobs before joining runs: each job can have several attempts. Done means processing ended; it does not mean success. Running can be saved from an interrupted Studio server and does not prove queue health.
 
 Read bounded details with `SELECT id,event_id,scope,dry_run,status,created_at FROM ingestion_jobs WHERE batch_id=? ORDER BY position`. Read all associated attempts with `SELECT r.id,r.job_id,r.status,r.started_at,r.finished_at FROM ingestion_runs r JOIN ingestion_jobs j ON j.id=r.job_id WHERE j.batch_id=? ORDER BY j.position,r.started_at,r.id`. Direct runs have null job_id. Keep earlier attempts and missing reports visible. Use separate counts when details are truncated; queries can observe different moments.
 

@@ -120,8 +120,9 @@ test("offline real agent persists native model/tool relationships and run metada
     spans.find((span) => span.spanType === "agent_run")?.parentSpanId,
   ).toBe(root.spanId);
   expect(root.error).toBeNull(); // A domain failed envelope is technically complete.
-  expect(root.entityId).toBe("catalog-research");
-  expect(root.name).toBe("catalog-research");
+  expect(root.entityType).toBe("workflow_run");
+  expect(root.entityId).toBe("catalog-ingestion");
+  expect(root.name).toBe("catalog-ingestion");
   expect(JSON.parse(root.output as string)).toMatchObject({
     researchStatus: "partial",
   });
@@ -370,7 +371,7 @@ test.each([
     const spans = await spansAt(path);
     const root = spans.find((span) => !span.parentSpanId)!;
     const output = JSON.parse(root.output as string);
-    expect(root.name).toBe("catalog-research");
+    expect(root.name).toBe("catalog-ingestion");
     expect(output).toEqual({
       researchStatus: traced.result.researchStatus,
       editorStatus: traced.result.editorStatus,

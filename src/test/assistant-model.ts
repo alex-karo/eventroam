@@ -51,7 +51,7 @@ export function createAssistantFixtureModel() {
         text = `Saved run evidence (selected fields; no independent source check): ${JSON.stringify(results)}. dryRun true means proposed changes; false means apply. An unchanged outcome can have partial research. Missing evidence remains unresolved.`;
       }
     } else {
-      text = `Tool result: ${JSON.stringify(results)}. Accepted jobs are not completed ingestion. Done means processing ended, not success. Stored running state does not prove worker health. Read saved reports through query_catalog. A preview proposes changes.`;
+      text = `Tool result: ${JSON.stringify(results)}. Accepted jobs are not completed ingestion. Done means processing ended, not success. Stored running state does not prove queue health. Read saved reports through query_catalog. A preview proposes changes.`;
     }
     if (call?.name === "query_catalog") {
       const sql = (call.input as { sql: string }).sql;

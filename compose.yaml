@@ -21,7 +21,7 @@ services:
     build:
       context: .
       target: studio
-    environment: &ingestion_environment
+    environment:
       NEXT_PUBLIC_POSTHOG_KEY: ${EVENTROAM_POSTHOG_KEY:-}
       NEXT_PUBLIC_POSTHOG_HOST: ${EVENTROAM_POSTHOG_HOST:-}
       DATABASE_PATH: /data/eventroam.sqlite
@@ -47,22 +47,9 @@ services:
       CATALOG_MAX_MODEL_OUTPUT_TOKENS: ${EVENTROAM_CATALOG_MAX_MODEL_OUTPUT_TOKENS:-}
     volumes:
       - data:/data
+    stop_grace_period: 120s
     expose:
       - "4111"
-    restart: unless-stopped
-  worker:
-    build:
-      context: .
-      target: studio
-    command: ["node", "commands/catalog-worker.mjs"]
-    environment:
-      <<: *ingestion_environment
-      CATALOG_WORKER_OBSERVABILITY_DATABASE_PATH: /data/mastra-worker-observability.duckdb
-    volumes:
-      - data:/data
-    healthcheck:
-      disable: true
-    stop_grace_period: 120s
     restart: unless-stopped
 
 volumes:
