@@ -1,10 +1,93 @@
 import { expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
-import { runFixtureResearch } from "@/test/ingestion";
+import {
+  fixtureDependencies,
+  fixtureTargets,
+  runFixtureResearch,
+  set,
+} from "@/test/ingestion";
+import { processJobs } from "./processor";
 import { submitJobs, nextJob } from "./store";
 
 const failed = { checks: [], unresolved: [] };
+
+test.each(["before-attempt", "after-finalize"])(
+  "restart at %s preserves completed writes and earlier attempts",
+  async (phase) => {
+    const { client } = testDatabase();
+    const event = testFixtures().event();
+    submitJobs(client, {
+      eventIds: [event.id],
+      dryRun: false,
+    });
+    const jobId = nextJob(client)!.id;
+    const execute = () =>
+      runFixtureResearch(
+        { mode: "refresh", eventId: event.id, dryRun: false, actor: "fixture" },
+        {
+          client,
+          jobId,
+          ...fixtureDependencies({
+            general: async () => ({
+              ...fixtureTargets(event.id),
+              observedEventName: event.canonicalName,
+              event: { summary: set("SAVED_SUMMARY") },
+              previousEdition: null,
+              currentOrNextEdition: null,
+            }),
+          }),
+        },
+      );
+    if (phase === "after-finalize") {
+      await execute();
+    }
+    const earlier = client.prepare("SELECT * FROM ingestion_runs").all();
+    expect(earlier).toHaveLength(phase === "before-attempt" ? 0 : 1);
+    expect(nextJob(client)?.id).toBe(jobId);
+    if (phase === "after-finalize") {
+      expect(
+        client.prepare("SELECT summary FROM events WHERE id=?").get(event.id),
+      ).toEqual({ summary: "SAVED_SUMMARY" });
+    }
+    const restarted = new AbortController();
+    const work = processJobs({
+      client,
+      signal: restarted.signal,
+      execute: async () => {
+        await execute();
+      },
+    });
+    try {
+      await expect
+        .poll(() =>
+          client
+            .prepare("SELECT status FROM ingestion_jobs WHERE id=?")
+            .pluck()
+            .get(jobId),
+        )
+        .toBe("done");
+    } finally {
+      restarted.abort();
+      await work;
+    }
+    const all = client
+      .prepare("SELECT * FROM ingestion_runs ORDER BY rowid")
+      .all();
+    expect(all.slice(0, earlier.length)).toEqual(earlier);
+    expect(all).toHaveLength(earlier.length + 1);
+    expect(all.at(-1)).toMatchObject({
+      job_id: jobId,
+      finished_at: expect.any(String),
+    });
+    expect(
+      client.prepare("SELECT summary FROM events WHERE id=?").get(event.id),
+    ).toEqual({ summary: "SAVED_SUMMARY" });
+    expect(new Set(all.map((row) => (row as { id: string }).id)).size).toBe(
+      all.length,
+    );
+  },
+);
 
 test("attempt insertion or association failure prevents all external work", async () => {
   const { client } = testDatabase(),
