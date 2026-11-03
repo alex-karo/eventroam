@@ -9,7 +9,7 @@ import type { Genre } from "@/catalog/read/contracts";
 export type DiscoveryView = "map" | "list";
 
 function discoveryView(params: URLSearchParams): DiscoveryView {
-  return params.get("view") === "map" ? "map" : "list";
+  return params.get("view") === "list" ? "list" : "map";
 }
 
 export function readDiscoveryLocation(genres: Genre[]) {
@@ -72,7 +72,7 @@ export function pushDiscoveryFilters(filters: Filters) {
 
 export function pushDiscoveryView(view: DiscoveryView) {
   const params = new URLSearchParams(window.location.search);
-  if (view === "map") {
+  if (view === "list") {
     params.set("view", view);
   } else {
     params.delete("view");

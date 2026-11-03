@@ -9,9 +9,14 @@
 }
 
 .controls button {
-  min-width: 2.25rem;
-  min-height: 2.25rem;
-  padding: 0.25rem 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
   border: 1px solid var(--control);
   border-radius: var(--radius);
   background: #fff;
@@ -19,6 +24,7 @@
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
+  line-height: 20px;
   box-shadow: 0 2px 8px #00000018;
   cursor: pointer;
 }
@@ -37,10 +43,14 @@
 
 @media (max-width: 740px) {
   .controls {
-    left: 0.75rem;
-    right: auto;
+    right: 0.75rem;
     bottom: calc(32px + env(safe-area-inset-bottom));
     flex-direction: row;
+  }
+
+  .controls button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
   }
 }
 

@@ -51,7 +51,7 @@ test("applying filters and switching views preserve applied filters across URL r
     error: null,
   });
   pushDiscoveryView("list");
-  expect(state.location.searchParams.has("view")).toBe(false);
+  expect(state.location.searchParams.get("view")).toBe("list");
   expect(readDiscoveryLocation([])).toEqual({
     filters,
     view: "list",
@@ -59,7 +59,7 @@ test("applying filters and switching views preserve applied filters across URL r
   });
   pushDiscoveryView("map");
   pushDiscoveryFilters(emptyFilters());
-  expect(state.location.search).toBe("?view=map");
+  expect(state.location.search).toBe("");
   expect(state.history.pushState).toHaveBeenCalledTimes(4);
 });
 
@@ -70,6 +70,11 @@ test("invalid filters survive view changes and restore as errors", () => {
   expect(before.error).toBeTruthy();
   expect(before.view).toBe("map");
   pushDiscoveryView("list");
-  expect(state.location.search).toBe("?from=2026-01-01");
+  expect(state.location.search).toBe("?from=2026-01-01&view=list");
   expect(readDiscoveryLocation([])).toEqual({ ...before, view: "list" });
+});
+
+test("the map is the default view", () => {
+  browser("https://example.org/");
+  expect(readDiscoveryLocation([]).view).toBe("map");
 });

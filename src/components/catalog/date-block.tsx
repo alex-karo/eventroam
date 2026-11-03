@@ -4,9 +4,9 @@ export function DateBlock({ date }: Readonly<{ date: string }>) {
     timeZone: "UTC",
   }).format(new Date(`${date}T12:00:00Z`));
   return (
-    <div className="edition-date" aria-hidden="true">
+    <span className="edition-date" aria-hidden="true">
       <span>{month}</span>
       <strong>{Number(date.slice(-2))}</strong>
-    </div>
+    </span>
   );
 }

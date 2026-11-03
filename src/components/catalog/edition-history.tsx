@@ -1,15 +1,12 @@
 import type { PublicEdition } from "@/catalog/read/contracts";
 import { editionPath } from "@/site/site";
-import { withDiscovery } from "@/site/discovery-context";
 import { dateRange } from "./format";
 export function EditionHistory({
   editions,
   currentId,
-  token,
 }: Readonly<{
   editions: PublicEdition[];
   currentId?: string;
-  token: string | null;
 }>) {
   const sorted = [...editions].sort(
     (a, b) => b.startsOn.localeCompare(a.startsOn) || a.id.localeCompare(b.id),
@@ -31,10 +28,10 @@ export function EditionHistory({
               </span>
             ) : (
               <a
-                href={withDiscovery(
-                  editionPath(edition.eventSlug, edition.key),
-                  token,
-                )}
+                href={editionPath(edition.eventSlug, edition.key)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open edition page in a new tab"
               >
                 {label}
               </a>

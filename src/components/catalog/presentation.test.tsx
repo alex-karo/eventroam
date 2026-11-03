@@ -1,3 +1,6 @@
+import { createRef } from "react";
+import { load } from "cheerio";
+import { SelectedPreview } from "@/features/discovery/components/selected-preview";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
 import { testDatabase } from "@/test/database";
@@ -92,7 +95,6 @@ test("Edition layout preserves section order and shared history while Event stay
     <EditionDetailsPage
       event={data}
       edition={edition}
-      token="visit"
       now={new Date("2026-10-01")}
     />,
   );
@@ -109,11 +111,11 @@ test("Edition layout preserves section order and shared history while Event stay
   expect(output).not.toContain("location-canvas");
   expect(output).not.toContain("Show on map");
   expect(output).toContain("Current edition");
-  expect(output).toContain("discovery=visit");
+  expect(output).not.toContain("Back to results");
+  expect(output).not.toContain("discovery=");
+  expect(output).toContain('target="_blank" rel="noopener noreferrer"');
   expect(output).toContain("2027 · 1 Jan 2027");
-  const small = renderToStaticMarkup(
-    <EventDetailsPage event={data} token="visit" />,
-  );
+  const small = renderToStaticMarkup(<EventDetailsPage event={data} />);
   expect(small).toContain("A general festival description.");
   expect(small).not.toContain("Current edition");
   expect(small).not.toContain("Tickets");
@@ -122,7 +124,9 @@ test("Edition layout preserves section order and shared history while Event stay
     small.indexOf("1 Jan 2027"),
   );
   expect(small).toContain("Cancelled");
-  expect(small).toContain("discovery=visit");
+  expect(small).not.toContain("Back to results");
+  expect(small).not.toContain("discovery=");
+  expect(small).toContain('target="_blank" rel="noopener noreferrer"');
   const noSummary = renderToStaticMarkup(
     <EditionDetailsPage
       event={{ ...data, summary: null }}
@@ -168,4 +172,39 @@ test("additional official sites use an information icon and retain distinct name
   expect(output).toContain('aria-label="Visitor information"');
   expect(output).toContain("M12 11v6M12 7h.01");
   expect(output).toContain('aria-label="Tickets"');
+});
+
+test("selected preview shows all facts and opens both page links in a new tab", () => {
+  const edition = {
+    ...event().editions[0],
+    terms: [{ facet: "genre", name: "Electronic" }],
+    sizeEstimate: 5000,
+    priceKind: "free",
+    links: [{ kind: "website", url: "https://festival.example/", label: null }],
+  };
+  const $ = load(
+    renderToStaticMarkup(
+      <SelectedPreview
+        detailState={{ status: "ready", id: edition.id, data: edition }}
+        panelRef={createRef<HTMLElement>()}
+        onClose={() => undefined}
+        onRetry={() => undefined}
+        now={new Date("2026-10-01")}
+      />,
+    ),
+  );
+  const card = $(".detail-panel");
+  expect(card.text()).toContain("Electronic");
+  expect(card.text()).toContain("Estimated size: 5,000 people");
+  expect(card.text()).toContain("Tickets: Free");
+  expect(card.find('a[href="https://festival.example/"]')).toHaveLength(1);
+  expect(card.find("button")).toHaveLength(1);
+  expect(card.find("button").attr("aria-label")).toBe("Close details");
+  const pageLinks = card.find("h2 a, .view-edition");
+  expect(pageLinks).toHaveLength(2);
+  pageLinks.each((_, link) => {
+    expect($(link).attr("target")).toBe("_blank");
+    expect($(link).attr("rel")).toBe("noopener noreferrer");
+    expect($(link).attr("href")).not.toContain("discovery=");
+  });
 });
