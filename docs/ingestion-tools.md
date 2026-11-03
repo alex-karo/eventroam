@@ -122,7 +122,7 @@ To clear all history, stop Studio and other writers, then remove only the workfl
 
 ## Local trace inspection
 
-Logging and tracing are independently opt-in and default off. Tracing supports apply, preview and evaluation, including injected dependencies. Mock calls do not invent tokens or costs. `CATALOG_LOG_LEVEL` accepts `debug`, `info` (default), `warn`, or `error`.
+Local commands keep logging and tracing off by default. Compose enables both for Studio and worker; each deployment flag can disable its output independently. Tracing supports apply, preview and evaluation, including injected dependencies. Mock calls do not invent tokens or costs. `CATALOG_LOG_LEVEL` accepts `debug`, `info` (default), `warn`, or `error`.
 
 Close Studio before recording from a separate CLI process: DuckDB requires exclusive process ownership of its file.
 

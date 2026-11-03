@@ -8,7 +8,7 @@ Define required workflow history, optional execution observations, and the field
 
 ### Requirement: Logging and tracing are independently optional
 
-The owner SHALL be able to enable local application logging independently of tracing. Both SHALL be off by default without changing ingestion behavior. Enabled tracing and execution metrics SHALL be available for apply, preview, and evaluation runs, including runs with injected dependencies. Observability failure SHALL NOT change research decisions, catalog writes, durable run history, reports, scoring, or exit status.
+The owner SHALL be able to enable local application logging independently of tracing without changing ingestion behavior. Enabled tracing and execution metrics SHALL be available for apply, preview, and evaluation runs, including runs with injected dependencies. Observability failure SHALL NOT change research decisions, catalog writes, durable run history, reports, scoring, or exit status.
 
 #### Scenario: Logging without tracing
 

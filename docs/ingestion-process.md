@@ -219,7 +219,7 @@ Use `--model X` to select X for all eight agents, including isolated Location. C
 
 Logs and traces help diagnose execution. They are optional and best effort. They do not replace the durable run report or writer audit. See [Ingestion tools](ingestion-tools.md#local-trace-inspection) for recording, queries, and cleanup.
 
-- Set `CATALOG_TRACING=true` for traces and native metrics. Set `CATALOG_LOGGING=true` independently for application and native SDK logs. Both default off.
+- Set `CATALOG_TRACING=true` for traces and native metrics. Set `CATALOG_LOGGING=true` independently for application and native SDK logs. Local commands keep both off by default. Compose enables both for Studio and worker.
 - Close Studio before a separate CLI process records data. Only one process can own the DuckDB file. Reopen Studio after the CLI exits.
 - Correlate saved runs, logs, and traces through the durable `runId` and any available real trace/span IDs. A missing trace does not mean the catalog write failed.
 - Inspect retrieval status and reason codes separately from tool execution status. A completed tool can return a failed retrieval. Native technical success does not verify facts or catalog changes.

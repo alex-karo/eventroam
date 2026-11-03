@@ -18,7 +18,7 @@ Both public hosts serve `/privacy` with links to disable analytics or choose bas
 
 Ingestion exports traces only when `CATALOG_TRACING=true` and both PostHog settings are present. Search generation events contain model, token counts, timing, and correlation IDs. They exclude prompts and model replies. Search results do not wait for remote telemetry delivery.
 
-For Compose, set `EVENTROAM_POSTHOG_KEY` and `EVENTROAM_POSTHOG_HOST`. These supply browser build arguments and Studio runtime settings. Rebuild the web image after changing them. Ingestion tracing still requires `EVENTROAM_CATALOG_TRACING=true`.
+For Compose, set `EVENTROAM_POSTHOG_KEY` and `EVENTROAM_POSTHOG_HOST`. These supply browser build arguments and Studio and worker runtime settings. Rebuild the web image after changing them. Compose enables ingestion tracing by default. Set `EVENTROAM_CATALOG_TRACING=false` to disable it.
 
 The project presentation records `promo_link_clicked` for LinkedIn contact links (`destination: "linkedin"`, `placement: "hero" | "footer"`) and the catalog link (`destination: "festivals"`, `placement: "example"`). These events record clicks, not activity on LinkedIn.
 
