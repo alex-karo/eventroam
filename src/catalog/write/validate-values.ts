@@ -10,6 +10,7 @@ import {
   validateAliasRecord,
   validateTaxonomyTerm,
   validateTermAssignments,
+  validateTermAssignmentAncestry,
 } from "@/catalog/domain/validation";
 
 const termSchema = z.object({
@@ -122,12 +123,25 @@ export function validateCatalogValues<T extends Record<string, unknown>>(
         throw new Error("Unknown taxonomy term");
       }
       const assigned = db
-        .select({ id: taxonomyTerms.id, facet: taxonomyTerms.facet })
+        .select({
+          id: taxonomyTerms.id,
+          facet: taxonomyTerms.facet,
+          parentId: taxonomyTerms.parentId,
+        })
         .from(editionTerms)
         .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, editionTerms.termId))
         .where(eq(editionTerms.editionId, editionId))
         .all();
-      validateTermAssignments([...assigned, term]);
+      const terms = [...assigned, term];
+      validateTermAssignments(terms);
+      const taxonomy = new Map(
+        db
+          .select()
+          .from(taxonomyTerms)
+          .all()
+          .map((row) => [row.id, row]),
+      );
+      validateTermAssignmentAncestry(terms, taxonomy);
       break;
     }
   }

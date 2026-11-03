@@ -1,4 +1,7 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
+import { MastraCompositeStore } from "@mastra/core/storage";
+import { LibSQLStore } from "@mastra/libsql";
+import type { DuckDBStore } from "@mastra/duckdb";
 import { dirname, join } from "node:path";
 import { linkSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import Database from "better-sqlite3";
@@ -137,3 +140,59 @@ test("provider initialization errors are content-free", async () => {
     await storage.close();
   }
 });
+
+test.each([
+  [true, false, false],
+  [false, true, false],
+  [false, false, true],
+  [true, true, true],
+])(
+  "workflow close attempts every stage when failures are %s/%s/%s",
+  async (compositeFails, providerFails, observationsFail) => {
+    const calls: string[] = [];
+    const originalClose = LibSQLStore.prototype.close;
+    const composite = vi
+      .spyOn(MastraCompositeStore.prototype, "close")
+      .mockImplementation(async () => {
+        calls.push("composite");
+        if (compositeFails) {
+          throw new Error("PRIVATE_COMPOSITE");
+        }
+      });
+    const provider = vi
+      .spyOn(LibSQLStore.prototype, "close")
+      .mockImplementation(async function (this: LibSQLStore) {
+        calls.push("provider");
+        await originalClose.call(this);
+        if (providerFails) {
+          throw new Error("PRIVATE_PROVIDER");
+        }
+      });
+    const observability = {
+      close: async () => {
+        calls.push("observations");
+        if (observationsFail) {
+          throw new Error("PRIVATE_OBSERVATIONS");
+        }
+      },
+    } as unknown as DuckDBStore;
+    try {
+      const storage = createWorkflowStorage({
+        path: ":memory:",
+        observability,
+      });
+      if (compositeFails || providerFails) {
+        await expect(storage.close()).rejects.toMatchObject({
+          name: "WorkflowHistoryError",
+          message: "workflow_history_failed",
+        });
+      } else {
+        await expect(storage.close()).resolves.toBeUndefined();
+      }
+      expect(calls).toEqual(["composite", "provider", "observations"]);
+    } finally {
+      composite.mockRestore();
+      provider.mockRestore();
+    }
+  },
+);

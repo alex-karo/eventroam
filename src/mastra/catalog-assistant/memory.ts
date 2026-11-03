@@ -87,8 +87,11 @@ export class StudioMastra extends Mastra {
       await flushObservability(this, this.diagnose);
       await super.shutdown(options);
     } finally {
-      await this.chat.memory.settled();
-      await this.chat.storage.close();
+      try {
+        await this.chat.memory.settled();
+      } finally {
+        await this.chat.storage.close();
+      }
     }
   }
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { price, priceDetail } from "./price";
+import { editionScalarSchemas } from "./edition-values";
 import {
   publicationStates,
   scopes,
@@ -65,6 +66,9 @@ export function validateStoredPrice(r: RecordValues) {
 
 export function validateEditionRecord(r: RecordValues) {
   const states = editionStates.parse(r);
+  for (const [field, schema] of Object.entries(editionScalarSchemas)) {
+    schema.parse(r[field]);
+  }
   z.number().int().positive().nullish().parse(r.sizeEstimate);
   z.array(priceDetail).max(100).default([]).parse(r.priceDetails);
   assert(
@@ -177,5 +181,25 @@ export function isEditionPublishable(
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Supply the full taxonomy so that unassigned parents remain in the chain. */
+export function validateTermAssignmentAncestry(
+  terms: readonly TaxonomyTerm[],
+  taxonomy: ReadonlyMap<string, TaxonomyTerm>,
+) {
+  const ids = new Set(terms.map((term) => term.id));
+  for (const term of terms) {
+    const seen = new Set([term.id]);
+    let parentId = term.parentId;
+    while (parentId != null) {
+      assert(!seen.has(parentId), "Taxonomy parent cycle");
+      seen.add(parentId);
+      assert(!ids.has(parentId), "Do not assign redundant ancestor term");
+      const parent = taxonomy.get(parentId);
+      assert(parent, "Unknown taxonomy parent");
+      parentId = parent.parentId;
+    }
   }
 }

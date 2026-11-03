@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { normalizeRoleWire } from "./wire";
 import { afterEach, expect, it, vi } from "vitest";
 import { invokeRole } from "./invoke";
 import { generalOutputSchema } from "./contracts";
@@ -42,6 +44,7 @@ it("uses an object transport envelope for General and retains the actual respons
     instructions: "Fixture",
     input: {},
     schema: generalOutputSchema,
+    normalizeOutput: (value) => normalizeRoleWire("general", value),
     budget,
     config: {
       apiKey: "fixture",
@@ -62,6 +65,7 @@ it("accepts a valid domain decision with a reason above the length guidance", as
     instructions: "Fixture",
     input: {},
     schema: generalOutputSchema,
+    normalizeOutput: (value) => normalizeRoleWire("general", value),
     budget,
     config: {
       apiKey: "fixture",
@@ -129,6 +133,7 @@ it.each([
       instructions: "Fixture",
       input: {},
       schema: generalOutputSchema,
+      normalizeOutput: (value) => normalizeRoleWire("general", value),
       budget,
       config: {
         apiKey: "fixture",
@@ -154,3 +159,67 @@ it.each([
     }
   },
 );
+
+it("preserves required nullable values in a custom Reader union", async () => {
+  const schema = z.union([
+    z.strictObject({ a: z.string(), x: z.string().optional() }),
+    z.strictObject({ b: z.string(), x: z.string().nullable() }),
+  ]);
+  const raw = { b: "value", x: null };
+  const budget = createResearchBudget();
+  const result = await invokeRole({
+    role: "reader",
+    version: "test",
+    instructions: "Fixture",
+    input: {},
+    schema,
+    budget,
+    config: {
+      apiKey: "fixture",
+      model: "fixture/model",
+      limits: budget.limits,
+    },
+    generate: async () => raw,
+  });
+  expect(result.status).toBe("success");
+  expect(result.output).toEqual(raw);
+});
+
+it("retains the Reader evidence branches and required null uncertainty", async () => {
+  const { readerOutputSchema } = await import("../evidence/contracts");
+  const raw = {
+    overview: "Official programme",
+    coverage: { found: ["Dates"], notPublished: [] },
+    topics: ["dates"],
+    statedYears: ["2027"],
+    limitations: [],
+    evidence: [
+      { quote: "Festival dates", topics: ["dates"] },
+      {
+        quote: { start: "Festival", end: "July" },
+        topics: ["dates"],
+        context: [],
+        editionClues: ["2027"],
+        uncertainty: null,
+      },
+    ],
+  };
+  const budget = createResearchBudget();
+  const result = await invokeRole({
+    role: "reader",
+    version: "test",
+    instructions: "Fixture",
+    input: {},
+    schema: readerOutputSchema,
+    budget,
+    config: {
+      apiKey: "fixture",
+      model: "fixture/model",
+      limits: budget.limits,
+    },
+    generate: async () => raw,
+  });
+  expect(result.status).toBe("success");
+  expect(result.output).toEqual(raw);
+  expect(result.modelResponse?.object).toEqual(raw);
+});

@@ -6,13 +6,12 @@ import {
   coordinatePrecisions,
   linkKinds,
 } from "@/catalog/domain/vocabulary";
-import { isAssignedCountryCode } from "@/catalog/domain/country-codes";
+import { editionScalarSchemas } from "@/catalog/domain/edition-values";
 
 const slug = z
   .string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   .max(100);
-const localDate = z.iso.date();
 const url = z.url().refine((value) => /^https?:\/\//.test(value));
 const common = z
   .object({
@@ -38,9 +37,9 @@ const editionData = z
   .object({
     editionKey: slug,
     displayName: z.string().trim().min(1).max(250).nullable().optional(),
-    editionYear: z.number().int().min(1).max(9999).nullable().optional(),
-    startsOn: localDate.nullable().optional(),
-    endsOn: localDate.nullable().optional(),
+    editionYear: editionScalarSchemas.editionYear,
+    startsOn: editionScalarSchemas.startsOn,
+    endsOn: editionScalarSchemas.endsOn,
     dateState: z.enum(dateStates).optional(),
     scheduleStatus: z.enum(scheduleStatuses).optional(),
     sizeEstimate: z.number().int().positive().nullable().optional(),
@@ -48,19 +47,11 @@ const editionData = z
     venueAddress: z.string().trim().min(1).max(500).nullable().optional(),
     locality: z.string().trim().min(1).max(250).nullable().optional(),
     administrativeArea: z.string().trim().min(1).max(250).nullable().optional(),
-    countryCode: z
-      .string()
-      .regex(/^[A-Z]{2}$/)
-      .refine(
-        isAssignedCountryCode,
-        "Country code is not assigned by ISO 3166-1",
-      )
-      .nullable()
-      .optional(),
+    countryCode: editionScalarSchemas.countryCode,
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
     coordinatePrecision: z.enum(coordinatePrecisions).optional(),
-    timeZone: z.string().max(100).nullable().optional(),
+    timeZone: editionScalarSchemas.timeZone,
     price: price.nullable().optional(),
   })
   .strict();

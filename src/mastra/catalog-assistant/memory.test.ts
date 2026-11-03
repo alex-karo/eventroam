@@ -1,6 +1,7 @@
 import { linkSync, symlinkSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
+import { Mastra } from "@mastra/core/mastra";
 import { createMockModel } from "@mastra/core/test-utils/llm-mock";
 import { testDatabase } from "@/test/database";
 import { createObservabilityStore } from "../../ingestion/runtime/observability/storage";
@@ -178,3 +179,60 @@ test("Memory owns persistent history and Studio closes chat, workflow and observ
     await reopened.storage.close();
   }
 });
+
+test.each([
+  [true, false, false],
+  [false, true, false],
+  [false, false, true],
+  [true, true, true],
+])(
+  "Studio shutdown attempts chat cleanup when failures are %s/%s/%s",
+  async (shutdownFails, settledFails, closeFails) => {
+    const calls: string[] = [];
+    const chat = await createChatMemory(
+      join(dirname(testDatabase().path), "chat.sqlite"),
+    );
+    const originalClose = chat.storage.close.bind(chat.storage);
+    const shutdown = vi
+      .spyOn(Mastra.prototype, "shutdown")
+      .mockImplementation(async () => {
+        calls.push("shutdown");
+        if (shutdownFails) {
+          throw new Error("shutdown failed");
+        }
+      });
+    const settled = vi
+      .spyOn(chat.memory, "settled")
+      .mockImplementation(async () => {
+        calls.push("settled");
+        if (settledFails) {
+          throw new Error("settled failed");
+        }
+      });
+    const close = vi
+      .spyOn(chat.storage, "close")
+      .mockImplementation(async () => {
+        calls.push("close");
+        await originalClose();
+        if (closeFails) {
+          throw new Error("close failed");
+        }
+      });
+    try {
+      const mastra = new StudioMastra({ logger: false }, chat);
+      await expect(mastra.shutdown()).rejects.toThrow(
+        closeFails
+          ? "close failed"
+          : settledFails
+            ? "settled failed"
+            : "shutdown failed",
+      );
+      expect(calls).toEqual(["shutdown", "settled", "close"]);
+    } finally {
+      shutdown.mockRestore();
+      settled.mockRestore();
+      close.mockRestore();
+      await originalClose();
+    }
+  },
+);

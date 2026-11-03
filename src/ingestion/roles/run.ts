@@ -1,3 +1,4 @@
+import { normalizeRoleWire } from "./wire";
 import {
   searchWebInputSchema,
   searchWebOutputSchema,
@@ -105,6 +106,7 @@ export async function collectResearch(
       remaining: options.budget.remaining(),
     },
     schema: collectionOutputSchema,
+    normalizeOutput: (value: unknown) => normalizeRoleWire("research", value),
     budget: options.budget,
     config:
       options.config.reasoningEffort === "low"
@@ -120,6 +122,7 @@ export async function collectResearch(
 }
 function base(options: RoleOptions, role: import("./invoke").Role) {
   return {
+    normalizeOutput: (value: unknown) => normalizeRoleWire(role, value),
     budget: options.budget,
     config:
       (role === "editor" || role === "general") &&

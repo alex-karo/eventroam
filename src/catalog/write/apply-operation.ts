@@ -4,6 +4,7 @@ import {
   validateEventRecord,
   validateEditionRecord,
   validateTermAssignments,
+  validateTermAssignmentAncestry,
 } from "@/catalog/domain/validation";
 import { createHash, randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
@@ -28,7 +29,6 @@ import {
   type CatalogPrice,
   type CatalogPriceDetail,
 } from "@/catalog/operations/operation";
-import { isAssignedCountryCode } from "@/catalog/domain/country-codes";
 import { normalizeCatalogUrl } from "@/catalog/domain/urls";
 
 type EventRow = typeof events.$inferSelect;
@@ -118,22 +118,6 @@ function editionData<T extends object>(
   return Object.fromEntries(entries) as Omit<T, "price"> &
     Partial<EditionValues>;
 }
-function validateEdition(r: Partial<EditionRow>) {
-  validateEditionRecord(r);
-  if (r.countryCode != null) {
-    assert(
-      typeof r.countryCode === "string" && isAssignedCountryCode(r.countryCode),
-      "Country code is not assigned by ISO 3166-1",
-    );
-  }
-  if (r.timeZone != null) {
-    try {
-      new Intl.DateTimeFormat("en", { timeZone: r.timeZone });
-    } catch {
-      throw new Error("Invalid IANA time zone");
-    }
-  }
-}
 function setEvent(
   client: Database.Database,
   id: string,
@@ -148,7 +132,7 @@ function setEdition(
   id: string,
   values: Partial<EditionValues>,
 ) {
-  validateEdition({ ...editionRow(client, id), ...values });
+  validateEditionRecord({ ...editionRow(client, id), ...values });
   const db = drizzle(client);
   db.update(editions).set(values).where(eq(editions.id, id)).run();
 }
@@ -371,7 +355,7 @@ function createEdition(
     createdAt: now,
     updatedAt: now,
   } satisfies EditionValues;
-  validateEdition(record);
+  validateEditionRecord(record);
   db.insert(editions).values(record).run();
   writeChange(client, op, "edition", id, 1, diff(editions, {}, record), now);
   return { id, version: 1, changed: true };
@@ -512,7 +496,7 @@ function changePublication(
       "Cannot withdraw a draft",
     );
     if (target === "published") {
-      validateEdition({ ...old, publicationState: "published" });
+      validateEditionRecord({ ...old, publicationState: "published" });
       validateScope(client, op.id);
     }
     const values: Partial<EditionValues> = { publicationState: target };
@@ -594,19 +578,13 @@ function replaceTerms(
       .all()
       .map((term) => [term.id, term]),
   );
-  const terms = ids.map((id) => knownTerms.get(id));
-  assert(terms.every(Boolean), "Unknown taxonomy term");
-  validateTermAssignments(terms.filter((term) => term !== undefined));
-  for (const t of terms) {
-    let parentId = t?.parentId;
-    const seen = new Set<string>();
-    while (parentId) {
-      assert(!seen.has(parentId), "Taxonomy parent cycle");
-      seen.add(parentId);
-      assert(!ids.includes(parentId), "Do not assign redundant ancestor term");
-      parentId = knownTerms.get(parentId)?.parentId;
-    }
-  }
+  const terms = ids.map((id) => {
+    const term = knownTerms.get(id);
+    assert(term, "Unknown taxonomy term");
+    return term;
+  });
+  validateTermAssignments(terms);
+  validateTermAssignmentAncestry(terms, knownTerms);
   const previous = db
     .select({ termId: editionTerms.termId })
     .from(editionTerms)

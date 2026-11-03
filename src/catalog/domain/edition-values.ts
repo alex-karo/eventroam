@@ -1,0 +1,26 @@
+import { z } from "zod";
+import { isAssignedCountryCode } from "./country-codes";
+
+const localDate = z.iso.date().nullish();
+export const editionScalarSchemas = {
+  startsOn: localDate,
+  endsOn: localDate,
+  editionYear: z.number().int().min(1).max(9999).nullish(),
+  countryCode: z
+    .string()
+    .regex(/^[A-Z]{2}$/)
+    .refine(isAssignedCountryCode, "Country code is not assigned by ISO 3166-1")
+    .nullish(),
+  timeZone: z
+    .string()
+    .max(100)
+    .refine((value) => {
+      try {
+        new Intl.DateTimeFormat("en", { timeZone: value });
+        return true;
+      } catch {
+        return false;
+      }
+    }, "Invalid IANA time zone")
+    .nullish(),
+};

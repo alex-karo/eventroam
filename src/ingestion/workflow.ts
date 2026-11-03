@@ -1,3 +1,8 @@
+import { researchErrorSchema } from "./research/contracts";
+import {
+  specialistResultsSchema,
+  specialistStateSchema,
+} from "./specialist-results";
 import { logPreparation } from "./workflow-logging";
 import { createCollection } from "./evidence/collection";
 import { buildAssignment } from "./roles/assignment";
@@ -17,14 +22,12 @@ import {
   initialDiagnostics,
 } from "./proposals";
 import { prepareCatalogPlan } from "./catalog-plan";
-import type { RoleExecution } from "./roles/invoke";
-import type {
-  TicketsOutput,
-  ClassificationOutput,
-  LinksOutput,
-} from "./roles/contracts";
+import type { Targets } from "./roles/contracts";
 import { stageDiagnostics } from "./stage";
-import { locationExecutionSchema } from "./location/execution";
+import {
+  emptyLocationExecution,
+  locationExecutionSchema,
+} from "./location/execution";
 import { resolveLocation } from "./location/agent";
 import { buildLocationInput } from "./location/input";
 import { assertLocationPreviousPoints } from "./location/donor-guard";
@@ -60,6 +63,27 @@ import type {
 import { readyCatalogPlan, catalogWriteOutcome } from "./pipeline";
 import { buildResearchReport } from "./report";
 import { reportEventId, attemptedCatalogFields } from "./workflow-logging";
+
+const specialistRoles = [
+  "tickets",
+  "classification",
+  "location",
+  "links",
+] as const;
+type SpecialistRole = (typeof specialistRoles)[number];
+
+function specialistApplies(
+  role: SpecialistRole,
+  targets: Pick<Targets, "previousEdition" | "currentOrNextEdition">,
+) {
+  if (role === "links") {
+    return true;
+  }
+  if (role === "tickets") {
+    return !!targets.currentOrNextEdition;
+  }
+  return !!(targets.previousEdition || targets.currentOrNextEdition);
+}
 
 function sourceErrorCode(source: { status: string; reasonCode?: string }) {
   if (source.status === "unsupported") {
@@ -110,7 +134,7 @@ const dataSchema = z.object({
   discovery: z.array(z.json()),
   research: z.json(),
   general: z.json(),
-  specialists: z.json(),
+  specialists: specialistStateSchema,
   corpus: z.json().nullable(),
   prepared: z.json().nullable(),
   editor: z.json(),
@@ -122,7 +146,7 @@ const dataSchema = z.object({
     .enum(["created", "updated", "published", "unchanged", "skipped", "failed"])
     .nullable(),
   applied: z.json().nullable(),
-  errors: z.array(z.json()),
+  errors: z.array(researchErrorSchema),
   unresolved: z.array(z.json()),
   report: z.json().nullable(),
 }) as unknown as z.ZodType<IngestionData>;
@@ -551,9 +575,7 @@ export function createCatalogIngestionWorkflow(
     },
   );
   // Branch steps return their own records. They do not race to replace shared state.
-  const specialist = (
-    role: "tickets" | "classification" | "links" | "location",
-  ) =>
+  const specialist = (role: SpecialistRole) =>
     createStep({
       id: role,
       inputSchema: stepSchema,
@@ -571,11 +593,11 @@ export function createCatalogIngestionWorkflow(
           !targets ||
           data.report ||
           data.outcome === "failed" ||
-          (role === "tickets" && !targets.currentOrNextEdition) ||
-          (role !== "links" &&
-            !targets.previousEdition &&
-            !targets.currentOrNextEdition)
+          !specialistApplies(role, targets)
         ) {
+          if (role === "location") {
+            return stepSchema.parse(emptyLocationExecution());
+          }
           return {
             status: "not_run",
             skipReason: "No assigned target",
@@ -612,10 +634,21 @@ export function createCatalogIngestionWorkflow(
             }
             return runLinks(options, targets);
           };
-          return (await owned.track<unknown>(work())) as z.infer<
-            typeof stepSchema
-          >;
+          return stepSchema.parse(await owned.track<unknown>(work()));
         } catch {
+          if (role === "location") {
+            return stepSchema.parse({
+              ...emptyLocationExecution(),
+              status: "failed",
+              errors: [
+                {
+                  code: "location_failed",
+                  stage: "location",
+                  message: "Location branch failed",
+                },
+              ],
+            });
+          }
           return {
             status: "failed",
             modelResponse: null,
@@ -644,27 +677,56 @@ export function createCatalogIngestionWorkflow(
       ) {
         return null;
       }
-      const results = inputData as Record<string, RoleExecution>;
-      for (const role of ["tickets", "classification", "links"]) {
+      const parsed = specialistResultsSchema.safeParse(inputData);
+      if (!parsed.success) {
+        data.errors.push({
+          code: "workflow_failed",
+          stage: "workflow",
+          message: "Specialist results are missing or invalid",
+        });
+        data.outcome = "failed";
+        return null;
+      }
+      const results = parsed.data;
+      for (const role of ["tickets", "classification", "links"] as const) {
         data.specialists[role] = results[role];
       }
-      if (results.location.status !== "not_run") {
-        data.location =
-          results.location as unknown as IngestionData["location"];
-      }
       for (const result of Object.values(results)) {
-        const output = result.output as
-          | {
-              checks?: import("./roles/contracts").CheckFinding[];
-              unresolved?: import("./research/contracts").ResearchQuestion[];
-            }
-          | undefined;
-        if (!output) {
+        data.errors.push(...result.errors);
+      }
+      if (results.location.status !== "not_run") {
+        data.location = results.location;
+      }
+      const assigned = data.researchValidation.value;
+      if (
+        specialistRoles.some(
+          (role) =>
+            specialistApplies(role, assigned) &&
+            results[role].status === "not_run",
+        ) ||
+        (results.location.status === "success" &&
+          !results.location.materialized)
+      ) {
+        data.errors.push({
+          code: "workflow_failed",
+          stage: "workflow",
+          message: "An assigned specialist result is missing or invalid",
+        });
+        data.outcome = "failed";
+        return null;
+      }
+      for (const result of [
+        results.tickets,
+        results.classification,
+        results.links,
+      ]) {
+        if (result.status !== "success") {
           continue;
         }
-        data.unresolved.push(...(output.unresolved ?? []));
+        const output = result.output;
+        data.unresolved.push(...output.unresolved);
         if (
-          output.checks?.some(
+          output.checks.some(
             (check) =>
               check.evidenceIds.some(
                 (id) => !data.corpus!.evidence.some((item) => item.id === id),
@@ -684,14 +746,12 @@ export function createCatalogIngestionWorkflow(
         }
       }
       data.unresolved.push(...(data.location.materialized?.unresolved ?? []));
-      const errors = Object.values(results).flatMap((result) => result.errors);
-      data.errors.push(...errors);
       if (
         data.outcome === "failed" ||
+        results.links.status !== "success" ||
         Object.values(results).some(
           (result) =>
-            result.status === "failed" ||
-            (result.status as string) === "rejected",
+            result.status === "failed" || result.status === "rejected",
         )
       ) {
         data.outcome = "failed";
@@ -700,10 +760,13 @@ export function createCatalogIngestionWorkflow(
       const targets = data.researchValidation.value;
       data.prepared = assembleProposals({
         targets,
-        tickets: (results.tickets.output as TicketsOutput) ?? null,
+        tickets:
+          results.tickets.status === "success" ? results.tickets.output : null,
         classification:
-          (results.classification.output as ClassificationOutput) ?? null,
-        links: results.links.output as LinksOutput,
+          results.classification.status === "success"
+            ? results.classification.output
+            : null,
+        links: results.links.output,
         location: data.location.materialized ?? {
           support: {},
           slots: {},
@@ -790,7 +853,6 @@ export function createCatalogIngestionWorkflow(
         data.context!.catalog,
         owned.input,
         data.context!.terms,
-        accepted.location,
       );
       logPreparation(
         owned.trace?.log,
@@ -995,12 +1057,7 @@ export function createCatalogIngestionWorkflow(
     .then(readInitial)
     .then(research)
     .then(general)
-    .parallel([
-      specialist("tickets"),
-      specialist("classification"),
-      specialist("location"),
-      specialist("links"),
-    ])
+    .parallel(specialistRoles.map(specialist))
     .then(join)
     .then(edit)
     .then(prepareOperations)

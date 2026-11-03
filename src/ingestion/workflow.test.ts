@@ -1624,3 +1624,88 @@ test.each(["provider", "budget"] as const)(
     expect(JSON.stringify(result)).not.toContain("PRIVATE_PROVIDER_RESPONSE");
   },
 );
+
+test.each([
+  undefined,
+  { status: "success", output: { checks: "invalid" } },
+  {
+    status: "not_run",
+    modelResponse: null,
+    errors: [],
+    model: "fixture",
+    promptVersion: "fixture",
+    durationMs: 0,
+  },
+])(
+  "rejects missing, invalid or skipped required specialist results without writes: %j",
+  async (branch) => {
+    const roles = await import("./roles/run");
+    vi.spyOn(roles, "runTickets").mockResolvedValue(branch as never);
+    const { client } = testDatabase();
+    const apply = vi.spyOn(applyModule, "applyCatalogItem");
+    const result = await runCatalogResearch(
+      {
+        mode: "add",
+        name: "Example Fest",
+        actor: "catalog-research",
+        dryRun: false,
+      },
+      { client, ...fixtureDependencies() },
+    );
+    expect(result.outcome).toBe("failed");
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "workflow_failed" }),
+    );
+    expect(result.operations).toEqual([]);
+    expect(apply).not.toHaveBeenCalled();
+    expect(readResearchCatalog(client)).toEqual([]);
+  },
+);
+
+test("retains other specialist diagnostics when Links fails", async () => {
+  const roles = await import("./roles/run");
+  vi.spyOn(roles, "runLinks").mockResolvedValue({
+    status: "failed",
+    modelResponse: null,
+    errors: [
+      { code: "model_failed", stage: "research", message: "Links failed" },
+    ],
+    model: "fixture",
+    promptVersion: "fixture",
+    durationMs: 0,
+  });
+  const { client } = testDatabase();
+  const result = await runCatalogResearch(
+    { mode: "add", name: "Example Fest", actor: "test", dryRun: false },
+    {
+      client,
+      ...fixtureDependencies(),
+      generateLocation: async (raw) => {
+        const plan = fixtureLocationPlan(JSON.parse(raw));
+        if (plan.decision.status === "ready") {
+          plan.decision.currentOrNextEdition!.unresolved.push({
+            field: "coordinates",
+            message: "Venue point remains unknown",
+          });
+        }
+        return plan;
+      },
+    },
+  );
+  expect(result.outcome).toBe("failed");
+  expect(result.locationStatus).toBe("success");
+  expect(result.unresolved).toContainEqual(
+    expect.objectContaining({
+      field: "coordinates",
+      message: "Venue point remains unknown",
+    }),
+  );
+  expect(result.errors.some((error) => error.code === "model_failed")).toBe(
+    true,
+  );
+  expect(result.errors.some((error) => error.code === "workflow_failed")).toBe(
+    false,
+  );
+  expect(result.operations).toEqual([]);
+  expect(readResearchCatalog(client)).toEqual([]);
+});
