@@ -1,11 +1,20 @@
 import { openFilter } from "./discovery-controls";
 import { expect, test, type Page, type Route } from "./fixtures";
 
+test.beforeEach(async ({}, info) => {
+  test.skip(
+    info.project.name === "mobile",
+    "The preview is a desktop and tablet panel.",
+  );
+});
+
 const year = "/?from=2027-01-01&to=2027-12-31";
 const preview = (page: Page) =>
   page.getByRole("region", { name: "Selected edition details" });
 const details = (page: Page, name: string) =>
-  page.getByRole("button", { name: `Show details for ${name}` });
+  page.getByRole("button", {
+    name: `${name.includes("Field Days") ? "Select" : "Show on map:"} ${name}`,
+  });
 
 async function fulfillAndSettle(page: Page, route: Route) {
   const request = route.request();
@@ -35,11 +44,7 @@ test("a month that excludes the selected edition keeps month focus", async ({
 
 test("a late first response cannot replace a newer selection", async ({
   page,
-}, testInfo) => {
-  test.skip(
-    testInfo.project.name === "mobile",
-    "Preview overlays the list on mobile",
-  );
+}) => {
   const pending: Route[] = [];
   await page.route("**/api/discovery/*", (route) => {
     pending.push(route);
@@ -92,7 +97,7 @@ test("closing before a response keeps the preview closed and restores focus", as
 
 test("retry keeps the original opener and Escape closes filters before details", async ({
   page,
-}, testInfo) => {
+}) => {
   let attempts = 0;
   await page.route("**/api/discovery/*", async (route) => {
     attempts += 1;
@@ -118,14 +123,6 @@ test("retry keeps the original opener and Escape closes filters before details",
   await page.keyboard.press("Escape");
   await expect(page.locator("#filter-panel")).toHaveCount(0);
   await expect(preview(page)).toBeVisible();
-
-  if (testInfo.project.name === "mobile") {
-    const views = page.getByRole("group", { name: "Discovery view" });
-    await views.getByRole("button", { name: "Map" }).click();
-    await expect(preview(page)).toBeVisible();
-    await views.getByRole("button", { name: "List" }).click();
-    await expect(opener).toHaveAttribute("aria-pressed", "true");
-  }
 
   await page.keyboard.press("Escape");
   await expect(preview(page)).toHaveCount(0);

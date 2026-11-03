@@ -4,9 +4,7 @@ import {
   beginVisit,
   historyVisitToken,
   readVisit,
-  returnHref,
   saveVisit,
-  withDiscovery,
   type DiscoveryVisit,
 } from "./discovery-context";
 import {
@@ -20,7 +18,6 @@ const snapshot: DiscoveryVisit = {
   camera: { latitude: 38, longitude: -9, zoom: 8 },
   scroll: 125,
   selectedId: "edition",
-  expanded: true,
 };
 beforeEach(() => {
   sessionStorage.clear();
@@ -40,13 +37,6 @@ test("full snapshots stay in tab storage and only tokens enter framework history
   });
   expect(readVisit(token)).toEqual(snapshot);
   expect(beginVisit().visit).toEqual(snapshot);
-  expect(returnHref(token)).toBe(withDiscovery(snapshot.rootUrl, token));
-  window.history.replaceState({ __NA: true }, "", returnHref(token));
-  expect(beginVisit()).toEqual({ token, visit: snapshot });
-  expect(window.location.search).toBe("?country=PT&view=map");
-  window.history.replaceState({ __NA: true }, "", withDiscovery("/", token));
-  expect(beginVisit()).toEqual({ token, visit: snapshot });
-  expect(window.location.search).toBe("?country=PT&view=map");
   normalizeDiscoveryLocation("country=PT");
   expect(historyVisitToken()).toBe(token);
   expect(window.history.state.__NA).toBe(true);
@@ -55,6 +45,7 @@ test("full snapshots stay in tab storage and only tokens enter framework history
   expect(historyVisitToken()).toBe(viewToken);
   expect(window.history.state).toEqual({
     __NA: true,
+    tree: "framework",
     eventroamDiscovery: viewToken,
   });
   const filterToken = pushDiscoveryFilters(emptyFilters());
@@ -62,25 +53,30 @@ test("full snapshots stay in tab storage and only tokens enter framework history
   expect(historyVisitToken()).toBe(filterToken);
   expect(window.history.state).toEqual({
     __NA: true,
+    tree: "framework",
     eventroamDiscovery: filterToken,
   });
   expect(readVisit(token)).toEqual(snapshot);
 });
-test("direct details never pick unrelated searches and invalid snapshots cannot supply return URLs", () => {
+test("unrelated history entries and invalid snapshots are not restored", () => {
   saveVisit("unrelated", snapshot);
-  expect(returnHref(null)).toBe("/");
-  expect(returnHref("missing")).toBe("/");
+  expect(readVisit(null)).toBeNull();
+  expect(readVisit("missing")).toBeNull();
   saveVisit("bad", { ...snapshot, rootUrl: "https://attacker.example/" });
   expect(readVisit("bad")).toBeNull();
-  window.history.replaceState({}, "", "/?country=ES&discovery=unrelated");
+  window.history.replaceState(
+    { eventroamDiscovery: "unrelated" },
+    "",
+    "/?country=ES",
+  );
   expect(beginVisit().visit).toBeNull();
   expect(window.location.search).toBe("?country=ES");
 });
-test("disabled storage keeps ordinary link and filter fallbacks", () => {
+test("disabled storage keeps discovery usable", () => {
   const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
     throw new Error("Storage blocked");
   });
-  expect(returnHref("visit")).toBe("/");
+  expect(readVisit("visit")).toBeNull();
   expect(beginVisit().visit).toBeNull();
   spy.mockRestore();
   const write = vi

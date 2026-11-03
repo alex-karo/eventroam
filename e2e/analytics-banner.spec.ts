@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import { openEdition } from "./discovery-controls";
 import { preferenceKey } from "../src/site/analytics";
 
 test.use({ showAnalyticsBanner: true });
@@ -39,7 +40,7 @@ for (const [label, value] of [
 
 test("catalog retry stays usable with the banner and a selected map card", async ({
   page,
-}, info) => {
+}) => {
   let unavailable = true;
   await page.route("**/api/discovery", async (route) => {
     if (unavailable) {
@@ -55,28 +56,23 @@ test("catalog retry stays usable with the banner and a selected map card", async
   await expect(retry).toBeVisible();
   await page
     .getByRole("button", {
-      name: "Show details for Fictional Atlantic Sounds 2027",
+      name: "Show on map: Fictional Atlantic Sounds 2027",
     })
     .click();
-  const card = page.getByRole("region", { name: "Selected edition details" });
-  await expect(card.getByRole("heading")).toHaveText(
-    "Fictional Atlantic Sounds",
-  );
-  if (info.project.name === "mobile") {
-    await page
-      .getByRole("group", { name: "Discovery view" })
-      .getByRole("button", { name: "Map", exact: true })
-      .click();
-  }
+  const selected = page.getByRole("button", {
+    name: "Show on map: Fictional Atlantic Sounds 2027",
+  });
+  await expect(selected).toHaveAttribute("aria-pressed", "true");
   unavailable = false;
   await retry.click();
   await expect(retry).toHaveCount(0);
-  await expect(card.getByRole("heading")).toHaveText(
-    "Fictional Atlantic Sounds",
-  );
+  await expect(selected).toHaveAttribute("aria-pressed", "true");
   await banner.getByRole("button", { name: "Disable analytics" }).click();
   await expect(banner).toHaveCount(0);
-  await expect(
-    card.getByRole("link", { name: "View", exact: true }),
-  ).toBeInViewport();
+  const details = await openEdition(page, "Fictional Atlantic Sounds 2027");
+  await expect(details.getByRole("heading", { level: 1 })).toHaveText(
+    "Fictional Atlantic Sounds 2027",
+  );
+  await details.close();
+  await expect(selected).toHaveAttribute("aria-pressed", "true");
 });

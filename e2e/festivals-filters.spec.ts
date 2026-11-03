@@ -23,15 +23,16 @@ test("filter count badges fit a 320px viewport", async ({ page }) => {
     params.append("genre", genre);
   }
   await page.goto(`/?${params}`);
-  await expect(page.locator(".filter-mobile-trigger")).toHaveText(
-    "Filters · 12",
-  );
+  await expect(page.locator(".filter-trigger-genre")).toContainText("+9");
+  await expect(page.locator(".filter-trigger-more")).toContainText("2");
   const fits = await page.evaluate(() => {
     const width = document.documentElement.clientWidth;
     return (
       document.documentElement.scrollWidth === width &&
       [
-        ...document.querySelectorAll(".month-all, .filter-mobile-trigger"),
+        ...document.querySelectorAll(
+          ".month-all, .filter-trigger, .clear-filters",
+        ),
       ].every((button) => {
         const bounds = button.getBoundingClientRect();
         return bounds.left >= 0 && bounds.right <= width;
@@ -39,9 +40,6 @@ test("filter count badges fit a 320px viewport", async ({ page }) => {
     );
   });
   expect(fits).toBe(true);
-  const all = await page.locator(".month-all").boundingBox();
-  const filters = await page.locator(".filter-mobile-trigger").boundingBox();
-  expect(all!.y).toBe(filters!.y);
   await openFilter(page, "Music");
   await expect(page.locator(".genre-selected button")).toHaveCount(10);
 });
@@ -55,22 +53,19 @@ async function expectNames(page: Page, names: string[]) {
 
 async function expectViews(page: Page, testInfo: TestInfo) {
   await expect(list(page)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Map results" })).toBeVisible();
+  const toggle = page.locator(".sheet-toggle");
   if (testInfo.project.name === "mobile") {
-    const views = page.getByRole("group", { name: "Discovery view" });
-    await views.getByRole("button", { name: "Map" }).click();
-    await expect(
-      page.getByRole("region", { name: "Map results" }),
-    ).toBeVisible();
-    await expect(list(page)).toBeHidden();
-    await views.getByRole("button", { name: "List" }).click();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await expect(list(page)).toBeVisible();
-  } else {
     await expect(
       page.getByRole("region", { name: "Map results" }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("group", { name: "Discovery view" }),
-    ).toBeHidden();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  } else {
+    await expect(toggle).toBeHidden();
   }
 }
 
@@ -138,7 +133,9 @@ test("combined date, country, place, and name filters survive reload and view sw
   await searchButton.click();
 
   await expectNames(page, ["Fictional Atlantic Sounds"]);
-  await expect(page.locator(".results-geography")).toHaveCount(0);
+  await expect(page.locator(".results-geography")).toHaveText(
+    "On map: 1 · Not mapped: 0",
+  );
   await expect(page).toHaveURL(
     /from=2027-06-01.*to=2027-07-31.*country=PT.*place=lisbon/,
   );
@@ -512,7 +509,7 @@ test("nearby months apply at once and All preserves other filters", async ({
     await expect(months.nth(offset)).toBeFocused();
   }
   await openFilter(page, "More");
-  if (await page.locator(".filter-mobile-trigger").isVisible()) {
+  if (await page.locator(".sheet-toggle").isVisible()) {
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
   }
   const first = months.first();
@@ -636,7 +633,7 @@ test("mobile sheet keeps focus inside and backdrop discards the draft", async ({
   await expect(cancel).toBeFocused();
   await page.mouse.click(8, 8);
   await expect(panel).toHaveCount(0);
-  await expect(page.locator(".filter-mobile-trigger")).toBeFocused();
+  await expect(page.locator(".filter-trigger-where")).toBeFocused();
   await expect(page).not.toHaveURL(/country=/);
   await openFilter(page, "Where");
   await expect(page.getByLabel("Portugal", { exact: true })).not.toBeChecked();
@@ -701,7 +698,7 @@ test("resize preserves native edits and returns focus to a visible trigger", asy
     page.getByRole("button", { name: "Apply filters" }),
   ).toBeDisabled();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.locator(".filter-mobile-trigger")).toBeFocused();
+  await expect(page.locator(".filter-trigger-more")).toBeFocused();
   await openFilter(page, "More");
   await page.setViewportSize({ width: 1100, height: 800 });
   await page.getByRole("button", { name: "Cancel", exact: true }).click();

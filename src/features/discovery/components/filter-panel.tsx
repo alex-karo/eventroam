@@ -7,6 +7,7 @@ import {
 } from "react";
 import { GenreChoices } from "@/features/discovery/components/genre-choices";
 import { LocationChoices } from "@/features/discovery/components/location-choices";
+import { Icon } from "@/components/catalog/icons";
 import { sizeLabels } from "@/features/discovery/model/filter-feedback";
 import type { DiscoverySummary, Genre } from "@/catalog/read/contracts";
 import {
@@ -156,6 +157,7 @@ export function FilterPanel({
             checkNativeInputs();
           }}
         >
+          <Icon name="reset" />
           Clear all
         </button>
         <button
@@ -164,7 +166,7 @@ export function FilterPanel({
           aria-label="Close filter"
           onClick={onCancel}
         >
-          ×
+          <Icon name="close" />
         </button>
       </div>
       <div className="filter-groups" role="group" aria-label="Filter groups">
@@ -175,6 +177,9 @@ export function FilterPanel({
             aria-pressed={group === value}
             onClick={() => onGroupChange(value)}
           >
+            <Icon
+              name={{ where: "place", genre: "music", more: "sliders" }[value]}
+            />
             {groupTitles[value]}
           </button>
         ))}
@@ -364,6 +369,7 @@ export function FilterPanel({
           }}
         >
           {action}
+          <Icon name="arrow-right" />
         </button>
         <button type="button" onClick={onCancel}>
           Cancel

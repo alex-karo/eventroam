@@ -21,7 +21,11 @@ export function useSelectedEdition(fallbackFocus: () => HTMLElement | null) {
   }, []);
 
   useEffect(() => {
-    if (selectedId) {
+    if (
+      selectedId &&
+      panelRef.current &&
+      getComputedStyle(panelRef.current).display !== "none"
+    ) {
       const buttons = panelRef.current?.querySelectorAll("button");
       Array.from(buttons ?? [])
         .find((button) => getComputedStyle(button).display !== "none")

@@ -4,7 +4,41 @@ const paths: Record<string, ReactNode> = {
   close: <path d="m6 6 12 12M6 18 18 6" />,
   "chevron-up": <path d="m6 15 6-6 6 6" />,
   "chevron-down": <path d="m6 9 6 6 6-6" />,
-  "arrow-right": <path d="M4 12h16m-6-6 6 6-6 6" />,
+  "arrow-right": <path d="M5 12h14m-5-5 5 5-5 5" />,
+  "new-page": (
+    <>
+      <path d="M14 3h7v7M21 3l-9 9" />
+      <path d="M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m16 16 5 5" />
+    </>
+  ),
+  reset: (
+    <>
+      <path d="M3 10a9 9 0 1 1 1 7M3 4v6h6" />
+    </>
+  ),
+  music: (
+    <>
+      <path d="M9 18V5l12-2v13M9 9l12-2" />
+      <ellipse cx="6" cy="18" rx="3" ry="3" />
+      <ellipse cx="18" cy="16" rx="3" ry="3" />
+    </>
+  ),
+  sliders: (
+    <>
+      <path d="M3 6h3m4 0h11M3 12h11m4 0h3M3 18h3m4 0h11" />
+      <circle cx="8" cy="6" r="2" />
+      <circle cx="16" cy="12" r="2" />
+      <circle cx="8" cy="18" r="2" />
+    </>
+  ),
+  plus: <path d="M5 12h14M12 5v14" />,
+  minus: <path d="M5 12h14" />,
   info: (
     <>
       <circle cx="12" cy="12" r="9" />

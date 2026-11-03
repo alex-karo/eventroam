@@ -24,21 +24,21 @@ The main visual feature is the event date beside a strong title. On an edition p
 
 Use these shared roles on every public page. Do not define a separate palette for discovery and details.
 
-| Role | Value | Use |
-| --- | --- | --- |
-| Ink | `#151522` | Main text, header, primary buttons |
-| Canvas | `#FAFAFC` | Page background |
-| Surface | `#FFFFFF` | List, fields, panels |
-| Muted text | `#60606F` | Supporting text on light surfaces |
-| Divider | `#DEDEE7` | Decorative separators |
-| Control border | `#858593` | Field and control boundaries |
-| Lavender | `#DCD9FA` | Selected row and selected filter surface |
-| Violet | `#5144B5` | Links, selected markers, focus on light surfaces |
-| Coral | `#E96851` | Decorative brand accent |
-| Warning text | `#865000` | Uncertain or provisional data |
-| Warning surface | `#FFF3D6` | Warning background |
-| Error text | `#A3293A` | Error text and error border |
-| Error surface | `#FFF0F2` | Error background |
+| Role            | Value     | Use                                              |
+| --------------- | --------- | ------------------------------------------------ |
+| Ink             | `#151522` | Main text, header, primary buttons               |
+| Canvas          | `#FAFAFC` | Page background                                  |
+| Surface         | `#FFFFFF` | List, fields, panels                             |
+| Muted text      | `#60606F` | Supporting text on light surfaces                |
+| Divider         | `#DEDEE7` | Decorative separators                            |
+| Control border  | `#858593` | Field and control boundaries                     |
+| Lavender        | `#DCD9FA` | Selected row and selected filter surface         |
+| Violet          | `#5144B5` | Links, map markers, focus on light surfaces      |
+| Coral           | `#E96851` | Decorative brand accent                          |
+| Warning text    | `#865000` | Uncertain or provisional data                    |
+| Warning surface | `#FFF3D6` | Warning background                               |
+| Error text      | `#A3293A` | Error text and error border                      |
+| Error surface   | `#FFF0F2` | Error background                                 |
 
 Use white text on Ink and Violet. Use Ink on Lavender and light surfaces. Use Lavender for keyboard focus on the dark header. Coral is not the default text, button, or warning color. The brand gradient runs from Coral to Lavender and has no status meaning.
 
@@ -48,15 +48,15 @@ Always add a label or shape to a status or selection. Color alone must not carry
 
 Use Space Grotesk for titles, body text, and controls. Use IBM Plex Mono for short date labels, counts, and compact data. Load the actual font files when implementing; a CSS family name alone does not load a font. Provide sans-serif and monospace fallbacks and check the fallback layout.
 
-| Role | Target |
-| --- | --- |
-| Edition page title | 40–56 px desktop; 28–36 px mobile; weight 500; line height 1.1 |
-| Section or panel title | 20–24 px; weight 500; line height 1.25 |
-| List event name | 17–19 px; weight 600; line height 1.3 |
-| Body and form input | 16 px; weight 400; line height 1.5 |
-| Control label | 14–16 px; weight 500; line height 1.3 |
-| Supporting text | 13–14 px; line height 1.45 |
-| Short mono label | 12–13 px; line height 1.4 |
+| Role                   | Target                                                         |
+| ---------------------- | -------------------------------------------------------------- |
+| Edition page title     | 40–56 px desktop; 28–36 px mobile; weight 500; line height 1.1 |
+| Section or panel title | 20–24 px; weight 500; line height 1.25                         |
+| List event name        | 17–19 px; weight 600; line height 1.3                          |
+| Body and form input    | 16 px; weight 400; line height 1.5                             |
+| Control label          | 14–16 px; weight 500; line height 1.3                          |
+| Supporting text        | 13–14 px; line height 1.45                                     |
+| Short mono label       | 12–13 px; line height 1.4                                      |
 
 Use sentence case. Uppercase is limited to short month labels. Keep long names in the regular face and allow them to wrap. Use tabular numbers for counts. Display full dates, including the year, near the compact date block; the block alone is not a complete date range.
 
@@ -64,27 +64,28 @@ Use sentence case. Uppercase is limited to short month labels. Keep long names i
 
 Use a 4 px spacing unit: 4, 8, 12, 16, 24, 32, 48, and 64 px. Use 16–24 px panel padding and 16 px list-row padding as starting values.
 
-Use 4 px corners on buttons, inputs, date blocks, and cards. Use up to 8 px on floating panels. Use circles for map markers and compact icon controls. Keep borders at 1 px. Separate rows with lines instead of placing each row in a raised card.
+Use 4 px corners on buttons and date blocks, 8 px on search fields, and up to 12 px on floating panels. The mobile results sheet uses 16 px top corners. Use circles for map markers and compact icon controls. Keep borders at 1 px. Separate rows with lines instead of placing each row in a raised card.
 
 Only floating panels need a soft shadow: start with `0 12px 32px rgb(21 21 34 / 12%)`. Use surface contrast for other layers.
 
 ## Page layout
 
-Desktop discovery keeps a list beside the map. Start near 40% list and 60% map; protect readable names and usable filters before enforcing that ratio.
+Discovery uses the map as its main workspace. On desktop, a 360 px results panel floats on the left. Search and filters sit above the map, with the month strip near the bottom. On tablets, use a 300 px results panel and place search and filters across the top.
 
 ```text
-[ Dark header: Eventroam | scope | search                 ]
-[ Results and applied filters | Map and filter controls  ]
-[ Date | Event name           |                          ]
-[      | Place and facts      | Selected marker          ]
-[ Date | Event name           | Detail preview           ]
+[ Dark header: Eventroam | scope                         ]
+[ Results panel        | Search and filter controls      ]
+[ Date | Event name ↗  |                                 ]
+[      | Place, facts  | Map and selected preview         ]
+[                 Month strip                           ]
+[ Result counts          Privacy policy | About project ]
 ```
 
-Keep the header compact, approximately 64 px on desktop. Keep filter access visible and prevent panels from covering required map attribution. Allow the list and panels to scroll within their available space.
+Keep the header compact, approximately 64 px on desktop. Keep filter access visible and prevent panels from covering required map attribution. Allow the list and panels to scroll within their available space. Hide footer result counts on mobile; keep the footer links visible.
 
-On small screens, keep the existing list/map switch and filter flow. Stack fields when they no longer fit. Allow the header to grow when text wraps. Keep controls at least 44 px high for touch. Check 320, 390, 768, and 1440 px widths, plus 200% zoom. No page-level horizontal scroll is acceptable.
+On small screens, place search, filters, and months above the map. Show results in a bottom sheet. Its Expand list and Show map controls change the sheet height; both the map and results remain visible. Keep the footer below the workspace. Stack fields when they no longer fit. Allow the header to grow when text wraps. Use compact 32 px month buttons. Keep primary controls at least 44 px high for touch. Check 320, 390, 768, and 1440 px widths, plus 200% zoom. No page-level horizontal scroll is acceptable.
 
-Event and edition pages use the same header, fonts, and controls. Place navigation above the title. Group dates, place, tickets, and official links into clear sections. Use a readable content width near 1120 px, with body text near 65 characters per line. The root directory uses the same system at a smaller content width.
+Event and edition pages use the same header, fonts, and controls. Place the event link above the edition title. Open festival and edition links in new tabs. Do not show Back to results; the discovery tab keeps the search context. Group dates, place, tickets, and official links into clear sections. Use a readable content width near 1120 px, with body text near 65 characters per line. The root directory uses the same system at a smaller content width.
 
 ## Components and states
 
@@ -94,9 +95,9 @@ Use Ink for the header with white text. Keep the Eventroam wordmark simple. Sear
 
 ### Result row and date block
 
-Place the date in a fixed-width left column, the name and facts in a flexible middle column, and the details action in the remaining space. Move the action below the text when needed. Use a month label and day number in the compact date block. Keep full date ranges in the text.
+Use compact result rows with 12 px vertical padding and 16 px names. Place the date in a fixed-width left column and the name and facts in a flexible column. The main row button selects the festival and shows its location on the map. A separate 44 × 44 px link in the top right corner opens its edition page in a new tab. Use the new-page icon. Keep this link outside the row button and label it for screen readers. Use a month label and day number in the compact date block. Keep full date ranges in the text. Show status text only when needed.
 
-Use Lavender for the selected row, with a Violet side rule and a pressed state on its details control. Use a light neutral surface on hover. Keep hover, keyboard focus, and selection distinct. Show uncertainty labels and missing location information in plain text.
+Use Lavender for the selected row, with a Violet side rule and a pressed state on its row button. Use a light neutral surface on hover. Keep hover, keyboard focus, and selection distinct. Show uncertainty labels and missing location information in plain text.
 
 ### Buttons, fields, and filters
 
@@ -106,9 +107,9 @@ Keep input labels above fields. Show pending and applied filter values according
 
 ### Map and preview
 
-Use a light map with low visual noise. Keep place names readable. Use Ink for ordinary markers and Violet with an extra ring or size change for the selected marker. Check contrast against land and water. Preserve cluster counts, location precision, and accessible selection behavior.
+Use a light map with low visual noise. Keep place names readable. Use Violet for festival points and clusters, with a thin white border. The selected point has a larger circle and an extra Violet ring with a white gap. Keep its outer diameter at 20 px. Check contrast against land and water. Preserve cluster counts, location precision, and accessible selection behavior.
 
-The selected preview is a white panel with the same date, type, and status treatments as the full page. Keep its close control visible. Provide clear loading and error states. Missing coordinates must not remove an otherwise eligible event from the list. Moving the map must not change result eligibility.
+On desktop and tablet, the selected preview is a white panel with the same date, type, and status treatments as the full page. Show all available facts and links without an expand or collapse control. Keep its close control visible. Use a small violet Open page text link with the new-page icon, rather than a filled primary button. Both the title and Open page links open a new tab. Provide clear loading and error states. On mobile, keep selection feedback and the Open page link in the results sheet. Missing coordinates must not remove an otherwise eligible event from the list. Moving the map must not change result eligibility.
 
 ### Event details and images
 
@@ -132,7 +133,7 @@ Before accepting a UI change, check the following in the built-in Browser:
 
 - Discovery, filter panel, selected preview, event page, and edition page share the same tokens.
 - Long names, wrapped filter chips, missing facts, provisional dates, and empty results remain clear.
-- Selection agrees between the row, details control, and map marker.
+- Selection agrees between the row and map marker. Open page navigates separately.
 - Keyboard focus, touch targets, contrast, zoom, and reduced motion work.
 - Mobile panels fit the available height and leave a visible close or recovery action.
 - Map attribution and existing discovery behavior remain intact.

@@ -4,7 +4,6 @@ import {
   editionStructuredData,
   serializeStructuredData,
 } from "@/site/server/structured-data";
-import { discoveryToken } from "@/site/discovery-context";
 import {
   requestDetail,
   requestNow,
@@ -14,27 +13,21 @@ import { editionPath } from "@/site/site";
 import { EditionDetailsPage } from "@/features/event-details/edition-page";
 
 type Props = Readonly<{
-  searchParams: Promise<{ discovery?: string }>;
   params: Promise<{ slug: string; key: string }>;
 }>;
 
-export async function generateMetadata({
-  params,
-  searchParams,
-}: Props): Promise<Metadata> {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, key } = await params;
-  const token = discoveryToken((await searchParams).discovery);
-  const { event, edition } = await requestDetail(editionPath(slug, key), token);
+  const { event, edition } = await requestDetail(editionPath(slug, key));
   const { origins } = await requestSite();
   return edition
     ? editionMetadata(event, edition, origins.festivals, requestNow())
     : {};
 }
 
-export default async function EditionPage({ params, searchParams }: Props) {
+export default async function EditionPage({ params }: Props) {
   const { slug, key } = await params;
-  const token = discoveryToken((await searchParams).discovery);
-  const { event, edition } = await requestDetail(editionPath(slug, key), token);
+  const { event, edition } = await requestDetail(editionPath(slug, key));
   if (!edition) {
     return null;
   }
@@ -54,12 +47,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
           }}
         />
       )}
-      <EditionDetailsPage
-        event={event}
-        edition={edition}
-        token={token}
-        now={requestNow()}
-      />
+      <EditionDetailsPage event={event} edition={edition} now={requestNow()} />
     </>
   );
 }

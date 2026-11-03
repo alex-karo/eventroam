@@ -97,7 +97,7 @@ export default async function HomePage({ searchParams }: Readonly<Props>) {
         initialFilters={initial}
         initialError={error}
         initialNow={new Date().toISOString()}
-        initialView={raw.get("view") === "map" ? "map" : "list"}
+        initialView={raw.get("view") === "list" ? "list" : "map"}
       />
     </main>
   );

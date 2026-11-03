@@ -11,6 +11,7 @@ import type { DiscoverySummary } from "@/catalog/read/contracts";
 import type mapboxgl from "mapbox-gl";
 import type { FeatureCollection, Point } from "geojson";
 import { dateRange } from "@/components/catalog/format";
+import { Icon } from "@/components/catalog/icons";
 import type { Camera } from "@/site/discovery-context";
 import { selectionOffset } from "./selection-visibility";
 import styles from "./discovery-map.module.css";
@@ -19,11 +20,11 @@ type Props = {
   summaries: DiscoverySummary[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  visible: boolean;
   cardRef: RefObject<HTMLElement | null>;
   restoreCamera: Camera | null;
   preserveSelectionCamera: boolean;
   onCameraChange: (camera: Camera) => void;
+  onCameraInteraction: () => void;
 };
 
 export function hasMapPoint(summary: DiscoverySummary) {
@@ -99,11 +100,11 @@ export function DiscoveryMap({
   summaries,
   selectedId,
   onSelect,
-  visible,
   cardRef,
   restoreCamera,
   preserveSelectionCamera,
   onCameraChange,
+  onCameraInteraction,
 }: Readonly<Props>) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -115,6 +116,7 @@ export function DiscoveryMap({
   const selectedMarker = useRef<mapboxgl.Marker | null>(null);
   const cameraToRestore = useRef(restoreCamera);
   const cameraChanged = useRef(onCameraChange);
+  const cameraInteracted = useRef(onCameraInteraction);
   const preserveCamera = useRef(preserveSelectionCamera);
   useEffect(() => {
     preserveCamera.current = preserveSelectionCamera;
@@ -122,6 +124,13 @@ export function DiscoveryMap({
   useEffect(() => {
     cameraChanged.current = onCameraChange;
   }, [onCameraChange]);
+  useEffect(() => {
+    cameraInteracted.current = onCameraInteraction;
+  }, [onCameraInteraction]);
+  const preserveManualCamera = useCallback(() => {
+    preserveCamera.current = true;
+    cameraInteracted.current();
+  }, []);
   const updateSelectedMarker = useCallback(() => {
     const instance = map.current;
     const summary = latestSummaries.current.find(
@@ -154,10 +163,37 @@ export function DiscoveryMap({
     }
     const rect = element.getBoundingClientRect();
     const projected = instance.project(coords);
+    const workspace = element.closest(".discovery-stage");
+    const resultsRect = workspace
+      ?.querySelector(".results-panel")
+      ?.getBoundingClientRect();
+    const controlsRect = workspace
+      ?.querySelector(".discovery-controls")
+      ?.getBoundingClientRect();
+    const monthsRect = workspace
+      ?.querySelector(".discovery-months")
+      ?.getBoundingClientRect();
+    const wide = window.matchMedia("(min-width: 741px)").matches;
+    const available = {
+      left:
+        wide && resultsRect
+          ? Math.max(rect.left, resultsRect.right)
+          : rect.left,
+      right: rect.right,
+      top:
+        wide && controlsRect
+          ? Math.max(rect.top, controlsRect.bottom)
+          : rect.top,
+      bottom:
+        wide && monthsRect
+          ? Math.min(rect.bottom, monthsRect.top)
+          : rect.bottom,
+    };
+    const card = cardRef.current;
     const offset = selectionOffset(
       { x: projected.x + rect.left, y: projected.y + rect.top },
-      rect,
-      cardRef.current?.getBoundingClientRect() ?? null,
+      available,
+      card?.getClientRects().length ? card.getBoundingClientRect() : null,
     );
     if (Math.abs(offset.x) > 0.5 || Math.abs(offset.y) > 0.5) {
       instance.panBy([offset.x, offset.y], { duration: 0 });
@@ -205,14 +241,6 @@ export function DiscoveryMap({
       return;
     }
     initialFitPending.current = false;
-    if (bounds.west === bounds.east && bounds.south === bounds.north) {
-      instance.easeTo({
-        center: [bounds.west, bounds.south],
-        zoom: 5,
-        duration: 0,
-      });
-      return;
-    }
     instance.fitBounds(
       [
         [bounds.west, bounds.south],
@@ -222,13 +250,24 @@ export function DiscoveryMap({
         padding: {
           top: Math.min(
             110,
-            Math.max(28, (container.current?.clientHeight ?? 400) / 4),
+            Math.max(20, (container.current?.clientHeight ?? 400) / 6),
           ),
-          right: 64,
-          bottom: 80,
-          left: 64,
+          right: Math.min(64, (container.current?.clientWidth ?? 400) / 8),
+          bottom: Math.min(80, (container.current?.clientHeight ?? 400) / 6),
+          left: window.matchMedia("(min-width: 741px)").matches
+            ? Math.min(
+                instance.getContainer().clientWidth / 2,
+                Number.parseFloat(
+                  getComputedStyle(
+                    instance.getContainer().closest(".discovery")!,
+                  ).getPropertyValue("--results-width"),
+                ) + 48,
+              )
+            : 40,
         },
-        maxZoom: 7,
+        maxZoom:
+          bounds.west === bounds.east && bounds.south === bounds.north ? 5 : 7,
+        retainPadding: false,
         duration: 0,
       },
     );
@@ -312,6 +351,11 @@ export function DiscoveryMap({
         markerElement.className = "selected-map-point";
         markerElement.setAttribute("aria-hidden", "true");
         selectedMarker.current = new gl.Marker({ element: markerElement });
+        instance.on("movestart", (event) => {
+          if (event.originalEvent) {
+            preserveManualCamera();
+          }
+        });
         instance.on("moveend", () => {
           if (!instance || initialFitPending.current) {
             return;
@@ -355,7 +399,7 @@ export function DiscoveryMap({
             source: "editions",
             filter: ["has", "point_count"],
             paint: {
-              "circle-color": "#151522",
+              "circle-color": "#5144b5",
               "circle-radius": [
                 "step",
                 ["get", "point_count"],
@@ -397,12 +441,7 @@ export function DiscoveryMap({
             source: "editions",
             filter: ["!", ["has", "point_count"]],
             paint: {
-              "circle-color": [
-                "case",
-                ["==", ["get", "id"], latestSelected.current ?? ""],
-                "#5144b5",
-                "#151522",
-              ],
+              "circle-color": "#5144b5",
               "circle-radius": [
                 "case",
                 ["==", ["get", "id"], latestSelected.current ?? ""],
@@ -489,7 +528,7 @@ export function DiscoveryMap({
       map.current = null;
     };
     // The map instance persists through filter and view changes.
-  }, [token, style, fitInitially, revealSelection]);
+  }, [token, style, fitInitially, revealSelection, preserveManualCamera]);
 
   useEffect(() => {
     const instance = map.current;
@@ -506,12 +545,6 @@ export function DiscoveryMap({
     const instance = map.current;
     if (instance?.getLayer("points")) {
       const selected = ["==", ["get", "id"], selectedId ?? ""];
-      instance.setPaintProperty("points", "circle-color", [
-        "case",
-        selected,
-        "#5144b5",
-        "#151522",
-      ]);
       instance.setPaintProperty("points", "circle-radius", [
         "case",
         selected,
@@ -537,13 +570,6 @@ export function DiscoveryMap({
       });
     }
   }, [restoreCamera]);
-  useEffect(() => {
-    if (visible) {
-      map.current?.resize();
-      fitInitially();
-      revealSelection();
-    }
-  }, [visible, fitInitially, revealSelection]);
 
   if (!token) {
     return (
@@ -559,24 +585,23 @@ export function DiscoveryMap({
         <div className={styles.controls} role="group" aria-label="Map controls">
           <button
             type="button"
-            onClick={fitResults}
-            title="Fit all mapped results"
-          >
-            Fit all
-          </button>
-          <button
-            type="button"
-            onClick={() => map.current?.zoomOut()}
+            onClick={() => {
+              preserveManualCamera();
+              map.current?.zoomOut();
+            }}
             aria-label="Zoom out"
           >
-            −
+            <Icon name="minus" />
           </button>
           <button
             type="button"
-            onClick={() => map.current?.zoomIn()}
+            onClick={() => {
+              preserveManualCamera();
+              map.current?.zoomIn();
+            }}
             aria-label="Zoom in"
           >
-            +
+            <Icon name="plus" />
           </button>
         </div>
       )}
@@ -585,9 +610,6 @@ export function DiscoveryMap({
           {error}
         </div>
       )}
-      <p className="map-caption">
-        Select a result in the list for keyboard access.
-      </p>
     </div>
   );
 }

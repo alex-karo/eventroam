@@ -3,8 +3,6 @@ import { SiteHeader } from "@/components/site/site-header";
 import type { PublicEvent, PublicEdition } from "@/catalog/read/contracts";
 import { isPastEdition } from "@/catalog/domain/dates";
 import { eventPath } from "@/site/site";
-import { withDiscovery } from "@/site/discovery-context";
-import { BackToResults } from "@/components/catalog/back-to-results";
 import { EditionHistory } from "@/components/catalog/edition-history";
 import { ExternalLinks } from "@/components/catalog/external-links";
 import { basePrice } from "@/components/catalog/format";
@@ -22,12 +20,10 @@ import { LocationMap } from "./location-map";
 export function EditionDetailsPage({
   event,
   edition,
-  token = null,
   now = new Date(),
 }: Readonly<{
   event: PublicEvent;
   edition: PublicEdition;
-  token?: string | null;
   now?: Date;
 }>) {
   const located = edition.latitude !== null && edition.longitude !== null;
@@ -45,8 +41,14 @@ export function EditionDetailsPage({
       <SiteHeader />
       <main className="catalog festival-details">
         <nav aria-label="Festival navigation">
-          <BackToResults token={token} /> /{" "}
-          <a href={withDiscovery(eventPath(event.slug), token)}>{event.name}</a>
+          <a
+            href={eventPath(event.slug)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open festival page in a new tab"
+          >
+            {event.name}
+          </a>
         </nav>
         <header>
           <div className="edition-title">
@@ -105,11 +107,7 @@ export function EditionDetailsPage({
         </section>
         <section>
           <h2>Other editions</h2>
-          <EditionHistory
-            editions={event.editions}
-            currentId={edition.id}
-            token={token}
-          />
+          <EditionHistory editions={event.editions} currentId={edition.id} />
         </section>
         <footer className="privacy-footer">
           <a href="/privacy">Privacy policy</a>

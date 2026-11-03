@@ -16,6 +16,7 @@ import {
 } from "@/features/discovery/model/discovery";
 import type { DiscoverySummary, Genre } from "@/catalog/read/contracts";
 import { MonthStrip } from "@/features/discovery/components/month-strip";
+import { Icon } from "@/components/catalog/icons";
 import {
   FilterPanel,
   type FilterGroup,
@@ -76,7 +77,7 @@ export function Discovery({
   const [loadError, setLoadError] = useState(false);
   const [panel, setPanel] = useState<FilterGroup | null>(null);
   const [view, setView] = useState<"map" | "list">(initialView);
-  const viewSwitch = useRef<HTMLDivElement>(null);
+  const resultsHeading = useRef<HTMLDivElement>(null);
   const {
     state: detailState,
     selectedId,
@@ -84,11 +85,8 @@ export function Discovery({
     select: selectEdition,
     close: closeDetail,
   } = useSelectedEdition(
-    () =>
-      viewSwitch.current?.querySelector<HTMLElement>("[aria-pressed=true]") ??
-      null,
+    () => resultsHeading.current?.querySelector<HTMLElement>("button") ?? null,
   );
-  const [expanded, setExpanded] = useState(false);
   const [visitToken, setVisitToken] = useState<string | null>(null);
   const [visitReady, setVisitReady] = useState(false);
   const [restoreCamera, setRestoreCamera] = useState<Camera | null>(null);
@@ -114,7 +112,6 @@ export function Discovery({
       camera: camera.current,
       scroll: listScroll.current,
       selectedId,
-      expanded,
     };
     saveVisit(token, next);
   }
@@ -142,7 +139,6 @@ export function Discovery({
     setPreserveSelectionCamera(!!visit?.camera);
     listScroll.current = visit?.scroll ?? 0;
     pendingListScroll.current = listScroll.current;
-    setExpanded(visit?.expanded ?? false);
     const eligible =
       location.filters && !location.error
         ? filterSummaries(
@@ -181,7 +177,7 @@ export function Discovery({
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [view, visitToken, selectedId, expanded, applied]);
+  }, [view, visitToken, selectedId, applied]);
   const today = useMemo(() => new Date(initialNow), [initialNow]);
   const preview = useMemo(
     () =>
@@ -197,11 +193,7 @@ export function Discovery({
       opener.focus();
     } else {
       document
-        .querySelector<HTMLButtonElement>(
-          window.matchMedia("(max-width: 740px)").matches
-            ? ".filter-mobile-trigger"
-            : `.filter-trigger-${panel ?? "where"}`,
-        )
+        .querySelector<HTMLButtonElement>(`.filter-trigger-${panel ?? "where"}`)
         ?.focus();
     }
   }
@@ -231,7 +223,7 @@ export function Discovery({
     if (visitReady) {
       saveCurrentContext();
     }
-  }, [visitReady, visitToken, selectedId, expanded, applied, view]);
+  }, [visitReady, visitToken, selectedId, applied, view]);
   const load = useCallback(() => {
     const request = ++latest.current;
     return fetch("/api/discovery", { cache: "no-store" })
@@ -383,7 +375,6 @@ export function Discovery({
       selection_source: selectionSource,
     });
     setPreserveSelectionCamera(false);
-    setExpanded(false);
     void selectEdition(id);
   }
   const eventLabel = results.length === 1 ? "event" : "events";
@@ -399,10 +390,6 @@ export function Discovery({
   const secondaryGroups = new Set(
     groupSelections.more.map((item) => item.field),
   ).size;
-  const initialGroup =
-    (["where", "genre", "more"] as FilterGroup[]).find(
-      (group) => groupSelections[group].length > 0,
-    ) ?? "where";
   return (
     <div className="discovery">
       <header className="discovery-header">
@@ -414,41 +401,35 @@ export function Discovery({
           Eventroam<span aria-hidden="true">.</span>
         </a>
         <span className="discovery-scope">Festivals</span>
-        <form
-          className="name-search"
-          role="search"
-          onSubmit={(event) => {
-            event.preventDefault();
-            apply({ ...applied, q: query }, "search");
-          }}
-        >
-          <label className="sr-only" htmlFor="name-search">
-            Search festival names
-          </label>
-          <input
-            id="name-search"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setSearchError(null);
-            }}
-            aria-invalid={searchError ? true : undefined}
-            aria-describedby={searchError ? "search-error" : undefined}
-            placeholder="Find a festival…"
-          />
-          <button type="submit" aria-label="Search festival names">
-            ⌕
-          </button>
-        </form>
       </header>
       <div className="discovery-stage">
         <div className="discovery-controls">
-          <MonthStrip
-            now={visitReady ? new Date() : null}
-            from={applied.from}
-            to={applied.to}
-            onChange={(from, to) => apply({ ...applied, from, to }, "months")}
-          />
+          <form
+            className="name-search"
+            role="search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              apply({ ...applied, q: query }, "search");
+            }}
+          >
+            <label className="sr-only" htmlFor="name-search">
+              Search festival names
+            </label>
+            <input
+              id="name-search"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setSearchError(null);
+              }}
+              aria-invalid={searchError ? true : undefined}
+              aria-describedby={searchError ? "search-error" : undefined}
+              placeholder="Find a festival…"
+            />
+            <button type="submit" aria-label="Search festival names">
+              <Icon name="search" />
+            </button>
+          </form>
           <div
             className="filter-toolbar"
             role="group"
@@ -473,6 +454,11 @@ export function Discovery({
                   data-active={values.length > 0}
                   onClick={(event) => openPanel(group, event.currentTarget)}
                 >
+                  <Icon
+                    name={
+                      { where: "place", genre: "music", more: "sliders" }[group]
+                    }
+                  />
                   <span className="filter-trigger-value">
                     {group === "more" || !values.length
                       ? label
@@ -484,6 +470,9 @@ export function Discovery({
                   {group === "more" &&
                     secondaryGroups > 0 &&
                     ` · ${secondaryGroups}`}
+                  <span className="filter-chevron">
+                    <Icon name="chevron-down" />
+                  </span>
                 </button>
               );
             })}
@@ -494,18 +483,9 @@ export function Discovery({
               title="Clear all filters"
               onClick={() => apply(emptyFilters())}
             >
-              <span aria-hidden="true">↺</span>
+              <Icon name="reset" />
             </button>
           </div>
-          <button
-            className="filter-mobile-trigger"
-            type="button"
-            aria-expanded={panel !== null}
-            aria-controls="filter-panel"
-            onClick={(event) => openPanel(initialGroup, event.currentTarget)}
-          >
-            Filters{active.length > 0 && ` · ${active.length}`}
-          </button>
         </div>
         {panel && (
           <FilterPanel
@@ -522,45 +502,78 @@ export function Discovery({
             previewCount={preview?.count ?? null}
           />
         )}
+        <div className="discovery-months">
+          <MonthStrip
+            now={visitReady ? new Date() : null}
+            from={applied.from}
+            to={applied.to}
+            onChange={(from, to) => apply({ ...applied, from, to }, "months")}
+          />
+        </div>
         <div className={`discovery-results-shell view-${view}`}>
-          <div className="list-column" ref={listColumn} onScroll={saveContext}>
-            {(urlError || loadError || searchError) && (
-              <div className="discovery-notices">
-                {searchError && (
-                  <div id="search-error" className="notice" role="alert">
-                    <p>{searchError}</p>
-                  </div>
-                )}
-                {urlError && (
-                  <div className="notice" role="alert">
-                    <p>{urlError}</p>
-                    <button type="button" onClick={() => apply(emptyFilters())}>
-                      Reset invalid filters
-                    </button>
-                  </div>
-                )}
-                {loadError && (
-                  <div className="notice" role="alert">
-                    <p>
-                      Could not refresh discovery results. Showing the last
-                      available list.
-                    </p>
-                    <button type="button" onClick={() => void load()}>
-                      Retry
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-            <ResultsList
-              results={results}
-              selectedId={selectedId}
-              error={urlError}
-              onSelect={(id) => selectResult(id, "list")}
-              onClear={() => apply(emptyFilters())}
-              token={visitToken}
-              onNavigate={saveContext}
-            />
+          <div className="results-panel">
+            <div className="results-heading" ref={resultsHeading}>
+              <h1>
+                {results.length}{" "}
+                {results.length === 1 ? "festival" : "festivals"}
+              </h1>
+              <button
+                type="button"
+                className="sheet-toggle"
+                aria-expanded={view === "list"}
+                aria-controls="festival-results"
+                onClick={() => switchView(view === "list" ? "map" : "list")}
+              >
+                {view === "list" ? "Show map" : "Expand list"}
+                <Icon name={view === "list" ? "chevron-down" : "chevron-up"} />
+              </button>
+              <p>Select a festival to show it on the map.</p>
+            </div>
+            <div
+              id="festival-results"
+              className="list-column"
+              ref={listColumn}
+              onScroll={saveContext}
+            >
+              {(urlError || loadError || searchError) && (
+                <div className="discovery-notices">
+                  {searchError && (
+                    <div id="search-error" className="notice" role="alert">
+                      <p>{searchError}</p>
+                    </div>
+                  )}
+                  {urlError && (
+                    <div className="notice" role="alert">
+                      <p>{urlError}</p>
+                      <button
+                        type="button"
+                        onClick={() => apply(emptyFilters())}
+                      >
+                        Reset invalid filters
+                      </button>
+                    </div>
+                  )}
+                  {loadError && (
+                    <div className="notice" role="alert">
+                      <p>
+                        Could not refresh discovery results. Showing the last
+                        available list.
+                      </p>
+                      <button type="button" onClick={() => void load()}>
+                        Retry
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              <ResultsList
+                results={results}
+                selectedId={selectedId}
+                error={urlError}
+                onSelect={(id) => selectResult(id, "list")}
+                onClear={() => apply(emptyFilters())}
+              />
+            </div>
           </div>
           <section className="map-region" aria-label="Map results">
             {visitReady && (
@@ -568,10 +581,10 @@ export function Discovery({
                 summaries={results}
                 selectedId={selectedId}
                 onSelect={(id) => selectResult(id, "map")}
-                visible={view === "map"}
                 cardRef={detailPanel}
                 restoreCamera={restoreCamera}
                 preserveSelectionCamera={preserveSelectionCamera}
+                onCameraInteraction={() => setPreserveSelectionCamera(true)}
                 onCameraChange={(next) => {
                   camera.current = next;
                   saveContext();
@@ -584,18 +597,16 @@ export function Discovery({
             panelRef={detailPanel}
             onClose={closeDetail}
             onRetry={(id) => void selectEdition(id)}
-            expanded={expanded}
-            onExpand={() => setExpanded(!expanded)}
-            token={visitToken}
-            onNavigate={saveContext}
             now={today}
           />
         </div>
+      </div>
+      <footer className="discovery-footer">
         <div className="results-status" role="status" aria-live="polite">
           <span className="results-count">
             {invalidUrl ? "Invalid filters" : `${results.length} ${eventLabel}`}
           </span>
-          {results.length > mapped && (
+          {results.length > 0 && (
             <span className="results-geography">
               On map: {mapped} ·{" "}
               <span title="Map location unavailable">Not mapped</span>:{" "}
@@ -603,31 +614,6 @@ export function Discovery({
             </span>
           )}
         </div>
-        <div
-          ref={viewSwitch}
-          className="view-switch"
-          role="group"
-          aria-label="Discovery view"
-        >
-          <button
-            type="button"
-            disabled={!visitReady}
-            aria-pressed={view === "list"}
-            onClick={() => switchView("list")}
-          >
-            List
-          </button>
-          <button
-            type="button"
-            disabled={!visitReady}
-            aria-pressed={view === "map"}
-            onClick={() => switchView("map")}
-          >
-            Map
-          </button>
-        </div>
-      </div>
-      <footer className="discovery-footer">
         <a href="/privacy">Privacy policy</a>
         <a href={apexHref}>About project</a>
       </footer>
