@@ -86,11 +86,11 @@ Experiment storage write failures retain Mastra's native errors or warnings; no 
 
 Mastra datasets, experiment results, and scores use `CATALOG_EVAL_DATABASE_PATH`, which defaults to `data/mastra-evals.sqlite`. This file is separate from the catalog and DuckDB observability. Relative paths resolve from the project root. `pnpm run catalog:studio` passes the same absolute path to Studio; set it explicitly for `studio:start` if you use a custom path. Studio can inspect saved datasets and experiments without model credentials. Keep eval execution in the CLI.
 
-The [archived `SQLITE_BUSY_SNAPSHOT` issue](archive/known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) records earlier incomplete score writes and experiment update failures. The error did not recur in the final 100-attempt measurement after the dependency update; no separate concurrency check was run.
+The [archived `SQLITE_BUSY_SNAPSHOT` issue](archive/known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) records earlier incomplete score writes and experiment update failures. Use its storage diagnostics when an experiment has incomplete scores.
 
 ## Separate case purpose from source origin
 
-Main cases measure the final catalog after the full Research → Editor → Location → writer flow. Each attempt starts from a fresh disposable catalog. Regression cases check a specific behavior through the pipeline, an Editor handoff, or direct Location execution. Keep their results separate; do not combine them into one quality average.
+Main cases measure the final catalog after the full Research → General → specialists, including Location → Editor → writer flow. Each attempt starts from a fresh disposable catalog. Regression cases check a specific behavior through the pipeline, an Editor handoff, or direct Location execution. Keep their results separate; do not combine them into one quality average.
 
 Source origin is a different property. Both main and regression cases can use captured or synthetic sources. Fill, verify and correct are separate tasks, even when they use the same pages. A blocked-source case can pass by returning the expected failure and preserving the catalog.
 
@@ -145,7 +145,7 @@ Accept source-supported URL, address, classification and price alternatives. URL
 
 Link alternatives are choices. Extra or duplicate official links of a checked kind fail.
 
-Each returned priced ticket offer in main must match an accepted amount and currency pair. Missing offers do not lower completeness. Labels, terms, availability and duplicate offers are normally unchecked. A case can explicitly accept a supported unpriced offer: Wacken accepts Loyalty, Faster and Harder tickets marked sold out with both amount and currency absent. Other unpriced offers still fail its price check. Full-programme base price is a separate additional fact. A case can accept both the displayed price and the total with mandatory fees when both are declared alternatives. Targeted regressions can check labels or availability for their specific task.
+Each returned priced ticket offer in main must match an accepted amount and currency pair. Missing offers do not lower completeness. Labels, terms, availability and duplicate offers are normally unchecked. A case can explicitly accept a supported unpriced offer: Wacken accepts Loyalty, Faster and Harder tickets marked sold out with both amount and currency absent. Other unpriced offers still fail its price check. Full-programme base price is a separate additional fact. Wacken accepts `exact` or `from` at EUR 364 or EUR 366; this does not permit other amounts, currencies or coverage. A case can accept both the displayed price and the total with mandatory fees when both are declared alternatives. Targeted regressions can check labels or availability for their specific task.
 
 Main requires `scheduled` for its dated festival announcements. Ingestion uses `announced` without a complete programme date range and `scheduled` with one, including provisional dates. `dateState` records date certainty separately. Explicit cancellation or postponement takes priority. Saved Edition preservation no longer treats `announced` and `scheduled` as interchangeable.
 
@@ -154,6 +154,8 @@ Main requires `scheduled` for its dated festival announcements. Ingestion uses `
 We do not require full coverage of additional data. Unlisted new fields are unchecked: they earn no credit and cannot establish that the model was correct. This limit keeps the scorer small; inspect outputs when investigating errors or extending coverage.
 
 For saved Editions, populated fields remain protected unless a case declares a supported change. Empty optional fields without expectations can be filled without credit or failure. For an unclassified saved Edition, a supported subset of the explicitly allowed historical terms is valid; those optional additions do not become a completeness requirement. Required fields, identities, publication and coordinate rules stay protected. Keep stricter case conditions where needed: Glastonbury preserves its saved programme and draft Event; the blocked Afro Nation case preserves its whole Event.
+
+A useful collection can have partial Research and a failed catalog outcome after General refuses Event identity. Keep the no-write, source-policy and identity-guidance checks. A size-only case does not certify collection completeness. Historical-gap checks need historical context and preservation of the unchecked record, not an exact Edition key.
 
 ## Use realistic, bounded fixtures
 
@@ -187,7 +189,7 @@ The current page URL comes from source metadata. Reader need not extract a link 
 
 The three scores are `scenario-success`, `evidence-recall` (complete requirements divided by declared requirements) and `literal-validity` (accepted quotations divided by returned quotations, zero for an empty output). A scenario passes only when all requirements are available in accepted evidence and structural checks pass. Literal validity is diagnostic: discarding an extra quotation does not fail the scenario if accepted evidence still meets every requirement. A discarded required fact receives no recall credit. The readable fixtures require no model-reported extraction limitations or unsupported nonpublication claims and require nonempty navigation coverage.
 
-Saved output retains all binding limitations. A passing Reader case establishes useful required evidence, not complete production processing. Production still marks a source limited after any binding failure and can report partial research. Full-flow evals check the effect on final quality and task outcomes. Reader does not gain a repair call or relaxed source matching.
+Saved output retains all binding limitations. A passing Reader case establishes useful required evidence, not complete production processing. Production still marks a source limited after any binding failure and can report partial research. Full-flow evals check the effect on final quality and task outcomes. Reader does not gain a repair call or relaxed source matching. Identical boundaries, or a complete opening with its exact closing suffix, can identify a full quotation. Extra wire escapes can be restored only when the supplied text has no match and the complete restored text matches the source exactly once. Changed facts, ambiguous matches and invalid ranges remain rejected.
 
 CLI output also shows unique source characters covered and extracted characters including repeated context. These are diagnostics, not pass thresholds: copying a whole page is not evidence of efficient extraction. The checks cover only the named passages and metadata conditions. They do not establish exhaustive recall, semantic accuracy of the overview or coverage wording, absence of all irrelevant material, or downstream catalog quality.
 
@@ -220,52 +222,4 @@ Compare the share of cases without checked errors, then required completeness, t
 
 Three repetitions per main case are recommended, not a statistical guarantee. Before replacing a model, run the full suite for both candidates and review new regression failures. A rescore of saved output can check a scorer correction, but it does not test model behavior on changed fixtures. Keep original experiment results intact.
 
-Scorer revisions 8 and 9 add source-backed expected alternatives for the Wacken YouTube footer URL with a trailing slash and the Roskilde festival address with its venue label but no country suffix. These are the same factual destinations and address. Do not apply blanket URL or address normalization. Keep original experiment scores and show saved-output rescoring separately.
-
-Scorer revision 7 removes historical price extraction and per-offer URL expectations. Compare common fact units separately from this scope change. At that revision, Editor handoff fixtures contain explicit domain role results while other assigned roles use the configured model. Current Editor fixtures also fix collection and Reader outputs as described above. Gold assertions never enter prompts. Native usage and duration comparisons must include all role calls and report missing coverage as unknown.
-
-Scorer revision 13 moves all regression conditions from JSON to case code. It retains the declared mutation, source-check, tool-use and Location conditions. This changes the dataset revision. On 2026-11-02, local rescoring of one saved response for each of the 45 regression cases produced the same pass/fail decisions before and after migration. Pipeline mutation conditions were also compared separately, so a source-check failure could not hide a changed mutation result. Original experiments were not changed. This does not test current agent behavior or fix source and geocoding fixture gaps.
-
-Scorer revision 14 corrects selected-value and refusal checks after the full regression run. It also corrects the recovered-website Editor case: captured roles have no completion findings, so it checks a completed Editor review and a non-failed workflow rather than requiring complete Research. The required website change remains. All seven Editor cases now use fixed input evidence. Two Location fixtures add explicit synthetic aliases for valid locality and venue queries; city responses do not become venue points. The cemetery correction case adds labelled synthetic evidence that the saved point is wrong. Original experiments remain unchanged.
-
-Scorer revision 15 accepts partial Research with a failed catalog outcome in `current-identity-contradiction`, as selected by the owner. Useful collection can precede an Event identity refusal. No-write, technical-error, source-policy and identity-guidance checks remain. Other refusal cases retain failed Research when they have no usable evidence.
-
-A comparison can span different coarse dataset hashes only after checking that every selected case input and its checks are identical. For example, adding page-coverage fields to unselected fixed Editor inputs changes the coarse hash but does not change main or pipeline case inputs. Record this check with the measurements; do not infer equal inputs from matching case IDs alone.
-
-Scorer revision 16 removes the exact historical Edition key from the unfinished-history question check and requires historical context plus preservation of the saved historical record. Search counts remain case-specific: another targeted search is allowed for an unresolved permitted need within the shared budget, after useful known leads are used. Resolved needs and optional gaps do not authorize more searches. Geocoding replay uses the normalization above, and main requires `scheduled` for dated announcements. Earlier experiment scores stay unchanged.
-
-Scorer revision 20 adds the isolated Reader group and hashes its case requirements and execution helpers. Existing pipeline, Editor and Location checks retain their meaning.
-
-Scorer revision 21 assesses Reader passage groups through their actual recipient's topic routing and removes the redundant Roskilde link back to its source page. It retains literal binding, local year and condition context, and links to other destinations. Existing pipeline, Editor and Location checks stay unchanged.
-
-Scorer revision 22 accepts complete product descriptions and separate complete confirmation and rejection claims. It treats discarded extra quotations as binding diagnostics while requiring every declared fact in accepted literal evidence. Production source statuses and all full-flow checks stay unchanged.
-
-Scorer revision 23 accepts optional historical term subsets and Wacken's three supported sold-out categories without prices. The synthetic size-history page now explicitly states that its past Edition took place; a completed programme alone was ambiguous. These changes require new dataset experiments and do not overwrite earlier results.
-
-Scorer revision 24 records the source-binding update. Identical boundaries, or a complete opening with the closing text as its exact suffix, can identify a full literal quotation. Code can restore an extra newline escape or doubled Markdown-punctuation backslash only when the original has no match and the entire restored text matches the original source exactly once. It does not change prices, years or words, choose the first ambiguous match, or add a model repair call.
-
-Scorer revision 25 lets a case explicitly accept `exact` or `from` for its declared full-programme base amount. Wacken accepts those two kinds at EUR 364 or EUR 366, with unchanged currency, amount and coverage checks. It does not accept ranges, free admission or other amounts. The source price and mandatory fee remain in the offer terms. Original experiments stay unchanged when saved output is rescored.
-
-The isolated saved-precision fixture supplies its locality meaning as explicit synthetic evidence, not only a source overview. The building-complex fixture uses one clear synthetic 2025 venue statement in place of three catalog field projections. Both retain their point and precision checks. Their provenance identifies the synthetic text; captured geocoding responses stay unchanged.
-
-Scorer revision 26 limits `size-evidence` to a non-failed workflow and its strict participant-estimate, admission-count, date and target checks. A separate full-history case still requires complete research, and the unfinished-history case still requires a historical gap. This size-only case does not certify collection completeness. A saved output with correct size results and a false historical collection blocker changes from fail to pass; the blocker stays visible in its original report.
-
-### Current-run source access and place discovery
-
-Three synthetic cases cover the source-access follow-up. `editor-uncited-qualification` fixes the specialist proposals and checks rejection of a public ticket claim qualified by a separate saved eligibility notice. Only the homepage is cited; Editor must use the saved Markdown to resolve the stated doubt. `search-concrete-place` starts with a known country and checks targeted discovery, inspection of the returned official guide and the resulting venue and locality. `search-withheld-place` checks that explicit organizer nonpublication ends place discovery without making venue a publication prerequisite. Existing known-place and optional-information cases retain their no-search checks. No model judge is used.
-
-The 2026-11-03 follow-up uses `openai/gpt-6-luna` and explicit standard tier, with one attempt per selected case in each experiment. The measurements remain separate:
-
-| Label | Loaded changes | Result |
-| --- | --- | --- |
-| `place-access` | Research v22, Reader v33, Editor v26 | Main 4/5; search policy 5/8; fixed Editor 8/8 |
-| `place-access-final` | Research v23, Reader v34, Editor v26 | Main 5/5, required facts 15/15, additional facts 26/33; search policy 7/8; Reader 3/3 |
-| `place-access-recovery` | Research v24, Reader v34, Editor v26 | The unknown, inaccessible and wrong official-source cases pass 3/3 |
-
-The first sample exposed venue information lost from short coverage. Reader v34 names whether venue/address evidence was collected; Research v23 treats that coverage as source acquisition, leaving meaning and Edition applicability to Location. The remaining search-policy failure sought social accounts after an official programme had already established identity. Research v24 ends that recovery even when the original homepage stays blocked. The three affected recovery cases pass after this clarification. The five other search-policy cases pass in `place-access-final`. The fixed Editor inputs do not call Research or Reader; their 8/8 result checks the unchanged Editor v26 separately.
-
-The uncited-page trace confirms one native `mastra_workspace_grep` call on `s2.md` and rejection of the restricted ticket proposal. The concrete-place case makes one search, reads the returned guide and prepares the venue and locality. The withheld-place case makes no search and prepares publication without a venue. Reader retains all 25 declared requirements; all 24 returned quotations bind to their sources.
-
-These samples do not establish improved optional recall. The latest main sample misses Wacken locality and official website, Sziget locality/venue/address, and Roskilde venue/address. Some location evidence failed literal binding; fixed discovery returned no useful replacement. The first Roskilde sample also included a gift card as admission and an inconsistent instalment amount, plus an address spelling not accepted by the scorer. Those findings remain in the original result. No Tickets or Location fix is claimed from a later passing sample. These affected runs do not replace a complete 56-case run.
-
-Native results and traces are in the local `data/eval-place-access-20261102.*`, `data/eval-place-access-final-20261102.*` and `data/eval-place-recovery-20261103.*` stores. The focused application check passes 68 tests. Types, affected lint, formatting, dependency checks, documentation checks and OpenSpec validation pass.
+A comparison can span different coarse dataset hashes only after checking that every selected case input and its checks are identical. Record this check with the experiment; matching case IDs alone do not prove equal inputs. Native usage comparisons must include all executed roles and treat missing metrics as unknown.

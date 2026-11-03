@@ -26,26 +26,19 @@ export function evalFileHash() {
     "checks.ts",
     "tool-use.ts",
     "score.ts",
-    ...readdirSync(join(directory, "cases"), {
-      recursive: true,
-      encoding: "utf8",
-    })
-      .filter(
-        (name) => /\.(json|md|ts)$/.test(name) && !name.endsWith(".test.ts"),
-      )
-      .map((name) => join("cases", name)),
-    ...readdirSync(join(directory, "main"), {
-      recursive: true,
-      encoding: "utf8",
-    })
-      .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
-      .map((name) => join("main", name)),
-    ...readdirSync(join(directory, "reader"), {
-      recursive: true,
-      encoding: "utf8",
-    })
-      .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
-      .map((name) => join("reader", name)),
+    ...["cases", "main", "reader"].flatMap((folder) =>
+      readdirSync(join(directory, folder), {
+        recursive: true,
+        encoding: "utf8",
+      })
+        .filter(
+          (name) =>
+            (folder === "cases"
+              ? /\.(json|md|ts)$/.test(name)
+              : name.endsWith(".ts")) && !name.endsWith(".test.ts"),
+        )
+        .map((name) => join(folder, name)),
+    ),
   ].sort((a, b) => a.localeCompare(b));
   const hash = createHash("sha256");
   for (const file of files) {

@@ -217,9 +217,7 @@ test.each(["research", "reader"] as const)(
     expect(request.model).toBe("openai/gpt-6-luna");
     expect(request.reasoning).toEqual({ effort: "medium" });
     expect(request.service_tier).toBe(settings.serviceTier);
-    expect(request.prompt_cache_options).toEqual(
-      role === "reader" ? { mode: "explicit" } : undefined,
-    );
+    expect(request.prompt_cache_options).toBeUndefined();
     expect(JSON.stringify(request.messages)).not.toContain(
       "prompt_cache_breakpoint",
     );

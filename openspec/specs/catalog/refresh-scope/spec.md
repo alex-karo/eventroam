@@ -19,14 +19,7 @@ Refresh SHALL use only the targeted Event's private catalog context and SHALL up
 
 ### Requirement: Full scope assigns saved history and the next candidate
 
-Full instructions MUST assign Event summary and shared links, the latest completed Edition, and the ongoing or nearest announced future Edition.
-They MUST request checks of all supported fields of those selected Editions, whether saved or new.
-Location MUST assess the Editions accepted by the editor under location resolution.
-Other saved Editions MUST remain context for matching, country checks, classification reuse, and historical coordinate donors.
-They MUST NOT require a separate field audit or become update targets.
-The research model MUST report known unfinished mandatory checks.
-The application MUST trust the model's account without a separate coverage record.
-Success MUST NOT certify that all assigned checks were complete.
+Full refresh MUST check Event summary and shared links, the latest completed Edition, and the ongoing or nearest announced future Edition. It MUST check supported fields for both selected Editions, except historical tickets and ticket links. Other saved Editions MUST remain context for matching, country checks, and supported inheritance. They MUST NOT become audit or update targets. Known unfinished mandatory checks MUST remain visible. Success MUST NOT certify complete checks.
 
 #### Scenario: Full refresh has saved history
 
@@ -59,17 +52,14 @@ Success MUST NOT certify that all assigned checks were complete.
 - **WHEN** full completes the Event checks and both Edition-role checks
 - **THEN** it does not require discovery of other unsaved historical Editions
 
+#### Scenario: Previous tickets are readable
+- **WHEN** full inspects the latest completed Edition and finds its prices or ticket URLs
+- **THEN** it does not interpret or propose changes to those ticket fields
+- **AND** their omission does not make the assignment partial
+
 ### Requirement: Current scope focuses research on one selected Edition
 
-Current scope MUST check only currentOrNextEdition. Its previousEdition MUST be null in every agent plan.
-Its research instructions MUST request checks of announcement, dates, schedule status, location, tickets, and classification for that Edition.
-Size, source coordinates, and detailed address can remain opportunistic.
-Current MUST omit Event summary and shared-link findings and actions.
-It MUST NOT re-audit history or an established Event identity baseline.
-Location MUST assess only the target accepted by the editor.
-The application MUST enforce the slot and Event-field restrictions.
-It MUST trust the model's temporal selection and account of its checks.
-Target ownership, country, field, and catalog guards MUST still apply.
+Current refresh MUST check announcement, dates, schedule status, location, tickets, and classification for currentOrNextEdition only. Its previousEdition MUST be null. Size, source coordinates, and detailed address can remain opportunistic. It MUST NOT audit Event fields, history, or the established identity baseline. Only the selected Edition can receive changes or publication evaluation. Ownership, country, and catalog guards MUST apply.
 
 #### Scenario: The next Edition changes venue and programme
 
@@ -82,11 +72,11 @@ Target ownership, country, field, and catalog guards MUST still apply.
 
 - **WHEN** current selects one future Edition and another Edition is saved
 - **THEN** only the selected Edition can receive findings, changes, or publication evaluation
-- **AND** the other Edition remains available as matching, country, classification-donor, and coordinate-donor context
+- **AND** the other Edition remains context for matching, country checks, classification reuse, and earlier saved points
 
 #### Scenario: Current returns an additional Event fact
 
-- **WHEN** current returns an Event summary or shared-link finding, or the editor addresses an Event field
+- **WHEN** current returns an Event summary or shared-link finding, or the prepared update addresses an Event field
 - **THEN** the application rejects the item before catalog operations
 
 #### Scenario: No Editions are saved
@@ -96,7 +86,7 @@ Target ownership, country, field, and catalog guards MUST still apply.
 
 #### Scenario: A result exceeds the assignment
 
-- **WHEN** current returns a previous Edition or Event field finding, or a plan addresses a key outside its matching research slot
+- **WHEN** current returns a previous Edition or Event field finding, or a plan addresses a key outside its selected slot
 - **THEN** the result is rejected before catalog operations
 - **AND** this includes keep-only actions for another saved Edition
 
@@ -110,6 +100,14 @@ Target ownership, country, field, and catalog guards MUST still apply.
 
 - **WHEN** current completes its mandatory checks without size, precise coordinates, or detailed address findings
 - **THEN** their omission does not require separate research or partial status
+
+#### Scenario: Tickets for an ongoing Edition
+- **WHEN** currentOrNextEdition is ongoing on the frozen local date
+- **THEN** its ticket prices, availability, and ticket links remain in scope
+
+#### Scenario: The current-or-next role is empty
+- **WHEN** no current-or-next Edition is selected
+- **THEN** no historical ticket work is substituted and saved historical tickets remain unchanged
 
 ### Requirement: Current selection uses inspected temporal evidence
 
@@ -200,7 +198,6 @@ Unresolved matching MUST remain unfinished instead of creating a possible duplic
 - **WHEN** an inspected source announces a later annual or seasonal occurrence with the same programme, venue or classification as a saved Edition
 - **THEN** continuity alone does not make it the same realization or authorize reuse of that saved key
 - **AND** a source that explicitly corrects or reschedules the same realization can still retain its saved key
-
 
 ### Requirement: Full refresh can recover a wrong source association
 Full refresh MAY recover a wrong website association using an inspected known link or replacement. If Event identity remains unresolved, full refresh SHALL make no catalog or publication changes. The report MAY retain supported findings as partial research.

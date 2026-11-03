@@ -8,48 +8,51 @@ Define automatic, source-backed decisions for an Edition's venue, address, local
 
 ### Requirement: Location runs only for accepted Edition targets
 
-During ingestion, Location SHALL run after a valid editor decision and before catalog operations are prepared. One assignment SHALL cover all accepted Edition slots of one Event. The application SHALL bind each output slot to its accepted input key; Location output SHALL NOT repeat Edition keys. Location input SHALL omit the constant editor status while retaining available Editor explanations. It SHALL NOT restore declined slots or change Event or Edition identity. Rejected editing, duplicate add, declined Event creation, or no accepted Edition slots SHALL skip Location.
+Ingestion SHALL apply place changes only to accepted Edition targets. A duplicate add, declined creation, rejected identity, or absent Edition target SHALL produce no place changes for that target. Saved history SHALL remain context without becoming an update target. A place change SHALL NOT alter Event or Edition identity.
 
 #### Scenario: The editor rejects the festival association
 
-- **WHEN** the editor rejects the research as another festival
-- **THEN** Location does not run and no catalog change is made
+- **WHEN** evidence concerns another festival
+- **THEN** no catalog changes are made
 
 #### Scenario: Only the next Edition is accepted
 
-- **WHEN** the editor accepts currentOrNextEdition and returns previousEdition as null
-- **THEN** Location can act only on the accepted currentOrNextEdition key
-- **AND** it can read saved history without changing it
+- **WHEN** currentOrNextEdition is accepted and previousEdition is null
+- **THEN** only the current-or-next key can receive place changes
+- **AND** saved history remains unchanged
 
 #### Scenario: Both Editions are accepted
 
-- **WHEN** the editor accepts two distinct Edition slots
-- **THEN** one Location assignment assesses them with separate named-slot decisions
-- **AND** neither slot requires a separate earlier Location run
+- **WHEN** two distinct Edition targets are accepted
+- **THEN** each can receive its own supported place change in the same atomic item
 
 #### Scenario: Editor context is available
 
-- **WHEN** Location receives accepted targets
-- **THEN** it also receives relevant saved state, research, and available editor identity and slot decisions with their explanations
-- **AND** it receives the full Editor unresolved array unchanged, including questions without field or Edition labels and any explanations for declined slots
-- **AND** Research questions are not merged into that Editor array, and Location need not repeat the Editor questions in its output
-- **AND** absent explanations are not invented and editor decisions do not authorize Location to restore a declined slot
+- **WHEN** Editor reviews selected targets and place proposals
+- **THEN** it receives applicable source evidence, saved values, point records and available place questions
+- **AND** absent explanations are not invented and rejected targets cannot be restored by a place proposal
 
 ### Requirement: Initial geocoding prepares Location context
 
-Before the Location model call, the application SHALL prepare reverse context for the saved target point, or its default donor when absent. It SHALL forward geocode the new Research description, using saved text only when no new description is supplied. Withdrawal SHALL NOT count as an absent finding. It SHALL NOT append an old address to a new venue. Requests without usable inputs SHALL be skipped.
+Before Location runs, the application SHALL prepare available reverse context for the saved target point or its earlier saved point. Location SHALL choose forward queries within the shared budget. Place checks SHALL distinguish new venue evidence from saved points. A new venue SHALL NOT be combined with a withdrawn address. Source coordinates SHALL retain their owning object and year context. Equivalent geocoding inputs SHALL reuse available results while each Edition's applicability is assessed separately.
 
 #### Scenario: Research establishes a new venue
 
-- **WHEN** the accepted target has an old point and research supplies a new venue description
-- **THEN** Location receives reverse context for the old point and forward candidates for the new description before its model call
-- **AND** the forward query does not combine the new venue with the withdrawn address
+- **WHEN** evidence establishes a new venue and disproves the saved address
+- **THEN** the saved point remains available for comparison
+- **AND** a forward query does not combine the new venue with that withdrawn address
 
 #### Scenario: Two slots share their location inputs
 
-- **WHEN** accepted slots have identical old coordinates or identical forward text after whitespace normalization with the same country constraint
-- **THEN** the application makes one initial request for each distinct direction and input and shares its result between those slots
-- **AND** Location assesses applicability separately for each slot
+- **WHEN** two selected Editions have the same saved coordinates
+- **THEN** one available reverse result can serve as context for both without another provider request
+- **AND** shared context does not prove that the venue applies to both
+
+#### Scenario: A source directly identifies a venue point
+
+- **WHEN** source text supplies a valid coordinate pair and its owning object
+- **THEN** a place update can use that exact pair when it applies to the target
+- **AND** ingestion does not generate latitude or longitude
 
 ### Requirement: Reverse results provide context only
 
@@ -63,37 +66,39 @@ A reverse result SHALL retain the queried point and bounded nearby place or addr
 
 ### Requirement: Location owns a coherent place description
 
-During ingestion, Location SHALL own venueName, venueAddress, locality, administrativeArea, countryCode, and coordinates. Each accepted slot SHALL contain explicit decisions for these fields. It SHALL assess them together using supplied findings, Edition-specific sources, and saved context. The editor SHALL NOT return location actions. Location SHALL NOT change other fields.
+The final venueName, venueAddress, locality, administrativeArea, countryCode, and coordinates SHALL describe one coherent place for each addressed Edition. A changed venue SHALL NOT retain an address or point disproved by the same evidence. Unsupported fields SHALL preserve saved data without claiming fresh verification. Invalid or inconsistent final place data SHALL reject the item.
+
+Location SHALL supply explicit decisions for all place fields. Editor SHALL approve or reject those proposals without supplying replacement values. Other specialists SHALL NOT supply place changes.
 
 #### Scenario: A new venue has an old address
 
 - **WHEN** sources establish a new venue and show that the saved address belongs to the old venue
-- **THEN** Location does not keep that address as if it belonged to the new venue
+- **THEN** ingestion does not keep that address as if it belonged to the new venue
 - **AND** it explicitly clears the disproved address or supplies a supported replacement
 
 #### Scenario: Location data is incomplete but not disproved
 
 - **WHEN** a field has no supported replacement or evidence against its saved value
-- **THEN** Location returns an explicit keep action without claiming fresh verification
+- **THEN** the saved value is preserved without claiming fresh verification
 
 #### Scenario: A text action is missing
 
-- **WHEN** a ready Location slot omits a decision for a location text field
+- **WHEN** a Location proposal omits a decision for a place text field
 - **THEN** validation rejects the whole item before writes
 
 #### Scenario: Plans overlap in field ownership
 
-- **WHEN** the editor supplies a location action or Location supplies a non-location action
+- **WHEN** Editor supplies a replacement place value or Location supplies a non-location change
 - **THEN** validation rejects the whole item before writes
 
 ### Requirement: Location decisions retain their evidence
 
-Each changed or cleared location field SHALL have a reason tied to its Edition and grounded in supplied evidence or saved state. Location SHALL NOT return source URLs or source IDs. Supplied source summaries SHALL remain in the input and report without a separate association between each decision and a source. Geocoding choices SHALL cite registered candidates, and inheritance SHALL cite its donor. Unsupported point or donor references SHALL be rejected. Location SHALL use only supplied research and saved context plus its geocoding tool; it SHALL NOT perform another web investigation.
+Each changed or cleared place field SHALL retain its target and reason grounded in source evidence or saved state. Coordinate choices SHALL retain the source point or geocoding candidate basis. Reuse of an earlier saved point SHALL identify its Edition. Unsupported point or saved-Edition references SHALL be rejected.
 
 #### Scenario: Only a city is known
 
 - **WHEN** research supplies Lisbon without a supported venue and the geocoder cannot establish one
-- **THEN** Location reports the missing venue information without inventing an address or claiming venue precision
+- **THEN** the result reports the missing venue information without inventing an address or claiming venue precision
 
 #### Scenario: An old venue is withdrawn without a confirmed replacement
 
@@ -254,21 +259,20 @@ For an Edition with several venues, Location SHALL select one point only when su
 - **THEN** Location selects a supported locality point with locality precision and keeps the venue choice unresolved
 - **AND** one confirmed show at a venue does not make that venue the representative point of the whole Edition
 
-
 ### Requirement: Geocoding is bounded and independent of old points
 
-Forward geocoding SHALL return bounded candidates and safe provider failures. Forward requests SHALL use the applicable country constraint and SHALL NOT bias results toward saved coordinates. The agent's only tool SHALL be forward geocode for useful refinements or alternate spellings when prepared results are unsuitable. Location SHALL have no page, web search, or write tool. Provider success SHALL NOT certify that a candidate is the festival venue.
+Geocoding SHALL return bounded candidates and safe provider failures. Forward requests SHALL use the applicable country constraint and SHALL NOT bias results toward saved coordinates. Provider success SHALL NOT certify a festival venue. A provider failure SHALL NOT authorize invented coordinates or changes to otherwise applicable saved data.
 
 #### Scenario: A saved point is wrong
 
-- **WHEN** Location searches for a supplied venue
+- **WHEN** ingestion searches for a supplied venue
 - **THEN** the saved point is available for comparison but is not sent as proximity bias
 
 #### Scenario: No provider key is configured
 
-- **WHEN** Location requests geocoding without a key
+- **WHEN** ingestion requests geocoding without a key
 - **THEN** the tool returns unavailable without exposing configuration
-- **AND** Location can still return a supported source-point or preservation decision
+- **AND** ingestion can still return a supported source-point or preservation decision
 
 ### Requirement: Location failure does not apply unreviewed findings
 

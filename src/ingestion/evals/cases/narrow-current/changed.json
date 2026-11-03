@@ -6,7 +6,7 @@
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-current-regression",
-    "note": "Synthetic official announcements isolate scope and continuity decisions; no live source fallback."
+    "note": "Synthetic official announcements isolate scope and continuity decisions. Substantial main programme on indoor and outdoor stages is explicit to support the mixed-format change; no live source fallback."
   },
   "input": {
     "mode": "refresh",

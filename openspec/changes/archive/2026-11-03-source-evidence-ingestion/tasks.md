@@ -22,8 +22,8 @@ This group depends on assignments and a validated frozen corpus.
 - [x] 3.2 Use General for identity, Edition selection and common facts. Verify confirmed duplicate exit, uncertain identity, stable keys, temporal selection, scope restrictions and private name-mismatch metadata.
 - [x] 3.3 Use Tickets only for `currentOrNextEdition`, including an ongoing Edition. Verify complete observed offers without URLs, supported free admission, unknown prices and preservation without an accepted replacement.
 - [x] 3.4 Use Classification with complete lists and supplied vocabulary. Verify retained terms, supported reuse from an eligible preceding Edition, ancestor normalization and facet limits.
-- [x] 3.5 Run Links independently after General. Verify Event links, ticket overview preference, unread checkout, query preservation and historical-link preservation. The [Roskilde issue](../../../docs/archive/known-issues/2026-10-27-roskilde-edition-ticket-link.md) records the passing repeated link checks.
-- [x] 3.6 Run Location before Editor with selected targets and source support. Verify `previousPoint` and `reusePrevious` binding, ambiguous or absent earlier points, shared geocoding limits and place preservation. Document the order in `docs/ingestion-process.md`; isolated Location regressions pass in the recorded full runs.
+- [x] 3.5 Run Links independently after General. Verify Event links, ticket overview preference, unread checkout, query preservation and historical-link preservation. The [Roskilde issue](../../../../docs/archive/known-issues/2026-10-27-roskilde-edition-ticket-link.md) records the passing repeated link checks.
+- [x] 3.6 Run Location before Editor with selected targets and source support. Verify `previousPoint` and `reusePrevious` binding, ambiguous or absent earlier points, shared geocoding limits and place preservation. Document the order in `docs/ingestion-process.md`.
 
 ## 4. Proposal review and catalog preparation
 
@@ -43,28 +43,17 @@ This group depends on all assigned specialist contracts.
 
 ## 6. Evaluation contracts
 
-- [x] 6.1 Adapt workflow, fixed Editor and isolated Location fixtures to the owning roles. All 50 current cases load with reference checks; Editor handoffs use schema version 5. Recorded full runs pass all Editor and isolated Location cases. Verify no live fallback, no evaluator input to models and no technical failure accepted as a domain refusal.
+- [x] 6.1 Adapt workflow, fixed Editor and isolated Location fixtures to the owning roles. Validate case loading and reference checks; Editor handoffs use schema version 5. Verify no live fallback, no evaluator input to models and no technical failure accepted as a domain refusal.
 - [x] 6.2 Replace historical ticket expectations with preservation checks. Verify amount/currency checks without offer URLs, ongoing Editions and the Edition ticket overview. Document the revised boundary in `docs/ingestion-evals.md`.
 - [x] 6.3 Apply explicit eval model selection to every executed role. Verify Location overrides, skipped roles and recorded prompt/model versions. Inspect usage through observability.
 - [x] 6.4 Move regression conditions from JSON to registered TypeScript checks. Verify saved-output scoring, mutation and tool-use conditions, refusal checks and dataset hashing. Keep original experiment results unchanged.
 
 ## 7. Integrated validation
 
-- [x] 7.1 Run affected tests, type checking, lint, dependency checks, formatting, `pnpm run openspec:validate` and `pnpm run docs:check`. Verify shared CLI/Studio reports. After removal of the old fixture contracts, 731 unit tests pass. The evaluation fixtures retain 50 valid case loads.
-- [ ] 7.2 Validate model quality for the final contracts and prompts on the affected fixtures. Inspect recall, final quality and source reads. The final-contract focused check passes both Roskilde and search-date-conflict twice on standard tier; it does not replace full-suite validation. The owner accepts the current inference cost; no further cost comparison or reduction is required.
-- [ ] 7.3 Review the selected Reader input/output bounds, call allowance and downstream reserve against those measurements. Record accepted settings and remaining quality risks. Further cost tuning is not required. Repeat only checks affected by further tuning.
-- [ ] 7.4 Sync the remaining changed requirements into their owning main specs after verification. Some follow-up rules are already synced and need no duplicate delta. Check proposal/spec agreement, affected links, `pnpm run openspec:validate` and `pnpm run docs:check`. Update the documentation index if the document set changes.
-
-## Validation evidence and limits
-
-The [eval comparison](../../../docs/proposals/source-evidence-eval-comparison.md) retains earlier measurements. Completed work covers page coverage, native grep, compact role inputs, Research blockers, free and unsupported ticket categories, Event identity, geocoding replay, schedule status, quotation corrections and model text length guidance. These are completed work, not separate pending task groups.
-
-The earlier full comparison passes 48/50 cases. Main retains 10/15 required facts and 19/33 additional facts after Roskilde's Editor failure. The two affected repeats then pass with unchanged checks. Neither run measures the later Research text-blocker and text-length contracts. Passing unit tests does not establish final model quality. The owner accepts the current cost and has removed further cost optimization and controlled cost comparison from the remaining work.
-
-The proposed mixed-ticket-block Editor case and extra geocoding decoy discrimination remain optional coverage decisions. They are not implemented guarantees. Existing Editor inputs are fixed; the old variable-fixture problem no longer blocks 3.5, 3.6 or 6.1. Keep remaining model-quality work in 7.2 rather than reopening completed specialist implementation.
-
-The final-contract affected repeats (`problem-repeats-final`) pass 4/4 on standard tier. Roskilde retains 10/10 required and 21/22 additional facts, with base price omitted once. Both date-conflict attempts pass.
-
+- [x] 7.1 Run affected tests, type checking, lint, dependency checks, formatting, `pnpm run openspec:validate` and `pnpm run docs:check`. Verify shared CLI/Studio reports.
+- [x] 7.2 Run each eval group on standard tier and inspect recall, final quality, source reads and native usage. Keep failures visible in the saved experiments. Track the remaining quality work separately below. No further cost comparison or reduction is required.
+- [x] 7.3 Review Reader input/output bounds, call allowance and downstream reserve. Retain the current settings: 288,000 usable page characters, 12,000 Reader output tokens, 18 calls and up to 180 seconds downstream reserve. No observed failure needs a limit change. Near-limit live pages remain untested.
+- [x] 7.4 Sync all eight delta specs into their owning main specs. Preserve unrelated requirements and scenarios. Remove obsolete source-prefix and optional-capture rules. Check proposal/spec agreement, affected links, `pnpm run openspec:validate` and `pnpm run docs:check`.
 
 ## 8. Isolated Reader evaluation
 
@@ -75,17 +64,14 @@ The final-contract affected repeats (`problem-repeats-final`) pass 4/4 on standa
 - [x] 8.5 Correct downstream failures found by the full run: unsupported saved temporal targets, omitted programme topics beside music genres, lost country details in navigation coverage, local-day selection, and unsupported saved-point replacement. Correct excessive optional-term and unpriced-offer checks; make historical realization explicit in the synthetic size fixture. Keep source and publication guards. Inspect the full-suite result on Luna and standard tier, then repeat cases affected by the final prompt changes. Keep those measurements separate.
 - [x] 8.6 Verify medium Reader reasoning and conservative source binding. Accept full literal opening/suffix forms and restore extra wire escapes only after an exact unique source match. Keep changed facts, ambiguous text, reversed ranges, partial overlaps and oversized quotes invalid. Run the repeated Reader cases and the complete suite, then repeat cases affected by later settings or prompt changes. Record the loaded versions and keep original results unchanged.
 
-The first isolated Reader run has 0/3 passing scenarios despite valid model output in all three attempts. Source review confirms topic, context and quotation-binding failures. One narrow Sziget identity expectation was corrected and the saved output rescored; the scenario still fails. The original native experiment remains unchanged. These eval failures remain visible and do not block completion of the requested eval setup.
-
-The follow-up uses production recipient routing and complete factual alternatives. Reader v23 retains 75/75 declared requirements across nine standard-tier attempts, with 9/9 passing scenarios and 86/87 literal bindings. The rejected extra link remains a visible diagnostic; processing-status rules stay unchanged. The original v20 outputs score 2/3 under the final checks and still expose Sziget's missing local year context. Usable required evidence does not imply complete processing.
-
-
-The final Reader v33 sample passes 9/9 with 75/75 declared requirements. An independent check confirms 75 accepted quotes and eight contexts as exact unique source spans. The latest complete run loads Reader v31 and Editor v24 and passes 52/53, with main 5/5 and 15/15 required plus 31/33 additional facts. Its only failure is a false Editor rejection of a saved Student category absent from the proposal. Editor v25 then passes both affected checkout cases twice (4/4), and all seven fixed Editor cases pass. These focused repeats do not constitute a new 53/53 full run. All 749 application tests pass; the final affected 48 tests, type checking, lint, formatting, dependency checks, documentation checks and OpenSpec validation also pass. Luna stays in use. Reader and General use medium; Tickets remains low after the rejected medium experiment.
-
 ## 9. Source validation and place discovery follow-up
 
 - [x] 9.1 Give Editor native grep access to all saved Markdown pages of the current run, with URLs and available overviews. Preserve exact path, read-only and hash checks. Verify uncited and unprocessed pages, failed fetches and rejected paths.
 - [x] 9.2 Let Research seek a concrete festival place when country is known. Keep known-lead preference, explicit nonpublication stops, the shared budget and existing publication minimum. Update existing requirements without adding a requirement.
 - [x] 9.3 Run affected application checks and main, Editor, search-policy and Reader evals on standard tier. Inspect new source-access and place-discovery cases and record actual results.
 
-Follow-up validation is recorded in [the eval guide](../../../docs/ingestion-evals.md#current-run-source-access-and-place-discovery). Editor v26 passes 8/8 fixed cases, including native grep on an uncited page. Main passes 5/5 with 15/15 required and 26/33 additional facts on Research v23 and Reader v34. Reader passes 3/3 with 25/25 requirements and 24/24 literal quotations. The search-policy repeat passes 7/8; Research v24 then passes all three affected source-recovery cases. The five other search-policy cases passed before that clarification. Keep these samples separate from a complete 56-case run and from unresolved optional recall and ticket instability. All 68 affected application tests and the required code, docs and spec checks pass.
+## 10. Remaining quality findings
+
+- [x] 10.1 Investigate the rejected ticket quotation in `source-known-offers-blocked-checkout`. Preserve exact source binding; fix the cause and repeat the affected check.
+- [x] 10.2 Resolve the mixed-format evidence ambiguity in `narrow-current-changed` and the Links role's out-of-scope Event-link gap. Keep the substantial-main-programme rule and current-scope boundary.
+- [x] 10.3 Resolve the full-refresh guidance check in `current-identity-contradiction`. Preserve the safe refusal, no-write and no-search conditions.

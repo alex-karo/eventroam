@@ -90,7 +90,6 @@ export function buildAssignment(
     },
   };
 }
-export type Assignment = ReturnType<typeof buildAssignment>;
 
 /** Interpretation checks belong to the role that can assess their meaning. */
 export function assignedRoleChecks(

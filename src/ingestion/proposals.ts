@@ -426,11 +426,21 @@ export function assembleProposals(options: {
   input: CatalogResearchInput;
 }): StageResult<PreparedProposals> {
   const { targets, corpus, context, input } = options;
-  const diagnostics: PlanDiagnostics = diagnosticsOnly(targets);
+  const diagnostics: PlanDiagnostics = {
+    ...diagnosticsOnly(targets),
+    unresolved: [
+      ...targets.unresolved,
+      ...(options.tickets?.unresolved ?? []),
+      ...(options.classification?.unresolved ?? []),
+      ...options.links.unresolved,
+      ...options.location.unresolved,
+    ],
+  };
   const event =
     context.catalog.find((event) => event.id === targets.eventId) ??
     (input.eventId ? context.catalog[0] : undefined);
   const plan = commonPlan(targets);
+  plan.unresolved = diagnostics.unresolved;
   const submitted = {
     general: targets,
     tickets: options.tickets,

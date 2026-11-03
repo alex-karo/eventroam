@@ -18,7 +18,7 @@ Enabled logs, traces, and metrics SHALL be stored separately from the catalog an
 
 ### Requirement: Studio inspection exposes execution progress
 
-Local or hosted Studio SHALL expose the flow, progress, execution ID, run ID, and available research, editorial, Location, geocoding, source, catalog, and report outcomes. Opening inspection SHALL NOT start work or require model credentials. Execution state SHALL exclude credentials, authenticated provider URLs, prompts, full page bodies, transport payloads, live resources, and raw exceptions. Final model responses SHALL follow ingestion-run rules. Concurrent attempts SHALL remain distinct. Opening saved inspection SHALL NOT require an active catalog connection. Saved run inspection SHALL expose the original input, available step statuses and times, and available step results after process exit.
+Local or hosted Studio SHALL expose the flow, progress, execution ID, run ID, and available source, validation, place, geocoding, catalog, and report outcomes. Opening inspection SHALL NOT start work or require model credentials. Execution state SHALL exclude credentials, authenticated provider URLs, prompts, full page bodies, transport payloads, live resources, and raw exceptions. Final model responses SHALL follow ingestion-run rules. Concurrent attempts SHALL remain distinct. Opening saved inspection SHALL NOT require an active catalog connection. Saved run inspection SHALL expose the original input, available step statuses and times, and available step results after process exit.
 
 #### Scenario: Open Studio without execution prerequisites
 
@@ -39,10 +39,17 @@ Local or hosted Studio SHALL expose the flow, progress, execution ID, run ID, an
 
 - **WHEN** the owner opens a saved ingestion execution after the writing process exits
 - **THEN** Studio exposes its input and available step states, times, outputs, and final summary
-- **AND** research findings, editorial actions, Location decisions, normalized geocoding observations, prepared operations, and confirmed write results remain distinguishable
-- **AND** native workflow success does not replace research status, editorial status, Location status, catalog outcome, or report persistence status
+- **AND** source-check results, processing limits, proposed and accepted updates, normalized geocoding observations, prepared operations, and confirmed write results remain distinguishable
+- **AND** technical execution success does not replace source-check, validation, or place-check status, catalog outcome, or report persistence status
 
 #### Scenario: A start request includes private request context
 
-- **WHEN** a native start request carries separate credentials, prompts, source bodies, or provider payloads in request context
+- **WHEN** a start request carries separate credentials, prompts, source bodies, or provider payloads in request context
 - **THEN** saved history excludes that request context while retaining allowed final model responses
+
+#### Scenario: Inspect evidence after exit
+
+- **WHEN** an execution has persisted source artifacts
+- **THEN** saved results identify the private corpus, source references and processing limits
+- **AND** a missing artifact is reported as missing rather than fetched again
+- **AND** this change does not require a new public source viewer

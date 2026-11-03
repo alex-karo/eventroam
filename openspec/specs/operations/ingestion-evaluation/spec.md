@@ -8,7 +8,7 @@ Define controlled ingestion experiments that separate catalog quality from targe
 
 ### Requirement: Cases have separate purpose and source labels
 
-Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The initial main set SHALL contain five festival cases: captured Wacken, Roskilde, Sziget, and Afro Nation Portugal cases, and a synthetic Glastonbury case without source confirmation of its saved programme. The existing 45 regression cases SHALL retain their targeted checks, including 13 isolated Location cases. Three additional isolated source-extraction cases SHALL reuse existing pages and preserve their origin labels.
+Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The initial main set SHALL contain five festival cases: captured Wacken, Roskilde, Sziget, and Afro Nation Portugal cases, and a synthetic Glastonbury case without source confirmation of its saved programme. Targeted workflow, Editor, and isolated Location regressions SHALL retain their checks. Isolated source-extraction cases SHALL reuse existing pages and preserve their origin labels.
 
 #### Scenario: Shared sources serve different tasks
 
@@ -29,7 +29,7 @@ Each case SHALL declare its task, source origin, and `main` or `regression` suit
 
 ### Requirement: All groups can run together
 
-One command SHALL support case and group selection. With no selection flags, it SHALL select five main cases. The `--all` option SHALL select all 53 cases. The repeat count SHALL default to one. CLI output SHALL identify selected groups and case counts.
+One command SHALL support case and group selection. With no selection flags, it SHALL select five main cases. The `--all` option SHALL select all registered cases. The repeat count SHALL default to one. CLI output SHALL identify selected groups and case counts.
 
 #### Scenario: Default run selects main cases
 
@@ -39,7 +39,7 @@ One command SHALL support case and group selection. With no selection flags, it 
 
 #### Scenario: Full run includes a rejected scenario
 
-- **WHEN** `--all` selects all 53 cases and one scenario fails its checks
+- **WHEN** `--all` selects all registered cases and one scenario fails its checks
 - **THEN** other groups still run and retain their results
 - **AND** the command exits nonzero with separate group summaries
 
@@ -338,18 +338,18 @@ Valid comparisons SHALL use the same group, selected cases, inputs, expectations
 
 ### Requirement: Explicit model selection applies to every stage
 
-The eval option `--model X` SHALL select X for Research, Editor, and Location in every selected group, overriding the Location environment setting. Without this option, existing environment model selection SHALL apply. Experiment metadata SHALL record resolved stage models.
+The eval option `--model X` SHALL select X for every executed model call in each selected group, overriding the Location environment setting. Without the option, existing environment selection SHALL apply. Experiment metadata SHALL record the resolved model settings.
 
 #### Scenario: Explicit model overrides the Location environment
 
 - **WHEN** `CATALOG_LOCATION_MODEL` names Y and an eval runs with `--model X`
-- **THEN** each executed Research, Editor, or Location stage uses X
+- **THEN** each executed model call uses X
 - **AND** this applies to both `--all` and `--location-only` runs
 
 #### Scenario: No explicit model is supplied
 
 - **WHEN** an eval runs without `--model`
-- **THEN** Research and Editor use `OPENROUTER_MODEL` or its default
+- **THEN** all calls except place-resolution calls use `OPENROUTER_MODEL` or its default
 - **AND** Location uses `CATALOG_LOCATION_MODEL` when set, otherwise the same model
 
 ### Requirement: Eval usage inspection separates usage from quality

@@ -359,13 +359,13 @@ export async function runEditor(
               beforeToolCall: async ({ input }) => {
                 options.signal.throwIfAborted();
                 const { path } = input as { path: string };
-                const file = sourceFiles.find((file) => file.path === path);
-                if (!file) {
+                const source = sources.find(
+                  (source) => basename(source.markdownPath!) === path,
+                );
+                if (!source) {
                   throw new Error("Source file is not saved in this run");
                 }
-                await readCanonicalSource(
-                  sources.find((source) => source.id === file.sourceId)!,
-                );
+                await readCanonicalSource(source);
               },
             },
           },

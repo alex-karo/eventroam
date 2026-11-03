@@ -40,7 +40,7 @@ The website reads published catalog data. The owner starts ingestion through the
 
 ## Ingestion
 
-The Mastra workflow collects evidence, proposes changes, and reviews them before a catalog write. The diagrams reflect the current branch and its [source-evidence change](openspec/changes/source-evidence-ingestion/). Final model-quality checks and the remaining spec updates are still open.
+The Mastra workflow collects evidence, proposes changes, and reviews them before a catalog write. The diagrams show the implemented flow. See the [ingestion workflow specification](openspec/specs/catalog/ingestion-workflow/spec.md) and the [archived source-evidence change](openspec/changes/archive/2026-11-03-source-evidence-ingestion/).
 
 ```mermaid
 flowchart TD

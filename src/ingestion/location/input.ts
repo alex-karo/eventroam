@@ -58,7 +58,6 @@ export const locationInputSchema = z.strictObject({
 });
 export type LocationInput = z.infer<typeof locationInputSchema>;
 export type LocationTarget = z.infer<typeof targetSchema>;
-export type SavedLocation = z.infer<typeof savedLocationSchema>;
 export function buildLocationInput(
   targets: Targets,
   corpus: FrozenCorpus,

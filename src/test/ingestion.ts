@@ -9,7 +9,6 @@ import type {
   LocationFields,
   LocationOutput,
 } from "@/ingestion/location/contracts";
-import type { StageResult } from "@/ingestion/stage";
 import type { ResearchDependencies } from "@/ingestion/contracts";
 import type { GenerateRole, Role } from "@/ingestion/roles/invoke";
 import type { Targets, CheckFinding } from "@/ingestion/roles/contracts";
@@ -224,14 +223,6 @@ export function fixtureDependencies(
       };
     }) satisfies NonNullable<ResearchDependencies["readPage"]>,
   };
-}
-export function continueStage<T>(result: StageResult<T>): T {
-  if (result.status !== "continue") {
-    throw new Error(
-      `Fixture stage stopped: ${JSON.stringify(result.diagnostics)}`,
-    );
-  }
-  return result.value;
 }
 export const runFixtureResearch: typeof runCatalogResearch = async (
   input,

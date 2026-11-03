@@ -203,6 +203,13 @@ it("uses native Mastra grep with all saved source files and hash checks", async 
     const corpus = store.freeze();
     const prepared: PreparedProposals = {
       ...initialDiagnostics(),
+      unresolved: [
+        {
+          message: "Does the eligibility notice restrict admission?",
+          editionKey: "2027",
+          field: "tickets",
+        },
+      ],
       eventName: "Example Festival",
       plan: {
         status: "ready",
@@ -255,6 +262,7 @@ it("uses native Mastra grep with all saved source files and hash checks", async 
             ]);
             expect(input.currentDate).toBe("2026-11-01T00:00:00Z");
             expect(input).not.toHaveProperty("decisionShape");
+            expect(input.prepared.unresolved).toEqual(prepared.unresolved);
             expect(input.prepared.basis.evidence[0].quote).toBe(
               bound.evidence[0].quote,
             );

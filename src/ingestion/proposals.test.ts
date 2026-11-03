@@ -128,6 +128,64 @@ function fixture() {
     client: db.client,
   };
 }
+it("passes questions from all specialists to Editor without changing General", () => {
+  const f = fixture();
+  const question = (message: string) => ({
+    message,
+    editionKey: "2027",
+    field: "tickets",
+  });
+  f.targets.unresolved = [question("General question")];
+  const checked = validateGeneral(f.targets, f.context, f.input, f.corpus);
+  if (checked.status !== "continue") {
+    throw new Error("Fixture target rejected");
+  }
+  const result = assembleProposals({
+    targets: checked.value,
+    corpus: f.corpus,
+    context: f.context,
+    input: f.input,
+    points: [],
+    tickets: {
+      currentOrNextEdition: {},
+      checks: [],
+      unresolved: [question("Tickets question")],
+    },
+    classification: {
+      previousEdition: null,
+      currentOrNextEdition: null,
+      checks: [],
+      unresolved: [question("Classification question")],
+    },
+    links: {
+      event: { socials: {} },
+      currentOrNextEdition: {},
+      omitted: [],
+      checks: [],
+      unresolved: [question("Links question")],
+    },
+    location: {
+      slots: {},
+      support: {},
+      previousPoints: [],
+      unresolved: [question("Location question")],
+    },
+  });
+  expect(result.status).toBe("continue");
+  if (result.status !== "continue") {
+    return;
+  }
+  const expected = [
+    "General",
+    "Tickets",
+    "Classification",
+    "Links",
+    "Location",
+  ].map((role) => question(`${role} question`));
+  expect(result.value.unresolved).toEqual(expected);
+  expect(result.value.plan.unresolved).toEqual(expected);
+  expect(checked.value.unresolved).toEqual([question("General question")]);
+});
 it("requires an explicit supported duplicate decision for add", () => {
   const f = fixture();
   expect(

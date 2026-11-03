@@ -7,7 +7,8 @@ Define safe, bounded access to public evidence and the meaning of incomplete or 
 ## Requirements
 
 ### Requirement: Public pages are read within safety bounds
-The source reader SHALL use bounded requests for public HTTP(S) destinations and SHALL block non-public destinations, including redirects to them, before connecting. Direct reads SHALL NOT execute page scripts locally. Internal read metadata SHALL identify the requested and final URLs, retrieval time, method, status, and available extracted content. The model response SHALL follow the page-read contract below.
+
+Source access SHALL use bounded public HTTP(S) requests and block non-public destinations, including redirects, before connecting. Direct reads SHALL NOT execute page scripts locally. Read records SHALL retain requested/final URLs, retrieval time, method, status, and available content. Full extracted content within retrieval bounds SHALL remain available for later validation.
 
 #### Scenario: A readable public page
 - **WHEN** a public page contains festival facts and links in its response
@@ -167,15 +168,28 @@ Current source-recovery restrictions MUST still apply. Search count SHALL depend
 - **AND** resolving that need ends its permission for further search
 
 ### Requirement: Source summaries identify useful inspected evidence
-The research model SHALL summarize inspected sources that informed findings and SHALL distinguish them from unread leads. A useful partial page MAY support a fact while its missing information remains unverified. The application SHALL retain model summaries without independently checking their claims against source-read history. Source summaries SHALL remain available for no-op and failed-write outcomes.
+
+Ingestion SHALL retain a general content description for each informative inspected page, including known limits. It SHALL distinguish inspected sources from unread leads. A partial page can support a fact while omitted content remains unverified. Descriptions alone SHALL NOT establish facts. Source descriptions SHALL remain available for no-op and failed-write outcomes.
 
 #### Scenario: One page supports several facts
 - **WHEN** an inspected page supports dates and venue for one Edition
-- **THEN** its summary can explain both facts without presenting the page as separate independent sources
+- **THEN** its description can mention both topics and the same source passage can support several fields without presenting them as separate sources
 
 #### Scenario: A destination was not read
 - **WHEN** research finds a URL but does not inspect it
-- **THEN** the research model omits that URL from its informative inspected sources
+- **THEN** ingestion keeps that URL as an unread lead rather than an inspected source
+
+#### Scenario: A description omits a condition
+- **WHEN** a page overview mentions a price but omits its eligibility condition
+- **THEN** the description alone cannot support a ticket change
+- **AND** the change needs applicable source evidence and its qualifications
+
+#### Scenario: An inspected page states that a detail is not published
+
+- **WHEN** an inspected page explicitly says that a detail is unavailable or not yet announced
+- **THEN** collection can retain that page-local statement separately from extraction problems
+- **AND** a page that is silent or unprocessed does not establish the detail's absence
+- **AND** the coverage description alone does not authorize a catalog change
 
 #### Scenario: A historical passage establishes realization
 
@@ -192,13 +206,14 @@ When automated Facebook or Instagram content retrieval is unsupported, the run S
 - **THEN** it processes the website and reports the unsupported retrieval
 
 ### Requirement: Page reads use a small model response
-`readPage` SHALL accept `{ url }`. Its response SHALL contain only `url`, `status`, `markdown`, `truncated`, optional `reasonCode`, and `remaining`. `url` SHALL identify the final destination, or the requested URL if no final destination is known. `status` SHALL be `ok`, `unsupported`, or `failed`. `remaining` SHALL contain the current `searches` and `durationMs` budget values.
+
+A source-read result SHALL identify its destination, retrieval status, known limitations, and remaining allowance. Retrieval statuses SHALL remain ok, unsupported, or failed, separate from ingestion completion. Success SHALL NOT certify complete retrieval or complete factual checking.
 
 #### Scenario: A supported response is received
 - **WHEN** retrieval returns a supported successful response
 - **THEN** `status` is `ok`, even if extracted text is empty or limited
 - **AND** `reasonCode` can identify a known content limit such as `javascript_required`
-- **AND** the response has no `links`, `completeness`, `attemptedUrl`, or `retrievedAt` field
+- **AND** the result reports extraction coverage separately from retrieval success without claiming complete factual checking
 
 #### Scenario: A source or format is unsupported
 - **WHEN** the reader does not support the source or response format
@@ -208,23 +223,6 @@ When automated Facebook or Instagram content retrieval is unsupported, the run S
 - **WHEN** a request fails, is blocked, or cannot start within the budget
 - **THEN** `status` is `failed` and `reasonCode` identifies the cause
 - **AND** the status is neither `blocked` nor `partial`
-
-### Requirement: Cached Markdown is cut only for model input
-The run SHALL cache full extracted Markdown from responses within the existing byte bounds. It SHALL cut text only when preparing model input, including initial inspected sources. The model response SHALL set `truncated` exactly when that projection omits cached Markdown. Projection SHALL NOT change the cached text. Repeated requests SHALL reuse cached reads, including failures, within the run.
-
-#### Scenario: A long page is read
-- **WHEN** extracted Markdown exceeds the model text bound
-- **THEN** the cache retains the full extracted Markdown
-- **AND** the model receives a bounded prefix with `truncated: true`
-
-#### Scenario: Initial context has a smaller text bound
-- **WHEN** initial inspected sources divide a shared text allowance among several reads
-- **THEN** each projection reflects its own truncation without shortening cached reads
-
-#### Scenario: A cached URL is read again
-- **WHEN** a later request matches the requested or final URL of a cached read
-- **THEN** the reader reuses that read without another request
-- **AND** the model receives a fresh bounded projection and current remaining budget
 
 ### Requirement: Page regions use Markdown comments
 Extracted HTML page regions SHALL use paired HTML comments for Navigation, Main content, Page header, Page footer, and Aside where those regions are identified. The extractor SHALL retain page order and links in Markdown. It SHALL NOT produce a separate extracted link list.
@@ -283,7 +281,8 @@ My Maps output SHALL include the map URL, available title and description, layer
 - **AND** it does not return the polygon's display coordinate as a point marker
 
 ### Requirement: Map limitations preserve page evidence
-The reader SHALL retain readable page content when a map fails, is blocked, has an unsupported format, or exceeds a bound. It SHALL identify the affected map and limitation in Markdown and through a reason code while retaining the readable parent page status. The cache SHALL retain full combined Markdown. Model output SHALL use the existing projection limit and truncation signal, without separate map quotas or pagination. Unread map data SHALL NOT be reported as absent.
+
+Readable page content SHALL remain available when a map fails, is blocked, has an unsupported format, or exceeds a bound. The saved Markdown SHALL retain the affected map and limitation while preserving the parent page status. Combined page and map text SHALL remain subject to the shared retrieval and processing bounds. Unread map data SHALL NOT be reported as absent.
 
 #### Scenario: Google data cannot be parsed
 - **WHEN** the map response has an unsupported or malformed data structure
@@ -296,7 +295,7 @@ The reader SHALL retain readable page content when a map fails, is blocked, has 
 
 #### Scenario: Combined text exceeds the Markdown limit
 - **WHEN** page text followed by map blocks exceeds the existing limit
-- **THEN** the result uses that limit and reports projection truncation
+- **THEN** saved text retains the combined content and identifies any part that could not be processed
 
 ### Requirement: Structured coordinates retain their owning object
 The source reader SHALL include valid coordinate pairs from `Event.location.geo` and `Place.geo` in Markdown with the owning object's available name and structured path. It SHALL NOT treat unrelated numbers as coordinates or select a festival venue from those values.
@@ -377,7 +376,6 @@ For anchors retained after page cleanup, the source reader SHALL keep nonempty v
 - **THEN** this requirement does not restore that anchor
 - **AND** retained anchors elsewhere on the page still use the label fallback
 
-
 ### Requirement: Source support retains context and identity
 
 A source-based change SHALL retain enough source context to identify its meaning and applicable Event or Edition. A matching quote SHALL NOT prove factual support by itself. Missing, ambiguous, or unrelated source references SHALL NOT authorize a change. The same source passage can support more than one field. Validation of submitted changes SHALL have read-only access to all saved Markdown pages of the current run, including uncited pages, with source identity checks. This access SHALL NOT permit new research or replacement values.
@@ -432,3 +430,44 @@ A source-based change SHALL retain enough source context to identify its meaning
 - **WHEN** validation searches saved source text and receives no matches or shortened matching lines
 - **THEN** that result alone does not establish that a fact or qualification is absent
 - **AND** a proposed change still needs applicable source support
+
+### Requirement: Saved sources support later validation
+
+Each run SHALL save full parsed Markdown and provenance as private artifacts within retrieval bounds. Provenance SHALL identify URLs, retrieval time, method, limits, and content identity. Website metadata SHALL remain source claims. Saved evidence SHALL be inspectable after exit without a new fetch. Missing required storage SHALL stop dependent changes.
+
+#### Scenario: A later check needs the original page
+
+- **WHEN** a proposed change needs source validation
+- **THEN** the saved text and its provenance are available without another network request
+- **AND** body and metadata claims remain distinguishable
+
+#### Scenario: Source storage fails
+
+- **WHEN** a source needed by a change cannot be saved
+- **THEN** no item changes are applied and a safe storage diagnostic is retained
+
+#### Scenario: Workflow history is removed
+
+- **WHEN** the owner deletes only workflow history
+- **THEN** the saved source artifacts remain until explicit cleanup
+
+### Requirement: Saved source text survives partial processing
+
+Ingestion SHALL retain full extracted Markdown within retrieval bounds. Partial processing SHALL NOT shorten that saved text. Unprocessed content SHALL remain unverified. Repeated inspection of a requested or final URL SHALL reuse its available read result, including failures, within the run.
+
+#### Scenario: A long page cannot be fully processed
+
+- **WHEN** a retrieved page exceeds the available processing allowance
+- **THEN** its saved text remains intact
+- **AND** the run identifies the unprocessed portion without claiming that missing topics are absent
+
+#### Scenario: An initial source is large
+
+- **WHEN** an initially inspected source exceeds the processing allowance
+- **THEN** the same source preservation and limitation rules apply
+
+#### Scenario: A cached URL is inspected again
+
+- **WHEN** a later request matches the requested or final URL of an available read
+- **THEN** the run reuses that source without another network request
+- **AND** the result reflects the current remaining allowance
