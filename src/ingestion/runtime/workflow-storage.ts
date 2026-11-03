@@ -114,8 +114,11 @@ export function createWorkflowStorage(
       }
       override async close() {
         try {
-          await super.close();
-          await provider.close();
+          try {
+            await super.close();
+          } finally {
+            await provider.close();
+          }
         } catch {
           throw new WorkflowHistoryError();
         } finally {

@@ -495,8 +495,11 @@ it("writes reviewed free admission without ticket offers", () => {
     throw new Error("Free admission review rejected");
   }
   const keep = { action: "keep" as const, reason: "Preserve saved location" };
+  const unresolved = { message: "Venue is unknown", editionKey: "2027" };
+  accepted.value.unresolved.push(unresolved);
   const location = {
     ...accepted.value.location,
+    unresolved: [unresolved],
     slots: {
       currentOrNextEdition: {
         venueName: keep,
@@ -509,15 +512,15 @@ it("writes reviewed free admission without ticket offers", () => {
     },
   };
   const plan = prepareCatalogPlan(
-    accepted.value,
+    { ...accepted.value, location },
     f.context.catalog,
     f.input,
     f.context.terms,
-    location,
   );
   if (plan.status !== "continue") {
     throw new Error("Free admission catalog plan rejected");
   }
+  expect(plan.value.unresolved).toEqual(accepted.value.unresolved);
   expect(
     plan.value.operations.find(
       (operation) => operation.kind === "replacePriceBlock",

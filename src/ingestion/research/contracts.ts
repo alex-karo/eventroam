@@ -125,39 +125,44 @@ export const editionSlotNames = [
 ] as const;
 export type ResearchStatus = "success" | "partial" | "failed";
 export type ResearchQuestion = z.infer<typeof researchQuestionSchema>;
-export type ResearchError = {
-  code:
-    | "source_unavailable"
-    | "source_unsupported"
-    | "source_blocked"
-    | "limit_reached"
-    | "model_failed"
-    | "invalid_candidate"
-    | "invalid_plan"
-    | "editor_rejected"
-    | "location_rejected"
-    | "location_failed"
-    | "country_conflict"
-    | "country_baseline_conflict"
-    | "write_failed"
-    | "workflow_failed"
-    | "run_persistence_failed";
-  message: string;
-  stage:
-    | "source"
-    | "research"
-    | "editor"
-    | "location"
-    | "validation"
-    | "write"
-    | "workflow";
-  url?: string;
-  editionKey?: string;
-  field?: string;
-  diagnostic?: {
-    errorTypes: string[];
-    httpStatus?: number;
-    providerCode?: string | number;
-    retryable?: boolean;
-  };
-};
+export const researchErrorSchema = z.object({
+  code: z.enum([
+    "source_unavailable",
+    "source_unsupported",
+    "source_blocked",
+    "limit_reached",
+    "model_failed",
+    "invalid_candidate",
+    "invalid_plan",
+    "editor_rejected",
+    "location_rejected",
+    "location_failed",
+    "country_conflict",
+    "country_baseline_conflict",
+    "write_failed",
+    "workflow_failed",
+    "run_persistence_failed",
+  ]),
+  stage: z.enum([
+    "source",
+    "research",
+    "editor",
+    "location",
+    "validation",
+    "write",
+    "workflow",
+  ]),
+  message: z.string(),
+  url: z.string().optional(),
+  editionKey: z.string().optional(),
+  field: z.string().optional(),
+  diagnostic: z
+    .object({
+      errorTypes: z.array(z.string()),
+      httpStatus: z.number().optional(),
+      providerCode: z.union([z.string(), z.number()]).optional(),
+      retryable: z.boolean().optional(),
+    })
+    .optional(),
+});
+export type ResearchError = z.infer<typeof researchErrorSchema>;

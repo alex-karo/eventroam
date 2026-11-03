@@ -47,60 +47,6 @@ export type RoleExecution<T = unknown> = {
   durationMs: number;
 };
 
-/** Restore only nullable wire placeholders for fields that are optional locally. */
-function localWire(value: unknown, schema: Record<string, unknown>): unknown {
-  if (value == null) {
-    return value;
-  }
-  const branches = (schema.anyOf ?? schema.oneOf) as
-    Record<string, unknown>[] | undefined;
-  if (branches) {
-    const record =
-      value && typeof value === "object" && !Array.isArray(value)
-        ? (value as Record<string, unknown>)
-        : null;
-    const branch =
-      branches.find((item) => {
-        if (item.type !== (Array.isArray(value) ? "array" : typeof value)) {
-          return false;
-        }
-        const properties = item.properties as
-          Record<string, { const?: unknown; enum?: unknown[] }> | undefined;
-        return (
-          !record ||
-          !properties ||
-          Object.entries(properties).every(
-            ([key, spec]) =>
-              (!("const" in spec) || record[key] === spec.const) &&
-              (!spec.enum || spec.enum.includes(record[key])),
-          )
-        );
-      }) ?? branches.find((item) => item.type !== "null");
-    return branch ? localWire(value, branch) : value;
-  }
-  if (Array.isArray(value)) {
-    return value.map((part) =>
-      localWire(part, (schema.items ?? {}) as Record<string, unknown>),
-    );
-  }
-  if (typeof value !== "object") {
-    return value;
-  }
-  const properties = (schema.properties ?? {}) as Record<
-    string,
-    Record<string, unknown>
-  >;
-  const required = new Set((schema.required ?? []) as string[]);
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(
-        ([key, part]) =>
-          !(part === null && properties[key] && !required.has(key)),
-      )
-      .map(([key, part]) => [key, localWire(part, properties[key] ?? {})]),
-  );
-}
-
 function logStep(
   log: ResearchLogger | undefined,
   step: { finishReason?: string; text?: string; reasoningText?: string },
@@ -170,13 +116,13 @@ function acceptRoleOutput<T>(
   schema: z.ZodType<T>,
   role: Role,
   native: boolean,
+  normalizeOutput?: (value: unknown) => unknown,
 ) {
-  const normalized = localWire(
+  const raw =
     role === "general" && native
       ? (execution.modelResponse!.object as { result?: unknown } | null)?.result
-      : execution.modelResponse!.object,
-    z.toJSONSchema(schema),
-  );
+      : execution.modelResponse!.object;
+  const normalized = normalizeOutput ? normalizeOutput(raw) : raw;
   const parsed = schema.safeParse(normalized);
   if (!parsed.success) {
     execution.errors.push({
@@ -199,6 +145,7 @@ export async function invokeRole<T>(options: {
   instructions: string;
   input: unknown;
   schema: z.ZodType<T>;
+  normalizeOutput?: (value: unknown) => unknown;
   budget: ResearchBudget;
   config: ResearchConfig;
   signal?: AbortSignal;
@@ -336,7 +283,13 @@ export async function invokeRole<T>(options: {
       checkGeneration(generated, providerError, startedSteps, ordinarySteps);
     }
     signal.throwIfAborted();
-    acceptRoleOutput(execution, options.schema, role, !options.generate);
+    acceptRoleOutput(
+      execution,
+      options.schema,
+      role,
+      !options.generate,
+      options.normalizeOutput,
+    );
   } catch (error) {
     traceFailure(tracing, "research_failed");
     const classified = classifyModelError(

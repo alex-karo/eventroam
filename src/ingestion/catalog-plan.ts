@@ -250,13 +250,13 @@ export function prepareCatalogPlan(
   catalog: ResearchCatalog,
   input: CatalogResearchInput,
   terms: Term[],
-  location: MaterializedLocation,
 ): StageResult<ReadyCatalogPlan> {
   const result: ReadyCatalogPlan = {
     ...structuredClone(validated),
     operations: [],
     explanations: {},
   };
+  const location = result.location;
   const plan: CombinedPlan = structuredClone(result.plan);
   for (const slot of editionSlotNames) {
     if (!!plan[slot] !== !!location.slots[slot]) {
@@ -266,7 +266,6 @@ export function prepareCatalogPlan(
       plan[slot].fields = { ...plan[slot].fields, ...location.slots[slot] };
     }
   }
-  result.unresolved.push(...location.unresolved);
   const event = catalog.find((item) => item.id === result.matchedEventId);
   const add = adder(result, input);
 

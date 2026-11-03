@@ -1,3 +1,4 @@
+import { applyCatalogOperation } from "./apply-operation";
 import { expect, test } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
@@ -99,4 +100,74 @@ test("taxonomy validation terminates on an already malformed ancestor chain", ()
   const before = client.prepare("SELECT * FROM taxonomy_terms").all();
   expect(() => fx.term({ parentId: child.id })).toThrow(/cycle/);
   expect(client.prepare("SELECT * FROM taxonomy_terms").all()).toEqual(before);
+});
+
+test("fixtures and operations reject the same invalid Edition scalars without writes", () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  const event = fx.event();
+  const snapshot = () =>
+    ["editions", "catalog_changes", "operation_receipts"].map((table) =>
+      client.prepare(`SELECT * FROM ${table}`).all(),
+    );
+  const before = snapshot();
+  for (const values of [
+    { startsOn: "2027-02-29", endsOn: "2027-02-29" },
+    { startsOn: "not-a-date", endsOn: "not-a-date" },
+    { editionYear: 0 },
+    { editionYear: 10000 },
+    { editionYear: 2027.5 },
+    { countryCode: "ZZ" },
+    { countryCode: "pt" },
+    { timeZone: "Not/A_Zone" },
+    { timeZone: "" },
+  ]) {
+    expect(() => fx.edition(event, values)).toThrow();
+    expect(() =>
+      applyCatalogOperation(client, {
+        kind: "createEdition",
+        actor: "test",
+        operationKey: "invalid-scalars",
+        eventId: event.id,
+        data: {
+          editionKey: "test",
+          startsOn: "2027-07-01",
+          endsOn: "2027-07-01",
+          dateState: "confirmed",
+          ...values,
+        },
+      }),
+    ).toThrow();
+    expect(snapshot()).toEqual(before);
+  }
+  for (const editionYear of [1, 9999]) {
+    expect(() =>
+      fx.edition(event, { editionYear, timeZone: "Europe/Lisbon" }),
+    ).not.toThrow();
+  }
+});
+
+test("fixture assignments reject ancestors through unassigned terms in either order", () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  const event = fx.event();
+  const parent = fx.term();
+  const middle = fx.term({ parentId: parent.id });
+  const leaf = fx.term({ parentId: middle.id });
+  for (const [first, second] of [
+    [parent, leaf],
+    [leaf, parent],
+  ]) {
+    const edition = fx.edition(event);
+    fx.assignTerm(edition, first);
+    const before = client.prepare("SELECT * FROM edition_terms").all();
+    expect(() => fx.assignTerm(edition, second)).toThrow(/redundant ancestor/);
+    expect(client.prepare("SELECT * FROM edition_terms").all()).toEqual(before);
+  }
+  const edition = fx.edition(event);
+  const sibling = fx.term({ parentId: middle.id });
+  expect(() => {
+    fx.assignTerm(edition, leaf);
+    fx.assignTerm(edition, sibling);
+  }).not.toThrow();
 });
