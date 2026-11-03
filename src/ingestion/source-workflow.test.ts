@@ -541,6 +541,12 @@ it("keeps saved source references in workflow history after cancellation during 
     });
     expect(existsSync(source.markdownPath!)).toBe(true);
     expect(existsSync(source.evidencePath!)).toBe(true);
+    const savedRun = db.client
+      .prepare("SELECT id,started_at FROM ingestion_runs")
+      .get() as { id: string; started_at: string };
+    expect(readdirSync(root)).toEqual([
+      `${savedRun.started_at.replaceAll(":", "-")}_${savedRun.id}`,
+    ]);
     const files = readdirSync(join(root, readdirSync(root)[0], "sources"));
     await new Promise<void>((resolve) => setImmediate(resolve));
     expect(readdirSync(join(root, readdirSync(root)[0], "sources"))).toEqual(

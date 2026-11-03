@@ -19,12 +19,14 @@ const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 /** A run owns independent immutable source files. No manifest is needed. */
 export function createCorpusStorage(
   runId: string,
+  startedAt: number,
   root = sourceArtifactRoot(),
 ) {
   if (!/^[a-zA-Z0-9-]+$/.test(runId)) {
     throw new Error("Invalid source run ID");
   }
-  const directory = resolve(root, runId, "sources");
+  const timestamp = new Date(startedAt).toISOString().replaceAll(":", "-");
+  const directory = resolve(root, `${timestamp}_${runId}`, "sources");
   const sources: Source[] = [];
   const evidence: Evidence[] = [];
   let frozen = false;

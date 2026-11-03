@@ -427,6 +427,7 @@ export function createCatalogIngestionWorkflow(
       const assignment = buildAssignment(owned.input, data.context!);
       owned.collection = createCollection({
         runId: owned.ingestionRunId,
+        startedAt: owned.started,
         sources: owned.sources,
         budget: owned.budget,
         config: owned.config,

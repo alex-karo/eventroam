@@ -152,7 +152,7 @@ it("uses native Mastra grep with all saved source files and hash checks", async 
   const root = await mkdtemp(join(tmpdir(), "eventroam-editor-context-"));
   try {
     const body = "Before the quote.\nFestival in the park.\nAfter the quote.";
-    const store = createCorpusStorage("editor-test", root);
+    const store = createCorpusStorage("editor-test", Date.now(), root);
     const source = await store.savePage({
       attemptedUrl: "https://example.org/",
       finalUrl: "https://example.org/",

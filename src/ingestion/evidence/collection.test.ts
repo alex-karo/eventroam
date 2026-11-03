@@ -57,6 +57,7 @@ it("shares a complete inspection, reserves concurrent Reader calls and freezes a
     });
     const collection = createCollection({
       runId: "test-run",
+      startedAt: Date.now(),
       sources: session,
       budget,
       config,
@@ -182,6 +183,7 @@ function collectionFixture(
     generate,
     collection: createCollection({
       runId: "test-run",
+      startedAt: Date.now(),
       sources,
       budget,
       config,
@@ -243,6 +245,7 @@ it("gives Reader the full page and reuses a redirected source for later inspecti
     }));
     const collection = createCollection({
       runId: "test-run",
+      startedAt: Date.now(),
       sources: createSourceSession(budget, config, [], { readPage: fetch }),
       budget,
       config,

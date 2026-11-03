@@ -165,6 +165,8 @@ Main now uses `@mdream/js@2.0.3` output. Roskilde, Wacken, Sziget and Glastonbur
 
 The other ten Glastonbury pages retain the synthetic scenario below. Their saved scenario bodies were rebuilt as synthetic HTML and passed through the same production reader. The old page-title heading supplies the synthetic head title; region labels supply HTML landmarks. No extra metadata was invented. Their original scenario date stays fixed. Case provenance distinguishes these reconstructed inputs from real captures. Native Markdown line breaks and spacing remain in the saved output.
 
+Sziget location searches have one declared synthetic discovery response that points to the captured Travel page. The captured navigation does not link to this page. Its URL and title come from the existing capture; the response is not a search capture and does not change the page text.
+
 Refresh Markdown from HTML when the reader format changes. Do not pass captured Markdown back as if it were original HTML. If the original HTML is missing, record a new capture or mark reconstructed input as synthetic. A fixture refresh creates a new dataset revision; old runs do not establish a comparison on the new inputs.
 
 Synthetic pages must state their origin and edits in provenance. When they represent a real site in a different state, retain its structure and normal content. Check body text, links and metadata for facts that contradict the scenario.

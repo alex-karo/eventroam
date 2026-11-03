@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, rm, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bindEvidence, evidencePacket, readerOutputSchema } from "./contracts";
@@ -445,7 +445,7 @@ describe("saved source evidence", () => {
   it("recovers the exact body, separates provenance, and prevents writes after freeze", async () => {
     const root = await mkdtemp(join(tmpdir(), "eventroam-evidence-"));
     try {
-      const store = createCorpusStorage("run-1", root);
+      const store = createCorpusStorage("run-1", Date.now(), root);
       const body = "---\ntitle: Website claim\n---\n\n🎪 source\n";
       const source = await store.savePage({
         attemptedUrl: "https://example.org/",
@@ -466,6 +466,49 @@ describe("saved source evidence", () => {
       expect(
         sourceArtifactRoot({ CATALOG_SOURCE_DIRECTORY: "data/private" }),
       ).toMatch(/eventroam\/data\/private$/);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+  it("orders source folders by run start time and keeps same-time runs separate", async () => {
+    const root = await mkdtemp(join(tmpdir(), "eventroam-evidence-"));
+    try {
+      const runs = [
+        ["run-a", "2026-11-03T02:24:08.456Z"],
+        ["run-z", "2026-11-03T02:19:21.123Z"],
+        ["run-b", "2026-11-03T02:24:08.456Z"],
+      ] as const;
+      const folders = [
+        "2026-11-03T02-24-08.456Z_run-a",
+        "2026-11-03T02-19-21.123Z_run-z",
+        "2026-11-03T02-24-08.456Z_run-b",
+      ];
+      for (const [index, [runId, startedAt]] of runs.entries()) {
+        const store = createCorpusStorage(runId, Date.parse(startedAt), root);
+        const source = await store.savePage({
+          attemptedUrl: "https://example.org/",
+          finalUrl: "https://example.org/",
+          retrievedAt: "2026-11-03T03:00:00Z",
+          method: "http",
+          status: "ok",
+          markdown: "# Festival",
+        });
+        await store.saveEvidence(source, []);
+        const directory = join(root, folders[index], "sources");
+        expect(source.markdownPath).toBe(join(directory, "s1.md"));
+        expect(source.evidencePath).toBe(join(directory, "s1.evidence.json"));
+        expect(await readCanonicalSource(source)).toBe("# Festival");
+        const saved = JSON.parse(await readFile(source.evidencePath!, "utf8"));
+        expect(saved.source.id).toBe("s1");
+        expect(await readFile(source.markdownPath!, "utf8")).toContain(
+          `"runId": "${runId}"`,
+        );
+      }
+      expect((await readdir(root)).sort()).toEqual([
+        folders[1],
+        folders[0],
+        folders[2],
+      ]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

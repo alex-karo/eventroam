@@ -75,3 +75,18 @@ This group depends on all assigned specialist contracts.
 - [x] 10.1 Investigate the rejected ticket quotation in `source-known-offers-blocked-checkout`. Preserve exact source binding; fix the cause and repeat the affected check.
 - [x] 10.2 Resolve the mixed-format evidence ambiguity in `narrow-current-changed` and the Links role's out-of-scope Event-link gap. Keep the substantial-main-programme rule and current-scope boundary.
 - [x] 10.3 Resolve the full-refresh guidance check in `current-identity-contradiction`. Preserve the safe refusal, no-write and no-search conditions.
+
+## 11. Prompt experiments and trace review
+
+- [x] 11.1 Run main and isolated Reader baseline evals twice per case through OpenCode Go and retain native results.
+- [x] 11.2 Prefer full literal quotations for short blocks in Reader and advance its prompt version. Pass existing evidence tests and focused static checks. Keep this guidance in design rather than specs.
+- [x] 11.3 Repeat the same eval selection twice per case and compare completeness, literal binding, tokens and available cost in chat.
+- [x] 11.4 Add fictional examples to Reader, Links, Tickets and Location; advance their prompt versions and pass focused tests and static checks.
+- [x] 11.5 Run main and isolated Reader evals twice per case through OpenCode Go on the unchanged dataset; compare quality, trace failures, tokens and estimated cost with the short-quotation baseline in chat.
+- [x] 11.6 Shorten Reader and Tickets examples, add the Classification consistency example, clarify Reader context and Editor file selection, and advance affected prompt versions.
+- [x] 11.7 Accept the supported Roskilde address form and add a declared synthetic discovery response for the existing Sziget Travel capture; pass focused checks.
+- [ ] 11.8 Run main, isolated Reader and affected format/Editor cases twice through OpenRouter standard; inspect failures, additional facts, effective settings and native cost in chat.
+
+## 12. Source artifact inspection
+
+- [x] 12.1 Prefix new source folders with the saved run start time and existing run ID. Verify ordering, same-time runs, shared evidence paths and original provenance IDs. Pass 93 focused source, Editor and workflow tests plus type, lint, format, documentation and OpenSpec checks. Document the path in the design and ingestion tools guide.

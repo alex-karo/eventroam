@@ -7,6 +7,7 @@ Broad model tasks and repeated page context make ingestion harder to check and l
 ## What Changes
 
 - Refactor collection, interpretation, and validation around shared saved evidence. The agents, prompts, tools, and handoffs are described in [the design](design.md).
+- Keep later quotation guidance, role examples, eval fixture corrections and source folder naming in the same design and task history. These internal refinements do not add specification requirements.
 - Keep specifications about the complete ingestion result: supported facts, scope, identity, preservation, publication, failures, and owner inspection. Internal agent contracts belong in design and implementation documentation.
 - Preserve the existing CLI modes, preview/apply behavior, catalog types, publication gates, atomic writes, country guards, and explicit uncertainty.
 - Save parsed Markdown with provenance for private inspection and validation without another fetch. A general page description helps explain the source but does not establish facts by itself.

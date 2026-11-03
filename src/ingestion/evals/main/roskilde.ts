@@ -36,6 +36,7 @@ export function roskilde(context: MainContext) {
       ]),
       fact("next.address", next?.venueAddress, [
         "Darupvej 19",
+        "Festivalpladsen, Darupvej 19",
         "Darupvej 19, 4000 Roskilde",
         "Festivalpladsen, Darupvej 19, 4000 Roskilde, Denmark",
         "Festivalpladsen, Darupvej 19, 4000 Roskilde",

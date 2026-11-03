@@ -47,6 +47,7 @@ export function evidenceLimits(env = process.env): EvidenceLimits {
 }
 export function createCollection(options: {
   runId: string;
+  startedAt: number;
   sources: SourceSession;
   budget: ResearchBudget;
   config: ResearchConfig;
@@ -59,7 +60,11 @@ export function createCollection(options: {
 }) {
   const { sources, budget } = options;
   const limits = options.limits ?? evidenceLimits();
-  const storage = createCorpusStorage(options.runId, options.root);
+  const storage = createCorpusStorage(
+    options.runId,
+    options.startedAt,
+    options.root,
+  );
   const pending = new Map<string, Promise<Source>>();
   const canonical = new Map<string, Promise<Source>>();
   const cache = new Map<string, Source>();

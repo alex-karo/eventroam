@@ -36,7 +36,9 @@ The [ingestion guide](ingestion-process.md) explains source handling, fact selec
 
 ### Saved source evidence
 
-Each ingestion run saves private canonical Markdown and separate evidence JSON under `data/ingestion-sources/<runId>/`. Set `CATALOG_SOURCE_DIRECTORY` to change the root. Relative paths resolve from the application root, independently of the process working directory. Markdown has application provenance frontmatter followed by the unchanged canonical page, including source metadata as source claims.
+Each ingestion run saves private canonical Markdown and separate evidence JSON under `data/ingestion-sources/<startedAt>_<runId>/sources/`. The folder starts with the run start time in UTC, with milliseconds and hyphens in place of time colons. For example: `2026-11-03T02-19-21.123Z_<runId>`. Sorting folder names orders new runs by start time. Reports and provenance keep the original run ID. Existing files stay at their recorded paths.
+
+Set `CATALOG_SOURCE_DIRECTORY` to change the root. Relative paths resolve from the application root, independently of the process working directory. Markdown has application provenance frontmatter followed by the unchanged canonical page, including source metadata as source claims.
 
 The workflow collection result contains the source list and artifact paths. There is no manifest file or opt-in capture flag. Reader failure and input-limit cases retain available Markdown. Storage failure stops dependent work. Files use private directory and file permissions.
 
