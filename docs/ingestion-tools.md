@@ -74,7 +74,7 @@ The assistant has three catalog tools: `query_catalog({sql, parameters?})`, `ref
 
 Chat uses the configured OpenRouter model by default. Native Studio model selection can use another provider and its credentials without an OpenRouter key. OpenRouter chat calls use the configured reasoning and service tier; explicit call options override those defaults. Other providers do not receive these defaults.
 
-Submission and inspection need no ingestion key or running worker. The worker uses its own OpenRouter settings and credentials when it executes a job. Chat generation still needs its selected provider credentials.
+Submission and inspection need no ingestion key. Studio uses its OpenRouter settings and credentials when it executes a job. Chat generation still needs its selected provider credentials.
 
 Conversation memory is bounded; older messages can leave the active context while remaining stored. There are no embeddings or background model calls. See `src/mastra/catalog-assistant/memory.ts` for the current limits.
 
@@ -82,31 +82,29 @@ Conversation memory is bounded; older messages can leave the active context whil
 
 Use `pnpm exec tsx src/test/studio-fixture.ts success` for an offline Studio fixture. It uses temporary storage and a deterministic provider, with no paid research. Its chat model tests the tool protocol, not production model reasoning. See the [chat limits and report examples](ingestion-process.md#studio-catalog-chat).
 
-## Background worker
+## Background execution
 
-Run `pnpm run catalog:worker` in a separate terminal from Studio. Both commands load `.env` from the project root. Set the same `DATABASE_PATH` and `CATALOG_WORKFLOW_DATABASE_PATH`. The catalog must already exist and be migrated. Neither worker startup nor submission creates or migrates it. Run only one worker per catalog; several workers can execute the same job. There is no processor lock.
+Studio processes accepted jobs in its own server process. Run `pnpm run catalog:studio` locally or `pnpm run studio:start` after a production build. The catalog must already exist and be migrated. Startup and submission do not create or migrate it. Run one Studio server per catalog; there is no processor lock.
 
-Chat submits a fixed selection of 1–200 distinct existing Event IDs in one transaction. Preview is the default; explicit update intent selects apply. Scope defaults to full; republish stays off. The response contains `batchId` and `acceptedCount`. Acceptance is not ingestion completion. Each Event gets one private `ingestion_jobs` row. Jobs store settings, queue state, and creation time. Attempts, timing, reports, and errors remain in `ingestion_runs`. Its nullable `job_id` links worker attempts; direct runs have no job association.
+Chat submits a fixed selection of 1–200 distinct existing Event IDs in one transaction. Preview is the default; explicit update intent selects apply. Scope defaults to full; republish stays off. The response contains `batchId` and `acceptedCount`. Acceptance is not ingestion completion. Each Event gets one private `ingestion_jobs` row. Jobs store settings, queue state, and creation time. Attempts, timing, reports, and errors remain in `ingestion_runs`. Its nullable `job_id` links queued attempts; direct runs have no job association.
 
-The worker executes one job at a time using current catalog facts. Queue states are pending, running, done, and cancelled. Done means processing ended, including failure or validation before an attempt could start. It does not mean ingestion succeeded. Read attempt results separately. Ordinary processing failures allow later jobs; queue storage failures stop the worker.
+Studio executes one queued job at a time through its registered `catalog-ingestion` workflow. The workflow form and queue use the same graph and storage providers. Queued runs appear in Recent runs. With tracing or logging enabled, Studio serves their diagnostics from its open DuckDB store.
 
-Use `query_catalog` to aggregate the full batch by job status before reading bounded details. Join runs by `job_id`, keeping every attempt distinct. Count jobs before joining: a restart can give one job several attempts. SQL keeps its 200-row and 64 KiB limits. Report truncated or missing evidence. Stored running state does not establish worker health.
+Queue states are pending, running, done, and cancelled. Done means processing ended, including failure or validation before an attempt could start. It does not mean ingestion succeeded. Read attempt results separately. Ordinary processing failures allow later jobs. Queue storage failures stop processing and make `GET /ingestion-queue` return `503 {"status":"unavailable"}`. A running loop returns `200 {"status":"running"}`. Missing catalog storage leaves Studio available for inspection. Fix the catalog and restart Studio to start the queue.
+
+Use `query_catalog` to aggregate the full batch by job status before reading bounded details. Join runs by `job_id`, keeping every attempt distinct. Count jobs before joining: a restart can give one job several attempts. SQL keeps its 200-row and 64 KiB limits. Report truncated or missing evidence. Stored running state does not establish queue health.
 
 If the acceptance response is lost, find recent batches through catalog SQL using the available time, Event IDs, and settings. Logs are not required. Ask for clarification if matches are ambiguous or evidence is incomplete. Do not automatically submit again. One validated selection consumes the current assistant execution even if its transaction fails; invalid input does not consume it.
 
-An explicit cancellation request uses `cancel_refresh` for a resolved batch. It cancels pending jobs together. Running and terminal jobs remain unchanged, including interrupted running jobs waiting for fresh execution. Cancellation and progress reads work with the worker stopped. Cancelling chat or closing Studio does not cancel accepted jobs or stop the worker.
+An explicit cancellation request uses `cancel_refresh` for a resolved batch. It cancels pending jobs together. Running and terminal jobs remain unchanged, including interrupted running jobs waiting for fresh execution. Cancelling chat or closing a browser tab does not cancel accepted jobs.
 
-On SIGINT or SIGTERM, the worker stops taking jobs, cancels its active workflow, waits for cleanup, and closes its stores. An interrupted job remains running. After restart, the same loop takes pending and saved running jobs in queue order and starts each from the beginning. Each new execution uses fresh workflow and attempt IDs. Earlier reports and committed changes remain. Research and paid calls can repeat, including when a report was saved before the job became done. Done and cancelled jobs do not restart. Stop the old worker before starting its replacement.
+On SIGINT or SIGTERM, Studio stops taking jobs, cancels its active queued workflow, waits for cleanup, and then closes its stores. An interrupted job remains running. After restart, the loop takes pending and saved running jobs in queue order and starts each from the beginning. Each execution uses fresh workflow and attempt IDs. Earlier reports and committed changes remain. Research and paid calls can repeat, including when a report was saved before the job became done. Done and cancelled jobs do not restart. Stop the old Studio server before starting its replacement.
 
-Jobs and runs remain in private catalog history without automatic expiry. Studio restart does not change queue state. The CLI and Studio workflow form still execute directly; the queue does not serialize those runs.
-
-The worker uses `CATALOG_WORKER_OBSERVABILITY_DATABASE_PATH`, default `data/mastra-worker-observability.duckdb`. It shares workflow SQLite history with Studio, but uses a separate DuckDB file so both processes can run together. Worker observations are not merged into live Studio. To inspect them, stop the worker and start Studio with `CATALOG_OBSERVABILITY_DATABASE_PATH` set to the worker file. Set a different worker path before any later concurrent launch. Logging and tracing remain optional; observation failures do not change ingestion results.
-
-Use `pnpm run worker:start` for the built worker after `pnpm run studio:build`. Built launch reads runtime environment inputs and does not load `.env`; use explicit absolute paths. It starts no HTTP server or chat/eval stores. See [Infrastructure](infrastructure.md#application-containers) for the Compose service and database transfers.
+Jobs and runs remain in private catalog history without automatic expiry. The CLI and Studio workflow form still execute directly; the queue does not serialize those runs. Stop Studio before a separate CLI process opens its DuckDB file. See [Infrastructure](infrastructure.md#application-containers) for deployment and database transfers.
 
 ## Workflow history
 
-CLI, Studio, and the worker always save workflow snapshots, including intermediate results, to `CATALOG_WORKFLOW_DATABASE_PATH` (default `data/mastra-workflows.sqlite`). Relative paths use the project root. Use the same path for all three processes and keep this store separate from other data files.
+CLI and Studio always save workflow snapshots, including intermediate results, to `CATALOG_WORKFLOW_DATABASE_PATH` (default `data/mastra-workflows.sqlite`). Relative paths use the project root. Use the same path for both processes and keep this store separate from other data files.
 
 After a CLI run, start `pnpm run catalog:studio` and open Workflows → catalog-ingestion → Recent runs. Inspection needs no catalog connection or model key. History supports inspection only; start a new run after interruption.
 
@@ -122,7 +120,7 @@ To clear all history, stop Studio and other writers, then remove only the workfl
 
 ## Local trace inspection
 
-Local commands keep logging and tracing off by default. Compose enables both for Studio and worker; each deployment flag can disable its output independently. Tracing supports apply, preview and evaluation, including injected dependencies. Mock calls do not invent tokens or costs. `CATALOG_LOG_LEVEL` accepts `debug`, `info` (default), `warn`, or `error`.
+Local commands keep logging and tracing off by default. Compose enables both for Studio; each deployment flag can disable its output independently. Tracing supports apply, preview and evaluation, including injected dependencies. Mock calls do not invent tokens or costs. `CATALOG_LOG_LEVEL` accepts `debug`, `info` (default), `warn`, or `error`.
 
 Close Studio before recording from a separate CLI process: DuckDB requires exclusive process ownership of its file.
 
@@ -131,7 +129,7 @@ CATALOG_LOGGING=true CATALOG_TRACING=true pnpm run catalog refresh --event EVENT
 pnpm run catalog:studio
 ```
 
-In Studio, open Observability → Logs, Traces or Metrics. Both commands use `CATALOG_OBSERVABILITY_DATABASE_PATH`, defaulting to `data/mastra-observability.duckdb`. Use the durable runId to correlate records. The [ingestion guide](ingestion-process.md#execution-metrics) describes metric eligibility, recorded fields, cost semantics and privacy boundaries.
+In Studio, open Observability → Logs, Traces or Metrics. Both commands use `CATALOG_OBSERVABILITY_DATABASE_PATH`, defaulting to `data/mastra-observability.duckdb`. Hosted traces and metrics use the native workflow run ID. Trace metadata also contains the durable `ingestionRunId`; application logs and reports retain that durable ID. Standalone diagnostics use the durable run ID. The [ingestion guide](ingestion-process.md#execution-metrics) describes metric eligibility, recorded fields, cost semantics and privacy boundaries.
 
 With Studio running, use the native Mastra CLI to inspect saved records without model credentials or a research run:
 
@@ -143,6 +141,6 @@ pnpm exec mastra api --url http://127.0.0.1:4111 metric aggregate '{"name":["mas
 
 Use `--schema` on a command to check its filter fields. Sum cost over total input/output metrics only; adding cache/reasoning detail costs can double count consumption.
 
-`value` is the combined input/output token count; `estimatedCost`/`costUnit` carry the known model cost or estimate, not a complete bill. Add `filters.runId` to select a durable run. `POST /api/observability/metrics/breakdown` accepts the same names/aggregation and `groupBy:["entityId","model"]`. Raw `GET /api/observability/metrics` records expose runId, traceId, spanId and native cost metadata. Studio’s agent links from Metrics may preselect agent-root trace filters; this ingestion uses a generic catalog root, so clear those primitive filters to see its trace or correlate the IDs through the API.
+`value` is the combined input/output token count; `estimatedCost`/`costUnit` carry the known model cost or estimate, not a complete bill. Add `filters.runId` to select a run using the diagnostic ID described above. `POST /api/observability/metrics/breakdown` accepts the same names/aggregation and `groupBy:["entityId","model"]`. Raw `GET /api/observability/metrics` records expose runId, traceId, spanId and native cost metadata. Studio’s agent links from Metrics may preselect agent-root trace filters; this ingestion uses a workflow root, so select the catalog-ingestion workflow or correlate the IDs through the API.
 
 Observability is best effort; incomplete or missing traces/metrics do not replace the durable report. Revisit flush/shutdown handling if missing traces or closed-store failures recur. Local stores have no automatic retention. To remove a disposable store, stop research and Studio first, then delete its DuckDB file and `.wal`; leave the catalog and reports intact.

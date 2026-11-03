@@ -126,7 +126,7 @@ test("real research/editor lifecycles retain native usage/cost and persist nativ
           span.spanId === metric.spanId && span.traceId === metric.traceId,
       ),
     ).toBe(true);
-    expect(metric.rootEntityId).toBe("catalog-research");
+    expect(metric.rootEntityId).toBe("catalog-ingestion");
     expect(metric.labels).not.toHaveProperty("runId");
   }
   expect(
@@ -273,7 +273,14 @@ test.each(["off", "preview", "injected"])(
     if (mode === "off") {
       expect(rows.mastra_metrics).toEqual([]);
     } else {
-      expect(rows.mastra_metrics).toHaveLength(2);
+      expect(
+        rows.mastra_metrics.filter((row) => row.name === totals[0]),
+      ).toHaveLength(2);
+      expect(
+        rows.mastra_metrics.find(
+          (row) => row.name === "mastra_workflow_duration_ms",
+        ),
+      ).toBeDefined();
     }
     expect(rows.mastra_logs).toHaveLength(1);
   },

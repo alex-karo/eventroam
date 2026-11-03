@@ -26,12 +26,11 @@ find_service() {
 }
 web=$(find_service web)
 studio=$(find_service studio)
-processor=$(find_service worker)
 volume=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' "$studio")
 [[ "$volume" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || { echo 'Studio needs a named data volume at /data.' >&2; exit 1; }
 image=$(docker inspect -f '{{.Image}}' "$studio")
 running=()
-for id in "$web" "$studio" "$processor"; do
+for id in "$web" "$studio"; do
   if [[ $(docker inspect -f '{{.State.Running}}' "$id") == true ]]; then running+=("$id"); fi
 done
 restore_services() {
@@ -73,7 +72,7 @@ async function run(args, env = process.env) {
   const { direction, help, stopped, withMastra } = options(args);
   if (help) {
     console.log(`Usage: pnpm run db:${direction} --local-stopped [--with-mastra]
-Stop local web, Studio, the worker, and catalog commands first.
+Stop local web, Studio, and catalog commands first.
 Transfers the catalog. Add --with-mastra for workflow history, chats, and diagnostics.
 Each target backup is kept in its adjacent backups directory. All selected source files must exist.
 DATABASE_PATH selects the local file (default ./data/eventroam.sqlite).

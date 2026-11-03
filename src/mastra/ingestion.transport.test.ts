@@ -411,9 +411,7 @@ test("native apply traces retain model content while the shared store serves lat
     expect(records.length).toBeGreaterThan(0);
     expect(
       records.every((record) =>
-        [appliedSummary.ingestionRunId, previewSummary.ingestionRunId].includes(
-          record.runId,
-        ),
+        [applied.runId, preview.runId].includes(String(record.runId)),
       ),
     ).toBe(true);
     expect(
@@ -463,9 +461,7 @@ test("native apply traces retain model content while the shared store serves lat
         return response.json();
       }),
     );
-    expect(JSON.stringify(remainingMetrics)).toContain(
-      String(appliedSummary.ingestionRunId),
-    );
+    expect(JSON.stringify(remainingMetrics)).toContain(String(applied.runId));
     await server.stop(true);
     stopped = true;
     expect(server.child.exitCode).toBe(0);
@@ -473,19 +469,13 @@ test("native apply traces retain model content while the shared store serves lat
     expect(saved.mastra_ai_spans.length).toBeGreaterThan(0);
     expect(saved.mastra_logs.length).toBeGreaterThan(0);
     expect(
-      saved.mastra_metrics.some(
-        (record) => record.runId === appliedSummary.ingestionRunId,
-      ),
+      saved.mastra_metrics.some((record) => record.runId === applied.runId),
     ).toBe(true);
     expect(
-      saved.mastra_metrics.some(
-        (record) => record.runId === againSummary.ingestionRunId,
-      ),
+      saved.mastra_metrics.some((record) => record.runId === again.runId),
     ).toBe(true);
     expect(
-      saved.mastra_metrics.some(
-        (record) => record.runId === previewSummary.ingestionRunId,
-      ),
+      saved.mastra_metrics.some((record) => record.runId === preview.runId),
     ).toBe(true);
     expect(JSON.stringify(saved)).toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
     const spans = JSON.stringify(saved.mastra_ai_spans);

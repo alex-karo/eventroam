@@ -22,7 +22,7 @@ After deployment, verify ownership of both hosts in Google Search Console. Submi
 
 ## Application containers
 
-One Dockerfile has `web` and `studio` targets. See `Dockerfile` for the pinned Node base image. Dependencies come from `pnpm-lock.yaml` and are installed for the target Linux architecture. The website uses Next standalone output. Studio includes its UI, Mastra's production Node server, and a separate migration command and worker command. No startup command runs migrations or loads fixtures.
+One Dockerfile has `web` and `studio` targets. See `Dockerfile` for the pinned Node base image. Dependencies come from `pnpm-lock.yaml` and are installed for the target Linux architecture. The website uses Next standalone output. Studio includes its UI, Mastra's production Node server, and a separate migration command. No startup command runs migrations or loads fixtures.
 
 Before running these commands:
 
@@ -40,18 +40,19 @@ docker compose up -d --wait
 
 Missing diagnostic stores are created empty. The migration command can also create an empty catalog for a temporary check. It is repeatable and returns nonzero on failure.
 
-Compose declares one named volume, `data`, mounted at `/data` in all three services. Keep the same Compose project name to retain it during recreation. Do not use `docker compose down --volumes` for retained data. The fixed container paths are:
+Compose declares one named volume, `data`, mounted at `/data` in both services. Keep the same Compose project name to retain it during recreation. Do not use `docker compose down --volumes` for retained data. The fixed container paths are:
 
 - `/data/eventroam.sqlite`: catalog, public website reads, and validated Studio writes.
-- `/data/mastra-workflows.sqlite`: native CLI, Studio, and worker workflow history.
+- `/data/mastra-workflows.sqlite`: native CLI and Studio workflow history.
 - `/data/mastra-observability.duckdb`: optional logs, traces, and metrics.
-- `/data/mastra-worker-observability.duckdb`: worker logs, traces, and metrics.
 - `/data/mastra-chat.sqlite`: assistant conversation history.
 - `/data/mastra-evals.sqlite`: saved eval datasets, experiments, and scores.
 
 Both images run as `node` (UID/GID 1000). The volume directory and supplied files must permit this user to read and write, including SQLite WAL/shared-memory files and DuckDB WAL files. Website database connections stay read-only; the shared volume permits SQLite sidecar access. Only one process can own the DuckDB file. Stop Studio before any separate command opens that file.
 
-Compose exposes web port 3000 and Studio port 4111 only on the Docker network. It publishes no host ports. Studio listens on `0.0.0.0:4111` and has no application login or credentials. Authentication for the complete public Studio host is an external ingress prerequisite. Network attachment, ingress authentication, DNS, TLS, Komodo, webhooks, and deployment automation belong in the self-hosted repository. All three services use `restart: unless-stopped`. The worker uses the Studio image with `node commands/catalog-worker.mjs`. It publishes no port and disables the inherited HTTP health check. It shares provider settings and workflow history with Studio and has a separate DuckDB file. Run one worker per catalog. To replace it, stop the old worker, then start the replacement; do not overlap them. The 120-second Compose stop grace period permits workflow cancellation and cleanup. An interrupted job starts again after restart.
+Compose exposes web port 3000 and Studio port 4111 only on the Docker network. It publishes no host ports. Studio listens on `0.0.0.0:4111` and has no application login or credentials. Authentication for the complete public Studio host is an external ingress prerequisite. Network attachment, ingress authentication, DNS, TLS, Komodo, webhooks, and deployment automation belong in the self-hosted repository. Both services use `restart: unless-stopped`. Studio also processes queued ingestion jobs. Run one Studio server per catalog. To replace it, stop the old server before starting its replacement. Its 120-second Compose stop grace period permits workflow cancellation and cleanup. An interrupted job starts again after restart.
+
+When upgrading from a deployment with a separate worker, stop and remove that worker before starting the new Studio server. Use `docker compose up -d --wait --remove-orphans` after stopping the old services. Update external deployment definitions to contain only web and Studio. Existing jobs stay in the catalog. Old worker diagnostic files remain separate historical data; the new server does not merge them.
 
 The ingestion host must persist `data/ingestion-sources/` (or `CATALOG_SOURCE_DIRECTORY`) beside the private catalog and workflow stores. Source Markdown and evidence are required artifacts. Deleting run history does not remove them; cleanup is explicit. Keep this mount private and writable by the application user.
 
@@ -63,10 +64,10 @@ Compose reads deployment inputs with `EVENTROAM_` and maps them to current appli
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `EVENTROAM_MAPBOX_TOKEN`, `EVENTROAM_MAPBOX_STYLE`                                                                                                                                                                                  | Website build arguments mapped to `NEXT_PUBLIC_MAPBOX_TOKEN` and `NEXT_PUBLIC_MAPBOX_STYLE`. Empty token keeps list-only use; the style defaults to Mapbox streets-v12. Rebuild to change either value. |
 | `EVENTROAM_PUBLIC_APEX_ORIGIN`, `EVENTROAM_PUBLIC_FESTIVALS_ORIGIN`                                                                                                                                                                 | Runtime `PUBLIC_APEX_ORIGIN` and `PUBLIC_FESTIVALS_ORIGIN`; defaults match local development. Set the public origins for deployment.                                                                    |
-| `EVENTROAM_OPENROUTER_API_KEY`, `EVENTROAM_FIRECRAWL_KEY`, `EVENTROAM_GEOAPIFY_KEY`                                                                                                                                                 | Runtime Studio and worker provider credentials. These credentials are not build arguments. Inspection needs no model key. Execution needs the migrated catalog and its usual provider settings.         |
+| `EVENTROAM_OPENROUTER_API_KEY`, `EVENTROAM_FIRECRAWL_KEY`, `EVENTROAM_GEOAPIFY_KEY`                                                                                                                                                 | Runtime Studio provider credentials. These credentials are not build arguments. Inspection needs no model key. Execution needs the migrated catalog and its usual provider settings.                    |
 | `EVENTROAM_OPENROUTER_MODEL`, `EVENTROAM_OPENROUTER_SERVICE_TIER`, `EVENTROAM_OPENROUTER_REASONING_EFFORT`                                                                                                                          | Runtime model selection; empty values keep the current application defaults.                                                                                                                            |
 | `EVENTROAM_CATALOG_LOCATION_MODEL`                                                                                                                                                                                                  | Runtime `CATALOG_LOCATION_MODEL`; empty uses the normal model.                                                                                                                                          |
-| `EVENTROAM_CATALOG_TRACING`, `EVENTROAM_CATALOG_LOGGING`, `EVENTROAM_CATALOG_LOG_LEVEL`                                                                                                                                             | Studio and worker tracing and logging default to `true`, with log level `info`. Set either flag to `false` to disable that output.                                                                      |
+| `EVENTROAM_CATALOG_TRACING`, `EVENTROAM_CATALOG_LOGGING`, `EVENTROAM_CATALOG_LOG_LEVEL`                                                                                                                                             | Studio tracing and logging default to `true`, with log level `info`. Set either flag to `false` to disable that output.                                                                                 |
 | `EVENTROAM_CATALOG_MAX_SEARCHES`, `EVENTROAM_CATALOG_MAX_SEARCH_RESULTS`, `EVENTROAM_CATALOG_MAX_AGENT_STEPS`, `EVENTROAM_CATALOG_MAX_DURATION_MS`, `EVENTROAM_CATALOG_MAX_PAGE_BYTES`, `EVENTROAM_CATALOG_MAX_MODEL_OUTPUT_TOKENS` | Existing execution limits; empty values keep the application defaults.                                                                                                                                  |
 
 Database paths are Compose constants, without deployment inputs. Direct image use can set the `DATABASE_PATH`, `CATALOG_WORKFLOW_DATABASE_PATH`, `CATALOG_OBSERVABILITY_DATABASE_PATH`, and `CATALOG_CHAT_DATABASE_PATH` runtime names. Builds exclude owner databases, `.env` files, old output, and host dependencies. Only the public Mapbox token and style enter browser assets.
@@ -78,15 +79,15 @@ DATABASE_PATH=/tmp/eventroam-build/catalog.sqlite CATALOG_OBSERVABILITY_DATABASE
 DATABASE_PATH=./data/eventroam.sqlite CATALOG_OBSERVABILITY_DATABASE_PATH=./data/mastra-observability.duckdb CATALOG_WORKFLOW_DATABASE_PATH=./data/mastra-workflows.sqlite CATALOG_CHAT_DATABASE_PATH=./data/mastra-chat.sqlite pnpm run studio:start
 ```
 
-`studio:start` serves the built UI and API on all interfaces without application authentication. It reads shell inputs; it does not load `.env`. Keep `pnpm run catalog:studio` for loopback development. For a built worker, set absolute `DATABASE_PATH`, `CATALOG_WORKFLOW_DATABASE_PATH`, and `CATALOG_WORKER_OBSERVABILITY_DATABASE_PATH`, then run `pnpm run worker:start`. It reads shell inputs and does not load `.env`. Stop the worker too before migrations or data replacement.
+`studio:start` serves the built UI and API on all interfaces without application authentication. It reads shell inputs; it does not load `.env`. Keep `pnpm run catalog:studio` for loopback development.
 
 Both servers preserve default preview, explicit apply, native cancellation, and the existing unsupported-execution guards. Hosted inspection alone makes no model call.
 
 ### Health and image verification
 
-Both images include Node health probes. The worker disables the Studio HTTP probe and has no health API. Website `GET /health` returns `200 {"status":"ok"}` for a readable public schema or generic `503 {"status":"unavailable"}`. It does not create or migrate a missing catalog. Studio uses its existing `GET /health`. These internal checks need no model or login inputs.
+Both images include Node health probes. Website `GET /health` returns `200 {"status":"ok"}` for a readable public schema or generic `503 {"status":"unavailable"}`. It does not create or migrate a missing catalog. Studio uses its existing `GET /health`. Its `GET /ingestion-queue` returns 200 while the queue loop runs, or 503 when catalog storage is unavailable. These internal checks need no model or login inputs.
 
-Run `pnpm run docker:smoke` to build both targets, prepare an empty test catalog with one explicit migration, and wait for both container health checks to pass and check worker startup with an empty queue and no provider keys. The script uses the application Compose file without host ports, a random project, and a temporary named volume. It supplies no owner data or provider credentials, makes no paid calls, and removes only its test project's containers and volume after success or failure. CI runs the same command instead of a separate host website build. Website health tests and full offline workflow execution remain outside the images.
+Run `pnpm run docker:smoke` to build both targets, prepare an empty test catalog with one explicit migration, and wait for both container health checks to pass and check Studio queue startup with an empty queue and no provider keys. The script uses the application Compose file without host ports, a random project, and a temporary named volume. It supplies no owner data or provider credentials, makes no paid calls, and removes only its test project's containers and volume after success or failure. CI runs the same command instead of a separate host website build. Website health tests and full offline workflow execution remain outside the images.
 
 ### Replace supplied data
 
@@ -96,7 +97,7 @@ Automatic backup schedules and recovery drills are deferred to the next iteratio
 
 ## Catalog pull and push
 
-Stop local Next.js, Studio, the worker, and catalog commands first. Run one transfer at a
+Stop local Next.js, Studio, and catalog commands first. Run one transfer at a
 time, with no deployment or other database users active:
 
 ```sh
@@ -115,15 +116,15 @@ pnpm run db:push --local-stopped --with-mastra
 ```
 
 Mastra local paths use `CATALOG_WORKFLOW_DATABASE_PATH`,
-`CATALOG_CHAT_DATABASE_PATH`, `CATALOG_OBSERVABILITY_DATABASE_PATH`, and `CATALOG_WORKER_OBSERVABILITY_DATABASE_PATH`. Defaults
+`CATALOG_CHAT_DATABASE_PATH`, and `CATALOG_OBSERVABILITY_DATABASE_PATH`. Defaults
 are `./data/mastra-workflows.sqlite`, `./data/mastra-chat.sqlite`, and
-`./data/mastra-observability.duckdb`, and `./data/mastra-worker-observability.duckdb`. Remote files use these names under `/data`.
+`./data/mastra-observability.duckdb`. Remote files use these names under `/data`.
 Saved eval datasets and experiments are not included in these transfers.
 All selected source files must exist. Use `tar` on the local machine and in the
 Studio image.
 
 The commands find the named volume mounted at `/data` in Studio and stop remote
-web, Studio, and worker services. They use the existing Studio image to prepare checked snapshots,
+web and Studio services. They use the existing Studio image to prepare checked snapshots,
 including committed SQLite and DuckDB WAL data. All target backups must succeed
 before replacement starts. Each backup path is printed: local `backups/` beside
 the database, or remote `/data/backups/`. Backups are kept; missing targets need

@@ -79,13 +79,30 @@ export class StudioMastra extends Mastra {
   constructor(
     config: ConstructorParameters<typeof Mastra>[0],
     private readonly chat: Awaited<ReturnType<typeof createChatMemory>>,
+    private readonly jobs?: { start: () => void; stop: () => Promise<void> },
   ) {
     super(config);
   }
-  override async shutdown(options?: Parameters<Mastra["shutdown"]>[0]) {
+  override async startWorkers(name?: string) {
+    await super.startWorkers(name);
+    if (!name && this.jobs) {
+      // Let the server finish installing its shutdown handlers before taking jobs.
+      setImmediate(() => this.jobs?.start());
+    }
+  }
+  private shutdownPromise?: Promise<void>;
+  override shutdown(options?: Parameters<Mastra["shutdown"]>[0]) {
+    this.shutdownPromise ??= this.close(options);
+    return this.shutdownPromise;
+  }
+  private async close(options?: Parameters<Mastra["shutdown"]>[0]) {
     try {
-      await flushObservability(this, this.diagnose);
-      await super.shutdown(options);
+      try {
+        await this.jobs?.stop();
+      } finally {
+        await flushObservability(this, this.diagnose);
+        await super.shutdown(options);
+      }
     } finally {
       try {
         await this.chat.memory.settled();

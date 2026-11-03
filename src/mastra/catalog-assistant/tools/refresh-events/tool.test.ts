@@ -33,7 +33,7 @@ function setup(n = 3) {
   return { db, eventIds, tool, execute };
 }
 
-test("invalid input does not consume the selection; acceptance needs no worker or credentials", async () => {
+test("invalid input does not consume the selection; acceptance needs no queue loop or credentials", async () => {
   const fixture = setup(),
     requestContext = context();
   for (const ids of [
@@ -97,7 +97,7 @@ test("request abort before submission prevents acceptance; abort after commit pr
   ).toEqual([{ status: "pending" }]);
 });
 
-test("batch cancellation works with no worker and leaves unknown batches unchanged", async () => {
+test("batch cancellation works with no queue loop and leaves unknown batches unchanged", async () => {
   const fixture = setup();
   const accepted = (await fixture.execute()) as { batchId: string };
   const tool = createCancelRefreshTool(() => fixture.db.path);

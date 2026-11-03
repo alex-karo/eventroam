@@ -26,12 +26,13 @@ export async function createCatalogRunTrace(
     protectedPaths,
     sharedStore,
     experimentId,
+    engineRunId,
   );
   if (!tracing) {
     return undefined;
   }
   observeTrace(tracing, tracing.root, {
-    name: "catalog-research",
+    name: "catalog-ingestion",
     metadata: {
       ...(engineRunId ? { engineRunId } : {}),
       ...(input.name ? { eventName: input.name } : {}),
@@ -45,7 +46,7 @@ export async function createCatalogRunTrace(
     },
     async finish(report?: CatalogResearchResult) {
       observeTrace(tracing, tracing.root, {
-        name: "catalog-research",
+        name: "catalog-ingestion",
         output: report
           ? {
               researchStatus: report.researchStatus,

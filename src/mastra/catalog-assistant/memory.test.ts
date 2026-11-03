@@ -236,3 +236,41 @@ test.each([
     }
   },
 );
+
+test.each([false, true])(
+  "Studio stops jobs before shared stores close, including stop failure %s",
+  async (stopFails) => {
+    const chat = await createChatMemory(
+      join(dirname(testDatabase().path), "chat.sqlite"),
+    );
+    const calls: string[] = [];
+    const coreShutdown = vi
+      .spyOn(Mastra.prototype, "shutdown")
+      .mockImplementation(async () => {
+        calls.push("storage");
+      });
+    const jobs = {
+      start: () => {},
+      stop: async () => {
+        calls.push("jobs");
+        if (stopFails) {
+          throw new Error("stop failed");
+        }
+      },
+    };
+    try {
+      const mastra = new StudioMastra({ logger: false }, chat, jobs);
+      const closing = mastra.shutdown();
+      expect(mastra.shutdown()).toBe(closing);
+      if (stopFails) {
+        await expect(closing).rejects.toThrow("stop failed");
+      } else {
+        await closing;
+      }
+      expect(calls).toEqual(["jobs", "storage"]);
+    } finally {
+      coreShutdown.mockRestore();
+      await chat.storage.close();
+    }
+  },
+);

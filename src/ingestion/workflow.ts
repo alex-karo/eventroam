@@ -191,6 +191,7 @@ export type ResolvedCatalogDependencies = {
 };
 export type ResolveCatalogDependencies = (
   input: StudioIngestionInput,
+  engineRunId: string,
 ) => Promise<ResolvedCatalogDependencies>;
 
 /** A safe engine error has no original error as its cause. */
@@ -1008,7 +1009,7 @@ export function createCatalogIngestionWorkflow(
           });
           const resolved = options.cli
             ? { deps: options.cli.deps }
-            : await resolveDependencies(parsed);
+            : await resolveDependencies(parsed, runId);
           let owned: CatalogAttempt;
           try {
             owned = new CatalogAttempt(

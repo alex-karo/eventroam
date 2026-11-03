@@ -1,5 +1,5 @@
 import { Mastra } from "@mastra/core/mastra";
-import { SpanType } from "@mastra/core/observability";
+import { EntityType, SpanType } from "@mastra/core/observability";
 import type { DuckDBStore } from "@mastra/duckdb";
 import {
   MastraStorageExporter,
@@ -162,6 +162,7 @@ export async function createRunObservability(
   protectedPaths: string[] = [],
   sharedStore?: DuckDBStore | null,
   experimentId?: string,
+  engineRunId?: string,
 ) {
   const tracing = await createResearchObservability(
     input,
@@ -174,6 +175,14 @@ export async function createRunObservability(
   if (!tracing) {
     return undefined;
   }
+  const options = {
+    ...tracing.options,
+    metadata: {
+      ...tracing.options.metadata,
+      runId: sharedStore ? (engineRunId ?? runId) : runId,
+      ingestionRunId: runId,
+    },
+  };
   let mastra: Mastra | undefined;
   try {
     const native = tracing.loggingEnabled
@@ -193,10 +202,12 @@ export async function createRunObservability(
     tracing.observability.setLogger({ logger: tracing.logger });
     const root = tracing.traceEnabled
       ? tracing.observability.getDefaultInstance()!.startSpan({
-          type: SpanType.GENERIC,
-          name: "catalog-research",
-          entityId: "catalog-research",
-          tracingOptions: tracing.options,
+          type: SpanType.WORKFLOW_RUN,
+          entityType: EntityType.WORKFLOW_RUN,
+          entityName: "catalog-ingestion",
+          name: "catalog-ingestion",
+          entityId: "catalog-ingestion",
+          tracingOptions: options,
         })
       : undefined;
     const log = native
@@ -220,7 +231,7 @@ export async function createRunObservability(
         }
       }
     };
-    return { ...tracing, mastra, root, log, setEventId };
+    return { ...tracing, options, mastra, root, log, setEventId };
   } catch {
     tracing.diagnose("trace_initialization_failed");
     if (mastra) {

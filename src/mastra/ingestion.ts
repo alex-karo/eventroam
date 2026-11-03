@@ -2,11 +2,91 @@ import Database from "better-sqlite3";
 import type { DuckDBStore } from "@mastra/duckdb";
 import { readDatabaseEnvironment } from "../db/env";
 import { loadResearchConfig } from "../ingestion/runtime/config";
-import { createCatalogIngestionWorkflow } from "../ingestion/workflow";
+import {
+  createCatalogIngestionWorkflow,
+  type ResolveCatalogDependencies,
+} from "../ingestion/workflow";
+import type { IngestionJob } from "../ingestion/jobs/store";
+import type { ResearchLogger } from "../ingestion/runtime/logging";
 
 /** Inspection never invokes this resolver or opens the catalog. */
-export function createStudioIngestionWorkflow(observabilityStore: DuckDBStore) {
-  return createCatalogIngestionWorkflow(async () => {
+export function createStudioIngestionWorkflow(
+  observabilityStore: DuckDBStore,
+  resolveDependencies: ResolveCatalogDependencies = catalogDependencies(
+    observabilityStore,
+  ),
+) {
+  const jobIds = new Map<string, string>();
+  const workflow = createCatalogIngestionWorkflow(
+    async (input, engineRunId) => {
+      const resolved = await resolveDependencies(input, engineRunId);
+      return {
+        ...resolved,
+        deps: { ...resolved.deps, jobId: jobIds.get(engineRunId) },
+      };
+    },
+  );
+  return Object.assign(workflow, {
+    async executeJob(
+      job: IngestionJob,
+      signal: AbortSignal,
+      log?: ResearchLogger,
+    ) {
+      if (signal.aborted) {
+        return;
+      }
+      const run = await workflow.createRun();
+      if (signal.aborted) {
+        return;
+      }
+      jobIds.set(run.runId, job.id);
+      let cancellation: Promise<void> | undefined;
+      const cancel = () => {
+        cancellation ??= run.cancel();
+        // Attach a handler immediately; cleanup awaits the original promise.
+        void cancellation.catch(() => {});
+      };
+      signal.addEventListener("abort", cancel, { once: true });
+      const fields = {
+        jobId: job.id,
+        batchId: job.batch_id,
+        eventId: job.event_id,
+        engineRunId: run.runId,
+      };
+      try {
+        log?.info("Ingestion job workflow started", fields);
+        const output = await run.start({
+          inputData: {
+            mode: "refresh",
+            eventId: job.event_id,
+            scope: job.scope,
+            dryRun: Boolean(job.dry_run),
+            republish: false,
+          },
+        });
+        log?.info("Ingestion job workflow ended", {
+          ...fields,
+          status: output.status,
+          ...(output.status === "success"
+            ? { ingestionRunId: output.result.ingestionRunId }
+            : {}),
+        });
+      } finally {
+        signal.removeEventListener("abort", cancel);
+        try {
+          await cancellation;
+        } finally {
+          jobIds.delete(run.runId);
+        }
+      }
+    },
+  });
+}
+
+function catalogDependencies(
+  observabilityStore: DuckDBStore,
+): ResolveCatalogDependencies {
+  return async () => {
     const config = loadResearchConfig();
     const client = new Database(readDatabaseEnvironment().DATABASE_PATH, {
       fileMustExist: true,
@@ -29,5 +109,5 @@ export function createStudioIngestionWorkflow(observabilityStore: DuckDBStore) {
       client.close();
       throw new Error("Ingestion prerequisites unavailable");
     }
-  });
+  };
 }

@@ -72,12 +72,12 @@ const {spawnSync} = require('node:child_process');
 const args = process.argv.slice(2);
 fs.appendFileSync(process.env.TEST_LOG, JSON.stringify(args) + '\\n');
 if (args[0] === 'ps') {
-  console.log(args.some(arg => arg.endsWith('service=web')) ? 'aaaaaaaaaaaa' : args.some(arg => arg.endsWith('service=worker')) ? 'cccccccccccc' : 'bbbbbbbbbbbb');
+  console.log(args.some(arg => arg.endsWith('service=web')) ? 'aaaaaaaaaaaa' : 'bbbbbbbbbbbb');
 } else if (args[0] === 'inspect') {
   const format = args[2];
   if (format.includes('.Mounts')) console.log('test_catalog_data');
   else if (format.includes('.Image')) console.log('test-image');
-  else if (format.includes('.State.Running')) console.log(process.env.TEST_STOPPED_WORKER === 'true' && args.at(-1) === 'cccccccccccc' ? 'false' : 'true');
+  else if (format.includes('.State.Running')) console.log(process.env.TEST_STOPPED_STUDIO === 'true' && args.at(-1) === 'bbbbbbbbbbbb' ? 'false' : 'true');
 } else if (args[0] === 'run') {
   const worker = args.indexOf('-e');
   if (worker >= 0) {
@@ -94,7 +94,6 @@ if (args[0] === 'ps') {
     CATALOG_WORKFLOW_DATABASE_PATH: join(local, "workflows.sqlite"),
     CATALOG_CHAT_DATABASE_PATH: join(local, "chat.sqlite"),
     CATALOG_OBSERVABILITY_DATABASE_PATH: join(local, "observability.duckdb"),
-    CATALOG_WORKER_OBSERVABILITY_DATABASE_PATH: join(local, "worker.duckdb"),
     DB_SSH_HOST: "test-host",
     TEST_ROOT: root,
     TEST_LOG: log,
@@ -151,11 +150,6 @@ function seedMastra(fx) {
     {
       name: "mastra-observability.duckdb",
       local: fx.env.CATALOG_OBSERVABILITY_DATABASE_PATH,
-      duckdb: true,
-    },
-    {
-      name: "mastra-worker-observability.duckdb",
-      local: fx.env.CATALOG_WORKER_OBSERVABILITY_DATABASE_PATH,
       duckdb: true,
     },
   ].map((file) => ({ ...file, remote: join(fx.remote, file.name) }));
@@ -221,7 +215,7 @@ test("pull includes SQLite and DuckDB WAL data and backs up all targets", async 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(value(fx.localFile), "remote-wal");
   const backups = readdirSync(join(fx.local, "backups"));
-  assert.equal(backups.length, 5);
+  assert.equal(backups.length, 4);
   const catalogBackup = backups.find((name) =>
     name.startsWith("eventroam.sqlite."),
   );
@@ -247,8 +241,8 @@ test("push backs up all remote stores and restarts services", async (t) => {
   const install = calls.findIndex((call) => call.includes("-e"));
   const start = calls.findIndex((call) => call[0] === "start");
   assert.ok(stop < install && install < start);
-  assert.ok(calls[stop].includes("cccccccccccc"));
-  assert.ok(calls[start].includes("cccccccccccc"));
+  assert.ok(calls[stop].includes("bbbbbbbbbbbb"));
+  assert.ok(calls[start].includes("bbbbbbbbbbbb"));
   assert.equal(calls.filter((call) => call[0] === "run").length, 1);
   assert.ok(
     calls[install].includes("type=volume,src=test_catalog_data,dst=/data"),
@@ -290,14 +284,14 @@ test("a late backup failure keeps every target and skips automatic restart", asy
   assert.ok(!fx.calls().some((call) => call[0] === "start"));
 });
 
-test("transfer leaves a stopped worker stopped", (t) => {
+test("transfer leaves a stopped Studio stopped", (t) => {
   const fx = fixture(t);
-  fx.env.TEST_STOPPED_WORKER = "true";
+  fx.env.TEST_STOPPED_STUDIO = "true";
   const result = fx.run("pull");
   assert.equal(result.status, 0, result.stderr);
   for (const call of fx
     .calls()
     .filter((call) => ["stop", "start"].includes(call[0]))) {
-    assert.ok(!call.includes("cccccccccccc"));
+    assert.ok(!call.includes("bbbbbbbbbbbb"));
   }
 });

@@ -136,8 +136,8 @@ const createCatalogIngestionWorkflow: typeof createFixtureIngestionWorkflow = (
   resolve,
   options,
 ) =>
-  createFixtureIngestionWorkflow(async (input) => {
-    const resolved = await resolve(input);
+  createFixtureIngestionWorkflow(async (input, engineRunId) => {
+    const resolved = await resolve(input, engineRunId);
     return { ...resolved, deps: { ...dependencies(), ...resolved.deps } };
   }, options);
 

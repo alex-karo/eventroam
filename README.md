@@ -13,7 +13,7 @@ Bring scattered announcements and event details into one catalog that helps peop
 
 ## Architecture
 
-Eventroam uses one Next.js application and one SQLite catalog. The apex site presents the data collection system, a festival catalog example, and services for data collection and custom system development. The Festivals site serves discovery and event details from the catalog. Separate web, Studio, and worker containers share the catalog database.
+Eventroam uses one Next.js application and one SQLite catalog. The apex site presents the data collection system, a festival catalog example, and services for data collection and custom system development. The Festivals site serves discovery and event details from the catalog. Separate web and Studio containers share the catalog database.
 
 ```mermaid
 flowchart TD
@@ -22,8 +22,8 @@ flowchart TD
     CLI --> Ingestion[Catalog ingestion workflow]
     Studio -->|Direct form| Ingestion
     Studio -->|Chat submits jobs| DB[(SQLite catalog)]
-    DB -->|Pending or running jobs| Worker[Separate ingestion worker]
-    Worker --> Ingestion
+    DB -->|Pending or running jobs| Studio
+    Studio --> Ingestion
     Sources[External sources] --> Ingestion
     DB -->|Saved catalog context| Ingestion
     Ingestion -->|Validated writes and reports| DB
@@ -36,7 +36,7 @@ flowchart TD
     Web --> Festivals[festivals.eventroam.org: list, filters and map]
 ```
 
-The website reads published catalog data. The owner starts ingestion through the local CLI, local Studio, or hosted Studio. Studio chat selects Events and saves refresh jobs. The worker processes those jobs independently of Studio. Chat reads progress and saved results through catalog SQL. The Studio workflow view shows saved steps and results. Source Markdown and evidence remain in private files until explicit cleanup. The web application does not run ingestion.
+The website reads published catalog data. The owner starts ingestion through the local CLI, local Studio, or hosted Studio. Studio chat selects Events and saves refresh jobs. The Studio server processes those jobs through its registered ingestion workflow. Chat reads progress and saved results through catalog SQL. The Studio workflow view shows saved steps and results. Source Markdown and evidence remain in private files until explicit cleanup. The web application does not run ingestion.
 
 ## Ingestion
 
@@ -78,21 +78,21 @@ After collection, all interpretation roles use the same fixed evidence corpus an
 
 Code assembles the proposals. Editor approves or rejects them and can check cited source text with grep. It cannot replace proposed values. Code validates the review and prepares catalog operations. The writer validates those operations and commits changes in one transaction per Event. A required role failure prevents catalog writes. Preview runs save a report without retaining catalog changes.
 
-Studio chat can submit one fixed selection of up to 200 Events and return its batch ID. One worker per catalog processes jobs in order. Preview is the default; an explicit owner update request permits apply. The owner can cancel pending jobs. After a worker restart, pending and saved running jobs start from the beginning with new workflow runs. Earlier reports and commits remain available. The owner starts every batch.
+Studio chat can submit one fixed selection of up to 200 Events and return its batch ID. One Studio server per catalog processes jobs in order. Preview is the default; an explicit owner update request permits apply. The owner can cancel pending jobs. After a Studio server restart, pending and saved running jobs start from the beginning with new workflow runs. Earlier reports and commits remain available. The owner starts every batch.
 
 ## Technology and approach
 
-| Area                   | Current choice                                                           |
-| ---------------------- | ------------------------------------------------------------------------ |
-| Web                    | Next.js App Router, React, TypeScript, Node.js                           |
-| Data                   | SQLite, Drizzle ORM, `better-sqlite3`                                    |
-| UI and map             | Tailwind CSS, Mapbox GL JS                                               |
-| AI agents              | Mastra workflows and Studio chat; OpenRouter for ingestion               |
-| Source processing      | Got, Cheerio, `@mdream/js`; optional Firecrawl fallback                  |
-| Geocoding              | Geoapify                                                                 |
-| Analytics              | PostHog                                                                  |
-| Runtime                | Separate web, Studio, and worker containers with a shared catalog volume |
-| Validation and quality | Zod, ESLint, Prettier, Vitest, Playwright                                |
+| Area                   | Current choice                                                  |
+| ---------------------- | --------------------------------------------------------------- |
+| Web                    | Next.js App Router, React, TypeScript, Node.js                  |
+| Data                   | SQLite, Drizzle ORM, `better-sqlite3`                           |
+| UI and map             | Tailwind CSS, Mapbox GL JS                                      |
+| AI agents              | Mastra workflows and Studio chat; OpenRouter for ingestion      |
+| Source processing      | Got, Cheerio, `@mdream/js`; optional Firecrawl fallback         |
+| Geocoding              | Geoapify                                                        |
+| Analytics              | PostHog                                                         |
+| Runtime                | Separate web and Studio containers with a shared catalog volume |
+| Validation and quality | Zod, ESLint, Prettier, Vitest, Playwright                       |
 
 Run `pnpm run type-check`, `pnpm run lint`, `pnpm test`, and `pnpm run build` for application checks.
 
