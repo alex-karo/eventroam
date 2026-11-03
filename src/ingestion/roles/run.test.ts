@@ -148,7 +148,7 @@ it.each(["add", "full", "current"] as const)(
   },
 );
 
-it("uses native Mastra grep with cited source files and hash checks", async () => {
+it("uses native Mastra grep with all saved source files and hash checks", async () => {
   const root = await mkdtemp(join(tmpdir(), "eventroam-editor-context-"));
   try {
     const body = "Before the quote.\nFestival in the park.\nAfter the quote.";
@@ -183,6 +183,7 @@ it("uses native Mastra grep with cited source files and hash checks", async () =
       source.finalUrl,
     );
     await store.saveEvidence(source, bound.evidence);
+    source.overview = "Festival page";
     const other = await store.savePage({
       attemptedUrl: "https://example.org/other",
       finalUrl: "https://example.org/other",
@@ -190,6 +191,14 @@ it("uses native Mastra grep with cited source files and hash checks", async () =
       method: "http",
       status: "ok",
       markdown: "Unrelated Festival page.",
+    });
+    await store.savePage({
+      attemptedUrl: "https://example.org/failed",
+      finalUrl: "https://example.org/failed",
+      retrievedAt: "2026-11-01T00:00:00Z",
+      method: "http",
+      status: "failed",
+      markdown: "",
     });
     const corpus = store.freeze();
     const prepared: PreparedProposals = {
@@ -251,7 +260,18 @@ it("uses native Mastra grep with cited source files and hash checks", async () =
             );
             expect(Object.keys(call.tools!)).toEqual(["mastra_workspace_grep"]);
             expect(input.sourceFiles).toEqual([
-              { sourceId: source.id, path: "s1.md" },
+              {
+                sourceId: source.id,
+                path: "s1.md",
+                url: "https://example.org/",
+                overview: "Festival page",
+              },
+              {
+                sourceId: other.id,
+                path: "s2.md",
+                url: "https://example.org/other",
+                overview: null,
+              },
             ]);
             const tool = call.tools!.mastra_workspace_grep as {
               inputSchema: z.ZodType;
@@ -273,10 +293,18 @@ it("uses native Mastra grep with cited source files and hash checks", async () =
             expect(
               await tool.execute({ ...request, pattern: "No match" }, {}),
             ).toContain("0 matches");
-            for (const path of [".", "../outside.md", `${other.id}.md`]) {
+            expect(
+              await tool.execute({ ...request, path: "s2.md" }, {}),
+            ).toContain("Unrelated Festival page.");
+            for (const path of [
+              ".",
+              "../outside.md",
+              "s3.md",
+              "s1.evidence.json",
+            ]) {
               await expect(
                 tool.execute({ ...request, path }, {}),
-              ).rejects.toThrow("not cited");
+              ).rejects.toThrow("not saved in this run");
             }
             await writeFile(
               source.markdownPath!,
@@ -285,6 +313,13 @@ it("uses native Mastra grep with cited source files and hash checks", async () =
             await expect(tool.execute(request, {})).rejects.toThrow(
               "hash mismatch",
             );
+            await writeFile(
+              other.markdownPath!,
+              (await readFile(other.markdownPath!, "utf8")) + "Changed",
+            );
+            await expect(
+              tool.execute({ ...request, path: "s2.md" }, {}),
+            ).rejects.toThrow("hash mismatch");
             const approve = { decision: "approve", reason: "Supported" };
             return {
               item: approve,

@@ -336,15 +336,14 @@ export async function runEditor(
   options: RoleOptions,
   prepared: PreparedProposals,
 ) {
-  const citedSources = new Set(
-    prepared.basis.evidence.map((item) => item.sourceId),
-  );
   const sources = options.corpus.sources.filter((source) =>
-    citedSources.has(source.id),
+    Boolean(source.markdownPath),
   );
   const sourceFiles = sources.map((source) => ({
     sourceId: source.id,
     path: basename(source.markdownPath!),
+    url: source.finalUrl,
+    overview: source.overview ?? null,
   }));
   const tools = sources.length
     ? await createWorkspaceTools(
@@ -362,7 +361,7 @@ export async function runEditor(
                 const { path } = input as { path: string };
                 const file = sourceFiles.find((file) => file.path === path);
                 if (!file) {
-                  throw new Error("Source file was not cited in this review");
+                  throw new Error("Source file is not saved in this run");
                 }
                 await readCanonicalSource(
                   sources.find((source) => source.id === file.sourceId)!,

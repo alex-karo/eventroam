@@ -68,7 +68,7 @@ export const readerOutputSchema = z.strictObject({
           .string()
           .min(1)
           .describe(
-            "Short label of collected information, normally under 100 characters. In location labels, keep the explicit source country, not only the venue name.",
+            "Short label of collected information, normally under 100 characters. In location labels, keep the explicit source country and say whether a festival venue/address was collected or only a town, country or office.",
           ),
       )
       .max(9),

@@ -118,11 +118,11 @@ Discovery SHALL return bounded, unique, valid HTTP(S) candidates with titles and
 
 ### Requirement: Discovery is limited to material source needs
 
-Discovery MUST serve an unknown official source, source recovery, a material identity or date conflict, or an essential missing Edition fact.
+Discovery MUST serve an unknown official source, source recovery, a material identity or date conflict, an essential missing Edition fact, or a concrete festival place for an inspected ongoing or announced next Edition.
 Research MUST use relevant known links and prior results before another search.
-The last case MUST concern an Edition supported by inspected evidence.
+Edition fact and place discovery MUST concern an Edition supported by inspected evidence.
 Essential facts MUST concern Edition identification, dates, or publication requirements.
-Missing optional facts or an unannounced next Edition alone MUST NOT justify search.
+A known country alone SHALL NOT end place discovery when the festival place remains vague. Research SHALL first use useful travel, location or contact leads. A venue with city or area, a source-supported address or a map point SHALL be sufficient. Place discovery SHALL stop when that goal is met, the organizer explicitly withholds the place, no useful permitted step remains, or the shared budget ends. An absent venue SHALL NOT prevent publication. Other missing optional facts or an unannounced next Edition alone MUST NOT justify search.
 Current source-recovery restrictions MUST still apply. Search count SHALL depend on the unresolved permitted need within the shared budget, not a universal one-query limit.
 
 #### Scenario: Official sources contain no next announcement
@@ -137,10 +137,10 @@ Current source-recovery restrictions MUST still apply. Search count SHALL depend
 - **THEN** research can discover and inspect a candidate within the budget if the scope permits source recovery
 - **AND** current identity contradictions still require full refresh without replacement-site search
 
-#### Scenario: An identified Edition lacks an essential fact
+#### Scenario: An identified Edition lacks an essential fact or concrete place
 
-- **WHEN** inspected evidence supports an Edition but relevant known pages leave identification, dates, or a publication-required fact unresolved
-- **THEN** research can make a targeted search for that fact within the shared budget
+- **WHEN** inspected evidence supports an Edition but relevant known pages leave identification, dates, a publication-required fact or the concrete festival place unresolved
+- **THEN** research can make a targeted search for that need within the shared budget, including a place search when the country is known
 - **AND** it uses relevant prior results before another search
 - **AND** search highlights remain leads until the destination is inspected
 
@@ -380,7 +380,7 @@ For anchors retained after page cleanup, the source reader SHALL keep nonempty v
 
 ### Requirement: Source support retains context and identity
 
-A source-based change SHALL retain enough source context to identify its meaning and applicable Event or Edition. A matching quote SHALL NOT prove factual support by itself. Missing, ambiguous, or unrelated source references SHALL NOT authorize a change. The same source passage can support more than one field.
+A source-based change SHALL retain enough source context to identify its meaning and applicable Event or Edition. A matching quote SHALL NOT prove factual support by itself. Missing, ambiguous, or unrelated source references SHALL NOT authorize a change. The same source passage can support more than one field. Validation of submitted changes SHALL have read-only access to all saved Markdown pages of the current run, including uncited pages, with source identity checks. This access SHALL NOT permit new research or replacement values.
 
 #### Scenario: The same passage supports two fields
 

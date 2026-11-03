@@ -42,6 +42,18 @@ Use repeated `--group GROUP` or `--case ID` flags for a selection. A case select
 
 `--model X` selects X for all eight agents, including direct Location, and overrides `CATALOG_LOCATION_MODEL`. Without it, Research and Editor use `OPENROUTER_MODEL` or the default; Location uses `CATALOG_LOCATION_MODEL` or falls back to the same model. Experiments save resolved stage models, prompt versions, workflow revision, reasoning effort, service tier, and limits. Reader uses medium reasoning effort for literal extraction. Tickets, Classification and Links use the configured effort. Research, General, Editor and Location use medium when the configured effort is low; other explicit settings stay unchanged. Native call logs retain the effective settings. Injected handoffs do not claim Research usage.
 
+To run all selected agents through OpenCode Go, set `OPENCODE_GO_KEY` and use
+`--model opencode-go/gpt-6-luna`. For example:
+
+```sh
+pnpm run catalog:eval --case reader-date-correction --model opencode-go/gpt-6-luna
+```
+
+This selection uses the Go key without an OpenRouter key. It overrides the Location
+model, keeps the configured reasoning effort, and omits OpenRouter service tier and
+cache options. Each agent sends its own client name and a stable session header.
+Searches and page reads still use the eval fixtures.
+
 ### Results and failures
 
 Results are saved as Mastra datasets, experiments, and scores. The eval command has no `--report` option and writes no separate JSON report. Ordinary ingestion reports are unchanged. Each workflow result contains one current ingestion report in `output.report`; main also retains `before`, `after`, and `quality`. Direct Location retains its actual execution, observations, run ID, and available trace ID without a fabricated workflow report. A returned failure report is scored against the case.
@@ -165,7 +177,7 @@ Add fixture coverage when it blocks a task we intend to measure. Do not add a re
 
 ## Isolated Reader cases
 
-`--group regression/reader` runs three full-page inputs already used by the pipeline fixtures: the captured Sziget homepage, the captured Roskilde ticket page and the synthetic Harbor Echo venue confirmation. The existing source text, URLs, date and provenance are reused without copies or edits. The default command still selects five main cases. `--all` now selects 53 cases, including the three Reader cases.
+`--group regression/reader` runs three full-page inputs already used by the pipeline fixtures: the captured Sziget homepage, the captured Roskilde ticket page and the synthetic Harbor Echo venue confirmation. The existing source text, URLs, date and provenance are reused without copies or edits. The default command still selects five main cases. `--all` now selects 56 cases, including the three Reader cases.
 
 Only Reader calls the configured model. Its production prompt, medium reasoning, page input bound, output allowance and literal binding stay in use. The input contains the normal requested name, fixed date, source metadata and full page. Case expectations never enter the prompt. The result includes the raw execution and accepted evidence; no source fetch, other agent, catalog write or model judge runs.
 
@@ -237,3 +249,23 @@ Scorer revision 25 lets a case explicitly accept `exact` or `from` for its decla
 The isolated saved-precision fixture supplies its locality meaning as explicit synthetic evidence, not only a source overview. The building-complex fixture uses one clear synthetic 2025 venue statement in place of three catalog field projections. Both retain their point and precision checks. Their provenance identifies the synthetic text; captured geocoding responses stay unchanged.
 
 Scorer revision 26 limits `size-evidence` to a non-failed workflow and its strict participant-estimate, admission-count, date and target checks. A separate full-history case still requires complete research, and the unfinished-history case still requires a historical gap. This size-only case does not certify collection completeness. A saved output with correct size results and a false historical collection blocker changes from fail to pass; the blocker stays visible in its original report.
+
+### Current-run source access and place discovery
+
+Three synthetic cases cover the source-access follow-up. `editor-uncited-qualification` fixes the specialist proposals and checks rejection of a public ticket claim qualified by a separate saved eligibility notice. Only the homepage is cited; Editor must use the saved Markdown to resolve the stated doubt. `search-concrete-place` starts with a known country and checks targeted discovery, inspection of the returned official guide and the resulting venue and locality. `search-withheld-place` checks that explicit organizer nonpublication ends place discovery without making venue a publication prerequisite. Existing known-place and optional-information cases retain their no-search checks. No model judge is used.
+
+The 2026-11-03 follow-up uses `openai/gpt-6-luna` and explicit standard tier, with one attempt per selected case in each experiment. The measurements remain separate:
+
+| Label | Loaded changes | Result |
+| --- | --- | --- |
+| `place-access` | Research v22, Reader v33, Editor v26 | Main 4/5; search policy 5/8; fixed Editor 8/8 |
+| `place-access-final` | Research v23, Reader v34, Editor v26 | Main 5/5, required facts 15/15, additional facts 26/33; search policy 7/8; Reader 3/3 |
+| `place-access-recovery` | Research v24, Reader v34, Editor v26 | The unknown, inaccessible and wrong official-source cases pass 3/3 |
+
+The first sample exposed venue information lost from short coverage. Reader v34 names whether venue/address evidence was collected; Research v23 treats that coverage as source acquisition, leaving meaning and Edition applicability to Location. The remaining search-policy failure sought social accounts after an official programme had already established identity. Research v24 ends that recovery even when the original homepage stays blocked. The three affected recovery cases pass after this clarification. The five other search-policy cases pass in `place-access-final`. The fixed Editor inputs do not call Research or Reader; their 8/8 result checks the unchanged Editor v26 separately.
+
+The uncited-page trace confirms one native `mastra_workspace_grep` call on `s2.md` and rejection of the restricted ticket proposal. The concrete-place case makes one search, reads the returned guide and prepares the venue and locality. The withheld-place case makes no search and prepares publication without a venue. Reader retains all 25 declared requirements; all 24 returned quotations bind to their sources.
+
+These samples do not establish improved optional recall. The latest main sample misses Wacken locality and official website, Sziget locality/venue/address, and Roskilde venue/address. Some location evidence failed literal binding; fixed discovery returned no useful replacement. The first Roskilde sample also included a gift card as admission and an inconsistent instalment amount, plus an address spelling not accepted by the scorer. Those findings remain in the original result. No Tickets or Location fix is claimed from a later passing sample. These affected runs do not replace a complete 56-case run.
+
+Native results and traces are in the local `data/eval-place-access-20261102.*`, `data/eval-place-access-final-20261102.*` and `data/eval-place-recovery-20261103.*` stores. The focused application check passes 68 tests. Types, affected lint, formatting, dependency checks, documentation checks and OpenSpec validation pass.

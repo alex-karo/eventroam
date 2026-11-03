@@ -23,7 +23,7 @@ export function buildAssignment(
   ];
   return {
     instructions: current
-      ? "Inspect the saved official sources. Collect the ongoing festival or nearest announced future festival, dates, status, place, tickets, ticket overview and programme. Do not audit Event fields or history. Do not find a replacement website. Stop on a material identity contradiction and request a full refresh. Targeted discovery for unresolved programme dates or another publication-required Edition fact is permitted; missing optional details do not permit discovery."
+      ? "Inspect the saved official sources. Collect the ongoing festival or nearest announced future festival, dates, status, place, tickets, ticket overview and programme. Do not audit Event fields or history. Do not find a replacement website. Stop on a material identity contradiction and request a full refresh. Targeted discovery for unresolved programme dates, another publication-required Edition fact or a concrete festival place is permitted; other missing optional details do not permit discovery."
       : "Inspect relevant known official sources. Collect identity, description, public links, latest actually completed festival and ongoing or nearest announced future festival, dates, place and programme. Collect tickets only for the ongoing or next festival. Use permitted discovery only when needed. Do not infer an unannounced festival.",
     checks: checks.map((key) => ({
       key,
@@ -35,7 +35,7 @@ export function buildAssignment(
         currentDates:
           "Collect the full festival dates and their year, not a news publication date.",
         currentLocation:
-          "Collect official festival locality, country, venue and address when available. Check travel, getting-here or contact pages. Distinguish the festival site from its office.",
+          "Find the concrete festival place for the ongoing or announced next festival, even when its country is known. Read useful travel, getting-here or contact leads before targeted search within the shared budget. A venue with city or area, source-supported address or map point is sufficient; no street address is required for a field or forest. Stop when the place is concrete, explicitly not announced, or no useful permitted step remains. Missing venue does not prevent publication. Distinguish the festival site from an office, hotel or parking area.",
         currentTickets:
           "Inspect the current official ticket overview, with prices, mandatory fees, pass duration and conditions.",
         currentClassification:

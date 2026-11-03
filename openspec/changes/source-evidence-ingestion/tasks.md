@@ -30,7 +30,7 @@ This group depends on assignments and a validated frozen corpus.
 This group depends on all assigned specialist contracts.
 
 - [x] 4.1 Assemble fixed proposal groups with their saved values, support and versions in `src/ingestion/proposals.ts`. Verify point and classification reuse, independent ticket/link groups and results independent of branch completion order.
-- [x] 4.2 Restrict Editor to fixed approve/reject decisions. Verify complete review keys, cited-source access through native Mastra grep, source hashes and rejection of unsupported meaning despite a literal match.
+- [x] 4.2 Restrict Editor to fixed approve/reject decisions. Verify complete review keys, current-run source access through native Mastra grep, source hashes and rejection of unsupported meaning despite a literal match.
 - [x] 4.3 Apply review and temporal prerequisites before operation preparation. Verify no reassignment, preservation of rejected optional groups and publication evaluation for supported targets.
 - [x] 4.4 Prepare operations from accepted proposals in `src/ingestion/catalog-plan.ts`. Verify ownership, country and version guards, preview rollback and atomic failure. Document the review and failure flow.
 
@@ -81,3 +81,11 @@ The follow-up uses production recipient routing and complete factual alternative
 
 
 The final Reader v33 sample passes 9/9 with 75/75 declared requirements. An independent check confirms 75 accepted quotes and eight contexts as exact unique source spans. The latest complete run loads Reader v31 and Editor v24 and passes 52/53, with main 5/5 and 15/15 required plus 31/33 additional facts. Its only failure is a false Editor rejection of a saved Student category absent from the proposal. Editor v25 then passes both affected checkout cases twice (4/4), and all seven fixed Editor cases pass. These focused repeats do not constitute a new 53/53 full run. All 749 application tests pass; the final affected 48 tests, type checking, lint, formatting, dependency checks, documentation checks and OpenSpec validation also pass. Luna stays in use. Reader and General use medium; Tickets remains low after the rejected medium experiment.
+
+## 9. Source validation and place discovery follow-up
+
+- [x] 9.1 Give Editor native grep access to all saved Markdown pages of the current run, with URLs and available overviews. Preserve exact path, read-only and hash checks. Verify uncited and unprocessed pages, failed fetches and rejected paths.
+- [x] 9.2 Let Research seek a concrete festival place when country is known. Keep known-lead preference, explicit nonpublication stops, the shared budget and existing publication minimum. Update existing requirements without adding a requirement.
+- [x] 9.3 Run affected application checks and main, Editor, search-policy and Reader evals on standard tier. Inspect new source-access and place-discovery cases and record actual results.
+
+Follow-up validation is recorded in [the eval guide](../../../docs/ingestion-evals.md#current-run-source-access-and-place-discovery). Editor v26 passes 8/8 fixed cases, including native grep on an uncited page. Main passes 5/5 with 15/15 required and 26/33 additional facts on Research v23 and Reader v34. Reader passes 3/3 with 25/25 requirements and 24/24 literal quotations. The search-policy repeat passes 7/8; Research v24 then passes all three affected source-recovery cases. The five other search-policy cases passed before that clarification. Keep these samples separate from a complete 56-case run and from unresolved optional recall and ticket instability. All 68 affected application tests and the required code, docs and spec checks pass.

@@ -12,6 +12,24 @@ import {
 import { check } from "../../checks";
 
 export const checks = {
+  "editor-uncited-qualification": ({ report, changes }) => [
+    ...researchDidNotFail(report),
+    check(
+      "editor.status",
+      report.editorStatus === "success",
+      "Complete the fixed proposal review",
+    ),
+    check(
+      "catalog.edition.2027.rejectRestrictedPass",
+      !changes.edition(
+        { key: "2027" },
+        "price_details",
+        (value) =>
+          value?.some((offer) => offer.label === "Three-concert pass") === true,
+      ),
+      "Reject the ticket block qualified by the uncited eligibility notice",
+    ),
+  ],
   "editor-wrong-year": (context) => {
     const { report, changes } = context;
     return [

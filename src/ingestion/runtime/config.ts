@@ -42,7 +42,7 @@ export function loadResearchConfig(
     throw new Error("OPENROUTER_REASONING_EFFORT is invalid");
   }
   const reasoningEffort = effort as ResearchConfig["reasoningEffort"];
-  const requestedTier = env.OPENROUTER_SERVICE_TIER?.trim() || "flex";
+  const requestedTier = env.OPENROUTER_SERVICE_TIER?.trim() || "standard";
   if (requestedTier !== "flex" && requestedTier !== "standard") {
     throw new Error("OPENROUTER_SERVICE_TIER must be flex or standard");
   }

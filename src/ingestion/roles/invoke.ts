@@ -290,14 +290,16 @@ export async function invokeRole<T>(options: {
         stopWhen: ({ steps }: { steps: unknown[] }) =>
           steps.length - unavailableAttempts >= ordinarySteps,
         toolCallConcurrency: { limit: 3, strategy: "called" },
-        providerOptions: {
-          openrouter: {
-            ...researchProviderOptions(config).openrouter,
-            ...(role === "reader" && {
-              prompt_cache_options: { mode: "explicit" },
-            }),
-          },
-        },
+        providerOptions: config.model.startsWith("opencode-go/")
+          ? researchProviderOptions(config)
+          : {
+              openrouter: {
+                ...researchProviderOptions(config).openrouter,
+                ...(role === "reader" && {
+                  prompt_cache_options: { mode: "explicit" },
+                }),
+              },
+            },
         modelSettings: {
           maxOutputTokens:
             options.outputTokens ?? budget.limits.modelOutputTokens,

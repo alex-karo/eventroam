@@ -25,7 +25,7 @@ import {
 } from "@/db/schema";
 import { RunPersistenceError, persistenceFailureReport } from "../runs";
 import { runCatalogResearch, type CatalogResearchResult } from "../workflow";
-import { loadResearchConfig } from "../runtime/config";
+import { evaluationConfig } from "./config";
 import { PROMPT_VERSIONS } from "../roles/versions";
 import type { ReadPageResult } from "../tools/read-page/contracts";
 import type { SearchWebResult } from "../tools/search-web/contracts";
@@ -263,15 +263,6 @@ export type EvalCaseOutput = {
   | { quality: MainScore; score?: never }
   | { score: ScenarioResult; quality?: never }
 );
-
-function evaluationConfig(options: Pick<EvalOptions, "model">) {
-  const env = { ...process.env };
-  if (options.model) {
-    env.OPENROUTER_MODEL = options.model;
-    env.CATALOG_LOCATION_MODEL = options.model;
-  }
-  return loadResearchConfig(env);
-}
 
 async function executeCase(
   suite: EvalSuite,

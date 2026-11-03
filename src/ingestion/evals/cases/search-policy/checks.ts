@@ -10,6 +10,65 @@ import {
 } from "../../research";
 
 export const checks = {
+  "search-concrete-place": (context) => [
+    ...editionSlots(context, null, "2027"),
+    researchStatus(context, "success"),
+    check(
+      "toolUse.placeSearch",
+      searchCount(context.calls) >= 1,
+      "Search for the festival place despite a known country",
+    ),
+    readBeforeSearch(
+      context.calls,
+      "https://harborechofestival.co.uk/visitor-guide",
+      2,
+    ),
+    check(
+      "toolUse.readPlace",
+      context.calls.some(
+        (call) =>
+          call.tool === "readPage" &&
+          call.url === "https://harborechofestival.co.uk/visitor-guide",
+      ),
+      "Inspect the discovered visitor guide",
+    ),
+    check(
+      "catalog.edition.2027.venue",
+      context.changes.edition(
+        { key: "2027" },
+        "venue_name",
+        (value) => value === "Castlewellan Grounds",
+      ),
+      "Set the source-supported festival venue",
+    ),
+    check(
+      "catalog.edition.2027.locality",
+      context.changes.edition(
+        { key: "2027" },
+        "locality",
+        (value) => value === "Castlewellan",
+      ),
+      "Set the source-supported locality",
+    ),
+  ],
+  "search-withheld-place": (context) => [
+    ...editionSlots(context, null, "2027"),
+    researchStatus(context, "success"),
+    check(
+      "toolUse.noPlaceSearch",
+      searchCount(context.calls) === 0,
+      "Do not search for a venue explicitly withheld by the organizer",
+    ),
+    check(
+      "catalog.edition.2027.noOfficeVenue",
+      !context.changes.edition(
+        { key: "2027" },
+        "venue_name",
+        (value) => value != null,
+      ),
+      "Do not use the organizer office as the festival venue",
+    ),
+  ],
   "search-no-announcement": (context) => {
     return [
       researchStatus(context, "success"),

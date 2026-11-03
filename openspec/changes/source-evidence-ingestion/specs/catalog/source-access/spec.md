@@ -1,5 +1,56 @@
 ## MODIFIED Requirements
 
+### Requirement: Discovery is limited to material source needs
+
+Discovery MUST serve an unknown official source, source recovery, a material identity or date conflict, an essential missing Edition fact, or a concrete festival place for an inspected ongoing or announced next Edition.
+Research MUST use relevant known links and prior results before another search.
+Edition fact and place discovery MUST concern an Edition supported by inspected evidence.
+Essential facts MUST concern Edition identification, dates, or publication requirements.
+A known country alone SHALL NOT end place discovery when the festival place remains vague. Research SHALL first use useful travel, location or contact leads. A venue with city or area, a source-supported address or a map point SHALL be sufficient. Place discovery SHALL stop when that goal is met, the organizer explicitly withholds the place, no useful permitted step remains, or the shared budget ends. An absent venue SHALL NOT prevent publication. Other missing optional facts or an unannounced next Edition alone MUST NOT justify search.
+Current source-recovery restrictions MUST still apply. Search count SHALL depend on the unresolved permitted need within the shared budget, not a universal one-query limit.
+
+#### Scenario: Official sources contain no next announcement
+
+- **WHEN** relevant accessible official sources have been checked without finding a next announcement
+- **THEN** research reports that finding without searching solely for the missing announcement
+- **AND** an empty `currentOrNextEdition` slot alone does not authorize discovery
+
+#### Scenario: A known source conflicts with Event identity
+
+- **WHEN** relevant known links cannot resolve a material identity or date conflict
+- **THEN** research can discover and inspect a candidate within the budget if the scope permits source recovery
+- **AND** current identity contradictions still require full refresh without replacement-site search
+
+#### Scenario: An identified Edition lacks an essential fact or concrete place
+
+- **WHEN** inspected evidence supports an Edition but relevant known pages leave identification, dates, a publication-required fact or the concrete festival place unresolved
+- **THEN** research can make a targeted search for that need within the shared budget, including a place search when the country is known
+- **AND** it uses relevant prior results before another search
+- **AND** search highlights remain leads until the destination is inspected
+
+#### Scenario: Optional information is missing
+
+- **WHEN** only optional prices or participant size remain unknown
+- **THEN** those gaps alone do not authorize discovery
+
+#### Scenario: Sources explicitly state that no next Edition is announced
+
+- **WHEN** inspected official material states that the next Edition has not been announced
+- **THEN** research can complete that announcement check without further search
+
+#### Scenario: A search question is resolved
+
+- **WHEN** inspected evidence resolves the question that authorized discovery
+- **THEN** that question no longer authorizes another search
+- **AND** permission does not require a search for every missing field
+
+#### Scenario: The first search leaves an essential fact unresolved
+
+- **WHEN** an identified Edition still lacks a publication-required country after relevant known links and useful search results have been inspected
+- **THEN** another targeted search is permitted within the shared budget
+- **AND** resolving that need ends its permission for further search
+
+
 ### Requirement: Public pages are read within safety bounds
 
 Source access SHALL use bounded public HTTP(S) requests and block non-public destinations, including redirects, before connecting. Direct reads SHALL NOT execute page scripts locally. Read records SHALL retain requested/final URLs, retrieval time, method, status, and available content. Full extracted content within retrieval bounds SHALL remain available for later validation.
@@ -104,7 +155,7 @@ Each run SHALL save full parsed Markdown and provenance as private artifacts wit
 
 ### Requirement: Source support retains context and identity
 
-A source-based change SHALL retain enough source context to identify its meaning and applicable Event or Edition. A matching quote SHALL NOT prove factual support by itself. Missing, ambiguous, or unrelated source references SHALL NOT authorize a change. The same source passage can support more than one field.
+A source-based change SHALL retain enough source context to identify its meaning and applicable Event or Edition. A matching quote SHALL NOT prove factual support by itself. Missing, ambiguous, or unrelated source references SHALL NOT authorize a change. The same source passage can support more than one field. Validation of submitted changes SHALL have read-only access to all saved Markdown pages of the current run, including uncited pages, with source identity checks. This access SHALL NOT permit new research or replacement values.
 
 #### Scenario: The same passage supports two fields
 
