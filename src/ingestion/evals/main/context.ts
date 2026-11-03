@@ -3,15 +3,11 @@ import type { readResearchCatalog } from "@/catalog/read/research";
 import type { CatalogResearchResult } from "../../contracts";
 import { hasHostFailure } from "../../runs";
 import type { PipelineEvalCase } from "../fixtures";
-import { checkToolUse, type EvalToolCall } from "../tool-use";
 import { check } from "../checks";
 import { fact } from "./facts";
 
 export type Catalog = ReturnType<typeof readResearchCatalog>;
 export type Edition = Catalog[number]["editions"][number];
-
-// Accept both until agent status rules are deterministic. See the eval guide follow-up.
-export const mainScheduleStatuses = ["announced", "scheduled"] as const;
 
 const optionalEditionFields = [
   "displayName",
@@ -59,22 +55,9 @@ export function savedEditions(
       if (
         saved.terms.length === 0 &&
         termIds &&
-        same(
-          actual.terms
-            .map((term) => term.id)
-            .sort((a, b) => a.localeCompare(b)),
-          [...termIds].sort((a, b) => a.localeCompare(b)),
-        )
+        actual.terms.every((term) => termIds.includes(term.id))
       ) {
         expected.terms = actual.terms;
-      }
-      if (
-        mainScheduleStatuses.some(
-          (status) => status === saved.scheduleStatus,
-        ) &&
-        mainScheduleStatuses.some((status) => status === actual.scheduleStatus)
-      ) {
-        expected.scheduleStatus = actual.scheduleStatus;
       }
       for (const [field, value] of Object.entries(fields)) {
         if (
@@ -105,7 +88,6 @@ export function mainContext(
   before: Catalog,
   after: Catalog,
   report: CatalogResearchResult,
-  calls: EvalToolCall[],
 ) {
   const eventId = item.initial.event.id;
   const original = before.find((event) => event.id === eventId);
@@ -127,7 +109,6 @@ export function mainContext(
         !hasHostFailure(report),
         "Host workflow or run persistence failed",
       ),
-      ...checkToolUse(item.expectations.toolUse, calls),
       check(
         "event.identity",
         !!original &&

@@ -4,33 +4,41 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Mastra } from "@mastra/core/mastra";
 import type { DatasetItemPayload } from "@mastra/core/storage";
-import type { EvalCase, EvalSuite } from "./fixtures";
-import type { EvalGroup } from "./selection";
+import type { EvalSuite } from "./fixtures";
+import type { EvalGroup, SelectedEvalCase } from "./selection";
 
 // Increase this version when rules outside the hashed files change.
-export const EVAL_SCORER_VERSION = "6";
+export const EVAL_SCORER_VERSION = "26";
 
 /** Hash all case data, case checks, and main rules, including whitespace changes. */
 export function evalFileHash() {
   const directory = fileURLToPath(new URL("./", import.meta.url));
   const files = [
     "main.ts",
+    "fixtures.ts",
+    "editor-fixture.ts",
+    "run.ts",
+    "geocoding.ts",
     "research.ts",
-    "case-research.ts",
-    ...readdirSync(join(directory, "cases"), {
-      recursive: true,
-      encoding: "utf8",
-    })
-      .filter(
-        (name) => /\.(json|md|ts)$/.test(name) && !name.endsWith(".test.ts"),
-      )
-      .map((name) => join("cases", name)),
-    ...readdirSync(join(directory, "main"), {
-      recursive: true,
-      encoding: "utf8",
-    })
-      .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
-      .map((name) => join("main", name)),
+    "regression.ts",
+    "changes.ts",
+    "location.ts",
+    "checks.ts",
+    "tool-use.ts",
+    "score.ts",
+    ...["cases", "main", "reader"].flatMap((folder) =>
+      readdirSync(join(directory, folder), {
+        recursive: true,
+        encoding: "utf8",
+      })
+        .filter(
+          (name) =>
+            (folder === "cases"
+              ? /\.(json|md|ts)$/.test(name)
+              : name.endsWith(".ts")) && !name.endsWith(".test.ts"),
+        )
+        .map((name) => join(folder, name)),
+    ),
   ].sort((a, b) => a.localeCompare(b));
   const hash = createHash("sha256");
   for (const file of files) {
@@ -43,7 +51,7 @@ export function evalFileHash() {
 
 export function evalDataset(
   suite: EvalSuite,
-  cases: EvalCase[],
+  cases: SelectedEvalCase[],
   group: EvalGroup,
   repeat: number,
   fileHash: string,
@@ -52,24 +60,23 @@ export function evalDataset(
   const items: DatasetItemPayload[] = [...cases]
     .sort((a, b) => a.id.localeCompare(b.id))
     .flatMap((item) => {
-      const { expectations, ...fixture } = item;
       return Array.from({ length: repeat }, (_, i) => ({
         externalId: `${item.id}/${i + 1}`,
         input: {
           caseId: item.id,
           repetition: i + 1,
-          fixture,
+          fixture: item,
           todayUtc: item.todayUtc ?? suite.todayUtc,
           terms: suite.terms,
           provenance: item.provenance ?? suite.provenance,
         },
-        groundTruth: expectations,
         metadata: {
           group,
           suite: item.suite,
           origin: item.origin,
           task: item.task,
-          locationGroup: item.location?.group ?? null,
+          locationGroup:
+            "location" in item ? (item.location?.group ?? null) : null,
         },
       }));
     });

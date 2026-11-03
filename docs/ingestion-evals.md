@@ -12,7 +12,7 @@ Evals measure catalog quality and protect specific workflow behavior. They use f
 
 ## Run evals
 
-`pnpm run catalog:eval --help` lists options. The default runs five main cases once. Main applies the normal Research → Editor → Location → writer flow in a fresh in-memory catalog. Workflow regressions use dry runs; isolated Location cases use complete inputs without a catalog or writer. The owner's catalog stays untouched. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. CI does not run evals or tests of the eval code, and application coverage excludes eval code and its CLI. Run evals through the CLI when needed.
+`pnpm run catalog:eval --help` lists options. The default runs five main cases once. Main runs the complete ingestion flow in a fresh in-memory catalog. Workflow regressions use dry runs; isolated Location cases use complete inputs without a catalog or writer. The owner's catalog stays untouched. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. CI does not run evals or tests of the eval code, and application coverage excludes eval code and its CLI. Run evals through the CLI when needed.
 
 ```sh
 pnpm run catalog:eval
@@ -20,12 +20,13 @@ pnpm run catalog:eval --all
 pnpm run catalog:eval --group regression/pipeline
 pnpm run catalog:eval --editor-only
 pnpm run catalog:eval --location-only
+pnpm run catalog:eval --group regression/reader
 pnpm run catalog:eval --case sziget --repeat 3 --model openai/gpt-6-luna
 pnpm run catalog:eval --label before
 pnpm run catalog:eval --label after
 ```
 
-Cases form four separate experiment groups. Use CLI help for the current selection:
+Cases form five separate experiment groups. Use CLI help for the current selection:
 
 | Group | Purpose |
 | --- | --- |
@@ -33,12 +34,25 @@ Cases form four separate experiment groups. Use CLI help for the current selecti
 | `regression/pipeline` | Targeted workflow behavior |
 | `regression/editor` | Captured Editor handoffs and eligible Location |
 | `regression/location` | Direct Location execution |
+| `regression/reader` | Full-page extraction, literal binding and evidence context |
 
 Use repeated `--group GROUP` or `--case ID` flags for a selection. A case selection without a mode flag can span groups. Use one of `--all`, `--group`, `--editor-only`, or `--location-only`; an incompatible case selection fails before provider setup. `--repeat N` accepts 1–20 and applies equally to all selected cases. Location retains separate completion, correction, and preservation summaries. Its positive cases require the declared changes; keep-only output cannot pass them. The provider adapter tests cover raw Geoapify parsing; eval fixtures cover normalized client responses.
 
 ### Model settings
 
-`--model X` selects X for all three agents, including direct Location, and overrides `CATALOG_LOCATION_MODEL`. Without it, Research and Editor use `OPENROUTER_MODEL` or the default; Location uses `CATALOG_LOCATION_MODEL` or falls back to the same model. Experiments save resolved stage models, prompt versions, workflow revision, reasoning effort, service tier, and limits. Injected handoffs do not claim Research usage.
+`--model X` selects X for all eight agents, including direct Location, and overrides `CATALOG_LOCATION_MODEL`. Without it, Research and Editor use `OPENROUTER_MODEL` or the default; Location uses `CATALOG_LOCATION_MODEL` or falls back to the same model. Experiments save resolved stage models, prompt versions, workflow revision, reasoning effort, service tier, and limits. Reader uses medium reasoning effort for literal extraction. Tickets, Classification and Links use the configured effort. Research, General, Editor and Location use medium when the configured effort is low; other explicit settings stay unchanged. Native call logs retain the effective settings. Injected handoffs do not claim Research usage.
+
+To run all selected agents through OpenCode Go, set `OPENCODE_GO_KEY` and use
+`--model opencode-go/gpt-6-luna`. For example:
+
+```sh
+pnpm run catalog:eval --case reader-date-correction --model opencode-go/gpt-6-luna
+```
+
+This selection uses the Go key without an OpenRouter key. It overrides the Location
+model, keeps the configured reasoning effort, and omits OpenRouter service tier and
+cache options. Each agent sends its own client name and a stable session header.
+Searches and page reads still use the eval fixtures.
 
 ### Results and failures
 
@@ -72,11 +86,11 @@ Experiment storage write failures retain Mastra's native errors or warnings; no 
 
 Mastra datasets, experiment results, and scores use `CATALOG_EVAL_DATABASE_PATH`, which defaults to `data/mastra-evals.sqlite`. This file is separate from the catalog and DuckDB observability. Relative paths resolve from the project root. `pnpm run catalog:studio` passes the same absolute path to Studio; set it explicitly for `studio:start` if you use a custom path. Studio can inspect saved datasets and experiments without model credentials. Keep eval execution in the CLI.
 
-Known issue: [intermittent `SQLITE_BUSY_SNAPSHOT` failures](known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) can leave saved scores incomplete or fail an experiment update.
+The [archived `SQLITE_BUSY_SNAPSHOT` issue](archive/known-issues/2026-10-27-mastra-sqlite-busy-snapshot.md) records earlier incomplete score writes and experiment update failures. Use its storage diagnostics when an experiment has incomplete scores.
 
 ## Separate case purpose from source origin
 
-Main cases measure the final catalog after the full Research → Editor → Location → writer flow. Each attempt starts from a fresh disposable catalog. Regression cases check a specific behavior through the pipeline, an Editor handoff, or direct Location execution. Keep their results separate; do not combine them into one quality average.
+Main cases measure the final catalog after the full Research → General → specialists, including Location → Editor → writer flow. Each attempt starts from a fresh disposable catalog. Regression cases check a specific behavior through the pipeline, an Editor handoff, or direct Location execution. Keep their results separate; do not combine them into one quality average.
 
 Source origin is a different property. Both main and regression cases can use captured or synthetic sources. Fill, verify and correct are separate tasks, even when they use the same pages. A blocked-source case can pass by returning the expected failure and preserving the catalog.
 
@@ -88,9 +102,9 @@ Each case needs a clear task, initial catalog, fixed date, source origin and pro
 
 Define expected facts from the supplied evidence, independently of a model answer or production validation. A structurally valid date can still be false. Check Event and Edition identity, the programme year, venue versus office addresses, and admission products versus unrelated purchases.
 
-Use explicit TypeScript main evaluators with shared helpers. Keep expected alternatives and source comments close to the checks. Do not add a general rule engine or require a policy for every possible field.
+Use explicit TypeScript evaluators with shared helpers. Keep expected alternatives and source comments close to the checks. Do not add a general rule engine or require a policy for every possible field.
 
-Case inputs and source files live in [`src/ingestion/evals/cases/`](../src/ingestion/evals/cases/). Main checks live in [`src/ingestion/evals/main/`](../src/ingestion/evals/main/). Regression Research checks live in adjacent `checks.ts` files under `cases/`; [`case-research.ts`](../src/ingestion/evals/case-research.ts) registers them. Register a new case in the suite manifest and its evaluator registry.
+Case inputs and source files live in [`src/ingestion/evals/cases/`](../src/ingestion/evals/cases/). Main checks live in [`src/ingestion/evals/main/`](../src/ingestion/evals/main/). Regression checks live in adjacent `checks.ts` files under `cases/`; [`regression.ts`](../src/ingestion/evals/regression.ts) registers workflow checks and [`location.ts`](../src/ingestion/evals/location.ts) registers direct Location checks. Register a new case in the suite manifest and its evaluator registry.
 
 ## Keep completeness and errors separate
 
@@ -115,7 +129,15 @@ For example, omitting a checked Instagram link lowers additional completeness. A
 
 Publication, identity, protected records and execution have separate conditions. High completeness cannot compensate for a failed condition.
 
-Regressions use the same pass/fail check format as main conditions. They expose one `scenario-success`: all checks must pass. Their saved output contains `checks` and `passed`, without intermediate percentages or separate diagnostic categories. The CLI and Mastra reason show failed-check messages. Keep mutation, tool-use and Location expectations in JSON. Define Research statuses, returned facts, omitted fields and deliberate refusals in each case function, using small helpers from `research.ts`. There is no `expectations.research` schema or shared interpreter. Keep dry-run change checks, partial-object and collection matching, and Location preservation rules. A correct value already in the seed does not satisfy a required mutation.
+Regressions use the same pass/fail check format as main conditions. They expose `scenario-success`: all checks must pass. Workflow, Editor and Location regressions save `checks` and `passed`, without intermediate percentages or separate diagnostic categories. Reader also exposes evidence recall and literal validity, as described [below](#isolated-reader-cases). The CLI and Mastra reason show failed-check messages.
+
+Define workflow, Editor and Location regression checks in the case directory's `checks.ts`: catalog mutations, source-check results, tool use, and Location decisions. Use plain TypeScript conditions and small helpers. JSON files hold inputs, source references, geocoding responses and captured role results. They have no `expectations` block or comparison language. The loader rejects an unregistered evaluator in every group before model calls. Dataset revisions include the check code; saved outputs retain each check's result and message. Expected values do not enter model input.
+
+Editor handoff fixtures use schema version 5. Collection checks use nullable text reasons for source acquisition blockers rather than interpretation findings. Each fixture fixes the ordered page reads, Reader outputs, collection result and specialist proposals with explicit evidence references. Research and Reader use these fixed results without model calls. Normal collection still binds literal quotations and saves source artifacts. Editor and eligible Location execution use the configured model. Before provider setup, the loader checks source order, unique destinations, captured roles, literal quotations and references within each role's evidence packet. These cases measure review of a fixed proposal and corpus; they do not measure Research or Reader quality.
+
+Pipeline checks use dry-run changes. Match saved Editions by their declared key or year, and new Editions through writer references. A correct value already in the seed does not satisfy a required mutation. Check individual offer or link fields when other fields are outside the case boundary. Direct Location checks distinguish changed coordinates, preserved coordinates, point actions and unresolved questions. Completion and correction require an actual change; preservation requires the saved point and precision to stay unchanged.
+
+Checks of a selected Edition's dates and year can resolve an omitted proposal from that exact saved Edition. An explicit proposal or clear takes precedence. This checks the selected value; it does not prove fresh source verification or satisfy a required mutation. A successful Location `keep` can retain the selected saved venue. Deliberate refusals can retain source summaries for inspection. Check the actual General result inside the provider response wrapper when checking its decision.
 
 ## Accept variation through explicit alternatives
 
@@ -123,15 +145,17 @@ Accept source-supported URL, address, classification and price alternatives. URL
 
 Link alternatives are choices. Extra or duplicate official links of a checked kind fail.
 
-Each returned ticket offer must match an accepted product URL, amount and currency combination. Missing offers do not lower completeness. Labels, terms, availability and duplicate offers are unchecked. Full-programme base price is a separate additional fact. A case can accept both the displayed price and the total with mandatory fees when both are declared alternatives.
+Each returned priced ticket offer in main must match an accepted amount and currency pair. Missing offers do not lower completeness. Labels, terms, availability and duplicate offers are normally unchecked. A case can explicitly accept a supported unpriced offer: Wacken accepts Loyalty, Faster and Harder tickets marked sold out with both amount and currency absent. Other unpriced offers still fail its price check. Full-programme base price is a separate additional fact. Wacken accepts `exact` or `from` at EUR 364 or EUR 366; this does not permit other amounts, currencies or coverage. A case can accept both the displayed price and the total with mandatory fees when both are declared alternatives. Targeted regressions can check labels or availability for their specific task.
 
-Main currently accepts both `announced` and `scheduled`, including saved Edition preservation. TODO: define deterministic agent behavior and narrow this exception. `cancelled` and `postponed` remain distinct.
+Main requires `scheduled` for its dated festival announcements. Ingestion uses `announced` without a complete programme date range and `scheduled` with one, including provisional dates. `dateState` records date certainty separately. Explicit cancellation or postponement takes priority. Saved Edition preservation no longer treats `announced` and `scheduled` as interchangeable.
 
 ## Keep the check boundary explicit
 
 We do not require full coverage of additional data. Unlisted new fields are unchecked: they earn no credit and cannot establish that the model was correct. This limit keeps the scorer small; inspect outputs when investigating errors or extending coverage.
 
-For saved Editions, populated fields remain protected unless a case declares a supported change. Empty optional fields without expectations can be filled without credit or failure. Required fields, identities, publication and coordinate rules stay protected. Keep stricter case conditions where needed: Glastonbury preserves its saved programme and draft Event; the blocked Afro Nation case preserves its whole Event.
+For saved Editions, populated fields remain protected unless a case declares a supported change. Empty optional fields without expectations can be filled without credit or failure. For an unclassified saved Edition, a supported subset of the explicitly allowed historical terms is valid; those optional additions do not become a completeness requirement. Required fields, identities, publication and coordinate rules stay protected. Keep stricter case conditions where needed: Glastonbury preserves its saved programme and draft Event; the blocked Afro Nation case preserves its whole Event.
+
+A useful collection can have partial Research and a failed catalog outcome after General refuses Event identity. Keep the no-write, source-policy and identity-guidance checks. A size-only case does not certify collection completeness. Historical-gap checks need historical context and preservation of the unchecked record, not an exact Edition key.
 
 ## Use realistic, bounded fixtures
 
@@ -141,17 +165,35 @@ Main now uses `@mdream/js@2.0.3` output. Roskilde, Wacken, Sziget and Glastonbur
 
 The other ten Glastonbury pages retain the synthetic scenario below. Their saved scenario bodies were rebuilt as synthetic HTML and passed through the same production reader. The old page-title heading supplies the synthetic head title; region labels supply HTML landmarks. No extra metadata was invented. Their original scenario date stays fixed. Case provenance distinguishes these reconstructed inputs from real captures. Native Markdown line breaks and spacing remain in the saved output.
 
+Sziget location searches have one declared synthetic discovery response that points to the captured Travel page. The captured navigation does not link to this page. Its URL and title come from the existing capture; the response is not a search capture and does not change the page text.
+
 Refresh Markdown from HTML when the reader format changes. Do not pass captured Markdown back as if it were original HTML. If the original HTML is missing, record a new capture or mark reconstructed input as synthetic. A fixture refresh creates a new dataset revision; old runs do not establish a comparison on the new inputs.
 
 Synthetic pages must state their origin and edits in provenance. When they represent a real site in a different state, retain its structure and normal content. Check body text, links and metadata for facts that contradict the scenario.
 
-Glastonbury models an unannounced next festival, with an unedited official History 2025 capture. Its optional draft 2025 Edition earns additional credit for year, country GB and the GBP 378.50 base price. Returned offer prices must match that amount and currency. This historical case does not check offer URLs because the page provides no admission product URL; other main ticket checks still require URL, amount and currency. Neither history page gives programme dates. Capacity 210,000 is not participant attendance and must not become `sizeEstimate`. Other new Editions, invented historical dates, and publication fail the case; the saved 2027 data stays protected.
+Glastonbury models an unannounced next festival, with an unedited official History 2025 capture. Its optional draft 2025 Edition earns additional credit for year, country GB with its historical ticket block preserved. Historical price extraction is outside ingestion scope. Current-or-next offer checks use amount and currency; new replacement offers must have no URL. Neither history page gives programme dates. Capacity 210,000 is not participant attendance and must not become `sizeEstimate`. Other new Editions, invented historical dates, and publication fail the case; the saved 2027 data stays protected.
 
 Cover the assigned research path, not every possible link or query. Main source fixture misses are diagnostics only. Required omissions, wrong checked facts and failed task conditions still fail main. There is no live fallback or invented successful provider result.
 
-In every eval group, an initial or agent geocoding request without a fixture returns `unavailable`. This is a simulated tool failure, not a captured provider response or an empty search result. It does not fail the case by itself; execution and case checks still determine success. Request details remain in observations. This does not show how the real provider would answer the query.
+In every eval group, an initial or agent geocoding request without a fixture returns `unavailable`. This is a simulated tool failure, not a captured provider response or an empty search result. It does not fail the case by itself; execution and case checks still determine success. Request details remain in observations. Exact recorded requests take priority. Forward replay also matches normalized case, accents, punctuation, word order and country names in English, Spanish, Portuguese, French and German against the same explicit country filter. Other place qualifiers stay in the comparison. Conflicting normalized responses and unknown qualifiers return `unavailable`; reverse coordinates still require an exact match. This does not show how the real provider would answer the query.
 
 Add fixture coverage when it blocks a task we intend to measure. Do not add a response after every exploratory request merely to make diagnostics disappear.
+
+## Isolated Reader cases
+
+`--group regression/reader` runs three full-page inputs already used by the pipeline fixtures: the captured Sziget homepage, the captured Roskilde ticket page and the synthetic Harbor Echo venue confirmation. The existing source text, URLs, date and provenance are reused without copies or edits. The default command still selects five main cases. `--all` now selects 56 cases, including the three Reader cases.
+
+Only Reader calls the configured model. Its production prompt, medium reasoning, page input bound, output allowance and literal binding stay in use. The input contains the normal requested name, fixed date, source metadata and full page. Case expectations never enter the prompt. The result includes the raw execution and accepted evidence; no source fetch, other agent, catalog write or model judge runs.
+
+Requirements live in `src/ingestion/evals/reader/`, one file per page. Each requirement names a recipient and literal source passages that must reach that specialist together in one quotation and its context. Checks use the production `roleEvidenceTopics` routing. A passage can reach a role through any of its accepted topics; one exact topic label is not required. Longer quotations, boundary quotations and a different evidence order are accepted. The checks do not compare the whole JSON or infer final catalog values. Fixture loading rejects expected passages absent from the original source.
+
+The current page URL comes from source metadata. Reader need not extract a link back to that same page. Links to other pages, checkout destinations and social accounts still need retained literal evidence. Roskilde's full-pass requirement accepts its explicit eight-day festival description without also requiring the commercial product name. Price, fee and year must stay together. Harbor Echo checks the venue's January confirmation and the complete rejection of the February headline separately. These are complete claims about one Event on one page, not unrelated facts combined across a packet. Main still checks the final ticket-overview choice and date-conflict result.
+
+The three scores are `scenario-success`, `evidence-recall` (complete requirements divided by declared requirements) and `literal-validity` (accepted quotations divided by returned quotations, zero for an empty output). A scenario passes only when all requirements are available in accepted evidence and structural checks pass. Literal validity is diagnostic: discarding an extra quotation does not fail the scenario if accepted evidence still meets every requirement. A discarded required fact receives no recall credit. The readable fixtures require no model-reported extraction limitations or unsupported nonpublication claims and require nonempty navigation coverage.
+
+Saved output retains all binding limitations. A passing Reader case establishes useful required evidence, not complete production processing. Production still marks a source limited after any binding failure and can report partial research. Full-flow evals check the effect on final quality and task outcomes. Reader does not gain a repair call or relaxed source matching. Identical boundaries, or a complete opening with its exact closing suffix, can identify a full quotation. Extra wire escapes can be restored only when the supplied text has no match and the complete restored text matches the source exactly once. Changed facts, ambiguous matches and invalid ranges remain rejected.
+
+CLI output also shows unique source characters covered and extracted characters including repeated context. These are diagnostics, not pass thresholds: copying a whole page is not evidence of efficient extraction. The checks cover only the named passages and metadata conditions. They do not establish exhaustive recall, semantic accuracy of the overview or coverage wording, absence of all irrelevant material, or downstream catalog quality.
 
 ## Review failures before changing expectations
 
@@ -172,7 +214,7 @@ There are no separate eval unit tests, model-substitute eval runs, or eval persi
 
 Use the same group, cases, inputs, expectations, scoring rules and repeat count.
 
-Dataset identity uses a coarse hash of all case JSON/MD/TypeScript files, main evaluator/helper sources, `case-research.ts` and `research.ts`, plus group, selected case IDs, repeats and scorer version. Even whitespace or changes to unselected cases can create new datasets. Other scoring changes require an `EVAL_SCORER_VERSION` update.
+Dataset identity uses a coarse hash of all case JSON/MD/TypeScript files, main evaluator/helper sources, the regression registries, fixture loading and execution helpers, and shared mutation, finding, tool-use and scoring helpers, plus group, selected case IDs, repeats and scorer version. Even whitespace or changes to unselected cases can create new datasets. Other scoring changes require an `EVAL_SCORER_VERSION` update.
 
 Existing datasets are reused without content checks or source snapshots. Edit definitions in repository files; manual Studio changes are not detected or imported.
 
@@ -181,3 +223,5 @@ Experiment names identify the branch, group and model. Use `--label before` and 
 Compare the share of cases without checked errors, then required completeness, then additional completeness. Use duration and available native usage when quality is close. Keep N/A applicability visible and exclude incomplete runs. Do not use Studio's generic overall average as the model ranking.
 
 Three repetitions per main case are recommended, not a statistical guarantee. Before replacing a model, run the full suite for both candidates and review new regression failures. A rescore of saved output can check a scorer correction, but it does not test model behavior on changed fixtures. Keep original experiment results intact.
+
+A comparison can span different coarse dataset hashes only after checking that every selected case input and its checks are identical. Record this check with the experiment; matching case IDs alone do not prove equal inputs. Native usage comparisons must include all executed roles and treat missing metrics as unknown.

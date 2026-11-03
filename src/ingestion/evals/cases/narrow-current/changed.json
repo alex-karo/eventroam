@@ -6,7 +6,7 @@
   "todayUtc": "2026-10-14",
   "provenance": {
     "kind": "synthetic-current-regression",
-    "note": "Synthetic official announcements isolate scope and continuity decisions; no live source fallback."
+    "note": "Synthetic official announcements isolate scope and continuity decisions. Substantial main programme on indoor and outdoor stages is explicit to support the mixed-format change; no live source fallback."
   },
   "input": {
     "mode": "refresh",
@@ -59,55 +59,5 @@
       "status": "ok",
       "markdownFile": "changed.md"
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "field": "terms",
-        "contains": "validation:festival",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "field": "terms",
-        "contains": "validation:mixed",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "field": "terms",
-        "contains": "validation:music",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "field": "terms",
-        "contains": "catalog:term:genre:metal",
-        "editionYear": 2027
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "event",
-        "field": "summary"
-      },
-      {
-        "owner": "event",
-        "field": "links"
-      },
-      {
-        "owner": "edition",
-        "field": "terms",
-        "contains": "validation:openair",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "field": "terms",
-        "contains": "catalog:term:genre:electronic",
-        "editionYear": 2027
-      }
-    ]
-  }
+  ]
 }

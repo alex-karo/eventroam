@@ -1,0 +1,401 @@
+{
+  "schemaVersion": 5,
+  "provenance": "Captured editor-valid-update research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 17470331-0d9d-443d-8f60-3f8532d2d3d5:s1, 17470331-0d9d-443d-8f60-3f8532d2d3d5:s2, 17470331-0d9d-443d-8f60-3f8532d2d3d5:s8, 17470331-0d9d-443d-8f60-3f8532d2d3d5:s3. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
+  "pages": [
+    {
+      "url": "https://www.szigetfestival.com/",
+      "sourceId": "s1",
+      "reader": {
+        "overview": "Sziget Festival is promoted as “The Island of Freedom.” The homepage looks back on 2026 and advertises 2027 passes for 10–14 August; it does not state a 2026 date, venue address or programme details.",
+        "topics": [
+          "identity",
+          "description",
+          "dates",
+          "status",
+          "size",
+          "tickets",
+          "classification",
+          "location",
+          "links"
+        ],
+        "statedYears": ["2027", "2026", "2025"],
+        "limitations": [
+          "The page does not give exact dates or a venue address for the completed 2026 festival, or a programme description, genres or participant count; “hundreds of thousands” is an unspecific attendee claim.",
+          "The page’s title, navigation and ticket offer point to 2027, while its metadata description says “Sziget Festival 2026 Budapest.” The metadata does not establish 2026 dates or venue.",
+          "Quotation 6 or its context has no unique literal match"
+        ],
+        "evidence": [
+          {
+            "quote": "# Relive the best moments of 2026\n\n[Watch the aftermovie](https://szigetfestival.com/en/aftermovie)",
+            "topics": ["identity", "status", "links"]
+          },
+          {
+            "quote": "[2027 10 - 14 AUG](https://szigetfestival.com/en/)",
+            "topics": ["dates", "status", "links"]
+          },
+          {
+            "quote": "###### Be part of Sziget 2027\n\n5-day Pass\n\n### € 349\n\n+handling fee € 23\n\n[BUY NOW](https://szi.gt/5daypass_2027)\n\n21&Under 5-day Pass\n\n### € 279\n\n\\+ handling fee € 18\n\n[BUY NOW](https://szi.gt/21andUnderPass_2027)\n\nVIP 5-day Pass\n\n### € 569\n\n\\+ handling fee € 37\n\n[BUY NOW](https://szi.gt/VIP_5day_2027)\n\n[CHECK THEM ALL](https://szigetfestival.com/en/tickets)",
+            "topics": ["tickets", "dates", "links"]
+          },
+          {
+            "quote": "## BEST MOMENTS OF 2026\n\nWe’re bursting with joy—because we just lived the time of our lives with hundreds of thousands of Szitizens in this August. You gave us laughter, music, magic, and memories we’ll carry forever. Want the proof?\n\n[SEE THE BEST MOMENTS](https://szigetfestival.com/en/gallery)",
+            "topics": ["description", "status", "size", "links"]
+          },
+          {
+            "quote": "meta:\n  description: \"Sziget Festival 2026 Budapest. Join The Island of Freedom to explore all kinds of magic and unexpected surprises.\"\n  \"og:description\": \"Join The Island of Freedom await you with all kinds of unexpected surprises.\"\n  \"og:title\": \"Sziget Festival 2027, Budapest\"",
+            "topics": ["identity", "description", "location", "dates"],
+            "context": [],
+            "editionClues": [],
+            "uncertainty": "Metadata conflicts on the festival year: the description names 2026, while the Open Graph title names 2027. The page’s title and promotional content identify the advertised edition as 2027."
+          },
+          {
+            "quote": "<https://www.facebook.com/SzigetFestival> <https://instagram.com/szigetofficial/> <http://www.youtube.com/user/szigetofficial> <https://www.tiktok.com/@szigetofficial/> <https://open.spotify.com/user/szigetfestivalofficial> <https://szigetfestival.com/en/newsletter>",
+            "topics": ["links"]
+          },
+          {
+            "quote": "[Discover Sziget](https://szigetfestival.com/en/experience) [The Island of Freedom](https://szigetfestival.com/en/experience) [Sziget TV](https://szigetfestival.com/en/stream) [Best moments](https://szigetfestival.com/en/gallery)",
+            "topics": ["description", "links"]
+          }
+        ],
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        }
+      }
+    },
+    {
+      "url": "https://szigetfestival.com/en/tickets",
+      "sourceId": "s2",
+      "reader": {
+        "overview": "The official Sziget tickets page is titled “Tickets - #SZIGET2027” and shows festival dates of 10–14 August 2027. The retrieved page contains no ticket offers or prices.",
+        "topics": ["identity", "dates", "tickets", "links"],
+        "statedYears": ["2027"],
+        "limitations": [
+          "The page retrieval contains no ticket offers, prices, participant count, festival location, programme or information about the latest completed festival.",
+          "Quotation 3 or its context has no unique literal match",
+          "Quotation 4 or its context has no unique literal match"
+        ],
+        "evidence": [
+          {
+            "quote": "title: \"Tickets - #SZIGET2027\"",
+            "topics": ["identity"]
+          },
+          {
+            "quote": "[2027 10 - 14 AUG](https://szigetfestival.com/en/)",
+            "topics": ["dates", "links"]
+          },
+          {
+            "quote": "[Discover Sziget](https://szigetfestival.com/en/experience) [The Island of Freedom](https://szigetfestival.com/en/experience) [Sziget TV](https://szigetfestival.com/en/stream) [Best moments](https://szigetfestival.com/en/gallery)",
+            "topics": ["description", "links"]
+          },
+          {
+            "quote": "<https://www.facebook.com/SzigetFestival> <https://instagram.com/szigetofficial/> <https://www.youtube.com/user/szigetofficial> <https://www.tiktok.com/@szigetofficial/> <https://open.spotify.com/user/szigetfestivalofficial> <https://szigetfestival.com/en/newsletter>",
+            "topics": ["links"]
+          }
+        ],
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        }
+      }
+    },
+    {
+      "url": "https://szigetfestival.com/en/travel",
+      "sourceId": "s3",
+      "reader": {
+        "overview": "Sziget Festival is held on Óbuda Island in Budapest. The page announces 10–14 August 2027, but also contains travel promotions referring to 2026; it provides no participant count, programme details or admission prices.",
+        "topics": ["identity", "description", "dates", "location", "links"],
+        "statedYears": ["2027", "2026"],
+        "limitations": [
+          "This travel page does not establish the latest completed festival or provide programme details, participant counts, or admission offers and prices. The 2026 references concern travel promotions, not a clear festival-date announcement.",
+          "Quotation 5 or its context has no unique literal match"
+        ],
+        "evidence": [
+          {
+            "quote": "[2027 10 - 14 AUG](https://szigetfestival.com/en/)",
+            "topics": ["dates", "links"],
+            "context": ["title: \"Travel - #SZIGET2027\""],
+            "editionClues": [],
+            "uncertainty": "The page header announces 2027 dates, while other travel promotions on the page refer to 2026."
+          },
+          {
+            "quote": "Sziget Festival takes place on Óbuda Island, right in the heart of Budapest.**  \nThe official address is: [*Május 9. park, Budapest, Hungary, 1033.*](https://maps.app.goo.gl/chG26FXpJ9WkJwGw8)",
+            "topics": ["identity", "location"]
+          },
+          {
+            "quote": "Sziget Festival app",
+            "topics": ["identity"]
+          },
+          {
+            "quote": "## GETTING TO SZIGET IS EASIER THAN YOU THINK\n\nWhether you’re arriving by plane, bus, train, car, or even bike, Budapest offers smooth and convenient connections from all directions. The city’s major transport hubs — including its international airport, railway stations, and coach terminals — make it simple to reach Sziget from almost any country.\n\nAnd once you’re in Budapest, getting to the Island of Freedom is just as effortless — the festival is easily accessible with several well-connected local transport options.",
+            "topics": ["description", "location"]
+          },
+          {
+            "quote": "<https://www.facebook.com/SzigetFestival> <https://instagram.com/szigetofficial/> <http://www.youtube.com/user/szigetofficial> <https://www.tiktok.com/@szigetofficial/> <https://open.spotify.com/user/szigetfestivalofficial> <https://szigetfestival.com/en/newsletter>",
+            "topics": ["links"]
+          },
+          {
+            "quote": "<https://gyereksziget.hu/><https://gourmetfesztival.hu/en/>",
+            "topics": ["links"]
+          },
+          {
+            "quote": "Register on the link below by 31 July, 2026.",
+            "topics": ["dates"],
+            "context": [
+              "Cycle2Sziget at least 250kms and be our guest at the Camping of Nations and get a raincoat for your seat!"
+            ],
+            "editionClues": [],
+            "uncertainty": "This is a travel-promotion deadline, not a festival date."
+          }
+        ],
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        }
+      }
+    },
+    {
+      "url": "https://szigetfestival.com/en/festival-info",
+      "sourceId": "s4",
+      "reader": {
+        "overview": "Sziget Festival’s official FAQ identifies the 2027 edition as August 10–14 and says artists will be announced later. It gives no festival location or participant count; ticket-buying information is provided, but no 2027 prices or offers are specified.",
+        "topics": [
+          "identity",
+          "description",
+          "dates",
+          "status",
+          "tickets",
+          "links"
+        ],
+        "statedYears": ["2027", "2026", "2025", "2024"],
+        "limitations": [
+          "The page does not state a participant count or festival venue/location.",
+          "No 2027 ticket prices or specific admission offers are stated; ticket terms elsewhere on the page refer to other editions or are not clearly edition-specific.",
+          "The page does not identify the latest actually completed festival edition.",
+          "Quotation 3 or its context has no unique literal match"
+        ],
+        "evidence": [
+          {
+            "quote": "# Frequently Asked <br> Questions\n\nSearch\n\n#### Online check-in\n\n#### Sziget Festival 2027\n\n#### General tickets\n\n#### Camping & accommodation\n\n#### Health & Safety\n\n#### Cashless payment at the festival\n\n#### Getting a refund\n\n## Online check-in\n\nOnline check-in\n\nOnline check-in will open 90 days prior to the festival.\n\n[Sign up for our newsletter](https://szigetfestival.com/en/sziget-newsletter) or [download our mobile app](https://szigetfestival.com/en/mobileapp) to get notified once it’s open.\n\n## Sziget Festival 2027\n\nWhat are the dates for Sziget 2027?\n\n**Mark your calendars, Szitizens!** ? Sziget Festival 2027 is ON from **10–14 August** – Tuesday to Saturday (yeah, the party goes ‘til Sunday morning). Five unforgettable days, one perfect week. Fly in, vibe hard, dance through Saturday, and be back in your own bed by Sunday – ready for that chill, recovery or working mode on Monday.\n\nWho will be performing at Sziget Festival 2027?\n\nArtists will be announced later.  [Sign up here](https://szigetfestival.com/en/sziget-newsletter) to be the first to know.",
+            "topics": ["identity", "description", "dates", "status", "links"],
+            "context": [],
+            "editionClues": [],
+            "uncertainty": "The 2027 FAQ section gives dates and says performers will be announced later, but does not name a venue or describe the programme beyond this."
+          },
+          {
+            "quote": "Please make sure you buy tickets from our [webshop](https://szigetfestival.com/en/tickets), travel and hotel packages (incl. a 6-day Pass) at [Festival Travel’s website](https://order.festival.travel/festival/sziget-festival-2025/) or at the Main Entrance (during opening hours) during the festival, otherwise we cannot guarantee the validity of your ticket.",
+            "topics": ["tickets", "links", "location"]
+          },
+          {
+            "quote": "[2027 10 - 14 AUG](https://szigetfestival.com/en/)",
+            "topics": ["dates", "links"]
+          },
+          {
+            "quote": "<https://www.facebook.com/SzigetFestival> <https://instagram.com/szigetofficial/> <http://www.youtube.com/user/szigetofficial> <https://www.tiktok.com/@szigetofficial/> <https://open.spotify.com/user/szigetfestivalofficial> <https://szigetfestival.com/en/newsletter>",
+            "topics": ["links"]
+          }
+        ],
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        }
+      }
+    }
+  ],
+  "collection": {
+    "checks": [],
+    "unresolved": []
+  },
+  "roles": {
+    "general": {
+      "decision": "targets",
+      "eventId": "event:a22324dcf0078266ed4e",
+      "observedEventName": "Sziget Festival",
+      "reason": "Captured identity support",
+      "evidenceIds": ["s1-e1", "s1-e5", "s2-e1", "s3-e2", "s3-e3", "s4-e1"],
+      "event": {},
+      "previousEdition": {
+        "editionKey": "source-row",
+        "reason": "Captured Edition selection",
+        "evidenceIds": ["s1-e1", "s1-e4", "s1-e5", "s3-e7"],
+        "fields": {
+          "year": {
+            "action": "set",
+            "value": 2026,
+            "reason": "The official FAQ refers to Sziget 2026 in information about festival operations, confirming the saved edition year.",
+            "evidenceIds": ["s1-e1", "s1-e4", "s1-e5", "s3-e7"]
+          }
+        }
+      },
+      "currentOrNextEdition": {
+        "editionKey": "2027",
+        "reason": "Captured Edition selection",
+        "evidenceIds": [
+          "s1-e2",
+          "s1-e3",
+          "s1-e5",
+          "s2-e2",
+          "s3-e1",
+          "s4-e1",
+          "s4-e3"
+        ],
+        "fields": {
+          "year": {
+            "action": "set",
+            "value": 2027,
+            "reason": "The official homepage and FAQ announce Sziget Festival 2027.",
+            "evidenceIds": [
+              "s1-e2",
+              "s1-e3",
+              "s1-e5",
+              "s2-e2",
+              "s3-e1",
+              "s4-e1",
+              "s4-e3"
+            ]
+          },
+          "dates": {
+            "action": "set",
+            "value": {
+              "startsOn": "2027-08-10",
+              "endsOn": "2027-08-14",
+              "state": "confirmed"
+            },
+            "reason": "The official homepage and FAQ give the festival dates as 10–14 August 2027.",
+            "evidenceIds": [
+              "s1-e2",
+              "s1-e3",
+              "s1-e5",
+              "s2-e2",
+              "s3-e1",
+              "s4-e1",
+              "s4-e3"
+            ]
+          },
+          "scheduleStatus": {
+            "action": "set",
+            "value": "scheduled",
+            "reason": "The official site says Sziget returns on the confirmed 2027 dates and is selling passes for that edition.",
+            "evidenceIds": [
+              "s1-e2",
+              "s1-e3",
+              "s1-e5",
+              "s2-e2",
+              "s3-e1",
+              "s4-e1",
+              "s4-e3"
+            ]
+          }
+        }
+      },
+      "checks": [],
+      "unresolved": [
+        {
+          "message": "The fixed ticket-page capture omits offer listings. The fixed sources establish the quoted homepage offers but do not establish additional categories or their availability.",
+          "editionKey": "2027",
+          "field": "tickets"
+        }
+      ]
+    },
+    "tickets": {
+      "currentOrNextEdition": {
+        "tickets": {
+          "action": "set",
+          "value": {
+            "variants": [
+              {
+                "label": "5-day Pass",
+                "amount": 349,
+                "currency": "EUR",
+                "terms": "€23 online handling fee additional",
+                "availability": "unknown"
+              },
+              {
+                "label": "21&Under 5-day Pass",
+                "amount": 279,
+                "currency": "EUR",
+                "terms": "For ticket holders aged 21 and under; €18 online handling fee additional",
+                "availability": "unknown"
+              },
+              {
+                "label": "VIP 5-day Pass",
+                "amount": 569,
+                "currency": "EUR",
+                "terms": "€37 online handling fee additional",
+                "availability": "unknown"
+              }
+            ],
+            "basePrice": {
+              "kind": "exact",
+              "currency": "EUR",
+              "minAmount": 349,
+              "maxAmount": 349,
+              "coverage": "full_programme",
+              "qualification": "5-day Pass; €23 online handling fee additional"
+            }
+          },
+          "reason": "The official homepage lists these three 2027 pass categories and prices. The 21&Under pass is eligibility-restricted; the 5-day Pass is the lowest-priced unrestricted full-programme pass.",
+          "evidenceIds": ["s1-e3", "s4-e2"]
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "classification": {
+      "previousEdition": {},
+      "currentOrNextEdition": {
+        "classification": {
+          "action": "set",
+          "value": ["validation:festival", "validation:music"],
+          "reason": "The official site identifies Sziget as a festival and describes its programme as including music; the FAQ also refers to more than 500 artists.",
+          "evidenceIds": ["s1-e4", "s1-e5", "s1-e7", "s2-e3", "s3-e4", "s4-e1"]
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "links": {
+      "event": {
+        "socials": {},
+        "website": {
+          "action": "set",
+          "value": "https://szigetfestival.com/en/",
+          "reason": "Captured official source association",
+          "evidenceIds": [
+            "s1-e1",
+            "s1-e2",
+            "s1-e3",
+            "s1-e4",
+            "s1-e5",
+            "s1-e6",
+            "s1-e7",
+            "s2-e1",
+            "s2-e2",
+            "s2-e3",
+            "s2-e4",
+            "s3-e1",
+            "s3-e2",
+            "s3-e3",
+            "s3-e5",
+            "s3-e6",
+            "s4-e1",
+            "s4-e2",
+            "s4-e3",
+            "s4-e4"
+          ]
+        }
+      },
+      "currentOrNextEdition": {
+        "tickets": {
+          "action": "set",
+          "value": "https://szigetfestival.com/en/tickets",
+          "reason": "Captured official source association",
+          "evidenceIds": ["s1-e3", "s4-e2"]
+        }
+      },
+      "omitted": [],
+      "checks": [],
+      "unresolved": []
+    }
+  }
+}

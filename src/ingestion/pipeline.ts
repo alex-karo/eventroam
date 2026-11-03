@@ -1,6 +1,6 @@
 import { stageDiagnostics } from "./stage";
 import type { CatalogResearchResult, IngestionData } from "./contracts";
-import { type ReadyCatalogPlan } from "./editor/prepare";
+import { type ReadyCatalogPlan } from "./catalog-plan";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 
 /** Read the last completed validation for diagnostics, never for flow control. */

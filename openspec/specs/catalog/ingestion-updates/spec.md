@@ -14,11 +14,29 @@ Research SHALL report success, partial, or failure separately from the catalog o
 - **THEN** research may succeed while the catalog remains unchanged
 
 ### Requirement: Partial research identifies known unfinished checks
-The research model SHALL report partial research when it returns useful findings with a known unfinished mandatory check. It SHALL identify that check. Missing optional facts or an unannounced next Edition alone SHALL NOT require partial status. The application SHALL NOT infer check completion from omitted fields. A hard limit without a usable result SHALL follow the failure rules in [ingestion runs](../ingestion-runs/spec.md).
+
+Ingestion SHALL report partial research when useful evidence remains with a known unfinished mandatory check. It SHALL identify that check and preserve unsupported fields. Missing optional facts or an unannounced next Edition alone SHALL NOT require partial status. Omission SHALL NOT imply completed verification. A hard limit without a usable result SHALL follow [ingestion runs](../ingestion-runs/spec.md).
 
 #### Scenario: A mandatory check is blocked
 - **WHEN** inspected sources support some findings but an assigned source cannot be checked
 - **THEN** research is partial, identifies the unfinished check, and preserves affected saved values
+
+#### Scenario: A source gap remains after a useful interpretation
+
+- **WHEN** useful evidence supports a field proposal but another relevant required source is blocked, unread or unprocessed
+- **THEN** research remains partial and identifies that source gap even if the field check is verified
+
+#### Scenario: Collected evidence needs interpretation
+
+- **WHEN** relevant source collection is complete and an assigned interpretation check remains unresolved
+- **THEN** research remains partial and identifies that interpretation gap
+- **AND** missing optional prose or fresh genre names alone does not require another source
+
+#### Scenario: An unassigned historical check remains unfinished
+
+- **WHEN** current scope completes its assigned checks and a role also returns an unfinished historical check
+- **THEN** that extra check alone does not make research partial
+- **AND** any missing or unfinished assigned check still makes useful research partial
 
 ### Requirement: Failed research makes no catalog changes
 Failed research SHALL have no usable findings and SHALL produce no catalog operations.
@@ -40,16 +58,16 @@ The run SHALL distinguish bounded execution errors from factual questions that c
 
 ### Requirement: Findings alone do not authorize writes
 
-Ingestion changes SHALL require validated editor and, for accepted Edition targets, Location proposals. The editor SHALL assess identity and non-location changes. Location SHALL assess the complete place block under [location resolution](../location-resolution/spec.md). The application SHALL validate ownership, slots, country, fields, and catalog rules. It SHALL trust each owning agent's assessment of meaning without an independent semantic evidence check. Failed research, failed required editing or Location, or invalid plans SHALL produce no writes. Raw findings SHALL NOT be a fallback.
+Catalog changes SHALL require a valid, supported update for the selected Event and Editions. Ingestion SHALL check identity, scope, field meaning, country, and catalog constraints. Exact quotation matching SHALL NOT prove semantic support. A required execution failure or invalid final update SHALL produce no item writes. Raw findings SHALL NOT bypass validation.
 
 #### Scenario: A finding concerns the wrong Edition
 
-- **WHEN** the editor identifies evidence for an earlier Edition as the basis for a current date change
+- **WHEN** ingestion identifies evidence for an earlier Edition as the basis for a current date change
 - **THEN** the saved value remains unchanged and the mismatch is explained
 
 #### Scenario: No valid update proposal is available
 
-- **WHEN** research succeeds but no valid update proposal is available
+- **WHEN** source checks succeed but no valid required update result is available
 - **THEN** no catalog operations are made and the run retains the findings and failure
 
 #### Scenario: A structurally invalid update is proposed
@@ -59,23 +77,23 @@ Ingestion changes SHALL require validated editor and, for accepted Edition targe
 
 ### Requirement: Field changes require matching findings
 
-Non-location changes or clears SHALL require a research finding for the same owner, Edition key, and field. The editor SHALL assess its support and MAY transform it into a valid value. Location changes SHALL follow the evidence and point-reference rules in [location resolution](../location-resolution/spec.md). The application SHALL validate support references, actions, reasons, ownership, and catalog rules. A missing basis or invalid proposal SHALL reject the whole item and retain the reason.
+Each changed or cleared field SHALL have a basis for the same owner, Edition key, and field. Coordinates SHALL follow [location resolution](../location-resolution/spec.md). Missing support, invalid references, or invalid ownership SHALL reject the item before writes and retain a reason.
 
 #### Scenario: An update lacks a finding
 
-- **WHEN** an editor update names a non-location field without a finding for that owner, Edition key where applicable, and field
+- **WHEN** a proposed change lacks a matching target or attributable basis
 - **THEN** the whole proposal is rejected before catalog operations
 
 #### Scenario: An update targets the wrong Event
 
-- **WHEN** research is usable but the editor rejects an update as belonging to another Event
+- **WHEN** research is usable but ingestion rejects an update as belonging to another Event
 - **THEN** no writes occur and the report preserves the rejection reason and failed catalog outcome separately from research status
 
 #### Scenario: Coordinates come from a geocoding candidate
 
-- **WHEN** Location selects a registered candidate for a supported target venue
-- **THEN** the point reference and Location evidence can authorize the coordinate action without a separate research coordinate finding
-- **AND** the editor does not approve the point a second time
+- **WHEN** a checked geocoding candidate is selected for a supported target venue
+- **THEN** the retained candidate and supporting evidence establish the coordinate basis
+- **AND** the resulting place description still meets the location and catalog rules
 
 ### Requirement: Omission and uncertainty preserve saved values
 
@@ -104,11 +122,11 @@ An omitted or unknown research field SHALL NOT authorize a change to its saved v
 
 ### Requirement: Proposed changes have an attributable basis
 
-Every changed or cleared fact SHALL have a reason grounded in supplied evidence or saved state and retain its owner and Edition key. New records SHALL have an identity or creation explanation. Location decisions SHALL retain registered point or donor references as applicable; supplied source summaries remain in the input and report without citations in Location output. Unchanged saved entries SHALL NOT require fresh citations. An unsupported explanation SHALL NOT bypass validation.
+Every changed or cleared fact SHALL retain its target, reason, and source or saved-state basis. New records SHALL have identity or creation reasons. Coordinate changes SHALL retain their source point, geocoding candidate, or earlier saved point basis. Retained saved values SHALL NOT require fabricated fresh evidence. A page description alone SHALL NOT authorize a change.
 
 #### Scenario: A venue changes
 
-- **WHEN** research proposes a new venue for a saved Edition
+- **WHEN** ingestion proposes a new venue for a saved Edition
 - **THEN** the proposed change identifies that Edition, its new value, and why the source supports it
 
 #### Scenario: A classification replacement retains saved terms
@@ -118,7 +136,7 @@ Every changed or cleared fact SHALL have a reason grounded in supplied evidence 
 
 ### Requirement: Field groups remain complete and owned
 
-Dates, coordinates, tickets, and classification SHALL follow their complete-group or replacement rules. Location SHALL own the venue, address, locality, administrative area, country, and coordinates together. Omitted editor actions SHALL preserve saved values. Location SHALL return explicit decisions for all its fields, including keep actions for preserved values. One Edition SHALL NOT change a sibling. Invalid owners, targets, types, overlapping field ownership, missing Location actions, or incomplete replacements SHALL reject the item before writing.
+Dates, tickets, and classification SHALL follow their complete-group or replacement rules. The final venue, address, locality, administrative area, country, and point SHALL describe one coherent place. Omission SHALL preserve saved values unless evidence supports removal. One Edition SHALL NOT change a sibling. Invalid targets, types, or incomplete replacements SHALL reject the item.
 
 #### Scenario: A date correction
 
@@ -127,13 +145,22 @@ Dates, coordinates, tickets, and classification SHALL follow their complete-grou
 
 #### Scenario: A field is omitted
 
-- **WHEN** the editor changes an Edition name and omits tickets without evidence that the saved tickets are wrong
+- **WHEN** ingestion updates an Edition name without a supported ticket replacement
 - **THEN** tickets remain unchanged
 
 #### Scenario: A location field is preserved
 
-- **WHEN** Location changes venue and returns keep for locality without evidence that the saved locality is wrong
+- **WHEN** ingestion changes the venue and preserves locality without evidence that the saved locality is wrong
 - **THEN** locality remains unchanged
+
+#### Scenario: A complete ticket proposal is rejected
+- **WHEN** a complete ticket replacement is rejected
+- **THEN** the saved price block, including any existing offer URLs, remains unchanged
+- **AND** no part of the rejected block is written separately
+
+#### Scenario: A new venue invalidates its old address and point
+- **WHEN** a supported place change includes a new venue and supported removal of its old address and point
+- **THEN** the result does not combine the new venue with those disproved saved values
 
 ### Requirement: Research preserves catalog time zones
 Research SHALL NOT propose time-zone changes. An existing Edition's time zone SHALL survive ingestion updates; a new Edition SHALL use the catalog's existing fallback when no zone is supplied by the catalog operation.
@@ -154,7 +181,8 @@ Ticket availability SHALL belong to each ticket variant, independently of schedu
 - **THEN** it does not become the base full-programme admission price
 
 ### Requirement: Supported ticket prices replace observed offers
-When an inspected source supports an Edition ticket price, ingestion SHALL propose a complete replacement of the offers observed in that check. It SHALL NOT copy unverified saved offers. Unfinished offer checks SHALL remain visible and MAY make research partial. Without a supported price, ingestion SHALL omit tickets and preserve the saved block. Availability or sales closure alone SHALL NOT replace it.
+
+Only currentOrNextEdition, including an ongoing Edition, SHALL be eligible for ticket updates. A supported price SHALL permit a complete replacement with offers observed in that check, without unchecked saved offers. Unfinished offer checks SHALL remain visible. Without a supported price, ingestion SHALL preserve the saved block. Explicitly supported free full-programme admission SHALL permit an empty offer list when no ticket categories are published. Other replacements SHALL require at least one observed offer. The free claim SHALL retain source evidence and pass Editor review. Availability or sales closure alone SHALL NOT replace it. Historical tickets and their URLs SHALL remain unchanged.
 
 #### Scenario: A saved offer cannot be checked
 - **GIVEN** saved Regular and Student offers
@@ -166,12 +194,44 @@ When an inspected source supports an Edition ticket price, ingestion SHALL propo
 - **WHEN** a supported price permits replacement and another observed category has known availability without a price
 - **THEN** the replacement may include that category without amount or currency
 
+#### Scenario: A category name refers to unread offer details
+
+- **WHEN** a current source supports a Regular price and names a Student category whose details are only in an unread checkout
+- **THEN** the replacement includes Regular without a Student placeholder, even with an absent amount and currency
+- **AND** the Student question remains unresolved
+- **AND** a proposed replacement that includes that unsupported placeholder is rejected as a complete ticket block
+- **AND** a category present only in saved state, source mentions or unresolved questions is not part of a new replacement and does not invalidate it
+
+#### Scenario: Free admission has no ticket categories
+
+- **WHEN** source evidence explicitly establishes free full-programme admission for currentOrNextEdition without ticket categories
+- **THEN** a reviewed replacement can contain a free base price and an empty offer list
+- **AND** it does not invent an offer or copy unchecked saved offers
+
+#### Scenario: An empty list has no supported free admission
+
+- **WHEN** a ticket proposal has no offers and its base price is unknown or paid
+- **THEN** validation rejects that proposal
+
 #### Scenario: No price is supported
 - **WHEN** relevant pages have no readable price or only announce closed sales
 - **THEN** the saved ticket block remains unchanged
 
+#### Scenario: Only historical tickets are found
+- **WHEN** collection finds prices for previousEdition but no current-or-next ticket evidence
+- **THEN** historical ticket blocks and their URLs remain unchanged
+- **AND** the historical omission is not an unfinished assigned check
+
+#### Scenario: A published offer has unresolved currency
+
+- **WHEN** an inspected source publishes a numeric ticket price but its currency cannot be established
+- **THEN** the observed offer can omit both amount and currency with basePrice null only if its terms retain the literal published price and unresolved currency
+- **AND** Editor does not require separate availability or admission terms merely because that currency is unresolved
+- **AND** a category label or unread link without price evidence still does not establish an observed offer
+
 ### Requirement: Official link findings preserve ownership
-Proposed official links SHALL be valid HTTP(S) destinations associated with the Event or the appropriate Edition. An unverified link SHALL not displace a saved link; an omitted link slot SHALL remain unchanged. A verified replacement or explicit, supported removal MAY change only the matching owner and link-kind slot, preserving other links. Evidence pages SHALL not be published as official links solely because they were inspected.
+
+Official links SHALL be valid HTTP(S) destinations supported for their Event or Edition and link kind. Omitted or unverified links SHALL preserve saved slots. Removal SHALL need affirmative evidence. Ticket links SHALL change only for currentOrNextEdition. When established, the Edition ticket overview SHALL be used for its ticket slot. An inspected page SHALL NOT become an official link merely because it was read.
 
 #### Scenario: An Edition has its own ticket link
 - **WHEN** inspected evidence establishes an Edition-specific ticket destination
@@ -186,8 +246,29 @@ Proposed official links SHALL be valid HTTP(S) destinations associated with the 
 - **THEN** only its `x` slot, labelled X (Twitter), changes and the Event's other social accounts remain; unchanged saved URLs retain their spelling
 
 #### Scenario: One Edition ticket link is removed
-- **WHEN** inspected evidence disproves one Edition's ticket destination and supports its removal
+- **WHEN** inspected evidence disproves currentOrNextEdition's ticket destination and supports its removal
 - **THEN** only that Edition's ticket slot is cleared and sibling Edition links remain
+
+#### Scenario: Ticket overview and product pages coexist
+- **WHEN** an official source establishes a ticket overview and individual product pages
+- **THEN** the Edition ticket slot uses the overview
+- **AND** ingestion does not create per-offer URL associations
+
+#### Scenario: Only a product destination is established
+- **WHEN** an official source establishes one booking destination for the selected Edition and no supported overview
+- **THEN** ingestion can use that destination for the Edition ticket slot without inventing an overview URL
+
+#### Scenario: Checkout is unreadable
+- **WHEN** an inspected official page establishes the selected Edition's ticket link but checkout cannot be read
+- **THEN** the link can be proposed independently of prices or availability
+
+#### Scenario: A candidate is a source or a map
+- **WHEN** an inspected page links to a news article, map, or unrelated same-brand event
+- **THEN** ingestion does not place that URL in a public official-link slot without the required owner and purpose evidence
+
+#### Scenario: Historical ticket URLs are present
+- **WHEN** ingestion encounters a ticket URL for previousEdition
+- **THEN** that historical slot and its offer URLs remain unchanged
 
 ### Requirement: Existing Event identity remains stable during refresh
 Refresh and duplicate add SHALL not rename an existing Event or change its aliases or slug from a source suggestion. The system SHALL compare trimmed names case-sensitively and retain differences as private `eventNameMismatch` metadata with Event ID and original stored and observed names. A mismatch SHALL not change status, exit code, update eligibility, or audit.
@@ -223,38 +304,84 @@ An Edition size estimate SHALL describe approximate participant scale and explai
 - **THEN** size is omitted and any saved value is preserved
 ### Requirement: Research and editing use fixed Edition roles
 
-Non-null research data and ready editor plans MUST contain previousEdition and currentOrNextEdition. Each slot MUST contain one keyed Edition or null; arrays MUST be rejected. Editor slots MUST be null or match the same research slot. During ingestion, Location MUST match every accepted editor slot and keep declined slots null. One key MUST NOT occupy both roles. A null editor slot MUST preserve saved state and skip its Location work and publication evaluation.
+The result MUST distinguish previousEdition and currentOrNextEdition, each with one supported key or null. One key MUST NOT occupy both roles. Accepted changes MUST retain their selected keys and roles. A declined or unresolved target MUST preserve saved state and skip creation and publication. Missing roles, invalid targets, or inconsistent final changes MUST reject the item.
 
 #### Scenario: Both roles have supported findings
 
-- **WHEN** research selects a completed Edition and a distinct current or next Edition
-- **THEN** it returns each in its named slot
-- **AND** the editor can update or create each independently within one atomic item
+- **WHEN** evidence supports a completed Edition and a distinct current or next Edition
+- **THEN** the result identifies each in its named role
+- **AND** changes to both are applied in one atomic item
 
 #### Scenario: The editor declines one Edition
 
-- **WHEN** the editor returns null for one research slot and a valid plan for the other
-- **THEN** only the addressed Edition enters operation and publication evaluation
-- **AND** the null slot does not clear, withdraw, or delete a saved Edition
+- **WHEN** one selected Edition is unsupported and the other has a valid update
+- **THEN** only the accepted Edition enters operation and publication evaluation
+- **AND** declining a target does not clear, withdraw, or delete a saved Edition
 
 #### Scenario: A required slot is missing
 
-- **WHEN** non-null research data or a ready plan omits either Edition slot or supplies an Edition array
-- **THEN** validation rejects the item before writes
+- **WHEN** the final result omits a required Edition role or supplies an Edition array
+- **THEN** the item is rejected before writes
 
 #### Scenario: Editor changes the selected key or role
 
-- **WHEN** an editor slot uses another key, swaps roles, or addresses a saved Edition absent from that research slot
-- **THEN** the host rejects the whole plan, including preservation-only actions
+- **WHEN** the final update addresses another key, swaps roles, or addresses an unselected Edition
+- **THEN** the whole item is rejected, including preservation-only actions
 
 #### Scenario: Slot null differs from a disproven field
 
-- **WHEN** research returns a null Edition slot
-- **THEN** null means no selected finding for that role
-- **AND** it differs from a field finding with `value:null`, which requires evidence that disproves a saved value
+- **WHEN** the result has a null Edition slot
+- **THEN** it means no selected Edition for that role
+- **AND** it does not clear a saved field
 - **AND** unresolved questions distinguish an absent Edition from unfinished selection
 
 #### Scenario: Location restores a declined Edition
 
-- **WHEN** Location supplies a non-null slot that the editor declined
-- **THEN** validation rejects the whole item before writes
+- **WHEN** the final update includes a place change for a declined target
+- **THEN** the whole item is rejected before writes
+
+#### Scenario: A temporal premise is rejected
+
+- **WHEN** a date or identity premise used to select a target or earlier saved Edition is rejected
+- **THEN** changes that rely on it are not applied or silently reassigned
+
+#### Scenario: An accepted target has no field changes
+
+- **WHEN** the selected target is supported but its proposed field changes are declined
+- **THEN** preserved saved content still follows normal publication evaluation for that target
+- **AND** a new target still requires a valid creation reason and catalog validation
+
+### Requirement: Ingestion schedule status follows programme dates
+
+For a supported Edition announcement, ingestion SHALL use `scheduled` with a complete programme date range and `announced` without one. This SHALL include provisional dates. `dateState` SHALL retain date certainty separately. An explicit cancellation or postponement SHALL take priority. Missing dates alone SHALL NOT establish cancellation or postponement. These rules SHALL apply to the selected supported Edition; they SHALL NOT authorize changes to unchecked saved Editions.
+
+#### Scenario: An announcement has provisional dates
+
+- **WHEN** a selected supported Edition has a complete provisional programme date range
+- **THEN** ingestion uses `scheduled` and retains `dateState: provisional`
+
+#### Scenario: An announcement has no complete date range
+
+- **WHEN** a selected supported Edition is announced without a complete programme date range
+- **THEN** ingestion uses `announced` without inventing dates
+
+#### Scenario: An explicit exception applies
+
+- **WHEN** inspected evidence explicitly cancels or postpones a selected Edition
+- **THEN** that status takes priority over the presence of saved or published dates
+
+### Requirement: Ticket replacements omit per-offer URLs
+
+Ingestion ticket proposals and accepted replacements SHALL omit per-offer URL fields. A supported complete replacement SHALL replace the saved price block without those fields. Without an accepted replacement, saved offers and their existing URLs SHALL remain unchanged. The Edition ticket link SHALL be a separate update and SHALL NOT require a price replacement.
+
+#### Scenario: A current price replacement is accepted
+
+- **WHEN** supported current-or-next prices permit an accepted complete ticket replacement
+- **THEN** the new saved block contains no per-offer URLs
+- **AND** ingestion does not copy URLs from the old block into the replacement
+
+#### Scenario: No supported replacement is available
+
+- **WHEN** no complete ticket replacement is accepted
+- **THEN** saved offers and their existing URLs remain unchanged
+- **AND** an independently supported Edition ticket link can still change

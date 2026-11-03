@@ -1,7 +1,14 @@
 // Offline owner CLI process used by history reopen and interruption checks.
 import Database from "better-sqlite3";
+import { createWorkflowStorage } from "../ingestion/runtime/workflow-storage";
 import { executeCatalogCommand } from "../../commands/catalog";
-import { generateFixtureEditor, generateFixtureLocation } from "./ingestion";
+import {
+  runFixtureResearch,
+  fixtureDependencies,
+  fixtureTargets,
+  set,
+  generateFixtureLocation,
+} from "./ingestion";
 
 const args = process.argv.slice(2);
 const interrupt = args.includes("--fixture-interrupt");
@@ -14,40 +21,45 @@ catalog.close();
 executeCatalogCommand(
   args.filter((arg) => !arg.startsWith("--fixture-")),
   {
+    research: async (input, deps) => {
+      const storage = createWorkflowStorage();
+      try {
+        return await runFixtureResearch(input, {
+          ...deps,
+          workflowStorage: storage,
+        });
+      } finally {
+        await storage.close();
+      }
+    },
     researchDependencies: {
-      generateEditor: generateFixtureEditor,
+      ...fixtureDependencies(),
       generateLocation: generateFixtureLocation,
-      generateCandidate: async (prompt) => {
-        if (interrupt) {
-          process.stdout.write("FIXTURE_RESEARCH_WAITING\n");
-          await new Promise(() => setInterval(() => {}, 1000));
-        }
-        if (failed) {
+      generateRoles: {
+        general: async (_role, prompt) => {
+          if (interrupt) {
+            process.stdout.write("FIXTURE_RESEARCH_WAITING\n");
+            await new Promise(() => setInterval(() => {}, 1000));
+          }
+          if (failed) {
+            return {
+              decision: "uncertain",
+              reason: "Offline research failure",
+              unresolved: [],
+            };
+          }
+          const event = events.find(
+            (item) =>
+              item.id === JSON.parse(prompt).assignment.identityContext.eventId,
+          )!;
           return {
-            status: "failed",
-            data: null,
-            errors: ["Offline research failure"],
-            unresolved: [],
-          };
-        }
-        const event = events.find((item) => prompt.includes(item.id))!;
-        return {
-          status: "success",
-          errors: [],
-          unresolved: [],
-          data: {
-            eventId: event.id,
-            eventName: event.canonical_name,
-            summary: {
-              value: "CLI_FIXTURE_SUMMARY",
-              reason: "Offline fixture",
-            },
-            sources: [],
-            links: { socials: {} },
+            ...fixtureTargets(event.id),
+            observedEventName: event.canonical_name,
+            event: { summary: set("CLI_FIXTURE_SUMMARY", "Offline fixture") },
             previousEdition: null,
             currentOrNextEdition: null,
-          },
-        };
+          };
+        },
       },
       readPage: async (url, { budget }) => {
         budget.consumePage();

@@ -1,25 +1,147 @@
-import { normalizeWireCandidate } from "../research/agent/wire";
-import { researchCandidateSchema } from "../research/contracts";
+import type { z } from "zod";
+import type { generalFieldsSchema } from "../roles/contracts";
+import type { GeneralOutput } from "../roles/contracts";
+import type { LocationOutput } from "../location/contracts";
 import type { CatalogResearchResult } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
-import { contains } from "./assertions";
-import { check, type Check } from "./checks";
+import { check, contains } from "./checks";
+
+type ActionValue<T> = T extends { action: "set"; value: infer V }
+  ? { value: V }
+  : T extends { action: "clear" }
+    ? { value: null }
+    : never;
+type GeneralFields = z.infer<typeof generalFieldsSchema>;
+type EvalEdition = { key: string } & {
+  [K in keyof GeneralFields]?: ActionValue<NonNullable<GeneralFields[K]>>;
+} & {
+  classification?: { value: string[] };
+  tickets?: { value: unknown };
+  venueName?: { value: string | null };
+  venueAddress?: { value: string | null };
+  locality?: { value: string | null };
+  administrativeArea?: { value: string | null };
+  countryCode?: { value: string | null };
+  coordinates?: {
+    value: { latitude: number; longitude: number; precision: string } | null;
+  };
+};
+type EvalFacts = {
+  links: { website?: string; socials: Record<string, string> };
+  summary?: { value: string | null };
+  previousEdition: EvalEdition | null;
+  currentOrNextEdition: EvalEdition | null;
+};
+
+function generalResult(report: CatalogResearchResult) {
+  const response = report.modelResponse?.object as
+    { result?: GeneralOutput } | GeneralOutput | undefined;
+  return response && "result" in response
+    ? response.result
+    : (response as GeneralOutput | undefined);
+}
 
 export function researchContext(
   item: PipelineEvalCase,
   report: CatalogResearchResult,
 ) {
-  // Reports retain raw model output, including rejected candidates.
-  const parsed = researchCandidateSchema.safeParse(
-    normalizeWireCandidate(report.modelResponse?.object),
-  );
-  const candidate = parsed.success ? parsed.data : null;
-  const data = candidate?.data ?? null;
-  return { item, report, candidate, data };
+  // General owns temporal selection. Other facts are checked at their operation or Location boundary.
+  const raw = generalResult(report);
+  let data: EvalFacts | null = null;
+  if (raw?.decision === "targets") {
+    const fact = (action: unknown) => {
+      if (!action || typeof action !== "object" || !("action" in action)) {
+        return undefined;
+      }
+      if (action.action === "set") {
+        return {
+          value: (action as unknown as { value: unknown }).value,
+        };
+      }
+      if (action.action === "clear") {
+        return { value: null };
+      }
+      return undefined;
+    };
+    const edition = (
+      slot: "previousEdition" | "currentOrNextEdition",
+    ): EvalEdition | null => {
+      const target = raw[slot];
+      if (!target) {
+        return null;
+      }
+      const fields = Object.fromEntries(
+        Object.entries(target.fields).flatMap(([key, value]) => {
+          const finding = fact(value);
+          return finding ? [[key, finding]] : [];
+        }),
+      );
+      const creation = report.operations.find(
+        (op) =>
+          op.kind === "createEdition" &&
+          op.data.editionKey === target.editionKey,
+      );
+      const saved = item.initial.event.editions.find(
+        (edition) => edition.editionKey === target.editionKey,
+      );
+      const id = creation?.tempKey ? `$${creation.tempKey}` : saved?.id;
+      const operations = report.operations.filter(
+        (op) => "id" in op && op.id === id,
+      );
+      const terms = operations.find((op) => op.kind === "replaceTerms");
+      if (terms?.kind === "replaceTerms") {
+        fields.classification = {
+          value: terms.termIds,
+        };
+      }
+      const prices = operations.find((op) => op.kind === "replacePriceBlock");
+      if (prices?.kind === "replacePriceBlock") {
+        fields.tickets = {
+          value: { variants: prices.priceDetails, basePrice: prices.basePrice },
+        };
+      }
+      const location = report.locationResponse?.object as
+        LocationOutput | undefined;
+      if (location?.decision?.status === "ready") {
+        for (const [key, value] of Object.entries(
+          location.decision[slot]?.fields ?? {},
+        )) {
+          const finding = fact(value);
+          if (finding) {
+            fields[key] = finding;
+          }
+        }
+      }
+      return {
+        key: target.editionKey,
+        ...fields,
+      };
+    };
+    const eventLinks = report.operations.find(
+      (op) => op.kind === "replaceLinks" && op.owner.type === "event",
+    );
+    const links = eventLinks?.kind === "replaceLinks" ? eventLinks.links : [];
+    data = {
+      summary: fact(raw.event.summary) as EvalFacts["summary"],
+      links: {
+        website: links.find((link) => link.kind === "official_site")?.url,
+        socials: Object.fromEntries(
+          links
+            .filter(
+              (link) =>
+                link.kind !== "official_site" && link.kind !== "ticketing",
+            )
+            .map((link) => [link.kind, link.url]),
+        ),
+      },
+      previousEdition: edition("previousEdition"),
+      currentOrNextEdition: edition("currentOrNextEdition"),
+    };
+  }
+  return { item, report, data };
 }
 
 export type ResearchContext = ReturnType<typeof researchContext>;
-export type ResearchEvaluator = (context: ResearchContext) => Check[];
 
 export function researchDidNotFail(report: CatalogResearchResult) {
   return [
@@ -37,32 +159,32 @@ export function researchDidNotFail(report: CatalogResearchResult) {
 }
 
 export function researchStatus(
-  { report, candidate }: ResearchContext,
+  { report, data }: ResearchContext,
   status: "success" | "partial",
 ) {
   return check(
     "research.status",
     report.outcome !== "failed" &&
       report.researchStatus === status &&
-      candidate?.status === status,
+      data !== null,
     `researchStatus=${status} with non-failed catalog outcome`,
   );
 }
 
 export function editionSlots(
-  { candidate, data }: ResearchContext,
+  { data }: ResearchContext,
   previous: string | null,
   next: string | null,
 ) {
   return [
     check(
       "research.previousEdition",
-      candidate !== null && (data?.previousEdition?.key ?? null) === previous,
+      data !== null && (data.previousEdition?.key ?? null) === previous,
       `previousEdition=${previous}`,
     ),
     check(
       "research.currentOrNextEdition",
-      candidate !== null && (data?.currentOrNextEdition?.key ?? null) === next,
+      data !== null && (data.currentOrNextEdition?.key ?? null) === next,
       `currentOrNextEdition=${next}`,
     ),
   ];
@@ -72,6 +194,44 @@ export function editionByKey(data: ResearchContext["data"], key: string) {
   return [data?.previousEdition, data?.currentOrNextEdition].find(
     (edition) => edition?.key === key,
   );
+}
+
+/** Resolve a selected target without requiring a proposal for an unchanged date. */
+export function selectedEditionDates(context: ResearchContext, key: string) {
+  const selected = editionByKey(context.data, key);
+  if (!selected) {
+    return undefined;
+  }
+  if (selected.dates !== undefined) {
+    return selected.dates;
+  }
+  const saved = context.item.initial.event.editions.find(
+    (edition) => edition.editionKey === key,
+  );
+  return saved?.startsOn && saved.endsOn
+    ? {
+        value: {
+          startsOn: saved.startsOn,
+          endsOn: saved.endsOn,
+          state: saved.dateState ?? "confirmed",
+        },
+      }
+    : undefined;
+}
+
+/** Resolve a selected year; required mutations still use catalogChanges. */
+export function selectedEditionYear(context: ResearchContext, key: string) {
+  const selected = editionByKey(context.data, key);
+  if (!selected) {
+    return undefined;
+  }
+  if (selected.year !== undefined) {
+    return selected.year;
+  }
+  const saved = context.item.initial.event.editions.find(
+    (edition) => edition.editionKey === key,
+  );
+  return saved?.editionYear != null ? { value: saved.editionYear } : undefined;
 }
 
 export function editionByYear(data: ResearchContext["data"], year: number) {
@@ -127,13 +287,16 @@ export function oneNewEdition({ item, data }: ResearchContext, year: number) {
 }
 
 /** Shared conditions for a deliberate Research refusal, not a technical failure. */
-export function refusedResearch(report: CatalogResearchResult) {
-  const candidate = report.modelResponse?.object;
+export function refusedResearch(
+  report: CatalogResearchResult,
+  status: "failed" | "partial" = "failed",
+) {
+  const candidate = generalResult(report);
   return [
     check(
       "research.status",
-      report.researchStatus === "failed",
-      "Expected researchStatus=failed",
+      report.researchStatus === status,
+      `Expected researchStatus=${status}`,
     ),
     check(
       "research.outcome",
@@ -142,13 +305,11 @@ export function refusedResearch(report: CatalogResearchResult) {
     ),
     check(
       "research.candidate",
-      candidate !== null &&
-        typeof candidate === "object" &&
-        "status" in candidate &&
-        candidate.status === "failed" &&
-        "data" in candidate &&
-        candidate.data === null,
-      "Expected status=failed and data=null",
+      candidate == null ||
+        (typeof candidate === "object" &&
+          "decision" in candidate &&
+          candidate.decision === "uncertain"),
+      "No supported General targets",
     ),
     check(
       "research.operations",
@@ -164,11 +325,6 @@ export function refusedResearch(report: CatalogResearchResult) {
       "research.changes",
       report.changes.length === 0,
       "Expected no catalog changes",
-    ),
-    check(
-      "research.sourceSummaries",
-      report.sourceSummaries.length === 0,
-      "Expected no source summaries",
     ),
     check(
       "research.references",

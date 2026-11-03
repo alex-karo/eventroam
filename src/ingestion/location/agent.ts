@@ -21,7 +21,11 @@ import {
 import type { LocationInput } from "./input";
 import { prepareInitialGeocoding } from "./initial";
 import { locationInstructions } from "./prompt";
-import { LocationValidationError, validateLocation } from "./validate";
+import {
+  LocationCountryConflictError,
+  LocationValidationError,
+  validateLocation,
+} from "./validate";
 import { emptyLocationExecution, type LocationExecution } from "./execution";
 import { locationFailureMessage } from "./failure";
 export { emptyLocationExecution, type LocationExecution } from "./execution";
@@ -48,6 +52,17 @@ function validationMessage(error: unknown): string {
   }
   return locationFailureMessage(error);
 }
+function locationModelConfig(config: ResearchConfig) {
+  return {
+    ...config,
+    model: config.locationModel ?? config.model,
+    reasoningEffort:
+      config.reasoningEffort === "low"
+        ? ("medium" as const)
+        : config.reasoningEffort,
+  };
+}
+
 export async function resolveLocation(
   input: LocationInput,
   budget: ResearchBudget,
@@ -143,7 +158,7 @@ export async function resolveLocation(
         }),
       };
     } else {
-      const model = { ...config, model: config.locationModel ?? config.model };
+      const model = locationModelConfig(config);
       const agent = new Agent({
         id: "festival-location",
         name: "Festival location",
@@ -217,13 +232,23 @@ export async function resolveLocation(
     const timedOut =
       budget.remaining().durationMs <= 0 ||
       session.signal.reason?.name === "TimeoutError";
-    execution.errors.push({
-      code: timedOut ? "limit_reached" : "location_failed",
-      stage: "location",
-      message: timedOut
-        ? "Location reached the run deadline"
-        : validationMessage(error),
-    });
+    if (error instanceof LocationCountryConflictError) {
+      execution.errors.push({
+        code: "country_conflict",
+        stage: "validation",
+        editionKey: error.editionKey,
+        field: "countryCode",
+        message: error.message,
+      });
+    } else {
+      execution.errors.push({
+        code: timedOut ? "limit_reached" : "location_failed",
+        stage: "location",
+        message: timedOut
+          ? "Location reached the run deadline"
+          : validationMessage(error),
+      });
+    }
   } finally {
     observeTrace(tracing, span, {
       name: "resolve-location",

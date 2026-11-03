@@ -117,6 +117,9 @@
     "location/target-before-donor.json",
     "location/donor-correction.json",
     "location/donor-inheritance.json",
-    "location/official-venue-point.json"
+    "location/official-venue-point.json",
+    "search-policy/concrete-place.json",
+    "search-policy/withheld-place.json",
+    "editor/uncited-qualification.json"
   ]
 }

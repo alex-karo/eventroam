@@ -1,4 +1,9 @@
-import { generateFixtureEditor } from "@/test/ingestion";
+import {
+  runFixtureResearch,
+  fixtureDependencies,
+  fixtureTargets,
+  set,
+} from "@/test/ingestion";
 import { DEFAULT_RESEARCH_LIMITS } from "@/ingestion/runtime/budget";
 import { afterEach, expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
@@ -289,23 +294,15 @@ test("partial and skipped results exit zero; research, validation and write fail
   }
 });
 
-function fixtureCandidate(eventId: string) {
+function fixtureGeneral(eventId: string) {
   return {
-    status: "success",
-    data: {
-      eventId,
-      eventName: "Fixture Fest",
-      summary: {
-        value: "Updated description",
-        reason: "Official page updated its text",
-      },
-      sources: [],
-      links: { socials: {} },
-      previousEdition: null,
-      currentOrNextEdition: null,
+    ...fixtureTargets(eventId),
+    observedEventName: "Fixture Fest",
+    event: {
+      summary: set("Updated description", "Official page updated its text"),
     },
-    errors: [],
-    unresolved: [],
+    previousEdition: null,
+    currentOrNextEdition: null,
   };
 }
 
@@ -326,12 +323,10 @@ test("real CLI stores/exports the same report and prints runId and stage models"
   expect(
     await executeCatalogCommand([...args, "--json"], {
       stdout,
+      research: runFixtureResearch,
       researchDependencies: {
-        generateEditor: generateFixtureEditor,
-        generateCandidate: async () => {
-          const result = fixtureCandidate(event.id);
-          return result;
-        },
+        ...fixtureDependencies(),
+        generateRoles: { general: async () => fixtureGeneral(event.id) },
       },
     }),
   ).toBe(0);
@@ -379,13 +374,14 @@ test.each(["workflow", "persistence"] as const)(
       ],
       {
         stdout,
+        research: runFixtureResearch,
         researchDependencies: {
-          generateEditor: generateFixtureEditor,
-          generateCandidate: async (prompt) => {
-            const result = fixtureCandidate(
-              prompt.includes(first.id) ? first.id : second.id,
-            );
-            return result;
+          ...fixtureDependencies(),
+          generateRoles: {
+            general: async (_role, prompt) =>
+              fixtureGeneral(
+                JSON.parse(prompt).assignment.identityContext.eventId,
+              ),
           },
         },
       },
@@ -454,12 +450,10 @@ test("optional file failure keeps the completed run and help/preflight do not st
       ],
       {
         stdout,
+        research: runFixtureResearch,
         researchDependencies: {
-          generateEditor: generateFixtureEditor,
-          generateCandidate: async () => {
-            const result = fixtureCandidate(event.id);
-            return result;
-          },
+          ...fixtureDependencies(),
+          generateRoles: { general: async () => fixtureGeneral(event.id) },
         },
       },
     ),

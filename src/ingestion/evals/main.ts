@@ -1,6 +1,5 @@
 import type { PipelineEvalCase } from "./fixtures";
 import type { CatalogResearchResult } from "../contracts";
-import type { EvalToolCall } from "./tool-use";
 import { mainContext, type Catalog } from "./main/context";
 import { roskilde } from "./main/roskilde";
 import { wacken } from "./main/wacken";
@@ -22,7 +21,7 @@ export function assertMainCase(item: PipelineEvalCase) {
   if (
     !Object.hasOwn(evaluators, item.id) ||
     item.location ||
-    item.researchHandoff
+    item.roleHandoff
   ) {
     throw new Error(
       `Main case needs a registered pipeline evaluator: ${item.id}`,
@@ -35,9 +34,8 @@ export function evaluateMainCase(
   before: Catalog,
   after: Catalog,
   report: CatalogResearchResult,
-  calls: EvalToolCall[],
 ): MainScore {
   return evaluators[item.id as keyof typeof evaluators](
-    mainContext(item, before, after, report, calls),
+    mainContext(item, before, after, report),
   );
 }

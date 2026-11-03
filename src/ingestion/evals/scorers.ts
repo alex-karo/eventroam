@@ -1,15 +1,48 @@
 import { createScorer, notScorable } from "@mastra/core/evals";
 import type { ScenarioResult } from "./checks";
 import type { MainScore } from "./main";
+import type { EvalGroup } from "./selection";
+import type { ReaderEvalOutput } from "./reader";
 
 type EvalInput = { caseId: string; repetition?: number };
 type ScoredOutput = { score: ScenarioResult };
 type MainOutput = { quality: MainScore };
 
 /** Mastra presents values computed once by the task. */
-export function createEvalScorers(main: boolean) {
-  if (!main) {
+export function createEvalScorers(group: EvalGroup) {
+  if (group !== "main/pipeline") {
     return {
+      ...(group === "regression/reader"
+        ? {
+            recall: createScorer<EvalInput, { reader: ReaderEvalOutput }>({
+              id: "evidence-recall",
+              description:
+                "Complete required evidence available to its specialist",
+            })
+              .generateScore(
+                ({ run }) =>
+                  run.output.reader.recall.found /
+                  run.output.reader.recall.expected,
+              )
+              .generateReason(
+                ({ run }) =>
+                  `${run.output.reader.recall.found}/${run.output.reader.recall.expected} evidence requirements`,
+              ),
+            binding: createScorer<EvalInput, { reader: ReaderEvalOutput }>({
+              id: "literal-validity",
+              description:
+                "Returned quotations retained after literal source binding",
+            })
+              .generateScore(({ run }) => {
+                const { accepted, supplied } = run.output.reader.binding;
+                return supplied ? accepted / supplied : 0;
+              })
+              .generateReason(
+                ({ run }) =>
+                  `${run.output.reader.binding.accepted}/${run.output.reader.binding.supplied} quotations bound`,
+              ),
+          }
+        : {}),
       scenario: createScorer<EvalInput, ScoredOutput>({
         id: "scenario-success",
         description: "Targeted regression checks",

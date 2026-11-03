@@ -5,7 +5,7 @@
   "task": "Check location building complex",
   "provenance": {
     "kind": "captured-adapted",
-    "note": "Saved descriptions, source summaries and Geoapify forward responses captured on 2026-10-24. Free-text replay hints use those captured responses. Responses use the client format and omit unused provider fields. Reverse was not captured and is explicitly unavailable. Expected actions are review assertions, not captured model output."
+    "note": "Saved descriptions, source summaries and Geoapify forward responses captured on 2026-10-24. Free-text replay hints use those captured responses. Responses use the client format and omit unused provider fields. Reverse was not captured and is explicitly unavailable. Expected actions are review assertions, not captured model output. The location evidence is an explicit synthetic statement for Hallowindie 2025 based on the captured catalog description. It replaces field-label projections and is not a quotation captured from the festival website. It supplies no point or expected action."
   },
   "input": {
     "mode": "refresh",
@@ -73,15 +73,6 @@
         }
       ],
       "history": [],
-      "editor": {
-        "eventReason": null,
-        "previousEdition": null,
-        "currentOrNextEdition": {
-          "editionKey": "hallowindie-2025",
-          "reason": null
-        },
-        "unresolved": []
-      },
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "hallowindie-2025",
@@ -90,52 +81,36 @@
         "endsOn": "2025-11-01",
         "scheduleStatus": "announced",
         "saved": null,
-        "donor": null,
-        "findings": {
-          "venueName": {
-            "value": "Palacio de Congresos y Exposiciones de León",
-            "reason": "Captured catalog location description"
-          },
-          "locality": {
-            "value": "León",
-            "reason": "Captured catalog location description"
-          },
-          "countryCode": {
-            "value": "ES",
-            "reason": "Captured catalog location description"
-          }
+        "previousPoint": null
+      },
+      "selection": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "hallowindie-2025",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "evidence": [
+        {
+          "id": "currentOrNextEdition-location-venue",
+          "sourceId": "synthetic-hallowindie-2025-location",
+          "quote": "Hallowindie 2025 takes place at Palacio de Congresos y Exposiciones de León, in León, Spain.",
+          "context": [
+            {
+              "quote": "Synthetic location statement based on the captured catalog description. This is not a quotation captured from the festival website."
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["hallowindie-2025"],
+          "uncertainty": null,
+          "anchors": []
         }
-      }
+      ]
     }
   },
   "geocoding": [
-    {
-      "request": {
-        "direction": "forward",
-        "query": "Palacio de Congresos y Exposiciones de León, León, ES",
-        "countryCode": "ES"
-      },
-      "response": {
-        "status": "success",
-        "direction": "forward",
-        "candidates": [
-          {
-            "latitude": 42.5933469,
-            "longitude": -5.5835976,
-            "placeId": "51ab18f89b9a5516c0596c578dcaf24b4540f00102f90159a11b2300000000c0020192032c50616c6163696f20646520436f6e677265736f732079204578706f736963696f6e6573206465204c65c3b36e",
-            "label": "Palacio de Congresos y Exposiciones de León, Calle Gómez Salazar, 24009 León, Spain",
-            "name": "Palacio de Congresos y Exposiciones de León",
-            "countryCode": "ES",
-            "locality": "León",
-            "address": "Palacio de Congresos y Exposiciones de León",
-            "objectType": "venue",
-            "originalType": "amenity",
-            "category": null,
-            "confidence": 1
-          }
-        ]
-      }
-    },
     {
       "request": {
         "direction": "forward",
@@ -243,28 +218,90 @@
           }
         ]
       }
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "León, Castilla y León, Spain",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.5934528,
+            "longitude": -5.5616416,
+            "placeId": "51de4ac0f91e3f16c0591ddce742f64b4540f00101f9011030050000000000c002089203054c65c3b36e",
+            "label": "León, CL, Spain",
+            "name": "León",
+            "countryCode": "ES",
+            "locality": "León",
+            "address": "León",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "administrative",
+            "confidence": 1
+          }
+        ]
+      },
+      "provenance": "Synthetic alias for the same locality query with its administrative area and country name. It reuses the captured locality response and does not establish a venue point."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "León, Spain",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.5934528,
+            "longitude": -5.5616416,
+            "placeId": "51de4ac0f91e3f16c0591ddce742f64b4540f00101f9011030050000000000c002089203054c65c3b36e",
+            "label": "León, CL, Spain",
+            "name": "León",
+            "countryCode": "ES",
+            "locality": "León",
+            "address": "León",
+            "objectType": "locality",
+            "originalType": "city",
+            "category": "administrative",
+            "confidence": 1
+          }
+        ]
+      },
+      "provenance": "Synthetic query alias for the observed city query with the full country name. Reuses the captured León locality response; it does not identify the festival venue."
+    },
+    {
+      "request": {
+        "direction": "forward",
+        "query": "Palacio de Congresos y Exposiciones de León, León, Spain",
+        "countryCode": "ES"
+      },
+      "response": {
+        "status": "success",
+        "direction": "forward",
+        "candidates": [
+          {
+            "latitude": 42.5933469,
+            "longitude": -5.5835976,
+            "placeId": "51ab18f89b9a5516c0596c578dcaf24b4540f00102f90159a11b2300000000c0020192032c50616c6163696f20646520436f6e677265736f732079204578706f736963696f6e6573206465204c65c3b36e",
+            "label": "Palacio de Congresos y Exposiciones de León, Calle Gómez Salazar, 24009 León, Spain",
+            "name": "Palacio de Congresos y Exposiciones de León",
+            "countryCode": "ES",
+            "locality": "León",
+            "address": "Palacio de Congresos y Exposiciones de León",
+            "objectType": "venue",
+            "originalType": "amenity",
+            "category": null,
+            "confidence": 1
+          }
+        ]
+      },
+      "provenance": "Synthetic query alias for the observed venue query with the full country name. Reuses the captured response for the same venue, city and country; it is not a new provider capture."
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "hallowindie-2025",
-        "field": "coordinates",
-        "value": {
-          "latitude": 42.5933469,
-          "longitude": -5.5835976,
-          "precision": "approximate"
-        }
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "hallowindie-2025",
-        "field": "coordinate_action",
-        "value": "keep"
-      }
-    ]
-  }
+  ]
 }

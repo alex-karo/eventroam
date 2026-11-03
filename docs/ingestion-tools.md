@@ -30,21 +30,19 @@ pnpm run catalog refresh --event EVENT_ID --database data/research.sqlite --appl
 
 `add` creates new Events; use `refresh` for existing ones. Refresh supports repeated `--event` and `--scope full|current`; each Event has an independent atomic attempt. Preview is the default and still needs a writable database: catalog changes roll back, while the private run report persists. `--apply` starts fresh research rather than applying a saved preview. Use `--republish` to permit withdrawn records to publish again.
 
-See `.env.example` for current model defaults and execution limits. Set `OPENROUTER_MODEL`, `OPENROUTER_REASONING_EFFORT`, or `OPENROUTER_SERVICE_TIER=standard` to override them. Flex can have higher latency and capacity errors. Optional `FIRECRAWL_KEY` enables the [source fallback](ingestion-process.md#find-and-read-sources). Use `--agent-steps` or `CATALOG_MAX_AGENT_STEPS` to change the model-step allowance. The last step is reserved for a final response. There is no application limit on total input context characters. Other CLI overrides include `--searches` and `--seconds`. Limits bound work, not exact spending.
+See `.env.example` for current model defaults and execution limits. Set `OPENROUTER_MODEL` or `OPENROUTER_REASONING_EFFORT` to override them. The service tier is omitted by default. Set `OPENROUTER_SERVICE_TIER=flex` to use Flex routing; it can have higher latency and capacity errors. Optional `FIRECRAWL_KEY` enables the [source fallback](ingestion-process.md#find-and-read-sources). Use `--agent-steps` or `CATALOG_MAX_AGENT_STEPS` to change the model-step allowance. The last step is reserved for a final response. There is no application limit on total input context characters. Other CLI overrides include `--searches` and `--seconds`. Limits bound work, not exact spending.
 
 The [ingestion guide](ingestion-process.md) explains source handling, fact selection, previews, publication, and reports. Research is model-led and can make factual mistakes. Inspect the report before deciding on an apply run. After interruption, start a fresh run against current state; already committed changes remain.
 
-### Capture source tool output
+### Saved source evidence
 
-To inspect exactly what the research agent received from its initial source, `readPage`, and `searchWeb`, set `CATALOG_CAPTURE_TOOL_OUTPUTS=true` for a local CLI or loopback Studio process. Capture works for previews and apply runs and is off by default. For example:
+Each ingestion run saves private canonical Markdown and separate evidence JSON under `data/ingestion-sources/<startedAt>_<runId>/sources/`. The folder starts with the run start time in UTC, with milliseconds and hyphens in place of time colons. For example: `2026-11-03T02-19-21.123Z_<runId>`. Sorting folder names orders new runs by start time. Reports and provenance keep the original run ID. Existing files stay at their recorded paths.
 
-```sh
-CATALOG_CAPTURE_TOOL_OUTPUTS=true pnpm run catalog add --name "Festival name" --database data/research.sqlite
-```
+Set `CATALOG_SOURCE_DIRECTORY` to change the root. Relative paths resolve from the application root, independently of the process working directory. Markdown has application provenance frontmatter followed by the unchanged canonical page, including source metadata as source claims.
 
-Find the durable `runId` in the report, then inspect `data/catalog-debug/<runId>/`. Numbered JSON files contain each agent-visible response and its origin; page responses also have Markdown files. Numbers follow tool invocation order, even when concurrent calls finish out of order.
+The workflow collection result contains the source list and artifact paths. There is no manifest file or opt-in capture flag. Reader failure and input-limit cases retain available Markdown. Storage failure stops dependent work. Files use private directory and file permissions.
 
-The directory is ignored by Git and contains sensitive source text and search results. Keep it local and remove it when no longer needed. If capture cannot write, the process prints one bounded diagnostic to stderr; the catalog outcome is unaffected. Injected eval candidates do not use this capture.
+Source artifacts have no automatic retention. Deleting workflow history does not delete them. Remove a run directory explicitly after it is no longer needed. Preserve files referenced by runs you still need to inspect. Hosted Studio must mount this directory on persistent private storage.
 
 ## Local Studio ingestion
 

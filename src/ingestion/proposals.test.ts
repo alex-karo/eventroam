@@ -1,0 +1,612 @@
+import { expect, it } from "vitest";
+import { testDatabase } from "@/test/database";
+import { testFixtures } from "@/test/fixtures";
+import { applyCatalogItem } from "@/catalog/write/apply-operation";
+import { readResearchCatalog } from "@/catalog/read/research";
+import { loadResearchContext } from "./research/context";
+import {
+  validateGeneral,
+  assembleProposals,
+  applyReview,
+  reviewSchema,
+} from "./proposals";
+import {
+  generalOutputSchema,
+  ticketsOutputSchema,
+  classificationOutputSchema,
+  linksOutputSchema,
+} from "./roles/contracts";
+import type { Targets, TicketsOutput } from "./roles/contracts";
+import type { FrozenCorpus } from "./evidence/contracts";
+import { buildAssignment } from "./roles/assignment";
+import { prepareCatalogPlan } from "./catalog-plan";
+
+function fixture() {
+  const db = testDatabase();
+  const f = testFixtures(db.client);
+  const event = f.event({ canonicalName: "Example Festival" });
+  const edition = f.edition(event, { editionKey: "2027", editionYear: 2027 });
+  const terms = f.festivalTerms();
+  terms.forEach((term) => f.assignTerm(edition, term));
+  const input = { mode: "refresh" as const, eventId: event.id, actor: "test" };
+  const context = loadResearchContext(db.client, input, "2026-10-31T12:00:00Z");
+  const corpus: FrozenCorpus = {
+    version: "frozen",
+    sources: [
+      {
+        id: "s1",
+        attemptedUrl: "https://example.org/",
+        finalUrl: "https://example.org/",
+        retrievedAt: "2026-10-31T00:00:00Z",
+        status: "ok",
+        method: "http",
+        processing: "complete",
+        limitations: [],
+      },
+    ],
+    evidence: [
+      {
+        id: "s1-e1",
+        sourceId: "s1",
+        quote: "Example Festival 2027",
+        span: { start: 0, end: 21 },
+        context: [],
+        topics: ["identity", "classification"],
+        editionClues: ["2027"],
+        uncertainty: null,
+        anchors: [],
+      },
+    ],
+  };
+  const targets: Targets = {
+    decision: "targets",
+    eventId: event.id,
+    observedEventName: event.canonicalName,
+    reason: "Official identity",
+    evidenceIds: ["s1-e1"],
+    event: {},
+    previousEdition: null,
+    currentOrNextEdition: {
+      editionKey: "2027",
+      reason: "Future Edition",
+      evidenceIds: ["s1-e1"],
+      fields: {},
+    },
+    checks: [],
+    unresolved: [],
+  };
+  const assemble = (
+    selected = terms.map((term) => term.id),
+    evidenceIds: string[] = [],
+    reuseFrom?: { editionKey: string; reason: string },
+    tickets: TicketsOutput | null = null,
+  ) => {
+    const checked = validateGeneral(targets, context, input, corpus);
+    if (checked.status !== "continue") {
+      throw new Error("Fixture target rejected");
+    }
+    return assembleProposals({
+      targets: checked.value,
+      corpus,
+      context,
+      input,
+      points: [],
+      location: { slots: {}, support: {}, previousPoints: [], unresolved: [] },
+      tickets,
+      links: {
+        event: { socials: {} },
+        currentOrNextEdition: {},
+        omitted: [],
+        checks: [],
+        unresolved: [],
+      },
+      classification: {
+        previousEdition: null,
+        currentOrNextEdition: {
+          classification: {
+            action: "set",
+            value: selected,
+            reason: "Retain observed terms",
+            evidenceIds,
+            ...(reuseFrom ? { reuseFrom } : {}),
+          },
+        },
+        checks: [],
+        unresolved: [],
+      },
+    });
+  };
+  return {
+    input,
+    context,
+    corpus,
+    targets,
+    terms,
+    assemble,
+    f,
+    event,
+    client: db.client,
+  };
+}
+it("passes questions from all specialists to Editor without changing General", () => {
+  const f = fixture();
+  const question = (message: string) => ({
+    message,
+    editionKey: "2027",
+    field: "tickets",
+  });
+  f.targets.unresolved = [question("General question")];
+  const checked = validateGeneral(f.targets, f.context, f.input, f.corpus);
+  if (checked.status !== "continue") {
+    throw new Error("Fixture target rejected");
+  }
+  const result = assembleProposals({
+    targets: checked.value,
+    corpus: f.corpus,
+    context: f.context,
+    input: f.input,
+    points: [],
+    tickets: {
+      currentOrNextEdition: {},
+      checks: [],
+      unresolved: [question("Tickets question")],
+    },
+    classification: {
+      previousEdition: null,
+      currentOrNextEdition: null,
+      checks: [],
+      unresolved: [question("Classification question")],
+    },
+    links: {
+      event: { socials: {} },
+      currentOrNextEdition: {},
+      omitted: [],
+      checks: [],
+      unresolved: [question("Links question")],
+    },
+    location: {
+      slots: {},
+      support: {},
+      previousPoints: [],
+      unresolved: [question("Location question")],
+    },
+  });
+  expect(result.status).toBe("continue");
+  if (result.status !== "continue") {
+    return;
+  }
+  const expected = [
+    "General",
+    "Tickets",
+    "Classification",
+    "Links",
+    "Location",
+  ].map((role) => question(`${role} question`));
+  expect(result.value.unresolved).toEqual(expected);
+  expect(result.value.plan.unresolved).toEqual(expected);
+  expect(checked.value.unresolved).toEqual([question("General question")]);
+});
+it("requires an explicit supported duplicate decision for add", () => {
+  const f = fixture();
+  expect(
+    validateGeneral(
+      f.targets,
+      f.context,
+      { mode: "add", actor: "test" },
+      f.corpus,
+    ).status,
+  ).toBe("reject");
+  expect(
+    validateGeneral(
+      {
+        decision: "duplicate",
+        eventId: f.targets.eventId!,
+        observedEventName: "Example Festival",
+        reason: "Same festival",
+        evidenceIds: ["s1-e1"],
+      },
+      f.context,
+      { mode: "add", actor: "test" },
+      f.corpus,
+    ).status,
+  ).toBe("skip");
+  const unknown = { ...f.targets, eventId: "outside" };
+  expect(validateGeneral(unknown, f.context, f.input, f.corpus).status).toBe(
+    "reject",
+  );
+  expect(
+    validateGeneral(
+      { ...f.targets, evidenceIds: ["unknown"] },
+      f.context,
+      f.input,
+      f.corpus,
+    ).status,
+  ).toBe("reject");
+  expect(
+    validateGeneral(
+      { decision: "uncertain", reason: "Identity unclear", unresolved: [] },
+      f.context,
+      { mode: "add", actor: "test" },
+      f.corpus,
+    ).status,
+  ).toBe("reject");
+});
+it("preserves saved terms without new evidence and rejects unsupported removal", () => {
+  const f = fixture();
+  expect(f.assemble().status).toBe("continue");
+  expect(f.assemble([f.terms[0].id]).status).toBe("reject");
+  expect(f.assemble([f.terms[0].id], ["s1-e1"]).status).toBe("continue");
+  expect(f.assemble([f.terms[0].id], ["unknown"]).status).toBe("reject");
+  expect(f.targets.currentOrNextEdition!.fields).toEqual({});
+});
+it("retains nested proposal citations without unrelated evidence", () => {
+  const f = fixture();
+  f.corpus.evidence.push(
+    { ...f.corpus.evidence[0], id: "s1-e2" },
+    { ...f.corpus.evidence[0], id: "s1-e3" },
+  );
+  const prepared = f.assemble([f.terms[0].id], ["s1-e2"]);
+  if (prepared.status !== "continue") {
+    throw new Error("Rejected fixture");
+  }
+  expect(prepared.value.basis.evidence.map((item) => item.id)).toEqual([
+    "s1-e1",
+    "s1-e2",
+  ]);
+});
+it("rejects cross-role fields and removed reference fields", () => {
+  const f = fixture();
+  expect(
+    generalOutputSchema.safeParse({ ...f.targets, pointRefs: [] }).success,
+  ).toBe(false);
+  expect(
+    generalOutputSchema.safeParse({ ...f.targets, event: { links: {} } })
+      .success,
+  ).toBe(false);
+  expect(
+    ticketsOutputSchema.safeParse({
+      currentOrNextEdition: {
+        tickets: {
+          action: "set",
+          reason: "Price",
+          evidenceIds: ["s1-e1"],
+          value: {
+            variants: [
+              {
+                label: "Pass",
+                amount: 100,
+                currency: "EUR",
+                url: "https://example.org/buy",
+              },
+            ],
+            basePrice: null,
+          },
+        },
+      },
+      checks: [],
+      unresolved: [],
+    }).success,
+  ).toBe(false);
+  expect(
+    classificationOutputSchema.safeParse({
+      previousEdition: null,
+      currentOrNextEdition: null,
+      status: "success",
+      checks: [],
+      unresolved: [],
+    }).success,
+  ).toBe(false);
+  expect(
+    linksOutputSchema.safeParse({
+      event: { socials: {} },
+      currentOrNextEdition: {},
+      tickets: {},
+      omitted: [],
+      checks: [],
+      unresolved: [],
+    }).success,
+  ).toBe(false);
+});
+it("Editor decisions have exact fixed keys and cannot replace values", () => {
+  const f = fixture();
+  const p = f.assemble();
+  if (p.status !== "continue") {
+    throw new Error("Rejected fixture");
+  }
+  const approve = (schema: Record<string, unknown>): unknown => {
+    if (schema.type === "null") {
+      return null;
+    }
+    if (schema.type === "array") {
+      return [];
+    }
+    const properties = schema.properties as Record<
+      string,
+      Record<string, unknown>
+    >;
+    if (properties.decision) {
+      return { decision: "approve", reason: "Supported" };
+    }
+    return Object.fromEntries(
+      Object.entries(properties).map(([key, value]) => [key, approve(value)]),
+    );
+  };
+  const raw = approve(awaitSchema(p.value)) as Record<string, unknown>;
+  expect(applyReview(p.value, raw).status).toBe("continue");
+  expect(applyReview(p.value, { ...raw, pointRefs: [] }).status).toBe("reject");
+  expect(
+    applyReview(p.value, {
+      ...raw,
+      item: { decision: "approve", reason: "Supported", value: "replacement" },
+    }).status,
+  ).toBe("reject");
+  expect(
+    applyReview(p.value, {
+      ...raw,
+      item: { decision: "reject", reason: "Wrong identity" },
+    }).status,
+  ).toBe("reject");
+});
+import { z } from "zod";
+const awaitSchema = (p: Parameters<typeof reviewSchema>[0]) =>
+  z.toJSONSchema(reviewSchema(p)) as Record<string, unknown>;
+it("builds concrete assignments with current exclusions", () => {
+  const f = fixture();
+  const current = buildAssignment({ ...f.input, scope: "current" }, f.context);
+  expect(current).not.toHaveProperty("mode");
+  expect(current).not.toHaveProperty("scope");
+  expect(current.sourcePolicy).toMatchObject({
+    discoveryAllowed: true,
+    recoverWebsite: false,
+  });
+  expect(current.permissions).toEqual({
+    eventFields: false,
+    previousEdition: false,
+    currentOrNextEdition: true,
+  });
+  expect(buildAssignment(f.input, f.context).permissions.eventFields).toBe(
+    true,
+  );
+});
+
+it("rejects unknown classification reuse and removes reuse after its target is rejected", () => {
+  const f = fixture();
+  const selected = f.terms.map((term) => term.id);
+  expect(
+    f.assemble(selected, ["s1-e1"], {
+      editionKey: "outside",
+      reason: "Continuity",
+    }).status,
+  ).toBe("reject");
+  f.f.edition(f.event, {
+    editionKey: "2025",
+    editionYear: 2025,
+    startsOn: "2025-06-01",
+    endsOn: "2025-06-03",
+  });
+  const updated = loadResearchContext(f.client, f.input, f.context.currentDate);
+  f.context.catalog = updated.catalog;
+  f.targets.previousEdition = {
+    editionKey: "2025",
+    reason: "Completed festival",
+    evidenceIds: ["s1-e1"],
+    fields: {},
+  };
+  const prepared = f.assemble(selected, ["s1-e1"], {
+    editionKey: "2025",
+    reason: "Source confirms continuity",
+  });
+  if (prepared.status !== "continue") {
+    throw new Error("Fixture rejected");
+  }
+  const review = approveReview(awaitSchema(prepared.value)) as Record<
+    string,
+    unknown
+  >;
+  (review.previousEdition as { target: unknown }).target = {
+    decision: "reject",
+    reason: "Wrong festival year",
+  };
+  const accepted = applyReview(prepared.value, review);
+  expect(accepted.status).toBe("continue");
+  if (accepted.status !== "continue") {
+    throw new Error("Review rejected");
+  }
+  expect(accepted.value.plan.previousEdition).toBeNull();
+  expect(accepted.value.plan.currentOrNextEdition?.editionKey).toBe("2027");
+  expect(
+    accepted.value.plan.currentOrNextEdition?.fields.classification,
+  ).toBeUndefined();
+});
+
+function approveReview(schema: Record<string, unknown>): unknown {
+  if (schema.type === "null") {
+    return null;
+  }
+  if (schema.type === "array") {
+    return [];
+  }
+  const properties = schema.properties as Record<
+    string,
+    Record<string, unknown>
+  >;
+  if (properties.decision) {
+    return { decision: "approve", reason: "Supported" };
+  }
+  return Object.fromEntries(
+    Object.entries(properties).map(([key, value]) => [
+      key,
+      approveReview(value),
+    ]),
+  );
+}
+
+function freeTickets(evidenceIds: string[]): TicketsOutput {
+  return ticketsOutputSchema.parse({
+    currentOrNextEdition: {
+      tickets: {
+        action: "set",
+        value: {
+          variants: [],
+          basePrice: { kind: "free", coverage: "full_programme" },
+        },
+        reason: "The official page confirms free admission with no tickets.",
+        evidenceIds,
+      },
+    },
+    checks: [],
+    unresolved: [],
+  });
+}
+
+it.each([{ evidenceIds: [] }, { evidenceIds: ["unknown"] }])(
+  "requires source support for free admission without offers: %j",
+  ({ evidenceIds }) => {
+    const f = fixture();
+    expect(
+      f.assemble(undefined, [], undefined, freeTickets(evidenceIds)).status,
+    ).toBe("reject");
+  },
+);
+
+it("writes reviewed free admission without ticket offers", () => {
+  const f = fixture();
+  const quote =
+    "Admission to the full 2027 programme is free. No tickets are needed.";
+  f.corpus.evidence.push({
+    ...f.corpus.evidence[0],
+    id: "s1-e2",
+    quote,
+    span: { start: 22, end: 22 + quote.length },
+    topics: ["tickets"],
+  });
+  const prepared = f.assemble(undefined, [], undefined, freeTickets(["s1-e2"]));
+  if (prepared.status !== "continue") {
+    throw new Error("Free admission proposal rejected");
+  }
+  expect(prepared.value.basis.evidence.map((item) => item.id)).toContain(
+    "s1-e2",
+  );
+  const accepted = applyReview(
+    prepared.value,
+    approveReview(awaitSchema(prepared.value)),
+  );
+  if (accepted.status !== "continue") {
+    throw new Error("Free admission review rejected");
+  }
+  const keep = { action: "keep" as const, reason: "Preserve saved location" };
+  const location = {
+    ...accepted.value.location,
+    slots: {
+      currentOrNextEdition: {
+        venueName: keep,
+        venueAddress: keep,
+        locality: keep,
+        administrativeArea: keep,
+        countryCode: keep,
+        coordinates: keep,
+      },
+    },
+  };
+  const plan = prepareCatalogPlan(
+    accepted.value,
+    f.context.catalog,
+    f.input,
+    f.context.terms,
+    location,
+  );
+  if (plan.status !== "continue") {
+    throw new Error("Free admission catalog plan rejected");
+  }
+  expect(
+    plan.value.operations.find(
+      (operation) => operation.kind === "replacePriceBlock",
+    ),
+  ).toMatchObject({
+    priceDetails: [],
+    basePrice: {
+      kind: "free",
+      minMinor: 0,
+      maxMinor: 0,
+      coverage: "full_programme",
+    },
+  });
+  applyCatalogItem(f.client, plan.value.operations);
+  expect(readResearchCatalog(f.client)[0].editions[0]).toMatchObject({
+    priceDetails: [],
+    priceKind: "free",
+    priceMinMinor: 0,
+    priceMaxMinor: 0,
+    priceCoverage: "full_programme",
+  });
+});
+
+it("keeps approved Location reuse when only donor classification is rejected", () => {
+  const f = fixture();
+  const result = f.assemble();
+  if (result.status !== "continue") {
+    throw new Error("Fixture rejected");
+  }
+  const p = result.value;
+  p.plan.previousEdition = {
+    editionKey: "2025",
+    fields: {
+      classification: {
+        action: "set",
+        value: f.terms.map((t) => t.id),
+        reason: "Programme",
+        evidenceIds: ["s1-e1"],
+      },
+    },
+  };
+  const keep = { action: "keep" as const, reason: "Preserve" };
+  const donor = {
+    id: "donor",
+    kind: "previousPoint" as const,
+    editionKey: "2025",
+    editionId: "old",
+    version: 1,
+    latitude: 38,
+    longitude: -8,
+    precision: "exact" as const,
+  };
+  const place = {
+    venueName: keep,
+    venueAddress: keep,
+    locality: keep,
+    administrativeArea: keep,
+    countryCode: {
+      action: "set" as const,
+      value: "PT",
+      reason: "Same country",
+    },
+    coordinates: {
+      action: "set" as const,
+      value: { latitude: 38, longitude: -8, precision: "exact" as const },
+      reason: "Same venue",
+    },
+  };
+  p.location = {
+    support: {},
+    slots: { currentOrNextEdition: place },
+    previousPoints: [donor],
+    reusedFrom: { currentOrNextEdition: donor },
+    unresolved: [],
+  };
+  const review = approveReview(awaitSchema(p)) as {
+    previousEdition: { fields: { classification: unknown } };
+  };
+  review.previousEdition.fields.classification = {
+    decision: "reject",
+    reason: "Wrong genre",
+  };
+  const accepted = applyReview(p, review);
+  expect(accepted.status).toBe("continue");
+  if (accepted.status !== "continue") {
+    throw new Error("Review rejected");
+  }
+  expect(accepted.value.location.slots.currentOrNextEdition).toEqual(place);
+  expect(accepted.value.location.reusedFrom?.currentOrNextEdition).toEqual(
+    donor,
+  );
+});

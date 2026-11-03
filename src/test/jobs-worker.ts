@@ -7,7 +7,14 @@ import { openJobCatalog } from "../ingestion/jobs/store";
 import { runCatalogResearch } from "../ingestion/workflow";
 import { createWorkflowStorage } from "../ingestion/runtime/workflow-storage";
 import { DEFAULT_RESEARCH_LIMITS } from "../ingestion/runtime/budget";
-import { generateFixtureEditor, generateFixtureLocation } from "./ingestion";
+import {
+  fixtureDependencies,
+  fixtureRoleGenerator,
+  fixtureTargets,
+  set,
+} from "./ingestion";
+
+import type { GenerateRole } from "../ingestion/roles/invoke";
 
 const controller = new AbortController();
 const stop = () => controller.abort();
@@ -26,35 +33,33 @@ const deps = {
     model: "fixture",
     limits: DEFAULT_RESEARCH_LIMITS,
   },
-  generateEditor: generateFixtureEditor,
-  generateLocation: generateFixtureLocation,
-  generateCandidate: async (prompt: string) => {
-    const event = events.find((event) => prompt.includes(event.id))!;
-    process.stdout.write(
-      `RESEARCH ${JSON.stringify({ id: event.id, summary: event.summary })}\n`,
-    );
-    if (mode === "interrupt") {
-      await new Promise(() => setInterval(() => {}, 1000));
-    }
-    if (mode === "signal") {
-      // This mock has no network signal. Allow existing attempt cleanup to settle it.
-      await delay(1500);
-    }
-    return {
-      status: "success",
-      errors: [],
-      unresolved: [],
-      data: {
-        eventId: event.id,
-        eventName: event.canonical_name,
-        summary: { value: "WORKER_SAVED_SUMMARY", reason: "Offline fixture" },
-        sources: [],
-        links: { socials: {} },
-        previousEdition: null,
-        currentOrNextEdition: null,
-      },
-    };
-  },
+  ...fixtureDependencies(),
+  generateRole: fixtureRoleGenerator({
+    research: (async (role, prompt, context) => {
+      const event = events.find((event) => prompt.includes(event.id))!;
+      process.stdout.write(
+        `RESEARCH ${JSON.stringify({ id: event.id, summary: event.summary })}\n`,
+      );
+      if (mode === "interrupt") {
+        await new Promise(() => setInterval(() => {}, 1000));
+      }
+      if (mode === "signal") {
+        await delay(1500);
+      }
+      return fixtureRoleGenerator()(role, prompt, context);
+    }) satisfies GenerateRole,
+    general: (async (_role, prompt) => {
+      const data = JSON.parse(prompt);
+      const eventId = data.assignment.identityContext.eventId;
+      const event = events.find((event) => event.id === eventId)!;
+      const targets = fixtureTargets(eventId);
+      targets.observedEventName = event.canonical_name;
+      targets.event = { summary: set("WORKER_SAVED_SUMMARY") };
+      targets.previousEdition = null;
+      targets.currentOrNextEdition = null;
+      return targets;
+    }) satisfies GenerateRole,
+  }),
   searchWeb: async () => {
     throw new Error("Unexpected fixture search");
   },

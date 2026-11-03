@@ -131,7 +131,7 @@ test("real research/editor lifecycles retain native usage/cost and persist nativ
   }
   expect(
     rows.mastra_metrics.find((row) => row.name === "mastra_tool_duration_ms"),
-  ).toMatchObject({ entityName: "readPage", labels: { status: "ok" } });
+  ).toMatchObject({ entityName: "inspectPage", labels: { status: "ok" } });
   await inspect(file, async (domain) => {
     const { groups } = await domain.getMetricBreakdown({
       name: totals,
@@ -139,9 +139,14 @@ test("real research/editor lifecycles retain native usage/cost and persist nativ
       groupBy: ["entityId", "model"],
       filters: { experimentId: "eval-experiment" },
     });
-    expect(groups).toHaveLength(3);
+    expect(groups).toHaveLength(8);
     for (const [entityId, tokens, cost] of [
       ["festival-research", 60, 0.024],
+      ["festival-reader", 30, 0.012],
+      ["festival-general", 30, 0.012],
+      ["festival-tickets", 30, 0.012],
+      ["festival-classification", 30, 0.012],
+      ["festival-links", 30, 0.012],
       ["festival-editor", 30, 0.012],
       ["festival-location", 30, 0.012],
     ] as const) {
@@ -155,13 +160,13 @@ test("real research/editor lifecycles retain native usage/cost and persist nativ
       });
     }
     // This is the query used by Studio's experiment Tokens/Cost summary.
-    expect(
-      await domain.getMetricAggregate({
-        name: totals,
-        aggregation: "sum",
-        filters: { experimentId: "eval-experiment" },
-      }),
-    ).toMatchObject({ value: 120, estimatedCost: 0.048, costUnit: "USD" });
+    const aggregate = await domain.getMetricAggregate({
+      name: totals,
+      aggregation: "sum",
+      filters: { experimentId: "eval-experiment" },
+    });
+    expect(aggregate).toMatchObject({ value: 270, costUnit: "USD" });
+    expect(aggregate.estimatedCost).toBeCloseTo(0.108, 9);
   });
 });
 
@@ -190,7 +195,9 @@ test.each([
       { model, stepCosts: costs },
     );
     const records = (await readTraceRows(file)).mastra_metrics;
-    const input = records.find((row) => row.name === totals[0])!;
+    const input = records.find(
+      (row) => row.name === totals[0] && row.entityId === "festival-research",
+    )!;
     if (basis === "pricing") {
       expect(input.estimatedCost).toBeGreaterThan(0);
       expect(input.costMetadata).toMatchObject({
@@ -210,13 +217,15 @@ test.each([
         name: totals,
         aggregation: "sum",
       });
-      expect(aggregate.value).toBe(60); // cache/reasoning are subsets
+      expect(aggregate.value).toBe(120); // cache/reasoning are subsets
       expect(aggregate.estimatedCost ?? null).toBe(
         basis === "pricing"
           ? records
               .filter((r) => totals.includes(r.name))
               .reduce((sum, r) => sum + (r.estimatedCost ?? 0), 0)
-          : cost,
+          : cost === null
+            ? 0
+            : cost,
       );
     });
   },

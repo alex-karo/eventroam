@@ -1,4 +1,5 @@
-import { fixtureEditorForProvider } from "../../ingestion";
+import { fixtureRoleForProvider } from "../../ingestion-provider";
+import { fixtureTargets } from "../../ingestion";
 import Database from "better-sqlite3";
 import { createCatalogAssistant } from "../../../mastra/catalog-assistant";
 import { createAssistantLogging } from "../../../mastra/catalog-assistant/logging";
@@ -15,35 +16,12 @@ import { ingestionExecutionGuard } from "../../../mastra/ingestion-guard";
 
 export const OFFLINE_SENTINEL = "PRIVATE_STUDIO_FIXTURE_SENTINEL";
 const eventId = "00000000-0000-4000-8000-000000000001";
-const sourceUrl = "https://example.org/studio-fixture";
 const scenario = process.env.STUDIO_FIXTURE_SCENARIO ?? "success";
 
-const candidate = {
-  status: "success",
-  data: {
-    eventId,
-    eventName: "Studio Fixture Festival",
-    sources: [{ url: sourceUrl, information: OFFLINE_SENTINEL }],
-    links: { socials: {} },
-    previousEdition: null,
-    currentOrNextEdition: {
-      key: "2027",
-      year: { value: 2027, reason: OFFLINE_SENTINEL },
-      dates: {
-        value: {
-          startsOn: "2027-07-01",
-          endsOn: "2027-07-03",
-          state: "confirmed",
-        },
-        reason: OFFLINE_SENTINEL,
-      },
-      countryCode: { value: "PT", reason: OFFLINE_SENTINEL },
-      locality: { value: "Lisbon", reason: OFFLINE_SENTINEL },
-      links: {},
-    },
-  },
-  errors: [],
-  unresolved: [],
+const general = {
+  ...fixtureTargets(eventId),
+  observedEventName: "Studio Fixture Festival",
+  reason: OFFLINE_SENTINEL,
 };
 
 // Keep the real agent/provider adapter for cancellation and tracing; mock only HTTP.
@@ -91,11 +69,7 @@ const candidate = {
           message: {
             role: "assistant",
             content: JSON.stringify(
-              fixtureEditorForProvider(body) ??
-                wireFixture(
-                  candidate,
-                  body.response_format?.json_schema?.schema,
-                ),
+              await fixtureRoleForProvider(body, { general }),
             ),
           },
           finish_reason: "stop",
@@ -194,40 +168,4 @@ async function fixtureStore() {
   const store = await createObservabilityStore();
   await store.init();
   return store;
-}
-
-function wireFixture(
-  value: unknown,
-  schema: Record<string, unknown> | undefined,
-): unknown {
-  if (value == null || !schema) {
-    return value;
-  }
-  const choices = schema.anyOf as Record<string, unknown>[] | undefined;
-  if (choices) {
-    const type = Array.isArray(value) ? "array" : typeof value;
-    return wireFixture(
-      value,
-      choices.find((choice) => choice.type === type) ?? choices[0],
-    );
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) =>
-      wireFixture(item, schema.items as Record<string, unknown>),
-    );
-  }
-  if (typeof value !== "object") {
-    return value;
-  }
-  const properties = schema.properties as
-    Record<string, Record<string, unknown>> | undefined;
-  if (!properties) {
-    return value;
-  }
-  return Object.fromEntries(
-    Object.entries(properties).map(([key, property]) => [
-      key,
-      wireFixture((value as Record<string, unknown>)[key] ?? null, property),
-    ]),
-  );
 }

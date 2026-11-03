@@ -59,30 +59,5 @@
       "status": "ok",
       "markdownFile": "stable.md"
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "venue_name",
-        "value": "New Grounds"
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "event",
-        "field": "summary"
-      },
-      {
-        "owner": "event",
-        "field": "links"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "terms"
-      }
-    ]
-  }
+  ]
 }

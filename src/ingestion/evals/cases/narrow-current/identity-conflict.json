@@ -54,9 +54,5 @@
       "status": "ok",
       "markdownFile": "../source-regressions/homonym.md"
     }
-  ],
-  "expectations": {
-    "required": [],
-    "forbidden": []
-  }
+  ]
 }

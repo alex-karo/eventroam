@@ -12,6 +12,8 @@ Read the relevant spec, nearby tests, and configuration before editing. Inspect 
 
 For behavior changes, use the standard OpenSpec workflow: explore or propose, define testable delta specs, add design and tasks, implement, verify, synchronize main specs, and archive. In Codex, use the corresponding `$openspec-*` skills; use `pnpm exec openspec` for the project-local CLI. Group capabilities under `catalog/`, `website/`, or `operations/`, with matching main and delta paths. Keep unresolved choices in [draft proposals](proposals/) and lasting technology decisions in ADRs.
 
+Specifications describe observable external behavior. Keep internal choices, such as folder names, prompt wording and agent handoffs, in design or implementation documentation. An internal change that preserves external behavior does not need a new specification requirement.
+
 Before handoff, run focused tests and applicable checks, then report the result and remaining uncertainty. Run `docs:check` for documentation edits and `openspec:validate` for OpenSpec edits.
 
 ## Plan a behavior change

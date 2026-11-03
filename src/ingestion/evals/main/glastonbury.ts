@@ -23,41 +23,20 @@ export function glastonbury(context: MainContext) {
       linkFact("event.links.facebook", context.event?.links, "facebook", [
         "https://www.facebook.com/glastonburyofficial",
       ]),
-      // history-2025.md confirms the year and GBP 378.50 admission price.
+      // The archive confirms the year. Historical tickets are outside ingestion.
       fact("history.year", history?.editionYear, [2025]),
       fact("history.country", history?.countryCode, ["GB"]),
-      fact(
-        "history.basePrice",
-        history?.priceKind
-          ? {
-              kind: history.priceKind,
-              currency: history.priceCurrency,
-              minMinor: history.priceMinMinor,
-              maxMinor: history.priceMaxMinor,
-              coverage: history.priceCoverage,
-            }
-          : null,
-        [
-          {
-            kind: "exact",
-            currency: "GBP",
-            minMinor: 37850,
-            maxMinor: 37850,
-            coverage: "full_programme",
-          },
-        ],
-      ),
     ],
     correctness: [
       context.saved,
       // Capacity is not participant attendance.
       fact("history.sizeEstimate", history?.sizeEstimate ?? null, [null]),
-      ...(history?.priceDetails ?? []).map((offer, index) =>
-        fact(
-          `history.offers.${index}`,
-          { amount: offer.amount, currency: offer.currency },
-          [{ amount: 378.5, currency: "GBP" }],
-        ),
+      fact(
+        "history.ticketsPreserved",
+        history
+          ? history.priceDetails.length === 0 && history.priceKind === null
+          : true,
+        [true],
       ),
     ],
     conditions: [

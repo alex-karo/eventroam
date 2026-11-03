@@ -1,0 +1,2 @@
+# Harbor Echo 2027 — official announcement
+Harbor Echo is an outdoor music festival in the United Kingdom. The confirmed programme runs from 23–30 January 2027. Admission to the full programme is free without booking. No other Edition is announced. The organizer has not yet announced the festival venue or city. The venue is withheld until a later announcement. The London organizer office is not the festival site. These are all available details; no further relevant pages are linked.

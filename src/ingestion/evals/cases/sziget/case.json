@@ -114,7 +114,6 @@
       "reasonCode": "javascript_required"
     }
   ],
-  "expectations": {},
   "geocoding": [
     {
       "request": {
@@ -400,6 +399,18 @@
   "todayUtc": "2026-10-30",
   "provenance": {
     "kind": "captured",
-    "note": "Official pages captured on 2026-10-30 through the production HTTP readPage tool with @mdream/js@2.0.3 and standard frontmatterPlugin(). Rendering was disabled. Markdown is the full reader output. HTTP status, redirects and javascript_required outcomes retain the observed results. Raw response bodies and reader results are saved locally under data/main-fixtures-mdream-20261030/sziget/. This set replaces the 2026-10-27 Markdown captures. The task, initial catalog, fixed geocoding responses and scoring rules are unchanged. Only the fixed evaluation date moves to the capture date. No live source fallback is used during evals."
-  }
+    "note": "Official pages captured on 2026-10-30 through the production HTTP readPage tool with @mdream/js@2.0.3 and standard frontmatterPlugin(). Rendering was disabled. Markdown is the full reader output. HTTP status, redirects and javascript_required outcomes retain the observed results. Raw response bodies and reader results are saved locally under data/main-fixtures-mdream-20261030/sziget/. This set replaces the 2026-10-27 Markdown captures. The task, initial catalog, fixed geocoding responses and scoring rules are unchanged. Only the fixed evaluation date moves to the capture date. No live source fallback is used during evals. Location searches have one synthetic discovery response that points to the existing captured Travel page. The URL and title come from that capture; this is not a recorded search response. Source Markdown remains unchanged."
+  },
+  "discoveries": [
+    {
+      "queryPattern": "(?=.*\\bsziget\\b)(?=.*\\b(?:venue|location|address|travel|site|island)\\b)",
+      "candidates": [
+        {
+          "url": "https://szigetfestival.com/en/travel/",
+          "title": "Travel - #SZIGET2027",
+          "highlights": ["Official Sziget travel information."]
+        }
+      ]
+    }
+  ]
 }

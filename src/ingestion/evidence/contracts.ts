@@ -1,0 +1,270 @@
+import { z } from "zod";
+import { pageLinks } from "./links";
+import { ResearchLimitError } from "../runtime/budget";
+import type { SourceReadMetadata } from "../tools/read-page/contracts";
+
+export const topics = [
+  "identity",
+  "description",
+  "dates",
+  "status",
+  "size",
+  "tickets",
+  "classification",
+  "location",
+  "links",
+] as const;
+const quote = z.string().min(1).max(24000);
+const readerEvidence = z.strictObject({
+  quote: z.union([
+    quote,
+    z.strictObject({
+      start: z
+        .string()
+        .min(1)
+        .describe(
+          "Exact unique opening text, normally at most 250 characters. Preserve whitespace.",
+        ),
+      end: z
+        .string()
+        .min(1)
+        .describe(
+          "Exact unique closing text, normally at most 250 characters. It must follow the opening text. Never use a repeated bullet.",
+        ),
+    }),
+  ]),
+  topics: z.array(z.enum(topics)).min(1).max(9),
+});
+const contextualReaderEvidence = readerEvidence.extend({
+  context: z
+    .array(quote)
+    .max(24)
+    .describe(
+      "Return [] unless a separate source passage supplies missing year, object or qualification. Copy each context exactly, including its original heading markers. Do not attach a generic page heading to an already complete quotation or reconstruct a section title.",
+    ),
+  editionClues: z
+    .array(
+      z
+        .string()
+        .describe("Short literal scope hint, normally under 250 characters."),
+    )
+    .max(20),
+  uncertainty: z
+    .string()
+    .describe("Briefly explain the ambiguity, normally under 1000 characters.")
+    .nullable(),
+});
+export const readerOutputSchema = z.strictObject({
+  overview: z
+    .string()
+    .min(1)
+    .describe(
+      "Describe only this page in 1-2 sentences, normally under 300 characters. Do not compare it with the requested Event or infer identity conflicts.",
+    ),
+  coverage: z.strictObject({
+    found: z
+      .array(
+        z
+          .string()
+          .min(1)
+          .describe(
+            "Short label of collected information, normally under 100 characters. In location labels, keep the explicit source country and say whether a festival venue/address was collected or only a town, country or office.",
+          ),
+      )
+      .max(9),
+    notPublished: z
+      .array(
+        z
+          .string()
+          .min(1)
+          .describe(
+            "Short explicit absence statement, normally under 100 characters.",
+          ),
+      )
+      .max(6)
+      .describe(
+        'Return [] when there is no statement, never [""], [" "] or ["None"]. Include only what the page author explicitly says is unavailable or not announced. Never include your observation that a fact is not stated. For example, a ticket page without an attendance count still needs [].',
+      ),
+  }),
+  topics: z.array(z.enum(topics)).max(9),
+  statedYears: z
+    .array(
+      z
+        .string()
+        .describe(
+          "Short literal year or date label, normally under 80 characters.",
+        ),
+    )
+    .max(100),
+  limitations: z
+    .array(
+      z
+        .string()
+        .describe(
+          "Briefly name the extraction problem, normally under 500 characters.",
+        ),
+    )
+    .max(30)
+    .describe(
+      "Actual extraction problems only, such as cut or unreadable source content. Return [] for absent optional facts, unmentioned topics or explicit nonpublication.",
+    ),
+  // Keep full metadata first so native schema handling retains required null values.
+  evidence: z
+    .array(z.union([contextualReaderEvidence, readerEvidence]))
+    .max(150),
+});
+export type ReaderOutput = z.infer<typeof readerOutputSchema>;
+export type Span = { start: number; end: number };
+export type Evidence = Omit<
+  z.infer<typeof contextualReaderEvidence>,
+  "quote" | "context"
+> & {
+  quote: string;
+  id: string;
+  sourceId: string;
+  span: Span;
+  context: { quote: string; span: Span }[];
+  anchors: { url: string; label: string }[];
+};
+export type Source = SourceReadMetadata & {
+  id: string;
+  contentHash?: string;
+  markdownPath?: string;
+  evidencePath?: string;
+  processing: "unprocessed" | "complete" | "limited" | "failed";
+  overview?: string;
+  coverage?: ReaderOutput["coverage"];
+  leads?: { url: string; label: string }[];
+  topics?: ReaderOutput["topics"];
+  statedYears?: string[];
+  limitations: string[];
+  readerResponse?: { text: string | null; object: unknown } | null;
+};
+export type FrozenCorpus = {
+  version: string;
+  sources: Source[];
+  evidence: Evidence[];
+};
+
+/** The string index is a half-open UTF-16 offset, as used by String.slice. */
+export function uniqueSpan(body: string, quote: string): Span | null {
+  const start = body.indexOf(quote);
+  if (start < 0 || body.indexOf(quote, start + 1) !== -1) {
+    return null;
+  }
+  return { start, end: start + quote.length };
+}
+
+/** Restore one extra wire escape only when the complete source text matches. */
+function literalMatch(body: string, supplied: string) {
+  let quote = supplied;
+  let span = uniqueSpan(body, quote);
+  if (!span && !body.includes(supplied)) {
+    quote = supplied
+      .replace(/(?<!\\)\\n/g, "\n")
+      .replace(/(?<!\\)\\\\([!-\/:-@[-`{-~])/g, (match, punctuation: string) =>
+        punctuation === "\\" ? match : `\\${punctuation}`,
+      );
+    span = uniqueSpan(body, quote);
+  }
+  return { quote, span };
+}
+
+export function bindEvidence(
+  sourceId: string,
+  body: string,
+  output: ReaderOutput,
+  sourceUrl: string,
+) {
+  const evidence: Evidence[] = [];
+  const limitations = [...output.limitations];
+  for (const [index, supplied] of output.evidence.entries()) {
+    const item = {
+      context: [],
+      editionClues: [],
+      uncertainty: null,
+      ...supplied,
+    };
+    let quote =
+      typeof item.quote === "string"
+        ? literalMatch(body, item.quote).quote
+        : null;
+    if (typeof item.quote !== "string") {
+      const opening = literalMatch(body, item.quote.start);
+      const closing = literalMatch(body, item.quote.end);
+      const start = opening.span;
+      const end = closing.span;
+      if (
+        start &&
+        end &&
+        (end.start >= start.end || opening.quote.endsWith(closing.quote)) &&
+        end.end - start.start <= 24000
+      ) {
+        quote = body.slice(start.start, end.end);
+      }
+    }
+    const span = quote ? uniqueSpan(body, quote) : null;
+    const context = item.context.map((quote) => literalMatch(body, quote));
+    if (!quote || !span || context.some((item) => !item.span)) {
+      limitations.push(
+        `Quotation ${index + 1} or its context has no unique literal match`,
+      );
+      continue;
+    }
+    const anchors = pageLinks(
+      [quote, ...context.map((part) => part.quote)].join("\n\n"),
+      sourceUrl,
+    );
+    evidence.push({
+      ...item,
+      quote,
+      anchors,
+      id: `${sourceId}-e${index + 1}`,
+      sourceId,
+      span,
+      context: context as Evidence["context"],
+    });
+  }
+  return { evidence, limitations };
+}
+
+export function evidencePacket(
+  corpus: FrozenCorpus,
+  selected: readonly (typeof topics)[number][],
+  options: { anchors?: boolean; maxCharacters?: number } = {},
+) {
+  const evidence = corpus.evidence.filter((item) =>
+    item.topics.some((topic) => selected.includes(topic)),
+  );
+  const packet = {
+    version: corpus.version,
+    evidence: evidence.map((item) => {
+      const source = corpus.sources.find(
+        (source) => source.id === item.sourceId,
+      )!;
+      return {
+        id: item.id,
+        sourceId: item.sourceId,
+        quote: item.quote,
+        ...(item.context.length
+          ? { context: item.context.map(({ quote }) => ({ quote })) }
+          : {}),
+        topics: item.topics,
+        ...(item.editionClues.length
+          ? { editionClues: item.editionClues }
+          : {}),
+        ...(item.uncertainty ? { uncertainty: item.uncertainty } : {}),
+        ...(options.anchors && item.anchors.length
+          ? { anchors: item.anchors }
+          : {}),
+        source: {
+          finalUrl: source.finalUrl,
+        },
+      };
+    }),
+  };
+  if (JSON.stringify(packet).length > (options.maxCharacters ?? 240000)) {
+    throw new ResearchLimitError("context");
+  }
+  return packet;
+}

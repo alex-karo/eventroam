@@ -111,9 +111,9 @@ test("native create and stream expose preview, then apply under a fresh ingestio
     persistenceStatus: "completed",
   });
   expect(preview.text).toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
-  expect(preview.text).not.toContain("PRIVATE_STUDIO_PAGE_BODY");
+  expect(preview.text).not.toContain('"markdown":');
   expect(preview.text).not.toContain('"markdown"');
-  expect(preview.text).toContain('"research"');
+  expect(preview.text).toContain('"collection"');
   expect(preview.text).toContain('"operations"');
   expect(preview.text).toContain('"applied"');
   expect(preview.text).not.toContain("fixture-api-key");
@@ -165,9 +165,9 @@ test("native create and stream expose preview, then apply under a fresh ingestio
   expect(saved).toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
   expect(saved).toContain(applied.runId);
   expect(saved).toContain(String(appliedResult.ingestionRunId));
-  expect(saved).toContain("resolve-location");
+  expect(saved).toContain("location");
   expect(saved).toContain("geocoding");
-  expect(saved).not.toContain("PRIVATE_STUDIO_PAGE_BODY");
+  expect(saved).not.toContain('"markdown":');
   expect(saved).not.toContain("fixture-api-key");
   expect(saved).not.toContain("PRIVATE_CONTEXT_");
   const listed = await fetch(
@@ -198,7 +198,7 @@ test("graph inspection needs no catalog and execution does not create one", asyn
     expect(stateDefinition.json.properties ?? {}).toEqual({});
     for (const step of [
       "initialize-run",
-      "research-festival",
+      "collect-sources",
       "apply-catalog-item",
       "finalize-run",
     ]) {
@@ -403,7 +403,7 @@ test("native apply traces retain model content while the shared store serves lat
     );
     expect(aggregate.status).toBe(200);
     expect(await aggregate.json()).toMatchObject({
-      value: 180,
+      value: 480,
       estimatedCost: 0,
       costUnit: "USD",
     });
@@ -423,7 +423,16 @@ test("native apply traces retain model content while the shared store serves lat
           .map((r) => r.entityId),
       ),
     ).toEqual(
-      new Set(["festival-research", "festival-editor", "festival-location"]),
+      new Set([
+        "festival-research",
+        "festival-reader",
+        "festival-general",
+        "festival-tickets",
+        "festival-classification",
+        "festival-links",
+        "festival-editor",
+        "festival-location",
+      ]),
     );
     // A second apply must borrow the same still-open store successfully.
     const again = await run(server, {
@@ -445,10 +454,16 @@ test("native apply traces retain model content while the shared store serves lat
     );
     expect(deletedEntry.status).toBe(404);
     expect(rows(server)).toEqual(beforeDelete);
-    const remainingMetrics = await fetch(
-      `${server.baseUrl}/api/observability/metrics?perPage=100`,
+    const remainingMetrics = await Promise.all(
+      [0, 1].map(async (page) => {
+        const response = await fetch(
+          `${server.baseUrl}/api/observability/metrics?perPage=100&page=${page}`,
+        );
+        expect(response.status).toBe(200);
+        return response.json();
+      }),
     );
-    expect(JSON.stringify(await remainingMetrics.json())).toContain(
+    expect(JSON.stringify(remainingMetrics)).toContain(
       String(appliedSummary.ingestionRunId),
     );
     await server.stop(true);

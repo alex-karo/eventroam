@@ -54,12 +54,5 @@
       "status": "ok",
       "markdownFile": "completed.md"
     }
-  ],
-  "expectations": {
-    "required": [],
-    "forbidden": [],
-    "toolUse": {
-      "maxSearches": 0
-    }
-  }
+  ]
 }

@@ -1,3 +1,4 @@
+import { coordinatePair } from "../read-page/maps";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import type { ResearchBudget } from "../../runtime/budget";
@@ -168,11 +169,15 @@ function pointComparisons(
     .map((slot) => {
       const ids = targets[slot];
       const target = ids?.targetId ? points.get(ids.targetId) : undefined;
-      const donor = ids?.donorId ? points.get(ids.donorId) : undefined;
+      const previousPoint = ids?.previousPointId
+        ? points.get(ids.previousPointId)
+        : undefined;
       return {
         slot,
         targetKm: target ? distanceKm(point, target) : null,
-        donorKm: donor ? distanceKm(point, donor) : null,
+        previousPointKm: previousPoint
+          ? distanceKm(point, previousPoint)
+          : null,
       };
     });
 }
@@ -191,7 +196,7 @@ function registerSuppliedPoints(
   const targets: Partial<
     Record<
       (typeof editionSlotNames)[number],
-      { targetId?: string; donorId?: string; sourceId?: string }
+      { targetId?: string; previousPointId?: string; sourceId?: string }
     >
   > = {};
   const savedIds = new Map<string, string>();
@@ -200,10 +205,14 @@ function registerSuppliedPoints(
     if (!target) {
       continue;
     }
-    const ids: { targetId?: string; donorId?: string; sourceId?: string } = {};
+    const ids: {
+      targetId?: string;
+      previousPointId?: string;
+      sourceId?: string;
+    } = {};
     for (const [kind, saved] of [
       ["target", target.saved],
-      ["donor", target.donor],
+      ["previousPoint", target.previousPoint],
     ] as const) {
       if (
         saved?.latitude == null ||
@@ -230,10 +239,10 @@ function registerSuppliedPoints(
       if (kind === "target") {
         ids.targetId = id;
       } else {
-        ids.donorId = id;
+        ids.previousPointId = id;
       }
     }
-    ids.sourceId = registerSourcePoint(target, register);
+    ids.sourceId = registerSourcePoint(target, input.evidence, register);
     targets[slot] = ids;
   }
   return targets;
@@ -241,19 +250,42 @@ function registerSuppliedPoints(
 
 function registerSourcePoint(
   target: NonNullable<LocationInput["currentOrNextEdition"]>,
+  evidence: LocationInput["evidence"],
   register: (point: Omit<RegisteredPoint, "id">) => string,
 ) {
-  const source = target.findings.coordinates?.value;
-  if (source) {
-    return register({
-      kind: "source",
-      editionKey: target.editionKey,
-      latitude: source.latitude,
-      longitude: source.longitude,
-      precision: source.precision,
-      ...(target.findings.countryCode?.value
-        ? { countryCode: target.findings.countryCode.value }
-        : {}),
-    });
+  let first: string | undefined;
+  for (const item of evidence) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      continue;
+    }
+    const record = item as {
+      id?: string;
+      quote?: string;
+      context?: { quote: string }[];
+    };
+    const text = [
+      record.quote ?? "",
+      ...(record.context ?? []).map((part) => part.quote),
+    ].join("\n");
+    // Register literal pairs only. The model must still assess object and year applicability.
+    for (const match of text.matchAll(
+      /(?:latitude|lat)[\s"':=|]+(-?\d+(?:\.\d+)?)[\s\S]{0,60}?(?:longitude|lng|lon)[\s"':=|]+(-?\d+(?:\.\d+)?)/gi,
+    )) {
+      const pair = coordinatePair(match[1], match[2]);
+      if (!pair) {
+        continue;
+      }
+      const id = register({
+        kind: "source",
+        editionKey: target.editionKey,
+        latitude: pair[0],
+        longitude: pair[1],
+        precision: "exact",
+        label: text.slice(0, 1500),
+        evidenceIds: record.id ? [record.id] : [],
+      });
+      first ??= id;
+    }
   }
+  return first;
 }

@@ -59,27 +59,9 @@
       "reasonCode": "Captured contact page cut off after the office address"
     }
   ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "venue_address",
-        "value": null
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "country_code",
-        "notValue": "DK"
-      }
-    ]
-  },
   "provenance": {
     "kind": "captured-source-editor-regression",
-    "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
+    "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section. Editor input now uses fixed source-backed Reader passages and explicit proposal citations. Research and Reader do not call a model."
   },
-  "researchHandoffFile": "clear.research.json"
+  "roleHandoffFile": "clear.roles.json"
 }

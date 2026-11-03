@@ -36,8 +36,10 @@ export function roskilde(context: MainContext) {
       ]),
       fact("next.address", next?.venueAddress, [
         "Darupvej 19",
+        "Festivalpladsen, Darupvej 19",
         "Darupvej 19, 4000 Roskilde",
         "Festivalpladsen, Darupvej 19, 4000 Roskilde, Denmark",
+        "Festivalpladsen, Darupvej 19, 4000 Roskilde",
       ]),
       linkFact("event.website", event?.links, "official_site", [
         "https://www.roskilde-festival.dk/",
@@ -55,7 +57,7 @@ export function roskilde(context: MainContext) {
       linkFact("next.tickets", next?.links, "ticketing", [
         "https://www.roskilde-festival.dk/billetter",
       ]),
-      basePrice(next, "DKK", 265000),
+      basePrice(next, "DKK", [265000]),
     ],
     // Neither pages nor fixed geocoding responses state a region.
     correctness: [

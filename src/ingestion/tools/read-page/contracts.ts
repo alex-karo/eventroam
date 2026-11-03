@@ -1,17 +1,3 @@
-import { z } from "zod";
-import { sourceUrlSchema, remainingSchema } from "../contracts";
-
-export const readPageInputSchema = z.object({ url: sourceUrlSchema });
-
-export const readPageOutputSchema = z.object({
-  url: sourceUrlSchema,
-  status: z.enum(["ok", "unsupported", "failed"]),
-  reasonCode: z.string().optional(),
-  markdown: z.string(),
-  truncated: z.boolean(),
-  remaining: remainingSchema,
-});
-
 export type ReadPageStatus = "ok" | "unsupported" | "failed";
 
 export interface ReadPageResult {

@@ -49,13 +49,9 @@
       "reasonCode": "Injected source unavailable"
     }
   ],
-  "expectations": {
-    "required": [],
-    "forbidden": []
-  },
   "provenance": {
     "kind": "captured-source-editor-regression",
-    "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
+    "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section. Editor input now uses fixed source-backed Reader passages and explicit proposal citations. Research and Reader do not call a model."
   },
-  "researchHandoffFile": "unavailable.research.json"
+  "roleHandoffFile": "unavailable.roles.json"
 }

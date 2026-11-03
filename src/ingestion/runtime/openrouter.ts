@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   StreamErrorRetryProcessor,
   type ProcessAPIErrorArgs,
@@ -10,6 +11,16 @@ export const MAX_PROVIDER_UNAVAILABLE_RETRIES = 3;
 
 /** Ordinary model calls have no web plugin. Discovery is isolated in searchWeb. */
 export function createResearchModel(config: ResearchConfig) {
+  if (config.model.startsWith("opencode-go/")) {
+    return {
+      id: config.model as `opencode-go/${string}`,
+      apiKey: config.apiKey,
+      headers: {
+        "User-Agent": "eventroam-evals/1.0",
+        "x-opencode-session": randomUUID(),
+      },
+    };
+  }
   return {
     id: `openrouter/${config.model}` as const,
     apiKey: config.apiKey,
@@ -17,7 +28,18 @@ export function createResearchModel(config: ResearchConfig) {
 }
 
 export function researchProviderOptions(config: ResearchConfig) {
+  if (config.model.startsWith("opencode-go/")) {
+    return {
+      openai: {
+        ...(config.reasoningEffort && {
+          reasoningEffort: config.reasoningEffort,
+        }),
+      },
+      openrouter: {},
+    };
+  }
   return {
+    openai: {},
     openrouter: {
       ...(config.reasoningEffort && {
         reasoning: { effort: config.reasoningEffort },

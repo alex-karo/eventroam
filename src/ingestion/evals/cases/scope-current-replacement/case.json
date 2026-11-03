@@ -88,9 +88,5 @@
       "status": "ok",
       "markdownFile": "page.md"
     }
-  ],
-  "expectations": {
-    "required": [],
-    "forbidden": []
-  }
+  ]
 }

@@ -1,5 +1,12 @@
 import { createWorkflowStorage } from "../ingestion/runtime/workflow-storage";
-import { fixtureEditorForProvider } from "./ingestion";
+import {
+  runFixtureResearch,
+  fixtureRoleGenerator,
+  fixtureTargets,
+  set,
+  fixtureChecks,
+} from "./ingestion";
+import { fixtureRoleForProvider, providerRole } from "./ingestion-provider";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -55,7 +62,6 @@ export async function runTraceFixture(
     model?: string;
     experimentId?: string;
     searchStatus?: number;
-    sourceErrorCount?: number;
     onAbortRequest?: () => void;
   } = {},
 ) {
@@ -65,28 +71,13 @@ export async function runTraceFixture(
     model: modelText.model ?? "fixture/provider-model",
     limits: {
       ...DEFAULT_RESEARCH_LIMITS,
-      agentSteps:
-        scenario === "search" || scenario === "search_failure" ? 3 : 2,
+      agentSteps: fixtureAgentSteps(scenario),
       // This includes workflow/observability startup and the first model step.
       // Leave CI with coverage enough time to reach the hanging second request.
       durationMs: ending === "abort" ? 5_000 : 30_000,
     },
   };
 
-  const failedCandidate = {
-    status: "failed",
-    data: null,
-    errors: [
-      {
-        code: "source_unavailable",
-        message: TRACE_CANDIDATE,
-        url: null,
-        editionKey: null,
-        field: null,
-      },
-    ],
-    unresolved: [],
-  };
   const directory = mkdtempSync(join(tmpdir(), "trace-catalog-"));
   const { client, db } = openDatabase(join(directory, "catalog.sqlite"));
   migrate(db, { migrationsFolder: "./src/db/migrations" });
@@ -104,58 +95,106 @@ export async function runTraceFixture(
       official: true,
     },
   );
-  let candidate: unknown;
-  if (
-    scenario === "failed" ||
-    scenario === "cached" ||
-    scenario === "search" ||
-    scenario === "reserved"
-  ) {
-    candidate = failedCandidate;
-  } else if (scenario === "invalid") {
-    candidate = { unsafe: TRACE_CANDIDATE };
-  } else {
-    candidate = {
-      status: ["partial", "rejected_editor"].includes(scenario)
-        ? "partial"
-        : "success",
-      data: {
-        eventId: scenario === "target" ? "other-event" : event.id,
-        eventName: "Model name mismatch",
-        sources: [{ url: TRACE_PUBLIC_URL, information: TRACE_CANDIDATE }],
-        links: { socials: {} },
-        previousEdition: null,
-        currentOrNextEdition:
-          scenario === "unchanged"
-            ? null
-            : {
-                key: "2023",
-                links: {},
-                year: { value: 2027, reason: TRACE_CANDIDATE },
-                scheduleStatus: {
-                  value: "announced",
-                  reason: TRACE_CANDIDATE,
-                },
-              },
+  const general = fixtureTargets(
+    scenario === "target" ? "other-event" : event.id,
+  );
+  general.observedEventName = "Model name mismatch";
+  general.reason = TRACE_CANDIDATE;
+  general.currentOrNextEdition =
+    scenario === "unchanged"
+      ? null
+      : {
+          editionKey: "2023",
+          reason: TRACE_CANDIDATE,
+          evidenceIds: ["s2-e1"],
+          fields: {
+            year: set(2027, TRACE_CANDIDATE, ["s2-e1"]),
+            scheduleStatus: set("announced", TRACE_CANDIDATE, ["s2-e1"]),
+          },
+        };
+  general.evidenceIds = ["s2-e1"];
+  if (["dates", "invalid_dates"].includes(scenario)) {
+    general.currentOrNextEdition = {
+      editionKey: "2026",
+      reason: TRACE_CANDIDATE,
+      evidenceIds: ["s2-e1"],
+      fields: {
+        year: set(2026, TRACE_CANDIDATE, ["s2-e1"]),
+        dates: set(
+          {
+            startsOn: scenario === "invalid_dates" ? "bad-date" : "2026-07-01",
+            endsOn: "2026-07-03",
+            state: "confirmed",
+          },
+          TRACE_CANDIDATE,
+          ["s2-e1"],
+        ),
       },
-      errors:
-        scenario === "target"
-          ? Array.from({ length: modelText.sourceErrorCount ?? 0 }, () => ({
-              code: "source_unavailable",
-              message: TRACE_CANDIDATE,
-            }))
-          : [],
-      unresolved: ["partial", "rejected_editor"].includes(scenario)
-        ? [
-            {
-              message: "Current edition blocked",
-            },
-          ]
-        : [],
     };
   }
-  addFixtureDateScenario(candidate, scenario);
+  const responses = {
+    general: async (_role: unknown, raw: string) => {
+      if (["failed", "cached", "search", "reserved"].includes(scenario)) {
+        return {
+          decision: "uncertain",
+          reason: TRACE_CANDIDATE,
+          unresolved: [],
+        };
+      }
+      if (scenario === "invalid") {
+        return { unsafe: TRACE_CANDIDATE };
+      }
+      if (scenario === "skipped") {
+        return {
+          decision: "duplicate",
+          eventId: event.id,
+          observedEventName: general.observedEventName,
+          reason: TRACE_CANDIDATE,
+          evidenceIds: ["s1-e1"],
+        };
+      }
+      const prompt = JSON.parse(raw);
+      return {
+        ...general,
+        checks: fixtureChecks(
+          prompt.assignedChecks,
+          ["partial", "rejected_editor"].includes(scenario)
+            ? "unfinished"
+            : "verified",
+        ),
+        unresolved: ["partial", "rejected_editor"].includes(scenario)
+          ? [{ message: "Current edition blocked" }]
+          : [],
+      };
+    },
+    reader: async (_role: unknown, raw: string) => {
+      const prompt = JSON.parse(raw);
+      return {
+        overview: TRACE_CANDIDATE,
+        coverage: { found: [], notPublished: [] },
+        topics: ["identity", "dates", "status", "classification", "location"],
+        statedYears: [],
+        limitations: [],
+        evidence:
+          prompt.page.length <= 24000
+            ? [
+                {
+                  quote: prompt.page,
+                  topics: [
+                    "identity",
+                    "dates",
+                    "status",
+                    "classification",
+                    "location",
+                  ],
+                },
+              ]
+            : [],
+      };
+    },
+  };
   let requests = 0;
+  let researchRequests = 0;
   const providerInputs: string[] = [];
   const original = globalThis.fetch;
   globalThis.fetch = async (_request, init) => {
@@ -164,26 +203,21 @@ export async function runTraceFixture(
     }
     providerInputs.push(String(init?.body));
     requests++;
-    let editorCandidate = fixtureEditorForProvider(
-      JSON.parse(String(init?.body)),
-    );
-    if (editorCandidate && scenario === "rejected_editor") {
-      editorCandidate = {
-        status: "rejected",
-        reason: "Research concerns a different same-name festival",
-        event: null,
-        previousEdition: null,
-        currentOrNextEdition: null,
-        unresolved: [],
-      };
+    const body = JSON.parse(String(init?.body));
+    const role = providerRole(body);
+    if (role === "research") {
+      researchRequests += 1;
     }
-    if (requests === 2 && ending === "http") {
+    const toolCall = role === "research" && researchRequests === 1;
+    let editorCandidate = await fixtureRoleForProvider(body, responses);
+    editorCandidate = rejectedEditorFixture(editorCandidate, role, scenario);
+    if (role === "research" && researchRequests === 2 && ending === "http") {
       return Response.json(
         { error: { message: TRACE_TRANSPORT } },
         { status: 503 },
       );
     }
-    if (requests === 2 && ending === "abort") {
+    if (role === "research" && researchRequests === 2 && ending === "abort") {
       return new Promise<Response>((_resolve, reject) => {
         const signal = init?.signal;
         if (signal?.aborted) {
@@ -205,59 +239,53 @@ export async function runTraceFixture(
         choices: [
           {
             index: 0,
-            message:
-              requests === 1
-                ? {
-                    role: "assistant",
-                    content: modelText.commentary ?? null,
-                    ...(modelText.reasoning
-                      ? { reasoning: modelText.reasoning }
-                      : {}),
-                    tool_calls: [
-                      ...Array.from(
-                        { length: scenario === "cached" ? 2 : 1 },
-                        (_, index) => ({
-                          id: `fixture-tool-${index}`,
-                          type: "function",
-                          function: {
-                            name:
-                              scenario === "search" ||
+            message: toolCall
+              ? {
+                  role: "assistant",
+                  content: modelText.commentary ?? null,
+                  ...(modelText.reasoning
+                    ? { reasoning: modelText.reasoning }
+                    : {}),
+                  tool_calls: [
+                    ...Array.from(
+                      { length: scenario === "cached" ? 2 : 1 },
+                      (_, index) => ({
+                        id: `fixture-tool-${index}`,
+                        type: "function",
+                        function: {
+                          name:
+                            scenario === "search" ||
+                            scenario === "reserved" ||
+                            scenario === "search_failure"
+                              ? "searchWeb"
+                              : "inspectPage",
+                          arguments: JSON.stringify(
+                            scenario === "search" ||
                               scenario === "reserved" ||
                               scenario === "search_failure"
-                                ? "searchWeb"
-                                : "readPage",
-                            arguments: JSON.stringify(
-                              scenario === "search" ||
-                                scenario === "reserved" ||
-                                scenario === "search_failure"
-                                ? { query: `Festival ${TRACE_PUBLIC_URL}` }
-                                : { url: TRACE_PUBLIC_URL },
-                            ),
-                          },
-                        }),
-                      ),
-                    ],
-                  }
-                : {
-                    role: "assistant",
-                    content: JSON.stringify(
-                      (editorCandidate && scenario === "invalid_editor"
-                        ? {
-                            ...editorCandidate,
-                            event: {
-                              target: { eventId: "other-event" },
-                              fields: {},
-                            },
-                          }
-                        : editorCandidate) ??
-                        wireFixture(
-                          candidate,
-                          JSON.parse(String(init?.body)).response_format
-                            ?.json_schema?.schema,
-                        ),
+                              ? { query: `Festival ${TRACE_PUBLIC_URL}` }
+                              : { url: TRACE_PUBLIC_URL },
+                          ),
+                        },
+                      }),
                     ),
-                  },
-            finish_reason: requests === 1 ? "tool_calls" : "stop",
+                  ],
+                }
+              : {
+                  role: "assistant",
+                  content: JSON.stringify(
+                    role === "editor" && scenario === "invalid_editor"
+                      ? {
+                          ...editorCandidate,
+                          event: {
+                            target: { eventId: "other-event" },
+                            fields: {},
+                          },
+                        }
+                      : editorCandidate,
+                  ),
+                },
+            finish_reason: toolCall ? "tool_calls" : "stop",
           },
         ],
         ...(scenario === "mistaken" && requests === 2
@@ -267,7 +295,11 @@ export async function runTraceFixture(
                 prompt_tokens: 10,
                 completion_tokens: 20,
                 total_tokens: 30,
-                ...fixtureCost(modelText.cost, modelText.stepCosts, requests),
+                ...fixtureCost(
+                  modelText.cost,
+                  modelText.stepCosts,
+                  role === "research" ? researchRequests : 0,
+                ),
                 prompt_tokens_details: { cached_tokens: 3 },
                 completion_tokens_details: { reasoning_tokens: 4 },
               },
@@ -278,7 +310,7 @@ export async function runTraceFixture(
   };
   const workflowStorage = createWorkflowStorage({ path: ":memory:" });
   try {
-    const result = await runCatalogResearch(
+    const result = await (injected ? runFixtureResearch : runCatalogResearch)(
       {
         mode: scenario === "skipped" ? "add" : "refresh",
         ...(scenario === "skipped"
@@ -356,7 +388,7 @@ export async function runTraceFixture(
             outputTokens: 0,
           };
         },
-        ...(injected ? { generateCandidate: async () => candidate } : {}),
+        ...(injected ? { generateRole: fixtureRoleGenerator(responses) } : {}),
       },
     );
     const runId = result.runId;
@@ -410,70 +442,35 @@ if (process.argv[1]?.endsWith("/tracing-fixture.ts")) {
   }
 }
 
-function addFixtureDateScenario(
-  candidate: unknown,
-  scenario: TraceFixtureScenario,
-) {
-  if (["dates", "invalid_dates"].includes(scenario)) {
-    (
-      candidate as { data: { currentOrNextEdition: unknown } }
-    ).data.currentOrNextEdition = {
-      key: "2026",
-      links: {},
-      year: { value: 2026, reason: TRACE_CANDIDATE },
-      dates: {
-        value: {
-          startsOn: scenario === "invalid_dates" ? "bad-date" : "2026-07-01",
-          endsOn: "2026-07-03",
-          state: "confirmed",
-        },
-        reason: TRACE_CANDIDATE,
-      },
-    };
-  }
-}
-
-function wireFixture(
-  value: unknown,
-  schema: Record<string, unknown> | undefined,
-): unknown {
-  if (value == null || !schema) {
-    return value;
-  }
-  const choices = schema.anyOf as Record<string, unknown>[] | undefined;
-  if (choices) {
-    const type = Array.isArray(value) ? "array" : typeof value;
-    return wireFixture(
-      value,
-      choices.find((choice) => choice.type === type) ?? choices[0],
-    );
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) =>
-      wireFixture(item, schema.items as Record<string, unknown>),
-    );
-  }
-  if (typeof value !== "object") {
-    return value;
-  }
-  const properties = schema.properties as
-    Record<string, Record<string, unknown>> | undefined;
-  if (!properties) {
-    return value;
-  }
-  return Object.fromEntries(
-    Object.entries(properties).map(([key, property]) => [
-      key,
-      wireFixture((value as Record<string, unknown>)[key] ?? null, property),
-    ]),
-  );
-}
-
 function fixtureCost(
   cost: number | undefined,
   stepCosts: (number | null)[] | undefined,
   request: number,
 ) {
-  const selected = stepCosts ? stepCosts[request - 1] : (cost ?? 0);
+  let selected: number | null | undefined = cost ?? 0;
+  if (stepCosts) {
+    selected = request === 0 ? 0 : stepCosts[request - 1];
+  }
   return selected == null ? {} : { cost: selected };
+}
+
+function rejectedEditorFixture(
+  candidate: Record<string, unknown>,
+  role: string,
+  scenario: TraceFixtureScenario,
+) {
+  if (role !== "editor" || scenario !== "rejected_editor") {
+    return candidate;
+  }
+  return {
+    ...candidate,
+    item: {
+      decision: "reject",
+      reason: "Research concerns a different same-name festival",
+    },
+  };
+}
+
+function fixtureAgentSteps(scenario: TraceFixtureScenario) {
+  return ["search", "search_failure"].includes(scenario) ? 3 : 2;
 }

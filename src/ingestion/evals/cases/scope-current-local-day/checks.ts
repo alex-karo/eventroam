@@ -1,11 +1,11 @@
+import type { RegressionEvaluator } from "../../regression";
 import {
   researchStatus,
   editionSlots,
   omittedEventFields,
-  type ResearchEvaluator,
 } from "../../research";
 
-export const researchChecks = {
+export const checks = {
   "scope-current-local-day": (context) => {
     const { data } = context;
     return [
@@ -14,4 +14,4 @@ export const researchChecks = {
       ...omittedEventFields(data),
     ];
   },
-} satisfies Record<string, ResearchEvaluator>;
+} satisfies Record<string, RegressionEvaluator>;

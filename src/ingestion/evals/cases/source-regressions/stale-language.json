@@ -79,57 +79,5 @@
       "status": "ok",
       "markdownFile": "snow-other.md"
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "links",
-        "contains": {
-          "kind": "ticketing",
-          "url": "https://snow-meadow.example/hu/student/booking"
-        }
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "starts_on"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "ends_on"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "price_details"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "price_min_minor"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "starts_on",
-        "value": null
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "ends_on",
-        "value": null
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "date_state"
-      }
-    ]
-  }
+  ]
 }

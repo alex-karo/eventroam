@@ -1,14 +1,14 @@
 import { expect, test } from "vitest";
 import { loadResearchConfig } from "./config";
 
-test("Flex routing is the default unless standard is explicitly requested", () => {
+test("The service tier is omitted unless Flex is explicitly requested", () => {
   const base = { NODE_ENV: "test" as const, OPENROUTER_API_KEY: "test-key" };
-  expect(loadResearchConfig(base).serviceTier).toBe("flex");
-  for (const value of ["", "   ", " flex "]) {
+  expect(loadResearchConfig(base).serviceTier).toBeUndefined();
+  for (const value of ["", "   ", "standard", " standard "]) {
     expect(
       loadResearchConfig({ ...base, OPENROUTER_SERVICE_TIER: value })
         .serviceTier,
-    ).toBe("flex");
+    ).toBeUndefined();
   }
   expect(
     loadResearchConfig({

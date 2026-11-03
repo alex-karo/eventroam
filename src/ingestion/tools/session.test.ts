@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { createResearchBudget, ResearchLimitError } from "../runtime/budget";
+import { createResearchBudget } from "../runtime/budget";
 import type { ResearchDependencies } from "../contracts";
 import type { KnownSourceLink } from "./contracts";
 import type { ReadPageResult } from "./read-page/contracts";
@@ -63,7 +63,7 @@ test("long linked-page chains share accounting, caching and the deadline", async
       };
     },
   });
-  await sources.readInitialSource();
+  await sources.readPage(sources.initialUrl!);
   await sources.readPage(tickets);
   for (const url of chain) {
     expect(sources.reads.some((read) => read.markdown.includes(url))).toBe(
@@ -111,24 +111,7 @@ test("discovery calls share search limits without reserving model capacity", asy
   expect(budget.snapshot()).toMatchObject({ searches: 2, modelCalls: 2 });
 });
 
-test("initial read suppresses only budget limits, leaving other exceptions visible", async () => {
-  const budget = createResearchBudget();
-  const config = { apiKey: "fixture", model: "fixture", limits: budget.limits };
-  const readPage = vi
-    .fn<NonNullable<ResearchDependencies["readPage"]>>()
-    .mockRejectedValueOnce(new ResearchLimitError("time"))
-    .mockRejectedValueOnce(new Error("Source adapter failed"));
-  const sources = createSourceSession(budget, config, knownLinks, {
-    readPage,
-  });
-  await expect(sources.readInitialSource()).resolves.toBeUndefined();
-  await expect(sources.readInitialSource()).rejects.toThrow(
-    "Source adapter failed",
-  );
-  expect(sources.reads).toEqual([]);
-});
-
-test("cache observations belong to each call, including concurrent duplicates and redirect aliases", async () => {
+test("reuses full source text for concurrent calls and redirect aliases", async () => {
   const budget = createResearchBudget();
   let release!: (result: ReadPageResult) => void;
   const readPage = vi.fn<NonNullable<ResearchDependencies["readPage"]>>(
@@ -145,13 +128,8 @@ test("cache observations belong to each call, including concurrent duplicates an
     [],
     { readPage },
   );
-  const readWithObservation = async () => {
-    const cached = sources.isReadCached(homepage);
-    const result = await sources.readPage(homepage);
-    return { cached, result };
-  };
-  const first = readWithObservation();
-  const second = readWithObservation();
+  const first = sources.readPage(homepage);
+  const second = sources.readPage(homepage);
   release({
     ...page(homepage),
     finalUrl: tickets,
@@ -159,12 +137,9 @@ test("cache observations belong to each call, including concurrent duplicates an
       "## Map\n\nVenue: Buchanan Park · latitude: 39.6858145 · longitude: -105.3640047",
   });
   const observations = await Promise.all([first, second]);
-  expect(observations.map(({ cached }) => cached)).toEqual([false, true]);
-  expect(observations[0].result).toBe(observations[1].result);
-  expect(observations[0].result.markdown).toContain("Venue: Buchanan Park");
-  expect(sources.isReadCached(homepage)).toBe(true);
-  expect(sources.isReadCached(tickets)).toBe(true);
-  expect(await sources.readPage(tickets)).toBe(observations[0].result);
+  expect(observations[0]).toBe(observations[1]);
+  expect(observations[0].markdown).toContain("Venue: Buchanan Park");
+  expect(await sources.readPage(tickets)).toBe(observations[0]);
   expect(readPage).toHaveBeenCalledTimes(1);
   expect(budget.snapshot().pages).toBe(1);
 });

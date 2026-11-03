@@ -40,6 +40,7 @@ export function wacken(context: MainContext) {
       ]),
       linkFact("event.links.youtube", event?.links, "youtube", [
         "https://www.youtube.com/wackentv",
+        "https://www.youtube.com/wackentv/",
         "https://www.youtube.com/channel/UCvQT6N9nu2BJ-lJuMg1jEZQ",
       ]),
       // ticket-exchange.md: the official resale portal also serves this Edition.
@@ -48,7 +49,7 @@ export function wacken(context: MainContext) {
         "https://ticketcenter.wacken.com/",
       ]),
       // tickets.md: unrestricted LOUDER admission, EUR 364 plus mandatory EUR 2 fee.
-      basePrice(next, "EUR", 36400, 36600),
+      basePrice(next, "EUR", [36400, 36600], ["exact", "from"]),
     ],
     correctness: [
       // Full refresh can add these details to the selected completed Edition.
@@ -75,9 +76,14 @@ export function wacken(context: MainContext) {
       }),
       classification(next, ["catalog:term:genre:metal", "validation:openair"]),
       // Offers may quote the displayed amount or its total with the stated fee.
-      ...offerChecks(next, [
-        { urls, amounts: [364, 366, 279, 281, 1399, 1049], currency: "EUR" },
-      ]),
+      ...offerChecks(
+        next,
+        [{ urls, amounts: [364, 366, 279, 281, 1399, 1049], currency: "EUR" }],
+        // page.md lists the categories in order; aftermovie.md says the first three sold out.
+        (offer) =>
+          /^(loyalty|faster|harder)([ -]ticket)?$/i.test(offer.label.trim()) &&
+          offer.availability === "sold_out",
+      ),
     ],
     conditions: [
       ...context.conditions,

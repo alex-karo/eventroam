@@ -102,7 +102,7 @@ Application logs MAY include two separate text fields from a completed model ste
 
 ### Requirement: Studio inspection exposes execution progress
 
-Local or hosted Studio SHALL expose the flow, progress, execution ID, run ID, and available research, editorial, Location, geocoding, source, catalog, and report outcomes. Opening inspection SHALL NOT start work or require model credentials. Execution state SHALL exclude credentials, authenticated provider URLs, prompts, full page bodies, transport payloads, live resources, and raw exceptions. Final model responses SHALL follow ingestion-run rules. Concurrent attempts SHALL remain distinct. Opening saved inspection SHALL NOT require an active catalog connection. Saved run inspection SHALL expose the original input, available step statuses and times, and available step results after process exit.
+Local or hosted Studio SHALL expose the flow, progress, execution ID, run ID, and available source, validation, place, geocoding, catalog, and report outcomes. Opening inspection SHALL NOT start work or require model credentials. Execution state SHALL exclude credentials, authenticated provider URLs, prompts, full page bodies, transport payloads, live resources, and raw exceptions. Final model responses SHALL follow ingestion-run rules. Concurrent attempts SHALL remain distinct. Opening saved inspection SHALL NOT require an active catalog connection. Saved run inspection SHALL expose the original input, available step statuses and times, and available step results after process exit.
 
 #### Scenario: Open Studio without execution prerequisites
 
@@ -123,33 +123,20 @@ Local or hosted Studio SHALL expose the flow, progress, execution ID, run ID, an
 
 - **WHEN** the owner opens a saved ingestion execution after the writing process exits
 - **THEN** Studio exposes its input and available step states, times, outputs, and final summary
-- **AND** research findings, editorial actions, Location decisions, normalized geocoding observations, prepared operations, and confirmed write results remain distinguishable
-- **AND** technical execution success does not replace research status, editorial status, Location status, catalog outcome, or report persistence status
+- **AND** source-check results, processing limits, proposed and accepted updates, normalized geocoding observations, prepared operations, and confirmed write results remain distinguishable
+- **AND** technical execution success does not replace source-check, validation, or place-check status, catalog outcome, or report persistence status
 
 #### Scenario: A start request includes private request context
 
 - **WHEN** a start request carries separate credentials, prompts, source bodies, or provider payloads in request context
 - **THEN** saved history excludes that request context while retaining allowed final model responses
 
-### Requirement: Source-result capture is explicit and separate
+#### Scenario: Inspect evidence after exit
 
-The owner MAY enable local capture with `CATALOG_CAPTURE_TOOL_OUTPUTS=true`. It SHALL save bounded source and discovery results supplied to research, including initial context and repeated cached results in call order. Capture SHALL be off by default, identified by run ID, and kept in ignored local debug storage. Capture SHALL NOT separately attach source bodies or search responses to runs or reports. Capture write failure SHALL be visible without changing ingestion's outcome.
-
-#### Scenario: Capture is enabled
-
-- **WHEN** the owner enables capture and research reads a page and a discovery result
-- **THEN** the saved capture contains those agent-visible bounded results and identifies their order and run ID
-- **AND** traces and model responses follow their separate content rules above
-
-#### Scenario: Capture is disabled
-
-- **WHEN** the owner does not enable capture
-- **THEN** no source-result capture files are created
-
-#### Scenario: Capture cannot be written
-
-- **WHEN** local debug storage rejects a capture write
-- **THEN** the owner receives a diagnostic and the ingestion outcome is unaffected
+- **WHEN** an execution has persisted source artifacts
+- **THEN** saved results identify the private corpus, source references and processing limits
+- **AND** a missing artifact is reported as missing rather than fetched again
+- **AND** this change does not require a new public source viewer
 
 ### Requirement: Execution metrics remain inspectable and qualified
 
@@ -359,7 +346,7 @@ Saved ingestion executions SHALL support inspection only. Resume, restart, time 
 
 ### Requirement: Removing workflow history preserves catalog records
 
-Workflow snapshots SHALL remain until the owner deletes them. Deleting a saved execution or resetting the separate workflow store SHALL NOT delete catalog facts, audit records, durable ingestion reports, or observability records. Automatic age-based deletion SHALL remain outside this feature.
+Workflow snapshots SHALL remain until the owner deletes them. Deleting a saved execution or resetting the separate workflow store SHALL NOT delete catalog facts, audit records, durable ingestion reports, private source artifacts, or observability records. Automatic age-based deletion SHALL remain outside this feature.
 
 #### Scenario: The owner deletes a completed execution
 

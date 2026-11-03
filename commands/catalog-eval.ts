@@ -147,6 +147,17 @@ function printGroup(group: EvalGroupResult, output: Output) {
     if (item.output?.quality) {
       output(`    checked errors: ${item.output.quality.errorCount}\n`);
     }
+    if (item.output?.reader) {
+      const reader = item.output.reader;
+      output(
+        `    evidence: ${reader.recall.found}/${reader.recall.expected}; literal binding: ${reader.binding.accepted}/${reader.binding.supplied}; source covered: ${reader.coveredCharacters}/${reader.sourceCharacters} chars; extracted with repeats: ${reader.extractedCharacters} chars\n`,
+      );
+      if (reader.limitations.length) {
+        output(
+          `    extraction limitations: ${reader.limitations.length}; details retained in saved output\n`,
+        );
+      }
+    }
     if (!passed) {
       printFailure(item, output);
     }
@@ -187,7 +198,7 @@ if (
     .catch((error: unknown) => {
       const message =
         error instanceof Error &&
-        /^(OPENROUTER_|Unknown eval|Unknown or incompatible|Use one of|Missing value for|repeat must be|(?:Main|Regression) case needs|Eval storage must)/.test(
+        /^(OPENROUTER_|Unknown eval|Unknown or incompatible|Use one of|Missing value for|repeat must be|(?:Main|Regression|Reader) case needs|Eval storage must)/.test(
           error.message,
         )
           ? error.message

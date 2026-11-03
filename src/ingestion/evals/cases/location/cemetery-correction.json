@@ -5,7 +5,7 @@
   "task": "Check location cemetery correction",
   "provenance": {
     "kind": "captured-adapted",
-    "note": "Saved descriptions, source summaries and Geoapify forward responses captured on 2026-10-24. Free-text replay hints use those captured responses. Responses use the client format and omit unused provider fields. Reverse was not captured and is explicitly unavailable. Expected actions are review assertions, not captured model output. The locality refinement with administrative area was captured in the 2026-10-26 PortAmérica v6 ingestion run."
+    "note": "Saved descriptions, source summaries and Geoapify forward responses captured on 2026-10-24. Free-text replay hints use those captured responses. Responses use the client format and omit unused provider fields. Reverse was not captured and is explicitly unavailable. Expected actions are review assertions, not captured model output. The locality refinement with administrative area was captured in the 2026-10-26 PortAmérica v6 ingestion run. The added correction notice is synthetic: it states that the saved 2027 point is a cemetery mapping error. This notice was not captured from PortAmérica or the provider."
   },
   "input": {
     "mode": "refresh",
@@ -26,6 +26,10 @@
       "currentDate": "2026-10-24T12:00:00Z",
       "countryBaseline": "ES",
       "sources": [
+        {
+          "url": "https://location-fixture.example/portamerica-2027-mapping-correction",
+          "information": "Synthetic correction notice for this eval: the saved 2027 point identifies Cemiterio de Portas, not the Azucreira de Portas festival venue. This is an established mapping error, not an inference from a nearby reverse result. No replacement venue point is supplied."
+        },
         {
           "url": "https://portamerica.es/",
           "information": "Official PortAmérica site; the saved www/http address redirects to this canonical HTTPS site. It identifies the festival with the Azucarera de Portas and links official social accounts."
@@ -75,15 +79,6 @@
           "coordinatePrecision": "exact"
         }
       ],
-      "editor": {
-        "eventReason": null,
-        "previousEdition": null,
-        "currentOrNextEdition": {
-          "editionKey": "2027",
-          "reason": null
-        },
-        "unresolved": []
-      },
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "2027",
@@ -109,26 +104,89 @@
           "longitude": -8.669209,
           "coordinatePrecision": "exact"
         },
-        "donor": null,
-        "findings": {
-          "venueName": {
-            "value": "Azucreira de Portas",
-            "reason": "Captured catalog location description"
-          },
-          "locality": {
-            "value": "Portas",
-            "reason": "Captured catalog location description"
-          },
-          "administrativeArea": {
-            "value": "Pontevedra",
-            "reason": "Captured catalog location description"
-          },
-          "countryCode": {
-            "value": "ES",
-            "reason": "Captured catalog location description"
-          }
+        "previousPoint": null
+      },
+      "selection": {
+        "eventReason": null,
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "editionKey": "2027",
+          "reason": null
+        },
+        "unresolved": []
+      },
+      "evidence": [
+        {
+          "id": "currentOrNextEdition-location-mapping-error",
+          "sourceId": "synthetic-mapping-correction",
+          "quote": "The saved 2027 point at (42.579634, -8.669209) is an old mapping error. It identifies Cemiterio de Portas. The 2027 festival venue is Azucreira de Portas, a different site in Portas, Pontevedra, Spain. The festival does not take place at the cemetery. The exact venue point has not been established.",
+          "context": [
+            {
+              "quote": "Synthetic correction notice for the 2027 Edition. This states a known mapping error; it is not a nearby reverse-geocoding result."
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-1",
+          "sourceId": "fixture-source",
+          "quote": "venueName: \"Azucreira de Portas\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-2",
+          "sourceId": "fixture-source",
+          "quote": "locality: \"Portas\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-3",
+          "sourceId": "fixture-source",
+          "quote": "administrativeArea: \"Pontevedra\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
+        },
+        {
+          "id": "currentOrNextEdition-location-4",
+          "sourceId": "fixture-source",
+          "quote": "countryCode: \"ES\"",
+          "context": [
+            {
+              "quote": "Captured catalog location description"
+            }
+          ],
+          "topics": ["location"],
+          "editionClues": ["2027"],
+          "uncertainty": null,
+          "anchors": []
         }
-      }
+      ]
     }
   },
   "geocoding": [
@@ -459,35 +517,5 @@
       },
       "provenance": "Synthetic alias for the observed query without Spain, with countryCode ES. Reuses the captured Azucreira venue-query response; this alias was not captured from the provider. It retains the unrelated cemetery candidate."
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "unresolved",
-        "contains": {
-          "field": "coordinates"
-        }
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinates",
-        "value": {
-          "latitude": 42.5639366,
-          "longitude": -8.6570848,
-          "precision": "locality"
-        }
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "coordinate_action",
-        "value": "keep"
-      }
-    ]
-  }
+  ]
 }

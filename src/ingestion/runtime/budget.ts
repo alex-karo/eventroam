@@ -1,4 +1,4 @@
-export type ResearchLimit = "time" | "searches";
+export type ResearchLimit = "time" | "searches" | "context" | "steps";
 
 export interface ResearchLimits {
   searches: number;

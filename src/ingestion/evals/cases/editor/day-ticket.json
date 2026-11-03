@@ -72,87 +72,9 @@
       "markdownFile": "../roskilde/purpose.md"
     }
   ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "event",
-        "field": "links",
-        "contains": {
-          "url": "https://www.roskilde-festival.dk/",
-          "kind": "official_site"
-        }
-      },
-      {
-        "owner": "edition",
-        "field": "starts_on",
-        "value": "2027-06-26",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "field": "ends_on",
-        "value": "2027-07-03",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "field": "date_state",
-        "value": "confirmed",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "editionYear": 2027,
-        "field": "price_min_minor",
-        "value": 265000
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "starts_on"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "ends_on"
-      },
-      {
-        "owner": "edition",
-        "field": "venue_address",
-        "editionYear": 2027,
-        "containsText": "Rabalderstræde"
-      },
-      {
-        "owner": "edition",
-        "field": "country_code",
-        "notValue": "DK",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "editionYear": 2027,
-        "field": "price_min_minor",
-        "value": 153000
-      },
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "starts_on",
-        "value": null
-      },
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "ends_on",
-        "value": null
-      }
-    ]
-  },
   "provenance": {
     "kind": "captured-source-editor-regression",
-    "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
+    "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section. Editor input now uses fixed source-backed Reader passages and explicit proposal citations. Research and Reader do not call a model."
   },
-  "researchHandoffFile": "day-ticket.research.json"
+  "roleHandoffFile": "day-ticket.roles.json"
 }

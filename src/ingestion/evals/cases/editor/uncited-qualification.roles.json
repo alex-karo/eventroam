@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 5,
+  "provenance": "Fixed source-backed proposals cite only the homepage. A separate saved eligibility notice requires validation with native grep. Research, Reader and specialists use fixed outputs; Editor and eligible Location stay live.",
+  "pages": [
+    {
+      "url": "https://sound-trail.example/",
+      "sourceId": "s1",
+      "reader": {
+        "overview": "The page identifies Sound Trail as a music festival scheduled for 23–30 January 2027 at Meadow Grounds, York, and describes three admission offers. It does not provide programme details; the all-programme pass price has no stated currency.",
+        "topics": [
+          "identity",
+          "description",
+          "dates",
+          "tickets",
+          "location",
+          "links"
+        ],
+        "statedYears": ["2027"],
+        "limitations": [
+          "The source gives no festival status beyond describing the 2027 dates as confirmed programme dates.",
+          "No participant count or programme details are provided.",
+          "Ticket sales availability is not stated. The all-programme pass price is shown as $615.35, but the page gives no country or currency code and says the currency selector is missing.",
+          "The assignment requests an identity contradiction, but the saved source contains no conflicting festival identity."
+        ],
+        "evidence": [
+          {
+            "quote": "# Sound Trail 2027\n\nSound Trail is a music festival at Meadow Grounds, York, United Kingdom, on 23–30 January 2027. These are confirmed programme dates.",
+            "topics": ["identity", "description", "dates", "status", "location"]
+          },
+          {
+            "quote": "- Three-concert pass: GBP 9.99. Access to three paid concerts of your choice; it does not cover the full programme. Other activities are free. Sales availability is not stated.\n- Stay package: GBP 899. Includes lodging and the Three-concert pass only. It does not include full-programme admission. Sales availability is not stated.",
+            "topics": ["tickets"]
+          },
+          {
+            "quote": "- All-programme pass: $615.35. The currency selector is missing from this page; no country or currency code is given for this price. This site serves multiple countries. Sales availability is not stated.",
+            "topics": ["tickets"],
+            "context": [],
+            "editionClues": [],
+            "uncertainty": "The price's currency cannot be determined from the source."
+          },
+          {
+            "quote": "[Official checkout](https://sound-trail.example/checkout) lists the remaining categories and availability.",
+            "topics": ["links", "tickets"]
+          },
+          {
+            "quote": "[Extras](https://sound-trail.example/extras) lists additional offers.",
+            "topics": ["links", "tickets"]
+          }
+        ],
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        }
+      }
+    },
+    {
+      "url": "https://sound-trail.example/eligibility",
+      "sourceId": "s2",
+      "reader": {
+        "overview": "Official 2027 ticket eligibility notice.",
+        "coverage": {
+          "found": [],
+          "notPublished": []
+        },
+        "topics": ["tickets"],
+        "statedYears": ["2027"],
+        "limitations": [],
+        "evidence": []
+      }
+    }
+  ],
+  "collection": {
+    "checks": [],
+    "unresolved": []
+  },
+  "roles": {
+    "general": {
+      "decision": "targets",
+      "eventId": "source-known-offers-blocked-checkout",
+      "observedEventName": "Sound Trail",
+      "reason": "Captured identity support",
+      "evidenceIds": ["s1-e1"],
+      "event": {},
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "editionKey": "2027",
+        "reason": "Captured Edition selection",
+        "evidenceIds": ["s1-e1"],
+        "fields": {
+          "year": {
+            "action": "set",
+            "value": 2027,
+            "reason": "The official page is titled “Sound Trail 2027” and gives programme dates in January 2027.",
+            "evidenceIds": ["s1-e1"]
+          },
+          "dates": {
+            "action": "set",
+            "value": {
+              "startsOn": "2027-01-23",
+              "endsOn": "2027-01-30",
+              "state": "confirmed"
+            },
+            "reason": "The official page explicitly states that 23–30 January 2027 are confirmed programme dates.",
+            "evidenceIds": ["s1-e1"]
+          },
+          "scheduleStatus": {
+            "action": "set",
+            "value": "scheduled",
+            "reason": "The official page confirms the programme dates for the upcoming festival; this is consistent with the saved scheduled status.",
+            "evidenceIds": ["s1-e1"]
+          }
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "tickets": {
+      "currentOrNextEdition": {
+        "tickets": {
+          "action": "set",
+          "value": {
+            "variants": [
+              {
+                "label": "Three-concert pass",
+                "amount": 9.99,
+                "currency": "GBP",
+                "terms": "Public admission to three concerts of the holder’s choice.",
+                "availability": "unknown"
+              }
+            ],
+            "basePrice": null
+          },
+          "reason": "The homepage lists this concert pass and price. A separate saved eligibility notice may qualify its public admission; its text is not included in these citations.",
+          "evidenceIds": ["s1-e2"]
+        }
+      },
+      "checks": [],
+      "unresolved": [
+        {
+          "message": "Does the separately saved 2027 eligibility notice restrict the Three-concert pass? Validate before accepting the ticket block.",
+          "editionKey": "2027",
+          "field": "tickets"
+        }
+      ]
+    },
+    "classification": {
+      "previousEdition": null,
+      "currentOrNextEdition": {
+        "classification": {
+          "action": "set",
+          "value": ["validation:festival", "validation:music"],
+          "reason": "The official page describes Sound Trail as a music festival. No specific music genre or substantial outdoor programme is established by the inspected page.",
+          "evidenceIds": ["s1-e1"]
+        }
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "links": {
+      "event": {
+        "socials": {}
+      },
+      "currentOrNextEdition": {},
+      "omitted": [],
+      "checks": [],
+      "unresolved": []
+    }
+  }
+}

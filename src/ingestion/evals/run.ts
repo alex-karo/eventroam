@@ -8,7 +8,7 @@ import {
   createRunObservability,
   finishRunObservability,
 } from "../runtime/observability/runtime";
-import { geocodingKey, type GeocodingClient } from "../tools/geocode/contracts";
+import { fixedGeocoding } from "./geocoding";
 import { scoreLocationCase } from "./score";
 import { validateCatalogValues } from "@/catalog/write/validate-values";
 import { randomUUID } from "node:crypto";
@@ -25,25 +25,24 @@ import {
 } from "@/db/schema";
 import { RunPersistenceError, persistenceFailureReport } from "../runs";
 import { runCatalogResearch, type CatalogResearchResult } from "../workflow";
-import { loadResearchConfig } from "../runtime/config";
-import { RESEARCH_PROMPT_VERSION } from "../research/contracts";
+import { evaluationConfig } from "./config";
+import { PROMPT_VERSIONS } from "../roles/versions";
 import type { ReadPageResult } from "../tools/read-page/contracts";
 import type { SearchWebResult } from "../tools/search-web/contracts";
 import type { ReadPageOptions } from "../tools/read-page/read";
 import type { SearchWebOptions } from "../tools/search-web/search";
 import {
   loadEvalSuite,
-  type EvalCase,
   type PipelineEvalCase,
   type EvalSuite,
 } from "./fixtures";
 import { scoreCase } from "./score";
+import { editorFixtureRoles } from "./editor-fixture";
 import type { ScenarioResult } from "./checks";
 import { createEvalScorers } from "./scorers";
 
 import type { EvalToolCall } from "./tool-use";
 import { execFileSync } from "node:child_process";
-import { EDITOR_PROMPT_VERSION } from "../editor/contracts";
 import {
   createEvalStore,
   createEvalObservability,
@@ -56,7 +55,10 @@ import {
   evalGroups,
   selectEvalCases,
   type EvalSelection,
+  type SelectedEvalCase,
 } from "./selection";
+import { readerCases, type ReaderEvalOutput } from "./reader";
+import { executeReaderCase } from "./reader/run";
 
 const timestamp = "2026-10-03T00:00:00.000Z";
 
@@ -251,6 +253,7 @@ export type EvalOptions = EvalSelection & {
 export type EvalCaseOutput = {
   report?: CatalogResearchResult;
   location?: LocationExecution;
+  reader?: ReaderEvalOutput;
   runId?: string;
   traceId?: string;
   toolCalls: EvalToolCall[];
@@ -261,22 +264,22 @@ export type EvalCaseOutput = {
   | { score: ScenarioResult; quality?: never }
 );
 
-function evaluationConfig(options: Pick<EvalOptions, "model">) {
-  const env = { ...process.env };
-  if (options.model) {
-    env.OPENROUTER_MODEL = options.model;
-    env.CATALOG_LOCATION_MODEL = options.model;
-  }
-  return loadResearchConfig(env);
-}
-
 async function executeCase(
   suite: EvalSuite,
-  item: EvalCase,
+  item: SelectedEvalCase,
   config: ReturnType<typeof evaluationConfig>,
   experimentId?: string,
   observabilityStore?: DuckDBStore,
 ): Promise<EvalCaseOutput> {
+  if ("reader" in item) {
+    return executeReaderCase(
+      item,
+      item.todayUtc ?? suite.todayUtc,
+      config,
+      experimentId,
+      observabilityStore,
+    );
+  }
   const calls: EvalToolCall[] = [];
   if (item.location) {
     const runId = `location-eval-${randomUUID()}`;
@@ -329,11 +332,8 @@ async function executeCase(
           todayUtc: item.todayUtc ?? suite.todayUtc,
           geocodingClient: fixedGeocoding(item),
           ...fixedSources(item, item.todayUtc ?? suite.todayUtc, calls),
-          ...(item.researchHandoff
-            ? {
-                generateCandidate: async () =>
-                  structuredClone(item.researchHandoff!.candidate),
-              }
+          ...(item.roleHandoff
+            ? { generateRoles: editorFixtureRoles(item) }
             : {}),
         },
       );
@@ -350,7 +350,7 @@ async function executeCase(
     if (item.suite === "main") {
       const after = readResearchCatalog(connection.client);
       return {
-        quality: evaluateMainCase(item, before!, after, result, calls),
+        quality: evaluateMainCase(item, before!, after, result),
         before,
         after,
         report: result,
@@ -380,7 +380,10 @@ function workflowIdentity() {
 
 export async function runCatalogEvals(options: EvalOptions = {}) {
   const suite = loadEvalSuite();
-  const selected = selectEvalCases(suite, options);
+  const selected = selectEvalCases(
+    { cases: [...suite.cases, ...readerCases(suite)] },
+    options,
+  );
   const repeat = options.repeat ?? 1;
   if (!Number.isSafeInteger(repeat) || repeat < 1 || repeat > 20) {
     throw new Error("repeat must be 1–20");
@@ -408,13 +411,13 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       ...workflowIdentity(),
       label: options.label?.trim() || null,
       models: {
-        research: config.model,
-        editor: config.model,
+        ...Object.fromEntries(
+          Object.keys(PROMPT_VERSIONS).map((role) => [role, config.model]),
+        ),
         location: config.locationModel ?? config.model,
       },
       promptVersions: {
-        research: RESEARCH_PROMPT_VERSION,
-        editor: EDITOR_PROMPT_VERSION,
+        ...PROMPT_VERSIONS,
         location: LOCATION_PROMPT_VERSION,
       },
       reasoningEffort: config.reasoningEffort ?? null,
@@ -443,7 +446,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
         version: ready.version,
         name,
         metadata: { ...metadata, ...ready.definition.metadata },
-        scorers: Object.values(createEvalScorers(group === "main/pipeline")),
+        scorers: Object.values(createEvalScorers(group)),
         maxConcurrency: 3,
         beforeAll: (args) => {
           experimentId = args.experimentId;
@@ -488,12 +491,14 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
       const results = experiment.results
         .map((attempt) => {
           const input = attempt.input as { caseId: string; repetition: number };
+          const item = byId.get(input.caseId)!;
           return {
             ...attempt,
             caseId: input.caseId,
             repetition: input.repetition,
             output: attempt.output as EvalCaseOutput | null,
-            locationGroup: byId.get(input.caseId)!.location?.group ?? null,
+            locationGroup:
+              "location" in item ? (item.location?.group ?? null) : null,
           };
         })
         .sort(
@@ -530,8 +535,11 @@ export function evalItemPassed(item: {
   }[];
 }) {
   const output = item.output as EvalCaseOutput | null;
-  const main = !!output?.quality;
-  const required = Object.values(createEvalScorers(main)).map(
+  const regressionGroup = output?.reader
+    ? "regression/reader"
+    : "regression/pipeline";
+  const group = output?.quality ? "main/pipeline" : regressionGroup;
+  const required = Object.values(createEvalScorers(group)).map(
     (scorer) => scorer.id,
   );
   return (
@@ -551,14 +559,4 @@ export function evalItemPassed(item: {
       ),
     )
   );
-}
-
-function fixedGeocoding(item: EvalCase): GeocodingClient {
-  return async (request) =>
-    item.geocoding?.find(
-      (fixture) => geocodingKey(fixture.request) === geocodingKey(request),
-    )?.response ?? {
-      status: "error",
-      code: "unavailable",
-    };
 }

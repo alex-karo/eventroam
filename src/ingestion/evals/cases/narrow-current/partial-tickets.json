@@ -93,48 +93,5 @@
       "reasonCode": "checkout_requires_login",
       "markdownFile": "checkout.md"
     }
-  ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "venue_name",
-        "value": "New Grounds"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "price_details",
-        "contains": {
-          "amount": 110,
-          "currency": "EUR"
-        },
-        "notValue": {
-          "label": "Student"
-        }
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "price_min_minor",
-        "value": 11000
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "event",
-        "field": "summary"
-      },
-      {
-        "owner": "event",
-        "field": "links"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "2027",
-        "field": "price_qualification"
-      }
-    ]
-  }
+  ]
 }

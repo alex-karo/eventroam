@@ -3,8 +3,6 @@ import { createResearchBudget } from "../../runtime/budget";
 import { type getBoundedResponse } from "../network";
 import mountain from "./fixtures/mountain-music.json";
 import { readPage } from "./read";
-import { boundedToolSource } from "./response";
-import { readPageOutputSchema } from "./contracts";
 
 const parent = "https://festival.example/location";
 const mapUrl = mountain.sourceUrl;
@@ -18,7 +16,7 @@ const response = (body: string, finalUrl = parent, status = 200) => ({
   body: Buffer.from(body),
 });
 
-test("one read exposes map markers through the model projection without map rendering", async () => {
+test("one read includes page text and map markers without map rendering", async () => {
   const budget = createResearchBudget();
   const request = vi.fn<typeof getBoundedResponse>();
   request.mockResolvedValueOnce(response(body));
@@ -37,17 +35,13 @@ test("one read exposes map markers through the model projection without map rend
     );
   });
   const firecrawlRequest = vi.fn();
-  const result = await readPage(parent, {
+  const output = await readPage(parent, {
     budget,
     request,
     firecrawlKey: "test-key",
     firecrawlRequest,
   });
-  const output = readPageOutputSchema.parse({
-    ...boundedToolSource(result),
-    remaining: budget.remaining(),
-  });
-  expect(output.url).toBe(parent);
+  expect(output.finalUrl).toBe(parent);
   expect(output.status).toBe("ok");
   expect(output.markdown).toContain("Page evidence");
   expect(output.markdown).toContain("Venue: Buchanan Park");

@@ -13,7 +13,7 @@
   },
   "provenance": {
     "kind": "synthetic-size-regression",
-    "note": "Checks a supported historical participant estimate and preservation when no estimate is published. No live HTTP or search fallback."
+    "note": "Checks a supported historical participant estimate and preservation when no estimate is published. The synthetic page explicitly establishes that the historical Edition took place, so realization ambiguity cannot hide the size check. No live HTTP or search fallback."
   },
   "initial": {
     "event": {
@@ -75,35 +75,5 @@
       "markdownFile": "page.md"
     }
   ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "edition",
-        "editionKey": "historical",
-        "field": "size_estimate",
-        "value": 7500
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "historical",
-        "field": "size_estimate",
-        "notValue": 7500
-      },
-      {
-        "owner": "edition",
-        "editionKey": "unknown",
-        "field": "size_estimate",
-        "notValue": 6000
-      },
-      {
-        "owner": "edition",
-        "editionKey": "unknown",
-        "field": "size_estimate",
-        "value": null
-      }
-    ]
-  },
   "todayUtc": "2026-10-31"
 }

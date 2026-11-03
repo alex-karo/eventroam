@@ -63,20 +63,6 @@
       "markdownFile": "venue.md"
     }
   ],
-  "expectations": {
-    "required": [],
-    "forbidden": [],
-    "toolUse": {
-      "minSearches": 1,
-      "maxSearches": 1,
-      "readBeforeSearch": [
-        {
-          "url": "https://castlewellangrounds.co.uk/events/harbor-echo-2027",
-          "searchIndex": 2
-        }
-      ]
-    }
-  },
   "discoveries": [
     {
       "queryPattern": ".*",

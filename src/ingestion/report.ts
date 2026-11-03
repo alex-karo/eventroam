@@ -6,15 +6,20 @@ import type { ResearchBudgetSnapshot } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
 import type { SourceReadMetadata } from "./tools/read-page/contracts";
 import {
-  RESEARCH_PROMPT_VERSION,
-  researchCandidateSchema,
   type ResearchError,
   type ResearchQuestion,
 } from "./research/contracts";
-import type { ReadyCatalogPlan } from "./editor/prepare";
-import { EDITOR_PROMPT_VERSION } from "./editor/contracts";
-import type { EditorExecution } from "./editor/agent";
-import type { ResearchExecution } from "./research/agent";
+import type { ReadyCatalogPlan } from "./catalog-plan";
+import type { EditorExecution } from "./roles/editor-execution";
+import type { RoleExecution } from "./roles/invoke";
+import type {
+  CheckFinding,
+  CollectionOutput,
+  GeneralOutput,
+} from "./roles/contracts";
+import type { FrozenCorpus } from "./evidence/contracts";
+import { buildAssignment, assignedRoleChecks } from "./roles/assignment";
+import { PROMPT_VERSIONS } from "./roles/versions";
 import { LOCATION_PROMPT_VERSION } from "./location/contracts";
 
 export type ReportInput = {
@@ -27,7 +32,10 @@ export type ReportInput = {
   diagnostics: PlanDiagnostics | null;
   plan: ReadyCatalogPlan | null;
   outcome: CatalogResearchResult["outcome"];
-  research: ResearchExecution;
+  research: RoleExecution<CollectionOutput>;
+  general: RoleExecution<GeneralOutput>;
+  corpus: FrozenCorpus | null;
+  specialists: Record<string, RoleExecution>;
   editor: EditorExecution;
   location: LocationExecution;
   applied: ReturnType<typeof applyCatalogItem> | null;
@@ -47,16 +55,7 @@ export function buildResearchReport(input: ReportInput): CatalogResearchResult {
 export function buildWorkflowFailureReport(
   input: ReportInput,
 ): CatalogResearchResult {
-  const report = assembleReport(input);
-  if (!input.diagnostics && input.research.ok) {
-    const candidate = researchCandidateSchema.safeParse(
-      input.research.candidate,
-    );
-    if (candidate.success) {
-      report.researchStatus = candidate.data.status;
-    }
-  }
-  return report;
+  return assembleReport(input);
 }
 
 function assembleReport({
@@ -70,6 +69,9 @@ function assembleReport({
   plan,
   outcome,
   research,
+  general,
+  specialists,
+  corpus,
   editor,
   location,
   applied,
@@ -93,13 +95,62 @@ function assembleReport({
         plan?.explanations[change.operationKey]?.[field.field] ?? [],
     })),
   );
-  const finalCandidate = research.ok
-    ? researchCandidateSchema.safeParse(research.candidate)
-    : null;
-  const researchStatus =
-    !research.ok || !finalCandidate?.success
-      ? "failed"
-      : finalCandidate.data.status;
+  const targets =
+    general.output?.decision === "targets" ? general.output : null;
+  const assignment = context ? buildAssignment(input, context) : null;
+  const collectionChecks = research.output?.checks ?? [];
+  const missingCollectionChecks =
+    assignment?.checks.filter(
+      (assigned) =>
+        !collectionChecks.some((check) => check.check === assigned.key),
+    ) ?? [];
+  const checks = [
+    ...(targets?.checks ?? []),
+    ...Object.values(specialists).flatMap(
+      (execution) =>
+        (execution.output as { checks?: CheckFinding[] } | undefined)?.checks ??
+        [],
+    ),
+  ];
+  const roleGaps = targets
+    ? (["general", "tickets", "classification", "links"] as const).flatMap(
+        (role) => {
+          const execution = role === "general" ? general : specialists[role];
+          const findings =
+            (execution?.output as { checks?: CheckFinding[] } | undefined)
+              ?.checks ?? [];
+          return assignedRoleChecks(role, input, targets).flatMap((key) => {
+            const finding = findings.find(
+              (check) => check.check === key && check.finding === "unfinished",
+            );
+            if (finding) {
+              return [{ message: `${key}: ${finding.explanation}` }];
+            }
+            return findings.some(
+              (check) => check.check === key && check.finding === "verified",
+            )
+              ? []
+              : [{ message: `Interpretation check ${key} was not returned.` }];
+          });
+        },
+      )
+    : [];
+  const usable = !!corpus?.evidence.length;
+  const incomplete =
+    general.output?.decision === "uncertain" ||
+    roleGaps.length > 0 ||
+    collectionChecks.some((check) => check.blocker !== null) ||
+    missingCollectionChecks.length > 0 ||
+    corpus?.sources.some(
+      (source) => source.status === "ok" && source.processing !== "complete",
+    );
+  let researchStatus: "failed" | "partial" | "success" = incomplete
+    ? "partial"
+    : "success";
+  if (!usable || research.status !== "success") {
+    researchStatus = "failed";
+  }
+
   return {
     schemaVersion: 7,
     ...(traceId ? { traceId } : {}),
@@ -112,11 +163,10 @@ function assembleReport({
           (count, event) => count + event.editions.length,
           0,
         ) ?? 0,
-      returnedEditions: finalCandidate?.success
-        ? [
-            finalCandidate.data.data?.previousEdition,
-            finalCandidate.data.data?.currentOrNextEdition,
-          ].filter(Boolean).length
+      returnedEditions: targets
+        ? [targets.previousEdition, targets.currentOrNextEdition].filter(
+            Boolean,
+          ).length
         : 0,
     },
     runId,
@@ -124,21 +174,41 @@ function assembleReport({
     outcome,
     researchStatus,
     eventId: diagnostics?.matchedEventId ?? references.event ?? input.eventId,
-    modelResponse: research.modelResponse ?? null,
+    modelResponse: general.modelResponse ?? null,
     editorResponse: editor.modelResponse,
     editorStatus: editor.status,
-    editorPromptVersion: EDITOR_PROMPT_VERSION,
+    editorPromptVersion: PROMPT_VERSIONS.editor,
     operations,
     receipts,
     references,
     changes,
     sources: reads.map(safeSource),
-    sourceSummaries:
-      diagnostics?.validation.target === "passed" && finalCandidate?.success
-        ? (finalCandidate.data.data?.sources ?? [])
-        : [],
+    sourceSummaries: (corpus?.sources ?? [])
+      .filter((source) => source.overview)
+      .map((source) => ({
+        url: source.finalUrl,
+        information: [
+          source.overview,
+          ...collectionChecks
+            .filter((check) => check.sourceIds.includes(source.id))
+            .flatMap((check) => (check.blocker ? [check.blocker] : [])),
+          ...checks
+            .filter((check) => check.sourceIds.includes(source.id))
+            .map((check) => check.explanation),
+        ].join(" "),
+      })),
     errors,
-    unresolved,
+    unresolved: [
+      ...unresolved,
+      ...roleGaps.filter(
+        (gap) => !unresolved.some((item) => item.message === gap.message),
+      ),
+      ...(research.output
+        ? missingCollectionChecks.map(({ key }) => ({
+            message: `Collection check ${key} was not returned.`,
+          }))
+        : []),
+    ],
     eventNameMismatch: diagnostics?.eventNameMismatch ?? null,
     budget,
     locationResponse: location.modelResponse,
@@ -151,7 +221,7 @@ function assembleReport({
     },
     modelVersion: config.model,
     reasoningEffort: config.reasoningEffort ?? null,
-    promptVersion: RESEARCH_PROMPT_VERSION,
+    promptVersion: PROMPT_VERSIONS.general,
     durationMs: finished - started,
   };
 }

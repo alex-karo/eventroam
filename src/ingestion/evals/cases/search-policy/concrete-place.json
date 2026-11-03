@@ -1,0 +1,76 @@
+{
+  "id": "search-concrete-place",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check festival place concrete-place",
+  "todayUtc": "2026-10-15",
+  "provenance": {
+    "kind": "synthetic-search-policy",
+    "note": "Synthetic place discovery with a known country. No live source or search fallback."
+  },
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "search-policy-event",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "search-policy-event",
+      "slug": "search-policy-event",
+      "canonicalName": "Harbor Echo",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://harborechofestival.co.uk/",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "search-policy-edition",
+          "editionKey": "2027",
+          "editionYear": 2027,
+          "startsOn": "2027-01-23",
+          "endsOn": "2027-01-30",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "GB",
+          "termIds": []
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://harborechofestival.co.uk/",
+      "finalUrl": "https://harborechofestival.co.uk/",
+      "retrievedAt": "2026-10-15T12:00:00Z",
+      "method": "http",
+      "status": "ok",
+      "markdownFile": "country-only.md"
+    },
+    {
+      "attemptedUrl": "https://harborechofestival.co.uk/visitor-guide",
+      "finalUrl": "https://harborechofestival.co.uk/visitor-guide",
+      "retrievedAt": "2026-10-15T12:00:00Z",
+      "method": "http",
+      "status": "ok",
+      "markdownFile": "concrete-place.md"
+    }
+  ],
+  "discoveries": [
+    {
+      "queryPattern": ".*",
+      "candidates": [
+        {
+          "url": "https://harborechofestival.co.uk/visitor-guide",
+          "title": "Harbor Echo 2027 official visitor guide",
+          "highlights": ["Festival venue and access information."]
+        }
+      ]
+    }
+  ]
+}

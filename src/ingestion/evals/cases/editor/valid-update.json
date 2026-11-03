@@ -73,73 +73,9 @@
       "markdownFile": "../sziget/info.md"
     }
   ],
-  "expectations": {
-    "required": [
-      {
-        "owner": "event",
-        "field": "links",
-        "containsAny": [
-          {
-            "url": "https://szigetfestival.com/en/",
-            "kind": "official_site"
-          },
-          {
-            "url": "https://www.szigetfestival.com/",
-            "kind": "official_site"
-          },
-          {
-            "url": "https://szigetfestival.com/",
-            "kind": "official_site"
-          }
-        ]
-      },
-      {
-        "owner": "edition",
-        "field": "starts_on",
-        "value": "2027-08-10",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "field": "ends_on",
-        "value": "2027-08-14",
-        "editionYear": 2027
-      },
-      {
-        "owner": "edition",
-        "field": "date_state",
-        "value": "confirmed",
-        "editionYear": 2027
-      }
-    ],
-    "forbidden": [
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "starts_on"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "ends_on"
-      },
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "starts_on",
-        "value": null
-      },
-      {
-        "owner": "edition",
-        "editionKey": "source-row",
-        "field": "ends_on",
-        "value": null
-      }
-    ]
-  },
   "provenance": {
     "kind": "captured-source-editor-regression",
-    "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section."
+    "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section. Editor input now uses fixed source-backed Reader passages and explicit proposal citations. Research and Reader do not call a model."
   },
-  "researchHandoffFile": "valid-update.research.json"
+  "roleHandoffFile": "valid-update.roles.json"
 }

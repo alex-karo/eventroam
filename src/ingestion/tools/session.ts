@@ -32,6 +32,7 @@ export function createSourceSession(
   const read = async (
     url: string,
     operation: SourceLogContext & { tool?: boolean } = {},
+    signal?: AbortSignal,
   ) => {
     const started = Date.now();
     const context = { stage: "source", ...operation };
@@ -86,6 +87,7 @@ export function createSourceSession(
     const request = (async () => {
       const result = await (deps.readPage ?? readPage)(key, {
         budget,
+        signal,
         log: operationLog,
       });
       reads.push(result);
@@ -169,31 +171,12 @@ export function createSourceSession(
     knownLinks.find((link) => link.kind === "official_site")?.url ??
     knownLinks.find((link) => link.official)?.url ??
     knownLinks[0]?.url;
-  async function readInitialSource(operation: SourceLogContext = {}) {
-    if (initialUrl) {
-      try {
-        await read(initialUrl, operation);
-      } catch (error) {
-        if (!(error instanceof ResearchLimitError)) {
-          throw error;
-        }
-      }
-    }
-  }
   return {
     reads,
     discovery,
     readPage: read,
     searchWeb: search,
-    readInitialSource,
     initialUrl,
-    isReadCached: (url: string) => {
-      const key = new URL(url).toString();
-      return (
-        inFlight.has(key) ||
-        reads.some((item) => item.attemptedUrl === key || item.finalUrl === key)
-      );
-    },
   };
 }
 

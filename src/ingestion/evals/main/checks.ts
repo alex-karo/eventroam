@@ -1,5 +1,5 @@
-import { mainScheduleStatuses, type Edition } from "./context";
-import { fact, normalizeUrl } from "./facts";
+import type { Edition } from "./context";
+import { fact } from "./facts";
 
 export function termIds(edition: Edition | undefined, facets: string[]) {
   return (
@@ -37,7 +37,7 @@ export function requiredFacts(
 export function statusFacts(edition: Edition | undefined) {
   return [
     fact("next.dateState", edition?.dateState, ["confirmed"]),
-    fact("next.scheduleStatus", edition?.scheduleStatus, mainScheduleStatuses),
+    fact("next.scheduleStatus", edition?.scheduleStatus, ["scheduled"]),
   ];
 }
 
@@ -56,7 +56,8 @@ export function classification(
 export function basePrice(
   edition: Edition | undefined,
   currency: string,
-  ...amountsMinor: number[]
+  amountsMinor: number[],
+  kinds: ("exact" | "from")[] = ["exact"],
 ) {
   return fact(
     "next.basePrice",
@@ -69,21 +70,25 @@ export function basePrice(
           coverage: edition.priceCoverage,
         }
       : null,
-    amountsMinor.map((amountMinor) => ({
-      kind: "exact",
-      currency,
-      minMinor: amountMinor,
-      maxMinor: amountMinor,
-      coverage: "full_programme",
-    })),
+    amountsMinor.flatMap((amountMinor) =>
+      kinds.map((kind) => ({
+        kind,
+        currency,
+        minMinor: amountMinor,
+        maxMinor: amountMinor,
+        coverage: "full_programme",
+      })),
+    ),
   );
 }
 
 export type Offer = { urls: string[]; amounts: number[]; currency: string };
-/** Check returned offers only. Labels, terms, availability, and duplicates are outside this boundary. */
+/** Check returned prices, or an explicit case rule for supported unpriced offers. */
 export function offerChecks(
   edition: Pick<Edition, "priceDetails"> | undefined,
   allowed: Offer[],
+  allowUnpriced: (offer: Edition["priceDetails"][number]) => boolean = () =>
+    false,
 ) {
   return (edition?.priceDetails ?? []).map((offer, index) =>
     fact(
@@ -91,11 +96,11 @@ export function offerChecks(
       allowed.some(
         (expected) =>
           expected.amounts.includes(offer.amount!) &&
-          offer.currency === expected.currency &&
-          expected.urls.some(
-            (url) => normalizeUrl(url) === normalizeUrl(offer.url ?? ""),
-          ),
-      ),
+          offer.currency === expected.currency,
+      ) ||
+        (offer.amount == null &&
+          offer.currency == null &&
+          allowUnpriced(offer)),
       [true],
     ),
   );
