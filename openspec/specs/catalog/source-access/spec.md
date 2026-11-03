@@ -380,6 +380,8 @@ For anchors retained after page cleanup, the source reader SHALL keep nonempty v
 
 A source-based change SHALL retain enough source context to identify its meaning and applicable Event or Edition. A matching quote SHALL NOT prove factual support by itself. Missing, ambiguous, or unrelated source references SHALL NOT authorize a change. The same source passage can support more than one field. Validation of submitted changes SHALL have read-only access to all saved Markdown pages of the current run, including uncited pages, with source identity checks. This access SHALL NOT permit new research or replacement values.
 
+Reader instructions SHALL prefer full literal quotations for short factual blocks, including multiline addresses and paragraphs with Markdown escapes. A short quotation SHALL retain its object label and required year or qualification. Range references SHALL remain available for long passages.
+
 #### Scenario: The same passage supports two fields
 
 - **WHEN** one passage establishes a venue and supports the Event description
@@ -430,6 +432,12 @@ A source-based change SHALL retain enough source context to identify its meaning
 - **WHEN** validation searches saved source text and receives no matches or shortened matching lines
 - **THEN** that result alone does not establish that a fact or qualification is absent
 - **AND** a proposed change still needs applicable source support
+
+#### Scenario: A short address ends with a repeated city line
+
+- **WHEN** a page gives office and festival addresses that end with the same city line
+- **THEN** Reader is instructed to copy each relevant short address block in full with its own label
+- **AND** literal binding and location applicability checks still apply
 
 ### Requirement: Saved sources support later validation
 

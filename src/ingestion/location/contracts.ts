@@ -2,7 +2,7 @@ import { z } from "zod";
 import { modelOutputSchema } from "../runtime/model-output";
 import { pointSchema } from "../tools/geocode/contracts";
 
-export const LOCATION_PROMPT_VERSION = "catalog-location-v22";
+export const LOCATION_PROMPT_VERSION = "catalog-location-v23";
 export const locationTextFields = [
   "venueName",
   "venueAddress",
