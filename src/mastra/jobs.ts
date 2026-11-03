@@ -9,7 +9,6 @@ import type { createStudioIngestionWorkflow } from "./ingestion";
 export function createStudioJobs(
   workflow: ReturnType<typeof createStudioIngestionWorkflow>,
   log?: ResearchLogger,
-  catalogPath = () => readDatabaseEnvironment().DATABASE_PATH,
 ) {
   const controller = new AbortController();
   let status: "idle" | "running" | "unavailable" | "stopped" = "idle";
@@ -32,7 +31,7 @@ export function createStudioJobs(
       return;
     }
     try {
-      const client = openJobCatalog(catalogPath());
+      const client = openJobCatalog(readDatabaseEnvironment().DATABASE_PATH);
       status = "running";
       process.on("SIGINT", onSignal);
       process.on("SIGTERM", onSignal);

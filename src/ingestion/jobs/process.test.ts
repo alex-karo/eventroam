@@ -24,14 +24,10 @@ function fixture() {
     OPENROUTER_API_KEY: "",
   };
   const children: ChildProcessWithoutNullStreams[] = [];
-  function start(mode: string, command = "src/test/jobs-studio.ts") {
+  function start(mode: string) {
     const child = spawn(
       process.execPath,
-      [
-        ...(command.endsWith(".mjs") ? [] : ["--import", "tsx"]),
-        resolve(command),
-        mode,
-      ],
+      ["--import", "tsx", resolve("src/test/jobs-studio.ts"), mode],
       { env, stdio: "pipe" },
     );
     children.push(child);

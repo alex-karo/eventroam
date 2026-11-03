@@ -42,7 +42,7 @@ export function createStudioIngestionWorkflow(
       jobIds.set(run.runId, job.id);
       let cancellation: Promise<void> | undefined;
       const cancel = () => {
-        cancellation ??= run.cancel().then(() => {});
+        cancellation ??= run.cancel();
         // Attach a handler immediately; cleanup awaits the original promise.
         void cancellation.catch(() => {});
       };
