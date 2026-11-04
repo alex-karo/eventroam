@@ -92,7 +92,7 @@ async function fetchSource(
   }
   options.budget.consumePage();
   result.method = "firecrawl";
-  options.log?.warn("Blocked source uses Firecrawl fallback", {
+  options.log?.info("Blocked source uses Firecrawl fallback", {
     attemptedUrl: response.finalUrl,
     httpStatus: 403,
     provider: "firecrawl",

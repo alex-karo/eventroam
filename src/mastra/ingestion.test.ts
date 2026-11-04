@@ -67,3 +67,54 @@ test("graph inspection is lazy and execution never creates a missing catalog", a
   expect(existsSync(catalog)).toBe(false);
   await history.close();
 });
+
+test.each(["failed", "canceled"])(
+  "job execution exposes returned %s status without private errors",
+  async (status) => {
+    const workflow = createStudioIngestionWorkflow(
+      new DuckDBStore({ path: ":memory:" }),
+    );
+    const run = await workflow.createRun();
+    vi.spyOn(workflow, "createRun").mockResolvedValue(run);
+    // WorkflowResult omits the canceled status returned by the engine.
+    vi.spyOn(run, "start").mockResolvedValue({
+      status,
+      input: {},
+      steps: {},
+      error: new Error("PRIVATE_EXECUTION_ERROR"),
+    } as Awaited<ReturnType<typeof run.start>>);
+    const log = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn(),
+    };
+    const result = await workflow.executeJob(
+      {
+        id: "job",
+        batch_id: "batch",
+        event_id: "event",
+        scope: "full",
+        dry_run: 1,
+      } as Parameters<typeof workflow.executeJob>[0],
+      new AbortController().signal,
+      log,
+    );
+    expect(result).toEqual({
+      failed: status === "failed",
+    });
+    expect(log[status === "failed" ? "error" : "warn"]).toHaveBeenCalledWith(
+      "Ingestion job workflow ended",
+      expect.objectContaining({ status }),
+    );
+    expect(log[status === "failed" ? "warn" : "error"]).not.toHaveBeenCalled();
+    expect(
+      JSON.stringify([
+        ...log.info.mock.calls,
+        ...log.warn.mock.calls,
+        ...log.error.mock.calls,
+      ]),
+    ).not.toContain("PRIVATE_EXECUTION_ERROR");
+  },
+);

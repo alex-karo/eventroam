@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { createResearchBudget } from "../runtime/budget";
+import { ResearchLimitError, createResearchBudget } from "../runtime/budget";
 import type { ResearchDependencies } from "../contracts";
 import type { KnownSourceLink } from "./contracts";
 import type { ReadPageResult } from "./read-page/contracts";
@@ -193,5 +193,52 @@ test.each(["ok", "unsupported", "failed"] as const)(
       expect(finished).not.toHaveProperty(field);
     }
     expect(JSON.stringify(calls)).not.toContain("PRIVATE_PAGE_BODY");
+  },
+);
+
+test.each([false, true])(
+  "tool search failure keeps one warning for budget failure %s",
+  async (budgetFailure) => {
+    const log = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn(),
+    };
+    log.child.mockReturnValue(log);
+    const budget = createResearchBudget();
+    const error = budgetFailure
+      ? new ResearchLimitError("searches")
+      : Object.assign(new Error("PRIVATE_RESPONSE"), { statusCode: 503 });
+    const sources = createSourceSession(
+      budget,
+      { apiKey: "fixture", model: "fixture", limits: budget.limits },
+      [],
+      {
+        searchWeb: async () => {
+          throw error;
+        },
+      },
+      log,
+    );
+    await expect(
+      sources.searchWeb("festival", { tool: true, toolCallId: "call-1" }),
+    ).rejects.toBe(error);
+    expect(log.child).toHaveBeenCalledWith(
+      expect.objectContaining({ toolCallId: "call-1" }),
+    );
+    expect(log.warn).toHaveBeenCalledOnce();
+    expect(log.warn).toHaveBeenCalledWith(
+      budgetFailure ? "Research budget exhausted" : "Source discovery finished",
+      expect.objectContaining(
+        budgetFailure
+          ? { budgetKind: "searches" }
+          : { status: "failed", httpStatus: 503 },
+      ),
+    );
+    expect(JSON.stringify(log.warn.mock.calls)).not.toContain(
+      "PRIVATE_RESPONSE",
+    );
   },
 );

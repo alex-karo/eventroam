@@ -1,9 +1,19 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { submitJobs, cancelPendingJobs, nextJob } from "./store";
 import { processJobs } from "./processor";
+
+function testLogger() {
+  return {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn(),
+  };
+}
 
 function setup(n = 4) {
   const db = testDatabase(),
@@ -103,4 +113,78 @@ test("shutdown awaits active cleanup, leaves running, and never claims another j
     { status: "cancelled", n: 3 },
     { status: "running", n: 1 },
   ]);
+});
+
+test("a returned workflow failure is recorded in the job completion log", async () => {
+  const { client } = setup(1);
+  const controller = new AbortController();
+  const log = testLogger();
+  const work = processJobs({
+    client,
+    signal: controller.signal,
+    execute: async () => ({ failed: true }),
+    log,
+  });
+  try {
+    await expect
+      .poll(() =>
+        log.info.mock.calls.some(
+          ([message]) => message === "Ingestion job done",
+        ),
+      )
+      .toBe(true);
+    expect(log.info).toHaveBeenCalledWith(
+      "Ingestion job done",
+      expect.objectContaining({ failed: true }),
+    );
+  } finally {
+    controller.abort();
+    await work;
+  }
+});
+
+test("shutdown alone does not hide an unconfirmed execution error", async () => {
+  const { client } = setup(1);
+  const controller = new AbortController();
+  const log = testLogger();
+  await processJobs({
+    client,
+    signal: controller.signal,
+    execute: async () => {
+      controller.abort();
+      throw new Error("Private storage failure during shutdown");
+    },
+    log,
+  });
+  expect(log.error).toHaveBeenCalledWith(
+    "Ingestion job processing failed",
+    expect.objectContaining({ errorCode: "execution_failed" }),
+  );
+  expect(log.warn).toHaveBeenCalledWith(
+    "Ingestion job interrupted",
+    expect.any(Object),
+  );
+});
+
+test("confirmed cancellation does not emit an execution error", async () => {
+  const { client } = setup(1);
+  const controller = new AbortController();
+  const log = testLogger();
+  await processJobs({
+    client,
+    signal: controller.signal,
+    log,
+    execute: async () => {
+      controller.abort();
+      controller.signal.throwIfAborted();
+    },
+  });
+  expect(log.error).not.toHaveBeenCalled();
+  expect(log.warn).toHaveBeenCalledWith(
+    "Ingestion job interrupted",
+    expect.any(Object),
+  );
+  expect(
+    client.prepare("SELECT status FROM ingestion_jobs").pluck().get(),
+  ).toBe("running");
 });

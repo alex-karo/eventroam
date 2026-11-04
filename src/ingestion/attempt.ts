@@ -37,6 +37,7 @@ export class CatalogAttempt {
   sources: SourceSession | null = null;
   finalization?: Promise<CatalogResearchResult>;
   private cleanupPromise?: Promise<void>;
+  private cancelledWithoutPriorFailure = false;
   private active = new Set<Promise<unknown>>();
 
   constructor(
@@ -147,6 +148,10 @@ export class CatalogAttempt {
     if (this.finalization || data.report) {
       return;
     }
+    this.cancelledWithoutPriorFailure =
+      cancelled &&
+      data.outcome !== "failed" &&
+      !data.errors.some((error) => error.code === "workflow_failed");
     if (cancelled) {
       this.trace?.failed("cancelled");
     } else {
@@ -198,6 +203,7 @@ export class CatalogAttempt {
           result,
           this.input,
           preparationDiagnostics(data),
+          this.cancelledWithoutPriorFailure,
         );
         return result;
       } catch (error) {
