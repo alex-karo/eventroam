@@ -14,6 +14,7 @@ import { checks as sizeHistory } from "./cases/size-history/checks";
 import { checks as sourceRegressions } from "./cases/source-regressions/checks";
 import { checks as searchPolicy } from "./cases/search-policy/checks";
 import { checks as narrowCurrent } from "./cases/narrow-current/checks";
+import { checks as wackenAdd } from "./cases/wacken/add";
 
 import { catalogChanges } from "./changes";
 import type { Check } from "./checks";
@@ -39,6 +40,7 @@ const evaluators: Record<string, RegressionEvaluator> = {
   ...sourceRegressions,
   ...searchPolicy,
   ...narrowCurrent,
+  ...wackenAdd,
 };
 
 export function assertRegressionCase(item: PipelineEvalCase) {
