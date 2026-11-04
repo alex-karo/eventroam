@@ -150,7 +150,7 @@ export function createSourceSession(
         },
       });
     } catch (error) {
-      if (!operation.tool) {
+      if (!operation.tool || !(error instanceof ResearchLimitError)) {
         operationLog?.warn("Source discovery finished", {
           query,
           status: "failed",

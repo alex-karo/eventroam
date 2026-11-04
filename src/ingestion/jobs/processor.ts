@@ -7,7 +7,10 @@ import { finishJob, nextJob, type IngestionJob } from "./store";
 export async function processJobs(options: {
   client: Database.Database;
   signal: AbortSignal;
-  execute: (job: IngestionJob, signal: AbortSignal) => Promise<unknown>;
+  execute: (
+    job: IngestionJob,
+    signal: AbortSignal,
+  ) => Promise<void | { failed: boolean }>;
   log?: ResearchLogger;
 }) {
   const { client, signal, execute, log } = options;
@@ -30,13 +33,16 @@ export async function processJobs(options: {
     log?.info("Ingestion job started", fields);
     let failed = false;
     try {
-      await execute(job, signal);
-    } catch {
+      const result = await execute(job, signal);
+      failed = result?.failed ?? false;
+    } catch (error) {
       failed = true;
-      log?.error("Ingestion job processing failed", {
-        ...fields,
-        errorCode: "execution_failed",
-      });
+      if (!signal.aborted || error !== signal.reason) {
+        log?.error("Ingestion job processing failed", {
+          ...fields,
+          errorCode: "execution_failed",
+        });
+      }
     }
     // Cancellation can settle the workflow. It must not complete the interrupted job.
     if (signal.aborted) {

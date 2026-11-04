@@ -52,7 +52,7 @@ describe("readPage", () => {
       firecrawlRequest,
       log,
     });
-    expect(log.warn).toHaveBeenCalledWith(
+    expect(log.info).toHaveBeenCalledWith(
       "Blocked source uses Firecrawl fallback",
       expect.objectContaining({
         httpStatus: 403,

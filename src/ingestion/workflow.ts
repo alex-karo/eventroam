@@ -233,12 +233,11 @@ async function safePhase(
   }
   try {
     return await execute();
-  } catch {
-    if (abortSignal.aborted) {
-      // Failed steps discard buffered state updates in the installed engine.
-      // Persist their local accounting before throwing; no private checkpoint.
+  } catch (error) {
+    if (abortSignal.aborted && error === abortSignal.reason) {
+      // Let the phase save its source state before the engine ends cancellation.
       await owned.finalizeFailure(data, true);
-      throw new Error("Ingestion cancelled");
+      return null;
     }
     await owned.settle();
     if (owned.collection && !data.corpus) {
@@ -383,9 +382,12 @@ export function createCatalogIngestionWorkflow(
         try {
           await setState({ data: serialize(data) });
           return serialize(output ?? null) as z.infer<typeof stepSchema>;
-        } catch {
+        } catch (error) {
           // Unserializable state cannot replace the last completed native state.
-          await owned.finalizeFailure(data, abortSignal.aborted);
+          await owned.finalizeFailure(
+            data,
+            abortSignal.aborted && error === abortSignal.reason,
+          );
           throw new Error("Ingestion workflow failed");
         }
       },
