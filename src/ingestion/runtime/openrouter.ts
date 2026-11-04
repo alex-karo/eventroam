@@ -1,4 +1,8 @@
 import { randomUUID } from "node:crypto";
+import type {
+  AgentExecutionOptions,
+  AgentInstructions,
+} from "@mastra/core/agent";
 import {
   StreamErrorRetryProcessor,
   type ProcessAPIErrorArgs,
@@ -49,6 +53,31 @@ export function researchProviderOptions(config: ResearchConfig) {
       }),
     },
   };
+}
+
+export function createResearchModelOptions(
+  config: ResearchConfig,
+  options: { instructions: string; cacheInstructions?: boolean },
+) {
+  const model = createResearchModel(config);
+  let instructions: AgentInstructions = options.instructions;
+  const providerOptions: AgentExecutionOptions["providerOptions"] =
+    researchProviderOptions(config);
+  if (options.cacheInstructions && model.id.startsWith("openrouter/")) {
+    instructions = {
+      role: "system",
+      content: options.instructions,
+      providerOptions: {
+        openrouter: { cacheControl: { type: "ephemeral" } },
+      },
+    };
+    // Disable automatic boundaries so dynamic input stays outside the cache.
+    providerOptions.openrouter = {
+      ...providerOptions.openrouter,
+      prompt_cache_options: { mode: "explicit" },
+    };
+  }
+  return { model, instructions, providerOptions };
 }
 
 /** Retry only OpenRouter's explicit capacity failure, never a generic 502. */

@@ -34,7 +34,7 @@ Before returning, check that every selected fact keeps its local scope and quali
 export function readSource(
   options: Omit<
     Parameters<typeof invokeRole>[0],
-    "role" | "version" | "instructions" | "schema"
+    "role" | "version" | "instructions" | "schema" | "cacheInstructions"
   >,
 ) {
   return invokeRole({
@@ -43,6 +43,7 @@ export function readSource(
     role: "reader",
     version: PROMPT_VERSIONS.reader,
     instructions: readerInstructions,
+    cacheInstructions: true,
     schema: readerOutputSchema,
   });
 }
