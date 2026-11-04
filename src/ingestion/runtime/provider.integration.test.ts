@@ -6,7 +6,7 @@ import { collectionOutputSchema } from "../roles/contracts";
 import { createResearchBudget, DEFAULT_RESEARCH_LIMITS } from "./budget";
 import { loadResearchConfig } from "./config";
 import { sourceUrlSchema } from "../tools/contracts";
-import { readSource } from "../evidence/reader";
+import { readerInstructions, readSource } from "../evidence/reader";
 
 const config = {
   apiKey: "PRIVATE_TEST_KEY",
@@ -125,12 +125,14 @@ afterEach(() => {
 });
 
 test.each([
-  "fixture/provider-model",
-  "openai/gpt-6-luna",
-  "openai/gpt-4.1-mini",
+  { model: "fixture/provider-model", cacheInstructions: true },
+  { model: "openai/gpt-6-luna", cacheInstructions: true },
+  { model: "openai/gpt-4.1-mini", cacheInstructions: true },
+  { model: "anthropic/claude-sonnet-4.6", cacheInstructions: true },
+  { model: "opencode-go/gpt-6-luna", cacheInstructions: false },
 ])(
-  "native Reader accepts short and contextual evidence without nullable placeholders (%s)",
-  async (model) => {
+  "native Reader retains evidence and limits explicit caching to fixed instructions ($model)",
+  async ({ model, cacheInstructions }) => {
     const output = {
       overview: "Admission offers",
       coverage: {
@@ -151,11 +153,13 @@ test.each([
         },
       ],
     };
+    let request: Record<string, unknown> = {};
     vi.stubGlobal(
       "fetch",
       vi.fn(async (_url, init) => {
-        const request = JSON.parse(String(init?.body));
-        const schema = request.response_format.json_schema.schema;
+        const body = JSON.parse(String(init?.body));
+        request = body;
+        const schema = body.response_format.json_schema.schema;
         expect(strictProblems(schema)).toEqual([]);
         const variants = schema.properties.evidence.items.anyOf;
         expect(variants).toHaveLength(2);
@@ -163,19 +167,48 @@ test.each([
         return response({ content: JSON.stringify(output) });
       }),
     );
-    const result = await readSource({
-      input: { page: "# 2027\nFull pass €100.\nChildren enter free." },
-      config: { ...config, model },
-      budget: createResearchBudget(),
-    });
-    expect(result.status).toBe("success");
-    expect(result.output).toEqual(output);
+    for (const year of [2027, 2028]) {
+      const input = {
+        assignment: { requestedName: "Festival", currentDate: "2026-11-04" },
+        source: { id: `s${year}`, finalUrl: `https://example.org/${year}` },
+        page: `# ${year}\nFull pass €100.\nChildren enter free.`,
+      };
+      const result = await readSource({
+        input,
+        config: { ...config, model },
+        budget: createResearchBudget(),
+      });
+      expect(result.status).toBe("success");
+      expect(result.output).toEqual(output);
+      expect(request.prompt_cache_options).toEqual(
+        cacheInstructions ? { mode: "explicit" } : undefined,
+      );
+      expect(request.messages).toEqual([
+        {
+          role: cacheInstructions ? "system" : "developer",
+          content: cacheInstructions
+            ? [
+                {
+                  type: "text",
+                  text: readerInstructions,
+                  cache_control: { type: "ephemeral" },
+                },
+              ]
+            : readerInstructions,
+        },
+        { role: "user", content: JSON.stringify(input) },
+      ]);
+    }
   },
 );
 
-test.each(["research", "reader"] as const)(
-  "native %s requests retain output settings and use role-specific prompt caching",
-  async (role) => {
+test.each([
+  { role: "research", cacheInstructions: undefined },
+  { role: "research", cacheInstructions: true },
+  { role: "reader", cacheInstructions: false },
+] as const)(
+  "native $role requests retain output settings and use caller cache setting $cacheInstructions",
+  async ({ role, cacheInstructions }) => {
     const settings = loadResearchConfig({
       NODE_ENV: "test",
       OPENROUTER_API_KEY: "fixture",
@@ -199,6 +232,7 @@ test.each(["research", "reader"] as const)(
       role,
       version: "fixture",
       instructions: "Fixture",
+      cacheInstructions,
       input: {},
       schema: collectionOutputSchema,
       config: {
@@ -217,11 +251,25 @@ test.each(["research", "reader"] as const)(
     expect(request.model).toBe("openai/gpt-6-luna");
     expect(request.reasoning).toEqual({ effort: "medium" });
     expect(request.service_tier).toBe(settings.serviceTier);
-    expect(request.prompt_cache_options).toBeUndefined();
-    expect(JSON.stringify(request.messages)).not.toContain(
-      "prompt_cache_breakpoint",
+    expect(request.prompt_cache_options).toEqual(
+      cacheInstructions ? { mode: "explicit" } : undefined,
     );
-    expect(JSON.stringify(request.messages)).not.toContain("cache_control");
+    expect(request.messages).toEqual([
+      {
+        role: "system",
+        content: [
+          {
+            type: "text",
+            text: "Fixture",
+            ...(cacheInstructions && {
+              cache_control: { type: "ephemeral" },
+            }),
+          },
+        ],
+      },
+      { role: "user", content: "{}" },
+    ]);
+    expect(request.cache_control).toBeUndefined();
     expect(request.tools).toBeUndefined();
     expect(request.stream).not.toBe(true);
     const schema = (

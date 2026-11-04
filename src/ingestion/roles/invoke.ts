@@ -1,7 +1,6 @@
-import { Agent } from "@mastra/core/agent";
+import { Agent, type ToolsInput } from "@mastra/core/agent";
 import { Mastra } from "@mastra/core/mastra";
 import { noopLogger } from "@mastra/core/logger";
-import type { ToolsInput } from "@mastra/core/agent";
 import { z } from "zod";
 import type { ResearchConfig } from "../runtime/config";
 import type { ResearchBudget } from "../runtime/budget";
@@ -11,8 +10,7 @@ import type { ResearchError } from "../research/contracts";
 import type { RunObservability } from "../runtime/observability/runtime";
 import { modelOutputSchema } from "../runtime/model-output";
 import {
-  createResearchModel,
-  researchProviderOptions,
+  createResearchModelOptions,
   providerUnavailableRetry,
   MAX_PROVIDER_UNAVAILABLE_RETRIES,
 } from "../runtime/openrouter";
@@ -143,6 +141,7 @@ export async function invokeRole<T>(options: {
   role: Role;
   version: string;
   instructions: string;
+  cacheInstructions?: boolean;
   input: unknown;
   schema: z.ZodType<T>;
   normalizeOutput?: (value: unknown) => unknown;
@@ -198,11 +197,13 @@ export async function invokeRole<T>(options: {
       });
       execution.modelResponse = { text: null, object: raw ?? null };
     } else {
+      const { model, instructions, providerOptions } =
+        createResearchModelOptions(config, options);
       const agent = new Agent({
         id: `festival-${role}`,
         name: `Festival ${role}`,
-        instructions: options.instructions,
-        model: createResearchModel(config),
+        instructions,
+        model,
         tools: options.tools,
         errorProcessorDefaults: false,
         maxProcessorRetries: MAX_PROVIDER_UNAVAILABLE_RETRIES,
@@ -237,7 +238,7 @@ export async function invokeRole<T>(options: {
         stopWhen: ({ steps }: { steps: unknown[] }) =>
           steps.length - unavailableAttempts >= ordinarySteps,
         toolCallConcurrency: { limit: 3, strategy: "called" },
-        providerOptions: researchProviderOptions(config),
+        providerOptions,
         modelSettings: {
           maxOutputTokens:
             options.outputTokens ?? budget.limits.modelOutputTokens,
