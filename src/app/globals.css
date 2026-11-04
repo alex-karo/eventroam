@@ -877,7 +877,7 @@ a:hover {
   display: inline-flex;
   min-width: 0;
   max-width: 100%;
-  min-height: 44px;
+  min-height: 32px;
   padding: 5px 8px;
   gap: 6px;
   align-items: center;
