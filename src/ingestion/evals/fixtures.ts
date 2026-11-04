@@ -1,3 +1,4 @@
+import { addInputSchema } from "../add-input";
 import { assertMainCase } from "./main";
 import { assertRegressionCase } from "./regression";
 import { assertLocationCase } from "./location";
@@ -98,7 +99,7 @@ const commonCaseSchema = z.strictObject({
   input: z.object({
     mode: z.enum(["add", "refresh"]),
     scope: z.enum(["full", "current"]).optional(),
-    name: z.string().optional(),
+    input: addInputSchema.optional(),
     eventId: z.string().optional(),
     actor: z.string(),
     initiatedBy: z.string(),

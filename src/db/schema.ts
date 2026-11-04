@@ -221,8 +221,9 @@ export const ingestionJobs = sqliteTable(
     id: text("id").primaryKey(),
     batchId: text("batch_id").notNull(),
     position: integer("position").notNull(),
-    eventId: text("event_id").notNull(),
-    scope: text("scope", { enum: ["current", "full"] }).notNull(),
+    addInput: text("add_input"),
+    eventId: text("event_id"),
+    scope: text("scope", { enum: ["current", "full"] }),
     dryRun: integer("dry_run", { mode: "boolean" }).notNull(),
     status: text("status", {
       enum: ["pending", "running", "done", "cancelled"],

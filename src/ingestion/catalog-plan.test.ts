@@ -16,7 +16,7 @@ import {
 
 const input = {
   mode: "add" as const,
-  name: "Example Fest",
+  input: "Example Fest",
   actor: "catalog-research",
   dryRun: false,
 };
@@ -72,7 +72,7 @@ test.each([
     const general = fixtureTargets();
     general.observedEventName = name as string;
     const result = await runFixtureResearch(
-      { ...input, name: name as string },
+      { ...input, input: name as string },
       { client, ...fixtureDependencies({ general }) },
     );
     expect(result.errors).toEqual([]);

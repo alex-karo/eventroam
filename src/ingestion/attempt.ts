@@ -94,7 +94,6 @@ export class CatalogAttempt {
       mode: this.input.mode,
       dryRun: this.input.dryRun,
       eventId: this.input.eventId,
-      eventName: this.input.name,
       model: this.config.model,
       promptVersion: PROMPT_VERSIONS.research,
     });

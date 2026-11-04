@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import type { ToolsInput } from "@mastra/core/agent";
 import { Agent } from "@mastra/core/agent";
 import type { MastraModelConfig } from "@mastra/core/llm";
 import type { Memory } from "@mastra/memory";
@@ -19,10 +20,33 @@ export function createCatalogAssistant(
   model?: MastraModelConfig,
   logging?: AssistantLogging,
 ) {
+  return createCatalogChatAgent(
+    memory,
+    {
+      id: "catalog-assistant",
+      name: "Catalog assistant",
+      instructions: ASSISTANT_INSTRUCTIONS,
+      tools: createAssistantTools(
+        () => readDatabaseEnvironment().DATABASE_PATH,
+        logging,
+      ),
+    },
+    model,
+  );
+}
+
+export function createCatalogChatAgent(
+  memory: Memory,
+  options: {
+    id: string;
+    name: string;
+    instructions: string;
+    tools: ToolsInput;
+  },
+  model?: MastraModelConfig,
+) {
   return new Agent({
-    id: "catalog-assistant",
-    name: "Catalog assistant",
-    instructions: ASSISTANT_INSTRUCTIONS,
+    ...options,
     skills: [
       process.env.CATALOG_ASSISTANT_SKILL_PATH ??
         fileURLToPath(new URL("./skills/catalog-sql", import.meta.url)),
@@ -38,10 +62,6 @@ export function createCatalogAssistant(
           }),
         )),
     memory,
-    tools: createAssistantTools(
-      () => readDatabaseEnvironment().DATABASE_PATH,
-      logging,
-    ),
     inputProcessors: [assistantExecutionContext],
     errorProcessorDefaults: false,
     defaultOptions: {

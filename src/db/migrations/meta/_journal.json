@@ -29,6 +29,13 @@
       "when": 1793606400000,
       "tag": "0003_ingestion_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793824014938,
+      "tag": "0004_add_job_inputs",
+      "breakpoints": true
     }
   ]
 }

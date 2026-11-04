@@ -6,7 +6,7 @@ import {
   createCatalogIngestionWorkflow,
   type ResolveCatalogDependencies,
 } from "../ingestion/workflow";
-import type { IngestionJob } from "../ingestion/jobs/store";
+import { jobWorkflowInput, type IngestionJob } from "../ingestion/jobs/store";
 import type { ResearchLogger } from "../ingestion/runtime/logging";
 
 /** Inspection never invokes this resolver or opens the catalog. */
@@ -35,6 +35,7 @@ export function createStudioIngestionWorkflow(
       if (signal.aborted) {
         return;
       }
+      const inputData = jobWorkflowInput(job);
       const run = await workflow.createRun();
       if (signal.aborted) {
         return;
@@ -56,13 +57,7 @@ export function createStudioIngestionWorkflow(
       try {
         log?.info("Ingestion job workflow started", fields);
         const output = await run.start({
-          inputData: {
-            mode: "refresh",
-            eventId: job.event_id,
-            scope: job.scope,
-            dryRun: Boolean(job.dry_run),
-            republish: false,
-          },
+          inputData,
         });
         log?.info("Ingestion job workflow ended", {
           ...fields,

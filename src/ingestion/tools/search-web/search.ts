@@ -1,3 +1,4 @@
+import { setTimeout as retryDelay } from "node:timers/promises";
 import { captureOpenRouterGeneration } from "../../runtime/observability/ai";
 import type { ResearchLogger } from "../../runtime/logging";
 import { ResearchLimitError, type ResearchBudget } from "../../runtime/budget";
@@ -14,6 +15,7 @@ interface Citation {
 }
 
 interface SearchResponse {
+  error?: unknown;
   choices?: { message?: { annotations?: Citation[] } }[];
   usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
 }
@@ -25,6 +27,7 @@ export interface SearchWebOptions {
   now?: () => Date;
   log?: ResearchLogger;
   ai?: { sessionId?: string; traceId?: string; parentId?: string };
+  signal?: AbortSignal;
 }
 
 async function boundedJson(
@@ -70,9 +73,12 @@ function requestSearch(
   maxResults: number,
   options: SearchWebOptions,
 ) {
-  const signal = AbortSignal.timeout(
+  const timeout = AbortSignal.timeout(
     Math.min(20_000, options.budget.remaining().durationMs),
   );
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, timeout])
+    : timeout;
   return (options.fetch ?? fetch)(
     "https://openrouter.ai/api/v1/chat/completions",
     {
@@ -172,7 +178,11 @@ async function waitBeforeRetry(
     httpStatus,
     remaining,
   });
-  await new Promise<void>((resolve) => setTimeout(resolve, delay));
+  if (options.signal) {
+    await retryDelay(delay, undefined, { signal: options.signal });
+  } else {
+    await new Promise<void>((resolve) => setTimeout(resolve, delay));
+  }
   options.budget.assertTime();
 }
 
@@ -188,13 +198,19 @@ export async function searchWeb(
 ): Promise<SearchWebResult> {
   const startedAt = Date.now();
   const normalized = searchQuerySchema.parse(query);
-  const maxResults = Math.min(
-    Math.max(1, options.budget.limits.searchResults),
-    20,
-  );
+  const maxResults = Math.min(options.budget.limits.searchResults, 20);
+  options.budget.assertTime();
+  if (maxResults === 0) {
+    return {
+      query: normalized,
+      candidates: [],
+      retrievedAt: (options.now?.() ?? new Date()).toISOString(),
+    };
+  }
   let data: SearchResponse | undefined;
   let lastError: Error | undefined;
   for (let attempt = 0; attempt < 3; attempt += 1) {
+    options.signal?.throwIfAborted();
     options.budget.consumeSearch();
     options.budget.consumeModelCall();
     try {
@@ -223,8 +239,12 @@ export async function searchWeb(
         throw error;
       }
       data = (await boundedJson(response, 1024 * 1024)) as SearchResponse;
+      if (data?.error !== undefined && data.error !== null) {
+        throw new Error("search_provider_error");
+      }
       break;
     } catch (error) {
+      options.signal?.throwIfAborted();
       lastError = error instanceof Error ? error : new Error("search_failed");
       if (
         attempt === 2 ||

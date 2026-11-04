@@ -96,13 +96,13 @@ test("add starts without a named owner and retains the research actor", async ()
   const research = vi.fn<typeof runCatalogResearch>(async () => result());
   expect(
     await executeCatalogCommand(
-      ["add", "--name", "Example Festival", "--database", database.path],
+      ["add", "--input", "Example Festival", "--database", database.path],
       { research },
     ),
   ).toBe(0);
   expect(research.mock.calls[0][0]).toMatchObject({
     mode: "add",
-    name: "Example Festival",
+    input: "Example Festival",
     actor: "catalog-research",
     dryRun: true,
   });

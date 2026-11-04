@@ -1,3 +1,4 @@
+import { createCatalogResearcher } from "./catalog-researcher";
 import { createCatalogAssistant } from "./catalog-assistant";
 import {
   chatDatabasePath,
@@ -26,6 +27,11 @@ const jobs = createStudioJobs(
 export const mastra = new Mastra(
   {
     agents: {
+      "catalog-researcher": createCatalogResearcher(
+        chat.memory,
+        undefined,
+        logging,
+      ),
       "catalog-assistant": createCatalogAssistant(
         chat.memory,
         undefined,

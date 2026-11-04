@@ -48,6 +48,21 @@ export function loadResearchConfig(
   }
   const serviceTier = requestedTier === "flex" ? "flex" : undefined;
 
+  return {
+    apiKey,
+    model,
+    locationModel,
+    geoapifyKey: env.GEOAPIFY_KEY?.trim() || undefined,
+    reasoningEffort,
+    serviceTier,
+    limits: loadResearchLimits(env),
+  };
+}
+
+/** Limits also apply to Studio chat without model credentials. */
+export function loadResearchLimits(
+  env: NodeJS.ProcessEnv = process.env,
+): ResearchLimits {
   const limits = { ...DEFAULT_RESEARCH_LIMITS };
   for (const [key, envName] of Object.entries(ENV_LIMITS) as [
     keyof ResearchLimits,
@@ -64,13 +79,5 @@ export function loadResearchConfig(
     limits[key] = parsed;
   }
 
-  return {
-    apiKey,
-    model,
-    locationModel,
-    geoapifyKey: env.GEOAPIFY_KEY?.trim() || undefined,
-    reasoningEffort,
-    serviceTier,
-    limits,
-  };
+  return limits;
 }

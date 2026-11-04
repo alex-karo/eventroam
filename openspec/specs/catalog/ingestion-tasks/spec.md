@@ -2,12 +2,22 @@
 
 ## Purpose
 
-Let the owner submit durable Event refresh jobs and inspect their execution separately from saved ingestion evidence.
+Let the owner submit durable add and Event refresh jobs and inspect their execution separately from saved ingestion evidence.
 
 ## Requirements
 
 ### Requirement: Submission preserves a fixed selection
-The system SHALL validate one to 200 distinct existing Event IDs and accept the complete selection or none of it. Each accepted Event SHALL have one job with fixed settings, a unique ID, and a shared batch ID. Scope SHALL default to full and accept current or full. dryRun SHALL default to true and republish SHALL remain off. Submission SHALL return only the batch ID and accepted count after durable acceptance without waiting for research.
+The queue SHALL accept an ordered batch of 1 to 200 items for one operation. It SHALL validate the entire batch and save one job per item in one transaction. Each job SHALL keep its target, position, fixed settings, unique ID, and shared batch ID. Preview SHALL be the default and republish SHALL stay off. After commit, submission SHALL return only `batchId` and `acceptedCount` without waiting for research.
+
+#### Scenario: Refresh targets
+- **WHEN** the owner submits a refresh batch
+- **THEN** every item must identify a distinct existing Event
+- **AND** scope accepts current or full and defaults to full
+
+#### Scenario: Add targets
+- **WHEN** the owner submits three descriptions for add
+- **THEN** each job keeps its nonblank text at its submitted position without an Event ID or refresh scope
+- **AND** each attempt links to its job even if no Event is created
 
 #### Scenario: Submit a country selection
 - **WHEN** the owner requests apply for 67 resolved Event IDs from France and submission succeeds
@@ -26,11 +36,11 @@ The system SHALL validate one to 200 distinct existing Event IDs and accept the 
 - **AND** the system does not automatically submit again
 
 #### Scenario: Invalid selection
-- **WHEN** input contains duplicate IDs, missing Events, or more than 200 IDs
+- **WHEN** a batch is empty, has more than 200 items, contains a blank add description, or includes a duplicate or missing refresh Event ID
 - **THEN** no jobs or attempts are created
 
 ### Requirement: The worker processes jobs sequentially
-Within the supported one-worker-per-catalog setup, the worker SHALL execute at most one background job at a time. Each execution SHALL refresh its Event with fixed settings and current catalog facts. Ordinary processing failure SHALL permit later jobs. A done job SHALL mean processing ended, without implying ingestion success. Jobs SHALL store queue state and settings, not ingestion results or errors.
+Within the supported one-worker-per-catalog setup, the worker SHALL execute at most one background job at a time. Each execution SHALL run add or refresh for the stored target with fixed settings and current catalog facts. Ordinary processing failure SHALL permit later jobs. A done job SHALL mean processing ended, without implying ingestion success. Jobs SHALL store queue state and settings, not ingestion results or errors.
 
 #### Scenario: Target changes before execution
 - **WHEN** a selected Event changes before its job starts
@@ -44,6 +54,15 @@ Within the supported one-worker-per-catalog setup, the worker SHALL execute at m
 #### Scenario: Validation fails before an attempt
 - **WHEN** processing cannot validate the target or required credentials
 - **THEN** no external work starts and the job becomes done without an invented run
+
+#### Scenario: An add job follows a failed job
+- **WHEN** one add attempt fails and another item is pending
+- **THEN** the processor can run the next item independently with its original description
+
+#### Scenario: Add runs again after a commit
+- **WHEN** a running add job restarts after an earlier attempt committed an Event
+- **THEN** the fresh attempt checks current catalog state and can skip the existing Event
+- **AND** both attempts remain associated with one job
 
 ### Requirement: Job execution is independent of Studio
 Accepted jobs SHALL be processed by a separate worker. Studio shutdown or restart SHALL NOT stop an active job or reset its queue state. Submission, progress reads, and pending cancellation SHALL remain available while the worker is stopped.

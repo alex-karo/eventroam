@@ -50,7 +50,7 @@ test.each(["test", "development"])(
     vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", path);
     expect(
       await createResearchObservability(
-        { mode: "add", name: "Fixture", actor: "test", initiatedBy: "test" },
+        { mode: "add", input: "Fixture", actor: "test", initiatedBy: "test" },
         "fixture/model",
       ),
     ).toBeUndefined();
@@ -67,7 +67,7 @@ test("website analytics does not enable ingestion tracing", async () => {
   vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", path);
   expect(
     await createResearchObservability(
-      { mode: "add", name: "Fixture", actor: "test", initiatedBy: "test" },
+      { mode: "add", input: "Fixture", actor: "test", initiatedBy: "test" },
       "fixture/model",
     ),
   ).toBeUndefined();
@@ -86,7 +86,12 @@ test("a registered run leaves its caller-owned observability store open", async 
   const close = vi.spyOn(store, "close");
   try {
     const run = await createRunObservability(
-      { mode: "add", name: "Fixture", actor: "catalog-research", dryRun: true },
+      {
+        mode: "add",
+        input: "Fixture",
+        actor: "catalog-research",
+        dryRun: true,
+      },
       "fixture/model",
       "shared-run",
       [],
@@ -111,7 +116,7 @@ test("concurrent runs retain both traces after their shared store closes", async
   const runs = await Promise.all(
     ["first", "second"].map((runId) =>
       createRunObservability(
-        { mode: "add", name: "Fixture", actor: "test" },
+        { mode: "add", input: "Fixture", actor: "test" },
         "fixture/model",
         runId,
         [],
@@ -173,7 +178,7 @@ test.each(["rejection", "timeout"] as const)(
         createRunObservability(
           {
             mode: "add",
-            name: "Fixture",
+            input: "Fixture",
             actor: "catalog-research",
             dryRun: false,
           },
@@ -242,7 +247,7 @@ test("asynchronous initialization failure emits a safe diagnostic and falls back
   const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
   expect(
     await createResearchObservability(
-      { mode: "add", name: "Fixture", actor: "test", initiatedBy: "test" },
+      { mode: "add", input: "Fixture", actor: "test", initiatedBy: "test" },
       "fixture/model",
     ),
   ).toBeUndefined();
