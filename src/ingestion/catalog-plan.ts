@@ -1,6 +1,6 @@
+import { festivalEditionRules } from "@/catalog/domain/festival-edition-publication";
 import type { MaterializedLocation } from "./location/validate";
 import type { ApplicationPlan, AcceptedProposals } from "./proposals";
-import { isEditionPublishable } from "@/catalog/domain/validation";
 import { createHash, randomUUID } from "node:crypto";
 import { normalizeCatalogUrl } from "@/catalog/domain/urls";
 import type {
@@ -411,7 +411,7 @@ function prepareEdition(
   });
   if (
     mayPublish(saved, input.republish) &&
-    isEditionPublishable(
+    festivalEditionRules.isPublishable(
       { ...saved, ...values },
       terms.filter((term) => nextTerms.includes(term.id)),
     )

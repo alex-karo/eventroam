@@ -1,12 +1,17 @@
 import { z } from "zod";
-import { price, priceDetail } from "@/catalog/domain/price";
+import { price, priceDetails } from "@/catalog/domain/price";
 import {
   dateStates,
   scheduleStatuses,
   coordinatePrecisions,
   linkKinds,
 } from "@/catalog/domain/vocabulary";
-import { editionScalarSchemas } from "@/catalog/domain/edition-values";
+import {
+  latitude,
+  longitude,
+  sizeEstimate,
+  editionScalarSchemas,
+} from "@/catalog/domain/edition-values";
 
 const slug = z
   .string()
@@ -42,14 +47,14 @@ const editionData = z
     endsOn: editionScalarSchemas.endsOn,
     dateState: z.enum(dateStates).optional(),
     scheduleStatus: z.enum(scheduleStatuses).optional(),
-    sizeEstimate: z.number().int().positive().nullable().optional(),
+    sizeEstimate,
     venueName: z.string().trim().min(1).max(250).nullable().optional(),
     venueAddress: z.string().trim().min(1).max(500).nullable().optional(),
     locality: z.string().trim().min(1).max(250).nullable().optional(),
     administrativeArea: z.string().trim().min(1).max(250).nullable().optional(),
     countryCode: editionScalarSchemas.countryCode,
-    latitude: z.number().min(-90).max(90).nullable().optional(),
-    longitude: z.number().min(-180).max(180).nullable().optional(),
+    latitude,
+    longitude,
     coordinatePrecision: z.enum(coordinatePrecisions).optional(),
     timeZone: editionScalarSchemas.timeZone,
     price: price.nullable().optional(),
@@ -57,7 +62,7 @@ const editionData = z
   .strict();
 export const catalogPriceBlockSchema = z
   .object({
-    priceDetails: z.array(priceDetail).max(100),
+    priceDetails,
     basePrice: price
       .nullable()
       .refine(
@@ -143,7 +148,7 @@ export const catalogOperationSchema = z.discriminatedUnion("kind", [
 export type CatalogOperation = z.input<typeof catalogOperationSchema>;
 export type CatalogOperationMeta = z.infer<typeof common>;
 export type CatalogPrice = z.infer<typeof price>;
-export type CatalogPriceDetail = z.infer<typeof priceDetail>;
+export type CatalogPriceDetail = z.infer<typeof priceDetails>[number];
 export type CatalogOperationResult = {
   id: string;
   version: number;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { validateTermAssignments } from "@/catalog/domain/validation";
+import { normalizeProposedAssignments } from "@/catalog/domain/classification";
 import type { ResearchContext } from "./research/context";
 import type { CatalogResearchInput } from "./contracts";
 import { editionSlotNames } from "./research/contracts";
@@ -310,26 +310,6 @@ function validateLocationSupport(
   }
 }
 
-function selectedAncestors(
-  terms: ResearchContext["terms"],
-  selectedIds: string[],
-  vocabulary: ResearchContext["terms"],
-) {
-  const selected = new Set(selectedIds);
-  const ancestors = new Set<string>();
-  for (const term of terms) {
-    const seen = new Set<string>();
-    let parent = term.parentId;
-    while (parent && !seen.has(parent)) {
-      seen.add(parent);
-      if (selected.has(parent)) {
-        ancestors.add(parent);
-      }
-      parent = vocabulary.find((term) => term.id === parent)?.parentId ?? null;
-    }
-  }
-  return ancestors;
-}
 function attachClassification(
   target: EditionPlan,
   classification: NonNullable<
@@ -373,29 +353,17 @@ function attachClassification(
   ) {
     requireSupport(classification.evidenceIds, corpus);
   }
-  const terms = classification.value.map((id) => {
-    const term = context.terms.find((term) => term.id === id);
-    if (!term) {
-      throw new Error("Unknown classification term");
-    }
-    return term;
-  });
-  if (new Set(classification.value).size !== classification.value.length) {
-    throw new Error("Duplicate classification term");
-  }
-  validateTermAssignments(terms);
-  const ancestors = selectedAncestors(
-    terms,
+  const { retained: termIds, removed } = normalizeProposedAssignments(
     classification.value,
     context.terms,
   );
-  const normalization = ancestors.size
-    ? ` Removed selected ancestor terms ${[...ancestors].join(", ")}; retained descendant terms ${classification.value.filter((id) => !ancestors.has(id)).join(", ")}.`
+  const normalization = removed.length
+    ? ` Removed selected ancestor terms ${removed.join(", ")}; retained descendant terms ${termIds.join(", ")}.`
     : "";
   target.fields.classification = {
     ...classification,
     reason: classification.reason + normalization,
-    value: classification.value.filter((id) => !ancestors.has(id)),
+    value: termIds,
   };
 }
 

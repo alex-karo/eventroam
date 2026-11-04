@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { isAssignedCountryCode } from "./country-codes";
 
+export const sizeEstimate = z.number().int().positive().nullish();
+export const latitude = z.number().min(-90).max(90).nullish();
+export const longitude = z.number().min(-180).max(180).nullish();
+
 const localDate = z.iso.date().nullish();
 export const editionScalarSchemas = {
   startsOn: localDate,

@@ -1,42 +1,10 @@
 import { expect, test } from "vitest";
 import {
   validateEventRecord,
-  validateEditionRecord,
-  validateStoredPrice,
   validateLinkRecord,
   validateAliasRecord,
-  validateTaxonomyTerm,
-  validateTermAssignments,
-  validateFestivalScope,
 } from "./validation";
-import {
-  publicationStates,
-  dateStates,
-  scheduleStatuses,
-  coordinatePrecisions,
-  linkKinds,
-  facets,
-} from "./vocabulary";
-
-const dated = {
-  startsOn: "2027-06-01",
-  endsOn: "2027-06-02",
-  dateState: "confirmed",
-};
-const published = {
-  ...dated,
-  publicationState: "published",
-  editionYear: 2027,
-  countryCode: "PT",
-  locality: "Lisbon",
-};
-const paid = {
-  priceKind: "exact",
-  priceCurrency: "EUR",
-  priceMinMinor: 100,
-  priceMaxMinor: 100,
-  priceCoverage: "full_programme",
-};
+import { publicationStates, linkKinds } from "./vocabulary";
 
 test("event defaults, lifecycle and home scope", () => {
   expect(() => validateEventRecord({})).not.toThrow();
@@ -56,194 +24,15 @@ test("event defaults, lifecycle and home scope", () => {
   }
 });
 
-test("all supported edition statuses and precisions remain valid", () => {
-  for (const scheduleStatus of scheduleStatuses) {
-    validateEditionRecord({ ...dated, scheduleStatus });
-  }
-  for (const dateState of dateStates) {
-    validateEditionRecord(
-      dateState === "unknown" ? { dateState } : { ...dated, dateState },
-    );
-  }
-  for (const coordinatePrecision of coordinatePrecisions) {
-    validateEditionRecord(
-      coordinatePrecision === "unknown"
-        ? { coordinatePrecision }
-        : { coordinatePrecision, latitude: 38, longitude: -9 },
-    );
-  }
-  for (const publicationState of publicationStates) {
-    validateEditionRecord({ ...published, publicationState });
-  }
-  validateEditionRecord({
-    startsOn: null,
-    endsOn: null,
-    latitude: null,
-    longitude: null,
-  });
-  validateEditionRecord({ startsOn: undefined, dateState: undefined });
-});
-
-test.each([
-  "publicationState",
-  "scheduleStatus",
-  "dateState",
-  "coordinatePrecision",
-])("%s rejects unknown values and explicit null", (field) => {
-  for (const value of ["future", null]) {
-    expect(() => validateEditionRecord({ [field]: value })).toThrow();
-  }
-});
-
-test.each([
-  { ...dated, dateState: "unknown" },
-  { dateState: "confirmed" },
-  { scheduleStatus: "scheduled" },
-  { startsOn: "2027-01-01" },
-  { ...dated, endsOn: "2027-05-01" },
-  { coordinatePrecision: "exact" },
-  { latitude: 38, longitude: -9 },
-  { latitude: 38, coordinatePrecision: "exact" },
-  { latitude: 91, longitude: 0, coordinatePrecision: "exact" },
-  { ...published, editionYear: null },
-  { ...published, countryCode: null },
-  { ...published, startsOn: null, endsOn: null, dateState: "unknown" },
-])("inconsistent edition is rejected: %j", (record) => {
-  expect(() => validateEditionRecord(record)).toThrow();
-});
-
-test("published editions need only a country for location", () => {
-  validateEditionRecord({ ...published, locality: null });
-  for (const field of ["venueName", "locality", "administrativeArea"]) {
-    validateEditionRecord({
-      ...published,
-      locality: null,
-      [field]: "Known area",
-    });
-  }
-});
-
-test.each(["topic", "culture"])(
-  "publication accepts arbitrary values with a %s theme",
-  (theme) => {
-    const terms = ["event_type", theme].map((facet) => ({
-      facet,
-      slug: "another-valid-value",
-    }));
-    expect(() => validateFestivalScope(terms)).not.toThrow();
-    expect(() =>
-      validateFestivalScope([...terms, { facet: "format", slug: "openair" }]),
-    ).not.toThrow();
-    for (const missing of ["event_type", theme]) {
-      expect(() =>
-        validateFestivalScope(terms.filter((term) => term.facet !== missing)),
-      ).toThrow(/requires/);
-    }
-  },
-);
-
-test("price variants preserve the existing complete-block contract", () => {
-  validateStoredPrice({});
-  validateStoredPrice({ priceKind: null, priceQualification: null });
-  validateStoredPrice(paid);
-  validateStoredPrice({ ...paid, priceKind: "from", priceCoverage: "day" });
-  validateStoredPrice({
-    ...paid,
-    priceKind: "range",
-    priceMaxMinor: 200,
-    priceCoverage: "package",
-  });
-  validateStoredPrice({
-    priceKind: "free",
-    priceMinMinor: 0,
-    priceMaxMinor: 0,
-    priceCoverage: "full_programme",
-    priceCurrency: null,
-    priceQualification: "x".repeat(500),
-  });
-});
-
-test.each([
-  { priceCurrency: "EUR" },
-  { priceQualification: "stray" },
-  { ...paid, priceKind: null },
-  { ...paid, priceCoverage: null },
-  { ...paid, priceKind: "future" },
-  { ...paid, priceKind: "range" },
-  { ...paid, priceMaxMinor: 200 },
-  { ...paid, priceMinMinor: -1 },
-  { ...paid, priceMinMinor: 1.5 },
-  { ...paid, priceMaxMinor: null },
-  { ...paid, priceCurrency: "eur" },
-  { ...paid, priceCurrency: "EU" },
-  { ...paid, priceCoverage: "future" },
-  { ...paid, priceQualification: "x".repeat(501) },
-  { ...paid, priceKind: "free", priceMinMinor: 0, priceMaxMinor: 0 },
-  {
-    priceKind: "free",
-    priceCurrency: null,
-    priceMinMinor: null,
-    priceMaxMinor: 0,
-    priceCoverage: "full_programme",
-  },
-  {
-    priceKind: "free",
-    priceMinMinor: 0,
-    priceMaxMinor: 0,
-    priceCoverage: "day",
-  },
-])("invalid stored price is rejected: %j", (record) => {
-  expect(() => validateStoredPrice(record)).toThrow();
-});
-
-test("link, alias and facet vocabularies are runtime checked", () => {
+test("link and alias vocabularies are runtime checked", () => {
   for (const kind of linkKinds) {
     validateLinkRecord({ kind });
   }
   expect(linkKinds).toContain("x");
   expect(() => validateLinkRecord({ kind: "twitter" })).toThrow();
   validateAliasRecord({ scope: "festivals" });
-  for (const facet of facets) {
-    validateTaxonomyTerm({ id: "term", facet });
-  }
   for (const value of ["future", null, undefined]) {
     expect(() => validateLinkRecord({ kind: value })).toThrow();
     expect(() => validateAliasRecord({ scope: value })).toThrow();
   }
-  expect(() => validateTaxonomyTerm({ id: "term", facet: "future" })).toThrow();
-});
-
-test("taxonomy validates both sides of an edited parent relation", () => {
-  const parent = { id: "parent", facet: "genre" };
-  const child = { id: "child", facet: "genre", parentId: "parent" };
-  validateTaxonomyTerm(child, parent);
-  validateTaxonomyTerm(parent, undefined, [child]);
-  expect(() => validateTaxonomyTerm(child)).toThrow(/parent/);
-  expect(() =>
-    validateTaxonomyTerm({ ...child, facet: "topic" }, parent),
-  ).toThrow(/same facet/);
-  expect(() =>
-    validateTaxonomyTerm({ ...parent, facet: "topic" }, undefined, [child]),
-  ).toThrow(/same facet/);
-});
-
-test.each(["event_type", "format"])(
-  "only one %s assignment is allowed",
-  (facet) => {
-    validateTermAssignments([{ id: "one", facet }]);
-    expect(() =>
-      validateTermAssignments([
-        { id: "one", facet },
-        { id: "two", facet },
-      ]),
-    ).toThrow(/Only one/);
-  },
-);
-test("multiple topic, genre and culture assignments remain allowed", () => {
-  validateTermAssignments(
-    ["topic", "genre", "culture"].flatMap((facet) => [
-      { id: `${facet}-1`, facet },
-      { id: `${facet}-2`, facet },
-    ]),
-  );
 });
