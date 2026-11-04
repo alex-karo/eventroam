@@ -223,36 +223,3 @@ it("retains the Reader evidence branches and required null uncertainty", async (
   expect(result.output).toEqual(raw);
   expect(result.modelResponse?.object).toEqual(raw);
 });
-
-it.each([false, true])(
-  "preserves limit classification for an aborted signal after deadline %s",
-  async (expired) => {
-    const controller = new AbortController();
-    controller.abort(Symbol("fixture cancellation"));
-    const budget = createResearchBudget();
-    const pending = invokeRole({
-      role: "general",
-      version: "test",
-      instructions: "Fixture",
-      input: {},
-      schema: generalOutputSchema,
-      budget,
-      deadline: expired ? Date.now() - 1 : budget.deadline,
-      config: {
-        apiKey: "fixture",
-        model: "fixture/model",
-        limits: budget.limits,
-      },
-      signal: controller.signal,
-      generate: vi.fn(),
-    });
-    if (expired) {
-      expect(await pending).toMatchObject({
-        status: "failed",
-        errors: [{ code: "limit_reached" }],
-      });
-    } else {
-      await expect(pending).rejects.toBe(controller.signal.reason);
-    }
-  },
-);

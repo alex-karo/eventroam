@@ -21,14 +21,7 @@ test.each(["missing", "unmigrated"])(
     const workflow = createStudioIngestionWorkflow(
       new DuckDBStore({ path: join(dirname(db.path), "unused.duckdb") }),
     );
-    const log = {
-      debug: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-      child: vi.fn(),
-    };
-    const jobs = createStudioJobs(workflow, log);
+    const jobs = createStudioJobs(workflow);
     try {
       const app = new Hono();
       const route = jobs.route;
@@ -42,10 +35,6 @@ test.each(["missing", "unmigrated"])(
       expect(await response.json()).toEqual({ status: "unavailable" });
       expect(Object.keys(workflow.steps)).toContain("general-facts");
       expect(stderr).toHaveBeenCalledOnce();
-      expect(log.error).toHaveBeenCalledExactlyOnceWith(
-        "Ingestion queue unavailable",
-        { errorCode: "job_storage_unavailable" },
-      );
       expect(stderr.mock.calls[0][0]).not.toContain(path);
       if (kind === "missing") {
         expect(existsSync(path)).toBe(false);

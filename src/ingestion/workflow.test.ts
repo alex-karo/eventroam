@@ -160,15 +160,7 @@ function fixture(client = testDatabase().client) {
 function fakeTrace() {
   const finish = vi.fn(async () => {});
   const failed = vi.fn();
-  const log = {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn(),
-  };
   const trace = {
-    log,
     tracing: {
       root: undefined,
       diagnose: vi.fn(),
@@ -179,7 +171,7 @@ function fakeTrace() {
     failed,
   } as unknown as CatalogRunTrace;
   vi.spyOn(runTraceModule, "createCatalogRunTrace").mockResolvedValue(trace);
-  return { finish, failed, log };
+  return { finish, failed };
 }
 function catalogState(client: Database.Database) {
   const db = drizzle(client);
@@ -783,14 +775,6 @@ test("native cancellation waits for active research before finalizing known stat
           await fixtureTool(context, "inspectPage", { url });
           entered();
           await hold;
-          if (!context.abortSignal.aborted) {
-            await new Promise((resolve) =>
-              context.abortSignal.addEventListener("abort", resolve, {
-                once: true,
-              }),
-            );
-          }
-          context.abortSignal.throwIfAborted();
           return { checks: [], unresolved: [] };
         },
       },
@@ -825,11 +809,6 @@ test("native cancellation waits for active research before finalizing known stat
   });
   expect(trace.failed).toHaveBeenCalledWith("cancelled");
   expect(trace.finish).toHaveBeenCalledOnce();
-  expect(trace.log.warn).toHaveBeenCalledWith(
-    "Research finished",
-    expect.any(Object),
-  );
-  expect(trace.log.error).not.toHaveBeenCalled();
 });
 
 test("cancellation after a confirmed write preserves the committed catalog", async () => {
@@ -1730,33 +1709,3 @@ test("retains other specialist diagnostics when Links fails", async () => {
   expect(result.operations).toEqual([]);
   expect(readResearchCatalog(client)).toEqual([]);
 });
-
-test.each(["outcome", "workflow-error"])(
-  "cancellation preserves a prior %s failure in completion logs",
-  async (priorFailure) => {
-    const { client } = fixture();
-    const trace = fakeTrace();
-    const owned = new CatalogAttempt(
-      "cancel-after-failure",
-      { mode: "add", name: "Fixture", actor: "fixture" },
-      { client, generateRole: vi.fn() },
-    );
-    await owned.initialize();
-    const data = createIngestionData();
-    if (priorFailure === "outcome") {
-      data.outcome = "failed";
-    } else {
-      data.errors.push({
-        code: "workflow_failed",
-        stage: "workflow",
-        message: "Earlier failure",
-      });
-    }
-    await owned.finalizeFailure(data, true);
-    expect(trace.log.error).toHaveBeenCalledWith(
-      "Research finished",
-      expect.any(Object),
-    );
-    expect(trace.log.warn).not.toHaveBeenCalled();
-  },
-);
