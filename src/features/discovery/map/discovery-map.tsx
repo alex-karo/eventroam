@@ -89,10 +89,11 @@ function previewContent(summary: DiscoverySummary) {
   const dates = document.createElement("span");
   dates.textContent = dateRange(summary.startsOn, summary.endsOn);
   content.append(dates);
-  const status = document.createElement("span");
-  status.textContent =
-    summary.dateState === "provisional" ? "Tentative dates" : "Confirmed dates";
-  content.append(status);
+  if (summary.dateState === "provisional") {
+    const status = document.createElement("span");
+    status.textContent = "Tentative dates";
+    content.append(status);
+  }
   return content;
 }
 
@@ -587,21 +588,21 @@ export function DiscoveryMap({
             type="button"
             onClick={() => {
               preserveManualCamera();
-              map.current?.zoomOut();
-            }}
-            aria-label="Zoom out"
-          >
-            <Icon name="minus" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              preserveManualCamera();
               map.current?.zoomIn();
             }}
             aria-label="Zoom in"
           >
             <Icon name="plus" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              preserveManualCamera();
+              map.current?.zoomOut();
+            }}
+            aria-label="Zoom out"
+          >
+            <Icon name="minus" />
           </button>
         </div>
       )}
