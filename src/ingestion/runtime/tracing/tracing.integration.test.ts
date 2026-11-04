@@ -15,6 +15,7 @@ import {
   TRACE_CANDIDATE,
   TRACE_SOURCE_BODY,
   TRACE_PUBLIC_URL,
+  TRACE_PUBLIC_MARKER,
 } from "@/test/tracing-fixture";
 // Advance the real SDK deadline only after its second request is hanging.
 async function runTraceFixture(
@@ -126,7 +127,12 @@ test("offline real agent persists native model/tool relationships and run metada
   expect(JSON.parse(root.output as string)).toMatchObject({
     researchStatus: "partial",
   });
-  expect(JSON.parse(root.metadata as string).runId).toBe(result.result.runId);
+  expect(JSON.parse(root.metadata as string)).toMatchObject({
+    runId: result.result.runId,
+    eventName: TRACE_PUBLIC_MARKER,
+    scope: "full",
+    outcome: "failed",
+  });
   const reads = spans.filter((span) => span.entityId === "inspectPage");
   expect(reads).toHaveLength(1);
   for (const read of reads) {
@@ -372,6 +378,11 @@ test.each([
     const root = spans.find((span) => !span.parentSpanId)!;
     const output = JSON.parse(root.output as string);
     expect(root.name).toBe("catalog-ingestion");
+    expect(JSON.parse(root.metadata as string)).toMatchObject({
+      eventName: TRACE_PUBLIC_MARKER,
+      scope: scenario === "skipped" ? null : "full",
+      outcome: traced.result.outcome,
+    });
     expect(output).toEqual({
       researchStatus: traced.result.researchStatus,
       editorStatus: traced.result.editorStatus,
