@@ -1,205 +1,21 @@
 import { z } from "zod";
-import { price, priceDetail } from "./price";
-import { editionScalarSchemas } from "./edition-values";
-import {
-  publicationStates,
-  scopes,
-  dateStates,
-  scheduleStatuses,
-  coordinatePrecisions,
-  linkKinds,
-  facets,
-} from "./vocabulary";
+import { publicationStates, scopes, linkKinds } from "./vocabulary";
 
 type RecordValues = Record<string, unknown>;
-function assert(condition: unknown, message: string): asserts condition {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 const state = z.enum(publicationStates).default("draft");
 const scope = z.enum(scopes);
-const editionStates = z.object({
-  publicationState: state,
-  dateState: z.enum(dateStates).default("unknown"),
-  scheduleStatus: z.enum(scheduleStatuses).default("announced"),
-  coordinatePrecision: z.enum(coordinatePrecisions).default("unknown"),
-});
 
 export function validateEventRecord(r: RecordValues) {
   const publicationState = state.parse(r.publicationState);
   scope.nullish().parse(r.homeScope);
-  assert(
-    publicationState !== "published" || r.homeScope != null,
-    "Published event needs home scope",
-  );
+  if (publicationState === "published" && r.homeScope == null) {
+    throw new Error("Published event needs home scope");
+  }
 }
 
-/** Validate the entire stored block, including stray fields when kind is absent. */
-export function validateStoredPrice(r: RecordValues) {
-  const fields = [
-    r.priceKind,
-    r.priceCurrency,
-    r.priceMinMinor,
-    r.priceMaxMinor,
-    r.priceCoverage,
-    r.priceQualification,
-  ];
-  if (fields.every((value) => value == null)) {
-    return;
-  }
-  assert(r.priceKind != null, "Incomplete price block");
-  if (r.priceKind === "free") {
-    assert(r.priceCurrency == null, "Free price cannot have currency");
-  }
-  price.parse({
-    kind: r.priceKind,
-    ...(r.priceKind === "free" ? {} : { currency: r.priceCurrency }),
-    minMinor: r.priceMinMinor,
-    maxMinor: r.priceMaxMinor,
-    coverage: r.priceCoverage,
-    ...(r.priceQualification == null
-      ? {}
-      : { qualification: r.priceQualification }),
-  });
-}
-
-export function validateEditionRecord(r: RecordValues) {
-  const states = editionStates.parse(r);
-  for (const [field, schema] of Object.entries(editionScalarSchemas)) {
-    schema.parse(r[field]);
-  }
-  z.number().int().positive().nullish().parse(r.sizeEstimate);
-  z.array(priceDetail).max(100).default([]).parse(r.priceDetails);
-  assert(
-    (r.startsOn == null) === (r.endsOn == null),
-    "Date pair is incomplete",
-  );
-  assert(
-    r.startsOn == null
-      ? states.dateState === "unknown"
-      : states.dateState === "provisional" || states.dateState === "confirmed",
-    "Date state conflicts with dates",
-  );
-  assert(
-    r.startsOn == null ||
-      (typeof r.startsOn === "string" &&
-        typeof r.endsOn === "string" &&
-        r.endsOn >= r.startsOn),
-    "End date precedes start date",
-  );
-  assert(
-    states.scheduleStatus !== "scheduled" || r.startsOn != null,
-    "Scheduled edition needs dates",
-  );
-  assert(
-    (r.latitude == null) === (r.longitude == null),
-    "Coordinate pair is incomplete",
-  );
-  assert(
-    r.latitude == null
-      ? states.coordinatePrecision === "unknown"
-      : states.coordinatePrecision !== "unknown",
-    "Coordinate precision conflicts with coordinates",
-  );
-  z.number().min(-90).max(90).nullish().parse(r.latitude);
-  z.number().min(-180).max(180).nullish().parse(r.longitude);
-  if (states.publicationState === "published") {
-    assert(
-      r.startsOn != null && r.endsOn != null && r.editionYear != null,
-      "Publication needs supported dates and year",
-    );
-    assert(r.countryCode != null, "Publication needs country");
-  }
-  validateStoredPrice(r);
-}
 export function validateLinkRecord(r: RecordValues) {
   z.enum(linkKinds).parse(r.kind);
 }
 export function validateAliasRecord(r: RecordValues) {
   scope.parse(r.scope);
-}
-
-export type TaxonomyTerm = {
-  id: string;
-  facet: string;
-  parentId?: string | null;
-};
-/** Relations are supplied from the same transaction as the proposed write. */
-export function validateTaxonomyTerm(
-  term: TaxonomyTerm,
-  parent?: TaxonomyTerm,
-  children: readonly TaxonomyTerm[] = [],
-) {
-  z.enum(facets).parse(term.facet);
-  if (term.parentId != null) {
-    assert(parent?.id === term.parentId, "Unknown taxonomy parent");
-    assert(
-      parent.facet === term.facet,
-      "Taxonomy parent must be in same facet",
-    );
-  }
-  assert(
-    children.every((child) => child.facet === term.facet),
-    "Taxonomy children must be in same facet",
-  );
-}
-export class TermAssignmentCountError extends Error {}
-
-export function validateTermAssignments(terms: readonly TaxonomyTerm[]) {
-  for (const term of terms) {
-    z.enum(facets).parse(term.facet);
-  }
-  for (const facet of ["event_type", "format"]) {
-    const assigned = terms.filter((term) => term.facet === facet);
-    if (assigned.length > 1) {
-      throw new TermAssignmentCountError(
-        `Only one ${facet} term allowed (limit: 1); received: ${assigned.map((term) => term.id).join(", ")}`,
-      );
-    }
-  }
-}
-
-/** The same scope gate is used by ingestion publication and the writer. */
-export function validateFestivalScope(
-  terms: readonly { facet: string; slug: string }[],
-) {
-  const has = (facet: string) => terms.some((term) => term.facet === facet);
-  assert(has("event_type"), "Festival scope requires event type");
-  assert(
-    has("topic") || has("culture"),
-    "Festival scope requires topic or culture",
-  );
-}
-export function isEditionPublishable(
-  record: Record<string, unknown>,
-  terms: readonly { facet: string; slug: string }[],
-) {
-  try {
-    validateEditionRecord({ ...record, publicationState: "published" });
-    validateFestivalScope(terms);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Supply the full taxonomy so that unassigned parents remain in the chain. */
-export function validateTermAssignmentAncestry(
-  terms: readonly TaxonomyTerm[],
-  taxonomy: ReadonlyMap<string, TaxonomyTerm>,
-) {
-  const ids = new Set(terms.map((term) => term.id));
-  for (const term of terms) {
-    const seen = new Set([term.id]);
-    let parentId = term.parentId;
-    while (parentId != null) {
-      assert(!seen.has(parentId), "Taxonomy parent cycle");
-      seen.add(parentId);
-      assert(!ids.has(parentId), "Do not assign redundant ancestor term");
-      const parent = taxonomy.get(parentId);
-      assert(parent, "Unknown taxonomy parent");
-      parentId = parent.parentId;
-    }
-  }
 }

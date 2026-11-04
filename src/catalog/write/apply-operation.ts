@@ -1,11 +1,10 @@
-import { validateCatalogValues } from "./validate-values";
-import { validateFestivalScope } from "../domain/validation";
+import { festivalEditionRules } from "@/catalog/domain/festival-edition-publication";
 import {
-  validateEventRecord,
-  validateEditionRecord,
   validateTermAssignments,
   validateTermAssignmentAncestry,
-} from "@/catalog/domain/validation";
+} from "@/catalog/domain/classification";
+import { validateCatalogValues } from "./validate-values";
+import { validateEventRecord } from "@/catalog/domain/validation";
 import { createHash, randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { and, asc, eq, getTableColumns, inArray } from "drizzle-orm";
@@ -132,7 +131,7 @@ function setEdition(
   id: string,
   values: Partial<EditionValues>,
 ) {
-  validateEditionRecord({ ...editionRow(client, id), ...values });
+  festivalEditionRules.validateRecord({ ...editionRow(client, id), ...values });
   const db = drizzle(client);
   db.update(editions).set(values).where(eq(editions.id, id)).run();
 }
@@ -162,12 +161,12 @@ function diff<T extends object>(
 }
 function validateScope(client: Database.Database, id: string) {
   const terms = drizzle(client)
-    .select({ facet: taxonomyTerms.facet, slug: taxonomyTerms.slug })
+    .select({ facet: taxonomyTerms.facet })
     .from(editionTerms)
     .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, editionTerms.termId))
     .where(eq(editionTerms.editionId, id))
     .all();
-  validateFestivalScope(terms);
+  festivalEditionRules.validateFacets(terms);
 }
 function writeChange(
   client: Database.Database,
@@ -355,7 +354,7 @@ function createEdition(
     createdAt: now,
     updatedAt: now,
   } satisfies EditionValues;
-  validateEditionRecord(record);
+  festivalEditionRules.validateRecord(record);
   db.insert(editions).values(record).run();
   writeChange(client, op, "edition", id, 1, diff(editions, {}, record), now);
   return { id, version: 1, changed: true };
@@ -496,7 +495,10 @@ function changePublication(
       "Cannot withdraw a draft",
     );
     if (target === "published") {
-      validateEditionRecord({ ...old, publicationState: "published" });
+      festivalEditionRules.validateRecord({
+        ...old,
+        publicationState: "published",
+      });
       validateScope(client, op.id);
     }
     const values: Partial<EditionValues> = { publicationState: target };
@@ -596,12 +598,12 @@ function replaceTerms(
   if (!changed) {
     return { id: op.id, version: op.expectedVersion, changed: false };
   }
+  if (old.publicationState === "published") {
+    festivalEditionRules.validateFacets(terms);
+  }
   db.delete(editionTerms).where(eq(editionTerms.editionId, op.id)).run();
   for (const id of ids) {
     db.insert(editionTerms).values({ editionId: op.id, termId: id }).run();
-  }
-  if (old.publicationState === "published") {
-    validateScope(client, op.id);
   }
   bumpEdition(client, op.id, op.expectedVersion, {}, now);
   writeChange(

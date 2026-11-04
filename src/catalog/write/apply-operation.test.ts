@@ -505,6 +505,45 @@ test("publication accepts unknown format with complete required facts and saved 
   ).toThrow(/Stale subject version/);
 });
 
+test.each(["topic", "culture"] as const)(
+  "a published Edition cannot lose its last %s theme",
+  (facet) => {
+    const { client } = testDatabase();
+    const fx = testFixtures(client);
+    const edition = fx.edition(fx.event());
+    const eventType = fx.term({ facet: "event_type" });
+    for (const term of [eventType, fx.term({ facet })]) {
+      fx.assignTerm(edition, term);
+    }
+    const published = applyCatalogOperation(client, {
+      kind: "publishEdition",
+      operationKey: "publish:theme",
+      actor: "owner",
+      id: edition.id,
+      expectedVersion: edition.version,
+    });
+    const snapshot = () =>
+      [
+        "editions",
+        "edition_terms",
+        "catalog_changes",
+        "operation_receipts",
+      ].map((table) => client.prepare(`SELECT * FROM ${table}`).all());
+    const before = snapshot();
+    expect(() =>
+      applyCatalogOperation(client, {
+        kind: "replaceTerms",
+        operationKey: "replace:remove-theme",
+        actor: "owner",
+        id: edition.id,
+        expectedVersion: published.version,
+        termIds: [eventType.id],
+      }),
+    ).toThrow("Festival scope requires topic or culture");
+    expect(snapshot()).toEqual(before);
+  },
+);
+
 test("published event rename reserves old and new paths, including editions", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
@@ -583,6 +622,7 @@ test("typed price, size, coordinates, and area rules reject unsupported values",
       data: { latitude: 0, coordinatePrecision: "approximate" },
     }),
   ).toThrow(/Coordinate pair/);
+  const before = client.prepare("SELECT * FROM editions").all();
   expect(() =>
     applyCatalogOperation(client, {
       kind: "updateEdition",
@@ -593,7 +633,6 @@ test("typed price, size, coordinates, and area rules reject unsupported values",
       data: { countryCode: null },
     }),
   ).toThrow(/country/);
-  const before = client.prepare("SELECT * FROM editions").all();
   for (const sizeEstimate of [0, -1, 1.5, "8000"]) {
     expect(() =>
       applyCatalogOperation(client, {

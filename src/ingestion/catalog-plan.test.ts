@@ -1,6 +1,8 @@
-import { expect, test } from "vitest";
+import { assert, expect, test } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
+import { prepareCatalogPlan } from "./catalog-plan";
+import { initialDiagnostics } from "./proposals";
 import {
   readResearchEvent,
   readResearchCatalog,
@@ -319,6 +321,61 @@ test("cancellation changes schedule status while omission preserves size", async
   const again = await runFixtureResearch(f.refresh, f.deps);
   expect(again.changes).toEqual([]);
 });
+test("a draft with complete facts and only event_type has no planned publication", () => {
+  const f = fixture();
+  const terms = f.fx.festivalTerms();
+  terms.forEach((term) => f.fx.assignTerm(f.edition, term));
+  const eventType = terms.find((term) => term.facet === "event_type")!;
+  const keep = { action: "keep" as const, reason: "Preserve saved location" };
+  const result = prepareCatalogPlan(
+    {
+      ...initialDiagnostics(),
+      matchedEventId: f.event.id,
+      eventName: f.event.canonicalName,
+      targets: f.general,
+      plan: {
+        status: "ready",
+        event: { fields: {} },
+        previousEdition: null,
+        currentOrNextEdition: {
+          editionKey: f.edition.editionKey,
+          fields: { classification: set([eventType.id]) },
+        },
+        unresolved: [],
+      },
+      location: {
+        support: {},
+        slots: {
+          currentOrNextEdition: {
+            venueName: keep,
+            venueAddress: keep,
+            locality: keep,
+            administrativeArea: keep,
+            countryCode: keep,
+            coordinates: keep,
+          },
+        },
+        previousPoints: [],
+        unresolved: [],
+      },
+    },
+    readResearchCatalog(f.client),
+    f.refresh,
+    terms,
+  );
+  assert(result.status === "continue", "Catalog plan rejected");
+  expect(result.value.operations).toContainEqual(
+    expect.objectContaining({
+      kind: "replaceTerms",
+      id: f.edition.id,
+      termIds: [eventType.id],
+    }),
+  );
+  expect(
+    result.value.operations.some((op) => op.kind === "publishEdition"),
+  ).toBe(false);
+});
+
 test("a publishable historical Edition publishes the Event while an undated next Edition stays draft", async () => {
   const { client } = testDatabase();
   const terms = testFixtures(client).festivalTerms();

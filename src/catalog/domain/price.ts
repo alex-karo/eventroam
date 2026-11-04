@@ -37,7 +37,7 @@ export const price = z.discriminatedUnion("kind", [
     ),
 ]);
 
-export const priceDetail = z
+const priceDetail = z
   .object({
     label: z.string().trim().min(1).max(250),
     amount: z.number().nonnegative().optional(),
@@ -58,3 +58,36 @@ export const priceDetail = z
       message: "Amount and currency must be supplied together",
     },
   );
+
+export const priceDetails = z.array(priceDetail).max(100);
+
+/** Validate the entire stored block, including stray fields when kind is absent. */
+export function validateStoredPrice(r: Record<string, unknown>) {
+  const fields = [
+    r.priceKind,
+    r.priceCurrency,
+    r.priceMinMinor,
+    r.priceMaxMinor,
+    r.priceCoverage,
+    r.priceQualification,
+  ];
+  if (fields.every((value) => value == null)) {
+    return;
+  }
+  if (r.priceKind == null) {
+    throw new Error("Incomplete price block");
+  }
+  if (r.priceKind === "free" && r.priceCurrency != null) {
+    throw new Error("Free price cannot have currency");
+  }
+  price.parse({
+    kind: r.priceKind,
+    ...(r.priceKind === "free" ? {} : { currency: r.priceCurrency }),
+    minMinor: r.priceMinMinor,
+    maxMinor: r.priceMaxMinor,
+    coverage: r.priceCoverage,
+    ...(r.priceQualification == null
+      ? {}
+      : { qualification: r.priceQualification }),
+  });
+}
