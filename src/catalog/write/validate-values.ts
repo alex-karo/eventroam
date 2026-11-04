@@ -1,3 +1,9 @@
+import { festivalEditionRules } from "@/catalog/domain/festival-edition-publication";
+import {
+  validateTaxonomyTerm,
+  validateTermAssignments,
+  validateTermAssignmentAncestry,
+} from "@/catalog/domain/classification";
 import type Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
@@ -5,12 +11,8 @@ import { z } from "zod";
 import { editionTerms, editions, taxonomyTerms } from "@/db/schema";
 import {
   validateEventRecord,
-  validateEditionRecord,
   validateLinkRecord,
   validateAliasRecord,
-  validateTaxonomyTerm,
-  validateTermAssignments,
-  validateTermAssignmentAncestry,
 } from "@/catalog/domain/validation";
 
 const termSchema = z.object({
@@ -67,7 +69,7 @@ export function validateCatalogValues<T extends Record<string, unknown>>(
       validateEventRecord(values);
       break;
     case "editions":
-      validateEditionRecord(values);
+      festivalEditionRules.validateRecord(values);
       break;
     case "external_links":
       validateLinkRecord(values);

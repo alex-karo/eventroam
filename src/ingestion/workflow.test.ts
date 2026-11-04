@@ -160,6 +160,7 @@ function fixture(client = testDatabase().client) {
 function fakeTrace() {
   const finish = vi.fn(async () => {});
   const failed = vi.fn();
+  const setEventName = vi.fn();
   const trace = {
     tracing: {
       root: undefined,
@@ -169,9 +170,10 @@ function fakeTrace() {
     },
     finish,
     failed,
+    setEventName,
   } as unknown as CatalogRunTrace;
   vi.spyOn(runTraceModule, "createCatalogRunTrace").mockResolvedValue(trace);
-  return { finish, failed };
+  return { finish, failed, setEventName };
 }
 function catalogState(client: Database.Database) {
   const db = drizzle(client);
@@ -886,7 +888,7 @@ test("registered final persistence failure exposes a bounded safe summary", asyn
   const output = run.stream({
     inputData: studioIngestionInputSchema.parse({
       mode: "add",
-      input: "Example Fest",
+      input: "Maybe another gathering in 2030. Pin 38.7,-9.1",
       dryRun: false,
     }),
     outputOptions: { includeState: true },
@@ -941,6 +943,7 @@ test("registered final persistence failure exposes a bounded safe summary", asyn
   expect(row).toMatchObject({ status: "running", report_json: null });
   expect(readResearchCatalog(client)).toHaveLength(1);
   expect(trace.failed).toHaveBeenCalledWith("run_persistence_failed");
+  expect(trace.setEventName).toHaveBeenCalledWith("Example Fest");
   expect(trace.finish).toHaveBeenCalledOnce();
 });
 

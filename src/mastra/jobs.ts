@@ -13,6 +13,15 @@ export function createStudioJobs(
   const controller = new AbortController();
   let status: "idle" | "running" | "unavailable" | "stopped" = "idle";
   let pending: Promise<void> | undefined;
+  const unavailable = () => {
+    status = "unavailable";
+    log?.error("Ingestion queue unavailable", {
+      errorCode: "job_storage_unavailable",
+    });
+    process.stderr.write(
+      "Studio ingestion queue unavailable. Check catalog storage.\n",
+    );
+  };
   const onSignal = () => {
     void stop().catch(() => {
       process.stderr.write("Studio ingestion queue cleanup failed.\n");
@@ -41,18 +50,10 @@ export function createStudioJobs(
         execute: (job, signal) => workflow.executeJob(job, signal, log),
         log,
       })
-        .catch(() => {
-          status = "unavailable";
-          process.stderr.write(
-            "Studio ingestion queue unavailable. Check catalog storage.\n",
-          );
-        })
+        .catch(unavailable)
         .finally(() => client.close());
     } catch {
-      status = "unavailable";
-      process.stderr.write(
-        "Studio ingestion queue unavailable. Check catalog storage.\n",
-      );
+      unavailable();
     }
   };
   return {

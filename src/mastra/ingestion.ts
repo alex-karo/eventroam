@@ -33,12 +33,12 @@ export function createStudioIngestionWorkflow(
       log?: ResearchLogger,
     ) {
       if (signal.aborted) {
-        return;
+        return { failed: false };
       }
       const inputData = jobWorkflowInput(job);
       const run = await workflow.createRun();
       if (signal.aborted) {
-        return;
+        return { failed: false };
       }
       jobIds.set(run.runId, job.id);
       let cancellation: Promise<void> | undefined;
@@ -59,13 +59,22 @@ export function createStudioIngestionWorkflow(
         const output = await run.start({
           inputData,
         });
-        log?.info("Ingestion job workflow ended", {
-          ...fields,
-          status: output.status,
-          ...(output.status === "success"
-            ? { ingestionRunId: output.result.ingestionRunId }
-            : {}),
-        });
+        // Mastra can return canceled at runtime, but WorkflowResult omits it.
+        const execution: { status: string } = output;
+        const cancelled = execution.status === "canceled";
+        const failed = output.status !== "success" && !cancelled;
+        const completionLevel = cancelled ? "warn" : "info";
+        log?.[failed ? "error" : completionLevel](
+          "Ingestion job workflow ended",
+          {
+            ...fields,
+            status: output.status,
+            ...(output.status === "success"
+              ? { ingestionRunId: output.result.ingestionRunId }
+              : {}),
+          },
+        );
+        return { failed };
       } finally {
         signal.removeEventListener("abort", cancel);
         try {

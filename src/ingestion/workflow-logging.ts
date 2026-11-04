@@ -68,13 +68,13 @@ export function logCompletion(
   finalized: CatalogResearchResult,
   input: CatalogResearchInput,
   prepared: PlanDiagnostics | null,
+  cancelled = false,
 ) {
-  log?.[
+  const failed =
     finalized.outcome === "failed" ||
-    finalized.errors.some((error) => error.code === "workflow_failed")
-      ? "error"
-      : "info"
-  ]("Research finished", {
+    finalized.errors.some((error) => error.code === "workflow_failed");
+  const failureLevel = cancelled ? "warn" : "error";
+  log?.[failed ? failureLevel : "info"]("Research finished", {
     stage: "report",
     researchStatus: finalized.researchStatus,
     editorStatus: finalized.editorStatus,

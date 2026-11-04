@@ -81,6 +81,14 @@ ESLint enforces these import boundaries. The writer runs without Next.js. Avoid 
 
 ## Ingestion ownership
 
+Edition validation uses three inputs as data moves through the pipeline.
+
+| Input | Owner and decision |
+| --- | --- |
+| Proposed term IDs | [Proposal preparation](../src/ingestion/proposals.ts) checks evidence and reuse. [Classification rules](../src/catalog/domain/classification.ts) validate the selection and remove redundant ancestors before Editor review. |
+| Saved Edition with proposed changes | The [catalog planner](../src/ingestion/catalog-plan.ts) uses the [festival publication policy](../src/catalog/domain/festival-edition-publication.ts) to decide whether to add a publish operation. [Edition rules](../src/catalog/domain/edition-rules.ts) apply common record checks and the selected policy. |
+| Stored Edition or proposed replacement terms | The [writer](../src/catalog/write/apply-operation.ts) checks the affected rules inside the transaction. A direct assignment with a redundant ancestor fails. |
+
 Follow a refresh through `workflow.ts` → `evidence/collection.ts` and `roles/run.ts` → `proposals.ts` → `catalog-plan.ts` → catalog writer → `report.ts`. Location runs beside the other field specialists before Editor. Use `stage.ts` for shared stage results, `pipeline.ts` for report projections and write outcomes, and `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) describes the workflow steps.
 
 Paths below are relative to `src/ingestion/` unless stated otherwise. Read code for internal algorithms and current limits.

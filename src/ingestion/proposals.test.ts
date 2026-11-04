@@ -128,6 +128,31 @@ function fixture() {
     client: db.client,
   };
 }
+it("keeps the proposed order and explains the removal of an indirect ancestor to Editor", () => {
+  const f = fixture();
+  const parent = f.f.term();
+  const child = f.f.term({ parentId: parent.id });
+  const leaf = f.f.term({ parentId: child.id });
+  const other = f.f.term();
+  f.context.terms.push(parent, child, leaf, other);
+  const result = f.assemble([other.id, parent.id, leaf.id], ["s1-e1"]);
+  expect(result).toMatchObject({
+    status: "continue",
+    value: {
+      plan: {
+        currentOrNextEdition: {
+          fields: {
+            classification: {
+              value: [other.id, leaf.id],
+              reason: `Retain observed terms Removed selected ancestor terms ${parent.id}; retained descendant terms ${other.id}, ${leaf.id}.`,
+            },
+          },
+        },
+      },
+    },
+  });
+});
+
 it("passes questions from all specialists to Editor without changing General", () => {
   const f = fixture();
   const question = (message: string) => ({
