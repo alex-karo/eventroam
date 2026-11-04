@@ -402,6 +402,7 @@ export function createCatalogIngestionWorkflow(
           : new Date(owned.started).toISOString(),
       );
       if (owned.input.mode === "refresh") {
+        owned.trace?.setEventName(data.context.catalog[0].canonicalName);
         const saved = data.context.catalog[0].editions;
         const conflicting = countryBaselineConflict(saved);
         if (conflicting) {

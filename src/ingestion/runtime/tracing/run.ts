@@ -36,17 +36,25 @@ export async function createCatalogRunTrace(
     metadata: {
       ...(engineRunId ? { engineRunId } : {}),
       ...(input.name ? { eventName: input.name } : {}),
+      scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
     },
   });
   return {
     tracing,
     log: tracing.log,
+    setEventName(eventName: string) {
+      observeTrace(tracing, tracing.root, {
+        name: "catalog-ingestion",
+        metadata: { eventName },
+      });
+    },
     failed(code: string) {
       traceFailure(tracing, code);
     },
     async finish(report?: CatalogResearchResult) {
       observeTrace(tracing, tracing.root, {
         name: "catalog-ingestion",
+        metadata: report ? { outcome: report.outcome } : undefined,
         output: report
           ? {
               researchStatus: report.researchStatus,

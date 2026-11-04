@@ -23,6 +23,7 @@ import {
 } from "./runtime";
 import { createObservabilityStore, observabilityDatabasePath } from "./storage";
 import { readTraceRows } from "@/test/tracing-fixture";
+import { createCatalogRunTrace } from "../tracing/run";
 
 const directories: string[] = [];
 function directory() {
@@ -72,6 +73,32 @@ test("website analytics does not enable ingestion tracing", async () => {
     ),
   ).toBeUndefined();
   expect(existsSync(path)).toBe(false);
+});
+
+test("current refresh trace without a report retains scope without an invented outcome", async () => {
+  vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "");
+  vi.stubEnv("CATALOG_TRACING", "true");
+  vi.stubEnv("CATALOG_LOGGING", "false");
+  const path = join(directory(), "no-report.duckdb");
+  vi.stubEnv("CATALOG_OBSERVABILITY_DATABASE_PATH", path);
+  const run = await createCatalogRunTrace(
+    {
+      mode: "refresh",
+      eventId: "fixture-event",
+      scope: "current",
+      actor: "test",
+    },
+    "fixture/model",
+    "no-report-run",
+  );
+  expect(run).toBeDefined();
+  await run!.finish();
+  const rows = await readTraceRows(path);
+  const root = rows.mastra_ai_spans.find((span) => !span.parentSpanId)!;
+  const metadata = JSON.parse(root.metadata as string);
+  expect(metadata.scope).toBe("current");
+  expect(metadata).not.toHaveProperty("outcome");
+  expect(metadata).not.toHaveProperty("eventName");
 });
 
 test("a registered run leaves its caller-owned observability store open", async () => {
