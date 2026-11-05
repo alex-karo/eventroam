@@ -16,7 +16,11 @@ interface Citation {
 
 interface SearchResponse {
   error?: unknown;
-  choices?: { message?: { annotations?: Citation[] } }[];
+  choices?: {
+    error?: unknown;
+    finish_reason?: unknown;
+    message?: { annotations?: Citation[] };
+  }[];
   usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
 }
 
@@ -192,6 +196,27 @@ function tokenCount(value: unknown): number | undefined {
     : undefined;
 }
 
+function parseSearchResponse(value: unknown): SearchResponse {
+  const data = value as SearchResponse;
+  const choice = data?.choices?.[0];
+  if (
+    data?.error != null ||
+    choice?.error != null ||
+    choice?.finish_reason === "error"
+  ) {
+    throw new Error("search_provider_error");
+  }
+  if (
+    !Array.isArray(data?.choices) ||
+    !choice?.message ||
+    typeof choice.message !== "object" ||
+    Array.isArray(choice.message)
+  ) {
+    throw new Error("search_invalid_response");
+  }
+  return data;
+}
+
 export async function searchWeb(
   query: string,
   options: SearchWebOptions,
@@ -238,10 +263,7 @@ export async function searchWeb(
         }
         throw error;
       }
-      data = (await boundedJson(response, 1024 * 1024)) as SearchResponse;
-      if (data?.error !== undefined && data.error !== null) {
-        throw new Error("search_provider_error");
-      }
+      data = parseSearchResponse(await boundedJson(response, 1024 * 1024));
       break;
     } catch (error) {
       options.signal?.throwIfAborted();

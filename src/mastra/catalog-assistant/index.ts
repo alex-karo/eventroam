@@ -4,7 +4,7 @@ import { Agent } from "@mastra/core/agent";
 import type { MastraModelConfig } from "@mastra/core/llm";
 import type { Memory } from "@mastra/memory";
 import { readDatabaseEnvironment } from "../../db/env";
-import { loadResearchConfig } from "../../ingestion/runtime/config";
+import { loadResearchModelConfig } from "../../ingestion/runtime/config";
 import {
   createResearchModel,
   researchProviderOptions,
@@ -55,7 +55,7 @@ export function createCatalogChatAgent(
       model ??
       (() =>
         createResearchModel(
-          loadResearchConfig({
+          loadResearchModelConfig({
             ...process.env,
             OPENROUTER_API_KEY:
               process.env.OPENROUTER_API_KEY?.trim() || "inspection-only",
@@ -74,7 +74,7 @@ export function createCatalogChatAgent(
           providerOptions: {
             ...providerOptions,
             openrouter: {
-              ...researchProviderOptions(loadResearchConfig()).openrouter,
+              ...researchProviderOptions(loadResearchModelConfig()).openrouter,
               ...providerOptions?.openrouter,
             },
           },

@@ -199,7 +199,10 @@ describe("searchWeb", () => {
       .mockResolvedValueOnce(new Response(null, { status: 429 }))
       .mockRejectedValueOnce(new TypeError("network failed"))
       .mockResolvedValueOnce(
-        Response.json({ usage: { prompt_tokens: 10, completion_tokens: 2 } }),
+        Response.json({
+          choices: [{ message: {} }],
+          usage: { prompt_tokens: 10, completion_tokens: 2 },
+        }),
       );
     const { run, budget, log } = searchWith(fetchMock);
     await vi.advanceTimersByTimeAsync(499);
@@ -235,7 +238,7 @@ describe("searchWeb", () => {
             headers: { "retry-after": retryAfter },
           }),
         )
-        .mockResolvedValueOnce(Response.json({}));
+        .mockResolvedValueOnce(Response.json({ choices: [{ message: {} }] }));
       const { run } = searchWith(fetchMock);
       const delay = retryAfter === "invalid" ? 500 : 2000;
       await vi.advanceTimersByTimeAsync(delay - 1);

@@ -197,7 +197,7 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
   const { submitAddJobs } = await import("../../../../ingestion/jobs/store");
   const db = testDatabase();
   const batch = submitAddJobs(db.client, {
-    inputs: ["x".repeat(70000), ...Array(5).fill("Event research note")],
+    inputs: ["x".repeat(70000), ...Array(7).fill("Event research note")],
   });
   const jobs = db.client
     .prepare("SELECT id FROM ingestion_jobs ORDER BY position")
@@ -297,6 +297,16 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
           : null,
       ),
   );
+  db.client
+    .prepare(
+      "INSERT INTO ingestion_runs(id,job_id,mode,status,started_at,input_json,report_json) VALUES('bad-report',?,'add','failed','2026-11-04','{\"dryRun\":false}','{')",
+    )
+    .run(jobs[6]);
+  db.client
+    .prepare(
+      "INSERT INTO ingestion_runs(id,job_id,mode,status,started_at,input_json,report_json) VALUES('bad-input',?,'add','failed','2026-11-04','{',?)",
+    )
+    .run(jobs[7], JSON.stringify({ schemaVersion: 7, outcome: "unchanged" }));
   const sql = readFileSync(
     new URL(
       "../../skills/catalog-sql/references/inspect-add-batch.sql",
@@ -305,14 +315,14 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
     "utf8",
   ).trim();
   const result = queryCatalog(db.path, { sql, parameters: [batch.batchId] });
-  expect(result).toMatchObject({ ok: true, rowCount: 6, truncated: false });
+  expect(result).toMatchObject({ ok: true, rowCount: 8, truncated: false });
   if (!result.ok) {
     throw new Error("Expected valid query");
   }
   const rows = result.rows.map((row) =>
     Object.fromEntries(result.columns.map((column, i) => [column, row[i]])),
   );
-  expect(rows.map((row) => row.position)).toEqual([0, 1, 2, 3, 4, 5]);
+  expect(rows.map((row) => row.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
   expect(rows[0]).toMatchObject({
     preview: 1,
     proposedCreation: 1,
@@ -349,5 +359,20 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
     outcome: null,
     proposedCreation: 0,
     changedCreation: 0,
+  });
+  expect(rows[6]).toMatchObject({
+    inputValid: 1,
+    reportPresent: 1,
+    reportValid: 0,
+    preview: 0,
+    outcome: null,
+    proposedCreation: 0,
+    changedCreation: 0,
+  });
+  expect(rows[7]).toMatchObject({
+    inputValid: 0,
+    reportValid: 1,
+    preview: null,
+    outcome: "unchanged",
   });
 });

@@ -24,6 +24,12 @@ const ENV_LIMITS: Record<keyof ResearchLimits, string> = {
 export function loadResearchConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): ResearchConfig {
+  return { ...loadResearchModelConfig(env), limits: loadResearchLimits(env) };
+}
+
+export function loadResearchModelConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): Omit<ResearchConfig, "limits"> {
   const apiKey = env.OPENROUTER_API_KEY?.trim();
   const model = env.OPENROUTER_MODEL?.trim() || DEFAULT_RESEARCH_MODEL;
   if (!apiKey) {
@@ -55,7 +61,6 @@ export function loadResearchConfig(
     geoapifyKey: env.GEOAPIFY_KEY?.trim() || undefined,
     reasoningEffort,
     serviceTier,
-    limits: loadResearchLimits(env),
   };
 }
 

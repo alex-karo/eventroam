@@ -185,6 +185,22 @@ test("search honors zero results and distinguishes provider errors from empty su
   expect(result).toMatchObject({ ok: false, error: "search_unavailable" });
   expect(JSON.stringify(result)).not.toContain("private provider error");
   expect(fetch).toHaveBeenCalledTimes(1);
+  for (const response of [
+    {},
+    { choices: [] },
+    { choices: [{ message: null }] },
+    { choices: [{ message: "invalid message" }] },
+    {
+      choices: [{ message: {}, error: { message: "private choice error" } }],
+    },
+    { choices: [{ message: {}, finish_reason: "error" }] },
+  ]) {
+    fetch.mockImplementationOnce(async () => Response.json(response));
+    const result = await tool.execute!({ query: "Find festivals" }, context());
+    expect(result).toMatchObject({ ok: false, error: "search_unavailable" });
+    expect(JSON.stringify(result)).not.toContain("private choice error");
+  }
+  expect(fetch).toHaveBeenCalledTimes(7);
   fetch.mockImplementationOnce(async () =>
     Response.json({ choices: [{ message: { annotations: [] } }] }),
   );

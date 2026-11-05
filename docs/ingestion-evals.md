@@ -182,7 +182,7 @@ Add fixture coverage when it blocks a task we intend to measure. Do not add a re
 
 ## Add from free text
 
-`--case wacken-add` runs the complete add flow as a dry run in `regression/pipeline`. It reuses the Wacken pages, geocoding responses and fixed date without copies or edits. Its synthetic multiline note includes a name, website, incorrect dates and an unconfirmed map pin in Hamburg. An unrelated control Event is the only initial record; Wacken must be created as a new Event.
+`--case wacken-add` runs the complete add flow as a dry run in `regression/pipeline`. It reuses the Wacken pages, geocoding responses and fixed date without copies or edits. Its synthetic multiline note includes a name, website, incorrect dates and an unconfirmed map pin in Hamburg. It does not name a country. An unrelated control Event is the only initial record; Wacken must be created as a new Event.
 
 The case checks writer changes and references for the new Event and its 2027 Edition. It requires source dates, country `DE`, the confirmed Wacken locality point with `locality` precision, rejection of the note's pin and preservation of the control Event. These checks cover add with a confirmed city fallback. They do not cover pin-only input, duplicate detection, batch tools or the Studio conversation.
 

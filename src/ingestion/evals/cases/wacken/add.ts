@@ -16,7 +16,7 @@ export function wackenAddCase(cases: EvalCase[]): RegressionPipelineEvalCase {
     input: {
       mode: "add",
       input: [
-        "Wacken Open Air, metal festival in Germany.",
+        "Wacken Open Air, metal festival.",
         "Website: https://www.wacken.com/",
         "Possible dates: 29 July to 1 August 2027.",
         "Map pin from my notes: 53.5511, 9.9937.",
@@ -36,7 +36,7 @@ export function wackenAddCase(cases: EvalCase[]): RegressionPipelineEvalCase {
     },
     provenance: {
       kind: "captured-sources-with-synthetic-add-note",
-      note: "Reuse all Wacken source responses, geocoding responses and the fixed date without changes. The owner note and unrelated catalog seed are synthetic. The note has incorrect dates and a Hamburg pin. No Wacken record exists before the dry run. No live source fallback is used.",
+      note: "Reuse all Wacken source responses, geocoding responses and the fixed date without changes. The owner note and unrelated catalog seed are synthetic. The note has incorrect dates and a Hamburg pin but does not name a country. No Wacken record exists before the dry run. No live source fallback is used.",
     },
   };
 }
