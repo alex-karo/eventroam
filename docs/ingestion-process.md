@@ -155,6 +155,8 @@ Each addressed slot returns keep, set or clear for every text field. Coordinate 
 
 Source coordinate pairs remain beside their literal object and year context. Reverse results describe nearby objects and never create a replacement point. Unknown or wrong-target point IDs fail validation. Precise points need venue support; a city result cannot become an exact venue point. Missing optional coordinates do not force geocoding.
 
+When an independent source establishes the Edition place, a matching selected forward geocoding candidate can supply its absent country. Location explicitly sets `countryCode` from that candidate and cites the place evidence. Editor checks the selected point and its country against the place evidence and any saved country baseline. The source passage need not repeat the country name. A query country filter alone is not evidence. This rule does not establish a venue, address or administrative area. Without an established place or an assigned candidate country, the country stays unknown.
+
 ## Validate the proposal
 
 The system checks shape and same-slot keys. Current requires `previousEdition:null` and no Event summary or shared-link findings or actions. The two slots bound returned Editions; saved context has no Edition-count limit. Temporal choice, factual meaning and completeness remain model decisions assessed by evals.

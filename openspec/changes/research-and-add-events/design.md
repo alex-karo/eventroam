@@ -25,6 +25,8 @@ Pass the note directly to the collector. Keep it out of the identity context sha
 
 Location uses inspected evidence and registered points for each Edition. If the organizer confirms the site, Location can use its supported point. If sources confirm only the city, Location can use a point for that city with `locality` precision and keep the venue unresolved. A map link that echoes the supplied pin or a reverse lookup only shows where the pin is. Neither establishes where the festival takes place.
 
+When independent evidence establishes the place, Location uses the country of a matching selected forward geocoding candidate to fill an absent country. The candidate must agree with the place evidence and any saved country baseline. A query filter alone is not country evidence. Location cites the place passage and explains the selected candidate; Editor reviews both. The writer does not add a country that Location omitted. Keep this clarification in the ingestion-workflow delta with the pin scenario.
+
 ## Studio tools
 
 Register the researcher beside the catalog assistant. Give the researcher search, add submission, and status reads. Replace `cancel_refresh` on the catalog assistant with `cancel_batch({batchId})`. Reuse the existing pending-job update for either batch type. The researcher can direct the owner to the catalog assistant with the batch ID. Reuse Studio chat model selection, conversation memory, and the host submission guard. Expose the existing Exa search adapter through a bounded chat tool. Share the search allowance and deadline across calls in one chat execution. A missing search credential affects search when called. It does not prevent job submission or stored status reads.
@@ -49,3 +51,5 @@ Use the same mapping for dispatch and the job check in the attempt transaction. 
 ## Verification
 
 Use one offline Studio conversation to search for two Events, add both, and read status with the returned batch ID. Check restart and duplicate handling in the queue workflow test. Check full batch counts with multiple attempts in the existing storage test.
+
+Run the existing `wacken-add` eval after the country clarification. Keep its country, date and pin checks unchanged. Check Location and Editor instructions together, and retain the existing country-conflict and independent-place checks.

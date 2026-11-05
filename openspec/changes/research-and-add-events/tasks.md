@@ -5,6 +5,7 @@
 - [x] 1.1 Replace the add input across the CLI, workflow schema, private run input, and their callers. Update the CLI help and the examples in the ingestion tools guide. Check name-only, URL-only, and blank input at both entry points. Verify the last line of a multiline note over 500 characters reaches private history and the collector. Check that an input-size failure is explicit.
 - [x] 1.2 Pass the complete note to source collection and remove name assumptions from assignments, trace labels, and eval inputs. Use a fixture with a tentative name and a conflicting source date to check that the note reaches discovery and that the report uses source evidence.
 - [x] 1.3 Verify with a source collection fixture that a map page echoing an owner pin stays a lead. With only a confirmed city and a valid city point, check for locality precision. With no supported place or point, check for empty coordinates. Document these outcomes in the ingestion process guide.
+- [x] 1.4 Clarify country support in Location, Editor and the ingestion guide. An independently established place and matching selected forward candidate can supply its absent country. Keep saved-country conflict and independent-place rules. Run the existing Location and Editor tests and `wacken-add` without changing its expectations; inspect the saved country decision. Sync the ingestion-workflow spec and run docs and OpenSpec checks.
 
 ## 2. Process add jobs in the existing queue
 

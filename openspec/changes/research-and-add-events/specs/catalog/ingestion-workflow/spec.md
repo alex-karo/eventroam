@@ -76,3 +76,20 @@ CLI add, the Studio form, and queued add jobs SHALL accept multiline notes beyon
 #### Scenario: A long note ends with an organizer link
 - **WHEN** a note longer than 500 characters has an organizer link on its last line
 - **THEN** the saved input and the collector's assignment include the last line and the original line breaks
+
+### Requirement: A verified place can establish its country
+When an independent source establishes the Edition's place and Location selects a matching forward geocoding candidate, ingestion SHALL set an absent countryCode from that candidate's assigned country. The candidate SHALL agree with the place evidence and any saved country baseline. A query country filter alone SHALL NOT establish the country.
+
+#### Scenario: A confirmed city has a country in geocoding
+- **WHEN** an independent source places the Edition in Wacken and the selected matching city candidate has country DE
+- **AND** the target has no country and there is no saved-country conflict
+- **THEN** ingestion sets countryCode to DE with the place evidence and selected candidate as support
+- **AND** the venue can remain unresolved and the point retains locality precision
+
+#### Scenario: Geocoding finds a city without festival place evidence
+- **WHEN** a note or pin leads to a city candidate but no independent source links the Edition to that place
+- **THEN** the candidate does not establish the Edition's country or location
+
+#### Scenario: A candidate conflicts with the saved country
+- **WHEN** a selected candidate's country conflicts with the same Event's saved country baseline
+- **THEN** ingestion rejects the location decision under the existing country-conflict rule

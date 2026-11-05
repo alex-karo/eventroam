@@ -8,6 +8,7 @@ An owner can have a map pin, a link, or a note before they know the festival nam
 
 - **BREAKING** Replace the add CLI flag `--name` with `--input` and the workflow field `name` with `input`. A name alone remains valid input. The former 500-character name limit does not apply to notes.
 - Use all supplied text, including coordinates, as leads. Ingestion must check sources before it writes facts.
+- When independent evidence establishes the place, use a matching selected geocoding result to fill its absent country.
 - Add a separate Studio agent, `catalog-researcher`. It can search with Exa through OpenRouter, submit one or more add jobs, and read their status by batch ID.
 - **BREAKING** Rename the catalog assistant tool `cancel_refresh` to `cancel_batch`. It cancels pending jobs in an add or refresh batch.
 
