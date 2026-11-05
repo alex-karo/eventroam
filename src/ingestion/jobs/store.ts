@@ -2,17 +2,22 @@ import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { z } from "zod";
 import { addInputSchema } from "../add-input";
+import {
+  eventIdSchema,
+  ingestionTargetSchema,
+  refreshScopeSchema,
+} from "../invocation";
 
 export const refreshInputSchema = z.strictObject({
   eventIds: z
-    .array(z.string().trim().min(1).max(500))
+    .array(eventIdSchema)
     .min(1)
     .max(200)
     .refine(
       (ids) => new Set(ids).size === ids.length,
       "Event IDs must be distinct",
     ),
-  scope: z.enum(["current", "full"]).default("full"),
+  scope: refreshScopeSchema.default("full"),
   dryRun: z.boolean().default(true),
 });
 export const addJobsInputSchema = z.strictObject({
@@ -20,45 +25,30 @@ export const addJobsInputSchema = z.strictObject({
   dryRun: z.boolean().default(true),
 });
 
-const jobSettings = { dry_run: z.union([z.literal(0), z.literal(1)]) };
-const jobTargetSchema = z.union([
-  z.object({
-    ...jobSettings,
-    add_input: addInputSchema,
-    event_id: z.null(),
-    scope: z.null(),
-  }),
-  z.object({
-    ...jobSettings,
-    add_input: z.null(),
-    event_id: z.string().trim().min(1).max(500),
-    scope: z.enum(["current", "full"]),
-  }),
-]);
+type JobTarget = z.infer<typeof ingestionTargetSchema>;
+const storedDryRun = z.literal([0, 1]);
 
 /** Used at queue dispatch and again inside the attempt write transaction. */
 export function jobWorkflowInput(
-  row: Pick<IngestionJob, "add_input" | "event_id" | "scope" | "dry_run">,
+  row: Pick<IngestionJob, "mode" | "input" | "dry_run">,
 ) {
-  const job = jobTargetSchema.parse(row);
-  const settings = { dryRun: Boolean(job.dry_run), republish: false };
-  return job.add_input !== null
-    ? { mode: "add" as const, input: job.add_input, ...settings }
-    : {
-        mode: "refresh" as const,
-        eventId: job.event_id,
-        scope: job.scope,
-        ...settings,
-      };
+  const target = ingestionTargetSchema.parse({
+    mode: row.mode,
+    input: JSON.parse(row.input),
+  });
+  return {
+    ...target,
+    dryRun: storedDryRun.parse(row.dry_run) === 1,
+    republish: false,
+  };
 }
 
 export type IngestionJob = {
   id: string;
   batch_id: string;
   position: number;
-  add_input: string | null;
-  event_id: string | null;
-  scope: "current" | "full" | null;
+  mode: JobTarget["mode"];
+  input: string;
   dry_run: number;
   status: "pending" | "running" | "done" | "cancelled";
   created_at: string;
@@ -93,7 +83,7 @@ export function openJobCatalog(path: string) {
 function probeJobCatalog(client: Database.Database) {
   client
     .prepare(
-      "SELECT id,batch_id,position,add_input,event_id,scope,dry_run,status,created_at FROM ingestion_jobs LIMIT 0",
+      "SELECT id,batch_id,position,mode,input,dry_run,status,created_at FROM ingestion_jobs LIMIT 0",
     )
     .all();
   client
@@ -130,12 +120,11 @@ export function submitJobs(
   const { eventIds, scope, dryRun } = parsed.data;
   return submitSelection(
     client,
-    eventIds.map((event_id) => ({
-      add_input: null,
-      event_id,
-      scope,
-      dry_run: Number(dryRun),
+    eventIds.map((eventId) => ({
+      mode: "refresh",
+      input: { eventId, scope },
     })),
+    dryRun,
     consume,
   );
 }
@@ -151,26 +140,26 @@ export function submitAddJobs(
   }
   return submitSelection(
     client,
-    parsed.data.inputs.map((add_input) => ({
-      add_input,
-      event_id: null,
-      scope: null,
-      dry_run: Number(parsed.data.dryRun),
+    parsed.data.inputs.map((input) => ({
+      mode: "add",
+      input,
     })),
+    parsed.data.dryRun,
     consume,
   );
 }
 
 function submitSelection(
   client: Database.Database,
-  targets: Pick<IngestionJob, "add_input" | "event_id" | "scope" | "dry_run">[],
+  targets: JobTarget[],
+  dryRun: boolean,
   consume: () => void,
 ) {
   return write(client, () => {
     probeJobCatalog(client);
     const exists = client.prepare("SELECT id FROM events WHERE id=?");
     for (const target of targets) {
-      if (target.event_id !== null && !exists.get(target.event_id)) {
+      if (target.mode === "refresh" && !exists.get(target.input.eventId)) {
         throw new JobStorageError("invalid_selection");
       }
     }
@@ -179,17 +168,16 @@ function submitSelection(
     const batchId = randomUUID();
     const createdAt = new Date().toISOString();
     const insert = client.prepare(
-      "INSERT INTO ingestion_jobs(id,batch_id,position,add_input,event_id,scope,dry_run,status,created_at) VALUES(?,?,?,?,?,?,?,'pending',?)",
+      "INSERT INTO ingestion_jobs(id,batch_id,position,mode,input,dry_run,status,created_at) VALUES(?,?,?,?,?,?,'pending',?)",
     );
     targets.forEach((target, position) =>
       insert.run(
         randomUUID(),
         batchId,
         position,
-        target.add_input,
-        target.event_id,
-        target.scope,
-        target.dry_run,
+        target.mode,
+        JSON.stringify(target.input),
+        Number(dryRun),
         createdAt,
       ),
     );

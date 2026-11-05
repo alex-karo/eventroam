@@ -28,7 +28,7 @@ export async function processJobs(options: {
     const fields = {
       batchId: job.batch_id,
       jobId: job.id,
-      eventId: job.event_id,
+      mode: job.mode,
     };
     log?.info("Ingestion job started", fields);
     let failed = false;

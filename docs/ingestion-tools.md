@@ -55,14 +55,13 @@ Run `pnpm run catalog:studio`, open `http://127.0.0.1:4111` in the built-in Brow
 ```json
 {
   "mode": "refresh",
-  "eventId": "EVENT_ID",
-  "scope": "full",
+  "input": { "eventId": "EVENT_ID", "scope": "full" },
   "dryRun": false,
   "republish": false
 }
 ```
 
-The workflow form accepts one Event per refresh, with optional `scope: "full"|"current"` (default full). Add rejects scope and check is unsupported.
+In Form view, choose `add` and replace the contents of the text box under Input with your note. For `refresh`, fill in Event Id and optionally choose Scope. The default scope is full. You can also paste either example into JSON view.
 
 Preview is the default. Inspect intermediate results and the final report in the workflow view. Use native cancellation while a run is active; after interruption, start a fresh run. Per-step execution, resume, restart, and time travel are unsupported. See the [workflow steps](ingestion-process.md#workflow-steps) for the shared CLI/Studio lifecycle.
 
@@ -96,7 +95,7 @@ Studio processes accepted jobs in its own server process. Run `pnpm run catalog:
 
 Chat submits a fixed selection of 1–200 distinct existing Event IDs in one transaction. Preview is the default; explicit update intent selects apply. Scope defaults to full; republish stays off. The response contains `batchId` and `acceptedCount`. Acceptance is not ingestion completion. Each Event gets one private `ingestion_jobs` row. Jobs store settings, queue state, and creation time. Attempts, timing, reports, and errors remain in `ingestion_runs`. Its nullable `job_id` links queued attempts; direct runs have no job association.
 
-Add jobs store the full add_input with null event_id and scope. Refresh jobs store an Event ID and scope with null add_input. One batch has one operation and fixed preview settings. Submission validates the entire selection and saves it atomically.
+Each job stores an explicit `mode` and a JSON value in `input`. Add jobs store the full note as a string. Refresh jobs store an object with `eventId` and `scope`. One batch has one operation and fixed preview settings. Submission validates the entire selection and saves it atomically.
 
 Studio executes one queued job at a time through its registered `catalog-ingestion` workflow. The workflow form and queue use the same graph and storage providers. Queued runs appear in Recent runs. With tracing or logging enabled, Studio serves their diagnostics from its open DuckDB store.
 

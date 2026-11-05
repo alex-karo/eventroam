@@ -2,7 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { createTestDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { readResearchEvent } from "@/catalog/read/research";
-import { studioIngestionInputSchema } from "./workflow";
+import { studioIngestionInputSchema } from "./invocation";
 import {
   fixtureDependencies,
   fixtureTargets,
@@ -248,8 +248,7 @@ test("CLI and Studio reject the same current-scope Event link proposal", async (
   const result = await run.start({
     inputData: studioIngestionInputSchema.parse({
       mode: "refresh",
-      eventId: f.event.id,
-      scope: "current",
+      input: { eventId: f.event.id, scope: "current" },
     }),
     outputOptions: { includeState: true },
   });

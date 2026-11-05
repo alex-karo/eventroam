@@ -221,14 +221,13 @@ export const ingestionJobs = sqliteTable(
     id: text("id").primaryKey(),
     batchId: text("batch_id").notNull(),
     position: integer("position").notNull(),
-    addInput: text("add_input"),
-    eventId: text("event_id"),
-    scope: text("scope", { enum: ["current", "full"] }),
     dryRun: integer("dry_run", { mode: "boolean" }).notNull(),
     status: text("status", {
       enum: ["pending", "running", "done", "cancelled"],
     }).notNull(),
     createdAt: text("created_at").notNull(),
+    mode: text("mode", { enum: ["add", "refresh"] }).notNull(),
+    input: text("input", { mode: "json" }).$type<unknown>().notNull(),
   },
   (t) => [
     uniqueIndex("ingestion_jobs_batch_position_uq").on(t.batchId, t.position),

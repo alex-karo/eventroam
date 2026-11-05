@@ -218,7 +218,7 @@ test("native snapshots retain input, IDs and model text while dropping separate 
     const result = await run.start({
       inputData: {
         mode: "refresh",
-        eventId: f.event.id,
+        input: { eventId: f.event.id, scope: "full" },
       } as never,
       requestContext: new RequestContext([
         [
@@ -283,7 +283,7 @@ test("reopened started IDs never allocate another attempt or change history", as
       .start({
         inputData: {
           mode: "refresh",
-          eventId: f.event.id,
+          input: { eventId: f.event.id, scope: "full" },
           dryRun: true,
           republish: false,
         },
@@ -320,7 +320,7 @@ test("a stopped start transition stays used even before attempt allocation", asy
     run.start({
       inputData: {
         mode: "refresh",
-        eventId: f.event.id,
+        input: { eventId: f.event.id, scope: "full" },
         dryRun: true,
         republish: false,
       },
@@ -344,7 +344,7 @@ test("a stopped start transition stays used even before attempt allocation", asy
       .start({
         inputData: {
           mode: "refresh",
-          eventId: f.event.id,
+          input: { eventId: f.event.id, scope: "full" },
           dryRun: true,
           republish: false,
         },
@@ -482,7 +482,7 @@ test.each(["first later snapshot", "start acknowledgment"] as const)(
       .start({
         inputData: {
           mode: "refresh",
-          eventId: f.event.id,
+          input: { eventId: f.event.id, scope: "full" },
           dryRun: true,
           republish: false,
         },
@@ -519,7 +519,7 @@ test.each(["first later snapshot", "start acknowledgment"] as const)(
         .start({
           inputData: {
             mode: "refresh",
-            eventId: f.event.id,
+            input: { eventId: f.event.id, scope: "full" },
             dryRun: true,
             republish: false,
           },

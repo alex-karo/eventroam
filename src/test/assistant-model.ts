@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { MastraLanguageModelV2Mock } from "@mastra/core/test-utils/llm-mock";
 import {
+  BATCH_COUNTS_SQL,
   INSPECT_RUN_SQL,
   INSPECT_RUN_STATE_SQL,
   RUN_EVIDENCE_SQL,
@@ -56,6 +57,7 @@ export function createAssistantFixtureModel() {
     if (call?.name === "query_catalog") {
       const sql = (call.input as { sql: string }).sql;
       const reference = [
+        ["batch-counts.sql", BATCH_COUNTS_SQL],
         ["inspect-run.sql", INSPECT_RUN_SQL],
         ["inspect-run-state.sql", INSPECT_RUN_STATE_SQL],
         ["run-evidence.sql", RUN_EVIDENCE_SQL],
@@ -220,7 +222,7 @@ function initialReply(
     call = {
       name: "query_catalog",
       input: {
-        sql: "SELECT status,count(*) AS count FROM ingestion_jobs WHERE batch_id=? GROUP BY status",
+        sql: BATCH_COUNTS_SQL,
         parameters: ids,
       },
     };
@@ -230,7 +232,7 @@ function initialReply(
     call = {
       name: "query_catalog",
       input: {
-        sql: `SELECT batch_id,created_at,scope,dry_run,count(*) FROM ingestion_jobs GROUP BY batch_id HAVING count(*)=? AND sum(event_id IN (${ids.map(() => "?").join(",")}))=? AND scope='full' AND dry_run=1 ORDER BY created_at,batch_id`,
+        sql: `SELECT batch_id,created_at,json_extract(input,'$.scope') AS scope,dry_run,count(*) FROM ingestion_jobs WHERE mode='refresh' GROUP BY batch_id HAVING count(*)=? AND sum(json_extract(input,'$.eventId') IN (${ids.map(() => "?").join(",")}))=? AND scope='full' AND dry_run=1 ORDER BY created_at,batch_id`,
         parameters: [ids.length, ...ids, ids.length],
       },
     };

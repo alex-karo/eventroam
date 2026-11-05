@@ -165,7 +165,10 @@ test("CLI exits before credential-free Studio reopens previews, batch results an
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
-              inputData: { mode: "refresh", eventId: STUDIO_FIXTURE_EVENT_ID },
+              inputData: {
+                mode: "refresh",
+                input: { eventId: STUDIO_FIXTURE_EVENT_ID },
+              },
             }),
           },
         );

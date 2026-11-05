@@ -140,9 +140,13 @@ test("restarted add skips a committed duplicate with two linked attempts and lat
     dryRun: false,
   });
   const job = nextJob(client)!;
-  const run = (selected: typeof job, duplicate = false) =>
-    runFixtureResearch(
-      { ...jobWorkflowInput(selected), actor: "owner" },
+  const run = (selected: typeof job, duplicate = false) => {
+    const input = jobWorkflowInput(selected);
+    if (input.mode !== "add") {
+      throw new Error("Expected an add job");
+    }
+    return runFixtureResearch(
+      { ...input, actor: "owner" },
       {
         client,
         jobId: selected.id,
@@ -172,6 +176,7 @@ test("restarted add skips a committed duplicate with two linked attempts and lat
         }),
       },
     );
+  };
   const first = await run(job);
   expect(first.outcome).not.toBe("failed");
   expect(client.prepare("SELECT count(*) FROM events").pluck().get()).toBe(1);

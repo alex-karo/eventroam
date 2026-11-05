@@ -34,5 +34,5 @@ SELECT j.position, j.status AS jobStatus, j.dry_run AS jobPreview,
       AND json_extract(CASE WHEN receipt.type = 'object' THEN receipt.value END, '$.changed') = 1
   ) AS changedCreation
 FROM ingestion_jobs j LEFT JOIN runs r ON r.job_id = j.id
-WHERE j.batch_id = ? AND j.add_input IS NOT NULL
+WHERE j.batch_id = ? AND j.mode = 'add'
 ORDER BY j.position, r.started_at, r.id

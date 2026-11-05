@@ -24,7 +24,7 @@ import {
 } from "@/catalog/read/research";
 import { createTestDatabase, testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
-import { studioIngestionInputSchema } from "./workflow";
+import { studioIngestionInputSchema } from "./invocation";
 import * as contextModule from "./research/context";
 import * as prepareModule from "./catalog-plan";
 import * as researchValidationModule from "./proposals";
@@ -652,6 +652,9 @@ test("one registered graph isolates overlapping previews and applies dry-run def
     release = resolve;
   });
   const workflow = createCatalogIngestionWorkflow(async ({ input: name }) => {
+    if (typeof name !== "string") {
+      throw new Error("Expected an add note");
+    }
     const selected = name === "First Fest" ? first : second;
     return {
       deps: {
@@ -664,7 +667,7 @@ test("one registered graph isolates overlapping previews and applies dry-run def
             }
             await bothEntered;
             const proposal = fixtureTargets();
-            proposal.observedEventName = name!;
+            proposal.observedEventName = name;
             return proposal;
           },
         },
@@ -1944,7 +1947,7 @@ test.each(["pin-only", "city", "city-no-point"] as const)(
   },
 );
 
-test("Studio add validates free text and rejects the old field or blank input", () => {
+test("Studio validates each mode and its input", () => {
   for (const input of [
     "Festival name",
     "https://organizer.test/",
@@ -1954,11 +1957,20 @@ test("Studio add validates free text and rejects the old field or blank input", 
       studioIngestionInputSchema.parse({ mode: "add", input }),
     ).toMatchObject({ input, dryRun: true });
   }
+  expect(
+    studioIngestionInputSchema.parse({
+      mode: "refresh",
+      input: { eventId: "id" },
+    }),
+  ).toMatchObject({ input: { eventId: "id", scope: "full" }, dryRun: true });
   for (const value of [
     { mode: "add" },
     { mode: "add", input: " \n" },
     { mode: "add", name: "Old field" },
-    { mode: "refresh", eventId: "id", input: "clue" },
+    { mode: "refresh", input: "clue" },
+    { mode: "refresh", eventId: "id" },
+    { mode: "add", input: { eventId: "id" } },
+    { mode: "refresh", input: { eventId: "id", scope: "next" } },
   ]) {
     expect(studioIngestionInputSchema.safeParse(value).success).toBe(false);
   }

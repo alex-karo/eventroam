@@ -51,7 +51,8 @@ export function createStudioIngestionWorkflow(
       const fields = {
         jobId: job.id,
         batchId: job.batch_id,
-        eventId: job.event_id,
+        mode: inputData.mode,
+        eventId: inputData.mode === "refresh" ? inputData.input.eventId : null,
         engineRunId: run.runId,
       };
       try {

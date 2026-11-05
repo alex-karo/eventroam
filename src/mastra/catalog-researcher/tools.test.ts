@@ -52,11 +52,13 @@ test("add requires host context, shares one selection across parallel calls, and
   expect(results).toContainEqual({ ok: false, error: "selection_consumed" });
   expect(
     db.client
-      .prepare("SELECT add_input,dry_run FROM ingestion_jobs ORDER BY position")
+      .prepare(
+        "SELECT mode,json_extract(input,'$') AS input,dry_run FROM ingestion_jobs ORDER BY position",
+      )
       .all(),
   ).toEqual([
-    { add_input: "alpha", dry_run: 0 },
-    { add_input: "beta", dry_run: 0 },
+    { mode: "add", input: "alpha", dry_run: 0 },
+    { mode: "add", input: "beta", dry_run: 0 },
   ]);
 });
 
