@@ -153,7 +153,11 @@ test("SIGTERM stops queued work before HTTP drain, awaits cleanup, and preserves
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        inputData: { mode: "refresh", eventId: f.eventIds[2], dryRun: true },
+        inputData: {
+          mode: "refresh",
+          input: { eventId: f.eventIds[2] },
+          dryRun: true,
+        },
       }),
     }).then(async (response) => {
       await response.text();
@@ -284,7 +288,11 @@ test("Studio serves queued workflow history and correlated traces from its open 
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        inputData: { mode: "refresh", eventId: f.eventIds[0], dryRun: true },
+        inputData: {
+          mode: "refresh",
+          input: { eventId: f.eventIds[0] },
+          dryRun: true,
+        },
       }),
     });
     await expect

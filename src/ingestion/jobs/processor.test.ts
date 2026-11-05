@@ -19,9 +19,7 @@ function setup(n = 4) {
 
 test("a malformed stored target ends independently and the next job runs", async () => {
   const { client, eventIds } = setup(2);
-  client
-    .prepare("UPDATE ingestion_jobs SET add_input='mixed' WHERE position=0")
-    .run();
+  client.prepare("UPDATE ingestion_jobs SET mode='add' WHERE position=0").run();
   const controller = new AbortController();
   const executed: string[] = [];
   const work = processJobs({
@@ -30,7 +28,7 @@ test("a malformed stored target ends independently and the next job runs", async
     execute: async (job) => {
       const input = jobWorkflowInput(job);
       if (input.mode === "refresh") {
-        executed.push(input.eventId);
+        executed.push(input.input.eventId);
       }
     },
   });
@@ -60,7 +58,10 @@ test("one awaited loop preserves order, continues ordinary failures, and never o
     client,
     signal: controller.signal,
     execute: async (job) => {
-      started.push(job.event_id!);
+      const input = jobWorkflowInput(job);
+      if (input.mode === "refresh") {
+        started.push(input.input.eventId);
+      }
       maxActive = Math.max(maxActive, ++active);
       await delay(5);
       active--;

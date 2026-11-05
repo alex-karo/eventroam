@@ -156,7 +156,7 @@ Ordinary research SHALL make bounded recovery attempts only for explicit provide
 
 ### Requirement: Studio starts with a bounded preview
 
-The local or hosted Studio workflow form SHALL accept add with one nonblank free-text `input` and one Event target per refresh, with the CLI's scope behavior. Studio chat SHALL also accept an owner-requested selection for add or refresh under the studio-assistant contract. Each selected Event SHALL use a separate full workflow execution. It SHALL default to preview with republish permission off. Apply SHALL require an explicit request. Invalid input SHALL fail before external work. Each execution SHALL start from current catalog state and remain isolated from concurrent executions. Cancellation SHALL preserve known commits and safe failure details without requiring report usage totals.
+The Studio workflow SHALL accept an explicit `mode` and a matching `input`. Add input SHALL be one nonblank note. Refresh input SHALL contain one `eventId` and an optional `scope` that defaults to full. Studio chat SHALL also accept an owner-requested selection for add or refresh under the studio-assistant contract. Each selected Event SHALL use a separate full workflow execution. It SHALL default to preview with republish permission off. Apply SHALL require an explicit request. Invalid input SHALL fail before external work. Each execution SHALL start from current catalog state and remain isolated from concurrent executions. Cancellation SHALL preserve known commits and safe failure details without requiring report usage totals.
 
 #### Scenario: Studio preview and apply
 

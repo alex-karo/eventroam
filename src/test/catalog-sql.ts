@@ -17,3 +17,11 @@ export const RUN_EVIDENCE_SQL = readFileSync(
   new URL("run-evidence.sql", references),
   "utf8",
 ).trim();
+export const BATCH_COUNTS_SQL = readFileSync(
+  new URL("batch-counts.sql", references),
+  "utf8",
+).trim();
+export const BATCH_JOBS_SQL = readFileSync(
+  new URL("batch-jobs.sql", references),
+  "utf8",
+).trim();

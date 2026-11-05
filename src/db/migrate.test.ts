@@ -56,7 +56,7 @@ test("fresh migration creates the current catalog structure", () => {
   ]);
   expect(
     client.prepare("SELECT * FROM __drizzle_migrations").all(),
-  ).toHaveLength(5);
+  ).toHaveLength(6);
   expect(client.pragma("foreign_keys", { simple: true })).toBe(1);
   expect(client.pragma("foreign_key_check")).toEqual([]);
   expect(client.pragma("integrity_check", { simple: true })).toBe("ok");
@@ -191,68 +191,115 @@ test("repeating migration preserves data, journal and immutable history", () => 
   ).toThrow(/immutable/);
 });
 
-test("job migration keeps queued refresh jobs, indexes, and linked attempts", () => {
-  const connection = testDatabase();
-  const { client } = connection;
-  const event = testFixtures(client).event();
-  const rows = [
-    ["job-a", "batch", 0, event.id, "current", 0, "running", "2026-11-01"],
-    ["job-b", "batch", 1, event.id, "full", 1, "pending", "2026-11-01"],
-  ];
-  client.pragma("foreign_keys = OFF");
-  client.exec("DROP TABLE ingestion_jobs");
-  const oldSchema = readFileSync(
-    new URL("./migrations/0003_ingestion_jobs.sql", import.meta.url),
-    "utf8",
-  )
-    .split("ALTER TABLE")[0]
-    .replaceAll("--> statement-breakpoint", "");
-  client.exec(oldSchema);
-  const insert = client.prepare(
-    "INSERT INTO ingestion_jobs VALUES(?,?,?,?,?,?,?,?)",
-  );
-  rows.forEach((row) => insert.run(...row));
-  client
-    .prepare(
-      "INSERT INTO ingestion_runs(id,job_id,mode,status,started_at,input_json) VALUES('attempt','job-a','refresh','running','2026-11-01','{}')",
-    )
-    .run();
-  client
-    .prepare(
-      "DELETE FROM __drizzle_migrations WHERE created_at=(SELECT max(created_at) FROM __drizzle_migrations)",
-    )
-    .run();
-  client.pragma("foreign_keys = ON");
-  migrateCatalogConnection(connection);
-  expect(
+test.each([
+  { version: "0003", hasAddJobs: false },
+  { version: "0004", hasAddJobs: true },
+])(
+  "job migration from $version preserves the queue and run links",
+  ({ hasAddJobs }) => {
+    const connection = testDatabase();
+    const { client } = connection;
+    const event = testFixtures(client).event();
+    const note = '  Festival "name"\nhttps://organizer.test/\n';
+    client.pragma("foreign_keys = OFF");
+    client.exec("DROP TABLE ingestion_jobs");
+    client.exec(
+      readFileSync("src/db/migrations/0003_ingestion_jobs.sql", "utf8").split(
+        "ALTER TABLE",
+      )[0],
+    );
+    if (hasAddJobs) {
+      client.exec(
+        readFileSync("src/db/migrations/0004_add_job_inputs.sql", "utf8"),
+      );
+    }
     client
       .prepare(
-        "SELECT id,batch_id,position,event_id,scope,dry_run,status,created_at FROM ingestion_jobs ORDER BY position",
+        "INSERT INTO ingestion_jobs(id,batch_id,position,event_id,scope,dry_run,status,created_at) VALUES(?,?,?,?,?,?,?,?)",
       )
-      .raw()
-      .all(),
-  ).toEqual(rows);
-  expect(
+      .run(
+        "refresh-job",
+        "refresh-batch",
+        0,
+        event.id,
+        "current",
+        0,
+        "running",
+        "2026-11-01",
+      );
+    if (hasAddJobs) {
+      client
+        .prepare(
+          "INSERT INTO ingestion_jobs(id,batch_id,position,add_input,dry_run,status,created_at) VALUES(?,?,?,?,?,?,?)",
+        )
+        .run("add-job", "add-batch", 1, note, 1, "cancelled", "2026-11-01");
+    }
     client
-      .prepare("SELECT DISTINCT add_input FROM ingestion_jobs")
-      .pluck()
-      .all(),
-  ).toEqual([null]);
-  expect(
+      .prepare(
+        "INSERT INTO ingestion_runs(id,job_id,mode,status,started_at,input_json) VALUES('attempt','refresh-job','refresh','running','2026-11-01','{}')",
+      )
+      .run();
     client
-      .prepare("SELECT job_id FROM ingestion_runs WHERE id='attempt'")
-      .pluck()
-      .get(),
-  ).toBe("job-a");
-  expect(client.pragma("foreign_key_check")).toEqual([]);
-  expect(
-    (client.pragma("index_list(ingestion_jobs)") as { name: string }[]).map(
-      (row) => row.name,
-    ),
-  ).toEqual(
-    expect.arrayContaining([
-      "ingestion_jobs_batch_position_uq",
-      "ingestion_jobs_queue_idx",
-    ]),
-  );
-});
+      .prepare(
+        "DELETE FROM __drizzle_migrations WHERE created_at IN (SELECT created_at FROM __drizzle_migrations ORDER BY created_at DESC LIMIT ?)",
+      )
+      .run(hasAddJobs ? 1 : 2);
+    client.pragma("foreign_keys = ON");
+    const rootPage = client
+      .prepare("SELECT rootpage FROM sqlite_schema WHERE name='ingestion_jobs'")
+      .pluck();
+    const oldRootPage = rootPage.get();
+
+    migrateCatalogConnection(connection);
+
+    const rows = client
+      .prepare(
+        "SELECT id,batch_id,position,mode,input,dry_run,status,created_at FROM ingestion_jobs ORDER BY position",
+      )
+      .all() as { input: string }[];
+    expect(
+      rows.map((row) => ({ ...row, input: JSON.parse(row.input) })),
+    ).toEqual([
+      {
+        id: "refresh-job",
+        batch_id: "refresh-batch",
+        position: 0,
+        mode: "refresh",
+        input: { eventId: event.id, scope: "current" },
+        dry_run: 0,
+        status: "running",
+        created_at: "2026-11-01",
+      },
+      ...(hasAddJobs
+        ? [
+            {
+              id: "add-job",
+              batch_id: "add-batch",
+              position: 1,
+              mode: "add",
+              input: note,
+              dry_run: 1,
+              status: "cancelled",
+              created_at: "2026-11-01",
+            },
+          ]
+        : []),
+    ]);
+    if (hasAddJobs) {
+      expect(rootPage.get()).toBe(oldRootPage);
+    }
+    expect(
+      client
+        .prepare("SELECT job_id FROM ingestion_runs WHERE id='attempt'")
+        .pluck()
+        .get(),
+    ).toBe("refresh-job");
+    expect(client.pragma("foreign_key_check")).toEqual([]);
+    expect(client.pragma("index_list(ingestion_jobs)")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "ingestion_jobs_batch_position_uq" }),
+        expect.objectContaining({ name: "ingestion_jobs_queue_idx" }),
+      ]),
+    );
+  },
+);

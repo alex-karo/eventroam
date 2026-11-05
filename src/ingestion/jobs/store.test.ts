@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
+import { BATCH_COUNTS_SQL, BATCH_JOBS_SQL } from "@/test/catalog-sql";
 import { testFixtures } from "@/test/fixtures";
 import { DEFAULT_RESEARCH_LIMITS } from "../runtime/budget";
 import { startIngestionRun, storedRunInput } from "../runs";
@@ -33,12 +34,14 @@ test("a complete 200 Event batch has fixed settings, common time, distinct IDs a
   const rows = client
     .prepare("SELECT * FROM ingestion_jobs ORDER BY position")
     .all() as Record<string, unknown>[];
-  expect(rows.map((row) => row.event_id)).toEqual(eventIds);
+  expect(rows.map((row) => JSON.parse(row.input as string))).toEqual(
+    eventIds.map((eventId) => ({ eventId, scope: "current" })),
+  );
   expect(new Set(rows.map((row) => row.id)).size).toBe(200);
   expect(new Set(rows.map((row) => row.created_at)).size).toBe(1);
   expect(rows[0]).toMatchObject({
     batch_id: result.batchId,
-    scope: "current",
+    mode: "refresh",
     dry_run: 0,
     status: "pending",
   });
@@ -89,7 +92,9 @@ test("cancellation and claiming in either order preserve running and terminal jo
   const { client, eventIds } = setup(4);
   const { batchId } = submitJobs(client, { eventIds });
   const first = nextJob(client)!;
-  expect(first.event_id).toBe(eventIds[0]);
+  expect(jobWorkflowInput(first)).toMatchObject({
+    input: { eventId: eventIds[0] },
+  });
   // A saved running job stays running when the next execution selects it.
   expect(nextJob(client)).toEqual(first);
   expect(cancelPendingJobs(client, batchId)).toMatchObject({
@@ -174,15 +179,15 @@ test("SQL counts 200 jobs once and keeps multiple attempts visible within normal
   const batch = submitJobs(client, { eventIds });
   const job = nextJob(client)!;
   const input = storedRunInput(
-    { mode: "refresh", eventId: job.event_id!, actor: "owner" },
+    { mode: "refresh", eventId: eventIds[0], actor: "owner" },
     { apiKey: "fixture", model: "fixture", limits: DEFAULT_RESEARCH_LIMITS },
     DEFAULT_RESEARCH_LIMITS,
   );
   const runIds = Array.from({ length: 3 }, () =>
-    startIngestionRun(client, input, Date.now(), job.event_id, job.id),
+    startIngestionRun(client, input, Date.now(), eventIds[0], job.id),
   );
   const counts = queryCatalog(testDatabase().path, {
-    sql: "SELECT status,count(*) FROM ingestion_jobs WHERE batch_id=? GROUP BY status ORDER BY status",
+    sql: BATCH_COUNTS_SQL,
     parameters: [batch.batchId],
   });
   expect(counts).toMatchObject({
@@ -204,10 +209,27 @@ test("SQL counts 200 jobs once and keeps multiple attempts visible within normal
   });
   expect(
     queryCatalog(testDatabase().path, {
-      sql: "SELECT id FROM ingestion_jobs WHERE batch_id=?",
+      sql: BATCH_JOBS_SQL,
       parameters: [batch.batchId],
     }),
-  ).toMatchObject({ ok: true, rowCount: 200, truncated: false });
+  ).toMatchObject({
+    ok: true,
+    rowCount: 200,
+    truncated: false,
+    rows: expect.arrayContaining([
+      [
+        job.id,
+        0,
+        "refresh",
+        1,
+        "running",
+        job.created_at,
+        eventIds[0],
+        "full",
+        null,
+      ],
+    ]),
+  });
 });
 
 test("the lost-response discovery example reports when more than 200 batches match", async () => {
@@ -253,12 +275,14 @@ test("add batches preserve full notes and reject the complete invalid selection"
   expect(accepted.acceptedCount).toBe(2);
   const job = nextJob(client)!;
   expect(job).toMatchObject({
-    add_input: note,
-    event_id: null,
-    scope: null,
+    mode: "add",
+    input: JSON.stringify(note),
     dry_run: 1,
   });
   const input = jobWorkflowInput(job);
+  if (input.mode !== "add") {
+    throw new Error("Expected an add job");
+  }
   const stored = storedRunInput(
     { ...input, actor: "owner" },
     { apiKey: "fixture", model: "fixture", limits: DEFAULT_RESEARCH_LIMITS },
@@ -292,12 +316,13 @@ test("add batches preserve full notes and reject the complete invalid selection"
     ).input,
   ).toBe(note);
   for (const row of [
-    { ...job, event_id: "mixed" },
-    { ...job, scope: "full" },
-    { ...job, add_input: null },
+    { ...job, mode: "refresh" as const },
+    { ...job, input: '{"eventId":"mixed","scope":"full"}' },
+    { ...job, input: "null" },
+    { ...job, input: "invalid JSON" },
     { ...job, dry_run: 2 },
   ]) {
-    expect(() => jobWorkflowInput(row as typeof job)).toThrow();
+    expect(() => jobWorkflowInput(row)).toThrow();
   }
   expect(cancelPendingJobs(client, accepted.batchId).cancelledCount).toBe(1);
   expect(nextJob(client)?.id).toBe(job.id);
@@ -313,7 +338,7 @@ test("SQL counts and bounded add details work when one note exceeds the result l
   });
   const job = nextJob(client)!;
   const input = storedRunInput(
-    { ...jobWorkflowInput(job), actor: "owner" },
+    { mode: "add", input: note, actor: "owner" },
     { apiKey: "fixture", model: "fixture", limits: DEFAULT_RESEARCH_LIMITS },
     DEFAULT_RESEARCH_LIMITS,
   );
@@ -322,11 +347,7 @@ test("SQL counts and bounded add details work when one note exceeds the result l
   }
   const query = (sql: string) =>
     queryCatalog(testDatabase().path, { sql, parameters: [batch.batchId] });
-  expect(
-    query(
-      "SELECT status,count(*) FROM ingestion_jobs WHERE batch_id=? GROUP BY status ORDER BY status",
-    ),
-  ).toMatchObject({
+  expect(query(BATCH_COUNTS_SQL)).toMatchObject({
     ok: true,
     truncated: false,
     rows: [
@@ -334,19 +355,27 @@ test("SQL counts and bounded add details work when one note exceeds the result l
       ["running", 1],
     ],
   });
-  expect(
-    query(
-      "SELECT position,status FROM ingestion_jobs WHERE batch_id=? ORDER BY position",
-    ),
-  ).toMatchObject({ ok: true, rowCount: 200, truncated: false });
-  expect(
-    query(
-      "SELECT position,substr(add_input,1,80) FROM ingestion_jobs WHERE batch_id=? ORDER BY position",
-    ),
-  ).toMatchObject({ ok: true, rowCount: 200, truncated: false });
+  expect(query(BATCH_JOBS_SQL)).toMatchObject({
+    ok: true,
+    rowCount: 200,
+    truncated: false,
+    rows: expect.arrayContaining([
+      [
+        job.id,
+        0,
+        "add",
+        1,
+        "running",
+        job.created_at,
+        null,
+        null,
+        note.slice(0, 160),
+      ],
+    ]),
+  });
   expect(
     client
-      .prepare("SELECT add_input FROM ingestion_jobs WHERE id=?")
+      .prepare("SELECT json_extract(input,'$') FROM ingestion_jobs WHERE id=?")
       .pluck()
       .get(job.id),
   ).toBe(note);

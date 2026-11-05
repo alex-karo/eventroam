@@ -97,7 +97,10 @@ afterAll(async () => {
 }, 10_000);
 
 test("native create and stream expose preview, then apply under a fresh ingestion ID", async () => {
-  const inputData = { mode: "refresh", eventId: STUDIO_FIXTURE_EVENT_ID };
+  const inputData = {
+    mode: "refresh",
+    input: { eventId: STUDIO_FIXTURE_EVENT_ID },
+  };
   const preview = await run(fixture, inputData);
   expect(
     preview.response.status,
@@ -207,7 +210,7 @@ test("graph inspection needs no catalog and execution does not create one", asyn
     expect(existsSync(server.catalogPath)).toBe(false);
     const started = await run(server, {
       mode: "refresh",
-      eventId: STUDIO_FIXTURE_EVENT_ID,
+      input: { eventId: STUDIO_FIXTURE_EVENT_ID },
     });
     expect(started.text).not.toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
     expect(existsSync(server.catalogPath)).toBe(false);
@@ -227,14 +230,20 @@ test("per-step starts and replay routes are rejected before durable allocation",
     "streamVNext",
   ]) {
     const rejected = await request(fixture, `${route}?runId=${runId}`, {
-      inputData: { mode: "refresh", eventId: STUDIO_FIXTURE_EVENT_ID },
+      inputData: {
+        mode: "refresh",
+        input: { eventId: STUDIO_FIXTURE_EVENT_ID },
+      },
       perStep: true,
     });
     expect(rejected.response.status, `${route}: ${rejected.text}`).toBe(400);
     expect(rejected.text).not.toContain("PRIVATE_STUDIO_FIXTURE_SENTINEL");
     for (const initialState of [{}, { data: { prepared: [] } }]) {
       const stateOverride = await request(fixture, `${route}?runId=${runId}`, {
-        inputData: { mode: "refresh", eventId: STUDIO_FIXTURE_EVENT_ID },
+        inputData: {
+          mode: "refresh",
+          input: { eventId: STUDIO_FIXTURE_EVENT_ID },
+        },
         initialState,
       });
       expect(
@@ -266,7 +275,7 @@ test("native cancel route closes an in-flight run without later catalog writes",
     const pending = request(server, `start-async?runId=${runId}`, {
       inputData: {
         mode: "refresh",
-        eventId: STUDIO_FIXTURE_EVENT_ID,
+        input: { eventId: STUDIO_FIXTURE_EVENT_ID },
         dryRun: false,
       },
     });
@@ -299,7 +308,7 @@ test("final persistence failure keeps the committed catalog change and hides the
   try {
     const started = await run(server, {
       mode: "refresh",
-      eventId: STUDIO_FIXTURE_EVENT_ID,
+      input: { eventId: STUDIO_FIXTURE_EVENT_ID },
       dryRun: false,
     });
     expect(started.response.status, started.text).toBe(200);
@@ -359,7 +368,7 @@ test("native apply traces retain model content while the shared store serves lat
   try {
     const applied = await run(server, {
       mode: "refresh",
-      eventId: STUDIO_FIXTURE_EVENT_ID,
+      input: { eventId: STUDIO_FIXTURE_EVENT_ID },
       dryRun: false,
     });
     expect(applied.response.status, applied.text).toBe(200);
@@ -370,7 +379,7 @@ test("native apply traces retain model content while the shared store serves lat
     });
     const preview = await run(server, {
       mode: "refresh",
-      eventId: STUDIO_FIXTURE_EVENT_ID,
+      input: { eventId: STUDIO_FIXTURE_EVENT_ID },
     });
     expect(preview.response.status, preview.text).toBe(200);
     const previewSummary = streamResult(preview.text);
@@ -435,7 +444,7 @@ test("native apply traces retain model content while the shared store serves lat
     // A second apply must borrow the same still-open store successfully.
     const again = await run(server, {
       mode: "refresh",
-      eventId: STUDIO_FIXTURE_EVENT_ID,
+      input: { eventId: STUDIO_FIXTURE_EVENT_ID },
       dryRun: false,
     });
     expect(again.response.status, again.text).toBe(200);
@@ -494,7 +503,7 @@ test("native apply traces retain model content while the shared store serves lat
 test("saved execution IDs are rejected before every native start acknowledgment", async () => {
   const done = await run(fixture, {
     mode: "refresh",
-    eventId: STUDIO_FIXTURE_EVENT_ID,
+    input: { eventId: STUDIO_FIXTURE_EVENT_ID },
   });
   const before = rows(fixture);
   const url = `${fixture.baseUrl}/api/workflows/catalog-ingestion/runs/${done.runId}`;
@@ -507,7 +516,10 @@ test("saved execution IDs are rejected before every native start acknowledgment"
     "streamVNext",
   ]) {
     const rejected = await request(fixture, `${route}?runId=${done.runId}`, {
-      inputData: { mode: "refresh", eventId: STUDIO_FIXTURE_EVENT_ID },
+      inputData: {
+        mode: "refresh",
+        input: { eventId: STUDIO_FIXTURE_EVENT_ID },
+      },
     });
     expect(rejected.response.status, route).toBe(409);
   }

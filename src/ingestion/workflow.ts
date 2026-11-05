@@ -1,4 +1,4 @@
-import { addInputSchema } from "./add-input";
+import { studioIngestionInputSchema } from "./invocation";
 import { researchErrorSchema } from "./research/contracts";
 import {
   specialistResultsSchema,
@@ -100,32 +100,6 @@ export type {
   ResearchDependencies,
 } from "./contracts";
 
-export const studioIngestionInputSchema = z
-  .strictObject({
-    mode: z.enum(["add", "refresh"]),
-    scope: z.enum(["full", "current"]).optional(),
-    input: addInputSchema.optional(),
-    eventId: z.string().trim().min(1).max(500).optional(),
-    dryRun: z.boolean().default(true),
-    republish: z.boolean().default(false),
-  })
-  .superRefine((value, context) => {
-    if (
-      value.mode === "add" &&
-      (!value.input || value.eventId || value.scope !== undefined)
-    ) {
-      context.addIssue({
-        code: "custom",
-        message: "add requires input and no Event ID",
-      });
-    }
-    if (value.mode !== "add" && (!value.eventId || value.input)) {
-      context.addIssue({
-        code: "custom",
-        message: "refresh requires an Event ID and no add input",
-      });
-    }
-  });
 export type StudioIngestionInput = z.input<typeof studioIngestionInputSchema>;
 
 // Explicit fields expose research data; runtime resources are never included.
@@ -1028,10 +1002,12 @@ export function createCatalogIngestionWorkflow(
             : await resolveDependencies(parsed, runId);
           let owned: CatalogAttempt;
           try {
+            const { input, ...settings } = parsed;
             owned = new CatalogAttempt(
               runId,
               options.cli?.requested ?? {
-                ...parsed,
+                ...settings,
+                ...(typeof input === "string" ? { input } : input),
                 actor: "catalog-research",
               },
               resolved.deps,
@@ -1132,14 +1108,15 @@ export async function runCatalogResearch(
       loggerOptions: { export: false },
     });
     const run = await safeStep(() => workflow.createRun());
-    const inputData = {
+    const inputData = studioIngestionInputSchema.parse({
       mode: requested.mode,
-      scope: requested.scope,
-      input: requested.input,
-      eventId: requested.eventId,
-      dryRun: requested.dryRun ?? true,
-      republish: requested.republish ?? false,
-    };
+      input:
+        requested.mode === "refresh"
+          ? { eventId: requested.eventId, scope: requested.scope }
+          : requested.input,
+      dryRun: requested.dryRun,
+      republish: requested.republish,
+    });
     const result = await run.start({ inputData }).catch((error: unknown) => {
       if (!cli.owned || error instanceof WorkflowHistoryError) {
         throw error;

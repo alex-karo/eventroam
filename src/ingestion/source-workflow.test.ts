@@ -511,7 +511,7 @@ it("keeps saved source references in workflow history after cancellation during 
     const pending = run.start({
       inputData: {
         mode: "refresh",
-        eventId: event.id,
+        input: { eventId: event.id, scope: "full" },
         dryRun: false,
         republish: false,
       },

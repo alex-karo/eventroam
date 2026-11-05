@@ -1,5 +1,6 @@
 import { jobWorkflowInput, type IngestionJob } from "./jobs/store";
 import { addInputSchema } from "./add-input";
+import { eventIdSchema, refreshScopeSchema } from "./invocation";
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import { z } from "zod";
@@ -19,9 +20,9 @@ const limitsSchema = z.object(
 );
 const invocationSchema = z.object({
   mode: z.enum(["add", "refresh"]),
-  scope: z.enum(["full", "current"]).optional(),
+  scope: refreshScopeSchema.optional(),
   input: addInputSchema.optional(),
-  eventId: nonempty.optional(),
+  eventId: eventIdSchema.optional(),
   actor: nonempty.max(200),
   initiatedBy: nonempty.max(200).optional(),
   dryRun: z.boolean().default(true),
@@ -173,24 +174,24 @@ export function startIngestionRun(
         if (jobId !== undefined) {
           const job = client
             .prepare(
-              "SELECT add_input,event_id,scope,dry_run,status FROM ingestion_jobs WHERE id=?",
+              "SELECT mode,input,dry_run,status FROM ingestion_jobs WHERE id=?",
             )
-            .get(jobId) as IngestionJob | undefined;
+            .get(jobId) as
+            | Pick<IngestionJob, "mode" | "input" | "dry_run" | "status">
+            | undefined;
           if (job?.status !== "running") {
             throw new Error("Job is not running");
           }
-          const expected = {
-            input: undefined,
-            eventId: undefined,
-            scope: undefined,
-            ...jobWorkflowInput(job),
-          };
+          const expected = jobWorkflowInput(job);
+          const refresh =
+            expected.mode === "refresh" ? expected.input : undefined;
           if (
             parsed.mode !== expected.mode ||
-            parsed.input !== expected.input ||
-            parsed.eventId !== expected.eventId ||
-            eventId !== (expected.eventId ?? null) ||
-            parsed.scope !== expected.scope ||
+            parsed.input !==
+              (expected.mode === "add" ? expected.input : undefined) ||
+            parsed.eventId !== refresh?.eventId ||
+            eventId !== (refresh?.eventId ?? null) ||
+            parsed.scope !== refresh?.scope ||
             parsed.dryRun !== expected.dryRun ||
             parsed.republish
           ) {

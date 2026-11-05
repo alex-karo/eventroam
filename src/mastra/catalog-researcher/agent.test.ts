@@ -76,12 +76,12 @@ test("offline Studio conversation finds two candidates, adds both, and reads the
     expect(
       db.client
         .prepare(
-          "SELECT add_input,dry_run FROM ingestion_jobs ORDER BY position",
+          "SELECT mode,json_extract(input,'$') AS input,dry_run FROM ingestion_jobs ORDER BY position",
         )
         .all(),
     ).toEqual([
-      { add_input: "Alpha Festival\nhttps://alpha.test/", dry_run: 0 },
-      { add_input: "Beta Festival\nhttps://beta.test/", dry_run: 0 },
+      { mode: "add", input: "Alpha Festival\nhttps://alpha.test/", dry_run: 0 },
+      { mode: "add", input: "Beta Festival\nhttps://beta.test/", dry_run: 0 },
     ]);
     const status = await ask(`progress batch ${batchId}`);
     expect(status.text).toContain("pending");
