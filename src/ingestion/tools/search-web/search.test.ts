@@ -22,7 +22,6 @@ function searchWith(fetchMock: typeof fetch, durationMs = 30_000) {
       config: {
         apiKey: "test-key",
         model: "provider/model",
-        limits: budget.limits,
       },
       fetch: fetchMock,
       log,
@@ -87,7 +86,6 @@ describe("searchWeb", () => {
         model: "provider/model",
         reasoningEffort: "medium",
         serviceTier: "flex",
-        limits: budget.limits,
       },
       fetch: fetchMock as typeof fetch,
     });
@@ -175,7 +173,7 @@ describe("searchWeb", () => {
     const budget = createResearchBudget({ searchResults: 2 });
     const result = await searchWeb("Festival 2027", {
       budget,
-      config: { apiKey: "fixture", model: "fixture", limits: budget.limits },
+      config: { apiKey: "fixture", model: "fixture" },
       fetch: fetchMock,
     });
     expect(result.candidates).toEqual([
@@ -315,7 +313,6 @@ describe("searchWeb", () => {
           config: {
             apiKey: "test-key",
             model: "provider/model",
-            limits: budget.limits,
           },
           fetch: fetchMock,
         }),

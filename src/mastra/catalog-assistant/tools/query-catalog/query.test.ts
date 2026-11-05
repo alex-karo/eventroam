@@ -197,7 +197,7 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
   const { submitAddJobs } = await import("../../../../ingestion/jobs/store");
   const db = testDatabase();
   const batch = submitAddJobs(db.client, {
-    inputs: ["x".repeat(70000), ...Array(7).fill("Event research note")],
+    inputs: ["x".repeat(70000), ...Array(9).fill("Event research note")],
   });
   const jobs = db.client
     .prepare("SELECT id FROM ingestion_jobs ORDER BY position")
@@ -307,6 +307,22 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
       "INSERT INTO ingestion_runs(id,job_id,mode,status,started_at,input_json,report_json) VALUES('bad-input',?,'add','failed','2026-11-04','{',?)",
     )
     .run(jobs[7], JSON.stringify({ schemaVersion: 7, outcome: "unchanged" }));
+  for (const [index, schemaVersion] of [999, 7].entries()) {
+    db.client
+      .prepare(
+        "INSERT INTO ingestion_runs(id,job_id,mode,status,started_at,input_json,report_json) VALUES(?,?,'add','failed','2026-11-04','{}',?)",
+      )
+      .run(
+        `unfamiliar-report-${index}`,
+        jobs[8 + index],
+        JSON.stringify({
+          schemaVersion,
+          errors: ["example"],
+          operations: ["example", { kind: "createEvent" }],
+          receipts: ["example", "example"],
+        }),
+      );
+  }
   const sql = readFileSync(
     new URL(
       "../../skills/catalog-sql/references/inspect-add-batch.sql",
@@ -315,14 +331,16 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
     "utf8",
   ).trim();
   const result = queryCatalog(db.path, { sql, parameters: [batch.batchId] });
-  expect(result).toMatchObject({ ok: true, rowCount: 8, truncated: false });
+  expect(result).toMatchObject({ ok: true, rowCount: 10, truncated: false });
   if (!result.ok) {
     throw new Error("Expected valid query");
   }
   const rows = result.rows.map((row) =>
     Object.fromEntries(result.columns.map((column, i) => [column, row[i]])),
   );
-  expect(rows.map((row) => row.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+  expect(rows.map((row) => row.position)).toEqual([
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+  ]);
   expect(rows[0]).toMatchObject({
     preview: 1,
     proposedCreation: 1,
@@ -375,4 +393,14 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
     preview: null,
     outcome: "unchanged",
   });
+  for (const [index, schemaVersion] of [999, 7].entries()) {
+    expect(rows[8 + index]).toMatchObject({
+      reportValid: 1,
+      schemaVersion,
+      outcome: null,
+      editorRejected: 0,
+      proposedCreation: 1,
+      changedCreation: 0,
+    });
+  }
 });

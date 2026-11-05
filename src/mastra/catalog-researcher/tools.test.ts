@@ -139,9 +139,12 @@ test("chat cancellation stops the search request and retry wait", async () => {
 
 test("invalid research settings affect search but leave submission, status, and cancellation available", async () => {
   const db = testDatabase();
+  const captured = context();
   vi.stubEnv("CATALOG_MAX_PAGE_BYTES", "invalid");
   vi.stubEnv("OPENROUTER_API_KEY", "fixture");
-  const fetch = vi.fn();
+  const fetch = vi.fn(async () =>
+    Response.json({ choices: [{ message: { annotations: [] } }] }),
+  );
   vi.stubGlobal("fetch", fetch);
   const ctx = context();
   const add = await createAddEventsTool(() => db.path).execute!(
@@ -159,6 +162,10 @@ test("invalid research settings affect search but leave submission, status, and 
     await createSearchWebTool().execute!({ query: "Find festivals" }, ctx),
   ).toMatchObject({ error: "search_unavailable" });
   expect(fetch).not.toHaveBeenCalled();
+  expect(
+    await createSearchWebTool().execute!({ query: "Find festivals" }, captured),
+  ).toMatchObject({ ok: true, candidates: [] });
+  expect(fetch).toHaveBeenCalledTimes(1);
   const batchId = db.client
     .prepare("SELECT batch_id FROM ingestion_jobs")
     .pluck()

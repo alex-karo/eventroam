@@ -21,17 +21,17 @@ SELECT j.position, j.status AS jobStatus, j.dry_run AS jobPreview,
   json_extract(r.readableReport, '$.editorResponse.object.event.target.reason') AS editorTargetReason,
   EXISTS (
     SELECT 1 FROM json_each(r.readableReport, '$.errors') error
-    WHERE json_extract(error.value, '$.code') = 'editor_rejected'
+    WHERE json_extract(CASE WHEN error.type = 'object' THEN error.value END, '$.code') = 'editor_rejected'
   ) AS editorRejected,
   EXISTS (
     SELECT 1 FROM json_each(r.readableReport, '$.operations') op
-    WHERE json_extract(op.value, '$.kind') = 'createEvent'
+    WHERE json_extract(CASE WHEN op.type = 'object' THEN op.value END, '$.kind') = 'createEvent'
   ) AS proposedCreation,
   EXISTS (
     SELECT 1 FROM json_each(r.readableReport, '$.operations') op
     JOIN json_each(r.readableReport, '$.receipts') receipt ON receipt.key = op.key
-    WHERE json_extract(op.value, '$.kind') = 'createEvent'
-      AND json_extract(receipt.value, '$.changed') = 1
+    WHERE json_extract(CASE WHEN op.type = 'object' THEN op.value END, '$.kind') = 'createEvent'
+      AND json_extract(CASE WHEN receipt.type = 'object' THEN receipt.value END, '$.changed') = 1
   ) AS changedCreation
 FROM ingestion_jobs j LEFT JOIN runs r ON r.job_id = j.id
 WHERE j.batch_id = ? AND j.add_input IS NOT NULL

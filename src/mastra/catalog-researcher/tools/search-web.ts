@@ -5,7 +5,7 @@ import {
   ResearchLimitError,
   type ResearchBudget,
 } from "../../../ingestion/runtime/budget";
-import { loadResearchConfig } from "../../../ingestion/runtime/config";
+import { loadResearchModelConfig } from "../../../ingestion/runtime/config";
 import { trustedSearchBudget } from "../../catalog-assistant/execution-context";
 import {
   startToolLog,
@@ -31,7 +31,7 @@ export function createSearchWebTool(logging?: AssistantLogging) {
         }
         const result = await searchWeb(query, {
           budget,
-          config: loadResearchConfig(),
+          config: loadResearchModelConfig(),
           signal: context?.abortSignal,
         });
         if (context?.abortSignal?.aborted) {

@@ -26,7 +26,10 @@ interface SearchResponse {
 
 export interface SearchWebOptions {
   budget: ResearchBudget;
-  config: ResearchConfig;
+  config: Pick<
+    ResearchConfig,
+    "apiKey" | "model" | "serviceTier" | "reasoningEffort"
+  >;
   fetch?: typeof fetch;
   now?: () => Date;
   log?: ResearchLogger;

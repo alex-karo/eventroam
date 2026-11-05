@@ -29,7 +29,7 @@ test("the native Location request includes the independent location evidence rul
     expect(instructions).toContain(
       "does not independently establish the festival location",
     );
-    expect(instructions).toContain("independent source confirms only the city");
+    expect(instructions).toContain("If a source confirms only the town");
     return Response.json({
       id: "location-fixture",
       object: "chat.completion",

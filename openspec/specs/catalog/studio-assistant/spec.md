@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Let the owner select catalog Events, start bounded refreshes, and inspect their results through Studio chat.
+Let the owner research Events, start bounded add and refresh jobs, and inspect their results through Studio chat.
 
 ## Requirements
 

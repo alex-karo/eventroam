@@ -16,23 +16,27 @@ export const topics = [
 ] as const;
 const quote = z.string().min(1).max(24000);
 const readerEvidence = z.strictObject({
-  quote: z.union([
-    quote,
-    z.strictObject({
-      start: z
-        .string()
-        .min(1)
-        .describe(
-          "Exact unique opening text, normally at most 250 characters. Preserve whitespace.",
-        ),
-      end: z
-        .string()
-        .min(1)
-        .describe(
-          "Exact unique closing text, normally at most 250 characters. It must follow the opening text. Never use a repeated bullet.",
-        ),
-    }),
-  ]),
+  quote: z
+    .union([
+      quote,
+      z.strictObject({
+        start: z
+          .string()
+          .min(1)
+          .describe(
+            "Exact unique opening text, normally at most 250 characters. Preserve whitespace.",
+          ),
+        end: z
+          .string()
+          .min(1)
+          .describe(
+            "Exact unique closing text, normally at most 250 characters. It must follow the opening text. Never use a repeated bullet.",
+          ),
+      }),
+    ])
+    .describe(
+      "Copy the full literal quotation when it has at most 2000 characters. Use start/end only for longer passages, with both boundaries unique in the complete page.",
+    ),
   topics: z.array(z.enum(topics)).min(1).max(9),
 });
 const contextualReaderEvidence = readerEvidence.extend({
