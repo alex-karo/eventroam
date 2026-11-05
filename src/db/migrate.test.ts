@@ -56,7 +56,7 @@ test("fresh migration creates the current catalog structure", () => {
   ]);
   expect(
     client.prepare("SELECT * FROM __drizzle_migrations").all(),
-  ).toHaveLength(4);
+  ).toHaveLength(5);
   expect(client.pragma("foreign_keys", { simple: true })).toBe(1);
   expect(client.pragma("foreign_key_check")).toEqual([]);
   expect(client.pragma("integrity_check", { simple: true })).toBe("ok");
@@ -189,4 +189,70 @@ test("repeating migration preserves data, journal and immutable history", () => 
   expect(() =>
     client.prepare("DELETE FROM catalog_changes WHERE id='change'").run(),
   ).toThrow(/immutable/);
+});
+
+test("job migration keeps queued refresh jobs, indexes, and linked attempts", () => {
+  const connection = testDatabase();
+  const { client } = connection;
+  const event = testFixtures(client).event();
+  const rows = [
+    ["job-a", "batch", 0, event.id, "current", 0, "running", "2026-11-01"],
+    ["job-b", "batch", 1, event.id, "full", 1, "pending", "2026-11-01"],
+  ];
+  client.pragma("foreign_keys = OFF");
+  client.exec("DROP TABLE ingestion_jobs");
+  const oldSchema = readFileSync(
+    new URL("./migrations/0003_ingestion_jobs.sql", import.meta.url),
+    "utf8",
+  )
+    .split("ALTER TABLE")[0]
+    .replaceAll("--> statement-breakpoint", "");
+  client.exec(oldSchema);
+  const insert = client.prepare(
+    "INSERT INTO ingestion_jobs VALUES(?,?,?,?,?,?,?,?)",
+  );
+  rows.forEach((row) => insert.run(...row));
+  client
+    .prepare(
+      "INSERT INTO ingestion_runs(id,job_id,mode,status,started_at,input_json) VALUES('attempt','job-a','refresh','running','2026-11-01','{}')",
+    )
+    .run();
+  client
+    .prepare(
+      "DELETE FROM __drizzle_migrations WHERE created_at=(SELECT max(created_at) FROM __drizzle_migrations)",
+    )
+    .run();
+  client.pragma("foreign_keys = ON");
+  migrateCatalogConnection(connection);
+  expect(
+    client
+      .prepare(
+        "SELECT id,batch_id,position,event_id,scope,dry_run,status,created_at FROM ingestion_jobs ORDER BY position",
+      )
+      .raw()
+      .all(),
+  ).toEqual(rows);
+  expect(
+    client
+      .prepare("SELECT DISTINCT add_input FROM ingestion_jobs")
+      .pluck()
+      .all(),
+  ).toEqual([null]);
+  expect(
+    client
+      .prepare("SELECT job_id FROM ingestion_runs WHERE id='attempt'")
+      .pluck()
+      .get(),
+  ).toBe("job-a");
+  expect(client.pragma("foreign_key_check")).toEqual([]);
+  expect(
+    (client.pragma("index_list(ingestion_jobs)") as { name: string }[]).map(
+      (row) => row.name,
+    ),
+  ).toEqual(
+    expect.arrayContaining([
+      "ingestion_jobs_batch_position_uq",
+      "ingestion_jobs_queue_idx",
+    ]),
+  );
 });

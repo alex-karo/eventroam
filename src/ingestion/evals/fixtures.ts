@@ -1,3 +1,4 @@
+import { addInputSchema } from "../add-input";
 import { assertMainCase } from "./main";
 import { assertRegressionCase } from "./regression";
 import { assertLocationCase } from "./location";
@@ -20,6 +21,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { catalogPriceBlockSchema } from "@/catalog/operations/operation";
+import { wackenAddCase } from "./cases/wacken/add";
 
 const link = z.object({
   kind: z.enum(linkKinds),
@@ -98,7 +100,7 @@ const commonCaseSchema = z.strictObject({
   input: z.object({
     mode: z.enum(["add", "refresh"]),
     scope: z.enum(["full", "current"]).optional(),
-    name: z.string().optional(),
+    input: addInputSchema.optional(),
     eventId: z.string().optional(),
     actor: z.string(),
     initiatedBy: z.string(),
@@ -232,6 +234,7 @@ export function loadEvalSuite(): EvalSuite {
       };
     }),
   });
+  suite.cases.push(evalCaseSchema.parse(wackenAddCase(suite.cases)));
   const ids = suite.cases.map((item) => item.id);
   if (new Set(ids).size !== ids.length) {
     throw new Error("Duplicate eval case ID");

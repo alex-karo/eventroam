@@ -1,7 +1,8 @@
 import { parseArgs } from "node:util";
+import { addInputSchema } from "../src/ingestion/add-input";
 
 export const catalogUsage = `Usage: pnpm run catalog <add|refresh> [options]
-  add      --name <festival>
+  add      --input <description>
   refresh  --event <Event ID> ... [--scope full|current] (default full)
   --dry-run (default) | --apply
   --republish             Explicitly allow withdrawn records to publish
@@ -18,7 +19,7 @@ export function parseCatalogOptions(args: string[]) {
     strict: true,
     options: {
       help: { type: "boolean" },
-      name: { type: "string" },
+      input: { type: "string", multiple: true },
       scope: { type: "string" },
       event: { type: "string", multiple: true },
       "dry-run": { type: "boolean" },
@@ -43,16 +44,20 @@ export function parseCatalogOptions(args: string[]) {
     throw new Error("Choose either --apply or --dry-run.");
   }
   const eventIds = [...new Set(values.event ?? [])];
+  if ((values.input?.length ?? 0) > 1) {
+    throw new Error("Provide one --input note.");
+  }
+  const input = values.input?.[0];
   if (mode === "add") {
-    if (!values.name?.trim()) {
-      throw new Error("add requires --name.");
+    if (!addInputSchema.safeParse(input).success) {
+      throw new Error("add requires nonblank --input.");
     }
     if (eventIds.length) {
       throw new Error("add does not accept record IDs.");
     }
   } else {
-    if (values.name) {
-      throw new Error("--name belongs to add.");
+    if (values.input !== undefined) {
+      throw new Error("--input belongs to add.");
     }
     if (!eventIds.length) {
       throw new Error("Provide --event.");
@@ -72,7 +77,7 @@ export function parseCatalogOptions(args: string[]) {
       mode === "refresh"
         ? ((values.scope ?? "full") as "full" | "current")
         : undefined,
-    name: values.name?.trim(),
+    input,
     eventIds,
     dryRun: !values.apply,
     republish: values.republish ?? false,

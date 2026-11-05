@@ -58,7 +58,7 @@ test("graph inspection is lazy and execution never creates a missing catalog", a
     run.start({
       inputData: {
         mode: "add",
-        name: "Fixture",
+        input: "Fixture",
         dryRun: true,
         republish: false,
       },

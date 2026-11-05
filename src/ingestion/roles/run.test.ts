@@ -32,7 +32,7 @@ it.each(["add", "full", "current"] as const)(
     );
     const input =
       mode === "add"
-        ? { mode: "add" as const, name: event.canonicalName, actor: "test" }
+        ? { mode: "add" as const, input: event.canonicalName, actor: "test" }
         : {
             mode: "refresh" as const,
             scope: mode,

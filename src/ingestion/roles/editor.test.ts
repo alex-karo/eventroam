@@ -13,7 +13,7 @@ import {
 import type { GenerateRole } from "./invoke";
 const input = {
   mode: "add" as const,
-  name: "Example Fest",
+  input: "Example Fest",
   actor: "test",
   dryRun: false,
 };

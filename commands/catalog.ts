@@ -161,7 +161,7 @@ export async function executeCatalogCommand(
             {
               mode: options.mode,
               scope: options.scope,
-              name: options.name,
+              input: options.input,
               eventId,
               actor: "catalog-research",
               dryRun: options.dryRun,

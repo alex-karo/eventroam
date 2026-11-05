@@ -22,7 +22,6 @@ function searchWith(fetchMock: typeof fetch, durationMs = 30_000) {
       config: {
         apiKey: "test-key",
         model: "provider/model",
-        limits: budget.limits,
       },
       fetch: fetchMock,
       log,
@@ -87,7 +86,6 @@ describe("searchWeb", () => {
         model: "provider/model",
         reasoningEffort: "medium",
         serviceTier: "flex",
-        limits: budget.limits,
       },
       fetch: fetchMock as typeof fetch,
     });
@@ -175,7 +173,7 @@ describe("searchWeb", () => {
     const budget = createResearchBudget({ searchResults: 2 });
     const result = await searchWeb("Festival 2027", {
       budget,
-      config: { apiKey: "fixture", model: "fixture", limits: budget.limits },
+      config: { apiKey: "fixture", model: "fixture" },
       fetch: fetchMock,
     });
     expect(result.candidates).toEqual([
@@ -199,7 +197,10 @@ describe("searchWeb", () => {
       .mockResolvedValueOnce(new Response(null, { status: 429 }))
       .mockRejectedValueOnce(new TypeError("network failed"))
       .mockResolvedValueOnce(
-        Response.json({ usage: { prompt_tokens: 10, completion_tokens: 2 } }),
+        Response.json({
+          choices: [{ message: {} }],
+          usage: { prompt_tokens: 10, completion_tokens: 2 },
+        }),
       );
     const { run, budget, log } = searchWith(fetchMock);
     await vi.advanceTimersByTimeAsync(499);
@@ -235,7 +236,7 @@ describe("searchWeb", () => {
             headers: { "retry-after": retryAfter },
           }),
         )
-        .mockResolvedValueOnce(Response.json({}));
+        .mockResolvedValueOnce(Response.json({ choices: [{ message: {} }] }));
       const { run } = searchWith(fetchMock);
       const delay = retryAfter === "invalid" ? 500 : 2000;
       await vi.advanceTimersByTimeAsync(delay - 1);
@@ -312,7 +313,6 @@ describe("searchWeb", () => {
           config: {
             apiKey: "test-key",
             model: "provider/model",
-            limits: budget.limits,
           },
           fetch: fetchMock,
         }),

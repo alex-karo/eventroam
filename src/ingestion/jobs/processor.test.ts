@@ -2,7 +2,12 @@ import { setTimeout as delay } from "node:timers/promises";
 import { expect, test } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
-import { submitJobs, cancelPendingJobs, nextJob } from "./store";
+import {
+  submitJobs,
+  cancelPendingJobs,
+  nextJob,
+  jobWorkflowInput,
+} from "./store";
 import { processJobs } from "./processor";
 
 function setup(n = 4) {
@@ -11,6 +16,39 @@ function setup(n = 4) {
   const eventIds = Array.from({ length: n }, () => fixtures.event().id);
   return { ...db, eventIds, ...submitJobs(db.client, { eventIds }) };
 }
+
+test("a malformed stored target ends independently and the next job runs", async () => {
+  const { client, eventIds } = setup(2);
+  client
+    .prepare("UPDATE ingestion_jobs SET add_input='mixed' WHERE position=0")
+    .run();
+  const controller = new AbortController();
+  const executed: string[] = [];
+  const work = processJobs({
+    client,
+    signal: controller.signal,
+    execute: async (job) => {
+      const input = jobWorkflowInput(job);
+      if (input.mode === "refresh") {
+        executed.push(input.eventId);
+      }
+    },
+  });
+  await expect
+    .poll(() =>
+      client
+        .prepare("SELECT count(*) FROM ingestion_jobs WHERE status='done'")
+        .pluck()
+        .get(),
+    )
+    .toBe(2);
+  controller.abort();
+  await work;
+  expect(executed).toEqual([eventIds[1]]);
+  expect(
+    client.prepare("SELECT count(*) FROM ingestion_runs").pluck().get(),
+  ).toBe(0);
+});
 
 test("one awaited loop preserves order, continues ordinary failures, and never overlaps", async () => {
   const { client, eventIds } = setup();
@@ -22,7 +60,7 @@ test("one awaited loop preserves order, continues ordinary failures, and never o
     client,
     signal: controller.signal,
     execute: async (job) => {
-      started.push(job.event_id);
+      started.push(job.event_id!);
       maxActive = Math.max(maxActive, ++active);
       await delay(5);
       active--;

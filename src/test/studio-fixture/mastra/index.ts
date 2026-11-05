@@ -1,3 +1,4 @@
+import { createCatalogResearcher } from "../../../mastra/catalog-researcher";
 import { fixtureRoleForProvider } from "../../ingestion-provider";
 import { fixtureTargets } from "../../ingestion";
 import Database from "better-sqlite3";
@@ -58,8 +59,35 @@ const general = {
       });
     }
     const body = JSON.parse(String(init?.body)) as {
+      plugins?: unknown[];
       response_format?: { json_schema?: { schema?: Record<string, unknown> } };
     };
+    if (body.plugins) {
+      return Response.json({
+        choices: [
+          {
+            message: {
+              annotations: [
+                {
+                  type: "url_citation",
+                  url_citation: {
+                    url: "https://alpha.test/",
+                    title: "Alpha Festival",
+                  },
+                },
+                {
+                  type: "url_citation",
+                  url_citation: {
+                    url: "https://beta.test/",
+                    title: "Beta Festival",
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+    }
     return Response.json({
       id: "offline-response",
       object: "chat.completion",
@@ -154,6 +182,11 @@ export async function createFixtureMastra() {
     {
       workflows: { "catalog-ingestion": workflow },
       agents: {
+        "catalog-researcher": createCatalogResearcher(
+          chat.memory,
+          createAssistantFixtureModel(),
+          logging,
+        ),
         "catalog-assistant": createCatalogAssistant(
           chat.memory,
           createAssistantFixtureModel(),

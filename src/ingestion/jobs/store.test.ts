@@ -4,7 +4,14 @@ import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { DEFAULT_RESEARCH_LIMITS } from "../runtime/budget";
 import { startIngestionRun, storedRunInput } from "../runs";
-import { submitJobs, nextJob, finishJob, cancelPendingJobs } from "./store";
+import {
+  submitAddJobs,
+  jobWorkflowInput,
+  submitJobs,
+  nextJob,
+  finishJob,
+  cancelPendingJobs,
+} from "./store";
 
 function setup(n = 3) {
   const { client } = testDatabase();
@@ -167,7 +174,7 @@ test("SQL counts 200 jobs once and keeps multiple attempts visible within normal
   const batch = submitJobs(client, { eventIds });
   const job = nextJob(client)!;
   const input = storedRunInput(
-    { mode: "refresh", eventId: job.event_id, actor: "owner" },
+    { mode: "refresh", eventId: job.event_id!, actor: "owner" },
     { apiKey: "fixture", model: "fixture", limits: DEFAULT_RESEARCH_LIMITS },
     DEFAULT_RESEARCH_LIMITS,
   );
@@ -227,4 +234,120 @@ test("the lost-response discovery example reports when more than 200 batches mat
   expect(
     client.prepare("SELECT count(*) FROM ingestion_jobs").pluck().get(),
   ).toBe(201);
+});
+
+test("add batches preserve full notes and reject the complete invalid selection", () => {
+  const { client } = setup(0);
+  const note = `  tentative festival\n${"Clue. ".repeat(12000)}\nhttps://organizer.test/last-line\n`;
+  for (const inputs of [[], ["valid", " \n"], Array(201).fill("valid")]) {
+    expect(() => submitAddJobs(client, { inputs })).toThrow(
+      "invalid_selection",
+    );
+  }
+  expect(
+    client.prepare("SELECT count(*) FROM ingestion_jobs").pluck().get(),
+  ).toBe(0);
+  const accepted = submitAddJobs(client, {
+    inputs: [note, "https://second.test/"],
+  });
+  expect(accepted.acceptedCount).toBe(2);
+  const job = nextJob(client)!;
+  expect(job).toMatchObject({
+    add_input: note,
+    event_id: null,
+    scope: null,
+    dry_run: 1,
+  });
+  const input = jobWorkflowInput(job);
+  const stored = storedRunInput(
+    { ...input, actor: "owner" },
+    { apiKey: "fixture", model: "fixture", limits: DEFAULT_RESEARCH_LIMITS },
+    DEFAULT_RESEARCH_LIMITS,
+  );
+  for (const overrides of [
+    { input: note.trim() },
+    { scope: "full" as const },
+    { eventId: "candidate" },
+    { dryRun: false },
+    { republish: true },
+    { mode: "refresh" },
+  ]) {
+    expect(() =>
+      startIngestionRun(
+        client,
+        { ...stored, ...overrides },
+        Date.now(),
+        null,
+        job.id,
+      ),
+    ).toThrow();
+  }
+  startIngestionRun(client, stored, Date.now(), null, job.id);
+  expect(
+    JSON.parse(
+      client
+        .prepare("SELECT input_json FROM ingestion_runs")
+        .pluck()
+        .get() as string,
+    ).input,
+  ).toBe(note);
+  for (const row of [
+    { ...job, event_id: "mixed" },
+    { ...job, scope: "full" },
+    { ...job, add_input: null },
+    { ...job, dry_run: 2 },
+  ]) {
+    expect(() => jobWorkflowInput(row as typeof job)).toThrow();
+  }
+  expect(cancelPendingJobs(client, accepted.batchId).cancelledCount).toBe(1);
+  expect(nextJob(client)?.id).toBe(job.id);
+});
+
+test("SQL counts and bounded add details work when one note exceeds the result limit", async () => {
+  const { queryCatalog } =
+    await import("../../mastra/catalog-assistant/tools/query-catalog/query");
+  const { client } = setup(0);
+  const note = "x".repeat(70000) + "\nLAST_LINE";
+  const batch = submitAddJobs(client, {
+    inputs: [note, ...Array(199).fill("Event clue")],
+  });
+  const job = nextJob(client)!;
+  const input = storedRunInput(
+    { ...jobWorkflowInput(job), actor: "owner" },
+    { apiKey: "fixture", model: "fixture", limits: DEFAULT_RESEARCH_LIMITS },
+    DEFAULT_RESEARCH_LIMITS,
+  );
+  for (let i = 0; i < 2; i++) {
+    startIngestionRun(client, input, Date.now(), null, job.id);
+  }
+  const query = (sql: string) =>
+    queryCatalog(testDatabase().path, { sql, parameters: [batch.batchId] });
+  expect(
+    query(
+      "SELECT status,count(*) FROM ingestion_jobs WHERE batch_id=? GROUP BY status ORDER BY status",
+    ),
+  ).toMatchObject({
+    ok: true,
+    truncated: false,
+    rows: [
+      ["pending", 199],
+      ["running", 1],
+    ],
+  });
+  expect(
+    query(
+      "SELECT position,status FROM ingestion_jobs WHERE batch_id=? ORDER BY position",
+    ),
+  ).toMatchObject({ ok: true, rowCount: 200, truncated: false });
+  expect(
+    query(
+      "SELECT position,substr(add_input,1,80) FROM ingestion_jobs WHERE batch_id=? ORDER BY position",
+    ),
+  ).toMatchObject({ ok: true, rowCount: 200, truncated: false });
+  expect(
+    client
+      .prepare("SELECT add_input FROM ingestion_jobs WHERE id=?")
+      .pluck()
+      .get(job.id),
+  ).toBe(note);
 });

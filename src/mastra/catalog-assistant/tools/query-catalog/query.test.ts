@@ -192,3 +192,215 @@ test("report SQL examples inspect absent, unfinished, malformed, unfamiliar and 
     queryCatalog(db.path, { sql: RUN_EVIDENCE_SQL, parameters: ["invalid"] }),
   ).toEqual({ ok: false, error: "query_rejected" });
 });
+
+test("add status SQL distinguishes proposed creation, published creation, skips, failed matches, and missing reports", async () => {
+  const { submitAddJobs } = await import("../../../../ingestion/jobs/store");
+  const db = testDatabase();
+  const batch = submitAddJobs(db.client, {
+    inputs: ["x".repeat(70000), ...Array(9).fill("Event research note")],
+  });
+  const jobs = db.client
+    .prepare("SELECT id FROM ingestion_jobs ORDER BY position")
+    .pluck()
+    .all() as string[];
+  const { fixtureDependencies, runFixtureResearch } =
+    await import("@/test/ingestion");
+  const { DEFAULT_RESEARCH_LIMITS } =
+    await import("../../../../ingestion/runtime/budget");
+  const deps = fixtureDependencies();
+  const declined = await runFixtureResearch(
+    { mode: "add", input: "Example Fest", actor: "test", dryRun: false },
+    {
+      client: db.client,
+      config: {
+        apiKey: "fixture",
+        model: "fixture",
+        limits: DEFAULT_RESEARCH_LIMITS,
+      },
+      ...deps,
+      generateRoles: {
+        editor: async (role, prompt, context) => {
+          const review = (await deps.generateRole(role, prompt, context)) as {
+            event: { target: { decision: string; reason: string } };
+          };
+          review.event.target = {
+            decision: "reject",
+            reason: "Creation was declined because identity is unresolved.",
+          };
+          return review;
+        },
+      },
+    },
+  );
+  expect(declined.outcome).toBe("failed");
+  expect(declined.errors).toContainEqual(
+    expect.objectContaining({ code: "editor_rejected" }),
+  );
+  const reports = [
+    {
+      outcome: "published",
+      operations: [{ kind: "createEvent" }],
+      receipts: [{ changed: true }],
+      eventId: "temporary",
+    },
+    {
+      outcome: "published",
+      operations: [{ kind: "createEvent" }, { kind: "publishEvent" }],
+      receipts: [{ changed: true }, { changed: true }],
+      eventId: "created",
+    },
+    {
+      outcome: "skipped",
+      modelResponse: {
+        object: {
+          result: {
+            decision: "duplicate",
+            reason: "Inspected organizer confirms this saved Event.",
+          },
+        },
+      },
+      eventId: "existing",
+    },
+    declined,
+    {
+      outcome: "failed",
+      modelResponse: {
+        object: {
+          result: {
+            decision: "duplicate",
+            reason: "Candidate requires validation",
+          },
+        },
+      },
+      eventId: "candidate",
+    },
+    null,
+  ];
+  reports.forEach((report, index) =>
+    db.client
+      .prepare(
+        "INSERT INTO ingestion_runs(id,job_id,event_id,mode,status,started_at,input_json,report_json) VALUES(?,?,?,'add',?,'2026-11-04',?,?)",
+      )
+      .run(
+        `add-${index}`,
+        jobs[index],
+        index === 1 ? "created" : null,
+        index === 3 || index === 4 ? "failed" : "completed",
+        JSON.stringify({ dryRun: index === 0 }),
+        report
+          ? JSON.stringify({
+              schemaVersion: 7,
+              operations: [],
+              receipts: [],
+              ...report,
+            })
+          : null,
+      ),
+  );
+  db.client
+    .prepare(
+      "INSERT INTO ingestion_runs(id,job_id,mode,status,started_at,input_json,report_json) VALUES('bad-report',?,'add','failed','2026-11-04','{\"dryRun\":false}','{')",
+    )
+    .run(jobs[6]);
+  db.client
+    .prepare(
+      "INSERT INTO ingestion_runs(id,job_id,mode,status,started_at,input_json,report_json) VALUES('bad-input',?,'add','failed','2026-11-04','{',?)",
+    )
+    .run(jobs[7], JSON.stringify({ schemaVersion: 7, outcome: "unchanged" }));
+  for (const [index, schemaVersion] of [999, 7].entries()) {
+    db.client
+      .prepare(
+        "INSERT INTO ingestion_runs(id,job_id,mode,status,started_at,input_json,report_json) VALUES(?,?,'add','failed','2026-11-04','{}',?)",
+      )
+      .run(
+        `unfamiliar-report-${index}`,
+        jobs[8 + index],
+        JSON.stringify({
+          schemaVersion,
+          errors: ["example"],
+          operations: ["example", { kind: "createEvent" }],
+          receipts: ["example", "example"],
+        }),
+      );
+  }
+  const sql = readFileSync(
+    new URL(
+      "../../skills/catalog-sql/references/inspect-add-batch.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  ).trim();
+  const result = queryCatalog(db.path, { sql, parameters: [batch.batchId] });
+  expect(result).toMatchObject({ ok: true, rowCount: 10, truncated: false });
+  if (!result.ok) {
+    throw new Error("Expected valid query");
+  }
+  const rows = result.rows.map((row) =>
+    Object.fromEntries(result.columns.map((column, i) => [column, row[i]])),
+  );
+  expect(rows.map((row) => row.position)).toEqual([
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+  ]);
+  expect(rows[0]).toMatchObject({
+    preview: 1,
+    proposedCreation: 1,
+    changedCreation: 1,
+    savedEventId: null,
+  });
+  expect(rows[1]).toMatchObject({
+    preview: 0,
+    outcome: "published",
+    changedCreation: 1,
+    savedEventId: "created",
+  });
+  expect(rows[2]).toMatchObject({
+    outcome: "skipped",
+    identityDecision: "duplicate",
+    reportedEventId: "existing",
+  });
+  expect(rows[3]).toMatchObject({
+    outcome: "failed",
+    editorRejected: 1,
+    editorItemDecision: "approve",
+    editorTargetDecision: "reject",
+    editorTargetReason: expect.stringContaining("Creation was declined"),
+  });
+  expect(rows[4]).toMatchObject({
+    runStatus: "failed",
+    outcome: "failed",
+    reportedEventId: "candidate",
+    savedEventId: null,
+    changedCreation: 0,
+  });
+  expect(rows[5]).toMatchObject({
+    reportPresent: 0,
+    outcome: null,
+    proposedCreation: 0,
+    changedCreation: 0,
+  });
+  expect(rows[6]).toMatchObject({
+    inputValid: 1,
+    reportPresent: 1,
+    reportValid: 0,
+    preview: 0,
+    outcome: null,
+    proposedCreation: 0,
+    changedCreation: 0,
+  });
+  expect(rows[7]).toMatchObject({
+    inputValid: 0,
+    reportValid: 1,
+    preview: null,
+    outcome: "unchanged",
+  });
+  for (const [index, schemaVersion] of [999, 7].entries()) {
+    expect(rows[8 + index]).toMatchObject({
+      reportValid: 1,
+      schemaVersion,
+      outcome: null,
+      editorRejected: 0,
+      proposedCreation: 1,
+      changedCreation: 0,
+    });
+  }
+});

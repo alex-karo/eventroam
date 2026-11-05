@@ -18,6 +18,7 @@ Evals measure catalog quality and protect specific workflow behavior. They use f
 pnpm run catalog:eval
 pnpm run catalog:eval --all
 pnpm run catalog:eval --group regression/pipeline
+pnpm run catalog:eval --case wacken-add
 pnpm run catalog:eval --editor-only
 pnpm run catalog:eval --location-only
 pnpm run catalog:eval --group regression/reader
@@ -179,9 +180,15 @@ In every eval group, an initial or agent geocoding request without a fixture ret
 
 Add fixture coverage when it blocks a task we intend to measure. Do not add a response after every exploratory request merely to make diagnostics disappear.
 
+## Add from free text
+
+`--case wacken-add` runs the complete add flow as a dry run in `regression/pipeline`. It reuses the Wacken pages, geocoding responses and fixed date without copies or edits. Its synthetic multiline note includes a name, website, incorrect dates and an unconfirmed map pin in Hamburg. It does not name a country. An unrelated control Event is the only initial record; Wacken must be created as a new Event.
+
+The case checks writer changes and references for the new Event and its 2027 Edition. It requires source dates, country `DE`, the confirmed Wacken locality point with `locality` precision, rejection of the note's pin and preservation of the control Event. These checks cover add with a confirmed city fallback. They do not cover pin-only input, duplicate detection, batch tools or the Studio conversation.
+
 ## Isolated Reader cases
 
-`--group regression/reader` runs three full-page inputs already used by the pipeline fixtures: the captured Sziget homepage, the captured Roskilde ticket page and the synthetic Harbor Echo venue confirmation. The existing source text, URLs, date and provenance are reused without copies or edits. The default command still selects five main cases. `--all` now selects 56 cases, including the three Reader cases.
+`--group regression/reader` runs three full-page inputs already used by the pipeline fixtures: the captured Sziget homepage, the captured Roskilde ticket page and the synthetic Harbor Echo venue confirmation. The existing source text, URLs, date and provenance are reused without copies or edits. The default command still selects five main cases. `--all` selects 57 cases, including the three Reader cases and `wacken-add`.
 
 Only Reader calls the configured model. Its production prompt, medium reasoning, page input bound, output allowance and literal binding stay in use. The input contains the normal requested name, fixed date, source metadata and full page. Case expectations never enter the prompt. The result includes the raw execution and accepted evidence; no source fetch, other agent, catalog write or model judge runs.
 

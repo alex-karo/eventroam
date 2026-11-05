@@ -6,7 +6,7 @@ import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { assistantExecutionContext } from "../../execution-context";
 import { createRefreshEventsTool } from "./tool";
-import { createCancelRefreshTool } from "../cancel-refresh/tool";
+import { createCancelBatchTool } from "../cancel-batch/tool";
 
 function context() {
   const requestContext = new RequestContext();
@@ -43,7 +43,7 @@ test("invalid input does not consume the selection; acceptance needs no queue lo
     Array.from({ length: 201 }, (_, i) => `event-${i}`),
   ]) {
     await fixture.execute(ids, requestContext);
-    expect(requestContext.get("refreshConsumed")).toBe(false);
+    expect(requestContext.get("submissionConsumed")).toBe(false);
   }
   const accepted = await fixture.execute(undefined, requestContext);
   expect(accepted).toEqual({
@@ -51,7 +51,7 @@ test("invalid input does not consume the selection; acceptance needs no queue lo
     batchId: expect.any(String),
     acceptedCount: 3,
   });
-  expect(requestContext.get("refreshConsumed")).toBe(true);
+  expect(requestContext.get("submissionConsumed")).toBe(true);
   expect(await fixture.execute(undefined, requestContext)).toMatchObject({
     ok: false,
     error: "selection_consumed",
@@ -100,7 +100,7 @@ test("request abort before submission prevents acceptance; abort after commit pr
 test("batch cancellation works with no queue loop and leaves unknown batches unchanged", async () => {
   const fixture = setup();
   const accepted = (await fixture.execute()) as { batchId: string };
-  const tool = createCancelRefreshTool(() => fixture.db.path);
+  const tool = createCancelBatchTool(() => fixture.db.path);
   const execute = (batchId: string) =>
     tool.execute!(
       { batchId },

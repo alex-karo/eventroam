@@ -2,6 +2,7 @@ import { dirname, join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
 import { createCatalogAssistant } from ".";
+import { createCatalogResearcher } from "../catalog-researcher";
 import { createChatMemory } from "./memory";
 
 afterEach(() => {
@@ -128,6 +129,35 @@ test.each([
       const request = JSON.parse(String(init?.body));
       expect(request).not.toHaveProperty("service_tier");
       expect(request).not.toHaveProperty("reasoning");
+    } finally {
+      await chat.memory.settled();
+      await chat.storage.close();
+    }
+  },
+);
+
+test.each([
+  { name: "assistant", create: createCatalogAssistant },
+  { name: "researcher", create: createCatalogResearcher },
+])(
+  "invalid ingestion limits do not prevent $name chat execution",
+  async ({ create }) => {
+    vi.stubEnv("OPENROUTER_API_KEY", "fixture-openrouter");
+    vi.stubEnv("OPENROUTER_MODEL", "openai/gpt-6-luna");
+    vi.stubEnv("CATALOG_MAX_PAGE_BYTES", "invalid");
+    const fetchModel = mockProvider();
+    const chat = await createChatMemory(
+      join(dirname(testDatabase().path), "chat.sqlite"),
+    );
+    const agent = create(chat.memory);
+    try {
+      await expect(agent.getModel()).resolves.toBeDefined();
+      const result = await agent.generate("Hello", {
+        memory: { thread: "invalid-limits", resource: "owner" },
+        modelSettings: { maxRetries: 0 },
+      });
+      expect(result.text).toBe("Ready.");
+      expect(fetchModel).toHaveBeenCalledTimes(1);
     } finally {
       await chat.memory.settled();
       await chat.storage.close();

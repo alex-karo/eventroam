@@ -54,7 +54,8 @@ src/
 │   ├── jobs/                  # Durable queue operations
 │   └── runtime/               # Model setup, workflow storage and observability
 ├── mastra/                    # Studio registration and production server
-│   └── catalog-assistant/     # Chat agent, tools, memory and catalog-sql skill
+│   ├── catalog-assistant/     # Catalog chat, job control, memory and SQL skill
+│   └── catalog-researcher/    # Discovery and add submission
 ├── db/                        # Schema, connections, and SQL migrations
 └── test/                      # Temporary databases and data builders
 
@@ -108,7 +109,7 @@ Paths below are relative to `src/ingestion/` unless stated otherwise. Read code 
 | Evals and experiment results                                   | `evals/`; see [Ingestion evals](ingestion-evals.md)   |
 | Workflow storage, logging and tracing                          | `runtime/`; see [Ingestion tools](ingestion-tools.md) |
 | Studio workflow registration                                   | `src/mastra/index.ts`                                 |
-| Studio chat, SQL and refresh tools, memory and schema guidance | `src/mastra/catalog-assistant/`                       |
+| Studio chat, SQL and job tools, memory and schema guidance | `src/mastra/catalog-assistant/`                       |
 
 Each preparation function returns `continue`, `skip`, or `reject`. Only `continue` carries input for the next stage: `PreparedProposals` → `AcceptedProposals` → `ReadyCatalogPlan`. Research and Editor results have no writer operations. Workflow state retains each stage result for inspection. The workflow uses those results to choose its next action and sets an explicit outcome. Reports project that outcome, stage diagnostics, and writer receipts; error codes do not control the report outcome.
 

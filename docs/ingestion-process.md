@@ -57,12 +57,12 @@ Saved state keeps current allowed model text and Location/geocoding results. Ful
 ## Start a run
 
 ```sh
-pnpm run catalog add --name "Festival name"
+pnpm run catalog add --input "Festival name or research note"
 pnpm run catalog refresh --event EVENT_ID
 pnpm run catalog refresh --event EVENT_ID --event ANOTHER_EVENT_ID --scope current
 ```
 
-`add` researches a festival by name and creates it only when new. A recognized existing Event returns `skipped` and its ID without changes; use `refresh` to update it. `refresh` researches distinct Events independently. Add and `--scope full` (default) check Event summary/shared links, the latest completed Edition, and the ongoing or nearest announced future Edition. Both Edition slots may create new records. `--scope current` checks only the ongoing or nearest announced future Edition. Other saved history and farther future Editions provide context for matching, country checks, and classification reuse.
+`add` researches one note about a possible Event and creates it only when new. A recognized existing Event returns `skipped` and its ID without changes; use `refresh` to update it. `refresh` researches distinct Events independently. Add and `--scope full` (default) check Event summary/shared links, the latest completed Edition, and the ongoing or nearest announced future Edition. Both Edition slots may create new records. `--scope current` checks only the ongoing or nearest announced future Edition. Other saved history and farther future Editions provide context for matching, country checks, and classification reuse.
 
 Current assumes a prior full run established Event identity/shared links. It omits Event findings and focuses on Edition dates, schedule status, location, tickets, and classification. Size, precise coordinates, and detailed address are optional checks. `check` is unsupported. The database must already exist and be migrated. See the [ingestion tools](ingestion-tools.md#cli-research) for setup and options, or its [Studio instructions](ingestion-tools.md#local-studio-ingestion) for the workflow form.
 
@@ -154,6 +154,8 @@ Initial requests and agent calls share six geocoding calls, a cache, cancellatio
 Each addressed slot returns keep, set or clear for every text field. Coordinate actions are keep, clear, select a registered `pointId`, or `reusePrevious`. The latter needs no point ID: code binds the supplied earlier point to its Edition, version, pair and precision and rechecks it in the write transaction. Missing or ambiguous earlier points cannot be reused. Keep preserves only the target.
 
 Source coordinate pairs remain beside their literal object and year context. Reverse results describe nearby objects and never create a replacement point. Unknown or wrong-target point IDs fail validation. Precise points need venue support; a city result cannot become an exact venue point. Missing optional coordinates do not force geocoding.
+
+When an independent source establishes the Edition place, a matching selected forward geocoding candidate can supply its absent country. Location explicitly sets `countryCode` from that candidate and cites the place evidence. Editor checks the selected point and its country against the place evidence and any saved country baseline. The source passage need not repeat the country name. A query country filter alone is not evidence. This rule does not establish a venue, address or administrative area. Without an established place or an assigned candidate country, the country stays unknown.
 
 ## Validate the proposal
 
@@ -247,7 +249,15 @@ Native metrics describe eligible agent, model, and tool operations. They do not 
 
 Use the [total-token query](ingestion-tools.md#local-trace-inspection) to inspect saved metrics without running research. The CLI closes its owned store; Studio keeps its shared store across attempts. Neither store has automatic retention. See the [diagnostics contract](../openspec/specs/operations/ingestion-diagnostics/spec.md) for details.
 
+## Add research notes
+
+Add accepts one complete free-text note through CLI --input or Studio input. A name, URL, coordinates, and tentative details are search leads. The collector receives the full note. General and the page reader use inspected evidence and do not receive the raw note as an Event name.
+
+A map page that repeats a supplied pin, or a reverse lookup that names its city, does not establish where the festival takes place. Without independent place evidence or a supported point, coordinates stay empty. If another source confirms only the Edition city, Location can use a registered city point with locality precision and leave the venue unresolved.
+
 ## Studio catalog chat
+
+Open Agents → `catalog-researcher` to search for new Events, submit up to 200 complete descriptions for add, and read status by batch ID. Search alone starts no jobs. A clear add request permits apply. Use `catalog-assistant` and `cancel_batch` for explicit cancellation of pending add or refresh jobs. The researcher has no cancellation tool.
 
 Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview or update up to 200 Events, or explain a saved ingestion result. Reads and explanations do not start ingestion. An explicit update request permits apply; preview uses dryRun true. Unclear targets or write intent require clarification.
 

@@ -199,6 +199,9 @@ function initialReply(
   let call: { name: string; input: unknown } | undefined;
   let text = "";
   const ids = owner.match(/[0-9a-f]{8}-[0-9a-f-]{27}/gi) ?? [];
+  if (/find new festival candidates|add both Events/i.test(owner)) {
+    return researcherReply(owner, prompt, lastUser);
+  }
   if (/count France Events/i.test(owner)) {
     call = {
       name: "query_catalog",
@@ -222,7 +225,7 @@ function initialReply(
       },
     };
   } else if (/cancel batch/i.test(owner) && ids.length === 1) {
-    call = { name: "cancel_refresh", input: { batchId: ids[0] } };
+    call = { name: "cancel_batch", input: { batchId: ids[0] } };
   } else if (/find lost batch/i.test(owner) && ids.length) {
     call = {
       name: "query_catalog",
@@ -335,4 +338,47 @@ function previousEventReply(
       },
     },
   };
+}
+
+function researcherReply(
+  owner: string,
+  prompt: Parameters<MastraLanguageModelV2Mock["doStream"]>[0]["prompt"],
+  lastUser: number,
+) {
+  let call: { name: string; input: unknown } | undefined;
+  let text = "";
+  if (/find new festival candidates/i.test(owner)) {
+    call = {
+      name: "search_web",
+      input: { query: "Find new festival candidates" },
+    };
+  } else if (/add both Events/i.test(owner)) {
+    const prior = prompt
+      .slice(0, lastUser)
+      .filter((message) => message.role === "tool")
+      .flatMap((message) => message.content)
+      .findLast(
+        (part) => part.type === "tool-result" && part.toolName === "search_web",
+      );
+    const result =
+      prior?.type === "tool-result" && prior.output.type === "json"
+        ? (prior.output.value as {
+            candidates?: { title: string; url: string }[];
+          })
+        : undefined;
+    if (result?.candidates?.length === 2) {
+      call = {
+        name: "add_events",
+        input: {
+          inputs: result.candidates.map(
+            (candidate) => `${candidate.title}\n${candidate.url}`,
+          ),
+          dryRun: false,
+        },
+      };
+    } else {
+      text = "Clarify the intended Events.";
+    }
+  }
+  return { call, text };
 }

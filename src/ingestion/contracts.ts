@@ -39,7 +39,7 @@ import type {
 export type CatalogResearchInput = {
   mode: "add" | "refresh";
   scope?: "full" | "current";
-  name?: string;
+  input?: string;
   eventId?: string;
   actor: string;
   initiatedBy?: string;

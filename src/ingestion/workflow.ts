@@ -1,3 +1,4 @@
+import { addInputSchema } from "./add-input";
 import { researchErrorSchema } from "./research/contracts";
 import {
   specialistResultsSchema,
@@ -103,7 +104,7 @@ export const studioIngestionInputSchema = z
   .strictObject({
     mode: z.enum(["add", "refresh"]),
     scope: z.enum(["full", "current"]).optional(),
-    name: z.string().trim().min(1).max(500).optional(),
+    input: addInputSchema.optional(),
     eventId: z.string().trim().min(1).max(500).optional(),
     dryRun: z.boolean().default(true),
     republish: z.boolean().default(false),
@@ -111,17 +112,17 @@ export const studioIngestionInputSchema = z
   .superRefine((value, context) => {
     if (
       value.mode === "add" &&
-      (!value.name || value.eventId || value.scope !== undefined)
+      (!value.input || value.eventId || value.scope !== undefined)
     ) {
       context.addIssue({
         code: "custom",
-        message: "add requires a name and no Event ID",
+        message: "add requires input and no Event ID",
       });
     }
-    if (value.mode !== "add" && (!value.eventId || value.name)) {
+    if (value.mode !== "add" && (!value.eventId || value.input)) {
       context.addIssue({
         code: "custom",
-        message: "refresh requires an Event ID and no name",
+        message: "refresh requires an Event ID and no add input",
       });
     }
   });
@@ -569,6 +570,18 @@ export function createCatalogIngestionWorkflow(
         data.corpus!,
       );
       const diagnostics = stageDiagnostics(data.researchValidation);
+      if (
+        owned.input.mode === "add" &&
+        data.researchValidation.status !== "reject" &&
+        data.general.output.decision !== "uncertain"
+      ) {
+        const saved = data.context!.catalog.find(
+          (event) => event.id === diagnostics.matchedEventId,
+        );
+        owned.trace?.setEventName(
+          saved?.canonicalName ?? data.general.output.observedEventName,
+        );
+      }
       data.errors.push(...diagnostics.errors);
       data.unresolved.push(...diagnostics.unresolved);
       if (data.researchValidation.status !== "continue") {
@@ -1122,7 +1135,7 @@ export async function runCatalogResearch(
     const inputData = {
       mode: requested.mode,
       scope: requested.scope,
-      name: requested.name,
+      input: requested.input,
       eventId: requested.eventId,
       dryRun: requested.dryRun ?? true,
       republish: requested.republish ?? false,

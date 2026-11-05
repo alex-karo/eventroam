@@ -8,7 +8,13 @@ import {
   set,
 } from "@/test/ingestion";
 import { processJobs } from "./processor";
-import { submitJobs, nextJob } from "./store";
+import {
+  submitJobs,
+  submitAddJobs,
+  jobWorkflowInput,
+  nextJob,
+  finishJob,
+} from "./store";
 
 const failed = { checks: [], unresolved: [] };
 
@@ -125,4 +131,65 @@ test("attempt insertion or association failure prevents all external work", asyn
   expect(
     client.prepare("SELECT job_id,finished_at FROM ingestion_runs").get(),
   ).toEqual({ job_id: job.id, finished_at: expect.any(String) });
+});
+
+test("restarted add skips a committed duplicate with two linked attempts and later items still execute", async () => {
+  const { client } = testDatabase();
+  submitAddJobs(client, {
+    inputs: ["Example Fest", "Unclear Event", "https://other.test/"],
+    dryRun: false,
+  });
+  const job = nextJob(client)!;
+  const run = (selected: typeof job, duplicate = false) =>
+    runFixtureResearch(
+      { ...jobWorkflowInput(selected), actor: "owner" },
+      {
+        client,
+        jobId: selected.id,
+        ...fixtureDependencies({
+          general: async (_role: unknown, prompt: string) => {
+            if (selected.position === 1) {
+              return {
+                decision: "uncertain",
+                reason: "Clues are ambiguous",
+                unresolved: [],
+              };
+            }
+            if (duplicate) {
+              return {
+                decision: "duplicate",
+                eventId: JSON.parse(prompt).candidates[0].id,
+                observedEventName: "Example Fest",
+                reason: "Inspected source confirms the saved name",
+                evidenceIds: ["s1-e1"],
+              };
+            }
+            const targets = fixtureTargets();
+            targets.observedEventName =
+              selected.position === 2 ? "Other Festival" : "Example Fest";
+            return targets;
+          },
+        }),
+      },
+    );
+  const first = await run(job);
+  expect(first.outcome).not.toBe("failed");
+  expect(client.prepare("SELECT count(*) FROM events").pluck().get()).toBe(1);
+  const repeated = await run(nextJob(client)!, true);
+  expect(repeated).toMatchObject({
+    outcome: "skipped",
+    eventId: first.eventId,
+  });
+  expect(
+    client.prepare("SELECT job_id FROM ingestion_runs ORDER BY rowid").all(),
+  ).toEqual([{ job_id: job.id }, { job_id: job.id }]);
+  finishJob(client, job.id);
+  const failedJob = nextJob(client)!;
+  expect((await run(failedJob)).outcome).toBe("failed");
+  finishJob(client, failedJob.id);
+  const finalJob = nextJob(client)!;
+  expect((await run(finalJob)).outcome).not.toBe("failed");
+  finishJob(client, finalJob.id);
+  expect(nextJob(client)).toBeUndefined();
+  expect(client.prepare("SELECT count(*) FROM events").pluck().get()).toBe(2);
 });

@@ -1,4 +1,4 @@
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { createResearchBudget } from "../runtime/budget";
 import { createGeocodingSession } from "../tools/geocode/tool";
 import type {
@@ -16,6 +16,48 @@ import { locationInputSchema, type LocationInput } from "./input";
 import { prepareInitialGeocoding } from "./initial";
 import { validateLocation } from "./validate";
 import { resolveLocation } from "./agent";
+afterEach(() => vi.unstubAllGlobals());
+
+test("the native Location request includes the independent location evidence rule", async () => {
+  const fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+    const request = JSON.parse(String(init?.body));
+    const instructions = JSON.stringify(
+      request.messages.filter(
+        (message: { role: string }) => message.role === "system",
+      ),
+    );
+    expect(instructions).toContain(
+      "does not independently establish the festival location",
+    );
+    expect(instructions).toContain("If a source confirms only the town");
+    return Response.json({
+      id: "location-fixture",
+      object: "chat.completion",
+      created: 1,
+      model: "fixture/model",
+      choices: [
+        {
+          index: 0,
+          message: { role: "assistant", content: JSON.stringify(output()) },
+          finish_reason: "stop",
+        },
+      ],
+      usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+    });
+  });
+  vi.stubGlobal("fetch", fetch);
+  const budget = createResearchBudget();
+  const result = await resolveLocation(
+    input(),
+    budget,
+    { apiKey: "fixture", model: "fixture/model", limits: budget.limits },
+    {
+      geocodingClient: async () => ({ status: "error", code: "unavailable" }),
+    },
+  );
+  expect(result.status).toBe("success");
+  expect(fetch).toHaveBeenCalledOnce();
+});
 function input(): LocationInput {
   return locationInputSchema.parse({
     festival: { name: "Festival", summary: null, format: ["open_air"] },

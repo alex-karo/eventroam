@@ -233,7 +233,7 @@ test.each([
 
 const input = {
   mode: "add" as const,
-  name: "Fixture",
+  input: "Fixture",
   actor: "test",
   dryRun: false,
 };

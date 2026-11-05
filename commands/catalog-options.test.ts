@@ -20,7 +20,7 @@ test("commands default to dry-run and retain bounded overrides", () => {
   expect(
     parseCatalogOptions([
       "add",
-      "--name",
+      "--input",
       "Festival",
       "--apply",
       "--republish",
@@ -47,4 +47,27 @@ test("refresh batches distinct targets with full/current scope", () => {
   expect(
     parseCatalogOptions(["refresh", "--event", "a", "--scope", "current"]),
   ).toMatchObject({ scope: "current" });
+});
+
+test("add accepts names, URLs, and full multiline notes but rejects blank or old flags", () => {
+  for (const input of [
+    "Festival",
+    "https://organizer.test/",
+    `  clue\n${"detail ".repeat(100)}\nlast line  `,
+  ]) {
+    expect(parseCatalogOptions(["add", "--input", input])).toMatchObject({
+      input,
+    });
+  }
+  for (const args of [
+    ["add"],
+    ["add", "--input", " \n"],
+    ["add", "--name", "Festival"],
+    ["add", "--input", "A", "--input", "B", "--apply"],
+    ["add", "--input=A", "--input=B", "--apply"],
+    ["refresh", "--event", "id", "--input", "clue"],
+    ["refresh", "--event", "id", "--input", ""],
+  ]) {
+    expect(() => parseCatalogOptions(args)).toThrow();
+  }
 });

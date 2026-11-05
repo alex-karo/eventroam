@@ -31,7 +31,7 @@ function enable(file: string, tracing: boolean) {
 }
 const input = {
   mode: "add" as const,
-  name: "Fixture",
+  input: "Fixture",
   actor: "test",
   dryRun: false,
 };

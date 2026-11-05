@@ -36,7 +36,7 @@ Through the CLI or Studio, the owner SHALL be able to preview proposed catalog c
 
 ### Requirement: Studio starts with a bounded preview
 
-The local or hosted Studio workflow form SHALL accept add by name and one Event target per refresh, with the CLI's scope behavior. Studio chat SHALL also accept an owner-requested selection under the studio-assistant contract. Each selected Event SHALL use a separate full workflow execution. It SHALL default to preview with republish permission off. Apply SHALL require an explicit request. Invalid input SHALL fail before external work. Each execution SHALL start from current catalog state and remain isolated from concurrent executions. Cancellation SHALL preserve known commits and safe failure details without requiring report usage totals.
+The local or hosted Studio workflow form SHALL accept add with one nonblank free-text `input` and one Event target per refresh, with the CLI's scope behavior. Studio chat SHALL also accept an owner-requested selection for add or refresh under the studio-assistant contract. Each selected Event SHALL use a separate full workflow execution. It SHALL default to preview with republish permission off. Apply SHALL require an explicit request. Invalid input SHALL fail before external work. Each execution SHALL start from current catalog state and remain isolated from concurrent executions. Cancellation SHALL preserve known commits and safe failure details without requiring report usage totals.
 
 #### Scenario: Studio preview and apply
 
@@ -59,3 +59,8 @@ The local or hosted Studio workflow form SHALL accept add by name and one Event 
 - **WHEN** the owner requests refresh of a valid bounded selection in Studio chat
 - **THEN** each Event uses the same workflow validation, preview or apply behavior, and durable attempt lifecycle as the form
 - **AND** chat does not resume or replay saved ingestion plans
+
+#### Scenario: Studio add input
+- **WHEN** the owner submits add with a URL as its only input
+- **THEN** the form starts the same add workflow as the CLI
+- **AND** omission of input or use of only the former name field fails before research

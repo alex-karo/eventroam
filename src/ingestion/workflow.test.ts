@@ -74,7 +74,7 @@ const source: ReadPageResult = {
 const reason = "The official page states this for the 2027 festival.";
 const input = {
   mode: "add" as const,
-  name: "Example Fest",
+  input: "Example Fest",
   actor: "catalog-research",
   initiatedBy: "fixture-owner",
 };
@@ -160,6 +160,7 @@ function fixture(client = testDatabase().client) {
 function fakeTrace() {
   const finish = vi.fn(async () => {});
   const failed = vi.fn();
+  const setEventName = vi.fn();
   const trace = {
     tracing: {
       root: undefined,
@@ -169,9 +170,10 @@ function fakeTrace() {
     },
     finish,
     failed,
+    setEventName,
   } as unknown as CatalogRunTrace;
   vi.spyOn(runTraceModule, "createCatalogRunTrace").mockResolvedValue(trace);
-  return { finish, failed };
+  return { finish, failed, setEventName };
 }
 function catalogState(client: Database.Database) {
   const db = drizzle(client);
@@ -231,7 +233,7 @@ test("running row and safe normalized invocation precede context and model work"
       client,
       ...dependencies(),
       generateRoles: {
-        general: async (_role, prompt) => {
+        general: async (_role: unknown, prompt: string) => {
           const row = client
             .prepare("SELECT id,status FROM ingestion_runs")
             .get() as { id: string; status: string };
@@ -250,7 +252,7 @@ test.each([
   { ...input, mode: "check", eventId: "event" },
   { ...input, mode: "refresh", eventId: "event", scope: "next" },
   { ...input, scope: "full" },
-  { ...input, name: " " },
+  { ...input, input: " " },
   { ...input, actor: "" },
   { ...input, actor: "a".repeat(201) },
   { ...input, initiatedBy: "a".repeat(201) },
@@ -605,7 +607,7 @@ test("overlapping Mastra runs keep their database and research state separate", 
 
   const [firstResult, secondResult] = await Promise.all([
     runCatalogResearch(
-      { ...input, name: "First Fest", dryRun: false },
+      { ...input, input: "First Fest", dryRun: false },
       {
         client: first.client,
         ...dependencies(),
@@ -613,7 +615,7 @@ test("overlapping Mastra runs keep their database and research state separate", 
       },
     ),
     runCatalogResearch(
-      { ...input, name: "Second Fest", dryRun: false },
+      { ...input, input: "Second Fest", dryRun: false },
       {
         client: second.client,
         ...dependencies(),
@@ -649,7 +651,7 @@ test("one registered graph isolates overlapping previews and applies dry-run def
   const bothEntered = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const workflow = createCatalogIngestionWorkflow(async ({ name }) => {
+  const workflow = createCatalogIngestionWorkflow(async ({ input: name }) => {
     const selected = name === "First Fest" ? first : second;
     return {
       deps: {
@@ -677,13 +679,13 @@ test("one registered graph isolates overlapping previews and applies dry-run def
     firstRun.start({
       inputData: studioIngestionInputSchema.parse({
         mode: "add",
-        name: "First Fest",
+        input: "First Fest",
       }),
     }),
     secondRun.start({
       inputData: studioIngestionInputSchema.parse({
         mode: "add",
-        name: "Second Fest",
+        input: "Second Fest",
       }),
     }),
   ]);
@@ -729,7 +731,7 @@ test("duplicate active engine IDs cannot finalize the first attempt", async () =
   const pending = first.start({
     inputData: studioIngestionInputSchema.parse({
       mode: "add",
-      name: "Example Fest",
+      input: "Example Fest",
     }),
   });
   await started;
@@ -738,7 +740,7 @@ test("duplicate active engine IDs cannot finalize the first attempt", async () =
     second.start({
       inputData: studioIngestionInputSchema.parse({
         mode: "add",
-        name: "Example Fest",
+        input: "Example Fest",
       }),
     }),
   ).rejects.toThrow();
@@ -784,7 +786,7 @@ test("native cancellation waits for active research before finalizing known stat
   const pending = run.start({
     inputData: studioIngestionInputSchema.parse({
       mode: "add",
-      name: "Example Fest",
+      input: "Example Fest",
       dryRun: false,
     }),
   });
@@ -830,7 +832,7 @@ test("cancellation after a confirmed write preserves the committed catalog", asy
   await run.start({
     inputData: studioIngestionInputSchema.parse({
       mode: "add",
-      name: "Example Fest",
+      input: "Example Fest",
       dryRun: false,
     }),
   });
@@ -858,7 +860,7 @@ test("registered setup failure finalizes safely and releases its acquired connec
     .start({
       inputData: studioIngestionInputSchema.parse({
         mode: "add",
-        name: "Example Fest",
+        input: "Example Fest",
       }),
     })
     .catch((reason: unknown) => reason);
@@ -886,7 +888,7 @@ test("registered final persistence failure exposes a bounded safe summary", asyn
   const output = run.stream({
     inputData: studioIngestionInputSchema.parse({
       mode: "add",
-      name: "Example Fest",
+      input: "Maybe another gathering in 2030. Pin 38.7,-9.1",
       dryRun: false,
     }),
     outputOptions: { includeState: true },
@@ -941,6 +943,7 @@ test("registered final persistence failure exposes a bounded safe summary", asyn
   expect(row).toMatchObject({ status: "running", report_json: null });
   expect(readResearchCatalog(client)).toHaveLength(1);
   expect(trace.failed).toHaveBeenCalledWith("run_persistence_failed");
+  expect(trace.setEventName).toHaveBeenCalledWith("Example Fest");
   expect(trace.finish).toHaveBeenCalledOnce();
 });
 
@@ -1646,7 +1649,7 @@ test.each([
     const result = await runCatalogResearch(
       {
         mode: "add",
-        name: "Example Fest",
+        input: "Example Fest",
         actor: "catalog-research",
         dryRun: false,
       },
@@ -1676,7 +1679,7 @@ test("retains other specialist diagnostics when Links fails", async () => {
   });
   const { client } = testDatabase();
   const result = await runCatalogResearch(
-    { mode: "add", name: "Example Fest", actor: "test", dryRun: false },
+    { mode: "add", input: "Example Fest", actor: "test", dryRun: false },
     {
       client,
       ...fixtureDependencies(),
@@ -1708,4 +1711,255 @@ test("retains other specialist diagnostics when Links fails", async () => {
   );
   expect(result.operations).toEqual([]);
   expect(readResearchCatalog(client)).toEqual([]);
+});
+
+test("add preserves a long note for collection, keeps it out of General, and uses source identity and dates", async () => {
+  const { client } = fixture();
+  const note = `  Maybe Another Festival in 2030.\nPin 38.7,-9.1\n${"Tentative clue. ".repeat(50)}\nhttps://organizer.test/last-line\n`;
+  const deps = dependencies();
+  const research = deps.generateRole!;
+  const collected = vi.fn();
+  const report = await runCatalogResearch(
+    { ...input, input: note, dryRun: false },
+    {
+      ...deps,
+      client,
+      generateRoles: {
+        research: async (role, prompt, context) => {
+          const data = JSON.parse(prompt);
+          expect(data.researchNote).toBe(note);
+          expect(data.identityContext.requestedName).toBeUndefined();
+          collected();
+          return research(role, prompt, context);
+        },
+        general: async (role, prompt, context) => {
+          expect(prompt).not.toContain("Maybe Another Festival");
+          expect(prompt).not.toContain("organizer.test/last-line");
+          return research(role, prompt, context);
+        },
+      },
+    },
+  );
+  expect(collected).toHaveBeenCalledOnce();
+  expect(report.outcome).not.toBe("failed");
+  expect(
+    client.prepare("SELECT canonical_name FROM events").pluck().get(),
+  ).toBe("Example Fest");
+  expect(client.prepare("SELECT starts_on FROM editions").pluck().get()).toBe(
+    "2027-07-01",
+  );
+  expect(
+    JSON.parse(
+      client
+        .prepare("SELECT input_json FROM ingestion_runs")
+        .pluck()
+        .get() as string,
+    ).input,
+  ).toBe(note);
+});
+
+test("a complete note that exceeds the collector context limit fails explicitly without catalog writes", async () => {
+  const { client } = fixture();
+  const note = "input ".repeat(70000) + "\nLAST_LINE";
+  const research = vi.fn();
+  const report = await runCatalogResearch(
+    { ...input, input: note, dryRun: false },
+    { ...dependencies(), client, generateRole: research },
+  );
+  expect(report.outcome).toBe("failed");
+  expect(report.errors).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ code: "limit_reached" }),
+    ]),
+  );
+  expect(research).not.toHaveBeenCalled();
+  expect(client.prepare("SELECT count(*) FROM events").pluck().get()).toBe(0);
+  expect(
+    JSON.parse(
+      client
+        .prepare("SELECT input_json FROM ingestion_runs")
+        .pluck()
+        .get() as string,
+    ).input,
+  ).toBe(note);
+});
+
+test.each(["pin-only", "city", "city-no-point"] as const)(
+  "add keeps map echoes as leads and resolves source city only (%s)",
+  async (scenario) => {
+    const { fixtureTool, fixtureLocationPlan } =
+      await import("@/test/ingestion");
+    const { client } = fixture();
+    const pin = "https://maps.example.org/?q=38.123,-9.456";
+    const official =
+      scenario === "pin-only"
+        ? "Example Fest 2027, July 1–3. Venue not announced."
+        : "Example Fest 2027, July 1–3, Lisbon, Portugal. Venue not announced.";
+    const deps = fixtureDependencies({
+      research: async (
+        _role: unknown,
+        prompt: string,
+        ctx: Parameters<import("./roles/invoke").GenerateRole>[2],
+      ) => {
+        expect(JSON.parse(prompt).researchNote).toContain(pin);
+        await fixtureTool(ctx, "inspectPage", { url: pin });
+        await fixtureTool(ctx, "inspectPage", { url });
+        return {
+          checks: JSON.parse(prompt).checks.map(({ key }: { key: string }) => ({
+            check: key,
+            sourceIds: ["s2"],
+            blocker: null,
+          })),
+          unresolved: [],
+        };
+      },
+      reader: async (_role: unknown, prompt: string) => {
+        const data = JSON.parse(prompt);
+        const echo = data.page.includes("Map pin");
+        expect(JSON.stringify(data.assignment)).not.toContain(pin);
+        return {
+          overview: echo
+            ? "Map pin echo, no festival relationship."
+            : "Festival announcement.",
+          coverage: { found: [], notPublished: [] },
+          topics: ["identity", "dates", "location"],
+          statedYears: [],
+          limitations: [],
+          evidence: [
+            { quote: data.page, topics: ["identity", "dates", "location"] },
+          ],
+        };
+      },
+      general: async () =>
+        JSON.parse(
+          JSON.stringify(fixtureTargets()).replaceAll("s1-e1", "s2-e1"),
+        ),
+    });
+    const report = await runCatalogResearch(
+      { ...input, input: `Tentative pin ${pin}`, dryRun: false },
+      {
+        ...deps,
+        client,
+        readPage: async (pageUrl, { budget }) => {
+          budget.consumePage();
+          return {
+            attemptedUrl: pageUrl,
+            finalUrl: pageUrl,
+            retrievedAt: "2026-11-01T00:00:00Z",
+            method: "http",
+            status: "ok",
+            markdown:
+              pageUrl === pin ? "Map pin 38.123,-9.456 near Lisbon." : official,
+          };
+        },
+        generateLocation: async (prompt, ctx) => {
+          const data = JSON.parse(prompt);
+          expect(JSON.stringify(data.evidence)).toContain("Map pin 38.123");
+          const plan = fixtureLocationPlan(data);
+          if (plan.decision.status !== "ready") {
+            throw new Error("Expected ready fixture");
+          }
+          const slot = plan.decision.currentOrNextEdition!;
+          slot.evidenceIds = ["s2-e1"];
+          if (scenario !== "pin-only") {
+            slot.fields.locality = {
+              action: "set",
+              value: "Lisbon",
+              reason: "Organizer confirms Lisbon.",
+            };
+            slot.fields.countryCode = {
+              action: "set",
+              value: "PT",
+              reason: "Organizer confirms Portugal.",
+            };
+            const found = (await ctx.geocode({
+              query: "Lisbon",
+              countryCode: "PT",
+            })) as { points: { id: string }[] };
+            if (found.points[0]) {
+              slot.coordinates = {
+                action: "select",
+                pointId: found.points[0].id,
+                precision: "locality",
+                reason: "Only the city is confirmed.",
+              };
+            }
+          }
+          return plan;
+        },
+        geocodingClient: async (request) =>
+          request.direction === "forward" && scenario === "city"
+            ? {
+                status: "success",
+                direction: "forward",
+                candidates: [
+                  {
+                    latitude: 38.72,
+                    longitude: -9.14,
+                    placeId: null,
+                    label: "Lisbon",
+                    name: null,
+                    countryCode: "PT",
+                    locality: "Lisbon",
+                    address: null,
+                    objectType: "locality",
+                    originalType: "city",
+                    category: null,
+                    confidence: null,
+                  },
+                ],
+              }
+            : { status: "error", code: "unavailable" },
+      },
+    );
+    expect(
+      report.outcome,
+      JSON.stringify({
+        errors: report.errors,
+        unresolved: report.unresolved,
+        location: report.locationResponse,
+        general: report.modelResponse,
+      }),
+    ).not.toBe("failed");
+    const place = client
+      .prepare(
+        "SELECT latitude,longitude,coordinate_precision,venue_name FROM editions",
+      )
+      .get();
+    expect(place).toEqual(
+      scenario === "city"
+        ? {
+            latitude: 38.72,
+            longitude: -9.14,
+            coordinate_precision: "locality",
+            venue_name: null,
+          }
+        : {
+            latitude: null,
+            longitude: null,
+            coordinate_precision: "unknown",
+            venue_name: null,
+          },
+    );
+  },
+);
+
+test("Studio add validates free text and rejects the old field or blank input", () => {
+  for (const input of [
+    "Festival name",
+    "https://organizer.test/",
+    "  clue\nlast line  ",
+  ]) {
+    expect(
+      studioIngestionInputSchema.parse({ mode: "add", input }),
+    ).toMatchObject({ input, dryRun: true });
+  }
+  for (const value of [
+    { mode: "add" },
+    { mode: "add", input: " \n" },
+    { mode: "add", name: "Old field" },
+    { mode: "refresh", eventId: "id", input: "clue" },
+  ]) {
+    expect(studioIngestionInputSchema.safeParse(value).success).toBe(false);
+  }
 });

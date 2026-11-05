@@ -314,7 +314,7 @@ export async function runTraceFixture(
       {
         mode: scenario === "skipped" ? "add" : "refresh",
         ...(scenario === "skipped"
-          ? { name: TRACE_PUBLIC_MARKER }
+          ? { input: TRACE_PUBLIC_MARKER }
           : { eventId: event.id }),
         actor: "test",
         initiatedBy: "test",
