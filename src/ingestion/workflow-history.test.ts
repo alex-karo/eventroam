@@ -19,6 +19,7 @@ import { testFixtures } from "@/test/fixtures";
 import {
   fixtureDependencies,
   fixtureTargets,
+  fixtureDescriptionRole,
   set,
   createFixtureIngestionWorkflow,
 } from "@/test/ingestion";
@@ -33,11 +34,12 @@ function fixture() {
     ...fixtureDependencies(),
     generateRole: vi.fn(
       fixtureDependencies({
+        classification: fixtureDescriptionRole({
+          description: set("ALLOWED_MODEL_TEXT"),
+        }),
         general: {
           ...fixtureTargets(event.id),
           observedEventName: event.canonicalName,
-          event: { summary: set("ALLOWED_MODEL_TEXT") },
-          currentOrNextEdition: null,
         },
       }).generateRole,
     ),
@@ -178,9 +180,9 @@ test.each([
       expect(report.failures[0].code).toBe("workflow_history_failed");
       expect(
         f.database.client
-          .prepare("SELECT summary FROM events WHERE id=?")
+          .prepare("SELECT description FROM events WHERE id=?")
           .get(f.event.id),
-      ).toEqual({ summary: applied ? "ALLOWED_MODEL_TEXT" : null });
+      ).toEqual({ description: applied ? "ALLOWED_MODEL_TEXT" : null });
       const rows = f.database.client
         .prepare("SELECT * FROM ingestion_runs")
         .all() as { status: string; report_json: string }[];

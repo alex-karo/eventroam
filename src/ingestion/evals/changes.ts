@@ -15,7 +15,8 @@ type Values = {
   locality: string | null;
   venue_name: string | null;
   venue_address: string | null;
-  summary: string | null;
+  description: string | null;
+  short_description: string | null;
   size_estimate: number | null;
   price_min_minor: number | null;
   price_currency: string | null;

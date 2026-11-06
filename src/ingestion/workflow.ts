@@ -76,8 +76,9 @@ type SpecialistRole = (typeof specialistRoles)[number];
 function specialistApplies(
   role: SpecialistRole,
   targets: Pick<Targets, "previousEdition" | "currentOrNextEdition">,
+  scope: CatalogResearchInput["scope"],
 ) {
-  if (role === "links") {
+  if (role === "links" || (role === "classification" && scope !== "current")) {
     return true;
   }
   if (role === "tickets") {
@@ -561,6 +562,30 @@ export function createCatalogIngestionWorkflow(
       if (data.researchValidation.status !== "continue") {
         data.outcome =
           data.researchValidation.status === "skip" ? "skipped" : "failed";
+      } else {
+        const targets = data.researchValidation.value;
+        const saved = data.context!.catalog.find(
+          (event) => event.id === diagnostics.matchedEventId,
+        );
+        const hasEdition =
+          targets.previousEdition ||
+          targets.currentOrNextEdition ||
+          saved?.editions.some(
+            ({ scheduleStatus }) =>
+              scheduleStatus === "scheduled" || scheduleStatus === "announced",
+          );
+        if (!hasEdition) {
+          data.outcome = "skipped";
+          data.unresolved.push({
+            field: "edition",
+            message: "Insufficient information about editions",
+          });
+        } else if (
+          owned.input.scope === "current" &&
+          !targets.currentOrNextEdition
+        ) {
+          data.outcome = "unchanged";
+        }
       }
       return { execution: data.general, targets: data.researchValidation };
     },
@@ -583,8 +608,8 @@ export function createCatalogIngestionWorkflow(
         if (
           !targets ||
           data.report ||
-          data.outcome === "failed" ||
-          !specialistApplies(role, targets)
+          data.outcome !== null ||
+          !specialistApplies(role, targets, owned.input.scope)
         ) {
           if (role === "location") {
             return stepSchema.parse(emptyLocationExecution());
@@ -663,7 +688,7 @@ export function createCatalogIngestionWorkflow(
     (owned, data, _signal, inputData) => {
       if (
         data.researchValidation?.status !== "continue" ||
-        data.outcome === "failed" ||
+        data.outcome !== null ||
         data.report
       ) {
         return null;
@@ -692,7 +717,7 @@ export function createCatalogIngestionWorkflow(
       if (
         specialistRoles.some(
           (role) =>
-            specialistApplies(role, assigned) &&
+            specialistApplies(role, assigned, owned.input.scope) &&
             results[role].status === "not_run",
         ) ||
         (results.location.status === "success" &&

@@ -40,7 +40,8 @@ export type PublicEvent = {
   id: string;
   slug: string;
   name: string;
-  summary: string | null;
+  description: string | null;
+  shortDescription: string | null;
   editions: PublicEdition[];
 };
 

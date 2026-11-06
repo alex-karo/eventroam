@@ -88,7 +88,7 @@ export function seedDevelopmentFixtures(client: Database.Database) {
             id,
             slug,
             canonicalName,
-            summary:
+            description:
               "A fictional open-air festival used for local development. Each year has its own dates and ticket details.",
             homeScope: "festivals",
             publicationState: "published",

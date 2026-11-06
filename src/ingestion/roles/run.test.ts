@@ -19,7 +19,7 @@ it.each(["add", "full", "current"] as const)(
     const fixtures = testFixtures(db.client);
     const event = fixtures.event({
       aliases: ["Other festival name"],
-      summary: "Saved description",
+      description: "Saved description",
     });
     const edition = fixtures.edition(event, {
       editionKey: "import-next",
@@ -108,11 +108,12 @@ it.each(["add", "full", "current"] as const)(
           );
           expect(data.assignedChecks).toContain("currentDates");
           expect(data.assignedChecks).not.toContain("currentTickets");
+          expect(data.assignedChecks).not.toContain("description");
+          expect(data.candidates[0]).not.toHaveProperty("description");
           expect(data.candidates[0]).toMatchObject({
             id: event.id,
             version: event.version,
             aliases: event.aliases,
-            summary: event.summary,
             links: [{ kind: "official_site", url: "https://example.org/" }],
           });
           expect(data.candidates[0].editions[0]).toMatchObject({
@@ -225,7 +226,6 @@ it("uses native Mastra grep with all saved source files and hash checks", async 
         observedEventName: "Example Festival",
         reason: "Official identity",
         evidenceIds: [bound.evidence[0].id],
-        event: {},
         previousEdition: null,
         currentOrNextEdition: null,
         checks: [],

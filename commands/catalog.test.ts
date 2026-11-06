@@ -2,6 +2,7 @@ import {
   runFixtureResearch,
   fixtureDependencies,
   fixtureTargets,
+  fixtureDescriptionRole,
   set,
 } from "@/test/ingestion";
 import { DEFAULT_RESEARCH_LIMITS } from "@/ingestion/runtime/budget";
@@ -21,6 +22,7 @@ import { executeCatalogCommand, formatCatalogReport } from "./catalog";
 
 const result = (): CatalogResearchResult => ({
   schemaVersion: 7,
+  classificationResponse: null,
   locationResponse: null,
   locationStatus: "not_run",
   locationPromptVersion: "catalog-location-v1",
@@ -294,15 +296,14 @@ test("partial and skipped results exit zero; research, validation and write fail
   }
 });
 
+const fixtureDescription = fixtureDescriptionRole({
+  description: set("Updated description", "Official page updated its text"),
+});
+
 function fixtureGeneral(eventId: string) {
   return {
     ...fixtureTargets(eventId),
     observedEventName: "Fixture Fest",
-    event: {
-      summary: set("Updated description", "Official page updated its text"),
-    },
-    previousEdition: null,
-    currentOrNextEdition: null,
   };
 }
 
@@ -326,7 +327,10 @@ test("real CLI stores/exports the same report and prints runId and stage models"
       research: runFixtureResearch,
       researchDependencies: {
         ...fixtureDependencies(),
-        generateRoles: { general: async () => fixtureGeneral(event.id) },
+        generateRoles: {
+          general: async () => fixtureGeneral(event.id),
+          classification: fixtureDescription,
+        },
       },
     }),
   ).toBe(0);
@@ -378,6 +382,7 @@ test.each(["workflow", "persistence"] as const)(
         researchDependencies: {
           ...fixtureDependencies(),
           generateRoles: {
+            classification: fixtureDescription,
             general: async (_role, prompt) =>
               fixtureGeneral(
                 JSON.parse(prompt).assignment.identityContext.eventId,
@@ -396,9 +401,9 @@ test.each(["workflow", "persistence"] as const)(
     expect(report.results[0].runId).not.toBe(report.results[1].runId);
     expect(
       database.client
-        .prepare("SELECT summary FROM events WHERE id=?")
+        .prepare("SELECT description FROM events WHERE id=?")
         .get(first.id),
-    ).toEqual({ summary: "Updated description" });
+    ).toEqual({ description: "Updated description" });
     if (failure === "persistence") {
       expect(report.failures).toEqual([
         {
@@ -453,7 +458,10 @@ test("optional file failure keeps the completed run and help/preflight do not st
         research: runFixtureResearch,
         researchDependencies: {
           ...fixtureDependencies(),
-          generateRoles: { general: async () => fixtureGeneral(event.id) },
+          generateRoles: {
+            general: async () => fixtureGeneral(event.id),
+            classification: fixtureDescription,
+          },
         },
       },
     ),

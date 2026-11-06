@@ -47,7 +47,8 @@ export const events = sqliteTable(
       .$type<string[]>()
       .notNull()
       .default(sql`'[]'`),
-    summary: text("summary"),
+    description: text("description"),
+    shortDescription: text("short_description"),
     homeScope: text("home_scope"),
     publicationState: text("publication_state", { enum: lifecycle })
       .notNull()

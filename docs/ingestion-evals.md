@@ -67,7 +67,7 @@ Failed scenarios, task/scorer errors, or missing required scores cause exit code
 
 Experiment names use `<branch> · <group> · <model>` and append `--label` when supplied. For example, `feature/location · main/pipeline · openai/gpt-6-luna · before`. The isolated Location group uses its resolved model. Detached HEAD uses the first eight commit characters instead of a branch. Each experiment saves the full commit, branch, dirty flag and label in metadata. The dirty flag includes tracked and untracked files. It does not save their contents. Names can repeat; IDs stay unique. Branch, commit, dirty state, label and model do not change dataset identity.
 
-The CLI shows counts, metrics, N/A applicability, failed checks, experiment IDs, and duration. Use the [score definitions](#keep-completeness-and-errors-separate) to interpret them.
+The CLI shows counts, metrics, N/A applicability, failed checks, experiment IDs, and duration. For each main pipeline result, it also shows the proposal, Editor decision, any rejection reason, and catalog result for each festival description. These diagnostics do not affect scores. Use the [score definitions](#keep-completeness-and-errors-separate) to interpret the scores.
 
 Edit cases and checks in the [source locations below](#define-what-the-sources-can-support). Review source identity, Edition identity, venue versus office addresses, and ticket links versus signup forms when refreshing captures. Follow the [revision rules](#compare-models-on-the-same-revision) before comparing results.
 

@@ -34,7 +34,7 @@ Each attempt uses this fixed Mastra graph. Workflow retries and restart are disa
 | `initialize-run`, `load-context` | Validate the request, create the durable attempt, and load catalog context. |
 | `read-initial-source` | Save the initial source and run Reader. |
 | `collect-sources` | Research chooses sources; freeze the source list and evidence after admitted work settles. |
-| `general-facts` | General confirms identity and selects the two Edition slots. A confirmed duplicate add stops here. Refresh cannot return a duplicate-add decision. |
+| `general-facts` | General confirms identity and selects the two Edition slots. A confirmed duplicate add stops here. Runs without a known Edition stop here too. |
 | `tickets`, `classification`, `location`, `links` | Four independent parallel branches use the same frozen corpus and shared deadline. |
 | `assemble-proposals` | Validate fixed proposals and attach saved values and point records. |
 | `review-proposals` | Editor approves or rejects submitted fields and groups. |
@@ -62,7 +62,7 @@ pnpm run catalog refresh --event EVENT_ID
 pnpm run catalog refresh --event EVENT_ID --event ANOTHER_EVENT_ID --scope current
 ```
 
-`add` researches one note about a possible Event and creates it only when new. A recognized existing Event returns `skipped` and its ID without changes; use `refresh` to update it. `refresh` researches distinct Events independently. Add and `--scope full` (default) check Event summary/shared links, the latest completed Edition, and the ongoing or nearest announced future Edition. Both Edition slots may create new records. `--scope current` checks only the ongoing or nearest announced future Edition. Other saved history and farther future Editions provide context for matching, country checks, and classification reuse.
+`add` researches one note about a possible Event and creates it only when new. A recognized existing Event returns `skipped` and its ID without changes; use `refresh` to update it. `refresh` researches distinct Events independently. Add and `--scope full` (default) check both festival descriptions, shared links, the latest completed Edition, and the ongoing or nearest announced future Edition. Both Edition slots may create new records. `--scope current` checks only the ongoing or nearest announced future Edition. Other saved history and farther future Editions provide context for matching, country checks, and classification reuse. A run needs a selected Edition or a saved Edition with `scheduled` or `announced` status. If neither condition holds, it stops before specialists and reports “Insufficient information about editions”. Current scope with a qualifying saved Edition and no selected target reports an unchanged catalog. Unresolved selection can still make research partial.
 
 Current assumes a prior full run established Event identity/shared links. It omits Event findings and focuses on Edition dates, schedule status, location, tickets, and classification. Size, precise coordinates, and detailed address are optional checks. `check` is unsupported. The database must already exist and be migrated. See the [ingestion tools](ingestion-tools.md#cli-research) for setup and options, or its [Studio instructions](ingestion-tools.md#local-studio-ingestion) for the workflow form.
 
@@ -96,7 +96,7 @@ A missing optional value can remain unknown without failure. An unfinished assig
 | Reader | One whole canonical page and extraction instructions. Keep literal passages, distant headings and qualifications. | Page overview, found information, explicit nonpublication, topics, years, literal quotes with literal context. Code derives anchors. | None |
 | General | Identity candidates, saved chronology, assigned permissions and relevant evidence. | Identity decision, duplicate or uncertain decision, fixed Edition targets and common facts. | None |
 | Tickets | Current or next target, saved ticket block and ticket evidence. | One complete observed variants/base-price replacement, or omission. | None |
-| Classification | Fixed targets, saved terms and history, vocabulary and relevant evidence. | Complete term lists; explicit earlier Edition key and continuity reason when reused. | None |
+| Classification | Fixed targets, saved terms and history, vocabulary and relevant evidence. Add and full also receive saved descriptions. | Complete term lists and optional festival descriptions on add and full. Term reuse includes an earlier Edition key and a continuity reason. | None |
 | Location | Fixed targets, saved places, literal evidence, registered points and prepared reverse context. | Complete place decisions and registered point selection. | Forward `geocode` |
 | Links | Fixed public slots, saved links, permissions and link evidence. No Tickets output. | Event website/social actions and current-or-next ticket link; omitted candidates and reasons. | None |
 | Editor | Submitted proposals, cited evidence, saved values with owners and versions, registered points, and a list of all saved Markdown pages of the run with URLs and available overviews. | Approve/reject at every supplied fixed key; no replacement values. | Native Mastra workspace grep |
@@ -129,11 +129,11 @@ Full retains wrong-site discovery and association inspection; search snippets/na
 
 Ticket variants need an observed price, explicit availability or concrete admission terms. A category name or referral to an unread checkout alone stays an unresolved question, even when amount and currency would be absent. Editor rejects a whole ticket block that contains such an unsupported variant. Supported unknown-price offers remain valid.
 
-General owns description and common Edition facts. Specialists own their fixed fields. A proposed change carries evidence IDs and a reason. Omission preserves saved data. A permitted clear needs affirmative support. New targets need source support. Editor validates meaning and applicability; it cannot supply a new value.
+General owns common Edition facts, including attendance. Record the year and count qualifications in the attendance reason. Specialists own their fixed fields. A proposed change carries evidence IDs and a reason. Omission preserves saved data. A permitted clear needs affirmative support. New targets need source support. Editor validates meaning and applicability; it cannot supply a new value.
 
 Dates, each ticket block, classification and each location bundle are indivisible review groups. Identity rejection stops the item. Rejection of a temporal premise removes that target and dependent changes without reassignment. Optional rejection preserves the saved field. An accepted target can still qualify for publication when all optional proposals are rejected.
 
-Classification is a complete list. Retained saved terms need no fresh evidence; added or removed terms need support. Explicit `reuseFrom: { editionKey, reason }` identifies an eligible earlier saved Edition of this Event and explains continuity. It need not be the nearest Edition. Preparation validates facets before removing redundant ancestors and records a deterministic explanation.
+Classification returns a complete term list for each selected Edition. On add and full, it also reviews both festival descriptions, including full refresh with empty target slots when a saved Edition passes the gate. The detailed text describes the current format and atmosphere in the present tense. The short text names the festival and its format in one or two sentences. Use the latest known format unless sources announce a change. Leave dates, lineups, prices, directions, attendance and one-time details in Edition data. Each optional field has its own proposal and Editor decision. Retained saved terms need no fresh evidence; added or removed terms need support. Explicit `reuseFrom: { editionKey, reason }` identifies an eligible earlier saved Edition of this Event and explains continuity. It need not be the nearest Edition. Preparation validates facets before removing redundant ancestors and records a deterministic explanation.
 
 Tickets processes only `currentOrNextEdition`, including an ongoing festival. Historical ticket blocks stay unchanged. A supported replacement contains all observed priced variants and a nullable base price. Concessions, day tickets and upgrades cannot establish the full-programme base price. No supported replacement means preservation of the whole saved block, including any old URLs. New ingestion offers have no URL field. Other catalog operations retain their offer URL support.
 
@@ -147,7 +147,7 @@ Editor uses the same fixed currentDate as General and Location, not saved record
 
 ## Resolve location
 
-Location runs in parallel with Tickets, Classification and Links after General. It receives both selected targets, evidence and saved places. Code prepares reverse context for a saved target point, or its unique eligible earlier `previousPoint`. Forward queries belong to Location.
+Location runs in parallel with Tickets, Classification and Links after General. It receives both selected targets, evidence, saved places and the saved detailed description when available. Code prepares reverse context for a saved target point, or its unique eligible earlier `previousPoint`. Forward queries belong to Location.
 
 Initial requests and agent calls share six geocoding calls, a cache, cancellation and the run deadline. Location has at most eight model steps. `CATALOG_LOCATION_MODEL` defaults to the normal model. Missing credentials return bounded unavailable context.
 
@@ -159,7 +159,7 @@ When an independent source establishes the Edition place, a matching selected fo
 
 ## Validate the proposal
 
-The system checks shape and same-slot keys. Current requires `previousEdition:null` and no Event summary or shared-link findings or actions. The two slots bound returned Editions; saved context has no Edition-count limit. Temporal choice, factual meaning and completeness remain model decisions assessed by evals.
+The system checks shape and same-slot keys. Current requires `previousEdition:null` and no description or shared-link findings or actions. Classification omits both description fields from its current-scope schema. Code checks scope again after joining the specialist results. The two slots bound returned Editions; saved context has no Edition-count limit. Temporal choice, factual meaning and completeness remain model decisions assessed by evals.
 
 Conflicting saved countries fail before source/model calls (`country_baseline_conflict`). A known country from any saved Edition constrains every returned country, including new/unchanged facts and explicit null clearing; conflicts fail the entire Event (`country_conflict`) before editing; final Location country actions are checked again before operations. Correcting a bad baseline requires a separate authorized correction.
 

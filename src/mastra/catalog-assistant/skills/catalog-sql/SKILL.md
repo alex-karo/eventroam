@@ -11,7 +11,7 @@ Use query_catalog for current facts. Load this skill before catalog reads or rep
 
 SQLite column names:
 
-- events: id, slug, canonical_name, aliases (JSON array), summary, home_scope, publication_state, version, created_at, updated_at.
+- events: id, slug, canonical_name, aliases (JSON array), description, short_description, home_scope, publication_state, version, created_at, updated_at.
 - editions: id, event_id -> events.id, edition_key, display_name, edition_year, starts_on, ends_on, date_state, schedule_status, publication_state, size_estimate, version.
   Location: venue_name, venue_address, locality, administrative_area, country_code, latitude, longitude, coordinate_precision, time_zone.
   Prices: price_kind, price_currency, price_min_minor, price_max_minor, price_coverage, price_qualification, price_details (JSON).

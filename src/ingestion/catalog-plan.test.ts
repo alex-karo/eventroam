@@ -10,6 +10,7 @@ import {
 import {
   fixtureDependencies,
   fixtureTargets,
+  fixtureDescriptionRole,
   fixtureLocationPlan,
   set,
   clear,
@@ -27,7 +28,7 @@ function fixture() {
   const fx = testFixtures(client);
   const event = fx.event({
     canonicalName: "Example Fest",
-    summary: "Saved summary",
+    description: "Saved description",
   });
   const edition = fx.edition(event, {
     editionKey: "2027",
@@ -102,10 +103,13 @@ test("duplicate add stops all role proposals before writes and retains the obser
   expect(result.eventNameMismatch?.observedName).toBe("Revised name");
   expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
 });
-test("General maps grouped facts and reasons without renaming the saved Event", async () => {
+test("Ingestion maps grouped facts and reasons without renaming the saved Event", async () => {
   const f = fixture();
   f.general.observedEventName = "Observed name";
-  f.general.event.summary = set("Updated description", "Official description");
+  const classification = fixtureDescriptionRole({
+    description: set("Updated description", "Official description"),
+    shortDescription: set("Example Fest is a music festival.", "Preview text"),
+  });
   f.general.currentOrNextEdition!.fields = {
     dates: set(
       { startsOn: "2027-06-10", endsOn: "2027-06-20", state: "provisional" },
@@ -113,11 +117,26 @@ test("General maps grouped facts and reasons without renaming the saved Event", 
     ),
     sizeEstimate: set(15000, "Organizer attendance"),
   };
-  const result = await runFixtureResearch(f.refresh, f.deps);
+  const result = await runFixtureResearch(f.refresh, {
+    ...f.deps,
+    generateRoles: { classification },
+  });
   expect(result.errors).toEqual([]);
+  expect(result.changes).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        field: "description",
+        explanations: ["Official description"],
+      }),
+      expect.objectContaining({
+        field: "short_description",
+        explanations: ["Preview text"],
+      }),
+    ]),
+  );
   const saved = readResearchEvent(f.client, f.event.id)!;
   expect(saved.canonicalName).toBe("Example Fest");
-  expect(saved.summary).toBe("Updated description");
+  expect(saved.description).toBe("Updated description");
   expect(saved.editions[0]).toMatchObject({
     startsOn: "2027-06-10",
     endsOn: "2027-06-20",
@@ -281,14 +300,16 @@ test("Links clear only the official website and keep other link kinds", async ()
 });
 test("writer rejection rolls back links, data, audit entries and receipts together", async () => {
   const f = fixture();
-  f.general.event.summary = set("New summary");
   f.client.exec(
-    "CREATE TRIGGER refuse_summary BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT, 'private failure'); END",
+    "CREATE TRIGGER refuse_description BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT, 'private failure'); END",
   );
   const before = readResearchEvent(f.client, f.event.id);
   const result = await runFixtureResearch(f.refresh, {
     ...f.deps,
     generateRoles: {
+      classification: fixtureDescriptionRole({
+        description: set("New description"),
+      }),
       links: async () => ({
         event: { website: set("https://example.org/"), socials: {} },
         currentOrNextEdition: {},

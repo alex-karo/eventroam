@@ -64,7 +64,6 @@ function fixture() {
     observedEventName: event.canonicalName,
     reason: "Official identity",
     evidenceIds: ["s1-e1"],
-    event: {},
     previousEdition: null,
     currentOrNextEdition: {
       editionKey: "2027",
@@ -638,3 +637,63 @@ it("keeps approved Location reuse when only donor classification is rejected", (
     donor,
   );
 });
+
+it.each(["description", "shortDescription", "description check"] as const)(
+  "rejects a current-scope %s that reaches proposal assembly",
+  (field) => {
+    const { input, context, corpus, targets } = fixture();
+    const scoped = { ...input, scope: "current" as const };
+    const checked = validateGeneral(targets, context, scoped, corpus);
+    if (checked.status !== "continue") {
+      throw new Error("Fixture target rejected");
+    }
+    const result = assembleProposals({
+      targets: checked.value,
+      context,
+      input: scoped,
+      corpus,
+      points: [],
+      location: { slots: {}, support: {}, previousPoints: [], unresolved: [] },
+      tickets: null,
+      links: {
+        event: { socials: {} },
+        currentOrNextEdition: {},
+        omitted: [],
+        checks: [],
+        unresolved: [],
+      },
+      classification: {
+        previousEdition: null,
+        currentOrNextEdition: {},
+        ...(field !== "description check" && {
+          [field]: {
+            action: "clear",
+            reason: "Unsupported text",
+            evidenceIds: ["s1-e1"],
+          },
+        }),
+        checks:
+          field === "description check"
+            ? [
+                {
+                  check: "description",
+                  finding: "verified",
+                  explanation: "The festival is open-air.",
+                  evidenceIds: ["s1-e1"],
+                  sourceIds: ["s1"],
+                },
+              ]
+            : [],
+        unresolved: [],
+      },
+    });
+    expect(result).toMatchObject({
+      status: "reject",
+      diagnostics: {
+        errors: [
+          { message: "Current refresh cannot address Event descriptions" },
+        ],
+      },
+    });
+  },
+);

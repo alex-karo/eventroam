@@ -87,6 +87,7 @@
     "editor/valid-update.json",
     "size-evidence/case.json",
     "size-history/case.json",
+    "size-history/announced-move.json",
     "source-regressions/known-offers.json",
     "source-regressions/stale-language.json",
     "source-regressions/homonym.json",

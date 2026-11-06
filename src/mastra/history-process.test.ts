@@ -48,9 +48,9 @@ test("CLI exits before credential-free Studio reopens previews, batch results an
     const checkPreview = new Database(seeded.catalogPath, { readonly: true });
     expect(
       checkPreview
-        .prepare("SELECT summary FROM events WHERE id=?")
+        .prepare("SELECT description FROM events WHERE id=?")
         .get(STUDIO_FIXTURE_EVENT_ID),
-    ).toEqual({ summary: null });
+    ).toEqual({ description: null });
     checkPreview.close();
     const batch = JSON.parse(
       execFileSync(

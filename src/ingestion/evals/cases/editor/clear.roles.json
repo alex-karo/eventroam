@@ -103,7 +103,6 @@
       "observedEventName": "Roskilde Festival",
       "reason": "Captured identity support",
       "evidenceIds": ["s1-e2", "s1-e3", "s2-e2"],
-      "event": {},
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "source-row",

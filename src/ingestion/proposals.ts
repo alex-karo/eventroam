@@ -21,6 +21,10 @@ import {
 } from "./stage";
 
 type LinkFields = LinksOutput["event"];
+type DescriptionFields = Pick<
+  ClassificationOutput,
+  "description" | "shortDescription"
+>;
 type EditionFields = NonNullable<Targets["currentOrNextEdition"]>["fields"] &
   TicketsOutput["currentOrNextEdition"] &
   NonNullable<ClassificationOutput["currentOrNextEdition"]> & {
@@ -36,10 +40,7 @@ export type ApplicationPlan = {
   status: "ready";
   event: {
     reason?: string;
-    fields: {
-      summary?: NonNullable<Targets["event"]["summary"]>;
-      links?: LinkFields;
-    };
+    fields: DescriptionFields & { links?: LinkFields };
   } | null;
   previousEdition: EditionPlan | null;
   currentOrNextEdition: EditionPlan | null;
@@ -157,13 +158,19 @@ function validateTemporalTargets(
   }
 }
 
+function hasEventFieldCheck(checks: Targets["checks"]) {
+  return checks.some(
+    ({ check }) => check === "description" || check === "eventLinks",
+  );
+}
+
 function validateTargetAssignment(
   output: Targets,
   input: CatalogResearchInput,
 ) {
   if (
     input.scope === "current" &&
-    (output.previousEdition || Object.keys(output.event).length)
+    (output.previousEdition || hasEventFieldCheck(output.checks))
   ) {
     throw new Error("Current refresh cannot address Event fields or history");
   }
@@ -246,10 +253,19 @@ export function validateGeneral(
   };
 }
 
-export function commonPlan(targets: Targets): ApplicationPlan {
+function commonPlan(
+  targets: Targets,
+  { description, shortDescription }: DescriptionFields,
+): ApplicationPlan {
   return {
     status: "ready",
-    event: { reason: targets.reason, fields: { ...targets.event } },
+    event: {
+      reason: targets.reason,
+      fields: {
+        ...(description && { description }),
+        ...(shortDescription && { shortDescription }),
+      },
+    },
     previousEdition: targets.previousEdition
       ? structuredClone(targets.previousEdition)
       : null,
@@ -367,16 +383,28 @@ function attachClassification(
   };
 }
 
-function assignEventLinks(
+function finishEventFields(
   plan: ApplicationPlan,
+  classification: ClassificationOutput | null,
   links: LinksOutput,
   input: CatalogResearchInput,
 ) {
+  const fields = plan.event!.fields;
   if (input.scope !== "current") {
-    plan.event!.fields.links = links.event;
-  } else if (
-    Object.keys(links.event.website ?? {}).length ||
-    Object.keys(links.event.socials).length
+    fields.links = links.event;
+    return;
+  }
+  if (
+    fields.description ||
+    fields.shortDescription ||
+    (classification && hasEventFieldCheck(classification.checks))
+  ) {
+    throw new Error("Current refresh cannot address Event descriptions");
+  }
+  if (
+    links.event.website ||
+    Object.keys(links.event.socials).length ||
+    hasEventFieldCheck(links.checks)
   ) {
     throw new Error("Event links are outside the assignment");
   }
@@ -407,7 +435,7 @@ export function assembleProposals(options: {
   const event =
     context.catalog.find((event) => event.id === targets.eventId) ??
     (input.eventId ? context.catalog[0] : undefined);
-  const plan = commonPlan(targets);
+  const plan = commonPlan(targets, options.classification ?? {});
   plan.unresolved = diagnostics.unresolved;
   const submitted = {
     general: targets,
@@ -425,7 +453,7 @@ export function assembleProposals(options: {
     ) {
       throw new Error("Proposal for an absent target");
     }
-    assignEventLinks(plan, options.links, input);
+    finishEventFields(plan, options.classification, options.links, input);
     for (const slot of editionSlotNames) {
       const target = plan[slot];
       const classification = options.classification?.[slot]?.classification;

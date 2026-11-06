@@ -6,6 +6,7 @@ import {
   placeName,
   scheduleStatusLabels,
 } from "@/components/catalog/format";
+import { festivalDescription } from "@/site/festival-description";
 import { editionPath, eventPath } from "@/site/site";
 
 export function pageMetadata(
@@ -27,8 +28,7 @@ export function pageMetadata(
 export function eventMetadata(event: PublicEvent, origin: string): Metadata {
   return pageMetadata(
     `${event.name} | Eventroam`,
-    event.summary ??
-      `${event.name}: festival information and published edition history.`,
+    festivalDescription(event, "preview"),
     `${origin}${eventPath(event.slug)}`,
   );
 }

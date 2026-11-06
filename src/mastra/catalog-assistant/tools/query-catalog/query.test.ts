@@ -40,7 +40,7 @@ test("SQLite rejects mutations, scripts, connection changes and external access 
   const outside = join(dirname(db.path), "outside.sqlite");
   const attempts = [
     "DELETE FROM events",
-    "UPDATE events SET summary='bad'",
+    "UPDATE events SET description='bad'",
     "INSERT INTO events(id) VALUES ('bad')",
     "DROP TABLE events",
     "VACUUM",

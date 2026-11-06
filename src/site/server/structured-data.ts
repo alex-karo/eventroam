@@ -1,4 +1,5 @@
 import type { PublicEdition, PublicEvent } from "@/catalog/read/contracts";
+import { festivalDescription } from "@/site/festival-description";
 import { editionPath } from "@/site/site";
 
 const eventStatuses = {
@@ -29,7 +30,7 @@ export function editionStructuredData(
     "@id": url,
     url,
     name,
-    ...(event.summary ? { description: event.summary } : {}),
+    description: festivalDescription(event),
     startDate: edition.startsOn,
     endDate: edition.endsOn,
     eventStatus: `https://schema.org/${eventStatuses[edition.status]}`,

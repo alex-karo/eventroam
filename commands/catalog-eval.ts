@@ -1,11 +1,14 @@
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
+import { z } from "zod";
 import {
   runCatalogEvals,
   evalItemPassed,
+  type EvalCaseOutput,
   type EvalOptions,
 } from "@/ingestion/evals/run";
 import { evalGroups } from "@/ingestion/evals/selection";
+import { reasonSchema } from "@/ingestion/roles/contracts";
 
 type EvalRun = Awaited<ReturnType<typeof runCatalogEvals>>;
 type EvalGroupResult = EvalRun["groups"][number];
@@ -92,6 +95,70 @@ function printMainScores(items: EvalItem[], output: Output) {
   }
 }
 
+const proposal = z.object({ action: z.enum(["set", "clear"]) }).nullish();
+const descriptionProposals = z.object({
+  description: proposal,
+  shortDescription: proposal,
+});
+const decision = z.object({
+  decision: z.enum(["approve", "reject"]),
+  reason: reasonSchema,
+});
+const descriptionReview = z.object({
+  item: decision.optional(),
+  event: z
+    .object({
+      target: decision.optional(),
+      fields: z
+        .object({
+          description: decision.optional(),
+          shortDescription: decision.optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+});
+
+function printDescriptionResults(value: EvalCaseOutput, output: Output) {
+  const { report, before, after } = value;
+  if (!report) {
+    return;
+  }
+  const proposals = descriptionProposals.safeParse(
+    report.classificationResponse?.object,
+  ).data;
+  const review = descriptionReview.safeParse(
+    report.editorResponse?.object,
+  ).data;
+  const original = before?.find((event) => event.id === report.eventId);
+  const saved = after?.find((event) => event.id === report.eventId);
+  const blocked = [review?.item, review?.event?.target].find(
+    (decision) => decision?.decision === "reject",
+  );
+  for (const field of ["description", "shortDescription"] as const) {
+    const action = proposals?.[field]?.action;
+    const result =
+      (action ? blocked : undefined) ?? review?.event?.fields?.[field];
+    const previous = original?.[field]?.trim() || null;
+    const current = saved?.[field]?.trim() || null;
+    let catalog = "unavailable";
+    if (saved) {
+      if (current === previous) {
+        catalog = current ? "kept" : "absent";
+      } else {
+        catalog = current ? "saved" : "cleared";
+      }
+    }
+    const reason =
+      result?.decision === "reject"
+        ? ` (${JSON.stringify(result.reason)})`
+        : "";
+    output(
+      `    ${field}: proposal ${action ?? "none"}, Editor ${result?.decision ?? "no decision"}${reason}, catalog ${catalog}\n`,
+    );
+  }
+}
+
 function printFailure(item: EvalItem, output: Output) {
   const value = item.output;
   if (value?.quality) {
@@ -146,6 +213,7 @@ function printGroup(group: EvalGroupResult, output: Output) {
     );
     if (item.output?.quality) {
       output(`    checked errors: ${item.output.quality.errorCount}\n`);
+      printDescriptionResults(item.output, output);
     }
     if (item.output?.reader) {
       const reader = item.output.reader;

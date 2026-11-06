@@ -6,6 +6,7 @@ import {
   runFixtureResearch,
   fixtureDependencies,
   fixtureTargets,
+  fixtureDescriptionRole,
   set,
   generateFixtureLocation,
 } from "./ingestion";
@@ -36,6 +37,9 @@ executeCatalogCommand(
       ...fixtureDependencies(),
       generateLocation: generateFixtureLocation,
       generateRoles: {
+        classification: fixtureDescriptionRole({
+          description: set("CLI_FIXTURE_SUMMARY", "Offline fixture"),
+        }),
         general: async (_role, prompt) => {
           if (interrupt) {
             process.stdout.write("FIXTURE_RESEARCH_WAITING\n");
@@ -55,9 +59,6 @@ executeCatalogCommand(
           return {
             ...fixtureTargets(event.id),
             observedEventName: event.canonical_name,
-            event: { summary: set("CLI_FIXTURE_SUMMARY", "Offline fixture") },
-            previousEdition: null,
-            currentOrNextEdition: null,
           };
         },
       },

@@ -3,6 +3,7 @@ import { assertMainCase } from "./main";
 import { assertRegressionCase } from "./regression";
 import { assertLocationCase } from "./location";
 import { roleHandoffSchema, assertEditorFixture } from "./editor-fixture";
+import { bindEvidence, readerOutputSchema } from "../evidence/contracts";
 import { locationInputSchema } from "../location/input";
 import {
   geocodingRequestSchema,
@@ -60,7 +61,8 @@ const event = z.object({
   slug: z.string(),
   canonicalName: z.string(),
   aliases: z.array(z.string()).optional(),
-  summary: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  shortDescription: z.string().nullable().optional(),
   homeScope: z.enum(scopes).nullable().optional(),
   publicationState: z.enum(publicationStates).optional(),
   links: z.array(link).optional(),
@@ -74,6 +76,7 @@ const source = z.strictObject({
   status: z.enum(["ok", "unsupported", "failed"]),
   reasonCode: z.string().optional(),
   markdown: z.string(),
+  readerOutput: readerOutputSchema.optional(),
 });
 const commonCaseSchema = z.strictObject({
   id: z.string().min(1),
@@ -240,6 +243,17 @@ export function loadEvalSuite(): EvalSuite {
     throw new Error("Duplicate eval case ID");
   }
   for (const item of suite.cases) {
+    for (const { markdown, finalUrl, readerOutput } of item.sources) {
+      if (
+        readerOutput &&
+        bindEvidence("s1", markdown, readerOutput, finalUrl).evidence.length !==
+          readerOutput.evidence.length
+      ) {
+        throw new Error(
+          `${item.id}: fixed Reader quotation does not match ${finalUrl}`,
+        );
+      }
+    }
     if (item.suite === "main") {
       assertMainCase(item);
     } else if (item.location) {

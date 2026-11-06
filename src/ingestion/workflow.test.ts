@@ -1016,7 +1016,7 @@ test.each([false, true])(
     const fx = testFixtures(client);
     const event = fx.event({
       canonicalName: "Example Fest",
-      summary: "Old summary",
+      description: "Old description",
     });
     const donor = fx.edition(event, {
       editionKey: "2026",
@@ -1063,7 +1063,9 @@ test.each([false, true])(
       expect(result.errors).toContainEqual(
         expect.objectContaining({ code: "write_failed" }),
       );
-      expect(readResearchEvent(client, event.id)!.summary).toBe("Old summary");
+      expect(readResearchEvent(client, event.id)!.description).toBe(
+        "Old description",
+      );
       expect(readResearchEvent(client, event.id)!.editions).toHaveLength(1);
     } else {
       expect(result.errors).toEqual([]);
@@ -1411,7 +1413,6 @@ test("the public runner accumulates research in native state without runtime res
   const privatePage = "PRIVATE_PAGE_BODY";
   const privateOutput = "PRIVATE_MODEL_OUTPUT";
   const proposal = fixtureTargets();
-  proposal.event.summary = set(privateOutput);
   readPage.mockImplementation(async (_url, options) => {
     options.budget.consumePage();
     return { ...source, markdown: privatePage };
@@ -1429,6 +1430,14 @@ test("the public runner accumulates research in native state without runtime res
       ...dependencies(),
       readPage,
       generateRoles: {
+        classification: async (role, prompt, call) => ({
+          ...((await dependencies().generateRole(
+            role,
+            prompt,
+            call,
+          )) as object),
+          description: set(privateOutput),
+        }),
         general: async () => {
           phases.push("research-festival");
           return proposal;

@@ -56,7 +56,7 @@ test("fresh migration creates the current catalog structure", () => {
   ]);
   expect(
     client.prepare("SELECT * FROM __drizzle_migrations").all(),
-  ).toHaveLength(6);
+  ).toHaveLength(7);
   expect(client.pragma("foreign_keys", { simple: true })).toBe(1);
   expect(client.pragma("foreign_key_check")).toEqual([]);
   expect(client.pragma("integrity_check", { simple: true })).toBe("ok");
@@ -191,6 +191,40 @@ test("repeating migration preserves data, journal and immutable history", () => 
   ).toThrow(/immutable/);
 });
 
+function restoreSummarySchema(
+  client: ReturnType<typeof testDatabase>["client"],
+) {
+  client.exec(`
+    ALTER TABLE events DROP COLUMN short_description;
+    ALTER TABLE events RENAME COLUMN description TO summary;
+    DELETE FROM __drizzle_migrations
+      WHERE created_at = (SELECT max(created_at) FROM __drizzle_migrations);
+  `);
+}
+
+test("description migration preserves saved text and nulls", () => {
+  const connection = testDatabase();
+  const { client } = connection;
+  const fx = testFixtures(client);
+  const filled = fx.event({ description: "An open-air festival." });
+  const blank = fx.event({ description: null });
+  restoreSummarySchema(client);
+
+  migrateCatalogConnection(connection);
+
+  const read = client.prepare(
+    "SELECT description, short_description FROM events WHERE id=?",
+  );
+  expect(read.get(filled.id)).toEqual({
+    description: "An open-air festival.",
+    short_description: null,
+  });
+  expect(read.get(blank.id)).toEqual({
+    description: null,
+    short_description: null,
+  });
+});
+
 test.each([
   { version: "0003", hasAddJobs: false },
   { version: "0004", hasAddJobs: true },
@@ -200,6 +234,7 @@ test.each([
     const connection = testDatabase();
     const { client } = connection;
     const event = testFixtures(client).event();
+    restoreSummarySchema(client);
     const note = '  Festival "name"\nhttps://organizer.test/\n';
     client.pragma("foreign_keys = OFF");
     client.exec("DROP TABLE ingestion_jobs");

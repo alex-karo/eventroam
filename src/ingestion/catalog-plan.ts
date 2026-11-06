@@ -300,30 +300,35 @@ function prepareEvent(
   add: AddOperation,
 ) {
   const eventRef = event?.id ?? "$event";
-  const summary = valueOf(plan.fields.summary);
+  const data: {
+    description?: string | null;
+    shortDescription?: string | null;
+  } = {};
+  const explanations: Record<string, string[]> = {};
+  for (const [field, column] of [
+    ["description", "description"],
+    ["shortDescription", "short_description"],
+  ] as const) {
+    const change = plan.fields[field];
+    if (change) {
+      data[field] = valueOf(change);
+      explanations[column] = [change.reason];
+    }
+  }
   if (!event) {
     add(
       {
         kind: "createEvent",
-        data: {
-          slug: slug(canonicalName),
-          canonicalName,
-          ...(summary === undefined ? {} : { summary }),
-        },
+        data: { slug: slug(canonicalName), canonicalName, ...data },
       },
-      {
-        canonical_name: [plan.reason!],
-        ...(summary === undefined
-          ? {}
-          : { summary: [plan.fields.summary!.reason] }),
-      },
+      { canonical_name: [plan.reason!], ...explanations },
       undefined,
       "event",
     );
-  } else if (summary !== undefined) {
+  } else if (Object.keys(data).length) {
     add(
-      { kind: "updateEvent", id: eventRef, data: { summary } },
-      { summary: [plan.fields.summary!.reason] },
+      { kind: "updateEvent", id: eventRef, data },
+      explanations,
       event.version,
     );
   }

@@ -18,6 +18,7 @@ import {
   fixtureDependencies,
   fixtureRoleGenerator,
   fixtureTargets,
+  fixtureDescriptionRole,
   set,
 } from "./ingestion";
 
@@ -30,9 +31,10 @@ const read =
     ? undefined
     : new Database(path, { readonly: true, fileMustExist: true });
 const events = read
-  ?.prepare("SELECT id,canonical_name,summary FROM events")
+  ?.prepare("SELECT id,canonical_name,description FROM events")
   .all() as
-  { id: string; canonical_name: string; summary: string | null }[] | undefined;
+  | { id: string; canonical_name: string; description: string | null }[]
+  | undefined;
 read?.close();
 const deps = {
   config: {
@@ -45,7 +47,7 @@ const deps = {
     research: (async (role, prompt, context) => {
       const event = events!.find((event) => prompt.includes(event.id))!;
       process.stdout.write(
-        `RESEARCH ${JSON.stringify({ id: event.id, summary: event.summary })}\n`,
+        `RESEARCH ${JSON.stringify({ id: event.id, description: event.description })}\n`,
       );
       if (mode === "interrupt") {
         await new Promise(() => setInterval(() => {}, 1000));
@@ -55,15 +57,15 @@ const deps = {
       }
       return fixtureRoleGenerator()(role, prompt, context);
     }) satisfies GenerateRole,
+    classification: fixtureDescriptionRole({
+      description: set("STUDIO_SAVED_SUMMARY"),
+    }),
     general: (async (_role, prompt) => {
       const data = JSON.parse(prompt);
       const eventId = data.assignment.identityContext.eventId;
       const event = events!.find((event) => event.id === eventId)!;
       const targets = fixtureTargets(eventId);
       targets.observedEventName = event.canonical_name;
-      targets.event = { summary: set("STUDIO_SAVED_SUMMARY") };
-      targets.previousEdition = null;
-      targets.currentOrNextEdition = null;
       return targets;
     }) satisfies GenerateRole,
   }),

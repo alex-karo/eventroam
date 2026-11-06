@@ -2,6 +2,7 @@ import { DateBlock } from "@/components/catalog/date-block";
 import { SiteHeader } from "@/components/site/site-header";
 import type { PublicEvent, PublicEdition } from "@/catalog/read/contracts";
 import { isPastEdition } from "@/catalog/domain/dates";
+import { festivalDescription } from "@/site/festival-description";
 import { eventPath } from "@/site/site";
 import { EditionHistory } from "@/components/catalog/edition-history";
 import { ExternalLinks } from "@/components/catalog/external-links";
@@ -70,12 +71,10 @@ export function EditionDetailsPage({
             {located && <a href="#location">Show on map</a>}
           </div>
         </header>
-        {event.summary && (
-          <section>
-            <h2>About the festival</h2>
-            <p>{event.summary}</p>
-          </section>
-        )}
+        <section>
+          <h2>About the festival</h2>
+          <p>{festivalDescription(event)}</p>
+        </section>
         <section>
           <h2>Tickets</h2>
           {past &&

@@ -123,7 +123,6 @@ async function fixture(
         observedEventName: "Example Festival",
         reason: "Same official festival",
         evidenceIds,
-        event: {},
         previousEdition: null,
         currentOrNextEdition: {
           editionKey: "2027",

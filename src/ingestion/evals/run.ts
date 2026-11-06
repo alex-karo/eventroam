@@ -102,7 +102,8 @@ function seedDatabase(suite: EvalSuite, item: PipelineEvalCase) {
               slug: initial.slug,
               canonicalName: initial.canonicalName,
               aliases: initial.aliases ?? [],
-              summary: initial.summary,
+              description: initial.description,
+              shortDescription: initial.shortDescription,
               homeScope: initial.homeScope,
               publicationState: initial.publicationState ?? "draft",
               createdAt: timestamp,
@@ -196,6 +197,24 @@ function seedDatabase(suite: EvalSuite, item: PipelineEvalCase) {
   }
 }
 
+function fixedReader(item: PipelineEvalCase) {
+  if (!item.sources.some((source) => source.readerOutput)) {
+    return undefined;
+  }
+  return {
+    reader: async (_role: unknown, prompt: string) => {
+      const { source, page } = JSON.parse(prompt);
+      const fixed = item.sources.find(
+        ({ finalUrl }) => finalUrl === source.finalUrl,
+      );
+      if (!fixed?.readerOutput || fixed.markdown !== page) {
+        throw new Error(`${item.id}: unexpected fixed Reader input`);
+      }
+      return structuredClone(fixed.readerOutput);
+    },
+  };
+}
+
 function fixedSources(
   item: PipelineEvalCase,
   todayUtc: string,
@@ -203,8 +222,10 @@ function fixedSources(
 ) {
   const byUrl = new Map<string, ReadPageResult>();
   for (const source of item.sources) {
-    byUrl.set(new URL(source.attemptedUrl).toString(), source);
-    byUrl.set(new URL(source.finalUrl).toString(), source);
+    const page = { ...source };
+    delete page.readerOutput;
+    byUrl.set(new URL(page.attemptedUrl).toString(), page);
+    byUrl.set(new URL(page.finalUrl).toString(), page);
   }
   return {
     readPage: async (
@@ -332,9 +353,9 @@ async function executeCase(
           todayUtc: item.todayUtc ?? suite.todayUtc,
           geocodingClient: fixedGeocoding(item),
           ...fixedSources(item, item.todayUtc ?? suite.todayUtc, calls),
-          ...(item.roleHandoff
-            ? { generateRoles: editorFixtureRoles(item) }
-            : {}),
+          generateRoles: item.roleHandoff
+            ? editorFixtureRoles(item)
+            : fixedReader(item),
         },
       );
     } catch (error) {
