@@ -105,11 +105,14 @@ Previews and writes SHALL show old and new values with reasons. Applied changes 
 - **AND** reverse observations identify nearby context without presenting returned coordinates as replacement candidates
 
 ### Requirement: Output matches the stored final report
-CLI, Studio, optional JSON export, and local run inspection SHALL use the same final report for a completed attempt. Failure to export an optional report file SHALL not alter a finalized run.
+
+Studio and local run inspection SHALL use the same stored final report for a completed attempt. CLI output for a completed attempt SHALL show a summary that identifies the saved report and the workflow run.
 
 #### Scenario: JSON output is requested
-- **WHEN** an attempt finishes and the owner requests JSON output or a report file
-- **THEN** its run ID and report content match the stored final report
+
+- **WHEN** an attempt finishes and the owner requests JSON output
+- **THEN** the CLI returns the workflow summary with the attempt outcome, diagnostic codes, and both run IDs
+- **AND** the ingestion run ID identifies the saved final report
 
 ### Requirement: Report consumers reject unsupported versions
 

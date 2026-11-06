@@ -1,183 +1,205 @@
 import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
 import { rmSync } from "node:fs";
-import Database from "better-sqlite3";
 import { resolve } from "node:path";
+import Database from "better-sqlite3";
 import { expect, test } from "vitest";
 import {
   startStudioFixture,
   STUDIO_FIXTURE_EVENT_ID,
 } from "../test/studio-fixture";
-import { testFixtures } from "../test/fixtures";
 
 const workflowUrl = "/api/workflows/catalog-ingestion";
+const cli = ["--import", "tsx", resolve("commands/catalog.ts")];
 
-test("CLI exits before credential-free Studio reopens previews, batch results and interrupted steps", async () => {
-  const seeded = await startStudioFixture();
-  await seeded.stop(true);
+test("CLI uses Studio storage and inspection can reopen completed and interrupted runs", async () => {
+  const studio = await startStudioFixture();
   try {
-    const client = new Database(seeded.catalogPath);
-    const second = testFixtures(client).event({
-      canonicalName: "Second CLI Fixture",
-      slug: "second-cli-fixture",
-    });
-    client.close();
     const env = {
       ...process.env,
-      DATABASE_PATH: seeded.catalogPath,
-      CATALOG_WORKFLOW_DATABASE_PATH: seeded.workflowPath,
-      CATALOG_OBSERVABILITY_DATABASE_PATH: seeded.tracePath,
-      CATALOG_LOGGING: "false",
-      CATALOG_TRACING: "false",
+      DATABASE_PATH: resolve(studio.directory, "absent.sqlite"),
       OPENROUTER_API_KEY: "",
     };
     const base = [
-      "--import",
-      "tsx",
-      resolve("src/test/history-cli.ts"),
+      ...cli,
       "refresh",
       "--event",
       STUDIO_FIXTURE_EVENT_ID,
-      "--database",
-      seeded.catalogPath,
       "--json",
     ];
+    const options = { env, encoding: "utf8" as const };
     const preview = JSON.parse(
-      execFileSync(process.execPath, base, { env, encoding: "utf8" }),
-    );
-    expect(preview.results[0].outcome).not.toBe("failed");
-    const checkPreview = new Database(seeded.catalogPath, { readonly: true });
-    expect(
-      checkPreview
-        .prepare("SELECT summary FROM events WHERE id=?")
-        .get(STUDIO_FIXTURE_EVENT_ID),
-    ).toEqual({ summary: null });
-    checkPreview.close();
-    const batch = JSON.parse(
       execFileSync(
         process.execPath,
-        [...base, "--event", second.id, "--apply"],
-        {
-          env,
-          encoding: "utf8",
-        },
+        [...base, "--url", studio.baseUrl],
+        options,
       ),
     );
-    expect(batch.results).toHaveLength(2);
-    expect(batch.results[0].runId).not.toBe(batch.results[1].runId);
-    const failure = spawnSync(process.execPath, [...base, "--fixture-failed"], {
-      env,
-      encoding: "utf8",
+    expect(preview.results[0]).toMatchObject({
+      eventId: STUDIO_FIXTURE_EVENT_ID,
+      dryRun: true,
+      outcome: "created",
+      ingestionRunId: expect.any(String),
+      engineRunId: expect.any(String),
     });
-    expect(failure.status).toBe(1);
-    const failed = JSON.parse(failure.stdout);
-    expect(failed.results[0].outcome).toBe("failed");
-    const writer = spawn(process.execPath, [...base, "--fixture-interrupt"], {
-      env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    try {
-      await new Promise<void>((ready, reject) => {
-        let output = "";
-        const timeout = setTimeout(
-          () => reject(new Error("Fixture did not enter research")),
-          15_000,
-        );
-        writer.stdout.on("data", (chunk) => {
-          output += chunk;
-          if (output.includes("FIXTURE_RESEARCH_WAITING")) {
-            clearTimeout(timeout);
-            ready();
-          }
-        });
-        writer.once("exit", () => {
-          clearTimeout(timeout);
-          reject(new Error("Fixture exited before interruption"));
-        });
-      });
-      writer.kill("SIGKILL");
-      await new Promise<void>((done) => writer.once("exit", () => done()));
-    } finally {
-      if (writer.exitCode === null && writer.signalCode === null) {
-        writer.kill("SIGKILL");
-      }
+    expect(preview.results[0]).not.toHaveProperty("changes");
+    for (const field of [
+      "savedEditionCount",
+      "returnedEditionCount",
+      "readCount",
+      "searchCount",
+      "operationCount",
+      "changedCount",
+    ]) {
+      expect(preview.results[0]).not.toHaveProperty(field);
     }
+    const catalog = new Database(studio.catalogPath, { readonly: true });
+    try {
+      expect(
+        catalog.prepare("SELECT COUNT(*) AS count FROM editions").get(),
+      ).toEqual({ count: 0 });
+      const saved = catalog
+        .prepare("SELECT status, report_json FROM ingestion_runs WHERE id=?")
+        .get(preview.results[0].ingestionRunId) as {
+        status: string;
+        report_json: string;
+      };
+      expect(saved.status).toBe("completed");
+      const workflow = await fetch(
+        `${studio.baseUrl}${workflowUrl}/runs/${preview.results[0].engineRunId}`,
+      );
+      const { steps } = await workflow.json();
+      expect(steps["finalize-run"].output).toEqual(preview.results[0]);
+      const report = steps["build-report"].output;
+      expect(report).toEqual(JSON.parse(saved.report_json));
+      expect(report).toMatchObject({
+        workload: {
+          savedEditions: expect.any(Number),
+          returnedEditions: expect.any(Number),
+        },
+        budget: { pages: expect.any(Number), searches: expect.any(Number) },
+        operations: expect.any(Array),
+        receipts: expect.any(Array),
+      });
+      expect(report.changes.length).toBeGreaterThan(0);
+    } finally {
+      catalog.close();
+    }
+
+    const unknownEvent = "00000000-0000-4000-8000-000000000099";
+    const batch = spawnSync(
+      process.execPath,
+      [
+        ...cli,
+        "refresh",
+        "--event",
+        unknownEvent,
+        "--event",
+        STUDIO_FIXTURE_EVENT_ID,
+        "--apply",
+        "--json",
+        "--url",
+        studio.baseUrl,
+      ],
+      options,
+    );
+    expect(batch.status, batch.stderr).toBe(1);
+    const applied = JSON.parse(batch.stdout);
+    expect(applied.failures).toMatchObject([
+      { eventId: unknownEvent, code: "workflow_failed" },
+    ]);
+    expect(applied.results).toMatchObject([
+      { eventId: STUDIO_FIXTURE_EVENT_ID, dryRun: false, outcome: "created" },
+    ]);
+    const completedId = applied.results[0].engineRunId;
+    expect(completedId).not.toBe(preview.results[0].engineRunId);
+    await studio.stop(true);
+
+    const waiting = await startStudioFixture("cancel", {
+      directory: studio.directory,
+    });
+    const command = spawn(
+      process.execPath,
+      [...base, "--url", waiting.baseUrl],
+      {
+        env,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    let output = "";
+    command.stdout.setEncoding("utf8").on("data", (text) => (output += text));
+    const exited = once(command, "close");
+    let interruptedId: string | undefined;
+    try {
+      await expect
+        .poll(
+          async () => {
+            const response = await fetch(
+              `${waiting.baseUrl}${workflowUrl}/runs`,
+            );
+            const entries = (await response.json()).runs as {
+              runId: string;
+              snapshot: { status: string };
+            }[];
+            interruptedId = entries.find(
+              (entry) => entry.snapshot.status === "running",
+            )?.runId;
+            if (!interruptedId) {
+              return undefined;
+            }
+            const current = await fetch(
+              `${waiting.baseUrl}${workflowUrl}/runs/${interruptedId}`,
+            );
+            return (await current.json()).steps?.["load-context"]?.status;
+          },
+          { timeout: 10_000 },
+        )
+        .toBe("success");
+      const stopped = once(waiting.child, "exit");
+      waiting.child.kill("SIGKILL");
+      await stopped;
+      expect(await exited).toEqual([1, null]);
+      expect(JSON.parse(output).failures).toMatchObject([
+        { engineRunId: interruptedId, code: "studio_outcome_unknown" },
+      ]);
+    } finally {
+      if (command.exitCode === null && command.signalCode === null) {
+        command.kill("SIGKILL");
+        await exited;
+      }
+      await waiting.stop(true);
+    }
+
     const inspected = await startStudioFixture("success", {
-      directory: seeded.directory,
+      directory: studio.directory,
       inspectionOnly: true,
       catalog: false,
     });
     try {
-      const entries = await (
-        await fetch(`${inspected.baseUrl}${workflowUrl}/runs`)
-      ).json();
-      const runs = entries.runs as {
-        runId: string;
-        snapshot: { status: string };
-      }[];
-      expect(runs).toHaveLength(5);
-      expect(new Set(runs.map((entry) => entry.runId)).size).toBe(5);
-      const saved = await Promise.all(
-        runs.map(async (entry) =>
-          (
-            await fetch(
-              `${inspected.baseUrl}${workflowUrl}/runs/${entry.runId}`,
-            )
-          ).json(),
-        ),
-      );
-      const text = JSON.stringify(saved);
-      expect(text).toContain(preview.results[0].runId);
-      expect(text).toContain(batch.results[0].runId);
-      expect(text).toContain(batch.results[1].runId);
-      // Literal Reader quotes can retain source text. Snapshots must not copy the page body as a separate field.
-      expect(text).not.toContain('"markdown":');
-      const interrupted = saved.find((entry) => entry.status === "running");
-      expect(interrupted).toMatchObject({
-        runId: expect.any(String),
-        steps: {
-          "initialize-run": {
-            status: "success",
-            output: {
-              engineRunId: interrupted?.runId,
-              ingestionRunId: expect.any(String),
+      for (const runId of [completedId, interruptedId]) {
+        const saved = await fetch(
+          `${inspected.baseUrl}${workflowUrl}/runs/${runId}`,
+        );
+        expect(saved.status).toBe(200);
+        expect(await saved.json()).toMatchObject({
+          runId,
+          status: runId === interruptedId ? "running" : "success",
+          steps: {
+            "initialize-run": {
+              status: "success",
+              output: {
+                engineRunId: runId,
+                ingestionRunId: expect.any(String),
+              },
             },
           },
-          "load-context": { status: "success" },
-        },
-      });
-      const durable = new Database(seeded.catalogPath, { readonly: true });
-      try {
-        expect(
-          durable
-            .prepare("SELECT id,status FROM ingestion_runs WHERE id=?")
-            .get(interrupted.steps["initialize-run"].output.ingestionRunId),
-        ).toEqual({
-          id: interrupted.steps["initialize-run"].output.ingestionRunId,
-          status: "running",
         });
-      } finally {
-        durable.close();
-      }
-      for (const entry of runs) {
-        const denied = await fetch(
-          `${inspected.baseUrl}${workflowUrl}/start?runId=${entry.runId}`,
-          {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              inputData: {
-                mode: "refresh",
-                input: { eventId: STUDIO_FIXTURE_EVENT_ID },
-              },
-            }),
-          },
-        );
-        expect(denied.status).toBe(409);
       }
     } finally {
       await inspected.stop();
     }
   } finally {
-    rmSync(seeded.directory, { recursive: true, force: true });
+    await studio.stop(true);
+    rmSync(studio.directory, { recursive: true, force: true });
   }
 }, 60_000);

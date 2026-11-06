@@ -43,7 +43,7 @@ Missing diagnostic stores are created empty. The migration command can also crea
 Compose declares one named volume, `data`, mounted at `/data` in both services. Keep the same Compose project name to retain it during recreation. Do not use `docker compose down --volumes` for retained data. The fixed container paths are:
 
 - `/data/eventroam.sqlite`: catalog, public website reads, and validated Studio writes.
-- `/data/mastra-workflows.sqlite`: native CLI and Studio workflow history.
+- `/data/mastra-workflows.sqlite`: Studio workflow history, including runs started by the CLI.
 - `/data/mastra-observability.duckdb`: optional logs, traces, and metrics.
 - `/data/mastra-chat.sqlite`: assistant conversation history.
 - `/data/mastra-evals.sqlite`: saved eval datasets, experiments, and scores.

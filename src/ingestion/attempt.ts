@@ -83,7 +83,6 @@ export class CatalogAttempt {
         `${this.deps.client.name}-wal`,
         `${this.deps.client.name}-shm`,
         `${this.deps.client.name}-journal`,
-        ...(this.deps.reportPath ? [this.deps.reportPath] : []),
       ],
       this.engineRunId,
       this.deps.observabilityStore,

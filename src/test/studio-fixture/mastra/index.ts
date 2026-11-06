@@ -14,6 +14,7 @@ import { createStudioJobs } from "../../../mastra/jobs";
 import { createApplicationLogger } from "../../../ingestion/runtime/logging";
 import { DEFAULT_RESEARCH_LIMITS } from "../../../ingestion/runtime/budget";
 import { createObservabilityStore } from "../../../ingestion/runtime/observability/storage";
+import { diagnosticStoragePaths } from "../../../ingestion/runtime/storage-paths";
 import { createWorkflowStorage } from "../../../ingestion/runtime/workflow-storage";
 import { ingestionExecutionGuard } from "../../../mastra/ingestion-guard";
 
@@ -170,6 +171,7 @@ export async function createFixtureMastra() {
     },
   );
   const storage = createWorkflowStorage({
+    path: diagnosticStoragePaths().workflow,
     observability: observabilityStore,
     onFailure: workflow.historyControl.recoverHistory,
   });

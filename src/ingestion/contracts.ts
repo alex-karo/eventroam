@@ -129,12 +129,9 @@ export type ResearchDependencies = {
   observabilityStore?: DuckDBStore | null;
   /** Injected workflow storage is owned by the caller. */
   workflowStorage?: WorkflowStorage;
-  workflowDatabasePath?: string;
   /** Link native observations to the eval experiment. */
   experimentId?: string;
   config?: ResearchConfig;
-  /** Protect the selected optional report destination from observability writes. */
-  reportPath?: string;
   /** Freeze the domain date in reproducible evaluations. */
   todayUtc?: string;
   generateLocation?: GenerateLocation;

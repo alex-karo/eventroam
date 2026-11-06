@@ -42,7 +42,7 @@ Each attempt uses this fixed Mastra graph. Workflow retries and restart are disa
 | `apply-catalog-item` | Preview or atomically apply operations. |
 | `build-report`, `finalize-run` | Save the report, return a bounded summary, and release owned resources. |
 
-CLI and Studio execute the same graph. Native workflow results retain source artifact references, evidence, each actual role response, and preparation results. Full Markdown stays in private files. The source list is part of the collection result; there is no separate manifest. All admitted work must settle before freeze and finalization. No role starts another collection after freeze. A required role failure prevents all catalog writes.
+The CLI calls the Studio workflow API. Native workflow results retain source artifact references, evidence, each actual role response, and preparation results. Full Markdown stays in private files. The source list is part of the collection result; there is no separate manifest. All admitted work must settle before freeze and finalization. No role starts another collection after freeze. A required role failure prevents all catalog writes.
 
 ## Inspect saved runs
 
@@ -185,15 +185,15 @@ The current report separates research, editor, and Location status from the cata
 
 Raw model responses remain available, including invalid editor output. Returned unchanged facts can be inspected there. Omitted facts preserve saved values; they do not prove that a check was complete. Actual mutations and reasons also appear in the writer audit. No-op checks create no audit.
 
-Every started attempt has a private `ingestion_runs` row and durable `runId`. The final report is saved automatically. `--report PATH` exports the same report. Current consumers reject older report versions. See [ingestion runs](../openspec/specs/catalog/ingestion-runs/spec.md) and `src/ingestion/report.ts` for the exact report shape.
+Every started attempt has a private `ingestion_runs` row and durable `runId`. Studio saves the final report automatically. Open the workflow's build-report step to inspect it. Current consumers reject older report versions. See [ingestion runs](../openspec/specs/catalog/ingestion-runs/spec.md) and `src/ingestion/report.ts` for the exact report shape.
 
 With `--apply`, success and partial results use the atomic writer. Failed research, editing or required Location writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research, editor, Location or write failure exits nonzero. A write failure rolls back the entire Event item. The report retains research status, prepared operations, available raw research, editor and Location responses, source summaries, any name mismatch, and the write error. Applied `changes` stays empty; a separate proposed diff is not required. A partial result with no changes remains visibly partial/unchanged.
 
 Ordinary research retries only explicit OpenRouter `provider_unavailable` errors, at most three times with 10-second, 30-second, and 90-second exponential backoff within the same run deadline. A bounded Mastra iteration allowance preserves ordinary research capacity during those unavailable retries; observed request counts still include them. Other model errors are not retried; completed research steps and tool results are retained.
 
-Research defaults to 15 ordinary model steps, with tools disabled on the last step to reserve a final response. `--agent-steps` or `CATALOG_MAX_AGENT_STEPS` changes that allowance. Reader checks a configurable whole-page input allowance with a reserve. Topic packets have a bounded input size and fail explicitly on overflow. Source-size/output limits, search safeguards and deadlines still apply. Linked pages have no traversal-depth limit. Provider context-window rejection is reported as a model failure.
+Research defaults to 15 ordinary model steps, with tools disabled on the last step to reserve a final response. Set `CATALOG_MAX_AGENT_STEPS` for Studio to change that allowance. Reader checks a configurable whole-page input allowance with a reserve. Topic packets have a bounded input size and fail explicitly on overflow. Source-size/output limits, search safeguards and deadlines still apply. Linked pages have no traversal-depth limit. Provider context-window rejection is reported as a model failure.
 
-Reports and explanations are private CLI output/files, not public website data or a separate hosted logging service. Public details expose only ticket category labels and availability; amount/terms/variant URLs and research metadata remain private. Unknown category availability has no badge. Discovery and details never derive a global sold-out/closed label from variants.
+Reports and explanations remain in private run history. Public details expose only ticket category labels and availability; amount/terms/variant URLs and research metadata remain private. Unknown category availability has no badge. Discovery and details never derive a global sold-out/closed label from variants.
 
 Reports contain no application token or cost totals and no usage-completeness flag. `report.budget` holds search, page, model-call, elapsed-time and remaining-limit counters.
 
@@ -213,7 +213,7 @@ Abrupt interruption may leave a running row with null report, finish time, and f
 
 Main results show required completeness, additional completeness, no checked errors, and scenario success. Missing additional facts lower completeness; wrong checked facts fail the case. A dimension with no expected facts is N/A. Gold data stays outside model input.
 
-Results and diagnostics are saved as Mastra experiments in `data/mastra-evals.sqlite`, separate from catalog and observability storage. Inspect and compare them in Studio. Workflow output retains one real v7 report; isolated Location output retains its actual execution without an ingestion report. The eval command has no `--report` option. Ordinary ingestion report export still works.
+Results and diagnostics are saved as Mastra experiments in `data/mastra-evals.sqlite`, separate from catalog and observability storage. Inspect and compare them in Studio. Workflow output retains one real v7 report; isolated Location output retains its actual execution without an ingestion report.
 
 Use `--model X` to select X for all eight agents, including isolated Location. Compare runs with the same cases, repeat count, fixtures, and scorer revision. See the [eval guide](ingestion-evals.md#run-evals) for selection, fact units, storage paths, and comparison limits, and the [evaluation spec](../openspec/specs/operations/ingestion-evaluation/spec.md) for the contract.
 
@@ -222,7 +222,7 @@ Use `--model X` to select X for all eight agents, including isolated Location. C
 Logs and traces help diagnose execution. They are optional and best effort. They do not replace the durable run report or writer audit. See [Ingestion tools](ingestion-tools.md#local-trace-inspection) for recording, queries, and cleanup.
 
 - Set `CATALOG_TRACING=true` for traces and native metrics. Set `CATALOG_LOGGING=true` independently for application and native SDK logs. Local commands keep both off by default. Compose enables both for Studio.
-- Close Studio before a separate CLI process records data. Only one process can own the DuckDB file. Reopen Studio after the CLI exits.
+- Start Studio with logging or tracing before calling the catalog CLI. For separate eval runs with diagnostics, see the [eval guide](ingestion-evals.md#usage-and-storage-failures).
 - Studio traces use the native workflow `runId`. Trace metadata retains the durable `ingestionRunId`, which matches the `runId` in application logs and saved reports. A missing trace does not mean the catalog write failed.
 - Inspect retrieval status and reason codes separately from tool execution status. A completed tool can return a failed retrieval. Native technical success does not verify facts or catalog changes.
 - The workflow root has the fixed name `catalog-ingestion`. Metadata identifies the Event, mode, native workflow run ID and durable ingestion run ID, with experiment IDs when available. Output copies only `researchStatus`, `editorStatus`, `locationStatus` and catalog `outcome`. Workflow steps and the report hold phase, validation and Edition details.
@@ -234,7 +234,7 @@ Native tool spans retain their standard results. Application logs retain retriev
 
 Pino writes JSON to stderr and Mastra forwards calls to Studio Logs. Delivery uses native Mastra behavior. Events outside SDK contexts can have no top-level correlation; application log data retains the durable `runId`. Completed model commentary and returned reasoning are separate events, each limited to 4,000 Unicode code points. Studio assistant tools use the same logging configuration without enabling chat traces.
 
-The workflow ends its root after report construction, settles children, then attempts flush before shutdown. CLI closes its owned store; Studio lends its store across attempts. SDK observability warnings and errors use native messages; application lifecycle guards retain fixed codes. Telemetry remains best effort and does not change model requests, budgets, retries, catalog writes, reports, scoring or exit status. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) and `src/ingestion/runtime/` for the contract and implementation.
+The workflow ends its root after report construction, settles children, then attempts flush before shutdown. Studio keeps its store open across attempts. SDK observability warnings and errors use native messages; application lifecycle guards retain fixed codes. Telemetry remains best effort and does not change model requests, budgets, retries, catalog writes, reports, scoring or exit status. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) and `src/ingestion/runtime/` for the contract and implementation.
 
 ### Execution metrics
 
@@ -247,7 +247,7 @@ Native metrics describe eligible agent, model, and tool operations. They do not 
 - Cancellation and HTTP failure can leave partial usage. Metric presence does not prove a complete bill.
 - Reports keep budget counters and do not calculate replacement cost totals. Historical runs are not backfilled.
 
-Use the [total-token query](ingestion-tools.md#local-trace-inspection) to inspect saved metrics without running research. The CLI closes its owned store; Studio keeps its shared store across attempts. Neither store has automatic retention. See the [diagnostics contract](../openspec/specs/operations/ingestion-diagnostics/spec.md) for details.
+Use the [total-token query](ingestion-tools.md#local-trace-inspection) to inspect saved metrics without running research. The store has no automatic retention. See the [diagnostics contract](../openspec/specs/operations/ingestion-diagnostics/spec.md) for details.
 
 ## Add research notes
 
