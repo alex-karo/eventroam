@@ -1,4 +1,5 @@
 import { festivalEditionRules } from "@/catalog/domain/festival-edition-publication";
+import { hasRequiredScheduleDates } from "@/catalog/domain/edition-rules";
 import type { MaterializedLocation } from "./location/validate";
 import type { ApplicationPlan, AcceptedProposals } from "./proposals";
 import { createHash, randomUUID } from "node:crypto";
@@ -274,10 +275,26 @@ export function prepareCatalogPlan(
   let willPublishEdition = false;
   for (const [index, slot] of editionSlotNames.entries()) {
     const edition = plan[slot];
-    if (
-      edition &&
-      prepareEdition(edition, index, event, eventRef, input, terms, add)
-    ) {
+    if (!edition) {
+      continue;
+    }
+    const outcome = prepareEdition(
+      edition,
+      index,
+      event,
+      eventRef,
+      input,
+      terms,
+      add,
+    );
+    if (outcome === "missing-schedule-dates") {
+      return planInvalid(
+        result,
+        `${slot}.fields.dates`,
+        `Edition ${edition.editionKey} needs a start date and an end date for status scheduled.`,
+      );
+    }
+    if (outcome === "publish") {
       willPublishEdition = true;
     }
   }
@@ -352,12 +369,18 @@ function prepareEdition(
   input: CatalogResearchInput,
   terms: Term[],
   add: AddOperation,
-): boolean {
+): "missing-schedule-dates" | "publish" | "prepared" {
   const key = edition.editionKey;
   const saved = event?.editions.find((item) => item.editionKey === key);
   const id = saved?.id ?? `$edition_${index}`;
   const version = saved?.version ?? 1;
   const { values, reasons } = fieldsToValues(edition.fields);
+  const next = { ...saved, ...values };
+  if (
+    !hasRequiredScheduleDates(next.scheduleStatus, next.startsOn, next.endsOn)
+  ) {
+    return "missing-schedule-dates";
+  }
   if (!saved) {
     add(
       {
@@ -417,12 +440,12 @@ function prepareEdition(
   if (
     mayPublish(saved, input.republish) &&
     festivalEditionRules.isPublishable(
-      { ...saved, ...values },
+      next,
       terms.filter((term) => nextTerms.includes(term.id)),
     )
   ) {
     add({ kind: "publishEdition", id }, {}, version);
-    return true;
+    return "publish";
   }
-  return false;
+  return "prepared";
 }
