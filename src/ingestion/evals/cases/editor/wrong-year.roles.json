@@ -1,6 +1,6 @@
 {
   "schemaVersion": 5,
-  "provenance": "Captured editor-wrong-year research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. The Edition ticket link uses the inspected overview. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 10a5037c-f9d1-46f1-a78c-7ac924784f80:s1, 10a5037c-f9d1-46f1-a78c-7ac924784f80:s2, 10a5037c-f9d1-46f1-a78c-7ac924784f80:s3. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
+  "provenance": "Captured editor-wrong-year research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. The Edition ticket link uses the inspected overview. The YouTube link uses the cited official URL. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 10a5037c-f9d1-46f1-a78c-7ac924784f80:s1, 10a5037c-f9d1-46f1-a78c-7ac924784f80:s2, 10a5037c-f9d1-46f1-a78c-7ac924784f80:s3. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
   "pages": [
     {
       "url": "https://www.wacken.com/",
@@ -343,17 +343,9 @@
         "socials": {
           "youtube": {
             "action": "set",
-            "value": "https://www.youtube.com/channel/UCvQT6N9nu2BJ-lJuMg1jEZQ",
-            "reason": "Captured official source association",
-            "evidenceIds": [
-              "s1-e1",
-              "s1-e2",
-              "s1-e7",
-              "s2-e1",
-              "s2-e2",
-              "s3-e1",
-              "s3-e11"
-            ]
+            "value": "https://www.youtube.com/wackentv/",
+            "reason": "The official Wacken homepage links to this channel.",
+            "evidenceIds": ["s1-e6"]
           }
         },
         "website": {
