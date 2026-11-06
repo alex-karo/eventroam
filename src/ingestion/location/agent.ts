@@ -55,6 +55,32 @@ function validationMessage(error: unknown): string {
   }
   return locationFailureMessage(error);
 }
+function locationDiagnostic(
+  error: unknown,
+  budget: ResearchBudget,
+  signal: AbortSignal,
+): LocationExecution["errors"][number] {
+  const timedOut =
+    budget.remaining().durationMs <= 0 ||
+    signal.reason?.name === "TimeoutError";
+  if (error instanceof LocationCountryConflictError) {
+    return {
+      code: "country_conflict",
+      stage: "validation",
+      editionKey: error.editionKey,
+      field: "countryCode",
+      message: error.message,
+    };
+  }
+  return {
+    code: timedOut ? "limit_reached" : "location_failed",
+    stage: "location",
+    message: timedOut
+      ? "Location reached the run deadline"
+      : validationMessage(error),
+  };
+}
+
 function locationModelConfig(config: ResearchConfig) {
   return {
     ...config,
@@ -165,6 +191,59 @@ function captureLocationReply(
   }
 }
 
+async function generateLocationReply(
+  runtime: Mastra,
+  prompt: string,
+  session: ReturnType<typeof createGeocodingSession>,
+  options: {
+    instructions: string;
+    budget: ResearchBudget;
+    config: ResearchConfig;
+    tracing: RunObservability | undefined;
+    span: AnySpan | undefined;
+  },
+) {
+  const { instructions, budget, config, tracing, span } = options;
+  const model = locationModelConfig(config);
+  const agent = new Agent({
+    id: "festival-location",
+    name: "Festival location",
+    instructions,
+    model: createResearchModel(model),
+    tools: { geocode: session.tool },
+    errorProcessorDefaults: false,
+    maxProcessorRetries: 0,
+  });
+  runtime.addAgent(agent, "festivalLocation");
+  tracing?.observability.setLogger({ logger: tracing.logger });
+  let steps = 0;
+  return runtime.getAgent("festivalLocation").generate(prompt, {
+    runId: tracing?.options.metadata.runId,
+    maxSteps: 8,
+    maxProcessorRetries: 0,
+    structuredOutput: {
+      schema: locationModelOutputSchema(),
+      errorStrategy: "warn",
+      logger: noopLogger,
+    },
+    tracingOptions: tracing?.options,
+    tracingContext: span ? { currentSpan: span } : undefined,
+    providerOptions: researchProviderOptions(model),
+    modelSettings: {
+      maxOutputTokens: budget.limits.modelOutputTokens,
+      maxRetries: 0,
+      timeout: { totalMs: Math.max(1, budget.remaining().durationMs) },
+    },
+    abortSignal: session.signal,
+    prepareStep: () => {
+      session.signal.throwIfAborted();
+      budget.consumeModelCall();
+      steps += 1;
+      return steps === 8 ? { activeTools: [], toolChoice: "none" } : undefined;
+    },
+  });
+}
+
 export async function resolveLocation(
   input: LocationInput,
   budget: ResearchBudget,
@@ -233,51 +312,16 @@ export async function resolveLocation(
         }),
       };
     } else {
-      const model = locationModelConfig(config);
-      const agent = new Agent({
-        id: "festival-location",
-        name: "Festival location",
-        instructions,
-        model: createResearchModel(model),
-        tools: { geocode: session.tool },
-        errorProcessorDefaults: false,
-        maxProcessorRetries: 0,
-      });
       runtime =
         tracing?.mastra ??
         new Mastra({ logger: false, loggerOptions: { export: false } });
-      runtime.addAgent(agent, "festivalLocation");
-      tracing?.observability.setLogger({ logger: tracing.logger });
-      let steps = 0;
-      const output = await runtime
-        .getAgent("festivalLocation")
-        .generate(prompt, {
-          runId: tracing?.options.metadata.runId,
-          maxSteps: 8,
-          maxProcessorRetries: 0,
-          structuredOutput: {
-            schema: locationModelOutputSchema(),
-            errorStrategy: "warn",
-            logger: noopLogger,
-          },
-          tracingOptions: tracing?.options,
-          tracingContext: span ? { currentSpan: span } : undefined,
-          providerOptions: researchProviderOptions(model),
-          modelSettings: {
-            maxOutputTokens: budget.limits.modelOutputTokens,
-            maxRetries: 0,
-            timeout: { totalMs: Math.max(1, budget.remaining().durationMs) },
-          },
-          abortSignal: session.signal,
-          prepareStep: () => {
-            session.signal.throwIfAborted();
-            budget.consumeModelCall();
-            steps += 1;
-            return steps === 8
-              ? { activeTools: [], toolChoice: "none" }
-              : undefined;
-          },
-        });
+      const output = await generateLocationReply(runtime, prompt, session, {
+        instructions,
+        budget,
+        config,
+        tracing,
+        span,
+      });
       execution.modelResponse = {
         text: output.text ?? null,
         object:
@@ -285,7 +329,10 @@ export async function resolveLocation(
             ? completedObject(output)
             : (output.object ?? null),
       };
-      if (output.finishReason === "stop" && output.messages.length) {
+      if (output.finishReason !== "stop") {
+        throw new Error("Location response did not finish");
+      }
+      if (output.messages.length) {
         messages = output.messages;
       }
     }
@@ -324,26 +371,7 @@ export async function resolveLocation(
     );
     execution.status = "success";
   } catch (error) {
-    const timedOut =
-      budget.remaining().durationMs <= 0 ||
-      session.signal.reason?.name === "TimeoutError";
-    if (error instanceof LocationCountryConflictError) {
-      execution.errors.push({
-        code: "country_conflict",
-        stage: "validation",
-        editionKey: error.editionKey,
-        field: "countryCode",
-        message: error.message,
-      });
-    } else {
-      execution.errors.push({
-        code: timedOut ? "limit_reached" : "location_failed",
-        stage: "location",
-        message: timedOut
-          ? "Location reached the run deadline"
-          : validationMessage(error),
-      });
-    }
+    execution.errors.push(locationDiagnostic(error, budget, session.signal));
   } finally {
     observeTrace(tracing, span, {
       name: "resolve-location",

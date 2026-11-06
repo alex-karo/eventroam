@@ -1165,20 +1165,28 @@ it.each(["original", "revision"] as const)(
     const f = await fixture("Example Fest lists an official ticket overview.");
     const requests = controlled({
       links: (body, index) =>
-        response(body, {
-          event: {
-            socials: {},
-            ...((index || phase === "original") && { website: set(sourceUrl) }),
+        response(
+          body,
+          {
+            event: {
+              socials: {},
+              ...((index || phase === "original") && {
+                website: set(sourceUrl),
+              }),
+            },
+            currentOrNextEdition: {
+              tickets: set(
+                phase === "original"
+                  ? "bad-url"
+                  : "https://example.org/tickets",
+              ),
+            },
+            checks: fixtureChecks(["currentLinks"]),
+            omitted: [],
+            unresolved: [],
           },
-          currentOrNextEdition: {
-            tickets: set(
-              phase === "original" ? "bad-url" : "https://example.org/tickets",
-            ),
-          },
-          checks: fixtureChecks(["currentLinks"]),
-          omitted: [],
-          unresolved: [],
-        }),
+          index > 0 || phase === "original",
+        ),
       editor: (body, _index, prompt) =>
         response(
           body,

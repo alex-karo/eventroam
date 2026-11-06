@@ -352,12 +352,12 @@ Ingestion MUST request three to five sentences for the detailed text and one or 
 
 Editor SHALL be able to return an assigned group or omission to its owner with its note as written. The note MAY contain facts and citations from saved sources. Each group for a selected target SHALL have at most one return per Event attempt. Validation and Editor share that allowance. Ingestion SHALL send one request per owner for all eligible validation returns and one for all eligible Editor returns. Returns SHALL use the attempt's budget and deadline.
 
-#### Scenario: Roskilde ticket terms conflict
+#### Scenario: Roskilde tickets include a payment plan
 
-- **WHEN** Editor returns the Roskilde ticket group because the saved pages disagree about Smart Ticket instalments but support a DKK 2,650 full pass
+- **WHEN** Editor returns the Roskilde ticket group because the proposal includes Smart Ticket instalments and the saved pages support a DKK 2,650 full pass
 - **AND** Editor has accepted an independent link proposal
 - **THEN** Tickets receives the request for that group with Editor's note as written, including any passages and source references in the note
-- **AND** Tickets can submit a complete supported block that retains the full pass and leaves any unresolved terms open
+- **AND** Tickets can submit a complete supported block that retains the full pass and excludes the payment plan
 - **AND** the next review covers only the ticket revision
 - **AND** the accepted link proposal stays eligible for the plan
 

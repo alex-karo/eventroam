@@ -253,6 +253,7 @@ export function runTickets(options: RoleOptions, targets: Targets) {
     instructions: ticketsInstructions + returnInstructions,
     input: {
       assignedChecks: assignedRoleChecks("tickets", options.input, targets),
+      currentDate: options.context.currentDate,
       target: selected
         ? {
             ...selected,

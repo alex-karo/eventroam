@@ -286,6 +286,51 @@ async function generateNativeReply<T>(
   }
 }
 
+function acceptCompletedReply<T>(
+  options: RoleInvocation<T>,
+  execution: RoleExecution<T>,
+  messages: FullOutput["messages"] | undefined,
+) {
+  const { role } = options;
+  const object = execution.modelResponse?.object;
+  const raw =
+    role === "general" && !options.generate
+      ? (object as { result?: unknown } | null)?.result
+      : object;
+  const normalized = options.normalizeOutput
+    ? options.normalizeOutput(raw)
+    : raw;
+  if (
+    repairableRole(role) &&
+    normalized != null &&
+    (options.generate || messages)
+  ) {
+    const history = messages;
+    options.capture?.(role, {
+      raw: normalized,
+      schema: options.schema,
+      ...(history && {
+        revise: (input, tools, signal) =>
+          invokeRole({
+            ...options,
+            input,
+            tools,
+            signal,
+            steps: 6,
+            messages: history,
+            capture: undefined,
+          }),
+      }),
+    });
+  }
+  if (options.messages && normalized != null) {
+    execution.output = normalized as T;
+    execution.status = "success";
+  } else {
+    acceptRoleOutput(execution, options.schema, role, normalized);
+  }
+}
+
 export async function invokeRole<T>(
   options: RoleInvocation<T>,
 ): Promise<RoleExecution<T>> {
@@ -335,43 +380,7 @@ export async function invokeRole<T>(
       );
     }
     signal.throwIfAborted();
-    const object = execution.modelResponse?.object;
-    const raw =
-      role === "general" && !options.generate
-        ? (object as { result?: unknown } | null)?.result
-        : object;
-    const normalized = options.normalizeOutput
-      ? options.normalizeOutput(raw)
-      : raw;
-    if (
-      repairableRole(role) &&
-      normalized != null &&
-      (options.generate || messages)
-    ) {
-      const history = messages;
-      options.capture?.(role, {
-        raw: normalized,
-        schema: options.schema,
-        ...(history && {
-          revise: (input, tools, signal) =>
-            invokeRole({
-              ...options,
-              input,
-              tools,
-              signal,
-              steps: 6,
-              messages: history,
-              capture: undefined,
-            }),
-        }),
-      });
-    }
-    if (options.messages && normalized != null) {
-      execution.output = normalized as T;
-      execution.status = "success";
-    } else {
-      acceptRoleOutput(execution, options.schema, role, normalized);
-    }
+    acceptCompletedReply(options, execution, messages);
   } catch (error) {
     const classified = classifyModelError(
       error,
