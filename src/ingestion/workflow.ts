@@ -836,7 +836,6 @@ export function createCatalogIngestionWorkflow(
       let prepared = data.prepared.value;
       const originalTargets = prepared.targets;
       const groups = assignedGroups(owned.input.scope, originalTargets);
-      const used = owned.repairs.used;
       const runReview = (targeted?: Set<string>) =>
         owned.track(
           runEditor(
@@ -845,7 +844,7 @@ export function createCatalogIngestionWorkflow(
               corpus: owned.repairs.corpus(data.corpus!),
             },
             prepared,
-            reviewPaths(prepared, groups, used, targeted),
+            reviewPaths(prepared, groups, owned.repairs.usedPaths, targeted),
             targeted
               ? owned.repairs.records.filter(({ path }) => targeted.has(path))
               : owned.repairs.records,

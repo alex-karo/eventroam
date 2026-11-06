@@ -12,10 +12,11 @@ import {
 import type { ReadyCatalogPlan } from "./catalog-plan";
 import type { EditorExecution } from "./roles/editor-execution";
 import type { RoleExecution } from "./roles/invoke";
-import type {
-  CheckFinding,
-  CollectionOutput,
-  GeneralOutput,
+import {
+  linksOutputSchema,
+  type CheckFinding,
+  type CollectionOutput,
+  type GeneralOutput,
 } from "./roles/contracts";
 import type { FrozenCorpus } from "./evidence/contracts";
 import { buildAssignment, assignedRoleChecks } from "./roles/assignment";
@@ -292,6 +293,6 @@ function repairCheck(
 function socialLinkQuestion(field: string) {
   return (
     field.startsWith("event.fields.links.socials.") ||
-    ["instagram", "facebook", "youtube", "tiktok", "x", "other"].includes(field)
+    Object.hasOwn(linksOutputSchema.shape.event.shape.socials.shape, field)
   );
 }

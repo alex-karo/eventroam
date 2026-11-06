@@ -54,10 +54,6 @@ export type RepairRecord = {
 type ReturnRequest = { group: ProposalGroup; note: string };
 type GroupIssue = { group: ProposalGroup; rule: string };
 type PointContext = Pick<GeocodingSession, "points" | "targets">;
-type RepairContext = {
-  corpus: FrozenCorpus;
-  targets: Targets | null;
-};
 
 class RepairFailure extends Error {
   constructor(readonly diagnostic: ResearchError) {
@@ -97,10 +93,12 @@ function references(value: unknown, key: string): unknown[] {
 export class ProposalRepairs {
   private replies = new Map<GroupOwner, RoleConversation>();
   private passages: Evidence[] = [];
-  private retained = new Set<string>();
   readonly records: RepairRecord[] = [];
-  readonly used = new Set<string>();
   private location?: { input: LocationInput; session: PointContext };
+
+  get usedPaths() {
+    return new Set(this.records.map(({ path }) => path));
+  }
 
   capture = (owner: GroupOwner, reply: RoleConversation) => {
     this.replies.set(owner, reply);
@@ -121,11 +119,16 @@ export class ProposalRepairs {
   }
 
   corpus(original: FrozenCorpus): FrozenCorpus {
+    const retained = new Set(
+      this.records.flatMap(
+        ({ evidence }) => evidence?.map(({ id }) => id) ?? [],
+      ),
+    );
     return {
       ...original,
       evidence: [
         ...original.evidence,
-        ...this.passages.filter(({ id }) => this.retained.has(id)),
+        ...this.passages.filter(({ id }) => retained.has(id)),
       ],
     };
   }
@@ -539,12 +542,13 @@ export class ProposalRepairs {
     const ctx = this.context(owned, data, targets);
     const groups = assignedGroups(owned.input.scope, targets);
     const issues: GroupIssue[] = [];
-    for (const owner of [
+    const specialists = [
       "tickets",
       "classification",
       "links",
       "location",
-    ] as const) {
+    ] as const;
+    for (const owner of specialists) {
       const raw = this.raw(owner);
       if (raw) {
         issues.push(
@@ -565,12 +569,7 @@ export class ProposalRepairs {
       "validation",
       signal,
     );
-    for (const owner of [
-      "tickets",
-      "classification",
-      "links",
-      "location",
-    ] as const) {
+    for (const owner of specialists) {
       const reply = this.replies.get(owner);
       if (reply) {
         reply.raw = reply.schema.parse(reply.raw);
@@ -651,6 +650,7 @@ export class ProposalRepairs {
     signal: AbortSignal,
   ) {
     const original = this.replies.get(owner);
+    const used = this.usedPaths;
     const records = requests.map(({ group, note }): RepairRecord => {
       const slot = editionSlotNames.find((slot) =>
         group.path.startsWith(slot + "."),
@@ -659,10 +659,10 @@ export class ProposalRepairs {
         eventId: ctxEvent(ctx)?.id ?? null,
         ...(slot && { editionKey: ctx.targets?.[slot]?.editionKey }),
       };
-      if (this.used.has(group.path)) {
+      if (used.has(group.path)) {
         fail("Group already used its return", group.path);
       }
-      this.used.add(group.path);
+      used.add(group.path);
       return {
         owner,
         path: group.path,
@@ -761,9 +761,6 @@ export class ProposalRepairs {
       const entry = records[index];
       const support = new Set(references(value, "evidenceIds"));
       entry.evidence = available.filter(({ id }) => support.has(id));
-      for (const { id } of entry.evidence) {
-        this.retained.add(id);
-      }
       setPath(merged, group.rawPath, value);
       this.mergeQuestions(merged, revision, entry, value == null);
     }
@@ -857,7 +854,9 @@ export class ProposalRepairs {
   }
 }
 
-type Context = RepairContext & {
+type Context = {
+  corpus: FrozenCorpus;
+  targets: Targets | null;
   context: NonNullable<IngestionData["context"]>;
   input: CatalogAttempt["input"];
 };
