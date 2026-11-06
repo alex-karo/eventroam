@@ -68,7 +68,7 @@ A reverse result SHALL retain the queried point and bounded nearby place or addr
 
 The final venueName, venueAddress, locality, administrativeArea, countryCode, and coordinates SHALL describe one coherent place for each addressed Edition. A changed venue SHALL NOT retain an address or point disproved by the same evidence. Unsupported fields SHALL preserve saved data without claiming fresh verification. Invalid or inconsistent final place data SHALL reject the item.
 
-Location SHALL supply explicit decisions for all place fields. Editor SHALL approve or reject those proposals without supplying replacement values. Other specialists SHALL NOT supply place changes.
+Location SHALL supply explicit decisions for all place fields. Editor SHALL approve, reject, or return the place group to Location under the group return rules. Editor SHALL NOT supply replacement place values. The complete place SHALL pass location validation. A return SHALL have no geocoding calls available and SHALL use the existing point choices. Other specialists SHALL NOT supply place changes.
 
 #### Scenario: A new venue has an old address
 
@@ -83,13 +83,21 @@ Location SHALL supply explicit decisions for all place fields. Editor SHALL appr
 
 #### Scenario: A text action is missing
 
-- **WHEN** a Location proposal omits a decision for a place text field
+- **WHEN** the final Location proposal omits a decision for a place text field
 - **THEN** validation rejects the whole item before writes
 
 #### Scenario: Plans overlap in field ownership
 
 - **WHEN** Editor supplies a replacement place value or Location supplies a non-location change
 - **THEN** validation rejects the whole item before writes
+
+#### Scenario: The organizer spells the same venue differently
+
+- **WHEN** a saved passage that Reader missed gives the spelling of the same venue for the selected Edition
+- **AND** the address and the point from the earlier geocoding result still describe that venue
+- **THEN** Editor can use the group's return and send Location its note and that passage
+- **AND** Location can correct the venue name and use the same point without a new geocoding request
+- **AND** location validation and the next Editor review can use the new citation
 
 ### Requirement: Location decisions retain their evidence
 
@@ -276,7 +284,7 @@ Geocoding SHALL return bounded candidates and safe provider failures. Forward re
 
 ### Requirement: Location failure does not apply unreviewed findings
 
-A valid Location plan with unresolved questions SHALL allow unrelated supported changes. A failed or invalid required Location result, explicit rejection, country conflict, or material identity conflict SHALL stop all item writes. The application SHALL NOT substitute raw research or a partial unvalidated Location result. A valid explicit rejection SHALL have a separate rejected status and retain its reason. Malformed output and technical errors SHALL remain failures.
+A valid Location plan with unresolved questions SHALL allow unrelated supported changes. A technical failure, invalid final required Location result, explicit rejection, country conflict, or material identity conflict SHALL stop all item writes. The application SHALL NOT substitute raw research or a partial unvalidated Location result. A valid explicit rejection SHALL have a separate rejected status and retain its reason. A malformed final result and technical errors SHALL remain failures.
 
 #### Scenario: A valid result cannot improve the old point
 
@@ -293,13 +301,13 @@ A valid Location plan with unresolved questions SHALL allow unrelated supported 
 
 #### Scenario: A location action violates a validation rule
 
-- **WHEN** a Location action fails application validation
+- **WHEN** a final Location action fails application validation
 - **THEN** the report retains the safe rule failure with location_failed and no writes
 - **AND** a schema error retains bounded issue paths and codes without raw exception or provider messages
 
 #### Scenario: Location returns a malformed result
 
-- **WHEN** Location output cannot be validated
+- **WHEN** Location has no valid final output
 - **THEN** no editor-only update commits and the failure is reported separately from research success
 
 ### Requirement: Inheritance uses a stable historical source

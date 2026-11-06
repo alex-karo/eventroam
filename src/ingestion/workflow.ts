@@ -21,11 +21,23 @@ import {
   type RoleOptions,
 } from "./roles/run";
 import {
-  validateGeneral,
   assembleProposals,
   applyReview,
   initialDiagnostics,
 } from "./proposals";
+import { assignedGroups } from "./groups";
+import {
+  rejectedEdition,
+  rejectedItem,
+  reviewPaths,
+  type ReviewDecisions,
+} from "./review";
+import { repairDiagnostic } from "./repairs";
+import type {
+  LinksOutput,
+  TicketsOutput,
+  ClassificationOutput,
+} from "./roles/contracts";
 import { prepareCatalogPlan } from "./catalog-plan";
 import type { Targets } from "./roles/contracts";
 import { stageDiagnostics } from "./stage";
@@ -384,6 +396,7 @@ export function createCatalogIngestionWorkflow(
     deps: owned.deps,
     signal,
     tracing: owned.trace?.tracing,
+    capture: owned.repairs.capture,
   });
   const readInitial = phase(
     "read-initial-source",
@@ -504,17 +517,20 @@ export function createCatalogIngestionWorkflow(
       data.general = await owned.track(
         runGeneral(roleOptions(owned, data, signal)),
       );
-      data.errors.push(...data.general.errors);
-      if (!data.general.output) {
+      try {
+        data.researchValidation =
+          (await owned.track(owned.repairs.general(owned, data, signal))) ??
+          null;
+      } catch (error) {
+        data.errors.push(repairDiagnostic(error));
         data.outcome = "failed";
         return data.general;
       }
-      data.researchValidation = validateGeneral(
-        data.general.output,
-        data.context!,
-        owned.input,
-        data.corpus!,
-      );
+      if (!data.researchValidation) {
+        data.errors.push(...data.general.errors);
+        data.outcome = "failed";
+        return data.general;
+      }
       const diagnostics = stageDiagnostics(data.researchValidation);
       const saved = data.context!.catalog.find(
         (event) => event.id === diagnostics.matchedEventId,
@@ -522,6 +538,7 @@ export function createCatalogIngestionWorkflow(
       if (
         owned.input.mode === "add" &&
         data.researchValidation.status !== "reject" &&
+        data.general.output &&
         data.general.output.decision !== "uncertain"
       ) {
         owned.trace?.setEventName(
@@ -608,6 +625,7 @@ export function createCatalogIngestionWorkflow(
                 owned.deps,
                 owned.trace?.tracing,
                 abortSignal,
+                owned.repairs.captureLocation,
               );
             }
             if (role === "tickets") {
@@ -650,10 +668,86 @@ export function createCatalogIngestionWorkflow(
         }
       },
     });
+  function assemble(
+    owned: CatalogAttempt,
+    data: IngestionData,
+    targets: Targets & import("./stage").PlanDiagnostics,
+    originalTargets?: Targets,
+  ) {
+    const corpus = owned.repairs.corpus(data.corpus!);
+    const rawLocation = owned.repairs.raw("location");
+    if (rawLocation) {
+      data.location.materialized = owned.repairs.materializeLocation(
+        rawLocation,
+        corpus.evidence,
+      );
+      data.location.status = "success";
+      data.location.errors = [];
+    }
+    const tickets = owned.repairs.raw("tickets") as TicketsOutput | undefined;
+    const classification = owned.repairs.raw("classification") as
+      ClassificationOutput | undefined;
+    const links = owned.repairs.raw("links") as LinksOutput;
+    for (const [role, output] of Object.entries({
+      tickets,
+      classification,
+      links,
+    })) {
+      const execution = data.specialists[role];
+      if (execution && output) {
+        data.specialists[role] = {
+          ...execution,
+          status: "success",
+          output,
+          errors: [],
+        };
+      }
+    }
+    const oldQuestions =
+      data.prepared?.status === "continue"
+        ? data.prepared.value.unresolved
+        : targets.unresolved;
+    data.prepared = assembleProposals({
+      targets,
+      tickets: tickets ?? null,
+      classification: classification ?? null,
+      links,
+      location: data.location.materialized ?? {
+        support: {},
+        slots: {},
+        previousPoints: [],
+        unresolved: [],
+      },
+      points: data.location.points,
+      corpus,
+      context: data.context!,
+      input: owned.input,
+      originalTargets,
+    });
+    if (data.prepared.status !== "continue") {
+      data.outcome = "failed";
+      data.errors.push(...data.prepared.diagnostics.errors);
+    } else {
+      data.unresolved = [
+        ...data.unresolved.filter(
+          (entry) =>
+            !oldQuestions.some(
+              (question) =>
+                question.message === entry.message &&
+                question.field === entry.field &&
+                question.editionKey === entry.editionKey,
+            ),
+        ),
+        ...data.prepared.value.unresolved,
+      ];
+    }
+    return data.prepared;
+  }
+
   const join = phase(
     "assemble-proposals",
-    "Join independent results and validate fixed proposals",
-    (owned, data, _signal, inputData) => {
+    "Validate fixed proposals and return field errors to their owners",
+    async (owned, data, signal, inputData) => {
       if (
         data.researchValidation?.status !== "continue" ||
         data.outcome !== null ||
@@ -672,148 +766,178 @@ export function createCatalogIngestionWorkflow(
         return null;
       }
       const results = parsed.data;
+      const targets = data.researchValidation.value;
       for (const role of ["tickets", "classification", "links"] as const) {
         data.specialists[role] = results[role];
-      }
-      for (const result of Object.values(results)) {
-        data.errors.push(...result.errors);
       }
       if (results.location.status !== "not_run") {
         data.location = results.location;
       }
-      const assigned = data.researchValidation.value;
-      if (
-        specialistRoles.some(
-          (role) =>
-            specialistApplies(role, assigned, owned.input.scope) &&
-            results[role].status === "not_run",
-        ) ||
-        (results.location.status === "success" &&
-          !results.location.materialized)
-      ) {
-        data.errors.push({
-          code: "workflow_failed",
-          stage: "workflow",
-          message: "An assigned specialist result is missing or invalid",
-        });
-        data.outcome = "failed";
-        return null;
-      }
-      for (const result of [
-        results.tickets,
-        results.classification,
-        results.links,
-      ]) {
-        if (result.status !== "success") {
+      const firstQuestions = [
+        ...(data.location.materialized?.unresolved ?? []),
+        ...Object.values(results).flatMap((execution) =>
+          "output" in execution ? execution.output.unresolved : [],
+        ),
+      ];
+      for (const role of specialistRoles) {
+        if (!specialistApplies(role, targets, owned.input.scope)) {
           continue;
         }
-        const output = result.output;
-        data.unresolved.push(...output.unresolved);
+        const execution = results[role];
         if (
-          output.checks.some(
-            (check) =>
-              check.evidenceIds.some(
-                (id) => !data.corpus!.evidence.some((item) => item.id === id),
-              ) ||
-              check.sourceIds.some(
-                (id) =>
-                  !data.corpus!.sources.some((source) => source.id === id),
-              ),
-          )
+          execution.status === "rejected" ||
+          (execution.status === "failed" &&
+            (!owned.repairs.raw(role) ||
+              execution.errors.some(({ code }) =>
+                [
+                  "model_failed",
+                  "limit_reached",
+                  "country_conflict",
+                  "workflow_failed",
+                ].includes(code),
+              ))) ||
+          execution.status === "not_run"
         ) {
-          data.errors.push({
-            code: "invalid_candidate",
-            stage: "validation",
-            message: "Specialist check references are invalid",
-          });
+          data.errors.push(...execution.errors);
+          if (!execution.errors.length) {
+            data.errors.push({
+              code: "workflow_failed",
+              stage: "workflow",
+              message: `Missing assigned ${role} result`,
+            });
+          }
           data.outcome = "failed";
         }
       }
-      data.unresolved.push(...(data.location.materialized?.unresolved ?? []));
-      if (
-        data.outcome === "failed" ||
-        results.links.status !== "success" ||
-        Object.values(results).some(
-          (result) =>
-            result.status === "failed" || result.status === "rejected",
-        )
-      ) {
+      if (data.outcome === "failed") {
+        data.unresolved.push(...firstQuestions);
+        return results;
+      }
+      try {
+        await owned.track(
+          owned.repairs.beforeReview(owned, data, targets, signal),
+        );
+        return assemble(owned, data, targets);
+      } catch (error) {
+        data.errors.push(repairDiagnostic(error));
+        data.unresolved.push(...firstQuestions);
         data.outcome = "failed";
         return results;
       }
-      const targets = data.researchValidation.value;
-      data.prepared = assembleProposals({
-        targets,
-        tickets:
-          results.tickets.status === "success" ? results.tickets.output : null,
-        classification:
-          results.classification.status === "success"
-            ? results.classification.output
-            : null,
-        links: results.links.output,
-        location: data.location.materialized ?? {
-          support: {},
-          slots: {},
-          previousPoints: [],
-          unresolved: [],
-        },
-        points: data.location.points,
-        corpus: data.corpus!,
-        context: data.context!,
-        input: owned.input,
-      });
-      if (data.prepared.status !== "continue") {
-        data.outcome = "failed";
-        data.errors.push(...data.prepared.diagnostics.errors);
-      }
-      return data.prepared;
     },
   );
   const edit = phase(
     "review-proposals",
-    "Approve or reject fixed proposal groups",
+    "Review proposals and return disputed groups to their owners",
     async (owned, data, signal) => {
       if (data.prepared?.status !== "continue" || data.outcome === "failed") {
         return null;
       }
-      const execution = await owned.track(
-        runEditor(roleOptions(owned, data, signal), data.prepared.value),
-      );
+      let prepared = data.prepared.value;
+      const originalTargets = prepared.targets;
+      const groups = assignedGroups(owned.input.scope, originalTargets);
+      const used = owned.repairs.used;
+      const runReview = (targeted?: Set<string>) =>
+        owned.track(
+          runEditor(
+            {
+              ...roleOptions(owned, data, signal),
+              corpus: owned.repairs.corpus(data.corpus!),
+            },
+            prepared,
+            reviewPaths(prepared, groups, used, targeted),
+            targeted
+              ? owned.repairs.records.filter(({ path }) => targeted.has(path))
+              : owned.repairs.records,
+            !!targeted,
+          ),
+        );
+      const execution = await runReview();
       data.specialists.editor = execution;
       data.editor = {
         status: execution.status,
         modelResponse: execution.modelResponse,
         errors: execution.errors,
       };
-      data.errors.push(...execution.errors);
-      if (execution.status !== "success") {
+      if (execution.status !== "success" || !execution.output) {
+        data.errors.push(...execution.errors);
         logPreparation(
           owned.trace?.log,
           {
             status: "reject",
             diagnostics: { ...initialDiagnostics(), errors: execution.errors },
           },
-          data.prepared.value.targets,
+          originalTargets,
         );
         data.outcome = "failed";
         return execution;
       }
-      data.unresolved.push(
-        ...((
-          execution.output as {
-            unresolved?: import("./research/contracts").ResearchQuestion[];
+      const review: ReviewDecisions = new Map(
+        execution.output.decisions.map((entry) => [entry.path, entry]),
+      );
+      const returned = execution.output.decisions.filter(
+        ({ decision, path }) =>
+          decision === "return" &&
+          !rejectedItem(review) &&
+          !rejectedEdition(review, path.split(".")[0]),
+      );
+      if (returned.length) {
+        try {
+          await owned.track(
+            owned.repairs.afterReview(
+              owned,
+              data,
+              originalTargets,
+              groups,
+              returned,
+              signal,
+            ),
+          );
+          const general = owned.repairs.raw("general") as Targets;
+          const revised = assemble(
+            owned,
+            data,
+            {
+              ...originalTargets,
+              ...general,
+              ...stageDiagnostics(data.researchValidation!),
+            },
+            originalTargets,
+          );
+          if (revised.status !== "continue") {
+            return revised;
           }
-        ).unresolved ?? []),
-      );
-      data.editorValidation = applyReview(
-        data.prepared.value,
-        execution.output,
-      );
-      logPreparation(
-        owned.trace?.log,
-        data.editorValidation,
-        data.prepared.value.targets,
-      );
+          prepared = revised.value;
+          const targeted = await runReview(
+            new Set(returned.map(({ path }) => path)),
+          );
+          if (targeted.status !== "success" || !targeted.output) {
+            data.errors.push(...targeted.errors);
+            data.editor.status = "failed";
+            data.editor.errors.push(...targeted.errors);
+            data.outcome = "failed";
+            for (const entry of owned.repairs.records.filter(
+              ({ trigger }) => trigger === "editor",
+            )) {
+              entry.failure = targeted.errors[0];
+            }
+            return targeted;
+          }
+          for (const entry of targeted.output.decisions) {
+            review.set(entry.path, entry);
+          }
+        } catch (error) {
+          data.errors.push(repairDiagnostic(error));
+          data.outcome = "failed";
+          return null;
+        }
+      }
+      for (const entry of owned.repairs.records) {
+        entry.decision = review.get(entry.path);
+      }
+      signal.throwIfAborted();
+      data.editorValidation = applyReview(prepared, review);
+      logPreparation(owned.trace?.log, data.editorValidation, originalTargets);
       if (data.editorValidation.status !== "continue") {
         data.outcome = "failed";
         data.errors.push(...data.editorValidation.diagnostics.errors);

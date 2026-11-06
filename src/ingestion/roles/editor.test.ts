@@ -35,11 +35,15 @@ test.each(["malformed", "throw", "reject"] as const)(
           replacement: "Forbidden",
         });
       }
-      response = {
-        ...(approveFixtureReview(JSON.parse(raw).prepared) as object),
-        item: { decision: "reject", reason: "Identity is not supported" },
-        unresolved: [{ message: "Confirm the organizer" }],
-      };
+      const review = approveFixtureReview(JSON.parse(raw).reviewPaths);
+      Object.assign(
+        review.decisions.find(({ path }) => path === "item")!,
+        {
+          decision: "reject",
+          note: "Identity is not supported",
+        },
+      );
+      response = review;
       return response;
     };
     const result = await runFixtureResearch(input, {
@@ -71,13 +75,16 @@ test("Editor rejects one field without replacing its value or changing General o
       general,
       classification,
       editor: async (_role: unknown, raw: string) => {
-        const review = approveFixtureReview(JSON.parse(raw).prepared) as {
-          event: { fields: { description: unknown } };
-        };
-        review.event.fields.description = {
-          decision: "reject",
-          reason: "Description evidence is incomplete",
-        };
+        const review = approveFixtureReview(JSON.parse(raw).reviewPaths);
+        Object.assign(
+          review.decisions.find(
+            ({ path }) => path === "event.fields.description",
+          )!,
+          {
+            decision: "reject",
+            note: "Description evidence is incomplete",
+          },
+        );
         return review;
       },
     }),

@@ -1,4 +1,5 @@
 import { check, scenarioResult } from "./checks";
+import { reviewOutput } from "../review";
 import { hasHostFailure } from "../runs";
 import type { CatalogResearchResult } from "../contracts";
 import type { RegressionPipelineEvalCase, LocationEvalCase } from "./fixtures";
@@ -18,6 +19,17 @@ export function scoreCase(
       !hasHostFailure(result),
       "Host workflow or run persistence failed",
     ),
+    ...(item.roleHandoff
+      ? [
+          check(
+            "editor.fixed-handoff",
+            !reviewOutput
+              .safeParse(result.editorResponse?.object)
+              .data?.decisions.some(({ decision }) => decision === "return"),
+            "Editor requested a return during a fixed handoff",
+          ),
+        ]
+      : []),
     ...checkRegressionCase(item, result, toolCalls),
   ]);
 }

@@ -1,8 +1,7 @@
 import { Mastra } from "@mastra/core/mastra";
-import { z } from "zod";
 import { createWorkflowStorage } from "@/ingestion/runtime/workflow-storage";
 import { trackFixtureWorkflowStore } from "./workflow-stores";
-import { reviewSchema } from "@/ingestion/proposals";
+import type { ReviewPath, ReviewDecision } from "@/ingestion/review";
 import { locationTextFields } from "@/ingestion/location/contracts";
 import type { LocationInput } from "@/ingestion/location/input";
 import type {
@@ -87,28 +86,18 @@ export async function fixtureTool(
   };
   return tool.execute(args, {});
 }
-export function approveFixtureReview(
-  prepared: Parameters<typeof reviewSchema>[0],
-): unknown {
-  function approve(schema: Record<string, unknown>): unknown {
-    if (schema.type === "null") {
-      return null;
-    }
-    if (schema.type === "array") {
-      return [];
-    }
-    const properties = schema.properties as Record<
-      string,
-      Record<string, unknown>
-    >;
-    if (properties.decision) {
-      return { decision: "approve", reason: "Explicit fixture review" };
-    }
-    return Object.fromEntries(
-      Object.entries(properties).map(([key, value]) => [key, approve(value)]),
-    );
-  }
-  return approve(z.toJSONSchema(reviewSchema(prepared)));
+export function approveFixtureReview(paths: ReviewPath[]): {
+  decisions: ReviewDecision[];
+} {
+  return {
+    decisions: paths
+      .filter(({ required }) => required)
+      .map(({ path }) => ({
+        path,
+        decision: "approve",
+        note: "Explicit fixture review",
+      })),
+  };
 }
 
 /** These answers use the current role contracts. Each override is one role response. */
@@ -154,7 +143,7 @@ export function fixtureRoleGenerator(
       return result;
     }
     if (role === "editor") {
-      return approveFixtureReview(data.prepared);
+      return approveFixtureReview(data.reviewPaths);
     }
     const checks = fixtureChecks(data.assignedChecks ?? []);
     if (role === "tickets") {

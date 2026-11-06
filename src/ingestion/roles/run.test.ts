@@ -1,3 +1,4 @@
+import { approveFixtureReview } from "@/test/ingestion";
 import { expect, it } from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -320,18 +321,17 @@ it("uses native Mastra grep with all saved source files and hash checks", async 
             await expect(
               tool.execute({ ...request, path: "s2.md" }, {}),
             ).rejects.toThrow("hash mismatch");
-            const approve = { decision: "approve", reason: "Supported" };
-            return {
-              item: approve,
-              event: { target: approve, fields: {} },
-              previousEdition: null,
-              currentOrNextEdition: null,
-              unresolved: [],
-            };
+            return approveFixtureReview(input.reviewPaths);
           },
         },
       },
       prepared,
+      ["item", "event.target"].map((path) => ({
+        path,
+        required: true,
+        allowed: ["approve", "reject"],
+      })),
+      [],
     );
     expect(execution.status).toBe("success");
   } finally {

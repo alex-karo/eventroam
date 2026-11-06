@@ -37,6 +37,7 @@ export type ReportInput = {
   corpus: FrozenCorpus | null;
   specialists: Record<string, RoleExecution>;
   editor: EditorExecution;
+  repairs?: import("./repairs").RepairRecord[];
   location: LocationExecution;
   applied: ReturnType<typeof applyCatalogItem> | null;
   errors: ResearchError[];
@@ -73,6 +74,7 @@ function assembleReport({
   specialists,
   corpus,
   editor,
+  repairs,
   location,
   applied,
   errors,
@@ -120,6 +122,25 @@ function assembleReport({
             (execution?.output as { checks?: CheckFinding[] } | undefined)
               ?.checks ?? [];
           return assignedRoleChecks(role, input, targets).flatMap((key) => {
+            const repaired = repairs?.filter(
+              (entry) =>
+                entry.owner === role && repairCheck(entry.path, role) === key,
+            );
+            if (repaired?.length) {
+              const question = unresolved.find(
+                ({ field }) =>
+                  field &&
+                  (repaired.some(({ path }) => field === path) ||
+                    (key === "eventLinks" && socialLinkQuestion(field))),
+              );
+              const reason =
+                question?.message ??
+                repaired.find(({ omissionReason }) => omissionReason)
+                  ?.omissionReason;
+              if (reason) {
+                return [{ message: `${key}: ${reason}` }];
+              }
+            }
             const finding = findings.find(
               (check) => check.check === key && check.finding === "unfinished",
             );
@@ -151,6 +172,8 @@ function assembleReport({
     researchStatus = "failed";
   }
 
+  const eventId =
+    diagnostics?.matchedEventId ?? references.event ?? input.eventId;
   return {
     schemaVersion: 7,
     ...(traceId ? { traceId } : {}),
@@ -173,10 +196,19 @@ function assembleReport({
     mode: input.mode,
     outcome,
     researchStatus,
-    eventId: diagnostics?.matchedEventId ?? references.event ?? input.eventId,
+    eventId,
     modelResponse: general.modelResponse ?? null,
     classificationResponse: specialists.classification?.modelResponse ?? null,
     editorResponse: editor.modelResponse,
+    ...(repairs?.length && {
+      repairs: repairs.map((entry) => ({
+        ...entry,
+        target: {
+          ...entry.target,
+          eventId: entry.target.eventId ?? eventId ?? null,
+        },
+      })),
+    }),
     editorStatus: editor.status,
     editorPromptVersion: PROMPT_VERSIONS.editor,
     operations,
@@ -235,4 +267,31 @@ function safeSource(read: SourceReadMetadata) {
     outcome: read.status,
     ...(read.reasonCode ? { reason: read.reasonCode } : {}),
   };
+}
+
+function repairCheck(
+  path: string,
+  role: "general" | "tickets" | "classification" | "links",
+) {
+  if (role === "tickets") {
+    return "currentTickets";
+  }
+  if (path.startsWith("event.")) {
+    return role === "links" ? "eventLinks" : "description";
+  }
+  if (role === "links") {
+    return "currentLinks";
+  }
+  const previous = path.startsWith("previousEdition.");
+  if (role === "classification") {
+    return previous ? "previousClassification" : "currentClassification";
+  }
+  return previous ? "previousCompletedEdition" : "currentDates";
+}
+
+function socialLinkQuestion(field: string) {
+  return (
+    field.startsWith("event.fields.links.socials.") ||
+    ["instagram", "facebook", "youtube", "tiktok", "x", "other"].includes(field)
+  );
 }

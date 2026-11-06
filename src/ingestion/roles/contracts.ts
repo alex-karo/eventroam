@@ -98,7 +98,7 @@ const identity = {
   reason: reasonSchema,
   evidenceIds: supportSchema,
 };
-const festivalCountries = z
+export const festivalCountriesSchema = z
   .array(
     z.strictObject({
       countryCode: editionScalarSchemas.countryCode.unwrap().unwrap(),
@@ -120,12 +120,12 @@ export const generalOutputSchema = z.discriminatedUnion("decision", [
     decision: z.literal("uncertain"),
     reason: reasonSchema,
     unresolved: questionsSchema,
-    festivalCountries,
+    festivalCountries: festivalCountriesSchema,
   }),
   z.strictObject({
     decision: z.literal("targets"),
     ...identity,
-    festivalCountries,
+    festivalCountries: festivalCountriesSchema,
     previousEdition: targetSchema
       .nullable()
       .describe(

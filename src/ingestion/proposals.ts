@@ -1,4 +1,5 @@
-import { z } from "zod";
+import { atPath, setPath } from "./groups";
+import { rejectedEdition, rejectedItem, type ReviewDecisions } from "./review";
 import { normalizeProposedAssignments } from "@/catalog/domain/classification";
 import type { ResearchContext } from "./research/context";
 import type { CatalogResearchInput } from "./contracts";
@@ -11,7 +12,6 @@ import type {
   LinksOutput,
   GeneralOutput,
 } from "./roles/contracts";
-import { reasonSchema, questionsSchema } from "./roles/contracts";
 import type { MaterializedLocation } from "./location/validate";
 import type { RegisteredPoint } from "./location/contracts";
 import {
@@ -101,7 +101,7 @@ function requireSupport(
 }
 
 type SavedEvent = ResearchContext["catalog"][number];
-function checkRefreshCountries(
+export function checkRefreshCountries(
   output: GeneralOutput,
   mode: CatalogResearchInput["mode"],
   event: SavedEvent | undefined,
@@ -361,8 +361,39 @@ function validateLocationSupport(
   }
 }
 
-function attachClassification(
-  target: EditionPlan,
+function proposedChronology(
+  target: Pick<EditionPlan, "fields"> | undefined,
+  saved: SavedEvent["editions"][number] | undefined,
+) {
+  const dates = target?.fields.dates;
+  const range = dates?.action === "set" ? dates.value : saved;
+  const year = target?.fields.year;
+  return {
+    startsOn: dates?.action === "clear" ? null : (range?.startsOn ?? null),
+    endsOn: dates?.action === "clear" ? null : (range?.endsOn ?? null),
+    editionYear:
+      year?.action === "set" ? year.value : (saved?.editionYear ?? null),
+  };
+}
+
+function earlierEdition(
+  donor: ReturnType<typeof proposedChronology> | undefined,
+  target: ReturnType<typeof proposedChronology>,
+) {
+  if (!donor) {
+    return false;
+  }
+  return donor.endsOn && target.startsOn
+    ? donor.endsOn < target.startsOn
+    : donor.editionYear != null &&
+        target.editionYear != null &&
+        donor.editionYear < target.editionYear;
+}
+
+export function checkedClassification(
+  target: Pick<EditionPlan, "editionKey"> & {
+    fields: NonNullable<Targets["currentOrNextEdition"]>["fields"];
+  },
   classification: NonNullable<
     NonNullable<ClassificationOutput["currentOrNextEdition"]>["classification"]
   >,
@@ -378,23 +409,8 @@ function attachClassification(
     const earlier = event?.editions.find(
       (edition) => edition.editionKey === classification.reuseFrom!.editionKey,
     );
-    const dateAction = target.fields.dates;
-    let targetDates = dateAction?.action === "set" ? dateAction.value : saved;
-    if (dateAction?.action === "clear") {
-      targetDates = undefined;
-    }
-    const targetYear = target.fields.year;
-    const year =
-      targetYear?.action === "set" ? targetYear.value : saved?.editionYear;
-    const earlierByDates =
-      earlier?.endsOn && targetDates?.startsOn
-        ? earlier.endsOn < targetDates.startsOn
-        : null;
-    const earlierByYear =
-      earlier?.editionYear != null &&
-      year != null &&
-      earlier.editionYear < year;
-    if (!earlier || !(earlierByDates ?? earlierByYear)) {
+    const chronology = proposedChronology(target, saved);
+    if (!earlierEdition(earlier, chronology)) {
       throw new Error("Invalid classification reuse Edition");
     }
     requireSupport(classification.evidenceIds, corpus);
@@ -411,7 +427,7 @@ function attachClassification(
   const normalization = removed.length
     ? ` Removed selected ancestor terms ${removed.join(", ")}; retained descendant terms ${termIds.join(", ")}.`
     : "";
-  target.fields.classification = {
+  return {
     ...classification,
     reason: classification.reason + normalization,
     value: termIds,
@@ -458,6 +474,7 @@ export function assembleProposals(options: {
   corpus: FrozenCorpus;
   context: ResearchContext;
   input: CatalogResearchInput;
+  originalTargets?: Targets;
 }): StageResult<PreparedProposals> {
   const { targets, corpus, context, input } = options;
   const diagnostics: PlanDiagnostics = {
@@ -515,7 +532,13 @@ export function assembleProposals(options: {
           : undefined;
       }
       if (classification) {
-        attachClassification(target, classification, event, context, corpus);
+        target.fields.classification = checkedClassification(
+          options.originalTargets?.[slot] ?? target,
+          classification,
+          event,
+          context,
+          corpus,
+        );
       }
     }
     return {
@@ -541,90 +564,63 @@ export function assembleProposals(options: {
   }
 }
 
-const decision = z.strictObject({
-  decision: z.enum(["approve", "reject"]),
-  reason: reasonSchema,
-});
-/** Decisions mirror submitted fixed fields; no addresses or replacement values. */
-export function reviewSchema(
-  prepared: Pick<PreparedProposals, "plan" | "location">,
-) {
-  function fields(value: unknown): z.ZodType {
-    if (!value || typeof value !== "object") {
-      throw new Error("Invalid proposal fields");
-    }
-    const entries = Object.entries(value).filter(
-      ([, value]) => value !== undefined,
-    );
-    return z.strictObject(
-      Object.fromEntries(
-        entries.map(([key, value]) => [
-          key,
-          value && typeof value === "object" && "action" in value
-            ? decision
-            : fields(value),
-        ]),
-      ),
-    );
-  }
-  const target = (slot: (typeof editionSlotNames)[number]) =>
-    prepared.plan[slot]
-      ? z.strictObject({
-          target: decision,
-          fields: fields({
-            ...prepared.plan[slot].fields,
-            ...(prepared.location.slots[slot]
-              ? { location: { action: "review" } }
-              : {}),
-          }),
-        })
-      : z.null();
-  return z.strictObject({
-    item: decision,
-    event: z.strictObject({
-      target: decision,
-      fields: fields(prepared.plan.event!.fields),
-    }),
-    previousEdition: target("previousEdition"),
-    currentOrNextEdition: target("currentOrNextEdition"),
-    unresolved: questionsSchema,
-  });
-}
-
 function discardRejectedDependencies(
   prepared: PreparedProposals,
   accepted: AcceptedProposals,
-  review: Record<string, unknown>,
+  review: ReviewDecisions,
 ) {
   const rejected = new Set<string>();
   const rejectedTargets = new Set<string>();
   for (const slot of editionSlotNames) {
     const source = prepared.plan[slot];
-    const decision = review[slot] as {
-      fields?: { classification?: { decision: string } };
-    } | null;
     if (source && !accepted.plan[slot]) {
       rejectedTargets.add(source.editionKey);
     }
     if (
       source &&
       (!accepted.plan[slot] ||
-        decision?.fields?.classification?.decision === "reject")
+        review.get(`${slot}.fields.classification`)?.decision === "reject")
     ) {
       rejected.add(source.editionKey);
     }
   }
+  const saved = prepared.basis.savedEvent?.editions ?? [];
+  const proposed = editionSlotNames.flatMap(
+    (slot) => accepted.plan[slot] ?? [],
+  );
+  const chronology = (key: string) => {
+    const edition = saved.find((item) => item.editionKey === key);
+    return edition
+      ? proposedChronology(
+          proposed.find((item) => item.editionKey === key),
+          edition,
+        )
+      : undefined;
+  };
   for (const slot of editionSlotNames) {
-    const classification = accepted.plan[slot]?.fields.classification;
+    const target = accepted.plan[slot];
+    const dates = proposedChronology(
+      target ?? undefined,
+      saved.find((item) => item.editionKey === target?.editionKey),
+    );
+    const classification = target?.fields.classification;
     if (
       classification?.action === "set" &&
       classification.reuseFrom &&
-      rejected.has(classification.reuseFrom.editionKey)
+      (rejected.has(classification.reuseFrom.editionKey) ||
+        !earlierEdition(chronology(classification.reuseFrom.editionKey), dates))
     ) {
       delete accepted.plan[slot]!.fields.classification;
     }
     const reused = accepted.location.reusedFrom?.[slot];
-    if (!reused?.editionKey || !rejectedTargets.has(reused.editionKey)) {
+    if (!reused?.editionKey) {
+      continue;
+    }
+    const donor = chronology(reused.editionKey);
+    if (
+      !rejectedTargets.has(reused.editionKey) &&
+      (!donor || earlierEdition(donor, dates))
+    ) {
       continue;
     }
     const fields = accepted.location.slots[slot];
@@ -634,7 +630,7 @@ function discardRejectedDependencies(
           key,
           {
             action: "keep",
-            reason: "Editor rejected the earlier Edition premise",
+            reason: "The reviewed earlier Edition premise no longer applies",
           },
         ]),
       ) as typeof fields;
@@ -651,94 +647,51 @@ function discardRejectedDependencies(
 
 export function applyReview(
   prepared: PreparedProposals,
-  raw: unknown,
+  review: ReviewDecisions,
 ): StageResult<AcceptedProposals> {
-  const parsed = reviewSchema(prepared).safeParse(raw);
-  if (!parsed.success) {
-    return reject(prepared, "Invalid review decision keys or values");
+  const rejection = rejectedItem(review);
+  if (rejection) {
+    return reject(prepared, rejection.note, "editor_rejected");
   }
-  const review = parsed.data as {
-    item: { decision: string; reason: string };
-    event: { target: { decision: string; reason: string }; fields: unknown };
-    previousEdition: {
-      target: { decision: string };
-      fields: Record<string, unknown>;
-    } | null;
-    currentOrNextEdition: {
-      target: { decision: string };
-      fields: Record<string, unknown>;
-    } | null;
-    unresolved: { message: string }[];
-  };
-  if (
-    review.item.decision === "reject" ||
-    review.event.target.decision === "reject"
-  ) {
-    return reject(
-      {
-        ...prepared,
-        unresolved: [...prepared.unresolved, ...review.unresolved],
-      },
-      review.item.decision === "reject"
-        ? review.item.reason
-        : review.event.target.reason,
-      "editor_rejected",
-    );
-  }
-  const accepted = structuredClone(prepared) as AcceptedProposals;
-  delete (accepted as Partial<PreparedProposals>).basis;
-  const filter = (
-    values: Record<string, unknown>,
-    decisions: Record<string, unknown>,
-  ) => {
-    for (const [key, value] of Object.entries(values)) {
-      if (value === undefined) {
-        continue;
-      }
-      const decision = decisions[key] as Record<string, unknown>;
-      if (decision.decision === "reject") {
-        delete values[key];
-      } else if (!("decision" in decision)) {
-        filter(value as Record<string, unknown>, decision);
-      }
-    }
-  };
-  filter(
-    accepted.plan.event!.fields,
-    review.event.fields as Record<string, unknown>,
-  );
+  const accepted: AcceptedProposals = structuredClone({
+    ...diagnosticsOnly(prepared),
+    eventName: prepared.eventName,
+    targets: prepared.targets,
+    plan: prepared.plan,
+    location: prepared.location,
+  });
   for (const slot of editionSlotNames) {
-    const decisions = review[slot];
-    if (!decisions) {
-      continue;
-    }
-    const temporalRejected =
-      decisions.target.decision === "reject" ||
-      ["dates", "year", "scheduleStatus"].some(
-        (field) =>
-          (decisions.fields[field] as { decision?: string } | undefined)
-            ?.decision === "reject",
-      );
-    if (temporalRejected) {
+    if (rejectedEdition(review, slot)) {
       accepted.plan[slot] = null;
       delete accepted.location.slots[slot];
       continue;
     }
-    if (
-      (decisions.fields.location as { decision?: string } | undefined)
-        ?.decision === "reject"
-    ) {
-      const old = accepted.location.slots[slot]!;
-      accepted.location.slots[slot] = Object.fromEntries(
-        Object.keys(old).map((key) => [
-          key,
-          { action: "keep", reason: "Editor rejected proposed place changes" },
-        ]),
-      ) as typeof old;
+    if (review.get(`${slot}.fields.location`)?.decision === "reject") {
+      const old = accepted.location.slots[slot];
+      if (old) {
+        accepted.location.slots[slot] = Object.fromEntries(
+          Object.keys(old).map((key) => [
+            key,
+            {
+              action: "keep",
+              reason: "Editor rejected proposed place changes",
+            },
+          ]),
+        ) as typeof old;
+      }
+      delete accepted.location.reusedFrom?.[slot];
     }
-    filter(accepted.plan[slot]!.fields, decisions.fields);
+  }
+  for (const { path, decision } of review.values()) {
+    if (
+      decision === "reject" &&
+      path.includes(".fields.") &&
+      !path.endsWith(".fields.location") &&
+      atPath(accepted.plan, path) !== undefined
+    ) {
+      setPath(accepted.plan, path, undefined);
+    }
   }
   discardRejectedDependencies(prepared, accepted, review);
-  accepted.unresolved.push(...review.unresolved);
   return { status: "continue", value: accepted };
 }

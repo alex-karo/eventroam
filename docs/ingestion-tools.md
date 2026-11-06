@@ -29,7 +29,7 @@ pnpm run catalog refresh --event EVENT_ID --apply --json
 
 Each Event has its own workflow run. Preview is the default. It rolls back catalog changes and saves the private report. `--apply` starts fresh research. Use `--republish` to permit withdrawn records to publish again.
 
-The command waits for each result and shows the outcome and run IDs. `--json` prints the workflow summaries and failures. Open **Workflows → catalog-ingestion → Recent runs** in Studio and inspect **build-report** for Edition and budget counts, operations, field changes, reasons, and sources. To cancel active work, use Studio. If the command loses its connection after sending a start request, check Recent runs with the workflow ID before starting a new run.
+The command waits for each result and shows the outcome and run IDs. `--json` prints the workflow summaries and failures. Open **Workflows → catalog-ingestion → Recent runs** in Studio and inspect **build-report** for Edition and budget counts, operations, field changes, reasons and sources. When a group returns to a specialist, inspect its path, trigger, note and result in the repair records. To cancel active work, use Studio. If the command loses its connection after sending a start request, check Recent runs with the workflow ID before starting a new run.
 
 Configure the model, source providers, and limits in the Studio environment. See `.env.example` for current defaults. The last model step is reserved for a final response. Each serialized role input has a limit of 400,000 UTF-16 code units. An input above that limit fails without truncation. See the [ingestion guide](ingestion-process.md) for source handling and report details.
 

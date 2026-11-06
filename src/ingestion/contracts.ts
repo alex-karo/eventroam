@@ -69,6 +69,7 @@ export type CatalogResearchResult = {
   classificationResponse: RoleExecution["modelResponse"];
   editorResponse: { text: string | null; object: unknown } | null;
   editorStatus: EditorExecution["status"];
+  repairs?: import("./repairs").RepairRecord[];
   editorPromptVersion: string;
   operations: CatalogOperation[];
   receipts: { id: string; version: number; changed: boolean }[];

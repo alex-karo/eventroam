@@ -2,6 +2,9 @@ import { SpanType, type AnySpan } from "@mastra/core/observability";
 import { observeTrace, traceFailure } from "../runtime/tracing/spans";
 import { Agent } from "@mastra/core/agent";
 import { Mastra } from "@mastra/core/mastra";
+import type { FullOutput } from "@mastra/core/stream";
+import { completedObject } from "../runtime/model-output";
+import { invokeRole, type RoleConversation } from "../roles/invoke";
 import { noopLogger } from "@mastra/core/logger";
 import { z } from "zod";
 import type { ResearchBudget } from "../runtime/budget";
@@ -63,6 +66,105 @@ function locationModelConfig(config: ResearchConfig) {
   };
 }
 
+type StartGeocodingObservation = NonNullable<
+  NonNullable<Parameters<typeof createGeocodingSession>[2]>["startObservation"]
+>;
+
+function observeGeocoding(
+  tracing: RunObservability | undefined,
+  span: AnySpan | undefined,
+  direction: Parameters<StartGeocodingObservation>[0],
+  origin: Parameters<StartGeocodingObservation>[1],
+): ReturnType<StartGeocodingObservation> {
+  let requestSpan: AnySpan | undefined;
+  try {
+    requestSpan = (span ?? tracing?.root)?.createChildSpan({
+      type: SpanType.GENERIC,
+      name: "geocoding",
+      entityId: "geocoding",
+    });
+  } catch {
+    tracing?.diagnose("trace_export_failed");
+  }
+  return (observation) => {
+    observeTrace(tracing, requestSpan, {
+      name: `geocoding · ${origin} · ${direction}`,
+      input: { direction, origin },
+      output: {
+        status: observation.result.status,
+        ...(observation.result.status === "error"
+          ? { code: observation.result.code }
+          : {}),
+        cacheHit: observation.cacheHit,
+        slots: observation.slots,
+        candidateCount: observation.pointIds.length,
+      },
+    });
+    if (observation.result.status === "error") {
+      traceFailure(tracing, "geocoding_failed", requestSpan);
+    }
+    try {
+      requestSpan?.end();
+    } catch {
+      tracing?.diagnose("trace_export_failed");
+    }
+  };
+}
+
+type CaptureLocation = (
+  conversation: RoleConversation,
+  input: LocationInput,
+  session: Pick<
+    ReturnType<typeof createGeocodingSession>,
+    "points" | "targets"
+  >,
+) => void;
+
+function captureLocationReply(
+  capture: CaptureLocation | undefined,
+  raw: unknown,
+  injected: boolean,
+  messages: FullOutput["messages"] | undefined,
+  input: LocationInput,
+  session: ReturnType<typeof createGeocodingSession>,
+  options: {
+    instructions: string;
+    budget: ResearchBudget;
+    config: ResearchConfig;
+    tracing: RunObservability | undefined;
+  },
+) {
+  const { instructions, budget, config, tracing } = options;
+  if (raw != null && (injected || messages)) {
+    const history = messages;
+    capture?.(
+      {
+        raw,
+        schema: locationOutputSchema,
+        ...(history && {
+          revise: (input, tools, signal) =>
+            invokeRole({
+              role: "location",
+              version: LOCATION_PROMPT_VERSION,
+              instructions,
+              input,
+              schema: locationOutputSchema,
+              budget,
+              config: locationModelConfig(config),
+              tracing,
+              signal,
+              tools,
+              steps: 6,
+              messages: history,
+            }),
+        }),
+      },
+      input,
+      { points: session.points, targets: session.targets },
+    );
+  }
+}
+
 export async function resolveLocation(
   input: LocationInput,
   budget: ResearchBudget,
@@ -73,6 +175,7 @@ export async function resolveLocation(
   } = {},
   tracing?: RunObservability,
   abortSignal?: AbortSignal,
+  capture?: CaptureLocation,
 ): Promise<LocationExecution> {
   const execution = emptyLocationExecution();
   execution.status = "failed";
@@ -90,43 +193,15 @@ export async function resolveLocation(
     apiKey: config.geoapifyKey,
     client: deps.geocodingClient,
     abortSignal,
-    startObservation: (direction, origin) => {
-      let requestSpan: AnySpan | undefined;
-      try {
-        requestSpan = (span ?? tracing?.root)?.createChildSpan({
-          type: SpanType.GENERIC,
-          name: "geocoding",
-          entityId: "geocoding",
-        });
-      } catch {
-        tracing?.diagnose("trace_export_failed");
-      }
-      return (observation) => {
-        observeTrace(tracing, requestSpan, {
-          name: `geocoding · ${origin} · ${direction}`,
-          input: { direction, origin },
-          output: {
-            status: observation.result.status,
-            ...(observation.result.status === "error"
-              ? { code: observation.result.code }
-              : {}),
-            cacheHit: observation.cacheHit,
-            slots: observation.slots,
-            candidateCount: observation.pointIds.length,
-          },
-        });
-        if (observation.result.status === "error") {
-          traceFailure(tracing, "geocoding_failed", requestSpan);
-        }
-        try {
-          requestSpan?.end();
-        } catch {
-          tracing?.diagnose("trace_export_failed");
-        }
-      };
-    },
+    startObservation: (direction, origin) =>
+      observeGeocoding(tracing, span, direction, origin),
   });
   let runtime: Mastra | undefined;
+  let messages: FullOutput["messages"] | undefined;
+  const instructions =
+    locationInstructions +
+    "\nIf the workflow returns a group, revise only that group from saved pages and cite any new passage with citeSavedPassage.";
+
   try {
     await prepareInitialGeocoding(input, session);
     session.signal.throwIfAborted();
@@ -162,7 +237,7 @@ export async function resolveLocation(
       const agent = new Agent({
         id: "festival-location",
         name: "Festival location",
-        instructions: locationInstructions,
+        instructions,
         model: createResearchModel(model),
         tools: { geocode: session.tool },
         errorProcessorDefaults: false,
@@ -205,11 +280,31 @@ export async function resolveLocation(
         });
       execution.modelResponse = {
         text: output.text ?? null,
-        object: output.object ?? null,
+        object:
+          output.finishReason === "stop"
+            ? completedObject(output)
+            : (output.object ?? null),
       };
+      if (output.finishReason === "stop" && output.messages.length) {
+        messages = output.messages;
+      }
     }
     session.signal.throwIfAborted();
     budget.assertTime();
+    captureLocationReply(
+      capture,
+      execution.modelResponse.object,
+      !!deps.generateLocation,
+      messages,
+      input,
+      session,
+      {
+        instructions,
+        budget,
+        config,
+        tracing,
+      },
+    );
     const { decision } = locationOutputSchema.parse(
       execution.modelResponse.object,
     );

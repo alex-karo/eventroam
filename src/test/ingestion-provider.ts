@@ -35,7 +35,7 @@ export function providerRole(body: ObjectValue) {
   if (fields.decision) {
     return "location";
   }
-  if (fields.item) {
+  if (fields.decisions) {
     return "editor";
   }
   if (fields.omitted) {
