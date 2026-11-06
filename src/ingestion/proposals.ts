@@ -253,29 +253,6 @@ export function validateGeneral(
   };
 }
 
-function commonPlan(
-  targets: Targets,
-  { description, shortDescription }: DescriptionFields,
-): ApplicationPlan {
-  return {
-    status: "ready",
-    event: {
-      reason: targets.reason,
-      fields: {
-        ...(description && { description }),
-        ...(shortDescription && { shortDescription }),
-      },
-    },
-    previousEdition: targets.previousEdition
-      ? structuredClone(targets.previousEdition)
-      : null,
-    currentOrNextEdition: targets.currentOrNextEdition
-      ? structuredClone(targets.currentOrNextEdition)
-      : null,
-    unresolved: targets.unresolved,
-  };
-}
-
 function inspectProposalSupport(
   value: unknown,
   corpus: FrozenCorpus,
@@ -383,20 +360,22 @@ function attachClassification(
   };
 }
 
-function finishEventFields(
-  plan: ApplicationPlan,
+function eventFields(
   classification: ClassificationOutput | null,
   links: LinksOutput,
-  input: CatalogResearchInput,
-) {
-  const fields = plan.event!.fields;
-  if (input.scope !== "current") {
-    fields.links = links.event;
-    return;
+  scope: CatalogResearchInput["scope"],
+): NonNullable<ApplicationPlan["event"]>["fields"] {
+  const { description, shortDescription } = classification ?? {};
+  if (scope !== "current") {
+    return {
+      ...(description && { description }),
+      ...(shortDescription && { shortDescription }),
+      links: links.event,
+    };
   }
   if (
-    fields.description ||
-    fields.shortDescription ||
+    description ||
+    shortDescription ||
     (classification && hasEventFieldCheck(classification.checks))
   ) {
     throw new Error("Current refresh cannot address Event descriptions");
@@ -408,6 +387,7 @@ function finishEventFields(
   ) {
     throw new Error("Event links are outside the assignment");
   }
+  return {};
 }
 
 export function assembleProposals(options: {
@@ -435,8 +415,6 @@ export function assembleProposals(options: {
   const event =
     context.catalog.find((event) => event.id === targets.eventId) ??
     (input.eventId ? context.catalog[0] : undefined);
-  const plan = commonPlan(targets, options.classification ?? {});
-  plan.unresolved = diagnostics.unresolved;
   const submitted = {
     general: targets,
     tickets: options.tickets,
@@ -453,7 +431,16 @@ export function assembleProposals(options: {
     ) {
       throw new Error("Proposal for an absent target");
     }
-    finishEventFields(plan, options.classification, options.links, input);
+    const plan: ApplicationPlan = {
+      status: "ready",
+      event: {
+        reason: targets.reason,
+        fields: eventFields(options.classification, options.links, input.scope),
+      },
+      previousEdition: structuredClone(targets.previousEdition),
+      currentOrNextEdition: structuredClone(targets.currentOrNextEdition),
+      unresolved: diagnostics.unresolved,
+    };
     for (const slot of editionSlotNames) {
       const target = plan[slot];
       const classification = options.classification?.[slot]?.classification;

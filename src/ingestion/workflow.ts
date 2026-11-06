@@ -545,14 +545,14 @@ export function createCatalogIngestionWorkflow(
         data.corpus!,
       );
       const diagnostics = stageDiagnostics(data.researchValidation);
+      const saved = data.context!.catalog.find(
+        (event) => event.id === diagnostics.matchedEventId,
+      );
       if (
         owned.input.mode === "add" &&
         data.researchValidation.status !== "reject" &&
         data.general.output.decision !== "uncertain"
       ) {
-        const saved = data.context!.catalog.find(
-          (event) => event.id === diagnostics.matchedEventId,
-        );
         owned.trace?.setEventName(
           saved?.canonicalName ?? data.general.output.observedEventName,
         );
@@ -564,9 +564,6 @@ export function createCatalogIngestionWorkflow(
           data.researchValidation.status === "skip" ? "skipped" : "failed";
       } else {
         const targets = data.researchValidation.value;
-        const saved = data.context!.catalog.find(
-          (event) => event.id === diagnostics.matchedEventId,
-        );
         const hasEdition =
           targets.previousEdition ||
           targets.currentOrNextEdition ||
