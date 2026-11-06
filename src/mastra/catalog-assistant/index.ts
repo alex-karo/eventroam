@@ -26,10 +26,18 @@ export function createCatalogAssistant(
       id: "catalog-assistant",
       name: "Catalog assistant",
       instructions: ASSISTANT_INSTRUCTIONS,
-      tools: createAssistantTools(
-        () => readDatabaseEnvironment().DATABASE_PATH,
-        logging,
-      ),
+      tools: {
+        ...createAssistantTools(
+          () => readDatabaseEnvironment().DATABASE_PATH,
+          logging,
+        ),
+        web_search: {
+          type: "provider-defined",
+          id: "openrouter.web_search",
+          name: "web_search",
+          args: {},
+        },
+      },
     },
     model,
   );
@@ -66,8 +74,15 @@ export function createCatalogChatAgent(
     errorProcessorDefaults: false,
     defaultOptions: {
       maxSteps: 12,
-      prepareStep: ({ model, providerOptions }) => {
+      prepareStep: ({ activeTools, model, providerOptions, tools }) => {
         if (model.provider !== "openrouter") {
+          if (tools?.web_search) {
+            return {
+              activeTools: (activeTools ?? Object.keys(tools)).filter(
+                (name) => name !== "web_search",
+              ),
+            };
+          }
           return;
         }
         return {

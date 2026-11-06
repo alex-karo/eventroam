@@ -6,16 +6,17 @@ import { readDatabaseEnvironment } from "@/db/env";
 
 export function openDatabase(
   databasePath: string = readDatabaseEnvironment().DATABASE_PATH,
+  { fileMustExist = false } = {},
 ) {
   if (databasePath.trim().length === 0) {
     throw new Error("DATABASE_PATH must not be empty");
   }
 
-  if (databasePath !== ":memory:") {
+  if (!fileMustExist && databasePath !== ":memory:") {
     mkdirSync(dirname(databasePath), { recursive: true });
   }
 
-  const client = new Database(databasePath);
+  const client = new Database(databasePath, { fileMustExist });
 
   try {
     client.pragma("foreign_keys = ON");
