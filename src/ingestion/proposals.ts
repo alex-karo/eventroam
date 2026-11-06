@@ -67,7 +67,9 @@ export const initialDiagnostics = (): PlanDiagnostics => ({
 function reject(
   diagnostics: PlanDiagnostics,
   message: string,
-  code: "invalid_plan" | "editor_rejected" = "invalid_plan",
+  code:
+    "invalid_plan" | "editor_rejected" | "country_conflict" = "invalid_plan",
+  url?: string,
 ): StageResult<never> {
   return {
     status: "reject",
@@ -79,6 +81,7 @@ function reject(
           code,
           stage: code === "editor_rejected" ? "editor" : "validation",
           message,
+          ...(url ? { url } : {}),
         },
       ],
     },
@@ -98,6 +101,54 @@ function requireSupport(
 }
 
 type SavedEvent = ResearchContext["catalog"][number];
+function checkRefreshCountries(
+  output: GeneralOutput,
+  mode: CatalogResearchInput["mode"],
+  event: SavedEvent | undefined,
+  corpus: FrozenCorpus,
+) {
+  if (
+    mode !== "refresh" ||
+    !("festivalCountries" in output) ||
+    !output.festivalCountries?.length
+  ) {
+    return;
+  }
+  const diagnostics = initialDiagnostics();
+  if (output.decision === "uncertain") {
+    diagnostics.unresolved = output.unresolved;
+  }
+  for (const { countryCode, evidenceIds } of output.festivalCountries) {
+    try {
+      requireSupport(evidenceIds, corpus);
+    } catch {
+      return reject(
+        diagnostics,
+        "Festival country needs inspected source support",
+      );
+    }
+    const saved = event?.editions.find(
+      (edition) =>
+        edition.countryCode &&
+        edition.countryCode.toUpperCase() !== countryCode,
+    );
+    if (saved) {
+      const evidence = corpus.evidence.find(
+        (item) => item.id === evidenceIds[0],
+      );
+      const source = corpus.sources.find(
+        (item) => item.id === evidence?.sourceId,
+      );
+      return reject(
+        diagnostics,
+        `Sources place the festival in ${countryCode}, but saved Edition ${saved.editionKey} has country ${saved.countryCode}. Confirm the saved country and correct it separately before retrying.`,
+        "country_conflict",
+        source?.finalUrl,
+      );
+    }
+  }
+}
+
 function duplicateSupported(
   event: SavedEvent,
   ids: string[],
@@ -189,20 +240,27 @@ export function validateGeneral(
   corpus: FrozenCorpus,
 ): StageResult<Targets & PlanDiagnostics> {
   const diagnostics = initialDiagnostics();
+  const proposedEventId = "eventId" in output ? output.eventId : null;
+  const event = context.catalog.find(
+    ({ id }) => id === (input.eventId ?? proposedEventId),
+  );
+  if (proposedEventId && proposedEventId !== event?.id) {
+    return reject(diagnostics, "Event is outside the assigned candidates");
+  }
+  const countryRejection = checkRefreshCountries(
+    output,
+    input.mode,
+    event,
+    corpus,
+  );
+  if (countryRejection) {
+    return countryRejection;
+  }
   if (output.decision === "uncertain") {
     return reject(
       { ...diagnostics, unresolved: output.unresolved },
       output.reason,
     );
-  }
-  const event = context.catalog.find(
-    (event) => event.id === (output.eventId ?? input.eventId),
-  );
-  if (
-    (output.eventId && !event) ||
-    (input.eventId && output.eventId && input.eventId !== output.eventId)
-  ) {
-    return reject(diagnostics, "Event is outside the assigned candidates");
   }
   diagnostics.matchedEventId = event?.id;
   if (event && output.observedEventName !== event.canonicalName) {

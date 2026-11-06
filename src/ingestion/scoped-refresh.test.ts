@@ -63,6 +63,132 @@ function noWrites(f: ReturnType<typeof fixture>) {
   );
 }
 afterEach(() => vi.restoreAllMocks());
+test.each([
+  ["full", "targets", ["FR", "CA"], false],
+  ["full", "uncertain", ["CA"], false],
+  ["current", "targets", ["CA"], false],
+  ["full", "targets", ["CA"], true],
+] as const)(
+  "%s refresh rejects %s with observed countries %j and an unknown first saved country %s",
+  async (scope, decision, countryCodes, unknownFirstCountry) => {
+    const f = fixture(unknownFirstCountry ? null : "FR");
+    const saved = unknownFirstCountry
+      ? f.fx.edition(f.event, {
+          editionKey: "known-country",
+          editionYear: 2027,
+          countryCode: "FR",
+        })
+      : f.old;
+    const before = readResearchEvent(f.client, f.event.id);
+    const editor = vi.fn();
+    const question = { message: "Confirm the intended festival." };
+    const festivalCountries = countryCodes.map((countryCode) => ({
+      countryCode,
+      evidenceIds: ["s1-e1"],
+    }));
+    f.deps.readPage.mockImplementation(async (url, options) => ({
+      ...(await fixtureDependencies().readPage(url, options)),
+      markdown:
+        countryCodes.length > 1
+          ? "Fixture Fest takes place in Montréal, Canada. Its previous Edition took place in France."
+          : "Fixture Fest takes place in Montréal, Canada.",
+    }));
+    const classification = vi.fn(
+      fixtureDescriptionRole({
+        description: set("Fixture Fest takes place in Montréal."),
+      }),
+    );
+    const result = await runCatalogResearch(
+      { ...f.input, scope },
+      {
+        ...f.deps,
+        generateRoles: {
+          general: async () =>
+            decision === "targets"
+              ? { ...f.general, festivalCountries }
+              : {
+                  decision,
+                  reason: "Confirm which festival the saved Event describes.",
+                  festivalCountries,
+                  unresolved: [question],
+                },
+          classification,
+          editor,
+        },
+      },
+    );
+    expect(result).toMatchObject({
+      outcome: "failed",
+      editorStatus: "not_run",
+      locationStatus: "not_run",
+      workload: { returnedEditions: 0 },
+      operations: [],
+      receipts: [],
+    });
+    expect(result.errors).toContainEqual({
+      code: "country_conflict",
+      stage: "validation",
+      message: `Sources place the festival in CA, but saved Edition ${saved.editionKey} has country FR. Confirm the saved country and correct it separately before retrying.`,
+      url: "https://fixture.example/festival",
+    });
+    expect(result.modelResponse?.object).toMatchObject({ festivalCountries });
+    if (decision === "uncertain") {
+      expect(result.unresolved).toContainEqual(question);
+    }
+    expect(classification).not.toHaveBeenCalled();
+    expect(editor).not.toHaveBeenCalled();
+    expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
+    noWrites(f);
+  },
+);
+test.each([
+  ["PT", "PT"],
+  ["PT", null],
+  [null, "PT"],
+])(
+  "a full refresh with saved country %s and observed country %s can update Event fields without selecting an Edition",
+  async (savedCountry, countryCode) => {
+    const f = fixture(savedCountry);
+    const before = readResearchEvent(f.client, f.event.id);
+    f.general.festivalCountries = countryCode
+      ? [{ countryCode, evidenceIds: ["s1-e1"] }]
+      : [];
+    const result = await runCatalogResearch(f.input, {
+      ...f.deps,
+      generateRoles: {
+        ...f.deps.generateRoles,
+        classification: fixtureDescriptionRole({
+          description: set("Researched"),
+        }),
+      },
+    });
+    expect(result).toMatchObject({
+      outcome: "updated",
+      editorStatus: "success",
+      locationStatus: "not_run",
+      errors: [],
+    });
+    expect(result.operations.map(({ kind }) => kind)).toEqual(["updateEvent"]);
+    expect(readResearchEvent(f.client, f.event.id)).toMatchObject({
+      description: "Researched",
+      editions: before!.editions,
+    });
+  },
+);
+test("a festival country cannot use an unknown evidence reference", async () => {
+  const f = fixture("FR");
+  f.general.festivalCountries = [
+    { countryCode: "FR", evidenceIds: ["unknown"] },
+  ];
+  const result = await runCatalogResearch(f.input, f.deps);
+  expect(result).toMatchObject({ outcome: "failed", editorStatus: "not_run" });
+  expect(result.errors).toContainEqual({
+    code: "invalid_plan",
+    stage: "validation",
+    message: "Festival country needs inspected source support",
+  });
+  noWrites(f);
+});
 test.each(["full", "current"] as const)(
   "%s supplies the fixed date, permissions and saved context to General",
   async (scope) => {
