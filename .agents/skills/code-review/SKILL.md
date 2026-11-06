@@ -67,10 +67,15 @@ validation cost. Line count alone does not measure effort. State a preferred
 option and its trade-offs so the user can make a concrete decision.
 
 Always discuss simplifications that remove or change requirements, guarantees,
-validation, or user-visible scope. Do not rewrite specs or weaken tests to make
-a finding disappear. Use the project's OpenSpec workflow when an agreed fix
-changes a contract. A correction that restores an accepted contract does not
-itself authorize a new requirement.
+validation, or user-visible scope. Report each proposal under **Discussion
+needed**, before refuted findings. State what becomes simpler, which scenario,
+check, or guarantee would change, and which option you recommend. Include the
+proposal even when you recommend keeping the current behavior. Apply the
+simplification only after the user explicitly agrees to the behavior change.
+
+Do not rewrite specs or weaken tests to make a finding disappear. Use the
+project's OpenSpec workflow when an agreed fix changes a contract. A correction
+that restores an accepted contract does not itself authorize a new requirement.
 
 Complete independent, clear fixes before asking for decisions. Keep changes
 local to the reviewed work. Do not commit, push, publish comments, or merge as
