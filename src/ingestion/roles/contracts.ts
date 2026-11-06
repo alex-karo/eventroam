@@ -170,7 +170,9 @@ export const classificationOutputSchema = z.strictObject({
       .trim()
       .min(1)
       .max(2000)
-      .describe("The festival's current format and atmosphere."),
+      .describe(
+        "Current format and atmosphere in three to five sentences. Omit the festival name.",
+      ),
   ).optional(),
   shortDescription: change(
     z
@@ -179,7 +181,7 @@ export const classificationOutputSchema = z.strictObject({
       .min(1)
       .max(2000)
       .describe(
-        "The festival name and current format in one or two sentences.",
+        "Current format in one or two sentences. Omit the festival name.",
       ),
   ).optional(),
   previousEdition: classificationSlot,

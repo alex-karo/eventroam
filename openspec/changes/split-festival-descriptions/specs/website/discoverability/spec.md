@@ -15,7 +15,7 @@ The system SHALL permit indexing of both clean host roots and every public Event
 
 ### Requirement: Page metadata describes the rendered content
 
-The system SHALL give each existing public page a descriptive title, description, canonical URL, and social metadata. The Event page SHALL use `shortDescription` for its meta, Open Graph and Twitter descriptions. If it is absent or blank, the page SHALL use a nonblank `description`. If both are absent or blank, the page SHALL use the same automatic festival text as the Event page. Edition metadata SHALL identify the festival, stored Edition year, and applicable status. Event preview text MAY emphasize a different feature of the same festival than the visible description. Metadata for other pages SHALL use only facts available on each page. Metadata SHALL NOT include preview images.
+The system SHALL give each existing public page a descriptive title, description, canonical URL, and social metadata. Each Event or Edition page SHALL use one description for its meta, Open Graph and Twitter tags. Both page types SHALL prefer `shortDescription` and fall back to `description`. A blank value counts as absent. The Event description SHALL start with the public Event name and SHALL use the automatic festival text when both fields are absent. The Edition description SHALL start with the public Edition name, or the Event name when the Edition has no name. It SHALL include the stored year, applicable status and qualified dates before the festival text. When both text fields are absent, it SHALL include the public place. Metadata SHALL use only public facts and SHALL NOT include preview images.
 
 #### Scenario: The visitor opens either clean root
 - **WHEN** the configured apex or Festivals root is opened
@@ -46,7 +46,12 @@ The system SHALL give each existing public page a descriptive title, description
 
 #### Scenario: The Event has a detailed description and a short description
 - **WHEN** a crawler reads the Event page
-- **THEN** the page shows the detailed description to readers and supplies the short description in its meta, Open Graph and Twitter tags
+- **THEN** the page shows the detailed description to readers and supplies the name and short description in its meta, Open Graph and Twitter tags
+- **AND** the tags do not add a second name when the short description already starts with it
+
+#### Scenario: An Edition has a short festival description
+- **WHEN** a crawler reads the Edition page
+- **THEN** its meta, Open Graph and Twitter descriptions put the name and qualified Edition dates before the short festival description
 
 ### Requirement: Edition structured data uses supported public facts
 

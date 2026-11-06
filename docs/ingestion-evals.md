@@ -212,7 +212,7 @@ CLI output also shows unique source characters covered and extracted characters 
 
 `pnpm run catalog:eval --group regression/classification` runs the production Classification role with fixed Edition targets, bound source evidence, saved context, and vocabulary. The case reuses the River Festival announcement from `narrow-current-changed`. It uses full scope and seeds both descriptions with the former format.
 
-The case requires the expected category IDs in any order without extra or duplicate IDs. Both replacement texts must score at least 80% against the current format in PPLX Decider. A missing text or unavailable decision fails this case. The CLI prints the categories and both results. The experiment stores the Classification execution and checks. Research, Reader, Editor, and the catalog writer do not run.
+The case requires the expected category IDs in any order without extra or duplicate IDs. Both replacement texts must omit the festival name. The detailed text must have three to five sentences and the short text one or two. Each must score at least 80% against the current format in PPLX Decider. A missing text or unavailable decision fails this case. The CLI prints the categories and both results. The experiment stores the Classification execution and checks. Research, Reader, Editor, and the catalog writer do not run.
 
 ## Review failures before changing expectations
 

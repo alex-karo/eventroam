@@ -164,12 +164,19 @@ The `format` facet MUST describe the physical setting of an Edition's main progr
 `mixed-indoor-outdoor` MUST mean substantial parts of the main programme use both settings.
 When both settings qualify, mixed MUST take precedence over either single-setting label.
 Support facilities and a single physical feature MUST NOT determine format. Unclear evidence MUST leave format unknown.
+Ingestion MAY use `Open Air` in the current official festival name as evidence for `openair`. Direct evidence about the current main programme MUST take priority over the name.
 
 #### Scenario: The site is the primary programme setting
 
 - **WHEN** inspected evidence describes an open site as the main programme setting
 - **THEN** research can propose `openair` with that basis
 - **AND** a roof or enclosure alone does not determine the whole Edition's format
+
+#### Scenario: The official festival name contains Open Air
+
+- **WHEN** inspected evidence confirms the current official name contains `Open Air` and no direct evidence contradicts the setting
+- **THEN** ingestion can propose `openair`
+- **AND** direct evidence that the main programme is indoor or mixed takes priority over the name
 
 #### Scenario: Enclosed spaces contain the main programme
 
@@ -185,7 +192,7 @@ Support facilities and a single physical feature MUST NOT determine format. Uncl
 
 #### Scenario: Available evidence does not establish the setting
 
-- **WHEN** inspected evidence gives only a venue name, branding, or a physical feature
+- **WHEN** inspected evidence gives only a venue name, branding without the official `Open Air` name, or a physical feature
 - **THEN** research omits format unless other inspected evidence establishes the main programme setting
 - **AND** the editor uses the same definition when it assesses a format finding
 

@@ -88,6 +88,12 @@ On add and full refresh, ingestion MUST write both English Event descriptions wh
 - **THEN** a brief description of that format is sufficient
 - **AND** the run can leave a field empty when the material does not support useful text
 
+#### Scenario: The official festival name contains Open Air
+
+- **WHEN** inspected evidence confirms the current official festival name contains `Open Air` and no direct evidence contradicts the setting
+- **THEN** both descriptions can describe the main programme as open-air
+- **AND** direct evidence about the current setting takes priority over the name
+
 #### Scenario: A minor detail has indirect support
 
 - **WHEN** a proposed text gives a broadly accurate picture of the current festival and a minor detail has only indirect support
@@ -128,7 +134,7 @@ Both texts MUST describe the festival in its current form. The latest known form
 
 ### Requirement: Each description can stand on its own
 
-The detailed text MUST help a reader picture the festival through its format and distinctive features where known. The short text MUST identify the festival by name and format in one or two complete sentences suitable for a preview. Either text MAY highlight a different aspect of the current festival. Ingestion MUST assess each field independently.
+Ingestion MUST request three to five sentences for the detailed text and one or two sentences for the short text. Both texts MUST omit the festival name. The detailed text MUST help a reader picture the current festival through its format and distinctive features where known. The short text MUST summarize the current format for a preview. Either text MAY highlight a different aspect of the current festival. Ingestion MUST assess each field independently.
 
 #### Scenario: Two texts emphasize different features
 

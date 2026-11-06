@@ -35,14 +35,16 @@ Classification proposes a set or clear independently for each description. In cu
 
 ## Display
 
-| Stored text | Event page and About the festival | Event meta, Open Graph and Twitter |
+| Stored text | Event page and About the festival | Text for search and social descriptions |
 | --- | --- | --- |
 | Both | Detailed | Short |
 | Detailed only | Detailed | Detailed |
 | Short only | Short | Short |
-| Neither | Automatic | Automatic |
+| Neither | Automatic | Automatic for Event. Public place for Edition. |
 
-Treat null, empty and whitespace-only text as absent for display. Use one name-based sentence at render time. For example, “River Lights is a festival listed in the Eventroam catalog.” All detail pages have a public Event name. This needs no model call or write. Eligible Edition structured data uses the same text as its About section. Edition metadata uses the existing occurrence-specific template.
+Treat null, empty and whitespace-only text as absent for display. Generate one name-based sentence at render time when a page needs automatic text. For example, “River Lights is a festival listed in the Eventroam catalog.” This needs no model call or write. Eligible Edition structured data uses the same text as its About section.
+
+Use the same description for search, Open Graph and Twitter. On Event pages, add the public name only when the text does not already start with it. On Edition pages, put the display name, year, status and date range before the festival text. This keeps date qualifications visible if the preview is cut short.
 
 Historical Edition pages also show the current text under About the festival. Do not store historical description versions.
 

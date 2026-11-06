@@ -109,6 +109,8 @@ export type ClassificationEvalCase = ReturnType<
   typeof classificationCases
 >[number];
 
+const sentenceSegmenter = new Intl.Segmenter("en", { granularity: "sentence" });
+
 export async function scoreClassification(
   item: ClassificationEvalCase,
   execution: RoleExecution<ClassificationOutput>,
@@ -125,6 +127,7 @@ export async function scoreClassification(
     descriptionReference,
     texts,
   );
+  const festivalName = item.initial.event.canonicalName.toLowerCase();
   return {
     descriptionFormat,
     score: scenarioResult([
@@ -139,14 +142,33 @@ export async function scoreClassification(
           expectedTerms.every((term) => actual.includes(term)),
         `Expected ${expectedTerms.join(", ")}. Received ${actual?.join(", ") || "no categories"}.`,
       ),
-      ...descriptionFields.map((field) => {
+      ...descriptionFields.flatMap((field) => {
         const probability = descriptionFormat.fields[field];
-        return check(
+        const format = check(
           field,
           typeof probability === "number" &&
             probability >= minimumDescriptionFormat,
           `Decider result: ${probability}. Required minimum is ${minimumDescriptionFormat}.`,
         );
+        const text = texts[field];
+        if (!text) {
+          return [format];
+        }
+        const [min, max] = field === "description" ? [3, 5] : [1, 2];
+        const count = [...sentenceSegmenter.segment(text)].length;
+        return [
+          format,
+          check(
+            `${field}.length`,
+            count >= min && count <= max,
+            `Expected ${min}–${max} sentences. Received ${count}.`,
+          ),
+          check(
+            `${field}.festivalName`,
+            !text.toLowerCase().includes(festivalName),
+            "The text must omit the festival name.",
+          ),
+        ];
       }),
     ]),
   };

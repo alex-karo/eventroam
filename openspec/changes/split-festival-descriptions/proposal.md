@@ -2,7 +2,7 @@
 
 ## Why
 
-The catalog uses one Event summary for both the festival page and its search and social previews. A reader needs enough detail to understand the festival. A preview needs one or two sentences that identify it.
+The catalog uses one Event summary for both the festival page and its search and social previews. A reader needs enough detail to understand the festival. A preview needs one or two sentences that summarize its format.
 
 ## What Changes
 
@@ -32,7 +32,7 @@ The catalog uses one Event summary for both the festival page and its search and
   - **After**: They prefer the detailed text, then the short text, then an automatic description. Historical pages show the current festival text in About the festival.
 - `website/discoverability`
   - **Before**: Event metadata describes the festival and its history. The site uses the summary when present.
-  - **After**: Event search and social metadata prefer the short description of the current festival.
+  - **After**: Event and Edition search and social descriptions lead with the public name. Edition descriptions include dates and status. Both prefer the short festival text.
 - `operations/ingestion-evaluation`
   - **Before**: Main eval shows description proposals, Editor decisions, and writes.
   - **After**: Main eval reports the match probability for each assessed text. A result below 80% fails the case as a missing required fact.

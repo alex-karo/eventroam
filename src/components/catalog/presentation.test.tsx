@@ -240,11 +240,25 @@ test.each([
       body ?? automatic,
     );
     const metadata = eventMetadata(data, origin);
-    expect(metadata.description).toBe(preview ?? automatic);
-    expect(metadata.openGraph?.description).toBe(preview ?? automatic);
-    expect(metadata.twitter?.description).toBe(preview ?? automatic);
-    expect(editionMetadata(data, edition, origin, now).description).toContain(
-      "2025. Cancelled · Past edition. Dates: 1 Jan 2025.",
-    );
+    const eventPreview = preview ? `${data.name}. ${preview}` : automatic;
+    expect(metadata.description).toBe(eventPreview);
+    expect(metadata.openGraph?.description).toBe(eventPreview);
+    expect(metadata.twitter?.description).toBe(eventPreview);
+
+    const editionPreview = `${edition.name ?? data.name}, 2025. Cancelled · Past edition. Dates: 1 Jan 2025. ${preview ?? "Test Valley, Portugal."}`;
+    const dated = editionMetadata(data, edition, origin, now);
+    expect(dated.description).toBe(editionPreview);
+    expect(dated.openGraph?.description).toBe(editionPreview);
+    expect(dated.twitter?.description).toBe(editionPreview);
   },
 );
+
+test("Event metadata does not repeat the name at the start of the preview", () => {
+  const data = event();
+  const shortDescription = `${data.name} is an outdoor music festival.`;
+  const metadata = eventMetadata(
+    { ...data, shortDescription },
+    "https://festivals.eventroam.org",
+  );
+  expect(metadata.description).toBe(shortDescription);
+});

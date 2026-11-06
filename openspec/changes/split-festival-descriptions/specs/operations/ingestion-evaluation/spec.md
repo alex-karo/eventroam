@@ -9,6 +9,7 @@ The CLI SHALL provide `regression/classification` for direct Classification exec
 - **WHEN** a case supplies evidence of a new format and expects new categories and both texts
 - **THEN** the case requires the declared category IDs without extra or duplicate IDs
 - **AND** it requires a set proposal and a Decider probability of at least 0.80 for each text
+- **AND** it requires three to five sentences for the detailed text and one or two for the short text, both without the festival name
 - **AND** a missing, low, or unavailable assessment fails the case and is reported for that field
 
 #### Scenario: The group runs on its own

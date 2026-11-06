@@ -2,15 +2,16 @@ import type { PublicEvent } from "@/catalog/read/contracts";
 
 export function festivalDescription(
   event: Pick<PublicEvent, "name" | "description" | "shortDescription">,
-  purpose: "page" | "preview" = "page",
 ): string {
-  const [preferred, fallback] =
-    purpose === "page"
-      ? [event.description, event.shortDescription]
-      : [event.shortDescription, event.description];
   return (
-    preferred?.trim() ||
-    fallback?.trim() ||
+    event.description?.trim() ||
+    event.shortDescription?.trim() ||
     `${event.name} is a festival listed in the Eventroam catalog.`
   );
+}
+
+export function festivalPreviewDescription(
+  event: Pick<PublicEvent, "description" | "shortDescription">,
+): string | null {
+  return event.shortDescription?.trim() || event.description?.trim() || null;
 }
