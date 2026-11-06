@@ -1,66 +1,83 @@
 ---
 name: plan-review
-description: Review an implementation plan for understandable intent, necessary complexity, and readiness before coding or after material planning changes. Accepts chat, Markdown, issues, or OpenSpec. Does not audit completed implementation or rewrite the plan.
+description: >-
+  Review a plan for a clear purpose, necessary complexity, and implementation readiness.
+  Use before coding or after important plan changes. Accept chat, Markdown, issues, or
+  OpenSpec. Do not audit completed code or rewrite the plan.
 ---
 
-# Plan Review
+# Plan review
 
-Review whether the plan delivers the requested result and what can be simplified.
-A ready plan may still contain unnecessary work.
+Check whether the plan delivers the requested result and what can be simpler.
+A ready plan can still contain unnecessary work.
 
 ## Inputs
 
-Use the plan and original request identified by the user or context; ask if the
-target is ambiguous. Accept its format without requiring a repository, framework,
-or extra documents. For OpenSpec only, use [the adapter](references/openspec.md).
+Use the plan and original request from the user or conversation.
+If the target is unclear, ask which plan to review.
+Accept its format. Do not require a repository, framework, or extra documents.
+For OpenSpec, use [the adapter](references/openspec.md).
 
-Distinguish requested outcomes and accepted contracts from newly proposed
-guarantees and implementation choices. New spec wording alone does not establish
-acceptance; unknown provenance is not permission to discard a requirement.
+Separate requested outcomes and accepted contracts from proposed guarantees and implementation choices.
+New spec text does not prove acceptance.
+An unknown requirement source does not authorize its removal.
 
-## Review
+## Review the plan
 
-Explain the observable change, main flow and ownership from the plan. Distinguish
-what it explains from what you inferred from code; flag important missing
-explanations in their owning sections.
+Check that the plan explains the observable change, main flow, and ownership.
+Separate information in the plan from conclusions you draw from code.
+Identify important missing explanations in the sections that should contain them.
 
-Check scope, behavior, affected consumers, task dependencies and verifiable
-outcomes against relevant code and existing contracts. Surface unresolved
-decisions that could change the approach. For test gaps, name the failure and why
-existing or planned checks would miss it. Do not invent compatibility or migration
-obligations. Note missing evidence without treating unimplemented work as a defect.
+Check that the reader can understand the core idea without reading code.
+Use ASD-STE100 Simplified Technical English and consistent domain terms.
+For repeated rules, suggest a link to the source that owns the rule.
+Do not request sections or diagrams that add no useful information.
+Keep necessary reasons and constraints.
 
-For OpenSpec, report each of the adapter's three checks as passed, issues found,
-or not reviewed, with the reason.
+Compare scope, behavior, affected consumers, task dependencies, and verifiable outcomes with relevant code and accepted contracts.
+Identify unresolved decisions that could change the solution.
+For each test gap, name the failure that existing or planned checks would miss.
+Explain why those checks would miss it.
+Do not invent compatibility or migration requirements.
+Report missing evidence. Do not treat unimplemented planned work as a defect.
 
-For substantive plans, also send one independent subagent this question:
+## Check for simpler solutions
 
-> What can be simplified in this plan? Check against the code. Propose concrete
-> removals, combinations or replacements, and state what we would lose. Do not
-> invent suggestions if there are no useful simplifications.
+For a substantive plan, ask one independent subagent:
 
-Give it the original request, accepted constraints, plan and relevant source
-locations in fresh context, without the author's reasoning or prior review
-conclusions. It reviews without editing or delegating. Do the ordinary review yourself.
-For small direct plans, ask the same question yourself. If delegation is
-unavailable, do both checks and disclose the lack of independence.
+> What can be simpler in this plan? Check the code.
+> Propose specific removals, combinations, or replacements. State what each suggestion would remove or lose.
+> If no useful simplification exists, report none.
 
-## Check suggestions and report
+Give it the original request, accepted constraints, plan, and relevant source locations in fresh context.
+Do not provide the author's reasoning or earlier review conclusions.
+The subagent must not edit or delegate.
+Perform the ordinary review yourself.
 
-Verify suggestions against the sources before including them. Check whether
-removed work protects a real consumer or failure mode and whether existing code
-or tests already provide that protection. Distinguish behavior-preserving
-simplifications from changes to accepted scope that require a decision. A useful
-check is not automatically a necessary new test. Retain uncertainty where the
-evidence does not settle it; do not force a finding or start a debate loop.
+For a small direct plan, answer the same question yourself.
+If delegation is unavailable, perform both checks and report that the review was not independent.
 
-Report readiness (ready, ready with improvements, or not ready, and why), a brief
-explanation of the solution, and supported simplifications or none substantiated.
-Give material findings a plan location, consequence, evidence and proposed
-correction. Include reviewed scope and material evidence or independence limits.
-Optional scope reductions alone do not make a sound plan unready.
+## Check findings and report
 
-Do not edit artifacts, mark tasks complete or start implementation during review.
-If fixes were also requested, present findings before a separate authorized
-editing step. Recheck only affected decisions once after revisions, then report
-unresolved issues. Readiness is advice, not approval to implement.
+Check each suggestion against the sources before including it.
+Determine whether the proposed removal affects a real consumer or failure condition.
+Check whether existing code or tests already provide that protection.
+Separate changes that preserve behavior from changes to accepted scope that need a decision.
+A useful check does not automatically require a new test.
+If evidence is incomplete, keep the uncertainty explicit.
+Do not invent findings or repeat the review as a debate.
+
+Keep the report short.
+
+- Give the readiness verdict and its main reason. Use ready, ready with improvements, or not ready.
+- Report material findings and supported simplifications. Give the location, consequence, evidence, and proposed correction for each finding.
+- List applicable checks you could not complete and give the reason. State any limit on review independence.
+
+Separate decisions that block implementation from wording and structure improvements.
+Optional scope reductions, wording preferences, or missing optional diagrams alone do not make a sound plan unready.
+
+Do not edit artifacts, mark tasks complete, or start implementation during review.
+If the user also requested fixes, present findings before the separate authorized edit step.
+After revisions, recheck affected decisions once.
+Then report unresolved issues.
+Readiness is advice, not authorization to implement.
