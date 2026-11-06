@@ -23,7 +23,7 @@
     "test:site": "tsx src/test/site-smoke.ts",
     "db:migrate": "tsx commands/catalog-db.ts migrate",
     "db:fixtures": "tsx commands/catalog-db.ts fixtures",
-    "catalog": "tsx --env-file-if-exists=.env commands/catalog.ts",
+    "catalog": "tsx commands/catalog.ts",
     "catalog:eval": "tsx --env-file-if-exists=.env commands/catalog-eval.ts",
     "catalog:studio": "tsx --env-file-if-exists=.env commands/catalog-studio.ts",
     "test:coverage": "vitest run --coverage",

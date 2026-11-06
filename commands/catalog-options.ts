@@ -1,15 +1,14 @@
 import { parseArgs } from "node:util";
 import { addInputSchema } from "../src/ingestion/add-input";
+import { eventIdSchema, refreshScopeSchema } from "../src/ingestion/invocation";
 
 export const catalogUsage = `Usage: pnpm run catalog <add|refresh> [options]
   add      --input <description>
   refresh  --event <Event ID> ... [--scope full|current] (default full)
   --dry-run (default) | --apply
   --republish             Explicitly allow withdrawn records to publish
-  --database <path>       Existing, migrated SQLite catalog
-  --report <path>         Write the private JSON report
-  --json                  Print JSON instead of a terminal summary
-  --searches <n> --agent-steps <n> --seconds <n>
+  --url <origin>          Local Studio URL (default http://127.0.0.1:4111)
+  --json                  Print workflow summaries as JSON
   --help`;
 
 export function parseCatalogOptions(args: string[]) {
@@ -25,25 +24,31 @@ export function parseCatalogOptions(args: string[]) {
       "dry-run": { type: "boolean" },
       apply: { type: "boolean" },
       republish: { type: "boolean" },
-      database: { type: "string" },
-      report: { type: "string" },
+      url: { type: "string" },
       json: { type: "boolean" },
-      searches: { type: "string" },
-      "agent-steps": { type: "string" },
-      seconds: { type: "string" },
     },
   });
   if (values.help) {
     return { help: true as const };
   }
   const [mode] = positionals;
-  if (positionals.length !== 1 || !["add", "refresh"].includes(mode)) {
+  if (positionals.length !== 1 || (mode !== "add" && mode !== "refresh")) {
     throw new Error("Choose add or refresh.");
   }
   if (values.apply && values["dry-run"]) {
     throw new Error("Choose either --apply or --dry-run.");
   }
-  const eventIds = [...new Set(values.event ?? [])];
+  const eventIds = [
+    ...new Set(
+      (values.event ?? []).map((value) => {
+        const parsed = eventIdSchema.safeParse(value);
+        if (!parsed.success) {
+          throw new Error("Provide a valid --event ID.");
+        }
+        return parsed.data;
+      }),
+    ),
+  ];
   if ((values.input?.length ?? 0) > 1) {
     throw new Error("Provide one --input note.");
   }
@@ -63,53 +68,35 @@ export function parseCatalogOptions(args: string[]) {
       throw new Error("Provide --event.");
     }
   }
-  if (
-    values.scope !== undefined &&
-    (mode === "add" || !["full", "current"].includes(values.scope))
-  ) {
+  const scope = refreshScopeSchema.safeParse(values.scope ?? "full");
+  if (!scope.success || (mode === "add" && values.scope !== undefined)) {
     throw new Error("--scope requires refresh and full or current.");
   }
-  const limits = parseLimits(values);
   return {
     help: false as const,
-    mode: mode as "add" | "refresh",
-    scope:
-      mode === "refresh"
-        ? ((values.scope ?? "full") as "full" | "current")
-        : undefined,
+    mode,
+    scope: scope.data,
     input,
     eventIds,
     dryRun: !values.apply,
     republish: values.republish ?? false,
-    database: values.database,
-    report: values.report,
+    url: studioOrigin(values.url),
     json: values.json ?? false,
-    limits,
   };
 }
 
-function parseLimits(
-  values: Partial<Record<"searches" | "agent-steps" | "seconds", string>>,
-) {
-  const limits: Partial<
-    Record<"searches" | "agentSteps" | "durationMs", number>
-  > = {};
-  for (const [flag, key, factor] of [
-    ["searches", "searches", 1],
-    ["agent-steps", "agentSteps", 1],
-    ["seconds", "durationMs", 1000],
-  ] as const) {
-    if (values[flag] !== undefined) {
-      const number = Number(values[flag]);
-      if (
-        !Number.isSafeInteger(number) ||
-        number < 0 ||
-        !Number.isSafeInteger(number * factor)
-      ) {
-        throw new Error(`--${flag} must be a non-negative integer.`);
-      }
-      limits[key] = number * factor;
-    }
+function studioOrigin(value = "http://127.0.0.1:4111") {
+  const url = URL.parse(value);
+  if (
+    url?.protocol !== "http:" ||
+    !["127.0.0.1", "[::1]", "localhost"].includes(url.hostname) ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash ||
+    url.username ||
+    url.password
+  ) {
+    throw new Error("--url must be a local Studio HTTP origin.");
   }
-  return limits;
+  return url;
 }

@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { spawnSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import { readTraceRows } from "../test/read-observability";
 import { afterAll, beforeAll, expect, test } from "vitest";
@@ -357,6 +358,46 @@ test("final persistence failure keeps the committed catalog change and hides the
     } finally {
       client.close();
     }
+    const cli = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        "tsx",
+        "commands/catalog.ts",
+        "refresh",
+        "--event",
+        STUDIO_FIXTURE_EVENT_ID,
+        "--url",
+        server.baseUrl,
+        "--json",
+      ],
+      { encoding: "utf8", timeout: 30_000 },
+    );
+    expect(cli.status, cli.stderr).toBe(1);
+    expect(cli.stdout + cli.stderr).not.toContain(
+      "PRIVATE_STUDIO_FIXTURE_SENTINEL",
+    );
+    const attempts = rows(server);
+    expect(attempts).toHaveLength(2);
+    const cliAttempt = attempts.find((row) => row.id !== durable[0].id);
+    expect(cliAttempt).toMatchObject({
+      id: expect.any(String),
+      status: "running",
+    });
+    const result = JSON.parse(cli.stdout);
+    expect(result).toEqual({
+      dryRun: true,
+      results: [],
+      failures: [
+        {
+          eventId: STUDIO_FIXTURE_EVENT_ID,
+          ingestionRunId: cliAttempt?.id,
+          engineRunId: expect.any(String),
+          code: "run_persistence_failed",
+        },
+      ],
+    });
+    expect(cli.stderr).toContain(result.failures[0].engineRunId);
   } finally {
     await server.stop();
   }

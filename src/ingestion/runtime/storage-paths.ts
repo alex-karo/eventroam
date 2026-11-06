@@ -74,11 +74,3 @@ export function diagnosticStoragePaths(
   }
   return { workflow, observability };
 }
-
-export function workflowDatabasePath(
-  env = process.env,
-  cwd = process.cwd(),
-  protectedPaths: string[] = [],
-) {
-  return diagnosticStoragePaths(env, cwd, protectedPaths).workflow;
-}

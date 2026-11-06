@@ -7,7 +7,6 @@ import type { WorkflowRunState } from "@mastra/core/workflows";
 import { LibSQLStore } from "@mastra/libsql";
 import type { DuckDBStore } from "@mastra/duckdb";
 import type { CatalogResearchResult, IngestionData } from "../contracts";
-import { workflowDatabasePath } from "./storage-paths";
 
 export class WorkflowHistoryError extends Error {
   constructor(
@@ -26,14 +25,12 @@ export type HistoryFailure = (
 ) => Promise<void>;
 
 /** The composite exposes native domains; the host owns their providers. */
-export function createWorkflowStorage(
-  options: {
-    path?: string;
-    observability?: DuckDBStore;
-    onFailure?: HistoryFailure;
-  } = {},
-) {
-  const path = options.path ?? workflowDatabasePath();
+export function createWorkflowStorage(options: {
+  path: string;
+  observability?: DuckDBStore;
+  onFailure?: HistoryFailure;
+}) {
+  const { path } = options;
   let onFailure = options.onFailure;
   try {
     if (path !== ":memory:") {

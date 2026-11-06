@@ -1,4 +1,8 @@
 import { studioIngestionInputSchema } from "./invocation";
+import {
+  studioIngestionResultSchema,
+  type StudioIngestionResult,
+} from "./workflow-result";
 import { researchErrorSchema } from "./research/contracts";
 import {
   specialistResultsSchema,
@@ -39,7 +43,6 @@ import {
 import { Mastra } from "@mastra/core/mastra";
 import type { WorkflowsStorage } from "@mastra/core/storage";
 import {
-  createWorkflowStorage,
   pruneWorkflowSnapshot,
   WorkflowHistoryError,
 } from "./runtime/workflow-storage";
@@ -132,34 +135,6 @@ const stateSchema = z.object({}).catchall(z.json()) as unknown as z.ZodType<{
 }>;
 const stepStateSchema = z.object({ data: dataSchema });
 const stepSchema = z.json();
-export const studioIngestionResultSchema = z.strictObject({
-  engineRunId: z.string(),
-  ingestionRunId: z.string(),
-  mode: z.enum(["add", "refresh"]),
-  dryRun: z.boolean(),
-  outcome: z.enum([
-    "created",
-    "updated",
-    "published",
-    "unchanged",
-    "skipped",
-    "failed",
-  ]),
-  researchStatus: z.enum(["success", "partial", "failed"]),
-  editorStatus: z.enum(["success", "failed", "not_run"]),
-  persistenceStatus: z.enum(["completed", "failed"]),
-  eventId: z.string().nullable(),
-  scope: z.enum(["full", "current"]).nullable(),
-  savedEditionCount: z.number().int().nonnegative(),
-  returnedEditionCount: z.number().int().nonnegative(),
-  readCount: z.number().int().nonnegative(),
-  searchCount: z.number().int().nonnegative(),
-  operationCount: z.number().int().nonnegative(),
-  changedCount: z.number().int().nonnegative(),
-  locationStatus: locationExecutionSchema.shape.status,
-  errorCodes: z.array(z.string()),
-});
-
 export type ResolvedCatalogDependencies = {
   deps: ResearchDependencies;
   close?: () => unknown | Promise<unknown>;
@@ -227,7 +202,8 @@ function projectSummary(
   owned: CatalogAttempt,
   result: CatalogResearchResult,
   persistenceStatus: "completed" | "failed",
-) {
+): StudioIngestionResult {
+  const errorCodes = result.errors.map((error) => error.code);
   return {
     engineRunId: owned.engineRunId,
     ingestionRunId: owned.ingestionRunId,
@@ -239,33 +215,28 @@ function projectSummary(
     persistenceStatus,
     eventId: result.eventId ?? null,
     scope: result.scope,
-    savedEditionCount: result.workload.savedEditions,
-    returnedEditionCount: result.workload.returnedEditions,
-    readCount: result.budget.pages,
-    searchCount: result.budget.searches,
-    operationCount: result.operations.length,
-    changedCount: result.receipts.filter((receipt) => receipt.changed).length,
     locationStatus: result.locationStatus,
     errorCodes:
       persistenceStatus === "failed"
         ? [
-            ...result.errors.map((error) => error.code),
+            ...errorCodes
+              .filter((code) => code !== "run_persistence_failed")
+              .slice(0, 19),
             "run_persistence_failed",
           ]
-        : result.errors.map((error) => error.code),
+        : errorCodes,
   };
 }
 
-type CliInvocation = {
+type InProcessInvocation = {
   requested: CatalogResearchInput;
-  deps: ResearchDependencies;
   owned?: CatalogAttempt;
   historyFailed?: boolean;
 };
 
 export function createCatalogIngestionWorkflow(
   resolveDependencies: ResolveCatalogDependencies,
-  options: { cli?: CliInvocation } = {},
+  options: { inProcess?: InProcessInvocation } = {},
 ) {
   const attempts = new Map<string, CatalogAttempt | null>();
   const attempt = (engineRunId: string) => {
@@ -938,12 +909,6 @@ export function createCatalogIngestionWorkflow(
       } catch {
         if (data.report) {
           const summary = projectSummary(owned, data.report, "failed");
-          summary.errorCodes = [
-            ...summary.errorCodes
-              .filter((code) => code !== "run_persistence_failed")
-              .slice(0, 19),
-            "run_persistence_failed",
-          ];
           throw new Error(
             JSON.stringify({ code: "run_persistence_failed", summary }),
           );
@@ -997,15 +962,13 @@ export function createCatalogIngestionWorkflow(
               timestamp: Date.now(),
             }),
           });
-          const resolved = options.cli
-            ? { deps: options.cli.deps }
-            : await resolveDependencies(parsed, runId);
+          const resolved = await resolveDependencies(parsed, runId);
           let owned: CatalogAttempt;
           try {
             const { input, ...settings } = parsed;
             owned = new CatalogAttempt(
               runId,
-              options.cli?.requested ?? {
+              options.inProcess?.requested ?? {
                 ...settings,
                 ...(typeof input === "string" ? { input } : input),
                 actor: "catalog-research",
@@ -1018,8 +981,8 @@ export function createCatalogIngestionWorkflow(
             throw error;
           }
           attempts.set(runId, owned);
-          if (options.cli) {
-            options.cli.owned = owned;
+          if (options.inProcess) {
+            options.inProcess.owned = owned;
           }
           await owned.initialize();
         } catch (error) {
@@ -1028,7 +991,7 @@ export function createCatalogIngestionWorkflow(
           } else {
             attempts.delete(runId);
           }
-          if (options.cli || error instanceof WorkflowHistoryError) {
+          if (options.inProcess || error instanceof WorkflowHistoryError) {
             throw error;
           }
           throw new Error("Ingestion workflow failed");
@@ -1076,8 +1039,8 @@ export function createCatalogIngestionWorkflow(
       await checkSavedId(store, runId);
     },
     async recoverHistory(runId: string, data = createIngestionData()) {
-      if (options.cli) {
-        options.cli.historyFailed = true;
+      if (options.inProcess) {
+        options.inProcess.historyFailed = true;
       }
       await recover(runId, structuredClone(data));
     },
@@ -1088,15 +1051,14 @@ export function createCatalogIngestionWorkflow(
 
 export async function runCatalogResearch(
   requested: CatalogResearchInput,
-  deps: ResearchDependencies,
+  deps: ResearchDependencies &
+    Required<Pick<ResearchDependencies, "workflowStorage">>,
 ): Promise<CatalogResearchResult> {
-  const cli: CliInvocation = { requested, deps };
+  const invocation: InProcessInvocation = { requested };
   const workflow = createCatalogIngestionWorkflow(async () => ({ deps }), {
-    cli,
+    inProcess: invocation,
   });
-  const storage =
-    deps.workflowStorage ??
-    createWorkflowStorage({ path: deps.workflowDatabasePath });
+  const storage = deps.workflowStorage;
   storage.setFailureHandler(workflow.historyControl.recoverHistory);
   let host: Mastra | undefined;
   try {
@@ -1118,16 +1080,16 @@ export async function runCatalogResearch(
       republish: requested.republish,
     });
     const result = await run.start({ inputData }).catch((error: unknown) => {
-      if (!cli.owned || error instanceof WorkflowHistoryError) {
+      if (!invocation.owned || error instanceof WorkflowHistoryError) {
         throw error;
       }
       return undefined;
     });
-    const owned = cli.owned;
+    const owned = invocation.owned;
     if (!owned) {
       throw new Error("Ingestion attempt unavailable");
     }
-    if (cli.historyFailed) {
+    if (invocation.historyFailed) {
       throw new WorkflowHistoryError(run.runId);
     }
     if (owned.finalization) {
@@ -1139,8 +1101,8 @@ export async function runCatalogResearch(
         : "Ingestion workflow failed",
     );
   } catch (error) {
-    if (error instanceof WorkflowHistoryError || cli.historyFailed) {
-      const owned = cli.owned;
+    if (error instanceof WorkflowHistoryError || invocation.historyFailed) {
+      const owned = invocation.owned;
       const report = await owned?.finalization?.catch(() => undefined);
       throw new WorkflowHistoryError(
         owned?.engineRunId ??
@@ -1153,13 +1115,7 @@ export async function runCatalogResearch(
     }
     throw error;
   } finally {
-    if (deps.workflowStorage) {
-      // The caller owns the store; this run owns its host hooks.
-      host?.__unregisterHooks();
-    } else if (host) {
-      await host.shutdown();
-    } else {
-      await storage.close();
-    }
+    // The caller owns the store; this run owns its host hooks.
+    host?.__unregisterHooks();
   }
 }

@@ -12,27 +12,26 @@ Use this guide to run ingestion and inspect results. Read the [ingestion process
 
 ## CLI research
 
-Use the [local setup](development.md#local-setup) for runtime versions and dependencies. Set `OPENROUTER_API_KEY` in `.env`. The selected database must exist and be migrated; migrations supply the starter taxonomy needed for classification. `pnpm run catalog --help` lists options.
-
-For a separate research catalog, migrate it first:
+Start Studio with a migrated catalog and model credentials. Set `OPENROUTER_API_KEY` in `.env`. To select a separate catalog, set `DATABASE_PATH` for migration and Studio startup.
 
 ```sh
 DATABASE_PATH=./data/research.sqlite pnpm run db:migrate
+DATABASE_PATH=./data/research.sqlite pnpm run catalog:studio
 ```
 
-Then run research:
+From another terminal, run the commands below. The CLI uses Studio at `http://127.0.0.1:4111` by default. Use `--url` for another loopback HTTP origin. Use `pnpm run catalog --help` to see all options.
 
 ```sh
-pnpm run catalog add --input "Festival name or research note" --database data/research.sqlite
-pnpm run catalog refresh --event EVENT_ID --database data/research.sqlite --report data/refresh.json
-pnpm run catalog refresh --event EVENT_ID --database data/research.sqlite --apply
+pnpm run catalog add --input "Festival name or research note"
+pnpm run catalog refresh --event EVENT_ID --event ANOTHER_EVENT_ID --scope current
+pnpm run catalog refresh --event EVENT_ID --apply --json
 ```
 
-`add` creates new Events; use `refresh` for existing ones. Refresh supports repeated `--event` and `--scope full|current`; each Event has an independent atomic attempt. Preview is the default and still needs a writable database: catalog changes roll back, while the private run report persists. `--apply` starts fresh research rather than applying a saved preview. Use `--republish` to permit withdrawn records to publish again.
+Each Event has its own workflow run. Preview is the default. It rolls back catalog changes and saves the private report. `--apply` starts fresh research. Use `--republish` to permit withdrawn records to publish again.
 
-See `.env.example` for current model defaults and execution limits. Set `OPENROUTER_MODEL` or `OPENROUTER_REASONING_EFFORT` to override them. The service tier is omitted by default. Set `OPENROUTER_SERVICE_TIER=flex` to use Flex routing; it can have higher latency and capacity errors. Optional `FIRECRAWL_KEY` enables the [source fallback](ingestion-process.md#find-and-read-sources). Use `--agent-steps` or `CATALOG_MAX_AGENT_STEPS` to change the model-step allowance. The last step is reserved for a final response. There is no total input-context allowance across a run. Each serialized role input is limited to 400,000 UTF-16 code units. An oversized input fails explicitly; it is not shortened. Other CLI overrides include `--searches` and `--seconds`. Limits bound work, not exact spending.
+The command waits for each result and shows the outcome and run IDs. `--json` prints the workflow summaries and failures. Open **Workflows → catalog-ingestion → Recent runs** in Studio and inspect **build-report** for Edition and budget counts, operations, field changes, reasons, and sources. To cancel active work, use Studio. If the command loses its connection after sending a start request, check Recent runs with the workflow ID before starting a new run.
 
-The [ingestion guide](ingestion-process.md) explains source handling, fact selection, previews, publication, and reports. Research is model-led and can make factual mistakes. Inspect the report before deciding on an apply run. After interruption, start a fresh run against current state; already committed changes remain.
+Configure the model, source providers, and limits in the Studio environment. See `.env.example` for current defaults. The last model step is reserved for a final response. Each serialized role input has a limit of 400,000 UTF-16 code units. An input above that limit fails without truncation. See the [ingestion guide](ingestion-process.md) for source handling and report details.
 
 ### Saved source evidence
 
@@ -109,13 +108,13 @@ An explicit cancellation request uses `cancel_batch` for a resolved batch. It ca
 
 On SIGINT or SIGTERM, Studio stops taking jobs, cancels its active queued workflow, waits for cleanup, and then closes its stores. An interrupted job remains running. After restart, the loop takes pending and saved running jobs in queue order and starts each from the beginning. Each execution uses fresh workflow and attempt IDs. Earlier reports and committed changes remain. Research and paid calls can repeat, including when a report was saved before the job became done. Done and cancelled jobs do not restart. Stop the old Studio server before starting its replacement.
 
-Jobs and runs remain in private catalog history without automatic expiry. The CLI and Studio workflow form still execute directly; the queue does not serialize those runs. Stop Studio before a separate CLI process opens its DuckDB file. See [Infrastructure](infrastructure.md#application-containers) for deployment and database transfers.
+Jobs and runs remain in private catalog history without automatic expiry. The CLI and Studio workflow form start direct runs in Studio. Only chat jobs go through the queue. See [Infrastructure](infrastructure.md#application-containers) for deployment and database transfers.
 
 ## Workflow history
 
-CLI and Studio always save workflow snapshots, including intermediate results, to `CATALOG_WORKFLOW_DATABASE_PATH` (default `data/mastra-workflows.sqlite`). Relative paths use the project root. Use the same path for both processes and keep this store separate from other data files.
+Studio saves workflow snapshots, including intermediate results, to `CATALOG_WORKFLOW_DATABASE_PATH` (default `data/mastra-workflows.sqlite`). This includes runs started by the CLI. Relative paths use the project root. Keep this store separate from other data files.
 
-After a CLI run, start `pnpm run catalog:studio` and open Workflows → catalog-ingestion → Recent runs. Inspection needs no catalog connection or model key. History supports inspection only; start a new run after interruption.
+Open Workflows → catalog-ingestion → Recent runs to inspect an execution. Inspection needs no catalog connection or model key. History supports inspection only; start a new run after interruption.
 
 A history storage failure stops execution with `workflow_history_failed` and CLI exit code 1. Confirmed catalog writes and completed reports remain.
 
@@ -129,16 +128,15 @@ To clear all history, stop Studio and other writers, then remove only the workfl
 
 ## Local trace inspection
 
-Local commands keep logging and tracing off by default. Compose enables both for Studio; each deployment flag can disable its output independently. Tracing supports apply, preview and evaluation, including injected dependencies. Mock calls do not invent tokens or costs. `CATALOG_LOG_LEVEL` accepts `debug`, `info` (default), `warn`, or `error`.
+Local Studio keeps logging and tracing off by default. Compose enables both for Studio; each deployment flag can disable its output independently. Tracing supports apply, preview and evaluation, including injected dependencies. Mock calls do not invent tokens or costs. `CATALOG_LOG_LEVEL` accepts `debug`, `info` (default), `warn`, or `error`.
 
-Close Studio before recording from a separate CLI process: DuckDB requires exclusive process ownership of its file.
+Enable recording when you start Studio. Leave it running when you call the catalog CLI.
 
 ```sh
-CATALOG_LOGGING=true CATALOG_TRACING=true pnpm run catalog refresh --event EVENT_ID --apply --report data/research-report.json
-pnpm run catalog:studio
+CATALOG_LOGGING=true CATALOG_TRACING=true pnpm run catalog:studio
 ```
 
-In Studio, open Observability → Logs, Traces or Metrics. Both commands use `CATALOG_OBSERVABILITY_DATABASE_PATH`, defaulting to `data/mastra-observability.duckdb`. Hosted traces and metrics use the native workflow run ID. Trace metadata also contains the durable `ingestionRunId`; application logs and reports retain that durable ID. Standalone diagnostics use the durable run ID. The [ingestion guide](ingestion-process.md#execution-metrics) describes metric eligibility, recorded fields, cost semantics and privacy boundaries.
+In Studio, open Observability → Logs, Traces or Metrics. Studio uses `CATALOG_OBSERVABILITY_DATABASE_PATH`, which defaults to `data/mastra-observability.duckdb`. Ingestion traces and metrics use the native workflow run ID. Trace metadata also contains the durable `ingestionRunId`; application logs and reports retain that durable ID. For standalone evaluation recording, see the [eval guide](ingestion-evals.md#usage-and-storage-failures). The [ingestion guide](ingestion-process.md#execution-metrics) describes metric eligibility, recorded fields, cost semantics and privacy boundaries.
 
 With Studio running, use the native Mastra CLI to inspect saved records without model credentials or a research run:
 
