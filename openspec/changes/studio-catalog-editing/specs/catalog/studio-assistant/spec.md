@@ -73,19 +73,18 @@ Studio SHALL show all targets, before and after values, and the audit mode befor
 - **THEN** the assistant reports the limit and requests a smaller selection
 - **AND** Studio presents no truncated proposal for approval
 
-### Requirement: Approval applies to the exact pending proposal
+### Requirement: Direct edits require Studio approval
 
-The server SHALL require explicit approval of a pending proposal. It SHALL apply only the proposed new values and audit mode shown on the approved card. The before values describe the catalog at preview time. A revised proposal SHALL require new approval. Preview and rejection SHALL leave catalog records, versions, audit entries, and receipts unchanged.
+The server SHALL require explicit approval through the built-in controls in a Studio chat thread. The owner SHALL resolve one pending proposal before requesting another. The server SHALL apply only the pending proposal's new values and audit mode. The before values describe the catalog at preview time. A revised proposal SHALL require new approval. Preview and rejection SHALL leave catalog records, versions, audit entries, and receipts unchanged.
 
 #### Scenario: The owner declines the proposed edit
 - **WHEN** the owner declines the proposal in Studio
 - **THEN** the server applies none of its operations
 
-#### Scenario: An old card cannot approve a newer proposal
-- **GIVEN** a closed proposal and a newer pending proposal in the same chat
-- **WHEN** Studio sends approval from the closed proposal's card
-- **THEN** the server rejects the request without writing to the catalog
-- **AND** the second proposal remains pending until the owner approves or declines its own card
+#### Scenario: The owner approves successive edits
+- **GIVEN** the owner has resolved the first proposal
+- **WHEN** the owner requests another edit and approves its pending proposal
+- **THEN** the server applies that proposal and reports the result
 
 #### Scenario: A direct call tries to bypass approval
 - **WHEN** a client directly invokes the edit tool or tries to supply approval outside the owner's confirmation of the pending call

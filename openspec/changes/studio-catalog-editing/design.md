@@ -3,7 +3,7 @@
 ## TL;DR
 
 - The owner can correct existing catalog records in Studio chat. The catalog assistant reads current values, can find public sources through OpenRouter, and prepares one fixed proposal for the full selection.
-- Mastra pauses the edit tool and shows the proposal in an approval card. Studio sends the card's own run ID and tool call ID. The server permits writes only for that approved call.
+- Mastra pauses the edit tool and shows the proposal in an approval card. The owner reviews one pending proposal at a time. The server permits writes only after a native Studio approval.
 - The catalog writer applies the approved fields to the current record and commits each Event or Edition as a unit. The tool reports each result. The owner can explicitly omit the audit entry for a direct edit.
 
 See the [proposal](proposal.md) and the [Studio spec delta](specs/catalog/studio-assistant/spec.md) for scope and behavior.
@@ -71,7 +71,7 @@ sequenceDiagram
     Tool->>Tool: Validate proposal with catalog reads
     Tool-->>Studio: Pause and show proposal
     Owner->>Studio: Approve the card
-    Studio->>Tool: Resume the exact pending call through Mastra
+    Studio->>Tool: Resume the pending call through Mastra
     Tool->>Writer: Apply approved operations per target
     Writer-->>Tool: Return operation results
     Tool-->>Studio: Report each target result
@@ -80,16 +80,16 @@ sequenceDiagram
 ## Key decisions
 
 - **Use the pending call as the proposal.** Mastra `requireApproval` pauses the call and the native card shows the raw arguments. Validate the arguments and check before values with catalog reads. Require values in their effective form when the writer would otherwise normalize them. Use an explicit rejection because a thrown pre-approval hook can still let Mastra reach the approval gate. Resolve the full selection within the item and byte limits before showing a card. Offer omission only on explicit owner request, and show the mode on the card.
-- **Bind approval to the card.** Send the original approval event's `runId` and `toolCallId` to Mastra's `approve-tool-call` route and show its stream result in chat. The installed `send-tool-approval` route does not accept a run ID. Let Mastra validate and claim the exact pending call. Require both IDs and never select a different run for the request. Use server-assigned run IDs for new edits and reject reuse of the same pair for a different proposal.
-- **Check approval at the write entry point.** Mastra also exposes direct tool execution and generic resume routes. Studio sets server-owned approval context only for an explicit native approval of the exact pending pair. The edit tool requires that context. Reject replacement messages, custom resume data, and client-supplied approval context. Use the current trusted Studio access model.
-- **Use the existing writer per target.** Apply each target with `applyCatalogItem`. The proposal carries no version. Resolve the current version in the target transaction for the existing operation validators and write. A change since preview does not block an edit. The writer uses the actual old values for the audit entry and validates the resulting state. Build the report from operation results because a successful edit can omit its audit row. Continue after a target fails.
+- **Use native Studio approval.** Studio starts a draft through `send-message` in the chat thread. The owner approves or declines each draft before asking for another one. Mastra selects and resumes the pending call through `send-tool-approval`. This flow assumes the owner uses the current card.
+- **Check approval at the write entry point.** The edit tool requires server-owned context from a native approval request. Use the native pending run ID and tool call ID for operation receipts. Reject approval requests that supply replacement messages or custom resume data. Use the current trusted Studio access model.
+- **Use the existing writer per target.** Apply each target with `applyApprovedCatalogItem` in the shared writer. The proposal carries no version. The shared writer reads the current version in the target transaction after it checks the operation receipt. A change since preview does not block an edit. The writer uses the actual old values for the audit entry and validates the resulting state. Build the report from operation results because a successful edit can omit its audit row. Continue after a target fails.
 - **Keep direct editing separate from research.** The owner can approve a valid Edition country correction through this edit path. The existing [refresh country guard](../../specs/catalog/refresh-scope/spec.md#requirement-country-conflicts-veto-the-whole-event-refresh) still applies to research. The direct edit uses catalog validation.
 - **Keep web search in chat.** Use the provider tool with the existing OpenRouter credentials. Search runs in the model request, separate from the ingestion Reader. Use the existing model traces for that request. Treat search results as source data. Only the owner can request an edit or authorize a write.
 
 ## Risks and validation
 
-Before connecting catalog writes, use the [offline Studio fixture](../../../src/test/studio-fixture.ts) in the built-in Browser to check the full proposal and the approval response. Reuse one tool call ID in two runs in the same chat. Close the first call, then verify that its card's pair is rejected and that the second call stays pending until approved with its own pair. Check that a new proposal cannot reuse the closed pair.
+Use the [offline Studio fixture](../../../src/test/studio-fixture.ts) to check the proposal and its result in the built-in Browser. Approve or decline each proposal before opening the next one.
 
-Use server tests for attempts to bypass approval and change its arguments. Use the writer tests for replay, partial success, and audit omission. Include a slug edit with omission so the test checks that public URL aliases still work.
+Use one Studio API test to check a draft, the write after approval, and the default audit entry. Use one writer test to check audit omission, replay, partial success, and public URL aliases.
 
 Check that the installed Mastra adapter sends the search tool alongside `edit_catalog` for OpenRouter and omits it for a direct provider. Verify in Studio that a search result displays its source URL and that a proposed correction still pauses for approval.

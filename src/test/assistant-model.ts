@@ -26,34 +26,14 @@ export function createAssistantFixtureModel() {
           part.type === "tool-result" && !part.toolName.startsWith("skill"),
       )
       .map((part) => (part.output.type === "json" ? part.output.value : null));
-    let call: { name: string; input: unknown } | undefined;
-    let text = "";
-    if (toolResults.length === 0) {
-      call = { name: "skill", input: { name: "catalog-sql" } };
-    } else if (results.length === 0) {
-      ({ call, text } = initialReply(owner, prompt, lastUser));
-    } else if (
-      /update all France Events/i.test(owner) &&
-      results.length === 1
-    ) {
-      ({ call, text } = selectedEventsReply(results[0]));
-    } else if (/find lost batch/i.test(owner)) {
-      text = savedBatchReply(results[0]);
-    } else if (/analyze run/i.test(owner) && results.length === 1) {
-      ({ call, text } = inspectRunReply(
-        results[0],
-        /analyze run ([a-z0-9-]+)/i.exec(owner)![1],
-      ));
-    } else if (/analyze run/i.test(owner)) {
-      const first = results[0] as { ok?: boolean };
-      if (!first.ok) {
-        text = reportStateReply(results[1]);
-      } else {
-        text = `Saved run evidence (selected fields; no independent source check): ${JSON.stringify(results)}. dryRun true means proposed changes; false means apply. An unchanged outcome can have partial research. Missing evidence remains unresolved.`;
-      }
-    } else {
-      text = `Tool result: ${JSON.stringify(results)}. Accepted jobs are not completed ingestion. Done means processing ended, not success. Stored running state does not prove queue health. Read saved reports through query_catalog. A preview proposes changes.`;
-    }
+    const { call: initialCall, text } = fixtureReply(
+      owner,
+      results,
+      toolResults,
+      prompt,
+      lastUser,
+    );
+    let call = initialCall;
     if (call?.name === "query_catalog") {
       const sql = (call.input as { sql: string }).sql;
       const reference = [
@@ -381,6 +361,83 @@ function researcherReply(
     } else {
       text = "Clarify the intended Events.";
     }
+  }
+  return { call, text };
+}
+
+function fixtureEditReply(owner: string, results: unknown[]) {
+  if (!/fixture edit/i.test(owner)) {
+    return;
+  }
+  if (results.length) {
+    return { text: `Fixture edit result: ${JSON.stringify(results)}` };
+  }
+  return {
+    text: "",
+    call: {
+      name: "edit_catalog",
+      input: {
+        auditMode: "record",
+        targets: [
+          {
+            kind: "event",
+            id: "00000000-0000-4000-8000-000000000001",
+            changes: {
+              canonicalName: {
+                before: "Studio Fixture Festival",
+                after: "First name",
+              },
+            },
+          },
+        ],
+      },
+    },
+  };
+}
+
+type FixturePrompt = Parameters<
+  MastraLanguageModelV2Mock["doStream"]
+>[0]["prompt"];
+type FixtureToolResults = Extract<
+  FixturePrompt[number],
+  { role: "tool" }
+>["content"];
+
+function fixtureReply(
+  owner: string,
+  results: unknown[],
+  toolResults: FixtureToolResults,
+  prompt: FixturePrompt,
+  lastUser: number,
+): { call?: { name: string; input: unknown }; text: string } {
+  const edit = fixtureEditReply(owner, results);
+  if (edit) {
+    return edit;
+  }
+  let call: { name: string; input: unknown } | undefined;
+  let text = "";
+  if (toolResults.length === 0) {
+    call = { name: "skill", input: { name: "catalog-sql" } };
+  } else if (results.length === 0) {
+    ({ call, text } = initialReply(owner, prompt, lastUser));
+  } else if (/update all France Events/i.test(owner) && results.length === 1) {
+    ({ call, text } = selectedEventsReply(results[0]));
+  } else if (/find lost batch/i.test(owner)) {
+    text = savedBatchReply(results[0]);
+  } else if (/analyze run/i.test(owner) && results.length === 1) {
+    ({ call, text } = inspectRunReply(
+      results[0],
+      /analyze run ([a-z0-9-]+)/i.exec(owner)![1],
+    ));
+  } else if (/analyze run/i.test(owner)) {
+    const first = results[0] as { ok?: boolean };
+    if (!first.ok) {
+      text = reportStateReply(results[1]);
+    } else {
+      text = `Saved run evidence (selected fields; no independent source check): ${JSON.stringify(results)}. dryRun true means proposed changes; false means apply. An unchanged outcome can have partial research. Missing evidence remains unresolved.`;
+    }
+  } else {
+    text = `Tool result: ${JSON.stringify(results)}. Accepted jobs are not completed ingestion. Done means processing ended, not success. Stored running state does not prove queue health. Read saved reports through query_catalog. A preview proposes changes.`;
   }
   return { call, text };
 }

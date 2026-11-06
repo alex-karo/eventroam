@@ -1,3 +1,4 @@
+import { catalogEditApproval } from "../../../mastra/catalog-assistant/edit-approval";
 import { createCatalogResearcher } from "../../../mastra/catalog-researcher";
 import { fixtureRoleForProvider } from "../../ingestion-provider";
 import { fixtureDescriptionRole, fixtureTargets, set } from "../../ingestion";
@@ -186,6 +187,11 @@ export async function createFixtureMastra() {
     workflow,
     logging && createApplicationLogger(logging),
   );
+  const assistant = createCatalogAssistant(
+    chat.memory,
+    createAssistantFixtureModel(),
+    logging,
+  );
   return new StudioMastra(
     {
       workflows: { "catalog-ingestion": workflow },
@@ -195,11 +201,7 @@ export async function createFixtureMastra() {
           createAssistantFixtureModel(),
           logging,
         ),
-        "catalog-assistant": createCatalogAssistant(
-          chat.memory,
-          createAssistantFixtureModel(),
-          logging,
-        ),
+        "catalog-assistant": assistant,
       },
       storage,
       logger: logging?.native ?? false,
@@ -208,7 +210,10 @@ export async function createFixtureMastra() {
         host: "127.0.0.1",
         port: Number(process.env.STUDIO_FIXTURE_PORT ?? 4111),
         apiRoutes: [jobs.route],
-        middleware: [ingestionExecutionGuard(workflow.historyControl, storage)],
+        middleware: [
+          catalogEditApproval(assistant),
+          ingestionExecutionGuard(workflow.historyControl, storage),
+        ],
       },
     },
     chat,

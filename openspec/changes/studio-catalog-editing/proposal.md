@@ -8,7 +8,7 @@ The owner can inspect catalog data and start research from Studio chat. The owne
 
 - Let the owner edit existing Events, Editions, and links through the catalog assistant. The scope includes both Event descriptions, Event slugs, and Edition prices, classifications, and location. Creation, deletion, and publication actions are outside this change.
 - Let the catalog assistant search the public web through OpenRouter and cite sources in chat. The owner can use those sources to review a proposed correction.
-- Show the full set of proposed values and the audit mode before approval. Approval applies the selected card's changes to the current records. Report the result for each Event or Edition in the batch.
+- Show the full set of proposed values and the audit mode before approval. Use the built-in Studio approval card for one pending edit at a time. Apply the approved changes to the current records. Report the result for each Event or Edition in the batch.
 - Record approved changes in `catalog_changes` by default. Let the owner explicitly omit these entries for a direct edit.
 
 ## Capabilities

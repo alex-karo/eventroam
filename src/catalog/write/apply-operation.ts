@@ -39,7 +39,7 @@ function assert(condition: unknown, message: string): asserts condition {
     throw new Error(message);
   }
 }
-function eventRow(client: Database.Database, id: string): EventRow {
+export function eventRow(client: Database.Database, id: string): EventRow {
   const found = drizzle(client)
     .select()
     .from(events)
@@ -48,7 +48,7 @@ function eventRow(client: Database.Database, id: string): EventRow {
   assert(found, "events record not found");
   return found;
 }
-function editionRow(client: Database.Database, id: string): EditionRow {
+export function editionRow(client: Database.Database, id: string): EditionRow {
   const found = drizzle(client)
     .select()
     .from(editions)
@@ -57,7 +57,7 @@ function editionRow(client: Database.Database, id: string): EditionRow {
   assert(found, "editions record not found");
   return found;
 }
-function normalizedPriceDetails(details: CatalogPriceDetail[]) {
+export function normalizedPriceDetails(details: CatalogPriceDetail[]) {
   const normalized = details.map((detail) => ({
     label: detail.label,
     ...(detail.amount === undefined
@@ -170,13 +170,16 @@ function validateScope(client: Database.Database, id: string) {
 }
 function writeChange(
   client: Database.Database,
-  meta: CatalogOperationMeta,
+  meta: CatalogOperationMeta & { omitAudit?: boolean },
   subject: "event" | "edition",
   id: string,
   version: number,
   changes: CatalogFieldChange[],
   now: string,
 ) {
+  if (meta.omitAudit) {
+    return;
+  }
   assert(changes.length > 0, "Catalog change needs at least one field");
   const changeId = randomUUID();
   const db = drizzle(client);
@@ -763,8 +766,73 @@ export function applyCatalogOperation(
   input: CatalogOperation,
 ) {
   const op = catalogOperationSchema.parse(input);
+  return applyWithReceipt(client, op.operationKey, op, () => op);
+}
+
+type DirectEditOperation = Extract<
+  CatalogOperation,
+  {
+    kind:
+      | "updateEvent"
+      | "updateEdition"
+      | "replaceLinks"
+      | "replacePriceBlock"
+      | "replaceTerms";
+  }
+>;
+
+export type ApprovedEditStep = {
+  key: string;
+  resolve: () => {
+    [K in DirectEditOperation["kind"]]: Omit<
+      Extract<DirectEditOperation, { kind: K }>,
+      keyof CatalogOperationMeta | "expectedVersion"
+    >;
+  }[DirectEditOperation["kind"]];
+};
+
+/** Apply one approved target. Read its live values only after the receipt check. */
+export function applyApprovedCatalogItem(
+  client: Database.Database,
+  steps: ApprovedEditStep[],
+  target: { kind: "event" | "edition"; id: string },
+  auditMode: "record" | "omit",
+): CatalogOperationResult[] {
+  return client
+    .transaction(() =>
+      steps.map(({ key, resolve }) =>
+        applyWithReceipt(
+          client,
+          key,
+          { target, auditMode },
+          () => {
+            const row =
+              target.kind === "event"
+                ? eventRow(client, target.id)
+                : editionRow(client, target.id);
+            return catalogOperationSchema.parse({
+              ...resolve(),
+              expectedVersion: row.version,
+              operationKey: key,
+              actor: "studio-catalog-assistant",
+            });
+          },
+          auditMode === "omit",
+        ),
+      ),
+    )
+    .immediate();
+}
+
+function applyWithReceipt(
+  client: Database.Database,
+  operationKey: string,
+  payload: unknown,
+  resolve: () => CatalogOperation,
+  omitAudit = false,
+) {
   const payloadHash = createHash("sha256")
-    .update(JSON.stringify(op))
+    .update(JSON.stringify(payload))
     .digest("hex");
   return drizzle(client).transaction((db) => {
     const prior = db
@@ -773,7 +841,7 @@ export function applyCatalogOperation(
         result: operationReceipts.result,
       })
       .from(operationReceipts)
-      .where(eq(operationReceipts.operationKey, op.operationKey))
+      .where(eq(operationReceipts.operationKey, operationKey))
       .get();
     if (prior) {
       assert(
@@ -783,10 +851,11 @@ export function applyCatalogOperation(
       return prior.result as CatalogOperationResult;
     }
     const now = new Date().toISOString();
+    const op = { ...resolve(), operationKey, omitAudit };
     const result = applyOperation(client, op, now);
     db.insert(operationReceipts)
       .values({
-        operationKey: op.operationKey,
+        operationKey,
         payloadHash,
         result,
         appliedAt: now,
