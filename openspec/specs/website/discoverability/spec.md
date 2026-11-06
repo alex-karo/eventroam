@@ -13,7 +13,7 @@ Existing host, redirect, and filter rules remain owned by [website routing](../r
 The system SHALL permit indexing of both clean host roots and every public Event and Edition page under existing publication rules. Missing optional facts and missing Event JSON-LD SHALL NOT add an indexing gate. Historical, cancelled, and postponed public pages SHALL remain indexable. No separate indexing activation SHALL be required.
 
 #### Scenario: A published edition has sparse facts
-- **WHEN** an Edition passes current public read rules with dates and a country but no summary, venue, or locality
+- **WHEN** an Edition passes current public read rules with dates and a country, and both Event descriptions, the venue and the locality are missing
 - **THEN** its detail page and its Event page permit indexing and remain eligible for the Festivals sitemap
 - **AND** no new publication condition or feature switch is required
 
@@ -129,6 +129,11 @@ The system SHALL emit Event JSON-LD for a single Edition with a public name, con
 #### Scenario: A page lists several editions
 - **WHEN** an Event history page or the discovery root is rendered
 - **THEN** it does not describe the whole list as one dated Event in JSON-LD
+
+#### Scenario: An Edition qualifies for structured data
+
+- **WHEN** the page emits Event JSON-LD for an Edition
+- **THEN** its description matches the festival text shown in the About section, including when the page uses a fallback
 
 ### Requirement: Crawler content follows public read boundaries
 

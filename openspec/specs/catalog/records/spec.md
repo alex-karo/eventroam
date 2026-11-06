@@ -9,7 +9,8 @@ Define the fixture-backed catalog's durable Event and Edition identities, valida
 ### Requirement: Events and editions have separate durable identities
 
 The catalog MUST represent an Event as a durable named identity. Each realization MUST have a separate Edition.
-IDs MUST remain opaque and stable. The Event MUST own its name, aliases, summary, slug, and publication state.
+IDs MUST remain opaque and stable. The Event MUST own its name, aliases, optional `description` and `shortDescription`, slug, and publication state.
+Either Event description MAY be set or cleared independently. Both MAY be absent.
 The Edition MUST own its dates, status, location, estimated size, price, and classifications.
 Its key MUST be unique within the Event. The key MUST NOT define its current dates.
 Multiple programme periods of the same realization MUST belong to one Edition.
