@@ -11,6 +11,7 @@ import { ingestionExecutionGuard } from "./ingestion-guard";
 import { createStudioJobs } from "./jobs";
 import { createApplicationLogger } from "../ingestion/runtime/logging";
 import { createAssistantLogging } from "./catalog-assistant/logging";
+import { catalogEditApproval } from "./catalog-assistant/edit-approval";
 
 const chatPath = chatDatabasePath();
 const { workflow, storage } = await studioResources();
@@ -19,6 +20,7 @@ const chat = await createChatMemory(chatPath).catch(async () => {
   throw new Error("Studio chat storage unavailable");
 });
 const logging = createAssistantLogging();
+const assistant = createCatalogAssistant(chat.memory, undefined, logging);
 const jobs = createStudioJobs(
   workflow,
   logging && createApplicationLogger(logging),
@@ -32,11 +34,7 @@ export const mastra = new Mastra(
         undefined,
         logging,
       ),
-      "catalog-assistant": createCatalogAssistant(
-        chat.memory,
-        undefined,
-        logging,
-      ),
+      "catalog-assistant": assistant,
     },
     workflows: { "catalog-ingestion": workflow },
     storage,
@@ -46,13 +44,21 @@ export const mastra = new Mastra(
       host: "127.0.0.1",
       port: 4111,
       drainTimeout: 55_000,
-      apiRoutes: [jobs.route],
-      middleware: [ingestionExecutionGuard(workflow.historyControl, storage)],
     },
   },
   chat,
   jobs,
 );
+
+// The CLI reads the static server options before it starts the application.
+mastra.setServer({
+  ...mastra.getServer(),
+  apiRoutes: [jobs.route],
+  middleware: [
+    catalogEditApproval(assistant),
+    ingestionExecutionGuard(workflow.historyControl, storage),
+  ],
+});
 
 async function studioResources() {
   let storage:

@@ -18,7 +18,12 @@ it.each([classificationInstructions, editorInstructions])(
     expect(instructions).toContain(
       "prefer festival if the organizer explicitly calls",
     );
-    expect(instructions).toContain("mixed takes precedence");
+    expect(instructions).toContain(
+      "primarily outdoors, even if some concerts take place on covered or enclosed stages",
+    );
+    expect(instructions).toContain(
+      "both settings host substantial parts of the main programme and neither is clearly primary",
+    );
   },
 );
 

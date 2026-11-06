@@ -3,7 +3,7 @@ export const PROMPT_VERSIONS = {
   reader: "source-reader-v42",
   general: "general-facts-v29",
   tickets: "current-tickets-v25",
-  classification: "edition-classification-v21",
+  classification: "edition-classification-v22",
   links: "public-links-v17",
-  editor: "proposal-review-v38",
+  editor: "proposal-review-v39",
 };

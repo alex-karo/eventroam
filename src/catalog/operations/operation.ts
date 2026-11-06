@@ -74,13 +74,27 @@ export const catalogPriceBlockSchema = z
       ),
   })
   .strict();
+export const eventUpdateSchema = eventData.partial();
+export const editionUpdateSchema = editionData
+  .omit({ editionKey: true, price: true })
+  .partial();
+export const linkValueSchema = z
+  .object({
+    kind: z.enum(linkKinds),
+    url,
+    label: z.string().max(250).nullable().optional(),
+    official: z.boolean(),
+  })
+  .strict();
+export const termIdsSchema = z.array(z.string().min(1)).max(50);
+
 export const catalogOperationSchema = z.discriminatedUnion("kind", [
   common.extend({ kind: z.literal("createEvent"), data: eventData }),
   common.extend({
     kind: z.literal("updateEvent"),
     id: z.string().min(1),
     expectedVersion: z.number().int().positive(),
-    data: eventData.partial(),
+    data: eventUpdateSchema,
   }),
   common.extend({
     kind: z.literal("createEdition"),
@@ -91,7 +105,7 @@ export const catalogOperationSchema = z.discriminatedUnion("kind", [
     kind: z.literal("updateEdition"),
     id: z.string().min(1),
     expectedVersion: z.number().int().positive(),
-    data: editionData.omit({ editionKey: true, price: true }).partial(),
+    data: editionUpdateSchema,
   }),
   common.extend({
     kind: z.literal("publishEvent"),
@@ -117,7 +131,7 @@ export const catalogOperationSchema = z.discriminatedUnion("kind", [
     kind: z.literal("replaceTerms"),
     id: z.string().min(1),
     expectedVersion: z.number().int().positive(),
-    termIds: z.array(z.string().min(1)).max(50),
+    termIds: termIdsSchema,
   }),
   common.extend({
     kind: z.literal("replaceLinks"),
@@ -126,18 +140,7 @@ export const catalogOperationSchema = z.discriminatedUnion("kind", [
       z.object({ type: z.literal("edition"), id: z.string().min(1) }),
     ]),
     expectedVersion: z.number().int().positive(),
-    links: z
-      .array(
-        z
-          .object({
-            kind: z.enum(linkKinds),
-            url,
-            label: z.string().max(250).nullable().optional(),
-            official: z.boolean(),
-          })
-          .strict(),
-      )
-      .max(30),
+    links: z.array(linkValueSchema).max(30),
   }),
   common.extend({
     kind: z.literal("replacePriceBlock"),

@@ -74,11 +74,19 @@ All supplied text is search leads. The collector receives the full note, includi
 
 ## Studio catalog assistant
 
-Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview up to 200 Events, update a clear selection, or explain saved results. Follow-up references use the selected conversation. An explicit update request permits apply without a second confirmation. Unclear targets or write intent require clarification.
+Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview or run a refresh, correct saved fields, or explain saved results. Follow-up references use the selected conversation. An explicit refresh request permits ingestion without a second confirmation. A direct edit always needs approval on its card. Unclear targets or write intent require clarification.
 
-The assistant has three catalog tools: `query_catalog({sql, parameters?})`, `refresh_events({eventIds, scope?, dryRun?})`, and `cancel_batch({batchId})`. It loads schema and report guidance from the catalog-sql filesystem skill through native Mastra skill tools. SQL reads need a migrated catalog but no provider key.
+Use the ingestion and read tools `query_catalog({sql, parameters?})`, `refresh_events({eventIds, scope?, dryRun?})`, and `cancel_batch({batchId})` to work with saved data and jobs. The assistant loads schema and report guidance from the catalog-sql filesystem skill through native Mastra skill tools. SQL reads need a migrated catalog but no provider key.
 
 Chat uses the configured OpenRouter model by default. Native Studio model selection can use another provider and its credentials without an OpenRouter key. OpenRouter chat calls use the configured reasoning and service tier; explicit call options override those defaults. Other providers do not receive these defaults.
+
+For direct edits, the assistant shows the old and new values and the audit mode before it writes. Use the built-in Approve or Decline button on the current card. Resolve the current draft before asking for another edit. For a revision, decline the current draft and review the new one. Studio applies each Event or Edition separately and reports changed, unchanged, and failed targets. Direct edits can change existing Event, Edition, and link fields. They preserve Edition keys, ownership, and publication state. They cannot create or delete records or links.
+
+- “Find the current official website for Example Festival. Cite the source and propose a correction to its saved link.”
+- “Replace the short description of Example Festival with this text. Do not add a catalog audit entry.”
+- “Rename these links using the same label pattern.” If one target fails, review the reason in chat and ask for a new proposal for that target.
+
+The assistant records direct edits in the catalog audit table by default. It can omit that entry when you ask. A published Event slug change keeps its public URL aliases in either mode. Web search is available with OpenRouter. A search by itself does not change the catalog or start jobs.
 
 Submission and inspection need no ingestion key. Studio uses its OpenRouter settings and credentials when it executes a job. Chat generation still needs its selected provider credentials.
 

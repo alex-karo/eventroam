@@ -64,6 +64,12 @@ test.each([
       expect(JSON.parse(String(init?.body))).toMatchObject({
         model: "openai/gpt-6-luna",
         reasoning: { effort: settings.effort },
+        tools: expect.arrayContaining([
+          expect.objectContaining({ type: "openrouter:web_search" }),
+          expect.objectContaining({
+            function: expect.objectContaining({ name: "edit_catalog" }),
+          }),
+        ]),
       });
       expect(JSON.parse(String(init?.body)).service_tier).toBe(
         settings.expectedTier,
@@ -129,6 +135,8 @@ test.each([
       const request = JSON.parse(String(init?.body));
       expect(request).not.toHaveProperty("service_tier");
       expect(request).not.toHaveProperty("reasoning");
+      expect(JSON.stringify(request.tools)).not.toContain("web_search");
+      expect(JSON.stringify(request.tools)).toContain("edit_catalog");
     } finally {
       await chat.memory.settled();
       await chat.storage.close();
