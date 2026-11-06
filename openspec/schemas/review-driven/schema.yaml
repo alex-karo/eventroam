@@ -7,20 +7,13 @@ artifacts:
     description: Initial proposal document outlining the change
     template: proposal.md
     instruction: |
-      Writing rules for all artifacts:
-      Use plain English, short sentences, and common words. State one idea per sentence.
-      Name the component that acts. Keep exact technical names and required OpenSpec
-      headings and keywords. Explain key reasons. Do not repeat other artifacts;
-      link to the relevant section instead. Prefer clarity over compressed prose.
-      Do not add empty sections or invented alternatives just to fill a template.
-
       Create the proposal document that establishes WHY this change is needed.
       Start from the requested outcome and a concrete before/after example when useful.
       Distinguish requested outcomes, existing contracts and newly proposed guarantees.
       Writing a guarantee into a proposal or spec does not itself establish user acceptance.
 
       Sections:
-      - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
+      - **Why**: State the problem or opportunity and why it matters now.
       - **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
       - **Capabilities**: Identify which specs will be created or modified:
         - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<capability-path>/spec.md`. Name each capability for a durable system behavior (for example, `user-auth`), not the work in this change (for example, `add-login-endpoint`). Choose a cohesive boundary that can own related requirements as the system evolves; avoid broad catch-all capabilities. Use kebab-case for path segments you introduce (e.g., `user-auth` or `identity/user-auth`) and follow the project's existing spec organization.
@@ -51,10 +44,7 @@ artifacts:
       behavior, so if behavior does not change, no spec should change either.
       Do not invent a requirement just to satisfy validation.
 
-      Keep it concise (1-2 pages). Focus on the "why" not the "how" -
-      implementation details belong in design.md.
-
-      This is the foundation - specs, design, and tasks all build on this.
+      Keep implementation details in design.md.
     requires: []
 
   - id: specs
@@ -62,16 +52,10 @@ artifacts:
     description: Detailed specifications for the change
     template: spec.md
     instruction: |
-      Writing rules for all artifacts:
-      Use plain English, short sentences, and common words. State one idea per sentence.
-      Name the component that acts. Keep exact technical names and required OpenSpec
-      headings and keywords. Explain key reasons. Do not repeat other artifacts;
-      link to the relevant section instead. Prefer clarity over compressed prose.
-      Do not add empty sections or invented alternatives just to fill a template.
-
       Create specification files that define WHAT the system should do.
 
-      A spec is a behavior contract, not an implementation plan.
+      A spec defines only behavior that a user, operator, or another system can
+      observe. This includes public interfaces and operational results, not only UI.
       Trace significant new obligations to the requested outcome, an existing
       contract or an explicitly proposed decision. Do not turn an implementation
       convenience or a defensive assumption into a requirement merely to justify
@@ -87,11 +71,22 @@ artifacts:
       Avoid in specs:
       - Internal class/function names
       - Library or framework choices
+      - Storage layout, private data shapes, and internal orchestration
       - Step-by-step implementation details
       - Detailed execution plans (those belong in design.md or tasks.md)
 
       Quick test: if the implementation can change without changing externally
-      visible behavior, it likely does not belong in the spec.
+      visible behavior, the implementation choice does not belong in the spec.
+      Keep data shapes and signatures in code. Link to their source definitions
+      when needed; use the design's Contracts section for proposed code changes.
+      Keep observable validation rules, errors, and value meaning in the spec.
+      Public names and values belong here when consumers depend on them.
+
+      Use consistent domain terms. Give each requirement a name that states its
+      behavior. Give each scenario a concrete trigger and observable result.
+      Include failure and boundary cases when they define different behavior;
+      do not enumerate internal branches. Avoid vague results such as "works
+      correctly". Require exact UI text only when that text is part of the contract.
 
       Create one spec file per capability listed in the proposal's Capabilities section.
       `<capability-path>` is the spec directory relative to `specs/` (for example,
@@ -143,30 +138,6 @@ artifacts:
       Common pitfall: Using MODIFIED with partial content loses detail at archive time.
       If adding new concerns without changing existing behavior, use ADDED instead.
 
-      Example (a new capability, so its first section is `## Purpose`):
-      ```
-      # Spec Delta
-
-      ## Purpose
-
-      Lets users take their data out of the product in a portable format.
-
-      ## ADDED Requirements
-
-      ### Requirement: User can export data
-      The system SHALL allow users to export their data in CSV format.
-
-      #### Scenario: Successful export
-      - **WHEN** user clicks "Export" button
-      - **THEN** system downloads a CSV file with all user data
-
-      ## REMOVED Requirements
-
-      ### Requirement: Legacy export
-      **Reason**: Replaced by new export system
-      **Migration**: Use new export endpoint at /api/v2/export
-      ```
-
       Specs should be testable - each scenario is a potential test case.
     requires:
       - proposal
@@ -176,40 +147,34 @@ artifacts:
     description: Technical design document with implementation details
     template: design.md
     instruction: |
-      Writing rules for all artifacts:
-      Use plain English, short sentences, and common words. State one idea per sentence.
-      Name the component that acts. Keep exact technical names and required OpenSpec
-      headings and keywords. Explain key reasons. Do not repeat other artifacts;
-      link to the relevant section instead. Prefer clarity over compressed prose.
-      Do not add empty sections or invented alternatives just to fill a template.
-
       Create design.md for every change, including small changes.
-      Explain the current engineering approach so a reviewer can assess it before coding.
-      A small design may be only a few paragraphs. Keep Change size and Approach;
-      omit other sections when they add no useful information.
-
-      Keep the text concise. State each decision directly. Explain each fact once.
-      Remove filler, repeated context, obvious details, and statements that add no
-      useful information. For each key decision, usually use 2-3 sentences: the
-      choice, its reason, and any material trade-off. Use more detail only to explain
-      a specific complexity or risk. This is a guide, not a sentence limit.
+      Explain the technical solution so a reviewer can assess it before implementation.
+      Keep TL;DR first. Add detail sections only when they help explain the solution,
+      its reasons, or its risks. A simple design can contain only TL;DR.
 
       Sections:
-      - Change size: Small, Medium, or Large, with a short reason. Name affected areas,
-        contract or stored-data changes, dependencies, and material uncertainty.
-        Judge size by coupling, risk, and verification effort, not file count.
-      - Approach: Briefly explain the proposed solution. Link to the proposal for
-        motivation and specs for behavior. Make the core idea understandable without
-        reading code: describe the user-visible change and main flow, what existing
-        components or dependencies already do, and what the application must own.
-        Explain the smallest credible approach before its additional mechanisms.
-      - Contracts: Show important before/after inputs, outputs, and type changes.
-        Use short type sketches where helpful. Explain omission, null, empty values,
-        errors, and validation when they affect the contract. Cover stored-data
-        transitions and compatibility only when relevant to the project.
+      - TL;DR: Give a compact, structured overview of the whole solution.
+        Show the intended result, core idea, and main flow or responsibilities.
+        Include a constraint or trade-off only when it is needed to understand the solution.
+        Use labeled bullets, short paragraphs, or a small Mermaid diagram as needed.
+        Combine text and a diagram when useful. Do not require fixed labels or a diagram.
+        Make the overview clear without reading code or later sections.
+        Put supporting detail in the sections below. Link to the proposal and specs
+        for full motivation and behavior rules.
+      - Contracts: Show changed data shapes and signatures as short fenced code
+        blocks with a language tag. Use TypeScript for application types. Mark code
+        that is proposed and link to existing source definitions. Show before/after
+        only when it helps explain the change. Code owns the exact structure; do
+        not repeat fields in prose or copy full schemas. Add brief prose only for
+        semantics the code cannot express, such as omission versus null. Reference
+        specs for observable validation rules and errors. Cover stored-data
+        transitions only when relevant. Omit this section if contracts do not change.
       - Architecture: Show the execution or data flow, module boundaries, and ownership
         of decisions, validation, and writes. Name removed paths or abstractions.
-        Use a small diagram when it makes the flow easier to understand.
+        Use a small Mermaid diagram when it makes boundaries, flow, or ownership
+        easier to understand. Use a sequence diagram when order matters. Label
+        components and interactions; omit private helpers. Explain only what the
+        diagram does not show. Omit this section if the structure is already clear.
       - Key decisions: State each important choice, its reason, and material trade-offs.
         For significant custom mechanisms, identify the concrete scenario and consumer,
         the source of the requirement, and why existing capabilities are insufficient.
@@ -218,39 +183,34 @@ artifacts:
         API availability alone does not establish application support.
         Separate requested or accepted guarantees from new proposals and assumptions.
         Distinguish required design decisions from details left to implementation.
-        Do not prescribe every function or copy complete implementation types.
-      - Simpler options: Consider options that keep the same requirements and options
-        that reduce scope. For the former, explain why a simpler option is not selected,
-        or select it. For the latter, name the requirement or capability lost or deferred.
-        Scope reductions are proposals, not permission to change approved requirements.
+        Do not prescribe private helpers or repeat full implementation schemas.
+        Discuss useful simpler options beside the decision they affect. Explain the
+        choice between options that keep the same requirements. For scope reductions,
+        name the lost or deferred behavior, affected consumers, and implementation
+        and test work avoided. These are proposals, not permission to change requirements.
         Compare removing a mechanism with reorganizing it; check actual dependency
         capabilities before retaining application-owned copies of their rules.
-        For worthwhile scope reductions, explain the user-visible loss and the
-        implementation and test burden avoided. Do not dismiss an option solely
-        because a newly drafted spec already requires the more complex behavior.
-        Do not invent alternatives; briefly state if no useful simpler option was found.
+        Do not reject a simpler option solely because a newly drafted spec requires
+        the more complex behavior. Omit alternatives when none are useful.
       - Risks and validation: Connect each material risk to a focused check or evidence.
         Include migration, recovery, or rollout details only when needed.
-        List only open questions that cannot change requirements, approach, or tasks.
+        List only open questions that cannot change requirements, the solution, or tasks.
         Resolve questions that would change those with the user before writing tasks.
 
-      Scale detail to the change:
-      - Small: a concise approach, important consequences, and focused verification.
-      - Medium: explicit contracts, flow, ownership, and key choices.
-      - Large: also explain subsystem boundaries, data transitions, dependencies,
-        intermediate validation, and major risks where applicable.
-      Risk may require deeper treatment even for a small change. These are guides,
-      not word counts or section quotas. Reassess size if scope or uncertainty changes.
+      Scale detail to actual risk and uncertainty. Explain the main flow, what
+      existing components or dependencies already do, and what the application
+      adds where needed. Cover data transitions, dependencies, and intermediate
+      validation only when they affect a decision. Use no size categories or
+      section quotas. Keep TL;DR short; put necessary detail in its owning section.
 
-      Keep design.md as one coherent description of the current solution. Fold later
-      corrections into their owning sections instead of appending correction logs.
+      Keep design.md as one coherent description of the current solution.
+      Fold corrections into the relevant sections. Do not append correction logs.
       Update affected proposal, specs, and tasks when an approved decision changes.
-      Before handoff, check whether the plan alone explains the outcome, main flow,
-      ownership, and reasons for added mechanisms. Rewrite missing explanations in
-      place; do not add a second document or repeat every requirement.
-      Then edit the draft for length. Remove any sentence whose deletion does not
-      reduce the reader's ability to assess or implement the design. Keep necessary
-      reasons and constraints. Prefer direct wording over dense shorthand.
+      Write or revise TL;DR after the detailed design. Keep it first in the file.
+      Check that it agrees with the details and introduces no conflicting decisions.
+      Before handoff, check the outcome, main flow, ownership, and reasons for added mechanisms.
+      Add missing explanations to their relevant sections. Update TL;DR when the core idea changes.
+      Remove text that does not help assess or implement the design.
     requires:
       - proposal
 
@@ -259,13 +219,6 @@ artifacts:
     description: Implementation checklist with trackable tasks
     template: tasks.md
     instruction: |
-      Writing rules for all artifacts:
-      Use plain English, short sentences, and common words. State one idea per sentence.
-      Name the component that acts. Keep exact technical names and required OpenSpec
-      headings and keywords. Explain key reasons. Do not repeat other artifacts;
-      link to the relevant section instead. Prefer clarity over compressed prose.
-      Do not add empty sections or invented alternatives just to fill a template.
-
       Create the task list that breaks down the implementation work.
 
       Before writing tasks, check design.md for Open Questions. If any of them
@@ -314,10 +267,10 @@ artifacts:
 
       Reference specs for what needs to be built, design for how to build it.
 
-      Plan size and detail must follow Change size and material risks in design.md.
-      Small changes need a few focused steps. Medium changes need groups that deliver
-      coherent parts of the change. Large changes need stages with explicit dependencies
-      and intermediate validation. Use no fixed task counts or time estimates.
+      Match task detail to scope, dependencies, and material risks in design.md.
+      Use a few focused steps for a simple change. Group related outcomes when
+      needed, with explicit dependencies and intermediate validation for work
+      that spans components. Use no size categories, fixed task counts, or time estimates.
       Each task should describe one reviewable outcome and how to check it. Do not hide
       many unrelated actions in a long checkbox to make the plan look short. Reference
       design details and spec scenarios instead of repeating them in each task.
@@ -325,17 +278,12 @@ artifacts:
       and check existing coverage before adding fixtures or another integration matrix.
       Prefer testing the application's use of a dependency over reproducing its own
       algorithm tests, unless an explicit contract or integration risk calls for it.
-      Reassess the plan when the design's size, scope, or risk changes.
+      Reassess the plan when scope, dependencies, or risk changes.
 
-      After drafting the artifacts for a substantive change, use the repository's
-      plan-review skill before presenting the plan as ready. Supply the original
-      request, existing contracts, and artifact locations without coaching the
-      review toward the author's conclusions.
-      Apply supported wording and behavior-preserving planning improvements within
-      the authorized scope; surface material scope/guarantee decisions to the user.
-      Recheck affected decisions once after revisions, then report unresolved issues
-      rather than repeating review loops. Small direct changes can use a self-check,
-      identified as such. Do not add a review artifact or start implementation.
+      Before presenting a substantive plan as ready, follow the repository's
+      plan-review skill at .agents/skills/plan-review/SKILL.md for review and reporting.
+      Apply supported revisions within the authorized planning scope after review.
+      Do not add a review artifact or start implementation.
     requires:
       - specs
       - design

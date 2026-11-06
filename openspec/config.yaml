@@ -2,35 +2,30 @@ schema: review-driven
 
 context: |
   Eventroam is an English-language worldwide event catalog. Initial scope covers
-  open-air music festivals and burning-like gatherings. The current Next.js app
-  uses fictional development fixtures. Owner-initiated ingestion and application containers are
-  implemented; public deployment is deferred.
+  open-air music festivals and burning-like gatherings.
+  Read README.md for public sites and deployment status.
   Main specs describe implemented behavior. Approved future work belongs in
   active changes; unresolved decisions belong in docs/proposals/.
   Group spec capabilities under catalog/, website/, or operations/ by domain.
   Match each change delta's capability path to its main spec path.
-  Language: English
-  All artifacts must be written in English.
-  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  Use ASD-STE100 Simplified Technical English for all artifacts.
+  Use short sentences and common words. State one idea per sentence and name
+  the component that acts. Keep technical names, OpenSpec headings, and keywords exact.
+  Explain key reasons and link to other artifacts instead of repeating them.
+  Prefer clear wording over dense shorthand. Keep necessary reasons and constraints.
+  Do not add empty sections or invented alternatives to fill a template.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always state what is out of scope
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
-
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+# Apply these writing rules to each change's selected schema.
+rules:
+  specs:
+    - Describe only behavior that a user, operator, or another system can observe. Keep implementation choices in design and data shapes and signatures in code.
+    - Keep observable validation rules, errors, and value meaning in specs. Use consistent domain terms and concrete WHEN/THEN results.
+  design:
+    - Keep TL;DR first. Make it a compact, structured overview of the result, core idea, and main flow or responsibilities. Use labeled bullets, short paragraphs, or a small Mermaid diagram as needed. Put supporting detail in the sections below.
+    - Write or revise TL;DR after the detailed design. Check that it agrees with the details and makes sense on its own. A simple design can contain only TL;DR if no further detail is needed.
+    - Do not include a change-size label or assessment.
+    - Describe changed data shapes and signatures with short fenced code blocks. Mark proposed code and link to existing definitions. Do not repeat fields in prose.
+    - Add Mermaid diagrams when they clarify component boundaries, data flow, or ownership. Use sequence diagrams when order matters.
+    - Omit sections that add no useful information. Match detail to risk and uncertainty.
+  tasks:
+    - Match task detail to scope, dependencies, and risk. Do not require a change-size assessment.
