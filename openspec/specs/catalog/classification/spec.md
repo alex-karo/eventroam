@@ -161,8 +161,8 @@ The report MUST explain normalization in changed-assignment diffs, including pre
 
 The `format` facet MUST describe the physical setting of an Edition's main programme.
 `openair` MUST mean an open site is the primary setting. `indoor` MUST mean enclosed spaces are the primary setting.
-`mixed-indoor-outdoor` MUST mean substantial parts of the main programme use both settings.
-When both settings qualify, mixed MUST take precedence over either single-setting label.
+`mixed-indoor-outdoor` MUST mean both settings host substantial parts of the main programme and neither is clearly primary.
+A covered stage or an enclosed venue MAY be part of an open-air Edition when the main programme is primarily outdoors. A roof over a stage or audience area alone does not establish an enclosed setting.
 Support facilities and a single physical feature MUST NOT determine format. Unclear evidence MUST leave format unknown.
 Ingestion MAY use `Open Air` in the current official festival name as evidence for `openair`. Direct evidence about the current main programme MUST take priority over the name.
 
@@ -170,7 +170,7 @@ Ingestion MAY use `Open Air` in the current official festival name as evidence f
 
 - **WHEN** inspected evidence describes an open site as the main programme setting
 - **THEN** research can propose `openair` with that basis
-- **AND** a roof or enclosure alone does not determine the whole Edition's format
+- **AND** covered or enclosed stages do not change that format when the open site remains the primary setting
 
 #### Scenario: The official festival name contains Open Air
 
@@ -184,11 +184,10 @@ Ingestion MAY use `Open Air` in the current official festival name as evidence f
 - **THEN** research can propose `indoor`
 - **AND** outdoor access, camping, or other support facilities alone do not establish a mixed format
 
-#### Scenario: Both settings carry substantial programme content
+#### Scenario: Both settings share the main programme
 
-- **WHEN** inspected evidence establishes substantial main programme content in open and enclosed settings
+- **WHEN** inspected evidence shows that both open and enclosed settings are central to the main programme and neither is clearly primary
 - **THEN** research can propose `mixed-indoor-outdoor`
-- **AND** incidental use of the second setting is insufficient
 
 #### Scenario: Available evidence does not establish the setting
 
