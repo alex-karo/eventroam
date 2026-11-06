@@ -63,5 +63,3 @@ After target selection, validation SHALL check the whole original reply even if 
 - **WHEN** the original Tickets answer has an empty offer list without a free base price and cites an unknown evidence ID
 - **THEN** the validator reports the invalid reference even though the field check already failed
 - **AND** the attempt ends with zero specialist returns and zero catalog or audit writes
-
-
