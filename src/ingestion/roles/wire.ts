@@ -46,6 +46,7 @@ export function normalizeRoleWire(role: Role, raw: unknown): unknown {
 }
 
 function normalizeGeneral(value: RecordValue) {
+  omitNull(value, ["festivalCountries"]);
   if (value.decision === "targets") {
     for (const slot of [value.previousEdition, value.currentOrNextEdition]) {
       if (!record(slot) || !record(slot.fields)) {

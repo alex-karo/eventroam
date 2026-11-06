@@ -161,7 +161,7 @@ When an independent source establishes the Edition place, a matching selected fo
 
 The system checks shape and same-slot keys. Current requires `previousEdition:null` and no description or shared-link findings or actions. Classification omits both description fields from its current-scope schema. Code checks scope again after joining the specialist results. The two slots bound returned Editions; saved context has no Edition-count limit. Temporal choice, factual meaning and completeness remain model decisions assessed by evals.
 
-Conflicting saved countries fail before source/model calls (`country_baseline_conflict`). A known country from any saved Edition constrains every returned country, including new/unchanged facts and explicit null clearing; conflicts fail the entire Event (`country_conflict`) before editing; final Location country actions are checked again before operations. Correcting a bad baseline requires a separate authorized correction.
+Conflicting saved countries fail before source or model calls (`country_baseline_conflict`). General cites the countries where sources place the festival, even when both Edition slots are empty. The system compares those countries with the saved Edition countries before Editor. A conflict stops the whole refresh (`country_conflict`). The report names the countries and links to the source. Final Location actions also fail if they replace or clear a known country. Correcting a saved country requires a separate authorized correction.
 
 The apply transaction rechecks every saved Edition ID/country; concurrent baseline changes abort all writes. The writer checks data rules, versions, and publication requirements. It can reject an invalid date, but it cannot tell whether a valid date is factually correct.
 
