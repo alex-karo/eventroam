@@ -23,7 +23,7 @@ const input = {
   actor: "catalog-research",
   dryRun: false,
 };
-function fixture() {
+function fixture(scheduleStatus: "announced" | "scheduled" = "announced") {
   const { client } = testDatabase();
   const fx = testFixtures(client);
   const event = fx.event({
@@ -36,6 +36,7 @@ function fixture() {
     startsOn: "2027-07-01",
     endsOn: "2027-07-03",
     dateState: "confirmed",
+    scheduleStatus,
     countryCode: "PT",
     locality: "Lisbon",
     timeZone: "Europe/Lisbon",
@@ -326,6 +327,66 @@ test("writer rejection rolls back links, data, audit entries and receipts togeth
   expect(result.changes).toEqual([]);
   expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
   expect(f.client.prepare("SELECT * FROM catalog_changes").all()).toEqual([]);
+});
+test("rejects a new scheduled Edition without dates before writing any changes", async () => {
+  const f = fixture();
+  const target = f.general.currentOrNextEdition!;
+  target.editionKey = "2028";
+  target.fields = { year: set(2028), scheduleStatus: set("scheduled") };
+  const before = readResearchEvent(f.client, f.event.id);
+
+  const result = await runFixtureResearch(f.refresh, {
+    ...f.deps,
+    generateRoles: {
+      classification: fixtureDescriptionRole({
+        description: set("New description"),
+      }),
+    },
+  });
+
+  expect(result.outcome).toBe("failed");
+  expect(result.errors).toContainEqual({
+    code: "invalid_plan",
+    stage: "validation",
+    field: "currentOrNextEdition.fields.dates",
+    message:
+      "Edition 2028 needs a start date and an end date for status scheduled.",
+  });
+  expect(result.operations).toEqual([]);
+  expect(result.receipts).toEqual([]);
+  expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
+});
+test("accepts scheduled status when the Edition keeps its saved dates", async () => {
+  const f = fixture();
+  f.general.currentOrNextEdition!.fields.scheduleStatus = set("scheduled");
+
+  const result = await runFixtureResearch(f.refresh, f.deps);
+
+  expect(result.errors).toEqual([]);
+  expect(readResearchEvent(f.client, f.event.id)!.editions[0]).toMatchObject({
+    scheduleStatus: "scheduled",
+    startsOn: "2027-07-01",
+    endsOn: "2027-07-03",
+  });
+});
+test("rejects clearing dates when the Edition keeps its scheduled status", async () => {
+  const f = fixture("scheduled");
+  f.general.currentOrNextEdition!.fields.dates = clear();
+  const before = readResearchEvent(f.client, f.event.id);
+
+  const result = await runFixtureResearch(f.refresh, f.deps);
+
+  expect(result.outcome).toBe("failed");
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({
+      code: "invalid_plan",
+      stage: "validation",
+      message:
+        "Edition 2027 needs a start date and an end date for status scheduled.",
+    }),
+  );
+  expect(result.operations).toEqual([]);
+  expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
 });
 test("cancellation changes schedule status while omission preserves size", async () => {
   const f = fixture();

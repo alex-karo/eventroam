@@ -110,6 +110,7 @@ export interface BoundedResponse {
   finalUrl: string;
   status: number;
   contentType: string;
+  contentEncoding?: string;
   body: Buffer;
 }
 
@@ -281,6 +282,7 @@ export async function getBoundedResponse(
       finalUrl: response.url,
       status: response.statusCode,
       contentType: String(response.headers["content-type"] ?? "").toLowerCase(),
+      contentEncoding: response.headers["content-encoding"],
       body: Buffer.from(response.body),
     };
   } catch (error) {

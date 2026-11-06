@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { gzipSync } from "node:zlib";
 import { createResearchBudget } from "../../runtime/budget";
 import { readPage } from "./read";
 import { extractSource } from "./extract";
@@ -117,6 +118,39 @@ describe("readPage", () => {
     });
     expect(firecrawlRequest).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["without a key", "", 0],
+    ["when Firecrawl fails", "test-key", 1],
+  ] as const)(
+    "reports a compressed response as unreadable %s",
+    async (_name, firecrawlKey, calls) => {
+      const request = vi.fn(async () => ({
+        finalUrl: sourceUrl,
+        status: 200,
+        contentType: "text/html",
+        body: gzipSync("<h1>Festival dates</h1>"),
+      }));
+      const firecrawlRequest = vi
+        .fn()
+        .mockRejectedValue(new FirecrawlError("timeout"));
+      const result = await readPage(sourceUrl, {
+        budget: createResearchBudget(),
+        request,
+        firecrawlRequest,
+        firecrawlKey,
+      });
+
+      expect(firecrawlRequest).toHaveBeenCalledTimes(calls);
+      expect(result).toMatchObject({
+        method: "http",
+        status: "failed",
+        httpStatus: 200,
+        reasonCode: "unreadable_response",
+        markdown: "",
+      });
+    },
+  );
 
   it("starts fallback after a blocked page without a page cap", async () => {
     const request = mockResponse("Forbidden");

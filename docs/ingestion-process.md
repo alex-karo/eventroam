@@ -165,6 +165,8 @@ Conflicting saved countries fail before source or model calls (`country_baseline
 
 The apply transaction rechecks every saved Edition ID/country; concurrent baseline changes abort all writes. The writer checks data rules, versions, and publication requirements. It can reject an invalid date, but it cannot tell whether a valid date is factually correct.
 
+Before writing, ingestion checks the proposed schedule status and dates together with any saved values the plan keeps. If a `scheduled` Edition would lack a start or end date, the run reports `invalid_plan` and saves no catalog changes.
+
 Accepted first-version limit: new Event slugs come from their names. If a distinct Event has the same generated slug as an existing Event or reserved alias, its item write fails and the run reports `write_failed`; the proposed slug remains visible in its operations. The run does not merge the two Events or choose a fallback slug automatically.
 
 ## Preview or apply
