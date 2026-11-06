@@ -1231,10 +1231,21 @@ it.each(["revise description", "reject target", "revise date"] as const)(
     f.f.assignTerm(donor, term);
     const shortPath = "event.fields.shortDescription";
     const datesPath = "currentOrNextEdition.fields.dates";
+    const originalQuestion = {
+      field: datesPath,
+      message: "The confirmed dates need a second check.",
+    };
+    const revisedQuestion = {
+      field: datesPath,
+      message: "The source does not give a time for the final day.",
+    };
     const link = "https://example.org/new-site";
     const requests = controlled({
       general: (body, index) => {
         const answer = fixtureTargets(f.event.id);
+        if (kind === "revise date") {
+          answer.unresolved = [index ? revisedQuestion : originalQuestion];
+        }
         if (index) {
           answer.currentOrNextEdition!.fields.dates = set({
             startsOn: "2027-06-01",
@@ -1275,9 +1286,16 @@ it.each(["revise description", "reject target", "revise date"] as const)(
         }),
       editor: (body, index, prompt) => {
         if (index) {
+          if (kind === "revise date") {
+            expect(prompt.prepared.unresolved).toContainEqual(revisedQuestion);
+            expect(prompt.prepared.unresolved).not.toContainEqual(
+              originalQuestion,
+            );
+          }
           return response(body, decisions(prompt));
         }
         if (kind === "revise date") {
+          expect(prompt.prepared.unresolved).toContainEqual(originalQuestion);
           expect(
             prompt.prepared.location.reusedFrom.currentOrNextEdition,
           ).toMatchObject({ editionKey: donor.editionKey });
@@ -1344,6 +1362,11 @@ it.each(["revise description", "reject target", "revise date"] as const)(
       expect(result.repairs).toBeUndefined();
       expect(requests.general).toHaveLength(1);
     } else if (kind === "revise date") {
+      expect(result.unresolved).toContainEqual(revisedQuestion);
+      expect(result.unresolved).not.toContainEqual(originalQuestion);
+      expect(result.unresolved).toContainEqual({
+        message: `currentDates: ${revisedQuestion.message}`,
+      });
       expect(current).toMatchObject({
         startsOn: "2027-06-01",
         terms: [],

@@ -900,6 +900,7 @@ export function createCatalogIngestionWorkflow(
               ...originalTargets,
               ...general,
               ...stageDiagnostics(data.researchValidation!),
+              unresolved: general.unresolved,
             },
             originalTargets,
           );
