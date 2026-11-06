@@ -49,8 +49,8 @@ Choose the type that best matches the organizer's description and programme. A f
 
 | Slug | Label | Assign when |
 | --- | --- | --- |
-| `openair` | Open-air | The main public programme operates in an open-air site setting. A single physical feature or support facility does not decide format. |
-| `mixed-indoor-outdoor` | Mixed indoor/outdoor | Substantial parts of the public programme use both open-air and enclosed indoor settings. This value takes priority when both settings are supported. |
+| `openair` | Open-air | The main programme is primarily outdoors. It may include covered or enclosed stages. |
+| `mixed-indoor-outdoor` | Mixed indoor/outdoor | Both settings host substantial parts of the main programme and neither is clearly primary. |
 | `indoor` | Indoor | The main public programme operates in enclosed indoor spaces. Outdoor support areas alone do not make it mixed. |
 
 Naming note (2026-10-11): `format/openair` replaces the former `format/outdoor` in application publication checks and fresh fixture vocabularies. The starter migration adds `format/openair` but does not rename or reassign the former `format/outdoor` in existing catalogs.
@@ -176,14 +176,14 @@ Fictional Edition examples, not verified real-event records:
 | --- | --- | --- | --- | --- | --- |
 | Forest Signal: official outdoor festival centered on psytrance | `festival` | `openair` | `music` | `psytrance` | Unset |
 | Common Ground Burn: participant-created art and gifting, no music programme | `gathering` | `openair` | `arts` | Unset | `burning-like` |
-| Valley Weekender: substantial indoor/outdoor stages, rock and jazz | `festival` | `mixed-indoor-outdoor` | `music` | `rock`, `jazz` | Unset |
+| Valley Weekender: programme split evenly across indoor and open-air stages, rock and jazz | `festival` | `mixed-indoor-outdoor` | `music` | `rock`, `jazz` | Unset |
 | Hearthfield Festival: outdoor live music and a substantial living-history programme | `festival` | `openair` | `music`, `reenactment` | Unset | Unset |
 | Quiet Fields Burn: participant-created art and gifting with daily guided meditation and yoga | `gathering` | `openair` | `arts`, `wellness` | Unset | `burning-like` |
 | Roadlight Festival: outdoor live music, organized rides, and custom-bike shows | `festival` | `openair` | `music`, `moto` | Unset | Unset |
-| Alpine Signal: substantial indoor/outdoor music programme and an official festival ticket including a ski pass for the festival dates | `festival` | `mixed-indoor-outdoor` | `music`, `snow-sports` | Unset | Unset |
+| Alpine Signal: music programme split evenly across indoor and open-air stages and an official festival ticket including a ski pass for the festival dates | `festival` | `mixed-indoor-outdoor` | `music`, `snow-sports` | Unset | Unset |
 | Coastal Pulse: outdoor music festival with a substantial surf competition and lessons programme | `festival` | `openair` | `music`, `surfing` | Unset | Unset |
 | Table & Sound: outdoor music festival with a dedicated chef stage, cooking workshops, and tastings | `festival` | `openair` | `music`, `food-and-drink` | Unset | Unset |
-| Trail Echo: substantial indoor/outdoor music programme plus daily guided hikes, climbing, and kayaking | `festival` | `mixed-indoor-outdoor` | `music`, `outdoor` | Unset | Unset |
+| Trail Echo: music programme split evenly across indoor and open-air stages plus daily guided hikes, climbing, and kayaking | `festival` | `mixed-indoor-outdoor` | `music`, `outdoor` | Unset | Unset |
 | Resort Beats: outdoor music festival near ski slopes, a beach, and ordinary food stalls, without included activities or a culinary programme | `festival` | `openair` | `music` | Unset | Unset |
 
 ## 5 Public behavior and acceptance
