@@ -209,7 +209,7 @@ Abrupt interruption may leave a running row with null report, finish time, and f
 
 ## Evaluate ingestion
 
-`pnpm run catalog:eval` runs five main cases once against fixed pages, searches, and geocoding responses. Each attempt starts from a fresh seed and applies the normal Research, Editor, Location, and writer flow in a disposable catalog. The owner's catalog is not changed. `--all` also runs all targeted regressions, for 50 cases in four separate groups.
+`pnpm run catalog:eval` runs five main cases once against fixed pages, searches, and geocoding responses. Each attempt starts from a fresh seed and applies the normal Research, Editor, Location, and writer flow in a disposable catalog. The owner's catalog is not changed. `--all` also runs the targeted regressions. Use `--group regression/classification` to check Edition categories and both festival descriptions directly.
 
 Main results show required completeness, additional completeness, no checked errors, and scenario success. Missing additional facts lower completeness; wrong checked facts fail the case. A dimension with no expected facts is N/A. Gold data stays outside model input.
 

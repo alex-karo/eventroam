@@ -45,7 +45,7 @@ One command SHALL support case and group selection. With no selection flags, it 
 
 ### Requirement: Quality and regression results stay separate
 
-Results SHALL separate main pipeline, regression pipeline, regression editor, regression Location, and regression Reader groups. Main SHALL report quality dimensions. Regressions SHALL report a binary `scenario-success` score and pass only when every check passes. Isolated source extraction SHALL also report declared evidence recall and literal binding validity. Each check SHALL identify its path, result, and message. Location SHALL retain completion, correction, and preservation summaries. No combined quality average SHALL mix groups. Failed checks SHALL be explained in CLI output and saved results.
+Results SHALL separate main pipeline, regression pipeline, regression editor, regression Location, regression Reader, and regression Classification groups. Main SHALL report quality dimensions. Regressions SHALL report a binary `scenario-success` score and pass only when every check passes. Isolated source extraction SHALL also report declared evidence recall and literal binding validity. Each check SHALL identify its path, result, and message. Location SHALL retain completion, correction, and preservation summaries. No combined quality average SHALL mix groups. Failed checks SHALL be explained in CLI output and saved results.
 
 #### Scenario: Location correction fails
 

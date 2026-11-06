@@ -45,3 +45,15 @@ Classification proposes a set or clear independently for each description. In cu
 Treat null, empty and whitespace-only text as absent for display. Use one name-based sentence at render time. For example, “River Lights is a festival listed in the Eventroam catalog.” All detail pages have a public Event name. This needs no model call or write. Eligible Edition structured data uses the same text as its About section. Edition metadata uses the existing occurrence-specific template.
 
 Historical Edition pages also show the current text under About the festival. Do not store historical description versions.
+
+## Main eval
+
+Main eval sends one reference sentence and both available stored texts to PPLX Decider in one request. Each text has its own yes or no question. Save the returned probabilities with the case output and print them beside the Editor decisions.
+
+Count each numeric result as one required fact. Use the raw probability and count a result below 0.80 as missing. Skip fields without a numeric result.
+
+## Isolated Classification eval
+
+Reuse the River Festival announcement and saved Edition from the current-scope regression. Supply the announced Edition as a fixed target and run Classification in full scope. Seed both saved texts with the former format. Bind the announcement quotation before any model call.
+
+Check the proposed categories and both replacement texts directly. Use the same Decider request and threshold as main. In this case, both texts and both numeric scores are required. Store the direct execution and checks in a separate experiment.

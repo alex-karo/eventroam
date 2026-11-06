@@ -177,7 +177,7 @@ function literalMatch(body: string, supplied: string) {
 export function bindEvidence(
   sourceId: string,
   body: string,
-  output: ReaderOutput,
+  output: Pick<ReaderOutput, "evidence" | "limitations">,
   sourceUrl: string,
 ) {
   const evidence: Evidence[] = [];

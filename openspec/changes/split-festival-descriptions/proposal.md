@@ -33,6 +33,10 @@ The catalog uses one Event summary for both the festival page and its search and
 - `website/discoverability`
   - **Before**: Event metadata describes the festival and its history. The site uses the summary when present.
   - **After**: Event search and social metadata prefer the short description of the current festival.
+- `operations/ingestion-evaluation`
+  - **Before**: Main eval shows description proposals, Editor decisions, and writes.
+  - **After**: Main eval reports the match probability for each assessed text. A result below 80% fails the case as a missing required fact.
+  - A direct Classification eval checks Edition categories and both text proposals from fixed evidence.
 
 ## Impact
 

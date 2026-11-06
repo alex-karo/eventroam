@@ -1,6 +1,12 @@
 import { createWorkflowStorage } from "../runtime/workflow-storage";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { evaluateMainCase, type MainScore } from "./main";
+import type { DescriptionFormat } from "./description-format";
+import { classificationCases, scoreClassification } from "./classification";
+import { runClassification } from "../roles/run";
+import type { RoleExecution } from "../roles/invoke";
+import type { ClassificationOutput } from "../roles/contracts";
+import { loadResearchContext } from "../research/context";
 import { resolveLocation, type LocationExecution } from "../location/agent";
 import { LOCATION_PROMPT_VERSION } from "../location/contracts";
 import { createResearchBudget } from "../runtime/budget";
@@ -13,6 +19,7 @@ import { scoreLocationCase } from "./score";
 import { validateCatalogValues } from "@/catalog/write/validate-values";
 import { randomUUID } from "node:crypto";
 import { Mastra } from "@mastra/core/mastra";
+import type { ItemWithScores } from "@mastra/core/datasets";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { openDatabase } from "@/db/connection";
 import { migrateCatalogConnection } from "@/db/migrate";
@@ -77,7 +84,10 @@ function ticketColumns(
   };
 }
 
-function seedDatabase(suite: EvalSuite, item: PipelineEvalCase) {
+function seedDatabase(
+  suite: EvalSuite,
+  item: Pick<PipelineEvalCase, "initial">,
+) {
   const connection = openDatabase(":memory:");
   try {
     migrateCatalogConnection(connection);
@@ -275,14 +285,19 @@ export type EvalCaseOutput = {
   report?: CatalogResearchResult;
   location?: LocationExecution;
   reader?: ReaderEvalOutput;
+  classification?: RoleExecution<ClassificationOutput>;
   runId?: string;
   traceId?: string;
   toolCalls: EvalToolCall[];
   before?: ReturnType<typeof readResearchCatalog>;
   after?: ReturnType<typeof readResearchCatalog>;
 } & (
-  | { quality: MainScore; score?: never }
-  | { score: ScenarioResult; quality?: never }
+  | { quality: MainScore; descriptionFormat: DescriptionFormat; score?: never }
+  | {
+      score: ScenarioResult;
+      quality?: never;
+      descriptionFormat?: DescriptionFormat;
+    }
 );
 
 async function executeCase(
@@ -300,6 +315,52 @@ async function executeCase(
       experimentId,
       observabilityStore,
     );
+  }
+  if ("classification" in item) {
+    const runId = `classification-eval-${randomUUID()}`;
+    const tracing = await createRunObservability(
+      item.input,
+      config.model,
+      runId,
+      [evalDatabasePath()],
+      observabilityStore,
+      experimentId,
+    );
+    try {
+      const { client } = seedDatabase(suite, item);
+      let classification;
+      try {
+        const todayUtc = item.todayUtc ?? suite.todayUtc;
+        classification = await runClassification(
+          {
+            input: item.input,
+            context: loadResearchContext(
+              client,
+              item.input,
+              `${todayUtc}T00:00:00.000Z`,
+            ),
+            corpus: item.classification.corpus,
+            budget: createResearchBudget(config.limits),
+            config,
+            deps: { client },
+            signal: AbortSignal.timeout(config.limits.durationMs),
+            tracing,
+          },
+          item.classification.targets,
+        );
+      } finally {
+        client.close();
+      }
+      return {
+        classification,
+        ...(await scoreClassification(item, classification)),
+        runId,
+        ...(tracing?.root?.traceId ? { traceId: tracing.root.traceId } : {}),
+        toolCalls: [],
+      };
+    } finally {
+      await finishRunObservability(tracing);
+    }
   }
   const calls: EvalToolCall[] = [];
   if (item.location) {
@@ -371,7 +432,7 @@ async function executeCase(
     if (item.suite === "main") {
       const after = readResearchCatalog(connection.client);
       return {
-        quality: evaluateMainCase(item, before!, after, result),
+        ...(await evaluateMainCase(item, before!, after, result)),
         before,
         after,
         report: result,
@@ -402,7 +463,13 @@ function workflowIdentity() {
 export async function runCatalogEvals(options: EvalOptions = {}) {
   const suite = loadEvalSuite();
   const selected = selectEvalCases(
-    { cases: [...suite.cases, ...readerCases(suite)] },
+    {
+      cases: [
+        ...suite.cases,
+        ...readerCases(suite),
+        ...classificationCases(suite),
+      ],
+    },
     options,
   );
   const repeat = options.repeat ?? 1;
@@ -450,6 +517,8 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
     const experimentsStore = (await store.getStore("experiments"))!;
     for (const ready of prepared) {
       const group = ready.definition.group;
+      const scorers = Object.values(createEvalScorers(group));
+      const scorerIds = scorers.map((scorer) => scorer.id);
       const model =
         group === "regression/location"
           ? metadata.models.location
@@ -467,7 +536,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
         version: ready.version,
         name,
         metadata: { ...metadata, ...ready.definition.metadata },
-        scorers: Object.values(createEvalScorers(group)),
+        scorers,
         maxConcurrency: 3,
         beforeAll: (args) => {
           experimentId = args.experimentId;
@@ -513,11 +582,13 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
         .map((attempt) => {
           const input = attempt.input as { caseId: string; repetition: number };
           const item = byId.get(input.caseId)!;
+          const output = attempt.output as EvalCaseOutput | null;
           return {
             ...attempt,
             caseId: input.caseId,
             repetition: input.repetition,
-            output: attempt.output as EvalCaseOutput | null,
+            output,
+            passed: evalItemPassed(attempt, output, scorerIds),
             locationGroup:
               "location" in item ? (item.location?.group ?? null) : null,
           };
@@ -545,28 +616,15 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   }
 }
 
-export function evalItemPassed(item: {
-  error?: unknown;
-  output?: unknown;
-  scores: {
-    scorerId: string;
-    score: number | null;
-    error?: unknown;
-    notScorable?: unknown;
-  }[];
-}) {
-  const output = item.output as EvalCaseOutput | null;
-  const regressionGroup = output?.reader
-    ? "regression/reader"
-    : "regression/pipeline";
-  const group = output?.quality ? "main/pipeline" : regressionGroup;
-  const required = Object.values(createEvalScorers(group)).map(
-    (scorer) => scorer.id,
-  );
+function evalItemPassed(
+  item: ItemWithScores,
+  output: EvalCaseOutput | null,
+  scorerIds: string[],
+) {
   return (
     !item.error &&
     !!(output?.quality?.passed ?? output?.score?.passed) &&
-    required.every((id) =>
+    scorerIds.every((id) =>
       item.scores.some(
         (score) =>
           score.scorerId === id &&

@@ -17,3 +17,12 @@
 
 - [x] 3.1 Apply the [display rules](design.md#display). Test the four fallback cases in the shared selector. Check page text, metadata and JSON-LD with distinct and blank texts. Include a historical Edition page to check the current About text and Edition-specific metadata.
 - [x] 3.2 Run the catalog, ingestion and website checks, then validate the updated documentation and OpenSpec requirements before archive.
+
+## 4. Main eval
+
+- [x] 4.1 Add the description format check to main eval. Verify it on saved main results and a text with the wrong format.
+- [x] 4.2 Count each numeric result as a required fact with an 80% threshold. Verify the boundary and fields without scores.
+
+## 5. Isolated Classification eval
+
+- [x] 5.1 Run Classification with fixed evidence, Edition targets, and saved context. Check the category IDs and score each proposed text. Register the group in CLI selection and document it. Verify the case with the default model.

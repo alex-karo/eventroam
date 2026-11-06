@@ -9,7 +9,7 @@ import {
   statusFacts,
   termIds,
 } from "./checks";
-import { evaluate, fact, linkFact } from "./facts";
+import { fact, linkFact } from "./facts";
 
 export function wacken(context: MainContext) {
   const { event, next } = context;
@@ -24,7 +24,7 @@ export function wacken(context: MainContext) {
     "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817",
     "https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_aftermovie_20260823",
   ];
-  return evaluate({
+  return {
     // page.md and travel.md: four-day metal festival in Wacken, Germany.
     required: requiredFacts(next, 2027, "2027-07-28", "2027-07-31", "DE"),
     additional: [
@@ -90,5 +90,5 @@ export function wacken(context: MainContext) {
       ...researchDidNotFail(context.report),
       ...fillConditions(context),
     ],
-  });
+  };
 }

@@ -67,10 +67,6 @@ it.each(["add", "full", "current"] as const)(
           "s1",
           "The festival takes place in Ireland.",
           {
-            overview: "Festival location",
-            coverage: { found: ["Festival country"], notPublished: [] },
-            topics: ["location"],
-            statedYears: [],
             limitations: [],
             evidence: [
               {
@@ -166,10 +162,6 @@ it("uses native Mastra grep with all saved source files and hash checks", async 
       source.id,
       body,
       {
-        overview: "Festival page",
-        coverage: { found: [], notPublished: [] },
-        topics: ["description"],
-        statedYears: [],
         limitations: [],
         evidence: ["Festival in the park.", "After the quote."].map(
           (quote) => ({

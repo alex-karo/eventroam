@@ -12,7 +12,7 @@ Evals measure catalog quality and protect specific workflow behavior. They use f
 
 ## Run evals
 
-`pnpm run catalog:eval --help` lists options. The default runs five main cases once. Main runs the complete ingestion flow in a fresh in-memory catalog. Workflow regressions use dry runs; isolated Location cases use complete inputs without a catalog or writer. The owner's catalog stays untouched. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. CI does not run evals or tests of the eval code, and application coverage excludes eval code and its CLI. Run evals through the CLI when needed.
+`pnpm run catalog:eval --help` lists options. The default runs five main cases once. Main runs the complete ingestion flow in a fresh in-memory catalog. Workflow regressions use dry runs. Isolated Location, Reader, and Classification cases use fixed inputs without running the workflow or writer. The owner's catalog stays untouched. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. CI does not run evals or tests of the eval code, and application coverage excludes eval code and its CLI. Run evals through the CLI when needed.
 
 ```sh
 pnpm run catalog:eval
@@ -22,12 +22,13 @@ pnpm run catalog:eval --case wacken-add
 pnpm run catalog:eval --editor-only
 pnpm run catalog:eval --location-only
 pnpm run catalog:eval --group regression/reader
+pnpm run catalog:eval --group regression/classification
 pnpm run catalog:eval --case sziget --repeat 3 --model openai/gpt-6-luna
 pnpm run catalog:eval --label before
 pnpm run catalog:eval --label after
 ```
 
-Cases form five separate experiment groups. Use CLI help for the current selection:
+Cases form six separate experiment groups. Use CLI help for the current selection:
 
 | Group | Purpose |
 | --- | --- |
@@ -36,6 +37,7 @@ Cases form five separate experiment groups. Use CLI help for the current selecti
 | `regression/editor` | Captured Editor handoffs and eligible Location |
 | `regression/location` | Direct Location execution |
 | `regression/reader` | Full-page extraction, literal binding and evidence context |
+| `regression/classification` | Direct Edition classification and both festival descriptions |
 
 Use repeated `--group GROUP` or `--case ID` flags for a selection. A case selection without a mode flag can span groups. Use one of `--all`, `--group`, `--editor-only`, or `--location-only`; an incompatible case selection fails before provider setup. `--repeat N` accepts 1–20 and applies equally to all selected cases. Location retains separate completion, correction, and preservation summaries. Its positive cases require the declared changes; keep-only output cannot pass them. The provider adapter tests cover raw Geoapify parsing; eval fixtures cover normalized client responses.
 
@@ -67,7 +69,11 @@ Failed scenarios, task/scorer errors, or missing required scores cause exit code
 
 Experiment names use `<branch> · <group> · <model>` and append `--label` when supplied. For example, `feature/location · main/pipeline · openai/gpt-6-luna · before`. The isolated Location group uses its resolved model. Detached HEAD uses the first eight commit characters instead of a branch. Each experiment saves the full commit, branch, dirty flag and label in metadata. The dirty flag includes tracked and untracked files. It does not save their contents. Names can repeat; IDs stay unique. Branch, commit, dirty state, label and model do not change dataset identity.
 
-The CLI shows counts, metrics, N/A applicability, failed checks, experiment IDs, and duration. For each main pipeline result, it also shows the proposal, Editor decision, any rejection reason, and catalog result for each festival description. These diagnostics do not affect scores. Use the [score definitions](#keep-completeness-and-errors-separate) to interpret the scores.
+The CLI shows counts, metrics, N/A applicability, failed checks, experiment IDs, and duration. For each main pipeline result, it also shows the proposal, Editor decision, any rejection reason, and catalog result for each festival description.
+
+Main eval sends the stored texts and a fixed case reference for the current festival format to PPLX Decider in one request. It saves the model ID and the probability of a match for each text in `output.descriptionFormat`. The CLI shows each probability beside the Editor decision. Each numeric result counts as one required fact. A result of 80% or higher satisfies the fact. A result below 80% counts as missing and fails the case without adding a factual error.
+
+Empty texts are `missing`. Cases without a reference are `not_applicable`. If the OpenRouter key is absent or the request fails, the affected decisions are `unavailable`. These statuses do not contribute to required completeness. Use the [score definitions](#keep-completeness-and-errors-separate) to interpret the scores.
 
 Edit cases and checks in the [source locations below](#define-what-the-sources-can-support). Review source identity, Edition identity, venue versus office addresses, and ticket links versus signup forms when refreshing captures. Follow the [revision rules](#compare-models-on-the-same-revision) before comparing results.
 
@@ -91,7 +97,7 @@ The [archived `SQLITE_BUSY_SNAPSHOT` issue](archive/known-issues/2026-10-27-mast
 
 ## Separate case purpose from source origin
 
-Main cases measure the final catalog after the full Research → General → specialists, including Location → Editor → writer flow. Each attempt starts from a fresh disposable catalog. Regression cases check a specific behavior through the pipeline, an Editor handoff, or direct Location execution. Keep their results separate; do not combine them into one quality average.
+Main cases measure the final catalog after the full Research → General → specialists, including Location → Editor → writer flow. Each attempt starts from a fresh disposable catalog. Regression cases check a specific behavior through the pipeline, an Editor handoff, or direct Location, Reader, or Classification execution. Keep their results separate; do not combine them into one quality average.
 
 Source origin is a different property. Both main and regression cases can use captured or synthetic sources. Fill, verify and correct are separate tasks, even when they use the same pages. A blocked-source case can pass by returning the expected failure and preserving the catalog.
 
@@ -99,7 +105,7 @@ Add a case for a distinct task or an observed failure. Reuse pages when useful, 
 
 ## Define what the sources can support
 
-Each case needs a clear task, initial catalog, fixed date, source origin and provenance. Supply the page, search and geocoding responses needed for that task. Keep evaluator expectations out of model input.
+Each case needs a clear task, fixed date, source origin and provenance. Workflow cases also need an initial catalog. Supply the page, search and geocoding responses needed for the task. Keep evaluator expectations out of model input.
 
 Define expected facts from the supplied evidence, independently of a model answer or production validation. A structurally valid date can still be false. Check Event and Edition identity, the programme year, venue versus office addresses, and admission products versus unrelated purchases.
 
@@ -188,7 +194,7 @@ The case checks writer changes and references for the new Event and its 2027 Edi
 
 ## Isolated Reader cases
 
-`--group regression/reader` runs three full-page inputs already used by the pipeline fixtures: the captured Sziget homepage, the captured Roskilde ticket page and the synthetic Harbor Echo venue confirmation. The existing source text, URLs, date and provenance are reused without copies or edits. The default command still selects five main cases. `--all` selects 57 cases, including the three Reader cases and `wacken-add`.
+`--group regression/reader` runs three full-page inputs already used by the pipeline fixtures: the captured Sziget homepage, the captured Roskilde ticket page and the synthetic Harbor Echo venue confirmation. The existing source text, URLs, date and provenance are reused without copies or edits.
 
 Only Reader calls the configured model. Its production prompt, medium reasoning, page input bound, output allowance and literal binding stay in use. The input contains the normal requested name, fixed date, source metadata and full page. Case expectations never enter the prompt. The result includes the raw execution and accepted evidence; no source fetch, other agent, catalog write or model judge runs.
 
@@ -201,6 +207,12 @@ The three scores are `scenario-success`, `evidence-recall` (complete requirement
 Saved output retains all binding limitations. A passing Reader case establishes useful required evidence, not complete production processing. Production still marks a source limited after any binding failure and can report partial research. Full-flow evals check the effect on final quality and task outcomes. Reader does not gain a repair call or relaxed source matching. Identical boundaries, or a complete opening with its exact closing suffix, can identify a full quotation. Extra wire escapes can be restored only when the supplied text has no match and the complete restored text matches the source exactly once. Changed facts, ambiguous matches and invalid ranges remain rejected.
 
 CLI output also shows unique source characters covered and extracted characters including repeated context. These are diagnostics, not pass thresholds: copying a whole page is not evidence of efficient extraction. The checks cover only the named passages and metadata conditions. They do not establish exhaustive recall, semantic accuracy of the overview or coverage wording, absence of all irrelevant material, or downstream catalog quality.
+
+## Isolated Classification cases
+
+`pnpm run catalog:eval --group regression/classification` runs the production Classification role with fixed Edition targets, bound source evidence, saved context, and vocabulary. The case reuses the River Festival announcement from `narrow-current-changed`. It uses full scope and seeds both descriptions with the former format.
+
+The case requires the expected category IDs in any order without extra or duplicate IDs. Both replacement texts must score at least 80% against the current format in PPLX Decider. A missing text or unavailable decision fails this case. The CLI prints the categories and both results. The experiment stores the Classification execution and checks. Research, Reader, Editor, and the catalog writer do not run.
 
 ## Review failures before changing expectations
 
