@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { dirname, join } from "node:path";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { expect, test, vi } from "vitest";
 import { Mastra } from "@mastra/core/mastra";
 import { RequestContext } from "@mastra/core/request-context";
@@ -13,7 +13,6 @@ import {
   createWorkflowStorage,
   WorkflowHistoryError,
 } from "./runtime/workflow-storage";
-import { executeCatalogCommand } from "../../commands/catalog";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import {
@@ -143,7 +142,7 @@ test.each([
     true,
   ],
 ] as const)(
-  "required history failure %s preserves confirmed work and safe CLI output",
+  "required history failure %s preserves confirmed work and returns a safe error",
   async (_stage, condition, applied, attempted) => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     const f = fixture();
@@ -151,33 +150,17 @@ test.each([
     const storage = createWorkflowStorage({ path: f.path });
     await storage.init();
     failWrites(f.path, condition);
-    const stdout = vi.fn();
     try {
-      expect(
-        await executeCatalogCommand(
-          [
-            "refresh",
-            "--event",
-            f.event.id,
-            "--database",
-            f.database.path,
-            "--apply",
-            "--json",
-          ],
-          {
-            stdout,
-            research: runCatalogResearch,
-            researchDependencies: { ...f.deps, workflowStorage: storage },
-          },
-        ),
-      ).toBe(1);
-      const output = stdout.mock.calls[0][0] as string;
-      const report = JSON.parse(output);
-      expect(output).not.toContain("PRIVATE_HISTORY_ERROR");
+      const error = await runCatalogResearch(
+        { ...f.input, dryRun: false },
+        { ...f.deps, workflowStorage: storage },
+      ).catch((reason: unknown) => reason);
+      expect(error).toBeInstanceOf(WorkflowHistoryError);
+      expect(error).toMatchObject({ message: "workflow_history_failed" });
+      expect(JSON.stringify(error)).not.toContain("PRIVATE_HISTORY_ERROR");
       expect(JSON.stringify(errors.mock.calls)).not.toContain(
         "PRIVATE_HISTORY_ERROR",
       );
-      expect(report.failures[0].code).toBe("workflow_history_failed");
       expect(
         f.database.client
           .prepare("SELECT description FROM events WHERE id=?")
@@ -189,7 +172,9 @@ test.each([
       expect(rows).toHaveLength(attempted ? 1 : 0);
       if (attempted) {
         expect(rows[0].status).not.toBe("running");
-        expect(JSON.parse(rows[0].report_json)).toEqual(report.results[0]);
+        expect(JSON.parse(rows[0].report_json)).toEqual(
+          (error as WorkflowHistoryError).report,
+        );
       }
       if (!applied) {
         expect(f.deps.generateRole).not.toHaveBeenCalled();
@@ -361,34 +346,6 @@ test("a stopped start transition stays used even before attempt allocation", asy
   }
 });
 
-test("a real CLI report collision is rejected before either file changes", async () => {
-  const f = fixture();
-  vi.stubEnv("CATALOG_WORKFLOW_DATABASE_PATH", f.path);
-  writeFileSync(f.path, "history sentinel");
-  const before = readFileSync(f.database.path);
-  await expect(
-    executeCatalogCommand(
-      [
-        "refresh",
-        "--event",
-        f.event.id,
-        "--database",
-        f.database.path,
-        "--report",
-        f.path,
-      ],
-      {
-        stdout: vi.fn(),
-        research: runCatalogResearch,
-        researchDependencies: f.deps,
-      },
-    ),
-  ).rejects.toThrow("separate");
-  expect(readFileSync(f.path, "utf8")).toBe("history sentinel");
-  expect(readFileSync(f.database.path)).toEqual(before);
-  expect(f.deps.generateRole).not.toHaveBeenCalled();
-});
-
 test("deleting a completed native run preserves catalog audit and reports", async () => {
   const f = fixture();
   const storage = createWorkflowStorage({ path: f.path });
@@ -542,13 +499,3 @@ test.each(["first later snapshot", "start acknowledgment"] as const)(
     }
   },
 );
-
-test("CLI help and invalid syntax do not open workflow storage", async () => {
-  const f = fixture();
-  vi.stubEnv("CATALOG_WORKFLOW_DATABASE_PATH", f.path);
-  expect(await executeCatalogCommand(["--help"], { stdout: vi.fn() })).toBe(0);
-  await expect(
-    executeCatalogCommand(["refresh", "--unknown"], { stdout: vi.fn() }),
-  ).rejects.toThrow();
-  expect(existsSync(f.path)).toBe(false);
-});

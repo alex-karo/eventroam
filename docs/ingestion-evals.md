@@ -59,7 +59,7 @@ Searches and page reads still use the eval fixtures.
 
 ### Results and failures
 
-Results are saved as Mastra datasets, experiments, and scores. The eval command has no `--report` option and writes no separate JSON report. Ordinary ingestion reports are unchanged. Each workflow result contains one current ingestion report in `output.report`; main also retains `before`, `after`, and `quality`. Direct Location retains its actual execution, observations, run ID, and available trace ID without a fabricated workflow report. A returned failure report is scored against the case.
+Results are saved as Mastra datasets, experiments, and scores. The eval command writes no separate JSON report. Each workflow result contains one current ingestion report in `output.report`; main also retains `before`, `after`, and `quality`. Direct Location retains its actual execution, observations, run ID, and available trace ID without a fabricated workflow report. A returned failure report is scored against the case.
 
 Unexpected task errors have null output and a bounded diagnostic; scorer errors remain distinct from intentional N/A. Other cases and groups continue.
 

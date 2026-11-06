@@ -24,7 +24,7 @@ Discovery, source checks, additions, and refreshes SHALL run only when the owner
 - **AND** the operation starts only from that explicit request
 
 ### Requirement: Debug previews show changes without catalog writes
-Through the CLI or Studio, the owner SHALL be able to preview proposed catalog changes and their old and new values. A preview SHALL retain no catalog record, version, audit, or receipt changes. Its ingestion run and final report SHALL remain available, including any transient new identifiers.
+The owner SHALL be able to start a preview from the CLI or Studio and inspect proposed catalog changes and their old and new values in Studio. A preview SHALL retain no catalog record, version, audit, or receipt changes. Its ingestion run and final report SHALL remain available, including any transient new identifiers.
 
 #### Scenario: Preview a correction
 - **WHEN** the owner previews an Edition venue correction

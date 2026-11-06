@@ -239,10 +239,10 @@ export function fixtureDependencies(
     }) satisfies NonNullable<ResearchDependencies["readPage"]>,
   };
 }
-export const runFixtureResearch: typeof runCatalogResearch = async (
-  input,
-  deps,
-) => {
+export async function runFixtureResearch(
+  input: Parameters<typeof runCatalogResearch>[0],
+  deps: ResearchDependencies,
+) {
   const storage =
     deps.workflowStorage ?? createWorkflowStorage({ path: ":memory:" });
   try {
@@ -255,7 +255,7 @@ export const runFixtureResearch: typeof runCatalogResearch = async (
       await storage.close();
     }
   }
-};
+}
 export const createFixtureIngestionWorkflow: typeof createCatalogIngestionWorkflow =
   (resolve, options) => {
     const workflow = createCatalogIngestionWorkflow(resolve, options);

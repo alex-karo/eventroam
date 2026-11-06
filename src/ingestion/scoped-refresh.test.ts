@@ -241,7 +241,7 @@ test.each([
   expect(result.operations).toEqual([]);
   noWrites(f);
 });
-test("CLI and Studio reject the same current-scope Event link proposal", async () => {
+test("Studio rejects a current-scope Event link proposal", async () => {
   const f = fixture();
   f.general.currentOrNextEdition = fixtureTargets().currentOrNextEdition;
   const links = {
@@ -255,10 +255,6 @@ test("CLI and Studio reject the same current-scope Event link proposal", async (
     ...f.deps,
     generateRoles: { ...f.deps.generateRoles, links: async () => links },
   };
-  const cli = await runCatalogResearch(
-    { ...f.input, scope: "current", dryRun: true },
-    deps,
-  );
   const workflow = createFixtureIngestionWorkflow(async () => ({ deps }));
   const run = await workflow.createRun();
   const result = await run.start({
@@ -272,10 +268,9 @@ test("CLI and Studio reject the same current-scope Event link proposal", async (
   if (result.status !== "success") {
     throw new Error("Unexpected workflow status");
   }
-  for (const report of [cli, result.state!.data!.report!]) {
-    expect(report.outcome).toBe("failed");
-    expect(report.operations).toEqual([]);
-  }
+  const report = result.state!.data!.report!;
+  expect(report.outcome).toBe("failed");
+  expect(report.operations).toEqual([]);
   noWrites(f);
 });
 test("full selects both Editions with more than twenty saved Editions", async () => {

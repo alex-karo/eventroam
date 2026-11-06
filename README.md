@@ -19,11 +19,11 @@ Eventroam uses one Next.js application and one SQLite catalog. The apex site pre
 flowchart TD
     Owner[Owner] --> CLI[Local CLI]
     Owner --> Studio[Mastra Studio: workflow form or catalog chat]
-    CLI --> Ingestion[Catalog ingestion workflow]
-    Studio -->|Direct form| Ingestion
+    CLI -->|Workflow API| Studio
+    Studio -->|Direct run| Ingestion[Catalog ingestion workflow]
     Studio -->|Chat submits jobs| DB[(SQLite catalog)]
     DB -->|Pending or running jobs| Studio
-    Studio --> Ingestion
+    Studio -->|Runs queued jobs| Ingestion
     Sources[External sources] --> Ingestion
     DB -->|Saved catalog context| Ingestion
     Ingestion -->|Validated writes and reports| DB
@@ -36,7 +36,7 @@ flowchart TD
     Web --> Festivals[festivals.eventroam.org: list, filters and map]
 ```
 
-The website reads published catalog data. The owner starts ingestion through the local CLI, local Studio, or hosted Studio. Studio chat selects Events and saves refresh jobs. The Studio server processes those jobs through its registered ingestion workflow. Chat reads progress and saved results through catalog SQL. The Studio workflow view shows saved steps and results. Source Markdown and evidence remain in private files until explicit cleanup. The web application does not run ingestion.
+The website reads published catalog data. The owner starts ingestion through Studio or calls the local Studio API with the CLI. Studio chat selects Events and saves refresh jobs. The Studio server processes those jobs through its registered ingestion workflow. Chat reads progress and saved results through catalog SQL. The Studio workflow view shows saved steps and results. Source Markdown and evidence remain in private files until explicit cleanup. The web application does not run ingestion.
 
 ## Ingestion
 
