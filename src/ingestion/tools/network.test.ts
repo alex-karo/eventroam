@@ -1,5 +1,6 @@
 import http from "node:http";
 import net from "node:net";
+import { brotliCompressSync, gzipSync } from "node:zlib";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createResearchBudget, ResearchLimitError } from "../runtime/budget";
 import {
@@ -82,6 +83,44 @@ it("follows redirects with one checked, pinned DNS lookup per hop", async () => 
     "next.example",
   ]);
   expect(requests).toHaveLength(2);
+});
+
+it.each([
+  ["gzip without an encoding header", {}, gzipSync],
+  [
+    "Brotli with an encoding header",
+    { "content-encoding": "br" },
+    brotliCompressSync,
+  ],
+] as const)("uses Firecrawl once for %s", async (_name, headers, compress) => {
+  respond = (_request, response) => {
+    response.writeHead(200, { "content-type": "text/html", ...headers });
+    response.end(compress("<p>Compressed source</p>"));
+  };
+  const url = "http://fixture.example/start";
+  const firecrawlRequest = vi.fn(async () => ({
+    finalUrl: url,
+    status: 200,
+    contentType: "text/html",
+    body: Buffer.from("<h1>Festival dates</h1><p>2–5 July 2027</p>"),
+  }));
+  const budget = createResearchBudget();
+  const result = await readPage(url, {
+    budget,
+    resolver,
+    firecrawlKey: "test-key",
+    firecrawlRequest,
+  });
+
+  expect(firecrawlRequest).toHaveBeenCalledExactlyOnceWith(
+    url,
+    expect.objectContaining({ format: "html" }),
+  );
+  expect(result).toMatchObject({ status: "ok", method: "firecrawl" });
+  expect(result.reasonCode).toBeUndefined();
+  expect(result.markdown).toContain("2–5 July 2027");
+  expect(result.markdown).not.toContain("Direct HTTP response");
+  expect(budget.snapshot().pages).toBe(2);
 });
 
 it("blocks redirected private DNS addresses before connecting", async () => {
