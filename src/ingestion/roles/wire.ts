@@ -46,8 +46,8 @@ export function normalizeRoleWire(role: Role, raw: unknown): unknown {
 }
 
 function normalizeGeneral(value: RecordValue) {
+  omitNull(value, ["festivalCountries"]);
   if (value.decision === "targets") {
-    omitNull(value.event, ["summary"]);
     for (const slot of [value.previousEdition, value.currentOrNextEdition]) {
       if (!record(slot) || !record(slot.fields)) {
         continue;
@@ -77,6 +77,7 @@ function normalizeTickets(value: RecordValue) {
   }
 }
 function normalizeClassification(value: RecordValue) {
+  omitNull(value, ["description", "shortDescription"]);
   for (const slot of [value.previousEdition, value.currentOrNextEdition]) {
     omitNull(slot, ["classification"]);
     if (record(slot)) {

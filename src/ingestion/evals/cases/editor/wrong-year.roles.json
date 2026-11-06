@@ -184,31 +184,6 @@
         "s3-e1",
         "s3-e11"
       ],
-      "event": {
-        "summary": {
-          "action": "set",
-          "value": "Wacken Open Air is a heavy metal festival in Wacken, Germany.",
-          "reason": "The official homepage identifies Wacken Open Air and describes its concerts and metal community.",
-          "evidenceIds": [
-            "s1-e1",
-            "s1-e2",
-            "s1-e7",
-            "s2-e1",
-            "s2-e2",
-            "s3-e1",
-            "s3-e2",
-            "s3-e3",
-            "s3-e4",
-            "s3-e5",
-            "s3-e6",
-            "s3-e7",
-            "s3-e8",
-            "s3-e9",
-            "s3-e10",
-            "s3-e11"
-          ]
-        }
-      },
       "previousEdition": {
         "editionKey": "source-row",
         "reason": "Captured Edition selection",
@@ -315,6 +290,25 @@
       "unresolved": []
     },
     "classification": {
+      "description": {
+        "action": "set",
+        "value": "Wacken Open Air is a heavy metal festival in Wacken, Germany.",
+        "reason": "The official homepage identifies Wacken Open Air and describes its concerts and metal community.",
+        "evidenceIds": [
+          "s1-e1",
+          "s2-e1",
+          "s3-e1",
+          "s3-e2",
+          "s3-e3",
+          "s3-e4",
+          "s3-e5",
+          "s3-e6",
+          "s3-e7",
+          "s3-e8",
+          "s3-e9",
+          "s3-e10"
+        ]
+      },
       "previousEdition": {},
       "currentOrNextEdition": {
         "classification": {

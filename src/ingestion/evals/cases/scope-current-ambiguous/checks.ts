@@ -12,6 +12,11 @@ export const checks = {
     return [
       researchStatus(context, "partial"),
       ...editionSlots(context, null, null),
+      check(
+        "catalog.outcome",
+        report.outcome === "unchanged" && report.editorStatus === "not_run",
+        "Keep the catalog unchanged and stop before Editor",
+      ),
       ...omittedEventFields(data),
       check(
         "research.unresolved",

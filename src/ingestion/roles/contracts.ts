@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { editionScalarSchemas } from "@/catalog/domain/edition-values";
 import { scheduleStatuses } from "@/catalog/domain/vocabulary";
 import type { topics } from "../evidence/contracts";
 import {
@@ -97,6 +98,18 @@ const identity = {
   reason: reasonSchema,
   evidenceIds: supportSchema,
 };
+const festivalCountries = z
+  .array(
+    z.strictObject({
+      countryCode: editionScalarSchemas.countryCode.unwrap().unwrap(),
+      evidenceIds: supportSchema.min(1),
+    }),
+  )
+  .max(20)
+  .optional()
+  .describe(
+    "In refresh, list each sourced country where the target festival takes place, even without selected Edition slots. Cite inspected evidence. Use an empty list when the country is unknown or the source cannot be tied to the target festival.",
+  );
 export const generalOutputSchema = z.discriminatedUnion("decision", [
   z.strictObject({
     decision: z.literal("duplicate"),
@@ -107,13 +120,12 @@ export const generalOutputSchema = z.discriminatedUnion("decision", [
     decision: z.literal("uncertain"),
     reason: reasonSchema,
     unresolved: questionsSchema,
+    festivalCountries,
   }),
   z.strictObject({
     decision: z.literal("targets"),
     ...identity,
-    event: z.strictObject({
-      summary: change(z.string().min(1).max(2000)).optional(),
-    }),
+    festivalCountries,
     previousEdition: targetSchema
       .nullable()
       .describe(
@@ -167,6 +179,26 @@ const classificationSlot = z
   .strictObject({ classification: classificationChange.optional() })
   .nullable();
 export const classificationOutputSchema = z.strictObject({
+  description: change(
+    z
+      .string()
+      .trim()
+      .min(1)
+      .max(2000)
+      .describe(
+        "Current format and atmosphere in three to five sentences. Omit the festival name.",
+      ),
+  ).optional(),
+  shortDescription: change(
+    z
+      .string()
+      .trim()
+      .min(1)
+      .max(2000)
+      .describe(
+        "Current format in one or two sentences. Omit the festival name.",
+      ),
+  ).optional(),
   previousEdition: classificationSlot,
   currentOrNextEdition: classificationSlot,
   checks: checksSchema,

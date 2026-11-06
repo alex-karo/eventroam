@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { MastraLanguageModelV2Mock } from "@mastra/core/test-utils/llm-mock";
 import {
+  BATCH_COUNTS_SQL,
   INSPECT_RUN_SQL,
   INSPECT_RUN_STATE_SQL,
   RUN_EVIDENCE_SQL,
@@ -56,6 +57,7 @@ export function createAssistantFixtureModel() {
     if (call?.name === "query_catalog") {
       const sql = (call.input as { sql: string }).sql;
       const reference = [
+        ["batch-counts.sql", BATCH_COUNTS_SQL],
         ["inspect-run.sql", INSPECT_RUN_SQL],
         ["inspect-run-state.sql", INSPECT_RUN_STATE_SQL],
         ["run-evidence.sql", RUN_EVIDENCE_SQL],
@@ -199,6 +201,9 @@ function initialReply(
   let call: { name: string; input: unknown } | undefined;
   let text = "";
   const ids = owner.match(/[0-9a-f]{8}-[0-9a-f-]{27}/gi) ?? [];
+  if (/find new festival candidates|add both Events/i.test(owner)) {
+    return researcherReply(owner, prompt, lastUser);
+  }
   if (/count France Events/i.test(owner)) {
     call = {
       name: "query_catalog",
@@ -217,17 +222,17 @@ function initialReply(
     call = {
       name: "query_catalog",
       input: {
-        sql: "SELECT status,count(*) AS count FROM ingestion_jobs WHERE batch_id=? GROUP BY status",
+        sql: BATCH_COUNTS_SQL,
         parameters: ids,
       },
     };
   } else if (/cancel batch/i.test(owner) && ids.length === 1) {
-    call = { name: "cancel_refresh", input: { batchId: ids[0] } };
+    call = { name: "cancel_batch", input: { batchId: ids[0] } };
   } else if (/find lost batch/i.test(owner) && ids.length) {
     call = {
       name: "query_catalog",
       input: {
-        sql: `SELECT batch_id,created_at,scope,dry_run,count(*) FROM ingestion_jobs GROUP BY batch_id HAVING count(*)=? AND sum(event_id IN (${ids.map(() => "?").join(",")}))=? AND scope='full' AND dry_run=1 ORDER BY created_at,batch_id`,
+        sql: `SELECT batch_id,created_at,json_extract(input,'$.scope') AS scope,dry_run,count(*) FROM ingestion_jobs WHERE mode='refresh' GROUP BY batch_id HAVING count(*)=? AND sum(json_extract(input,'$.eventId') IN (${ids.map(() => "?").join(",")}))=? AND scope='full' AND dry_run=1 ORDER BY created_at,batch_id`,
         parameters: [ids.length, ...ids, ids.length],
       },
     };
@@ -335,4 +340,47 @@ function previousEventReply(
       },
     },
   };
+}
+
+function researcherReply(
+  owner: string,
+  prompt: Parameters<MastraLanguageModelV2Mock["doStream"]>[0]["prompt"],
+  lastUser: number,
+) {
+  let call: { name: string; input: unknown } | undefined;
+  let text = "";
+  if (/find new festival candidates/i.test(owner)) {
+    call = {
+      name: "search_web",
+      input: { query: "Find new festival candidates" },
+    };
+  } else if (/add both Events/i.test(owner)) {
+    const prior = prompt
+      .slice(0, lastUser)
+      .filter((message) => message.role === "tool")
+      .flatMap((message) => message.content)
+      .findLast(
+        (part) => part.type === "tool-result" && part.toolName === "search_web",
+      );
+    const result =
+      prior?.type === "tool-result" && prior.output.type === "json"
+        ? (prior.output.value as {
+            candidates?: { title: string; url: string }[];
+          })
+        : undefined;
+    if (result?.candidates?.length === 2) {
+      call = {
+        name: "add_events",
+        input: {
+          inputs: result.candidates.map(
+            (candidate) => `${candidate.title}\n${candidate.url}`,
+          ),
+          dryRun: false,
+        },
+      };
+    } else {
+      text = "Clarify the intended Events.";
+    }
+  }
+  return { call, text };
 }

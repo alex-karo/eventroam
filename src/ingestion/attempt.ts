@@ -37,6 +37,7 @@ export class CatalogAttempt {
   sources: SourceSession | null = null;
   finalization?: Promise<CatalogResearchResult>;
   private cleanupPromise?: Promise<void>;
+  private cancelledWithoutPriorFailure = false;
   private active = new Set<Promise<unknown>>();
 
   constructor(
@@ -82,7 +83,6 @@ export class CatalogAttempt {
         `${this.deps.client.name}-wal`,
         `${this.deps.client.name}-shm`,
         `${this.deps.client.name}-journal`,
-        ...(this.deps.reportPath ? [this.deps.reportPath] : []),
       ],
       this.engineRunId,
       this.deps.observabilityStore,
@@ -94,7 +94,6 @@ export class CatalogAttempt {
       mode: this.input.mode,
       dryRun: this.input.dryRun,
       eventId: this.input.eventId,
-      eventName: this.input.name,
       model: this.config.model,
       promptVersion: PROMPT_VERSIONS.research,
     });
@@ -147,6 +146,10 @@ export class CatalogAttempt {
     if (this.finalization || data.report) {
       return;
     }
+    this.cancelledWithoutPriorFailure =
+      cancelled &&
+      data.outcome !== "failed" &&
+      !data.errors.some((error) => error.code === "workflow_failed");
     if (cancelled) {
       this.trace?.failed("cancelled");
     } else {
@@ -198,6 +201,7 @@ export class CatalogAttempt {
           result,
           this.input,
           preparationDiagnostics(data),
+          this.cancelledWithoutPriorFailure,
         );
         return result;
       } catch (error) {

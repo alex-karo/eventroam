@@ -21,7 +21,8 @@
       "id": "narrow-current-partial-tickets",
       "slug": "narrow-current-partial-tickets",
       "canonicalName": "River Festival",
-      "summary": "Saved description",
+      "description": "Saved description",
+      "shortDescription": "Saved short description",
       "links": [
         {
           "kind": "official_site",

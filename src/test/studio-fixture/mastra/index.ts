@@ -1,5 +1,6 @@
+import { createCatalogResearcher } from "../../../mastra/catalog-researcher";
 import { fixtureRoleForProvider } from "../../ingestion-provider";
-import { fixtureTargets } from "../../ingestion";
+import { fixtureDescriptionRole, fixtureTargets, set } from "../../ingestion";
 import Database from "better-sqlite3";
 import { createCatalogAssistant } from "../../../mastra/catalog-assistant";
 import { createAssistantLogging } from "../../../mastra/catalog-assistant/logging";
@@ -13,6 +14,7 @@ import { createStudioJobs } from "../../../mastra/jobs";
 import { createApplicationLogger } from "../../../ingestion/runtime/logging";
 import { DEFAULT_RESEARCH_LIMITS } from "../../../ingestion/runtime/budget";
 import { createObservabilityStore } from "../../../ingestion/runtime/observability/storage";
+import { diagnosticStoragePaths } from "../../../ingestion/runtime/storage-paths";
 import { createWorkflowStorage } from "../../../ingestion/runtime/workflow-storage";
 import { ingestionExecutionGuard } from "../../../mastra/ingestion-guard";
 
@@ -25,6 +27,12 @@ const general = {
   observedEventName: "Studio Fixture Festival",
   reason: OFFLINE_SENTINEL,
 };
+const classification = fixtureDescriptionRole({
+  description: set(
+    "Live music takes place outdoors. The programme includes workshops. Visitors can join group activities.",
+  ),
+  shortDescription: set("An outdoor music festival with workshops."),
+});
 
 // Keep the real agent/provider adapter for cancellation and tracing; mock only HTTP.
 {
@@ -58,8 +66,35 @@ const general = {
       });
     }
     const body = JSON.parse(String(init?.body)) as {
+      plugins?: unknown[];
       response_format?: { json_schema?: { schema?: Record<string, unknown> } };
     };
+    if (body.plugins) {
+      return Response.json({
+        choices: [
+          {
+            message: {
+              annotations: [
+                {
+                  type: "url_citation",
+                  url_citation: {
+                    url: "https://alpha.test/",
+                    title: "Alpha Festival",
+                  },
+                },
+                {
+                  type: "url_citation",
+                  url_citation: {
+                    url: "https://beta.test/",
+                    title: "Beta Festival",
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+    }
     return Response.json({
       id: "offline-response",
       object: "chat.completion",
@@ -71,7 +106,7 @@ const general = {
           message: {
             role: "assistant",
             content: JSON.stringify(
-              await fixtureRoleForProvider(body, { general }),
+              await fixtureRoleForProvider(body, { general, classification }),
             ),
           },
           finish_reason: "stop",
@@ -142,6 +177,7 @@ export async function createFixtureMastra() {
     },
   );
   const storage = createWorkflowStorage({
+    path: diagnosticStoragePaths().workflow,
     observability: observabilityStore,
     onFailure: workflow.historyControl.recoverHistory,
   });
@@ -154,6 +190,11 @@ export async function createFixtureMastra() {
     {
       workflows: { "catalog-ingestion": workflow },
       agents: {
+        "catalog-researcher": createCatalogResearcher(
+          chat.memory,
+          createAssistantFixtureModel(),
+          logging,
+        ),
         "catalog-assistant": createCatalogAssistant(
           chat.memory,
           createAssistantFixtureModel(),

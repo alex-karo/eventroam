@@ -102,7 +102,6 @@ it("allows an unsupported past candidate to stay null without losing the support
     observedEventName: "Festival",
     reason: "The official identity matches.",
     evidenceIds: ["s1-e1"],
-    event: {},
     previousEdition: null,
     currentOrNextEdition: next,
     checks: [

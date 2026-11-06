@@ -10,7 +10,6 @@ function targets(): Targets {
     observedEventName: "Example Fest",
     reason: "Inspected identity",
     evidenceIds: ["s1-e1"],
-    event: {},
     previousEdition: {
       editionKey: "2026",
       reason: "Completed Edition",

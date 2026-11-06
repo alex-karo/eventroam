@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { dirname, join } from "node:path";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { expect, test, vi } from "vitest";
 import { Mastra } from "@mastra/core/mastra";
 import { RequestContext } from "@mastra/core/request-context";
@@ -13,12 +13,12 @@ import {
   createWorkflowStorage,
   WorkflowHistoryError,
 } from "./runtime/workflow-storage";
-import { executeCatalogCommand } from "../../commands/catalog";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import {
   fixtureDependencies,
   fixtureTargets,
+  fixtureDescriptionRole,
   set,
   createFixtureIngestionWorkflow,
 } from "@/test/ingestion";
@@ -33,11 +33,12 @@ function fixture() {
     ...fixtureDependencies(),
     generateRole: vi.fn(
       fixtureDependencies({
+        classification: fixtureDescriptionRole({
+          description: set("ALLOWED_MODEL_TEXT"),
+        }),
         general: {
           ...fixtureTargets(event.id),
           observedEventName: event.canonicalName,
-          event: { summary: set("ALLOWED_MODEL_TEXT") },
-          currentOrNextEdition: null,
         },
       }).generateRole,
     ),
@@ -141,7 +142,7 @@ test.each([
     true,
   ],
 ] as const)(
-  "required history failure %s preserves confirmed work and safe CLI output",
+  "required history failure %s preserves confirmed work and returns a safe error",
   async (_stage, condition, applied, attempted) => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     const f = fixture();
@@ -149,45 +150,31 @@ test.each([
     const storage = createWorkflowStorage({ path: f.path });
     await storage.init();
     failWrites(f.path, condition);
-    const stdout = vi.fn();
     try {
-      expect(
-        await executeCatalogCommand(
-          [
-            "refresh",
-            "--event",
-            f.event.id,
-            "--database",
-            f.database.path,
-            "--apply",
-            "--json",
-          ],
-          {
-            stdout,
-            research: runCatalogResearch,
-            researchDependencies: { ...f.deps, workflowStorage: storage },
-          },
-        ),
-      ).toBe(1);
-      const output = stdout.mock.calls[0][0] as string;
-      const report = JSON.parse(output);
-      expect(output).not.toContain("PRIVATE_HISTORY_ERROR");
+      const error = await runCatalogResearch(
+        { ...f.input, dryRun: false },
+        { ...f.deps, workflowStorage: storage },
+      ).catch((reason: unknown) => reason);
+      expect(error).toBeInstanceOf(WorkflowHistoryError);
+      expect(error).toMatchObject({ message: "workflow_history_failed" });
+      expect(JSON.stringify(error)).not.toContain("PRIVATE_HISTORY_ERROR");
       expect(JSON.stringify(errors.mock.calls)).not.toContain(
         "PRIVATE_HISTORY_ERROR",
       );
-      expect(report.failures[0].code).toBe("workflow_history_failed");
       expect(
         f.database.client
-          .prepare("SELECT summary FROM events WHERE id=?")
+          .prepare("SELECT description FROM events WHERE id=?")
           .get(f.event.id),
-      ).toEqual({ summary: applied ? "ALLOWED_MODEL_TEXT" : null });
+      ).toEqual({ description: applied ? "ALLOWED_MODEL_TEXT" : null });
       const rows = f.database.client
         .prepare("SELECT * FROM ingestion_runs")
         .all() as { status: string; report_json: string }[];
       expect(rows).toHaveLength(attempted ? 1 : 0);
       if (attempted) {
         expect(rows[0].status).not.toBe("running");
-        expect(JSON.parse(rows[0].report_json)).toEqual(report.results[0]);
+        expect(JSON.parse(rows[0].report_json)).toEqual(
+          (error as WorkflowHistoryError).report,
+        );
       }
       if (!applied) {
         expect(f.deps.generateRole).not.toHaveBeenCalled();
@@ -218,7 +205,7 @@ test("native snapshots retain input, IDs and model text while dropping separate 
     const result = await run.start({
       inputData: {
         mode: "refresh",
-        eventId: f.event.id,
+        input: { eventId: f.event.id, scope: "full" },
       } as never,
       requestContext: new RequestContext([
         [
@@ -283,7 +270,7 @@ test("reopened started IDs never allocate another attempt or change history", as
       .start({
         inputData: {
           mode: "refresh",
-          eventId: f.event.id,
+          input: { eventId: f.event.id, scope: "full" },
           dryRun: true,
           republish: false,
         },
@@ -320,7 +307,7 @@ test("a stopped start transition stays used even before attempt allocation", asy
     run.start({
       inputData: {
         mode: "refresh",
-        eventId: f.event.id,
+        input: { eventId: f.event.id, scope: "full" },
         dryRun: true,
         republish: false,
       },
@@ -344,7 +331,7 @@ test("a stopped start transition stays used even before attempt allocation", asy
       .start({
         inputData: {
           mode: "refresh",
-          eventId: f.event.id,
+          input: { eventId: f.event.id, scope: "full" },
           dryRun: true,
           republish: false,
         },
@@ -357,34 +344,6 @@ test("a stopped start transition stays used even before attempt allocation", asy
   } finally {
     await host.shutdown();
   }
-});
-
-test("a real CLI report collision is rejected before either file changes", async () => {
-  const f = fixture();
-  vi.stubEnv("CATALOG_WORKFLOW_DATABASE_PATH", f.path);
-  writeFileSync(f.path, "history sentinel");
-  const before = readFileSync(f.database.path);
-  await expect(
-    executeCatalogCommand(
-      [
-        "refresh",
-        "--event",
-        f.event.id,
-        "--database",
-        f.database.path,
-        "--report",
-        f.path,
-      ],
-      {
-        stdout: vi.fn(),
-        research: runCatalogResearch,
-        researchDependencies: f.deps,
-      },
-    ),
-  ).rejects.toThrow("separate");
-  expect(readFileSync(f.path, "utf8")).toBe("history sentinel");
-  expect(readFileSync(f.database.path)).toEqual(before);
-  expect(f.deps.generateRole).not.toHaveBeenCalled();
 });
 
 test("deleting a completed native run preserves catalog audit and reports", async () => {
@@ -482,7 +441,7 @@ test.each(["first later snapshot", "start acknowledgment"] as const)(
       .start({
         inputData: {
           mode: "refresh",
-          eventId: f.event.id,
+          input: { eventId: f.event.id, scope: "full" },
           dryRun: true,
           republish: false,
         },
@@ -519,7 +478,7 @@ test.each(["first later snapshot", "start acknowledgment"] as const)(
         .start({
           inputData: {
             mode: "refresh",
-            eventId: f.event.id,
+            input: { eventId: f.event.id, scope: "full" },
             dryRun: true,
             republish: false,
           },
@@ -540,13 +499,3 @@ test.each(["first later snapshot", "start acknowledgment"] as const)(
     }
   },
 );
-
-test("CLI help and invalid syntax do not open workflow storage", async () => {
-  const f = fixture();
-  vi.stubEnv("CATALOG_WORKFLOW_DATABASE_PATH", f.path);
-  expect(await executeCatalogCommand(["--help"], { stdout: vi.fn() })).toBe(0);
-  await expect(
-    executeCatalogCommand(["refresh", "--unknown"], { stdout: vi.fn() }),
-  ).rejects.toThrow();
-  expect(existsSync(f.path)).toBe(false);
-});

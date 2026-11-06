@@ -54,7 +54,8 @@ src/
 │   ├── jobs/                  # Durable queue operations
 │   └── runtime/               # Model setup, workflow storage and observability
 ├── mastra/                    # Studio registration and production server
-│   └── catalog-assistant/     # Chat agent, tools, memory and catalog-sql skill
+│   ├── catalog-assistant/     # Catalog chat, job control, memory and SQL skill
+│   └── catalog-researcher/    # Discovery and add submission
 ├── db/                        # Schema, connections, and SQL migrations
 └── test/                      # Temporary databases and data builders
 
@@ -73,7 +74,7 @@ Create additional folders when code needs them. Unit and integration tests live 
 - **Routes and presentation:** `app → features → components`. Routes resolve request parameters and site context, load public data, and compose features. Shared components do not import features.
 - **Public reads:** `app/site server → catalog/read → db`. Queries enforce publication rules and load composite responses in short read transactions. Web requests open existing SQLite databases read-only. Browser code imports public contracts and pure rules, never database queries or row types.
 - **Catalog writes:** `commands → catalog/write → db`. The writer validates operations and applies versions, publication changes, audit records, and operation receipts in transactions. Collection uses grouped operations with rollback-based dry-run, versions, and atomic item commits.
-- **Collection:** `commands → ingestion → catalog/read (private context), catalog/write`. Source adapters and OpenRouter remain outside Next.js. Research selects sources. Reader extracts evidence from each admitted full page. General selects identity and temporal targets. Tickets, Classification, Location, and Links prepare independent proposals from one frozen corpus. Editor approves or rejects fixed groups. Code prepares and applies atomic operations. Private reports persist in `ingestion_runs`, with optional JSON export. Source Markdown and evidence files remain in private per-run directories.
+- **Collection:** `catalog CLI → Studio API → ingestion → catalog/read (private context), catalog/write`. Source adapters and OpenRouter remain outside Next.js. Research selects sources. Reader extracts evidence from each admitted full page. General selects identity and temporal targets. Tickets, Classification, Location, and Links prepare independent proposals from one frozen corpus. Editor approves or rejects fixed groups. Code prepares and applies atomic operations. Private reports persist in `ingestion_runs`. Source Markdown and evidence files remain in private per-run directories.
 - **Pure logic:** `catalog/domain`, `catalog/operations`, and `features/discovery/model` have no React, Next.js, or storage dependency.
 
 ESLint enforces these import boundaries. The writer runs without Next.js. Avoid exports that mix browser-safe contracts with server query implementations.
@@ -108,13 +109,13 @@ Paths below are relative to `src/ingestion/` unless stated otherwise. Read code 
 | Evals and experiment results                                   | `evals/`; see [Ingestion evals](ingestion-evals.md)   |
 | Workflow storage, logging and tracing                          | `runtime/`; see [Ingestion tools](ingestion-tools.md) |
 | Studio workflow registration                                   | `src/mastra/index.ts`                                 |
-| Studio chat, SQL and refresh tools, memory and schema guidance | `src/mastra/catalog-assistant/`                       |
+| Studio chat, SQL and job tools, memory and schema guidance | `src/mastra/catalog-assistant/`                       |
 
 Each preparation function returns `continue`, `skip`, or `reject`. Only `continue` carries input for the next stage: `PreparedProposals` → `AcceptedProposals` → `ReadyCatalogPlan`. Research and Editor results have no writer operations. Workflow state retains each stage result for inspection. The workflow uses those results to choose its next action and sets an explicit outcome. Reports project that outcome, stage diagnostics, and writer receipts; error codes do not control the report outcome.
 
 `CatalogAttempt` owns failure finalization, active-work settlement, terminal persistence, and resource cleanup. Cancellation and workflow-history errors use this same owner. Terminal persistence and cleanup each run once. Shared Studio resources remain with Studio.
 
-The writer owns catalog validation and atomic changes. CLI callers own injected connections. Studio owns its catalog connection and storage providers. Studio owns its queue connection and executes queued jobs through its registered workflow. Jobs store queue state and settings; `ingestion_runs.job_id` links each fresh queued attempt. Several attempts can reference one job. Direct runs have no job ID. Saved workflow state excludes live resources and credentials. See the [ingestion process](ingestion-process.md) for behavior and [Infrastructure](infrastructure.md) for storage operations.
+The writer owns catalog validation and atomic changes. Studio owns the catalog connection and storage providers for CLI and form runs. Studio owns its queue connection and executes queued jobs through its registered workflow. Jobs store queue state and settings; `ingestion_runs.job_id` links each fresh queued attempt. Several attempts can reference one job. Direct runs have no job ID. Saved workflow state excludes live resources and credentials. See the [ingestion process](ingestion-process.md) for behavior and [Infrastructure](infrastructure.md) for storage operations.
 
 ## Discovery
 

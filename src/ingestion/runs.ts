@@ -1,3 +1,6 @@
+import { jobWorkflowInput, type IngestionJob } from "./jobs/store";
+import { addInputSchema } from "./add-input";
+import { eventIdSchema, refreshScopeSchema } from "./invocation";
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import { z } from "zod";
@@ -17,9 +20,9 @@ const limitsSchema = z.object(
 );
 const invocationSchema = z.object({
   mode: z.enum(["add", "refresh"]),
-  scope: z.enum(["full", "current"]).optional(),
-  name: nonempty.optional(),
-  eventId: nonempty.optional(),
+  scope: refreshScopeSchema.optional(),
+  input: addInputSchema.optional(),
+  eventId: eventIdSchema.optional(),
   actor: nonempty.max(200),
   initiatedBy: nonempty.max(200).optional(),
   dryRun: z.boolean().default(true),
@@ -51,14 +54,19 @@ export function validateRunInvocation(
   }
   const parsed = invocationSchema.parse(input);
   if (parsed.mode === "add") {
-    if (parsed.scope !== undefined || !parsed.name || parsed.eventId) {
-      throw new Error("add requires a name and no Event ID");
+    if (parsed.scope !== undefined || !parsed.input || parsed.eventId) {
+      throw new Error("add requires input and no Event ID");
     }
-  } else if (
-    !parsed.eventId ||
-    !client.prepare("SELECT id FROM events WHERE id=?").get(parsed.eventId)
-  ) {
-    throw new Error("Event ID not found");
+  } else {
+    if (parsed.input !== undefined) {
+      throw new Error("refresh does not accept add input");
+    }
+    if (
+      !parsed.eventId ||
+      !client.prepare("SELECT id FROM events WHERE id=?").get(parsed.eventId)
+    ) {
+      throw new Error("Event ID not found");
+    }
   }
   return {
     input: {
@@ -72,7 +80,7 @@ export function validateRunInvocation(
 export type StoredRunInput = {
   mode: string;
   scope?: "full" | "current";
-  name?: string;
+  input?: string;
   eventId?: string;
   actor: string;
   initiatedBy?: string;
@@ -93,7 +101,7 @@ export function storedRunInput(
   return {
     mode: input.mode,
     ...(input.mode === "refresh" ? { scope: input.scope ?? "full" } : {}),
-    ...(input.name ? { name: input.name } : {}),
+    ...(input.input !== undefined ? { input: input.input } : {}),
     ...(input.eventId ? { eventId: input.eventId } : {}),
     actor: input.actor,
     ...(input.initiatedBy ? { initiatedBy: input.initiatedBy } : {}),
@@ -166,23 +174,25 @@ export function startIngestionRun(
         if (jobId !== undefined) {
           const job = client
             .prepare(
-              "SELECT event_id,scope,dry_run,status FROM ingestion_jobs WHERE id=?",
+              "SELECT mode,input,dry_run,status FROM ingestion_jobs WHERE id=?",
             )
             .get(jobId) as
-            | {
-                event_id: string;
-                scope: string;
-                dry_run: number;
-                status: string;
-              }
+            | Pick<IngestionJob, "mode" | "input" | "dry_run" | "status">
             | undefined;
+          if (job?.status !== "running") {
+            throw new Error("Job is not running");
+          }
+          const expected = jobWorkflowInput(job);
+          const refresh =
+            expected.mode === "refresh" ? expected.input : undefined;
           if (
-            job?.status !== "running" ||
-            parsed.mode !== "refresh" ||
-            job.event_id !== eventId ||
-            parsed.eventId !== eventId ||
-            job.scope !== (parsed.scope ?? "full") ||
-            Boolean(job.dry_run) !== parsed.dryRun ||
+            parsed.mode !== expected.mode ||
+            parsed.input !==
+              (expected.mode === "add" ? expected.input : undefined) ||
+            parsed.eventId !== refresh?.eventId ||
+            eventId !== (refresh?.eventId ?? null) ||
+            parsed.scope !== refresh?.scope ||
+            parsed.dryRun !== expected.dryRun ||
             parsed.republish
           ) {
             throw new Error("Job input does not match");

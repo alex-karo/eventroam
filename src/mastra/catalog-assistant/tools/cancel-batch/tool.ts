@@ -8,17 +8,17 @@ import {
 import { trustedConversation } from "../../execution-context";
 import { startToolLog, type AssistantLogging } from "../../logging";
 
-export function createCancelRefreshTool(
+export function createCancelBatchTool(
   catalogPath: () => string,
   logging?: AssistantLogging,
 ) {
   return createTool({
-    id: "cancel_refresh",
+    id: "cancel_batch",
     description:
       "Cancel pending jobs in a resolved batch after an explicit owner request. Running and terminal jobs stay unchanged.",
     inputSchema: z.strictObject({ batchId: z.uuid() }),
     execute: async ({ batchId }, context) => {
-      const call = startToolLog(logging, "cancel_refresh", context, {
+      const call = startToolLog(logging, "cancel_batch", context, {
         batchId,
       });
       if (!trustedConversation(context?.requestContext)) {

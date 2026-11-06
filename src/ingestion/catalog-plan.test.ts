@@ -10,6 +10,7 @@ import {
 import {
   fixtureDependencies,
   fixtureTargets,
+  fixtureDescriptionRole,
   fixtureLocationPlan,
   set,
   clear,
@@ -18,16 +19,16 @@ import {
 
 const input = {
   mode: "add" as const,
-  name: "Example Fest",
+  input: "Example Fest",
   actor: "catalog-research",
   dryRun: false,
 };
-function fixture() {
+function fixture(scheduleStatus: "announced" | "scheduled" = "announced") {
   const { client } = testDatabase();
   const fx = testFixtures(client);
   const event = fx.event({
     canonicalName: "Example Fest",
-    summary: "Saved summary",
+    description: "Saved description",
   });
   const edition = fx.edition(event, {
     editionKey: "2027",
@@ -35,6 +36,7 @@ function fixture() {
     startsOn: "2027-07-01",
     endsOn: "2027-07-03",
     dateState: "confirmed",
+    scheduleStatus,
     countryCode: "PT",
     locality: "Lisbon",
     timeZone: "Europe/Lisbon",
@@ -74,7 +76,7 @@ test.each([
     const general = fixtureTargets();
     general.observedEventName = name as string;
     const result = await runFixtureResearch(
-      { ...input, name: name as string },
+      { ...input, input: name as string },
       { client, ...fixtureDependencies({ general }) },
     );
     expect(result.errors).toEqual([]);
@@ -102,10 +104,13 @@ test("duplicate add stops all role proposals before writes and retains the obser
   expect(result.eventNameMismatch?.observedName).toBe("Revised name");
   expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
 });
-test("General maps grouped facts and reasons without renaming the saved Event", async () => {
+test("Ingestion maps grouped facts and reasons without renaming the saved Event", async () => {
   const f = fixture();
   f.general.observedEventName = "Observed name";
-  f.general.event.summary = set("Updated description", "Official description");
+  const classification = fixtureDescriptionRole({
+    description: set("Updated description", "Official description"),
+    shortDescription: set("Example Fest is a music festival.", "Preview text"),
+  });
   f.general.currentOrNextEdition!.fields = {
     dates: set(
       { startsOn: "2027-06-10", endsOn: "2027-06-20", state: "provisional" },
@@ -113,11 +118,26 @@ test("General maps grouped facts and reasons without renaming the saved Event", 
     ),
     sizeEstimate: set(15000, "Organizer attendance"),
   };
-  const result = await runFixtureResearch(f.refresh, f.deps);
+  const result = await runFixtureResearch(f.refresh, {
+    ...f.deps,
+    generateRoles: { classification },
+  });
   expect(result.errors).toEqual([]);
+  expect(result.changes).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        field: "description",
+        explanations: ["Official description"],
+      }),
+      expect.objectContaining({
+        field: "short_description",
+        explanations: ["Preview text"],
+      }),
+    ]),
+  );
   const saved = readResearchEvent(f.client, f.event.id)!;
   expect(saved.canonicalName).toBe("Example Fest");
-  expect(saved.summary).toBe("Updated description");
+  expect(saved.description).toBe("Updated description");
   expect(saved.editions[0]).toMatchObject({
     startsOn: "2027-06-10",
     endsOn: "2027-06-20",
@@ -281,14 +301,16 @@ test("Links clear only the official website and keep other link kinds", async ()
 });
 test("writer rejection rolls back links, data, audit entries and receipts together", async () => {
   const f = fixture();
-  f.general.event.summary = set("New summary");
   f.client.exec(
-    "CREATE TRIGGER refuse_summary BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT, 'private failure'); END",
+    "CREATE TRIGGER refuse_description BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT, 'private failure'); END",
   );
   const before = readResearchEvent(f.client, f.event.id);
   const result = await runFixtureResearch(f.refresh, {
     ...f.deps,
     generateRoles: {
+      classification: fixtureDescriptionRole({
+        description: set("New description"),
+      }),
       links: async () => ({
         event: { website: set("https://example.org/"), socials: {} },
         currentOrNextEdition: {},
@@ -305,6 +327,66 @@ test("writer rejection rolls back links, data, audit entries and receipts togeth
   expect(result.changes).toEqual([]);
   expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
   expect(f.client.prepare("SELECT * FROM catalog_changes").all()).toEqual([]);
+});
+test("rejects a new scheduled Edition without dates before writing any changes", async () => {
+  const f = fixture();
+  const target = f.general.currentOrNextEdition!;
+  target.editionKey = "2028";
+  target.fields = { year: set(2028), scheduleStatus: set("scheduled") };
+  const before = readResearchEvent(f.client, f.event.id);
+
+  const result = await runFixtureResearch(f.refresh, {
+    ...f.deps,
+    generateRoles: {
+      classification: fixtureDescriptionRole({
+        description: set("New description"),
+      }),
+    },
+  });
+
+  expect(result.outcome).toBe("failed");
+  expect(result.errors).toContainEqual({
+    code: "invalid_plan",
+    stage: "validation",
+    field: "currentOrNextEdition.fields.dates",
+    message:
+      "Edition 2028 needs a start date and an end date for status scheduled.",
+  });
+  expect(result.operations).toEqual([]);
+  expect(result.receipts).toEqual([]);
+  expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
+});
+test("accepts scheduled status when the Edition keeps its saved dates", async () => {
+  const f = fixture();
+  f.general.currentOrNextEdition!.fields.scheduleStatus = set("scheduled");
+
+  const result = await runFixtureResearch(f.refresh, f.deps);
+
+  expect(result.errors).toEqual([]);
+  expect(readResearchEvent(f.client, f.event.id)!.editions[0]).toMatchObject({
+    scheduleStatus: "scheduled",
+    startsOn: "2027-07-01",
+    endsOn: "2027-07-03",
+  });
+});
+test("rejects clearing dates when the Edition keeps its scheduled status", async () => {
+  const f = fixture("scheduled");
+  f.general.currentOrNextEdition!.fields.dates = clear();
+  const before = readResearchEvent(f.client, f.event.id);
+
+  const result = await runFixtureResearch(f.refresh, f.deps);
+
+  expect(result.outcome).toBe("failed");
+  expect(result.errors).toContainEqual(
+    expect.objectContaining({
+      code: "invalid_plan",
+      stage: "validation",
+      message:
+        "Edition 2027 needs a start date and an end date for status scheduled.",
+    }),
+  );
+  expect(result.operations).toEqual([]);
+  expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
 });
 test("cancellation changes schedule status while omission preserves size", async () => {
   const f = fixture();

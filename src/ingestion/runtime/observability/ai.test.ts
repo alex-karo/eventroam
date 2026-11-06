@@ -38,7 +38,6 @@ test.each(["stalled", "failed"])(
       config: {
         apiKey: "PRIVATE_PROVIDER_KEY",
         model: "provider/model",
-        limits: budget.limits,
       },
       ai: { sessionId: "run-1", traceId: "trace-1", parentId: "parent-1" },
       fetch: vi.fn(async () =>

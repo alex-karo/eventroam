@@ -13,7 +13,7 @@ import {
 } from "@/test/ingestion";
 
 const settings = storedRunInput(
-  { mode: "add", name: "Test", actor: "owner" },
+  { mode: "add", input: "Test", actor: "owner" },
   { apiKey: "secret", model: "fixture", limits: DEFAULT_RESEARCH_LIMITS },
   DEFAULT_RESEARCH_LIMITS,
 );
@@ -60,7 +60,7 @@ test.each([
 test("finalization preserves normalized report, zero/unknown values and guards terminal rows", async () => {
   const { client } = testDatabase();
   const report = await runCatalogResearch(
-    { mode: "add", name: "Test", actor: "owner" },
+    { mode: "add", input: "Test", actor: "owner" },
     {
       client,
       ...fixtureDependencies({
@@ -146,7 +146,7 @@ test.each([NaN, Infinity, -1, 1.5])(
   async (cost) => {
     const { client } = testDatabase();
     const report = await runCatalogResearch(
-      { mode: "add", name: "Test", actor: "owner" },
+      { mode: "add", input: "Test", actor: "owner" },
       {
         client,
         ...fixtureDependencies({
@@ -231,7 +231,7 @@ test("a new run leaves historical report JSON unchanged", async () => {
     )
     .run(historical, id);
   const result = await runCatalogResearch(
-    { mode: "add", name: "Test", actor: "owner" },
+    { mode: "add", input: "Test", actor: "owner" },
     {
       client,
       ...fixtureDependencies({

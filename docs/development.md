@@ -22,7 +22,7 @@ pnpm run dev
 
 Open `http://localhost:3000` for the project presentation or `http://festivals.localhost:3000` for discovery. Fixtures create a migrated database at `./data/eventroam.sqlite` and add repeatable fictional records.
 
-Copy `.env.example` to `.env.local` for Next.js settings. A Mapbox token is optional locally; the list and filters work without one. Migration and fixture commands read the shell environment, not `.env.local`. For a custom database, run `DATABASE_PATH=./data/custom.sqlite pnpm run db:fixtures` and set the same path in `.env.local`. Catalog research, eval, and Studio commands load `.env`. Keep credentials in ignored local env files.
+Copy `.env.example` to `.env.local` for Next.js settings. A Mapbox token is optional locally; the list and filters work without one. Migration and fixture commands read the shell environment, not `.env.local`. For a custom database, run `DATABASE_PATH=./data/custom.sqlite pnpm run db:fixtures` and set the same path in `.env.local`. The Studio and eval launch commands load `.env`. The catalog CLI uses the running Studio's settings. Keep credentials in ignored local env files.
 
 Codex worktrees use `.codex/environments/environment.toml` to link the source checkout’s `.env` and run `pnpm install --frozen-lockfile` in the new worktree. The setup requires the pinned Node.js and pnpm versions to be available on `PATH`.
 

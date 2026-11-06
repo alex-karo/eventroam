@@ -111,7 +111,8 @@ async function main() {
     event: {
       slug: "sparse-festival",
       canonicalName: "Sparse Festival",
-      summary: null,
+      description: null,
+      shortDescription: null,
     },
     editions: [
       {

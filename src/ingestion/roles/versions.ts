@@ -1,9 +1,9 @@
 export const PROMPT_VERSIONS = {
-  research: "source-navigation-v26",
-  reader: "source-reader-v40",
-  general: "general-facts-v25",
-  tickets: "current-tickets-v23",
-  classification: "edition-classification-v12",
-  links: "public-links-v15",
-  editor: "proposal-review-v33",
+  research: "source-navigation-v27",
+  reader: "source-reader-v42",
+  general: "general-facts-v28",
+  tickets: "current-tickets-v24",
+  classification: "edition-classification-v20",
+  links: "public-links-v16",
+  editor: "proposal-review-v37",
 };

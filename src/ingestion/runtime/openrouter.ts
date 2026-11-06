@@ -14,7 +14,9 @@ import type { ResearchConfig } from "./config";
 export const MAX_PROVIDER_UNAVAILABLE_RETRIES = 3;
 
 /** Ordinary model calls have no web plugin. Discovery is isolated in searchWeb. */
-export function createResearchModel(config: ResearchConfig) {
+export function createResearchModel(
+  config: Pick<ResearchConfig, "apiKey" | "model">,
+) {
   if (config.model.startsWith("opencode-go/")) {
     return {
       id: config.model as `opencode-go/${string}`,
@@ -31,7 +33,9 @@ export function createResearchModel(config: ResearchConfig) {
   };
 }
 
-export function researchProviderOptions(config: ResearchConfig) {
+export function researchProviderOptions(
+  config: Pick<ResearchConfig, "model" | "reasoningEffort" | "serviceTier">,
+) {
   if (config.model.startsWith("opencode-go/")) {
     return {
       openai: {

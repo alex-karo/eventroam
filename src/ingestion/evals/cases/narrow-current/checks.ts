@@ -10,6 +10,23 @@ import {
   refusedResearch,
 } from "../../research";
 import { check } from "../../checks";
+import type { CatalogChanges } from "../../changes";
+
+function preserveEventFields(changes: CatalogChanges) {
+  return [
+    check(
+      "catalog.event.descriptions.preserve.1",
+      !changes.event("description", () => true) &&
+        !changes.event("short_description", () => true),
+      "Preserve both Event descriptions",
+    ),
+    check(
+      "catalog.event.links.preserve.2",
+      !changes.event("links", (value) => value != null),
+      "Preserve Event links",
+    ),
+  ];
+}
 
 export const checks = {
   "narrow-current-stable": (context) => {
@@ -25,16 +42,7 @@ export const checks = {
         ),
         'Set 2027 venue name to "New Grounds"',
       ),
-      check(
-        "catalog.event.summary.preserve.1",
-        !changes.event("summary", (value) => value != null),
-        "Preserve Event summary",
-      ),
-      check(
-        "catalog.event.links.preserve.2",
-        !changes.event("links", (value) => value != null),
-        "Preserve Event links",
-      ),
+      ...preserveEventFields(changes),
       check(
         "catalog.edition.2027.terms.preserve.3",
         !changes.edition({ key: "2027" }, "terms", (value) => value != null),
@@ -105,16 +113,7 @@ export const checks = {
         ),
         "Include catalog:term:genre:electronic in 2027 classification",
       ),
-      check(
-        "catalog.event.summary.preserve.1",
-        !changes.event("summary", (value) => value != null),
-        "Preserve Event summary",
-      ),
-      check(
-        "catalog.event.links.preserve.2",
-        !changes.event("links", (value) => value != null),
-        "Preserve Event links",
-      ),
+      ...preserveEventFields(changes),
       researchStatus(context, "success"),
       oneNewEdition(context, 2027),
       ...[
@@ -177,16 +176,7 @@ export const checks = {
         ),
         "Include catalog:term:genre:metal in 2027 classification",
       ),
-      check(
-        "catalog.event.summary.preserve.1",
-        !changes.event("summary", (value) => value != null),
-        "Preserve Event summary",
-      ),
-      check(
-        "catalog.event.links.preserve.2",
-        !changes.event("links", (value) => value != null),
-        "Preserve Event links",
-      ),
+      ...preserveEventFields(changes),
       check(
         "catalog.edition.2027.terms.preserve.3",
         !changes.edition(
@@ -271,16 +261,7 @@ export const checks = {
         ),
         "Include catalog:term:genre:electronic in 2027 classification",
       ),
-      check(
-        "catalog.event.summary.preserve.1",
-        !changes.event("summary", (value) => value != null),
-        "Preserve Event summary",
-      ),
-      check(
-        "catalog.event.links.preserve.2",
-        !changes.event("links", (value) => value != null),
-        "Preserve Event links",
-      ),
+      ...preserveEventFields(changes),
       check(
         "catalog.edition.2027.terms.preserve.3",
         !changes.edition(
@@ -312,16 +293,7 @@ export const checks = {
   "narrow-current-none": (context) => {
     const { report, data, changes } = context;
     return [
-      check(
-        "catalog.event.summary.preserve.1",
-        !changes.event("summary", (value) => value != null),
-        "Preserve Event summary",
-      ),
-      check(
-        "catalog.event.links.preserve.2",
-        !changes.event("links", (value) => value != null),
-        "Preserve Event links",
-      ),
+      ...preserveEventFields(changes),
       check(
         "catalog.edition.2026.starts_on.preserve.3",
         !changes.edition(
@@ -395,16 +367,7 @@ export const checks = {
         ),
         "Set 2027 base price in minor units to 11000",
       ),
-      check(
-        "catalog.event.summary.preserve.1",
-        !changes.event("summary", (value) => value != null),
-        "Preserve Event summary",
-      ),
-      check(
-        "catalog.event.links.preserve.2",
-        !changes.event("links", (value) => value != null),
-        "Preserve Event links",
-      ),
+      ...preserveEventFields(changes),
       check(
         "catalog.edition.2027.price_qualification.preserve.3",
         !changes.edition(

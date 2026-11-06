@@ -2,10 +2,11 @@ import { afterEach, expect, test, vi } from "vitest";
 import { createTestDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { readResearchEvent } from "@/catalog/read/research";
-import { studioIngestionInputSchema } from "./workflow";
+import { studioIngestionInputSchema } from "./invocation";
 import {
   fixtureDependencies,
   fixtureTargets,
+  fixtureDescriptionRole,
   fixtureLocationPlan,
   fixtureChecks,
   set,
@@ -17,7 +18,10 @@ const reason = "Inspected official source confirms this fact";
 function fixture(countryCode: string | null = "IE") {
   const { client } = createTestDatabase();
   const fx = testFixtures(client);
-  const event = fx.event({ canonicalName: "Fixture Fest", summary: "Saved" });
+  const event = fx.event({
+    canonicalName: "Fixture Fest",
+    description: "Saved",
+  });
   const old = fx.edition(event, {
     editionKey: "source-row",
     editionYear: 2026,
@@ -59,6 +63,132 @@ function noWrites(f: ReturnType<typeof fixture>) {
   );
 }
 afterEach(() => vi.restoreAllMocks());
+test.each([
+  ["full", "targets", ["FR", "CA"], false],
+  ["full", "uncertain", ["CA"], false],
+  ["current", "targets", ["CA"], false],
+  ["full", "targets", ["CA"], true],
+] as const)(
+  "%s refresh rejects %s with observed countries %j and an unknown first saved country %s",
+  async (scope, decision, countryCodes, unknownFirstCountry) => {
+    const f = fixture(unknownFirstCountry ? null : "FR");
+    const saved = unknownFirstCountry
+      ? f.fx.edition(f.event, {
+          editionKey: "known-country",
+          editionYear: 2027,
+          countryCode: "FR",
+        })
+      : f.old;
+    const before = readResearchEvent(f.client, f.event.id);
+    const editor = vi.fn();
+    const question = { message: "Confirm the intended festival." };
+    const festivalCountries = countryCodes.map((countryCode) => ({
+      countryCode,
+      evidenceIds: ["s1-e1"],
+    }));
+    f.deps.readPage.mockImplementation(async (url, options) => ({
+      ...(await fixtureDependencies().readPage(url, options)),
+      markdown:
+        countryCodes.length > 1
+          ? "Fixture Fest takes place in Montréal, Canada. Its previous Edition took place in France."
+          : "Fixture Fest takes place in Montréal, Canada.",
+    }));
+    const classification = vi.fn(
+      fixtureDescriptionRole({
+        description: set("Fixture Fest takes place in Montréal."),
+      }),
+    );
+    const result = await runCatalogResearch(
+      { ...f.input, scope },
+      {
+        ...f.deps,
+        generateRoles: {
+          general: async () =>
+            decision === "targets"
+              ? { ...f.general, festivalCountries }
+              : {
+                  decision,
+                  reason: "Confirm which festival the saved Event describes.",
+                  festivalCountries,
+                  unresolved: [question],
+                },
+          classification,
+          editor,
+        },
+      },
+    );
+    expect(result).toMatchObject({
+      outcome: "failed",
+      editorStatus: "not_run",
+      locationStatus: "not_run",
+      workload: { returnedEditions: 0 },
+      operations: [],
+      receipts: [],
+    });
+    expect(result.errors).toContainEqual({
+      code: "country_conflict",
+      stage: "validation",
+      message: `Sources place the festival in CA, but saved Edition ${saved.editionKey} has country FR. Confirm the saved country and correct it separately before retrying.`,
+      url: "https://fixture.example/festival",
+    });
+    expect(result.modelResponse?.object).toMatchObject({ festivalCountries });
+    if (decision === "uncertain") {
+      expect(result.unresolved).toContainEqual(question);
+    }
+    expect(classification).not.toHaveBeenCalled();
+    expect(editor).not.toHaveBeenCalled();
+    expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
+    noWrites(f);
+  },
+);
+test.each([
+  ["PT", "PT"],
+  ["PT", null],
+  [null, "PT"],
+])(
+  "a full refresh with saved country %s and observed country %s can update Event fields without selecting an Edition",
+  async (savedCountry, countryCode) => {
+    const f = fixture(savedCountry);
+    const before = readResearchEvent(f.client, f.event.id);
+    f.general.festivalCountries = countryCode
+      ? [{ countryCode, evidenceIds: ["s1-e1"] }]
+      : [];
+    const result = await runCatalogResearch(f.input, {
+      ...f.deps,
+      generateRoles: {
+        ...f.deps.generateRoles,
+        classification: fixtureDescriptionRole({
+          description: set("Researched"),
+        }),
+      },
+    });
+    expect(result).toMatchObject({
+      outcome: "updated",
+      editorStatus: "success",
+      locationStatus: "not_run",
+      errors: [],
+    });
+    expect(result.operations.map(({ kind }) => kind)).toEqual(["updateEvent"]);
+    expect(readResearchEvent(f.client, f.event.id)).toMatchObject({
+      description: "Researched",
+      editions: before!.editions,
+    });
+  },
+);
+test("a festival country cannot use an unknown evidence reference", async () => {
+  const f = fixture("FR");
+  f.general.festivalCountries = [
+    { countryCode: "FR", evidenceIds: ["unknown"] },
+  ];
+  const result = await runCatalogResearch(f.input, f.deps);
+  expect(result).toMatchObject({ outcome: "failed", editorStatus: "not_run" });
+  expect(result.errors).toContainEqual({
+    code: "invalid_plan",
+    stage: "validation",
+    message: "Festival country needs inspected source support",
+  });
+  noWrites(f);
+});
 test.each(["full", "current"] as const)(
   "%s supplies the fixed date, permissions and saved context to General",
   async (scope) => {
@@ -87,7 +217,7 @@ test.each(["full", "current"] as const)(
       currentDate: "2026-10-11T12:00:00.000Z",
       workload: { savedEditions: 1, returnedEditions: 1 },
     });
-    expect(readResearchEvent(f.client, f.event.id)!.summary).toBe("Saved");
+    expect(readResearchEvent(f.client, f.event.id)!.description).toBe("Saved");
     noWrites(f);
   },
 );
@@ -166,10 +296,12 @@ test.each(["country", "sibling", "remove"] as const)(
   "concurrent baseline %s rolls back the entire write",
   async (mutation) => {
     const f = fixture();
-    f.general.event.summary = set("Researched");
     const result = await runCatalogResearch(f.input, {
       ...f.deps,
       generateRoles: {
+        classification: fixtureDescriptionRole({
+          description: set("Researched"),
+        }),
         general: async () => {
           if (mutation === "country") {
             f.client
@@ -190,47 +322,57 @@ test.each(["country", "sibling", "remove"] as const)(
       expect.objectContaining({ code: "write_failed" }),
     );
     expect(result.receipts).toEqual([]);
-    expect(readResearchEvent(f.client, f.event.id)!.summary).toBe("Saved");
+    expect(readResearchEvent(f.client, f.event.id)!.description).toBe("Saved");
     noWrites(f);
   },
 );
-test.each(["event", "previous", "completed"] as const)(
-  "current rejects the out-of-scope %s proposal",
-  async (kind) => {
-    const f = fixture();
-    if (kind === "event") {
-      f.general.event.summary = set("Forbidden");
-    }
-    if (kind === "previous") {
-      f.general.previousEdition = {
-        editionKey: "source-row",
-        fields: {},
-        reason,
-        evidenceIds: ["s1-e1"],
-      };
-    }
-    if (kind === "completed") {
-      f.general.currentOrNextEdition = {
-        editionKey: "source-row",
-        fields: {},
-        reason,
-        evidenceIds: ["s1-e1"],
-      };
-    }
-    const result = await runCatalogResearch(
-      { ...f.input, scope: "current" },
-      f.deps,
-    );
-    expect(result.outcome).toBe("failed");
-    expect(result.operations).toEqual([]);
-    noWrites(f);
-  },
-);
-test("CLI and Studio reject the same current-scope Event link proposal", async () => {
+test.each([
+  "description",
+  "shortDescription",
+  "previous",
+  "completed",
+] as const)("current rejects the out-of-scope %s proposal", async (kind) => {
   const f = fixture();
+  const generateRoles = {
+    ...f.deps.generateRoles,
+    classification: undefined as GenerateRole | undefined,
+  };
+  if (kind === "description" || kind === "shortDescription") {
+    f.general.currentOrNextEdition = fixtureTargets().currentOrNextEdition;
+    generateRoles.classification = fixtureDescriptionRole({
+      [kind]: set("Forbidden"),
+    });
+  }
+  if (kind === "previous") {
+    f.general.previousEdition = {
+      editionKey: "source-row",
+      fields: {},
+      reason,
+      evidenceIds: ["s1-e1"],
+    };
+  }
+  if (kind === "completed") {
+    f.general.currentOrNextEdition = {
+      editionKey: "source-row",
+      fields: {},
+      reason,
+      evidenceIds: ["s1-e1"],
+    };
+  }
+  const result = await runCatalogResearch(
+    { ...f.input, scope: "current" },
+    { ...f.deps, generateRoles },
+  );
+  expect(result.outcome).toBe("failed");
+  expect(result.operations).toEqual([]);
+  noWrites(f);
+});
+test("Studio rejects a current-scope Event link proposal", async () => {
+  const f = fixture();
+  f.general.currentOrNextEdition = fixtureTargets().currentOrNextEdition;
   const links = {
     event: { website: set("https://fixture.example/festival"), socials: {} },
-    currentOrNextEdition: null,
+    currentOrNextEdition: {},
     checks: [],
     unresolved: [],
     omitted: [],
@@ -239,17 +381,12 @@ test("CLI and Studio reject the same current-scope Event link proposal", async (
     ...f.deps,
     generateRoles: { ...f.deps.generateRoles, links: async () => links },
   };
-  const cli = await runCatalogResearch(
-    { ...f.input, scope: "current", dryRun: true },
-    deps,
-  );
   const workflow = createFixtureIngestionWorkflow(async () => ({ deps }));
   const run = await workflow.createRun();
   const result = await run.start({
     inputData: studioIngestionInputSchema.parse({
       mode: "refresh",
-      eventId: f.event.id,
-      scope: "current",
+      input: { eventId: f.event.id, scope: "current" },
     }),
     outputOptions: { includeState: true },
   });
@@ -257,10 +394,9 @@ test("CLI and Studio reject the same current-scope Event link proposal", async (
   if (result.status !== "success") {
     throw new Error("Unexpected workflow status");
   }
-  for (const report of [cli, result.state!.data!.report!]) {
-    expect(report.outcome).toBe("failed");
-    expect(report.operations).toEqual([]);
-  }
+  const report = result.state!.data!.report!;
+  expect(report.outcome).toBe("failed");
+  expect(report.operations).toEqual([]);
   noWrites(f);
 });
 test("full selects both Editions with more than twenty saved Editions", async () => {
@@ -301,9 +437,15 @@ test.each(["verified", "unfinished"] as const)(
     expect(result).toMatchObject({
       outcome: "unchanged",
       researchStatus: finding === "verified" ? "success" : "partial",
-      editorStatus: "success",
+      editorStatus: "not_run",
       operations: [],
     });
+    expect(f.deps.generateRole.mock.calls.map(([role]) => role).sort()).toEqual(
+      ["reader", "research"],
+    );
+    if (finding === "unfinished") {
+      expect(result.unresolved).toContainEqual(f.general.unresolved[0]);
+    }
     expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
     noWrites(f);
   },
@@ -393,6 +535,108 @@ test.each([true, false])(
     expect(saved.editions.find((e) => e.id === f.old.id)).toEqual(
       before.editions[0],
     );
-    expect(saved.summary).toBe("Saved");
+    expect(saved.description).toBe("Saved");
   },
 );
+
+test.each(["add", "full", "current"] as const)(
+  "%s stops before specialists without a selected or qualifying saved Edition",
+  async (scope) => {
+    const f = fixture();
+    f.client.prepare("DELETE FROM editions WHERE id = ?").run(f.old.id);
+    const input =
+      scope === "add"
+        ? {
+            mode: "add" as const,
+            input: "New Fest",
+            actor: f.input.actor,
+            dryRun: false,
+          }
+        : { ...f.input, scope };
+    if (scope === "add") {
+      f.general.eventId = null;
+      f.general.observedEventName = "New Fest";
+    }
+    const result = await runCatalogResearch(input, f.deps);
+    expect(result).toMatchObject({
+      outcome: "skipped",
+      operations: [],
+      classificationResponse: null,
+      editorStatus: "not_run",
+      locationStatus: "not_run",
+    });
+    expect(result.unresolved).toContainEqual({
+      field: "edition",
+      message: "Insufficient information about editions",
+    });
+    expect(f.deps.generateRole.mock.calls.map(([role]) => role).sort()).toEqual(
+      ["reader", "research"],
+    );
+    noWrites(f);
+  },
+);
+
+test("full refresh assigns descriptions with a saved Edition and no selected targets", async () => {
+  const f = fixture();
+  const texts = {
+    description: set("A gathering with music in the open air."),
+    shortDescription: set("Fixture Fest is an open-air festival."),
+  };
+  const classification = vi.fn(fixtureDescriptionRole(texts));
+  const result = await runCatalogResearch(
+    { ...f.input, scope: "full" },
+    {
+      ...f.deps,
+      generateRoles: { ...f.deps.generateRoles, classification },
+    },
+  );
+  expect(result.outcome).toBe("updated");
+  expect(result.errors).toEqual([]);
+  expect(result.workload.returnedEditions).toBe(0);
+  expect(classification).toHaveBeenCalledOnce();
+  expect(JSON.parse(classification.mock.calls[0][1])).toMatchObject({
+    assignedChecks: ["description"],
+    savedDescriptions: {
+      description: "Saved",
+      shortDescription: null,
+    },
+    targets: { previousEdition: null, currentOrNextEdition: null },
+  });
+  expect(readResearchEvent(f.client, f.event.id)).toMatchObject({
+    description: texts.description.value,
+    shortDescription: texts.shortDescription.value,
+  });
+});
+
+test("a specific announcement without dates passes the Edition check and starts Location without saved text", async () => {
+  const f = fixture();
+  f.general.eventId = null;
+  f.general.observedEventName = "New Fest";
+  f.general.currentOrNextEdition = {
+    editionKey: "2027",
+    reason,
+    evidenceIds: ["s1-e1"],
+    fields: {
+      year: set(2027),
+      scheduleStatus: set("announced" as const),
+    },
+  };
+  const generateLocation = vi.fn(async (raw: string) => {
+    const prompt = JSON.parse(raw);
+    expect(prompt.festival).toMatchObject({ name: "New Fest", summary: null });
+    return fixtureLocationPlan(prompt);
+  });
+  const result = await runCatalogResearch(
+    { mode: "add", input: "New Fest", actor: f.input.actor, dryRun: true },
+    { ...f.deps, generateLocation },
+  );
+  expect(generateLocation).toHaveBeenCalledOnce();
+  expect(result.errors).toEqual([]);
+  expect(result.operations).toContainEqual(
+    expect.objectContaining({
+      kind: "createEdition",
+      data: expect.objectContaining({ scheduleStatus: "announced" }),
+    }),
+  );
+  noWrites(f);
+});

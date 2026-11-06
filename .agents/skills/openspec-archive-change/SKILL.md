@@ -1,9 +1,9 @@
 ---
 name: openspec-archive-change
-description: Archive a completed OpenSpec change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete. Also use when the user says "openspec archive" or "opsx archive".
+description: Archive a completed OpenSpec change after implementation. Also use for "openspec archive" or "opsx archive".
 allowed-tools: Bash(openspec:*)
 license: MIT
-compatibility: Requires openspec CLI.
+compatibility: Requires the OpenSpec CLI.
 metadata:
   author: openspec
   version: "1.0"
@@ -12,18 +12,18 @@ metadata:
 
 Archive a completed change in the experimental workflow.
 
-**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `schemas`, `view`). Once selected, treat `--store <id>` as sticky for the rest of the workflow. Every unscoped example of those commands below is shorthand: before running it, append the flag. For example, run `openspec status --change "<name>" --json --store "<id>"`, not the unscoped form shown below. Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
+**Store selection:** A store is a separate OpenSpec repository registered on this machine. If the user names a store, or the work uses one, run `openspec store list --json`. Use its registered ID. Keep `--store <id>` throughout this workflow. Use it with these commands: `new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `schemas`, and `view`. Add the flag to each applicable example below before you run it. For example, use `openspec status --change "<name>" --json --store "<id>"`. Other commands do not accept the flag. Keep it in follow-up commands suggested by the CLI. Without a selected store, commands use the nearest local `openspec/` root.
 
-**Project check:** These steps expect a project that already uses OpenSpec. Before the first step that writes anything (`new change`, `archive`, `sync specs`, or authoring an artifact file), confirm the project has a root: run `openspec list --json` (with `--store <id>` when a store is selected, since the store is then the root) and read `root`. A root object means the project is set up. `"root": null` means it is not - there is no `openspec/` directory here, and a write such as `openspec new change` would create one as a side effect. The command also exits non-zero, which is that answer rather than a broken CLI, so read the JSON instead of retrying or working around it.
+**Project check:** These steps require an existing OpenSpec project. Before the first write, run `openspec list --json` and read `root`. Add `--store <id>` when a store is selected. Writes include `new change`, `archive`, `sync specs`, and artifact edits. A root object means the project is set up. `"root": null` means no OpenSpec root is available. A write such as `openspec new change` can create one as a side effect. The missing-root result also has a nonzero exit code. Read the JSON; do not retry or work around this result.
 
-One `"root": null` is not about setup: when a `status` error message starts with `Declared in` or `Invalid store declaration in` and names this project's `openspec/config.yaml` (or `config.yml`), the project does use OpenSpec through a store it declares, which this machine cannot resolve (the store is not registered, or the `store:` line is malformed). Do not treat it as uninitialized and skip the branches below: stop before writing and show the user that error's `message` and `fix`.
+There is one exception to the missing-root result. A `status` error can start with `Declared in` or `Invalid store declaration in`. If it names this project's `openspec/config.yaml` or `config.yml`, the project declares a store. The machine cannot resolve that store because its registration or declaration is invalid. Stop before writing. Show the error's `message` and `fix`. Do not use the missing-root branches below.
 
-Otherwise, with no root, what happens next depends on how this workflow was reached:
+For other missing-root results, follow the branch that matches the request:
 
-- **Auto-selected**: you chose this workflow yourself, without the user naming OpenSpec, naming this skill, or running its slash command. Stop using OpenSpec and answer the request normally, as you would with no OpenSpec installed. Do not ask them to set anything up and do not mention OpenSpec setup.
-- **Explicit OpenSpec request**: the user named OpenSpec, named this skill, or ran its slash command. Stop before writing and ask how to proceed: set this project up (`openspec init`), target a store they already have (`--store <id>`), or continue without OpenSpec for this request. Wait for their answer.
+- **Auto-selected**: You selected this workflow without the user naming OpenSpec, this skill, or its slash command. Stop using OpenSpec and continue the user's task. Do not ask for setup or mention OpenSpec setup.
+- **Explicit OpenSpec request**: The user named OpenSpec, this skill, or its slash command. Stop before writing. Ask whether to run `openspec init`, use a registered store (`--store <id>`), or continue without OpenSpec. Wait for the answer.
 
-In both branches, never create the root as a side effect: do not run `openspec init` until the user asks for it, do not hand-create `openspec/` files, and do not let a command create it.
+Do not run `openspec init` until the user requests setup. Do not create `openspec/` files by hand or let another command create the root.
 
 `<capability-path>` is the spec directory relative to `specs/` (for example, `user-auth` or `identity/user-auth`). Preserve the full path from each delta spec when resolving its main spec.
 
@@ -49,26 +49,23 @@ In both branches, never create the root as a side effect: do not run `openspec i
    ```bash
    openspec instructions archive --change "<name>" --json
    ```
-   Keep the same selected-root flags on this command. This lookup is advisory and
-   optional: it only supplies extra prompt inputs, so it must never block archiving.
-   If it exits non-zero or returns invalid JSON — for example on an older CLI that
-   does not support this command yet — continue the archive workflow with no
-   context and no operation guidance. Do not report an error and do not stop.
+   Keep the same selected-root flags. This optional lookup supplies extra context
+   and advice. It must not block archive. If it fails or returns invalid JSON,
+   continue without context and operation guidance. For example, an older CLI
+   may not support the command. Do not report an error or stop for this lookup.
 
-   A successful response may omit both optional fields. Treat `context` as a
-   required prompt-level input: read and consider it, and apply relevant project
-   facts, conventions, and constraints. Treat `operationGuidance` as optional
-   additive advice: read and consider every entry, and follow entries that are
-   applicable and compatible with the built-in archive workflow.
+   A successful response can omit both fields. When present, read `context` and
+   apply relevant project facts, conventions, and constraints. Read every
+   `operationGuidance` entry as optional advice. Follow advice only if it applies
+   and agrees with the built-in archive workflow.
 
-   Keep both fields separate from built-in steps, explicit user choices, resolved
-   paths, CLI checks, and command contracts. If context conflicts with one of those
-   controlling inputs, report the conflict and preserve the controlling value. If
-   guidance is inapplicable or conflicts with a controlling input, do not follow it
-   and explain why. Do not infer replacement paths, skipped prompts, or flags from
-   either field, and do not copy their text verbatim into specs, change artifacts,
-   or archive summaries unless the user separately asks for it. These are
-   prompt-level behavior contracts, not enforceable checks.
+   Neither field replaces built-in steps, explicit user choices, resolved paths,
+   CLI checks, or command contracts. Report a context conflict and keep the
+   controlling value. Explain why you did not follow advice that conflicts or
+   does not apply. Do not derive replacement paths, skipped prompts, or flags
+   from either field. Do not copy these fields into specs, artifacts, or summaries
+   unless the user separately requests that content. They guide agent behavior;
+   they are not executable checks.
 
 2. **Check artifact completion status**
 
@@ -94,12 +91,11 @@ In both branches, never create the root as a side effect: do not run `openspec i
    paths, and globs.
    Incomplete tasks = `totalTasks - completedTasks`.
 
-   Do not infer task completion from artifact status or the absence of a
-   top-level `tasks.md`. If the lookup fails, returns invalid JSON, omits or
-   duplicates the selected change, or returns invalid counts, report the problem
-   and stop before syncing or archiving.
-   The CLI counts only `x`/`X` checkbox markers as complete;
-   other markers, including unfamiliar ones, remain incomplete.
+   Do not infer task completion from artifact status or a missing top-level `tasks.md`.
+   If the lookup, JSON, matching entry, or counts are invalid, report the problem.
+   Stop before sync or archive. This includes an absent or duplicate change entry.
+   The CLI counts only `x`/`X` checkbox markers as complete.
+   Other markers, including unfamiliar ones, remain incomplete.
 
    **If incomplete tasks found:**
    - Display warning showing count of incomplete tasks
@@ -116,12 +112,12 @@ In both branches, never create the root as a side effect: do not run `openspec i
    delta specs from other artifacts.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (use the store-aware `planningHome.root` from step 2, not a hardcoded repo path)
-   - A missing main spec is **not automatically** "already synced". For a new capability, the main spec is an *output* of the sync, not an input:
-     - If the delta has MODIFIED or RENAMED requirements, report that only ADDED requirements can create a new main spec and mark that capability as sync-blocked. Never invent a requirement that has no current version.
-     - Otherwise, if the delta has only REMOVED requirements and the change's `.openspec.yaml` declares `retire_capabilities: true`, the capability is already retired: count it as already synced, warn that there is nothing left to remove, and do not recreate the main spec. Apply this rule both now and when verifying a completed sync.
-     - Otherwise, if the delta has no ADDED requirements, report that no sync is possible and mark that capability as sync-blocked. For a REMOVED-only delta, warn that there is no main spec to remove from and leave the main-spec tree unchanged. `openspec archive` refuses the unmarked REMOVED-only case with `Spec must have at least one requirement`.
-     - Otherwise, count the capability as needing sync and name it in the summary (`<capability-path>: new main spec will be created`). If the delta also has REMOVED requirements, warn that they will be ignored because there is no main spec to remove from. The sync creates the main spec from only the delta's ADDED requirements, exactly as `openspec archive` does.
+   - Compare each delta with its main spec at `<planningHome.root>/openspec/specs/<capability-path>/spec.md`. Use the store-aware `planningHome.root` from step 2, not a fixed repository path.
+   - A missing main spec is **not automatically** "already synced". For a new capability, sync creates that file. Use the first matching case below:
+     - If the delta has MODIFIED or RENAMED requirements, mark the capability as sync-blocked. Report that only ADDED requirements can create a main spec. Do not invent a missing requirement.
+     - Otherwise, if only REMOVED requirements exist and `.openspec.yaml` declares `retire_capabilities: true`, report the capability as already retired. Count it as already synced and warn that nothing remains to remove. Do not recreate the main spec. Use this rule also when checking a completed sync.
+     - Otherwise, if no ADDED requirements remain, mark the capability as sync-blocked. For a REMOVED-only delta, warn that no main spec exists and leave the spec tree unchanged. `openspec archive` rejects the unmarked case with `Spec must have at least one requirement`.
+     - Otherwise, mark the capability as needing sync: `<capability-path>: new main spec will be created`. If REMOVED requirements also exist, warn that sync will ignore them because no main spec exists. A selected sync creates it from ADDED requirements only, as `openspec archive` does.
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Continue assessing the remaining capabilities even when one is sync-blocked. Show a combined summary before prompting.
 
@@ -137,15 +133,16 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - Anything else — ask again rather than archiving
 
    Before a selected sync writes any main spec, run
-   `openspec instructions specs --change "<name>" --json` once with the same
-   selected-root flags. Require a zero exit status and valid artifact-instruction
-   JSON. If the lookup fails or returns invalid JSON, report the error and stop
-   before writing any main spec or moving the change. A valid response with omitted
-   `rules` is the no-rules case. Apply returned `rules` only to the content and
-   form of main specs produced by this merge; do not use them as archive guidance,
-   change CLI behavior, or copy the rule text into any output file.
+   `openspec instructions specs --change "<name>" --json` once with the selected-root flags.
+   Require a zero exit code and valid artifact-instruction JSON.
+   If the lookup fails or returns invalid JSON, report the error.
+   Stop before any main-spec write or change move.
+   A valid response without `rules` means that no artifact rules are configured.
+   Apply returned rules only to the content and form of merged main specs.
+   Do not use them as archive guidance or to change CLI behavior.
+   Do not copy rule text into output files.
 
-   Then run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge) for change '<name>', passing the delta spec analysis and the fetched specs-rule snapshot from above, and wait for it to finish. The inline sync must reuse that snapshot without fetching `specs` instructions again. Do not delegate it to a background task — step 5 would move `changeRoot` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
+   Then run the `openspec-sync-specs` workflow inline for change '<name>'. Pass the delta analysis and fetched specs-rule snapshot. Wait until sync finishes. It must reuse the snapshot without another `specs` instructions lookup. Do not run it as a background task. Step 5 would move `changeRoot` while sync still reads it, leaving main specs unchanged. If delegation is the only available method, wait for the delegated result before continuing.
 
    If the sync reports any stop or blocking condition, treat the sync as failed.
    Stop the archive immediately. Do not perform the post-sync content comparison and do not move its `changeRoot`.
@@ -154,17 +151,17 @@ In both branches, never create the root as a side effect: do not run `openspec i
    After the sync writes each main spec, verify its structure against the canonical sync contract:
    - A new main spec starts with a `# <capability> Specification` title. An existing main spec keeps its title exactly as it is.
    - Preserve existing `## Purpose` sections completely untouched for established main specs.
-   - For a new main spec, copy the delta `## Purpose` verbatim. Warn only if the purpose text is shorter than standard validation expects. Do not regenerate or rewrite existing authored purpose. If no usable `## Purpose` is provided, use the existing TBD Purpose behavior and warning.
-   - Verify that no delta-style section headers (`## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`, `## RENAMED Requirements`) remain in the main spec, adhering strictly to the sync workflow formatting rules.
-   - Requirement blocks the sync wrote or changed use `### Requirement:` headings, and their scenarios use `#### Scenario:` headings, under the spec's `## Requirements` section. Leave content the delta does not mention exactly as it is.
+   - For a new main spec, copy the delta `## Purpose` verbatim. Warn if its text is shorter than standard validation expects. Do not rewrite an existing Purpose. If no usable Purpose exists, use the sync workflow's TBD placeholder and warning.
+   - Check that no delta operation headers remain: `## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`, or `## RENAMED Requirements`. Follow the sync workflow's format rules.
+   - New or changed blocks use `### Requirement:` and `#### Scenario:` under `## Requirements`. Leave content not mentioned by the delta unchanged.
 
-   Then re-run the comparison from the top of this step, including the explicitly retired, missing-spec case, against every capability that has a delta spec in `artifactPaths.specs.existingOutputPaths` — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
+   Repeat the comparison for every delta path in `artifactPaths.specs.existingOutputPaths`, not only files reported as changed. Include the already-retired, missing-spec case. After successful sync, each capability must be already synced:
    - ADDED requirements present
    - MODIFIED requirements carrying the scenario and description changes named in the delta, with their other scenarios intact
-   - REMOVED requirements gone — and where this sync retired a capability (removed its last requirement, leaving `## Requirements` empty), its main spec deleted rather than left empty.
+   - REMOVED requirements are absent. If sync retired the last requirement, the main spec is deleted rather than empty.
    - RENAMED requirements present under the new name and absent under the old one
 
-   If the sync failed, or any capability does not match, report what differs and stop — do not archive. Nothing has moved and `changeRoot` is intact, so the user can fix the mismatch or re-run the sync and start the archive again.
+   If sync failed or any capability differs, report the mismatch and stop. Do not archive. `changeRoot` remains in place so the user can correct the problem or run sync and archive again.
 
 5. **Perform the archive**
 
@@ -173,7 +170,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    mkdir -p "<planningHome.changesDir>/archive"
    ```
 
-   Generate the target name: use the change name as-is when it already starts with a `YYYY-MM-DD-` prefix; otherwise prepend the current date as `YYYY-MM-DD-<change-name>`. Never stack a second date (same rule as `openspec archive`).
+   If the change name already starts with `YYYY-MM-DD-`, use it unchanged. Otherwise, prepend the current date as `YYYY-MM-DD-<change-name>`. Do not add a second date prefix; this matches `openspec archive`.
 
    **Check if target already exists:**
    - If yes: Fail with error, suggest renaming existing archive or using different date
@@ -212,7 +209,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, run the `openspec-sync-specs` workflow inline (agent-driven)
-- Never archive while a spec sync is still in flight — run the sync inline and verify the main specs before moving `changeRoot`
+- Wait for sync and verify main specs before moving `changeRoot`. Never run archive concurrently with sync.
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
 - Apply relevant runtime context and report conflicts; operation guidance remains advisory
 - Consider every guidance entry and explain any inapplicable or conflicting advice

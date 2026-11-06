@@ -36,6 +36,14 @@ const editionStates = z.object({
 });
 const optionalPriceDetails = priceDetails.optional();
 
+export function hasRequiredScheduleDates(
+  scheduleStatus: (typeof scheduleStatuses)[number] | undefined,
+  startsOn: unknown,
+  endsOn: unknown,
+): boolean {
+  return scheduleStatus !== "scheduled" || (startsOn != null && endsOn != null);
+}
+
 type RecordCondition = {
   accepts: (
     row: RecordValues,
@@ -66,7 +74,7 @@ const recordConditions: readonly RecordCondition[] = [
   },
   {
     accepts: (row, { scheduleStatus }) =>
-      scheduleStatus !== "scheduled" || row.startsOn != null,
+      hasRequiredScheduleDates(scheduleStatus, row.startsOn, row.endsOn),
     message: "Scheduled edition needs dates",
   },
   {

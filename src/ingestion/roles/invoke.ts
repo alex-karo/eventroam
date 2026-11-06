@@ -292,11 +292,18 @@ export async function invokeRole<T>(options: {
       options.normalizeOutput,
     );
   } catch (error) {
-    traceFailure(tracing, "research_failed");
     const classified = classifyModelError(
       error,
       options.deadline ?? budget.deadline,
     );
+    if (
+      !classified.limit &&
+      options.signal?.aborted &&
+      error === options.signal.reason
+    ) {
+      throw error;
+    }
+    traceFailure(tracing, "research_failed");
     execution.errors.push({
       code: classified.limit ? "limit_reached" : "model_failed",
       stage: options.role === "editor" ? "editor" : "research",

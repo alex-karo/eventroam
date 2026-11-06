@@ -11,7 +11,7 @@ Use query_catalog for current facts. Load this skill before catalog reads or rep
 
 SQLite column names:
 
-- events: id, slug, canonical_name, aliases (JSON array), summary, home_scope, publication_state, version, created_at, updated_at.
+- events: id, slug, canonical_name, aliases (JSON array), description, short_description, home_scope, publication_state, version, created_at, updated_at.
 - editions: id, event_id -> events.id, edition_key, display_name, edition_year, starts_on, ends_on, date_state, schedule_status, publication_state, size_estimate, version.
   Location: venue_name, venue_address, locality, administrative_area, country_code, latitude, longitude, coordinate_precision, time_zone.
   Prices: price_kind, price_currency, price_min_minor, price_max_minor, price_coverage, price_qualification, price_details (JSON).
@@ -20,7 +20,7 @@ SQLite column names:
 - url_aliases: scope, path, event_id, edition_id, created_at.
 - catalog_changes: id, event_id, edition_id, subject_version, changed_fields (JSON), operation_key, actor, initiated_by, changed_at, note.
 - operation_receipts: operation_key, payload_hash, result (JSON), applied_at.
-- ingestion_jobs (private queue): id, batch_id, position, event_id, scope, dry_run (0/1), status (pending/running/done/cancelled), created_at.
+- ingestion_jobs (private queue): id, batch_id, position, mode (add/refresh), input (JSON), dry_run (0/1), status (pending/running/done/cancelled), created_at.
 - ingestion_runs (private attempts): id, job_id -> ingestion_jobs.id (nullable, not unique), event_id, mode (add/refresh), status (running/completed/failed), started_at, finished_at, input_json, report_json, duration_ms.
 
 An Event identifies a recurring gathering. An Edition identifies one occurrence. Refresh takes Event IDs, never Edition IDs. Dates are calendar dates YYYY-MM-DD, not UTC timestamps. Publication states: draft, published, withdrawn. Unknown dates are not proof of cancellation. SQL metadata can describe other columns.
@@ -42,10 +42,14 @@ Prefer selected structured fields. Full reports and raw responses remain readabl
 
 Resolve all Event IDs before refresh_events. A count or truncated list does not identify a complete selection. Submit at most 200 distinct Events. Return batchId and acceptedCount as acceptance only.
 
-For full batch counts, query `SELECT status,count(*) AS count FROM ingestion_jobs WHERE batch_id=? GROUP BY status`. Count jobs before joining runs: each job can have several attempts. Done means processing ended; it does not mean success. Running can be saved from an interrupted Studio server and does not prove queue health.
+Use skill_read to read references/batch-counts.sql for full batch counts. Bind the batch ID. Count jobs before joining runs: each job can have several attempts. Done means processing ended; it does not mean success. Running can be saved from an interrupted Studio server and does not prove queue health.
 
-Read bounded details with `SELECT id,event_id,scope,dry_run,status,created_at FROM ingestion_jobs WHERE batch_id=? ORDER BY position`. Read all associated attempts with `SELECT r.id,r.job_id,r.status,r.started_at,r.finished_at FROM ingestion_runs r JOIN ingestion_jobs j ON j.id=r.job_id WHERE j.batch_id=? ORDER BY j.position,r.started_at,r.id`. Direct runs have null job_id. Keep earlier attempts and missing reports visible. Use separate counts when details are truncated; queries can observe different moments.
+Use skill_read to read references/batch-jobs.sql for job details. Bind the batch ID. Refresh rows show Event ID and scope. Add rows show a short note excerpt. Use counts alone when item details are unnecessary. Read all associated attempts with `SELECT r.id,r.job_id,r.status,r.started_at,r.finished_at FROM ingestion_runs r JOIN ingestion_jobs j ON j.id=r.job_id WHERE j.batch_id=? ORDER BY j.position,r.started_at,r.id`. Direct runs have null job_id. Keep earlier attempts and missing reports visible. Use separate counts when details are truncated; queries can observe different moments.
 
-After a lost response, discover candidates with `SELECT batch_id,created_at,scope,dry_run,count(*) AS count FROM ingestion_jobs WHERE created_at>=? AND created_at<=? GROUP BY batch_id ORDER BY created_at,batch_id`. Bound the time from request context. Let the SQL tool limit the output so it can report truncation. Compare complete Event IDs and settings before selecting a batch. This works with logging disabled or failed. If candidates are ambiguous, missing, or truncated, ask the owner; do not assume the newest match or submit again.
+After a lost response, discover candidates with `SELECT batch_id,created_at,mode,dry_run,count(*) AS count FROM ingestion_jobs WHERE created_at>=? AND created_at<=? GROUP BY batch_id ORDER BY created_at,batch_id`. Bound the time from request context. Let the SQL tool limit the output so it can report truncation. Compare the mode, complete Event IDs, and settings before selecting a refresh batch. This works with logging disabled or failed. If candidates are ambiguous, missing, or truncated, ask the owner; do not assume the newest match or submit again.
 
-Jobs and runs stay private in catalog history without automatic expiry. Only an explicit owner cancellation request permits cancel_refresh for a resolved batch. Pending jobs are cancelled; running and terminal jobs remain unchanged. Progress reads create no jobs.
+For a lost add receipt, compare the excerpts from references/batch-jobs.sql first. Inspect enough saved input to confirm the selection within the output limit.
+
+Use skill_read to read references/inspect-add-batch.sql for add attempts. It returns no note text. Malformed input or report JSON becomes NULL for extraction in that row. The original validity flags remain available, and other attempts remain readable. Check inputValid, reportPresent, reportValid, and schemaVersion before interpreting report fields. If JSON extraction fails, read row state and JSON validity separately, as for a single run. A missing report is unknown. A preview with proposedCreation is a proposed Event, even if it has a temporary ID or changed receipts from a rollback. Apply creation requires preview false and changedCreation true. Outcome can be published when the same run creates and publishes. A duplicate requires outcome skipped and identityDecision duplicate with inspected support. A failed run with a candidate Event ID does not prove a duplicate. A declined creation has outcome failed, an editor_rejected error, and an Editor Event-target reject decision with its saved reason. A rejected whole item is distinct: read the Editor item decision before labeling a creation declined. Read errors and unresolved questions separately for the relevant run. Keep reasons tied to their actual fields and do not infer a skip reason from a candidate ID.
+
+Jobs and runs stay private in catalog history without automatic expiry. Only catalog-assistant has cancel_batch. An explicit owner cancellation request permits cancel_batch for a resolved batch. Pending jobs are cancelled; running and terminal jobs remain unchanged. Progress reads create no jobs.

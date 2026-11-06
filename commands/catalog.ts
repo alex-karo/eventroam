@@ -1,215 +1,186 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { randomUUID } from "node:crypto";
+import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { openDatabase } from "@/db/connection";
-import { readDatabaseEnvironment } from "@/db/env";
+import got from "got";
+import { z } from "zod";
 import {
-  runCatalogResearch,
-  type CatalogResearchResult,
-  type ResearchDependencies,
-} from "@/ingestion/workflow";
-import { diagnosticStoragePaths } from "@/ingestion/runtime/storage-paths";
-import { WorkflowHistoryError } from "@/ingestion/runtime/workflow-storage";
-import { RunPersistenceError, hasHostFailure } from "@/ingestion/runs";
+  studioIngestionResultSchema,
+  type StudioIngestionResult,
+} from "@/ingestion/workflow-result";
 import { parseCatalogOptions, catalogUsage } from "./catalog-options";
 
-export function formatCatalogReport(
-  results: CatalogResearchResult[],
-  dryRun: boolean,
-) {
-  return [
-    dryRun ? "Catalog dry-run — no changes applied" : "Catalog apply",
-    ...results.flatMap(formatResult),
-  ].join("\n");
-}
-
-function formatResult(result: CatalogResearchResult): string[] {
-  const mismatch = result.eventNameMismatch;
-  return [
-    `Run ${result.runId ?? "unavailable"}: ${result.outcome} (research ${result.researchStatus}, editor ${result.editorStatus}): ${result.eventId ?? "new festival"} (${result.durationMs} ms)`,
-    ...result.changes.flatMap((change) => [
-      `  ${change.subject}.${change.field}: ${JSON.stringify(change.oldValue)} → ${JSON.stringify(change.newValue)}`,
-      ...change.explanations.map((explanation) => `    Why: ${explanation}`),
-    ]),
-    ...(mismatch
-      ? [
-          `  Name differs for ${mismatch.eventId}: saved ${JSON.stringify(mismatch.storedName)}, observed ${JSON.stringify(mismatch.observedName)}`,
-        ]
-      : []),
-    ...result.sourceSummaries.map(
-      (summary) => `  Source summary: ${summary.url} — ${summary.information}`,
-    ),
-    ...result.sources.map(
-      (source) =>
-        `  ${source.outcome}: ${source.finalUrl} [${source.retrievedAt}]${optionalSuffix(source.reason, " (", ")")}`,
-    ),
-    ...result.errors.map(
-      (error) =>
-        `  Error (${error.stage}/${error.code})${optionalSuffix(error.editionKey, " [", "]")}${optionalSuffix(error.field, ": ")}: ${error.message}${optionalSuffix(error.diagnostic ? formatModelDiagnostic(error.diagnostic) : undefined, " [", "]")}`,
-    ),
-    ...result.unresolved.map(
-      (question) =>
-        `  Unresolved${optionalSuffix(question.editionKey, " [", "]")}${optionalSuffix(question.field, ": ")}: ${question.message}`,
-    ),
-    `  Model: ${result.modelVersion}; location: ${result.locationModelVersion}; reasoning: ${result.reasoningEffort ?? "provider default"}; prompt: ${result.promptVersion}`,
-  ];
-}
-
-function formatModelDiagnostic(
-  diagnostic: NonNullable<
-    CatalogResearchResult["errors"][number]["diagnostic"]
-  >,
-) {
-  return [
-    `type=${diagnostic.errorTypes.join(">")}`,
-    ...(diagnostic.httpStatus !== undefined
-      ? [`http=${diagnostic.httpStatus}`]
-      : []),
-    ...(diagnostic.providerCode !== undefined
-      ? [`code=${diagnostic.providerCode}`]
-      : []),
-    ...(diagnostic.retryable !== undefined
-      ? [`retryable=${diagnostic.retryable}`]
-      : []),
-  ].join(" ");
-}
-
-function optionalSuffix(value: string | undefined, before: string, after = "") {
-  return value ? before + value + after : "";
-}
+const workflowPath = "/api/workflows/catalog-ingestion";
+const workflowResponse = z.object({
+  status: z.string().optional(),
+  result: studioIngestionResultSchema.optional().catch(undefined),
+  error: z.union([z.string(), z.object({ message: z.string() })]).optional(),
+  steps: z
+    .object({
+      "initialize-run": z
+        .object({ output: z.object({ ingestionRunId: z.uuid() }).optional() })
+        .optional(),
+    })
+    .optional(),
+});
+const persistenceError = z.object({
+  code: z.literal("run_persistence_failed"),
+});
 
 type CommandFailure = {
   eventId?: string;
-  code: string;
-  runId?: string;
   engineRunId?: string;
+  ingestionRunId?: string;
+  code: string;
 };
 
-function commandFailure(
-  error: unknown,
-  eventId: string | undefined,
-  results: CatalogResearchResult[],
-): CommandFailure {
-  if (error instanceof WorkflowHistoryError) {
-    if (error.report) {
-      results.push(error.report);
-    }
-    return {
-      eventId,
-      code: "workflow_history_failed",
-      ...(error.runId ? { runId: error.runId } : {}),
-      ...(error.engineRunId ? { engineRunId: error.engineRunId } : {}),
-    };
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
   }
-  if (error instanceof RunPersistenceError) {
-    if (error.report) {
-      results.push(error.report);
-    }
-    return {
-      eventId,
-      code: "run_persistence_failed",
-      ...(error.runId ? { runId: error.runId } : {}),
-    };
+}
+
+function responseFailure(
+  status: number,
+  response: z.infer<typeof workflowResponse> | undefined,
+) {
+  const error = response?.error;
+  if (error === "workflow_history_failed") {
+    return error;
   }
-  // Provider exceptions may contain request bodies or credentials. Never serialize them.
-  return { eventId, code: "research_failed" };
+  if (status === 500 && error === "Ingestion workflow failed") {
+    return "workflow_failed";
+  }
+  if (status >= 400 && status < 500) {
+    return "studio_rejected_request";
+  }
+  if (status !== 200) {
+    return "studio_outcome_unknown";
+  }
+  if (response?.status === "canceled") {
+    return "workflow_canceled";
+  }
+  if (response?.status !== "failed") {
+    return "studio_outcome_unknown";
+  }
+  return typeof error === "object" &&
+    persistenceError.safeParse(parseJson(error.message)).success
+    ? "run_persistence_failed"
+    : "workflow_failed";
+}
+
+function formatSummary(result: StudioIngestionResult) {
+  const research =
+    result.researchStatus === "partial" ? " (partial research)" : "";
+  const codes = result.errorCodes.length
+    ? ` (${result.errorCodes.join(", ")})`
+    : "";
+  return `${result.outcome}: ${result.eventId ?? "new Event"}${research}${codes} [run ${result.ingestionRunId}, workflow ${result.engineRunId}]`;
+}
+
+function formatFailure(failure: CommandFailure) {
+  const ids = [
+    failure.ingestionRunId && `run ${failure.ingestionRunId}`,
+    failure.engineRunId && `workflow ${failure.engineRunId}`,
+  ].filter(Boolean);
+  const reference = ids.length ? ` [${ids.join(", ")}]` : "";
+  return `failed: ${failure.eventId ?? "new Event"} (${failure.code})${reference}`;
 }
 
 export async function executeCatalogCommand(
   args: string[],
-  deps: {
-    research?: typeof runCatalogResearch;
-    researchDependencies?: Omit<ResearchDependencies, "client">;
+  {
+    stdout = console.log,
+    stderr = console.error,
+  }: {
     stdout?: (value: string) => void;
+    stderr?: (value: string) => void;
   } = {},
 ) {
   const options = parseCatalogOptions(args);
-  const output = deps.stdout ?? console.log;
   if (options.help) {
-    output(catalogUsage);
+    stdout(catalogUsage);
     return 0;
   }
-  const database = options.database ?? readDatabaseEnvironment().DATABASE_PATH;
-  const reportPath = options.report ? resolve(options.report) : undefined;
-  if (
-    reportPath &&
-    [database, `${database}-wal`, `${database}-shm`].some(
-      (path) => resolve(path) === reportPath,
-    )
-  ) {
-    throw new Error("Report path must differ from database files.");
+  const targets = options.mode === "add" ? [undefined] : options.eventIds;
+  const results: StudioIngestionResult[] = [];
+  const failures: CommandFailure[] = [];
+  for (const eventId of targets) {
+    const engineRunId = randomUUID();
+    stderr(`Workflow ${engineRunId}. Inspect it in Studio Recent runs.`);
+    // A run can outlast fetch's default response header timeout.
+    const started = await got
+      .post(new URL(`${workflowPath}/start-async`, options.url), {
+        searchParams: { runId: engineRunId },
+        json: {
+          inputData: {
+            mode: options.mode,
+            input: eventId ? { eventId, scope: options.scope } : options.input,
+            dryRun: options.dryRun,
+            republish: options.republish,
+          },
+        },
+        retry: { limit: 0 },
+        followRedirect: false,
+        throwHttpErrors: false,
+      })
+      .catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
+          stderr(
+            `Cannot reach Studio at ${options.url.origin}. Start it with pnpm run catalog:studio.`,
+          );
+          failures.push({ eventId, code: "studio_unreachable" });
+        } else {
+          failures.push({
+            eventId,
+            engineRunId,
+            code: "studio_outcome_unknown",
+          });
+        }
+        return undefined;
+      });
+    if (!started) {
+      continue;
+    }
+
+    const response = workflowResponse.safeParse(parseJson(started.body)).data;
+    const result = response?.result;
+    if (
+      started.statusCode === 200 &&
+      response?.status === "success" &&
+      result?.engineRunId === engineRunId
+    ) {
+      results.push(result);
+    } else {
+      failures.push({
+        eventId,
+        engineRunId,
+        ingestionRunId:
+          response?.steps?.["initialize-run"]?.output?.ingestionRunId,
+        code: responseFailure(started.statusCode, response),
+      });
+    }
   }
-  const paths = diagnosticStoragePaths(
-    { ...process.env, DATABASE_PATH: database },
-    process.cwd(),
-    reportPath ? [reportPath] : [],
+  stdout(
+    options.json
+      ? JSON.stringify({ dryRun: options.dryRun, results, failures }, null, 2)
+      : [
+          options.dryRun ? "Catalog preview" : "Catalog apply",
+          ...results.map(formatSummary),
+          ...failures.map(formatFailure),
+        ].join("\n"),
   );
-  if (!existsSync(database)) {
-    throw new Error(
-      "Catalog does not exist; run db:migrate with the intended DATABASE_PATH first.",
-    );
-  }
-  const connection = openDatabase(database);
-  try {
-    const targets = options.mode === "add" ? [undefined] : options.eventIds;
-    const results: CatalogResearchResult[] = [];
-    const failures: CommandFailure[] = [];
-    for (const eventId of targets) {
-      try {
-        results.push(
-          await (deps.research ?? runCatalogResearch)(
-            {
-              mode: options.mode,
-              scope: options.scope,
-              name: options.name,
-              eventId,
-              actor: "catalog-research",
-              dryRun: options.dryRun,
-              republish: options.republish,
-              limits: options.limits,
-            },
-            {
-              client: connection.client,
-              ...deps.researchDependencies,
-              reportPath,
-              workflowDatabasePath: paths.workflow,
-            },
-          ),
-        );
-      } catch (error) {
-        failures.push(commandFailure(error, eventId, results));
-      }
-    }
-    const report = {
-      schemaVersion: 7,
-      checkedAt: new Date().toISOString(),
-      dryRun: options.dryRun,
-      results,
-      failures,
-    };
-    const json = JSON.stringify(report, null, 2);
-    if (reportPath) {
-      mkdirSync(dirname(reportPath), { recursive: true });
-      writeFileSync(reportPath, json + "\n", { mode: 0o600 });
-    }
-    output(
-      options.json
-        ? json
-        : [
-            formatCatalogReport(results, options.dryRun),
-            ...failures.map(
-              (f) =>
-                `failed: ${f.eventId ?? "new festival"} (${f.code})${optionalSuffix(f.runId, " [run ", "]")}`,
-            ),
-          ].join("\n"),
-    );
-    return failures.length ||
-      results.some((r) => r.outcome === "failed" || hasHostFailure(r))
-      ? 1
-      : 0;
-  } finally {
-    connection.client.close();
-  }
+  return failures.length ||
+    results.some(
+      (result) =>
+        result.outcome === "failed" ||
+        result.persistenceStatus === "failed" ||
+        result.errorCodes.includes("workflow_failed") ||
+        result.errorCodes.includes("run_persistence_failed"),
+    )
+    ? 1
+    : 0;
 }
 
 if (
@@ -221,9 +192,9 @@ if (
       process.exitCode = code;
     })
     .catch((error) => {
-      const message =
-        error instanceof Error ? error.message : "Catalog command failed";
-      console.error(message);
+      console.error(
+        error instanceof Error ? error.message : "Catalog command failed",
+      );
       process.exitCode = 1;
     });
 }

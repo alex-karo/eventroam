@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import type { generalFieldsSchema } from "../roles/contracts";
-import type { GeneralOutput } from "../roles/contracts";
+import type { ClassificationOutput, GeneralOutput } from "../roles/contracts";
 import type { LocationOutput } from "../location/contracts";
 import type { CatalogResearchResult } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
@@ -28,7 +28,8 @@ type EvalEdition = { key: string } & {
 };
 type EvalFacts = {
   links: { website?: string; socials: Record<string, string> };
-  summary?: { value: string | null };
+  description?: { value: string | null };
+  shortDescription?: { value: string | null };
   previousEdition: EvalEdition | null;
   currentOrNextEdition: EvalEdition | null;
 };
@@ -45,7 +46,7 @@ export function researchContext(
   item: PipelineEvalCase,
   report: CatalogResearchResult,
 ) {
-  // General owns temporal selection. Other facts are checked at their operation or Location boundary.
+  // General selects Editions. Classification supplies the proposed festival text.
   const raw = generalResult(report);
   let data: EvalFacts | null = null;
   if (raw?.decision === "targets") {
@@ -121,8 +122,15 @@ export function researchContext(
       (op) => op.kind === "replaceLinks" && op.owner.type === "event",
     );
     const links = eventLinks?.kind === "replaceLinks" ? eventLinks.links : [];
+    const classification = report.classificationResponse?.object as
+      ClassificationOutput | undefined;
     data = {
-      summary: fact(raw.event.summary) as EvalFacts["summary"],
+      description: fact(
+        classification?.description,
+      ) as EvalFacts["description"],
+      shortDescription: fact(
+        classification?.shortDescription,
+      ) as EvalFacts["shortDescription"],
       links: {
         website: links.find((link) => link.kind === "official_site")?.url,
         socials: Object.fromEntries(
@@ -252,10 +260,11 @@ export function returned(
   );
 }
 
-/** Current-scope cases must omit Event summary and official links. */
+/** Current scope omits both descriptions and official Event links. */
 export function omittedEventFields(data: ResearchContext["data"]) {
   return [
-    ["summary", data?.summary],
+    ["description", data?.description],
+    ["shortDescription", data?.shortDescription],
     ["links.website", data?.links?.website],
     ["links.socials.instagram", data?.links?.socials?.instagram],
     ["links.socials.facebook", data?.links?.socials?.facebook],

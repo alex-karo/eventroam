@@ -11,7 +11,11 @@ import type {
 } from "@/ingestion/location/contracts";
 import type { ResearchDependencies } from "@/ingestion/contracts";
 import type { GenerateRole, Role } from "@/ingestion/roles/invoke";
-import type { Targets, CheckFinding } from "@/ingestion/roles/contracts";
+import type {
+  Targets,
+  CheckFinding,
+  ClassificationOutput,
+} from "@/ingestion/roles/contracts";
 import { topics } from "@/ingestion/evidence/contracts";
 import {
   runCatalogResearch,
@@ -38,7 +42,6 @@ export function fixtureTargets(eventId: string | null = null): Targets {
     observedEventName: "Example Fest",
     reason: fixtureReason,
     evidenceIds: fixtureEvidence,
-    event: {},
     previousEdition: null,
     currentOrNextEdition: {
       editionKey: "2027",
@@ -58,7 +61,6 @@ export function fixtureTargets(eventId: string | null = null): Targets {
       "currentAnnouncement",
       "currentDates",
       "previousCompletedEdition",
-      "description",
     ]),
     unresolved: [],
   };
@@ -175,6 +177,19 @@ export function fixtureRoleGenerator(
     };
   };
 }
+export function fixtureDescriptionRole(
+  texts: Pick<ClassificationOutput, "description" | "shortDescription">,
+): GenerateRole {
+  return async (role, prompt, call) => ({
+    ...((await fixtureRoleGenerator()(
+      role,
+      prompt,
+      call,
+    )) as ClassificationOutput),
+    ...texts,
+  });
+}
+
 export const generateFixtureLocation: NonNullable<
   ResearchDependencies["generateLocation"]
 > = async (prompt) => fixtureLocationPlan(JSON.parse(prompt));
@@ -224,10 +239,10 @@ export function fixtureDependencies(
     }) satisfies NonNullable<ResearchDependencies["readPage"]>,
   };
 }
-export const runFixtureResearch: typeof runCatalogResearch = async (
-  input,
-  deps,
-) => {
+export async function runFixtureResearch(
+  input: Parameters<typeof runCatalogResearch>[0],
+  deps: ResearchDependencies,
+) {
   const storage =
     deps.workflowStorage ?? createWorkflowStorage({ path: ":memory:" });
   try {
@@ -240,7 +255,7 @@ export const runFixtureResearch: typeof runCatalogResearch = async (
       await storage.close();
     }
   }
-};
+}
 export const createFixtureIngestionWorkflow: typeof createCatalogIngestionWorkflow =
   (resolve, options) => {
     const workflow = createCatalogIngestionWorkflow(resolve, options);

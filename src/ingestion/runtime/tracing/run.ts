@@ -35,7 +35,6 @@ export async function createCatalogRunTrace(
     name: "catalog-ingestion",
     metadata: {
       ...(engineRunId ? { engineRunId } : {}),
-      ...(input.name ? { eventName: input.name } : {}),
       scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
     },
   });

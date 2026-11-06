@@ -7,7 +7,7 @@ import {
   requiredFacts,
   statusFacts,
 } from "./checks";
-import { evaluate, fact, linkFact } from "./facts";
+import { fact, linkFact } from "./facts";
 
 export function roskilde(context: MainContext) {
   const { event, next } = context;
@@ -20,7 +20,7 @@ export function roskilde(context: MainContext) {
     ["n9tcbkm", 1530],
     ["9rdr0dv", 1530],
   ] as const;
-  return evaluate({
+  return {
     // page.md and purpose.md: 2027 music festival in Denmark.
     required: requiredFacts(next, 2027, "2027-06-26", "2027-07-03", "DK"),
     additional: [
@@ -89,5 +89,5 @@ export function roskilde(context: MainContext) {
       ...researchDidNotFail(context.report),
       ...fillConditions(context),
     ],
-  });
+  };
 }

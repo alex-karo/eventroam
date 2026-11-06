@@ -15,6 +15,8 @@ export function evalFileHash() {
   const directory = fileURLToPath(new URL("./", import.meta.url));
   const files = [
     "main.ts",
+    "classification.ts",
+    "description-format.ts",
     "fixtures.ts",
     "editor-fixture.ts",
     "run.ts",

@@ -46,7 +46,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 ## Known issues
 
-- [Studio and CLI share a DuckDB writer lock](known-issues/2026-10-27-studio-cli-duckdb-conflict.md) — remaining standalone CLI limitation; chat jobs execute inside Studio.
+- [Studio and CLI evals share a DuckDB writer lock](known-issues/2026-10-27-studio-cli-duckdb-conflict.md) — affects standalone evals with logging or tracing enabled.
 - [Invalid Edition key rejects Wacken research](known-issues/2026-10-27-wacken-invalid-edition-key.md) — malformed model output rejects a full research result.
 
 ## Archived issues

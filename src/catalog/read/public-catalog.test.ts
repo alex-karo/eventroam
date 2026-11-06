@@ -312,7 +312,9 @@ test("complete compact discovery includes history and unlocated editions, exclud
       (s) => s.latitude !== null && s.longitude !== null,
     ),
   ).toHaveLength(1);
-  expect(JSON.stringify(catalog)).not.toMatch(/price|venueAddress|summary/);
+  expect(JSON.stringify(catalog)).not.toMatch(
+    /price|venueAddress|description|shortDescription/,
+  );
   const filters = parseFilters(
     new URLSearchParams(
       "from=2025-07-03&to=2025-07-03&country=PT&durationMin=3",

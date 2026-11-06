@@ -55,13 +55,13 @@ export function startToolLog(
             ?.runId,
         correlationContext: {
           entityType: EntityType.AGENT,
-          entityId: "catalog-assistant",
-          entityName: "Catalog assistant",
+          entityId: context?.agent?.agentId ?? "catalog-assistant",
+          entityName: context?.agent?.agentId ?? "Catalog assistant",
           threadId: context?.agent?.threadId,
           resourceId: context?.agent?.resourceId,
         },
       }).child({
-        agentId: "catalog-assistant",
+        agentId: context?.agent?.agentId ?? "catalog-assistant",
         toolName,
         toolCallId: context?.agent?.toolCallId,
         ...fields,

@@ -10,12 +10,14 @@ import { Dates, Location } from "./catalog";
 import { dateRange } from "./format";
 import { ExternalLinks, namedLinks } from "./external-links";
 import { EditionDetailsPage } from "@/features/event-details/edition-page";
+import { editionMetadata, eventMetadata } from "@/site/server/metadata";
+import { editionStructuredData } from "@/site/server/structured-data";
 import { EventDetailsPage } from "@/features/event-details/event-page";
 
 function event() {
   const client = testDatabase().client;
   const fixture = testFixtures(client).publishedEvent({
-    event: { summary: "A general festival description." },
+    event: { description: "A general festival description." },
     editions: [
       { editionKey: "2027", startsOn: "2027-12-31", endsOn: "2028-01-01" },
       { editionKey: "2027-b", startsOn: "2027-01-01", endsOn: "2027-01-01" },
@@ -127,9 +129,9 @@ test("Edition layout preserves section order and shared history while Event stay
   expect(small).not.toContain("Back to results");
   expect(small).not.toContain("discovery=");
   expect(small).toContain('target="_blank" rel="noopener noreferrer"');
-  const noSummary = renderToStaticMarkup(
+  const withMap = renderToStaticMarkup(
     <EditionDetailsPage
-      event={{ ...data, summary: null }}
+      event={data}
       edition={{
         ...edition,
         latitude: 38,
@@ -138,10 +140,9 @@ test("Edition layout preserves section order and shared history while Event stay
       }}
     />,
   );
-  expect(noSummary).not.toContain("About the festival");
-  expect(noSummary).toContain("Open approximate location");
-  expect(noSummary).toContain("www.google.com/maps/search/");
-  expect(noSummary).toContain("Show on map");
+  expect(withMap).toContain("Open approximate location");
+  expect(withMap).toContain("www.google.com/maps/search/");
+  expect(withMap).toContain("Show on map");
 });
 
 test("date ranges keep the year without repeated month text", () => {
@@ -207,4 +208,57 @@ test("selected preview shows all facts and opens both page links in a new tab", 
     expect($(link).attr("rel")).toBe("noopener noreferrer");
     expect($(link).attr("href")).not.toContain("discovery=");
   });
+});
+
+test.each([
+  ["Detailed text.", "Short text.", "Detailed text.", "Short text."],
+  ["Detailed text.", "  ", "Detailed text.", "Detailed text."],
+  ["\t", "Short text.", "Short text.", "Short text."],
+  ["", null, null, null],
+] as const)(
+  "festival text on pages and previews (%s, %s)",
+  (description, shortDescription, body, preview) => {
+    const data = { ...event(), description, shortDescription };
+    const edition = data.editions.find(({ year }) => year === 2025)!;
+    const origin = "https://festivals.eventroam.org";
+    const now = new Date("2026-10-01");
+    const automatic = `${data.name} is a festival listed in the Eventroam catalog.`;
+    const eventPage = load(
+      renderToStaticMarkup(<EventDetailsPage event={data} />),
+    );
+    const editionPage = load(
+      renderToStaticMarkup(
+        <EditionDetailsPage event={data} edition={edition} now={now} />,
+      ),
+    );
+    expect(eventPage("main > p").text()).toBe(body ?? automatic);
+    const about = editionPage("h2").filter(
+      (_, heading) => editionPage(heading).text() === "About the festival",
+    );
+    expect(about.next("p").text()).toBe(body ?? automatic);
+    expect(editionStructuredData(data, edition, origin)?.description).toBe(
+      body ?? automatic,
+    );
+    const metadata = eventMetadata(data, origin);
+    const eventPreview = preview ? `${data.name}. ${preview}` : automatic;
+    expect(metadata.description).toBe(eventPreview);
+    expect(metadata.openGraph?.description).toBe(eventPreview);
+    expect(metadata.twitter?.description).toBe(eventPreview);
+
+    const editionPreview = `${edition.name ?? data.name}, 2025. Cancelled · Past edition. Dates: 1 Jan 2025. ${preview ?? "Test Valley, Portugal."}`;
+    const dated = editionMetadata(data, edition, origin, now);
+    expect(dated.description).toBe(editionPreview);
+    expect(dated.openGraph?.description).toBe(editionPreview);
+    expect(dated.twitter?.description).toBe(editionPreview);
+  },
+);
+
+test("Event metadata does not repeat the name at the start of the preview", () => {
+  const data = event();
+  const shortDescription = `${data.name} is an outdoor music festival.`;
+  const metadata = eventMetadata(
+    { ...data, shortDescription },
+    "https://festivals.eventroam.org",
+  );
+  expect(metadata.description).toBe(shortDescription);
 });

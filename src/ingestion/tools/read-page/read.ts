@@ -72,6 +72,18 @@ function firecrawlKey(options: ReadPageOptions): string {
   return (options.firecrawlKey ?? process.env.FIRECRAWL_KEY)?.trim() ?? "";
 }
 
+function isCompressed({ body, contentEncoding }: BoundedResponse): boolean {
+  // Some servers send gzip without a Content-Encoding header.
+  return (
+    (body[0] === 0x1f && body[1] === 0x8b && body[2] === 0x08) ||
+    (contentEncoding?.split(",").some((value) => {
+      const encoding = value.trim().toLowerCase();
+      return encoding !== "" && encoding !== "identity";
+    }) ??
+      false)
+  );
+}
+
 async function fetchSource(
   url: string,
   options: ReadPageOptions,
@@ -92,7 +104,7 @@ async function fetchSource(
   }
   options.budget.consumePage();
   result.method = "firecrawl";
-  options.log?.warn("Blocked source uses Firecrawl fallback", {
+  options.log?.info("Blocked source uses Firecrawl fallback", {
     attemptedUrl: response.finalUrl,
     httpStatus: 403,
     provider: "firecrawl",
@@ -108,23 +120,30 @@ async function fetchSource(
 
 async function tryRenderedFallback(
   response: BoundedResponse,
-  extracted: ReturnType<typeof extractSource>,
+  extracted: ReturnType<typeof extractSource> | undefined,
   result: ReadPageResult,
   options: ReadPageOptions,
 ): Promise<MapReference[]> {
   const apiKey = firecrawlKey(options);
+  const directMaps = extracted?.maps ?? [];
+  const needsRender =
+    !extracted ||
+    (response.status === 200 &&
+      extracted.needsJavascript &&
+      (response.contentType.includes("text/html") ||
+        response.contentType.includes("application/xhtml+xml")));
   if (
     result.method !== "http" ||
-    response.status !== 200 ||
-    (!response.contentType.includes("text/html") &&
-      !response.contentType.includes("application/xhtml+xml")) ||
-    !extracted.needsJavascript ||
+    !needsRender ||
     !apiKey ||
     options.budget.remaining().durationMs < 1_000
   ) {
-    return extracted.maps;
+    return directMaps;
   }
 
+  const failureMessage = extracted
+    ? "JavaScript source Firecrawl fallback failed"
+    : "Compressed source Firecrawl fallback failed";
   try {
     options.budget.consumePage();
     const renderedResponse = await (
@@ -142,7 +161,7 @@ async function tryRenderedFallback(
       renderedResponse.status >= 300 ||
       renderedResponse.body.length > options.budget.limits.pageBytes
     ) {
-      options.log?.warn("JavaScript source Firecrawl fallback failed", {
+      options.log?.warn(failureMessage, {
         attemptedUrl: response.finalUrl,
         provider: "firecrawl",
         errorCode:
@@ -150,7 +169,7 @@ async function tryRenderedFallback(
             ? "oversized_response"
             : `firecrawl_page_http_${renderedResponse.status}`,
       });
-      return extracted.maps;
+      return directMaps;
     }
     const rendered = extractSource(
       renderedResponse.body.toString("utf8"),
@@ -159,7 +178,7 @@ async function tryRenderedFallback(
     );
     const markdown = [
       rendered.markdown,
-      extracted.markdown
+      extracted?.markdown
         ? `## Direct HTTP response\n\n${extracted.markdown}`
         : "",
     ]
@@ -171,9 +190,9 @@ async function tryRenderedFallback(
     result.markdown = markdown;
     result.status = "ok";
     result.reasonCode = undefined;
-    return mergeMapReferences(extracted.maps, rendered.maps);
+    return mergeMapReferences(directMaps, rendered.maps);
   } catch (error) {
-    options.log?.warn("JavaScript source Firecrawl fallback failed", {
+    options.log?.warn(failureMessage, {
       attemptedUrl: response.finalUrl,
       provider: "firecrawl",
       errorCode:
@@ -182,7 +201,7 @@ async function tryRenderedFallback(
           : requestReason(error),
     });
   }
-  return extracted.maps;
+  return directMaps;
 }
 
 async function appendMapEvidence(
@@ -312,16 +331,21 @@ export async function readPage(
       reasonCode: "unsupported_media_type",
     };
   }
-  const body = response.body.toString("utf8");
-  const extracted = extractSource(
-    body,
-    response.finalUrl,
-    response.contentType,
-  );
-  result.markdown = extracted.markdown;
-  result.status = "ok";
-  if (extracted.needsJavascript) {
-    result.reasonCode = "javascript_required";
+  const extracted = isCompressed(response)
+    ? undefined
+    : extractSource(
+        response.body.toString("utf8"),
+        response.finalUrl,
+        response.contentType,
+      );
+  if (extracted) {
+    result.markdown = extracted.markdown;
+    result.status = "ok";
+    if (extracted.needsJavascript) {
+      result.reasonCode = "javascript_required";
+    }
+  } else {
+    result.reasonCode = "unreadable_response";
   }
 
   const maps = await tryRenderedFallback(response, extracted, result, options);

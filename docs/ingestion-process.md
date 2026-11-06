@@ -34,7 +34,7 @@ Each attempt uses this fixed Mastra graph. Workflow retries and restart are disa
 | `initialize-run`, `load-context` | Validate the request, create the durable attempt, and load catalog context. |
 | `read-initial-source` | Save the initial source and run Reader. |
 | `collect-sources` | Research chooses sources; freeze the source list and evidence after admitted work settles. |
-| `general-facts` | General confirms identity and selects the two Edition slots. A confirmed duplicate add stops here. Refresh cannot return a duplicate-add decision. |
+| `general-facts` | General confirms identity and selects the two Edition slots. A confirmed duplicate add stops here. Runs without a known Edition stop here too. |
 | `tickets`, `classification`, `location`, `links` | Four independent parallel branches use the same frozen corpus and shared deadline. |
 | `assemble-proposals` | Validate fixed proposals and attach saved values and point records. |
 | `review-proposals` | Editor approves or rejects submitted fields and groups. |
@@ -42,7 +42,7 @@ Each attempt uses this fixed Mastra graph. Workflow retries and restart are disa
 | `apply-catalog-item` | Preview or atomically apply operations. |
 | `build-report`, `finalize-run` | Save the report, return a bounded summary, and release owned resources. |
 
-CLI and Studio execute the same graph. Native workflow results retain source artifact references, evidence, each actual role response, and preparation results. Full Markdown stays in private files. The source list is part of the collection result; there is no separate manifest. All admitted work must settle before freeze and finalization. No role starts another collection after freeze. A required role failure prevents all catalog writes.
+The CLI calls the Studio workflow API. Native workflow results retain source artifact references, evidence, each actual role response, and preparation results. Full Markdown stays in private files. The source list is part of the collection result; there is no separate manifest. All admitted work must settle before freeze and finalization. No role starts another collection after freeze. A required role failure prevents all catalog writes.
 
 ## Inspect saved runs
 
@@ -57,12 +57,12 @@ Saved state keeps current allowed model text and Location/geocoding results. Ful
 ## Start a run
 
 ```sh
-pnpm run catalog add --name "Festival name"
+pnpm run catalog add --input "Festival name or research note"
 pnpm run catalog refresh --event EVENT_ID
 pnpm run catalog refresh --event EVENT_ID --event ANOTHER_EVENT_ID --scope current
 ```
 
-`add` researches a festival by name and creates it only when new. A recognized existing Event returns `skipped` and its ID without changes; use `refresh` to update it. `refresh` researches distinct Events independently. Add and `--scope full` (default) check Event summary/shared links, the latest completed Edition, and the ongoing or nearest announced future Edition. Both Edition slots may create new records. `--scope current` checks only the ongoing or nearest announced future Edition. Other saved history and farther future Editions provide context for matching, country checks, and classification reuse.
+`add` researches one note about a possible Event and creates it only when new. A recognized existing Event returns `skipped` and its ID without changes; use `refresh` to update it. `refresh` researches distinct Events independently. Add and `--scope full` (default) check both festival descriptions, shared links, the latest completed Edition, and the ongoing or nearest announced future Edition. Both Edition slots may create new records. `--scope current` checks only the ongoing or nearest announced future Edition. Other saved history and farther future Editions provide context for matching, country checks, and classification reuse. A run needs a selected Edition or a saved Edition with `scheduled` or `announced` status. If neither condition holds, it stops before specialists and reports “Insufficient information about editions”. Current scope with a qualifying saved Edition and no selected target reports an unchanged catalog. Unresolved selection can still make research partial.
 
 Current assumes a prior full run established Event identity/shared links. It omits Event findings and focuses on Edition dates, schedule status, location, tickets, and classification. Size, precise coordinates, and detailed address are optional checks. `check` is unsupported. The database must already exist and be migrated. See the [ingestion tools](ingestion-tools.md#cli-research) for setup and options, or its [Studio instructions](ingestion-tools.md#local-studio-ingestion) for the workflow form.
 
@@ -96,7 +96,7 @@ A missing optional value can remain unknown without failure. An unfinished assig
 | Reader | One whole canonical page and extraction instructions. Keep literal passages, distant headings and qualifications. | Page overview, found information, explicit nonpublication, topics, years, literal quotes with literal context. Code derives anchors. | None |
 | General | Identity candidates, saved chronology, assigned permissions and relevant evidence. | Identity decision, duplicate or uncertain decision, fixed Edition targets and common facts. | None |
 | Tickets | Current or next target, saved ticket block and ticket evidence. | One complete observed variants/base-price replacement, or omission. | None |
-| Classification | Fixed targets, saved terms and history, vocabulary and relevant evidence. | Complete term lists; explicit earlier Edition key and continuity reason when reused. | None |
+| Classification | Fixed targets, saved terms and history, vocabulary and relevant evidence. Add and full also receive saved descriptions. | Complete term lists and optional festival descriptions on add and full. Term reuse includes an earlier Edition key and a continuity reason. | None |
 | Location | Fixed targets, saved places, literal evidence, registered points and prepared reverse context. | Complete place decisions and registered point selection. | Forward `geocode` |
 | Links | Fixed public slots, saved links, permissions and link evidence. No Tickets output. | Event website/social actions and current-or-next ticket link; omitted candidates and reasons. | None |
 | Editor | Submitted proposals, cited evidence, saved values with owners and versions, registered points, and a list of all saved Markdown pages of the run with URLs and available overviews. | Approve/reject at every supplied fixed key; no replacement values. | Native Mastra workspace grep |
@@ -129,11 +129,11 @@ Full retains wrong-site discovery and association inspection; search snippets/na
 
 Ticket variants need an observed price, explicit availability or concrete admission terms. A category name or referral to an unread checkout alone stays an unresolved question, even when amount and currency would be absent. Editor rejects a whole ticket block that contains such an unsupported variant. Supported unknown-price offers remain valid.
 
-General owns description and common Edition facts. Specialists own their fixed fields. A proposed change carries evidence IDs and a reason. Omission preserves saved data. A permitted clear needs affirmative support. New targets need source support. Editor validates meaning and applicability; it cannot supply a new value.
+General owns common Edition facts, including attendance. Record the year and count qualifications in the attendance reason. Specialists own their fixed fields. A proposed change carries evidence IDs and a reason. Omission preserves saved data. A permitted clear needs affirmative support. New targets need source support. Editor validates meaning and applicability; it cannot supply a new value.
 
 Dates, each ticket block, classification and each location bundle are indivisible review groups. Identity rejection stops the item. Rejection of a temporal premise removes that target and dependent changes without reassignment. Optional rejection preserves the saved field. An accepted target can still qualify for publication when all optional proposals are rejected.
 
-Classification is a complete list. Retained saved terms need no fresh evidence; added or removed terms need support. Explicit `reuseFrom: { editionKey, reason }` identifies an eligible earlier saved Edition of this Event and explains continuity. It need not be the nearest Edition. Preparation validates facets before removing redundant ancestors and records a deterministic explanation.
+Classification returns a complete term list for each selected Edition. On add and full, it also reviews both festival descriptions, including full refresh with empty target slots when a saved Edition passes the gate. Classification writes three to five sentences about the current format and atmosphere for the detailed text and one or two sentences about the current format for the short text. It uses the present tense and omits the festival name from both texts. Use the latest known format unless sources announce a change. Leave dates, lineups, prices, directions, attendance and one-time details in Edition data. Each optional field has its own proposal and Editor decision. Retained saved terms need no fresh evidence; added or removed terms need support. Explicit `reuseFrom: { editionKey, reason }` identifies an eligible earlier saved Edition of this Event and explains continuity. It need not be the nearest Edition. Preparation validates facets before removing redundant ancestors and records a deterministic explanation.
 
 Tickets processes only `currentOrNextEdition`, including an ongoing festival. Historical ticket blocks stay unchanged. A supported replacement contains supported ordinary admission variants and a nullable base price. Payment-plan offers and terms are excluded. Their details do not require owner questions or keep ticket checks unfinished. Admission prices are not calculated from payments. Concessions, day tickets and upgrades cannot establish the full-programme base price. No supported replacement means preservation of the whole saved block, including any old URLs. New ingestion offers have no URL field. Other catalog operations retain their offer URL support.
 
@@ -147,7 +147,7 @@ Editor uses the same fixed currentDate as General and Location, not saved record
 
 ## Resolve location
 
-Location runs in parallel with Tickets, Classification and Links after General. It receives both selected targets, evidence and saved places. Code prepares reverse context for a saved target point, or its unique eligible earlier `previousPoint`. Forward queries belong to Location.
+Location runs in parallel with Tickets, Classification and Links after General. It receives both selected targets, evidence, saved places and the saved detailed description when available. Code prepares reverse context for a saved target point, or its unique eligible earlier `previousPoint`. Forward queries belong to Location.
 
 Initial requests and agent calls share six geocoding calls, a cache, cancellation and the run deadline. Location has at most eight model steps. `CATALOG_LOCATION_MODEL` defaults to the normal model. Missing credentials return bounded unavailable context.
 
@@ -155,13 +155,17 @@ Each addressed slot returns keep, set or clear for every text field. Coordinate 
 
 Source coordinate pairs remain beside their literal object and year context. Reverse results describe nearby objects and never create a replacement point. Unknown or wrong-target point IDs fail validation. Precise points need venue support; a city result cannot become an exact venue point. Missing optional coordinates do not force geocoding.
 
+When an independent source establishes the Edition place, a matching selected forward geocoding candidate can supply its absent country. Location explicitly sets `countryCode` from that candidate and cites the place evidence. Editor checks the selected point and its country against the place evidence and any saved country baseline. The source passage need not repeat the country name. A query country filter alone is not evidence. This rule does not establish a venue, address or administrative area. Without an established place or an assigned candidate country, the country stays unknown.
+
 ## Validate the proposal
 
-The system checks shape and same-slot keys. Current requires `previousEdition:null` and no Event summary or shared-link findings or actions. The two slots bound returned Editions; saved context has no Edition-count limit. Temporal choice, factual meaning and completeness remain model decisions assessed by evals.
+The system checks shape and same-slot keys. Current requires `previousEdition:null` and no description or shared-link findings or actions. Classification omits both description fields from its current-scope schema. Code checks scope again after joining the specialist results. The two slots bound returned Editions; saved context has no Edition-count limit. Temporal choice, factual meaning and completeness remain model decisions assessed by evals.
 
-Conflicting saved countries fail before source/model calls (`country_baseline_conflict`). A known country from any saved Edition constrains every returned country, including new/unchanged facts and explicit null clearing; conflicts fail the entire Event (`country_conflict`) before editing; final Location country actions are checked again before operations. Correcting a bad baseline requires a separate authorized correction.
+Conflicting saved countries fail before source or model calls (`country_baseline_conflict`). General cites the countries where sources place the festival, even when both Edition slots are empty. The system compares those countries with the saved Edition countries before Editor. A conflict stops the whole refresh (`country_conflict`). The report names the countries and links to the source. Final Location actions also fail if they replace or clear a known country. Correcting a saved country requires a separate authorized correction.
 
 The apply transaction rechecks every saved Edition ID/country; concurrent baseline changes abort all writes. The writer checks data rules, versions, and publication requirements. It can reject an invalid date, but it cannot tell whether a valid date is factually correct.
+
+Before writing, ingestion checks the proposed schedule status and dates together with any saved values the plan keeps. If a `scheduled` Edition would lack a start or end date, the run reports `invalid_plan` and saves no catalog changes.
 
 Accepted first-version limit: new Event slugs come from their names. If a distinct Event has the same generated slug as an existing Event or reserved alias, its item write fails and the run reports `write_failed`; the proposed slug remains visible in its operations. The run does not merge the two Events or choose a fallback slug automatically.
 
@@ -183,15 +187,15 @@ The current report separates research, editor, and Location status from the cata
 
 Raw model responses remain available, including invalid editor output. Returned unchanged facts can be inspected there. Omitted facts preserve saved values; they do not prove that a check was complete. Actual mutations and reasons also appear in the writer audit. No-op checks create no audit.
 
-Every started attempt has a private `ingestion_runs` row and durable `runId`. The final report is saved automatically. `--report PATH` exports the same report. Current consumers reject older report versions. See [ingestion runs](../openspec/specs/catalog/ingestion-runs/spec.md) and `src/ingestion/report.ts` for the exact report shape.
+Every started attempt has a private `ingestion_runs` row and durable `runId`. Studio saves the final report automatically. Open the workflow's build-report step to inspect it. Current consumers reject older report versions. See [ingestion runs](../openspec/specs/catalog/ingestion-runs/spec.md) and `src/ingestion/report.ts` for the exact report shape.
 
 With `--apply`, success and partial results use the atomic writer. Failed research, editing or required Location writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research, editor, Location or write failure exits nonzero. A write failure rolls back the entire Event item. The report retains research status, prepared operations, available raw research, editor and Location responses, source summaries, any name mismatch, and the write error. Applied `changes` stays empty; a separate proposed diff is not required. A partial result with no changes remains visibly partial/unchanged.
 
 Ordinary research retries only explicit OpenRouter `provider_unavailable` errors, at most three times with 10-second, 30-second, and 90-second exponential backoff within the same run deadline. A bounded Mastra iteration allowance preserves ordinary research capacity during those unavailable retries; observed request counts still include them. Other model errors are not retried; completed research steps and tool results are retained.
 
-Research defaults to 15 ordinary model steps, with tools disabled on the last step to reserve a final response. `--agent-steps` or `CATALOG_MAX_AGENT_STEPS` changes that allowance. Reader checks a configurable whole-page input allowance with a reserve. Topic packets have a bounded input size and fail explicitly on overflow. Source-size/output limits, search safeguards and deadlines still apply. Linked pages have no traversal-depth limit. Provider context-window rejection is reported as a model failure.
+Research defaults to 15 ordinary model steps, with tools disabled on the last step to reserve a final response. Set `CATALOG_MAX_AGENT_STEPS` for Studio to change that allowance. Reader checks a configurable whole-page input allowance with a reserve. Topic packets have a bounded input size and fail explicitly on overflow. Source-size/output limits, search safeguards and deadlines still apply. Linked pages have no traversal-depth limit. Provider context-window rejection is reported as a model failure.
 
-Reports and explanations are private CLI output/files, not public website data or a separate hosted logging service. Public details expose only ticket category labels and availability; amount/terms/variant URLs and research metadata remain private. Unknown category availability has no badge. Discovery and details never derive a global sold-out/closed label from variants.
+Reports and explanations remain in private run history. Public details expose only ticket category labels and availability; amount/terms/variant URLs and research metadata remain private. Unknown category availability has no badge. Discovery and details never derive a global sold-out/closed label from variants.
 
 Reports contain no application token or cost totals and no usage-completeness flag. `report.budget` holds search, page, model-call, elapsed-time and remaining-limit counters.
 
@@ -207,11 +211,11 @@ Abrupt interruption may leave a running row with null report, finish time, and f
 
 ## Evaluate ingestion
 
-`pnpm run catalog:eval` runs five main cases once against fixed pages, searches, and geocoding responses. Each attempt starts from a fresh seed and applies the normal Research, Editor, Location, and writer flow in a disposable catalog. The owner's catalog is not changed. `--all` also runs all targeted regressions, for 50 cases in four separate groups.
+`pnpm run catalog:eval` runs five main cases once against fixed pages, searches, and geocoding responses. Each attempt starts from a fresh seed and applies the normal Research, Editor, Location, and writer flow in a disposable catalog. The owner's catalog is not changed. `--all` also runs the targeted regressions. Use `--group regression/classification` to check Edition categories and both festival descriptions directly.
 
 Main results show required completeness, additional completeness, no checked errors, and scenario success. Missing additional facts lower completeness; wrong checked facts fail the case. A dimension with no expected facts is N/A. Gold data stays outside model input.
 
-Results and diagnostics are saved as Mastra experiments in `data/mastra-evals.sqlite`, separate from catalog and observability storage. Inspect and compare them in Studio. Workflow output retains one real v7 report; isolated Location output retains its actual execution without an ingestion report. The eval command has no `--report` option. Ordinary ingestion report export still works.
+Results and diagnostics are saved as Mastra experiments in `data/mastra-evals.sqlite`, separate from catalog and observability storage. Inspect and compare them in Studio. Workflow output retains one real v7 report; isolated Location output retains its actual execution without an ingestion report.
 
 Use `--model X` to select X for all eight agents, including isolated Location. Compare runs with the same cases, repeat count, fixtures, and scorer revision. See the [eval guide](ingestion-evals.md#run-evals) for selection, fact units, storage paths, and comparison limits, and the [evaluation spec](../openspec/specs/operations/ingestion-evaluation/spec.md) for the contract.
 
@@ -220,7 +224,7 @@ Use `--model X` to select X for all eight agents, including isolated Location. C
 Logs and traces help diagnose execution. They are optional and best effort. They do not replace the durable run report or writer audit. See [Ingestion tools](ingestion-tools.md#local-trace-inspection) for recording, queries, and cleanup.
 
 - Set `CATALOG_TRACING=true` for traces and native metrics. Set `CATALOG_LOGGING=true` independently for application and native SDK logs. Local commands keep both off by default. Compose enables both for Studio.
-- Close Studio before a separate CLI process records data. Only one process can own the DuckDB file. Reopen Studio after the CLI exits.
+- Start Studio with logging or tracing before calling the catalog CLI. For separate eval runs with diagnostics, see the [eval guide](ingestion-evals.md#usage-and-storage-failures).
 - Studio traces use the native workflow `runId`. Trace metadata retains the durable `ingestionRunId`, which matches the `runId` in application logs and saved reports. A missing trace does not mean the catalog write failed.
 - Inspect retrieval status and reason codes separately from tool execution status. A completed tool can return a failed retrieval. Native technical success does not verify facts or catalog changes.
 - The workflow root has the fixed name `catalog-ingestion`. Metadata identifies the Event, mode, native workflow run ID and durable ingestion run ID, with experiment IDs when available. Output copies only `researchStatus`, `editorStatus`, `locationStatus` and catalog `outcome`. Workflow steps and the report hold phase, validation and Edition details.
@@ -232,7 +236,7 @@ Native tool spans retain their standard results. Application logs retain retriev
 
 Pino writes JSON to stderr and Mastra forwards calls to Studio Logs. Delivery uses native Mastra behavior. Events outside SDK contexts can have no top-level correlation; application log data retains the durable `runId`. Completed model commentary and returned reasoning are separate events, each limited to 4,000 Unicode code points. Studio assistant tools use the same logging configuration without enabling chat traces.
 
-The workflow ends its root after report construction, settles children, then attempts flush before shutdown. CLI closes its owned store; Studio lends its store across attempts. SDK observability warnings and errors use native messages; application lifecycle guards retain fixed codes. Telemetry remains best effort and does not change model requests, budgets, retries, catalog writes, reports, scoring or exit status. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) and `src/ingestion/runtime/` for the contract and implementation.
+The workflow ends its root after report construction, settles children, then attempts flush before shutdown. Studio keeps its store open across attempts. SDK observability warnings and errors use native messages; application lifecycle guards retain fixed codes. Telemetry remains best effort and does not change model requests, budgets, retries, catalog writes, reports, scoring or exit status. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) and `src/ingestion/runtime/` for the contract and implementation.
 
 ### Execution metrics
 
@@ -245,9 +249,17 @@ Native metrics describe eligible agent, model, and tool operations. They do not 
 - Cancellation and HTTP failure can leave partial usage. Metric presence does not prove a complete bill.
 - Reports keep budget counters and do not calculate replacement cost totals. Historical runs are not backfilled.
 
-Use the [total-token query](ingestion-tools.md#local-trace-inspection) to inspect saved metrics without running research. The CLI closes its owned store; Studio keeps its shared store across attempts. Neither store has automatic retention. See the [diagnostics contract](../openspec/specs/operations/ingestion-diagnostics/spec.md) for details.
+Use the [total-token query](ingestion-tools.md#local-trace-inspection) to inspect saved metrics without running research. The store has no automatic retention. See the [diagnostics contract](../openspec/specs/operations/ingestion-diagnostics/spec.md) for details.
+
+## Add research notes
+
+Add accepts one complete free-text note through CLI --input or Studio input. A name, URL, coordinates, and tentative details are search leads. The collector receives the full note. General and the page reader use inspected evidence and do not receive the raw note as an Event name.
+
+A map page that repeats a supplied pin, or a reverse lookup that names its city, does not establish where the festival takes place. Without independent place evidence or a supported point, coordinates stay empty. If another source confirms only the Edition city, Location can use a registered city point with locality precision and leave the venue unresolved.
 
 ## Studio catalog chat
+
+Open Agents → `catalog-researcher` to search for new Events, submit up to 200 complete descriptions for add, and read status by batch ID. Search alone starts no jobs. A clear add request permits apply. Use `catalog-assistant` and `cancel_batch` for explicit cancellation of pending add or refresh jobs. The researcher has no cancellation tool.
 
 Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview or update up to 200 Events, or explain a saved ingestion result. Reads and explanations do not start ingestion. An explicit update request permits apply; preview uses dryRun true. Unclear targets or write intent require clarification.
 

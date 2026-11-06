@@ -175,6 +175,7 @@ function assembleReport({
     researchStatus,
     eventId: diagnostics?.matchedEventId ?? references.event ?? input.eventId,
     modelResponse: general.modelResponse ?? null,
+    classificationResponse: specialists.classification?.modelResponse ?? null,
     editorResponse: editor.modelResponse,
     editorStatus: editor.status,
     editorPromptVersion: PROMPT_VERSIONS.editor,

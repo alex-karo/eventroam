@@ -123,7 +123,6 @@ async function fixture(
         observedEventName: "Example Festival",
         reason: "Same official festival",
         evidenceIds,
-        event: {},
         previousEdition: null,
         currentOrNextEdition: {
           editionKey: "2027",
@@ -511,7 +510,7 @@ it("keeps saved source references in workflow history after cancellation during 
     const pending = run.start({
       inputData: {
         mode: "refresh",
-        eventId: event.id,
+        input: { eventId: event.id, scope: "full" },
         dryRun: false,
         republish: false,
       },

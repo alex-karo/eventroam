@@ -25,6 +25,7 @@ export function buildAssignment(
     instructions: current
       ? "Inspect the saved official sources. Collect the ongoing festival or nearest announced future festival, dates, status, place, tickets, ticket overview and programme. Do not audit Event fields or history. Do not find a replacement website. Stop on a material identity contradiction and request a full refresh. Targeted discovery for unresolved programme dates, another publication-required Edition fact or a concrete festival place is permitted; other missing optional details do not permit discovery."
       : "Inspect relevant known official sources. Collect identity, description, public links, latest actually completed festival and ongoing or nearest announced future festival, dates, place and programme. Collect tickets only for the ongoing or next festival. Use permitted discovery only when needed. Do not infer an unannounced festival.",
+    ...(input.mode === "add" ? { researchNote: input.input } : {}),
     checks: checks.map((key) => ({
       key,
       mandatory: true,
@@ -45,7 +46,7 @@ export function buildAssignment(
         previousCompletedEdition:
           "Collect dated history or recap passages and their completion statements. General decides which programme is the latest completed festival; do not require its result before completing collection. Do not audit every archive year.",
         description:
-          "Collect the Event description and any participant figure with its qualifications.",
+          "Collect material about the current festival format, including any announced changes.",
         eventLinks:
           "Collect official website and social account links from the Event site.",
       }[key],
@@ -60,7 +61,7 @@ export function buildAssignment(
         ? "Confirm the supplied Event and select targets, or return uncertain if identity cannot be established. A match with this Event is expected and is not a duplicate add."
         : "Compare the proposed Event with catalog candidates. Return duplicate only for a confirmed existing Event; otherwise select targets or return uncertain.",
     identityContext: {
-      requestedName: input.name ?? context.catalog[0]?.canonicalName,
+      requestedName: savedEvent?.canonicalName,
       eventId: input.eventId ?? null,
       countryCodes: [
         ...new Set(
@@ -104,7 +105,7 @@ export function assignedRoleChecks(
       "identity",
       "currentAnnouncement",
       "currentDates",
-      ...(!current ? ["previousCompletedEdition", "description"] : []),
+      ...(!current ? ["previousCompletedEdition"] : []),
     ];
   }
   if (role === "tickets") {
@@ -114,6 +115,7 @@ export function assignedRoleChecks(
     return [
       ...(targets?.previousEdition ? ["previousClassification"] : []),
       ...(hasNext ? ["currentClassification"] : []),
+      ...(!current ? ["description"] : []),
     ];
   }
   return [

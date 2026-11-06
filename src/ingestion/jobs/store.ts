@@ -1,25 +1,54 @@
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { z } from "zod";
+import { addInputSchema } from "../add-input";
+import {
+  eventIdSchema,
+  ingestionTargetSchema,
+  refreshScopeSchema,
+} from "../invocation";
 
 export const refreshInputSchema = z.strictObject({
   eventIds: z
-    .array(z.string().trim().min(1).max(500))
+    .array(eventIdSchema)
     .min(1)
     .max(200)
     .refine(
       (ids) => new Set(ids).size === ids.length,
       "Event IDs must be distinct",
     ),
-  scope: z.enum(["current", "full"]).default("full"),
+  scope: refreshScopeSchema.default("full"),
   dryRun: z.boolean().default(true),
 });
+export const addJobsInputSchema = z.strictObject({
+  inputs: z.array(addInputSchema).min(1).max(200),
+  dryRun: z.boolean().default(true),
+});
+
+type JobTarget = z.infer<typeof ingestionTargetSchema>;
+const storedDryRun = z.literal([0, 1]);
+
+/** Used at queue dispatch and again inside the attempt write transaction. */
+export function jobWorkflowInput(
+  row: Pick<IngestionJob, "mode" | "input" | "dry_run">,
+) {
+  const target = ingestionTargetSchema.parse({
+    mode: row.mode,
+    input: JSON.parse(row.input),
+  });
+  return {
+    ...target,
+    dryRun: storedDryRun.parse(row.dry_run) === 1,
+    republish: false,
+  };
+}
+
 export type IngestionJob = {
   id: string;
   batch_id: string;
   position: number;
-  event_id: string;
-  scope: "current" | "full";
+  mode: JobTarget["mode"];
+  input: string;
   dry_run: number;
   status: "pending" | "running" | "done" | "cancelled";
   created_at: string;
@@ -54,7 +83,7 @@ export function openJobCatalog(path: string) {
 function probeJobCatalog(client: Database.Database) {
   client
     .prepare(
-      "SELECT id,batch_id,position,event_id,scope,dry_run,status,created_at FROM ingestion_jobs LIMIT 0",
+      "SELECT id,batch_id,position,mode,input,dry_run,status,created_at FROM ingestion_jobs LIMIT 0",
     )
     .all();
   client
@@ -89,31 +118,70 @@ export function submitJobs(
     throw new JobStorageError("invalid_selection");
   }
   const { eventIds, scope, dryRun } = parsed.data;
+  return submitSelection(
+    client,
+    eventIds.map((eventId) => ({
+      mode: "refresh",
+      input: { eventId, scope },
+    })),
+    dryRun,
+    consume,
+  );
+}
+
+export function submitAddJobs(
+  client: Database.Database,
+  requested: z.input<typeof addJobsInputSchema>,
+  consume: () => void = () => {},
+) {
+  const parsed = addJobsInputSchema.safeParse(requested);
+  if (!parsed.success) {
+    throw new JobStorageError("invalid_selection");
+  }
+  return submitSelection(
+    client,
+    parsed.data.inputs.map((input) => ({
+      mode: "add",
+      input,
+    })),
+    parsed.data.dryRun,
+    consume,
+  );
+}
+
+function submitSelection(
+  client: Database.Database,
+  targets: JobTarget[],
+  dryRun: boolean,
+  consume: () => void,
+) {
   return write(client, () => {
     probeJobCatalog(client);
     const exists = client.prepare("SELECT id FROM events WHERE id=?");
-    if (eventIds.some((id) => !exists.get(id))) {
-      throw new JobStorageError("invalid_selection");
+    for (const target of targets) {
+      if (target.mode === "refresh" && !exists.get(target.input.eventId)) {
+        throw new JobStorageError("invalid_selection");
+      }
     }
     // The host flag is acquired after validation. Rollback does not release it.
     consume();
     const batchId = randomUUID();
     const createdAt = new Date().toISOString();
     const insert = client.prepare(
-      "INSERT INTO ingestion_jobs(id,batch_id,position,event_id,scope,dry_run,status,created_at) VALUES(?,?,?,?,?,?,'pending',?)",
+      "INSERT INTO ingestion_jobs(id,batch_id,position,mode,input,dry_run,status,created_at) VALUES(?,?,?,?,?,?,'pending',?)",
     );
-    eventIds.forEach((id, position) =>
+    targets.forEach((target, position) =>
       insert.run(
         randomUUID(),
         batchId,
         position,
-        id,
-        scope,
+        target.mode,
+        JSON.stringify(target.input),
         Number(dryRun),
         createdAt,
       ),
     );
-    return { batchId, acceptedCount: eventIds.length };
+    return { batchId, acceptedCount: targets.length };
   });
 }
 

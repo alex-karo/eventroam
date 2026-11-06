@@ -47,7 +47,8 @@ export const events = sqliteTable(
       .$type<string[]>()
       .notNull()
       .default(sql`'[]'`),
-    summary: text("summary"),
+    description: text("description"),
+    shortDescription: text("short_description"),
     homeScope: text("home_scope"),
     publicationState: text("publication_state", { enum: lifecycle })
       .notNull()
@@ -221,13 +222,13 @@ export const ingestionJobs = sqliteTable(
     id: text("id").primaryKey(),
     batchId: text("batch_id").notNull(),
     position: integer("position").notNull(),
-    eventId: text("event_id").notNull(),
-    scope: text("scope", { enum: ["current", "full"] }).notNull(),
     dryRun: integer("dry_run", { mode: "boolean" }).notNull(),
     status: text("status", {
       enum: ["pending", "running", "done", "cancelled"],
     }).notNull(),
     createdAt: text("created_at").notNull(),
+    mode: text("mode", { enum: ["add", "refresh"] }).notNull(),
+    input: text("input", { mode: "json" }).$type<unknown>().notNull(),
   },
   (t) => [
     uniqueIndex("ingestion_jobs_batch_position_uq").on(t.batchId, t.position),

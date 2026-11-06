@@ -1,3 +1,8 @@
+import { studioIngestionInputSchema } from "./invocation";
+import {
+  studioIngestionResultSchema,
+  type StudioIngestionResult,
+} from "./workflow-result";
 import { researchErrorSchema } from "./research/contracts";
 import {
   specialistResultsSchema,
@@ -38,7 +43,6 @@ import {
 import { Mastra } from "@mastra/core/mastra";
 import type { WorkflowsStorage } from "@mastra/core/storage";
 import {
-  createWorkflowStorage,
   pruneWorkflowSnapshot,
   WorkflowHistoryError,
 } from "./runtime/workflow-storage";
@@ -75,8 +79,9 @@ type SpecialistRole = (typeof specialistRoles)[number];
 function specialistApplies(
   role: SpecialistRole,
   targets: Pick<Targets, "previousEdition" | "currentOrNextEdition">,
+  scope: CatalogResearchInput["scope"],
 ) {
-  if (role === "links") {
+  if (role === "links" || (role === "classification" && scope !== "current")) {
     return true;
   }
   if (role === "tickets") {
@@ -99,32 +104,6 @@ export type {
   ResearchDependencies,
 } from "./contracts";
 
-export const studioIngestionInputSchema = z
-  .strictObject({
-    mode: z.enum(["add", "refresh"]),
-    scope: z.enum(["full", "current"]).optional(),
-    name: z.string().trim().min(1).max(500).optional(),
-    eventId: z.string().trim().min(1).max(500).optional(),
-    dryRun: z.boolean().default(true),
-    republish: z.boolean().default(false),
-  })
-  .superRefine((value, context) => {
-    if (
-      value.mode === "add" &&
-      (!value.name || value.eventId || value.scope !== undefined)
-    ) {
-      context.addIssue({
-        code: "custom",
-        message: "add requires a name and no Event ID",
-      });
-    }
-    if (value.mode !== "add" && (!value.eventId || value.name)) {
-      context.addIssue({
-        code: "custom",
-        message: "refresh requires an Event ID and no name",
-      });
-    }
-  });
 export type StudioIngestionInput = z.input<typeof studioIngestionInputSchema>;
 
 // Explicit fields expose research data; runtime resources are never included.
@@ -157,34 +136,6 @@ const stateSchema = z.object({}).catchall(z.json()) as unknown as z.ZodType<{
 }>;
 const stepStateSchema = z.object({ data: dataSchema });
 const stepSchema = z.json();
-export const studioIngestionResultSchema = z.strictObject({
-  engineRunId: z.string(),
-  ingestionRunId: z.string(),
-  mode: z.enum(["add", "refresh"]),
-  dryRun: z.boolean(),
-  outcome: z.enum([
-    "created",
-    "updated",
-    "published",
-    "unchanged",
-    "skipped",
-    "failed",
-  ]),
-  researchStatus: z.enum(["success", "partial", "failed"]),
-  editorStatus: z.enum(["success", "failed", "not_run"]),
-  persistenceStatus: z.enum(["completed", "failed"]),
-  eventId: z.string().nullable(),
-  scope: z.enum(["full", "current"]).nullable(),
-  savedEditionCount: z.number().int().nonnegative(),
-  returnedEditionCount: z.number().int().nonnegative(),
-  readCount: z.number().int().nonnegative(),
-  searchCount: z.number().int().nonnegative(),
-  operationCount: z.number().int().nonnegative(),
-  changedCount: z.number().int().nonnegative(),
-  locationStatus: locationExecutionSchema.shape.status,
-  errorCodes: z.array(z.string()),
-});
-
 export type ResolvedCatalogDependencies = {
   deps: ResearchDependencies;
   close?: () => unknown | Promise<unknown>;
@@ -233,12 +184,11 @@ async function safePhase(
   }
   try {
     return await execute();
-  } catch {
-    if (abortSignal.aborted) {
-      // Failed steps discard buffered state updates in the installed engine.
-      // Persist their local accounting before throwing; no private checkpoint.
+  } catch (error) {
+    if (abortSignal.aborted && error === abortSignal.reason) {
+      // Let the phase save its source state before the engine ends cancellation.
       await owned.finalizeFailure(data, true);
-      throw new Error("Ingestion cancelled");
+      return null;
     }
     await owned.settle();
     if (owned.collection && !data.corpus) {
@@ -253,7 +203,8 @@ function projectSummary(
   owned: CatalogAttempt,
   result: CatalogResearchResult,
   persistenceStatus: "completed" | "failed",
-) {
+): StudioIngestionResult {
+  const errorCodes = result.errors.map((error) => error.code);
   return {
     engineRunId: owned.engineRunId,
     ingestionRunId: owned.ingestionRunId,
@@ -265,33 +216,28 @@ function projectSummary(
     persistenceStatus,
     eventId: result.eventId ?? null,
     scope: result.scope,
-    savedEditionCount: result.workload.savedEditions,
-    returnedEditionCount: result.workload.returnedEditions,
-    readCount: result.budget.pages,
-    searchCount: result.budget.searches,
-    operationCount: result.operations.length,
-    changedCount: result.receipts.filter((receipt) => receipt.changed).length,
     locationStatus: result.locationStatus,
     errorCodes:
       persistenceStatus === "failed"
         ? [
-            ...result.errors.map((error) => error.code),
+            ...errorCodes
+              .filter((code) => code !== "run_persistence_failed")
+              .slice(0, 19),
             "run_persistence_failed",
           ]
-        : result.errors.map((error) => error.code),
+        : errorCodes,
   };
 }
 
-type CliInvocation = {
+type InProcessInvocation = {
   requested: CatalogResearchInput;
-  deps: ResearchDependencies;
   owned?: CatalogAttempt;
   historyFailed?: boolean;
 };
 
 export function createCatalogIngestionWorkflow(
   resolveDependencies: ResolveCatalogDependencies,
-  options: { cli?: CliInvocation } = {},
+  options: { inProcess?: InProcessInvocation } = {},
 ) {
   const attempts = new Map<string, CatalogAttempt | null>();
   const attempt = (engineRunId: string) => {
@@ -383,9 +329,12 @@ export function createCatalogIngestionWorkflow(
         try {
           await setState({ data: serialize(data) });
           return serialize(output ?? null) as z.infer<typeof stepSchema>;
-        } catch {
+        } catch (error) {
           // Unserializable state cannot replace the last completed native state.
-          await owned.finalizeFailure(data, abortSignal.aborted);
+          await owned.finalizeFailure(
+            data,
+            abortSignal.aborted && error === abortSignal.reason,
+          );
           throw new Error("Ingestion workflow failed");
         }
       },
@@ -567,11 +516,44 @@ export function createCatalogIngestionWorkflow(
         data.corpus!,
       );
       const diagnostics = stageDiagnostics(data.researchValidation);
+      const saved = data.context!.catalog.find(
+        (event) => event.id === diagnostics.matchedEventId,
+      );
+      if (
+        owned.input.mode === "add" &&
+        data.researchValidation.status !== "reject" &&
+        data.general.output.decision !== "uncertain"
+      ) {
+        owned.trace?.setEventName(
+          saved?.canonicalName ?? data.general.output.observedEventName,
+        );
+      }
       data.errors.push(...diagnostics.errors);
       data.unresolved.push(...diagnostics.unresolved);
       if (data.researchValidation.status !== "continue") {
         data.outcome =
           data.researchValidation.status === "skip" ? "skipped" : "failed";
+      } else {
+        const targets = data.researchValidation.value;
+        const hasEdition =
+          targets.previousEdition ||
+          targets.currentOrNextEdition ||
+          saved?.editions.some(
+            ({ scheduleStatus }) =>
+              scheduleStatus === "scheduled" || scheduleStatus === "announced",
+          );
+        if (!hasEdition) {
+          data.outcome = "skipped";
+          data.unresolved.push({
+            field: "edition",
+            message: "Insufficient information about editions",
+          });
+        } else if (
+          owned.input.scope === "current" &&
+          !targets.currentOrNextEdition
+        ) {
+          data.outcome = "unchanged";
+        }
       }
       return { execution: data.general, targets: data.researchValidation };
     },
@@ -594,8 +576,8 @@ export function createCatalogIngestionWorkflow(
         if (
           !targets ||
           data.report ||
-          data.outcome === "failed" ||
-          !specialistApplies(role, targets)
+          data.outcome !== null ||
+          !specialistApplies(role, targets, owned.input.scope)
         ) {
           if (role === "location") {
             return stepSchema.parse(emptyLocationExecution());
@@ -674,7 +656,7 @@ export function createCatalogIngestionWorkflow(
     (owned, data, _signal, inputData) => {
       if (
         data.researchValidation?.status !== "continue" ||
-        data.outcome === "failed" ||
+        data.outcome !== null ||
         data.report
       ) {
         return null;
@@ -703,7 +685,7 @@ export function createCatalogIngestionWorkflow(
       if (
         specialistRoles.some(
           (role) =>
-            specialistApplies(role, assigned) &&
+            specialistApplies(role, assigned, owned.input.scope) &&
             results[role].status === "not_run",
         ) ||
         (results.location.status === "success" &&
@@ -949,12 +931,6 @@ export function createCatalogIngestionWorkflow(
       } catch {
         if (data.report) {
           const summary = projectSummary(owned, data.report, "failed");
-          summary.errorCodes = [
-            ...summary.errorCodes
-              .filter((code) => code !== "run_persistence_failed")
-              .slice(0, 19),
-            "run_persistence_failed",
-          ];
           throw new Error(
             JSON.stringify({ code: "run_persistence_failed", summary }),
           );
@@ -1008,15 +984,15 @@ export function createCatalogIngestionWorkflow(
               timestamp: Date.now(),
             }),
           });
-          const resolved = options.cli
-            ? { deps: options.cli.deps }
-            : await resolveDependencies(parsed, runId);
+          const resolved = await resolveDependencies(parsed, runId);
           let owned: CatalogAttempt;
           try {
+            const { input, ...settings } = parsed;
             owned = new CatalogAttempt(
               runId,
-              options.cli?.requested ?? {
-                ...parsed,
+              options.inProcess?.requested ?? {
+                ...settings,
+                ...(typeof input === "string" ? { input } : input),
                 actor: "catalog-research",
               },
               resolved.deps,
@@ -1027,8 +1003,8 @@ export function createCatalogIngestionWorkflow(
             throw error;
           }
           attempts.set(runId, owned);
-          if (options.cli) {
-            options.cli.owned = owned;
+          if (options.inProcess) {
+            options.inProcess.owned = owned;
           }
           await owned.initialize();
         } catch (error) {
@@ -1037,7 +1013,7 @@ export function createCatalogIngestionWorkflow(
           } else {
             attempts.delete(runId);
           }
-          if (options.cli || error instanceof WorkflowHistoryError) {
+          if (options.inProcess || error instanceof WorkflowHistoryError) {
             throw error;
           }
           throw new Error("Ingestion workflow failed");
@@ -1085,8 +1061,8 @@ export function createCatalogIngestionWorkflow(
       await checkSavedId(store, runId);
     },
     async recoverHistory(runId: string, data = createIngestionData()) {
-      if (options.cli) {
-        options.cli.historyFailed = true;
+      if (options.inProcess) {
+        options.inProcess.historyFailed = true;
       }
       await recover(runId, structuredClone(data));
     },
@@ -1097,15 +1073,14 @@ export function createCatalogIngestionWorkflow(
 
 export async function runCatalogResearch(
   requested: CatalogResearchInput,
-  deps: ResearchDependencies,
+  deps: ResearchDependencies &
+    Required<Pick<ResearchDependencies, "workflowStorage">>,
 ): Promise<CatalogResearchResult> {
-  const cli: CliInvocation = { requested, deps };
+  const invocation: InProcessInvocation = { requested };
   const workflow = createCatalogIngestionWorkflow(async () => ({ deps }), {
-    cli,
+    inProcess: invocation,
   });
-  const storage =
-    deps.workflowStorage ??
-    createWorkflowStorage({ path: deps.workflowDatabasePath });
+  const storage = deps.workflowStorage;
   storage.setFailureHandler(workflow.historyControl.recoverHistory);
   let host: Mastra | undefined;
   try {
@@ -1117,25 +1092,26 @@ export async function runCatalogResearch(
       loggerOptions: { export: false },
     });
     const run = await safeStep(() => workflow.createRun());
-    const inputData = {
+    const inputData = studioIngestionInputSchema.parse({
       mode: requested.mode,
-      scope: requested.scope,
-      name: requested.name,
-      eventId: requested.eventId,
-      dryRun: requested.dryRun ?? true,
-      republish: requested.republish ?? false,
-    };
+      input:
+        requested.mode === "refresh"
+          ? { eventId: requested.eventId, scope: requested.scope }
+          : requested.input,
+      dryRun: requested.dryRun,
+      republish: requested.republish,
+    });
     const result = await run.start({ inputData }).catch((error: unknown) => {
-      if (!cli.owned || error instanceof WorkflowHistoryError) {
+      if (!invocation.owned || error instanceof WorkflowHistoryError) {
         throw error;
       }
       return undefined;
     });
-    const owned = cli.owned;
+    const owned = invocation.owned;
     if (!owned) {
       throw new Error("Ingestion attempt unavailable");
     }
-    if (cli.historyFailed) {
+    if (invocation.historyFailed) {
       throw new WorkflowHistoryError(run.runId);
     }
     if (owned.finalization) {
@@ -1147,8 +1123,8 @@ export async function runCatalogResearch(
         : "Ingestion workflow failed",
     );
   } catch (error) {
-    if (error instanceof WorkflowHistoryError || cli.historyFailed) {
-      const owned = cli.owned;
+    if (error instanceof WorkflowHistoryError || invocation.historyFailed) {
+      const owned = invocation.owned;
       const report = await owned?.finalization?.catch(() => undefined);
       throw new WorkflowHistoryError(
         owned?.engineRunId ??
@@ -1161,13 +1137,7 @@ export async function runCatalogResearch(
     }
     throw error;
   } finally {
-    if (deps.workflowStorage) {
-      // The caller owns the store; this run owns its host hooks.
-      host?.__unregisterHooks();
-    } else if (host) {
-      await host.shutdown();
-    } else {
-      await storage.close();
-    }
+    // The caller owns the store; this run owns its host hooks.
+    host?.__unregisterHooks();
   }
 }

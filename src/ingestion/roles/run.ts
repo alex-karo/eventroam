@@ -40,6 +40,7 @@ import {
   generalInstructions,
   ticketsInstructions,
   classificationInstructions,
+  descriptionInstructions,
   linksInstructions,
   editorInstructions,
 } from "./prompts";
@@ -149,7 +150,6 @@ export function runGeneral(options: RoleOptions) {
         id: event.id,
         canonicalName: event.canonicalName,
         aliases: event.aliases,
-        summary: event.summary,
         version: event.version,
         publicationState: event.publicationState,
         links: event.links
@@ -278,11 +278,23 @@ export function runTickets(options: RoleOptions, targets: Targets) {
   });
 }
 export function runClassification(options: RoleOptions, targets: Targets) {
+  const describeFestival = options.input.scope !== "current";
+  const saved = options.context.catalog.find(
+    (event) => event.id === (options.input.eventId ?? targets.eventId),
+  );
+  const output = describeFestival
+    ? classificationOutputSchema
+    : classificationOutputSchema.omit({
+        description: true,
+        shortDescription: true,
+      });
   return invokeRole({
     ...base(options, "classification"),
     role: "classification",
     version: PROMPT_VERSIONS.classification,
-    instructions: classificationInstructions,
+    instructions: describeFestival
+      ? descriptionInstructions + "\n" + classificationInstructions
+      : classificationInstructions,
     input: {
       assignedChecks: assignedRoleChecks(
         "classification",
@@ -290,15 +302,22 @@ export function runClassification(options: RoleOptions, targets: Targets) {
         targets,
       ),
       targets: targetContext(options, targets, "classification"),
-      history: options.context.catalog
-        .find(
-          (event) => event.id === (options.input.eventId ?? targets.eventId),
-        )
-        ?.editions.map(classificationHistory),
+      history: saved?.editions.map(classificationHistory),
+      ...(describeFestival && {
+        savedDescriptions: {
+          description: saved?.description ?? null,
+          shortDescription: saved?.shortDescription ?? null,
+        },
+      }),
       vocabulary: options.context.terms,
-      corpus: evidencePacket(options.corpus, roleEvidenceTopics.classification),
+      corpus: evidencePacket(
+        options.corpus,
+        describeFestival
+          ? [...roleEvidenceTopics.classification, "location"]
+          : roleEvidenceTopics.classification,
+      ),
     },
-    schema: classificationOutputSchema.extend({
+    schema: output.extend({
       previousEdition: targets.previousEdition
         ? classificationOutputSchema.shape.previousEdition
         : z.null(),

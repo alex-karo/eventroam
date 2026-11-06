@@ -21,6 +21,10 @@ import {
 } from "./stage";
 
 type LinkFields = LinksOutput["event"];
+type DescriptionFields = Pick<
+  ClassificationOutput,
+  "description" | "shortDescription"
+>;
 type EditionFields = NonNullable<Targets["currentOrNextEdition"]>["fields"] &
   TicketsOutput["currentOrNextEdition"] &
   NonNullable<ClassificationOutput["currentOrNextEdition"]> & {
@@ -36,10 +40,7 @@ export type ApplicationPlan = {
   status: "ready";
   event: {
     reason?: string;
-    fields: {
-      summary?: NonNullable<Targets["event"]["summary"]>;
-      links?: LinkFields;
-    };
+    fields: DescriptionFields & { links?: LinkFields };
   } | null;
   previousEdition: EditionPlan | null;
   currentOrNextEdition: EditionPlan | null;
@@ -66,7 +67,9 @@ export const initialDiagnostics = (): PlanDiagnostics => ({
 function reject(
   diagnostics: PlanDiagnostics,
   message: string,
-  code: "invalid_plan" | "editor_rejected" = "invalid_plan",
+  code:
+    "invalid_plan" | "editor_rejected" | "country_conflict" = "invalid_plan",
+  url?: string,
 ): StageResult<never> {
   return {
     status: "reject",
@@ -78,6 +81,7 @@ function reject(
           code,
           stage: code === "editor_rejected" ? "editor" : "validation",
           message,
+          ...(url ? { url } : {}),
         },
       ],
     },
@@ -97,6 +101,54 @@ function requireSupport(
 }
 
 type SavedEvent = ResearchContext["catalog"][number];
+function checkRefreshCountries(
+  output: GeneralOutput,
+  mode: CatalogResearchInput["mode"],
+  event: SavedEvent | undefined,
+  corpus: FrozenCorpus,
+) {
+  if (
+    mode !== "refresh" ||
+    !("festivalCountries" in output) ||
+    !output.festivalCountries?.length
+  ) {
+    return;
+  }
+  const diagnostics = initialDiagnostics();
+  if (output.decision === "uncertain") {
+    diagnostics.unresolved = output.unresolved;
+  }
+  for (const { countryCode, evidenceIds } of output.festivalCountries) {
+    try {
+      requireSupport(evidenceIds, corpus);
+    } catch {
+      return reject(
+        diagnostics,
+        "Festival country needs inspected source support",
+      );
+    }
+    const saved = event?.editions.find(
+      (edition) =>
+        edition.countryCode &&
+        edition.countryCode.toUpperCase() !== countryCode,
+    );
+    if (saved) {
+      const evidence = corpus.evidence.find(
+        (item) => item.id === evidenceIds[0],
+      );
+      const source = corpus.sources.find(
+        (item) => item.id === evidence?.sourceId,
+      );
+      return reject(
+        diagnostics,
+        `Sources place the festival in ${countryCode}, but saved Edition ${saved.editionKey} has country ${saved.countryCode}. Confirm the saved country and correct it separately before retrying.`,
+        "country_conflict",
+        source?.finalUrl,
+      );
+    }
+  }
+}
+
 function duplicateSupported(
   event: SavedEvent,
   ids: string[],
@@ -157,13 +209,19 @@ function validateTemporalTargets(
   }
 }
 
+function hasEventFieldCheck(checks: Targets["checks"]) {
+  return checks.some(
+    ({ check }) => check === "description" || check === "eventLinks",
+  );
+}
+
 function validateTargetAssignment(
   output: Targets,
   input: CatalogResearchInput,
 ) {
   if (
     input.scope === "current" &&
-    (output.previousEdition || Object.keys(output.event).length)
+    (output.previousEdition || hasEventFieldCheck(output.checks))
   ) {
     throw new Error("Current refresh cannot address Event fields or history");
   }
@@ -182,20 +240,27 @@ export function validateGeneral(
   corpus: FrozenCorpus,
 ): StageResult<Targets & PlanDiagnostics> {
   const diagnostics = initialDiagnostics();
+  const proposedEventId = "eventId" in output ? output.eventId : null;
+  const event = context.catalog.find(
+    ({ id }) => id === (input.eventId ?? proposedEventId),
+  );
+  if (proposedEventId && proposedEventId !== event?.id) {
+    return reject(diagnostics, "Event is outside the assigned candidates");
+  }
+  const countryRejection = checkRefreshCountries(
+    output,
+    input.mode,
+    event,
+    corpus,
+  );
+  if (countryRejection) {
+    return countryRejection;
+  }
   if (output.decision === "uncertain") {
     return reject(
       { ...diagnostics, unresolved: output.unresolved },
       output.reason,
     );
-  }
-  const event = context.catalog.find(
-    (event) => event.id === (output.eventId ?? input.eventId),
-  );
-  if (
-    (output.eventId && !event) ||
-    (input.eventId && output.eventId && input.eventId !== output.eventId)
-  ) {
-    return reject(diagnostics, "Event is outside the assigned candidates");
   }
   diagnostics.matchedEventId = event?.id;
   if (event && output.observedEventName !== event.canonicalName) {
@@ -243,20 +308,6 @@ export function validateGeneral(
   return {
     status: "continue",
     value: { ...output, ...diagnostics, unresolved: output.unresolved },
-  };
-}
-
-export function commonPlan(targets: Targets): ApplicationPlan {
-  return {
-    status: "ready",
-    event: { reason: targets.reason, fields: { ...targets.event } },
-    previousEdition: targets.previousEdition
-      ? structuredClone(targets.previousEdition)
-      : null,
-    currentOrNextEdition: targets.currentOrNextEdition
-      ? structuredClone(targets.currentOrNextEdition)
-      : null,
-    unresolved: targets.unresolved,
   };
 }
 
@@ -367,19 +418,34 @@ function attachClassification(
   };
 }
 
-function assignEventLinks(
-  plan: ApplicationPlan,
+function eventFields(
+  classification: ClassificationOutput | null,
   links: LinksOutput,
-  input: CatalogResearchInput,
-) {
-  if (input.scope !== "current") {
-    plan.event!.fields.links = links.event;
-  } else if (
-    Object.keys(links.event.website ?? {}).length ||
-    Object.keys(links.event.socials).length
+  scope: CatalogResearchInput["scope"],
+): NonNullable<ApplicationPlan["event"]>["fields"] {
+  const { description, shortDescription } = classification ?? {};
+  if (scope !== "current") {
+    return {
+      ...(description && { description }),
+      ...(shortDescription && { shortDescription }),
+      links: links.event,
+    };
+  }
+  if (
+    description ||
+    shortDescription ||
+    (classification && hasEventFieldCheck(classification.checks))
+  ) {
+    throw new Error("Current refresh cannot address Event descriptions");
+  }
+  if (
+    links.event.website ||
+    Object.keys(links.event.socials).length ||
+    hasEventFieldCheck(links.checks)
   ) {
     throw new Error("Event links are outside the assignment");
   }
+  return {};
 }
 
 export function assembleProposals(options: {
@@ -407,8 +473,6 @@ export function assembleProposals(options: {
   const event =
     context.catalog.find((event) => event.id === targets.eventId) ??
     (input.eventId ? context.catalog[0] : undefined);
-  const plan = commonPlan(targets);
-  plan.unresolved = diagnostics.unresolved;
   const submitted = {
     general: targets,
     tickets: options.tickets,
@@ -425,7 +489,16 @@ export function assembleProposals(options: {
     ) {
       throw new Error("Proposal for an absent target");
     }
-    assignEventLinks(plan, options.links, input);
+    const plan: ApplicationPlan = {
+      status: "ready",
+      event: {
+        reason: targets.reason,
+        fields: eventFields(options.classification, options.links, input.scope),
+      },
+      previousEdition: structuredClone(targets.previousEdition),
+      currentOrNextEdition: structuredClone(targets.currentOrNextEdition),
+      unresolved: diagnostics.unresolved,
+    };
     for (const slot of editionSlotNames) {
       const target = plan[slot];
       const classification = options.classification?.[slot]?.classification;
