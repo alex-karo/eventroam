@@ -30,13 +30,30 @@ The Edition page SHALL show its title, dates, inclusive duration, place, useful 
 
 ### Requirement: General descriptions retain their scope
 
-The Edition page SHALL show the known Event summary under About the festival. It SHALL NOT present that text as the Edition's confirmed programme. The description section SHALL be omitted if no summary is known.
+The Event page and the Edition's About the festival section SHALL show the first available text in this order: `description`, then `shortDescription`, then a neutral sentence generated from public Event data. A missing or blank value counts as absent. The automatic sentence MUST identify the festival by its public name. This text describes the festival as a whole. Generating or selecting a fallback SHALL leave both stored fields unchanged.
+Historical Edition pages SHALL use the same current festival text under About the festival. The catalog SHALL NOT store a separate description version for each Edition.
 
 #### Scenario: Only a general summary is stored
 
-- **WHEN** a visitor opens an Edition whose Event has a summary
-- **THEN** the page shows that summary as information about the festival
+- **WHEN** a visitor opens an Edition whose Event has a description
+- **THEN** the page shows that description as information about the festival
 - **AND** it does not add claims about the selected year's programme
+
+#### Scenario: Only the short text is available
+
+- **WHEN** the detailed field is blank and the Event has a short description
+- **THEN** both the Event page and the About section on an Edition show the short description
+
+#### Scenario: Both fields are absent
+
+- **WHEN** a public Event has neither description
+- **THEN** both pages show the automatic sentence and the stored fields stay empty
+
+#### Scenario: The festival format changed after a historical Edition
+
+- **WHEN** a visitor opens a historical Edition page after the festival description changes
+- **THEN** About the festival shows the current festival text
+- **AND** the page keeps the historical Edition's own dates, status and other Edition facts
 
 ### Requirement: External links use accessible icon buttons
 
@@ -94,7 +111,7 @@ For an Edition with coordinates, Show on map SHALL move to the page's location s
 
 ### Requirement: Event pages provide minimal information and history
 
-The Event page SHALL show its name, optional summary, catalog navigation, and links to all public Editions. It SHALL NOT repeat an active Edition detail block, tickets, or a map. Edition pages SHALL link to this Event page and list Other editions, with the current Edition identified.
+The Event page SHALL show its name, the selected festival text, catalog navigation, and links to all public Editions. It SHALL NOT repeat an active Edition detail block, tickets, or a map. Edition pages SHALL link to this Event page and list Other editions, with the current Edition identified.
 
 #### Scenario: Several Editions share a year
 

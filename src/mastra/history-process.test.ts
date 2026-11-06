@@ -58,6 +58,13 @@ test("CLI uses Studio storage and inspection can reopen completed and interrupte
       expect(
         catalog.prepare("SELECT COUNT(*) AS count FROM editions").get(),
       ).toEqual({ count: 0 });
+      expect(
+        catalog
+          .prepare(
+            "SELECT description, short_description FROM events WHERE id=?",
+          )
+          .get(STUDIO_FIXTURE_EVENT_ID),
+      ).toEqual({ description: null, short_description: null });
       const saved = catalog
         .prepare("SELECT status, report_json FROM ingestion_runs WHERE id=?")
         .get(preview.results[0].ingestionRunId) as {
@@ -111,6 +118,22 @@ test("CLI uses Studio storage and inspection can reopen completed and interrupte
     expect(applied.results).toMatchObject([
       { eventId: STUDIO_FIXTURE_EVENT_ID, dryRun: false, outcome: "created" },
     ]);
+    const appliedCatalog = new Database(studio.catalogPath, { readonly: true });
+    try {
+      expect(
+        appliedCatalog
+          .prepare(
+            "SELECT description, short_description FROM events WHERE id=?",
+          )
+          .get(STUDIO_FIXTURE_EVENT_ID),
+      ).toEqual({
+        description:
+          "Live music takes place outdoors. The programme includes workshops. Visitors can join group activities.",
+        short_description: "An outdoor music festival with workshops.",
+      });
+    } finally {
+      appliedCatalog.close();
+    }
     const completedId = applied.results[0].engineRunId;
     expect(completedId).not.toBe(preview.results[0].engineRunId);
     await studio.stop(true);

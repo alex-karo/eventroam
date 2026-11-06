@@ -1,7 +1,9 @@
 import type { EvalCase } from "./fixtures";
 import type { ReaderEvalCase } from "./reader";
+import type { ClassificationEvalCase } from "./classification";
 
-export type SelectedEvalCase = EvalCase | ReaderEvalCase;
+export type SelectedEvalCase =
+  EvalCase | ReaderEvalCase | ClassificationEvalCase;
 
 export const evalGroups = [
   "main/pipeline",
@@ -9,6 +11,7 @@ export const evalGroups = [
   "regression/editor",
   "regression/location",
   "regression/reader",
+  "regression/classification",
 ] as const;
 export type EvalGroup = (typeof evalGroups)[number];
 export type EvalSelection = {
@@ -19,6 +22,9 @@ export type EvalSelection = {
   groups?: EvalGroup[];
 };
 export function caseGroup(item: SelectedEvalCase): EvalGroup {
+  if ("classification" in item) {
+    return "regression/classification";
+  }
   if ("reader" in item) {
     return "regression/reader";
   }

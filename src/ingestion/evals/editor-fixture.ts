@@ -114,13 +114,13 @@ export function assertEditorFixture(item: PipelineEvalCase) {
     if (fixture.roles.general?.decision === "targets" && !fixture.roles[role]) {
       throw new Error(`${item.id}: missing fixed ${role} input`);
     }
+    const topics: readonly string[] =
+      role === "classification" && item.input.scope !== "current"
+        ? [...roleEvidenceTopics.classification, "location"]
+        : roleEvidenceTopics[role];
     const allowed = new Set(
       evidence
-        .filter((item) =>
-          item.topics.some((topic) =>
-            (roleEvidenceTopics[role] as readonly string[]).includes(topic),
-          ),
-        )
+        .filter((item) => item.topics.some((topic) => topics.includes(topic)))
         .map((item) => item.id),
     );
     if (support(fixture.roles[role]).some((id) => !allowed.has(id))) {

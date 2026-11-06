@@ -43,6 +43,13 @@
       "when": 1793874179455,
       "tag": "0005_explicit_job_input",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793923844791,
+      "tag": "0006_event_descriptions",
+      "breakpoints": true
     }
   ]
 }

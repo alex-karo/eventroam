@@ -46,7 +46,7 @@ export function buildAssignment(
         previousCompletedEdition:
           "Collect dated history or recap passages and their completion statements. General decides which programme is the latest completed festival; do not require its result before completing collection. Do not audit every archive year.",
         description:
-          "Collect the Event description and any participant figure with its qualifications.",
+          "Collect material about the current festival format, including any announced changes.",
         eventLinks:
           "Collect official website and social account links from the Event site.",
       }[key],
@@ -105,7 +105,7 @@ export function assignedRoleChecks(
       "identity",
       "currentAnnouncement",
       "currentDates",
-      ...(!current ? ["previousCompletedEdition", "description"] : []),
+      ...(!current ? ["previousCompletedEdition"] : []),
     ];
   }
   if (role === "tickets") {
@@ -115,6 +115,7 @@ export function assignedRoleChecks(
     return [
       ...(targets?.previousEdition ? ["previousClassification"] : []),
       ...(hasNext ? ["currentClassification"] : []),
+      ...(!current ? ["description"] : []),
     ];
   }
   return [

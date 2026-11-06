@@ -295,7 +295,7 @@ test("create audit keeps supplied field order, arrays, and omitted defaults", ()
       slug: "array-festival",
       canonicalName: "Array Festival",
       aliases: ["Array Fest"],
-      summary: undefined,
+      description: undefined,
     },
   });
   const edition = applyCatalogOperation(client, {
@@ -1315,7 +1315,7 @@ test("updates containing only undefined fields are idempotent no-ops", () => {
       actor: "test",
       id: event.id,
       expectedVersion: event.version,
-      data: { slug: undefined, aliases: undefined, summary: undefined },
+      data: { slug: undefined, aliases: undefined, description: undefined },
     },
     {
       kind: "updateEdition",
@@ -1573,4 +1573,36 @@ test("free variants persist zero without currency and retain an idempotent recei
       priceDetails: [{ label: "Unknown", currency: "EUR" }],
     }),
   ).toThrow(/Amount and currency/);
+});
+
+test("Event descriptions can be set and cleared independently", () => {
+  const { client } = testDatabase();
+  const event = testFixtures(client).event({ shortDescription: "Short text." });
+  const read = client.prepare(
+    "SELECT description, short_description FROM events WHERE id=?",
+  );
+  for (const [index, data, expected] of [
+    [
+      { description: "Detailed text." },
+      { description: "Detailed text.", short_description: "Short text." },
+    ],
+    [
+      { shortDescription: null },
+      { description: "Detailed text.", short_description: null },
+    ],
+    [
+      { description: null, shortDescription: "New short text." },
+      { description: null, short_description: "New short text." },
+    ],
+  ].map(([data, expected], index) => [index, data, expected] as const)) {
+    applyCatalogOperation(client, {
+      kind: "updateEvent",
+      id: event.id,
+      expectedVersion: event.version + index,
+      operationKey: `description:${index}`,
+      actor: "owner",
+      data,
+    });
+    expect(read.get(event.id)).toEqual(expected);
+  }
 });

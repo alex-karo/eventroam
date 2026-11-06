@@ -8,7 +8,7 @@ import {
   requiredFacts,
   statusFacts,
 } from "./checks";
-import { evaluate, fact, linkFact } from "./facts";
+import { fact, linkFact } from "./facts";
 
 export function sziget(context: MainContext) {
   const { event, next } = context;
@@ -40,7 +40,7 @@ export function sziget(context: MainContext) {
       currency: "EUR",
     },
   ];
-  return evaluate({
+  return {
     required: requiredFacts(next, 2027, "2027-08-10", "2027-08-14", "HU"),
     additional: [
       ...statusFacts(next),
@@ -103,5 +103,5 @@ export function sziget(context: MainContext) {
       ...researchDidNotFail(context.report),
       ...fillConditions(context),
     ],
-  });
+  };
 }

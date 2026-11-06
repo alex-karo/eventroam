@@ -116,7 +116,6 @@ it.each([
       observedEventName: "Festival",
       reason: "Official identity",
       evidenceIds: ["s1-e1"],
-      event: { summary: null },
       previousEdition: null,
       currentOrNextEdition: {
         editionKey: "2027",
@@ -146,7 +145,6 @@ it.each([
     expect(result.modelResponse?.object).toEqual(raw);
     if (valid) {
       expect(result.output).toMatchObject({
-        event: {},
         currentOrNextEdition: { fields: { year: field } },
       });
       if (result.output?.decision === "targets") {

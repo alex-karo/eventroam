@@ -1,0 +1,134 @@
+{
+  "id": "description-announced-move",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Use the announced urban format before the next festival",
+  "input": {
+    "mode": "refresh",
+    "scope": "full",
+    "eventId": "size-event",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "provenance": {
+    "kind": "synthetic-size-regression",
+    "note": "A fixed official announcement permanently changes the festival setting before the next programme. The historical forest format and the temporary jazz stage must not leak into the current descriptions."
+  },
+  "initial": {
+    "event": {
+      "id": "size-event",
+      "slug": "size-evidence",
+      "canonicalName": "River Festival",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://size-fixture.example/festival",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "size-historical",
+          "editionKey": "historical",
+          "editionYear": 2026,
+          "startsOn": "2026-10-10",
+          "endsOn": "2026-10-12",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ],
+          "sizeEstimate": null
+        },
+        {
+          "id": "size-unknown",
+          "editionKey": "unknown",
+          "editionYear": 2026,
+          "startsOn": "2026-11-01",
+          "endsOn": "2026-11-03",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "venueName": "River Grounds",
+          "termIds": [
+            "validation:festival",
+            "validation:openair",
+            "validation:music"
+          ],
+          "sizeEstimate": 6000
+        }
+      ],
+      "description": "River Festival brings dancing and workshops to a forest campsite.",
+      "shortDescription": "River Festival is an outdoor music festival in the forest."
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://size-fixture.example/festival",
+      "finalUrl": "https://size-fixture.example/festival",
+      "retrievedAt": "2026-10-31T12:00:00Z",
+      "method": "http",
+      "status": "ok",
+      "markdownFile": "announced-move.md",
+      "readerOutput": {
+        "overview": "The official page describes River Festival and its programme.",
+        "coverage": {
+          "found": [
+            "City Square festival venue in River Town, Portugal",
+            "Previous and next programme dates",
+            "Festival format and activities",
+            "Historical participant estimate"
+          ],
+          "notPublished": [
+            "No ticket categories, prices or ticket shop are published"
+          ]
+        },
+        "topics": [
+          "identity",
+          "description",
+          "location",
+          "dates",
+          "status",
+          "size",
+          "classification",
+          "tickets",
+          "links"
+        ],
+        "statedYears": ["2025", "2026"],
+        "limitations": [],
+        "evidence": [
+          {
+            "quote": "Official open-air music festival, Portugal. The previous festival took place at River Grounds in River Town, Portugal. The next festival takes place at City Square in the same town. Numbers from one Edition do not establish size for the other.",
+            "topics": ["identity", "description", "location"]
+          },
+          {
+            "quote": "- Historical Edition: October 10\u201312, 2026. This Edition took place on those dates and is now complete. Its 2025 counterpart had about 7,500 participants, including volunteers. The organizer expects a similar scale for this 2026 Edition with the same programme and grounds. No current attendance total is published.",
+            "topics": ["dates", "status", "size"]
+          },
+          {
+            "quote": "- Unknown Edition: November 1\u20133, 2026. This Edition is announced and scheduled. No participant or attendance estimates, including historical comparisons, are published.",
+            "topics": ["dates", "status", "size"]
+          },
+          {
+            "quote": "The regular programme at the most recent festival combined camping, participant-led workshops and night-time dancing at a forest site.",
+            "topics": ["classification"]
+          },
+          {
+            "quote": "The organizer announces a permanent move to City Square in River Town. River Festival will use outdoor urban stages for electronic music and workshops. The forest site and camping programme are retired. A jazz stage will appear at the next festival only.",
+            "topics": ["classification", "description", "location"]
+          },
+          {
+            "quote": "Programme dates exclude camping and sales windows. This is the complete available festival information. No additional announcements, social accounts, coordinates, ticket categories, prices or ticket shop are published here.",
+            "topics": ["dates", "tickets", "links"]
+          }
+        ]
+      }
+    }
+  ],
+  "todayUtc": "2026-10-31"
+}

@@ -2,12 +2,12 @@ import { refusedResearch, unavailableSources } from "../research";
 import { isDeepStrictEqual as same } from "node:util";
 import type { MainContext } from "./context";
 import { preservedConditions } from "./context";
-import { evaluate, fact } from "./facts";
+import { fact } from "./facts";
 import { check } from "../checks";
 
 export function afroNation(context: MainContext) {
   // blocked.md: no new facts. Keep the full saved Event and require an unresolved source failure.
-  return evaluate({
+  return {
     required: [],
     additional: [],
     correctness: [
@@ -25,5 +25,5 @@ export function afroNation(context: MainContext) {
         ),
       ),
     ],
-  });
+  };
 }

@@ -18,6 +18,15 @@ test("development fixtures remain repeatable and bypass audit", () => {
       client.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),
     );
   const id = seedDevelopmentFixtures(client);
+  expect(
+    client
+      .prepare("SELECT description, short_description FROM events WHERE id = ?")
+      .get(id),
+  ).toEqual({
+    description:
+      "A fictional open-air festival used for local development. Each year has its own dates and ticket details.",
+    short_description: null,
+  });
   const before = snapshot();
   expect(seedDevelopmentFixtures(client)).toBe(id);
   expect(snapshot()).toEqual(before);

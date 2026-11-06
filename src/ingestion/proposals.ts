@@ -21,6 +21,10 @@ import {
 } from "./stage";
 
 type LinkFields = LinksOutput["event"];
+type DescriptionFields = Pick<
+  ClassificationOutput,
+  "description" | "shortDescription"
+>;
 type EditionFields = NonNullable<Targets["currentOrNextEdition"]>["fields"] &
   TicketsOutput["currentOrNextEdition"] &
   NonNullable<ClassificationOutput["currentOrNextEdition"]> & {
@@ -36,10 +40,7 @@ export type ApplicationPlan = {
   status: "ready";
   event: {
     reason?: string;
-    fields: {
-      summary?: NonNullable<Targets["event"]["summary"]>;
-      links?: LinkFields;
-    };
+    fields: DescriptionFields & { links?: LinkFields };
   } | null;
   previousEdition: EditionPlan | null;
   currentOrNextEdition: EditionPlan | null;
@@ -157,13 +158,19 @@ function validateTemporalTargets(
   }
 }
 
+function hasEventFieldCheck(checks: Targets["checks"]) {
+  return checks.some(
+    ({ check }) => check === "description" || check === "eventLinks",
+  );
+}
+
 function validateTargetAssignment(
   output: Targets,
   input: CatalogResearchInput,
 ) {
   if (
     input.scope === "current" &&
-    (output.previousEdition || Object.keys(output.event).length)
+    (output.previousEdition || hasEventFieldCheck(output.checks))
   ) {
     throw new Error("Current refresh cannot address Event fields or history");
   }
@@ -243,20 +250,6 @@ export function validateGeneral(
   return {
     status: "continue",
     value: { ...output, ...diagnostics, unresolved: output.unresolved },
-  };
-}
-
-export function commonPlan(targets: Targets): ApplicationPlan {
-  return {
-    status: "ready",
-    event: { reason: targets.reason, fields: { ...targets.event } },
-    previousEdition: targets.previousEdition
-      ? structuredClone(targets.previousEdition)
-      : null,
-    currentOrNextEdition: targets.currentOrNextEdition
-      ? structuredClone(targets.currentOrNextEdition)
-      : null,
-    unresolved: targets.unresolved,
   };
 }
 
@@ -367,19 +360,34 @@ function attachClassification(
   };
 }
 
-function assignEventLinks(
-  plan: ApplicationPlan,
+function eventFields(
+  classification: ClassificationOutput | null,
   links: LinksOutput,
-  input: CatalogResearchInput,
-) {
-  if (input.scope !== "current") {
-    plan.event!.fields.links = links.event;
-  } else if (
-    Object.keys(links.event.website ?? {}).length ||
-    Object.keys(links.event.socials).length
+  scope: CatalogResearchInput["scope"],
+): NonNullable<ApplicationPlan["event"]>["fields"] {
+  const { description, shortDescription } = classification ?? {};
+  if (scope !== "current") {
+    return {
+      ...(description && { description }),
+      ...(shortDescription && { shortDescription }),
+      links: links.event,
+    };
+  }
+  if (
+    description ||
+    shortDescription ||
+    (classification && hasEventFieldCheck(classification.checks))
+  ) {
+    throw new Error("Current refresh cannot address Event descriptions");
+  }
+  if (
+    links.event.website ||
+    Object.keys(links.event.socials).length ||
+    hasEventFieldCheck(links.checks)
   ) {
     throw new Error("Event links are outside the assignment");
   }
+  return {};
 }
 
 export function assembleProposals(options: {
@@ -407,8 +415,6 @@ export function assembleProposals(options: {
   const event =
     context.catalog.find((event) => event.id === targets.eventId) ??
     (input.eventId ? context.catalog[0] : undefined);
-  const plan = commonPlan(targets);
-  plan.unresolved = diagnostics.unresolved;
   const submitted = {
     general: targets,
     tickets: options.tickets,
@@ -425,7 +431,16 @@ export function assembleProposals(options: {
     ) {
       throw new Error("Proposal for an absent target");
     }
-    assignEventLinks(plan, options.links, input);
+    const plan: ApplicationPlan = {
+      status: "ready",
+      event: {
+        reason: targets.reason,
+        fields: eventFields(options.classification, options.links, input.scope),
+      },
+      previousEdition: structuredClone(targets.previousEdition),
+      currentOrNextEdition: structuredClone(targets.currentOrNextEdition),
+      unresolved: diagnostics.unresolved,
+    };
     for (const slot of editionSlotNames) {
       const target = plan[slot];
       const classification = options.classification?.[slot]?.classification;

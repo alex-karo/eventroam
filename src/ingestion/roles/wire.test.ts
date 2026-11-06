@@ -1,11 +1,10 @@
 import { expect, test } from "vitest";
 import { normalizeRoleWire } from "./wire";
 
-test("restores known optional placeholders and preserves clear actions and required nulls", () => {
+test("restores known General placeholders and preserves required nulls", () => {
   const raw = {
     decision: "targets",
     eventId: null,
-    event: { summary: { action: "clear", reason: "Removed", evidenceIds: [] } },
     previousEdition: null,
     currentOrNextEdition: {
       fields: { year: null, dates: { action: "set", value: null } },

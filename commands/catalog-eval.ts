@@ -1,11 +1,17 @@
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
+import { z } from "zod";
 import {
   runCatalogEvals,
-  evalItemPassed,
+  type EvalCaseOutput,
   type EvalOptions,
 } from "@/ingestion/evals/run";
 import { evalGroups } from "@/ingestion/evals/selection";
+import {
+  descriptionFields,
+  type DescriptionFormat,
+} from "@/ingestion/evals/description-format";
+import { reasonSchema } from "@/ingestion/roles/contracts";
 
 type EvalRun = Awaited<ReturnType<typeof runCatalogEvals>>;
 type EvalGroupResult = EvalRun["groups"][number];
@@ -92,6 +98,93 @@ function printMainScores(items: EvalItem[], output: Output) {
   }
 }
 
+const proposal = z.object({ action: z.enum(["set", "clear"]) }).nullish();
+const descriptionProposals = z.object({
+  description: proposal,
+  shortDescription: proposal,
+});
+const decision = z.object({
+  decision: z.enum(["approve", "reject"]),
+  reason: reasonSchema,
+});
+const descriptionReview = z.object({
+  item: decision.optional(),
+  event: z
+    .object({
+      target: decision.optional(),
+      fields: z
+        .object({
+          description: decision.optional(),
+          shortDescription: decision.optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+});
+
+function catalogDescriptionResult(
+  original: string | null | undefined,
+  saved: string | null | undefined,
+) {
+  if (saved === undefined) {
+    return "unavailable";
+  }
+  const current = saved?.trim() || null;
+  if (current === (original?.trim() || null)) {
+    return current ? "kept" : "absent";
+  }
+  return current ? "saved" : "cleared";
+}
+
+function formatProbability(
+  value: DescriptionFormat["fields"]["description"] | undefined,
+) {
+  return typeof value === "number" ? `${(value * 100).toFixed(1)}% yes` : value;
+}
+
+function printDescriptionResults(value: EvalCaseOutput, output: Output) {
+  const { report, before, after } = value;
+  if (!report) {
+    return;
+  }
+  const proposals = descriptionProposals.safeParse(
+    report.classificationResponse?.object,
+  ).data;
+  const review = descriptionReview.safeParse(
+    report.editorResponse?.object,
+  ).data;
+  const original = before?.find((event) => event.id === report.eventId);
+  const saved = after?.find((event) => event.id === report.eventId);
+  const blocked = [review?.item, review?.event?.target].find(
+    (decision) => decision?.decision === "reject",
+  );
+  for (const field of descriptionFields) {
+    const action = proposals?.[field]?.action;
+    const result =
+      (action ? blocked : undefined) ?? review?.event?.fields?.[field];
+    const catalog = catalogDescriptionResult(original?.[field], saved?.[field]);
+    const reason =
+      result?.decision === "reject"
+        ? ` (${JSON.stringify(result.reason)})`
+        : "";
+    const format = formatProbability(value.descriptionFormat?.fields[field]);
+    const formatSuffix = format ? ", format " + format : "";
+    output(
+      `    ${field}: proposal ${action ?? "none"}, Editor ${result?.decision ?? "no decision"}${reason}, catalog ${catalog}${formatSuffix}\n`,
+    );
+  }
+}
+
+function printClassificationResults(value: EvalCaseOutput, output: Output) {
+  const terms =
+    value.classification?.output?.currentOrNextEdition?.classification?.value;
+  output(`    categories: ${terms?.join(", ") || "none"}\n`);
+  for (const field of descriptionFields) {
+    const format = formatProbability(value.descriptionFormat?.fields[field]);
+    output(`    ${field}: format ${format ?? "unavailable"}\n`);
+  }
+}
+
 function printFailure(item: EvalItem, output: Output) {
   const value = item.output;
   if (value?.quality) {
@@ -117,7 +210,7 @@ function printFailure(item: EvalItem, output: Output) {
 
 function printGroup(group: EvalGroupResult, output: Output) {
   const items = group.results;
-  const passed = items.filter(evalItemPassed).length;
+  const passed = items.filter((item) => item.passed).length;
   const duration =
     (group.completedAt.getTime() - group.startedAt.getTime()) / 1000;
   output(
@@ -133,19 +226,28 @@ function printGroup(group: EvalGroupResult, output: Output) {
     const selected = items.filter((item) => item.locationGroup === name);
     if (selected.length) {
       output(
-        `  ${name}: ${selected.filter(evalItemPassed).length}/${selected.length} passed\n`,
+        `  ${name}: ${selected.filter((item) => item.passed).length}/${selected.length} passed\n`,
       );
     }
   }
   for (const item of items) {
     const runId =
       item.output?.report?.runId ?? item.output?.runId ?? "unavailable";
-    const passed = evalItemPassed(item);
+    const { passed } = item;
     output(
       `  ${item.caseId} #${item.repetition}: ${passed ? "passed" : "failed"}; run ${runId}\n`,
     );
     if (item.output?.quality) {
       output(`    checked errors: ${item.output.quality.errorCount}\n`);
+      printDescriptionResults(item.output, output);
+    }
+    if (item.output?.classification) {
+      printClassificationResults(item.output, output);
+    }
+    if (item.output?.descriptionFormat?.error) {
+      output(
+        `    description format: ${item.output.descriptionFormat.error}\n`,
+      );
     }
     if (item.output?.reader) {
       const reader = item.output.reader;
@@ -181,7 +283,7 @@ async function executeCatalogEvalCommand(args: string[]) {
   return run.groups.every(
     (group) =>
       group.results.length === group.totalItems &&
-      group.results.every(evalItemPassed),
+      group.results.every((item) => item.passed),
   )
     ? 0
     : 1;

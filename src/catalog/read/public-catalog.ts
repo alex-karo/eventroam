@@ -220,7 +220,8 @@ export function publicEvent(
         id: events.id,
         slug: events.slug,
         name: events.canonicalName,
-        summary: events.summary,
+        description: events.description,
+        shortDescription: events.shortDescription,
       })
       .from(events)
       .where(

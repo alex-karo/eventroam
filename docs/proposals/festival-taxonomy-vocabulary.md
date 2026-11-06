@@ -55,7 +55,7 @@ Choose the type that best matches the organizer's description and programme. A f
 
 Naming note (2026-10-11): `format/openair` replaces the former `format/outdoor` in application publication checks and fresh fixture vocabularies. The starter migration adds `format/openair` but does not rename or reassign the former `format/outdoor` in existing catalogs.
 
-Preserve raw source wording. “Hybrid” may mean online plus in-person; an open-air name or photograph alone does not establish the current edition's setting. Physical format is optional for publication. An unknown format remains unassigned. Use programme and site evidence. Branding, camping, or one physical feature alone is insufficient. Do not invent a percentage threshold.
+Preserve raw source wording. “Hybrid” may mean online plus in-person. Physical format is optional for publication. An unknown format remains unassigned. Apply the [classification rules](../../openspec/specs/catalog/classification/spec.md#requirement-format-describes-the-setting-of-the-main-programme) to programme evidence, official names, and support facilities.
 
 ### Programme topics
 

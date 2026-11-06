@@ -111,9 +111,6 @@ export const generalOutputSchema = z.discriminatedUnion("decision", [
   z.strictObject({
     decision: z.literal("targets"),
     ...identity,
-    event: z.strictObject({
-      summary: change(z.string().min(1).max(2000)).optional(),
-    }),
     previousEdition: targetSchema
       .nullable()
       .describe(
@@ -167,6 +164,26 @@ const classificationSlot = z
   .strictObject({ classification: classificationChange.optional() })
   .nullable();
 export const classificationOutputSchema = z.strictObject({
+  description: change(
+    z
+      .string()
+      .trim()
+      .min(1)
+      .max(2000)
+      .describe(
+        "Current format and atmosphere in three to five sentences. Omit the festival name.",
+      ),
+  ).optional(),
+  shortDescription: change(
+    z
+      .string()
+      .trim()
+      .min(1)
+      .max(2000)
+      .describe(
+        "Current format in one or two sentences. Omit the festival name.",
+      ),
+  ).optional(),
   previousEdition: classificationSlot,
   currentOrNextEdition: classificationSlot,
   checks: checksSchema,

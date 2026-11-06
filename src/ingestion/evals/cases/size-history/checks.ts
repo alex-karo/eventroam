@@ -1,5 +1,5 @@
 import { check } from "../../checks";
-import type { RegressionEvaluator } from "../../regression";
+import type { RegressionContext, RegressionEvaluator } from "../../regression";
 import {
   researchStatus,
   editionSlots,
@@ -8,11 +8,62 @@ import {
   selectedEditionDates,
 } from "../../research";
 
+function descriptionChecks(
+  { report, data, changes }: RegressionContext,
+  expected: RegExp,
+  excluded: RegExp,
+) {
+  const texts = [data?.description?.value, data?.shortDescription?.value];
+  const withoutEditionDetails =
+    /7[, .]?500|202[56]|volunteers?|tickets?|prices?|has (included|featured|offered)|previously/i;
+  return [
+    check(
+      "research.descriptions.content",
+      texts.every(
+        (text) =>
+          text && !excluded.test(text) && !withoutEditionDetails.test(text),
+      ) &&
+        /River Festival/i.test(texts[1] ?? "") &&
+        expected.test(texts.join(" ")),
+      "Propose two current descriptions without historical attendance or Edition details",
+    ),
+    check(
+      "catalog.descriptions.editor",
+      report.editorStatus === "success" &&
+        changes.event(
+          "description",
+          (value) => typeof value === "string" && value === texts[0],
+        ) &&
+        changes.event(
+          "short_description",
+          (value) => typeof value === "string" && value === texts[1],
+        ),
+      "Editor approves both descriptions for the catalog",
+    ),
+  ];
+}
+
 export const checks = {
   "size-historical-and-unknown": (context) => {
-    const { data, changes } = context;
+    const { data, changes, report } = context;
     const edition = editionByKey(data, "historical");
     return [
+      ...descriptionChecks(
+        context,
+        /workshops?|camping|danc/i,
+        /free camping|nonstop|non-stop/i,
+      ),
+      check(
+        "research.historical.sizeEstimate.reason",
+        report.changes.some(
+          (change) =>
+            change.field === "size_estimate" &&
+            change.newValue === 7500 &&
+            /2025/.test(change.explanations.join(" ")) &&
+            /volunteers/i.test(change.explanations.join(" ")),
+        ),
+        "Keep the historical year and inclusion of volunteers in the attendance reason",
+      ),
       check(
         "catalog.edition.historical.size_estimate.set.1",
         changes.edition(
@@ -69,6 +120,20 @@ export const checks = {
           endsOn: "2026-11-03",
           state: "confirmed",
         },
+      ),
+    ];
+  },
+  "description-announced-move": (context) => {
+    const { data } = context;
+    const urban = /urban|city|square/i;
+    return [
+      ...descriptionChecks(context, urban, /forest|camping|jazz/i),
+      check(
+        "research.descriptions.announcedMove",
+        [data?.description?.value, data?.shortDescription?.value].every(
+          (text) => text && urban.test(text),
+        ),
+        "Both descriptions use the announced urban setting",
       ),
     ];
   },

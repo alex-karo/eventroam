@@ -80,11 +80,7 @@ export function buildLocationInput(
   const result: LocationInput = {
     festival: {
       name: targets.observedEventName,
-      summary:
-        event?.summary ??
-        (targets.event.summary?.action === "set"
-          ? targets.event.summary.value
-          : null),
+      summary: event?.description ?? null,
       format: [],
     },
     scope: input.mode === "refresh" ? (input.scope ?? "full") : null,

@@ -1,14 +1,14 @@
 import { researchDidNotFail } from "../research";
 import { check } from "../checks";
 import type { MainContext } from "./context";
-import { evaluate, fact, linkFact } from "./facts";
+import { fact, linkFact } from "./facts";
 
 export function glastonbury(context: MainContext) {
   const history = context.created.find(
     (edition) => edition.editionYear === 2025,
   );
   // page.md confirms these links, but does not confirm the saved 2027 programme.
-  return evaluate({
+  return {
     required: [],
     additional: [
       linkFact("event.website", context.event?.links, "official_site", [
@@ -68,5 +68,5 @@ export function glastonbury(context: MainContext) {
           ),
       ),
     ],
-  });
+  };
 }

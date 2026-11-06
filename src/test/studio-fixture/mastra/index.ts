@@ -1,6 +1,6 @@
 import { createCatalogResearcher } from "../../../mastra/catalog-researcher";
 import { fixtureRoleForProvider } from "../../ingestion-provider";
-import { fixtureTargets } from "../../ingestion";
+import { fixtureDescriptionRole, fixtureTargets, set } from "../../ingestion";
 import Database from "better-sqlite3";
 import { createCatalogAssistant } from "../../../mastra/catalog-assistant";
 import { createAssistantLogging } from "../../../mastra/catalog-assistant/logging";
@@ -27,6 +27,12 @@ const general = {
   observedEventName: "Studio Fixture Festival",
   reason: OFFLINE_SENTINEL,
 };
+const classification = fixtureDescriptionRole({
+  description: set(
+    "Live music takes place outdoors. The programme includes workshops. Visitors can join group activities.",
+  ),
+  shortDescription: set("An outdoor music festival with workshops."),
+});
 
 // Keep the real agent/provider adapter for cancellation and tracing; mock only HTTP.
 {
@@ -100,7 +106,7 @@ const general = {
           message: {
             role: "assistant",
             content: JSON.stringify(
-              await fixtureRoleForProvider(body, { general }),
+              await fixtureRoleForProvider(body, { general, classification }),
             ),
           },
           finish_reason: "stop",

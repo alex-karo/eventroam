@@ -66,6 +66,7 @@ export type CatalogResearchResult = {
   researchStatus: ResearchStatus;
   /** Final model output before normalization. */
   modelResponse: { text: string | null; object: unknown } | null;
+  classificationResponse: RoleExecution["modelResponse"];
   editorResponse: { text: string | null; object: unknown } | null;
   editorStatus: EditorExecution["status"];
   editorPromptVersion: string;

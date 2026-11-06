@@ -53,7 +53,7 @@ An Edition SHALL publish only with a year, date pair, and country. Venue, locali
 
 ### Requirement: Public pages preserve edition status and uncertainty
 
-The Event page SHALL show its name, optional summary, and public Edition history without a separate active Edition detail block. The Edition page SHALL show known dates, status, location, useful classifications, estimated size, price, and official links. Provisional dates SHALL say Tentative dates. Postponed pages SHALL say Postponed — new dates TBA and Previous dates. Cancelled pages SHALL remain available. Ticket availability SHALL appear only beside its category.
+The Event page SHALL show its name, the festival text selected by the detail page, and public Edition history without a separate active Edition detail block. The Edition page SHALL show known dates, status, location, useful classifications, estimated size, price, and official links. Provisional dates SHALL say Tentative dates. Postponed pages SHALL say Postponed — new dates TBA and Previous dates. Cancelled pages SHALL remain available. Ticket availability SHALL appear only beside its category.
 
 #### Scenario: A postponed published edition has no replacement dates
 
@@ -204,7 +204,7 @@ Edition ticket sections SHALL show each category's stored amount, currency, term
 
 ### Requirement: Public details expose map facts without private evidence
 
-Public Edition reads SHALL expose nullable latitude and longitude, stored coordinate precision, and optional time zone. Public locations SHALL use these values without inventing a point. Event summaries SHALL remain available for general festival descriptions. Private evidence and source retrieval times SHALL remain outside public payloads.
+Public Edition reads SHALL expose nullable latitude and longitude, stored coordinate precision, and optional time zone. Public locations SHALL use these values without inventing a point. Public Event reads SHALL expose the optional `description` and `shortDescription`. Private evidence and source retrieval times SHALL remain outside public payloads.
 
 #### Scenario: A region point is stored
 

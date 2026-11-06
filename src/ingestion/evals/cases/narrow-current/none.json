@@ -21,7 +21,8 @@
       "id": "narrow-current-none",
       "slug": "narrow-current-none",
       "canonicalName": "River Festival",
-      "summary": "Saved description",
+      "description": "Saved description",
+      "shortDescription": "Saved short description",
       "links": [
         {
           "kind": "official_site",

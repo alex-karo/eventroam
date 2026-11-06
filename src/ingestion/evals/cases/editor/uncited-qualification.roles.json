@@ -80,7 +80,6 @@
       "observedEventName": "Sound Trail",
       "reason": "Captured identity support",
       "evidenceIds": ["s1-e1"],
-      "event": {},
       "previousEdition": null,
       "currentOrNextEdition": {
         "editionKey": "2027",

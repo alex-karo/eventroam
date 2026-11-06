@@ -5,11 +5,11 @@ import { testFixtures } from "@/test/fixtures";
 test("builders preserve explicit null and do not insert data", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
-  const event = fx.build.event({ summary: null, canonicalName: undefined });
+  const event = fx.build.event({ description: null, canonicalName: undefined });
   const undated = fx.build.edition(event, { startsOn: null });
 
   expect(event.canonicalName).toBe("Test Field Days");
-  expect(event.summary).toBeNull();
+  expect(event.description).toBeNull();
   expect(undated).toMatchObject({
     startsOn: null,
     endsOn: null,
@@ -19,9 +19,9 @@ test("builders preserve explicit null and do not insert data", () => {
   });
   expect(client.prepare("SELECT count(*) FROM events").pluck().get()).toBe(0);
 
-  const stored = fx.event({ summary: null });
+  const stored = fx.event({ description: null });
   const draft = fx.edition(stored, { startsOn: null });
-  expect(stored.summary).toBeNull();
+  expect(stored.description).toBeNull();
   expect(draft.startsOn).toBeNull();
   expect(draft.endsOn).toBeNull();
 });

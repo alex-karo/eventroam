@@ -35,7 +35,8 @@ const eventData = z
     slug,
     canonicalName: z.string().trim().min(1).max(250),
     aliases: z.array(z.string().trim().min(1).max(250)).max(30).optional(),
-    summary: z.string().max(2000).nullable().optional(),
+    description: z.string().max(2000).nullable().optional(),
+    shortDescription: z.string().max(2000).nullable().optional(),
   })
   .strict();
 const editionData = z

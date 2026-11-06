@@ -4,6 +4,7 @@ import { testFixtures } from "@/test/fixtures";
 import {
   fixtureDependencies,
   fixtureTargets,
+  fixtureDescriptionRole,
   runFixtureResearch,
   set,
 } from "@/test/ingestion";
@@ -35,12 +36,12 @@ test.each(["before-attempt", "after-finalize"])(
           client,
           jobId,
           ...fixtureDependencies({
+            classification: fixtureDescriptionRole({
+              description: set("SAVED_SUMMARY"),
+            }),
             general: async () => ({
               ...fixtureTargets(event.id),
               observedEventName: event.canonicalName,
-              event: { summary: set("SAVED_SUMMARY") },
-              previousEdition: null,
-              currentOrNextEdition: null,
             }),
           }),
         },
@@ -53,8 +54,10 @@ test.each(["before-attempt", "after-finalize"])(
     expect(nextJob(client)?.id).toBe(jobId);
     if (phase === "after-finalize") {
       expect(
-        client.prepare("SELECT summary FROM events WHERE id=?").get(event.id),
-      ).toEqual({ summary: "SAVED_SUMMARY" });
+        client
+          .prepare("SELECT description FROM events WHERE id=?")
+          .get(event.id),
+      ).toEqual({ description: "SAVED_SUMMARY" });
     }
     const restarted = new AbortController();
     const work = processJobs({
@@ -87,8 +90,8 @@ test.each(["before-attempt", "after-finalize"])(
       finished_at: expect.any(String),
     });
     expect(
-      client.prepare("SELECT summary FROM events WHERE id=?").get(event.id),
-    ).toEqual({ summary: "SAVED_SUMMARY" });
+      client.prepare("SELECT description FROM events WHERE id=?").get(event.id),
+    ).toEqual({ description: "SAVED_SUMMARY" });
     expect(new Set(all.map((row) => (row as { id: string }).id)).size).toBe(
       all.length,
     );
