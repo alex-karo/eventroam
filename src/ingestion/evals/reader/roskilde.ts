@@ -15,15 +15,6 @@ export const roskildeReader = {
       "kr. inkl. billetgebyr.",
     ),
     evidence(
-      "instalment-conditions",
-      "tickets",
-      "Smart Ticket",
-      "fem måneder",
-      "26. november",
-      "524",
-      "kr. om måneden plus 100,- i gebyr",
-    ),
-    evidence(
       "two-day-pass",
       "tickets",
       "Todagesbillet",

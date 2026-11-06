@@ -1,7 +1,5 @@
 import { researchDidNotFail } from "../research";
-import type { MainContext } from "./context";
-import { savedEditions } from "./context";
-import { fillConditions } from "./context";
+import { fillConditions, savedEditions, type MainContext } from "./context";
 import {
   basePrice,
   classification,
@@ -13,7 +11,7 @@ import { evaluate, fact, linkFact } from "./facts";
 
 export function roskilde(context: MainContext) {
   const { event, next } = context;
-  // tickets.md: admission products. Gift cards and the Pumpehuset event are excluded.
+  // tickets.md: ordinary admission. Payment plans and unrelated products are excluded.
   const offers = [
     ["fz3fh09", 2650],
     ["7g0tvpp", 2230],
@@ -75,23 +73,16 @@ export function roskilde(context: MainContext) {
         "catalog:term:genre:electronic",
         "catalog:term:genre:metal",
       ]),
-      ...offerChecks(next, [
-        ...offers.map(([code, amount]) => ({
+      ...offerChecks(
+        next,
+        offers.map(([code, amount]) => ({
           urls: [
             `https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=${code}`,
           ],
           amounts: [amount],
           currency: "DKK",
         })),
-        {
-          urls: [
-            "https://ticket.roskilde-festival.dk/da/3e9u8rgkhdlw9dg/products",
-          ],
-          // Accept the displayed monthly amount or the full cost with the fee.
-          amounts: [524, 2720],
-          currency: "DKK",
-        },
-      ]),
+      ),
     ],
     conditions: [
       ...context.conditions,

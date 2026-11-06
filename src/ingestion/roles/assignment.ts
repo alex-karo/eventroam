@@ -37,7 +37,7 @@ export function buildAssignment(
         currentLocation:
           "Find the concrete festival place for the ongoing or announced next festival, even when its country is known. Read useful travel, getting-here or contact leads before targeted search within the shared budget. A venue with city or area, source-supported address or map point is sufficient; no street address is required for a field or forest. Stop when the place is concrete, explicitly not announced, or no useful permitted step remains. Missing venue does not prevent publication. Distinguish the festival site from an office, hotel or parking area.",
         currentTickets:
-          "Inspect the current official ticket overview, with prices, mandatory fees, pass duration and conditions.",
+          "Inspect the current official ticket overview, with admission prices, mandatory fees, pass duration and conditions. Exclude payment plans; do not inspect pages only for payment-plan terms.",
         currentClassification:
           "Collect available programme, physical setting and continuity statements from relevant known pages and useful leads. Classification decides whether these support new or retained terms; missing fresh genre names alone does not require another source.",
         currentLinks:

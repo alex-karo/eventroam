@@ -170,7 +170,9 @@ Research SHALL NOT propose time-zone changes. An existing Edition's time zone SH
 - **THEN** the saved time zone remains unchanged
 
 ### Requirement: Ticket findings preserve price meaning
-Ticket availability SHALL belong to each ticket variant, independently of schedule status. A proposed ticket replacement SHALL keep variant coverage, conditions, currency, and the intended base full-programme price distinct from day, package, or concession prices. Amounts SHALL use the catalog's currency precision. An unavailable price MAY coexist with a verified official ticket link. Structurally incomplete or invalid monetary proposals SHALL not change the saved price block.
+Ticket availability SHALL belong to each ticket variant, independently of schedule status. A proposed ticket replacement SHALL use admission terms in effect on the check date and keep variant coverage, conditions, currency, and the intended base full-programme price distinct from day, package, or concession prices. Amounts SHALL use the catalog's currency precision. An unavailable price MAY coexist with a verified official ticket link. Structurally incomplete or invalid monetary proposals SHALL not change the saved price block.
+
+Payment-plan offers and their schedules, deposits and financing fees SHALL be excluded from proposed ticket data. Ingestion SHALL NOT derive admission prices from payments. Excluded payment-plan details SHALL NOT make ticket checks unfinished or require owner questions.
 
 #### Scenario: Categories have different availability
 - **WHEN** one ticket category is sold out and another is available
@@ -179,6 +181,17 @@ Ticket availability SHALL belong to each ticket variant, independently of schedu
 #### Scenario: A concession is cheaper than general admission
 - **WHEN** only a concession or day ticket has a lower amount
 - **THEN** it does not become the base full-programme admission price
+
+#### Scenario: Ordinary admission and a payment plan share a page
+
+- **WHEN** a source supports ordinary admission categories and also offers a payment plan
+- **THEN** findings retain the supported admission categories and omit the payment plan and its financial terms
+- **AND** missing or conflicting payment-plan details do not make the ticket check unfinished
+
+#### Scenario: Only payment amounts are published
+
+- **WHEN** a source gives instalments or a deposit without an independently supported full admission price
+- **THEN** findings do not use a payment as an admission price or calculate a full price from payments
 
 ### Requirement: Supported ticket prices replace observed offers
 
