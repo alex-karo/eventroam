@@ -1,18 +1,14 @@
 ---
 type: Reference
 title: Eventroam project structure
-description: Current application directories, dependency boundaries, and planned extensions.
+description: Current application directories and dependency boundaries.
 status: stable
 tags: [architecture]
 ---
 
 # Eventroam project structure
 
-Eventroam is one package. The public Next.js application reads the SQLite catalog; TypeScript commands run migrations and development fixtures outside Next.js. Catalog writes use a separate validated writer. An owner-initiated Mastra workflow saves sources, extracts evidence, and prepares proposals through field specialists. Editor validates those proposals before the same writer.
-
-```text
-Commands → Research + Reader → General → parallel specialists → Editor → catalog plan → catalog writer → SQLite ← Next.js public reads
-```
+Eventroam is one package. The public Next.js application reads the SQLite catalog. Catalog updates use a separate writer. See the [README](../README.md#architecture) for the application overview and the [ingestion process](ingestion-process.md#workflow-steps) for the research and review stages.
 
 ## Current directories
 
@@ -63,7 +59,7 @@ commands/                     # Catalog research CLI, migrations, development fi
 public/                       # Local website assets, catalog preview, and licensed fonts
 openspec/specs/               # Implemented behavior, grouped by catalog/, website/ and operations/
 openspec/changes/             # Approved future work; delta specs use matching domain paths
-docs/                         # Decisions and development guidance
+docs/                         # Project documentation
 data/                         # Ignored local database and runtime data
 ```
 
@@ -74,7 +70,7 @@ Create additional folders when code needs them. Unit and integration tests live 
 - **Routes and presentation:** `app → features → components`. Routes resolve request parameters and site context, load public data, and compose features. Shared components do not import features.
 - **Public reads:** `app/site server → catalog/read → db`. Queries enforce publication rules and load composite responses in short read transactions. Web requests open existing SQLite databases read-only. Browser code imports public contracts and pure rules, never database queries or row types.
 - **Catalog writes:** `commands → catalog/write → db`. The writer validates operations and applies versions, publication changes, audit records, and operation receipts in transactions. Collection uses grouped operations with rollback-based dry-run, versions, and atomic item commits.
-- **Collection:** `catalog CLI → Studio API → ingestion → catalog/read (private context), catalog/write`. Source adapters and OpenRouter remain outside Next.js. Research selects sources. Reader extracts evidence from each admitted full page. General selects identity and temporal targets. Tickets, Classification, Location, and Links prepare independent proposals from one frozen corpus. Editor approves or rejects fixed groups. Code prepares and applies atomic operations. Private reports persist in `ingestion_runs`. Source Markdown and evidence files remain in private per-run directories.
+- **Collection:** `catalog CLI → Studio API → ingestion → catalog/read (private context), catalog/write`. Source adapters and model calls stay outside Next.js. Ingestion prepares operations and sends them to the catalog writer. See the [ingestion workflow](../openspec/specs/catalog/ingestion-workflow/spec.md) for the evidence and review rules.
 - **Pure logic:** `catalog/domain`, `catalog/operations`, and `features/discovery/model` have no React, Next.js, or storage dependency.
 
 ESLint enforces these import boundaries. The writer runs without Next.js. Avoid exports that mix browser-safe contracts with server query implementations.
@@ -89,13 +85,12 @@ Edition validation uses three inputs as data moves through the pipeline.
 | Saved Edition with proposed changes | The [catalog planner](../src/ingestion/catalog-plan.ts) uses the [festival publication policy](../src/catalog/domain/festival-edition-publication.ts) to decide whether to add a publish operation. [Edition rules](../src/catalog/domain/edition-rules.ts) apply common record checks and the selected policy. |
 | Stored Edition or proposed replacement terms | The [writer](../src/catalog/write/apply-operation.ts) checks the affected rules inside the transaction. A direct assignment with a redundant ancestor fails. |
 
-Follow a refresh through `workflow.ts` → `evidence/collection.ts` and `roles/run.ts` → `proposals.ts` → `catalog-plan.ts` → catalog writer → `report.ts`. Location runs beside the other field specialists before Editor. Use `stage.ts` for shared stage results, `pipeline.ts` for report projections and write outcomes, and `attempt.ts` for terminal persistence and cleanup. The [ingestion guide](ingestion-process.md#workflow-steps) describes the workflow steps.
-
 Paths below are relative to `src/ingestion/` unless stated otherwise. Read code for internal algorithms and current limits.
 
 | Area                                                           | Owner                                                 |
 | -------------------------------------------------------------- | ----------------------------------------------------- |
 | Workflow and terminal cleanup                                  | `workflow.ts`, `attempt.ts`                           |
+| Stage results and write outcomes                               | `stage.ts`, `pipeline.ts`                            |
 | Saved context and shared field contracts                       | `research/context.ts`, `research/contracts.ts`        |
 | Assignments and agent calls                                    | `roles/`                                              |
 | Saved sources, Reader and frozen corpus                        | `evidence/`                                           |
@@ -115,7 +110,7 @@ Each preparation function returns `continue`, `skip`, or `reject`. Only `continu
 
 `CatalogAttempt` owns failure finalization, active-work settlement, terminal persistence, and resource cleanup. Cancellation and workflow-history errors use this same owner. Terminal persistence and cleanup each run once. Shared Studio resources remain with Studio.
 
-The writer owns catalog validation and atomic changes. Studio owns the catalog connection and storage providers for CLI and form runs. Studio owns its queue connection and executes queued jobs through its registered workflow. Jobs store queue state and settings; `ingestion_runs.job_id` links each fresh queued attempt. Several attempts can reference one job. Direct runs have no job ID. Saved workflow state excludes live resources and credentials. See the [ingestion process](ingestion-process.md) for behavior and [Infrastructure](infrastructure.md) for storage operations.
+Studio owns the catalog connection and storage providers for direct runs and manages its queue connection. See [Background execution](ingestion-tools.md#background-execution) for job state, attempt links, and restart behavior. See [Infrastructure](infrastructure.md) for storage operations.
 
 ## Discovery
 
@@ -133,8 +128,8 @@ Behavior belongs in the [routing](../openspec/specs/website/routing/spec.md), [f
 
 ## Database operations
 
-`commands/catalog-db.ts` runs reviewed migrations and fictional development fixtures. Release the application, writer, and schema as one compatible version. See [Infrastructure](infrastructure.md) for stopped-user migrations, WAL-safe copies, file permissions, transfers, and rollback limits. The [SQLite decision](decisions/001-sqlite-and-drizzle.md) owns the storage rationale.
+`commands/catalog-db.ts` runs reviewed migrations and fictional development fixtures. Release the application, writer, and schema as one compatible version. See [Infrastructure](infrastructure.md) for migration and transfer procedures. See [storage integrity](../openspec/specs/operations/storage-integrity/spec.md) for validation and database rules.
 
 ## Future additions
 
-Add common UI primitives or domain-independent utilities only when code needs them. About, privacy, and dedicated error pages remain future work. Do not publish placeholder routes. Scheduling remains deferred. Read [remaining release decisions](proposals/release-open-decisions.md) for unresolved choices.
+Add common UI primitives or utilities only when code needs them. Do not publish placeholder routes. Read [remaining release decisions](proposals/release-open-decisions.md) for unresolved choices.

@@ -1,23 +1,29 @@
 # Eventroam
 
-Eventroam is an English-language worldwide event catalog. The first scope covers open-air music festivals and burning-like gatherings. The public Next.js app reads the catalog. Local setup uses fictional development fixtures. Owner-initiated ingestion and application containers are implemented. See [README](README.md) for public sites and deployment status.
+Eventroam is a worldwide event catalog in English. See the [README](README.md) for the product and deployment status.
 
-The project is under active development. Backward compatibility is not required at this stage. Prefer clear current contracts; do not add compatibility layers or preserve obsolete APIs, schemas, report formats, or commands solely for earlier versions. Keep code, tests, specs, and documentation aligned when changing a contract.
+## Change workflow
 
-Start at the [documentation index](docs/index.md), then read only the documents relevant to the task. Main OpenSpec specs describe implemented behavior and are grouped by `catalog/`, `website/`, and `operations/`; active changes describe approved future work, with matching domain paths in their delta specs; [draft proposals](docs/proposals/) hold unresolved choices.
+Use fast track for clear, local changes with low risk, including small changes to behavior. Implement the change and run focused checks. Edit the relevant main spec directly if the change affects an existing requirement or adds a durable rule.
 
-- Records and writes: [catalog records](openspec/specs/catalog/records/spec.md) and [publication and details](openspec/specs/catalog/publication/spec.md).
-- Classification: [Edition classification](openspec/specs/catalog/classification/spec.md); the [starter vocabulary](docs/proposals/festival-taxonomy-vocabulary.md) remains a draft.
-- Map, list, or filters: [discovery](openspec/specs/website/discovery/spec.md).
-- Routes or scope hosts: [scoped website](openspec/specs/website/routing/spec.md).
-- Local ingestion: [ingestion workflow](openspec/specs/catalog/ingestion-workflow/spec.md), [source access](openspec/specs/catalog/source-access/spec.md), and [ingestion guide](docs/ingestion-process.md).
-- Public metadata and indexing: [website discoverability](openspec/specs/website/discoverability/spec.md). Deployment and transfers: [infrastructure](docs/infrastructure.md).
-- Approved future work: [active OpenSpec changes](openspec/changes/).
-- Code layout or commands: [project structure](docs/project-structure.md) and [development guide](docs/development.md).
-- Technology rationale: [decisions](docs/index.md#decisions).
+Use full OpenSpec when the user asks for it or the work meets one of these conditions.
 
-Use current OpenSpec specs and accepted decisions for implemented behavior; check code and progress docs for exact implementation status. Do not treat active changes or draft proposals as completed behavior. Dated research and [legacy specs](docs/archive/legacy-specs/) are background evidence. For behavior changes, use the standard OpenSpec change workflow and update the owning spec when implementation is complete. Update the documentation index if the document set changes. Run `pnpm run openspec:validate` for OpenSpec edits and `pnpm run docs:check` for documentation edits.
+- It adds a capability or makes a material change to a contract.
+- It poses a material risk to stored data, security, or privacy.
+- It needs a product decision or a design decision that affects several components.
+
+When you change a contract, consider its existing consumers and production data. Read the [change workflow](docs/change-workflow.md#choose-a-workflow) for full OpenSpec or help choosing a workflow.
+
+Correct statements that the change makes inaccurate. Add information only when readers need it for a specific task or to understand a lasting rule or decision. For help placing information, see [Update documentation](docs/change-workflow.md#update-documentation). Run `pnpm run openspec:validate` for OpenSpec edits and `pnpm run docs:check` for documentation edits.
+
+## Project references
+
+Use the [main OpenSpec specs](openspec/specs/) for current contracts. They are grouped by `catalog/`, `website/`, and `operations/`. Check the code for exact behavior. [Active changes](openspec/changes/) describe approved future work. [Draft proposals](docs/proposals/) hold open choices.
+
+Use the [development guide](docs/development.md) for local setup and commands. Use the [documentation index](docs/index.md) to find other guides.
 
 ## Database validation
 
-Keep business validation and extensible vocabularies in application code. Do not add SQL CHECK constraints or business-validation triggers. SQLite owns keys, uniqueness, `NOT NULL`, and the existing audit/URL-alias immutability protections. Reuse operation validators and validate related state within the write transaction; fixture loaders and normal test helpers must use applicable shared validation. Prefer existing operation guarantees over duplicate storage-row schemas. Keep schema changes aligned with [ADR 001](docs/decisions/001-sqlite-and-drizzle.md) and [storage integrity](openspec/specs/operations/storage-integrity/spec.md).
+Keep business validation and extensible vocabularies in application code. Do not add SQL `CHECK` constraints or business validation triggers. SQLite enforces keys, uniqueness, `NOT NULL`, and immutability for audit history and public URL aliases.
+
+Reuse operation validators. Validate related state in the write transaction. Use applicable shared validation in fixture loaders and normal test helpers. Prefer existing operation guarantees over duplicate storage row schemas. Follow [storage integrity](openspec/specs/operations/storage-integrity/spec.md) for schema changes.

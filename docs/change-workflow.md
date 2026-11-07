@@ -8,17 +8,36 @@ tags: [development]
 
 # Change workflow
 
-Read the relevant spec, nearby tests, and configuration before editing. Inspect the working tree and preserve unrelated changes. Follow the [module boundaries](project-structure.md#boundaries), validate external input at runtime, and review generated migrations. Keep code, tests, specs, and documentation aligned when changing a contract.
+Read the relevant spec, nearby tests, and configuration before editing. Inspect the working tree and preserve unrelated changes. Follow the [module boundaries](project-structure.md#boundaries), validate external input at runtime, and review generated migrations.
 
-For behavior changes, use the standard OpenSpec workflow: explore or propose, define testable delta specs, add design and tasks, implement, verify, synchronize main specs, and archive. In Codex, use the corresponding `$openspec-*` skills; use `pnpm exec openspec` for the project-local CLI. Group capabilities under `catalog/`, `website/`, or `operations/`, with matching main and delta paths. Keep unresolved choices in [draft proposals](proposals/) and lasting technology decisions in ADRs.
+Before handoff, run focused tests and applicable checks, then report the result and remaining uncertainty. Run `pnpm run docs:check` for documentation edits and `pnpm run openspec:validate` for OpenSpec edits.
 
-Specifications describe only behavior that a user, operator, or another system can observe. This includes public interfaces and operational results, not only UI. Keep internal choices, such as folder names, storage layout, prompt wording, and agent handoffs, in design or implementation documentation. An internal change that preserves external behavior does not need a new specification requirement.
+## Choose a workflow
 
-Before handoff, run focused tests and applicable checks, then report the result and remaining uncertainty. Run `docs:check` for documentation edits and `openspec:validate` for OpenSpec edits.
+Use fast track for changes with a clear result, local scope, and low risk. Examples include bug fixes that restore specified behavior, internal refactors, test and documentation edits, and small UI changes. Implement the change directly. If it changes an existing requirement or adds a durable rule to an existing capability, edit the owning main spec in the same change. A fix that restores specified behavior needs no spec edit. Fast track requires no OpenSpec change folder, planning artifacts, or separate plan review.
+
+Use the full OpenSpec workflow when the user asks for it or when the work:
+
+- Adds a capability or changes a contract that users, operators, or other systems rely on in a material way.
+- Has a material risk to stored data, security, or privacy.
+- Needs a product decision or a design decision that affects several components and is still open.
+
+If a fast track task reveals one of these conditions, use OpenSpec for the affected work before you implement it.
+
+For full OpenSpec, explore or propose, define testable delta specs, add design and tasks, implement, verify, synchronize main specs, and archive. In Codex, use the corresponding `$openspec-*` skills. Use `pnpm exec openspec` for the project CLI. Group capabilities under `catalog/`, `website/`, or `operations/`, with matching main and delta paths. Keep unresolved choices in [draft proposals](proposals/).
+
+## Update documentation
+
+Correct statements that the change makes incorrect. Update a guide when the change affects steps that readers follow. Add information only when it helps a reader perform a specific task or understand a lasting rule or decision. Put the information in the document that owns it. Link to that source when other documents need to refer to it. Leave documentation unchanged when none of these conditions apply.
+
+- Specs describe durable behavior that a user, operator, or another system can observe.
+- Guides explain how to use, develop, operate, or diagnose the system.
+- Code defines implementation details. Use a comment or design note if a reader needs a reason that the code does not show.
+- Put results of checks and temporary notes about the change in the PR or handoff.
 
 ## Plan a behavior change
 
-New changes use the project-local [review-driven schema](../openspec/schemas/review-driven/schema.yaml), forked from OpenSpec 1.14.0's `spec-driven` schema. It keeps the proposal/specs/design/tasks workflow and requires a design for every change. Match design and task detail to risk and uncertainty. Do not add a change-size label or assessment.
+New OpenSpec changes use the project-local [review-driven schema](../openspec/schemas/review-driven/schema.yaml), forked from OpenSpec 1.14.0's `spec-driven` schema. It requires a proposal, delta specs, design, and tasks for behavior changes. Match design and task detail to risk and uncertainty. Do not add a change-size label or assessment.
 
 Use each artifact for its own task:
 
@@ -55,11 +74,11 @@ After editing the custom schema or templates, run `pnpm exec openspec schema val
 
 ## Review plans and code
 
-Use the repository's [plan-review skill](../.agents/skills/plan-review/SKILL.md) with `$plan-review <plan or change-name>` before implementation or after material planning changes. The review-driven schema calls for review before a substantive plan is presented as ready. Apply supported improvements within the authorized planning scope and report material scope decisions. The skill owns the review procedure and reporting rules. Use `openspec-verify-change` for completed implementation.
+For full OpenSpec changes, use the repository's [plan-review skill](../.agents/skills/plan-review/SKILL.md) with `$plan-review <plan or change-name>` before implementation or after material planning changes. The review-driven schema calls for review before a substantive plan is presented as ready. Apply supported improvements within the authorized planning scope and report material scope decisions. The skill owns the review procedure and reporting rules. Use `openspec-verify-change` for completed OpenSpec changes.
 
 Use the project-local [code-review skill](../.agents/skills/code-review/SKILL.md) with `$code-review` to review changes and fix clear bugs and simple improvements. Use `$complex-code-review` for review only. The linked skills define delegation, finding outcomes, and repeat-review conditions.
 
-After spec implementation, use the project-local [project-cleanup skill](../.agents/skills/project-cleanup/SKILL.md) with `$project-cleanup <change-name>` before final verification and archive. The agent finds and applies safe cleanup, removes unnecessary code and tests, and compares custom mechanisms with framework features. Substantial changes and changes to requirements need user confirmation. After cleanup, verify the final implementation against the specs.
+After implementation of a full OpenSpec change, use the project-local [project-cleanup skill](../.agents/skills/project-cleanup/SKILL.md) with `$project-cleanup <change-name>` before final verification and archive. The agent finds and applies safe cleanup, removes unnecessary code and tests, and compares custom mechanisms with framework features. Substantial changes and changes to requirements need user confirmation. After cleanup, verify the final implementation against the specs.
 
 Use the project-local [docs-refactor skill](../.agents/skills/docs-refactor/SKILL.md) for substantive documentation reviews or cleanup. Select `review` for findings only or `refactor` for edits.
 

@@ -94,13 +94,15 @@ Conversation memory is bounded; older messages can leave the active context whil
 
 `CATALOG_CHAT_DATABASE_PATH` selects a separate SQLite file, default `data/mastra-chat.sqlite`. The local launcher resolves this path before Mastra changes its working directory. Retain it across restart for conversation history. The file and its SQLite sidecars must be separate from the catalog, workflow history, and DuckDB files. SDK shutdown closes all storage providers. Chat history can contain private catalog and report text.
 
-Use `pnpm exec tsx src/test/studio-fixture.ts success` for an offline Studio fixture. It uses temporary storage and a deterministic provider, with no paid research. Its chat model tests the tool protocol, not production model reasoning. Both agents are registered in this fixture. See the [chat limits and report examples](ingestion-process.md#studio-catalog-chat).
+Use `pnpm exec tsx src/test/studio-fixture.ts success` for an offline Studio fixture. It uses temporary storage and a deterministic provider, with no paid research. Its chat model tests the tool protocol. Both agents are registered in this fixture.
+
+Use the [catalog SQL skill](../src/mastra/catalog-assistant/skills/catalog-sql/SKILL.md) for report queries. Costly queries can block other Studio work even if they return few rows. Studio runs them without a hard timeout or active-query cancellation. Report analysis uses saved evidence.
 
 ## Background execution
 
 Studio processes accepted jobs in its own server process. Run `pnpm run catalog:studio` locally or `pnpm run studio:start` after a production build. The catalog must already exist and be migrated. Startup and submission do not create or migrate it. Run one Studio server per catalog; there is no processor lock.
 
-Chat submits a fixed selection of 1–200 distinct existing Event IDs in one transaction. Preview is the default; explicit update intent selects apply. Scope defaults to full; republish stays off. The response contains `batchId` and `acceptedCount`. Acceptance is not ingestion completion. Each Event gets one private `ingestion_jobs` row. Jobs store settings, queue state, and creation time. Attempts, timing, reports, and errors remain in `ingestion_runs`. Its nullable `job_id` links queued attempts; direct runs have no job association.
+Chat saves a fixed batch of 1–200 items in one transaction. A refresh batch contains distinct existing Event IDs. An add batch contains complete notes. Preview is the default. Explicit write intent selects apply. Refresh scope defaults to full and republish stays off. The response contains `batchId` and `acceptedCount`. Check the saved attempts for results. Each item gets one private `ingestion_jobs` row. Jobs store settings, queue state, and creation time. Attempts, timing, reports, and errors remain in `ingestion_runs`. Its nullable `job_id` links queued attempts.
 
 Each job stores an explicit `mode` and a JSON value in `input`. Add jobs store the full note as a string. Refresh jobs store an object with `eventId` and `scope`. One batch has one operation and fixed preview settings. Submission validates the entire selection and saves it atomically.
 
@@ -110,7 +112,7 @@ Queue states are pending, running, done, and cancelled. Done means processing en
 
 Use `query_catalog` to aggregate the full batch by job status before reading bounded details. Join runs by `job_id`, keeping every attempt distinct. Count jobs before joining: a restart can give one job several attempts. SQL keeps its 200-row and 64 KiB limits. Report truncated or missing evidence. Stored running state does not establish queue health.
 
-If the acceptance response is lost, find recent batches through catalog SQL using the available time, Event IDs, and settings. Logs are not required. Ask for clarification if matches are ambiguous or evidence is incomplete. Do not automatically submit again. One validated selection consumes the current assistant execution even if its transaction fails; invalid input does not consume it.
+If the acceptance response is lost, find recent batches through catalog SQL. Match the time, mode, settings, and Event IDs or add note excerpts. Ask for clarification if matches are ambiguous or evidence is incomplete. Do not automatically submit again. One validated selection consumes the current assistant execution even if its transaction fails. Invalid input does not consume it.
 
 An explicit cancellation request uses `cancel_batch` for a resolved batch. It cancels pending jobs together. Running and terminal jobs remain unchanged, including interrupted running jobs waiting for fresh execution. Cancelling chat or closing a browser tab does not cancel accepted jobs.
 

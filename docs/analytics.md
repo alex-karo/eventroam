@@ -34,9 +34,9 @@ To disable all new browser analytics after deployment, open both links once:
 - https://eventroam.org/?analytics=off
 - https://festivals.eventroam.org/?analytics=off
 
-The SDK and banner share `eventroam.analytics.choice` in local storage (`1` for accepted, `0` for basic, `disabled` for full opt-out). Missing choice means cookieless capture and a visible banner. Allow cookies calls `opt_in_capturing({ captureEventName: false })`; Basic statistics calls `opt_out_capturing()`. Full opt-out also calls `opt_out_capturing()` and saves `disabled`; the SDK treats that value as no consent. The event filter blocks every new event while this choice is active. The SDK handles identity changes, including changes in other tabs. Do not call `reset()` or reinitialize the SDK for consent changes. The application clears remaining SDK window IDs from session storage in basic mode. Cookies are scoped to each host; set the choice on both origins. Acceptance enables SDK cookies, local storage, and session storage, but never profiles or recordings. If storage is blocked, the banner choice applies to the current page only and the SDK can remain in cookieless mode. Clearing site storage returns to basic mode. Use `?analytics=on` on each origin to accept the persistent identifier. Use `?analytics=basic` to restore basic capture. Events collected before opt-out can finish delivery and remain in PostHog.
+Set the choice on each origin. Use `?analytics=on` to allow cookies or `?analytics=basic` to restore basic capture. Clearing site storage returns to basic mode and shows the banner. If storage is blocked, the banner choice applies to the current page only. Events collected before opt-out can finish delivery and remain in PostHog.
 
-The default cookieless behavior was fixed in SDK 1.369.4; this project uses 1.440.0. See [PostHog issue 2841](https://github.com/PostHog/posthog-js/issues/2841). Do not add a manual page view at startup: the SDK captures it. Consent transitions can emit a page view for the new mode, except when analytics is disabled.
+Let the SDK handle consent transitions and page views. Use the [website privacy spec](../openspec/specs/website/privacy/spec.md) for consent behavior and the [analytics client](../src/site/analytics-client.ts) for SDK settings.
 
 ## Current storage settings
 

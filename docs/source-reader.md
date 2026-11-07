@@ -42,7 +42,7 @@ After page fallback, it reads each unique public My Maps `mid` once within the s
 
 Map Markdown keeps the source URL, title, description, source years, layer names, and all point names, descriptions, latitude, and longitude. Parking and camping remain visible. Lines and polygons are skipped with a notice; their display coordinates are not points.
 
-Research returns coordinates when a map clearly identifies the selected Edition's venue. It checks the map year and distinguishes the venue from parking and camping. Location makes the final coordinate decision.
+Reader retains literal evidence about map points, labels, and years. Location checks which points apply to the Edition and selects the coordinates. See the [location rules](../openspec/specs/catalog/location-resolution/spec.md) for point selection.
 
 A map failure keeps the readable page `ok`, with the map URL and a limitation notice. The reason is `map_read_incomplete` unless a page limitation reason already exists. Unread data does not prove that markers are absent.
 

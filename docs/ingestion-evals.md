@@ -12,7 +12,11 @@ Evals measure catalog quality and protect specific workflow behavior. They use f
 
 ## Run evals
 
-`pnpm run catalog:eval --help` lists options. The default runs five main cases once. Main runs the complete ingestion flow in a fresh in-memory catalog. Workflow regressions use dry runs. Isolated Location, Reader, and Classification cases use fixed inputs without running the workflow or writer. The owner's catalog stays untouched. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. CI does not run evals or tests of the eval code, and application coverage excludes eval code and its CLI. Run evals through the CLI when needed.
+`pnpm run catalog:eval --help` lists options. The default runs five main cases once. Main runs the complete ingestion flow in a fresh in-memory catalog. Workflow regressions use dry runs. Isolated Location, Reader, and Classification cases use fixed inputs. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. Run the model-backed cases through the CLI. CI runs automated tests and excludes eval sources and the eval CLI from application coverage.
+
+Set `OPENROUTER_API_KEY` for the default agent model. The Classification group and `--all` also need this key for the separate description scorer, even when another provider runs the agents. With another agent provider, main runs can use the key to include description format scores.
+
+If the eval records logs or traces, check the [DuckDB prerequisites](#usage-and-storage-failures) before you run it.
 
 ```sh
 pnpm run catalog:eval
@@ -52,10 +56,7 @@ To run all selected agents through OpenCode Go, set `OPENCODE_GO_KEY` and use
 pnpm run catalog:eval --case reader-date-correction --model opencode-go/gpt-6-luna
 ```
 
-This selection uses the Go key without an OpenRouter key. It overrides the Location
-model, keeps the configured reasoning effort, and omits OpenRouter service tier and
-cache options. Each agent sends its own client name and a stable session header.
-Searches and page reads still use the eval fixtures.
+This Reader case uses the Go key for all model calls. For other cases, check whether the selection also uses the OpenRouter description scorer. The model flag overrides the Location model. Searches and page reads use the eval fixtures.
 
 ### Results and failures
 
@@ -85,7 +86,7 @@ Start `pnpm run catalog:studio`, open `http://127.0.0.1:4111`, and choose **Expe
 
 Duration is separate from quality. Set `CATALOG_TRACING=true` to collect native tokens and cost. Eval traces and metrics carry the experiment ID, and saved result rows link to their real trace. Concurrent cases share one DuckDB store for the full CLI run; the CLI closes it after all cases finish. Studio shows the native Tokens/Cost summary when metrics are available; evals add no usage totals or metric queries.
 
-Eval runs and Studio must use the same `CATALOG_OBSERVABILITY_DATABASE_PATH`. Close Studio before CLI evals and reopen it after they finish: separate processes cannot write to the same DuckDB file at the same time. Old runs without this correlation are not backfilled. See [execution metrics](ingestion-process.md#execution-metrics). Missing metrics are unknown.
+If logging or tracing is enabled and the CLI uses Studio's DuckDB file, close Studio before the eval run. Reopen it after the CLI finishes. To inspect the diagnostics, point Studio's `CATALOG_OBSERVABILITY_DATABASE_PATH` at the file used by the CLI. See [execution metrics](ingestion-process.md#execution-metrics) for how to read the data. Missing metrics are unknown.
 
 Experiment storage write failures retain Mastra's native errors or warnings; no custom retry, recovery, post-run storage check, or JSON fallback is added. For this exceptional case, scores can be incomplete and the exit code might not indicate failure.
 
@@ -168,11 +169,7 @@ A useful collection can have partial Research and a failed catalog outcome after
 
 Prefer real pages read through the production reader. Preserve useful navigation, unrelated content and page controls. Keep source statuses (`ok`, `unsupported`, `failed`) and retrieval reasons. Map captured `partial` reads to `ok` with their retrieval reason and captured `blocked` reads to `failed`. Keep captured Markdown unchanged, including text cut by an earlier reader. Do not treat that text as a new projection cut or turn a failed response into a successful page. Replay keeps links in Markdown; it does not build a separate link list.
 
-Main now uses `@mdream/js@2.0.3` output. Roskilde, Wacken, Sziget and Glastonbury History 2025 were captured through the production HTTP reader on 2026-10-30, with rendering disabled. Raw responses and reader results are kept locally in `data/main-fixtures-mdream-20261030/`. The three captured cases use that date as their fixed evaluation date. Their tasks, initial records, geocoding fixtures and scoring rules stay the same. Afro Nation keeps its empty blocked-source fixture.
-
-The other ten Glastonbury pages retain the synthetic scenario below. Their saved scenario bodies were rebuilt as synthetic HTML and passed through the same production reader. The old page-title heading supplies the synthetic head title; region labels supply HTML landmarks. No extra metadata was invented. Their original scenario date stays fixed. Case provenance distinguishes these reconstructed inputs from real captures. Native Markdown line breaks and spacing remain in the saved output.
-
-Sziget location searches have one declared synthetic discovery response that points to the captured Travel page. The captured navigation does not link to this page. Its URL and title come from the existing capture; the response is not a search capture and does not change the page text.
+Use the provenance in each [case definition](../src/ingestion/evals/cases/) for capture dates, converter versions, raw input paths, and synthetic inputs. Glastonbury combines a real history page with reconstructed scenario pages. Sziget adds a synthetic search result for a captured travel page.
 
 Refresh Markdown from HTML when the reader format changes. Do not pass captured Markdown back as if it were original HTML. If the original HTML is missing, record a new capture or mark reconstructed input as synthetic. A fixture refresh creates a new dataset revision; old runs do not establish a comparison on the new inputs.
 
@@ -210,7 +207,9 @@ CLI output also shows unique source characters covered and extracted characters 
 
 ## Isolated Classification cases
 
-`pnpm run catalog:eval --group regression/classification` runs the production Classification role with fixed Edition targets, bound source evidence, saved context, and vocabulary. The case reuses the River Festival announcement from `narrow-current-changed`. It uses full scope and seeds both descriptions with the former format.
+Set `OPENROUTER_API_KEY` for the separate description format scorer. Then run `pnpm run catalog:eval --group regression/classification`. The case uses fixed Edition targets, bound evidence, saved context, and vocabulary. It reuses the River Festival announcement from `narrow-current-changed`, uses full scope, and seeds both descriptions with the former format.
+
+To run Classification through OpenCode Go, also set `OPENCODE_GO_KEY` and add `--model opencode-go/gpt-6-luna` to the command.
 
 The case requires the expected category IDs in any order without extra or duplicate IDs. Both replacement texts must omit the festival name. The detailed text must have three to five sentences and the short text one or two. Each must score at least 80% against the current format in PPLX Decider. A missing text or unavailable decision fails this case. The CLI prints the categories and both results. The experiment stores the Classification execution and checks. Research, Reader, Editor, and the catalog writer do not run.
 
@@ -227,7 +226,7 @@ Compare the actual value with the supplied source, expected alternatives and too
 
 Do not weaken a rule only because a model failed it. Do not demand an additional fact that the supplied pages cannot support.
 
-There are no separate eval unit tests, model-substitute eval runs, or eval persistence tests. Run the eval CLI when checking model behavior or changed fixtures. Review its saved outputs.
+Run the eval CLI when checking model behavior or changed fixtures. Review its saved outputs.
 
 ## Compare models on the same revision
 

@@ -32,9 +32,9 @@ Before running these commands:
 - Configure runtime inputs and external authentication before exposing Studio.
 
 ```sh
-docker compose build
-docker compose stop
-docker compose run --rm --no-deps studio node commands/migrate.mjs
+docker compose build &&
+docker compose stop &&
+docker compose run --rm --no-deps studio node commands/migrate.mjs &&
 docker compose up -d --wait
 ```
 
@@ -58,19 +58,13 @@ The ingestion host must persist `data/ingestion-sources/` (or `CATALOG_SOURCE_DI
 
 ### Container inputs
 
-Compose reads deployment inputs with `EVENTROAM_` and maps them to current application names. Existing local `.env` names and defaults stay unchanged. Set these inputs in the deployment environment or a selected Compose env file; do not commit credentials.
+Set `EVENTROAM_` inputs in the deployment environment or a private Compose env file. See [compose.yaml](../compose.yaml) for the names, mappings, and defaults.
 
-| Deployment input                                                                                                                                                                                                                    | Use                                                                                                                                                                                                     |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EVENTROAM_MAPBOX_TOKEN`, `EVENTROAM_MAPBOX_STYLE`                                                                                                                                                                                  | Website build arguments mapped to `NEXT_PUBLIC_MAPBOX_TOKEN` and `NEXT_PUBLIC_MAPBOX_STYLE`. Empty token keeps list-only use; the style defaults to Mapbox streets-v12. Rebuild to change either value. |
-| `EVENTROAM_PUBLIC_APEX_ORIGIN`, `EVENTROAM_PUBLIC_FESTIVALS_ORIGIN`                                                                                                                                                                 | Runtime `PUBLIC_APEX_ORIGIN` and `PUBLIC_FESTIVALS_ORIGIN`; defaults match local development. Set the public origins for deployment.                                                                    |
-| `EVENTROAM_OPENROUTER_API_KEY`, `EVENTROAM_FIRECRAWL_KEY`, `EVENTROAM_GEOAPIFY_KEY`                                                                                                                                                 | Runtime Studio provider credentials. These credentials are not build arguments. Inspection needs no model key. Execution needs the migrated catalog and its usual provider settings.                    |
-| `EVENTROAM_OPENROUTER_MODEL`, `EVENTROAM_OPENROUTER_SERVICE_TIER`, `EVENTROAM_OPENROUTER_REASONING_EFFORT`                                                                                                                          | Runtime model selection; empty values keep the current application defaults.                                                                                                                            |
-| `EVENTROAM_CATALOG_LOCATION_MODEL`                                                                                                                                                                                                  | Runtime `CATALOG_LOCATION_MODEL`; empty uses the normal model.                                                                                                                                          |
-| `EVENTROAM_CATALOG_TRACING`, `EVENTROAM_CATALOG_LOGGING`, `EVENTROAM_CATALOG_LOG_LEVEL`                                                                                                                                             | Studio tracing and logging default to `true`, with log level `info`. Set either flag to `false` to disable that output.                                                                                 |
-| `EVENTROAM_CATALOG_MAX_SEARCHES`, `EVENTROAM_CATALOG_MAX_SEARCH_RESULTS`, `EVENTROAM_CATALOG_MAX_AGENT_STEPS`, `EVENTROAM_CATALOG_MAX_DURATION_MS`, `EVENTROAM_CATALOG_MAX_PAGE_BYTES`, `EVENTROAM_CATALOG_MAX_MODEL_OUTPUT_TOKENS` | Existing execution limits; empty values keep the application defaults.                                                                                                                                  |
+- **Web build.** Set `EVENTROAM_MAPBOX_TOKEN` and `EVENTROAM_MAPBOX_STYLE` for maps. An empty token keeps discovery in list mode. Use the [analytics guide](analytics.md) for PostHog settings. Rebuild the web image after changes to these browser settings.
+- **Web runtime.** Set the [public origins](#public-website-configuration) for deployment.
+- **Studio runtime.** Supply provider credentials and model settings at runtime. Inspection needs no model key. Execution needs a migrated catalog and the provider settings for the selected run. Compose enables tracing and logging by default. Use its flags to disable either output.
 
-Database paths are Compose constants, without deployment inputs. Direct image use can set the `DATABASE_PATH`, `CATALOG_WORKFLOW_DATABASE_PATH`, `CATALOG_OBSERVABILITY_DATABASE_PATH`, and `CATALOG_CHAT_DATABASE_PATH` runtime names. Builds exclude owner databases, `.env` files, old output, and host dependencies. Only the public Mapbox token and style enter browser assets.
+Compose fixes the database paths under `/data`. For direct image use, use the application variable names under `environment` in [compose.yaml](../compose.yaml). Builds exclude owner databases, `.env` files, old output, and host dependencies.
 
 For a production Studio build outside Docker, use temporary build storage, then select runtime storage explicitly:
 
@@ -91,14 +85,20 @@ Run `pnpm run docker:smoke` to build both targets, prepare an empty test catalog
 
 ### Replace supplied data
 
-Use [Catalog pull and push](#catalog-pull-and-push) to replace the catalog with a checked snapshot and keep a target backup. Add `--with-mastra` to include workflow history, chats, and stored diagnostics. Stop all database users before transfer. The commands do not merge data or run migrations. Run any required migrations while users remain stopped, then start the matching release. Short downtime is expected.
+Use [Catalog pull and push](#catalog-pull-and-push) to replace the catalog. Follow the transfer prerequisites and plan for downtime.
 
 Automatic backup schedules and recovery drills are deferred to the next iteration. Retained images permit code rollback only while catalog schema and DuckDB formats stay compatible. Image rollback does not reverse data changes; an incompatible migration needs a compatible saved data copy.
 
 ## Catalog pull and push
 
 Stop local Next.js, Studio, and catalog commands first. Run one transfer at a
-time, with no deployment or other database users active:
+time. Keep other database users and deployment jobs stopped. The remote host
+must have one web container and one Studio container in the `eventroam` Compose
+project. Studio must use a named volume at `/data`.
+
+If a push needs a migration before startup, stop web and Studio on the remote
+host before the push and leave their containers in place. After the push,
+apply the migration, start the matching release, and check service health.
 
 ```sh
 pnpm run db:pull --local-stopped  # Remote catalog to local
@@ -119,7 +119,7 @@ Mastra local paths use `CATALOG_WORKFLOW_DATABASE_PATH`,
 `CATALOG_CHAT_DATABASE_PATH`, and `CATALOG_OBSERVABILITY_DATABASE_PATH`. Defaults
 are `./data/mastra-workflows.sqlite`, `./data/mastra-chat.sqlite`, and
 `./data/mastra-observability.duckdb`. Remote files use these names under `/data`.
-Saved eval datasets and experiments are not included in these transfers.
+Transfer saved evals and [private source evidence](ingestion-tools.md#saved-source-evidence) separately when needed. Saved runs refer to source files for inspection.
 All selected source files must exist. Use `tar` on the local machine and in the
 Studio image.
 
@@ -131,10 +131,11 @@ the database, or remote `/data/backups/`. Backups are kept; missing targets need
 no backup. File replacements are separate operations. If replacement fails part
 way through, use the backups to restore all selected targets before restart.
 
-After success, previously running remote services restart. A failed pull also
-restores remote service state; a failed push skips restart for manual recovery.
-Local processes stay stopped. Transfers do not run migrations or wait for
-service health. Use compatible application releases and check health afterward.
+After success, the script restarts the remote services that were running when
+the transfer began. A failed pull also restores remote service state. After a
+failed push, inspect the target and its backups before you restart. Local
+processes stay stopped. The transfer replaces files with snapshots. Run any
+needed migrations separately and check health after startup.
 
 ## Local database maintenance
 
@@ -149,9 +150,7 @@ Before replacing a database:
 3. Verify the backup with `PRAGMA integrity_check`.
 4. For a disposable database, recreate fictional data with `pnpm run db:fixtures`. Use `pnpm run db:migrate` for an empty catalog with starter vocabulary.
 
-Historical reports remain opaque storage; current report and eval consumers do not support them. See the [SQLite decision](decisions/001-sqlite-and-drizzle.md) for storage rationale.
+Historical reports remain opaque storage. See the [ingestion runs spec](../openspec/specs/catalog/ingestion-runs/spec.md) for supported report versions.
 
-For catalog transfer between the local machine and the remote Compose volume,
-see [Catalog pull and push](#catalog-pull-and-push). Both commands
-keep a target backup before replacement. Add `--with-mastra` to include workflow
-history, chats, and stored diagnostics.
+For transfers between the local machine and the remote Compose volume, see
+[Catalog pull and push](#catalog-pull-and-push).
