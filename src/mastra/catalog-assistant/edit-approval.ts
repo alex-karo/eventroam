@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { Agent } from "@mastra/core/agent";
 import type { MiddlewareHandler } from "hono";
 import { z } from "zod";
+import { hasAssistantExecutionState } from "./execution-context";
 
 const threadApproval = z.object({
   toolCallId: z.string().min(1),
@@ -24,6 +25,12 @@ export function catalogEditApproval(
     const prefix = "/api/agents/catalog-assistant/";
     if (!context.req.path.startsWith(prefix) || context.req.method !== "POST") {
       return next();
+    }
+    if (hasAssistantExecutionState(context.get("requestContext"))) {
+      return context.json(
+        { error: "Assistant execution state is managed by the server" },
+        400,
+      );
     }
     const action = context.req.path.slice(prefix.length);
     if (action === "send-message") {

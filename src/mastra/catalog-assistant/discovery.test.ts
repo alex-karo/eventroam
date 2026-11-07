@@ -2,9 +2,8 @@ import { dirname, join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
 import { createAssistantFixtureModel } from "@/test/assistant-model";
-import { createChatMemory } from "../catalog-assistant/memory";
-import { createCatalogAssistant } from "../catalog-assistant";
-import { createCatalogResearcher } from ".";
+import { createChatMemory } from "./memory";
+import { createCatalogAssistant } from ".";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -46,20 +45,22 @@ test("offline Studio conversation finds two candidates, adds both, and reads the
   );
   const chat = await createChatMemory(join(dirname(db.path), "chat.sqlite"));
   const model = createAssistantFixtureModel();
-  const researcher = createCatalogResearcher(chat.memory, model);
   const assistant = createCatalogAssistant(chat.memory, model);
   const ask = (text: string) =>
-    researcher.generate(text, {
+    assistant.generate(text, {
       memory: { thread: "research", resource: "owner" },
     });
   try {
-    expect(Object.keys(await researcher.listTools())).toEqual(
-      expect.arrayContaining(["search_web", "add_events", "query_catalog"]),
+    expect(Object.keys(await assistant.listTools())).toEqual(
+      expect.arrayContaining([
+        "search_web",
+        "add_events",
+        "query_catalog",
+        "refresh_events",
+        "cancel_batch",
+        "edit_catalog",
+      ]),
     );
-    expect(Object.keys(await researcher.listTools())).not.toContain(
-      "cancel_batch",
-    );
-    expect(Object.keys(await assistant.listTools())).toContain("cancel_batch");
     const found = await ask("find new festival candidates");
     expect(found.text).toContain("https://alpha.test/");
     expect(found.text).toContain("https://beta.test/");

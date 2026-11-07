@@ -259,7 +259,7 @@ A map page that repeats a supplied pin, or a reverse lookup that names its city,
 
 ## Studio catalog chat
 
-Open Agents → `catalog-researcher` to search for new Events, submit up to 200 complete descriptions for add, and read status by batch ID. Search alone starts no jobs. A clear add request permits apply. Use `catalog-assistant` and `cancel_batch` for explicit cancellation of pending add or refresh jobs. The researcher has no cancellation tool.
+Open Agents → `catalog-assistant` to search for new Events, submit up to 200 complete descriptions for add, and read status by batch ID. Search alone starts no jobs. A clear add request permits apply. Use `cancel_batch` in the same conversation for explicit cancellation of pending add or refresh jobs.
 
 Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview or update up to 200 Events, or explain a saved ingestion result. Reads and explanations do not start ingestion. An explicit update request permits apply; preview uses dryRun true. Unclear targets or write intent require clarification.
 

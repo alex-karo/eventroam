@@ -1,5 +1,4 @@
 import { fileURLToPath } from "node:url";
-import type { ToolsInput } from "@mastra/core/agent";
 import { Agent } from "@mastra/core/agent";
 import type { MastraModelConfig } from "@mastra/core/llm";
 import type { Memory } from "@mastra/memory";
@@ -20,41 +19,14 @@ export function createCatalogAssistant(
   model?: MastraModelConfig,
   logging?: AssistantLogging,
 ) {
-  return createCatalogChatAgent(
-    memory,
-    {
-      id: "catalog-assistant",
-      name: "Catalog assistant",
-      instructions: ASSISTANT_INSTRUCTIONS,
-      tools: {
-        ...createAssistantTools(
-          () => readDatabaseEnvironment().DATABASE_PATH,
-          logging,
-        ),
-        web_search: {
-          type: "provider-defined",
-          id: "openrouter.web_search",
-          name: "web_search",
-          args: {},
-        },
-      },
-    },
-    model,
-  );
-}
-
-export function createCatalogChatAgent(
-  memory: Memory,
-  options: {
-    id: string;
-    name: string;
-    instructions: string;
-    tools: ToolsInput;
-  },
-  model?: MastraModelConfig,
-) {
   return new Agent({
-    ...options,
+    id: "catalog-assistant",
+    name: "Catalog assistant",
+    instructions: ASSISTANT_INSTRUCTIONS,
+    tools: createAssistantTools(
+      () => readDatabaseEnvironment().DATABASE_PATH,
+      logging,
+    ),
     skills: [
       process.env.CATALOG_ASSISTANT_SKILL_PATH ??
         fileURLToPath(new URL("./skills/catalog-sql", import.meta.url)),
@@ -74,15 +46,8 @@ export function createCatalogChatAgent(
     errorProcessorDefaults: false,
     defaultOptions: {
       maxSteps: 12,
-      prepareStep: ({ activeTools, model, providerOptions, tools }) => {
+      prepareStep: ({ model, providerOptions }) => {
         if (model.provider !== "openrouter") {
-          if (tools?.web_search) {
-            return {
-              activeTools: (activeTools ?? Object.keys(tools)).filter(
-                (name) => name !== "web_search",
-              ),
-            };
-          }
           return;
         }
         return {

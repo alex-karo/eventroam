@@ -182,7 +182,7 @@ function initialReply(
   let text = "";
   const ids = owner.match(/[0-9a-f]{8}-[0-9a-f-]{27}/gi) ?? [];
   if (/find new festival candidates|add both Events/i.test(owner)) {
-    return researcherReply(owner, prompt, lastUser);
+    return discoveryReply(owner, prompt, lastUser);
   }
   if (/count France Events/i.test(owner)) {
     call = {
@@ -322,7 +322,7 @@ function previousEventReply(
   };
 }
 
-function researcherReply(
+function discoveryReply(
   owner: string,
   prompt: Parameters<MastraLanguageModelV2Mock["doStream"]>[0]["prompt"],
   lastUser: number,
@@ -369,7 +369,25 @@ function fixtureEditReply(owner: string, results: unknown[]) {
   if (!/fixture edit/i.test(owner)) {
     return;
   }
-  if (results.length) {
+  const refreshFirst = /refresh before/i.test(owner);
+  const editResultCount = refreshFirst ? 2 : 1;
+  if (
+    (refreshFirst && results.length === 0) ||
+    (/then refresh/i.test(owner) && results.length === editResultCount)
+  ) {
+    return {
+      text: "",
+      call: {
+        name: "refresh_events",
+        input: {
+          eventIds: ["00000000-0000-4000-8000-000000000001"],
+          scope: "full",
+          dryRun: !/apply refresh/i.test(owner),
+        },
+      },
+    };
+  }
+  if (results.length && !(refreshFirst && results.length === 1)) {
     return { text: `Fixture edit result: ${JSON.stringify(results)}` };
   }
   return {
@@ -381,6 +399,7 @@ function fixtureEditReply(owner: string, results: unknown[]) {
         targets: [
           {
             kind: "event",
+            links: null,
             id: "00000000-0000-4000-8000-000000000001",
             changes: {
               canonicalName: {
