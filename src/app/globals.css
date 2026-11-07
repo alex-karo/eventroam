@@ -823,9 +823,6 @@ a:hover {
   letter-spacing: -0.04em;
   line-height: 1.15;
 }
-.catalog.festival-details nav {
-  margin-bottom: 1.25rem;
-}
 .catalog.festival-details section {
   margin-top: 1.5rem;
   padding-top: 0.5rem;
@@ -857,12 +854,6 @@ a:hover {
   border-radius: var(--radius);
   padding: 0.15rem 0.6rem;
   font-size: 0.85em;
-}
-.detail-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
 }
 .external-links {
   display: flex;
@@ -939,6 +930,18 @@ a:focus-visible {
 .edition-history small {
   margin-left: 0.65rem;
   color: var(--muted);
+}
+.edition-festival-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.edition-festival-link .fact-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
 }
 .edition-location-map {
   position: relative;
@@ -1158,16 +1161,11 @@ a:focus-visible {
 .festival-details > section > p {
   max-width: 65ch;
 }
-.festival-details > nav {
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
-}
-
 .edition-title {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 24px;
-  margin: 32px 0;
+  margin: 24px 0;
 }
 .edition-title .edition-date {
   flex: none;
@@ -1178,8 +1176,93 @@ a:focus-visible {
 .edition-title .edition-date strong {
   font-size: 40px;
 }
-.edition-title h1 {
+.edition-heading {
+  min-width: 0;
+}
+.catalog.edition-details .edition-heading h1 {
+  font-size: clamp(1.5rem, 3vw, 2.75rem);
   margin: 0;
+}
+.edition-heading .fact-tags {
+  margin: 8px 0 0;
+}
+.edition-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 32px;
+  align-items: start;
+  padding-bottom: 8px;
+}
+.edition-facts,
+.edition-booking {
+  min-width: 0;
+}
+.edition-facts > .edition-state {
+  margin-top: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.edition-facts > .state-cancelled,
+.edition-facts > .state-postponed {
+  color: var(--error);
+  font-weight: 600;
+}
+.edition-place > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-left: 30px;
+}
+.edition-summary {
+  max-width: 65ch;
+  margin: 12px 0;
+}
+.edition-booking {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--accent);
+  border-radius: var(--panel-radius);
+  background: var(--surface);
+}
+.catalog .edition-booking h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  color: var(--muted);
+}
+.edition-booking .price-amount {
+  display: block;
+  font-size: 2rem;
+  line-height: 1.2;
+}
+.edition-booking .external-links {
+  gap: 8px;
+  padding: 12px 0 0;
+}
+.edition-booking .external-link {
+  min-height: 44px;
+  font-size: 14px;
+  padding: 8px 12px;
+  border-color: var(--control);
+}
+.edition-booking .external-link-primary {
+  width: 100%;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+.edition-booking .external-link-primary:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.edition-price-missing {
+  margin: 0;
+}
+.edition-ticket-details {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 8px;
+  font-size: 14px;
 }
 .preview-date {
   display: grid;
@@ -1197,8 +1280,19 @@ a:focus-visible {
   margin-left: 0;
 }
 @media (max-width: 740px) {
+  .catalog.edition-details {
+    padding: 12px 16px 32px;
+  }
+  .edition-overview {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .edition-booking {
+    padding: 16px;
+  }
   .edition-title {
     gap: 16px;
+    margin: 16px 0;
   }
   .edition-title .edition-date {
     width: 56px;

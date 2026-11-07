@@ -56,11 +56,18 @@ export function namedLinks(
 export function ExternalLinks({
   links,
   historicalYear,
-}: Readonly<{ links: PublicEdition["links"]; historicalYear?: number }>) {
+  primaryUrl,
+}: Readonly<{
+  links: PublicEdition["links"];
+  historicalYear?: number;
+  primaryUrl?: string;
+}>) {
   if (!links.length) {
     return null;
   }
-  const named = namedLinks(links, historicalYear);
+  const named = namedLinks(links, historicalYear).toSorted(
+    (a, b) => Number(b.url === primaryUrl) - Number(a.url === primaryUrl),
+  );
   return (
     <div className="external-links" aria-label="External links">
       {named.map((link, index) => {
@@ -76,7 +83,11 @@ export function ExternalLinks({
         return (
           <a
             key={link.url}
-            className="external-link"
+            className={
+              link.url === primaryUrl
+                ? "external-link external-link-primary"
+                : "external-link"
+            }
             href={link.url}
             rel="noopener noreferrer"
             title={link.name}

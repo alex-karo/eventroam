@@ -50,7 +50,7 @@ Use Space Grotesk for titles, body text, and controls. Use IBM Plex Mono for sho
 
 | Role                   | Target                                                         |
 | ---------------------- | -------------------------------------------------------------- |
-| Edition page title     | 40–56 px desktop; 28–36 px mobile; weight 500; line height 1.1 |
+| Edition page title     | 24–44 px; weight 500; line height 1.15                        |
 | Section or panel title | 20–24 px; weight 500; line height 1.25                         |
 | List event name        | 17–19 px; weight 600; line height 1.3                          |
 | Body and form input    | 16 px; weight 400; line height 1.5                             |
@@ -85,7 +85,7 @@ Keep the header compact, approximately 64 px on desktop. Keep filter access visi
 
 On small screens, place search, filters, and months above the map. Show results in a bottom sheet. Its Expand list and Show map controls change the sheet height; both the map and results remain visible. Keep the footer below the workspace. Stack fields when they no longer fit. Allow the header to grow when text wraps. Use compact 32 px month buttons. Keep primary controls at least 44 px high for touch. Check 320, 390, 768, and 1440 px widths, plus 200% zoom. No page-level horizontal scroll is acceptable.
 
-Event and edition pages use the same header, fonts, and controls. Place the event link above the edition title. Open festival and edition links in new tabs. Do not show Back to results; the discovery tab keeps the search context. Group dates, place, tickets, and official links into clear sections. Use a readable content width near 1120 px, with body text near 65 characters per line. The root directory uses the same system at a smaller content width.
+Event and edition pages use the same header, fonts, and controls. Place the Festival overview link below the history list in Other editions. Open festival and edition links in new tabs. Do not show Back to results; the discovery tab keeps the search context. On Edition pages, keep the date block beside the title and put known classification tags below the title. On wide screens, put dates, status, place, known short festival text, and estimated size on the left of the opening area. Put base price, its conditions, and ticket and official-site links on the right. Stack these areas in the same reading order on phones. Give one ticket link primary emphasis for upcoming Editions that are not cancelled or postponed; otherwise prefer the official site. Keep other links below the detail sections. Put full text, known ticket categories, full address, map, and history below the opening area. Let long or enlarged text increase the page height. Do not crop facts or controls to fit one screen. Use a readable content width near 1120 px, with body text near 65 characters per line. The root directory uses the same system at a smaller content width.
 
 ## Components and states
 

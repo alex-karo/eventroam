@@ -100,15 +100,17 @@ test("Edition layout preserves section order and shared history while Event stay
       now={new Date("2026-10-01")}
     />,
   );
-  const headings = [
-    "About the festival",
-    ">Tickets</h2>",
-    ">Location</h2>",
-    "Other editions",
-  ];
-  const positions = headings.map((text) => output.indexOf(text));
-  expect(positions.every((pos) => pos >= 0)).toBe(true);
-  expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  const $ = load(output);
+  expect(
+    $("main > section > h2")
+      .map((_, el) => $(el).text())
+      .get(),
+  ).toEqual(["About the festival", "Location", "Other editions"]);
+  expect($("#tickets")).toHaveLength(0);
+  expect($(".edition-booking").text()).toContain(
+    "Ticket information not available",
+  );
+  expect(output.match(/Ticket information not available/g)).toHaveLength(1);
   expect(output).toContain("Ticket information not available");
   expect(output).not.toContain("location-canvas");
   expect(output).not.toContain("Show on map");
@@ -143,6 +145,159 @@ test("Edition layout preserves section order and shared history while Event stay
   expect(withMap).toContain("Open approximate location");
   expect(withMap).toContain("www.google.com/maps/search/");
   expect(withMap).toContain("Show on map");
+});
+
+test("Edition opening separates festival summary, price and booking links from details", () => {
+  const data = { ...event(), shortDescription: "A short festival summary." };
+  const edition = {
+    ...data.editions[0],
+    terms: [
+      { facet: "format", name: "Open-air" },
+      { facet: "genre", name: "Electronic" },
+    ],
+    priceKind: "from",
+    priceCurrency: "EUR",
+    priceMinMinor: 6990,
+    priceCoverage: "day_pass",
+    priceQualification: "Plus fees. Check the ticket site.",
+    ticketCategories: [{ label: "Regular", availability: "sold_out" as const }],
+    venueAddress: "Test street 12",
+    links: [
+      { kind: "official_site", url: "https://example.org/", label: null },
+      { kind: "ticketing", url: "https://example.org/tickets", label: null },
+      {
+        kind: "ticketing",
+        url: "https://example.org/other-tickets",
+        label: null,
+      },
+      { kind: "instagram", url: "https://example.org/social", label: null },
+    ],
+  };
+  const $ = load(
+    renderToStaticMarkup(
+      <EditionDetailsPage
+        event={data}
+        edition={edition}
+        now={new Date("2026-10-01")}
+      />,
+    ),
+  );
+  expect(
+    $(".edition-opening h1 + .fact-tags > li")
+      .map((_, el) => $(el).text())
+      .get(),
+  ).toEqual(["Electronic", "Open-air"]);
+  expect($(".edition-summary").text()).toBe(data.shortDescription);
+  expect($("main > section").first().text()).toContain(data.description);
+  const booking = $(".edition-booking");
+  expect(booking.text()).toContain("From €69.90 (day pass)");
+  expect(booking.text()).toContain(edition.priceQualification);
+  expect(booking.text()).not.toContain("Sold out");
+  expect(booking.find(".external-link-primary")).toHaveLength(1);
+  expect(booking.find(".external-link-primary").attr("href")).toBe(
+    edition.links[1].url,
+  );
+  expect(booking.find(".external-links a").first().attr("href")).toBe(
+    edition.links[1].url,
+  );
+  expect(
+    booking
+      .find(".external-links a")
+      .map((_, el) => $(el).attr("href"))
+      .get()
+      .toSorted(),
+  ).toEqual(
+    edition.links
+      .slice(0, 3)
+      .map(({ url }) => url)
+      .toSorted(),
+  );
+  expect(
+    $("main > section").last().find('a[href="https://example.org/social"]'),
+  ).toHaveLength(1);
+  expect($(".edition-opening").text()).not.toContain(edition.venueAddress);
+  expect($("#location").text()).toContain(edition.venueAddress);
+  expect($("#tickets").text()).toContain("Sold out");
+  expect(
+    $("main > section > h2")
+      .map((_, el) => $(el).text())
+      .get(),
+  ).toEqual([
+    "About the festival",
+    "Ticket categories",
+    "Location",
+    "Other editions",
+    "More links",
+  ]);
+});
+
+test.each(["past", "cancelled", "postponed", "no-tickets"] as const)(
+  "Edition primary action uses the official site for %s",
+  (state) => {
+    const data = { ...event(), shortDescription: "  " };
+    const edition = {
+      ...data.editions[0],
+      status:
+        state === "cancelled" || state === "postponed"
+          ? state
+          : ("scheduled" as const),
+      links: [
+        { kind: "official_site", url: "https://example.org/", label: null },
+        ...(state === "no-tickets"
+          ? []
+          : [
+              {
+                kind: "ticketing",
+                url: "https://example.org/tickets",
+                label: null,
+              },
+            ]),
+      ],
+    };
+    const $ = load(
+      renderToStaticMarkup(
+        <EditionDetailsPage
+          event={data}
+          edition={edition}
+          now={new Date(state === "past" ? "2029-01-01" : "2026-10-01")}
+        />,
+      ),
+    );
+    expect($(".edition-booking .external-link-primary").attr("href")).toBe(
+      edition.links[0].url,
+    );
+    expect($(".edition-summary")).toHaveLength(0);
+    if (state === "past") {
+      expect($(".edition-facts").text()).toContain("Past edition");
+      expect($(".edition-booking h2").text()).toBe("Prices for this edition");
+      expect(
+        $("a[href='https://example.org/tickets']").attr("aria-label"),
+      ).toContain(String(edition.year));
+    }
+    if (state === "postponed") {
+      expect($(".edition-facts").text()).toContain(
+        "Postponed — new dates TBA. Previous dates:",
+      );
+    }
+    if (state === "cancelled") {
+      expect($(".edition-facts .edition-state").text()).toBe("Cancelled");
+    }
+  },
+);
+
+test("Edition category amounts do not become a missing base price", () => {
+  const data = event();
+  const edition = {
+    ...data.editions[0],
+    ticketCategories: [{ label: "Regular", amount: 100, currency: "EUR" }],
+  };
+  const $ = load(
+    renderToStaticMarkup(<EditionDetailsPage event={data} edition={edition} />),
+  );
+  expect($(".edition-booking").text()).toContain("Price not available");
+  expect($(".edition-booking").text()).not.toContain("€100.00");
+  expect($("#tickets").text()).toContain("€100.00");
+  expect($(".external-link-primary")).toHaveLength(0);
 });
 
 test("date ranges keep the year without repeated month text", () => {
