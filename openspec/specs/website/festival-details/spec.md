@@ -155,7 +155,7 @@ The Edition opening area SHALL show the Event's nonblank short description when 
 
 ### Requirement: Opening ticket actions show their purpose
 
-The opening ticket area SHALL keep base price and its stored conditions together. It SHALL emphasize one ticket link for an upcoming Edition that is not cancelled or postponed, with an official-site link as fallback. Other Editions SHALL emphasize an official-site link when known. Category availability SHALL remain in the ticket category section.
+The opening ticket area SHALL keep base price and its stored conditions together. It SHALL emphasize one ticket link for an upcoming Edition that is not cancelled or postponed, with an official-site link as fallback. Other Editions SHALL emphasize an official-site link when known. Ticket and official-site links SHALL share a row when they fit and wrap onto more rows when needed. Category availability SHALL remain in the ticket category section.
 
 #### Scenario: Several purchase and information links exist
 
