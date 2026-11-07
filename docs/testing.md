@@ -8,17 +8,7 @@ tags: [development]
 
 # Testing
 
-Run the checks relevant to your change:
-
-```sh
-pnpm run type-check
-pnpm run lint
-pnpm run format:check
-pnpm test
-pnpm run build
-pnpm run docs:check
-pnpm run openspec:validate
-```
+Choose the [common checks](development.md#common-checks) that apply to your change.
 
 CI validates main OpenSpec specs with `pnpm exec openspec validate --specs --strict`, allowing active changes to start with a proposal only. `pnpm run openspec:validate` also validates active changes and requires their delta specs to be ready.
 
@@ -28,7 +18,7 @@ Run `pnpm run build` then `pnpm run test:site` for the public-site HTTP smoke ch
 
 Use the built-in Browser for local UI checks. On macOS, obtain approved execution outside the command sandbox before a shell runner starts full Chrome, including headless Chrome. Do not retry a sandboxed launch after an `_RegisterApplication` or `SIGABRT` startup crash. Stop other local Next.js servers before an E2E run because they share the build directory.
 
-`pnpm start` serves the built application. `pnpm run test:e2e` runs desktop and mobile discovery and detail journeys against a temporary fixture database on port 3137. The default mode disables Mapbox and checks list and map fallbacks. Pass Playwright options after the script name, for example `pnpm run test:e2e --project=mobile`.
+Install the test browser if needed with `pnpm exec playwright install chromium`. Run `pnpm run test:e2e` for desktop and mobile discovery and detail journeys. The runner starts a development server on port 3137 with a temporary fixture database. The default mode disables Mapbox and checks list and map fallbacks. Pass Playwright options after the script name, for example `pnpm run test:e2e --project=mobile`.
 
 For a small real-map check, set `E2E_REAL_MAP=1` and supply `NEXT_PUBLIC_MAPBOX_TOKEN`. The runner and Playwright server forward that token only in this mode. This command loads the local token from `.env` without printing it:
 
@@ -56,7 +46,7 @@ Tests live beside their implementation. Use `testDatabase()` for a fresh migrate
 | Build without storage | `fx.build.*` |
 | Create a complete public scenario | `fx.publishedEvent(...)` |
 
-Set values that affect the scenario or assertions. Omitted fields receive defaults. Explicit `null` is preserved; `undefined` overrides are ignored. Tests do not load development fixtures or fetch live source pages. Use direct SQL only for database constraints or deliberately invalid data.
+Set values that affect the scenario or assertions. Omitted fields receive defaults. Explicit `null` is preserved; `undefined` overrides are ignored. Prefer builders to development fixtures in unit and integration tests. Use fixed responses for source pages. Use direct SQL only for database constraints or deliberately invalid data.
 
 Ingestion tests supply direct role responses through `generateRole` or `generateRoles`. The helpers in `src/test/ingestion.ts` provide current role answers and temporary workflow storage. Set each role response that affects the test. HTTP provider fixtures add the required transport envelope and nullable slots; they do not convert a combined research result into role answers.
 

@@ -6,6 +6,8 @@ For a short introduction to the product, architecture, technology, and local set
 
 ## Maintaining the docs
 
+See [Update documentation](change-workflow.md#update-documentation) for when to update a document and where to put new information.
+
 Every substantive file under `docs/` has OKF-style `type`, `title`, `description`, and `status` frontmatter; `tags` are optional. Index files and `AGENTS.md` are navigation and instructions, not concepts. Keep unapproved choices in draft proposals. Do not add `generated`, `verified`, or `stale_after` without evidence. Update this index when adding or removing a document. Run `pnpm run docs:check` after editing docs.
 
 ## Website design
@@ -39,10 +41,12 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 - [Ingestion evals](ingestion-evals.md) — commands, Studio experiments, case design, scoring, fixtures, and model comparison.
 - [Project structure](project-structure.md) — directories and dependency boundaries.
 
-## Decisions
+## Historical decisions
 
-- [ADR 001: SQLite and Drizzle](decisions/001-sqlite-and-drizzle.md) — accepted database choice.
-- [ADR 002: Runtime and tooling](decisions/002-runtime-and-tooling.md) — accepted runtime and application container baseline.
+These records explain past technology choices. Use the current guides and specifications for today's setup and behavior.
+
+- [ADR 001: SQLite and Drizzle](decisions/001-sqlite-and-drizzle.md) — original database choice.
+- [ADR 002: Runtime and tooling](decisions/002-runtime-and-tooling.md) — original runtime and container baseline.
 
 ## Known issues
 

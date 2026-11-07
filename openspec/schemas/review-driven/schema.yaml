@@ -147,7 +147,7 @@ artifacts:
     description: Technical design document with implementation details
     template: design.md
     instruction: |
-      Create design.md for every change, including small changes.
+      Create design.md for each OpenSpec change that uses this schema.
       Explain the technical solution so a reviewer can assess it before implementation.
       Keep TL;DR first. Add detail sections only when they help explain the solution,
       its reasons, or its risks. A simple design can contain only TL;DR.

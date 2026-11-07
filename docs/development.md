@@ -46,7 +46,7 @@ pnpm run build
 pnpm run docs:check
 ```
 
-Use `pnpm run format:check` for application formatting and `pnpm run openspec:validate` for OpenSpec edits. See [Testing](testing.md) for browser tests, coverage, fixtures, and CI differences. Follow the [change workflow](change-workflow.md) for behavior changes and review.
+Use `pnpm run format:check` for application formatting and `pnpm run openspec:validate` for OpenSpec edits. See [Testing](testing.md) for browser tests, coverage, fixtures, and CI differences. See the [change workflow](change-workflow.md) when you use full OpenSpec or need help choosing a workflow.
 
 ## Task guides
 
