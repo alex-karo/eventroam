@@ -136,7 +136,7 @@ Every changed or cleared fact SHALL retain its target, reason, and source or sav
 
 ### Requirement: Field groups remain complete and owned
 
-Dates, tickets, and classification SHALL follow their complete-group or replacement rules. The final venue, address, locality, administrative area, country, and point SHALL describe one coherent place. Omission SHALL preserve saved values unless evidence supports removal. One Edition SHALL NOT change a sibling. Invalid targets, types, or incomplete replacements SHALL reject the item.
+Dates, tickets, and classification SHALL follow their complete-group or replacement rules. The final venue, address, locality, administrative area, country, and point SHALL describe one coherent place. Omission SHALL preserve saved values unless evidence supports removal. One Edition SHALL NOT change a sibling. An invalid target SHALL reject the item. An invalid type or incomplete replacement in the final result SHALL also reject the item.
 
 #### Scenario: A date correction
 
@@ -315,6 +315,7 @@ An Edition size estimate SHALL describe approximate participant scale and explai
 #### Scenario: Participant evidence is insufficient
 - **WHEN** inspected sources provide no supportable participant count
 - **THEN** size is omitted and any saved value is preserved
+
 ### Requirement: Research and editing use fixed Edition roles
 
 The result MUST distinguish previousEdition and currentOrNextEdition, each with one supported key or null. One key MUST NOT occupy both roles. Accepted changes MUST retain their selected keys and roles. A declined or unresolved target MUST preserve saved state and skip creation and publication. Missing roles, invalid targets, or inconsistent final changes MUST reject the item.
@@ -398,3 +399,25 @@ Ingestion ticket proposals and accepted replacements SHALL omit per-offer URL fi
 - **WHEN** no complete ticket replacement is accepted
 - **THEN** saved offers and their existing URLs remain unchanged
 - **AND** an independently supported Edition ticket link can still change
+
+### Requirement: The group owner supplies revised values
+
+Only the assigned group owner SHALL supply a revised value or fill a returned omission. A revised proposal SHALL pass the same checks as an original proposal. If Editor supplies a replacement value, the item SHALL fail before writes.
+
+#### Scenario: The ticket link points to an archive
+
+- **WHEN** Links supplies an archived ticket link and a saved official page explicitly identifies the ticket overview for the selected Edition
+- **THEN** Editor can return the link group to Links with the saved passage, even if Reader did not extract it
+- **AND** Links can propose the URL with its source support
+- **AND** an accepted correction changes only that Edition's ticket link
+
+#### Scenario: Editor acts on one of several omissions
+
+- **WHEN** several assigned fields have no proposal, each still has its return, and Editor has evidence for just the ticket link
+- **THEN** Editor can return that omission to Links and review every submitted proposal without giving decisions for the other omissions
+- **AND** the saved values of those other fields are preserved
+
+#### Scenario: An omission is outside the assignment
+
+- **WHEN** a current refresh has no proposal for a historical ticket, an Event website or either Event description
+- **THEN** Editor cannot return those groups, even if it finds the values on a saved page

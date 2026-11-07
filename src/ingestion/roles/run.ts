@@ -4,13 +4,6 @@ import {
   searchWebOutputSchema,
 } from "../tools/search-web/contracts";
 import { createTool } from "@mastra/core/tools";
-import {
-  Workspace,
-  LocalFilesystem,
-  createWorkspaceTools,
-  WORKSPACE_TOOLS,
-} from "@mastra/core/workspace";
-import { basename, dirname } from "node:path";
 import { z } from "zod";
 import type { CatalogResearchInput, ResearchDependencies } from "../contracts";
 import type { ResearchContext } from "../research/context";
@@ -23,7 +16,7 @@ import {
   topics,
   type FrozenCorpus,
 } from "../evidence/contracts";
-import { readCanonicalSource } from "../evidence/storage";
+import { savedPages, savedSearchInstructions } from "../evidence/repair";
 import { buildAssignment, assignedRoleChecks } from "./assignment";
 import {
   roleEvidenceTopics,
@@ -45,7 +38,12 @@ import {
   editorInstructions,
 } from "./prompts";
 import { invokeRole } from "./invoke";
-import { reviewSchema, type PreparedProposals } from "../proposals";
+import type { PreparedProposals } from "../proposals";
+import { groupProposal, reviewSchema, type ReviewPath } from "../review";
+import type { RoleConversation } from "./invoke";
+import type { GroupOwner } from "../groups";
+import type { RepairRecord } from "../repairs";
+import { editionSlotNames } from "../research/contracts";
 
 export type RoleOptions = {
   input: CatalogResearchInput;
@@ -56,6 +54,7 @@ export type RoleOptions = {
   deps: ResearchDependencies;
   signal: AbortSignal;
   tracing?: RunObservability;
+  capture?: (role: GroupOwner, conversation: RoleConversation) => void;
 };
 import { PROMPT_VERSIONS } from "./versions";
 
@@ -121,6 +120,9 @@ export async function collectResearch(
     steps: options.budget.limits.agentSteps,
   });
 }
+const returnInstructions =
+  "\nIf the workflow returns groups for revision, keep the same assignment and targets. Follow the same role rules. Revise only the requested groups. Use citeSavedPassage for new citations. If you omit a requested optional group, include an unresolved entry with its exact group path as field and explain why.";
+
 function base(options: RoleOptions, role: import("./invoke").Role) {
   return {
     normalizeOutput: (value: unknown) => normalizeRoleWire(role, value),
@@ -133,6 +135,7 @@ function base(options: RoleOptions, role: import("./invoke").Role) {
     signal: options.signal,
     tracing: options.tracing,
     generate: options.deps.generateRoles?.[role] ?? options.deps.generateRole,
+    capture: options.capture,
   };
 }
 export function runGeneral(options: RoleOptions) {
@@ -142,7 +145,7 @@ export function runGeneral(options: RoleOptions) {
     ...base(options, "general"),
     role: "general",
     version: PROMPT_VERSIONS.general,
-    instructions: generalInstructions,
+    instructions: generalInstructions + returnInstructions,
     input: {
       assignment: { identityTask, identityContext, currentDate, permissions },
       assignedChecks: assignedRoleChecks("general", options.input),
@@ -247,7 +250,7 @@ export function runTickets(options: RoleOptions, targets: Targets) {
     ...base(options, "tickets"),
     role: "tickets",
     version: PROMPT_VERSIONS.tickets,
-    instructions: ticketsInstructions,
+    instructions: ticketsInstructions + returnInstructions,
     input: {
       assignedChecks: assignedRoleChecks("tickets", options.input, targets),
       currentDate: options.context.currentDate,
@@ -292,9 +295,10 @@ export function runClassification(options: RoleOptions, targets: Targets) {
     ...base(options, "classification"),
     role: "classification",
     version: PROMPT_VERSIONS.classification,
-    instructions: describeFestival
-      ? descriptionInstructions + "\n" + classificationInstructions
-      : classificationInstructions,
+    instructions:
+      (describeFestival
+        ? descriptionInstructions + "\n" + classificationInstructions
+        : classificationInstructions) + returnInstructions,
     input: {
       assignedChecks: assignedRoleChecks(
         "classification",
@@ -332,7 +336,7 @@ export function runLinks(options: RoleOptions, targets: Targets) {
     ...base(options, "links"),
     role: "links",
     version: PROMPT_VERSIONS.links,
-    instructions: linksInstructions,
+    instructions: linksInstructions + returnInstructions,
     input: {
       assignedChecks: assignedRoleChecks("links", options.input, targets),
       targets: targetContext(options, targets, "links"),
@@ -358,56 +362,58 @@ export function runLinks(options: RoleOptions, targets: Targets) {
 export async function runEditor(
   options: RoleOptions,
   prepared: PreparedProposals,
+  paths: ReviewPath[],
+  repairs: RepairRecord[],
+  targeted = false,
 ) {
-  const sources = options.corpus.sources.filter((source) =>
-    Boolean(source.markdownPath),
+  const { sourceFiles, tools } = await savedPages(
+    options.corpus,
+    options.signal,
   );
-  const sourceFiles = sources.map((source) => ({
-    sourceId: source.id,
-    path: basename(source.markdownPath!),
-    url: source.finalUrl,
-    overview: source.overview ?? null,
-  }));
-  const tools = sources.length
-    ? await createWorkspaceTools(
-        new Workspace({
-          filesystem: new LocalFilesystem({
-            basePath: dirname(sources[0].markdownPath!),
-            readOnly: true,
-          }),
-          tools: {
-            enabled: false,
-            [WORKSPACE_TOOLS.FILESYSTEM.GREP]: { enabled: true },
-            hooks: {
-              beforeToolCall: async ({ input }) => {
-                options.signal.throwIfAborted();
-                const { path } = input as { path: string };
-                const source = sources.find(
-                  (source) => basename(source.markdownPath!) === path,
-                );
-                if (!source) {
-                  throw new Error("Source file is not saved in this run");
-                }
-                await readCanonicalSource(source);
-              },
-            },
-          },
-        }),
-      )
-    : {};
+  const cited = new Set(
+    repairs.flatMap(({ evidence }) => evidence?.map(({ id }) => id) ?? []),
+  );
+  for (const slot of editionSlotNames) {
+    if (paths.some(({ path }) => path === `${slot}.fields.location`)) {
+      for (const id of prepared.location.support[slot] ?? []) {
+        cited.add(id);
+      }
+    }
+  }
+  const evidence = targeted
+    ? prepared.basis.evidence.filter(({ id }) => cited.has(id))
+    : prepared.basis.evidence;
   return invokeRole({
     ...base(options, "editor"),
     role: "editor",
     version: PROMPT_VERSIONS.editor,
-    instructions: editorInstructions,
+    instructions:
+      editorInstructions +
+      "\n" +
+      savedSearchInstructions +
+      (targeted
+        ? "\nThis is a targeted review. The proposals are in returnedGroups. Use fixedEditions only as context. Do not review any other group or target."
+        : ""),
     input: {
       currentDate: options.context.currentDate,
       permissions: buildAssignment(options.input, options.context).permissions,
       sourceFiles,
+      reviewPaths: paths,
+      repairs,
+      ...(targeted && {
+        returnedGroups: paths.map(({ path }) => ({
+          path,
+          proposal: groupProposal(prepared, path) ?? null,
+        })),
+        fixedEditions: {
+          previousEdition: prepared.targets.previousEdition,
+          currentOrNextEdition: prepared.targets.currentOrNextEdition,
+        },
+      }),
       vocabulary: options.context.terms,
       prepared: {
-        ...prepared,
-        targets: undefined,
+        ...(!targeted && { plan: prepared.plan, location: prepared.location }),
+        unresolved: prepared.unresolved,
         identity: {
           eventId: prepared.targets.eventId,
           observedEventName: prepared.targets.observedEventName,
@@ -416,15 +422,13 @@ export async function runEditor(
         },
         basis: {
           ...prepared.basis,
-          evidence: evidencePacket(
-            { ...options.corpus, evidence: prepared.basis.evidence },
-            topics,
-            { anchors: true },
-          ).evidence,
+          evidence: evidencePacket({ ...options.corpus, evidence }, topics, {
+            anchors: true,
+          }).evidence,
         },
       },
     },
-    schema: reviewSchema(prepared),
+    schema: reviewSchema(paths),
     tools,
     steps: 6,
   });

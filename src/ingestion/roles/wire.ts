@@ -21,9 +21,7 @@ export function normalizeRoleWire(role: Role, raw: unknown): unknown {
     return value;
   }
   if (
-    ["general", "tickets", "classification", "links", "editor"].includes(
-      role,
-    ) &&
+    ["general", "tickets", "classification", "links"].includes(role) &&
     Array.isArray(value.unresolved)
   ) {
     for (const question of value.unresolved) {

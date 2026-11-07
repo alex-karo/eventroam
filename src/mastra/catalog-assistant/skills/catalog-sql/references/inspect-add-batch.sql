@@ -15,10 +15,10 @@ SELECT j.position, j.status AS jobStatus, j.dry_run AS jobPreview,
   json_extract(r.readableReport, '$.eventId') AS reportedEventId,
   coalesce(json_extract(r.readableReport, '$.modelResponse.object.result.decision'), json_extract(r.readableReport, '$.modelResponse.object.decision')) AS identityDecision,
   coalesce(json_extract(r.readableReport, '$.modelResponse.object.result.reason'), json_extract(r.readableReport, '$.modelResponse.object.reason')) AS identityReason,
-  json_extract(r.readableReport, '$.editorResponse.object.item.decision') AS editorItemDecision,
-  json_extract(r.readableReport, '$.editorResponse.object.item.reason') AS editorItemReason,
-  json_extract(r.readableReport, '$.editorResponse.object.event.target.decision') AS editorTargetDecision,
-  json_extract(r.readableReport, '$.editorResponse.object.event.target.reason') AS editorTargetReason,
+  json_extract(CASE WHEN item.type = 'object' THEN item.value END, '$.decision') AS editorItemDecision,
+  json_extract(CASE WHEN item.type = 'object' THEN item.value END, '$.note') AS editorItemReason,
+  json_extract(CASE WHEN target.type = 'object' THEN target.value END, '$.decision') AS editorTargetDecision,
+  json_extract(CASE WHEN target.type = 'object' THEN target.value END, '$.note') AS editorTargetReason,
   EXISTS (
     SELECT 1 FROM json_each(r.readableReport, '$.errors') error
     WHERE json_extract(CASE WHEN error.type = 'object' THEN error.value END, '$.code') = 'editor_rejected'
@@ -34,5 +34,17 @@ SELECT j.position, j.status AS jobStatus, j.dry_run AS jobPreview,
       AND json_extract(CASE WHEN receipt.type = 'object' THEN receipt.value END, '$.changed') = 1
   ) AS changedCreation
 FROM ingestion_jobs j LEFT JOIN runs r ON r.job_id = j.id
+LEFT JOIN json_each(r.readableReport, '$.editorResponse.object.decisions') item
+  ON item.key = (
+    SELECT decision.key FROM json_each(r.readableReport, '$.editorResponse.object.decisions') decision
+    WHERE json_extract(CASE WHEN decision.type = 'object' THEN decision.value END, '$.path') = 'item'
+    LIMIT 1
+  )
+LEFT JOIN json_each(r.readableReport, '$.editorResponse.object.decisions') target
+  ON target.key = (
+    SELECT decision.key FROM json_each(r.readableReport, '$.editorResponse.object.decisions') decision
+    WHERE json_extract(CASE WHEN decision.type = 'object' THEN decision.value END, '$.path') = 'event.target'
+    LIMIT 1
+  )
 WHERE j.batch_id = ? AND j.mode = 'add'
 ORDER BY j.position, r.started_at, r.id

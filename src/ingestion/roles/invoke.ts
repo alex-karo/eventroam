@@ -8,13 +8,15 @@ import { traceFailure } from "../runtime/tracing";
 import { ResearchLimitError } from "../runtime/budget";
 import type { ResearchError } from "../research/contracts";
 import type { RunObservability } from "../runtime/observability/runtime";
-import { modelOutputSchema } from "../runtime/model-output";
+import { completedObject, modelOutputSchema } from "../runtime/model-output";
 import {
   createResearchModelOptions,
   providerUnavailableRetry,
   MAX_PROVIDER_UNAVAILABLE_RETRIES,
 } from "../runtime/openrouter";
 import { shrinkText, type ResearchLogger } from "../runtime/logging";
+import type { FullOutput } from "@mastra/core/stream";
+import type { GroupOwner } from "../groups";
 import { classifyModelError } from "../runtime/model-errors";
 
 export type Role =
@@ -24,7 +26,8 @@ export type Role =
   | "tickets"
   | "classification"
   | "links"
-  | "editor";
+  | "editor"
+  | "location";
 export type GenerateRole = (
   role: Role,
   prompt: string,
@@ -109,18 +112,26 @@ function checkGeneration(
   }
 }
 
+export type RoleConversation = {
+  raw: unknown;
+  schema: z.ZodType;
+  revise?: (
+    input: unknown,
+    tools: ToolsInput,
+    signal: AbortSignal,
+  ) => Promise<RoleExecution>;
+};
+
+export function repairableRole(role: Role): role is GroupOwner {
+  return role !== "research" && role !== "reader" && role !== "editor";
+}
+
 function acceptRoleOutput<T>(
   execution: RoleExecution<T>,
   schema: z.ZodType<T>,
   role: Role,
-  native: boolean,
-  normalizeOutput?: (value: unknown) => unknown,
+  normalized: unknown,
 ) {
-  const raw =
-    role === "general" && native
-      ? (execution.modelResponse!.object as { result?: unknown } | null)?.result
-      : execution.modelResponse!.object;
-  const normalized = normalizeOutput ? normalizeOutput(raw) : raw;
   const parsed = schema.safeParse(normalized);
   if (!parsed.success) {
     execution.errors.push({
@@ -137,7 +148,7 @@ function acceptRoleOutput<T>(
   }
 }
 
-export async function invokeRole<T>(options: {
+type RoleInvocation<T> = {
   role: Role;
   version: string;
   instructions: string;
@@ -154,7 +165,175 @@ export async function invokeRole<T>(options: {
   steps?: number;
   deadline?: number;
   outputTokens?: number;
-}): Promise<RoleExecution<T>> {
+  capture?: (role: GroupOwner, conversation: RoleConversation) => void;
+  messages?: FullOutput["messages"];
+};
+
+async function generateNativeReply<T>(
+  options: RoleInvocation<T>,
+  runtime: Mastra,
+  prompt: string,
+  signal: AbortSignal,
+  execution: RoleExecution<T>,
+): Promise<FullOutput["messages"] | undefined> {
+  const { role, budget, config, tracing } = options;
+  let providerError: unknown;
+  let unavailableAttempts = 0;
+  let startedSteps = 0;
+  let modelLog = tracing?.log?.child({ stage: role, step: 0, attempt: 0 });
+  const ordinarySteps = options.steps ?? 1;
+  const wireSchema =
+    role === "general"
+      ? z.strictObject({ result: options.schema })
+      : options.schema;
+  const { model, instructions, providerOptions } = createResearchModelOptions(
+    config,
+    options,
+  );
+  const agent = new Agent({
+    id: `festival-${role}`,
+    name: `Festival ${role}`,
+    instructions,
+    model,
+    tools: options.tools,
+    errorProcessorDefaults: false,
+    maxProcessorRetries: MAX_PROVIDER_UNAVAILABLE_RETRIES,
+    errorProcessors: [
+      providerUnavailableRetry(
+        budget,
+        () => {
+          unavailableAttempts += 1;
+          startedSteps -= 1;
+        },
+        tracing?.log,
+      ),
+    ],
+  });
+  runtime.addAgent(agent, `festival-${role}`);
+  tracing?.observability.setLogger({ logger: tracing.logger });
+  const generated = await agent.generate(
+    options.messages
+      ? [...options.messages, { role: "user", content: prompt }]
+      : prompt,
+    {
+      runId: tracing?.options.metadata.runId,
+      tracingOptions: tracing?.options,
+      tracingContext: tracing?.root ? { currentSpan: tracing.root } : undefined,
+      structuredOutput: {
+        schema: modelOutputSchema(wireSchema),
+        errorStrategy: "warn",
+        logger: noopLogger,
+      },
+      maxSteps: ordinarySteps + MAX_PROVIDER_UNAVAILABLE_RETRIES,
+      stopWhen: ({ steps }: { steps: unknown[] }) =>
+        steps.length - unavailableAttempts >= ordinarySteps,
+      toolCallConcurrency: { limit: 3, strategy: "called" },
+      providerOptions,
+      modelSettings: {
+        maxOutputTokens:
+          options.outputTokens ?? budget.limits.modelOutputTokens,
+        maxRetries: 0,
+        timeout: {
+          totalMs: Math.max(
+            1,
+            (options.deadline ?? budget.deadline) - Date.now(),
+          ),
+        },
+      },
+      abortSignal: signal,
+      onError: ({ error }) => {
+        providerError = error;
+      },
+      onStepFinish: (step) => logStep(modelLog, step),
+      prepareStep: () => {
+        signal.throwIfAborted();
+        budget.consumeModelCall();
+        startedSteps += 1;
+        modelLog = tracing?.log?.child({
+          stage: role,
+          step: startedSteps,
+          attempt: startedSteps + unavailableAttempts,
+        });
+        modelLog?.info("Model step started", {
+          model: config.model,
+          reasoningEffort: config.reasoningEffort,
+          serviceTier: config.serviceTier,
+          outputAllowance:
+            options.outputTokens ?? budget.limits.modelOutputTokens,
+          remaining: budget.remaining(),
+        });
+        return startedSteps >= ordinarySteps
+          ? { toolChoice: "none", activeTools: [] }
+          : undefined;
+      },
+    },
+  );
+  execution.modelResponse = {
+    text: generated.text ?? null,
+    object:
+      repairableRole(role) && generated.finishReason === "stop"
+        ? completedObject(generated)
+        : (generated.object ?? null),
+  };
+  checkGeneration(generated, providerError, startedSteps, ordinarySteps);
+  if (repairableRole(role) && generated.finishReason !== "stop") {
+    throw new Error(
+      `The ${role} response did not finish: ${generated.finishReason}`,
+    );
+  }
+  if (generated.finishReason === "stop" && generated.messages.length) {
+    return generated.messages;
+  }
+}
+
+function acceptCompletedReply<T>(
+  options: RoleInvocation<T>,
+  execution: RoleExecution<T>,
+  messages: FullOutput["messages"] | undefined,
+) {
+  const { role } = options;
+  const object = execution.modelResponse?.object;
+  const raw =
+    role === "general" && !options.generate
+      ? (object as { result?: unknown } | null)?.result
+      : object;
+  const normalized = options.normalizeOutput
+    ? options.normalizeOutput(raw)
+    : raw;
+  if (
+    repairableRole(role) &&
+    normalized != null &&
+    (options.generate || messages)
+  ) {
+    const history = messages;
+    options.capture?.(role, {
+      raw: normalized,
+      schema: options.schema,
+      ...(history && {
+        revise: (input, tools, signal) =>
+          invokeRole({
+            ...options,
+            input,
+            tools,
+            signal,
+            steps: 6,
+            messages: history,
+            capture: undefined,
+          }),
+      }),
+    });
+  }
+  if (options.messages && normalized != null) {
+    execution.output = normalized as T;
+    execution.status = "success";
+  } else {
+    acceptRoleOutput(execution, options.schema, role, normalized);
+  }
+}
+
+export async function invokeRole<T>(
+  options: RoleInvocation<T>,
+): Promise<RoleExecution<T>> {
   const { role, budget, config, tracing } = options;
   const started = Date.now();
   const execution: RoleExecution<T> = {
@@ -166,11 +345,7 @@ export async function invokeRole<T>(options: {
     durationMs: 0,
   };
   let runtime: Mastra | undefined;
-  let providerError: unknown;
-  let unavailableAttempts = 0;
-  let startedSteps = 0;
-  let modelLog = tracing?.log?.child({ stage: role, step: 0, attempt: 0 });
-  const ordinarySteps = options.steps ?? 1;
+  let messages: FullOutput["messages"] | undefined;
   try {
     budget.assertTime();
     const signal = AbortSignal.any([
@@ -184,10 +359,6 @@ export async function invokeRole<T>(options: {
     if (prompt.length > 400000) {
       throw new ResearchLimitError("context");
     }
-    const wireSchema =
-      role === "general"
-        ? z.strictObject({ result: options.schema })
-        : options.schema;
     if (options.generate) {
       budget.consumeModelCall();
       const raw = await options.generate(role, prompt, {
@@ -197,100 +368,19 @@ export async function invokeRole<T>(options: {
       });
       execution.modelResponse = { text: null, object: raw ?? null };
     } else {
-      const { model, instructions, providerOptions } =
-        createResearchModelOptions(config, options);
-      const agent = new Agent({
-        id: `festival-${role}`,
-        name: `Festival ${role}`,
-        instructions,
-        model,
-        tools: options.tools,
-        errorProcessorDefaults: false,
-        maxProcessorRetries: MAX_PROVIDER_UNAVAILABLE_RETRIES,
-        errorProcessors: [
-          providerUnavailableRetry(
-            budget,
-            () => {
-              unavailableAttempts += 1;
-              startedSteps -= 1;
-            },
-            tracing?.log,
-          ),
-        ],
-      });
       runtime =
         tracing?.mastra ??
         new Mastra({ logger: false, loggerOptions: { export: false } });
-      runtime.addAgent(agent, `festival-${role}`);
-      tracing?.observability.setLogger({ logger: tracing.logger });
-      const generated = await agent.generate(prompt, {
-        runId: tracing?.options.metadata.runId,
-        tracingOptions: tracing?.options,
-        tracingContext: tracing?.root
-          ? { currentSpan: tracing.root }
-          : undefined,
-        structuredOutput: {
-          schema: modelOutputSchema(wireSchema),
-          errorStrategy: "warn",
-          logger: noopLogger,
-        },
-        maxSteps: ordinarySteps + MAX_PROVIDER_UNAVAILABLE_RETRIES,
-        stopWhen: ({ steps }: { steps: unknown[] }) =>
-          steps.length - unavailableAttempts >= ordinarySteps,
-        toolCallConcurrency: { limit: 3, strategy: "called" },
-        providerOptions,
-        modelSettings: {
-          maxOutputTokens:
-            options.outputTokens ?? budget.limits.modelOutputTokens,
-          maxRetries: 0,
-          timeout: {
-            totalMs: Math.max(
-              1,
-              (options.deadline ?? budget.deadline) - Date.now(),
-            ),
-          },
-        },
-        abortSignal: signal,
-        onError: ({ error }) => {
-          providerError = error;
-        },
-        onStepFinish: (step) => logStep(modelLog, step),
-        prepareStep: () => {
-          signal.throwIfAborted();
-          budget.consumeModelCall();
-          startedSteps += 1;
-          modelLog = tracing?.log?.child({
-            stage: role,
-            step: startedSteps,
-            attempt: startedSteps + unavailableAttempts,
-          });
-          modelLog?.info("Model step started", {
-            model: config.model,
-            reasoningEffort: config.reasoningEffort,
-            serviceTier: config.serviceTier,
-            outputAllowance:
-              options.outputTokens ?? budget.limits.modelOutputTokens,
-            remaining: budget.remaining(),
-          });
-          return startedSteps >= ordinarySteps
-            ? { toolChoice: "none", activeTools: [] }
-            : undefined;
-        },
-      });
-      execution.modelResponse = {
-        text: generated.text ?? null,
-        object: generated.object ?? null,
-      };
-      checkGeneration(generated, providerError, startedSteps, ordinarySteps);
+      messages = await generateNativeReply(
+        options,
+        runtime,
+        prompt,
+        signal,
+        execution,
+      );
     }
     signal.throwIfAborted();
-    acceptRoleOutput(
-      execution,
-      options.schema,
-      role,
-      !options.generate,
-      options.normalizeOutput,
-    );
+    acceptCompletedReply(options, execution, messages);
   } catch (error) {
     const classified = classifyModelError(
       error,

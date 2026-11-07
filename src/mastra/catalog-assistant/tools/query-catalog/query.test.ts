@@ -221,12 +221,15 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
       generateRoles: {
         editor: async (role, prompt, context) => {
           const review = (await deps.generateRole(role, prompt, context)) as {
-            event: { target: { decision: string; reason: string } };
+            decisions: import("@/ingestion/review").ReviewDecision[];
           };
-          review.event.target = {
-            decision: "reject",
-            reason: "Creation was declined because identity is unresolved.",
-          };
+          Object.assign(
+            review.decisions.find(({ path }) => path === "event.target")!,
+            {
+              decision: "reject",
+              note: "Creation was declined because identity is unresolved.",
+            },
+          );
           return review;
         },
       },
@@ -362,6 +365,7 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
     outcome: "failed",
     editorRejected: 1,
     editorItemDecision: "approve",
+    editorItemReason: "Explicit fixture review",
     editorTargetDecision: "reject",
     editorTargetReason: expect.stringContaining("Creation was declined"),
   });
