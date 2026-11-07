@@ -1,16 +1,13 @@
 import { createTool } from "@mastra/core/tools";
-import { searchWebInputSchema } from "../../../ingestion/tools/search-web/contracts";
-import { searchWeb } from "../../../ingestion/tools/search-web/search";
+import { searchWebInputSchema } from "../../../../ingestion/tools/search-web/contracts";
+import { searchWeb } from "../../../../ingestion/tools/search-web/search";
 import {
   ResearchLimitError,
   type ResearchBudget,
-} from "../../../ingestion/runtime/budget";
-import { loadResearchModelConfig } from "../../../ingestion/runtime/config";
-import { trustedSearchBudget } from "../../catalog-assistant/execution-context";
-import {
-  startToolLog,
-  type AssistantLogging,
-} from "../../catalog-assistant/logging";
+} from "../../../../ingestion/runtime/budget";
+import { loadResearchModelConfig } from "../../../../ingestion/runtime/config";
+import { trustedSearchBudget } from "../../execution-context";
+import { startToolLog, type AssistantLogging } from "../../logging";
 
 export function createSearchWebTool(logging?: AssistantLogging) {
   return createTool({

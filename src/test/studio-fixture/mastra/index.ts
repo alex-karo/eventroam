@@ -1,5 +1,4 @@
 import { catalogEditApproval } from "../../../mastra/catalog-assistant/edit-approval";
-import { createCatalogResearcher } from "../../../mastra/catalog-researcher";
 import { fixtureRoleForProvider } from "../../ingestion-provider";
 import { fixtureDescriptionRole, fixtureTargets, set } from "../../ingestion";
 import Database from "better-sqlite3";
@@ -196,11 +195,6 @@ export async function createFixtureMastra() {
     {
       workflows: { "catalog-ingestion": workflow },
       agents: {
-        "catalog-researcher": createCatalogResearcher(
-          chat.memory,
-          createAssistantFixtureModel(),
-          logging,
-        ),
         "catalog-assistant": assistant,
       },
       storage,

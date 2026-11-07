@@ -183,7 +183,7 @@ By default, the writer previews changes and rolls them back. The private run row
 
 Changes for one Event are saved together or rolled back together. If one proposed value fails validation, no other proposed change for that Event is saved. A normal update keeps a published record published. Complete eligible drafts can publish; incomplete ones stay drafts.
 
-Publication requires an Edition year, complete date pair, country, one `event_type`, and at least one `topic` or `culture` term. Format is optional and can remain unknown. Any valid assigned value in these facets qualifies; venue, locality, region and coordinates are optional. An Event can publish through a historical Edition without an announced next-year Edition. A new undated Edition stays a draft.
+Use the [publication spec](../openspec/specs/catalog/publication/spec.md) to check why an Edition can publish or must stay a draft.
 
 ## Review the report
 
@@ -205,25 +205,19 @@ Reports and explanations remain in private run history. Public details expose on
 
 Reports contain no application token or cost totals and no usage-completeness flag. `report.budget` holds search, page, model-call, elapsed-time and remaining-limit counters.
 
-The private run table keeps identities, status, duration and the report JSON; the accounting migration removes its five token/cost columns and preserves historical rows and JSON. Current consumers reject unsupported report versions. Inspect available token and estimated cost metrics in Mastra Observability; absence is unknown, not zero.
+Inspect available token and estimated cost metrics in Mastra Observability. Treat missing metrics as unknown.
 
 Lifecycle status (`running`, `completed`, `failed`) is separate from research status and catalog outcome. Partial/no-op and skipped attempts complete; research, editor, writer, or unexpected workflow failures finalize failed.
 
-A late `workflow_failed` preserves committed outcomes and known accounting, but exits nonzero.
+A late `workflow_failed` exits nonzero. Use the saved report and audit history to check for committed changes.
 
-A start-write failure aborts before work; a finalization failure reports `run_persistence_failed` with runId/available result and exits nonzero without undoing commits or replaying research. Other refresh targets continue. Optional report-file failure does not change the finalized row.
+A start-write failure aborts before research. A finalization failure reports `run_persistence_failed` with the run ID and any available result. The command exits nonzero. Earlier commits remain and other refresh targets continue.
 
 Abrupt interruption may leave a running row with null report, finish time, and final statistics, even after a catalog commit. That means completion is unknown. A rerun researches current state with a new runId and does not alter the earlier row. Event association is nullable and survives catalog deletion; use report operations’ `operationKey` to correlate saved audit changes.
 
 ## Evaluate ingestion
 
-`pnpm run catalog:eval` runs five main cases once against fixed pages, searches, and geocoding responses. Each attempt starts from a fresh seed and applies the normal Research, Editor, Location, and writer flow in a disposable catalog. The owner's catalog is not changed. `--all` also runs the targeted regressions. Use `--group regression/classification` to check Edition categories and both festival descriptions directly.
-
-Main results show required completeness, additional completeness, no checked errors, and scenario success. Missing additional facts lower completeness; wrong checked facts fail the case. A dimension with no expected facts is N/A. Gold data stays outside model input.
-
-Results and diagnostics are saved as Mastra experiments in `data/mastra-evals.sqlite`, separate from catalog and observability storage. Inspect and compare them in Studio. Workflow output retains one real v7 report; isolated Location output retains its actual execution without an ingestion report.
-
-Use `--model X` to select X for all eight agents, including isolated Location. Compare runs with the same cases, repeat count, fixtures, and scorer revision. See the [eval guide](ingestion-evals.md#run-evals) for selection, fact units, storage paths, and comparison limits, and the [evaluation spec](../openspec/specs/operations/ingestion-evaluation/spec.md) for the contract.
+Use the [eval guide](ingestion-evals.md#run-evals) to test ingestion against fixed sources in a disposable catalog. Run cases from the CLI and inspect saved experiments in Studio.
 
 ## Inspect local agent traces
 
@@ -265,12 +259,4 @@ A map page that repeats a supplied pin, or a reverse lookup that names its city,
 
 ## Studio catalog chat
 
-Open Agents → `catalog-researcher` to search for new Events, submit up to 200 complete descriptions for add, and read status by batch ID. Search alone starts no jobs. A clear add request permits apply. Use `catalog-assistant` and `cancel_batch` for explicit cancellation of pending add or refresh jobs. The researcher has no cancellation tool.
-
-Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview or update up to 200 Events, or explain a saved ingestion result. Reads and explanations do not start ingestion. An explicit update request permits apply; preview uses dryRun true. Unclear targets or write intent require clarification.
-
-Chat submits one fixed selection per owner message and returns a batch ID before research. The Studio server uses existing ingestion rules, one queued Event at a time. Scope defaults to full; current is also supported. Republish stays off. Batch cancellation affects only pending jobs. Closing a browser tab leaves accepted work running. Stopping the Studio server cancels active work and preserves the queue. After Studio server restart, pending and saved running jobs start from the beginning with fresh attempts; earlier evidence and commits remain. See [Background execution](ingestion-tools.md#background-execution) for execution and inspection.
-
-The assistant loads catalog schema, report guidance, and SQL examples from the [catalog-sql skill](../src/mastra/catalog-assistant/skills/catalog-sql/SKILL.md). It reads current facts and private reports through read-only SQL. Results are limited to 200 rows and 64 KiB and identify truncation. SQL runs inside Studio without a hard timeout or active-query cancellation; costly queries can block other work. Report analysis uses saved evidence and is not a new source check.
-
-Conversation history uses separate persistent storage. See the [ingestion tools](ingestion-tools.md#studio-catalog-assistant) for storage and offline fixture commands, and the [assistant contract](../openspec/specs/catalog/studio-assistant/spec.md) for execution rules.
+Use the [catalog assistant](ingestion-tools.md#studio-catalog-assistant) to find and add Events, refresh saved Events, and inspect reports. See [Background execution](ingestion-tools.md#background-execution) for batch progress and cancellation.

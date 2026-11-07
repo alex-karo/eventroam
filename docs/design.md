@@ -10,7 +10,7 @@ tags: [design, website]
 
 Signal is the selected design direction for Eventroam. It combines a precise technical layout with the character of music and travel. Visitors use the catalog to compare events by date and place, then read event details.
 
-This file records the design decision. The catalog and project presentation use these shared rules. Sizes and color pairs below are implementation targets; check them in the browser when applying the design. Current OpenSpec specs own behavior. Use the standard change workflow for behavior changes.
+The catalog and project presentation use these shared rules. Check sizes and color pairs in the browser when you apply the design. Use the [current OpenSpec specs](../openspec/specs/) for behavior and the [change workflow](change-workflow.md#choose-a-workflow) to choose how to make a change.
 
 ## Reference and adaptation
 
@@ -50,7 +50,7 @@ Use Space Grotesk for titles, body text, and controls. Use IBM Plex Mono for sho
 
 | Role                   | Target                                                         |
 | ---------------------- | -------------------------------------------------------------- |
-| Edition page title     | 40–56 px desktop; 28–36 px mobile; weight 500; line height 1.1 |
+| Edition page title     | 24–44 px; weight 500; line height 1.15                        |
 | Section or panel title | 20–24 px; weight 500; line height 1.25                         |
 | List event name        | 17–19 px; weight 600; line height 1.3                          |
 | Body and form input    | 16 px; weight 400; line height 1.5                             |
@@ -62,7 +62,7 @@ Use sentence case. Uppercase is limited to short month labels. Keep long names i
 
 ## Space and shape
 
-Use a 4 px spacing unit: 4, 8, 12, 16, 24, 32, 48, and 64 px. Use 16–24 px panel padding and 16 px list-row padding as starting values.
+Use a 4 px spacing unit: 4, 8, 12, 16, 24, 32, 48, and 64 px. Start with 16–24 px panel padding. Use the [result row guidance](#result-row-and-date-block) for discovery rows.
 
 Use 4 px corners on buttons and date blocks, 8 px on search fields, and up to 12 px on floating panels. The mobile results sheet uses 16 px top corners. Use circles for map markers and compact icon controls. Keep borders at 1 px. Separate rows with lines instead of placing each row in a raised card.
 
@@ -70,22 +70,13 @@ Only floating panels need a soft shadow: start with `0 12px 32px rgb(21 21 34 / 
 
 ## Page layout
 
-Discovery uses the map as its main workspace. On desktop, a 360 px results panel floats on the left. Search and filters sit above the map, with the month strip near the bottom. On tablets, use a 300 px results panel and place search and filters across the top.
-
-```text
-[ Dark header: Eventroam | scope                         ]
-[ Results panel        | Search and filter controls      ]
-[ Date | Event name ↗  |                                 ]
-[      | Place, facts  | Map and selected preview         ]
-[                 Month strip                           ]
-[ Result counts          Privacy policy | About project ]
-```
+Place the discovery controls above the list and map. Use the [discovery spec](../openspec/specs/website/discovery/spec.md) for the controls and result views. On desktop, start with a 360 px results panel on the left. On tablets, start with 300 px.
 
 Keep the header compact, approximately 64 px on desktop. Keep filter access visible and prevent panels from covering required map attribution. Allow the list and panels to scroll within their available space. Hide footer result counts on mobile; keep the footer links visible.
 
-On small screens, place search, filters, and months above the map. Show results in a bottom sheet. Its Expand list and Show map controls change the sheet height; both the map and results remain visible. Keep the footer below the workspace. Stack fields when they no longer fit. Allow the header to grow when text wraps. Use compact 32 px month buttons. Keep primary controls at least 44 px high for touch. Check 320, 390, 768, and 1440 px widths, plus 200% zoom. No page-level horizontal scroll is acceptable.
+On small screens, show results in a bottom sheet and keep the footer below the workspace. Stack fields when they no longer fit. Allow the header to grow when text wraps. Use compact 32 px month buttons. Keep primary controls at least 44 px high for touch. Check 320, 390, 768, and 1440 px widths, plus 200% zoom. No page-level horizontal scroll is acceptable.
 
-Event and edition pages use the same header, fonts, and controls. Place the event link above the edition title. Open festival and edition links in new tabs. Do not show Back to results; the discovery tab keeps the search context. Group dates, place, tickets, and official links into clear sections. Use a readable content width near 1120 px, with body text near 65 characters per line. The root directory uses the same system at a smaller content width.
+Event and edition pages use the same header, fonts, and controls. Place the Festival overview link below the history list in Other editions. On Edition pages, keep the date block beside the title and put known classification tags below the title. On wide screens, put dates, status, place, known short festival text, and estimated size on the left of the opening area. Put base price, its conditions, and ticket and official-site links on the right. Stack these areas in the same reading order on phones. Give one ticket link primary emphasis for upcoming Editions that are not cancelled or postponed; otherwise prefer the official site. Keep other links below the detail sections. Put full text, known ticket categories, full address, map, and history below the opening area. Let long or enlarged text increase the page height. Do not crop facts or controls to fit one screen. Use a readable content width near 1120 px, with body text near 65 characters per line. The root directory uses the same system at a smaller content width.
 
 ## Components and states
 
@@ -103,7 +94,7 @@ Use Lavender for the selected row, with a Violet side rule and a pressed state o
 
 Primary action: Ink with white text. Secondary action: Surface with a Control border. Selected option: Lavender with Ink text and a Violet border. Preserve visible focus on all states. Disabled controls must still be readable and must expose their disabled state.
 
-Keep input labels above fields. Show pending and applied filter values according to the current discovery contract. Applied chips contain a readable value and a named remove action. Long values wrap. Preserve the existing Apply and Clear actions and their behavior.
+Keep input labels above fields. Keep long values readable in the filter pickers. Follow the [discovery spec](../openspec/specs/website/discovery/spec.md) for pending and applied values, button summaries, and filter actions.
 
 ### Map and preview
 
@@ -132,7 +123,7 @@ Use simple English in interface text. Keep the same action name across controls 
 Before accepting a UI change, check the following in the built-in Browser:
 
 - Discovery, filter panel, selected preview, event page, and edition page share the same tokens.
-- Long names, wrapped filter chips, missing facts, provisional dates, and empty results remain clear.
+- Long names, filter summaries, missing facts, provisional dates, and empty results remain clear.
 - Selection agrees between the row and map marker. Open page navigates separately.
 - Keyboard focus, touch targets, contrast, zoom, and reduced motion work.
 - Mobile panels fit the available height and leave a visible close or recovery action.

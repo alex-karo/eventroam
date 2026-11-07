@@ -64,17 +64,15 @@ In Form view, choose `add` and replace the contents of the text box under Input 
 
 Preview is the default. Inspect intermediate results and the final report in the workflow view. Use native cancellation while a run is active; after interruption, start a fresh run. Per-step execution, resume, restart, and time travel are unsupported. See the [workflow steps](ingestion-process.md#workflow-steps) for the shared CLI/Studio lifecycle.
 
-## Studio catalog researcher
-
-Open Agents → `catalog-researcher` to find possible Events, add a selected group, or read add progress by batch ID. `search_web({query})` uses Exa through OpenRouter with a shared search allowance and deadline for each chat execution. Search needs an OpenRouter key when called. Missing search credentials do not block job submission or saved status reads when chat uses another provider.
-
-`add_events({inputs, dryRun?})` takes 1 to 200 complete descriptions, one per intended Event. Group several clues for the same Event and keep the full original note. A clear add request permits apply. Preview uses dryRun true and is the default. Search alone starts no jobs. Acceptance returns only batchId and acceptedCount. Use read-only query_catalog for progress and saved attempts. The researcher has no cancellation tool. Use catalog-assistant and the batch ID to cancel pending work.
-
-All supplied text is search leads. The collector receives the full note, including line breaks and a final URL. Notes can exceed 500 characters and remain in private job and run input. A processing limit produces an explicit failure, without truncation or partial application. The verified Event name comes from inspected sources.
-
 ## Studio catalog assistant
 
-Open Agents → `catalog-assistant` in Studio. Ask it to select Events, preview or run a refresh, correct saved fields, or explain saved results. Follow-up references use the selected conversation. An explicit refresh request permits ingestion without a second confirmation. A direct edit always needs approval on its card. Unclear targets or write intent require clarification.
+Open Agents → `catalog-assistant` in Studio. Ask it to find or add Events, select saved Events, preview or run a refresh, correct saved fields, or explain saved results. Follow-up references use the selected conversation. An explicit refresh request permits ingestion without a second confirmation. A direct edit always needs approval on its card. Unclear targets or write intent require clarification.
+
+`search_web({query})` uses Exa through OpenRouter with a shared search allowance and deadline for each chat execution. Search needs an OpenRouter key when called. Missing search credentials do not block job submission or saved status reads when chat uses another provider.
+
+`add_events({inputs, dryRun?})` takes 1 to 200 complete descriptions, one per intended Event. Group several clues for the same Event and keep the full original note. A clear add request permits apply. Preview uses dryRun true and is the default. Search alone starts no jobs. Acceptance returns only batchId and acceptedCount. Use read-only query_catalog for progress and saved attempts. Use cancel_batch and the batch ID to cancel pending work in the same conversation.
+
+All supplied text is search leads. The collector receives the full note, including line breaks and a final URL. Notes can exceed 500 characters and remain in private job and run input. A processing limit produces an explicit failure, without truncation or partial application. The verified Event name comes from inspected sources.
 
 Use the ingestion and read tools `query_catalog({sql, parameters?})`, `refresh_events({eventIds, scope?, dryRun?})`, and `cancel_batch({batchId})` to work with saved data and jobs. The assistant loads schema and report guidance from the catalog-sql filesystem skill through native Mastra skill tools. SQL reads need a migrated catalog but no provider key.
 
@@ -86,7 +84,7 @@ For direct edits, the assistant shows the old and new values and the audit mode 
 - “Replace the short description of Example Festival with this text. Do not add a catalog audit entry.”
 - “Rename these links using the same label pattern.” If one target fails, review the reason in chat and ask for a new proposal for that target.
 
-The assistant records direct edits in the catalog audit table by default. It can omit that entry when you ask. A published Event slug change keeps its public URL aliases in either mode. Web search is available with OpenRouter. A search by itself does not change the catalog or start jobs.
+The assistant records direct edits in the catalog audit table by default. It can omit that entry when you ask. A published Event slug change keeps its public URL aliases in either mode. Web search uses an OpenRouter key, including when chat uses another provider. Add and refresh share one selection limit per owner message. A search by itself does not change the catalog or start jobs.
 
 Submission and inspection need no ingestion key. Studio uses its OpenRouter settings and credentials when it executes a job. Chat generation still needs its selected provider credentials.
 
@@ -94,13 +92,15 @@ Conversation memory is bounded; older messages can leave the active context whil
 
 `CATALOG_CHAT_DATABASE_PATH` selects a separate SQLite file, default `data/mastra-chat.sqlite`. The local launcher resolves this path before Mastra changes its working directory. Retain it across restart for conversation history. The file and its SQLite sidecars must be separate from the catalog, workflow history, and DuckDB files. SDK shutdown closes all storage providers. Chat history can contain private catalog and report text.
 
-Use `pnpm exec tsx src/test/studio-fixture.ts success` for an offline Studio fixture. It uses temporary storage and a deterministic provider, with no paid research. Its chat model tests the tool protocol, not production model reasoning. Both agents are registered in this fixture. See the [chat limits and report examples](ingestion-process.md#studio-catalog-chat).
+Use `pnpm exec tsx src/test/studio-fixture.ts success` for an offline Studio fixture. It uses temporary storage and a deterministic provider, with no paid research. Its chat model tests the assistant's tool protocol.
+
+Use the [catalog SQL skill](../src/mastra/catalog-assistant/skills/catalog-sql/SKILL.md) for report queries. Costly queries can block other Studio work even if they return few rows. Studio runs them without a hard timeout or active-query cancellation. Report analysis uses saved evidence.
 
 ## Background execution
 
 Studio processes accepted jobs in its own server process. Run `pnpm run catalog:studio` locally or `pnpm run studio:start` after a production build. The catalog must already exist and be migrated. Startup and submission do not create or migrate it. Run one Studio server per catalog; there is no processor lock.
 
-Chat submits a fixed selection of 1–200 distinct existing Event IDs in one transaction. Preview is the default; explicit update intent selects apply. Scope defaults to full; republish stays off. The response contains `batchId` and `acceptedCount`. Acceptance is not ingestion completion. Each Event gets one private `ingestion_jobs` row. Jobs store settings, queue state, and creation time. Attempts, timing, reports, and errors remain in `ingestion_runs`. Its nullable `job_id` links queued attempts; direct runs have no job association.
+Chat saves a fixed batch of 1–200 items in one transaction. A refresh batch contains distinct existing Event IDs. An add batch contains complete notes. Preview is the default. Explicit write intent selects apply. Refresh scope defaults to full and republish stays off. The response contains `batchId` and `acceptedCount`. Check the saved attempts for results. Each item gets one private `ingestion_jobs` row. Jobs store settings, queue state, and creation time. Attempts, timing, reports, and errors remain in `ingestion_runs`. Its nullable `job_id` links queued attempts.
 
 Each job stores an explicit `mode` and a JSON value in `input`. Add jobs store the full note as a string. Refresh jobs store an object with `eventId` and `scope`. One batch has one operation and fixed preview settings. Submission validates the entire selection and saves it atomically.
 
@@ -110,7 +110,7 @@ Queue states are pending, running, done, and cancelled. Done means processing en
 
 Use `query_catalog` to aggregate the full batch by job status before reading bounded details. Join runs by `job_id`, keeping every attempt distinct. Count jobs before joining: a restart can give one job several attempts. SQL keeps its 200-row and 64 KiB limits. Report truncated or missing evidence. Stored running state does not establish queue health.
 
-If the acceptance response is lost, find recent batches through catalog SQL using the available time, Event IDs, and settings. Logs are not required. Ask for clarification if matches are ambiguous or evidence is incomplete. Do not automatically submit again. One validated selection consumes the current assistant execution even if its transaction fails; invalid input does not consume it.
+If the acceptance response is lost, find recent batches through catalog SQL. Match the time, mode, settings, and Event IDs or add note excerpts. Ask for clarification if matches are ambiguous or evidence is incomplete. Do not automatically submit again. One validated selection consumes the current assistant execution even if its transaction fails. Invalid input does not consume it.
 
 An explicit cancellation request uses `cancel_batch` for a resolved batch. It cancels pending jobs together. Running and terminal jobs remain unchanged, including interrupted running jobs waiting for fresh execution. Cancelling chat or closing a browser tab does not cancel accepted jobs.
 
