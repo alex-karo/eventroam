@@ -41,47 +41,38 @@ function setup() {
 
 test("changed values return field paths and corrected arguments before approval", async () => {
   const { input, preview, offer } = setup();
-  input.targets[0].changes.canonicalName.after = " New name ";
-  const effective = structuredClone(input);
-  effective.targets[0].changes.canonicalName.after = "New name";
-  const result = await preview(input);
-  expect(result).toMatchObject({
+  const [target] = input.targets;
+  const effective = {
+    ...input,
+    targets: [
+      {
+        ...target,
+        changes: {
+          ...target.changes,
+          shortDescription: { before: null, after: null },
+        },
+      },
+    ],
+  };
+  const raw = structuredClone(effective);
+  raw.targets[0].changes.canonicalName.after = " New name ";
+  Object.assign(raw.targets[0].changes, { aliases: null });
+
+  expect(await preview(raw)).toEqual({
     proceed: false,
     output: {
       code: "edit_input_changed",
-      changedPaths: ["targets.0.changes.canonicalName.after"],
+      error: expect.any(String),
+      changedPaths: [
+        "targets.0.changes.canonicalName.after",
+        "targets.0.changes.aliases",
+      ],
       effectiveInput: effective,
     },
   });
   expect(offer).not.toHaveBeenCalled();
   expect(await preview(effective)).toBeUndefined();
   expect(offer).toHaveBeenCalledOnce();
-});
-
-test("a removed optional null is reported without removing nullable field values", async () => {
-  const { input, preview, offer } = setup();
-  const raw = structuredClone(input);
-  Object.assign(raw.targets[0].changes, {
-    aliases: null,
-    shortDescription: { before: null, after: null },
-  });
-  const result = await preview(raw);
-  expect(result).toMatchObject({
-    proceed: false,
-    output: {
-      code: "edit_input_changed",
-      changedPaths: ["targets.0.changes.aliases"],
-      effectiveInput: {
-        targets: [
-          {
-            links: null,
-            changes: { shortDescription: { before: null, after: null } },
-          },
-        ],
-      },
-    },
-  });
-  expect(offer).not.toHaveBeenCalled();
 });
 
 test("empty link lists explain how to leave links unchanged", () => {

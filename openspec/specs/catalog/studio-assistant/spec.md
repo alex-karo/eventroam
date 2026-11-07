@@ -195,7 +195,9 @@ Assistant tools and the job executor SHALL use existing logging controls and sin
 - **THEN** submission and processing keep their normal behavior
 
 ### Requirement: Chat controls jobs explicitly
-The catalog assistant SHALL use query_catalog for job progress and saved attempt evidence. Batch counts SHALL describe the full batch rather than a truncated item result. Stored job state SHALL NOT be treated as proof that the processor is active. An explicit owner request SHALL authorize cancellation of pending jobs in a resolved add or refresh batch through `cancel_batch({batchId})`. Missing or ambiguous batch references SHALL require clarification. Status requests SHALL not start or cancel jobs. Unavailable catalog storage and unknown batches SHALL be stated explicitly.
+For add and refresh status requests, the assistant SHALL use `query_catalog` to read saved jobs by batch ID. It SHALL report full counts by queue state and read item outcomes from associated runs when available. It SHALL distinguish preview from apply, retries from separate jobs, and queue completion from catalog success. Stored job state SHALL NOT be treated as proof that the processor is active. Status requests SHALL start no searches or jobs and SHALL cancel no jobs. The assistant SHALL distinguish an unknown batch from unavailable catalog storage.
+
+An explicit owner request SHALL authorize cancellation of pending jobs in a resolved add or refresh batch through `cancel_batch({batchId})`. Missing or ambiguous batch references SHALL require clarification.
 
 #### Scenario: Owner asks for progress
 - **WHEN** the owner asks how a submitted batch is progressing
@@ -215,6 +217,17 @@ The catalog assistant SHALL use query_catalog for job progress and saved attempt
 #### Scenario: Batch does not exist
 - **WHEN** no stored jobs match the resolved batch ID
 - **THEN** the assistant states that no matching jobs were found without inventing a submission history
+- **AND** it distinguishes this result from unavailable storage
+
+#### Scenario: Mixed add batch results
+- **WHEN** one add is pending, one finished as a duplicate, and one finished without a report
+- **THEN** the response shows one pending and two done
+- **AND** it can identify each item by position, report the matched Event ID when available, and state which result is unavailable
+
+#### Scenario: An add note exceeds the SQL result size
+- **WHEN** a stored note is larger than the SQL output limit
+- **THEN** counts, item position, and available outcomes remain readable without returning the full note
+- **AND** the assistant can retrieve a short excerpt on request
 
 ### Requirement: Missing batch references use saved job evidence
 When a submission response is lost, the assistant SHALL use bounded catalog SQL reads to find saved batches by available time, complete add inputs or Event IDs, and settings. Discovery SHALL work without logs and SHALL NOT submit jobs. Ambiguous candidates, truncated results, or missing evidence SHALL require clarification before selecting a batch.
@@ -249,24 +262,6 @@ The assistant SHALL submit one add job per intended Event. Each input SHALL keep
 #### Scenario: The intended grouping is unclear
 - **WHEN** the assistant cannot tell whether two links describe one or two requested Events
 - **THEN** it asks the owner before submitting any jobs
-
-### Requirement: The assistant reads add progress by batch ID
-On a status request, the assistant SHALL read saved jobs for the batch ID. It SHALL report full counts by queue state and retrieve individual item outcomes from associated runs when available. It SHALL distinguish preview from apply, retries from separate jobs, and queue completion from catalog success. Inspection SHALL start no search or job.
-
-#### Scenario: Mixed batch results
-- **WHEN** one add is pending, one finished as a duplicate, and one finished without a report
-- **THEN** the response shows one pending and two done
-- **AND** it can identify each item by position, report the matched Event ID when available, and state which result is unavailable
-
-#### Scenario: Unknown batch
-- **WHEN** the requested batch ID has no jobs
-- **THEN** the assistant reports that the batch was not found
-- **AND** it distinguishes this result from unavailable storage
-
-#### Scenario: A note exceeds the SQL result size
-- **WHEN** a stored note is larger than the SQL output limit
-- **THEN** counts, item position, and available outcomes remain readable without returning the full note
-- **AND** the assistant can retrieve a short excerpt on request
 
 ### Requirement: Add status identifies what happened in the catalog
 When preview shows a new Event, the assistant SHALL describe the creation as proposed. It SHALL report creation only for a confirmed applied write. It SHALL label an item as already in the catalog only when the evidence confirms a duplicate skip. A candidate ID, temporary preview ID, or queue state alone SHALL NOT establish a catalog result.
