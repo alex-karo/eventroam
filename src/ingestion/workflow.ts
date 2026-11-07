@@ -51,6 +51,7 @@ import { assertLocationPreviousPoints } from "./location/donor-guard";
 import {
   assertRefreshBaseline,
   countryBaselineConflict,
+  editionEligibility,
 } from "./research/guards";
 import { Mastra } from "@mastra/core/mastra";
 import type { WorkflowsStorage } from "@mastra/core/storage";
@@ -551,25 +552,19 @@ export function createCatalogIngestionWorkflow(
         data.outcome =
           data.researchValidation.status === "skip" ? "skipped" : "failed";
       } else {
-        const targets = data.researchValidation.value;
-        const hasEdition =
-          targets.previousEdition ||
-          targets.currentOrNextEdition ||
-          saved?.editions.some(
-            ({ scheduleStatus }) =>
-              scheduleStatus === "scheduled" || scheduleStatus === "announced",
-          );
-        if (!hasEdition) {
-          data.outcome = "skipped";
+        const eligibility = editionEligibility(
+          data.researchValidation.value,
+          saved?.editions,
+          owned.input.scope,
+        );
+        if (eligibility !== "continue") {
+          data.outcome = eligibility;
+        }
+        if (eligibility === "skipped") {
           data.unresolved.push({
             field: "edition",
             message: "Insufficient information about editions",
           });
-        } else if (
-          owned.input.scope === "current" &&
-          !targets.currentOrNextEdition
-        ) {
-          data.outcome = "unchanged";
         }
       }
       return { execution: data.general, targets: data.researchValidation };
@@ -897,10 +892,8 @@ export function createCatalogIngestionWorkflow(
             owned,
             data,
             {
-              ...originalTargets,
-              ...general,
               ...stageDiagnostics(data.researchValidation!),
-              unresolved: general.unresolved,
+              ...general,
             },
             originalTargets,
           );

@@ -15,6 +15,7 @@ import {
   type ProposalGroup,
 } from "./groups";
 import { editionSlotNames, type ResearchError } from "./research/contracts";
+import { editionEligibility } from "./research/guards";
 import {
   checkRefreshCountries,
   checkedClassification,
@@ -212,16 +213,18 @@ export class ProposalRepairs {
     }
   }
 
-  private structuralIssues(
+  private inspect(
     owner: GroupOwner,
     raw: unknown,
     groups: ProposalGroup[],
+    ctx: Context,
+    available: Evidence[],
+    only?: ReadonlySet<string>,
   ) {
-    const result = this.replies.get(owner)!.schema.safeParse(raw);
-    if (result.success) {
-      return [];
-    }
-    return result.error.issues.map((issue) => {
+    this.requireReferences(owner, raw, ctx, available);
+    this.requireAssignment(owner, raw, ctx);
+    const parsed = this.replies.get(owner)!.schema.safeParse(raw);
+    const issues = (parsed.error?.issues ?? []).map<GroupIssue>((issue) => {
       const path = issue.path.join(".");
       const group = groups.find(
         ({ rawPath }) => path === rawPath || path.startsWith(rawPath + "."),
@@ -237,19 +240,6 @@ export class ProposalRepairs {
       }
       return { group, rule: `${path}:${issue.code} ${issue.message}` };
     });
-  }
-
-  private inspect(
-    owner: GroupOwner,
-    raw: unknown,
-    groups: ProposalGroup[],
-    ctx: Context,
-    available: Evidence[],
-    only?: ReadonlySet<string>,
-  ): GroupIssue[] {
-    this.requireReferences(owner, raw, ctx, available);
-    this.requireAssignment(owner, raw, ctx);
-    const issues = this.structuralIssues(owner, raw, groups);
     const relevant = only
       ? groups.filter(({ path }) => only.has(path))
       : groups;
@@ -269,7 +259,12 @@ export class ProposalRepairs {
         issues.push({ group, rule });
       }
     }
-    return only ? issues.filter(({ group }) => only.has(group.path)) : issues;
+    return {
+      parsed,
+      issues: only
+        ? issues.filter(({ group }) => only.has(group.path))
+        : issues,
+    };
   }
 
   private requireAssignment(owner: GroupOwner, raw: unknown, ctx: Context) {
@@ -451,10 +446,11 @@ export class ProposalRepairs {
     data: IngestionData,
     signal: AbortSignal,
   ): Promise<StageResult<Targets & PlanDiagnostics> | undefined> {
-    const raw = this.raw("general");
-    if (!raw) {
+    const reply = this.replies.get("general");
+    if (!reply?.raw) {
       return;
     }
+    const { raw } = reply;
     const ctx = this.context(owned, data, null);
     if (
       festivalCountriesSchema.safeParse(record(raw)?.festivalCountries).success
@@ -473,21 +469,25 @@ export class ProposalRepairs {
       assignedGroups(owned.input.scope, raw as Targets),
       "general",
     );
-    const issues = this.inspect(
+    const inspected = this.inspect(
       "general",
       raw,
       groups,
       ctx,
       ctx.corpus.evidence,
     );
-    const provisional = structuredClone(raw);
-    for (const { group, rule } of issues) {
-      if (/\.(dates|year|scheduleStatus)$/.test(group.path)) {
-        fail(`General temporal target: ${rule}`, group.path);
+    const { issues } = inspected;
+    let parsed = inspected.parsed;
+    if (issues.length) {
+      const provisional = structuredClone(raw);
+      for (const { group, rule } of issues) {
+        if (/\.(dates|year|scheduleStatus)$/.test(group.path)) {
+          fail(`General temporal target: ${rule}`, group.path);
+        }
+        setPath(provisional, group.rawPath, undefined);
       }
-      setPath(provisional, group.rawPath, undefined);
+      parsed = reply.schema.safeParse(provisional);
     }
-    const parsed = this.replies.get("general")!.schema.safeParse(provisional);
     if (!parsed.success) {
       fail("Invalid General target");
     }
@@ -498,20 +498,14 @@ export class ProposalRepairs {
       ctx.corpus,
     );
     if (targets.status !== "continue" || !issues.length) {
-      this.replies.get("general")!.raw = parsed.data;
+      reply.raw = parsed.data;
       return targets;
     }
     const selected = targets.value;
-    // The workflow checks the Edition gate before a return.
     const event = ctxEvent({ ...ctx, targets: selected });
     if (
-      (!selected.previousEdition &&
-        !selected.currentOrNextEdition &&
-        !event?.editions.some(
-          ({ scheduleStatus }) =>
-            scheduleStatus === "scheduled" || scheduleStatus === "announced",
-        )) ||
-      (owned.input.scope === "current" && !selected.currentOrNextEdition)
+      editionEligibility(selected, event?.editions, owned.input.scope) !==
+      "continue"
     ) {
       return targets;
     }
@@ -549,17 +543,20 @@ export class ProposalRepairs {
       "location",
     ] as const;
     for (const owner of specialists) {
-      const raw = this.raw(owner);
-      if (raw) {
-        issues.push(
-          ...this.inspect(
-            owner,
-            raw,
-            ownGroups(groups, owner),
-            ctx,
-            ctx.corpus.evidence,
-          ),
-        );
+      const reply = this.replies.get(owner);
+      if (!reply) {
+        continue;
+      }
+      const { parsed, issues: ownerIssues } = this.inspect(
+        owner,
+        reply.raw,
+        ownGroups(groups, owner),
+        ctx,
+        ctx.corpus.evidence,
+      );
+      issues.push(...ownerIssues);
+      if (!ownerIssues.length && parsed.success) {
+        reply.raw = parsed.data;
       }
     }
     await this.returnGroups(
@@ -569,12 +566,6 @@ export class ProposalRepairs {
       "validation",
       signal,
     );
-    for (const owner of specialists) {
-      const reply = this.replies.get(owner);
-      if (reply) {
-        reply.raw = reply.schema.parse(reply.raw);
-      }
-    }
   }
 
   async afterReview(
@@ -750,7 +741,14 @@ export class ProposalRepairs {
     }
     const available = [...ctx.corpus.evidence, ...this.passages];
     const only = new Set(requests.map(({ group }) => group.path));
-    const issues = this.inspect(owner, revision, groups, ctx, available, only);
+    const { issues } = this.inspect(
+      owner,
+      revision,
+      groups,
+      ctx,
+      available,
+      only,
+    );
     this.requireFixedTargets(owner, revision, ctx, available);
     if (issues.length) {
       this.failIssue(issues[0]);
@@ -764,12 +762,17 @@ export class ProposalRepairs {
       setPath(merged, group.rawPath, value);
       this.mergeQuestions(merged, revision, entry, value == null);
     }
-    const checked = this.inspect(owner, merged, groups, ctx, available);
+    const { parsed, issues: checked } = this.inspect(
+      owner,
+      merged,
+      groups,
+      ctx,
+      available,
+    );
     if (checked.length) {
       this.failIssue(checked[0]);
     }
     this.requireFixedTargets(owner, merged, ctx, available);
-    const parsed = original.schema.safeParse(merged);
     if (!parsed.success) {
       fail(`${owner}: invalid combined reply`, records[0].path);
     }
