@@ -107,7 +107,7 @@ Queue status, mode, JSON input, fixed settings, and all associated run IDs SHALL
 
 #### Scenario: Inspect a batch by ID
 - **WHEN** the owner asks for a batch's status or item details
-- **THEN** Studio agents can use shared SQL queries for counts and details
+- **THEN** the catalog assistant can use SQL queries for counts and details
 - **AND** the details show Event ID and scope for refresh or a short note excerpt for add
 
 #### Scenario: A job has several attempts

@@ -47,13 +47,19 @@ const target = {
   id,
   links: z
     .array(linkEdit)
-    .min(1)
+    .min(
+      1,
+      "To keep links unchanged, omit links or use null. Do not use an empty list.",
+    )
     .max(30)
     .refine(
       (links) => new Set(links.map(({ id }) => id)).size === links.length,
       "Include each link only once",
     )
-    .optional(),
+    .nullish()
+    .describe(
+      "Optional edits to existing links owned by this target. Omit or use null to keep all links unchanged. Field edits do not need links. These are link changes, not source references.",
+    ),
 };
 const editTargetSchema = z
   .discriminatedUnion("kind", [

@@ -3,11 +3,13 @@ import { noopObserve } from "@mastra/core/tools";
 import { RequestContext } from "@mastra/core/request-context";
 import { afterEach, expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
-import { assistantExecutionContext } from "../catalog-assistant/execution-context";
-import { createAddEventsTool } from "./tools/add-events";
-import { createSearchWebTool } from "./tools/search-web";
-import { createQueryCatalogTool } from "../catalog-assistant/tools/query-catalog/tool";
-import { createCancelBatchTool } from "../catalog-assistant/tools/cancel-batch/tool";
+import { assistantExecutionContext } from "./execution-context";
+import { createAddEventsTool } from "./tools/add-events/tool";
+import { createSearchWebTool } from "./tools/search-web/tool";
+import { createQueryCatalogTool } from "./tools/query-catalog/tool";
+import { createRefreshEventsTool } from "./tools/refresh-events/tool";
+import { testFixtures } from "@/test/fixtures";
+import { createCancelBatchTool } from "./tools/cancel-batch/tool";
 
 function context() {
   const requestContext = new RequestContext();
@@ -23,7 +25,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test("add requires host context, shares one selection across parallel calls, and needs no search key", async () => {
+test("add and refresh share one selection across parallel calls; add needs host context but no search key", async () => {
   const db = testDatabase();
   vi.stubEnv("OPENROUTER_API_KEY", "");
   const tool = createAddEventsTool(() => db.path);
@@ -42,7 +44,14 @@ test("add requires host context, shares one selection across parallel calls, and
   ).toMatchObject({ error: "cancelled" });
   const results = await Promise.all([
     tool.execute!({ inputs: ["alpha", "beta"], dryRun: false }, ctx),
-    tool.execute!({ inputs: ["again"], dryRun: true }, ctx),
+    createRefreshEventsTool(() => db.path).execute!(
+      {
+        eventIds: [testFixtures(db.client).event().id],
+        scope: "full",
+        dryRun: true,
+      },
+      ctx,
+    ),
   ]);
   expect(results).toContainEqual({
     ok: true,
@@ -62,7 +71,7 @@ test("add requires host context, shares one selection across parallel calls, and
   ]);
 });
 
-test("search failures and a shared search and time limit create no jobs", async () => {
+test("search keeps its allowance and deadline after resume and creates no jobs", async () => {
   const db = testDatabase();
   const tool = createSearchWebTool();
   const run = (ctx = context()) =>
@@ -76,19 +85,33 @@ test("search failures and a shared search and time limit create no jobs", async 
       Response.json({ choices: [{ message: { annotations: [] } }] }),
     );
   vi.stubGlobal("fetch", fetch);
+  vi.useFakeTimers({ toFake: ["Date"] });
   const ctx = context();
-  for (let i = 0; i < 3; i++) {
-    expect(await run(ctx)).toMatchObject({ ok: true });
+  expect(await run(ctx)).toMatchObject({ ok: true });
+
+  const saved = JSON.parse(JSON.stringify(ctx.requestContext.toJSON()));
+  const requestContext = new RequestContext();
+  for (const [key, value] of Object.entries(saved)) {
+    requestContext.set(key, value);
   }
-  expect(await run(ctx)).toMatchObject({ error: "search_limit_searches" });
+  vi.setSystemTime(Date.now() + 1_000);
+  assistantExecutionContext.processInputStep({
+    requestContext,
+    messageList: new MessageList({ threadId: "owner" }),
+  } as Parameters<typeof assistantExecutionContext.processInputStep>[0]);
+  const resumed = { ...ctx, requestContext };
+  expect(await run(resumed)).toMatchObject({
+    ok: true,
+    remaining: { searches: 1, durationMs: 599_000 },
+  });
+  expect(await run(resumed)).toMatchObject({ ok: true });
+  expect(await run(resumed)).toMatchObject({ error: "search_limit_searches" });
   expect(fetch).toHaveBeenCalledTimes(3);
   expect(JSON.parse(fetch.mock.calls[0][1].body).plugins).toMatchObject([
     { id: "web", engine: "exa" },
   ]);
-  vi.useFakeTimers();
-  const expired = context();
-  vi.advanceTimersByTime(600001);
-  expect(await run(expired)).toMatchObject({ error: "search_limit_time" });
+  vi.setSystemTime(Date.now() + 599_000);
+  expect(await run(resumed)).toMatchObject({ error: "search_limit_time" });
   vi.useRealTimers();
   fetch.mockImplementationOnce(async () => Response.json({}, { status: 401 }));
   expect(await run()).toMatchObject({ error: "search_unavailable" });

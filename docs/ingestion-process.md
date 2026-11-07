@@ -253,4 +253,4 @@ A map page that repeats a supplied pin, or a reverse lookup that names its city,
 
 ## Studio catalog chat
 
-Use the [catalog researcher](ingestion-tools.md#studio-catalog-researcher) to find and add Events. Use the [catalog assistant](ingestion-tools.md#studio-catalog-assistant) to refresh saved Events and inspect reports. Use [Background execution](ingestion-tools.md#background-execution) to check batch progress and cancellation.
+Use the [catalog assistant](ingestion-tools.md#studio-catalog-assistant) to find and add Events, refresh saved Events, and inspect reports. See [Background execution](ingestion-tools.md#background-execution) for batch progress and cancellation.
