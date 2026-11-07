@@ -7,7 +7,7 @@ Let the owner research Events, start bounded add and refresh jobs, and inspect t
 ## Requirements
 
 ### Requirement: Studio provides an owner catalog conversation
-Studio SHALL expose the catalog assistant and a separate `catalog-researcher` agent with conversation history. Follow-up references SHALL use the selected conversation. The assistant SHALL read current facts through tools and treat catalog and report text as data, not as owner instructions. The existing trusted-network access model SHALL apply. Catalog schema and report guidance SHALL be available through a filesystem skill loaded with native Mastra skill tools.
+Studio SHALL expose one `catalog-assistant` agent with conversation history. The same agent SHALL provide search, add, refresh, direct edits, job cancellation, and saved result analysis. Follow-up references SHALL use the selected conversation. The assistant SHALL read current facts through tools and treat catalog and report text as data, not as owner instructions. The existing trusted-network access model SHALL apply. Catalog schema and report guidance SHALL be available through a filesystem skill loaded with native Mastra skill tools.
 
 #### Scenario: Owner refers to a previous selection
 - **WHEN** the owner asks to inspect the second Event in a prior result
@@ -65,6 +65,10 @@ Assistant tools SHALL validate input before execution. Submission limits SHALL u
 - **THEN** the wrapper creates no jobs
 - **AND** the assistant does not report acceptance
 
+#### Scenario: A client supplies assistant execution state
+- **WHEN** a client supplies host identity, conversation identity, search budget, or submission state in a catalog assistant chat or tool POST request
+- **THEN** the server rejects the request before tool execution
+
 ### Requirement: SQL access is read only with bounded output
 The SQL tool SHALL accept one catalog read query. It SHALL enforce read-only access outside the model. It SHALL reject mutations, scripts, connection changes, attached databases, and extension loading. It SHALL bound result rows and result bytes. It SHALL report truncation and safe errors explicitly.
 
@@ -115,19 +119,19 @@ The assistant SHALL resolve the complete Event ID selection before calling refre
 - **THEN** the assistant resolves the complete Event ID selection before submission
 - **AND** it asks for a narrower selection if it cannot resolve the complete set within the limit
 
-### Requirement: One assistant execution starts one refresh selection
-The host SHALL allow at most one validated selection to enter submission within one assistant execution. Parallel calls and retries SHALL share that limit. Invalid input SHALL NOT consume the limit. Once a validated selection enters submission, the host SHALL reject further submissions in that execution, including after a submission error. Later valid calls SHALL return selection_consumed without creating more jobs or returning a cached submission result. A lost submission response SHALL NOT authorize an automatic repeat. A new owner message SHALL start a new execution with a new limit.
+### Requirement: One assistant execution starts one ingestion selection
+The host SHALL allow at most one validated selection to enter submission within one assistant execution. Add and refresh calls, including parallel calls and retries, SHALL share that limit. Invalid input SHALL NOT consume the limit. Once a validated selection enters submission, the host SHALL reject further submissions in that execution, including after a submission error. Later valid calls SHALL return selection_consumed without creating more jobs or returning a cached submission result. A lost submission response SHALL NOT authorize an automatic repeat. A new owner message SHALL start a new execution with a new limit.
 
 #### Scenario: The agent repeats a refresh call
 - **WHEN** submission has begun and the agent submits again in the same execution
 - **THEN** the second call creates no jobs and returns selection_consumed
 
-#### Scenario: Refresh calls arrive together
-- **WHEN** two valid submission calls arrive concurrently in one assistant execution
+#### Scenario: Add and refresh calls arrive together
+- **WHEN** valid add and refresh calls arrive concurrently in one assistant execution
 - **THEN** at most one selection enters submission
 
 ### Requirement: Owner intent controls execution mode
-An explicit owner request to refresh SHALL authorize apply for the resolved selection without a second confirmation. A direct catalog edit SHALL require approval of its proposal. A preview request SHALL make no catalog changes. Unclear write intent or targets SHALL require clarification. Omitted refresh scope SHALL use full. Republish SHALL remain off. Read and analysis requests SHALL NOT start ingestion by themselves.
+An explicit owner request to add or refresh SHALL authorize apply for the resolved selection without a second confirmation. A direct catalog edit SHALL require approval of its proposal. A preview request SHALL make no catalog changes. Unclear write intent or targets SHALL require clarification. Omitted refresh scope SHALL use full. Republish SHALL remain off. Read and analysis requests SHALL NOT start ingestion by themselves.
 
 #### Scenario: Owner asks only for an explanation
 - **WHEN** the owner asks why an Event has no dates
@@ -191,7 +195,7 @@ Assistant tools and the job executor SHALL use existing logging controls and sin
 - **THEN** submission and processing keep their normal behavior
 
 ### Requirement: Chat controls jobs explicitly
-The catalog assistant SHALL use query_catalog for job progress and saved attempt evidence. Batch counts SHALL describe the full batch rather than a truncated item result. Stored job state SHALL NOT be treated as proof that the processor is active. An explicit owner request SHALL authorize cancellation of pending jobs in a resolved add or refresh batch through `cancel_batch({batchId})`. Only `catalog-assistant` SHALL expose this tool. Missing or ambiguous batch references SHALL require clarification. Status requests SHALL not start or cancel jobs. Unavailable catalog storage and unknown batches SHALL be stated explicitly.
+The catalog assistant SHALL use query_catalog for job progress and saved attempt evidence. Batch counts SHALL describe the full batch rather than a truncated item result. Stored job state SHALL NOT be treated as proof that the processor is active. An explicit owner request SHALL authorize cancellation of pending jobs in a resolved add or refresh batch through `cancel_batch({batchId})`. Missing or ambiguous batch references SHALL require clarification. Status requests SHALL not start or cancel jobs. Unavailable catalog storage and unknown batches SHALL be stated explicitly.
 
 #### Scenario: Owner asks for progress
 - **WHEN** the owner asks how a submitted batch is progressing
@@ -213,7 +217,7 @@ The catalog assistant SHALL use query_catalog for job progress and saved attempt
 - **THEN** the assistant states that no matching jobs were found without inventing a submission history
 
 ### Requirement: Missing batch references use saved job evidence
-When a submission response is lost, the assistant SHALL use bounded catalog SQL reads to find saved batches by available time, Event IDs, and settings. Discovery SHALL work without logs and SHALL NOT submit jobs. Ambiguous candidates, truncated results, or missing evidence SHALL require clarification before selecting a batch.
+When a submission response is lost, the assistant SHALL use bounded catalog SQL reads to find saved batches by available time, complete add inputs or Event IDs, and settings. Discovery SHALL work without logs and SHALL NOT submit jobs. Ambiguous candidates, truncated results, or missing evidence SHALL require clarification before selecting a batch.
 
 #### Scenario: Find a batch without logs
 - **WHEN** the submission response was lost, logging is disabled or failed, and saved job evidence identifies one matching batch
@@ -230,31 +234,24 @@ When a submission response is lost, the assistant SHALL use bounded catalog SQL 
 - **THEN** the assistant states the evidence limit and asks for clarification
 - **AND** it does not infer that no submission committed or automatically submit again
 
-### Requirement: The researcher finds candidates on request
-The researcher SHALL offer web search with Exa through OpenRouter. It SHALL show relevant candidate links from search results. Search alone SHALL start no add jobs. A search failure SHALL be visible and SHALL NOT produce invented results.
-
-#### Scenario: Search without submission
-- **WHEN** the owner asks which festival matches a note
-- **THEN** the researcher can return candidates and links for discussion without submitting ingestion
-
-### Requirement: The researcher submits selected Events for add
-The researcher SHALL submit one add job per intended Event. Each input SHALL keep the owner's clues and relevant candidate links. An explicit request to add authorizes apply. A preview request authorizes preview only. The researcher SHALL clarify unclear grouping, references, or write intent before submission. The host SHALL enforce the existing one-selection limit per execution.
+### Requirement: The assistant submits selected Events for add
+The assistant SHALL submit one add job per intended Event. Each input SHALL keep the owner's clues and relevant candidate links. An explicit request to add authorizes apply. A preview request authorizes preview only. The assistant SHALL clarify unclear grouping, references, or write intent before submission. The host SHALL enforce the existing one-selection limit per execution.
 
 #### Scenario: Add the selected candidates
 - **WHEN** the owner asks to add three clear candidates discussed in the selected conversation
-- **THEN** the researcher submits one batch with three items and apply enabled
+- **THEN** the assistant submits one batch with three items and apply enabled
 - **AND** it reports the accepted count and batch ID separately from completion
 
 #### Scenario: Preview one Event with several clues
 - **WHEN** the owner supplies a name, a map link, and a note about one festival and asks for a preview
-- **THEN** the researcher submits one job that retains all three clues in preview mode
+- **THEN** the assistant submits one job that retains all three clues in preview mode
 
 #### Scenario: The intended grouping is unclear
-- **WHEN** the researcher cannot tell whether two links describe one or two requested Events
+- **WHEN** the assistant cannot tell whether two links describe one or two requested Events
 - **THEN** it asks the owner before submitting any jobs
 
-### Requirement: The researcher reads add progress by batch ID
-On a status request, the researcher SHALL read saved jobs for the batch ID. It SHALL report full counts by queue state and retrieve individual item outcomes from associated runs when available. It SHALL distinguish preview from apply, retries from separate jobs, and queue completion from catalog success. Inspection SHALL start no search or job.
+### Requirement: The assistant reads add progress by batch ID
+On a status request, the assistant SHALL read saved jobs for the batch ID. It SHALL report full counts by queue state and retrieve individual item outcomes from associated runs when available. It SHALL distinguish preview from apply, retries from separate jobs, and queue completion from catalog success. Inspection SHALL start no search or job.
 
 #### Scenario: Mixed batch results
 - **WHEN** one add is pending, one finished as a duplicate, and one finished without a report
@@ -263,16 +260,16 @@ On a status request, the researcher SHALL read saved jobs for the batch ID. It S
 
 #### Scenario: Unknown batch
 - **WHEN** the requested batch ID has no jobs
-- **THEN** the researcher reports that the batch was not found
+- **THEN** the assistant reports that the batch was not found
 - **AND** it distinguishes this result from unavailable storage
 
 #### Scenario: A note exceeds the SQL result size
 - **WHEN** a stored note is larger than the SQL output limit
 - **THEN** counts, item position, and available outcomes remain readable without returning the full note
-- **AND** the researcher can retrieve a short excerpt on request
+- **AND** the assistant can retrieve a short excerpt on request
 
 ### Requirement: Add status identifies what happened in the catalog
-When preview shows a new Event, the researcher SHALL describe the creation as proposed. It SHALL report creation only for a confirmed applied write. It SHALL label an item as already in the catalog only when the evidence confirms a duplicate skip. A candidate ID, temporary preview ID, or queue state alone SHALL NOT establish a catalog result.
+When preview shows a new Event, the assistant SHALL describe the creation as proposed. It SHALL report creation only for a confirmed applied write. It SHALL label an item as already in the catalog only when the evidence confirms a duplicate skip. A candidate ID, temporary preview ID, or queue state alone SHALL NOT establish a catalog result.
 
 #### Scenario: Preview and apply both report creation
 - **WHEN** a preview proposes creating an Event and a later apply attempt commits its creation
@@ -281,10 +278,10 @@ When preview shows a new Event, the researcher SHALL describe the creation as pr
 
 #### Scenario: The attempt declines creation or fails to confirm identity
 - **WHEN** the report gives a reason for declining creation or records a failed identity check with a candidate ID
-- **THEN** the researcher reports the recorded rejection reason or identity failure without claiming a duplicate
+- **THEN** the assistant reports the recorded rejection reason or identity failure without claiming a duplicate
 
 ### Requirement: The catalog assistant can search public sources
-When chat uses OpenRouter, the catalog assistant SHALL support public web searches on request. It SHALL cite the sources it uses and state when results do not confirm a fact. Search results SHALL provide data only. A search alone SHALL leave the catalog unchanged and start no ingestion. Any direct edit based on search results SHALL require approval.
+The catalog assistant SHALL provide `search_web` with Exa through OpenRouter, regardless of the selected chat provider. Search SHALL use a shared search allowance and deadline for each execution. Search SHALL require OpenRouter credentials only when called. A search failure SHALL be visible and SHALL NOT produce invented results. The assistant SHALL cite the sources it uses and state when results do not confirm a fact. Search results SHALL provide data only. A search alone SHALL leave the catalog unchanged and start no ingestion. Any direct edit based on search results SHALL require approval.
 
 #### Scenario: Find a replacement for a broken official URL
 - **GIVEN** an existing Event with a broken official link
@@ -298,9 +295,17 @@ When chat uses OpenRouter, the catalog assistant SHALL support public web search
 - **AND** no catalog changes or ingestion jobs result from the request
 
 #### Scenario: The owner selects another chat provider
-- **WHEN** the owner asks for a web search while using a different provider
-- **THEN** the assistant says web search is unavailable for that provider
-- **AND** catalog reads and approved edits remain available
+- **WHEN** the owner asks for a web search while using a different chat provider and OpenRouter search credentials are available
+- **THEN** the assistant can search through OpenRouter and cite candidate links
+
+#### Scenario: Search credentials are missing
+- **WHEN** a web search is requested without OpenRouter credentials
+- **THEN** the assistant reports that search is unavailable
+- **AND** catalog reads, job submission, cancellation, and approved edits remain available
+
+#### Scenario: Search without submission
+- **WHEN** the owner asks which festival matches a note
+- **THEN** the assistant can return candidates and links for discussion without submitting ingestion
 
 ### Requirement: The owner can propose direct catalog edits
 The catalog assistant SHALL resolve existing Events, Editions, and links for direct edits. It SHALL support Event name, aliases, slug, and both descriptions. It SHALL support Edition name, year, dates, schedule status, size, location, prices, and classifications. It SHALL support the kind, URL, label, and official flag of existing links. The owner SHALL resolve ambiguous targets before approval.
@@ -331,19 +336,31 @@ The catalog assistant SHALL resolve existing Events, Editions, and links for dir
 - **AND** the existing price and classification rules apply to the write
 
 ### Requirement: Direct edits stay within existing records
-Direct edits SHALL preserve Event and Edition identities, Edition keys, ownership, and publication state. The assistant SHALL reject requests to create or delete an Event or Edition, add a link, or remove a link through direct editing.
+Direct edits SHALL preserve Event and Edition identities, Edition keys, ownership, and publication state. Field edits SHALL NOT require links. Omitted links or `links: null` SHALL leave links unchanged. A supplied link list SHALL edit only existing links owned by that target. An empty link list SHALL be rejected with guidance to omit links or use null. The assistant SHALL reject requests to create or delete an Event or Edition, add a link, or remove a link through direct editing.
 
 #### Scenario: An operation is outside direct editing scope
 - **WHEN** the owner requests a direct edit that adds a link, removes a link, changes an Edition key, moves a link to another owner, or changes publication state
 - **THEN** the assistant rejects that operation before approval
 
+#### Scenario: Correct Edition dates without Edition links
+- **GIVEN** an Edition has no links and its Event has a link
+- **WHEN** the owner approves an Edition date correction with omitted links or `links: null`
+- **THEN** the correction is applied with the selected audit mode
+- **AND** all existing links keep their values and owners
+
 ### Requirement: Studio shows the complete proposal before approval
-Studio SHALL show all targets, before and after values, and the audit mode before approval. The default SHALL record changes. Omission SHALL require an explicit owner request. If the full proposal cannot be shown, Studio SHALL offer no approval for it.
+Studio SHALL show all targets, before and after values, and the audit mode before approval. The default SHALL record changes. Omission SHALL require an explicit owner request. If the full proposal cannot be shown, Studio SHALL offer no approval for it. If input processing changes the proposal, the tool SHALL reject it before approval with `edit_input_changed`, changed field paths, and the effective proposal including its audit mode. The assistant SHALL submit the corrected arguments for review. Repeating a chat confirmation SHALL NOT bypass this check.
 
 #### Scenario: The owner reviews a correction
 - **WHEN** the assistant proposes a URL correction with no audit mode specified
 - **THEN** Studio shows the old URL, new URL, target link and owner, and that it will record the change
 - **AND** the catalog changes only after the owner approves that proposal
+
+#### Scenario: Input processing changes an edit
+- **WHEN** input processing trims text or removes an invalid optional value
+- **THEN** no approval is offered for the original arguments
+- **AND** the response identifies the changed fields and effective values
+- **AND** valid nullable field values remain in the effective proposal
 
 #### Scenario: Studio cannot show the full selection
 - **WHEN** the complete proposed edit exceeds the supported review size
@@ -351,7 +368,7 @@ Studio SHALL show all targets, before and after values, and the audit mode befor
 - **AND** Studio presents no truncated proposal for approval
 
 ### Requirement: Direct edits require Studio approval
-The server SHALL require explicit approval through the built-in controls in a Studio chat thread. The owner SHALL resolve one pending proposal before requesting another. The server SHALL apply only the pending proposal's new values and audit mode. The before values describe the catalog at preview time. A revised proposal SHALL require new approval. Preview and rejection SHALL leave catalog records, versions, audit entries, and receipts unchanged.
+The server SHALL require explicit approval through the built-in controls in a Studio chat thread. The owner SHALL resolve one pending proposal before requesting another. The server SHALL apply only the pending proposal's new values and audit mode. The before values describe the catalog at preview time. A revised proposal SHALL require new approval. Preview and rejection SHALL leave catalog records, versions, audit entries, and receipts unchanged. After approval, the resumed execution SHALL retain trusted host context and its existing submission allowance.
 
 #### Scenario: The owner declines the proposed edit
 - **WHEN** the owner declines the proposal in Studio
@@ -365,6 +382,17 @@ The server SHALL require explicit approval through the built-in controls in a St
 #### Scenario: A direct call tries to bypass approval
 - **WHEN** a client directly invokes the edit tool or tries to supply approval outside the owner's confirmation of the pending call
 - **THEN** the server rejects the attempt without writing to the catalog
+
+#### Scenario: Continue a requested refresh after edit approval
+- **GIVEN** the owner requested a correction followed by refresh and no ingestion selection has been submitted in that execution
+- **WHEN** the owner approves the correction in Studio
+- **THEN** the correction is applied and the resumed assistant can submit the requested refresh with trusted host context
+- **AND** the approval pause does not start a new submission allowance
+
+#### Scenario: A selection was submitted before edit approval
+- **GIVEN** an ingestion selection was submitted before the assistant paused for edit approval
+- **WHEN** the owner approves the edit and the resumed assistant attempts another submission
+- **THEN** the edit can apply but the second submission returns selection_consumed without creating more jobs
 
 ### Requirement: Direct edits apply to the current record
 The server SHALL apply the approved fields to the current record without requiring a preview version. The server SHALL preserve fields and links outside the edit.

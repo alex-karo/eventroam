@@ -3,11 +3,13 @@ import { noopObserve } from "@mastra/core/tools";
 import { RequestContext } from "@mastra/core/request-context";
 import { afterEach, expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
-import { assistantExecutionContext } from "../catalog-assistant/execution-context";
-import { createAddEventsTool } from "./tools/add-events";
-import { createSearchWebTool } from "./tools/search-web";
-import { createQueryCatalogTool } from "../catalog-assistant/tools/query-catalog/tool";
-import { createCancelBatchTool } from "../catalog-assistant/tools/cancel-batch/tool";
+import { assistantExecutionContext } from "./execution-context";
+import { createAddEventsTool } from "./tools/add-events/tool";
+import { createSearchWebTool } from "./tools/search-web/tool";
+import { createQueryCatalogTool } from "./tools/query-catalog/tool";
+import { createRefreshEventsTool } from "./tools/refresh-events/tool";
+import { testFixtures } from "@/test/fixtures";
+import { createCancelBatchTool } from "./tools/cancel-batch/tool";
 
 function context() {
   const requestContext = new RequestContext();
@@ -23,7 +25,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test("add requires host context, shares one selection across parallel calls, and needs no search key", async () => {
+test("add and refresh share one selection across parallel calls; add needs host context but no search key", async () => {
   const db = testDatabase();
   vi.stubEnv("OPENROUTER_API_KEY", "");
   const tool = createAddEventsTool(() => db.path);
@@ -42,7 +44,14 @@ test("add requires host context, shares one selection across parallel calls, and
   ).toMatchObject({ error: "cancelled" });
   const results = await Promise.all([
     tool.execute!({ inputs: ["alpha", "beta"], dryRun: false }, ctx),
-    tool.execute!({ inputs: ["again"], dryRun: true }, ctx),
+    createRefreshEventsTool(() => db.path).execute!(
+      {
+        eventIds: [testFixtures(db.client).event().id],
+        scope: "full",
+        dryRun: true,
+      },
+      ctx,
+    ),
   ]);
   expect(results).toContainEqual({
     ok: true,

@@ -2,9 +2,9 @@ import { createTool } from "@mastra/core/tools";
 import {
   submitAddJobs,
   addJobsInputSchema,
-} from "../../../ingestion/jobs/store";
-import type { AssistantLogging } from "../../catalog-assistant/logging";
-import { submitSelection } from "../../catalog-assistant/tools/submit-selection";
+} from "../../../../ingestion/jobs/store";
+import type { AssistantLogging } from "../../logging";
+import { submitSelection } from "../submit-selection";
 
 export function createAddEventsTool(
   catalogPath: () => string,

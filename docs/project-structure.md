@@ -54,8 +54,7 @@ src/
 │   ├── jobs/                  # Durable queue operations
 │   └── runtime/               # Model setup, workflow storage and observability
 ├── mastra/                    # Studio registration and production server
-│   ├── catalog-assistant/     # Catalog chat, job control, memory and SQL skill
-│   └── catalog-researcher/    # Discovery and add submission
+│   └── catalog-assistant/     # Discovery, catalog chat, job control, memory and SQL skill
 ├── db/                        # Schema, connections, and SQL migrations
 └── test/                      # Temporary databases and data builders
 

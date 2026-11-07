@@ -4,7 +4,10 @@ import {
 } from "../../ingestion/runtime/budget";
 import { loadResearchLimits } from "../../ingestion/runtime/config";
 import type { RequestContext } from "@mastra/core/request-context";
-import type { ProcessInputArgs } from "@mastra/core/processors";
+import type {
+  ProcessInputArgs,
+  ProcessInputStepArgs,
+} from "@mastra/core/processors";
 
 const hostToken = Symbol("catalog-assistant-host");
 const hostKey = "catalogAssistantHost";
@@ -12,7 +15,16 @@ const searchBudgetKey = "catalogResearchBudget";
 const conversationKey = "catalogAssistantConversation";
 export const submissionConsumedKey = "submissionConsumed";
 
-/** Runs once at execution entry. Client context cannot create the host token. */
+export function hasAssistantExecutionState(context?: RequestContext) {
+  return [
+    hostKey,
+    searchBudgetKey,
+    conversationKey,
+    submissionConsumedKey,
+  ].some((key) => context?.has(key));
+}
+
+/** Initialize each message, then restore host trust at model step entry. */
 export const assistantExecutionContext = {
   id: "catalog-assistant-context",
   processInput({ messageList, requestContext }: ProcessInputArgs) {
@@ -35,6 +47,19 @@ export const assistantExecutionContext = {
       messageList.serialize().memoryInfo?.threadId,
     );
     return messageList;
+  },
+  processInputStep({ messageList, requestContext }: ProcessInputStepArgs) {
+    // Resume restores serializable state but cannot restore the host Symbol.
+    if (
+      requestContext &&
+      typeof requestContext.get(submissionConsumedKey) === "boolean"
+    ) {
+      requestContext.set(hostKey, hostToken);
+      requestContext.set(
+        conversationKey,
+        messageList.serialize().memoryInfo?.threadId,
+      );
+    }
   },
 };
 
