@@ -119,7 +119,8 @@ export function TicketCategories({
 export function TicketPrice({
   edition,
   now = new Date(),
-}: Readonly<{ edition: PublicEdition; now?: Date }>) {
+  showLabel = true,
+}: Readonly<{ edition: PublicEdition; now?: Date; showLabel?: boolean }>) {
   const price = basePrice(edition);
   if (!price) {
     return null;
@@ -128,7 +129,14 @@ export function TicketPrice({
     <p className="fact">
       <Icon name="ticket" />
       <span>
-        {isPastEdition(edition, now) ? "Prices for this edition" : "Tickets"}:{" "}
+        {showLabel && (
+          <>
+            {isPastEdition(edition, now)
+              ? "Prices for this edition"
+              : "Tickets"}
+            :{" "}
+          </>
+        )}
         <strong className="price-amount">{price}</strong>
         {edition.priceCoverage && edition.priceCoverage !== "full_programme"
           ? ` (${edition.priceCoverage.replaceAll("_", " ")})`

@@ -69,10 +69,13 @@ test("festival and edition history links open separate tabs", async ({
   page,
 }) => {
   await page.goto("/events/fictional-field-days/2027");
+  await expect(
+    page.locator('a[href="/events/fictional-field-days"]'),
+  ).toHaveCount(1);
   const eventPopup = page.waitForEvent("popup");
   await page
-    .getByRole("navigation")
-    .getByRole("link", { name: fieldEvent, exact: true })
+    .getByRole("region", { name: "Other editions" })
+    .getByRole("link", { name: "Festival overview", exact: true })
     .click();
   const event = await eventPopup;
   await expect(event.getByRole("heading", { level: 1 })).toHaveText(fieldEvent);
