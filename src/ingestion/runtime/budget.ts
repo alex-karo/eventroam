@@ -53,20 +53,36 @@ function assertPositiveInteger(name: string, value: number): void {
   }
 }
 
-export function createResearchBudget(
+export function createResearchBudgetState(
   overrides: Partial<ResearchLimits> = {},
   now: () => number = Date.now,
-): ResearchBudget {
+) {
   const limits = { ...DEFAULT_RESEARCH_LIMITS, ...overrides };
   for (const [name, value] of Object.entries(limits)) {
     assertPositiveInteger(name, value);
   }
 
-  const startedAt = now();
+  return { limits, startedAt: now(), searches: 0, pages: 0, modelCalls: 0 };
+}
+
+export type ResearchBudgetState = ReturnType<typeof createResearchBudgetState>;
+
+export function createResearchBudget(
+  overrides: Partial<ResearchLimits> = {},
+  now: () => number = Date.now,
+): ResearchBudget {
+  return researchBudgetFromState(
+    createResearchBudgetState(overrides, now),
+    now,
+  );
+}
+
+export function researchBudgetFromState(
+  state: ResearchBudgetState,
+  now: () => number = Date.now,
+): ResearchBudget {
+  const { limits, startedAt } = state;
   const deadline = startedAt + limits.durationMs;
-  let searches = 0;
-  let pages = 0;
-  let modelCalls = 0;
 
   function assertTime(): void {
     if (now() >= deadline) {
@@ -76,14 +92,14 @@ export function createResearchBudget(
 
   function consumeSearch(): void {
     assertTime();
-    if (searches >= limits.searches) {
+    if (state.searches >= limits.searches) {
       throw new ResearchLimitError("searches");
     }
-    searches += 1;
+    state.searches += 1;
   }
 
   const remaining = () => ({
-    searches: limits.searches - searches,
+    searches: limits.searches - state.searches,
     durationMs: Math.max(0, deadline - now()),
   });
 
@@ -94,17 +110,17 @@ export function createResearchBudget(
     consumeSearch,
     consumePage: () => {
       assertTime();
-      pages += 1;
+      state.pages += 1;
     },
     consumeModelCall: () => {
       assertTime();
-      modelCalls += 1;
+      state.modelCalls += 1;
     },
     remaining,
     snapshot: () => ({
-      searches,
-      pages,
-      modelCalls,
+      searches: state.searches,
+      pages: state.pages,
+      modelCalls: state.modelCalls,
       elapsedMs: Math.max(0, now() - startedAt),
       remaining: remaining(),
     }),

@@ -1,6 +1,8 @@
 import {
-  createResearchBudget,
+  createResearchBudgetState,
+  researchBudgetFromState,
   type ResearchBudget,
+  type ResearchBudgetState,
 } from "../../ingestion/runtime/budget";
 import { loadResearchLimits } from "../../ingestion/runtime/config";
 import type { RequestContext } from "@mastra/core/request-context";
@@ -36,7 +38,7 @@ export const assistantExecutionContext = {
     try {
       requestContext.set(
         searchBudgetKey,
-        createResearchBudget(loadResearchLimits()),
+        createResearchBudgetState(loadResearchLimits()),
       );
     } catch {
       // Invalid search settings must not block other chat tools.
@@ -82,10 +84,13 @@ export function trustedSearchBudget(
   if (!trustedConversation(context)) {
     return;
   }
-  const budget: ResearchBudget | null | undefined =
+  const state: ResearchBudgetState | null | undefined =
     context?.get(searchBudgetKey);
-  if (budget === null) {
-    throw new Error("Search configuration is invalid");
+  if (state === undefined) {
+    return;
   }
-  return budget;
+  if (!state || !Number.isFinite(state.startedAt)) {
+    throw new Error("Search budget is unavailable");
+  }
+  return researchBudgetFromState(state);
 }
