@@ -24,6 +24,7 @@ import {
 import type { LocationInput } from "./input";
 import { prepareInitialGeocoding } from "./initial";
 import { locationInstructions } from "./prompt";
+import { savedCitationInstructions } from "../evidence/repair";
 import {
   LocationCountryConflictError,
   LocationValidationError,
@@ -279,7 +280,8 @@ export async function resolveLocation(
   let messages: FullOutput["messages"] | undefined;
   const instructions =
     locationInstructions +
-    "\nIf the workflow returns a group, revise only that group from saved pages and cite any new passage with citeSavedPassage.";
+    "\nIf the workflow returns a group, revise only that group from saved pages and cite any new passage with citeSavedPassage. " +
+    savedCitationInstructions;
 
   try {
     await prepareInitialGeocoding(input, session);

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { PreparedProposals } from "./proposals";
-import { atPath, type ProposalGroup } from "./groups";
+import { atPath, type GroupOwner, type ProposalGroup } from "./groups";
 import { editionSlotNames } from "./research/contracts";
 
 export const reviewOutput = z.strictObject({
@@ -16,6 +16,8 @@ export const reviewOutput = z.strictObject({
 });
 export type ReviewDecision = z.infer<typeof reviewOutput>["decisions"][number];
 export type ReviewDecisions = Map<string, ReviewDecision>;
+export const MAX_GROUP_RETURNS = 3;
+
 export type ReviewPath = {
   path: string;
   required: boolean;
@@ -31,7 +33,8 @@ export function groupProposal(prepared: PreparedProposals, path: string) {
 export function reviewPaths(
   prepared: PreparedProposals,
   groups: ProposalGroup[],
-  used: ReadonlySet<string>,
+  returnCounts: ReadonlyMap<string, number>,
+  canReturn: (owner: GroupOwner) => boolean,
   targeted?: ReadonlySet<string>,
 ): ReviewPath[] {
   const choices: ReviewPath[] = [];
@@ -49,18 +52,21 @@ export function reviewPaths(
       }
     }
   }
-  for (const { path } of groups) {
+  for (const { path, owner } of groups) {
     if (targeted && !targeted.has(path)) {
       continue;
     }
-    const submitted = groupProposal(prepared, path) !== undefined;
-    const returned = used.has(path);
-    if (targeted || returned) {
-      add(path, true, ["approve", "reject"]);
-    } else if (submitted) {
-      add(path, true, ["approve", "reject", "return"]);
-    } else {
-      add(path, false, ["return"]);
+    const count = returnCounts.get(path) ?? 0;
+    const required =
+      !!targeted || count > 0 || groupProposal(prepared, path) !== undefined;
+    const allowed: ReviewPath["allowed"] = required
+      ? ["approve", "reject"]
+      : [];
+    if (count < MAX_GROUP_RETURNS && canReturn(owner)) {
+      allowed.push("return");
+    }
+    if (allowed.length) {
+      add(path, required, allowed);
     }
   }
   return choices;
@@ -105,4 +111,14 @@ export function rejectedEdition(review: ReviewDecisions, slot: string) {
     "fields.year",
     "fields.scheduleStatus",
   ].some((field) => review.get(`${slot}.${field}`)?.decision === "reject");
+}
+
+export function reviewReturns(review: ReviewDecisions) {
+  if (rejectedItem(review)) {
+    return [];
+  }
+  return [...review.values()].filter(
+    ({ decision, path }) =>
+      decision === "return" && !rejectedEdition(review, path.split(".")[0]),
+  );
 }

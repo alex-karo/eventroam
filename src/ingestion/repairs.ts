@@ -20,13 +20,16 @@ import {
   checkRefreshCountries,
   checkedClassification,
   validateGeneral,
+  type SpecialistOutputs,
 } from "./proposals";
 import type { RoleConversation } from "./roles/invoke";
 import {
   festivalCountriesSchema,
   type ClassificationOutput,
   type GeneralOutput,
+  type LinksOutput,
   type Targets,
+  type TicketsOutput,
 } from "./roles/contracts";
 import type { LocationInput } from "./location/input";
 import {
@@ -35,7 +38,7 @@ import {
   type MaterializedLocation,
 } from "./location/validate";
 import type { GeocodingSession } from "./tools/geocode/tool";
-import type { ReviewDecision } from "./review";
+import { MAX_GROUP_RETURNS, type ReviewDecision } from "./review";
 import type { StageResult, PlanDiagnostics } from "./stage";
 
 export type RepairRecord = {
@@ -97,8 +100,12 @@ export class ProposalRepairs {
   readonly records: RepairRecord[] = [];
   private location?: { input: LocationInput; session: PointContext };
 
-  get usedPaths() {
-    return new Set(this.records.map(({ path }) => path));
+  get returnCounts() {
+    const counts = new Map<string, number>();
+    for (const { path } of this.records) {
+      counts.set(path, (counts.get(path) ?? 0) + 1);
+    }
+    return counts;
   }
 
   capture = (owner: GroupOwner, reply: RoleConversation) => {
@@ -136,6 +143,10 @@ export class ProposalRepairs {
 
   raw(owner: GroupOwner) {
     return this.replies.get(owner)?.raw;
+  }
+
+  canReturn(owner: GroupOwner) {
+    return this.replies.get(owner)?.revise !== undefined;
   }
 
   private requireReferences(
@@ -566,6 +577,7 @@ export class ProposalRepairs {
       "validation",
       signal,
     );
+    return this.checkedSpecialistOutputs();
   }
 
   async afterReview(
@@ -584,6 +596,22 @@ export class ProposalRepairs {
       "editor",
       signal,
     );
+    return this.checkedSpecialistOutputs();
+  }
+
+  private checkedSpecialistOutputs(): SpecialistOutputs {
+    // Read each reply after its role schema and group checks pass.
+    const links = this.raw("links") as LinksOutput | undefined;
+    if (!links) {
+      throw new Error("Missing validated Links reply");
+    }
+    return {
+      tickets: (this.raw("tickets") as TicketsOutput | undefined) ?? null,
+      classification:
+        (this.raw("classification") as ClassificationOutput | undefined) ??
+        null,
+      links,
+    };
   }
 
   private context(
@@ -641,8 +669,11 @@ export class ProposalRepairs {
     signal: AbortSignal,
   ) {
     const original = this.replies.get(owner);
-    const used = this.usedPaths;
+    const counts = this.returnCounts;
     const records = requests.map(({ group, note }): RepairRecord => {
+      if ((counts.get(group.path) ?? 0) >= MAX_GROUP_RETURNS) {
+        fail("Group has no returns left", group.path);
+      }
       const slot = editionSlotNames.find((slot) =>
         group.path.startsWith(slot + "."),
       );
@@ -650,10 +681,6 @@ export class ProposalRepairs {
         eventId: ctxEvent(ctx)?.id ?? null,
         ...(slot && { editionKey: ctx.targets?.[slot]?.editionKey }),
       };
-      if (used.has(group.path)) {
-        fail("Group already used its return", group.path);
-      }
-      used.add(group.path);
       return {
         owner,
         path: group.path,
@@ -678,12 +705,20 @@ export class ProposalRepairs {
         {
           instructions:
             "Revise only the requested groups. Return the normal role reply. " +
+            (owner === "location"
+              ? ""
+              : "If you omit a requested optional group, add an unresolved entry. Copy the full path from that group into field and explain the omission in message. ") +
             savedSearchInstructions,
-          groups: records.map(({ path, note, original }) => ({
-            path,
-            note,
-            original,
-          })),
+          groups: records.map(({ path, note, original }) => {
+            const ids = new Set(references(original, "evidenceIds"));
+            const evidence = this.passages.filter(({ id }) => ids.has(id));
+            return {
+              path,
+              note,
+              original,
+              ...(evidence.length && { evidence }),
+            };
+          }),
           sourceFiles,
         },
         {

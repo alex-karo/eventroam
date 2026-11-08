@@ -338,11 +338,24 @@ it("Editor decisions have exact fixed keys and cannot replace values", () => {
   const paths = reviewPaths(
     p.value,
     assignedGroups(undefined, p.value.targets),
-    new Set(),
+    new Map(),
+    () => true,
   );
   const schema = reviewSchema(paths);
   const raw = approveFixtureReview(paths);
   expect(schema.safeParse(raw).success).toBe(true);
+  const fixedPaths = reviewPaths(
+    p.value,
+    assignedGroups(undefined, p.value.targets),
+    new Map(),
+    () => false,
+  );
+  expect(fixedPaths.map(({ path }) => path)).toEqual(
+    paths.filter(({ required }) => required).map(({ path }) => path),
+  );
+  expect(fixedPaths.every(({ allowed }) => !allowed.includes("return"))).toBe(
+    true,
+  );
   expect(
     applyReview(
       p.value,
@@ -386,7 +399,8 @@ function approved(prepared: Parameters<typeof reviewPaths>[0]) {
   const paths = reviewPaths(
     prepared,
     assignedGroups(undefined, prepared.targets),
-    new Set(),
+    new Map(),
+    () => true,
   );
   return new Map(
     approveFixtureReview(paths).decisions.map((entry) => [entry.path, entry]),
@@ -418,6 +432,22 @@ it("builds concrete assignments with current exclusions", () => {
   expect(buildAssignment(f.input, f.context).permissions.eventFields).toBe(
     true,
   );
+  const prepared = f.assemble();
+  if (prepared.status !== "continue") {
+    throw new Error("Rejected fixture");
+  }
+  const groups = assignedGroups("current", f.targets);
+  const paths = reviewPaths(prepared.value, groups, new Map(), () => true);
+  expect(paths.some(({ path }) => path.startsWith("event.fields."))).toBe(
+    false,
+  );
+  const review = approveFixtureReview(paths);
+  review.decisions.push({
+    path: "event.fields.links.website",
+    decision: "return",
+    note: "Check the official site.",
+  });
+  expect(reviewSchema(paths).safeParse(review).success).toBe(false);
 });
 
 it("rejects unknown classification reuse and removes reuse after its target is rejected", () => {

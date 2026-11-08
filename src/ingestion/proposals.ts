@@ -464,18 +464,23 @@ function eventFields(
   return {};
 }
 
-export function assembleProposals(options: {
-  targets: Targets & PlanDiagnostics;
+export type SpecialistOutputs = {
   tickets: TicketsOutput | null;
   classification: ClassificationOutput | null;
   links: LinksOutput;
-  location: MaterializedLocation;
-  points: RegisteredPoint[];
-  corpus: FrozenCorpus;
-  context: ResearchContext;
-  input: CatalogResearchInput;
-  originalTargets?: Targets;
-}): StageResult<PreparedProposals> {
+};
+
+export function assembleProposals(
+  options: SpecialistOutputs & {
+    targets: Targets & PlanDiagnostics;
+    location: MaterializedLocation;
+    points: RegisteredPoint[];
+    corpus: FrozenCorpus;
+    context: ResearchContext;
+    input: CatalogResearchInput;
+    originalTargets?: Targets;
+  },
+): StageResult<PreparedProposals> {
   const { targets, corpus, context, input } = options;
   const diagnostics: PlanDiagnostics = {
     ...diagnosticsOnly(targets),

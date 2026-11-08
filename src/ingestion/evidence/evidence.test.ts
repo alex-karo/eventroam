@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, rm, readFile, readdir } from "node:fs/promises";
+import { mkdtemp, rm, readFile, readdir, writeFile } from "node:fs/promises";
+import { noopObserve } from "@mastra/core/tools";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { bindEvidence, evidencePacket, readerOutputSchema } from "./contracts";
+import {
+  bindEvidence,
+  evidencePacket,
+  readerOutputSchema,
+  type Evidence,
+} from "./contracts";
+import { savedCitation } from "./repair";
 import {
   createCorpusStorage,
   readCanonicalSource,
@@ -442,11 +449,12 @@ describe("saved source evidence", () => {
     expect(item.topics).toEqual(["tickets", "description"]);
     expect(bound.limitations).toHaveLength(3);
   });
-  it("recovers the exact body, separates provenance, and prevents writes after freeze", async () => {
+  it("recovers the exact body and keeps repair citations separate from the frozen corpus", async () => {
     const root = await mkdtemp(join(tmpdir(), "eventroam-evidence-"));
     try {
       const store = createCorpusStorage("run-1", Date.now(), root);
-      const body = "---\ntitle: Website claim\n---\n\n🎪 source\n";
+      const quote = "[Official overview](https://example.org/tickets)";
+      const body = `---\ntitle: Website claim\n---\n\n🎪 source\nRepeated row.\nRepeated row.\nFull pass €130.\nOne day between March 20–22, 2027\n${quote}`;
       const source = await store.savePage({
         attemptedUrl: "https://example.org/",
         finalUrl: "https://example.org/2027",
@@ -463,6 +471,63 @@ describe("saved source evidence", () => {
       const corpus = store.freeze();
       expect(corpus.sources[0].evidencePath).toBeTruthy();
       await expect(store.saveEvidence(source, [])).rejects.toThrow("frozen");
+      const passages: Evidence[] = [];
+      const cite = savedCitation(
+        corpus,
+        passages,
+        new AbortController().signal,
+      );
+      const citeQuote = (quote: string) =>
+        cite.execute!({ sourceId: source.id, quote }, { observe: noopObserve });
+      expect(await citeQuote("Repeated row.")).toMatchObject({
+        error:
+          'quote matches more than once in the saved source. Text "Repeated row.".',
+      });
+      expect(await citeQuote("Full pass €140.")).toEqual({
+        error:
+          'quote has no literal match in the saved source. Text "Full pass €140.".',
+      });
+      expect(
+        await cite.execute!(
+          {
+            sourceId: source.id,
+            quote: "Full pass €130.",
+            context: ["From March 20–22, 2027", "Repeated row."],
+          },
+          { observe: noopObserve },
+        ),
+      ).toEqual({
+        error:
+          'context[0] has no literal match in the saved source. Text "From March 20–22, 2027".\n' +
+          'context[1] matches more than once in the saved source. Text "Repeated row.".',
+      });
+      expect(passages).toEqual([]);
+      expect(await citeQuote(quote)).toEqual({
+        evidenceId: "s1-repair-1",
+        anchors: [
+          { label: "Official overview", url: "https://example.org/tickets" },
+        ],
+      });
+      expect(
+        await cite.execute!(
+          {
+            sourceId: source.id,
+            quote: "Full pass €130.",
+            context: ["One day between March 20–22, 2027"],
+          },
+          { observe: noopObserve },
+        ),
+      ).toEqual({ evidenceId: "s1-repair-2", anchors: [] });
+      expect(passages[1]).toMatchObject({
+        quote: "Full pass €130.",
+        context: [{ quote: "One day between March 20–22, 2027" }],
+      });
+      await writeFile(source.markdownPath!, body + " Changed");
+      expect(await citeQuote(quote)).toEqual({
+        error: "Saved source is unavailable or has changed",
+      });
+      expect(corpus.evidence).toEqual([]);
+      expect(passages).toHaveLength(2);
       expect(
         sourceArtifactRoot({ CATALOG_SOURCE_DIRECTORY: "data/private" }),
       ).toMatch(/eventroam\/data\/private$/);

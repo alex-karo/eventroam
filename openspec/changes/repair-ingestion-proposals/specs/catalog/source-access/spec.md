@@ -63,3 +63,10 @@ A source-based change SHALL retain enough source context to identify its meaning
 - **THEN** the repair can cite it once its exact text and required context are bound to that page for this run
 - **AND** a missing or changed source body cannot supply that evidence
 - **AND** the repair does not replace the original Reader result or change the collection's coverage
+
+#### Scenario: A repair citation contains incorrect context
+
+- **WHEN** the quote matches the saved page but one context fragment does not
+- **THEN** the citation tool identifies the failed context field and text, and states whether it is missing or repeated
+- **AND** the specialist can correct the fragment from the saved page and retry within the return's budget
+- **AND** the rejected call adds no evidence reference

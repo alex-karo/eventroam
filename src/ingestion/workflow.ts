@@ -24,20 +24,11 @@ import {
   assembleProposals,
   applyReview,
   initialDiagnostics,
+  type SpecialistOutputs,
 } from "./proposals";
 import { assignedGroups } from "./groups";
-import {
-  rejectedEdition,
-  rejectedItem,
-  reviewPaths,
-  type ReviewDecisions,
-} from "./review";
+import { reviewPaths, reviewReturns, type ReviewDecisions } from "./review";
 import { repairDiagnostic } from "./repairs";
-import type {
-  LinksOutput,
-  TicketsOutput,
-  ClassificationOutput,
-} from "./roles/contracts";
 import { prepareCatalogPlan } from "./catalog-plan";
 import type { Targets } from "./roles/contracts";
 import { stageDiagnostics } from "./stage";
@@ -663,10 +654,28 @@ export function createCatalogIngestionWorkflow(
         }
       },
     });
+  function recordSpecialistOutputs(
+    data: IngestionData,
+    outputs: SpecialistOutputs,
+  ) {
+    for (const [role, output] of Object.entries(outputs)) {
+      const execution = data.specialists[role];
+      if (execution && output) {
+        data.specialists[role] = {
+          ...execution,
+          status: "success",
+          output,
+          errors: [],
+        };
+      }
+    }
+  }
+
   function assemble(
     owned: CatalogAttempt,
     data: IngestionData,
     targets: Targets & import("./stage").PlanDiagnostics,
+    outputs: SpecialistOutputs,
     originalTargets?: Targets,
   ) {
     const corpus = owned.repairs.corpus(data.corpus!);
@@ -679,34 +688,13 @@ export function createCatalogIngestionWorkflow(
       data.location.status = "success";
       data.location.errors = [];
     }
-    const tickets = owned.repairs.raw("tickets") as TicketsOutput | undefined;
-    const classification = owned.repairs.raw("classification") as
-      ClassificationOutput | undefined;
-    const links = owned.repairs.raw("links") as LinksOutput;
-    for (const [role, output] of Object.entries({
-      tickets,
-      classification,
-      links,
-    })) {
-      const execution = data.specialists[role];
-      if (execution && output) {
-        data.specialists[role] = {
-          ...execution,
-          status: "success",
-          output,
-          errors: [],
-        };
-      }
-    }
     const oldQuestions =
       data.prepared?.status === "continue"
         ? data.prepared.value.unresolved
         : targets.unresolved;
     data.prepared = assembleProposals({
       targets,
-      tickets: tickets ?? null,
-      classification: classification ?? null,
-      links,
+      ...outputs,
       location: data.location.materialized ?? {
         support: {},
         slots: {},
@@ -809,10 +797,11 @@ export function createCatalogIngestionWorkflow(
         return results;
       }
       try {
-        await owned.track(
+        const outputs = await owned.track(
           owned.repairs.beforeReview(owned, data, targets, signal),
         );
-        return assemble(owned, data, targets);
+        recordSpecialistOutputs(data, outputs);
+        return assemble(owned, data, targets, outputs);
       } catch (error) {
         data.errors.push(repairDiagnostic(error));
         data.unresolved.push(...firstQuestions);
@@ -839,7 +828,13 @@ export function createCatalogIngestionWorkflow(
               corpus: owned.repairs.corpus(data.corpus!),
             },
             prepared,
-            reviewPaths(prepared, groups, owned.repairs.usedPaths, targeted),
+            reviewPaths(
+              prepared,
+              groups,
+              owned.repairs.returnCounts,
+              (owner) => owned.repairs.canReturn(owner),
+              targeted,
+            ),
             targeted
               ? owned.repairs.records.filter(({ path }) => targeted.has(path))
               : owned.repairs.records,
@@ -869,15 +864,14 @@ export function createCatalogIngestionWorkflow(
       const review: ReviewDecisions = new Map(
         execution.output.decisions.map((entry) => [entry.path, entry]),
       );
-      const returned = execution.output.decisions.filter(
-        ({ decision, path }) =>
-          decision === "return" &&
-          !rejectedItem(review) &&
-          !rejectedEdition(review, path.split(".")[0]),
-      );
-      if (returned.length) {
+      for (
+        let returned = reviewReturns(review);
+        returned.length;
+        returned = reviewReturns(review)
+      ) {
         try {
-          await owned.track(
+          const firstRecord = owned.repairs.records.length;
+          const outputs = await owned.track(
             owned.repairs.afterReview(
               owned,
               data,
@@ -887,6 +881,7 @@ export function createCatalogIngestionWorkflow(
               signal,
             ),
           );
+          recordSpecialistOutputs(data, outputs);
           const general = owned.repairs.raw("general") as Targets;
           const revised = assemble(
             owned,
@@ -895,6 +890,7 @@ export function createCatalogIngestionWorkflow(
               ...stageDiagnostics(data.researchValidation!),
               ...general,
             },
+            outputs,
             originalTargets,
           );
           if (revised.status !== "continue") {
@@ -909,9 +905,7 @@ export function createCatalogIngestionWorkflow(
             data.editor.status = "failed";
             data.editor.errors.push(...targeted.errors);
             data.outcome = "failed";
-            for (const entry of owned.repairs.records.filter(
-              ({ trigger }) => trigger === "editor",
-            )) {
+            for (const entry of owned.repairs.records.slice(firstRecord)) {
               entry.failure = targeted.errors[0];
             }
             return targeted;

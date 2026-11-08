@@ -438,6 +438,13 @@ A source-based change SHALL retain enough source context to identify its meaning
 - **AND** a missing or changed source body cannot supply that evidence
 - **AND** the repair does not replace the original Reader result or change the collection's coverage
 
+#### Scenario: A repair citation contains incorrect context
+
+- **WHEN** the quote matches the saved page but one context fragment does not
+- **THEN** the citation tool identifies the failed context field and text, and states whether it is missing or repeated
+- **AND** the specialist can correct the fragment from the saved page and retry within the return's budget
+- **AND** the rejected call adds no evidence reference
+
 ### Requirement: Saved sources support later validation
 
 Each run SHALL save full parsed Markdown and provenance as private artifacts within retrieval bounds. Provenance SHALL identify URLs, retrieval time, method, limits, and content identity. Website metadata SHALL remain source claims. Saved evidence SHALL be inspectable after exit without a new fetch. Missing required storage SHALL stop dependent changes.

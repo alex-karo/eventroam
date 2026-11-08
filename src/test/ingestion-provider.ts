@@ -3,6 +3,52 @@ import type { GenerateRole, Role } from "@/ingestion/roles/invoke";
 import { createResearchBudget } from "@/ingestion/runtime/budget";
 
 type ObjectValue = Record<string, unknown>;
+
+export type ProviderRequest = {
+  messages: {
+    role: string;
+    content: unknown;
+    tool_call_id?: string;
+    tool_calls?: { id: string }[];
+  }[];
+  tools?: { function: { name: string } }[];
+  response_format: { json_schema: { schema: ObjectValue } };
+};
+
+export function modelReply(
+  content: string | null,
+  tool?: { id: string; name: string; args: unknown },
+) {
+  return Response.json({
+    id: "fixture",
+    object: "chat.completion",
+    created: 1,
+    model: "fixture/model",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content,
+          ...(tool && {
+            tool_calls: [
+              {
+                id: tool.id,
+                type: "function",
+                function: {
+                  name: tool.name,
+                  arguments: JSON.stringify(tool.args),
+                },
+              },
+            ],
+          }),
+        },
+        finish_reason: tool ? "tool_calls" : "stop",
+      },
+    ],
+  });
+}
+
 export function providerPrompt(
   body: ObjectValue,
 ): ReturnType<typeof JSON.parse> {

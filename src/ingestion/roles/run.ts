@@ -16,7 +16,11 @@ import {
   topics,
   type FrozenCorpus,
 } from "../evidence/contracts";
-import { savedPages, savedSearchInstructions } from "../evidence/repair";
+import {
+  savedCitationInstructions,
+  savedPages,
+  savedSearchInstructions,
+} from "../evidence/repair";
 import { buildAssignment, assignedRoleChecks } from "./assignment";
 import {
   roleEvidenceTopics,
@@ -121,7 +125,8 @@ export async function collectResearch(
   });
 }
 const returnInstructions =
-  "\nIf the workflow returns groups for revision, keep the same assignment and targets. Follow the same role rules. Revise only the requested groups. Use citeSavedPassage for new citations. If you omit a requested optional group, include an unresolved entry with its exact group path as field and explain why.";
+  "\nIf the workflow returns groups for revision, keep the same assignment and targets. Follow the same role rules. Revise only the requested groups. Use citeSavedPassage for new citations. " +
+  savedCitationInstructions;
 
 function base(options: RoleOptions, role: import("./invoke").Role) {
   return {

@@ -7,7 +7,8 @@ In a Roskilde evaluation, Editor found conflicting Smart Ticket instalment terms
 ## What Changes
 
 - Let Editor return an assigned proposal or omission. Keep all Editor comments in the decision notes. The group owner supplies any new value.
-- After the item checks pass, return assigned groups with field errors before review. In each phase, send one request per owner with all eligible groups. Both phases share one return per group. A revision can change only the requested groups.
+- Have Editor check each assigned group for unsupported claims and concrete gaps. Search relevant saved pages when the result can change a decision. Return an eligible group with the source excerpt when it supports a correction or fills a gap.
+- After the item checks pass, return assigned groups with field errors before review. In each round, send one request per owner with all eligible groups. A group can return up to three times. Validation can use one return before review. A revision can change only the requested groups.
 - Review the complete result before preparing catalog operations. Show the original proposal, the reason for repair, and the outcome in the private report.
 
 ## Capabilities
@@ -19,7 +20,7 @@ In a Roskilde evaluation, Editor found conflicting Smart Ticket instalment terms
   - **After** — The assigned owner supplies any replacement, including a value for a returned omission. Each final group must pass its usual checks.
 - `catalog/ingestion-workflow`
   - **Before** — An invalid required proposal can stop the item before review.
-  - **After** — Validation can return any invalid assigned group that it can identify after the item checks pass. The workflow groups returns by owner in each phase. After an editorial return, Editor reviews only the returned groups.
+  - **After** — Validation can return any invalid assigned group that it can identify after the item checks pass. The workflow groups returns by owner in each round. After each editorial return, Editor reviews only the returned groups.
 - `catalog/source-access`
   - **Before** — Editor can inspect uncited saved pages to validate a proposal. The spec forbids replacement values from this access.
   - **After** — Editor can share passages in its note. The group owner can bind new passages from saved pages to support a revision.
@@ -28,7 +29,7 @@ In a Roskilde evaluation, Editor found conflicting Smart Ticket instalment terms
   - **After** — Classification receives the count error and can submit a valid complete list or leave classification unresolved.
 - `catalog/location-resolution`
   - **Before** — Location supplies the complete place decision. Editor approves or rejects it.
-  - **After** — Editor can also return the place group to Location once with its notes. Location makes all place corrections, including spelling changes.
+  - **After** — Editor can also return the place group to Location with its notes. Location makes all place corrections, including spelling changes.
 - `catalog/ingestion-runs`
   - **Before** — The private report shows findings, changes and failures. The CLI identifies the saved report by run ID.
   - **After** — The report also shows each return, who requested it, the revision and its source support, and the final decision.
