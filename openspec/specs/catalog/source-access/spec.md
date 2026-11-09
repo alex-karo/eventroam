@@ -120,11 +120,11 @@ Discovery SHALL return bounded, unique, valid HTTP(S) candidates with titles and
 ### Requirement: Discovery is limited to material source needs
 
 Discovery MUST serve an unknown official source, source recovery, a material identity or date conflict, an essential missing Edition fact, or a concrete festival place for an inspected ongoing or announced next Edition.
-Research MUST use relevant known links and prior results before another search.
+Research MUST use relevant known links before searching and use relevant results before repeating a search for the same need. Research SHOULD use one targeted query for facts expected on the same page. Research MAY search in parallel for independent source needs.
 Edition fact and place discovery MUST concern an Edition supported by inspected evidence.
 Essential facts MUST concern Edition identification, dates, or publication requirements.
 A known country alone SHALL NOT end place discovery when the festival place remains vague. Research SHALL first use useful travel, location or contact leads. A venue with city or area, a source-supported address or a map point SHALL be sufficient. Place discovery SHALL stop when that goal is met, the organizer explicitly withholds the place, no useful permitted step remains, or the shared budget ends. An absent venue SHALL NOT prevent publication. Other missing optional facts or an unannounced next Edition alone MUST NOT justify search.
-Current source-recovery restrictions MUST still apply. Search count SHALL depend on the unresolved permitted need within the shared budget, not a universal one-query limit.
+Current source-recovery restrictions MUST still apply. Search count SHALL depend on the unresolved permitted need and the shared budget.
 
 #### Scenario: Official sources contain no next announcement
 
