@@ -48,7 +48,10 @@ export function createCollection(options: {
   sources: SourceSession;
   budget: ResearchBudget;
   config: ResearchConfig;
-  deps: Pick<ResearchDependencies, "generateRole" | "generateRoles">;
+  deps: Pick<
+    ResearchDependencies,
+    "generateRole" | "generateRoles" | "readSource"
+  >;
   assignment: unknown;
   signal?: AbortSignal;
   tracing?: RunObservability;
@@ -149,7 +152,7 @@ export function createCollection(options: {
           return source;
         }
         source.leads = pageLinks(read.markdown, read.finalUrl);
-        const execution = await readSource({
+        const execution = await (options.deps.readSource ?? readSource)({
           input: {
             assignment: options.assignment,
             source: { id: source.id, ...read, markdown: undefined },

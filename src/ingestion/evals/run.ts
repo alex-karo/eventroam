@@ -48,6 +48,7 @@ import {
 } from "./fixtures";
 import { scoreCase } from "./score";
 import { editorFixtureRoles } from "./editor-fixture";
+import { fixedReader } from "./fixed-reader";
 import type { ScenarioResult } from "./checks";
 import { createEvalScorers } from "./scorers";
 
@@ -208,24 +209,6 @@ function seedDatabase(
     connection.client.close();
     throw error;
   }
-}
-
-function fixedReader(item: PipelineEvalCase) {
-  if (!item.sources.some((source) => source.readerOutput)) {
-    return undefined;
-  }
-  return {
-    reader: async (_role: unknown, prompt: string) => {
-      const { source, page } = JSON.parse(prompt);
-      const fixed = item.sources.find(
-        ({ finalUrl }) => finalUrl === source.finalUrl,
-      );
-      if (!fixed?.readerOutput || fixed.markdown !== page) {
-        throw new Error(`${item.id}: unexpected fixed Reader input`);
-      }
-      return structuredClone(fixed.readerOutput);
-    },
-  };
 }
 
 function fixedSources(
@@ -417,9 +400,8 @@ async function executeCase(
           todayUtc: item.todayUtc ?? suite.todayUtc,
           geocodingClient: fixedGeocoding(item),
           ...fixedSources(item, item.todayUtc ?? suite.todayUtc, calls),
-          generateRoles: item.roleHandoff
-            ? editorFixtureRoles(item)
-            : fixedReader(item),
+          readSource: fixedReader(item),
+          generateRoles: editorFixtureRoles(item),
         },
       );
     } catch (error) {

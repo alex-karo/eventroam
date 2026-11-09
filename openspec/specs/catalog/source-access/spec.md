@@ -400,17 +400,17 @@ A source-based change SHALL retain enough source context to identify its meaning
 - **WHEN** a page description leaves out an eligibility condition or table qualification
 - **THEN** a ticket change must still respect the original source condition
 
-#### Scenario: A compact reference identifies a long passage
+#### Scenario: Reader selects an inclusive segment range
 
-- **WHEN** extraction identifies a passage by its unique literal opening and closing text
-- **THEN** saved support retains the complete original passage and its required context
-- **AND** ambiguous, reversed, partially overlapping, or unmatched boundaries do not authorize a change
+- **WHEN** Reader selects a range of segment IDs from one saved page
+- **THEN** saved evidence contains the original text from the start of the first segment to the end of the last segment and the required context
+- **AND** the saved offsets identify the selected occurrence on the page
 
-#### Scenario: The opening text is already the complete quotation
+#### Scenario: Reader selects an invalid segment or range
 
-- **WHEN** unique literal opening text already contains the unique closing text as its exact suffix, including identical boundaries
-- **THEN** the complete opening text can be bound as a normal literal quotation within the same size limit
-- **AND** other partial overlaps remain invalid
+- **WHEN** a selected ID does not exist on the page, a range is reversed, or the selected passage exceeds the size limit
+- **THEN** collection discards that evidence item and records a source limitation
+- **AND** collection keeps other valid evidence from the page
 
 #### Scenario: A quotation contains one extra wire escape
 

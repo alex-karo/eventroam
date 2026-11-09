@@ -8,6 +8,7 @@ import {
   fixtureLocationPlan,
   set,
   createFixtureIngestionWorkflow,
+  wholeNumberedPage,
 } from "@/test/ingestion";
 import { CatalogAttempt } from "./attempt";
 import { createIngestionData } from "./contracts";
@@ -1831,7 +1832,10 @@ test.each(["pin-only", "city", "city-no-point"] as const)(
           statedYears: [],
           limitations: [],
           evidence: [
-            { quote: data.page, topics: ["identity", "dates", "location"] },
+            {
+              quote: wholeNumberedPage(data.page),
+              topics: ["identity", "dates", "location"],
+            },
           ],
         };
       },

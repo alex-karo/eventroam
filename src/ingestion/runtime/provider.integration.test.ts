@@ -167,7 +167,7 @@ test.each([
       evidence: [
         { quote: 2, topics: ["tickets"] },
         {
-          quote: 3,
+          quote: { start: 3, end: 4 },
           topics: ["tickets"],
           context: [1],
           editionClues: [],
@@ -193,7 +193,7 @@ test.each([
       const input = {
         assignment: { requestedName: "Festival", currentDate: "2026-11-04" },
         source: { id: `s${year}`, finalUrl: `https://example.org/${year}` },
-        page: `# ${year}\nFull pass €100.\nChildren enter free.`,
+        page: `# ${year}\nFull pass €100.\nChildren under 12\nenter free.`,
       };
       const result = await readSource({
         input,
@@ -202,11 +202,15 @@ test.each([
       });
       expect(result.status).toBe("success");
       expect(result.output).toEqual(output);
+      expect(result.modelResponse?.object).toEqual(output);
       expect(result.bound).toMatchObject({
         limitations: [],
         evidence: [
           { quote: "Full pass €100." },
-          { quote: "Children enter free.", context: [{ quote: `# ${year}` }] },
+          {
+            quote: "Children under 12\nenter free.",
+            context: [{ quote: `# ${year}` }],
+          },
         ],
       });
       expect(request.prompt_cache_options).toEqual(
@@ -229,7 +233,7 @@ test.each([
           role: "user",
           content: JSON.stringify({
             ...input,
-            page: `1|# ${year}\n2|Full pass €100.\n3|Children enter free.`,
+            page: `1|# ${year}\n2|Full pass €100.\n3|Children under 12\n4|enter free.`,
           }),
         },
       ]);

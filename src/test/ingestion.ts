@@ -102,15 +102,12 @@ export function approveFixtureReview(paths: ReviewPath[]): {
   };
 }
 
-export function fixtureReaderOutput(quote: string | SegmentSelection) {
-  return {
-    overview: "Explicit fixture source",
-    coverage: { found: [], notPublished: [] },
-    topics: [...topics],
-    statedYears: [],
-    limitations: [],
-    evidence: [{ quote, topics: [...topics] }],
-  };
+export function wholeNumberedPage(page: string): SegmentSelection {
+  const end = Number([...page.matchAll(/^(\d+)\|/gm)].at(-1)?.[1]);
+  if (!end) {
+    throw new Error("Reader fixture needs a numbered page");
+  }
+  return end === 1 ? 1 : { start: 1, end };
 }
 
 /** These answers use the current role contracts. Each override is one role response. */
@@ -126,7 +123,16 @@ export function fixtureRoleGenerator(
         : response;
     }
     if (role === "reader") {
-      return fixtureReaderOutput(data.page);
+      return {
+        overview: "Explicit fixture source",
+        coverage: { found: [], notPublished: [] },
+        topics: [...topics],
+        statedYears: [],
+        limitations: [],
+        evidence: [
+          { quote: wholeNumberedPage(data.page), topics: [...topics] },
+        ],
+      };
     }
     if (role === "research") {
       await fixtureTool(call, "inspectPage", {

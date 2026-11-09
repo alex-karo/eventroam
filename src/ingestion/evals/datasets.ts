@@ -18,6 +18,7 @@ export function evalFileHash() {
     "classification.ts",
     "description-format.ts",
     "fixtures.ts",
+    "fixed-reader.ts",
     "editor-fixture.ts",
     "run.ts",
     "geocoding.ts",

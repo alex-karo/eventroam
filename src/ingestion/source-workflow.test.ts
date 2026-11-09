@@ -9,7 +9,7 @@ import { createWorkflowStorage } from "./runtime/workflow-storage";
 import type { GenerateRole } from "./roles/invoke";
 import type { CollectionOutput } from "./roles/research/contracts";
 import { locationTextFields } from "./roles/location/contracts";
-import { approveFixtureReview } from "@/test/ingestion";
+import { approveFixtureReview, wholeNumberedPage } from "@/test/ingestion";
 
 afterEach(() => vi.unstubAllEnvs());
 async function fixture(
@@ -49,7 +49,7 @@ async function fixture(
         limitations: [],
         evidence: [
           {
-            quote: input.page,
+            quote: wholeNumberedPage(input.page),
             context: [],
             topics: [
               "identity",
@@ -436,7 +436,7 @@ it("keeps saved source references in workflow history after cancellation during 
         limitations: [],
         evidence: [
           {
-            quote: JSON.parse(prompt).page,
+            quote: wholeNumberedPage(JSON.parse(prompt).page),
             topics: ["identity"],
             context: [],
             editionClues: [],

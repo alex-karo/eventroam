@@ -4,7 +4,7 @@ import { assertRegressionCase } from "./regression";
 import { assertLocationCase } from "./location";
 import { roleHandoffSchema, assertEditorFixture } from "./editor-fixture";
 import { bindEvidence } from "../evidence/contracts";
-import { readerOutputSchema } from "../roles/reader/contracts";
+import { fixedReaderOutputSchema } from "./fixed-reader";
 import { locationInputSchema } from "../roles/location/input";
 import {
   geocodingRequestSchema,
@@ -77,7 +77,7 @@ const source = z.strictObject({
   status: z.enum(["ok", "unsupported", "failed"]),
   reasonCode: z.string().optional(),
   markdown: z.string(),
-  readerOutput: readerOutputSchema.optional(),
+  readerOutput: fixedReaderOutputSchema.optional(),
 });
 const commonCaseSchema = z.strictObject({
   id: z.string().min(1),

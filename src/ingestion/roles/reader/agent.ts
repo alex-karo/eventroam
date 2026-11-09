@@ -1,115 +1,116 @@
-import { bindEvidence, bindSelectedEvidence } from "../../evidence/contracts";
+import { bindSelectedEvidence } from "../../evidence/contracts";
 import { segmentPage } from "../../evidence/segments";
 import { invokeRole, type RoleExecution } from "../invoke";
+import { validateSchema } from "../validation";
 import { PROMPT_VERSIONS } from "../versions";
-import {
-  readerOutputSchema,
-  readerSelectionSchema,
-  type ReaderOutput,
-  type ReaderSelectionOutput,
-} from "./contracts";
+import { readerSelectionSchema, type ReaderSelectionOutput } from "./contracts";
 import { readerInstructions } from "./prompt";
-import { validateReaderReply, validateReaderSelection } from "./validate";
 
-type ReaderExecution = RoleExecution<ReaderOutput | ReaderSelectionOutput> & {
-  bound: ReturnType<typeof bindEvidence> | null;
+type ReaderOptions = Omit<
+  Parameters<typeof invokeRole>[0],
+  | "role"
+  | "version"
+  | "instructions"
+  | "schema"
+  | "cacheInstructions"
+  | "validateReply"
+  | "input"
+> & {
+  input: {
+    assignment: unknown;
+    source: { id: string; finalUrl: string; markdown?: undefined };
+    page: string;
+  };
+  inputLimits?: {
+    pageInputCharacters: number;
+    inputReserveCharacters: number;
+  };
+  reserveCall?: () => boolean;
 };
 
-export async function readSource(
-  options: Omit<
-    Parameters<typeof invokeRole>[0],
-    | "role"
-    | "version"
-    | "instructions"
-    | "schema"
-    | "cacheInstructions"
-    | "validateReply"
-    | "input"
-  > & {
-    input: {
-      assignment: unknown;
-      source: { id: string; finalUrl: string; markdown?: undefined };
-      page: string;
-    };
-    inputLimits?: {
-      pageInputCharacters: number;
-      inputReserveCharacters: number;
-    };
-    reserveCall?: () => boolean;
-  },
-): Promise<ReaderExecution> {
-  const { source, page } = options.input;
-  const version = PROMPT_VERSIONS.reader;
-  const skipped = (skipReason: string): ReaderExecution => ({
+type BoundEvidence = ReturnType<typeof bindSelectedEvidence>;
+type ReaderExecution<T> = RoleExecution<T> & { bound: BoundEvidence | null };
+export type ReadSource = (
+  options: ReaderOptions,
+) => Promise<ReaderExecution<Omit<ReaderSelectionOutput, "evidence">>>;
+
+const oversized =
+  "Whole page exceeds Reader input limit; no page portion was processed";
+
+function readerInputLimit(limits: ReaderOptions["inputLimits"]) {
+  return limits
+    ? limits.pageInputCharacters - limits.inputReserveCharacters
+    : Infinity;
+}
+
+function skippedReader(
+  model: string,
+  skipReason: string,
+): ReaderExecution<never> {
+  return {
     status: "not_run",
     modelResponse: null,
     errors: [],
-    model: options.config.model,
-    promptVersion: version,
+    model,
+    promptVersion: PROMPT_VERSIONS.reader,
     durationMs: 0,
     skipReason,
     bound: null,
-  });
-  const oversized =
-    "Whole page exceeds Reader input limit; no page portion was processed";
-  const limit = options.inputLimits
-    ? options.inputLimits.pageInputCharacters -
-      options.inputLimits.inputReserveCharacters
-    : Infinity;
-  if (page.length > limit) {
-    return skipped(oversized);
-  }
+  };
+}
 
-  // Injected generators replay the literal format used by saved eval fixtures.
-  const segments = options.generate ? null : segmentPage(page);
-  const input = { ...options.input, page: segments?.numbered ?? page };
-  if (JSON.stringify(input).length > limit) {
-    return skipped(oversized);
+export async function invokeReader<T>(
+  options: ReaderOptions &
+    Pick<Parameters<typeof invokeRole<T>>[0], "schema" | "validateReply">,
+  bind: (output: T) => BoundEvidence,
+): Promise<ReaderExecution<T>> {
+  const limit = readerInputLimit(options.inputLimits);
+  if (
+    options.input.page.length > limit ||
+    JSON.stringify(options.input).length > limit
+  ) {
+    return skippedReader(options.config.model, oversized);
   }
   if (options.reserveCall?.() === false) {
-    return skipped(
+    return skippedReader(
+      options.config.model,
       "The Reader call limit or run deadline left the whole page unprocessed",
     );
   }
-
-  const invocation = {
+  const execution = await invokeRole({
     ...options,
-    input,
-    config: { ...options.config, reasoningEffort: "medium" as const },
-    role: "reader" as const,
-    version,
+    config: { ...options.config, reasoningEffort: "medium" },
+    role: "reader",
+    version: PROMPT_VERSIONS.reader,
     instructions: readerInstructions,
     cacheInstructions: true,
-  };
-  if (!segments) {
-    const execution = await invokeRole({
-      ...invocation,
-      schema: readerOutputSchema,
-      validateReply: validateReaderReply,
-    });
-    return {
-      ...execution,
-      bound: execution.output
-        ? bindEvidence(source.id, page, execution.output, source.finalUrl)
-        : null,
-    };
-  }
-
-  const execution = await invokeRole({
-    ...invocation,
-    schema: readerSelectionSchema,
-    validateReply: validateReaderSelection,
   });
   return {
     ...execution,
-    bound: execution.output
-      ? bindSelectedEvidence(
-          source.id,
-          page,
-          execution.output,
-          source.finalUrl,
-          segments.spans,
-        )
-      : null,
+    bound: execution.output ? bind(execution.output) : null,
   };
+}
+
+export async function readSource(options: ReaderOptions) {
+  const { source, page } = options.input;
+  if (page.length > readerInputLimit(options.inputLimits)) {
+    return skippedReader(options.config.model, oversized);
+  }
+  const { numbered, spans } = segmentPage(page);
+  return invokeReader(
+    {
+      ...options,
+      input: { ...options.input, page: numbered },
+      schema: readerSelectionSchema,
+      validateReply: (reply) =>
+        validateSchema(
+          readerSelectionSchema,
+          reply,
+          "reader",
+          "Fix the listed fields. Return a complete result for the same numbered page. Keep each valid segment selection with its topics and context.",
+        ),
+    },
+    (output) =>
+      bindSelectedEvidence(source.id, page, output, source.finalUrl, spans),
+  );
 }

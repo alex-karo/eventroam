@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { bindEvidence } from "../evidence/contracts";
-import { readerOutputSchema } from "../roles/reader/contracts";
+import { fixedReaderOutputSchema } from "./fixed-reader";
 import { roleEvidenceTopics } from "../roles/contracts";
 import { collectionOutputSchema } from "../roles/research/contracts";
 import { generalOutputSchema } from "../roles/general/contracts";
@@ -18,7 +18,7 @@ export const roleHandoffSchema = z.strictObject({
       z.strictObject({
         url: z.url(),
         sourceId: z.string().min(1),
-        reader: readerOutputSchema.optional(),
+        reader: fixedReaderOutputSchema.optional(),
       }),
     )
     .min(1),
@@ -128,7 +128,7 @@ export function assertEditorFixture(item: PipelineEvalCase) {
   }
 }
 
-/** Run normal collection and binding with fixed inputs; Editor and Location stay live. */
+/** Replay Research and specialist replies for the Editor handoff. */
 export function editorFixtureRoles(
   item: PipelineEvalCase,
 ): ResearchDependencies["generateRoles"] {
@@ -157,24 +157,6 @@ export function editorFixtureRoles(
         }
       }
       return structuredClone(fixture.collection);
-    },
-    reader: async (_role, prompt) => {
-      const input = JSON.parse(prompt);
-      const page = fixture.pages.find(
-        (page) => page.sourceId === input.source.id,
-      );
-      const source = item.sources.find(
-        (source) => source.attemptedUrl === page?.url,
-      );
-      if (
-        !page?.reader ||
-        !source ||
-        source.markdown !== input.page ||
-        source.finalUrl !== input.source.finalUrl
-      ) {
-        throw new Error(`${item.id}: unexpected fixed Reader input`);
-      }
-      return structuredClone(page.reader);
     },
     ...Object.fromEntries(
       (

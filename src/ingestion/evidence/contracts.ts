@@ -4,7 +4,6 @@ import { ResearchLimitError } from "../runtime/budget";
 import type { SourceReadMetadata } from "../tools/read-page/contracts";
 import type {
   ReaderEvidence,
-  ReaderOutput,
   ReaderSelectionOutput,
 } from "../roles/reader/contracts";
 export const topics = [
@@ -34,9 +33,9 @@ export type Source = SourceReadMetadata & {
   evidencePath?: string;
   processing: "unprocessed" | "complete" | "limited" | "failed";
   overview?: string;
-  coverage?: ReaderOutput["coverage"];
+  coverage?: ReaderSelectionOutput["coverage"];
   leads?: { url: string; label: string }[];
-  topics?: ReaderOutput["topics"];
+  topics?: ReaderSelectionOutput["topics"];
   statedYears?: string[];
   limitations: string[];
   readerResponse?: { text: string | null; object: unknown } | null;
@@ -46,9 +45,19 @@ export type FrozenCorpus = {
   sources: Source[];
   evidence: Evidence[];
 };
+type PageEvidence<Selection> = {
+  evidence: {
+    quote: Selection;
+    context?: Selection[];
+    topics: Evidence["topics"];
+    editionClues?: string[];
+    uncertainty?: string | null;
+  }[];
+  limitations: string[];
+};
 
 /** The string index is a half-open UTF-16 offset, as used by String.slice. */
-export function uniqueSpan(body: string, quote: string): Span | null {
+function uniqueSpan(body: string, quote: string): Span | null {
   const start = body.indexOf(quote);
   if (start < 0 || body.indexOf(quote, start + 1) !== -1) {
     return null;
@@ -74,7 +83,7 @@ export function literalMatch(body: string, supplied: string) {
 export function bindEvidence(
   sourceId: string,
   body: string,
-  output: Pick<ReaderOutput, "evidence" | "limitations">,
+  output: PageEvidence<string>,
   sourceUrl: string,
 ) {
   return bindPassages(
@@ -82,28 +91,9 @@ export function bindEvidence(
     body,
     output,
     sourceUrl,
-    (quote) => literalSpan(body, quote),
+    (quote) => literalMatch(body, quote).span,
     "has no unique literal match",
   );
-}
-
-function literalSpan(body: string, quote: ReaderEvidence["quote"]) {
-  if (typeof quote === "string") {
-    return literalMatch(body, quote).span;
-  }
-  const opening = literalMatch(body, quote.start);
-  const closing = literalMatch(body, quote.end);
-  const start = opening.span;
-  const end = closing.span;
-  if (
-    !start ||
-    !end ||
-    (end.start < start.end && !opening.quote.endsWith(closing.quote)) ||
-    end.end - start.start > 24000
-  ) {
-    return null;
-  }
-  return uniqueSpan(body, body.slice(start.start, end.end));
 }
 
 export function bindSelectedEvidence(
@@ -126,16 +116,7 @@ export function bindSelectedEvidence(
 function bindPassages<Selection>(
   sourceId: string,
   body: string,
-  output: {
-    evidence: {
-      quote: Selection;
-      context?: Selection[];
-      topics: Evidence["topics"];
-      editionClues?: string[];
-      uncertainty?: string | null;
-    }[];
-    limitations: string[];
-  },
+  output: PageEvidence<Selection>,
   sourceUrl: string,
   resolve: (selection: Selection) => Span | null,
   invalid: string,

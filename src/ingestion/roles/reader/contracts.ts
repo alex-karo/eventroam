@@ -1,29 +1,15 @@
 import { z } from "zod";
 import { topics } from "../../evidence/contracts";
 
-const quote = z.string().min(1).max(24000);
-const readerEvidence = z.strictObject({
-  quote: z
-    .union([
-      quote,
-      z.strictObject({
-        start: z
-          .string()
-          .min(1)
-          .describe(
-            "Exact unique opening text, normally at most 250 characters. Preserve whitespace.",
-          ),
-        end: z
-          .string()
-          .min(1)
-          .describe(
-            "Exact unique closing text, normally at most 250 characters. It must follow the opening text. Never use a repeated bullet.",
-          ),
-      }),
-    ])
-    .describe(
-      "Copy the full literal quotation when it has at most 2000 characters. Use start/end only for longer passages, with both boundaries unique in the complete page.",
-    ),
+const segmentId = z.int().positive();
+const segmentSelection = z.union([
+  segmentId,
+  z.strictObject({ start: segmentId, end: segmentId }),
+]);
+export const selectedEvidence = z.strictObject({
+  quote: segmentSelection.describe(
+    "One segment ID or an inclusive range of segment IDs in page order.",
+  ),
   topics: z
     .array(z.enum(topics))
     .max(9)
@@ -31,12 +17,12 @@ const readerEvidence = z.strictObject({
       "Use at least one topic per quotation. Omit unrelated quotations.",
     ),
 });
-const contextualReaderEvidence = readerEvidence.extend({
+export const contextualSelection = selectedEvidence.extend({
   context: z
-    .array(quote)
+    .array(segmentSelection)
     .max(24)
     .describe(
-      "Return [] unless a separate source passage supplies missing year, object or qualification. Copy each context exactly, including its original heading markers. Do not attach a generic page heading to an already complete quotation or reconstruct a section title.",
+      "Separate segment selections for any needed heading, year or condition outside the quote.",
     ),
   editionClues: z
     .array(
@@ -106,36 +92,9 @@ const readerPageResult = z.strictObject({
     ),
 });
 
-// Recorded and injected replies keep the literal format used when they were captured.
-export const readerOutputSchema = readerPageResult.extend({
-  evidence: z
-    .array(z.union([contextualReaderEvidence, readerEvidence]))
-    .max(150),
-});
-export type ReaderOutput = z.infer<typeof readerOutputSchema>;
-export type ReaderEvidence = z.infer<typeof contextualReaderEvidence>;
-
-const segmentId = z.int().positive();
-const segmentSelection = z.union([
-  segmentId,
-  z.strictObject({ start: segmentId, end: segmentId }),
-]);
-const selectedEvidence = readerEvidence.extend({
-  quote: segmentSelection.describe(
-    "One segment ID or an inclusive range of segment IDs in page order.",
-  ),
-});
-const contextualSelection = contextualReaderEvidence.extend({
-  quote: selectedEvidence.shape.quote,
-  context: z
-    .array(segmentSelection)
-    .max(24)
-    .describe(
-      "Separate segment selections for any needed heading, year or condition outside the quote.",
-    ),
-});
 export const readerSelectionSchema = readerPageResult.extend({
   // Keep full metadata first so native schema handling retains required null values.
   evidence: z.array(z.union([contextualSelection, selectedEvidence])).max(150),
 });
 export type ReaderSelectionOutput = z.infer<typeof readerSelectionSchema>;
+export type ReaderEvidence = z.infer<typeof contextualSelection>;
