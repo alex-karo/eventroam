@@ -50,6 +50,13 @@
       "when": 1793923844791,
       "tag": "0006_event_descriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1794184392230,
+      "tag": "0007_edition_sell_out",
+      "breakpoints": true
     }
   ]
 }

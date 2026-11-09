@@ -1,0 +1,1 @@
+ALTER TABLE `editions` ADD `sold_out_source_url` text;

@@ -27,4 +27,11 @@ export const editionScalarSchemas = {
       }
     }, "Invalid IANA time zone")
     .nullish(),
+  soldOutSourceUrl: z
+    .url()
+    .refine((value) => /^https?:\/\//.test(value), "Use an HTTP or HTTPS URL")
+    .nullish()
+    .describe(
+      "Official source that confirms the whole Edition sold out. Use null to clear.",
+    ),
 };

@@ -80,6 +80,8 @@ Chat uses the configured OpenRouter model by default. Native Studio model select
 
 For direct edits, the assistant shows the old and new values and the audit mode before it writes. Use the built-in Approve or Decline button on the current card. Resolve the current draft before asking for another edit. For a revision, decline the current draft and review the new one. Studio applies each Event or Edition separately and reports changed, unchanged, and failed targets. Direct edits can change existing Event, Edition, and link fields. They preserve Edition keys, ownership, and publication state. They cannot create or delete records or links.
 
+To mark an Edition as sold out, give the Studio assistant the Edition and the official URL that confirms the whole Edition sold out. Review and approve the change to `soldOutSourceUrl`. If sales reopen, ask the assistant to clear that field.
+
 - “Find the current official website for Example Festival. Cite the source and propose a correction to its saved link.”
 - “Replace the short description of Example Festival with this text. Do not add a catalog audit entry.”
 - “Rename these links using the same label pattern.” If one target fails, review the reason in chat and ask for a new proposal for that target.

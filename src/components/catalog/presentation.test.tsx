@@ -90,6 +90,39 @@ test("link groups deduplicate URLs, distinguish repeated hosts, and name histori
     expect(output).toContain(`<span>${link.name}</span>`);
   }
 });
+
+test("a confirmed sell-out shows an outlined link and keeps the ticket destination", () => {
+  const data = event();
+  const ticketUrl = "https://tickets.example.org/festival";
+  const siteUrl = "https://festival.example.org/";
+  const edition = {
+    ...data.editions[0],
+    soldOut: true,
+    links: [
+      { kind: "official_site", url: ticketUrl, label: null },
+      { kind: "official_site", url: siteUrl, label: null },
+      { kind: "ticketing", url: ticketUrl, label: "Buy tickets" },
+    ],
+  };
+  const $ = load(
+    renderToStaticMarkup(
+      <EditionDetailsPage
+        event={data}
+        edition={edition}
+        now={new Date("2026-10-01")}
+      />,
+    ),
+  );
+  const links = $(".edition-booking .external-links a");
+  expect(
+    links
+      .map((_, link) =>
+        [$(link).attr("href"), $(link).attr("aria-label")].join(" "),
+      )
+      .get(),
+  ).toEqual([`${ticketUrl} Sold out`, `${siteUrl} Official site`]);
+  expect(links.filter(".external-link-primary")).toHaveLength(0);
+});
 test("Edition layout preserves section order and shared history while Event stays small", () => {
   const data = event();
   const edition = data.editions[0];
@@ -232,11 +265,12 @@ test("Edition opening separates festival summary, price and booking links from d
 });
 
 test.each(["past", "cancelled", "postponed", "no-tickets"] as const)(
-  "Edition primary action uses the official site for %s",
+  "A confirmed sell-out still uses the official site as primary for %s",
   (state) => {
     const data = { ...event(), shortDescription: "  " };
     const edition = {
       ...data.editions[0],
+      soldOut: true,
       status:
         state === "cancelled" || state === "postponed"
           ? state
@@ -266,6 +300,7 @@ test.each(["past", "cancelled", "postponed", "no-tickets"] as const)(
     expect($(".edition-booking .external-link-primary").attr("href")).toBe(
       edition.links[0].url,
     );
+    expect($(".edition-booking").text()).not.toContain("Sold out");
     expect($(".edition-summary")).toHaveLength(0);
     if (state === "past") {
       expect($(".edition-facts").text()).toContain("Past edition");

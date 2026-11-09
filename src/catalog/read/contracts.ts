@@ -10,6 +10,7 @@ export type PublicEdition = {
   endsOn: string;
   dateState: "confirmed" | "provisional";
   status: "announced" | "scheduled" | "postponed" | "cancelled";
+  soldOut: boolean;
   ticketCategories: {
     label: string;
     amount?: number;

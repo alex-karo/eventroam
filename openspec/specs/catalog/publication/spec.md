@@ -53,7 +53,7 @@ An Edition SHALL publish only with a year, date pair, and country. Venue, locali
 
 ### Requirement: Public pages preserve edition status and uncertainty
 
-The Event page SHALL show its name, the festival text selected by the detail page, and public Edition history without a separate active Edition detail block. The Edition page SHALL show known dates, status, location, useful classifications, estimated size, price, and official links. Provisional dates SHALL say Tentative dates. Postponed pages SHALL say Postponed — new dates TBA and Previous dates. Cancelled pages SHALL remain available. Ticket availability SHALL appear only beside its category.
+The Event page SHALL show its name, the festival text selected by the detail page, and public Edition history without a separate active Edition detail block. The Edition page SHALL show known dates, status, location, useful classifications, estimated size, price, and official links. Provisional dates SHALL say Tentative dates. Postponed pages SHALL say Postponed — new dates TBA and Previous dates. Cancelled pages SHALL remain available. Category availability SHALL appear beside its category.
 
 #### Scenario: A postponed published edition has no replacement dates
 
@@ -121,13 +121,13 @@ Public Edition details SHALL show availability beside its category: available as
 #### Scenario: Categories have different availability
 
 - **WHEN** Early Bird is sold out and Regular is available for an upcoming Edition
-- **THEN** details show each category's own state and no Edition-wide availability
+- **THEN** details show each category's own state and do not infer Edition-wide availability
 
 #### Scenario: Availability remains unknown
 
 - **WHEN** a category has no known availability or no variants are stored
 - **THEN** no availability is inferred from base price, dates, or schedule status
-- **AND** no global badge is shown
+- **AND** no Edition sell-out is shown without a separate confirmation
 
 #### Scenario: Public category information stays limited
 
@@ -217,3 +217,11 @@ Public Edition reads SHALL expose nullable latitude and longitude, stored coordi
 - **WHEN** an Edition has no coordinates
 - **THEN** public coordinates remain null
 - **AND** no fallback point at zero latitude and longitude is added
+
+### Requirement: Public Edition reads expose sell-out confirmation
+
+Public Edition details SHALL indicate whether the catalog has a confirmed Edition sell-out. The confirmation source SHALL remain private.
+
+#### Scenario: A public Edition has a confirmation source
+- **WHEN** a client reads the public Edition
+- **THEN** it receives the confirmation state without the source URL

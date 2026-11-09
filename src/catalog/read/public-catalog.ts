@@ -62,6 +62,9 @@ function publicRows(
       endsOn: editions.endsOn,
       dateState: editions.dateState,
       status: editions.scheduleStatus,
+      soldOut: sql<boolean>`${editions.soldOutSourceUrl} is not null`.mapWith(
+        Boolean,
+      ),
       priceDetails: editions.priceDetails,
       venueName: editions.venueName,
       venueAddress: editions.venueAddress,

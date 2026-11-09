@@ -155,11 +155,11 @@ The Edition opening area SHALL show the Event's nonblank short description when 
 
 ### Requirement: Opening ticket actions show their purpose
 
-The opening ticket area SHALL keep base price and its stored conditions together. It SHALL emphasize one ticket link for an upcoming Edition that is not cancelled or postponed, with an official-site link as fallback. Other Editions SHALL emphasize an official-site link when known. Ticket and official-site links SHALL share a row when they fit and wrap onto more rows when needed. Category availability SHALL remain in the ticket category section.
+The opening ticket area SHALL keep base price and its stored conditions together. The opening area SHALL use outlined booking links for a confirmed sell-out with ticket links on an Edition that is not past, cancelled, or postponed. Otherwise, it SHALL emphasize one ticket link for an upcoming Edition that is not cancelled or postponed, with an official-site link as fallback. Other Editions SHALL emphasize an official-site link when known. Ticket and official-site links SHALL share a row when they fit and wrap onto more rows when needed. Category availability SHALL remain in the ticket category section.
 
 #### Scenario: Several purchase and information links exist
 
-- **WHEN** an upcoming scheduled Edition has ticket, official-site, and social links
+- **WHEN** an upcoming scheduled Edition without a confirmed sell-out has ticket, official-site, and social links
 - **THEN** one ticket link has primary emphasis and all ticket and official-site links remain in the opening area
 - **AND** social links remain below the detail sections
 
@@ -175,3 +175,14 @@ The opening ticket area SHALL keep base price and its stored conditions together
 - **THEN** its notice remains visible beside the title or dates
 - **AND** ticket links remain accessible without primary emphasis
 - **AND** past prices and ticket links retain their historical qualification
+
+#### Scenario: The organizer confirms a sell-out
+- **WHEN** an Edition with ticket links has a confirmed sell-out and is not past, cancelled, or postponed
+- **THEN** its ticket links come first and use the outlined style with the label Sold out
+- **AND** the page adds details to distinguish links that have the same label
+- **AND** the links keep their destinations and remain active
+- **AND** distinct official-site links remain available without primary emphasis
+
+#### Scenario: The catalog has no Edition sell-out confirmation
+- **WHEN** all stored ticket categories are sold out but the Edition has no sell-out confirmation
+- **THEN** the opening area uses the usual ticket links

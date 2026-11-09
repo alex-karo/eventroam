@@ -38,12 +38,23 @@ export function EditionDetailsPage({
   const otherLinks = edition.links.filter(
     ({ kind }) => kind !== "ticketing" && kind !== "official_site",
   );
-  const primaryLink =
-    (!past &&
-      edition.status !== "cancelled" &&
-      edition.status !== "postponed" &&
-      bookingLinks.find(({ kind }) => kind === "ticketing")) ||
-    bookingLinks.find(({ kind }) => kind === "official_site");
+  const canBook =
+    !past && edition.status !== "cancelled" && edition.status !== "postponed";
+  const ticketLink = canBook
+    ? bookingLinks.find(({ kind }) => kind === "ticketing")
+    : undefined;
+  const soldOut = edition.soldOut && ticketLink !== undefined;
+  const primaryLink = soldOut
+    ? undefined
+    : (ticketLink ?? bookingLinks.find(({ kind }) => kind === "official_site"));
+  const displayedBookingLinks = soldOut
+    ? [
+        ...bookingLinks
+          .filter(({ kind }) => kind === "ticketing")
+          .map((link) => ({ ...link, label: "Sold out" })),
+        ...bookingLinks.filter(({ kind }) => kind === "official_site"),
+      ]
+    : bookingLinks;
   const mapLink = {
     kind: "map",
     url: `https://www.google.com/maps/search/?api=1&query=${edition.latitude},${edition.longitude}`,
@@ -92,7 +103,7 @@ export function EditionDetailsPage({
                 </p>
               )}
               <ExternalLinks
-                links={bookingLinks}
+                links={displayedBookingLinks}
                 historicalYear={past ? edition.year : undefined}
                 primaryUrl={primaryLink?.url}
               />

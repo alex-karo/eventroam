@@ -56,7 +56,7 @@ test("fresh migration creates the current catalog structure", () => {
   ]);
   expect(
     client.prepare("SELECT * FROM __drizzle_migrations").all(),
-  ).toHaveLength(7);
+  ).toHaveLength(8);
   expect(client.pragma("foreign_keys", { simple: true })).toBe(1);
   expect(client.pragma("foreign_key_check")).toEqual([]);
   expect(client.pragma("integrity_check", { simple: true })).toBe("ok");
@@ -191,9 +191,40 @@ test("repeating migration preserves data, journal and immutable history", () => 
   ).toThrow(/immutable/);
 });
 
+function restorePreSellOutSchema(
+  client: ReturnType<typeof testDatabase>["client"],
+) {
+  client.exec(`
+    ALTER TABLE editions DROP COLUMN sold_out_source_url;
+    DELETE FROM __drizzle_migrations
+      WHERE created_at = (SELECT max(created_at) FROM __drizzle_migrations);
+  `);
+}
+
+test("sell-out migration preserves an existing Edition", () => {
+  const connection = testDatabase();
+  const { client } = connection;
+  const fixtures = testFixtures(client);
+  const edition = fixtures.edition(fixtures.event(), {
+    priceDetails: [{ label: "Early Bird", availability: "sold_out" }],
+  });
+  restorePreSellOutSchema(client);
+
+  migrateCatalogConnection(connection);
+
+  expect(
+    client.prepare("SELECT * FROM editions WHERE id = ?").get(edition.id),
+  ).toMatchObject({
+    edition_key: edition.editionKey,
+    price_details: JSON.stringify(edition.priceDetails),
+    sold_out_source_url: null,
+  });
+});
+
 function restoreSummarySchema(
   client: ReturnType<typeof testDatabase>["client"],
 ) {
+  restorePreSellOutSchema(client);
   client.exec(`
     ALTER TABLE events DROP COLUMN short_description;
     ALTER TABLE events RENAME COLUMN description TO summary;

@@ -77,6 +77,7 @@ export const catalogPriceBlockSchema = z
 export const eventUpdateSchema = eventData.partial();
 export const editionUpdateSchema = editionData
   .omit({ editionKey: true, price: true })
+  .extend({ soldOutSourceUrl: editionScalarSchemas.soldOutSourceUrl })
   .partial();
 export const linkValueSchema = z
   .object({
