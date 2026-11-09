@@ -8,7 +8,7 @@ Define controlled ingestion experiments that separate catalog quality from targe
 
 ### Requirement: Cases have separate purpose and source labels
 
-Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The main set SHALL contain captured Wacken, Roskilde, Sziget, Afro Nation Portugal, and Rise cases, and a synthetic Glastonbury case without source confirmation of its saved programme. Targeted workflow, Editor, and isolated Location regressions SHALL retain their checks. Isolated source-extraction cases SHALL reuse existing pages and preserve their origin labels.
+Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The main set SHALL contain captured Wacken, Roskilde, Sziget, and Rise cases, and a synthetic Glastonbury case without source confirmation of its saved programme. Targeted workflow, Editor, and isolated Location regressions SHALL retain their checks. Isolated source-extraction cases SHALL reuse existing pages and preserve their origin labels.
 
 #### Scenario: Shared sources serve different tasks
 
@@ -69,6 +69,12 @@ Each workflow case SHALL define its expected Research statuses, Edition slots, r
 - **THEN** its checks state the Editor, search, source and unresolved-question conditions
 - **AND** a refusal passes only when those conditions are met
 
+#### Scenario: All captured sources are blocked
+
+- **WHEN** the Afro Nation Portugal pipeline regression receives only blocked sources
+- **THEN** it requires a source-failure diagnosis and an unresolved question for the saved Event
+- **AND** it requires no catalog operations or changes
+
 ### Requirement: Experiment sources and writes are isolated
 
 Workflow attempts SHALL start from their declared seed and date in a disposable catalog. Main SHALL use normal apply through Research, Editor, and Location; workflow regressions SHALL retain dry runs. Isolated Location SHALL use complete fixture input without catalog writes. None SHALL modify the owner's catalog. Reads, searches, and geocoding SHALL use fixed fixtures without live fallback. Evaluator expectations SHALL NOT enter model input.
@@ -114,12 +120,6 @@ In every eval group, an initial or agent geocoding request without a matching fi
 ### Requirement: Main evaluators define the checked data boundary
 
 Only declared facts SHALL affect main completeness or factual errors. Required and additional facts SHALL state accepted values and the source evidence. Unlisted fields SHALL remain unchecked, subject to the saved-data protections below. Tomorrowland SHALL remain outside the suite until a case defines one festival identity.
-
-#### Scenario: No source-supported facts are available
-
-- **WHEN** all captured sources are blocked
-- **THEN** required and additional completeness are N/A
-- **AND** the case checks unchanged saved data, the expected source failure, and an unresolved question
 
 #### Scenario: Full refresh also checks a saved Edition
 

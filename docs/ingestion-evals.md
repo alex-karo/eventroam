@@ -100,7 +100,7 @@ The [archived `SQLITE_BUSY_SNAPSHOT` issue](archive/known-issues/2026-10-27-mast
 
 Main cases measure the final catalog after the full Research → General → specialists, including Location → Editor → writer flow. Each attempt starts from a fresh disposable catalog. Regression cases check a specific behavior through the pipeline, an Editor handoff, or direct Location, Reader, or Classification execution. Keep their results separate; do not combine them into one quality average.
 
-Source origin is a different property. Both main and regression cases can use captured or synthetic sources. Fill, verify and correct are separate tasks, even when they use the same pages. A blocked-source case can pass by returning the expected failure and preserving the catalog.
+Source origin is a different property. Both main and regression cases can use captured or synthetic sources. Fill, verify and correct are separate tasks, even when they use the same pages. The Afro Nation Portugal pipeline regression expects a source failure, an unresolved question, and no catalog changes.
 
 Add a case for a distinct task or an observed failure. Reuse pages when useful, but avoid cases that repeat the same input and checks without adding coverage. Use the CLI group selection to see the current cases.
 
@@ -161,7 +161,7 @@ Main requires `scheduled` for its dated festival announcements. Ingestion uses `
 
 We do not require full coverage of additional data. Unlisted new fields are unchecked: they earn no credit and cannot establish that the model was correct. This limit keeps the scorer small; inspect outputs when investigating errors or extending coverage.
 
-For saved Editions, populated fields remain protected unless a case declares a supported change. Empty optional fields without expectations can be filled without credit or failure. For an unclassified saved Edition, a supported subset of the explicitly allowed historical terms is valid; those optional additions do not become a completeness requirement. Required fields, identities, publication and coordinate rules stay protected. Keep stricter case conditions where needed: Glastonbury preserves its saved programme and draft Event; the blocked Afro Nation case preserves its whole Event.
+For saved Editions, populated fields remain protected unless a case declares a supported change. Empty optional fields without expectations can be filled without credit or failure. For an unclassified saved Edition, a supported subset of the explicitly allowed historical terms is valid; those optional additions do not become a completeness requirement. Required fields, identities, publication and coordinate rules stay protected. Glastonbury also preserves its saved programme and draft Event.
 
 A useful collection can have partial Research and a failed catalog outcome after General refuses Event identity. Keep the no-write, source-policy and identity-guidance checks. A size-only case does not certify collection completeness. Historical-gap checks need historical context and preservation of the unchecked record, not an exact Edition key.
 

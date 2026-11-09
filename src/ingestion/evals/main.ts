@@ -5,7 +5,6 @@ import { roskilde } from "./main/roskilde";
 import { wacken } from "./main/wacken";
 import { sziget } from "./main/sziget";
 import { glastonbury } from "./main/glastonbury";
-import { afroNation } from "./main/afro-nation";
 import { rise } from "./main/rise";
 import { evaluate, fact } from "./main/facts";
 import {
@@ -18,7 +17,6 @@ const evaluators = {
   wacken,
   sziget,
   glastonbury,
-  "afro-nation-portugal-blocked": afroNation,
   rise,
 };
 export type MainScore = ReturnType<typeof evaluate>;
