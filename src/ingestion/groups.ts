@@ -19,10 +19,6 @@ export type ProposalGroup = Readonly<
 export type ReturnRequest = { group: ProposalGroup; note: string };
 export const MAX_GROUP_RETURNS = 3;
 
-export const generalCheckBySlot = {
-  previousEdition: "previousCompletedEdition",
-  currentOrNextEdition: "currentDates",
-} as const;
 export const eventLinksCheck = "eventLinks";
 const temporalFields = new Set(["year", "dates", "scheduleStatus"]);
 const socials = linksOutputSchema.shape.event.shape.socials.shape;
@@ -66,7 +62,10 @@ function editionGroups(target: EditionSlot): ProposalGroup[] {
         target,
         path,
         rawPath: path,
-        check: generalCheckBySlot[target],
+        check:
+          target === "previousEdition"
+            ? "previousCompletedEdition"
+            : "currentDates",
         temporal: temporalFields.has(field),
       };
     }),
@@ -119,15 +118,19 @@ export function proposalGroup(path: string) {
 
 export function assignedGroups(
   scope: CatalogResearchInput["scope"],
-  targets?: Pick<Targets, EditionSlot>,
+  targets: Pick<Targets, EditionSlot>,
 ): ProposalGroup[] {
   return proposalGroups.filter(({ target }) =>
-    target === "event" ? scope !== "current" : Boolean(targets?.[target]),
+    target === "event" ? scope !== "current" : Boolean(targets[target]),
   );
 }
 
 export function isSocialLinkField(field: string) {
   return field.startsWith(socialPath) || Object.hasOwn(socials, field);
+}
+
+export function isEventFieldCheck(check: string) {
+  return eventGroups.some((group) => group.check === check);
 }
 
 export function record(value: unknown): Record<string, unknown> | undefined {

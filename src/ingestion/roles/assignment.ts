@@ -1,6 +1,6 @@
 import type { CheckFinding } from "./contracts";
 import type { CatalogResearchInput } from "../contracts";
-import { assignedGroups, generalCheckBySlot, type GroupOwner } from "../groups";
+import { isEventFieldCheck, type GroupOwner } from "../groups";
 import type { ResearchContext } from "../research/context";
 import type { Targets } from "./general/contracts";
 
@@ -102,31 +102,31 @@ export function assignedRoleChecks(
   targets?: Targets,
 ): string[] {
   const current = input.mode === "refresh" && input.scope === "current";
+  const hasNext = !!targets?.currentOrNextEdition;
   if (role === "general") {
     return [
       "identity",
       "currentAnnouncement",
-      generalCheckBySlot.currentOrNextEdition,
-      ...(!current ? [generalCheckBySlot.previousEdition] : []),
+      "currentDates",
+      ...(!current ? ["previousCompletedEdition"] : []),
     ];
   }
-  const groups = assignedGroups(current ? "current" : "full", targets).filter(
-    (group) => group.owner === role,
-  );
-  if (role === "classification") {
-    // List Edition checks before the Event description check.
-    groups.sort(
-      (a, b) => Number(a.target === "event") - Number(b.target === "event"),
-    );
+  if (role === "tickets") {
+    return hasNext ? ["currentTickets"] : [];
   }
-  const checks = groups
-    .map(({ check }) => check)
-    .filter((check) => check !== undefined);
-  return [...new Set(checks)];
+  if (role === "classification") {
+    return [
+      ...(targets?.previousEdition ? ["previousClassification"] : []),
+      ...(hasNext ? ["currentClassification"] : []),
+      ...(!current ? ["description"] : []),
+    ];
+  }
+  return [
+    ...(!current ? ["eventLinks"] : []),
+    ...(hasNext ? ["currentLinks"] : []),
+  ];
 }
 
 export function hasEventFieldCheck(checks: CheckFinding[]) {
-  return checks.some(
-    ({ check }) => check === "description" || check === "eventLinks",
-  );
+  return checks.some(({ check }) => isEventFieldCheck(check));
 }

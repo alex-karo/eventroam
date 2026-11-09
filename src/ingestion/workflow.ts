@@ -25,7 +25,7 @@ import {
   type PreparedProposals,
   type SpecialistOutputs,
 } from "./proposals";
-import { assignedGroups } from "./groups";
+import { assignedGroups, type ProposalGroup } from "./groups";
 import { reviewPaths, reviewReturns } from "./roles/editor/review";
 import type { ReviewDecisions } from "./roles/editor/contracts";
 import { repairDiagnostic } from "./repairs";
@@ -810,7 +810,7 @@ export function createCatalogIngestionWorkflow(
       const groups = assignedGroups(owned.input.scope, originalTargets);
       const runReview = (
         prepared: PreparedProposals,
-        targeted?: ReadonlySet<string>,
+        targetedGroups?: readonly ProposalGroup[],
       ) =>
         owned.track(
           runEditor(
@@ -821,15 +821,17 @@ export function createCatalogIngestionWorkflow(
             prepared,
             reviewPaths(
               prepared,
-              groups,
+              targetedGroups ?? groups,
               owned.repairs.returnCounts,
               (owner) => owned.repairs.canReturn(owner),
-              targeted,
+              !!targetedGroups,
             ),
-            targeted
-              ? owned.repairs.records.filter(({ path }) => targeted.has(path))
+            targetedGroups
+              ? owned.repairs.records.filter(({ path }) =>
+                  targetedGroups.some((group) => group.path === path),
+                )
               : owned.repairs.records,
-            !!targeted,
+            targetedGroups,
           ),
         );
       const execution = await runReview(prepared);
@@ -887,10 +889,11 @@ export function createCatalogIngestionWorkflow(
             return revised;
           }
           prepared = revised.value;
-          const targeted = await runReview(
-            prepared,
-            new Set(returned.map(({ group }) => group.path)),
+          // Keep the assignment order for Editor.
+          const returnedGroups = groups.filter((group) =>
+            returned.some((request) => request.group === group),
           );
+          const targeted = await runReview(prepared, returnedGroups);
           if (targeted.status !== "success" || !targeted.output) {
             data.errors.push(...targeted.errors);
             data.editor.status = "failed";

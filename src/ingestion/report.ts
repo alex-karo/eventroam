@@ -47,18 +47,7 @@ export type ReportInput = {
   finished: number;
 };
 
-export function buildResearchReport(input: ReportInput): CatalogResearchResult {
-  return assembleReport(input);
-}
-
-/** Uses the same diagnostics when the normal report boundary fails. */
-export function buildWorkflowFailureReport(
-  input: ReportInput,
-): CatalogResearchResult {
-  return assembleReport(input);
-}
-
-function assembleReport({
+export function buildResearchReport({
   runId,
   traceId,
   context,

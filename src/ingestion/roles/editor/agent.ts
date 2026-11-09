@@ -1,6 +1,6 @@
 import { evidencePacket, topics } from "../../evidence/contracts";
 import { savedPages, savedSearchInstructions } from "../../evidence/repair";
-import { proposalGroup } from "../../groups";
+import type { ProposalGroup } from "../../groups";
 import type { PreparedProposals } from "../../proposals";
 import type { RepairRecord } from "../../repairs";
 import { buildAssignment } from "../assignment";
@@ -17,7 +17,7 @@ export async function runEditor(
   prepared: PreparedProposals,
   paths: ReviewPath[],
   repairs: RepairRecord[],
-  targeted = false,
+  targetedGroups?: readonly ProposalGroup[],
 ) {
   const { sourceFiles, tools } = await savedPages(
     options.corpus,
@@ -27,21 +27,18 @@ export async function runEditor(
     repairs.flatMap(({ evidence }) => evidence?.map(({ id }) => id) ?? []),
   );
   const returnedGroups = [];
-  if (targeted) {
-    for (const { path } of paths) {
-      const group = proposalGroup(path);
-      if (group?.owner === "location") {
-        for (const id of prepared.location.support[group.target] ?? []) {
-          cited.add(id);
-        }
+  for (const group of targetedGroups ?? []) {
+    if (group.owner === "location") {
+      for (const id of prepared.location.support[group.target] ?? []) {
+        cited.add(id);
       }
-      returnedGroups.push({
-        path,
-        proposal: group ? (groupProposal(prepared, group) ?? null) : null,
-      });
     }
+    returnedGroups.push({
+      path: group.path,
+      proposal: groupProposal(prepared, group) ?? null,
+    });
   }
-  const evidence = targeted
+  const evidence = targetedGroups
     ? prepared.basis.evidence.filter(({ id }) => cited.has(id))
     : prepared.basis.evidence;
   const schema = reviewSchema(paths);
@@ -53,7 +50,7 @@ export async function runEditor(
       editorInstructions +
       "\n" +
       savedSearchInstructions +
-      (targeted
+      (targetedGroups
         ? "\nThis is a targeted review. The proposals are in returnedGroups. Use fixedEditions only as context. Do not review any other group or target."
         : ""),
     input: {
@@ -62,7 +59,7 @@ export async function runEditor(
       sourceFiles,
       reviewPaths: paths,
       repairs,
-      ...(targeted && {
+      ...(targetedGroups && {
         returnedGroups,
         fixedEditions: {
           previousEdition: prepared.targets.previousEdition,
@@ -71,7 +68,10 @@ export async function runEditor(
       }),
       vocabulary: options.context.terms,
       prepared: {
-        ...(!targeted && { plan: prepared.plan, location: prepared.location }),
+        ...(!targetedGroups && {
+          plan: prepared.plan,
+          location: prepared.location,
+        }),
         unresolved: prepared.unresolved,
         identity: {
           eventId: prepared.targets.eventId,

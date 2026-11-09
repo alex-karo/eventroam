@@ -207,7 +207,7 @@ export class ProposalRepairs {
         available: ctx.corpus.evidence,
       });
       issues.push(...ownerIssues);
-      if (!ownerIssues.length && parsed.success) {
+      if (!ownerIssues.length) {
         reply.raw = parsed.data;
       }
     }
@@ -273,15 +273,10 @@ export class ProposalRepairs {
   }
 
   private validationRequests(issues: GroupIssue[]): ReturnRequest[] {
-    const rules = new Map<ProposalGroup, string[]>();
-    for (const { group, rule } of issues) {
-      const list = rules.get(group) ?? [];
-      list.push(rule);
-      rules.set(group, list);
-    }
-    return [...rules].map(([group, list]) => ({
+    const grouped = Map.groupBy(issues, ({ group }) => group);
+    return Array.from(grouped, ([group, groupIssues]) => ({
       group,
-      note: list.join("\n"),
+      note: groupIssues.map(({ rule }) => rule).join("\n"),
     }));
   }
 
@@ -292,11 +287,11 @@ export class ProposalRepairs {
     trigger: RepairRecord["trigger"],
     signal: AbortSignal,
   ) {
-    const owners = new Set(requests.map(({ group }) => group.owner));
-    for (const owner of owners) {
+    const byOwner = Map.groupBy(requests, ({ group }) => group.owner);
+    for (const [owner, ownerRequests] of byOwner) {
       await this.dispatch(
         owner,
-        requests.filter(({ group }) => group.owner === owner),
+        ownerRequests,
         ownGroups(groups, owner),
         ctx,
         trigger,
@@ -455,9 +450,6 @@ export class ProposalRepairs {
     }
     if (owner === "general") {
       requireFixedGeneralTargets(merged, ctx, available);
-    }
-    if (!parsed.success) {
-      failProposal(`${owner}: invalid combined reply`, records[0].path);
     }
     original.raw = parsed.data;
   }

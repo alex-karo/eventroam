@@ -21,10 +21,10 @@ export function groupProposal(
 
 export function reviewPaths(
   prepared: PreparedProposals,
-  groups: ProposalGroup[],
+  groups: readonly ProposalGroup[],
   returnCounts: ReadonlyMap<string, number>,
   canReturn: (owner: GroupOwner) => boolean,
-  targeted?: ReadonlySet<string>,
+  targeted = false,
 ): ReviewPath[] {
   const choices: ReviewPath[] = [];
   const add = (
@@ -43,12 +43,9 @@ export function reviewPaths(
   }
   for (const group of groups) {
     const { path, owner } = group;
-    if (targeted && !targeted.has(path)) {
-      continue;
-    }
     const count = returnCounts.get(path) ?? 0;
     const required =
-      !!targeted || count > 0 || groupProposal(prepared, group) !== undefined;
+      targeted || count > 0 || groupProposal(prepared, group) !== undefined;
     const allowed: ReviewPath["allowed"] = required
       ? ["approve", "reject"]
       : [];
