@@ -2,7 +2,7 @@ import { assert, expect, test } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { prepareCatalogPlan } from "./catalog-plan";
-import { initialDiagnostics } from "./proposals";
+import { initialDiagnostics } from "./stage";
 import {
   readResearchEvent,
   readResearchCatalog,

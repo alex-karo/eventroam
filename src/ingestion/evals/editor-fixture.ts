@@ -1,13 +1,12 @@
 import { z } from "zod";
-import { bindEvidence, readerOutputSchema } from "../evidence/contracts";
-import {
-  roleEvidenceTopics,
-  collectionOutputSchema,
-  generalOutputSchema,
-  ticketsOutputSchema,
-  classificationOutputSchema,
-  linksOutputSchema,
-} from "../roles/contracts";
+import { bindEvidence } from "../evidence/contracts";
+import { readerOutputSchema } from "../roles/reader/contracts";
+import { roleEvidenceTopics } from "../roles/contracts";
+import { collectionOutputSchema } from "../roles/research/contracts";
+import { generalOutputSchema } from "../roles/general/contracts";
+import { ticketsOutputSchema } from "../roles/tickets/contracts";
+import { classificationOutputSchema } from "../roles/classification/contracts";
+import { linksOutputSchema } from "../roles/links/contracts";
 import type { ResearchDependencies } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
 

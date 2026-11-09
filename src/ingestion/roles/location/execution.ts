@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { geocodingObservationSchema } from "../tools/geocode/contracts";
+import { geocodingObservationSchema } from "../../tools/geocode/contracts";
 import { registeredPointSchema } from "./contracts";
 import { materializedLocationSchema } from "./validate";
 

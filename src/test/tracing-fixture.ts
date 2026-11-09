@@ -209,8 +209,10 @@ export async function runTraceFixture(
       researchRequests += 1;
     }
     const toolCall = role === "research" && researchRequests === 1;
-    let editorCandidate = await fixtureRoleForProvider(body, responses);
-    editorCandidate = rejectedEditorFixture(editorCandidate, role, scenario);
+    const candidate =
+      role === "editor" && scenario === "invalid_editor"
+        ? { decisions: [], event: { target: { eventId: "other-event" } } }
+        : await fixtureRoleForProvider(body, responses);
     if (role === "research" && researchRequests === 2 && ending === "http") {
       return Response.json(
         { error: { message: TRACE_TRANSPORT } },
@@ -274,15 +276,7 @@ export async function runTraceFixture(
               : {
                   role: "assistant",
                   content: JSON.stringify(
-                    role === "editor" && scenario === "invalid_editor"
-                      ? {
-                          ...editorCandidate,
-                          event: {
-                            target: { eventId: "other-event" },
-                            fields: {},
-                          },
-                        }
-                      : editorCandidate,
+                    rejectedEditorFixture(candidate, role, scenario),
                   ),
                 },
             finish_reason: toolCall ? "tool_calls" : "stop",
@@ -464,7 +458,7 @@ function rejectedEditorFixture(
   }
   return {
     decisions: (
-      candidate.decisions as import("@/ingestion/review").ReviewDecision[]
+      candidate.decisions as import("@/ingestion/roles/editor/contracts").ReviewDecision[]
     ).map((entry) =>
       entry.path === "item"
         ? {

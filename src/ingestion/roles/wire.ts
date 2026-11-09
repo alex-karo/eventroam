@@ -14,32 +14,26 @@ function omitNull(value: unknown, keys: readonly string[]) {
     }
   }
 }
-/** Restore the optional fields in the known role transport contracts. */
+const normalizers: Partial<Record<Role, (value: RecordValue) => void>> = {
+  general: normalizeGeneral,
+  tickets: normalizeTickets,
+  classification: normalizeClassification,
+  links: normalizeLinks,
+};
+
+/** Restore optional fields in the known role transport contracts. */
 export function normalizeRoleWire(role: Role, raw: unknown): unknown {
-  const value = structuredClone(raw);
-  if (!record(value)) {
-    return value;
+  const normalize = normalizers[role];
+  if (!normalize || !record(raw)) {
+    return raw;
   }
-  if (
-    ["general", "tickets", "classification", "links"].includes(role) &&
-    Array.isArray(value.unresolved)
-  ) {
+  const value = structuredClone(raw);
+  if (Array.isArray(value.unresolved)) {
     for (const question of value.unresolved) {
       omitNull(question, ["editionKey", "field"]);
     }
   }
-  if (role === "general") {
-    normalizeGeneral(value);
-  }
-  if (role === "tickets") {
-    normalizeTickets(value);
-  }
-  if (role === "classification") {
-    normalizeClassification(value);
-  }
-  if (role === "links") {
-    normalizeLinks(value);
-  }
+  normalize(value);
   return value;
 }
 

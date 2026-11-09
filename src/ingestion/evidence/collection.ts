@@ -6,9 +6,9 @@ import type { ResearchDependencies } from "../contracts";
 import type { SourceSession } from "../tools/session";
 import type { RunObservability } from "../runtime/observability/runtime";
 import { sourceUrlSchema } from "../tools/contracts";
-import { bindEvidence, type FrozenCorpus, type Source } from "./contracts";
+import type { FrozenCorpus, Source } from "./contracts";
 import { createCorpusStorage } from "./storage";
-import { readSource } from "./reader";
+import { readSource } from "../roles/reader/agent";
 import { pageLinks } from "./links";
 
 export type EvidenceLimits = {
@@ -16,7 +16,6 @@ export type EvidenceLimits = {
   pageInputCharacters: number;
   inputReserveCharacters: number;
   readerOutputTokens: number;
-  downstreamReserveMs: number;
 };
 export function evidenceLimits(env = process.env): EvidenceLimits {
   const defaults: EvidenceLimits = {
@@ -24,14 +23,12 @@ export function evidenceLimits(env = process.env): EvidenceLimits {
     pageInputCharacters: 360000,
     inputReserveCharacters: 72000,
     readerOutputTokens: 12000,
-    downstreamReserveMs: 180000,
   };
   const names: Record<keyof EvidenceLimits, string> = {
     readerCalls: "CATALOG_READER_CALLS",
     pageInputCharacters: "CATALOG_READER_INPUT_CHARACTERS",
     inputReserveCharacters: "CATALOG_READER_RESERVE_CHARACTERS",
     readerOutputTokens: "CATALOG_READER_OUTPUT_TOKENS",
-    downstreamReserveMs: "CATALOG_DOWNSTREAM_RESERVE_MS",
   };
   for (const key of Object.keys(defaults) as (keyof EvidenceLimits)[]) {
     if (!env[names[key]]) {
@@ -75,15 +72,20 @@ export function createCollection(options: {
   let navigationStarted = false;
   const shownLeads = new Set<string>();
   const errors: import("../research/contracts").ResearchError[] = [];
-  const deadline =
-    budget.deadline -
-    Math.min(limits.downstreamReserveMs, budget.limits.durationMs / 2);
   const controller = new AbortController();
   const signal = AbortSignal.any([
     controller.signal,
     ...(options.signal ? [options.signal] : []),
-    AbortSignal.timeout(Math.max(1, deadline - Date.now())),
+    AbortSignal.timeout(Math.max(1, budget.deadline - Date.now())),
   ]);
+  function reserveReaderCall() {
+    if (admittedCalls >= limits.readerCalls || signal.aborted) {
+      return false;
+    }
+    // Reserve synchronously so parallel inspections share one allowance.
+    admittedCalls += 1;
+    return true;
+  }
   function compact(source: Source) {
     const leads = (source.leads ?? []).filter((lead) => {
       if (!navigationStarted) {
@@ -112,7 +114,6 @@ export function createCollection(options: {
       remaining: {
         ...budget.remaining(),
         readerCalls: Math.max(0, limits.readerCalls - admittedCalls),
-        collectionMs: Math.max(0, deadline - Date.now()),
       },
     };
   }
@@ -155,13 +156,11 @@ export function createCollection(options: {
           source.limitations.push(
             "Whole page exceeds Reader input limit; no page portion was processed",
           );
-        } else if (admittedCalls >= limits.readerCalls || signal.aborted) {
+        } else if (!reserveReaderCall()) {
           source.limitations.push(
-            "Reader allowance or collection time reached; whole page unprocessed",
+            "The Reader call limit or run deadline left the whole page unprocessed",
           );
         } else {
-          // Reserve synchronously before the model call so concurrent pages share one allowance.
-          admittedCalls += 1;
           const execution = await readSource({
             input: {
               assignment: options.assignment,
@@ -174,11 +173,11 @@ export function createCollection(options: {
             tracing: options.tracing,
             generate:
               options.deps.generateRoles?.reader ?? options.deps.generateRole,
-            deadline,
             outputTokens: limits.readerOutputTokens,
+            reserveCorrection: reserveReaderCall,
           });
           source.readerResponse = execution.modelResponse;
-          if (execution.status !== "success" || !execution.output) {
+          if (!execution.bound) {
             source.processing = "failed";
             source.limitations.push(
               ...execution.errors.map((error) => error.message),
@@ -186,12 +185,7 @@ export function createCollection(options: {
             errors.push(...execution.errors);
             fatal = true;
           } else {
-            const bound = bindEvidence(
-              source.id,
-              read.markdown,
-              execution.output,
-              read.finalUrl,
-            );
+            const { bound } = execution;
             source.overview = execution.output.overview;
             source.coverage = execution.output.coverage;
             source.topics = execution.output.topics;
@@ -229,7 +223,6 @@ export function createCollection(options: {
     sources: storage.sources,
     limits,
     signal,
-    deadline,
     navigationPages() {
       navigationStarted = true;
       return storage.sources.map(compact);

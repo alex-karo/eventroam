@@ -58,7 +58,7 @@ If direct retrieval cannot check an assigned fact, configured alternate retrieva
 
 ### Requirement: Research stays within a shared run budget
 
-Source reads, discovery, research, editing, Location, and geocoding SHALL share a bounded run budget and deadline. The system SHALL allow relevant follow-up pages while time remains without an independent fixed page-count or link-depth cap. Initial forward and reverse geocoding requests and agent geocode calls SHALL share one finite Event-level call limit. Agent calls SHALL count even on cache hits; sharing a prepared result between Edition slots SHALL NOT count as another call. Each uncached call SHALL make at most one HTTP request without automatic retries. All work SHALL observe cancellation. At a hard limit without a usable result, the system SHALL retain the limit reason, source-read history, and available model questions. Available usage metrics SHALL follow the optional observability contract. It SHALL NOT require or invent a complete list of unfinished checks. A budget limit SHALL NOT turn an unread source into a verified absence.
+Source reads, discovery, Reader, research, editing, Location, and geocoding SHALL share one bounded run budget and use the same deadline. The system SHALL allow relevant follow-up pages while time remains without an independent fixed page-count or link-depth cap. Initial forward and reverse geocoding requests and agent geocode calls SHALL share one finite Event-level call limit. Agent calls SHALL count even on cache hits; sharing a prepared result between Edition slots SHALL NOT count as another call. Each uncached call SHALL make at most one HTTP request without automatic retries. All work SHALL observe cancellation. At a hard limit without a usable result, the system SHALL retain the limit reason, source-read history, and available model questions. Available usage metrics SHALL follow the optional observability contract. It SHALL NOT require or invent a complete list of unfinished checks. A budget limit SHALL NOT turn an unread source into a verified absence.
 
 #### Scenario: A relevant linked page remains available
 
@@ -444,6 +444,26 @@ A source-based change SHALL retain enough source context to identify its meaning
 - **THEN** the citation tool identifies the failed context field and text, and states whether it is missing or repeated
 - **AND** the specialist can correct the fragment from the saved page and retry within the return's budget
 - **AND** the rejected call adds no evidence reference
+
+### Requirement: Reader keeps usable quotations from a partial reply
+
+A Reader quotation SHALL have at least one topic to become evidence. If a quotation has no topics, ingestion SHALL omit it, record a source limitation, and keep other quotations that pass validation. An empty topic list at page level is valid.
+
+#### Scenario: A page reply includes an untagged quotation
+
+- **WHEN** Reader returns one untagged quotation and one uniquely matched quotation with a topic
+- **THEN** the source has limited processing and retains the tagged quotation
+- **AND** the untagged quotation alone does not stop collection
+
+### Requirement: Reader can correct an invalid page reply
+
+When a completed Reader reply fails the page response schema, ingestion SHALL allow one correction call with the same saved Markdown and the failed rules if the call allowance and deadline permit it. If there is no correction call left or the correction fails, ingestion SHALL record the source failure and stop the attempt before catalog writes.
+
+#### Scenario: Reader exceeds the coverage list bound
+
+- **WHEN** Reader returns too many coverage labels and a Reader call remains
+- **THEN** the correction request identifies the bound and uses the same saved page
+- **AND** a valid second reply can supply evidence for that page
 
 ### Requirement: Saved sources support later validation
 

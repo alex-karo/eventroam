@@ -7,14 +7,12 @@ import { createIngestionData, type CatalogResearchInput } from "./contracts";
 import { bindEvidence } from "./evidence/contracts";
 import { assignedGroups, type GroupOwner } from "./groups";
 import { loadResearchContext } from "./research/context";
-import {
-  classificationOutputSchema,
-  generalOutputSchema,
-  linksOutputSchema,
-  ticketsOutputSchema,
-} from "./roles/contracts";
+import { classificationOutputSchema } from "./roles/classification/contracts";
+import { generalOutputSchema } from "./roles/general/contracts";
+import { linksOutputSchema } from "./roles/links/contracts";
+import { ticketsOutputSchema } from "./roles/tickets/contracts";
 import type { RoleConversation } from "./roles/invoke";
-import type { ReviewDecision } from "./review";
+import type { ReviewDecision } from "./roles/editor/contracts";
 
 const sourceUrl = "https://example.org/";
 const date = "2026-11-01T00:00:00Z";
@@ -347,3 +345,64 @@ it.each(["omit", "excess"] as const)(
     });
   },
 );
+
+it.each(["term", "reuse Edition"] as const)(
+  "returns an unknown Classification %s with correction instructions",
+  async (kind) => {
+    const f = fixture();
+    const term = f.f.existingTerm("event_type", "festival");
+    const path = "currentOrNextEdition.fields.classification";
+    const unknown = kind === "term" ? "unknown-term" : "2090";
+    const fixed = {
+      previousEdition: null,
+      currentOrNextEdition: { classification: set([term.id]) },
+      ...diagnostics,
+    };
+    const classification =
+      kind === "term"
+        ? set([unknown])
+        : {
+            ...set([term.id]),
+            reuseFrom: { editionKey: unknown, reason: "Same format." },
+          };
+    const revise = f.capture(
+      "classification",
+      { ...fixed, currentOrNextEdition: { classification } },
+      fixed,
+    );
+
+    expect((await f.before()).classification).toEqual(fixed);
+    expect(revise).toHaveBeenCalledOnce();
+    const note = expect.stringContaining(JSON.stringify(unknown));
+    expect(revise.mock.calls[0][0]).toMatchObject({
+      groups: [{ path, note, original: classification }],
+    });
+    expect(f.repairs.records[0].note).toContain(
+      kind === "term" ? "supplied vocabulary" : "earlier saved Edition",
+    );
+    expect(f.repairs.records[0].note).toContain("omit the group with a reason");
+  },
+);
+
+it("rejects an unknown Classification term in the group returned by Editor", async () => {
+  const f = fixture();
+  const term = f.f.existingTerm("event_type", "festival");
+  const path = "currentOrNextEdition.fields.classification";
+  const original = {
+    previousEdition: null,
+    currentOrNextEdition: { classification: set([term.id]) },
+    ...diagnostics,
+  };
+  const revise = f.capture("classification", original, {
+    ...original,
+    currentOrNextEdition: { classification: set(["unknown-term"]) },
+  });
+
+  await expect(f.after(returnGroup(path))).rejects.toThrow("unknown-term");
+  expect(revise).toHaveBeenCalledOnce();
+  expect(f.repairs.raw("classification")).toEqual(original);
+  expect(f.repairs.records[0].failure).toMatchObject({
+    code: "invalid_plan",
+    field: path,
+  });
+});

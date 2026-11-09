@@ -1,5 +1,7 @@
 import { assignedGroups } from "./groups";
-import { reviewSchema, reviewPaths, type ReviewDecision } from "./review";
+import { reviewSchema } from "./roles/editor/validate";
+import { reviewPaths } from "./roles/editor/review";
+import { type ReviewDecision } from "./roles/editor/contracts";
 import { approveFixtureReview } from "@/test/ingestion";
 import { expect, it } from "vitest";
 import { testDatabase } from "@/test/database";
@@ -7,14 +9,14 @@ import { testFixtures } from "@/test/fixtures";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { loadResearchContext } from "./research/context";
-import { validateGeneral, assembleProposals, applyReview } from "./proposals";
-import {
-  generalOutputSchema,
-  ticketsOutputSchema,
-  classificationOutputSchema,
-  linksOutputSchema,
-} from "./roles/contracts";
-import type { Targets, TicketsOutput } from "./roles/contracts";
+import { validateGeneral } from "./roles/general/validate-targets";
+import { assembleProposals, applyReview } from "./proposals";
+import { generalOutputSchema } from "./roles/general/contracts";
+import { ticketsOutputSchema } from "./roles/tickets/contracts";
+import { classificationOutputSchema } from "./roles/classification/contracts";
+import { linksOutputSchema } from "./roles/links/contracts";
+import type { Targets } from "./roles/general/contracts";
+import type { TicketsOutput } from "./roles/tickets/contracts";
 import type { FrozenCorpus } from "./evidence/contracts";
 import { buildAssignment } from "./roles/assignment";
 import { prepareCatalogPlan } from "./catalog-plan";

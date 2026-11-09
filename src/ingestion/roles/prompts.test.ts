@@ -1,10 +1,8 @@
 import { expect, it } from "vitest";
-import {
-  classificationInstructions,
-  editorInstructions,
-  ticketsInstructions,
-} from "./prompts";
-import { ticketBlockSchema } from "./contracts";
+import { classificationInstructions } from "./classification/prompt";
+import { editorInstructions } from "./editor/prompt";
+import { ticketsInstructions } from "./tickets/prompt";
+import { ticketBlockSchema } from "./tickets/contracts";
 
 it.each([classificationInstructions, editorInstructions])(
   "supplies the same required classification policy to each role",

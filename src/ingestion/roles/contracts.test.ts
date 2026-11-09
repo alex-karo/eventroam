@@ -1,10 +1,10 @@
 import { expect, it } from "vitest";
+import { collectionOutputSchema } from "./research/contracts";
 import {
-  collectionOutputSchema,
   generalOutputSchema,
   refreshGeneralOutputSchema,
-  ticketBlockSchema,
-} from "./contracts";
+} from "./general/contracts";
+import { ticketBlockSchema } from "./tickets/contracts";
 
 const collected = { check: "identity", blocker: null, sourceIds: ["s1"] };
 const blocked = {
@@ -164,7 +164,8 @@ it.each([
 
 import { expectTypeOf } from "vitest";
 import { z } from "zod";
-import { generalFieldsSchema, ticketsOutputSchema } from "./contracts";
+import { generalFieldsSchema } from "./general/contracts";
+import { ticketsOutputSchema } from "./tickets/contracts";
 import { editionKeySchema } from "../research/contracts";
 import { modelOutputSchema } from "../runtime/model-output";
 it("exposes key syntax to the model and retains strict local validation", () => {

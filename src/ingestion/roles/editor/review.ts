@@ -1,29 +1,9 @@
-import { z } from "zod";
-import type { PreparedProposals } from "./proposals";
-import { atPath, type GroupOwner, type ProposalGroup } from "./groups";
-import { editionSlotNames } from "./research/contracts";
+import type { PreparedProposals } from "../../proposals";
+import { atPath, type GroupOwner, type ProposalGroup } from "../../groups";
+import { editionSlotNames } from "../../research/contracts";
+import type { ReviewDecisions, ReviewPath } from "./contracts";
 
-export const reviewOutput = z.strictObject({
-  decisions: z.array(
-    z.strictObject({
-      path: z.string(),
-      decision: z.enum(["approve", "reject", "return"]),
-      note: z
-        .string()
-        .refine((note) => note.trim().length > 0, "Use a nonblank note"),
-    }),
-  ),
-});
-export type ReviewDecision = z.infer<typeof reviewOutput>["decisions"][number];
-export type ReviewDecisions = Map<string, ReviewDecision>;
 export const MAX_GROUP_RETURNS = 3;
-
-export type ReviewPath = {
-  path: string;
-  required: boolean;
-  allowed: ReviewDecision["decision"][];
-};
-
 export function groupProposal(prepared: PreparedProposals, path: string) {
   return path.endsWith(".fields.location")
     ? atPath(prepared.location.slots, path.split(".")[0])
@@ -71,33 +51,6 @@ export function reviewPaths(
   }
   return choices;
 }
-
-export function reviewSchema(paths: ReviewPath[]) {
-  const byPath = new Map(paths.map((entry) => [entry.path, entry]));
-  return reviewOutput.superRefine(({ decisions }, ctx) => {
-    const seen = new Set<string>();
-    for (const [index, { path, decision }] of decisions.entries()) {
-      if (seen.has(path) || !byPath.get(path)?.allowed.includes(decision)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["decisions", index],
-          message: "Duplicate path or disallowed decision",
-        });
-      }
-      seen.add(path);
-    }
-    for (const entry of paths) {
-      if (entry.required && !seen.has(entry.path)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["decisions"],
-          message: `Missing decision for ${entry.path}`,
-        });
-      }
-    }
-  });
-}
-
 export function rejectedItem(review: ReviewDecisions) {
   return [review.get("item"), review.get("event.target")].find(
     (entry) => entry?.decision === "reject",

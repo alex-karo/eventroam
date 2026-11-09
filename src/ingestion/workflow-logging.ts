@@ -1,5 +1,5 @@
 import type { AcceptedProposals } from "./proposals";
-import type { Targets } from "./roles/contracts";
+import type { Targets } from "./roles/general/contracts";
 import {
   stageDiagnostics,
   type PlanDiagnostics,

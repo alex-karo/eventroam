@@ -15,31 +15,48 @@ import {
   type ProposalGroup,
 } from "./groups";
 import { editionSlotNames, type ResearchError } from "./research/contracts";
-import { editionEligibility } from "./research/guards";
+import type { SpecialistOutputs } from "./proposals";
+import type { ClassificationOutput } from "./roles/classification/contracts";
+import { validateClassificationReply } from "./roles/classification/validate";
+import type { ReviewDecision } from "./roles/editor/contracts";
+import { MAX_GROUP_RETURNS } from "./roles/editor/review";
+import type { GeneralOutput, Targets } from "./roles/general/contracts";
+import { validateGeneral } from "./roles/general/validate-targets";
 import {
-  checkRefreshCountries,
-  checkedClassification,
-  validateGeneral,
-  type SpecialistOutputs,
-} from "./proposals";
+  requireFixedGeneralTargets,
+  validateGeneralGroups,
+  validateGeneralReply,
+} from "./roles/general/validate";
 import type { RoleConversation } from "./roles/invoke";
+import type { LinksOutput } from "./roles/links/contracts";
+import { validateLinksReply } from "./roles/links/validate";
 import {
-  festivalCountriesSchema,
-  type ClassificationOutput,
-  type GeneralOutput,
-  type LinksOutput,
-  type Targets,
-  type TicketsOutput,
-} from "./roles/contracts";
-import type { LocationInput } from "./location/input";
+  materializeLocationReply,
+  validateLocationGroups,
+  type LocationValidationContext,
+} from "./roles/location/group-validation";
+import type { LocationInput } from "./roles/location/input";
 import {
-  LocationCountryConflictError,
-  validateLocation,
-  type MaterializedLocation,
-} from "./location/validate";
-import type { GeocodingSession } from "./tools/geocode/tool";
-import { MAX_GROUP_RETURNS, type ReviewDecision } from "./review";
+  failGroupIssue,
+  failProposal,
+  RepairFailure,
+  replyReferences,
+  selectedEvent,
+  type GroupIssue,
+  type GroupValidationInput,
+  type ProposalValidationContext,
+} from "./roles/proposal-validation";
+import type { TicketsOutput } from "./roles/tickets/contracts";
+import { validateTicketsReply } from "./roles/tickets/validate";
 import type { StageResult, PlanDiagnostics } from "./stage";
+
+const validators = {
+  general: validateGeneralGroups,
+  tickets: validateTicketsReply,
+  classification: validateClassificationReply,
+  links: validateLinksReply,
+  location: validateLocationGroups,
+} satisfies Record<GroupOwner, (options: GroupValidationInput) => unknown>;
 
 export type RepairRecord = {
   path: string;
@@ -56,49 +73,16 @@ export type RepairRecord = {
 };
 
 type ReturnRequest = { group: ProposalGroup; note: string };
-type GroupIssue = { group: ProposalGroup; rule: string };
-type PointContext = Pick<GeocodingSession, "points" | "targets">;
-
-class RepairFailure extends Error {
-  constructor(readonly diagnostic: ResearchError) {
-    super(diagnostic.message);
-  }
-}
-
-function fail(
-  message: string,
-  field?: string,
-  code: ResearchError["code"] = "invalid_candidate",
-): never {
-  throw new RepairFailure({
-    code,
-    stage: code === "location_failed" ? "location" : "validation",
-    message,
-    ...(field && { field }),
-  });
-}
 
 function ownGroups(groups: ProposalGroup[], owner: GroupOwner) {
   return groups.filter((group) => group.owner === owner);
-}
-
-function references(value: unknown, key: string): unknown[] {
-  if (Array.isArray(value)) {
-    return value.flatMap((entry) => references(entry, key));
-  }
-  return Object.entries(record(value) ?? {}).flatMap(([name, entry]) => {
-    if (name === key) {
-      return Array.isArray(entry) ? entry : [entry];
-    }
-    return references(entry, key);
-  });
 }
 
 export class ProposalRepairs {
   private replies = new Map<GroupOwner, RoleConversation>();
   private passages: Evidence[] = [];
   readonly records: RepairRecord[] = [];
-  private location?: { input: LocationInput; session: PointContext };
+  private location?: LocationValidationContext;
 
   get returnCounts() {
     const counts = new Map<string, number>();
@@ -115,10 +99,10 @@ export class ProposalRepairs {
   captureLocation = (
     reply: RoleConversation,
     input: LocationInput,
-    session: PointContext,
+    session: LocationValidationContext["session"],
   ) => {
     this.capture("location", reply);
-    this.location = { input, session };
+    this.location = { input, session, repairPassages: this.passages };
   };
 
   clear() {
@@ -149,307 +133,8 @@ export class ProposalRepairs {
     return this.replies.get(owner)?.revise !== undefined;
   }
 
-  private requireReferences(
-    owner: GroupOwner,
-    raw: unknown,
-    ctx: Context,
-    available: Evidence[],
-  ) {
-    const known = (
-      key: string,
-      ids: readonly string[],
-      description: string,
-    ) => {
-      if (
-        references(raw, key).some(
-          (id) => typeof id !== "string" || !ids.includes(id),
-        )
-      ) {
-        fail(
-          `${owner}: unknown ${description} reference`,
-          undefined,
-          owner === "location" ? "location_failed" : "invalid_candidate",
-        );
-      }
-    };
-    known(
-      "evidenceIds",
-      available.map(({ id }) => id),
-      "evidence",
-    );
-    known(
-      "sourceIds",
-      ctx.corpus.sources.map(({ id }) => id),
-      "source",
-    );
-    if (owner === "location") {
-      known(
-        "pointId",
-        [...(this.location?.session.points.keys() ?? [])],
-        "Location point",
-      );
-    }
-    if (owner === "classification") {
-      for (const slot of editionSlotNames) {
-        const change = atPath(raw, `${slot}.classification`);
-        const ids = record(change)?.value;
-        if (
-          Array.isArray(ids) &&
-          ids.some(
-            (id) =>
-              typeof id === "string" &&
-              !ctx.context.terms.some((term) => term.id === id),
-          )
-        ) {
-          fail(
-            "Unknown classification term",
-            `${slot}.fields.classification`,
-            "invalid_plan",
-          );
-        }
-        const donor = atPath(change, "reuseFrom.editionKey");
-        if (
-          typeof donor === "string" &&
-          !ctxEvent(ctx)?.editions.some(
-            (edition) => edition.editionKey === donor,
-          )
-        ) {
-          fail(
-            "Unknown classification reuse Edition",
-            `${slot}.fields.classification`,
-            "invalid_plan",
-          );
-        }
-      }
-    }
-  }
-
-  private inspect(
-    owner: GroupOwner,
-    raw: unknown,
-    groups: ProposalGroup[],
-    ctx: Context,
-    available: Evidence[],
-    only?: ReadonlySet<string>,
-  ) {
-    this.requireReferences(owner, raw, ctx, available);
-    this.requireAssignment(owner, raw, ctx);
-    const parsed = this.replies.get(owner)!.schema.safeParse(raw);
-    const issues = (parsed.error?.issues ?? []).map<GroupIssue>((issue) => {
-      const path = issue.path.join(".");
-      const group = groups.find(
-        ({ rawPath }) => path === rawPath || path.startsWith(rawPath + "."),
-      );
-      if (!group) {
-        fail(
-          owner === "location"
-            ? `${path}:${issue.code}`
-            : `${owner}: ${path}:${issue.code}`,
-          undefined,
-          owner === "location" ? "location_failed" : "invalid_candidate",
-        );
-      }
-      return { group, rule: `${path}:${issue.code} ${issue.message}` };
-    });
-    const relevant = only
-      ? groups.filter(({ path }) => only.has(path))
-      : groups;
-    if (owner === "location") {
-      for (const slot of editionSlotNames) {
-        if (this.location!.input[slot]) {
-          this.checkLocationBoundary(raw, slot);
-        }
-      }
-    }
-    for (const group of relevant) {
-      if (issues.some((issue) => issue.group === group)) {
-        continue;
-      }
-      const rule = this.groupRule(group, raw, ctx, available);
-      if (rule) {
-        issues.push({ group, rule });
-      }
-    }
-    return {
-      parsed,
-      issues: only
-        ? issues.filter(({ group }) => only.has(group.path))
-        : issues,
-    };
-  }
-
-  private requireAssignment(owner: GroupOwner, raw: unknown, ctx: Context) {
-    if (owner === "general") {
-      return;
-    }
-    const checks = atPath(raw, "checks");
-    const eventCheck =
-      Array.isArray(checks) &&
-      checks.some((finding) =>
-        ["description", "eventLinks"].includes(String(record(finding)?.check)),
-      );
-    if (
-      ctx.input.scope === "current" &&
-      (eventCheck ||
-        atPath(raw, "description") ||
-        atPath(raw, "shortDescription") ||
-        atPath(raw, "event.website") ||
-        Object.keys(record(atPath(raw, "event.socials")) ?? {}).length)
-    ) {
-      fail(`${owner}: Event fields are outside the assignment`);
-    }
-    if (owner === "location") {
-      for (const slot of editionSlotNames) {
-        if (!ctx.targets?.[slot] && atPath(raw, `decision.${slot}`) != null) {
-          fail(
-            "Location proposal for an absent target",
-            undefined,
-            "location_failed",
-          );
-        }
-      }
-    }
-    if (
-      owner === "classification" &&
-      editionSlotNames.some(
-        (slot) =>
-          !ctx.targets?.[slot] && atPath(raw, `${slot}.classification`) != null,
-      )
-    ) {
-      fail("Classification proposal for an absent target");
-    }
-    if (
-      owner === "links" &&
-      !ctx.targets?.currentOrNextEdition &&
-      atPath(raw, "currentOrNextEdition") != null
-    ) {
-      fail("Link proposal for an absent target");
-    }
-  }
-
-  private groupRule(
-    group: ProposalGroup,
-    raw: unknown,
-    ctx: Context,
-    available: Evidence[],
-  ): string | undefined {
-    const value = atPath(raw, group.rawPath);
-    const slot = editionSlotNames.find((slot) =>
-      group.path.startsWith(slot + "."),
-    );
-    try {
-      if (group.owner === "location" && slot) {
-        this.materializeLocation(raw, available, slot);
-        return;
-      }
-      if (group.owner === "classification" && slot && value) {
-        const target = ctx.targets?.[slot];
-        if (target) {
-          checkedClassification(
-            target,
-            value as NonNullable<
-              NonNullable<ClassificationOutput[typeof slot]>["classification"]
-            >,
-            ctxEvent(ctx),
-            ctx.context,
-            { ...ctx.corpus, evidence: available },
-          );
-          return;
-        }
-      }
-      const change = record(value);
-      if (
-        ["set", "clear"].includes(String(change?.action)) &&
-        Array.isArray(change?.evidenceIds) &&
-        change.evidenceIds.length === 0
-      ) {
-        return "Missing evidence reference";
-      }
-    } catch (error) {
-      if (error instanceof LocationCountryConflictError) {
-        throw new RepairFailure({
-          code: "country_conflict",
-          stage: "validation",
-          editionKey: error.editionKey,
-          field: "countryCode",
-          message: error.message,
-        });
-      }
-      return error instanceof Error
-        ? error.message
-        : `Invalid ${group.owner} group`;
-    }
-  }
-
-  private checkLocationBoundary(
-    raw: unknown,
-    slot: (typeof editionSlotNames)[number],
-  ) {
-    const plan = atPath(raw, `decision.${slot}`);
-    const input = this.location!.input;
-    if (atPath(raw, "decision.status") !== "ready" || !record(plan)) {
-      fail(
-        "Location target does not match the accepted slot",
-        undefined,
-        "location_failed",
-      );
-    }
-    const action = record(atPath(plan, "fields.countryCode"));
-    if (
-      input.countryBaseline &&
-      action &&
-      (action.action === "clear" ||
-        (action.action === "set" &&
-          typeof action.value === "string" &&
-          action.value !== input.countryBaseline))
-    ) {
-      throw new RepairFailure({
-        code: "country_conflict",
-        stage: "validation",
-        field: "countryCode",
-        editionKey: input[slot]?.editionKey,
-        message: "Location country conflicts with saved country",
-      });
-    }
-    const coords = record(atPath(plan, "coordinates"));
-    if (
-      coords?.action === "reusePrevious" &&
-      !this.location!.session.targets[slot]?.previousPointId
-    ) {
-      fail("Unknown Location point", undefined, "location_failed");
-    }
-  }
-
-  materializeLocation(
-    raw: unknown,
-    evidence: Evidence[],
-    only?: (typeof editionSlotNames)[number],
-  ): MaterializedLocation {
-    const { input, session } = this.location!;
-    const supplied = new Set(input.evidence.map((item) => record(item)?.id));
-    const enriched = {
-      ...input,
-      evidence: [
-        ...input.evidence,
-        ...evidence
-          .filter(
-            ({ id }) =>
-              !supplied.has(id) &&
-              this.passages.some((passage) => passage.id === id),
-          )
-          .map(({ id, quote }) => ({ id, quote })),
-      ],
-    };
-    const decision = record(record(raw)?.decision);
-    if (only) {
-      const other = editionSlotNames.find((slot) => slot !== only)!;
-      return validateLocation(
-        { decision: { ...decision, [other]: null } },
-        { ...enriched, [other]: null },
-        session,
-      );
-    }
-    return validateLocation(raw, enriched, session);
+  materializeLocation(raw: unknown, evidence: Evidence[]) {
+    return materializeLocationReply(raw, evidence, this.location!);
   }
 
   async general(
@@ -461,77 +146,34 @@ export class ProposalRepairs {
     if (!reply?.raw) {
       return;
     }
-    const { raw } = reply;
     const ctx = this.context(owned, data, null);
-    if (
-      festivalCountriesSchema.safeParse(record(raw)?.festivalCountries).success
-    ) {
-      const countries = checkRefreshCountries(
-        raw as GeneralOutput,
-        owned.input.mode,
-        ctxEvent(ctx),
-        ctx.corpus,
-      );
-      if (countries) {
-        return countries;
-      }
-    }
-    const groups = ownGroups(
-      assignedGroups(owned.input.scope, raw as Targets),
-      "general",
-    );
-    const inspected = this.inspect(
-      "general",
-      raw,
-      groups,
+    const { targets, groups, issues, output } = validateGeneralReply(
+      reply,
       ctx,
-      ctx.corpus.evidence,
-    );
-    const { issues } = inspected;
-    let parsed = inspected.parsed;
-    if (issues.length) {
-      const provisional = structuredClone(raw);
-      for (const { group, rule } of issues) {
-        if (/\.(dates|year|scheduleStatus)$/.test(group.path)) {
-          fail(`General temporal target: ${rule}`, group.path);
-        }
-        setPath(provisional, group.rawPath, undefined);
-      }
-      parsed = reply.schema.safeParse(provisional);
-    }
-    if (!parsed.success) {
-      fail("Invalid General target");
-    }
-    const targets = validateGeneral(
-      parsed.data as GeneralOutput,
-      ctx.context,
-      owned.input,
-      ctx.corpus,
     );
     if (targets.status !== "continue" || !issues.length) {
-      reply.raw = parsed.data;
-      return targets;
-    }
-    const selected = targets.value;
-    const event = ctxEvent({ ...ctx, targets: selected });
-    if (
-      editionEligibility(selected, event?.editions, owned.input.scope) !==
-      "continue"
-    ) {
+      if (output) {
+        reply.raw = output;
+      }
       return targets;
     }
     await this.dispatch(
       "general",
       this.validationRequests(issues),
       groups,
-      { ...ctx, targets: selected },
+      { ...ctx, targets: targets.value },
       "validation",
       signal,
     );
-    const output = this.raw("general") as GeneralOutput;
-    data.general = { ...data.general, status: "success", output, errors: [] };
+    const repaired = this.raw("general") as GeneralOutput;
+    data.general = {
+      ...data.general,
+      status: "success",
+      output: repaired,
+      errors: [],
+    };
     return validateGeneral(
-      output,
+      repaired,
       ctx.context,
       owned.input,
       this.corpus(data.corpus!),
@@ -558,13 +200,12 @@ export class ProposalRepairs {
       if (!reply) {
         continue;
       }
-      const { parsed, issues: ownerIssues } = this.inspect(
-        owner,
-        reply.raw,
-        ownGroups(groups, owner),
+      const { parsed, issues: ownerIssues } = validators[owner]({
+        reply,
+        groups: ownGroups(groups, owner),
         ctx,
-        ctx.corpus.evidence,
-      );
+        available: ctx.corpus.evidence,
+      });
       issues.push(...ownerIssues);
       if (!ownerIssues.length && parsed.success) {
         reply.raw = parsed.data;
@@ -618,12 +259,13 @@ export class ProposalRepairs {
     owned: CatalogAttempt,
     data: IngestionData,
     targets: Targets | null,
-  ): Context {
+  ): ProposalValidationContext {
     return {
       corpus: this.corpus(data.corpus!),
       targets,
       context: data.context!,
       input: owned.input,
+      location: this.location,
     };
   }
 
@@ -643,7 +285,7 @@ export class ProposalRepairs {
   private async returnGroups(
     requests: ReturnRequest[],
     groups: ProposalGroup[],
-    ctx: Context,
+    ctx: ProposalValidationContext,
     trigger: RepairRecord["trigger"],
     signal: AbortSignal,
   ) {
@@ -664,7 +306,7 @@ export class ProposalRepairs {
     owner: GroupOwner,
     requests: ReturnRequest[],
     groups: ProposalGroup[],
-    ctx: Context,
+    ctx: ProposalValidationContext,
     trigger: RepairRecord["trigger"],
     signal: AbortSignal,
   ) {
@@ -672,13 +314,13 @@ export class ProposalRepairs {
     const counts = this.returnCounts;
     const records = requests.map(({ group, note }): RepairRecord => {
       if ((counts.get(group.path) ?? 0) >= MAX_GROUP_RETURNS) {
-        fail("Group has no returns left", group.path);
+        failProposal("Group has no returns left", group.path);
       }
       const slot = editionSlotNames.find((slot) =>
         group.path.startsWith(slot + "."),
       );
       const target = {
-        eventId: ctxEvent(ctx)?.id ?? null,
+        eventId: selectedEvent(ctx)?.id ?? null,
         ...(slot && { editionKey: ctx.targets?.[slot]?.editionKey }),
       };
       return {
@@ -694,7 +336,7 @@ export class ProposalRepairs {
     try {
       signal.throwIfAborted();
       if (!original?.revise) {
-        fail(
+        failProposal(
           `${owner}: no live conversation for a group return`,
           records[0].path,
           owner === "location" ? "location_failed" : "invalid_candidate",
@@ -710,7 +352,7 @@ export class ProposalRepairs {
               : "If you omit a requested optional group, add an unresolved entry. Copy the full path from that group into field and explain the omission in message. ") +
             savedSearchInstructions,
           groups: records.map(({ path, note, original }) => {
-            const ids = new Set(references(original, "evidenceIds"));
+            const ids = new Set(replyReferences(original, "evidenceIds"));
             const evidence = this.passages.filter(({ id }) => ids.has(id));
             return {
               path,
@@ -733,7 +375,7 @@ export class ProposalRepairs {
         if (diagnostic) {
           throw new RepairFailure(diagnostic);
         }
-        fail(`${owner}: no usable revision`, records[0].path);
+        failProposal(`${owner}: no usable revision`, records[0].path);
       }
       this.mergeRevision(
         owner,
@@ -769,96 +411,52 @@ export class ProposalRepairs {
     requests: ReturnRequest[],
     groups: ProposalGroup[],
     records: RepairRecord[],
-    ctx: Context,
+    ctx: ProposalValidationContext,
   ) {
     for (const [index, { group }] of requests.entries()) {
       records[index].revision = atPath(revision, group.rawPath) ?? null;
     }
-    const available = [...ctx.corpus.evidence, ...this.passages];
-    const only = new Set(requests.map(({ group }) => group.path));
-    const { issues } = this.inspect(
-      owner,
-      revision,
-      groups,
-      ctx,
-      available,
-      only,
+    const evidenceById = new Map(
+      [...ctx.corpus.evidence, ...this.passages].map((item) => [item.id, item]),
     );
-    this.requireFixedTargets(owner, revision, ctx, available);
+    const available = [...evidenceById.values()];
+    const validate = validators[owner];
+    const validation = { groups, ctx, available };
+    const only = new Set(requests.map(({ group }) => group.path));
+    const { issues } = validate({
+      ...validation,
+      reply: { schema: original.schema, raw: revision },
+      only,
+    });
+    if (owner === "general") {
+      requireFixedGeneralTargets(revision, ctx, available);
+    }
     if (issues.length) {
-      this.failIssue(issues[0]);
+      failGroupIssue(issues[0]);
     }
     const merged = structuredClone(original.raw);
     for (const [index, { group }] of requests.entries()) {
       const value = atPath(revision, group.rawPath);
       const entry = records[index];
-      const support = new Set(references(value, "evidenceIds"));
+      const support = new Set(replyReferences(value, "evidenceIds"));
       entry.evidence = available.filter(({ id }) => support.has(id));
       setPath(merged, group.rawPath, value);
       this.mergeQuestions(merged, revision, entry, value == null);
     }
-    const { parsed, issues: checked } = this.inspect(
-      owner,
-      merged,
-      groups,
-      ctx,
-      available,
-    );
+    const { parsed, issues: checked } = validate({
+      ...validation,
+      reply: { schema: original.schema, raw: merged },
+    });
     if (checked.length) {
-      this.failIssue(checked[0]);
+      failGroupIssue(checked[0]);
     }
-    this.requireFixedTargets(owner, merged, ctx, available);
+    if (owner === "general") {
+      requireFixedGeneralTargets(merged, ctx, available);
+    }
     if (!parsed.success) {
-      fail(`${owner}: invalid combined reply`, records[0].path);
+      failProposal(`${owner}: invalid combined reply`, records[0].path);
     }
     original.raw = parsed.data;
-  }
-
-  private failIssue({ group, rule }: GroupIssue): never {
-    if (group.owner === "location") {
-      fail(rule, group.path, "location_failed");
-    }
-    fail(
-      rule,
-      group.path,
-      group.owner === "classification" ? "invalid_plan" : "invalid_candidate",
-    );
-  }
-
-  private requireFixedTargets(
-    owner: GroupOwner,
-    raw: unknown,
-    ctx: Context,
-    evidence: Evidence[],
-  ) {
-    if (owner !== "general") {
-      return;
-    }
-    const targets = ctx.targets!;
-    if (
-      atPath(raw, "decision") !== "targets" ||
-      atPath(raw, "eventId") !== targets.eventId ||
-      atPath(raw, "observedEventName") !== targets.observedEventName ||
-      editionSlotNames.some(
-        (slot) =>
-          atPath(raw, `${slot}.editionKey`) !== targets[slot]?.editionKey,
-      )
-    ) {
-      fail("General changed the fixed identity or target");
-    }
-    const result = validateGeneral(raw as Targets, ctx.context, ctx.input, {
-      ...ctx.corpus,
-      evidence,
-    });
-    if (result.status !== "continue") {
-      throw new RepairFailure(
-        result.diagnostics.errors[0] ?? {
-          code: "invalid_plan",
-          stage: "validation",
-          message: "General could not confirm the fixed targets",
-        },
-      );
-    }
   }
 
   private mergeQuestions(
@@ -878,7 +476,7 @@ export class ProposalRepairs {
     if (omitted) {
       const reason = record(supplied[0])?.message;
       if (typeof reason !== "string" || !reason.trim()) {
-        fail(
+        failProposal(
           "An omitted revision needs a reason for its exact group",
           entry.path,
         );
@@ -890,19 +488,6 @@ export class ProposalRepairs {
       ...supplied,
     ];
   }
-}
-
-type Context = {
-  corpus: FrozenCorpus;
-  targets: Targets | null;
-  context: NonNullable<IngestionData["context"]>;
-  input: CatalogAttempt["input"];
-};
-
-function ctxEvent(ctx: Context) {
-  return ctx.context.catalog.find(
-    ({ id }) => id === (ctx.input.eventId ?? ctx.targets?.eventId),
-  );
 }
 
 export function repairDiagnostic(error: unknown) {

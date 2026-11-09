@@ -1,5 +1,5 @@
 import type { RegressionEvaluator } from "../../regression";
-import type { LocationOutput } from "../../../location/contracts";
+import type { LocationOutput } from "../../../roles/location/contracts";
 import {
   researchStatus,
   editionSlots,

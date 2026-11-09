@@ -5,7 +5,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import type { ObservabilityStorage } from "@mastra/core/storage";
 import { DuckDBStore } from "@mastra/duckdb";
 import { runTraceFixture, readTraceRows } from "@/test/tracing-fixture";
-import { LOCATION_PROMPT_VERSION } from "../../location/contracts";
+import { LOCATION_PROMPT_VERSION } from "../../roles/location/contracts";
 import {
   createRunObservability,
   finishRunObservability,

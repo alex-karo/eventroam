@@ -8,7 +8,7 @@ tags: [catalog, ingestion, sources]
 
 # Source reader
 
-`readPage` loads a public page, extracts Markdown, reads supported maps, and returns canonical Markdown to the collection layer. It does not choose a venue or Edition. Reader extracts literal evidence once; specialists interpret it; Location decides coordinates.
+`readPage` loads a public page, extracts Markdown, reads supported maps, and returns canonical Markdown to the collection layer. Reader extracts literal evidence. Specialists interpret it. Location decides coordinates.
 
 ## Page content
 
@@ -54,11 +54,15 @@ Reader reports page coverage in two short lists: `found` names information colle
 
 Requests, fallback and maps share transport safety checks and the run budget. Requested and final URLs share cached inspection results, including Reader processing and persistence. Concurrent inspection of one page shares the same in-flight work. Independent pages can run in parallel under bounded native tool concurrency.
 
-Reader receives each admitted whole page once, with the requested name and fixed date. It does not receive Research navigation instructions. Its overview describes the page; General owns comparison with the catalog identity. It returns unique literal quotes and literal context quotes. When the page names the Event, retain that identity in a bound quote, including a title or heading when needed. The overview alone cannot establish identity. Code parses link anchors from those matched passages and resolves relative destinations against the source URL. Reader does not repeat destinations in a separate anchor array. Code binds them to half-open UTF-16 offsets in immutable canonical text. A quote can serve several topics. Unmatched, repeated or paraphrased passages are rejected; a context mismatch rejects that evidence item. Other valid items remain usable. The page overview supports navigation only. Code extracts actual Markdown links for navigation, including relative and reference links, before Reader selects evidence. These leads do not prove destination content. Reader uses medium reasoning effort for literal extraction; interpretation roles use the configured effort.
+Reader receives the whole saved page, the requested name, and the fixed date. If a complete reply fails the schema, Reader can correct it once with the failed rules and the same page. A correction uses a Reader call and the shared run deadline. If the correction fails or the allowance has no call left, ingestion records failed source processing and stops before interpretation.
+
+Reader returns unique literal quotations and context. When the page names the Event, retain that identity in a bound quotation. Include a title or heading when necessary. Each retained quotation needs at least one topic for routing to specialists. Code discards an untagged quotation or a quotation without a unique match for its text and context. It records a source limitation and keeps other usable items. An empty page topic list is valid.
+
+Code binds quotations to half-open UTF-16 offsets in immutable canonical text. It reads link anchors from matched passages and resolves relative destinations against the source URL. The page overview and Markdown links support navigation. General compares quoted identity evidence with the catalog. Reader uses medium reasoning effort for literal extraction. Interpretation roles use the configured effort.
 
 Reader requests through OpenRouter mark only the fixed system instructions for prompt caching. The assignment, source metadata, and page text stay after that boundary without cache markers. Explicit cache mode disables automatic cache boundaries on OpenAI models that support it. Other providers apply their own cache rules. OpenCode Go requests use no explicit cache settings.
 
-`CATALOG_READER_CALLS` defaults to 18. `CATALOG_READER_INPUT_CHARACTERS` defaults to 360000 with `CATALOG_READER_RESERVE_CHARACTERS` of 72000. `CATALOG_READER_OUTPUT_TOKENS` defaults to 12000. Pages over the input allowance stay saved and unprocessed; no prefix or chunk fallback runs. `CATALOG_DOWNSTREAM_RESERVE_MS` defaults to 180000. Collection closes before interpretation, settles admitted work and freezes one corpus for all specialists.
+`CATALOG_READER_CALLS` defaults to 18. `CATALOG_READER_INPUT_CHARACTERS` defaults to 360000 with `CATALOG_READER_RESERVE_CHARACTERS` of 72000. `CATALOG_READER_OUTPUT_TOKENS` defaults to 12000. Pages over the input allowance stay saved and unprocessed. Collection and later roles use the same run deadline. Collection closes before interpretation, settles admitted work and freezes one corpus for all specialists.
 
 ## Check a read
 
