@@ -1,4 +1,5 @@
-import type { Targets, CollectionOutput } from "./roles/contracts";
+import type { Targets } from "./roles/general/contracts";
+import type { CollectionOutput } from "./roles/research/contracts";
 import type { PlanDiagnostics } from "./stage";
 import type { RoleExecution } from "./roles/invoke";
 import type { FrozenCorpus } from "./evidence/contracts";
@@ -9,14 +10,14 @@ import {
   emptyLocationExecution,
   type LocationExecution,
   type GenerateLocation,
-} from "./location/agent";
+} from "./roles/location/agent";
 import type { GeocodingClient } from "./tools/geocode/contracts";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { ResearchContext } from "./research/context";
 import {
   emptyEditorExecution,
   type EditorExecution,
-} from "./roles/editor-execution";
+} from "./roles/editor/execution";
 import type Database from "better-sqlite3";
 import type { DuckDBStore } from "@mastra/duckdb";
 import type { WorkflowStorage } from "./runtime/workflow-storage";
@@ -147,7 +148,7 @@ export type IngestionData = {
   reads: SourceReadMetadata[];
   discovery: SearchWebResult[];
   research: RoleExecution<CollectionOutput>;
-  general: RoleExecution<import("./roles/contracts").GeneralOutput>;
+  general: RoleExecution<import("./roles/general/contracts").GeneralOutput>;
   specialists: Record<string, RoleExecution>;
   corpus: FrozenCorpus | null;
   prepared: StageResult<PreparedProposals> | null;

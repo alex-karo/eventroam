@@ -7,8 +7,8 @@ import { testFixtures } from "@/test/fixtures";
 import { runCatalogResearch } from "./workflow";
 import { createWorkflowStorage } from "./runtime/workflow-storage";
 import type { GenerateRole } from "./roles/invoke";
-import type { CollectionOutput } from "./roles/contracts";
-import { locationTextFields } from "./location/contracts";
+import type { CollectionOutput } from "./roles/research/contracts";
+import { locationTextFields } from "./roles/location/contracts";
 import { approveFixtureReview } from "@/test/ingestion";
 
 afterEach(() => vi.unstubAllEnvs());

@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { modelOutputSchema } from "../runtime/model-output";
-import { pointSchema } from "../tools/geocode/contracts";
+import { pointSchema } from "../../tools/geocode/contracts";
 
 export const LOCATION_PROMPT_VERSION = "catalog-location-v29";
 export const locationTextFields = [
@@ -72,8 +71,6 @@ export const locationOutputSchema = z.strictObject({
     z.strictObject({ status: z.literal("rejected"), reason }),
   ]),
 });
-export const locationModelOutputSchema = () =>
-  modelOutputSchema(locationOutputSchema);
 export type LocationOutput = z.infer<typeof locationOutputSchema>;
 export type LocationSlot = z.infer<typeof locationSlotSchema>;
 export type LocationFields = z.infer<typeof locationFieldsSchema>;

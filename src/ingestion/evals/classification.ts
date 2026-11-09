@@ -1,5 +1,6 @@
 import { bindEvidence, type FrozenCorpus } from "../evidence/contracts";
-import type { Targets, ClassificationOutput } from "../roles/contracts";
+import type { Targets } from "../roles/general/contracts";
+import type { ClassificationOutput } from "../roles/classification/contracts";
 import type { RoleExecution } from "../roles/invoke";
 import { check, scenarioResult } from "./checks";
 import {

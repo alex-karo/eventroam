@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
 import { Mastra } from "@mastra/core/mastra";
 import { Observability } from "@mastra/observability";
-import { LOCATION_PROMPT_VERSION } from "../../location/contracts";
+import { LOCATION_PROMPT_VERSION } from "../../roles/location/contracts";
 import { PROMPT_VERSIONS } from "../../roles/versions";
 import {
   readTraceRows,
@@ -434,6 +434,13 @@ test.each([
       )!;
       expect(JSON.parse(locationSpan.metadata as string).promptVersion).toBe(
         LOCATION_PROMPT_VERSION,
+      );
+      expect(spans).toContainEqual(
+        expect.objectContaining({
+          entityId: "festival-location",
+          spanType: "agent_run",
+          parentSpanId: locationSpan.spanId,
+        }),
       );
     }
     if (scenario === "recovered") {

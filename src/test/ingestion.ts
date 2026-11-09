@@ -1,20 +1,21 @@
 import { Mastra } from "@mastra/core/mastra";
 import { createWorkflowStorage } from "@/ingestion/runtime/workflow-storage";
 import { trackFixtureWorkflowStore } from "./workflow-stores";
-import type { ReviewPath, ReviewDecision } from "@/ingestion/review";
-import { locationTextFields } from "@/ingestion/location/contracts";
-import type { LocationInput } from "@/ingestion/location/input";
+import type {
+  ReviewPath,
+  ReviewDecision,
+} from "@/ingestion/roles/editor/contracts";
+import { locationTextFields } from "@/ingestion/roles/location/contracts";
+import type { LocationInput } from "@/ingestion/roles/location/input";
 import type {
   LocationFields,
   LocationOutput,
-} from "@/ingestion/location/contracts";
+} from "@/ingestion/roles/location/contracts";
 import type { ResearchDependencies } from "@/ingestion/contracts";
 import type { GenerateRole, Role } from "@/ingestion/roles/invoke";
-import type {
-  Targets,
-  CheckFinding,
-  ClassificationOutput,
-} from "@/ingestion/roles/contracts";
+import type { Targets } from "@/ingestion/roles/general/contracts";
+import type { CheckFinding } from "@/ingestion/roles/contracts";
+import type { ClassificationOutput } from "@/ingestion/roles/classification/contracts";
 import { topics } from "@/ingestion/evidence/contracts";
 import {
   runCatalogResearch,

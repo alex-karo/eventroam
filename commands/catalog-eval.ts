@@ -11,7 +11,7 @@ import {
   descriptionFields,
   type DescriptionFormat,
 } from "@/ingestion/evals/description-format";
-import { reviewOutput } from "@/ingestion/review";
+import { reviewOutput } from "@/ingestion/roles/editor/contracts";
 
 type EvalRun = Awaited<ReturnType<typeof runCatalogEvals>>;
 type EvalGroupResult = EvalRun["groups"][number];

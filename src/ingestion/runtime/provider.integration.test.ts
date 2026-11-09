@@ -2,11 +2,12 @@ import { afterEach, expect, test, vi } from "vitest";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { invokeRole } from "../roles/invoke";
-import { collectionOutputSchema } from "../roles/contracts";
+import { collectionOutputSchema } from "../roles/research/contracts";
 import { createResearchBudget, DEFAULT_RESEARCH_LIMITS } from "./budget";
 import { loadResearchConfig } from "./config";
 import { sourceUrlSchema } from "../tools/contracts";
-import { readerInstructions, readSource } from "../evidence/reader";
+import { readerInstructions } from "../roles/reader/prompt";
+import { readSource } from "../roles/reader/agent";
 
 const config = {
   apiKey: "PRIVATE_TEST_KEY",

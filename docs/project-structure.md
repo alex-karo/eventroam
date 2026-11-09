@@ -39,12 +39,11 @@ src/
 │   ├── discovery-context.ts   # Tab-local visit snapshots and context tokens
 │   └── server/                # Public request adapters and metadata builders
 ├── ingestion/                 # Research, Editor, Location, sources, evals and runtime
-│   ├── research/              # Saved context and shared field contracts
-│   ├── evidence/              # Private sources, Reader and frozen evidence
-│   ├── roles/                 # Assignments, prompts and role calls
+│   ├── research/              # Saved context and shared checks
+│   ├── evidence/              # Private sources and frozen evidence
+│   ├── roles/                 # One directory per ingestion agent and shared role code
 │   ├── proposals.ts           # Proposal assembly and Editor decisions
 │   ├── catalog-plan.ts        # Operation preparation
-│   ├── location/              # Place decisions and point validation
 │   ├── tools/                 # Source reading, search and geocoding
 │   ├── evals/                 # Fixed cases, evaluators and experiment runner
 │   ├── jobs/                  # Durable queue operations
@@ -80,7 +79,7 @@ Edition validation uses three inputs as data moves through the pipeline.
 
 | Input | Owner and decision |
 | --- | --- |
-| Proposed term IDs | [Proposal preparation](../src/ingestion/proposals.ts) checks evidence and reuse. [Classification rules](../src/catalog/domain/classification.ts) validate the selection and remove redundant ancestors before Editor review. |
+| Proposed term IDs | [Classification validation](../src/ingestion/roles/classification/validate.ts) checks evidence and reuse. [Classification rules](../src/catalog/domain/classification.ts) validate the selection and remove redundant ancestors before Editor review. |
 | Saved Edition with proposed changes | The [catalog planner](../src/ingestion/catalog-plan.ts) uses the [festival publication policy](../src/catalog/domain/festival-edition-publication.ts) to decide whether to add a publish operation. [Edition rules](../src/catalog/domain/edition-rules.ts) apply common record checks and the selected policy. |
 | Stored Edition or proposed replacement terms | The [writer](../src/catalog/write/apply-operation.ts) checks the affected rules inside the transaction. A direct assignment with a redundant ancestor fails. |
 
@@ -90,20 +89,22 @@ Paths below are relative to `src/ingestion/` unless stated otherwise. Read code 
 | -------------------------------------------------------------- | ----------------------------------------------------- |
 | Workflow and terminal cleanup                                  | `workflow.ts`, `attempt.ts`                           |
 | Stage results and write outcomes                               | `stage.ts`, `pipeline.ts`                            |
-| Saved context and shared field contracts                       | `research/context.ts`, `research/contracts.ts`        |
-| Assignments and agent calls                                    | `roles/`                                              |
-| Saved sources, Reader and frozen corpus                        | `evidence/`                                           |
+| Saved context and shared diagnostics                           | `research/context.ts`, `research/contracts.ts`        |
+| Agent calls, prompts, schemas and validators                   | One folder per role under `roles/`                    |
+| Saved sources and frozen corpus                                | `evidence/`                                           |
 | Scope and country checks                                       | `research/guards.ts`                                  |
 | Source tools, shared budgets and network access                | `tools/`                                              |
-| Proposal assembly and Editor decisions                         | `proposals.ts`                                        |
+| Proposal assembly and application of Editor decisions          | `proposals.ts`                                        |
 | Writer-operation preparation                                   | `catalog-plan.ts`                                     |
-| Place fields, coordinate selection and earlier-point checks    | `location/`, `tools/geocode/`                         |
+| Place fields, coordinate selection and earlier-point checks    | `roles/location/`, `tools/geocode/`                   |
 | Background job submission, cancellation and execution          | `jobs/`; `src/mastra/jobs.ts` owns server execution   |
 | Private reports and durable attempts                           | `report.ts`, `runs.ts`                                |
 | Evals and experiment results                                   | `evals/`; see [Ingestion evals](ingestion-evals.md)   |
 | Workflow storage, logging and tracing                          | `runtime/`; see [Ingestion tools](ingestion-tools.md) |
 | Studio workflow registration                                   | `src/mastra/index.ts`                                 |
 | Studio chat, SQL and job tools, memory and schema guidance | `src/mastra/catalog-assistant/`                       |
+
+The role folders are `research`, `reader`, `general`, `tickets`, `classification`, `location`, `links` and `editor`. Shared role invocation and group checks stay at the root of `roles/`. The evidence binder serves Reader and saved-passage citations.
 
 Each preparation function returns `continue`, `skip`, or `reject`. Only `continue` carries input for the next stage: `PreparedProposals` → `AcceptedProposals` → `ReadyCatalogPlan`. Research and Editor results have no writer operations. Workflow state retains each stage result for inspection. The workflow uses those results to choose its next action and sets an explicit outcome. Reports project that outcome, stage diagnostics, and writer receipts; error codes do not control the report outcome.
 

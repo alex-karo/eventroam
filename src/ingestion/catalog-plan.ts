@@ -1,6 +1,6 @@
 import { festivalEditionRules } from "@/catalog/domain/festival-edition-publication";
 import { hasRequiredScheduleDates } from "@/catalog/domain/edition-rules";
-import type { MaterializedLocation } from "./location/validate";
+import type { MaterializedLocation } from "./roles/location/validate";
 import type { ApplicationPlan, AcceptedProposals } from "./proposals";
 import { createHash, randomUUID } from "node:crypto";
 import { normalizeCatalogUrl } from "@/catalog/domain/urls";
@@ -13,13 +13,13 @@ import type { ResearchCatalog } from "./research/context";
 import type { CatalogResearchInput } from "./contracts";
 import { editionSlotNames } from "./research/contracts";
 import type { z } from "zod";
-import type { ticketBlockSchema } from "./roles/contracts";
+import type { ticketBlockSchema } from "./roles/tickets/contracts";
 import {
   diagnosticsOnly,
   type PlanDiagnostics,
   type StageResult,
 } from "./stage";
-import { majorToMinor } from "./research/money";
+import { majorToMinor } from "./roles/tickets/money";
 type CombinedEditionPlan = NonNullable<
   ApplicationPlan["currentOrNextEdition"]
 > & {

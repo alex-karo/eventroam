@@ -1,3 +1,4 @@
+import type { CheckFinding } from "./contracts";
 import type { CatalogResearchInput } from "../contracts";
 import type { ResearchContext } from "../research/context";
 
@@ -96,7 +97,7 @@ export function buildAssignment(
 export function assignedRoleChecks(
   role: "general" | "tickets" | "classification" | "links",
   input: CatalogResearchInput,
-  targets?: import("./contracts").Targets,
+  targets?: import("./general/contracts").Targets,
 ) {
   const current = input.mode === "refresh" && input.scope === "current";
   const hasNext = !!targets?.currentOrNextEdition;
@@ -122,4 +123,10 @@ export function assignedRoleChecks(
     ...(!current ? ["eventLinks"] : []),
     ...(hasNext ? ["currentLinks"] : []),
   ];
+}
+
+export function hasEventFieldCheck(checks: CheckFinding[]) {
+  return checks.some(
+    ({ check }) => check === "description" || check === "eventLinks",
+  );
 }

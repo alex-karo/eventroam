@@ -1,17 +1,13 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { createResearchBudget } from "../runtime/budget";
-import { createGeocodingSession } from "../tools/geocode/tool";
+import { createResearchBudget } from "../../runtime/budget";
+import { createGeocodingSession } from "../../tools/geocode/tool";
 import type {
   GeocodingRequest,
   GeocodingResult,
   GeocodingClient,
-} from "../tools/geocode/contracts";
+} from "../../tools/geocode/contracts";
 import { distanceKm } from "./geometry";
-import {
-  locationOutputSchema,
-  locationModelOutputSchema,
-  locationTextFields,
-} from "./contracts";
+import { locationOutputSchema, locationTextFields } from "./contracts";
 import { locationInputSchema, type LocationInput } from "./input";
 import { prepareInitialGeocoding } from "./initial";
 import { validateLocation } from "./validate";
@@ -21,6 +17,10 @@ afterEach(() => vi.unstubAllGlobals());
 test("the native Location request includes the independent location evidence rule", async () => {
   const fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
     const request = JSON.parse(String(init?.body));
+    expect(request.response_format.json_schema.schema).toMatchObject({
+      type: "object",
+      required: ["decision"],
+    });
     const instructions = JSON.stringify(
       request.messages.filter(
         (message: { role: string }) => message.role === "system",
@@ -176,10 +176,6 @@ function pointInput(): LocationInput {
   return data;
 }
 test("strict decisions reject numeric coordinates and removed reference fields", () => {
-  expect(locationModelOutputSchema()).toMatchObject({
-    type: "object",
-    required: ["decision"],
-  });
   expect(locationOutputSchema.safeParse(output()).success).toBe(true);
   expect(
     locationOutputSchema.safeParse({

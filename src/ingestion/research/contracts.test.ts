@@ -1,11 +1,11 @@
 import { expect, test } from "vitest";
+import { dateBlockSchema } from "../roles/general/contracts";
+import { editionKeySchema } from "./contracts";
 import {
-  dateBlockSchema,
-  editionKeySchema,
   researchBasePriceSchema,
   ticketOfferSchema,
-} from "./contracts";
-import { majorToMinor, minorToMajor } from "./money";
+} from "../roles/tickets/contracts";
+import { majorToMinor, minorToMajor } from "../roles/tickets/money";
 
 test("dates and Edition keys reject incomplete or invalid groups", () => {
   const valid = {

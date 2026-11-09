@@ -1,7 +1,7 @@
-import type { LocationExecution } from "../location/agent";
-import type { LocationOutput } from "../location/contracts";
-import type { LocationTarget } from "../location/input";
-import type { MaterializedLocation } from "../location/validate";
+import type { LocationExecution } from "../roles/location/agent";
+import type { LocationOutput } from "../roles/location/contracts";
+import type { LocationTarget } from "../roles/location/input";
+import type { MaterializedLocation } from "../roles/location/validate";
 import type { LocationEvalCase } from "./fixtures";
 import type { Check } from "./checks";
 import { checks } from "./cases/location/checks";

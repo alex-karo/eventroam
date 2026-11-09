@@ -31,7 +31,7 @@ test("leaves Reader branches and collection questions unchanged", () => {
 test.each(["free", "exact"])(
   "validates Tickets transport placeholders for %s admission",
   async (kind) => {
-    const { ticketsOutputSchema } = await import("./contracts");
+    const { ticketsOutputSchema } = await import("./tickets/contracts");
     const raw = {
       currentOrNextEdition: {
         tickets: {
@@ -78,8 +78,9 @@ test.each(["free", "exact"])(
   },
 );
 test("validates Classification and Links optional transport fields", async () => {
-  const { classificationOutputSchema, linksOutputSchema } =
-    await import("./contracts");
+  const { classificationOutputSchema } =
+    await import("./classification/contracts");
+  const { linksOutputSchema } = await import("./links/contracts");
   const classification = {
     previousEdition: null,
     currentOrNextEdition: {

@@ -1,4 +1,4 @@
-import type { ResearchError } from "../research/contracts";
+import type { ResearchError } from "../../research/contracts";
 
 export type EditorExecution = {
   status: "success" | "failed" | "not_run";

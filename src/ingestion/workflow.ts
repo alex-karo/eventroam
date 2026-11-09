@@ -11,34 +11,33 @@ import {
 import { logPreparation } from "./workflow-logging";
 import { createCollection } from "./evidence/collection";
 import { buildAssignment } from "./roles/assignment";
-import {
-  collectResearch,
-  runGeneral,
-  runTickets,
-  runClassification,
-  runLinks,
-  runEditor,
-  type RoleOptions,
-} from "./roles/run";
+import { collectResearch } from "./roles/research/agent";
+import { runGeneral } from "./roles/general/agent";
+import { runTickets } from "./roles/tickets/agent";
+import { runClassification } from "./roles/classification/agent";
+import { runLinks } from "./roles/links/agent";
+import { runEditor } from "./roles/editor/agent";
+import { validateResearchSummary } from "./roles/research/validate";
+import type { RoleOptions } from "./roles/options";
 import {
   assembleProposals,
   applyReview,
-  initialDiagnostics,
   type SpecialistOutputs,
 } from "./proposals";
 import { assignedGroups } from "./groups";
-import { reviewPaths, reviewReturns, type ReviewDecisions } from "./review";
+import { reviewPaths, reviewReturns } from "./roles/editor/review";
+import type { ReviewDecisions } from "./roles/editor/contracts";
 import { repairDiagnostic } from "./repairs";
 import { prepareCatalogPlan } from "./catalog-plan";
-import type { Targets } from "./roles/contracts";
-import { stageDiagnostics } from "./stage";
+import type { Targets } from "./roles/general/contracts";
+import { initialDiagnostics, stageDiagnostics } from "./stage";
 import {
   emptyLocationExecution,
   locationExecutionSchema,
-} from "./location/execution";
-import { resolveLocation } from "./location/agent";
-import { buildLocationInput } from "./location/input";
-import { assertLocationPreviousPoints } from "./location/donor-guard";
+} from "./roles/location/execution";
+import { resolveLocation } from "./roles/location/agent";
+import { buildLocationInput } from "./roles/location/input";
+import { assertLocationPreviousPoints } from "./roles/location/donor-guard";
 import {
   assertRefreshBaseline,
   countryBaselineConflict,
@@ -471,25 +470,13 @@ export function createCatalogIngestionWorkflow(
           });
         }
       }
-      const assignment = buildAssignment(owned.input, data.context!);
-      const checks = data.research.output?.checks ?? [];
-      if (
-        new Set(checks.map((check) => check.check)).size !== checks.length ||
-        checks.some(
-          (check) =>
-            !assignment.checks.some(
-              (assigned) => assigned.key === check.check,
-            ) ||
-            check.sourceIds.some(
-              (id) => !data.corpus!.sources.some((source) => source.id === id),
-            ),
-        )
-      ) {
-        data.errors.push({
-          code: "invalid_candidate",
-          stage: "validation",
-          message: "Collection check references are invalid",
-        });
+      const invalidSummary = validateResearchSummary(
+        data.research.output,
+        buildAssignment(owned.input, data.context!),
+        data.corpus.sources,
+      );
+      if (invalidSummary) {
+        data.errors.push(invalidSummary);
         data.outcome = "failed";
       }
       return {

@@ -1,8 +1,8 @@
 import { isAssignedCountryCode } from "@/catalog/domain/country-codes";
 import { z } from "zod";
-import { pointSchema } from "../tools/geocode/contracts";
-import { editionSlotNames } from "../research/contracts";
-import type { GeocodingSession } from "../tools/geocode/tool";
+import { pointSchema } from "../../tools/geocode/contracts";
+import { editionSlotNames } from "../../research/contracts";
+import type { GeocodingSession } from "../../tools/geocode/tool";
 import {
   locationOutputSchema,
   locationTextFields,
@@ -184,9 +184,23 @@ export function validateLocation(
   input: LocationInput,
   session: PointContext,
 ): MaterializedLocation {
+  const result = validateLocationReply(raw, input, session);
+  if (result.status === "rejected") {
+    throw new LocationValidationError("Location rejected the item");
+  }
+  return result.materialized;
+}
+
+export function validateLocationReply(
+  raw: unknown,
+  input: LocationInput,
+  session: PointContext,
+):
+  | { status: "rejected"; reason: string }
+  | { status: "success"; materialized: MaterializedLocation } {
   const { decision } = locationOutputSchema.parse(raw);
   if (decision.status === "rejected") {
-    throw new LocationValidationError("Location rejected the item");
+    return { status: "rejected", reason: decision.reason };
   }
   const result: MaterializedLocation = {
     support: {},
@@ -260,5 +274,5 @@ export function validateLocation(
       })),
     );
   }
-  return result;
+  return { status: "success", materialized: result };
 }

@@ -1,12 +1,95 @@
 import { z } from "zod";
 import { createTool } from "@mastra/core/tools";
-import { modelReply } from "@/test/ingestion-provider";
-import { normalizeRoleWire } from "./wire";
+import { modelReply, providerPrompt } from "@/test/ingestion-provider";
 import { afterEach, expect, it, vi } from "vitest";
 import { invokeRole, type RoleConversation } from "./invoke";
-import { generalOutputSchema, linksOutputSchema } from "./contracts";
+import { generalOutputSchema } from "./general/contracts";
+import { linksOutputSchema } from "./links/contracts";
 import { createResearchBudget } from "../runtime/budget";
+import { reviewSchema, validateEditorReply } from "./editor/validate";
 afterEach(() => vi.unstubAllGlobals());
+
+it.each([
+  {
+    first: { decisions: [] },
+    feedback: "Add the required decision for item",
+    decision: "approve",
+    status: "success",
+  },
+  {
+    first: { decisions: 42 },
+    feedback: "expected array",
+    decision: "return",
+    status: "failed",
+  },
+])(
+  "validates the Editor correction after native tool use ($status)",
+  async ({ first, feedback, decision, status }) => {
+    const paths = [
+      { path: "item", required: true, allowed: ["approve" as const] },
+    ];
+    const schema = reviewSchema(paths);
+    const corrected = {
+      decisions: [
+        { path: "item", decision, note: "The source confirms this." },
+      ],
+    };
+    const savedResult = "Only guests over 18 are eligible.";
+    const lookup = createTool({
+      id: "lookup",
+      description: "Read the saved page.",
+      inputSchema: z.object({}),
+      execute: async () => savedResult,
+    });
+    const fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body));
+      if (fetch.mock.calls.length === 1) {
+        return modelReply(null, { id: "lookup", name: "lookup", args: {} });
+      }
+      if (fetch.mock.calls.length === 2) {
+        return modelReply(JSON.stringify(first));
+      }
+      expect(JSON.stringify(request.messages)).toContain(savedResult);
+      expect(JSON.stringify(request.messages)).toContain("reviewPaths");
+      expect(
+        providerPrompt(request).validationFeedback.errors[0].message,
+      ).toContain(feedback);
+      expect(request.tools ?? []).toEqual([]);
+      return modelReply(JSON.stringify(corrected));
+    });
+    vi.stubGlobal("fetch", fetch);
+    const budget = createResearchBudget();
+    const result = await invokeRole({
+      role: "editor",
+      version: "test",
+      instructions: "Review the item using the saved source.",
+      input: { reviewPaths: paths },
+      schema,
+      validateReply: (reply) => validateEditorReply(schema, reply),
+      budget,
+      config: {
+        apiKey: "fixture",
+        model: "fixture/model",
+        limits: budget.limits,
+      },
+      tools: { lookup },
+      steps: 2,
+    });
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(budget.snapshot().modelCalls).toBe(3);
+    expect(result.status).toBe(status);
+    if (status === "success") {
+      expect(result.output).toEqual(corrected);
+      expect(result.errors).toEqual([]);
+    } else {
+      expect(result.output).toBeUndefined();
+      expect(result.errors[0]).toMatchObject({
+        code: "invalid_plan",
+        message: expect.stringContaining("Choose approve"),
+      });
+    }
+  },
+);
 
 it("reads the final Links revision after tool use when the wire schema fails", async () => {
   const initial = {
@@ -37,7 +120,6 @@ it("reads the final Links revision after tool use when the wire schema fails", a
     instructions: "Check the website.",
     input: {},
     schema: linksOutputSchema,
-    normalizeOutput: (value) => normalizeRoleWire("links", value),
     budget,
     config: {
       apiKey: "fixture",
@@ -89,7 +171,6 @@ it("uses an object transport envelope for General and retains the actual respons
     instructions: "Fixture",
     input: {},
     schema: generalOutputSchema,
-    normalizeOutput: (value) => normalizeRoleWire("general", value),
     budget,
     config: {
       apiKey: "fixture",
@@ -110,7 +191,6 @@ it("accepts a valid domain decision with a reason above the length guidance", as
     instructions: "Fixture",
     input: {},
     schema: generalOutputSchema,
-    normalizeOutput: (value) => normalizeRoleWire("general", value),
     budget,
     config: {
       apiKey: "fixture",
@@ -177,7 +257,6 @@ it.each([
       instructions: "Fixture",
       input: {},
       schema: generalOutputSchema,
-      normalizeOutput: (value) => normalizeRoleWire("general", value),
       budget,
       config: {
         apiKey: "fixture",
@@ -203,33 +282,8 @@ it.each([
   },
 );
 
-it("preserves required nullable values in a custom Reader union", async () => {
-  const schema = z.union([
-    z.strictObject({ a: z.string(), x: z.string().optional() }),
-    z.strictObject({ b: z.string(), x: z.string().nullable() }),
-  ]);
-  const raw = { b: "value", x: null };
-  const budget = createResearchBudget();
-  const result = await invokeRole({
-    role: "reader",
-    version: "test",
-    instructions: "Fixture",
-    input: {},
-    schema,
-    budget,
-    config: {
-      apiKey: "fixture",
-      model: "fixture/model",
-      limits: budget.limits,
-    },
-    generate: async () => raw,
-  });
-  expect(result.status).toBe("success");
-  expect(result.output).toEqual(raw);
-});
-
 it("retains the Reader evidence branches and required null uncertainty", async () => {
-  const { readerOutputSchema } = await import("../evidence/contracts");
+  const { readerOutputSchema } = await import("./reader/contracts");
   const raw = {
     overview: "Official programme",
     coverage: { found: ["Dates"], notPublished: [] },
