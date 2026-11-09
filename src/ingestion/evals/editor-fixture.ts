@@ -2,6 +2,7 @@ import { z } from "zod";
 import { bindEvidence } from "../evidence/contracts";
 import { fixedReaderOutputSchema } from "./fixed-reader";
 import { roleEvidenceTopics } from "../roles/contracts";
+import { replyReferences } from "../roles/proposal-validation";
 import { collectionOutputSchema } from "../roles/research/contracts";
 import { generalOutputSchema } from "../roles/general/contracts";
 import { ticketsOutputSchema } from "../roles/tickets/contracts";
@@ -30,18 +31,6 @@ export const roleHandoffSchema = z.strictObject({
     links: linksOutputSchema.optional(),
   }),
 });
-
-function support(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.flatMap(support);
-  }
-  if (!value || typeof value !== "object") {
-    return [];
-  }
-  return Object.entries(value).flatMap(([key, part]) =>
-    key === "evidenceIds" ? (part as string[]) : support(part),
-  );
-}
 
 /** Check fixed citations before the CLI starts any model calls. */
 export function assertEditorFixture(item: PipelineEvalCase) {
@@ -122,7 +111,11 @@ export function assertEditorFixture(item: PipelineEvalCase) {
         .filter((item) => item.topics.some((topic) => topics.includes(topic)))
         .map((item) => item.id),
     );
-    if (support(fixture.roles[role]).some((id) => !allowed.has(id))) {
+    if (
+      replyReferences(fixture.roles[role], "evidenceIds").some(
+        (id) => typeof id !== "string" || !allowed.has(id),
+      )
+    ) {
       throw new Error(`${item.id}: unknown fixed ${role} citation`);
     }
   }

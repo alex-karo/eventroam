@@ -94,7 +94,7 @@ export function buildLocationInput(
         information: source.overview!,
       })),
     history,
-    evidence: JSON.parse(JSON.stringify(packet.evidence)),
+    evidence: packet.evidence,
     selection: {
       reason: targets.reason,
       evidenceIds: targets.evidenceIds,

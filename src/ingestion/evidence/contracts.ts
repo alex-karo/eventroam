@@ -147,7 +147,7 @@ function bindPassages<Selection>(
 export function evidencePacket(
   corpus: FrozenCorpus,
   selected: readonly (typeof topics)[number][],
-  options: { anchors?: boolean; maxCharacters?: number } = {},
+  options: { anchors?: boolean } = {},
 ) {
   const evidence = corpus.evidence.filter((item) =>
     item.topics.some((topic) => selected.includes(topic)),
@@ -179,7 +179,7 @@ export function evidencePacket(
       };
     }),
   };
-  if (JSON.stringify(packet).length > (options.maxCharacters ?? 240000)) {
+  if (JSON.stringify(packet).length > 240000) {
     throw new ResearchLimitError("context");
   }
   return packet;
