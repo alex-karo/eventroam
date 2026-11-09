@@ -95,7 +95,7 @@ export function materializeLocationReply(
 
 export function validateLocationGroups(options: GroupValidationInput) {
   validateProposalBoundary("location", options);
-  const { reply, ctx, available } = options;
+  const { reply, ctx, available, only } = options;
   const location = ctx.location!;
   requireKnownReferences(
     "location",
@@ -139,7 +139,10 @@ export function validateLocationGroups(options: GroupValidationInput) {
     },
     () => {
       for (const slot of editionSlotNames) {
-        if (location.input[slot]) {
+        if (
+          location.input[slot] &&
+          (!only || only.has(`${slot}.fields.location`))
+        ) {
           checkLocationBoundary(reply.raw, slot, location);
         }
       }
