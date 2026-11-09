@@ -137,9 +137,12 @@ it("shares proposal and repair evidence by ID and checks saved source hashes", a
               points: [],
             });
             expect(input.evidence).toEqual(
-              bound.evidence.map(({ id, quote }) =>
-                expect.objectContaining({ id, quote }),
-              ),
+              bound.evidence.map(({ id, sourceId, quote, topics }) => ({
+                id,
+                sourceId,
+                quote,
+                topics,
+              })),
             );
             expect(input.repairs).toEqual([
               { ...earlierRepair, evidenceIds: [bound.evidence[1].id] },

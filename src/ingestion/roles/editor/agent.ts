@@ -91,6 +91,7 @@ export async function runEditor(
       },
       evidence: evidencePacket({ ...options.corpus, evidence }, topics, {
         anchors: true,
+        includeSourceUrl: false,
       }).evidence,
     },
     schema,

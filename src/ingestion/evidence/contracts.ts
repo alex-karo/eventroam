@@ -147,37 +147,34 @@ function bindPassages<Selection>(
 export function evidencePacket(
   corpus: FrozenCorpus,
   selected: readonly (typeof topics)[number][],
-  options: { anchors?: boolean } = {},
+  options: { anchors?: boolean; includeSourceUrl?: boolean } = {},
 ) {
   const evidence = corpus.evidence.filter((item) =>
     item.topics.some((topic) => selected.includes(topic)),
   );
   const packet = {
     version: corpus.version,
-    evidence: evidence.map((item) => {
-      const source = corpus.sources.find(
-        (source) => source.id === item.sourceId,
-      )!;
-      return {
-        id: item.id,
-        sourceId: item.sourceId,
-        quote: item.quote,
-        ...(item.context.length
-          ? { context: item.context.map(({ quote }) => ({ quote })) }
-          : {}),
-        topics: item.topics,
-        ...(item.editionClues.length
-          ? { editionClues: item.editionClues }
-          : {}),
-        ...(item.uncertainty ? { uncertainty: item.uncertainty } : {}),
-        ...(options.anchors && item.anchors.length
-          ? { anchors: item.anchors }
-          : {}),
+    evidence: evidence.map((item) => ({
+      id: item.id,
+      sourceId: item.sourceId,
+      quote: item.quote,
+      ...(item.context.length
+        ? { context: item.context.map(({ quote }) => ({ quote })) }
+        : {}),
+      topics: item.topics,
+      ...(item.editionClues.length ? { editionClues: item.editionClues } : {}),
+      ...(item.uncertainty ? { uncertainty: item.uncertainty } : {}),
+      ...(options.anchors && item.anchors.length
+        ? { anchors: item.anchors }
+        : {}),
+      ...(options.includeSourceUrl !== false && {
         source: {
-          finalUrl: source.finalUrl,
+          finalUrl: corpus.sources.find(
+            (source) => source.id === item.sourceId,
+          )!.finalUrl,
         },
-      };
-    }),
+      }),
+    })),
   };
   if (JSON.stringify(packet).length > 240000) {
     throw new ResearchLimitError("context");
