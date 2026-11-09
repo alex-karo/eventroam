@@ -103,7 +103,13 @@ export default async function PrivacyPage() {
             <tbody>
               <tr>
                 <th scope="row">
-                  <a href="https://posthog.com/privacy">PostHog</a>
+                  <a
+                    href="https://posthog.com/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    PostHog
+                  </a>
                 </th>
                 <td>Website analytics, EU project</td>
                 <td>
@@ -112,7 +118,11 @@ export default async function PrivacyPage() {
               </tr>
               <tr>
                 <th scope="row">
-                  <a href="https://www.hetzner.com/legal/privacy-policy/">
+                  <a
+                    href="https://www.hetzner.com/legal/privacy-policy/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     Hetzner
                   </a>
                 </th>
@@ -121,7 +131,11 @@ export default async function PrivacyPage() {
               </tr>
               <tr>
                 <th scope="row">
-                  <a href="https://www.cloudflare.com/privacypolicy/">
+                  <a
+                    href="https://www.cloudflare.com/privacypolicy/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     Cloudflare
                   </a>
                 </th>
@@ -130,7 +144,13 @@ export default async function PrivacyPage() {
               </tr>
               <tr>
                 <th scope="row">
-                  <a href="https://www.mapbox.com/legal/privacy">Mapbox</a>
+                  <a
+                    href="https://www.mapbox.com/legal/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Mapbox
+                  </a>
                 </th>
                 <td>Maps, when available</td>
                 <td>IP address, browser details, and map requests</td>

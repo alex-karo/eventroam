@@ -23,6 +23,8 @@ export function PromoLink({
     <a
       className={className}
       href={href}
+      target={destination === "linkedin" ? "_blank" : undefined}
+      rel={destination === "linkedin" ? "noopener noreferrer" : undefined}
       onClick={() =>
         posthog.capture("promo_link_clicked", {
           destination,

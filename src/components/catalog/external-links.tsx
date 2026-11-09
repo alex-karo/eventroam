@@ -89,6 +89,7 @@ export function ExternalLinks({
                 : "external-link"
             }
             href={link.url}
+            target="_blank"
             rel="noopener noreferrer"
             title={link.name}
             aria-label={link.name}

@@ -26,6 +26,16 @@ The application SHALL use one shared catalog with an allowlisted host mapping. T
 - **WHEN** a visitor opens the configured Festivals root
 - **THEN** the page shows festival discovery rather than the project presentation
 
+### Requirement: Links to other websites open in a new tab
+
+Links to websites outside Eventroam SHALL open in a new browser tab.
+
+#### Scenario: A visitor follows a festival link
+
+- **WHEN** a visitor selects a link to a festival website, ticket provider, or social media profile
+- **THEN** the destination opens in a new tab
+- **AND** the Eventroam page stays open in its original tab
+
 ### Requirement: Public record routes are stable and scoped
 
 The Festivals host SHALL use `/events/{eventSlug}` and `/events/{eventSlug}/{editionKey}` for public records. Discovery SHALL occupy the scope root, without alternate map/list/filter paths. Slugs and keys SHALL be lowercase URL-safe segments. Published old paths SHALL remain reserved aliases that redirect after a rename; date or venue moves SHALL preserve keys. Public records reached from the apex SHALL redirect to the configured Festivals origin.
