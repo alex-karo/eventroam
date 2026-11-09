@@ -6,6 +6,7 @@ import { wacken } from "./main/wacken";
 import { sziget } from "./main/sziget";
 import { glastonbury } from "./main/glastonbury";
 import { afroNation } from "./main/afro-nation";
+import { rise } from "./main/rise";
 import { evaluate, fact } from "./main/facts";
 import {
   assessDescriptionFormat,
@@ -18,6 +19,7 @@ const evaluators = {
   sziget,
   glastonbury,
   "afro-nation-portugal-blocked": afroNation,
+  rise,
 };
 export type MainScore = ReturnType<typeof evaluate>;
 
@@ -26,6 +28,11 @@ const descriptionReferences = new Map<string, string>([
   [
     "glastonbury",
     "A music and performing arts festival with many stages and areas.",
+  ],
+  // rise/stages.md and rise/location.md describe electronic music at a ski resort.
+  [
+    "rise",
+    "A winter festival that combines electronic music and snow sports at a ski resort, with outdoor stages and indoor venues.",
   ],
   // roskilde/about.md describes the concerts and communal camping.
   ["roskilde", "A music festival with concerts and a large camping community."],

@@ -8,7 +8,7 @@ Define controlled ingestion experiments that separate catalog quality from targe
 
 ### Requirement: Cases have separate purpose and source labels
 
-Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The initial main set SHALL contain five festival cases: captured Wacken, Roskilde, Sziget, and Afro Nation Portugal cases, and a synthetic Glastonbury case without source confirmation of its saved programme. Targeted workflow, Editor, and isolated Location regressions SHALL retain their checks. Isolated source-extraction cases SHALL reuse existing pages and preserve their origin labels.
+Each case SHALL declare its task, source origin, and `main` or `regression` suite. Fill, verify, and correct SHALL be distinct cases, even with shared pages. The main set SHALL contain captured Wacken, Roskilde, Sziget, Afro Nation Portugal, and Rise cases, and a synthetic Glastonbury case without source confirmation of its saved programme. Targeted workflow, Editor, and isolated Location regressions SHALL retain their checks. Isolated source-extraction cases SHALL reuse existing pages and preserve their origin labels.
 
 #### Scenario: Shared sources serve different tasks
 
@@ -29,13 +29,13 @@ Each case SHALL declare its task, source origin, and `main` or `regression` suit
 
 ### Requirement: All groups can run together
 
-One command SHALL support case and group selection. With no selection flags, it SHALL select five main cases. The `--all` option SHALL select all registered cases. The repeat count SHALL default to one. CLI output SHALL identify selected groups and case counts.
+One command SHALL support case and group selection. With no selection flags, it SHALL select all main cases. The `--all` option SHALL select all registered cases. The repeat count SHALL default to one. CLI output SHALL identify selected groups and case counts.
 
 #### Scenario: Default run selects main cases
 
 - **WHEN** the command runs without selection or repeat flags
-- **THEN** it selects each of the five main cases once
-- **AND** the CLI identifies the main pipeline group and five selected cases
+- **THEN** it selects each main case once
+- **AND** the CLI identifies the main pipeline group and the number of selected cases
 
 #### Scenario: Full run includes a rejected scenario
 
@@ -134,6 +134,27 @@ Only declared facts SHALL affect main completeness or factual errors. Required a
 - **THEN** an added administrative area does not fail the case or earn completeness credit
 - **AND** changing or clearing a populated saved administrative area still fails
 
+#### Scenario: A tourist office appears under the festival address heading
+
+- **WHEN** Rise refreshes its saved 2025 and 2026 Editions and the captured pages establish Les 2 Alpes and several festival stages
+- **AND** the 2025 photo gallery confirms the Edition took place and tags a dated photo as Santa Ski
+- **AND** the contact page labels the tourist office as the festival address
+- **THEN** both Editions keep their dates and country and have the confirmed locality
+- **AND** the 2025 Edition is published
+- **AND** the Snow sports topic for 2025 earns additional completeness credit when present
+- **AND** their venue names and addresses stay empty
+- **AND** the 2026 Edition keeps its saved point and precision
+- **AND** any point added to the 2025 Edition is the supported locality point
+
+#### Scenario: Rise lists a package price and checkout prices with unclear currency
+
+- **WHEN** Rise publishes a starting price in pounds for a package and checkout prices with only a dollar sign
+- **THEN** the 2026 ticket link uses the official overview
+- **AND** any returned price keeps the package starting price or retains a published dollar amount in its terms without assigning a currency
+- **AND** the announced music-only day ticket can remain without a price
+- **AND** a free offer can match the personal assistant ticket category
+- **AND** the case expects no base price or historical ticket updates
+
 #### Scenario: Add a declared locality point
 
 - **WHEN** a saved Edition has no coordinates and its case permits a specific locality point
@@ -166,9 +187,9 @@ Main comparisons SHALL accept declared alternatives and defined normalization. M
 
 #### Scenario: URL alternatives
 
-- **WHEN** a link matches a declared alternative
+- **WHEN** a link matches a declared alternative after host and default port normalization and removal of a single trailing slash from the path
 - **THEN** it passes
-- **AND** a different path or query is not accepted merely because its host matches
+- **AND** a different path, query, or fragment is not accepted merely because its host matches
 
 #### Scenario: Expected alternatives missed a valid value
 

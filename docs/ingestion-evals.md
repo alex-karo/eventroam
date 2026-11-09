@@ -12,7 +12,7 @@ Evals measure catalog quality and protect specific workflow behavior. They use f
 
 ## Run evals
 
-`pnpm run catalog:eval --help` lists options. The default runs five main cases once. Main runs the complete ingestion flow in a fresh in-memory catalog. Workflow regressions use dry runs. Isolated Location, Reader, and Classification cases use fixed inputs. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. Run the model-backed cases through the CLI. CI runs automated tests and excludes eval sources and the eval CLI from application coverage.
+`pnpm run catalog:eval --help` lists options. The default runs each main case once. Main runs the complete ingestion flow in a fresh in-memory catalog. Workflow regressions use dry runs. Isolated Location, Reader, and Classification cases use fixed inputs. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. Run the model-backed cases through the CLI. CI runs automated tests and excludes eval sources and the eval CLI from application coverage.
 
 Set `OPENROUTER_API_KEY` for the default agent model. The Classification group and `--all` also need this key for the separate description scorer, even when another provider runs the agents. With another agent provider, main runs can use the key to include description format scores.
 
@@ -149,7 +149,7 @@ Checks of a selected Edition's dates and year can resolve an omitted proposal fr
 
 ## Accept variation through explicit alternatives
 
-Accept source-supported URL, address, classification and price alternatives. URL comparison normalizes the host and default port; a matching host does not make all paths or queries valid. Avoid fuzzy matching for dates, prices and URLs.
+Accept source-supported URL, address, classification and price alternatives. URL comparison normalizes the host and default port and ignores a single trailing slash in the path. Queries and fragments still need to match. Avoid fuzzy matching for dates, prices and URLs.
 
 Link alternatives are choices. Extra or duplicate official links of a checked kind fail.
 
