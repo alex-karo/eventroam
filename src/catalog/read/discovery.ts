@@ -1,5 +1,14 @@
 import type Database from "better-sqlite3";
-import { and, asc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  inArray,
+  isNotNull,
+  notInArray,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { alias } from "drizzle-orm/sqlite-core";
 import { events, editionTerms, editions, taxonomyTerms } from "@/db/schema";
@@ -20,9 +29,11 @@ export function discoveryGenres(client: Database.Database): Genre[] {
     .all();
 }
 
-export function publicSummaries(client: Database.Database): DiscoverySummary[] {
-  const db = drizzle(client);
-  const rows = db
+export function publicSummaryRows(
+  client: Database.Database,
+  condition?: SQL,
+): Omit<DiscoverySummary, "genres">[] {
+  return drizzle(client)
     .select({
       id: editions.id,
       eventSlug: events.slug,
@@ -30,7 +41,7 @@ export function publicSummaries(client: Database.Database): DiscoverySummary[] {
       aliases: events.aliases,
       name: editions.displayName,
       year: editions.editionYear,
-      editionKey: editions.editionKey,
+      key: editions.editionKey,
       startsOn: editions.startsOn,
       endsOn: editions.endsOn,
       dateState: editions.dateState,
@@ -55,6 +66,7 @@ export function publicSummaries(client: Database.Database): DiscoverySummary[] {
         isNotNull(editions.startsOn),
         isNotNull(editions.endsOn),
         notInArray(editions.scheduleStatus, ["cancelled", "postponed"]),
+        condition,
       ),
     )
     .orderBy(
@@ -62,38 +74,53 @@ export function publicSummaries(client: Database.Database): DiscoverySummary[] {
       asc(events.canonicalName),
       asc(editions.id),
     )
-    .all();
+    .all() as Omit<DiscoverySummary, "genres">[];
+}
+
+export function genreSlugsByEdition(
+  client: Database.Database,
+  editionIds: string[],
+): Map<string, string[]> {
   const genresByEdition = new Map<string, string[]>();
-  if (rows.length) {
-    const classifications = db
-      .select({
-        editionId: editionTerms.editionId,
-        slug: taxonomyTerms.slug,
-      })
-      .from(editionTerms)
-      .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, editionTerms.termId))
-      .where(
-        and(
-          inArray(
-            editionTerms.editionId,
-            sql`(SELECT value FROM json_each(${JSON.stringify(rows.map((row) => row.id))}))`,
-          ),
-          eq(taxonomyTerms.facet, "genre"),
-        ),
-      )
-      .orderBy(asc(taxonomyTerms.slug))
-      .all();
-    for (const { editionId, slug } of classifications) {
-      const genres = genresByEdition.get(editionId) ?? [];
-      genres.push(slug);
-      genresByEdition.set(editionId, genres);
-    }
+  if (!editionIds.length) {
+    return genresByEdition;
   }
-  return rows.map(({ editionKey, ...row }) => ({
+  const classifications = drizzle(client)
+    .select({
+      editionId: editionTerms.editionId,
+      slug: taxonomyTerms.slug,
+    })
+    .from(editionTerms)
+    .innerJoin(taxonomyTerms, eq(taxonomyTerms.id, editionTerms.termId))
+    .where(
+      and(
+        inArray(
+          editionTerms.editionId,
+          sql`(SELECT value FROM json_each(${JSON.stringify(editionIds)}))`,
+        ),
+        eq(taxonomyTerms.facet, "genre"),
+      ),
+    )
+    .orderBy(asc(taxonomyTerms.slug))
+    .all();
+  for (const { editionId, slug } of classifications) {
+    const genres = genresByEdition.get(editionId) ?? [];
+    genres.push(slug);
+    genresByEdition.set(editionId, genres);
+  }
+  return genresByEdition;
+}
+
+export function publicSummaries(client: Database.Database): DiscoverySummary[] {
+  const rows = publicSummaryRows(client);
+  const genresByEdition = genreSlugsByEdition(
+    client,
+    rows.map((row) => row.id),
+  );
+  return rows.map((row) => ({
     ...row,
-    key: editionKey,
     genres: genresByEdition.get(row.id) ?? [],
-  })) as DiscoverySummary[];
+  }));
 }
 
 export function discoveryCatalog(client: Database.Database) {

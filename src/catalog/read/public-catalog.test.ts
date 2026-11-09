@@ -468,7 +468,9 @@ test("discovery hides draft and withdrawn parents and editions", () => {
 test("public ticket categories show their own availability and hide private details", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
-  const { event, editions } = fx.publishedEvent();
+  const { event, editions } = fx.publishedEvent({
+    editions: [{ soldOutSourceUrl: "https://example.org/sold-out" }],
+  });
   client.prepare("UPDATE editions SET price_details=? WHERE id=?").run(
     JSON.stringify([
       {
@@ -502,13 +504,14 @@ test("public ticket categories show their own availability and hide private deta
     { label: "Unannounced", amount: 0 },
   ]);
   expect(detail.editions[0].status).toBe("scheduled");
-  expect(summaries).toHaveLength(1);
+  expect(detail.editions[0].soldOut).toBe(true);
+  expect(summaries.map((summary) => summary.id)).toEqual([editions[0].id]);
   expect(JSON.stringify({ detail, summaries })).not.toContain(
     "ticketAvailability",
   );
-  expect(JSON.stringify(summaries)).not.toContain("ticketCategories");
+  expect(JSON.stringify(summaries)).not.toMatch(/ticketCategories|soldOut/);
   expect(JSON.stringify({ detail, summaries })).not.toMatch(
-    /priceDetails|price_details|example.org\/offer|changedFields|operationKey|retrievedAt/,
+    /priceDetails|price_details|example.org\/(offer|sold-out)|changedFields|operationKey|retrievedAt/,
   );
 });
 

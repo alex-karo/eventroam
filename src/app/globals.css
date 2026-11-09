@@ -895,6 +895,7 @@ a:focus-visible {
   outline-offset: 2px;
 }
 .ticket-categories,
+.similar-festivals,
 .edition-history {
   list-style: none;
   padding: 0;
@@ -905,6 +906,19 @@ a:focus-visible {
   border-radius: 8px;
   padding: 0.85rem;
   margin: 0.5rem 0;
+}
+.similar-festivals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: 0.75rem;
+}
+.similar-festivals > li {
+  border: 1px solid var(--line);
+  border-radius: var(--panel-radius);
+  padding: 0.85rem;
+}
+.similar-festivals h3 {
+  font-weight: 600;
 }
 .ticket-category-heading {
   display: flex;
