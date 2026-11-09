@@ -21,7 +21,7 @@ import type { FrozenCorpus } from "./evidence/contracts";
 import { buildAssignment } from "./roles/assignment";
 import { prepareCatalogPlan } from "./catalog-plan";
 
-function fixture() {
+function fixture(returnedPaths?: ReadonlySet<string>) {
   const db = testDatabase();
   const f = testFixtures(db.client);
   const event = f.event({ canonicalName: "Example Festival" });
@@ -89,6 +89,7 @@ function fixture() {
       corpus,
       context,
       input,
+      returnedPaths,
       points: [],
       location: { slots: {}, support: {}, previousPoints: [], unresolved: [] },
       tickets,
@@ -255,28 +256,28 @@ it("requires an explicit supported duplicate decision for add", () => {
     ).status,
   ).toBe("reject");
 });
-it("preserves saved terms without new evidence and rejects unsupported removal", () => {
-  const f = fixture();
+it("checks and retains evidence when assembling Classification changes", () => {
+  const returnedPaths = new Set<string>();
+  const f = fixture(returnedPaths);
+  const value = [f.terms[0].id];
   expect(f.assemble().status).toBe("continue");
-  expect(f.assemble([f.terms[0].id]).status).toBe("reject");
-  expect(f.assemble([f.terms[0].id], ["s1-e1"]).status).toBe("continue");
-  expect(f.assemble([f.terms[0].id], ["unknown"]).status).toBe("reject");
-  expect(f.targets.currentOrNextEdition!.fields).toEqual({});
-});
-it("retains nested proposal citations without unrelated evidence", () => {
-  const f = fixture();
-  f.corpus.evidence.push(
-    { ...f.corpus.evidence[0], id: "s1-e2" },
-    { ...f.corpus.evidence[0], id: "s1-e3" },
-  );
-  const prepared = f.assemble([f.terms[0].id], ["s1-e2"]);
-  if (prepared.status !== "continue") {
-    throw new Error("Rejected fixture");
-  }
-  expect(prepared.value.basis.evidence.map((item) => item.id)).toEqual([
-    "s1-e1",
-    "s1-e2",
+  expect(f.assemble(value).status).toBe("reject");
+  expect(f.assemble(value, ["unknown"]).status).toBe("reject");
+
+  const [identity] = f.corpus.evidence;
+  const cited = { ...identity, id: "s1-e2" };
+  f.corpus.evidence.push(cited, { ...identity, id: "s1-e3" });
+  expect(f.assemble(value, [cited.id])).toHaveProperty("value.basis.evidence", [
+    identity,
+    cited,
   ]);
+
+  returnedPaths.add("currentOrNextEdition.fields.classification");
+  expect(f.assemble(value)).toHaveProperty(
+    "value.plan.currentOrNextEdition.fields.classification",
+    expect.objectContaining({ value, evidenceIds: [] }),
+  );
+  expect(f.targets.currentOrNextEdition!.fields).toEqual({});
 });
 it("rejects cross-role fields and removed reference fields", () => {
   const f = fixture();

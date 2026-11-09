@@ -297,13 +297,13 @@ Each background attempt SHALL save its trusted job ID before source, model, or c
 
 ### Requirement: Reports show how a proposal was repaired
 
-The private report SHALL identify the target and group for each repair. It SHALL show the available original and revised proposals or omissions, who requested the repair, the reason, source passages with references, and the decision and outcome. It SHALL distinguish a recovered issue from a final failure and a proposal from a write. The full specialist conversation SHALL stay out of the report and saved workflow history.
+The private report SHALL identify the target and group for each repair. It SHALL show the available original and revised proposals or omissions, who requested the repair, the return note with any source excerpts and references, any existing evidence the revision cites, and the decision and outcome. It SHALL distinguish a recovered issue from a final failure and a proposal from a write. The full specialist conversation SHALL stay out of the report and saved workflow history.
 
 #### Scenario: The owner opens a repaired preview after the attempt ends
 
 - **WHEN** a preview with tracing off repairs a link after Editor returns it to Links and repairs an invalid ticket group after validation returns it to Tickets
 - **AND** the owner opens the report in Studio after the process exits
-- **THEN** the report shows both repairs with their values, reasons, source passages and final decisions
+- **THEN** the report shows both repairs with their values, return notes, any available source excerpts, and final decisions
 - **AND** it attributes the ticket return to validation and shows the field error as recovered
 
 #### Scenario: A repaired website shares a check with an unresolved social link

@@ -350,7 +350,7 @@ Ingestion MUST request three to five sentences for the detailed text and one or 
 
 ### Requirement: A disputed group can return to its owner within a limit
 
-Editor SHALL be able to return an assigned group or omission to its owner with its note as written. The note MAY contain facts and citations from saved sources. Each group for a selected target SHALL have at most three returns per Event attempt. Validation can use one of these returns before review. Editor can use the remaining returns. Ingestion SHALL send one request per owner with all eligible groups in each round. Returns SHALL use the attempt's budget and deadline.
+Editor SHALL be able to return an assigned group or omission to its owner with its note as written. The note MAY contain facts and excerpts from saved sources. Each group for a selected target SHALL have at most three returns per Event attempt. Validation can use one of these returns before review. Editor can use the remaining returns. Ingestion SHALL send one request per owner with all eligible groups in each round. Returns SHALL use the attempt's budget and deadline.
 
 Editor SHALL check assigned groups for unsupported claims and concrete gaps, including eligible omissions. If the supplied evidence leaves a specific issue open, Editor SHALL search a relevant saved page when the result can change an allowed decision. When the evidence supports a correction or fills a gap and the group can return, Editor SHALL return it with the source and an exact excerpt. If the search is inconclusive, Editor SHALL leave the question open and judge submitted values on their evidence.
 
@@ -372,7 +372,7 @@ Editor SHALL check assigned groups for unsupported claims and concrete gaps, inc
 
 ### Requirement: A revision changes only the requested groups
 
-Ingestion SHALL check the revision for an item refusal, a conflict in target, identity or country, and invalid evidence, source or point references. A failed or inconclusive check SHALL stop all item writes. If these checks pass, ingestion SHALL assess revised values only for the requested groups. A value error in another group SHALL leave the revision eligible. Ingestion SHALL keep earlier proposals and decisions for all other groups.
+Ingestion SHALL check the revision for an item refusal, a conflict in target, identity or country, and invalid evidence, source or point references. A failed or inconclusive check SHALL stop all item writes. If these checks pass, ingestion SHALL assess revised values only for the requested groups. A value error in another group SHALL leave the revision eligible. Ingestion SHALL keep earlier proposals and decisions for all other groups. A returned group can omit evidence IDs.
 
 #### Scenario: A website repair also mentions the ticket link
 
@@ -383,7 +383,7 @@ Ingestion SHALL check the revision for an item refusal, a conflict in target, id
 
 ### Requirement: Editor reviews the result of each return
 
-Editor SHALL decide each valid revision or omission. After a validation return, the first review SHALL include the returned group. After each editorial return, a separate review SHALL cover only the returned groups and include the reason for return and relevant evidence. Editor can return a group again when it has a return left. After three returns, Editor SHALL approve or reject the group. Approval or rejection of a valid omission SHALL preserve the saved field.
+Editor SHALL decide each valid revision or omission. After a validation return, the first review SHALL include the returned group. After each editorial return, a separate review SHALL cover only the returned groups and include the reason for return and relevant evidence. Before approving new or changed facts in a returned group, Editor SHALL check the applicable saved page for those facts and their context. The return note can help Editor find the passage. If Editor cannot confirm a fact, it SHALL reject the group or return it with the issue when a return is available. Editor can return a group again when it has a return left. After three returns, Editor SHALL approve or reject the group. Approval or rejection of a valid omission SHALL preserve the saved field.
 
 #### Scenario: A group reaches the return limit
 
@@ -396,6 +396,14 @@ Editor SHALL decide each valid revision or omission. After a validation return, 
 - **WHEN** Editor returns an Edition's tickets and Tickets omits the optional replacement with a reason
 - **THEN** the separate review identifies that Edition's tickets as omitted and requires a decision on the omission
 - **AND** a rejection records the decision, preserves saved tickets and lets an independent approved link proceed
+
+#### Scenario: A revised ticket price applies to another Edition
+
+- **WHEN** Tickets revises a price after a return and uses no evidence IDs
+- **AND** the saved ticket page lists that price only for another Edition
+- **AND** the ticket group has no returns left
+- **THEN** Editor rejects the ticket group
+- **AND** an independent approved link stays eligible for the plan
 
 ### Requirement: Editor can correct an invalid decision list
 
@@ -418,9 +426,9 @@ After target selection, validation SHALL check the whole original reply even if 
 
 #### Scenario: Wacken tickets fail validation before Editor runs
 
-- **WHEN** Tickets returns no offers and no free base price for the selected Wacken Edition, and its saved ticket page lists applicable offers
+- **WHEN** Tickets returns no offers and no free base price for the selected Wacken Edition, and its supplied evidence lists applicable offers
 - **THEN** Tickets receives the empty-list rule with the return
-- **AND** Tickets can cite the missed LOUDER-TICKET passage, which lists EUR 364 plus a EUR 2 fee, and submit a valid block for normal review
+- **AND** Tickets can use the supplied LOUDER-TICKET passage, which lists EUR 364 plus a EUR 2 fee, and submit a valid block for Editor to check against the saved page
 - **AND** this uses one of the group's three returns
 
 #### Scenario: The specialist cannot establish a price

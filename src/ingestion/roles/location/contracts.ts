@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { pointSchema } from "../../tools/geocode/contracts";
 
-export const LOCATION_PROMPT_VERSION = "catalog-location-v29";
+export const LOCATION_PROMPT_VERSION = "catalog-location-v30";
 export const locationTextFields = [
   "venueName",
   "venueAddress",

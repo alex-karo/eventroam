@@ -1,11 +1,12 @@
 import { evidencePacket, topics } from "../../evidence/contracts";
-import { savedPages, savedSearchInstructions } from "../../evidence/repair";
+import { savedPages } from "../../evidence/saved-pages";
 import type { ProposalGroup } from "../../groups";
 import type { PreparedProposals } from "../../proposals";
 import type { RepairRecord } from "../../repairs";
 import { buildAssignment } from "../assignment";
 import { invokeRole } from "../invoke";
 import { roleInvocationOptions, type RoleOptions } from "../options";
+import { replyReferences } from "../proposal-validation";
 import { PROMPT_VERSIONS } from "../versions";
 import type { ReviewPath } from "./contracts";
 import { editorInstructions } from "./prompt";
@@ -23,9 +24,13 @@ export async function runEditor(
     options.corpus,
     options.signal,
   );
-  const cited = new Set(
-    repairs.flatMap(({ evidence }) => evidence?.map(({ id }) => id) ?? []),
-  );
+  const cited = new Set([
+    ...(targetedGroups ? [] : prepared.basis.evidence.map(({ id }) => id)),
+    ...repairs.flatMap(({ original, evidence }) => [
+      ...replyReferences(original, "evidenceIds"),
+      ...(evidence?.map(({ id }) => id) ?? []),
+    ]),
+  ]);
   const returnedGroups = [];
   for (const group of targetedGroups ?? []) {
     if (group.owner === "location") {
@@ -38,9 +43,7 @@ export async function runEditor(
       proposal: groupProposal(prepared, group) ?? null,
     });
   }
-  const evidence = targetedGroups
-    ? prepared.basis.evidence.filter(({ id }) => cited.has(id))
-    : prepared.basis.evidence;
+  const evidence = options.corpus.evidence.filter(({ id }) => cited.has(id));
   const schema = reviewSchema(paths);
   return invokeRole({
     ...roleInvocationOptions(options, "editor"),
@@ -48,8 +51,6 @@ export async function runEditor(
     version: PROMPT_VERSIONS.editor,
     instructions:
       editorInstructions +
-      "\n" +
-      savedSearchInstructions +
       (targetedGroups
         ? "\nThis is a targeted review. The proposals are in returnedGroups. Use fixedEditions only as context. Do not review any other group or target."
         : ""),
@@ -58,7 +59,7 @@ export async function runEditor(
       permissions: buildAssignment(options.input, options.context).permissions,
       sourceFiles,
       reviewPaths: paths,
-      repairs,
+      repairs: repairs.map((entry) => ({ ...entry, evidence: undefined })),
       ...(targetedGroups && {
         returnedGroups,
         fixedEditions: {

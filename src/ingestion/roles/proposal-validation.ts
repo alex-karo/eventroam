@@ -1,5 +1,5 @@
 import type { CatalogResearchInput } from "../contracts";
-import type { Evidence, FrozenCorpus } from "../evidence/contracts";
+import type { FrozenCorpus } from "../evidence/contracts";
 import {
   atPath,
   isEventFieldCheck,
@@ -118,13 +118,17 @@ export type GroupValidationInput = {
   reply: Reply;
   groups: ProposalGroup[];
   ctx: ProposalValidationContext;
-  available: Evidence[];
   only?: ReadonlySet<string>;
+  returnedPaths?: ReadonlySet<string>;
 };
 
-export function missingChangeEvidence(raw: unknown, group: ProposalGroup) {
-  const change = record(atPath(raw, group.rawPath));
+export function missingChangeEvidence(
+  group: ProposalGroup,
+  { reply, returnedPaths }: GroupValidationInput,
+) {
+  const change = record(atPath(reply.raw, group.rawPath));
   if (
+    !returnedPaths?.has(group.path) &&
     ["set", "clear"].includes(String(change?.action)) &&
     Array.isArray(change?.evidenceIds) &&
     change.evidenceIds.length === 0
@@ -135,11 +139,12 @@ export function missingChangeEvidence(raw: unknown, group: ProposalGroup) {
 
 export function checkGroups(
   owner: GroupOwner,
-  { reply, groups, only }: GroupValidationInput,
+  options: GroupValidationInput,
   checkGroup: (group: ProposalGroup) => string | undefined = (group) =>
-    missingChangeEvidence(reply.raw, group),
+    missingChangeEvidence(group, options),
   checkBoundary?: () => void,
 ) {
+  const { reply, groups, only } = options;
   const parsed = reply.schema.safeParse(reply.raw);
   const issues = (parsed.error?.issues ?? []).map<GroupIssue>((issue) => {
     const path = issue.path.join(".");
@@ -178,13 +183,13 @@ export function checkGroups(
 
 export function validateProposalBoundary(
   owner: GroupOwner,
-  { reply, ctx, available }: GroupValidationInput,
+  { reply, ctx }: GroupValidationInput,
 ) {
   requireKnownReferences(
     owner,
     reply.raw,
     "evidenceIds",
-    available.map(({ id }) => id),
+    ctx.corpus.evidence.map(({ id }) => id),
     "evidence",
   );
   requireKnownReferences(
