@@ -207,7 +207,7 @@ describe("saved source evidence", () => {
     ]);
   });
 
-  it("binds an extra wire escape only to complete original text", () => {
+  it("requires exact text in fixed quotations", () => {
     const quote = String.raw`## Passes 2027\nFull pass €100 \\+ handling fee €18.`;
     const page =
       "## Passes 2027\nFull pass €100 \\+ handling fee €18.\nConditions apply.";
@@ -217,12 +217,10 @@ describe("saved source evidence", () => {
       { limitations: [], evidence: [{ quote, topics: ["tickets"] }] },
       "https://example.org/",
     );
-    expect(bound.limitations).toEqual([]);
-    expect(bound.evidence[0].quote).toBe(
-      page.split("\n").slice(0, 2).join("\n"),
-    );
-    const span = bound.evidence[0].span;
-    expect(page.slice(span.start, span.end)).toBe(bound.evidence[0].quote);
+    expect(bound.limitations).toEqual([
+      "Quotation 1 or its context has no unique literal match",
+    ]);
+    expect(bound.evidence).toEqual([]);
   });
 
   it("preserves literal backslashes when the supplied text already matches", () => {
@@ -236,7 +234,7 @@ describe("saved source evidence", () => {
     expect(bound.evidence[0].quote).toBe(quote);
   });
 
-  it("resolves reference links from restored literal context", () => {
+  it("resolves reference links from fixed context", () => {
     const bound = bindEvidence(
       "s1",
       "[Pass][buy]\n\n# 2027\n[buy]: /shop",
@@ -246,7 +244,7 @@ describe("saved source evidence", () => {
           {
             quote: "[Pass][buy]",
             topics: ["links"],
-            context: [String.raw`# 2027\n[buy]: /shop`],
+            context: ["# 2027\n[buy]: /shop"],
           },
         ],
       },
@@ -260,20 +258,11 @@ describe("saved source evidence", () => {
   });
 
   it.each([
+    ["an invented price", "Pass €100.\nFee €5.", "Pass €110.\nFee €5."],
     [
-      "a repaired but invented price",
-      "Pass €100.\nFee €5.",
-      String.raw`Pass €110.\nFee €5.`,
-    ],
-    [
-      "a repeated repaired quote",
+      "a repeated quote",
       "Pass €100.\nFee €5.\nPass €100.\nFee €5.",
-      String.raw`Pass €100.\nFee €5.`,
-    ],
-    [
-      "a repeated original quote",
-      String.raw`Fee \\+ €5. repeated: Fee \\+ €5. versus Fee \+ €5.`,
-      String.raw`Fee \\+ €5.`,
+      "Pass €100.\nFee €5.",
     ],
   ])("rejects %s and keeps other evidence", (_name, body, quote) => {
     const bound = bindEvidence(

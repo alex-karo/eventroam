@@ -412,13 +412,6 @@ A source-based change SHALL retain enough source context to identify its meaning
 - **THEN** collection discards that evidence item and records a source limitation
 - **AND** collection keeps other valid evidence from the page
 
-#### Scenario: A quotation contains one extra wire escape
-
-- **WHEN** a supplied quote or context has no literal match and contains a literal escaped newline or doubled backslash before Markdown punctuation
-- **THEN** code may restore those escapes only if the whole resulting string has one exact source match
-- **AND** saved evidence contains the exact original source text and span
-- **AND** existing ambiguous literal matches, invented prices and unsupported text are not repaired
-
 #### Scenario: A processing input omits empty metadata
 
 - **WHEN** a downstream input omits empty context or optional metadata

@@ -65,21 +65,7 @@ function uniqueSpan(body: string, quote: string): Span | null {
   return { start, end: start + quote.length };
 }
 
-/** Restore one extra wire escape only when the complete source text matches. */
-export function literalMatch(body: string, supplied: string) {
-  let quote = supplied;
-  let span = uniqueSpan(body, quote);
-  if (!span && !body.includes(supplied)) {
-    quote = supplied
-      .replace(/(?<!\\)\\n/g, "\n")
-      .replace(/(?<!\\)\\\\([!-\/:-@[-`{-~])/g, (match, punctuation: string) =>
-        punctuation === "\\" ? match : `\\${punctuation}`,
-      );
-    span = uniqueSpan(body, quote);
-  }
-  return { quote, span };
-}
-
+/** Bind quotations stored in fixed eval inputs. */
 export function bindEvidence(
   sourceId: string,
   body: string,
@@ -91,7 +77,7 @@ export function bindEvidence(
     body,
     output,
     sourceUrl,
-    (quote) => literalMatch(body, quote).span,
+    (quote) => uniqueSpan(body, quote),
     "has no unique literal match",
   );
 }
