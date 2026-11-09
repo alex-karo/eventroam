@@ -1,12 +1,12 @@
 import { check, scenarioResult } from "./checks";
-import { reviewOutput } from "../review";
+import { reviewOutput } from "../roles/editor/contracts";
 import { hasHostFailure } from "../runs";
 import type { CatalogResearchResult } from "../contracts";
 import type { RegressionPipelineEvalCase, LocationEvalCase } from "./fixtures";
 import { checkRegressionCase } from "./regression";
 import { checkLocationCase } from "./location";
 import type { EvalToolCall } from "./tool-use";
-import type { LocationExecution } from "../location/agent";
+import type { LocationExecution } from "../roles/location/agent";
 
 export function scoreCase(
   item: RegressionPipelineEvalCase,

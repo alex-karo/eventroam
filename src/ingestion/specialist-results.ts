@@ -1,11 +1,9 @@
 import { researchErrorSchema } from "./research/contracts";
 import { z } from "zod";
-import {
-  ticketsOutputSchema,
-  classificationOutputSchema,
-  linksOutputSchema,
-} from "./roles/contracts";
-import { locationExecutionSchema } from "./location/execution";
+import { ticketsOutputSchema } from "./roles/tickets/contracts";
+import { classificationOutputSchema } from "./roles/classification/contracts";
+import { linksOutputSchema } from "./roles/links/contracts";
+import { locationExecutionSchema } from "./roles/location/execution";
 
 function execution<T extends z.ZodType>(output: T) {
   const common = {

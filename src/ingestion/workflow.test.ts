@@ -27,7 +27,7 @@ import { testFixtures } from "@/test/fixtures";
 import { studioIngestionInputSchema } from "./invocation";
 import * as contextModule from "./research/context";
 import * as prepareModule from "./catalog-plan";
-import * as researchValidationModule from "./proposals";
+import * as generalTargetsModule from "./roles/general/validate-targets";
 import * as reportModule from "./report";
 import * as applyModule from "@/catalog/write/apply-operation";
 import * as runTraceModule from "./runtime/tracing";
@@ -319,12 +319,11 @@ test.each(["context", "preparation", "report"] as const)(
       );
     }
     if (stage === "preparation") {
-      vi.spyOn(
-        researchValidationModule,
-        "validateGeneral",
-      ).mockImplementationOnce(() => {
-        throw secret;
-      });
+      vi.spyOn(generalTargetsModule, "validateGeneral").mockImplementationOnce(
+        () => {
+          throw secret;
+        },
+      );
     }
     if (stage === "report") {
       vi.spyOn(reportModule, "buildResearchReport").mockImplementationOnce(
@@ -1384,8 +1383,8 @@ test("the public runner accumulates research in native state without runtime res
       return loadContext(...args);
     },
   );
-  const prepare = researchValidationModule.validateGeneral;
-  vi.spyOn(researchValidationModule, "validateGeneral").mockImplementation(
+  const prepare = generalTargetsModule.validateGeneral;
+  vi.spyOn(generalTargetsModule, "validateGeneral").mockImplementation(
     (...args) => {
       phases.push("validate-research");
       return prepare(...args);
@@ -1654,7 +1653,7 @@ test.each([
 ])(
   "rejects missing, invalid or skipped required specialist results without writes: %j",
   async (branch) => {
-    const roles = await import("./roles/run");
+    const roles = await import("./roles/tickets/agent");
     vi.spyOn(roles, "runTickets").mockResolvedValue(branch as never);
     const { client } = testDatabase();
     const apply = vi.spyOn(applyModule, "applyCatalogItem");
@@ -1678,7 +1677,7 @@ test.each([
 );
 
 test("retains other specialist diagnostics when Links fails", async () => {
-  const roles = await import("./roles/run");
+  const roles = await import("./roles/links/agent");
   vi.spyOn(roles, "runLinks").mockResolvedValue({
     status: "failed",
     modelResponse: null,

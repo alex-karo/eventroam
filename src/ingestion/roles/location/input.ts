@@ -1,11 +1,11 @@
 import { z } from "zod";
 import { scheduleStatuses } from "@/catalog/domain/vocabulary";
-import type { CatalogResearchInput } from "../contracts";
-import type { ResearchContext } from "../research/context";
-import type { Targets } from "../roles/contracts";
-import { editionSlotNames } from "../research/contracts";
-import type { FrozenCorpus } from "../evidence/contracts";
-import { evidencePacket } from "../evidence/contracts";
+import type { CatalogResearchInput } from "../../contracts";
+import type { ResearchContext } from "../../research/context";
+import type { Targets } from "../general/contracts";
+import { editionSlotNames } from "../../research/contracts";
+import type { FrozenCorpus } from "../../evidence/contracts";
+import { evidencePacket } from "../../evidence/contracts";
 import { precisionSchema } from "./contracts";
 import { previousPoint } from "./geometry";
 const placeSchema = z.strictObject({

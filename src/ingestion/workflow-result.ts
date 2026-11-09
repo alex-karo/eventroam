@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { locationExecutionSchema } from "./location/execution";
+import { locationExecutionSchema } from "./roles/location/execution";
 import { researchErrorSchema } from "./research/contracts";
 
 export const studioIngestionResultSchema = z.strictObject({

@@ -69,7 +69,6 @@ it("shares a complete inspection, reserves concurrent Reader calls and freezes a
         pageInputCharacters: 10000,
         inputReserveCharacters: 100,
         readerOutputTokens: 1000,
-        downstreamReserveMs: 1000,
       },
     });
     const first = collection.inspectPage("https://example.org/one");
@@ -158,6 +157,7 @@ function collectionFixture(
   root: string,
   page: string | ((url: string) => string),
   pageInputCharacters: number,
+  readerCalls = 2,
 ) {
   const budget = createResearchBudget();
   const config = { apiKey: "fixture", model: "fixture", limits: budget.limits };
@@ -191,15 +191,121 @@ function collectionFixture(
       assignment: {},
       root,
       limits: {
-        readerCalls: 2,
+        readerCalls,
         pageInputCharacters,
         inputReserveCharacters: 100,
         readerOutputTokens: 1000,
-        downstreamReserveMs: 1000,
       },
     }),
   };
 }
+
+it("keeps usable Reader quotations when other quotations have no topic or literal match", async () => {
+  const root = await mkdtemp(join(tmpdir(), "eventroam-partial-reader-"));
+  try {
+    const page = "# Festival\n\nCookies\n\nTickets cost €20.";
+    const { collection, generate } = collectionFixture(root, page, 10000);
+    generate.mockResolvedValueOnce({
+      overview: "Festival tickets",
+      coverage: { found: ["Ticket price"], notPublished: [] },
+      topics: [],
+      statedYears: [],
+      limitations: [],
+      evidence: [
+        { quote: "Cookies", topics: [] },
+        { quote: "Tickets cost €10.", topics: ["tickets"] },
+        { quote: "Tickets cost €20.", topics: ["tickets"] },
+      ],
+    });
+
+    const result = await collection.inspectPage("https://example.org/");
+    const corpus = await collection.freeze();
+
+    expect(result.processing).toBe("limited");
+    expect(result.limitations).toEqual([
+      "Quotation 1 has no topic",
+      "Quotation 2 or its context has no unique literal match",
+    ]);
+    expect(corpus.evidence).toEqual([
+      expect.objectContaining({
+        id: `${result.sourceId}-e3`,
+        quote: "Tickets cost €20.",
+        topics: ["tickets"],
+      }),
+    ]);
+    expect(collection.fatal).toBe(false);
+    expect(collection.errors).toEqual([]);
+    expect(generate).toHaveBeenCalledTimes(1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it.each([
+  { readerCalls: 1, processing: "failed", savedEvidence: 0 },
+  { readerCalls: 2, processing: "complete", savedEvidence: 1 },
+])(
+  "uses the Reader call allowance for a correction (limit $readerCalls)",
+  async ({ readerCalls, processing, savedEvidence }) => {
+    const root = await mkdtemp(join(tmpdir(), "eventroam-reader-correction-"));
+    try {
+      const page = "# Festival\n\nTickets cost €20.";
+      const { collection, generate } = collectionFixture(
+        root,
+        page,
+        10000,
+        readerCalls,
+      );
+      const output = {
+        overview: "Festival tickets",
+        coverage: { found: ["Ticket price"], notPublished: [] },
+        topics: ["tickets"],
+        statedYears: [],
+        limitations: [],
+        evidence: [{ quote: "Tickets cost €20.", topics: ["tickets"] }],
+      };
+      generate
+        .mockResolvedValueOnce({
+          ...output,
+          coverage: {
+            found: Array.from(
+              { length: 10 },
+              (_, index) => `Label ${index + 1}`,
+            ),
+            notPublished: [],
+          },
+        })
+        .mockImplementationOnce(async (_role, prompt) => {
+          expect(JSON.parse(prompt)).toMatchObject({
+            page,
+            validationFeedback: {
+              instructions: expect.stringContaining("same Markdown"),
+              errors: [
+                expect.objectContaining({
+                  message: expect.stringMatching(
+                    /coverage\.found:too_big .*<=9/,
+                  ),
+                }),
+              ],
+            },
+          });
+          return output;
+        });
+
+      const result = await collection.inspectPage("https://example.org/");
+      const other = await collection.inspectPage("https://example.org/other");
+      const corpus = await collection.freeze();
+
+      expect(result.processing).toBe(processing);
+      expect(other.processing).toBe("unprocessed");
+      expect(corpus.evidence).toHaveLength(savedEvidence);
+      expect(collection.fatal).toBe(processing === "failed");
+      expect(generate).toHaveBeenCalledTimes(readerCalls);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 
 it("gives Reader the full page and reuses a redirected source for later inspection", async () => {
   const root = await mkdtemp(join(tmpdir(), "eventroam-full-page-"));

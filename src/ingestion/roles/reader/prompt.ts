@@ -1,7 +1,3 @@
-import { invokeRole } from "../roles/invoke";
-import { readerOutputSchema } from "./contracts";
-import { PROMPT_VERSIONS } from "../roles/versions";
-
 const readerExamples = `Fictional examples (decisions only):
 - "Cedar Sound 2029 runs on 8–10 June; the earlier 15–17 June dates are wrong." Keep the whole correction as date evidence; notPublished: []. In contrast, "New dates will be announced later" supports notPublished: ["New dates not yet announced"].
 - Adjacent metadata says "Cedar Sound 2029, Alderhaven" and "Cedar Sound 2028 in Birchport". Keep both literal claims together with identity and location topics and note the different years and places. Do not select one claim or infer a move.
@@ -19,7 +15,7 @@ Copy exact original Markdown, whitespace, escapes and metadata. Each quote and e
 
 Collect official links from factual blocks first. Each destination needs only one retained literal link. Add relevant official website, social and ticket links from navigation or footers only when the destination is not already retained. Copy each link's original Markdown label exactly. Never construct [URL](URL) from its destination when the source uses a name, icon or image label. For complex link labels, quote the surrounding unique block with exact boundaries. Do not list whole navigation menus, merchandise, sponsors or unrelated organisations. If a short link is repeated, prefer its unique descriptive version in the body, or extend it with exact adjacent text until unique. Do not output an ambiguous bare menu link. A unique context string cannot rescue an ambiguous main quote. Code gives navigation destinations to Research separately; Links needs the retained link quotations. The current page URL is already in source metadata. Official social accounts remain relevant on ticket and contact pages: after the main facts, check the footer for those accounts.
 
-Topics are nonexclusive: identity, description, dates, status, size, tickets, classification, location, links. Tag every relevant topic on one item instead of copying overlapping passages. For classification, retain passages that name programme types or genres, describe the music of programme acts, or establish where the main programme takes place. Keep the relevant passage and its Edition context. Omit unrelated biography and archive navigation. Tickets means admission and mandatory fees, duration, eligibility, concessions, availability and refund conditions. Preserve admission-and-camping packages. Payment plans and their schedules are outside ticket extraction. Retain an independently stated full admission price, but do not calculate it from payments. Cashless-wallet loading, balance refunds, merchandise and unrelated purchases are not admission prices. Historical ticket text is context only. Location includes festival town, venue, address, travel destinations and coordinates, including inside other factual blocks. Distinguish grounds from offices and other years. Keep the latest completed festival and current announcement distinguishable. Keep conflicting metadata and body facts with brief uncertainty; several dated Editions are not inherently a contradiction.
+Topics are nonexclusive: identity, description, dates, status, size, tickets, classification, location, links. Tag every relevant topic on one item instead of copying overlapping passages. Omit a quotation if none of these topics apply. For classification, retain passages that name programme types or genres, describe the music of programme acts, or establish where the main programme takes place. Keep the relevant passage and its Edition context. Omit unrelated biography and archive navigation. Tickets means admission and mandatory fees, duration, eligibility, concessions, availability and refund conditions. Preserve admission-and-camping packages. Payment plans and their schedules are outside ticket extraction. Retain an independently stated full admission price, but do not calculate it from payments. Cashless-wallet loading, balance refunds, merchandise and unrelated purchases are not admission prices. Historical ticket text is context only. Location includes festival town, venue, address, travel destinations and coordinates, including inside other factual blocks. Distinguish grounds from offices and other years. Keep the latest completed festival and current announcement distinguishable. Keep conflicting metadata and body facts with brief uncertainty; several dated Editions are not inherently a contradiction.
 
 Return the schema's domain result:
 - overview: describe only this page in one or two sentences. It is navigation information, not evidence.
@@ -31,20 +27,3 @@ Return the schema's domain result:
 ${readerExamples}
 
 Before returning, check that every selected fact keeps its local scope and qualifications, every quote/context is unique and literal, and no link destination was added twice. Bounds: at most 150 evidence items, 24 context quotes per item, 20 editionClues and 100 statedYears. Return evidence, not technical status or errors.`;
-
-export function readSource(
-  options: Omit<
-    Parameters<typeof invokeRole>[0],
-    "role" | "version" | "instructions" | "schema" | "cacheInstructions"
-  >,
-) {
-  return invokeRole({
-    ...options,
-    config: { ...options.config, reasoningEffort: "medium" },
-    role: "reader",
-    version: PROMPT_VERSIONS.reader,
-    instructions: readerInstructions,
-    cacheInstructions: true,
-    schema: readerOutputSchema,
-  });
-}

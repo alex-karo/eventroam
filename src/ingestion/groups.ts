@@ -1,10 +1,7 @@
 import type { CatalogResearchInput } from "./contracts";
 import { editionSlotNames } from "./research/contracts";
-import {
-  generalFieldsSchema,
-  linksOutputSchema,
-  type Targets,
-} from "./roles/contracts";
+import { generalFieldsSchema, type Targets } from "./roles/general/contracts";
+import { linksOutputSchema } from "./roles/links/contracts";
 
 export type GroupOwner =
   "general" | "tickets" | "classification" | "links" | "location";

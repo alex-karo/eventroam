@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DuckDBStore } from "@mastra/duckdb";
-import { readSource } from "../../evidence/reader";
+import { readSource } from "../../roles/reader/agent";
 import { evidenceLimits } from "../../evidence/collection";
 import { createResearchBudget, ResearchLimitError } from "../../runtime/budget";
 import type { ResearchConfig } from "../../runtime/config";
@@ -38,9 +38,6 @@ export async function executeReaderCase(
     ) {
       throw new ResearchLimitError("context");
     }
-    const deadline =
-      budget.deadline -
-      Math.min(limits.downstreamReserveMs, budget.limits.durationMs / 2);
     const execution = await readSource({
       input: {
         assignment: {
@@ -52,9 +49,9 @@ export async function executeReaderCase(
       },
       budget,
       config,
-      deadline,
       tracing,
       outputTokens: limits.readerOutputTokens,
+      reserveCorrection: () => limits.readerCalls > 1,
     });
     return {
       ...scoreReader(item, execution),

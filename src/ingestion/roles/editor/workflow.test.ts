@@ -11,7 +11,7 @@ import {
   clear,
   runFixtureResearch,
 } from "@/test/ingestion";
-import type { GenerateRole } from "./invoke";
+import type { GenerateRole } from "../invoke";
 const input = {
   mode: "add" as const,
   input: "Example Fest",
@@ -25,11 +25,19 @@ test.each(["malformed", "throw", "reject"] as const)(
     const { client } = testDatabase();
     const general = fixtureTargets();
     let response: unknown;
+    let calls = 0;
     const editor: GenerateRole = async (_role, raw) => {
+      calls += 1;
       if (failure === "throw") {
         throw new Error("PRIVATE_PROVIDER_DATA");
       }
       if (failure === "malformed") {
+        if (calls === 2) {
+          expect(JSON.parse(raw).validationFeedback.errors[0]).toMatchObject({
+            code: "invalid_plan",
+            message: expect.stringContaining("decisions"),
+          });
+        }
         return (response = {
           item: { decision: "approve" },
           replacement: "Forbidden",
@@ -51,6 +59,7 @@ test.each(["malformed", "throw", "reject"] as const)(
       ...fixtureDependencies({ general, editor }),
     });
     expect(result.outcome).toBe("failed");
+    expect(calls).toBe(failure === "malformed" ? 2 : 1);
     expect(result.researchStatus).toBe("success");
     expect(result.modelResponse?.object).toEqual(general);
     if (failure !== "throw") {

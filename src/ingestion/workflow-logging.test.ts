@@ -1,7 +1,7 @@
 import { expect, test, vi } from "vitest";
 import { logPreparation } from "./workflow-logging";
-import { initialDiagnostics } from "./proposals";
-import type { Targets } from "./roles/contracts";
+import { initialDiagnostics } from "./stage";
+import type { Targets } from "./roles/general/contracts";
 
 function targets(): Targets {
   return {

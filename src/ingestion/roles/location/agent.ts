@@ -1,34 +1,26 @@
 import { SpanType, type AnySpan } from "@mastra/core/observability";
-import { observeTrace, traceFailure } from "../runtime/tracing/spans";
-import { Agent } from "@mastra/core/agent";
-import { Mastra } from "@mastra/core/mastra";
+import { observeTrace, traceFailure } from "../../runtime/tracing/spans";
 import type { FullOutput } from "@mastra/core/stream";
-import { completedObject } from "../runtime/model-output";
-import { invokeRole, type RoleConversation } from "../roles/invoke";
-import { noopLogger } from "@mastra/core/logger";
+import {
+  createRoleModelRunner,
+  invokeRole,
+  type RoleConversation,
+} from "../invoke";
 import { z } from "zod";
-import type { ResearchBudget } from "../runtime/budget";
-import type { ResearchConfig } from "../runtime/config";
-import type { RunObservability } from "../runtime/observability/runtime";
-import {
-  createResearchModel,
-  researchProviderOptions,
-} from "../runtime/openrouter";
-import type { GeocodingClient } from "../tools/geocode/contracts";
-import { createGeocodingSession } from "../tools/geocode/tool";
-import {
-  LOCATION_PROMPT_VERSION,
-  locationModelOutputSchema,
-  locationOutputSchema,
-} from "./contracts";
+import type { ResearchBudget } from "../../runtime/budget";
+import type { ResearchConfig } from "../../runtime/config";
+import type { RunObservability } from "../../runtime/observability/runtime";
+import type { GeocodingClient } from "../../tools/geocode/contracts";
+import { createGeocodingSession } from "../../tools/geocode/tool";
+import { LOCATION_PROMPT_VERSION, locationOutputSchema } from "./contracts";
 import type { LocationInput } from "./input";
 import { prepareInitialGeocoding } from "./initial";
 import { locationInstructions } from "./prompt";
-import { savedCitationInstructions } from "../evidence/repair";
+import { savedCitationInstructions } from "../../evidence/repair";
 import {
   LocationCountryConflictError,
   LocationValidationError,
-  validateLocation,
+  validateLocationReply,
 } from "./validate";
 import { emptyLocationExecution, type LocationExecution } from "./execution";
 import { locationFailureMessage } from "./failure";
@@ -192,59 +184,6 @@ function captureLocationReply(
   }
 }
 
-async function generateLocationReply(
-  runtime: Mastra,
-  prompt: string,
-  session: ReturnType<typeof createGeocodingSession>,
-  options: {
-    instructions: string;
-    budget: ResearchBudget;
-    config: ResearchConfig;
-    tracing: RunObservability | undefined;
-    span: AnySpan | undefined;
-  },
-) {
-  const { instructions, budget, config, tracing, span } = options;
-  const model = locationModelConfig(config);
-  const agent = new Agent({
-    id: "festival-location",
-    name: "Festival location",
-    instructions,
-    model: createResearchModel(model),
-    tools: { geocode: session.tool },
-    errorProcessorDefaults: false,
-    maxProcessorRetries: 0,
-  });
-  runtime.addAgent(agent, "festivalLocation");
-  tracing?.observability.setLogger({ logger: tracing.logger });
-  let steps = 0;
-  return runtime.getAgent("festivalLocation").generate(prompt, {
-    runId: tracing?.options.metadata.runId,
-    maxSteps: 8,
-    maxProcessorRetries: 0,
-    structuredOutput: {
-      schema: locationModelOutputSchema(),
-      errorStrategy: "warn",
-      logger: noopLogger,
-    },
-    tracingOptions: tracing?.options,
-    tracingContext: span ? { currentSpan: span } : undefined,
-    providerOptions: researchProviderOptions(model),
-    modelSettings: {
-      maxOutputTokens: budget.limits.modelOutputTokens,
-      maxRetries: 0,
-      timeout: { totalMs: Math.max(1, budget.remaining().durationMs) },
-    },
-    abortSignal: session.signal,
-    prepareStep: () => {
-      session.signal.throwIfAborted();
-      budget.consumeModelCall();
-      steps += 1;
-      return steps === 8 ? { activeTools: [], toolChoice: "none" } : undefined;
-    },
-  });
-}
-
 export async function resolveLocation(
   input: LocationInput,
   budget: ResearchBudget,
@@ -276,7 +215,7 @@ export async function resolveLocation(
     startObservation: (direction, origin) =>
       observeGeocoding(tracing, span, direction, origin),
   });
-  let runtime: Mastra | undefined;
+  const runner = createRoleModelRunner(tracing);
   let messages: FullOutput["messages"] | undefined;
   const instructions =
     locationInstructions +
@@ -314,29 +253,26 @@ export async function resolveLocation(
         }),
       };
     } else {
-      runtime =
-        tracing?.mastra ??
-        new Mastra({ logger: false, loggerOptions: { export: false } });
-      const output = await generateLocationReply(runtime, prompt, session, {
+      const output = await runner.generate({
+        role: "location",
+        agentKey: "festivalLocation",
         instructions,
+        prompt,
+        signal: session.signal,
+        schema: locationOutputSchema,
         budget,
-        config,
-        tracing,
-        span,
+        config: locationModelConfig(config),
+        steps: 8,
+        parentSpan: span,
+        tools: { geocode: session.tool },
+        retryUnavailable: false,
+        recoverRaw: true,
       });
-      execution.modelResponse = {
-        text: output.text ?? null,
-        object:
-          output.finishReason === "stop"
-            ? completedObject(output)
-            : (output.object ?? null),
-      };
+      execution.modelResponse = output.modelResponse;
       if (output.finishReason !== "stop") {
         throw new Error("Location response did not finish");
       }
-      if (output.messages.length) {
-        messages = output.messages;
-      }
+      messages = output.messages;
     }
     session.signal.throwIfAborted();
     budget.assertTime();
@@ -354,23 +290,21 @@ export async function resolveLocation(
         tracing,
       },
     );
-    const { decision } = locationOutputSchema.parse(
-      execution.modelResponse.object,
-    );
-    if (decision.status === "rejected") {
-      execution.status = "rejected";
-      execution.errors.push({
-        code: "location_rejected",
-        stage: "location",
-        message: decision.reason,
-      });
-      return execution;
-    }
-    execution.materialized = validateLocation(
+    const validated = validateLocationReply(
       execution.modelResponse.object,
       input,
       session,
     );
+    if (validated.status === "rejected") {
+      execution.status = "rejected";
+      execution.errors.push({
+        code: "location_rejected",
+        stage: "location",
+        message: validated.reason,
+      });
+      return execution;
+    }
+    execution.materialized = validated.materialized;
     execution.status = "success";
   } catch (error) {
     execution.errors.push(locationDiagnostic(error, budget, session.signal));
@@ -390,9 +324,7 @@ export async function resolveLocation(
     }
     execution.observations = session.observations;
     execution.points = [...session.points.values()];
-    if (runtime && !tracing) {
-      await runtime.shutdown();
-    }
+    await runner.close();
   }
   return execution;
 }

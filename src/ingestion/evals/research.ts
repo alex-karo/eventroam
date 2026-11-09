@@ -1,7 +1,8 @@
 import type { z } from "zod";
-import type { generalFieldsSchema } from "../roles/contracts";
-import type { ClassificationOutput, GeneralOutput } from "../roles/contracts";
-import type { LocationOutput } from "../location/contracts";
+import type { generalFieldsSchema } from "../roles/general/contracts";
+import type { ClassificationOutput } from "../roles/classification/contracts";
+import type { GeneralOutput } from "../roles/general/contracts";
+import type { LocationOutput } from "../roles/location/contracts";
 import type { CatalogResearchResult } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
 import { check, contains } from "./checks";

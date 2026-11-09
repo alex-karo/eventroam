@@ -3,12 +3,15 @@ import { readResearchCatalog } from "@/catalog/read/research";
 import { evaluateMainCase, type MainScore } from "./main";
 import type { DescriptionFormat } from "./description-format";
 import { classificationCases, scoreClassification } from "./classification";
-import { runClassification } from "../roles/run";
+import { runClassification } from "../roles/classification/agent";
 import type { RoleExecution } from "../roles/invoke";
-import type { ClassificationOutput } from "../roles/contracts";
+import type { ClassificationOutput } from "../roles/classification/contracts";
 import { loadResearchContext } from "../research/context";
-import { resolveLocation, type LocationExecution } from "../location/agent";
-import { LOCATION_PROMPT_VERSION } from "../location/contracts";
+import {
+  resolveLocation,
+  type LocationExecution,
+} from "../roles/location/agent";
+import { LOCATION_PROMPT_VERSION } from "../roles/location/contracts";
 import { createResearchBudget } from "../runtime/budget";
 import {
   createRunObservability,

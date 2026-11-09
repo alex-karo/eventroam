@@ -1,5 +1,5 @@
 import type { PlanDiagnostics } from "./stage";
-import type { LocationExecution } from "./location/agent";
+import type { LocationExecution } from "./roles/location/agent";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
 import type { ResearchBudgetSnapshot } from "./runtime/budget";
@@ -10,18 +10,16 @@ import {
   type ResearchQuestion,
 } from "./research/contracts";
 import type { ReadyCatalogPlan } from "./catalog-plan";
-import type { EditorExecution } from "./roles/editor-execution";
+import type { EditorExecution } from "./roles/editor/execution";
 import type { RoleExecution } from "./roles/invoke";
-import {
-  linksOutputSchema,
-  type CheckFinding,
-  type CollectionOutput,
-  type GeneralOutput,
-} from "./roles/contracts";
+import { linksOutputSchema } from "./roles/links/contracts";
+import { type CheckFinding } from "./roles/contracts";
+import { type CollectionOutput } from "./roles/research/contracts";
+import { type GeneralOutput } from "./roles/general/contracts";
 import type { FrozenCorpus } from "./evidence/contracts";
 import { buildAssignment, assignedRoleChecks } from "./roles/assignment";
 import { PROMPT_VERSIONS } from "./roles/versions";
-import { LOCATION_PROMPT_VERSION } from "./location/contracts";
+import { LOCATION_PROMPT_VERSION } from "./roles/location/contracts";
 
 export type ReportInput = {
   traceId?: string;

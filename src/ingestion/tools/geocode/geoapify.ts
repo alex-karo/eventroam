@@ -1,6 +1,6 @@
 import got from "got";
 import { z } from "zod";
-import { distanceKm } from "../../location/geometry";
+import { distanceKm } from "../../roles/location/geometry";
 import type {
   GeoCandidate,
   GeocodingRequest,

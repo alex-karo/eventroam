@@ -24,9 +24,9 @@ import {
 } from "@/test/ingestion-provider";
 import type { ResearchDependencies } from "./contracts";
 import { topics } from "./evidence/contracts";
-import type { LocationInput } from "./location/input";
-import type { LocationOutput } from "./location/contracts";
-import type { ReviewDecision, ReviewPath } from "./review";
+import type { LocationInput } from "./roles/location/input";
+import type { LocationOutput } from "./roles/location/contracts";
+import type { ReviewDecision, ReviewPath } from "./roles/editor/contracts";
 import { ProposalRepairs } from "./repairs";
 import type { GenerateRole, Role } from "./roles/invoke";
 import { DEFAULT_RESEARCH_LIMITS } from "./runtime/budget";
@@ -338,7 +338,13 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
 });
 
 it("shares three ticket returns between validation and Editor", async () => {
-  const f = fixture("Example Fest 2027. Full pass EUR 130.");
+  const quote = "Full pass EUR 130.";
+  const f = fixture(`Example Fest 2027. ${quote}`);
+  const citationId = "s1-repair-1";
+  const revisedPrice = (amount: number) => ({
+    ...price(amount, "EUR"),
+    evidenceIds: [citationId],
+  });
   const question = {
     field: ticketsPath,
     message: "The full pass price remains unconfirmed.",
@@ -376,22 +382,32 @@ it("shares three ticket returns between validation and Editor", async () => {
       expect(prompt.groups).toMatchObject([
         {
           path: ticketsPath,
-          original: index === 2 ? null : price(120, "EUR"),
-          note: `Use the saved price. Review ${index - 1}.`,
+          original: index === 4 ? revisedPrice(120) : null,
+          note: `Use the saved price. Review ${index === 4 ? 2 : 1}.`,
         },
       ]);
-      return reply(body, tickets(price(100 + index * 10, "EUR")));
+      if (index === 2) {
+        return modelReply(null, {
+          id: "cite-price",
+          name: "citeSavedPassage",
+          args: { sourceId: "s1", quote },
+        });
+      }
+      if (index === 3) {
+        expect(toolResult(body, "cite-price")).toContain(citationId);
+      }
+      return reply(body, tickets(revisedPrice(index === 3 ? 120 : 130)));
     },
     { editor },
   );
   const result = await run();
   expect(result.errors).toEqual([]);
-  expect(requests).toHaveLength(4);
+  expect(requests).toHaveLength(5);
   expect(editor).toHaveBeenCalledTimes(3);
   expect(result.repairs).toMatchObject([
     { trigger: "validation", omissionReason: question.message },
-    { trigger: "editor" },
-    { trigger: "editor" },
+    { trigger: "editor", evidence: [{ id: citationId, quote }] },
+    { trigger: "editor", evidence: [{ id: citationId, quote }] },
   ]);
   expect(result.researchStatus).toBe("success");
   expect(result.unresolved).toEqual([]);

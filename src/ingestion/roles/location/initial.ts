@@ -1,9 +1,9 @@
-import { editionSlotNames } from "../research/contracts";
+import { editionSlotNames } from "../../research/contracts";
 import {
   geocodingKey,
   type GeocodingRequest,
-} from "../tools/geocode/contracts";
-import type { GeocodingSession } from "../tools/geocode/tool";
+} from "../../tools/geocode/contracts";
+import type { GeocodingSession } from "../../tools/geocode/tool";
 import type { LocationInput } from "./input";
 export async function prepareInitialGeocoding(
   input: LocationInput,
