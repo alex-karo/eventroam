@@ -2,6 +2,7 @@ import type { PlanDiagnostics } from "./stage";
 import type { LocationExecution } from "./roles/location/agent";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
+import { eventLinksCheck, isSocialLinkField, proposalGroup } from "./groups";
 import type { ResearchBudgetSnapshot } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
 import type { SourceReadMetadata } from "./tools/read-page/contracts";
@@ -12,7 +13,6 @@ import {
 import type { ReadyCatalogPlan } from "./catalog-plan";
 import type { EditorExecution } from "./roles/editor/execution";
 import type { RoleExecution } from "./roles/invoke";
-import { linksOutputSchema } from "./roles/links/contracts";
 import { type CheckFinding } from "./roles/contracts";
 import { type CollectionOutput } from "./roles/research/contracts";
 import { type GeneralOutput } from "./roles/general/contracts";
@@ -47,18 +47,7 @@ export type ReportInput = {
   finished: number;
 };
 
-export function buildResearchReport(input: ReportInput): CatalogResearchResult {
-  return assembleReport(input);
-}
-
-/** Uses the same diagnostics when the normal report boundary fails. */
-export function buildWorkflowFailureReport(
-  input: ReportInput,
-): CatalogResearchResult {
-  return assembleReport(input);
-}
-
-function assembleReport({
+export function buildResearchReport({
   runId,
   traceId,
   context,
@@ -123,14 +112,15 @@ function assembleReport({
           return assignedRoleChecks(role, input, targets).flatMap((key) => {
             const repaired = repairs?.filter(
               (entry) =>
-                entry.owner === role && repairCheck(entry.path, role) === key,
+                entry.owner === role &&
+                proposalGroup(entry.path)?.check === key,
             );
             if (repaired?.length) {
               const question = unresolved.find(
                 ({ field }) =>
                   field &&
                   (repaired.some(({ path }) => field === path) ||
-                    (key === "eventLinks" && socialLinkQuestion(field))),
+                    (key === eventLinksCheck && isSocialLinkField(field))),
               );
               if (question?.message) {
                 return [{ message: `${key}: ${question.message}` }];
@@ -262,31 +252,4 @@ function safeSource(read: SourceReadMetadata) {
     outcome: read.status,
     ...(read.reasonCode ? { reason: read.reasonCode } : {}),
   };
-}
-
-function repairCheck(
-  path: string,
-  role: "general" | "tickets" | "classification" | "links",
-) {
-  if (role === "tickets") {
-    return "currentTickets";
-  }
-  if (path.startsWith("event.")) {
-    return role === "links" ? "eventLinks" : "description";
-  }
-  if (role === "links") {
-    return "currentLinks";
-  }
-  const previous = path.startsWith("previousEdition.");
-  if (role === "classification") {
-    return previous ? "previousClassification" : "currentClassification";
-  }
-  return previous ? "previousCompletedEdition" : "currentDates";
-}
-
-function socialLinkQuestion(field: string) {
-  return (
-    field.startsWith("event.fields.links.socials.") ||
-    Object.hasOwn(linksOutputSchema.shape.event.shape.socials.shape, field)
-  );
 }

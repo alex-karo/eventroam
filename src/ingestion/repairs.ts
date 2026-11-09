@@ -8,19 +8,20 @@ import {
 } from "./evidence/repair";
 import {
   assignedGroups,
+  MAX_GROUP_RETURNS,
   atPath,
   record,
   setPath,
   type GroupOwner,
   type ProposalGroup,
+  type ReturnRequest,
 } from "./groups";
-import { editionSlotNames, type ResearchError } from "./research/contracts";
+import type { ResearchError } from "./research/contracts";
 import type { SpecialistOutputs } from "./proposals";
 import type { ClassificationReply } from "./roles/classification/contracts";
 import { materializeClassificationReply } from "./roles/classification/terms";
 import { validateClassificationReply } from "./roles/classification/validate";
 import type { ReviewDecision } from "./roles/editor/contracts";
-import { MAX_GROUP_RETURNS } from "./roles/editor/review";
 import type { GeneralOutput, Targets } from "./roles/general/contracts";
 import { validateGeneral } from "./roles/general/validate-targets";
 import {
@@ -72,8 +73,6 @@ export type RepairRecord = {
   decision?: ReviewDecision;
   failure?: ResearchError;
 };
-
-type ReturnRequest = { group: ProposalGroup; note: string };
 
 function ownGroups(groups: ProposalGroup[], owner: GroupOwner) {
   return groups.filter((group) => group.owner === owner);
@@ -208,7 +207,7 @@ export class ProposalRepairs {
         available: ctx.corpus.evidence,
       });
       issues.push(...ownerIssues);
-      if (!ownerIssues.length && parsed.success) {
+      if (!ownerIssues.length) {
         reply.raw = parsed.data;
       }
     }
@@ -226,19 +225,12 @@ export class ProposalRepairs {
     owned: CatalogAttempt,
     data: IngestionData,
     targets: Targets,
-    groups: ProposalGroup[],
-    decisions: ReviewDecision[],
+    requests: ReturnRequest[],
     signal: AbortSignal,
   ) {
-    const byPath = new Map(groups.map((group) => [group.path, group]));
     const ctx = this.context(owned, data, targets);
-    await this.returnGroups(
-      decisions.map(({ path, note }) => ({ group: byPath.get(path)!, note })),
-      groups,
-      ctx,
-      "editor",
-      signal,
-    );
+    const groups = assignedGroups(owned.input.scope, targets);
+    await this.returnGroups(requests, groups, ctx, "editor", signal);
     return this.checkedSpecialistOutputs(ctx);
   }
 
@@ -281,15 +273,10 @@ export class ProposalRepairs {
   }
 
   private validationRequests(issues: GroupIssue[]): ReturnRequest[] {
-    const rules = new Map<ProposalGroup, string[]>();
-    for (const { group, rule } of issues) {
-      const list = rules.get(group) ?? [];
-      list.push(rule);
-      rules.set(group, list);
-    }
-    return [...rules].map(([group, list]) => ({
+    const grouped = Map.groupBy(issues, ({ group }) => group);
+    return Array.from(grouped, ([group, groupIssues]) => ({
       group,
-      note: list.join("\n"),
+      note: groupIssues.map(({ rule }) => rule).join("\n"),
     }));
   }
 
@@ -300,11 +287,11 @@ export class ProposalRepairs {
     trigger: RepairRecord["trigger"],
     signal: AbortSignal,
   ) {
-    const owners = new Set(requests.map(({ group }) => group.owner));
-    for (const owner of owners) {
+    const byOwner = Map.groupBy(requests, ({ group }) => group.owner);
+    for (const [owner, ownerRequests] of byOwner) {
       await this.dispatch(
         owner,
-        requests.filter(({ group }) => group.owner === owner),
+        ownerRequests,
         ownGroups(groups, owner),
         ctx,
         trigger,
@@ -327,12 +314,12 @@ export class ProposalRepairs {
       if ((counts.get(group.path) ?? 0) >= MAX_GROUP_RETURNS) {
         failProposal("Group has no returns left", group.path);
       }
-      const slot = editionSlotNames.find((slot) =>
-        group.path.startsWith(slot + "."),
-      );
+      const { target: slot } = group;
       const target = {
         eventId: selectedEvent(ctx)?.id ?? null,
-        ...(slot && { editionKey: ctx.targets?.[slot]?.editionKey }),
+        ...(slot !== "event" && {
+          editionKey: ctx.targets?.[slot]?.editionKey,
+        }),
       };
       return {
         owner,
@@ -463,9 +450,6 @@ export class ProposalRepairs {
     }
     if (owner === "general") {
       requireFixedGeneralTargets(merged, ctx, available);
-    }
-    if (!parsed.success) {
-      failProposal(`${owner}: invalid combined reply`, records[0].path);
     }
     original.raw = parsed.data;
   }

@@ -1,21 +1,30 @@
 import type { PreparedProposals } from "../../proposals";
-import { atPath, type GroupOwner, type ProposalGroup } from "../../groups";
+import {
+  atPath,
+  MAX_GROUP_RETURNS,
+  proposalGroups,
+  type GroupOwner,
+  type ProposalGroup,
+  type ReturnRequest,
+} from "../../groups";
 import { editionSlotNames } from "../../research/contracts";
 import type { ReviewDecisions, ReviewPath } from "./contracts";
 
-export const MAX_GROUP_RETURNS = 3;
-export function groupProposal(prepared: PreparedProposals, path: string) {
-  return path.endsWith(".fields.location")
-    ? atPath(prepared.location.slots, path.split(".")[0])
-    : atPath(prepared.plan, path);
+export function groupProposal(
+  prepared: PreparedProposals,
+  group: ProposalGroup,
+) {
+  return group.owner === "location"
+    ? prepared.location.slots[group.target]
+    : atPath(prepared.plan, group.path);
 }
 
 export function reviewPaths(
   prepared: PreparedProposals,
-  groups: ProposalGroup[],
+  groups: readonly ProposalGroup[],
   returnCounts: ReadonlyMap<string, number>,
   canReturn: (owner: GroupOwner) => boolean,
-  targeted?: ReadonlySet<string>,
+  targeted = false,
 ): ReviewPath[] {
   const choices: ReviewPath[] = [];
   const add = (
@@ -32,13 +41,11 @@ export function reviewPaths(
       }
     }
   }
-  for (const { path, owner } of groups) {
-    if (targeted && !targeted.has(path)) {
-      continue;
-    }
+  for (const group of groups) {
+    const { path, owner } = group;
     const count = returnCounts.get(path) ?? 0;
     const required =
-      !!targeted || count > 0 || groupProposal(prepared, path) !== undefined;
+      targeted || count > 0 || groupProposal(prepared, group) !== undefined;
     const allowed: ReviewPath["allowed"] = required
       ? ["approve", "reject"]
       : [];
@@ -57,21 +64,38 @@ export function rejectedItem(review: ReviewDecisions) {
   );
 }
 
-export function rejectedEdition(review: ReviewDecisions, slot: string) {
-  return [
-    "target",
-    "fields.dates",
-    "fields.year",
-    "fields.scheduleStatus",
-  ].some((field) => review.get(`${slot}.${field}`)?.decision === "reject");
+export function rejectedEdition(
+  review: ReviewDecisions,
+  slot: (typeof editionSlotNames)[number],
+) {
+  return (
+    review.get(`${slot}.target`)?.decision === "reject" ||
+    proposalGroups.some(
+      ({ target, temporal, path }) =>
+        target === slot && temporal && review.get(path)?.decision === "reject",
+    )
+  );
 }
 
-export function reviewReturns(review: ReviewDecisions) {
+export function reviewReturns(
+  review: ReviewDecisions,
+  groups: readonly ProposalGroup[],
+): ReturnRequest[] {
   if (rejectedItem(review)) {
     return [];
   }
-  return [...review.values()].filter(
-    ({ decision, path }) =>
-      decision === "return" && !rejectedEdition(review, path.split(".")[0]),
-  );
+  const requests: ReturnRequest[] = [];
+  for (const { decision, path, note } of review.values()) {
+    if (decision !== "return") {
+      continue;
+    }
+    const group = groups.find((group) => group.path === path);
+    if (
+      group &&
+      (group.target === "event" || !rejectedEdition(review, group.target))
+    ) {
+      requests.push({ group, note });
+    }
+  }
+  return requests;
 }

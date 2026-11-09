@@ -1,5 +1,5 @@
 import type { Evidence } from "../../evidence/contracts";
-import { atPath, record } from "../../groups";
+import { atPath, locationGroupPath, record } from "../../groups";
 import { editionSlotNames } from "../../research/contracts";
 import type { GeocodingSession } from "../../tools/geocode/tool";
 import {
@@ -120,14 +120,11 @@ export function validateLocationGroups(options: GroupValidationInput) {
     "location",
     options,
     (group) => {
-      const slot = editionSlotNames.find((slot) =>
-        group.path.startsWith(slot + "."),
-      );
-      if (!slot) {
+      if (group.owner !== "location") {
         return;
       }
       try {
-        materializeLocationReply(reply.raw, available, location, slot);
+        materializeLocationReply(reply.raw, available, location, group.target);
       } catch (error) {
         if (error instanceof LocationCountryConflictError) {
           countryConflict(error);
@@ -141,7 +138,7 @@ export function validateLocationGroups(options: GroupValidationInput) {
       for (const slot of editionSlotNames) {
         if (
           location.input[slot] &&
-          (!only || only.has(`${slot}.fields.location`))
+          (!only || only.has(locationGroupPath(slot)))
         ) {
           checkLocationBoundary(reply.raw, slot, location);
         }

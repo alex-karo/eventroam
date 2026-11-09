@@ -508,17 +508,17 @@ test.each(["context", "report", "no_report", "writer"] as const)(
         throw new Error(TRACE_ERROR);
       });
     }
-    if (failure === "report" || failure === "no_report") {
-      vi.spyOn(reportModule, "buildResearchReport").mockImplementation(() => {
-        throw new Error(TRACE_ERROR);
-      });
-    }
-    if (failure === "no_report") {
-      vi.spyOn(reportModule, "buildWorkflowFailureReport").mockImplementation(
+    if (failure === "report") {
+      vi.spyOn(reportModule, "buildResearchReport").mockImplementationOnce(
         () => {
           throw new Error(TRACE_ERROR);
         },
       );
+    }
+    if (failure === "no_report") {
+      vi.spyOn(reportModule, "buildResearchReport").mockImplementation(() => {
+        throw new Error(TRACE_ERROR);
+      });
     }
     if (failure === "writer") {
       vi.spyOn(writerModule, "applyCatalogItem").mockImplementation(() => {

@@ -14,11 +14,7 @@ import { RunPersistenceError } from "./runs";
 import { ProposalRepairs } from "./repairs";
 import type { SourceSession } from "./tools/session";
 import type { Collection } from "./evidence/collection";
-import {
-  buildResearchReport,
-  buildWorkflowFailureReport,
-  type ReportInput,
-} from "./report";
+import { buildResearchReport, type ReportInput } from "./report";
 import {
   validateRunInvocation,
   storedRunInput,
@@ -166,7 +162,7 @@ export class CatalogAttempt {
       stage: "workflow",
       message: cancelled ? "Ingestion cancelled" : "Ingestion workflow failed",
     });
-    data.report = buildWorkflowFailureReport(this.reportInput(data));
+    data.report = buildResearchReport(this.reportInput(data));
   }
 
   /** All engine failure paths use the same settlement and terminal persistence. */

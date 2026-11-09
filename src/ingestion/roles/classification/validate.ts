@@ -68,10 +68,8 @@ function classificationGroupRule(
   group: ProposalGroup,
   { reply, ctx, available }: GroupValidationInput,
 ) {
-  const slot = editionSlotNames.find((slot) =>
-    group.path.startsWith(slot + "."),
-  );
-  if (!slot) {
+  const { target: slot } = group;
+  if (slot === "event") {
     return missingChangeEvidence(reply.raw, group);
   }
   const target = ctx.targets?.[slot];

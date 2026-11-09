@@ -1,8 +1,8 @@
 import { evidencePacket, topics } from "../../evidence/contracts";
 import { savedPages, savedSearchInstructions } from "../../evidence/repair";
+import type { ProposalGroup } from "../../groups";
 import type { PreparedProposals } from "../../proposals";
 import type { RepairRecord } from "../../repairs";
-import { editionSlotNames } from "../../research/contracts";
 import { buildAssignment } from "../assignment";
 import { invokeRole } from "../invoke";
 import { roleInvocationOptions, type RoleOptions } from "../options";
@@ -17,7 +17,7 @@ export async function runEditor(
   prepared: PreparedProposals,
   paths: ReviewPath[],
   repairs: RepairRecord[],
-  targeted = false,
+  targetedGroups?: readonly ProposalGroup[],
 ) {
   const { sourceFiles, tools } = await savedPages(
     options.corpus,
@@ -26,14 +26,19 @@ export async function runEditor(
   const cited = new Set(
     repairs.flatMap(({ evidence }) => evidence?.map(({ id }) => id) ?? []),
   );
-  for (const slot of editionSlotNames) {
-    if (paths.some(({ path }) => path === `${slot}.fields.location`)) {
-      for (const id of prepared.location.support[slot] ?? []) {
+  const returnedGroups = [];
+  for (const group of targetedGroups ?? []) {
+    if (group.owner === "location") {
+      for (const id of prepared.location.support[group.target] ?? []) {
         cited.add(id);
       }
     }
+    returnedGroups.push({
+      path: group.path,
+      proposal: groupProposal(prepared, group) ?? null,
+    });
   }
-  const evidence = targeted
+  const evidence = targetedGroups
     ? prepared.basis.evidence.filter(({ id }) => cited.has(id))
     : prepared.basis.evidence;
   const schema = reviewSchema(paths);
@@ -45,7 +50,7 @@ export async function runEditor(
       editorInstructions +
       "\n" +
       savedSearchInstructions +
-      (targeted
+      (targetedGroups
         ? "\nThis is a targeted review. The proposals are in returnedGroups. Use fixedEditions only as context. Do not review any other group or target."
         : ""),
     input: {
@@ -54,11 +59,8 @@ export async function runEditor(
       sourceFiles,
       reviewPaths: paths,
       repairs,
-      ...(targeted && {
-        returnedGroups: paths.map(({ path }) => ({
-          path,
-          proposal: groupProposal(prepared, path) ?? null,
-        })),
+      ...(targetedGroups && {
+        returnedGroups,
         fixedEditions: {
           previousEdition: prepared.targets.previousEdition,
           currentOrNextEdition: prepared.targets.currentOrNextEdition,
@@ -66,7 +68,10 @@ export async function runEditor(
       }),
       vocabulary: options.context.terms,
       prepared: {
-        ...(!targeted && { plan: prepared.plan, location: prepared.location }),
+        ...(!targetedGroups && {
+          plan: prepared.plan,
+          location: prepared.location,
+        }),
         unresolved: prepared.unresolved,
         identity: {
           eventId: prepared.targets.eventId,

@@ -821,10 +821,12 @@ test("cancellation after a confirmed write preserves the committed catalog", asy
   const run = await workflow.createRun({ runId: "cancel-after-write" });
   let cancellation: Promise<void> | undefined;
   const original = reportModule.buildResearchReport;
-  vi.spyOn(reportModule, "buildResearchReport").mockImplementation((value) => {
-    cancellation = run.cancel();
-    return original(value);
-  });
+  vi.spyOn(reportModule, "buildResearchReport").mockImplementationOnce(
+    (value) => {
+      cancellation = run.cancel();
+      return original(value);
+    },
+  );
   await run.start({
     inputData: studioIngestionInputSchema.parse({
       mode: "add",

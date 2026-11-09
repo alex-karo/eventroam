@@ -56,7 +56,7 @@ export function validateGeneralReply(
   if (issues.length) {
     const provisional = structuredClone(raw);
     for (const { group, rule } of issues) {
-      if (/\.(dates|year|scheduleStatus)$/.test(group.path)) {
+      if (group.temporal) {
         failProposal(`General temporal target: ${rule}`, group.path);
       }
       setPath(provisional, group.rawPath, undefined);

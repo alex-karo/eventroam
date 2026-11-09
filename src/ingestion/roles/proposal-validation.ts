@@ -1,6 +1,12 @@
 import type { CatalogResearchInput } from "../contracts";
 import type { Evidence, FrozenCorpus } from "../evidence/contracts";
-import { atPath, record, type GroupOwner, type ProposalGroup } from "../groups";
+import {
+  atPath,
+  isEventFieldCheck,
+  record,
+  type GroupOwner,
+  type ProposalGroup,
+} from "../groups";
 import type { ResearchError } from "../research/contracts";
 import type { ResearchContext } from "../research/context";
 import type { Targets } from "./general/contracts";
@@ -96,9 +102,7 @@ function requireAssignedEventFields(
   const checks = atPath(raw, "checks");
   const eventCheck =
     Array.isArray(checks) &&
-    checks.some((finding) =>
-      ["description", "eventLinks"].includes(String(record(finding)?.check)),
-    );
+    checks.some((finding) => isEventFieldCheck(String(record(finding)?.check)));
   if (
     eventCheck ||
     atPath(raw, "description") ||

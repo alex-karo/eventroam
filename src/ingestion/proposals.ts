@@ -1,6 +1,6 @@
 import { hasEventFieldCheck } from "./roles/assignment";
 import { earlierEdition, proposedChronology } from "./research/guards";
-import { atPath, setPath } from "./groups";
+import { atPath, locationGroupPath, proposalGroups, setPath } from "./groups";
 import { requireSupport, type FrozenCorpus } from "./evidence/contracts";
 import type { ResearchContext } from "./research/context";
 import type { CatalogResearchInput } from "./contracts";
@@ -344,7 +344,7 @@ export function applyReview(
       delete accepted.location.slots[slot];
       continue;
     }
-    if (review.get(`${slot}.fields.location`)?.decision === "reject") {
+    if (review.get(locationGroupPath(slot))?.decision === "reject") {
       const old = accepted.location.slots[slot];
       if (old) {
         accepted.location.slots[slot] = Object.fromEntries(
@@ -360,11 +360,10 @@ export function applyReview(
       delete accepted.location.reusedFrom?.[slot];
     }
   }
-  for (const { path, decision } of review.values()) {
+  for (const { owner, path } of proposalGroups) {
     if (
-      decision === "reject" &&
-      path.includes(".fields.") &&
-      !path.endsWith(".fields.location") &&
+      owner !== "location" &&
+      review.get(path)?.decision === "reject" &&
       atPath(accepted.plan, path) !== undefined
     ) {
       setPath(accepted.plan, path, undefined);

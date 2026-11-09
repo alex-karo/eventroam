@@ -156,10 +156,7 @@ function materializePoint(
   }
   let precision = point.precision;
   if (coords.action === "reusePrevious") {
-    if (
-      point.kind !== "previousPoint" ||
-      session.targets[slot]?.previousPointId !== id
-    ) {
+    if (point.kind !== "previousPoint") {
       throw new LocationValidationError("Invalid historical previousPoint");
     }
     previousPoints.push(point);
