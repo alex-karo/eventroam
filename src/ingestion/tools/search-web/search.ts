@@ -1,5 +1,7 @@
 import { setTimeout as retryDelay } from "node:timers/promises";
+import { SpanType, type AnySpan } from "@mastra/core/observability";
 import { captureOpenRouterGeneration } from "../../runtime/observability/ai";
+import type { Diagnose } from "../../runtime/observability/diagnostics";
 import type { ResearchLogger } from "../../runtime/logging";
 import { ResearchLimitError, type ResearchBudget } from "../../runtime/budget";
 import type { ResearchConfig } from "../../runtime/config";
@@ -21,7 +23,11 @@ interface SearchResponse {
     finish_reason?: unknown;
     message?: { annotations?: Citation[] };
   }[];
-  usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
+  usage?: {
+    prompt_tokens?: unknown;
+    completion_tokens?: unknown;
+    cost?: unknown;
+  };
 }
 
 export interface SearchWebOptions {
@@ -34,6 +40,7 @@ export interface SearchWebOptions {
   now?: () => Date;
   log?: ResearchLogger;
   ai?: { sessionId?: string; traceId?: string; parentId?: string };
+  tracing?: { parent: AnySpan; diagnose: Diagnose };
   signal?: AbortSignal;
 }
 
@@ -193,10 +200,54 @@ async function waitBeforeRetry(
   options.budget.assertTime();
 }
 
-function tokenCount(value: unknown): number | undefined {
+function nonNegativeNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
     : undefined;
+}
+
+function recordSearchUsage(
+  data: SearchResponse,
+  options: SearchWebOptions,
+  startTime: Date,
+) {
+  const tracing = options.tracing;
+  if (!tracing) {
+    return;
+  }
+  const inputTokens = nonNegativeNumber(data.usage?.prompt_tokens);
+  const outputTokens = nonNegativeNumber(data.usage?.completion_tokens);
+  if (inputTokens === undefined && outputTokens === undefined) {
+    return;
+  }
+  const cost = nonNegativeNumber(data.usage?.cost);
+  try {
+    tracing.parent
+      .createChildSpan({
+        type: SpanType.MODEL_GENERATION,
+        name: "OpenRouter web search",
+        startTime,
+        attributes: {
+          provider: "openrouter",
+          model: options.config.model,
+          usage: { inputTokens, outputTokens },
+          ...(cost !== undefined && {
+            costContext: {
+              estimatedCost: cost,
+              costUnit: "USD",
+              costMetadata: {
+                source: "provider_reported",
+                sdkCostField: "usage.cost",
+                scope: "query_total",
+              },
+            },
+          }),
+        },
+      })
+      .end();
+  } catch {
+    tracing.diagnose("trace_export_failed");
+  }
 }
 
 function parseSearchResponse(value: unknown): SearchResponse {
@@ -242,6 +293,7 @@ export async function searchWeb(
     options.budget.consumeSearch();
     options.budget.consumeModelCall();
     try {
+      const startTime = new Date();
       const response = await requestSearch(normalized, maxResults, options);
       if (!response.ok) {
         const error = Object.assign(
@@ -267,6 +319,7 @@ export async function searchWeb(
         throw error;
       }
       data = parseSearchResponse(await boundedJson(response, 1024 * 1024));
+      recordSearchUsage(data, options, startTime);
       break;
     } catch (error) {
       options.signal?.throwIfAborted();
@@ -289,8 +342,8 @@ export async function searchWeb(
     traceId: options.ai?.traceId,
     parentId: options.ai?.parentId,
     model: options.config.model,
-    inputTokens: tokenCount(data.usage?.prompt_tokens),
-    outputTokens: tokenCount(data.usage?.completion_tokens),
+    inputTokens: nonNegativeNumber(data.usage?.prompt_tokens),
+    outputTokens: nonNegativeNumber(data.usage?.completion_tokens),
     latencyMs: Date.now() - startedAt,
   });
   const candidates = sourceCandidates(data, maxResults);

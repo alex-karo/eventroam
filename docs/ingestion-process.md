@@ -251,7 +251,7 @@ Native metrics describe eligible agent, model, and tool operations. They do not 
 - Missing usage or pricing is unknown. Mock calls do not invent tokens or costs.
 - Group model usage by `entityId` and `model` to distinguish Research, Editor, and Location.
 - Sum cost only over `mastra_model_total_input_tokens` and `mastra_model_total_output_tokens`. Cache and reasoning details are subsets; adding their costs can double count usage.
-- Cost uses provider-reported charges when available, including zero, or available SDK pricing estimates. Search charges remain outside model-generation costs.
+- Cost uses provider-reported charges when available, including zero, or available SDK pricing estimates. Studio includes the reported `usage.cost` for each completed OpenRouter search request in Model Cost. This amount includes model inference and the Exa search.
 - Cancellation and HTTP failure can leave partial usage. Metric presence does not prove a complete bill.
 - Reports keep budget counters and do not calculate replacement cost totals. Historical runs are not backfilled.
 

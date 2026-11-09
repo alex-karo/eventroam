@@ -43,7 +43,13 @@ export async function collectResearch(
       };
       const log = options.tracing?.log?.child(correlation);
       log?.info("Tool call started", { tool: "searchWeb", query });
-      const result = await options.sourceSession.searchWeb(query, correlation);
+      const result = await options.sourceSession.searchWeb(
+        query,
+        correlation,
+        span?.isValid && options.tracing
+          ? { parent: span, diagnose: options.tracing.diagnose }
+          : undefined,
+      );
       log?.info("Tool call finished", {
         tool: "searchWeb",
         candidateCount: result.candidates.length,
