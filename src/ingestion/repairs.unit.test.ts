@@ -7,7 +7,7 @@ import { createIngestionData, type CatalogResearchInput } from "./contracts";
 import { bindEvidence } from "./evidence/contracts";
 import { assignedGroups, type GroupOwner } from "./groups";
 import { loadResearchContext } from "./research/context";
-import { classificationOutputSchema } from "./roles/classification/contracts";
+import { classificationReplySchema } from "./roles/classification/contracts";
 import { generalOutputSchema } from "./roles/general/contracts";
 import { linksOutputSchema } from "./roles/links/contracts";
 import { ticketsOutputSchema } from "./roles/tickets/contracts";
@@ -22,7 +22,7 @@ const ticketsPath = "currentOrNextEdition.fields.tickets";
 const ticketLink = "https://example.org/tickets";
 const diagnostics = { checks: [], unresolved: [] };
 const schemas = {
-  classification: classificationOutputSchema,
+  classification: classificationReplySchema,
   general: generalOutputSchema,
   links: linksOutputSchema,
   tickets: ticketsOutputSchema,
@@ -308,15 +308,15 @@ it.each(["omit", "excess"] as const)(
     f.loadContext();
     const previousPath = "previousEdition.fields.classification";
     const currentPath = "currentOrNextEdition.fields.classification";
-    const answer = (classification: string[]) => ({
+    const answer = (classification: unknown) => ({
       previousEdition: { classification: set(classification) },
       currentOrNextEdition: { classification: set(classification) },
       ...diagnostics,
     });
-    const raw = answer([festival.id, gathering.id]);
+    const raw = answer({ eventType: [festival.slug, gathering.slug] });
     const reason = "The previous type remains uncertain.";
     const fixed = {
-      ...answer([festival.id]),
+      ...answer({ eventType: festival.slug }),
       previousEdition: {},
       unresolved: [{ field: previousPath, message: reason }],
     };
@@ -325,7 +325,7 @@ it.each(["omit", "excess"] as const)(
       raw,
       kind === "excess" ? raw : fixed,
     );
-    const diagnostic = `event_type term allowed (limit: 1); received: ${festival.id}, ${gathering.id}`;
+    const diagnostic = "classification.value.eventType:invalid_type";
     if (kind === "excess") {
       await expect(f.before()).rejects.toThrow(diagnostic);
       expect(f.repairs.records[0].failure).toMatchObject({
@@ -333,7 +333,10 @@ it.each(["omit", "excess"] as const)(
         code: "invalid_plan",
       });
     } else {
-      expect((await f.before()).classification).toEqual(fixed);
+      expect((await f.before()).classification).toEqual({
+        ...fixed,
+        currentOrNextEdition: { classification: set([festival.id]) },
+      });
       expect(f.repairs.records[0].omissionReason).toBe(reason);
     }
     expect(revise).toHaveBeenCalledOnce();
@@ -352,17 +355,17 @@ it.each(["term", "reuse Edition"] as const)(
     const f = fixture();
     const term = f.f.existingTerm("event_type", "festival");
     const path = "currentOrNextEdition.fields.classification";
-    const unknown = kind === "term" ? "unknown-term" : "2090";
+    const unknown = kind === "term" ? term.slug : "2090";
     const fixed = {
       previousEdition: null,
-      currentOrNextEdition: { classification: set([term.id]) },
+      currentOrNextEdition: { classification: set({ eventType: term.slug }) },
       ...diagnostics,
     };
     const classification =
       kind === "term"
-        ? set([unknown])
+        ? set({ genres: [unknown] })
         : {
-            ...set([term.id]),
+            ...set({ eventType: term.slug }),
             reuseFrom: { editionKey: unknown, reason: "Same format." },
           };
     const revise = f.capture(
@@ -371,7 +374,10 @@ it.each(["term", "reuse Edition"] as const)(
       fixed,
     );
 
-    expect((await f.before()).classification).toEqual(fixed);
+    expect((await f.before()).classification).toEqual({
+      ...fixed,
+      currentOrNextEdition: { classification: set([term.id]) },
+    });
     expect(revise).toHaveBeenCalledOnce();
     const note = expect.stringContaining(JSON.stringify(unknown));
     expect(revise.mock.calls[0][0]).toMatchObject({
@@ -384,25 +390,56 @@ it.each(["term", "reuse Edition"] as const)(
   },
 );
 
-it("rejects an unknown Classification term in the group returned by Editor", async () => {
-  const f = fixture();
-  const term = f.f.existingTerm("event_type", "festival");
-  const path = "currentOrNextEdition.fields.classification";
-  const original = {
-    previousEdition: null,
-    currentOrNextEdition: { classification: set([term.id]) },
-    ...diagnostics,
-  };
-  const revise = f.capture("classification", original, {
-    ...original,
-    currentOrNextEdition: { classification: set(["unknown-term"]) },
-  });
+it.each(["supported removal", "uncited removal", "unknown slug"] as const)(
+  "checks %s in a Classification group returned by Editor",
+  async (kind) => {
+    const f = fixture();
+    const path = "currentOrNextEdition.fields.classification";
+    const edition = f.f.edition(f.event, {
+      editionKey: "2027",
+      editionYear: 2027,
+    });
+    const term = f.f.existingTerm("event_type", "festival");
+    const genre = f.f.term();
+    f.f.assignTerm(edition, term);
+    f.f.assignTerm(edition, genre);
+    f.loadContext();
+    const original = {
+      previousEdition: null,
+      currentOrNextEdition: { classification: set({ genres: [genre.slug] }) },
+      ...diagnostics,
+    };
+    const change = set({
+      genres: kind === "unknown slug" ? ["unknown-term"] : [],
+    });
+    if (kind === "uncited removal") {
+      change.evidenceIds = [];
+    }
+    const revised = {
+      ...original,
+      currentOrNextEdition: { classification: change },
+    };
+    const revise = f.capture("classification", original, revised);
 
-  await expect(f.after(returnGroup(path))).rejects.toThrow("unknown-term");
-  expect(revise).toHaveBeenCalledOnce();
-  expect(f.repairs.raw("classification")).toEqual(original);
-  expect(f.repairs.records[0].failure).toMatchObject({
-    code: "invalid_plan",
-    field: path,
-  });
-});
+    await f.before();
+    if (kind === "supported removal") {
+      expect((await f.after(returnGroup(path))).classification).toEqual({
+        ...original,
+        currentOrNextEdition: { classification: set([term.id]) },
+      });
+      expect(f.repairs.raw("classification")).toEqual(revised);
+    } else {
+      await expect(f.after(returnGroup(path))).rejects.toThrow(
+        kind === "unknown slug"
+          ? "unknown-term"
+          : "Missing or unknown evidence reference",
+      );
+      expect(f.repairs.raw("classification")).toEqual(original);
+      expect(f.repairs.records[0].failure).toMatchObject({
+        code: "invalid_plan",
+        field: path,
+      });
+    }
+    expect(revise).toHaveBeenCalledOnce();
+  },
+);

@@ -416,11 +416,23 @@ it("shares three ticket returns between validation and Editor", async () => {
   ]);
 });
 
-it("continues Location with geocode history and binds a new venue citation", async () => {
+it("revises one of two Location slots with a new venue citation", async () => {
   const quote = "The venue is Vale do Tejo.";
-  const f = fixture(`Example Fest 2027.\n\n${quote}`, {
-    quote: "Example Fest 2027.",
+  const editions =
+    "Example Fest took place at Vale Antigo in 2026. Example Fest 2027 is from July 1 to July 3.";
+  const f = fixture(`${editions}\n\n${quote}`, { quote: editions });
+  const previous = f.f.edition(f.event, {
+    editionKey: "2026",
+    startsOn: "2026-07-01",
+    endsOn: "2026-07-03",
   });
+  const general = fixtureTargets(f.event.id);
+  general.previousEdition = {
+    editionKey: previous.editionKey,
+    reason: general.reason,
+    evidenceIds: general.evidenceIds,
+    fields: {},
+  };
   const note = "Use the venue spelling on s1.";
   const geocode = vi.fn(async () => ({
     status: "success" as const,
@@ -473,6 +485,13 @@ it("continues Location with geocode history and binds a new venue citation", asy
         if (original.decision.status !== "ready") {
           throw new Error("Missing Location");
         }
+        const previousSlot = original.decision.previousEdition!;
+        previousSlot.fields.venueName = {
+          action: "set",
+          value: "Vale Antigo",
+          reason: "The source names this venue.",
+        };
+        previousSlot.evidenceIds = ["s1-e1"];
         const slot = original.decision.currentOrNextEdition!;
         slot.fields.venueName = {
           action: "set",
@@ -548,9 +567,11 @@ it("continues Location with geocode history and binds a new venue citation", asy
         reason: "Saved spelling",
       };
       slot.evidenceIds = ["s1-repair-1"];
-      return reply(body, original);
+      return reply(body, {
+        decision: { ...original.decision, previousEdition: null },
+      });
     },
-    { editor },
+    { editor, general },
   );
   const storage = createWorkflowStorage({ path: ":memory:" });
   const clear = vi.spyOn(ProposalRepairs.prototype, "clear");
@@ -562,11 +583,18 @@ it("continues Location with geocode history and binds a new venue citation", asy
     expect(result.errors).toEqual([]);
     expect(result.repairs?.[0].evidence).toMatchObject([{ quote }]);
     expect(geocode).toHaveBeenCalledOnce();
-    expect(f.saved().editions[0]).toMatchObject({
-      venueName: "Vale do Tejo",
-      latitude: 38.7,
-      longitude: -9.1,
-    });
+    const saved = f.saved().editions;
+    expect(saved).toContainEqual(
+      expect.objectContaining({ editionKey: "2026", venueName: "Vale Antigo" }),
+    );
+    expect(saved).toContainEqual(
+      expect.objectContaining({
+        editionKey: "2027",
+        venueName: "Vale do Tejo",
+        latitude: 38.7,
+        longitude: -9.1,
+      }),
+    );
     expect(clear).toHaveBeenCalledOnce();
     expect(
       (clear.mock.contexts[0] as ProposalRepairs).raw("location"),
@@ -706,7 +734,7 @@ it.each(["reject target", "revise date"] as const)(
           previousEdition: null,
           currentOrNextEdition: {
             classification: {
-              ...set([term.id]),
+              ...set({ eventType: term.slug }),
               reuseFrom: {
                 editionKey: donor.editionKey,
                 reason: "Programme continuity",

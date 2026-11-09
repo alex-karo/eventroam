@@ -27,7 +27,16 @@ export function modelOutputSchema(output: z.ZodType) {
     const result = Object.fromEntries(
       Object.entries(original)
         .filter(([key]) => !stripped.has(key))
-        .map(([key, part]) => [key === "oneOf" ? "anyOf" : key, clean(part)]),
+        .map(([key, part]) => [
+          key === "oneOf" ? "anyOf" : key,
+          key === "properties"
+            ? Object.fromEntries(
+                Object.entries(part as Record<string, unknown>).map(
+                  ([name, schema]) => [name, clean(schema)],
+                ),
+              )
+            : clean(part),
+        ]),
     );
     if (
       result.type === "object" &&

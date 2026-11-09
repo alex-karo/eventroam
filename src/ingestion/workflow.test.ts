@@ -88,17 +88,11 @@ function dependencies() {
         const slot = (name: "previousEdition" | "currentOrNextEdition") =>
           prompt.targets[name]
             ? {
-                classification: set(
-                  prompt.vocabulary
-                    .filter((term: { facet: string; slug: string }) =>
-                      [
-                        "event_type:festival",
-                        "format:openair",
-                        "topic:music",
-                      ].includes(`${term.facet}:${term.slug}`),
-                    )
-                    .map((term: { id: string }) => term.id),
-                ),
+                classification: set({
+                  eventType: "festival",
+                  format: "openair",
+                  topics: ["music"],
+                }),
               }
             : null;
         return {
