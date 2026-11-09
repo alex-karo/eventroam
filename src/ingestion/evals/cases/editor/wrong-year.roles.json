@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "provenance": "Captured editor-wrong-year research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. The Edition ticket link uses the inspected overview. The YouTube link uses the cited official URL. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 10a5037c-f9d1-46f1-a78c-7ac924784f80:s1, 10a5037c-f9d1-46f1-a78c-7ac924784f80:s2, 10a5037c-f9d1-46f1-a78c-7ac924784f80:s3. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
   "pages": [
     {
@@ -19,31 +19,40 @@
         ],
         "evidence": [
           {
-            "quote": "meta:\n  description: \"W:O:A - Welcome to Heavy Metal Town, Metalheads! Wacken Open Air Festival\"",
+            "quote": {
+              "start": 3,
+              "end": 4
+            },
             "topics": ["identity", "description"]
           },
           {
-            "quote": "[W:O:A Wacken Open Air](https://www.wacken.com/de/ \"Wacken Start\")",
+            "quote": 18,
             "topics": ["identity", "links"]
           },
           {
-            "quote": "[HOL DIR DEIN TICKET](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817)",
+            "quote": 58,
             "topics": ["tickets", "links"]
           },
           {
-            "quote": "[Die Ticketbörse für das W:O:A 2027 ist online! Ab sofort könnt ihr wieder die Ticketbörse im Wacken Ticketcenter benutzen.](https://www.wacken.com/de/news-details/die-ticketboerse-fuer-das-woa-2027-ist-online/ \"Die Ticketbörse für das W:O:A 2027 ist online!\")",
+            "quote": 72,
             "topics": ["status", "tickets", "links"]
           },
           {
-            "quote": "[DE](https://www.wacken.com/de/ \"Deutsch\")\n\n[EN](https://www.wacken.com/en/ \"English\")",
+            "quote": {
+              "start": 13,
+              "end": 14
+            },
             "topics": ["links"]
           },
           {
-            "quote": "<https://www.youtube.com/wackentv/>\n\n<https://www.facebook.com/WackenOpenAir.official>\n\n<https://www.instagram.com/wackenopenair.official/>\n\n<https://open.spotify.com/playlist/78NloPtEpD7pMMC6dQoLdt>",
+            "quote": {
+              "start": 31,
+              "end": 34
+            },
             "topics": ["links"]
           },
           {
-            "quote": "© 2005...2026 by [WOA Festival GmbH](http://www.ics-int.com/) - Hosting by ICS MEDIA SERVICE",
+            "quote": 99,
             "topics": ["identity", "links"]
           }
         ],
@@ -65,24 +74,31 @@
         ],
         "evidence": [
           {
-            "quote": "[28.07. - 31.07.2027](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817)",
+            "quote": 40,
             "topics": ["identity", "dates", "links"]
           },
           {
-            "quote": "## LOUDER-TICKET\n\n### Der Ruf des Holy Ground wird immer lauter.\n\nDie ersten Ticketphasen sind vorbei – doch der Weg nach Wacken bleibt euch offen.\n\nMit dem LOUDER Ticket sichert ihr euch euren Festivalpass für das Wacken Open Air 2027 und werdet Teil einer der größten Metal-Communities der Welt. Ganz gleich, ob ihr jedes Jahr dabei seid oder euer erstes W:O:A erlebt: Vor euch liegen vier Tage voller Freundschaften, unvergesslicher Konzerte und einzigartiger Momente auf dem Holy Ground.\n\nPreis: 364 € zzgl. 2 € Ticketgebühr\n\nEure Vorteile\n\n- 333 THE CORE Punkte  \n- Exklusive Bundle-Artikel (wie T-Shirts, Souvenirtickets & Lanyards) optional erhältlich\n\n[Louder-Ticket](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802)\n\n## YOUNGER-Ticket\n\n### Die nächste Generation des Metal!\n\nAuch der Heavy Metal braucht Nachwuchs und die neue Generation steht bereits in den Startlöchern.\n\nMit dem YOUNGER TICKET zum vergünstigten Preis, wollen es auch den Jungen Metallern möglich machen, ihre ersten Schritte auf den Holy Ground zu machen.\n\nPreis: 279€ zzgl. 2 € Ticketgebühr\n\nEure Vorteile\n\n- Vergünstigter Preis\n- Streng limitiert\n- Bis einschließlich 25 Jahre (es zählt das Alter zu Beginn des Festivals)\n- 666 THE CORE Punkte\n- Exklusive Bundle-Artikel (wie T-Shirts, Souvenirtickets & Lanyards) optional erhältlich\n\n[Younger-Ticket](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802)\n\n## The Pit-Ticket\n\n### Es gibt Dinge, die ein großartiges Festival zum Besten werden lassen.\n\nEs gibt Dinge, die ein großartiges Festival zum Besten werden lassen, das ihr je erlebt habt. \n\nMit dem The Pit Ticket holt ihr euch nicht einfach nur das Wackenerlebnis – ihr lebt es auf einem ganz anderen Level. Mehr Komfort, mehr Atmosphäre, mehr Metal. \n\nWillkommen im inneren Kreis von Wacken United.\n\nPreis: 1399€\n\nDu hast schon ein W:O:A 2027 Ticket? Dann hole dir das The Pit Upgrade! \n\nPreis: 1049€\n\nEure Vorteile:\n\n- Exklusives Willkommenspaket\n- Check-in via Faster Lane\n- Camping mit Zusatzleistungen\n- Shuttle-Service\n- All Inclusive Catering\n- Der schnellste Weg zum Infield\n- The Pit Lounge & Festival-Flair\n- Persönliche Festival-Hosts\n- Backstage & Loge\n- Metal hautnah erleben\n- Der lauteste Stammtisch der Welt\n- Jedes Pit Ticket unterstützt die Wacken Foundation\n- 666 THE CORE Punkte\n\n[The Pit-Ticket](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_ticket_button_20260802)",
+            "quote": {
+              "start": 41,
+              "end": 84
+            },
             "topics": ["identity", "tickets"],
-            "context": [
-              "[28.07. - 31.07.2027](https://ticketstore.wacken.com/de/wacken-open-air-2027/4-day-tickets?utm_source=website_wacken&utm_medium=referral&utm_campaign=woa_2027_pre-sale_20260817)"
-            ],
+            "context": [40],
             "editionClues": [],
             "uncertainty": null
           },
           {
-            "quote": "Es bleibt dabei! Für die Anreise zu allen W:O:A Camping-Areas mit einem Fahrzeug bleibt ein Access Pass notwendig!\n\nMehr Informationen findet ihr [**hier**](https://www.wacken.com/de/tickets-shop/access-pass/).",
+            "quote": {
+              "start": 85,
+              "end": 86
+            },
             "topics": ["tickets", "location", "links"]
           },
           {
-            "quote": "<https://www.youtube.com/wackentv/>\n\n<https://www.facebook.com/WackenOpenAir.official>\n\n<https://www.instagram.com/wackenopenair.official/>\n\n<https://open.spotify.com/playlist/78NloPtEpD7pMMC6dQoLdt>\n\n<https://www.wacken.com/app?lang=de>",
+            "quote": {
+              "start": 35,
+              "end": 39
+            },
             "topics": ["links"]
           }
         ],
@@ -106,55 +122,85 @@
         ],
         "evidence": [
           {
-            "quote": "# CAMPING: So wie ihr es braucht!\n\nMittendrin oder etwas ruhiger. Im eigenen Zelt oder in einer gemieteten Hütte mit Ausstattung. Auf dem Wacken Open Air könnt ihr so campen, wie es am besten zu euch passt.",
+            "quote": {
+              "start": 42,
+              "end": 43
+            },
             "topics": ["identity", "description"]
           },
           {
-            "quote": "##### Auf dieser Karte seht ihr, wo sich die Camping-Areas auf dem Festivalgelände befinden.<br>Bitte beachtet, dass die Karte derzeit nicht alle Camping-Areas abbildet. <br>Bleibt dran – es kommt noch mehr!",
+            "quote": 45,
             "topics": ["description", "location"]
           },
           {
-            "quote": "## Die Komfort-Variante: Residenz Evil\n\nLust auf mehr? Könnt ihr haben. Hier erwarten euch bequeme Betten, ein Stromanschluss in allen Zelten, ein eigener Gastronomie- und Loungebereich, hochwertige Sanitäranlagen, Duschen und ein Willkommensgeschenk.",
+            "quote": {
+              "start": 46,
+              "end": 47
+            },
             "topics": ["description"]
           },
           {
-            "quote": "## Die Hotel-Variante: Moshtel\n\nIm Moshtel bekommt ihr ordentlich was geboten: ausgestattete Unterkünfte mit bezogenen Betten, Licht und Stromanschluss sowie eine Rezeption mit Bandausgabe, hochwertige Sanitäranlagen mit Duschen und ein Gastronomie- und Loungebereich mit WLAN. ",
+            "quote": {
+              "start": 48,
+              "end": 49
+            },
             "topics": ["description"]
           },
           {
-            "quote": "## Alles schon da: Tᴱ.N.T.\n\nSchluss mit „Heringe in den Boden hauen“ und „mit der Zeltplane kämpfen” – einfach ankommen, einchecken und einziehen. All das in einer autofreien und zentral gelegenen Camping-Area, die kurze Wege zu den Bühnen oder zum Farmers Market bietet.",
+            "quote": {
+              "start": 50,
+              "end": 51
+            },
             "topics": ["description", "location"]
           },
           {
-            "quote": "## Ideal für Gruppen: Bauer Uwes Garten\n\nEine Wiese im Nordosten auf dem Festivalgelände. Eine Parzelle. Und die gehört euch! Verschiedene Anreisetage? Kein Problem. Hier kommt ihr ganz unkompliziert zusammen. Auch mehrere Parzellen sind buchbar.",
+            "quote": {
+              "start": 52,
+              "end": 53
+            },
             "topics": ["description", "location"]
           },
           {
-            "quote": "## Für Wohnmobile & Co.: Camper-Park\n\nWer mit dem eigenen Fahrzeug - ob, Auto, Wohnmobil oder -anhänger - zum Wacken Open Air anreist, nimmt Kurs auf den Camper-Park. Er liegt im Westen des Festivalgeländes und alle Parzellen bieten einen Stromanschluss.",
+            "quote": {
+              "start": 54,
+              "end": 55
+            },
             "topics": ["description", "location"]
           },
           {
-            "quote": "## Autofreies Camping: Split Camping\n\nHier findet jeder einen Zeltplatz, egal ob man mit Bus, zu Fuß oder Fahrrad oder mit dem eigenen Auto ankommt. Die autofreie Camping-Area liegt nah am Festivalgelände. Nach Ende eines W:O:A-Tages seid ihr innerhalb weniger Minuten an eurem Campingplatz.",
+            "quote": {
+              "start": 57,
+              "end": 58
+            },
             "topics": ["description", "location"]
           },
           {
-            "quote": "## [Für Menschen mit Behinderung: Wheels Of Steel](https://www.wacken.com/de/camping-travel/wheels-of-steel/)\n\nEine eigene, barrierearme Area nur für euch – und ihr seid trotzdem mittendrin. Zusätzlich bietet unser Kooperationspartner Alsterarbeit vor Ort ein großes Unterstützungsangebot für Menschen mit Behinderung. Auch ständige Begleitpersonen sind willkommen – Voraussetzung ist ein „B“ im Schwerbehindertenausweis.",
+            "quote": {
+              "start": 60,
+              "end": 61
+            },
             "topics": ["description", "location", "links"]
           },
           {
-            "quote": "## Exklusiv für The Pit-Gäste: Party like a Rockstar\n\nFühlt euch auf dem Wacken Open Air wie echte Rockstars – bucht einen Nightliner für bis zu 18 Personen (nur mit The Pit-Ticket oder Upgrade).",
+            "quote": {
+              "start": 62,
+              "end": 63
+            },
             "topics": ["description", "tickets"]
           },
           {
-            "quote": "[W:O:A Wacken Open Air](https://www.wacken.com/de/ \"Wacken Start\")",
+            "quote": 18,
             "topics": ["identity", "links"]
           },
           {
-            "quote": "<https://www.youtube.com/wackentv/>\n\n<https://www.facebook.com/WackenOpenAir.official>\n\n<https://www.instagram.com/wackenopenair.official/>",
+            "quote": {
+              "start": 37,
+              "end": 39
+            },
             "topics": ["links"]
           },
           {
-            "quote": "© 2005...2026 by [WOA Festival GmbH](http://www.ics-int.com/) - Hosting by ICS MEDIA SERVICE",
+            "quote": 87,
             "topics": ["links"]
           }
         ],

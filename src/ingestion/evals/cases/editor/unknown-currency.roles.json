@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "provenance": "Normalized source-known-offers-blocked-checkout research from narrow-current-verify-2026-10-15T11-47-11-170Z.json. The ticket terms retain the amount with unknown currency. The Edition ticket link uses the inspected overview. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: fc2d9fed-1ac5-4337-87fc-691723a3b0fc:s1. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings. Editor and eligible Location run live. Empty page-coverage lists isolate Editor review from Research navigation.",
   "pages": [
     {
@@ -24,26 +24,32 @@
         ],
         "evidence": [
           {
-            "quote": "# Sound Trail 2027\n\nSound Trail is a music festival at Meadow Grounds, York, United Kingdom, on 23–30 January 2027. These are confirmed programme dates.",
+            "quote": {
+              "start": 1,
+              "end": 2
+            },
             "topics": ["identity", "description", "dates", "status", "location"]
           },
           {
-            "quote": "- Three-concert pass: GBP 9.99. Access to three paid concerts of your choice; it does not cover the full programme. Other activities are free. Sales availability is not stated.\n- Stay package: GBP 899. Includes lodging and the Three-concert pass only. It does not include full-programme admission. Sales availability is not stated.",
+            "quote": {
+              "start": 4,
+              "end": 5
+            },
             "topics": ["tickets"]
           },
           {
-            "quote": "- All-programme pass: $615.35. The currency selector is missing from this page; no country or currency code is given for this price. This site serves multiple countries. Sales availability is not stated.",
+            "quote": 6,
             "topics": ["tickets"],
             "context": [],
             "editionClues": [],
             "uncertainty": "The price's currency cannot be determined from the source."
           },
           {
-            "quote": "[Official checkout](https://sound-trail.example/checkout) lists the remaining categories and availability.",
+            "quote": 7,
             "topics": ["links", "tickets"]
           },
           {
-            "quote": "[Extras](https://sound-trail.example/extras) lists additional offers.",
+            "quote": 8,
             "topics": ["links", "tickets"]
           }
         ],

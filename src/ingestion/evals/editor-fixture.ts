@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { bindEvidence } from "../evidence/contracts";
-import { fixedReaderOutputSchema } from "./fixed-reader";
+import { bindFixtureEvidence } from "./fixed-reader";
 import { roleEvidenceTopics } from "../roles/contracts";
 import { replyReferences } from "../roles/proposal-validation";
 import { collectionOutputSchema } from "../roles/research/contracts";
@@ -8,18 +7,19 @@ import { generalOutputSchema } from "../roles/general/contracts";
 import { ticketsOutputSchema } from "../roles/tickets/contracts";
 import { classificationReplySchema } from "../roles/classification/contracts";
 import { linksOutputSchema } from "../roles/links/contracts";
+import { readerSelectionSchema } from "../roles/reader/contracts";
 import type { ResearchDependencies } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
 
 export const roleHandoffSchema = z.strictObject({
-  schemaVersion: z.literal(6),
+  schemaVersion: z.literal(7),
   provenance: z.string().min(1),
   pages: z
     .array(
       z.strictObject({
         url: z.url(),
         sourceId: z.string().min(1),
-        reader: fixedReaderOutputSchema.optional(),
+        reader: readerSelectionSchema.optional(),
       }),
     )
     .min(1),
@@ -56,16 +56,7 @@ export function assertEditorFixture(item: PipelineEvalCase) {
         `${item.id}: missing fixed Reader output for ${page.url}`,
       );
     }
-    const bound = bindEvidence(
-      page.sourceId,
-      source.markdown,
-      page.reader,
-      source.finalUrl,
-    );
-    if (bound.evidence.length !== page.reader.evidence.length) {
-      throw new Error(`${item.id}: fixed quotation does not match ${page.url}`);
-    }
-    return bound.evidence;
+    return bindFixtureEvidence(item.id, page.sourceId, source, page.reader);
   });
   const urls = fixture.pages.map((page) => page.url);
   const destinations = fixture.pages.map(

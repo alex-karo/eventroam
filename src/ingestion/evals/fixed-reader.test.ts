@@ -3,19 +3,19 @@ import { createResearchBudget } from "../runtime/budget";
 import { fixedReader } from "./fixed-reader";
 import { loadEvalSuite } from "./fixtures";
 
-it("replays an Editor quotation with its original offsets and evidence ID", async () => {
+it("replays a fixed Reader range and segment with stable evidence IDs", async () => {
   const item = loadEvalSuite().cases.find(
-    ({ id }) => id === "editor-day-ticket",
+    ({ id }) => id === "editor-recovered-website",
   );
   if (!item || item.location || !item.roleHandoff) {
-    throw new Error("Expected the Editor day ticket fixture");
+    throw new Error("Expected the Editor website recovery fixture");
   }
   const [recorded] = item.roleHandoff.pages;
   const source = item.sources.find(
     ({ attemptedUrl }) => attemptedUrl === recorded.url,
   )!;
-  const { quote } = recorded.reader!.evidence[0];
-  const start = source.markdown.indexOf(quote);
+  const [heading, details] = source.markdown.split("\n");
+  const quote = `${heading}\n${details}`;
   const budget = createResearchBudget();
   const read = fixedReader(item)!;
   const execution = await read({
@@ -28,9 +28,12 @@ it("replays an Editor quotation with its original offsets and evidence ID", asyn
     },
   });
   expect(execution.status).toBe("success");
-  expect(execution.bound?.evidence[0]).toMatchObject({
-    id: "s1-e1",
-    quote,
-    span: { start, end: start + quote.length },
-  });
+  expect(execution.bound?.evidence).toMatchObject([
+    { id: "s1-e1", quote, span: { start: 0, end: quote.length } },
+    {
+      id: "s1-e2",
+      quote: details,
+      span: { start: heading.length + 1, end: quote.length },
+    },
+  ]);
 });
