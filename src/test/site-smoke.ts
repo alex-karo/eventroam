@@ -107,7 +107,7 @@ async function main() {
       },
     ],
   });
-  fx.publishedEvent({
+  const sparse = fx.publishedEvent({
     event: {
       slug: "sparse-festival",
       canonicalName: "Sparse Festival",
@@ -124,6 +124,9 @@ async function main() {
       },
     ],
   });
+  const genre = fx.existingTerm("genre", "hardstyle");
+  fx.assignTerm(published.editions[0], genre);
+  fx.assignTerm(sparse.editions[0], genre);
   const draft = fx.event({
     slug: "private-value",
     canonicalName: "PRIVATE_VALUE",
@@ -193,6 +196,21 @@ async function main() {
       `${festivals}/events/smoke-festival`,
       "Smoke Festival | Eventroam",
     );
+    assert.equal(eventPage("#similar-festivals-heading").length, 0);
+    const sparseEventPage = checkMetadata(
+      await get(festivals, "/events/sparse-festival"),
+      `${festivals}/events/sparse-festival`,
+      "Sparse Festival | Eventroam",
+    );
+    assert.deepEqual(
+      sparseEventPage("main > section > h2")
+        .map((_, heading) => sparseEventPage(heading).text())
+        .get(),
+      ["Festivals like Sparse Festival", "Published editions and history"],
+    );
+    const alternative = sparseEventPage(".similar-festivals li a");
+    assert.equal(alternative.length, 1);
+    assert.equal(alternative.attr("href"), "/events/smoke-festival/summer");
     const editionPage = checkMetadata(
       await get(
         festivals,

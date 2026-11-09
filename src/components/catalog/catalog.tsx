@@ -10,7 +10,11 @@ import {
 } from "./format";
 export { linkLabel } from "./external-links";
 
-export function Dates({ edition }: Readonly<{ edition: PublicEdition }>) {
+export function Dates({
+  edition,
+}: Readonly<{
+  edition: Pick<PublicEdition, "startsOn" | "endsOn" | "status" | "dateState">;
+}>) {
   const days = durationDays(edition.startsOn, edition.endsOn);
   const [first, last] = dateRangeParts(edition.startsOn, edition.endsOn);
   return (

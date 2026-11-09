@@ -152,7 +152,9 @@ test("Edition layout preserves section order and shared history while Event stay
   expect(output).not.toContain("discovery=");
   expect(output).toContain('target="_blank" rel="noopener noreferrer"');
   expect(output).toContain("2027 · 1 Jan 2027");
-  const small = renderToStaticMarkup(<EventDetailsPage event={data} />);
+  const small = renderToStaticMarkup(
+    <EventDetailsPage event={data} alternatives={[]} />,
+  );
   expect(small).toContain("A general festival description.");
   expect(small).not.toContain("Current edition");
   expect(small).not.toContain("Tickets");
@@ -178,6 +180,38 @@ test("Edition layout preserves section order and shared history while Event stay
   expect(withMap).toContain("Open approximate location");
   expect(withMap).toContain("www.google.com/maps/search/");
   expect(withMap).toContain("Show on map");
+});
+
+test("Event alternatives show facts from the selected Edition", () => {
+  const data = event();
+  const edition = testFixtures(testDatabase().client).build.summary({
+    eventName: "River Beats",
+    eventSlug: "river-beats",
+    key: "summer",
+    startsOn: "2027-06-10",
+    endsOn: "2027-06-12",
+    dateState: "provisional",
+    locality: "Ghent",
+    countryCode: "BE",
+  });
+  const $ = load(
+    renderToStaticMarkup(
+      <EventDetailsPage
+        event={data}
+        alternatives={[{ edition, sharedGenreName: "Electronic" }]}
+      />,
+    ),
+  );
+  const section = $("section[aria-labelledby='similar-festivals-heading']");
+  expect(section.find("h2").text()).toBe(`Festivals like ${data.name}`);
+  const card = section.find("li");
+  expect(card).toHaveLength(1);
+  expect(card.find("a").text()).toBe("River Beats");
+  expect(card.text()).toContain("10–12 Jun 2027");
+  expect(card.text()).toContain("3 days");
+  expect(card.text()).toContain("Ghent, Belgium");
+  expect(card.text()).toContain("Shared genre · Electronic");
+  expect(card.text()).toContain("Tentative dates");
 });
 
 test("Edition opening separates festival summary, price and booking links from details", () => {
@@ -414,7 +448,7 @@ test.each([
     const now = new Date("2026-10-01");
     const automatic = `${data.name} is a festival listed in the Eventroam catalog.`;
     const eventPage = load(
-      renderToStaticMarkup(<EventDetailsPage event={data} />),
+      renderToStaticMarkup(<EventDetailsPage event={data} alternatives={[]} />),
     );
     const editionPage = load(
       renderToStaticMarkup(

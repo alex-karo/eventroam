@@ -70,3 +70,8 @@ export type DiscoverySummary = {
   sizeEstimate: number | null;
   genres: string[];
 };
+
+export type SimilarFestival = {
+  edition: DiscoverySummary;
+  sharedGenreName: string;
+};
