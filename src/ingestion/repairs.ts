@@ -16,7 +16,8 @@ import {
 } from "./groups";
 import { editionSlotNames, type ResearchError } from "./research/contracts";
 import type { SpecialistOutputs } from "./proposals";
-import type { ClassificationOutput } from "./roles/classification/contracts";
+import type { ClassificationReply } from "./roles/classification/contracts";
+import { materializeClassificationReply } from "./roles/classification/terms";
 import { validateClassificationReply } from "./roles/classification/validate";
 import type { ReviewDecision } from "./roles/editor/contracts";
 import { MAX_GROUP_RETURNS } from "./roles/editor/review";
@@ -218,7 +219,7 @@ export class ProposalRepairs {
       "validation",
       signal,
     );
-    return this.checkedSpecialistOutputs();
+    return this.checkedSpecialistOutputs(ctx);
   }
 
   async afterReview(
@@ -230,27 +231,37 @@ export class ProposalRepairs {
     signal: AbortSignal,
   ) {
     const byPath = new Map(groups.map((group) => [group.path, group]));
+    const ctx = this.context(owned, data, targets);
     await this.returnGroups(
       decisions.map(({ path, note }) => ({ group: byPath.get(path)!, note })),
       groups,
-      this.context(owned, data, targets),
+      ctx,
       "editor",
       signal,
     );
-    return this.checkedSpecialistOutputs();
+    return this.checkedSpecialistOutputs(ctx);
   }
 
-  private checkedSpecialistOutputs(): SpecialistOutputs {
+  private checkedSpecialistOutputs(
+    ctx: ProposalValidationContext,
+  ): SpecialistOutputs {
     // Read each reply after its role schema and group checks pass.
     const links = this.raw("links") as LinksOutput | undefined;
     if (!links) {
       throw new Error("Missing validated Links reply");
     }
+    const classification = this.raw("classification") as
+      ClassificationReply | undefined;
     return {
       tickets: (this.raw("tickets") as TicketsOutput | undefined) ?? null,
-      classification:
-        (this.raw("classification") as ClassificationOutput | undefined) ??
-        null,
+      classification: classification
+        ? materializeClassificationReply(
+            classification,
+            ctx.targets,
+            selectedEvent(ctx),
+            ctx.context.terms,
+          )
+        : null,
       links,
     };
   }

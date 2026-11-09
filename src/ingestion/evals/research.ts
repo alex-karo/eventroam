@@ -124,7 +124,8 @@ export function researchContext(
     );
     const links = eventLinks?.kind === "replaceLinks" ? eventLinks.links : [];
     const classification = report.classificationResponse?.object as
-      ClassificationOutput | undefined;
+      | Pick<ClassificationOutput, "description" | "shortDescription">
+      | undefined;
     data = {
       description: fact(
         classification?.description,

@@ -1,6 +1,6 @@
 import { evidencePacket } from "../../evidence/contracts";
 import { roleEvidenceTopics } from "../contracts";
-import { invokeRole } from "../invoke";
+import { invokeRole, type RoleExecution } from "../invoke";
 import { returnInstructions } from "../prompts";
 import { PROMPT_VERSIONS } from "../versions";
 import { z } from "zod";
@@ -13,24 +13,38 @@ import {
   type RoleOptions,
   type SavedEdition,
 } from "../options";
-import { classificationOutputSchema } from "./contracts";
+import {
+  classificationReplySchema,
+  type ClassificationOutput,
+} from "./contracts";
 import { classificationInstructions, descriptionInstructions } from "./prompt";
+import {
+  classificationVocabulary,
+  materializeClassificationReply,
+} from "./terms";
 
 function classificationHistory(edition: SavedEdition) {
-  return { ...editionChronology(edition), terms: edition.terms };
+  return {
+    ...editionChronology(edition),
+    terms: edition.terms.map(({ facet, slug }) => ({ facet, slug })),
+  };
 }
-export function runClassification(options: RoleOptions, targets: Targets) {
+export async function runClassification(
+  options: RoleOptions,
+  targets: Targets,
+): Promise<RoleExecution<ClassificationOutput>> {
   const describeFestival = options.input.scope !== "current";
+  const { terms } = options.context;
   const saved = options.context.catalog.find(
     (event) => event.id === (options.input.eventId ?? targets.eventId),
   );
   const output = describeFestival
-    ? classificationOutputSchema
-    : classificationOutputSchema.omit({
+    ? classificationReplySchema
+    : classificationReplySchema.omit({
         description: true,
         shortDescription: true,
       });
-  return invokeRole({
+  const { output: reply, ...execution } = await invokeRole({
     ...roleInvocationOptions(options, "classification"),
     role: "classification",
     version: PROMPT_VERSIONS.classification,
@@ -52,7 +66,7 @@ export function runClassification(options: RoleOptions, targets: Targets) {
           shortDescription: saved?.shortDescription ?? null,
         },
       }),
-      vocabulary: options.context.terms,
+      vocabulary: classificationVocabulary(terms),
       corpus: evidencePacket(
         options.corpus,
         describeFestival
@@ -62,11 +76,33 @@ export function runClassification(options: RoleOptions, targets: Targets) {
     },
     schema: output.extend({
       previousEdition: targets.previousEdition
-        ? classificationOutputSchema.shape.previousEdition
+        ? classificationReplySchema.shape.previousEdition
         : z.null(),
       currentOrNextEdition: targets.currentOrNextEdition
-        ? classificationOutputSchema.shape.currentOrNextEdition
+        ? classificationReplySchema.shape.currentOrNextEdition
         : z.null(),
     }),
   });
+  if (!reply) {
+    return execution;
+  }
+  try {
+    return {
+      ...execution,
+      output: materializeClassificationReply(reply, targets, saved, terms),
+    };
+  } catch (error) {
+    return {
+      ...execution,
+      status: "failed",
+      errors: [
+        {
+          code: "invalid_candidate",
+          stage: "research",
+          message:
+            error instanceof Error ? error.message : "Invalid classification",
+        },
+      ],
+    };
+  }
 }

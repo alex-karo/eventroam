@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "provenance": "Captured editor-day-ticket research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 17fea566-18fa-40b1-b812-d34db24348d6:s1, 17fea566-18fa-40b1-b812-d34db24348d6:s2, 17fea566-18fa-40b1-b812-d34db24348d6:s4. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. The Partoutbillet passage was restored as a literal quotation from the supplied ticket page. Its captured Reader quotation failed binding; this fixed Editor input now cites the source-backed passage explicitly. The obsolete binding limitation was removed. The Instagram and Facebook links use the cited official URLs. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
   "pages": [
     {
@@ -274,7 +274,13 @@
       "currentOrNextEdition": {
         "classification": {
           "action": "set",
-          "value": ["validation:festival", "validation:music"],
+          "value": {
+            "eventType": "festival",
+            "format": null,
+            "topics": ["music"],
+            "genres": [],
+            "cultures": []
+          },
           "reason": "The official site presents Roskilde Festival as a festival with music; its 2027 homepage announcement names music performers.",
           "evidenceIds": ["s1-e1", "s1-e6"]
         }

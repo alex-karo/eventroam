@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import { modelOutputSchema } from "../runtime/model-output";
 import { normalizeRoleWire } from "./wire";
 
 test("restores known General placeholders and preserves required nulls", () => {
@@ -78,7 +79,7 @@ test.each(["free", "exact"])(
   },
 );
 test("validates Classification and Links optional transport fields", async () => {
-  const { classificationOutputSchema } =
+  const { classificationReplySchema } =
     await import("./classification/contracts");
   const { linksOutputSchema } = await import("./links/contracts");
   const classification = {
@@ -86,7 +87,12 @@ test("validates Classification and Links optional transport fields", async () =>
     currentOrNextEdition: {
       classification: {
         action: "set",
-        value: ["music"],
+        value: {
+          eventType: null,
+          format: "openair",
+          topics: ["music"],
+          genres: [],
+        },
         reason: "Programme",
         evidenceIds: [],
         reuseFrom: null,
@@ -95,12 +101,18 @@ test("validates Classification and Links optional transport fields", async () =>
     checks: [],
     unresolved: [],
   };
-  const parsed = classificationOutputSchema.parse(
+  const parsed = classificationReplySchema.parse(
     normalizeRoleWire("classification", classification),
   );
   expect(parsed.currentOrNextEdition?.classification).not.toHaveProperty(
     "reuseFrom",
   );
+  expect(parsed.currentOrNextEdition?.classification?.value).toEqual(
+    classification.currentOrNextEdition.classification.value,
+  );
+  expect(
+    JSON.stringify(modelOutputSchema(classificationReplySchema)),
+  ).toContain('"format":{"anyOf":');
   const links = {
     event: {
       website: null,

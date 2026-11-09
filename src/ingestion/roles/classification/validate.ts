@@ -13,10 +13,13 @@ import {
   missingChangeEvidence,
   selectedEvent,
 } from "../proposal-validation";
-import type { ClassificationOutput } from "./contracts";
+import type {
+  ClassificationOutput,
+  ClassificationReplyChange,
+} from "./contracts";
+import { resolveClassificationChange } from "./terms";
 
 type SavedEvent = ResearchContext["catalog"][number];
-type Slot = (typeof editionSlotNames)[number];
 export function checkedClassification(
   target: Pick<
     NonNullable<Targets["currentOrNextEdition"]>,
@@ -61,10 +64,6 @@ export function checkedClassification(
     value: termIds,
   };
 }
-type ClassificationChange = NonNullable<
-  NonNullable<ClassificationOutput[Slot]>["classification"]
->;
-
 function classificationGroupRule(
   group: ProposalGroup,
   { reply, ctx, available }: GroupValidationInput,
@@ -77,21 +76,13 @@ function classificationGroupRule(
   }
   const target = ctx.targets?.[slot];
   const change = atPath(reply.raw, group.rawPath) as
-    ClassificationChange | undefined;
+    ClassificationReplyChange | undefined;
   if (!target || !change) {
     return;
   }
   const event = selectedEvent(ctx);
-  const unknownTerms = change.value.filter(
-    (id) => !ctx.context.terms.some((term) => term.id === id),
-  );
   const donorKey = change.reuseFrom?.editionKey;
   const errors: string[] = [];
-  if (unknownTerms.length) {
-    errors.push(
-      `Unknown classification term IDs ${JSON.stringify(unknownTerms)}. Use only term IDs from the supplied vocabulary.`,
-    );
-  }
   if (
     donorKey &&
     !event?.editions.some((edition) => edition.editionKey === donorKey)
@@ -100,19 +91,26 @@ function classificationGroupRule(
       `Unknown classification reuse Edition ${JSON.stringify(donorKey)}. Use an applicable earlier saved Edition of this Event or omit reuse when the current evidence supports the classification.`,
     );
   }
-  if (errors.length) {
-    return `${errors.join(" ")} If there is no supported classification, omit the group with a reason.`;
-  }
   try {
-    checkedClassification(target, change, event, ctx.context, {
-      ...ctx.corpus,
-      evidence: available,
-    });
+    const resolved = resolveClassificationChange(
+      change,
+      target.editionKey,
+      event,
+      ctx.context.terms,
+    );
+    if (!errors.length) {
+      checkedClassification(target, resolved, event, ctx.context, {
+        ...ctx.corpus,
+        evidence: available,
+      });
+      return;
+    }
   } catch (error) {
-    return error instanceof Error
-      ? error.message
-      : "Invalid classification group";
+    errors.push(
+      error instanceof Error ? error.message : "Invalid classification group",
+    );
   }
+  return `${errors.join(" ")} If there is no supported classification, omit the group with a reason.`;
 }
 
 export function validateClassificationReply(options: GroupValidationInput) {

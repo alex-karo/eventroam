@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "provenance": "Captured editor-valid-update research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 17470331-0d9d-443d-8f60-3f8532d2d3d5:s1, 17470331-0d9d-443d-8f60-3f8532d2d3d5:s2, 17470331-0d9d-443d-8f60-3f8532d2d3d5:s8, 17470331-0d9d-443d-8f60-3f8532d2d3d5:s3. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
   "pages": [
     {
@@ -345,7 +345,13 @@
       "currentOrNextEdition": {
         "classification": {
           "action": "set",
-          "value": ["validation:festival", "validation:music"],
+          "value": {
+            "eventType": "festival",
+            "format": null,
+            "topics": ["music"],
+            "genres": [],
+            "cultures": []
+          },
           "reason": "The official site identifies Sziget as a festival and describes its programme as including music; the FAQ also refers to more than 500 artists.",
           "evidenceIds": ["s1-e4", "s1-e5", "s1-e7", "s2-e3", "s3-e4", "s4-e1"]
         }

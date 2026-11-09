@@ -734,7 +734,7 @@ it.each(["reject target", "revise date"] as const)(
           previousEdition: null,
           currentOrNextEdition: {
             classification: {
-              ...set([term.id]),
+              ...set({ eventType: term.slug }),
               reuseFrom: {
                 editionKey: donor.editionKey,
                 reason: "Programme continuity",
