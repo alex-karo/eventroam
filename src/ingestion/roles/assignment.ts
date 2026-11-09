@@ -1,5 +1,12 @@
 import type { CatalogResearchInput } from "../contracts";
+import {
+  assignedGroups,
+  generalCheckBySlot,
+  proposalPermissions,
+  type GroupOwner,
+} from "../groups";
 import type { ResearchContext } from "../research/context";
+import type { Targets } from "./contracts";
 
 export function buildAssignment(
   input: CatalogResearchInput,
@@ -84,42 +91,34 @@ export function buildAssignment(
     },
     knownLinks: context.knownLinks,
     currentDate: context.currentDate,
-    permissions: {
-      eventFields: !current,
-      previousEdition: !current,
-      currentOrNextEdition: true,
-    },
+    permissions: proposalPermissions(input.scope),
   };
 }
 
 /** Interpretation checks belong to the role that can assess their meaning. */
 export function assignedRoleChecks(
-  role: "general" | "tickets" | "classification" | "links",
+  role: Exclude<GroupOwner, "location">,
   input: CatalogResearchInput,
-  targets?: import("./contracts").Targets,
+  targets?: Targets,
 ) {
-  const current = input.mode === "refresh" && input.scope === "current";
-  const hasNext = !!targets?.currentOrNextEdition;
   if (role === "general") {
     return [
       "identity",
       "currentAnnouncement",
-      "currentDates",
-      ...(!current ? ["previousCompletedEdition"] : []),
+      generalCheckBySlot.currentOrNextEdition,
+      ...(proposalPermissions(input.scope).previousEdition
+        ? [generalCheckBySlot.previousEdition]
+        : []),
     ];
   }
-  if (role === "tickets") {
-    return hasNext ? ["currentTickets"] : [];
-  }
+  const groups = assignedGroups(input.scope, targets).filter(
+    (group) => group.owner === role,
+  );
   if (role === "classification") {
-    return [
-      ...(targets?.previousEdition ? ["previousClassification"] : []),
-      ...(hasNext ? ["currentClassification"] : []),
-      ...(!current ? ["description"] : []),
-    ];
+    // Keep the Edition checks ahead of the Event description check.
+    groups.sort(
+      (a, b) => Number(a.target === "event") - Number(b.target === "event"),
+    );
   }
-  return [
-    ...(!current ? ["eventLinks"] : []),
-    ...(hasNext ? ["currentLinks"] : []),
-  ];
+  return [...new Set(groups.map(({ check }) => check))];
 }

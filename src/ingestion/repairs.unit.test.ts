@@ -5,7 +5,7 @@ import { fixtureDependencies, fixtureTargets, set } from "@/test/ingestion";
 import { CatalogAttempt } from "./attempt";
 import { createIngestionData, type CatalogResearchInput } from "./contracts";
 import { bindEvidence } from "./evidence/contracts";
-import { assignedGroups, type GroupOwner } from "./groups";
+import { assignedGroups, proposalGroup, type GroupOwner } from "./groups";
 import { loadResearchContext } from "./research/context";
 import {
   classificationOutputSchema,
@@ -14,7 +14,7 @@ import {
   ticketsOutputSchema,
 } from "./roles/contracts";
 import type { RoleConversation } from "./roles/invoke";
-import type { ReviewDecision } from "./review";
+import type { ReturnRequest } from "./review";
 
 const sourceUrl = "https://example.org/";
 const date = "2026-11-01T00:00:00Z";
@@ -99,13 +99,13 @@ function fixture(scope?: CatalogResearchInput["scope"]) {
     loadContext,
     general: () => repairs.general(attempt, data, signal),
     before: () => repairs.beforeReview(attempt, data, targets, signal),
-    after: (...decisions: ReviewDecision[]) =>
+    after: (...requests: ReturnRequest[]) =>
       repairs.afterReview(
         attempt,
         data,
         targets,
         assignedGroups(scope, targets),
-        decisions,
+        requests,
         signal,
       ),
   };
@@ -126,8 +126,8 @@ function revision(output: unknown) {
 function returnGroup(
   path: string,
   note = "Check the saved source.",
-): ReviewDecision {
-  return { path, note, decision: "return" };
+): ReturnRequest {
+  return { group: proposalGroup(path)!, note };
 }
 
 it.each([

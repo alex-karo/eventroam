@@ -45,9 +45,13 @@ import { invokeRole } from "./invoke";
 import type { PreparedProposals } from "../proposals";
 import { groupProposal, reviewSchema, type ReviewPath } from "../review";
 import type { RoleConversation } from "./invoke";
-import type { GroupOwner } from "../groups";
+import {
+  eventDescriptionFields,
+  proposalGroup,
+  proposalPermissions,
+  type GroupOwner,
+} from "../groups";
 import type { RepairRecord } from "../repairs";
-import { editionSlotNames } from "../research/contracts";
 
 export type RoleOptions = {
   input: CatalogResearchInput;
@@ -286,16 +290,13 @@ export function runTickets(options: RoleOptions, targets: Targets) {
   });
 }
 export function runClassification(options: RoleOptions, targets: Targets) {
-  const describeFestival = options.input.scope !== "current";
+  const describeFestival = proposalPermissions(options.input.scope).eventFields;
   const saved = options.context.catalog.find(
     (event) => event.id === (options.input.eventId ?? targets.eventId),
   );
   const output = describeFestival
     ? classificationOutputSchema
-    : classificationOutputSchema.omit({
-        description: true,
-        shortDescription: true,
-      });
+    : classificationOutputSchema.omit(eventDescriptionFields);
   return invokeRole({
     ...base(options, "classification"),
     role: "classification",
@@ -337,6 +338,7 @@ export function runClassification(options: RoleOptions, targets: Targets) {
   });
 }
 export function runLinks(options: RoleOptions, targets: Targets) {
+  const permissions = proposalPermissions(options.input.scope);
   return invokeRole({
     ...base(options, "links"),
     role: "links",
@@ -345,7 +347,7 @@ export function runLinks(options: RoleOptions, targets: Targets) {
     input: {
       assignedChecks: assignedRoleChecks("links", options.input, targets),
       targets: targetContext(options, targets, "links"),
-      permissions: buildAssignment(options.input, options.context).permissions,
+      permissions,
       savedEventLinks: options.context.catalog.find(
         (event) => event.id === (options.input.eventId ?? targets.eventId),
       )?.links,
@@ -354,8 +356,7 @@ export function runLinks(options: RoleOptions, targets: Targets) {
       }),
     },
     schema: linksOutputSchema.extend({
-      event: buildAssignment(options.input, options.context).permissions
-        .eventFields
+      event: permissions.eventFields
         ? linksOutputSchema.shape.event
         : z.strictObject({ socials: z.strictObject({}) }),
       currentOrNextEdition: targets.currentOrNextEdition
@@ -378,9 +379,10 @@ export async function runEditor(
   const cited = new Set(
     repairs.flatMap(({ evidence }) => evidence?.map(({ id }) => id) ?? []),
   );
-  for (const slot of editionSlotNames) {
-    if (paths.some(({ path }) => path === `${slot}.fields.location`)) {
-      for (const id of prepared.location.support[slot] ?? []) {
+  for (const { path } of paths) {
+    const group = proposalGroup(path);
+    if (group?.owner === "location") {
+      for (const id of prepared.location.support[group.target] ?? []) {
         cited.add(id);
       }
     }
@@ -401,7 +403,7 @@ export async function runEditor(
         : ""),
     input: {
       currentDate: options.context.currentDate,
-      permissions: buildAssignment(options.input, options.context).permissions,
+      permissions: proposalPermissions(options.input.scope),
       sourceFiles,
       reviewPaths: paths,
       repairs,

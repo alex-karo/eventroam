@@ -1,4 +1,12 @@
-import { atPath, setPath } from "./groups";
+import {
+  addressesEventFields,
+  atPath,
+  hasEventFieldCheck,
+  proposalGroups,
+  proposalPermissions,
+  setPath,
+  type ProposalGroup,
+} from "./groups";
 import { rejectedEdition, rejectedItem, type ReviewDecisions } from "./review";
 import { normalizeProposedAssignments } from "@/catalog/domain/classification";
 import type { ResearchContext } from "./research/context";
@@ -209,19 +217,14 @@ function validateTemporalTargets(
   }
 }
 
-function hasEventFieldCheck(checks: Targets["checks"]) {
-  return checks.some(
-    ({ check }) => check === "description" || check === "eventLinks",
-  );
-}
-
 function validateTargetAssignment(
   output: Targets,
   input: CatalogResearchInput,
 ) {
+  const permissions = proposalPermissions(input.scope);
   if (
-    input.scope === "current" &&
-    (output.previousEdition || hasEventFieldCheck(output.checks))
+    (!permissions.previousEdition && output.previousEdition) ||
+    (!permissions.eventFields && hasEventFieldCheck(output.checks))
   ) {
     throw new Error("Current refresh cannot address Event fields or history");
   }
@@ -440,25 +443,17 @@ function eventFields(
   scope: CatalogResearchInput["scope"],
 ): NonNullable<ApplicationPlan["event"]>["fields"] {
   const { description, shortDescription } = classification ?? {};
-  if (scope !== "current") {
+  if (proposalPermissions(scope).eventFields) {
     return {
       ...(description && { description }),
       ...(shortDescription && { shortDescription }),
       links: links.event,
     };
   }
-  if (
-    description ||
-    shortDescription ||
-    (classification && hasEventFieldCheck(classification.checks))
-  ) {
+  if (addressesEventFields(classification)) {
     throw new Error("Current refresh cannot address Event descriptions");
   }
-  if (
-    links.event.website ||
-    Object.keys(links.event.socials).length ||
-    hasEventFieldCheck(links.checks)
-  ) {
+  if (addressesEventFields(links)) {
     throw new Error("Event links are outside the assignment");
   }
   return {};
@@ -572,7 +567,7 @@ export function assembleProposals(
 function discardRejectedDependencies(
   prepared: PreparedProposals,
   accepted: AcceptedProposals,
-  review: ReviewDecisions,
+  rejectedGroups: ProposalGroup[],
 ) {
   const rejected = new Set<string>();
   const rejectedTargets = new Set<string>();
@@ -584,7 +579,9 @@ function discardRejectedDependencies(
     if (
       source &&
       (!accepted.plan[slot] ||
-        review.get(`${slot}.fields.classification`)?.decision === "reject")
+        rejectedGroups.some(
+          ({ owner, target }) => owner === "classification" && target === slot,
+        ))
     ) {
       rejected.add(source.editionKey);
     }
@@ -665,13 +662,21 @@ export function applyReview(
     plan: prepared.plan,
     location: prepared.location,
   });
+  const rejectedGroups = proposalGroups.filter(
+    ({ path }) => review.get(path)?.decision === "reject",
+  );
   for (const slot of editionSlotNames) {
     if (rejectedEdition(review, slot)) {
       accepted.plan[slot] = null;
       delete accepted.location.slots[slot];
-      continue;
     }
-    if (review.get(`${slot}.fields.location`)?.decision === "reject") {
+  }
+  for (const group of rejectedGroups) {
+    if (group.owner === "location") {
+      const slot = group.target;
+      if (!accepted.plan[slot]) {
+        continue;
+      }
       const old = accepted.location.slots[slot];
       if (old) {
         accepted.location.slots[slot] = Object.fromEntries(
@@ -685,18 +690,10 @@ export function applyReview(
         ) as typeof old;
       }
       delete accepted.location.reusedFrom?.[slot];
+    } else if (atPath(accepted.plan, group.path) !== undefined) {
+      setPath(accepted.plan, group.path, undefined);
     }
   }
-  for (const { path, decision } of review.values()) {
-    if (
-      decision === "reject" &&
-      path.includes(".fields.") &&
-      !path.endsWith(".fields.location") &&
-      atPath(accepted.plan, path) !== undefined
-    ) {
-      setPath(accepted.plan, path, undefined);
-    }
-  }
-  discardRejectedDependencies(prepared, accepted, review);
+  discardRejectedDependencies(prepared, accepted, rejectedGroups);
   return { status: "continue", value: accepted };
 }

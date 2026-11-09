@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { bindEvidence, readerOutputSchema } from "../evidence/contracts";
+import { proposalPermissions } from "../groups";
 import {
   roleEvidenceTopics,
   collectionOutputSchema,
@@ -115,7 +116,8 @@ export function assertEditorFixture(item: PipelineEvalCase) {
       throw new Error(`${item.id}: missing fixed ${role} input`);
     }
     const topics: readonly string[] =
-      role === "classification" && item.input.scope !== "current"
+      role === "classification" &&
+      proposalPermissions(item.input.scope).eventFields
         ? [...roleEvidenceTopics.classification, "location"]
         : roleEvidenceTopics[role];
     const allowed = new Set(

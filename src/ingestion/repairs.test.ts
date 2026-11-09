@@ -337,6 +337,48 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
   ]);
 });
 
+it.each(["instagram", "event.fields.links.socials.instagram"])(
+  "keeps the Event links check open after repairing the website (%s)",
+  async (field) => {
+    const url = "https://example.org/festival";
+    const f = fixture(`Example Fest 2027. Official website: ${url}`);
+    const path = "event.fields.links.website";
+    const question = { field, message: "The Instagram account is uncertain." };
+    const editor = editorReply((prompt, index) =>
+      index
+        ? review(prompt)
+        : review(prompt, {
+            path,
+            decision: "return",
+            note: "Check the official website.",
+          }),
+    );
+    const { run } = f.model(
+      "links",
+      (body, index) =>
+        reply(body, {
+          event: { website: index ? set(url) : undefined, socials: {} },
+          currentOrNextEdition: {},
+          checks: fixtureChecks(["eventLinks", "currentLinks"]),
+          omitted: [],
+          unresolved: index ? [] : [question],
+        }),
+      { editor },
+    );
+    const result = await run();
+    expect(result.errors).toEqual([]);
+    expect(result).toMatchObject({
+      researchStatus: "partial",
+      repairs: [{ path, owner: "links", decision: { decision: "approve" } }],
+    });
+    expect(result.unresolved).toContainEqual(question);
+    expect(result.unresolved).toContainEqual({
+      message: `eventLinks: ${question.message}`,
+    });
+    expect(f.saved().links).toContainEqual(expect.objectContaining({ url }));
+  },
+);
+
 it("shares three ticket returns between validation and Editor", async () => {
   const f = fixture("Example Fest 2027. Full pass EUR 130.");
   const question = {

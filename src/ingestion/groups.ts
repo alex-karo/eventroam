@@ -6,56 +6,167 @@ import {
   type Targets,
 } from "./roles/contracts";
 
-export type GroupOwner =
-  "general" | "tickets" | "classification" | "links" | "location";
-export type ProposalGroup = {
-  owner: GroupOwner;
-  path: string;
-  rawPath: string;
-};
+type EditionSlot = (typeof editionSlotNames)[number];
+type Scope = CatalogResearchInput["scope"];
 
-export function assignedGroups(
-  scope: CatalogResearchInput["scope"],
-  targets: Pick<Targets, "previousEdition" | "currentOrNextEdition">,
-): ProposalGroup[] {
-  const groups: ProposalGroup[] = [];
-  const add = (owner: GroupOwner, path: string, rawPath: string) => {
-    groups.push({ owner, path, rawPath });
-  };
-  if (scope !== "current") {
-    for (const field of ["description", "shortDescription"]) {
-      add("classification", `event.fields.${field}`, field);
-    }
-    add("links", "event.fields.links.website", "event.website");
-    for (const field of Object.keys(
-      linksOutputSchema.shape.event.shape.socials.shape,
-    )) {
-      add(
-        "links",
-        `event.fields.links.socials.${field}`,
-        `event.socials.${field}`,
-      );
-    }
-  }
-  for (const slot of editionSlotNames) {
-    if (!targets[slot]) {
-      continue;
-    }
-    for (const field of Object.keys(generalFieldsSchema.shape)) {
-      add("general", `${slot}.fields.${field}`, `${slot}.fields.${field}`);
-    }
-    add(
-      "classification",
-      `${slot}.fields.classification`,
-      `${slot}.classification`,
+export type ProposalGroup = Readonly<
+  {
+    path: string;
+    rawPath: string;
+    temporal?: boolean;
+  } & (
+    | { owner: "location"; target: EditionSlot; check?: never }
+    | {
+        owner: "general" | "tickets" | "classification" | "links";
+        target: "event" | EditionSlot;
+        check: string;
+      }
+  )
+>;
+export type GroupOwner = ProposalGroup["owner"];
+
+export const eventDescriptionFields = {
+  description: true,
+  shortDescription: true,
+} as const;
+export const generalCheckBySlot = {
+  previousEdition: "previousCompletedEdition",
+  currentOrNextEdition: "currentDates",
+} as const;
+export const eventLinksCheck = "eventLinks";
+const temporalFields = new Set(["year", "dates", "scheduleStatus"]);
+const socialFields = Object.keys(
+  linksOutputSchema.shape.event.shape.socials.shape,
+);
+const socialPath = "event.fields.links.socials.";
+const rawSocialPath = "event.socials";
+
+const eventGroups: readonly ProposalGroup[] = [
+  ...Object.keys(eventDescriptionFields).map((field): ProposalGroup => ({
+    owner: "classification",
+    target: "event",
+    path: `event.fields.${field}`,
+    rawPath: field,
+    check: "description",
+  })),
+  {
+    owner: "links",
+    target: "event",
+    path: "event.fields.links.website",
+    rawPath: "event.website",
+    check: eventLinksCheck,
+  },
+  ...socialFields.map((field): ProposalGroup => ({
+    owner: "links",
+    target: "event",
+    path: socialPath + field,
+    rawPath: `${rawSocialPath}.${field}`,
+    check: eventLinksCheck,
+  })),
+];
+
+function editionGroups(target: EditionSlot): ProposalGroup[] {
+  const fields = `${target}.fields`;
+  const groups: ProposalGroup[] = [
+    ...Object.keys(generalFieldsSchema.shape).map((field): ProposalGroup => {
+      const path = `${fields}.${field}`;
+      return {
+        owner: "general",
+        target,
+        path,
+        rawPath: path,
+        check: generalCheckBySlot[target],
+        temporal: temporalFields.has(field),
+      };
+    }),
+    {
+      owner: "classification",
+      target,
+      path: `${fields}.classification`,
+      rawPath: `${target}.classification`,
+      check:
+        target === "previousEdition"
+          ? "previousClassification"
+          : "currentClassification",
+    },
+    {
+      owner: "location",
+      target,
+      path: `${fields}.location`,
+      rawPath: `decision.${target}`,
+    },
+  ];
+  if (target === "currentOrNextEdition") {
+    groups.push(
+      {
+        owner: "tickets",
+        target,
+        path: `${fields}.tickets`,
+        rawPath: `${target}.tickets`,
+        check: "currentTickets",
+      },
+      {
+        owner: "links",
+        target,
+        path: `${fields}.links.tickets`,
+        rawPath: `${target}.tickets`,
+        check: "currentLinks",
+      },
     );
-    add("location", `${slot}.fields.location`, `decision.${slot}`);
-    if (slot === "currentOrNextEdition") {
-      add("tickets", `${slot}.fields.tickets`, `${slot}.tickets`);
-      add("links", `${slot}.fields.links.tickets`, `${slot}.tickets`);
-    }
   }
   return groups;
+}
+
+export const proposalGroups: readonly ProposalGroup[] = [
+  ...eventGroups,
+  ...editionSlotNames.flatMap(editionGroups),
+];
+const groupsByPath = new Map(
+  proposalGroups.map((group) => [group.path, group]),
+);
+const eventChecks = new Set(eventGroups.map(({ check }) => check));
+
+export function proposalGroup(path: string) {
+  return groupsByPath.get(path);
+}
+
+export function proposalPermissions(scope: Scope) {
+  const full = scope !== "current";
+  return {
+    eventFields: full,
+    previousEdition: full,
+    currentOrNextEdition: true,
+  };
+}
+
+export function assignedGroups(
+  scope: Scope,
+  targets?: Pick<Targets, EditionSlot> | null,
+): ProposalGroup[] {
+  const { eventFields } = proposalPermissions(scope);
+  // General uses the proposed slots to find field errors before validating the targets.
+  return proposalGroups.filter(({ target }) =>
+    target === "event" ? eventFields : Boolean(targets?.[target]),
+  );
+}
+
+export function hasEventFieldCheck(checks: unknown) {
+  return (
+    Array.isArray(checks) &&
+    checks.some((finding) => eventChecks.has(String(record(finding)?.check)))
+  );
+}
+
+export function addressesEventFields(raw: unknown) {
+  return (
+    hasEventFieldCheck(atPath(raw, "checks")) ||
+    eventGroups.some(({ rawPath }) => atPath(raw, rawPath)) ||
+    Object.keys(record(atPath(raw, rawSocialPath)) ?? {}).length > 0
+  );
+}
+
+export function isSocialLinkField(field: string) {
+  return field.startsWith(socialPath) || socialFields.includes(field);
 }
 
 export function record(value: unknown): Record<string, unknown> | undefined {

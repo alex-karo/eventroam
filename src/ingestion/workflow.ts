@@ -24,6 +24,7 @@ import {
   assembleProposals,
   applyReview,
   initialDiagnostics,
+  type PreparedProposals,
   type SpecialistOutputs,
 } from "./proposals";
 import { assignedGroups } from "./groups";
@@ -85,13 +86,11 @@ function specialistApplies(
   targets: Pick<Targets, "previousEdition" | "currentOrNextEdition">,
   scope: CatalogResearchInput["scope"],
 ) {
-  if (role === "links" || (role === "classification" && scope !== "current")) {
-    return true;
-  }
-  if (role === "tickets") {
-    return !!targets.currentOrNextEdition;
-  }
-  return !!(targets.previousEdition || targets.currentOrNextEdition);
+  // Proposal assembly requires a validated Links reply.
+  return (
+    role === "links" ||
+    assignedGroups(scope, targets).some(({ owner }) => owner === role)
+  );
 }
 
 function sourceErrorCode(source: { status: string; reasonCode?: string }) {
@@ -820,16 +819,19 @@ export function createCatalogIngestionWorkflow(
       let prepared = data.prepared.value;
       const originalTargets = prepared.targets;
       const groups = assignedGroups(owned.input.scope, originalTargets);
-      const runReview = (targeted?: Set<string>) =>
+      const runReview = (
+        proposal: PreparedProposals,
+        targeted?: ReadonlySet<string>,
+      ) =>
         owned.track(
           runEditor(
             {
               ...roleOptions(owned, data, signal),
               corpus: owned.repairs.corpus(data.corpus!),
             },
-            prepared,
+            proposal,
             reviewPaths(
-              prepared,
+              proposal,
               groups,
               owned.repairs.returnCounts,
               (owner) => owned.repairs.canReturn(owner),
@@ -841,7 +843,7 @@ export function createCatalogIngestionWorkflow(
             !!targeted,
           ),
         );
-      const execution = await runReview();
+      const execution = await runReview(prepared);
       data.specialists.editor = execution;
       data.editor = {
         status: execution.status,
@@ -865,9 +867,9 @@ export function createCatalogIngestionWorkflow(
         execution.output.decisions.map((entry) => [entry.path, entry]),
       );
       for (
-        let returned = reviewReturns(review);
+        let returned = reviewReturns(review, groups);
         returned.length;
-        returned = reviewReturns(review)
+        returned = reviewReturns(review, groups)
       ) {
         try {
           const firstRecord = owned.repairs.records.length;
@@ -898,7 +900,8 @@ export function createCatalogIngestionWorkflow(
           }
           prepared = revised.value;
           const targeted = await runReview(
-            new Set(returned.map(({ path }) => path)),
+            prepared,
+            new Set(returned.map(({ group }) => group.path)),
           );
           if (targeted.status !== "success" || !targeted.output) {
             data.errors.push(...targeted.errors);

@@ -1,6 +1,12 @@
 import { z } from "zod";
 import type { PreparedProposals } from "./proposals";
-import { atPath, type GroupOwner, type ProposalGroup } from "./groups";
+import {
+  atPath,
+  proposalGroup,
+  proposalGroups,
+  type GroupOwner,
+  type ProposalGroup,
+} from "./groups";
 import { editionSlotNames } from "./research/contracts";
 
 export const reviewOutput = z.strictObject({
@@ -16,6 +22,7 @@ export const reviewOutput = z.strictObject({
 });
 export type ReviewDecision = z.infer<typeof reviewOutput>["decisions"][number];
 export type ReviewDecisions = Map<string, ReviewDecision>;
+export type ReturnRequest = { group: ProposalGroup; note: string };
 export const MAX_GROUP_RETURNS = 3;
 
 export type ReviewPath = {
@@ -25,8 +32,9 @@ export type ReviewPath = {
 };
 
 export function groupProposal(prepared: PreparedProposals, path: string) {
-  return path.endsWith(".fields.location")
-    ? atPath(prepared.location.slots, path.split(".")[0])
+  const group = proposalGroup(path);
+  return group?.owner === "location"
+    ? prepared.location.slots[group.target]
     : atPath(prepared.plan, path);
 }
 
@@ -104,21 +112,40 @@ export function rejectedItem(review: ReviewDecisions) {
   );
 }
 
-export function rejectedEdition(review: ReviewDecisions, slot: string) {
-  return [
-    "target",
-    "fields.dates",
-    "fields.year",
-    "fields.scheduleStatus",
-  ].some((field) => review.get(`${slot}.${field}`)?.decision === "reject");
+export function rejectedEdition(
+  review: ReviewDecisions,
+  slot: (typeof editionSlotNames)[number],
+) {
+  return (
+    review.get(`${slot}.target`)?.decision === "reject" ||
+    proposalGroups.some(
+      (group) =>
+        group.target === slot &&
+        group.temporal &&
+        review.get(group.path)?.decision === "reject",
+    )
+  );
 }
 
-export function reviewReturns(review: ReviewDecisions) {
+export function reviewReturns(
+  review: ReviewDecisions,
+  groups: readonly ProposalGroup[],
+): ReturnRequest[] {
   if (rejectedItem(review)) {
     return [];
   }
-  return [...review.values()].filter(
-    ({ decision, path }) =>
-      decision === "return" && !rejectedEdition(review, path.split(".")[0]),
-  );
+  const requests: ReturnRequest[] = [];
+  for (const { decision, path, note } of review.values()) {
+    if (decision !== "return") {
+      continue;
+    }
+    const group = groups.find((group) => group.path === path);
+    if (
+      group &&
+      (group.target === "event" || !rejectedEdition(review, group.target))
+    ) {
+      requests.push({ group, note });
+    }
+  }
+  return requests;
 }

@@ -7,8 +7,11 @@ import {
   savedSearchInstructions,
 } from "./evidence/repair";
 import {
+  addressesEventFields,
   assignedGroups,
   atPath,
+  proposalGroups,
+  proposalPermissions,
   record,
   setPath,
   type GroupOwner,
@@ -38,7 +41,11 @@ import {
   type MaterializedLocation,
 } from "./location/validate";
 import type { GeocodingSession } from "./tools/geocode/tool";
-import { MAX_GROUP_RETURNS, type ReviewDecision } from "./review";
+import {
+  MAX_GROUP_RETURNS,
+  type ReturnRequest,
+  type ReviewDecision,
+} from "./review";
 import type { StageResult, PlanDiagnostics } from "./stage";
 
 export type RepairRecord = {
@@ -55,7 +62,6 @@ export type RepairRecord = {
   failure?: ResearchError;
 };
 
-type ReturnRequest = { group: ProposalGroup; note: string };
 type GroupIssue = { group: ProposalGroup; rule: string };
 type PointContext = Pick<GeocodingSession, "points" | "targets">;
 
@@ -190,8 +196,11 @@ export class ProposalRepairs {
       );
     }
     if (owner === "classification") {
-      for (const slot of editionSlotNames) {
-        const change = atPath(raw, `${slot}.classification`);
+      for (const group of proposalGroups) {
+        if (group.owner !== "classification" || group.target === "event") {
+          continue;
+        }
+        const change = atPath(raw, group.rawPath);
         const ids = record(change)?.value;
         if (
           Array.isArray(ids) &&
@@ -201,11 +210,7 @@ export class ProposalRepairs {
               !ctx.context.terms.some((term) => term.id === id),
           )
         ) {
-          fail(
-            "Unknown classification term",
-            `${slot}.fields.classification`,
-            "invalid_plan",
-          );
+          fail("Unknown classification term", group.path, "invalid_plan");
         }
         const donor = atPath(change, "reuseFrom.editionKey");
         if (
@@ -216,7 +221,7 @@ export class ProposalRepairs {
         ) {
           fail(
             "Unknown classification reuse Edition",
-            `${slot}.fields.classification`,
+            group.path,
             "invalid_plan",
           );
         }
@@ -230,12 +235,16 @@ export class ProposalRepairs {
     groups: ProposalGroup[],
     ctx: Context,
     available: Evidence[],
-    only?: ReadonlySet<string>,
+    requestedPaths?: ReadonlySet<string>,
   ) {
     this.requireReferences(owner, raw, ctx, available);
     this.requireAssignment(owner, raw, ctx);
     const parsed = this.replies.get(owner)!.schema.safeParse(raw);
-    const issues = (parsed.error?.issues ?? []).map<GroupIssue>((issue) => {
+    // Apply reference, assignment, and target checks to the whole reply.
+    // For a revision, collect field errors only for the requested groups.
+    const isRequested = (group: ProposalGroup) =>
+      !requestedPaths || requestedPaths.has(group.path);
+    const issues = (parsed.error?.issues ?? []).flatMap<GroupIssue>((issue) => {
       const path = issue.path.join(".");
       const group = groups.find(
         ({ rawPath }) => path === rawPath || path.startsWith(rawPath + "."),
@@ -249,20 +258,26 @@ export class ProposalRepairs {
           owner === "location" ? "location_failed" : "invalid_candidate",
         );
       }
-      return { group, rule: `${path}:${issue.code} ${issue.message}` };
+      return isRequested(group)
+        ? [{ group, rule: `${path}:${issue.code} ${issue.message}` }]
+        : [];
     });
-    const relevant = only
-      ? groups.filter(({ path }) => only.has(path))
-      : groups;
     if (owner === "location") {
-      for (const slot of editionSlotNames) {
-        if (this.location!.input[slot]) {
-          this.checkLocationBoundary(raw, slot);
+      for (const group of groups) {
+        if (group.owner === "location" && this.location!.input[group.target]) {
+          this.checkLocationBoundary(
+            raw,
+            group.target,
+            atPath(raw, group.rawPath),
+          );
         }
       }
     }
-    for (const group of relevant) {
-      if (issues.some((issue) => issue.group === group)) {
+    for (const group of groups) {
+      if (
+        !isRequested(group) ||
+        issues.some((issue) => issue.group === group)
+      ) {
         continue;
       }
       const rule = this.groupRule(group, raw, ctx, available);
@@ -270,52 +285,36 @@ export class ProposalRepairs {
         issues.push({ group, rule });
       }
     }
-    return {
-      parsed,
-      issues: only
-        ? issues.filter(({ group }) => only.has(group.path))
-        : issues,
-    };
+    return { parsed, issues };
   }
 
   private requireAssignment(owner: GroupOwner, raw: unknown, ctx: Context) {
     if (owner === "general") {
       return;
     }
-    const checks = atPath(raw, "checks");
-    const eventCheck =
-      Array.isArray(checks) &&
-      checks.some((finding) =>
-        ["description", "eventLinks"].includes(String(record(finding)?.check)),
-      );
     if (
-      ctx.input.scope === "current" &&
-      (eventCheck ||
-        atPath(raw, "description") ||
-        atPath(raw, "shortDescription") ||
-        atPath(raw, "event.website") ||
-        Object.keys(record(atPath(raw, "event.socials")) ?? {}).length)
+      !proposalPermissions(ctx.input.scope).eventFields &&
+      addressesEventFields(raw)
     ) {
       fail(`${owner}: Event fields are outside the assignment`);
     }
-    if (owner === "location") {
-      for (const slot of editionSlotNames) {
-        if (!ctx.targets?.[slot] && atPath(raw, `decision.${slot}`) != null) {
-          fail(
-            "Location proposal for an absent target",
-            undefined,
-            "location_failed",
-          );
-        }
-      }
-    }
     if (
-      owner === "classification" &&
-      editionSlotNames.some(
-        (slot) =>
-          !ctx.targets?.[slot] && atPath(raw, `${slot}.classification`) != null,
+      (owner === "location" || owner === "classification") &&
+      proposalGroups.some(
+        (group) =>
+          group.owner === owner &&
+          group.target !== "event" &&
+          !ctx.targets?.[group.target] &&
+          atPath(raw, group.rawPath) != null,
       )
     ) {
+      if (owner === "location") {
+        fail(
+          "Location proposal for an absent target",
+          undefined,
+          "location_failed",
+        );
+      }
       fail("Classification proposal for an absent target");
     }
     if (
@@ -334,15 +333,13 @@ export class ProposalRepairs {
     available: Evidence[],
   ): string | undefined {
     const value = atPath(raw, group.rawPath);
-    const slot = editionSlotNames.find((slot) =>
-      group.path.startsWith(slot + "."),
-    );
     try {
-      if (group.owner === "location" && slot) {
-        this.materializeLocation(raw, available, slot);
+      if (group.owner === "location") {
+        this.materializeLocation(raw, available, group.target);
         return;
       }
-      if (group.owner === "classification" && slot && value) {
+      const slot = group.target;
+      if (group.owner === "classification" && slot !== "event" && value) {
         const target = ctx.targets?.[slot];
         if (target) {
           checkedClassification(
@@ -384,8 +381,8 @@ export class ProposalRepairs {
   private checkLocationBoundary(
     raw: unknown,
     slot: (typeof editionSlotNames)[number],
+    plan: unknown,
   ) {
-    const plan = atPath(raw, `decision.${slot}`);
     const input = this.location!.input;
     if (atPath(raw, "decision.status") !== "ready" || !record(plan)) {
       fail(
@@ -492,7 +489,7 @@ export class ProposalRepairs {
     if (issues.length) {
       const provisional = structuredClone(raw);
       for (const { group, rule } of issues) {
-        if (/\.(dates|year|scheduleStatus)$/.test(group.path)) {
+        if (group.temporal) {
           fail(`General temporal target: ${rule}`, group.path);
         }
         setPath(provisional, group.rawPath, undefined);
@@ -585,12 +582,11 @@ export class ProposalRepairs {
     data: IngestionData,
     targets: Targets,
     groups: ProposalGroup[],
-    decisions: ReviewDecision[],
+    requests: ReturnRequest[],
     signal: AbortSignal,
   ) {
-    const byPath = new Map(groups.map((group) => [group.path, group]));
     await this.returnGroups(
-      decisions.map(({ path, note }) => ({ group: byPath.get(path)!, note })),
+      requests,
       groups,
       this.context(owned, data, targets),
       "editor",
@@ -674,12 +670,12 @@ export class ProposalRepairs {
       if ((counts.get(group.path) ?? 0) >= MAX_GROUP_RETURNS) {
         fail("Group has no returns left", group.path);
       }
-      const slot = editionSlotNames.find((slot) =>
-        group.path.startsWith(slot + "."),
-      );
+      const slot = group.target;
       const target = {
         eventId: ctxEvent(ctx)?.id ?? null,
-        ...(slot && { editionKey: ctx.targets?.[slot]?.editionKey }),
+        ...(slot !== "event" && {
+          editionKey: ctx.targets?.[slot]?.editionKey,
+        }),
       };
       return {
         owner,
@@ -775,14 +771,14 @@ export class ProposalRepairs {
       records[index].revision = atPath(revision, group.rawPath) ?? null;
     }
     const available = [...ctx.corpus.evidence, ...this.passages];
-    const only = new Set(requests.map(({ group }) => group.path));
+    const requestedPaths = new Set(requests.map(({ group }) => group.path));
     const { issues } = this.inspect(
       owner,
       revision,
       groups,
       ctx,
       available,
-      only,
+      requestedPaths,
     );
     this.requireFixedTargets(owner, revision, ctx, available);
     if (issues.length) {
