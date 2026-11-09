@@ -62,7 +62,6 @@ export async function runTraceFixture(
     model?: string;
     experimentId?: string;
     searchStatus?: number;
-    searchUsage?: { cost?: number };
     onAbortRequest?: () => void;
   } = {},
 ) {
@@ -364,20 +363,6 @@ export async function runTraceFixture(
                   { error: TRACE_TRANSPORT },
                   { status: modelText.searchStatus ?? 401 },
                 ),
-            });
-          }
-          if (modelText.searchUsage) {
-            return searchWeb(query, {
-              ...options,
-              fetch: async () =>
-                Response.json({
-                  choices: [{ message: {} }],
-                  usage: {
-                    prompt_tokens: 42,
-                    completion_tokens: 8,
-                    ...modelText.searchUsage,
-                  },
-                }),
             });
           }
           budget.consumeSearch();

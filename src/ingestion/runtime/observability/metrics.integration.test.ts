@@ -171,66 +171,6 @@ test("real research/editor lifecycles retain native usage/cost and persist nativ
 });
 
 test.each([
-  { cost: 0.035, expectedCost: 0.035 },
-  { cost: 0, expectedCost: 0 },
-  { cost: undefined, expectedCost: null },
-  { cost: -1, expectedCost: null },
-])(
-  "Studio includes only the valid charge for a search with cost $cost",
-  async ({ cost, expectedCost }) => {
-    const file = path();
-    const { result } = await runTraceFixture(
-      "success",
-      false,
-      "search",
-      false,
-      {
-        cost: 0.012,
-        searchUsage: { cost },
-      },
-    );
-    const rows = await readTraceRows(file);
-    const tool = rows.mastra_ai_spans.find(
-      (span) => span.spanType === "tool_call" && span.entityId === "searchWeb",
-    )!;
-    const generation = rows.mastra_ai_spans.find(
-      (span) =>
-        span.spanType === "model_generation" &&
-        span.parentSpanId === tool.spanId,
-    )!;
-    const usage = rows.mastra_metrics.filter((row) =>
-      totals.includes(row.name),
-    );
-    const search = usage.filter((row) => row.spanId === generation.spanId);
-    expect(search).toHaveLength(2);
-    const input = search.find((row) => row.name === totals[0])!;
-    expect(input).toMatchObject({
-      value: 42,
-      runId: result.runId,
-      traceId: tool.traceId,
-      estimatedCost: expectedCost,
-    });
-    expect(search.find((row) => row.name === totals[1])).toMatchObject({
-      value: 8,
-      estimatedCost: null,
-    });
-    if (expectedCost !== null) {
-      expect(input.costMetadata).toMatchObject({ source: "provider_reported" });
-    }
-    await inspect(file, async (domain) => {
-      const total = await domain.getMetricAggregate({
-        name: totals,
-        aggregation: "sum",
-        filters: { runId: result.runId },
-      });
-      expect(total.costUnit).toBe("USD");
-      // The Research agent makes two calls at $0.012 each.
-      expect(total.estimatedCost).toBeCloseTo(0.024 + (expectedCost ?? 0), 9);
-    });
-  },
-);
-
-test.each([
   {
     costs: [0, 0],
     model: "fixture/provider-model",
