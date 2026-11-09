@@ -129,7 +129,7 @@ The catalog SHALL store ticket variants with their labels, supplied amounts/curr
 - **AND** a positive amount without currency or a currency without amount is rejected
 
 ### Requirement: Ticket availability represents closed sales
-Each named ticket variant MAY store availability as `unknown`, `available`, `sold_out`, or `closed`. `closed` SHALL mean sales for that category have ended or are closed, without asserting an edition-wide sell-out or cancellation. Availability SHALL be stored only inside the ticket variant list, without an edition-wide aggregate.
+Each named ticket variant MAY store availability as `unknown`, `available`, `sold_out`, or `closed`. `closed` SHALL mean sales for that category have ended or are closed, without asserting an edition-wide sell-out or cancellation. Category availability SHALL be stored inside the ticket variant list.
 
 #### Scenario: Closed sales are recorded
 - **WHEN** a validated complete price-block replacement sets a ticket variant's availability to `closed`
@@ -180,3 +180,15 @@ An Edition SHALL expose optional `sizeEstimate`: a positive integer estimate of 
 #### Scenario: Size validation
 - **WHEN** an Edition write supplies a size
 - **THEN** positive integers and null are accepted; zero, negatives, fractions, and the obsolete capacityEstimate field are rejected
+
+### Requirement: Edition sell-out has a confirmation source
+
+An operator SHALL be able to record or clear a confirmed Edition sell-out with an approved Studio edit. To record it, the operator MUST use an HTTP or HTTPS URL where the organizer or an official seller confirms that the whole Edition sold out. Price and category updates SHALL leave the confirmation unchanged.
+
+#### Scenario: An operator records or clears a sell-out
+- **WHEN** the operator approves an edit that sets or clears the source
+- **THEN** the catalog records or clears the Edition confirmation without changing its price, categories, or schedule status
+
+#### Scenario: Category status changes
+- **WHEN** a price update sets all listed categories to sold out
+- **THEN** the catalog retains the previous Edition confirmation

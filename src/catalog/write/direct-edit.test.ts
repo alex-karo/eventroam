@@ -1,10 +1,59 @@
 import { expect, test } from "vitest";
 import { catalogEditSchema } from "@/catalog/operations/direct-edit";
-import { resolvePublicPath } from "@/catalog/read/public-catalog";
+import {
+  publicEditionById,
+  resolvePublicPath,
+} from "@/catalog/read/public-catalog";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { applyCatalogEdit, verifyEditPreview } from "./direct-edit";
 import { editionRow, eventRow } from "./apply-operation";
+
+test("an approved Edition edit records and clears a sell-out confirmation", () => {
+  const { client } = testDatabase();
+  const {
+    editions: [edition],
+  } = testFixtures(client).publishedEvent();
+  const source = "https://festival.example/sold-out-announcement";
+  const editInput = (before: string | null, after: string | null) => ({
+    auditMode: "record",
+    targets: [
+      {
+        kind: "edition",
+        id: edition.id,
+        changes: { soldOutSourceUrl: { before, after } },
+      },
+    ],
+  });
+  expect(
+    catalogEditSchema.safeParse(editInput(null, "ftp://example.org")).success,
+  ).toBe(false);
+  const readPublic = () => publicEditionById(client, edition.id);
+  expect(readPublic()?.soldOut).toBe(false);
+
+  for (const [before, after] of [
+    [null, source],
+    [source, null],
+  ] as const) {
+    const edit = catalogEditSchema.parse(editInput(before, after));
+    verifyEditPreview(client, edit);
+    expect(
+      applyCatalogEdit(client, edit, {
+        runId: "sell-out",
+        toolCallId: after ?? "clear",
+      })[0].status,
+    ).toBe("changed");
+    expect(editionRow(client, edition.id)).toMatchObject({
+      soldOutSourceUrl: after,
+      scheduleStatus: edition.scheduleStatus,
+      priceDetails: edition.priceDetails,
+    });
+    const detail = readPublic();
+    expect(detail?.soldOut).toBe(after !== null);
+    expect(JSON.stringify(detail)).not.toContain(source);
+    expect(detail).not.toHaveProperty("soldOutSourceUrl");
+  }
+});
 
 test("Edition dates can change with null links and no Edition links", () => {
   const { client } = testDatabase();

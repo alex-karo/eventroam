@@ -111,6 +111,7 @@ export const editions = sqliteTable(
       .$type<StoredPriceDetail[]>()
       .notNull()
       .default(sql`'[]'`),
+    soldOutSourceUrl: text("sold_out_source_url"),
     version: integer("version").notNull().default(1),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),

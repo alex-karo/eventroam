@@ -1245,7 +1245,7 @@ a:focus-visible {
   border-color: var(--control);
 }
 .edition-booking .external-link-primary {
-  width: 100%;
+  flex-grow: 1;
   background: var(--ink);
   border-color: var(--ink);
   color: var(--surface);

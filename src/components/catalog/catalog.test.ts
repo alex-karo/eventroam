@@ -10,6 +10,7 @@ import {
 } from "@/components/catalog/catalog";
 
 const edition: PublicEdition = {
+  soldOut: false,
   id: "edition",
   eventId: "event",
   key: "2027",

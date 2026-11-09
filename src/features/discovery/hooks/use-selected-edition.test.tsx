@@ -6,6 +6,7 @@ import { testFixtures } from "@/test/fixtures";
 import { useSelectedEdition } from "./use-selected-edition";
 
 const edition: PublicEdition = {
+  soldOut: false,
   ...testFixtures().build.summary({ id: "edition-1" }),
   eventId: "event-1",
   venueAddress: null,
