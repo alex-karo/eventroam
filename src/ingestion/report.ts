@@ -134,12 +134,8 @@ function assembleReport({
                   (repaired.some(({ path }) => field === path) ||
                     (key === "eventLinks" && socialLinkQuestion(field))),
               );
-              const reason =
-                question?.message ??
-                repaired.find(({ omissionReason }) => omissionReason)
-                  ?.omissionReason;
-              if (reason) {
-                return [{ message: `${key}: ${reason}` }];
+              if (question?.message) {
+                return [{ message: `${key}: ${question.message}` }];
               }
             }
             const finding = findings.find(

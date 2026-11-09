@@ -339,6 +339,10 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
 
 it("shares three ticket returns between validation and Editor", async () => {
   const f = fixture("Example Fest 2027. Full pass EUR 130.");
+  const question = {
+    field: ticketsPath,
+    message: "The full pass price remains unconfirmed.",
+  };
   const editor = editorReply((prompt, index) => {
     const path = prompt.reviewPaths.find(
       (entry: ReviewPath) => entry.path === ticketsPath,
@@ -366,15 +370,16 @@ it("shares three ticket returns between validation and Editor", async () => {
       if (index === 0) {
         return reply(body, tickets(set({ variants: [], basePrice: null })));
       }
-      if (index > 1) {
-        expect(prompt.groups).toMatchObject([
-          {
-            path: ticketsPath,
-            original: price(100 + (index - 1) * 10, "EUR"),
-            note: `Use the saved price. Review ${index - 1}.`,
-          },
-        ]);
+      if (index === 1) {
+        return reply(body, tickets(null, [question]));
       }
+      expect(prompt.groups).toMatchObject([
+        {
+          path: ticketsPath,
+          original: index === 2 ? null : price(120, "EUR"),
+          note: `Use the saved price. Review ${index - 1}.`,
+        },
+      ]);
       return reply(body, tickets(price(100 + index * 10, "EUR")));
     },
     { editor },
@@ -383,11 +388,13 @@ it("shares three ticket returns between validation and Editor", async () => {
   expect(result.errors).toEqual([]);
   expect(requests).toHaveLength(4);
   expect(editor).toHaveBeenCalledTimes(3);
-  expect(result.repairs?.map(({ trigger }) => trigger)).toEqual([
-    "validation",
-    "editor",
-    "editor",
+  expect(result.repairs).toMatchObject([
+    { trigger: "validation", omissionReason: question.message },
+    { trigger: "editor" },
+    { trigger: "editor" },
   ]);
+  expect(result.researchStatus).toBe("success");
+  expect(result.unresolved).toEqual([]);
   expect(f.saved().editions[0].priceDetails).toMatchObject([
     { amount: 130, currency: "EUR" },
   ]);
