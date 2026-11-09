@@ -155,7 +155,9 @@ If a complete Editor reply fails validation, Editor can correct it once. The req
 
 Editor checks proposals against their evidence, saved values and related proposals. It also checks concrete gaps in assigned groups, even when a specialist omits the value. If the evidence leaves a specific issue open, Editor searches a relevant saved page when the result can change an allowed decision. It returns an eligible group with the source and an exact excerpt when the evidence supports a correction or fills a gap. An inconclusive search leaves the question open.
 
-Editor and returning specialists use native workspace grep. The workspace lists exact file paths, URLs and available overviews. Code checks each source hash before search or citation. Returning specialists can cite a unique literal passage from these pages. A failed citation identifies each missing or repeated quote or context fragment. The specialist can copy the correct text from the saved page and retry within the same return's budget. The workflow validates the new reference with the proposal and keeps the Reader corpus intact. Location can use a previously registered point. The return does not start geocoding or fetch more pages.
+Editor uses native workspace grep. The workspace lists exact file paths, URLs and available overviews. Code checks the source hash before each search. Before approving a new or changed fact in a returned group, Editor checks the saved page for the fact and its context. This also applies to the first review after a validation return.
+
+Returning specialists use their original input and the return note. The note can contain an excerpt from a saved page. Specialists have no tools on a return and can use an empty evidence list for the returned group. The workflow checks any references they supply and keeps the Reader evidence intact. Location can use a previously registered point.
 
 ## Resolve location
 

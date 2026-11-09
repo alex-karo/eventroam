@@ -1,4 +1,3 @@
-import type { Evidence } from "../../evidence/contracts";
 import { assignedGroups, atPath, record, setPath } from "../../groups";
 import { editionSlotNames } from "../../research/contracts";
 import { editionEligibility } from "../../research/guards";
@@ -50,7 +49,6 @@ export function validateGeneralReply(
     reply,
     groups,
     ctx,
-    available: corpus.evidence,
   });
   let candidate = parsed;
   if (issues.length) {
@@ -83,7 +81,6 @@ export function validateGeneralReply(
 export function requireFixedGeneralTargets(
   raw: unknown,
   ctx: ProposalValidationContext,
-  evidence: Evidence[],
 ) {
   const targets = ctx.targets!;
   if (
@@ -96,10 +93,12 @@ export function requireFixedGeneralTargets(
   ) {
     failProposal("General changed the fixed identity or target");
   }
-  const result = validateGeneral(raw as Targets, ctx.context, ctx.input, {
-    ...ctx.corpus,
-    evidence,
-  });
+  const result = validateGeneral(
+    raw as Targets,
+    ctx.context,
+    ctx.input,
+    ctx.corpus,
+  );
   if (result.status !== "continue") {
     throw new RepairFailure(
       result.diagnostics.errors[0] ?? {

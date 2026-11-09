@@ -95,9 +95,9 @@ Location SHALL supply explicit decisions for all place fields. Editor SHALL appr
 
 - **WHEN** a saved passage that Reader missed gives the spelling of the same venue for the selected Edition
 - **AND** the address and the point from the earlier geocoding result still describe that venue
-- **THEN** Editor can use the group's return and send Location its note and that passage
+- **THEN** Editor can use the group's return and give Location the passage in its note
 - **AND** Location can correct the venue name and use the same point without a new geocoding request
-- **AND** location validation and the next Editor review can use the new citation
+- **AND** Editor checks the corrected name on the saved page before approval
 
 ### Requirement: Location decisions retain their evidence
 

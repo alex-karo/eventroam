@@ -666,13 +666,10 @@ export function createCatalogIngestionWorkflow(
     outputs: SpecialistOutputs,
     originalTargets?: Targets,
   ) {
-    const corpus = owned.repairs.corpus(data.corpus!);
     const rawLocation = owned.repairs.raw("location");
     if (rawLocation) {
-      data.location.materialized = owned.repairs.materializeLocation(
-        rawLocation,
-        corpus.evidence,
-      );
+      data.location.materialized =
+        owned.repairs.materializeLocation(rawLocation);
       data.location.status = "success";
       data.location.errors = [];
     }
@@ -690,10 +687,11 @@ export function createCatalogIngestionWorkflow(
         unresolved: [],
       },
       points: data.location.points,
-      corpus,
+      corpus: data.corpus!,
       context: data.context!,
       input: owned.input,
       originalTargets,
+      returnedPaths: owned.repairs.returnedPaths,
     });
     if (data.prepared.status !== "continue") {
       data.outcome = "failed";
@@ -814,10 +812,7 @@ export function createCatalogIngestionWorkflow(
       ) =>
         owned.track(
           runEditor(
-            {
-              ...roleOptions(owned, data, signal),
-              corpus: owned.repairs.corpus(data.corpus!),
-            },
+            roleOptions(owned, data, signal),
             prepared,
             reviewPaths(
               prepared,

@@ -1,4 +1,3 @@
-import type { Evidence } from "../../evidence/contracts";
 import { atPath, locationGroupPath, record } from "../../groups";
 import { editionSlotNames } from "../../research/contracts";
 import type { GeocodingSession } from "../../tools/geocode/tool";
@@ -17,7 +16,6 @@ type Slot = (typeof editionSlotNames)[number];
 export type LocationValidationContext = {
   input: LocationInput;
   session: Pick<GeocodingSession, "points" | "targets">;
-  repairPassages: Evidence[];
 };
 function countryConflict(error: LocationCountryConflictError): never {
   throw new RepairFailure({
@@ -64,38 +62,25 @@ function checkLocationBoundary(
 
 export function materializeLocationReply(
   raw: unknown,
-  evidence: Evidence[],
-  { input, session, repairPassages }: LocationValidationContext,
+  { input, session }: LocationValidationContext,
+  returnedPaths?: ReadonlySet<string>,
   only?: Slot,
 ) {
-  const supplied = new Set(input.evidence.map((item) => record(item)?.id));
-  const enriched = {
-    ...input,
-    evidence: [
-      ...input.evidence,
-      ...evidence
-        .filter(
-          ({ id }) =>
-            !supplied.has(id) &&
-            repairPassages.some((passage) => passage.id === id),
-        )
-        .map(({ id, quote }) => ({ id, quote })),
-    ],
-  };
   if (only) {
     const other = editionSlotNames.find((slot) => slot !== only)!;
     return validateLocation(
       { decision: { ...record(atPath(raw, "decision")), [other]: null } },
-      { ...enriched, [other]: null },
+      { ...input, [other]: null },
       session,
+      returnedPaths,
     );
   }
-  return validateLocation(raw, enriched, session);
+  return validateLocation(raw, input, session, returnedPaths);
 }
 
 export function validateLocationGroups(options: GroupValidationInput) {
   validateProposalBoundary("location", options);
-  const { reply, ctx, available, only } = options;
+  const { reply, ctx, returnedPaths, only } = options;
   const location = ctx.location!;
   requireKnownReferences(
     "location",
@@ -124,7 +109,12 @@ export function validateLocationGroups(options: GroupValidationInput) {
         return;
       }
       try {
-        materializeLocationReply(reply.raw, available, location, group.target);
+        materializeLocationReply(
+          reply.raw,
+          location,
+          returnedPaths,
+          group.target,
+        );
       } catch (error) {
         if (error instanceof LocationCountryConflictError) {
           countryConflict(error);

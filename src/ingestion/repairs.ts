@@ -1,11 +1,6 @@
 import type { CatalogAttempt } from "./attempt";
 import type { IngestionData } from "./contracts";
-import type { Evidence, FrozenCorpus } from "./evidence/contracts";
-import {
-  savedCitation,
-  savedPages,
-  savedSearchInstructions,
-} from "./evidence/repair";
+import type { Evidence } from "./evidence/contracts";
 import {
   assignedGroups,
   MAX_GROUP_RETURNS,
@@ -80,9 +75,12 @@ function ownGroups(groups: ProposalGroup[], owner: GroupOwner) {
 
 export class ProposalRepairs {
   private replies = new Map<GroupOwner, RoleConversation>();
-  private passages: Evidence[] = [];
   readonly records: RepairRecord[] = [];
   private location?: LocationValidationContext;
+
+  get returnedPaths() {
+    return new Set(this.records.map(({ path }) => path));
+  }
 
   get returnCounts() {
     const counts = new Map<string, number>();
@@ -102,27 +100,12 @@ export class ProposalRepairs {
     session: LocationValidationContext["session"],
   ) => {
     this.capture("location", reply);
-    this.location = { input, session, repairPassages: this.passages };
+    this.location = { input, session };
   };
 
   clear() {
     this.replies.clear();
     this.location = undefined;
-  }
-
-  corpus(original: FrozenCorpus): FrozenCorpus {
-    const retained = new Set(
-      this.records.flatMap(
-        ({ evidence }) => evidence?.map(({ id }) => id) ?? [],
-      ),
-    );
-    return {
-      ...original,
-      evidence: [
-        ...original.evidence,
-        ...this.passages.filter(({ id }) => retained.has(id)),
-      ],
-    };
   }
 
   raw(owner: GroupOwner) {
@@ -133,8 +116,8 @@ export class ProposalRepairs {
     return this.replies.get(owner)?.revise !== undefined;
   }
 
-  materializeLocation(raw: unknown, evidence: Evidence[]) {
-    return materializeLocationReply(raw, evidence, this.location!);
+  materializeLocation(raw: unknown) {
+    return materializeLocationReply(raw, this.location!, this.returnedPaths);
   }
 
   async general(
@@ -172,12 +155,7 @@ export class ProposalRepairs {
       output: repaired,
       errors: [],
     };
-    return validateGeneral(
-      repaired,
-      ctx.context,
-      owned.input,
-      this.corpus(data.corpus!),
-    );
+    return validateGeneral(repaired, ctx.context, owned.input, ctx.corpus);
   }
 
   async beforeReview(
@@ -204,7 +182,6 @@ export class ProposalRepairs {
         reply,
         groups: ownGroups(groups, owner),
         ctx,
-        available: ctx.corpus.evidence,
       });
       issues.push(...ownerIssues);
       if (!ownerIssues.length) {
@@ -264,7 +241,7 @@ export class ProposalRepairs {
     targets: Targets | null,
   ): ProposalValidationContext {
     return {
-      corpus: this.corpus(data.corpus!),
+      corpus: data.corpus!,
       targets,
       context: data.context!,
       input: owned.input,
@@ -340,30 +317,18 @@ export class ProposalRepairs {
           owner === "location" ? "location_failed" : "invalid_candidate",
         );
       }
-      const { sourceFiles, tools } = await savedPages(ctx.corpus, signal);
       const revision = await original.revise(
         {
           instructions:
-            "Revise only the requested groups. Return the normal role reply. " +
+            "Revise only the requested groups. Return the normal role reply." +
             (owner === "location"
               ? ""
-              : "If you omit a requested optional group, add an unresolved entry. Copy the full path from that group into field and explain the omission in message. ") +
-            savedSearchInstructions,
-          groups: records.map(({ path, note, original }) => {
-            const ids = new Set(replyReferences(original, "evidenceIds"));
-            const evidence = this.passages.filter(({ id }) => ids.has(id));
-            return {
-              path,
-              note,
-              original,
-              ...(evidence.length && { evidence }),
-            };
-          }),
-          sourceFiles,
-        },
-        {
-          ...tools,
-          citeSavedPassage: savedCitation(ctx.corpus, this.passages, signal),
+              : " If you omit a requested optional group, add an unresolved entry. Copy the full path from that group into field and explain the omission in message."),
+          groups: records.map(({ path, note, original }) => ({
+            path,
+            note,
+            original,
+          })),
         },
         signal,
       );
@@ -414,12 +379,8 @@ export class ProposalRepairs {
     for (const [index, { group }] of requests.entries()) {
       records[index].revision = atPath(revision, group.rawPath) ?? null;
     }
-    const evidenceById = new Map(
-      [...ctx.corpus.evidence, ...this.passages].map((item) => [item.id, item]),
-    );
-    const available = [...evidenceById.values()];
     const validate = validators[owner];
-    const validation = { groups, ctx, available };
+    const validation = { groups, ctx, returnedPaths: this.returnedPaths };
     const only = new Set(requests.map(({ group }) => group.path));
     const { issues } = validate({
       ...validation,
@@ -427,7 +388,7 @@ export class ProposalRepairs {
       only,
     });
     if (owner === "general") {
-      requireFixedGeneralTargets(revision, ctx, available);
+      requireFixedGeneralTargets(revision, ctx);
     }
     if (issues.length) {
       failGroupIssue(issues[0]);
@@ -437,7 +398,7 @@ export class ProposalRepairs {
       const value = atPath(revision, group.rawPath);
       const entry = records[index];
       const support = new Set(replyReferences(value, "evidenceIds"));
-      entry.evidence = available.filter(({ id }) => support.has(id));
+      entry.evidence = ctx.corpus.evidence.filter(({ id }) => support.has(id));
       setPath(merged, group.rawPath, value);
       this.mergeQuestions(merged, revision, entry, value == null);
     }
@@ -449,7 +410,7 @@ export class ProposalRepairs {
       failGroupIssue(checked[0]);
     }
     if (owner === "general") {
-      requireFixedGeneralTargets(merged, ctx, available);
+      requireFixedGeneralTargets(merged, ctx);
     }
     original.raw = parsed.data;
   }

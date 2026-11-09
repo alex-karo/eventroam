@@ -99,11 +99,7 @@ function logStep(
 export type RoleConversation = {
   raw: unknown;
   schema: z.ZodType;
-  revise?: (
-    input: unknown,
-    tools: ToolsInput,
-    signal: AbortSignal,
-  ) => Promise<RoleExecution>;
+  revise?: (input: unknown, signal: AbortSignal) => Promise<RoleExecution>;
 };
 
 function repairableRole(role: Role): role is GroupOwner {
@@ -356,13 +352,13 @@ function validateCompletedReply<T>(
       raw: normalized,
       schema: options.schema,
       ...(history && {
-        revise: (input, tools, signal) =>
+        revise: (input, signal) =>
           invokeRole({
             ...options,
             input,
-            tools,
+            tools: undefined,
             signal,
-            steps: 6,
+            steps: 1,
             messages: history,
             capture: undefined,
           }),
