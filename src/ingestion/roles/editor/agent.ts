@@ -1,15 +1,12 @@
-import {
-  evidencePacket,
-  topics,
-  type Evidence,
-} from "../../evidence/contracts";
-import { savedPages, savedSearchInstructions } from "../../evidence/repair";
+import { evidencePacket, topics } from "../../evidence/contracts";
+import { savedPages } from "../../evidence/saved-pages";
+import type { ProposalGroup } from "../../groups";
 import type { PreparedProposals } from "../../proposals";
 import type { RepairRecord } from "../../repairs";
-import { editionSlotNames } from "../../research/contracts";
 import { buildAssignment } from "../assignment";
-import { invokeRole, roleInputCharacterLimit } from "../invoke";
+import { invokeRole } from "../invoke";
 import { roleInvocationOptions, type RoleOptions } from "../options";
+import { replyReferences } from "../proposal-validation";
 import { PROMPT_VERSIONS } from "../versions";
 import type { ReviewPath } from "./contracts";
 import { editorInstructions } from "./prompt";
@@ -21,42 +18,36 @@ export async function runEditor(
   prepared: PreparedProposals,
   paths: ReviewPath[],
   repairs: RepairRecord[],
-  targeted = false,
+  targetedGroups?: readonly ProposalGroup[],
 ) {
   const { sourceFiles, tools } = await savedPages(
     options.corpus,
     options.signal,
   );
   const { evidence: proposalEvidence, ...basis } = prepared.basis;
-  const repairEvidence = repairs.flatMap(({ evidence }) => evidence ?? []);
-  const cited = new Set(repairEvidence.map(({ id }) => id));
-  const returnedGroups = targeted
-    ? paths.map(({ path }) => {
-        const slot = editionSlotNames.find(
-          (slot) => path === `${slot}.fields.location`,
-        );
-        const evidenceIds = slot ? prepared.location.support[slot] : undefined;
-        for (const id of evidenceIds ?? []) {
-          cited.add(id);
-        }
-        return {
-          path,
-          proposal: groupProposal(prepared, path) ?? null,
-          ...(evidenceIds?.length && { evidenceIds }),
-        };
-      })
-    : undefined;
-  const currentEvidence = new Map(
-    proposalEvidence
-      .filter(({ id }) => !targeted || cited.has(id))
-      .map((item) => [item.id, item]),
-  );
-  const earlierEvidence = new Map<string, Evidence>();
-  for (const item of repairEvidence) {
-    if (!currentEvidence.has(item.id)) {
-      earlierEvidence.set(item.id, item);
+  const cited = new Set([
+    ...(targetedGroups ? [] : proposalEvidence.map(({ id }) => id)),
+    ...repairs.flatMap(({ original, evidence }) => [
+      ...replyReferences(original, "evidenceIds"),
+      ...(evidence?.map(({ id }) => id) ?? []),
+    ]),
+  ]);
+  const returnedGroups = [];
+  for (const group of targetedGroups ?? []) {
+    const evidenceIds =
+      group.owner === "location"
+        ? prepared.location.support[group.target]
+        : undefined;
+    for (const id of evidenceIds ?? []) {
+      cited.add(id);
     }
+    returnedGroups.push({
+      path: group.path,
+      proposal: groupProposal(prepared, group) ?? null,
+      ...(evidenceIds?.length && { evidenceIds }),
+    });
   }
+  const evidence = options.corpus.evidence.filter(({ id }) => cited.has(id));
   const schema = reviewSchema(paths);
   return invokeRole({
     ...roleInvocationOptions(options, "editor"),
@@ -64,9 +55,7 @@ export async function runEditor(
     version: PROMPT_VERSIONS.editor,
     instructions:
       editorInstructions +
-      "\n" +
-      savedSearchInstructions +
-      (targeted
+      (targetedGroups
         ? "\nThis is a targeted review. The proposals are in returnedGroups. Use fixedEditions only as context. Do not review any other group or target."
         : ""),
     input: {
@@ -78,7 +67,7 @@ export async function runEditor(
         ...repair,
         ...(evidence && { evidenceIds: evidence.map(({ id }) => id) }),
       })),
-      ...(targeted && {
+      ...(targetedGroups && {
         returnedGroups,
         fixedEditions: {
           previousEdition: prepared.targets.previousEdition,
@@ -87,7 +76,10 @@ export async function runEditor(
       }),
       vocabulary: options.context.terms,
       prepared: {
-        ...(!targeted && { plan: prepared.plan, location: prepared.location }),
+        ...(!targetedGroups && {
+          plan: prepared.plan,
+          location: prepared.location,
+        }),
         unresolved: prepared.unresolved,
         identity: {
           eventId: prepared.targets.eventId,
@@ -97,19 +89,9 @@ export async function runEditor(
         },
         basis,
       },
-      evidence: [
-        ...evidencePacket(
-          { ...options.corpus, evidence: [...currentEvidence.values()] },
-          topics,
-          { anchors: true },
-        ).evidence,
-        // Earlier repair passages count toward the full role input limit.
-        ...evidencePacket(
-          { ...options.corpus, evidence: [...earlierEvidence.values()] },
-          topics,
-          { anchors: true, maxCharacters: roleInputCharacterLimit },
-        ).evidence,
-      ],
+      evidence: evidencePacket({ ...options.corpus, evidence }, topics, {
+        anchors: true,
+      }).evidence,
     },
     schema,
     validateReply: (reply) => validateEditorReply(schema, reply),

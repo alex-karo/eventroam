@@ -376,9 +376,9 @@ For anchors retained after page cleanup, the source reader SHALL keep nonempty v
 - **THEN** this requirement does not restore that anchor
 - **AND** retained anchors elsewhere on the page still use the label fallback
 
-### Requirement: Source support retains context and identity
+### Requirement: Saved source support retains context and identity
 
-A source-based change SHALL retain enough source context to identify its meaning and applicable Event or Edition. A matching quote SHALL NOT prove factual support by itself. Missing, ambiguous, or unrelated source references SHALL NOT authorize a change. The same source passage can support more than one field. Editor and the specialist revising a group SHALL have read-only access to all saved Markdown pages of the current run, including uncited pages, with source identity checks. The specialist SHALL be able to cite an applicable passage from those pages to support a revision within the assignment. A repair SHALL NOT fetch new pages or start discovery.
+A source-based change SHALL retain enough source context to identify its meaning and applicable Event or Edition. A matching quote SHALL NOT prove factual support by itself. Missing, ambiguous, or unrelated source references SHALL NOT authorize a change. The same source passage can support more than one field. Editor SHALL have read-only access to all saved Markdown pages of the current run, including uncited pages, with source identity checks. A returning specialist SHALL receive its return note and keep access to the evidence in its original input. It SHALL have no tools to search saved pages or to create new evidence references. A repair SHALL NOT fetch new pages or start discovery.
 
 #### Scenario: The same passage supports two fields
 
@@ -427,23 +427,22 @@ A source-based change SHALL retain enough source context to identify its meaning
 
 #### Scenario: A saved-source search has no complete match
 
-- **WHEN** validation searches saved source text and receives no matches or shortened matching lines
+- **WHEN** Editor searches saved source text and receives no matches or shortened matching lines
 - **THEN** that result alone does not establish that a fact or qualification is absent
 - **AND** a proposed change still needs applicable source support
 
-#### Scenario: A repair cites a passage Reader missed
+#### Scenario: Editor finds a passage that Reader missed
 
-- **WHEN** a specialist revising a group cites a relevant passage that the original evidence did not include
-- **THEN** the repair can cite it once its exact text and required context are bound to that page for this run
-- **AND** a missing or changed source body cannot supply that evidence
-- **AND** the repair does not replace the original Reader result or change the collection's coverage
+- **WHEN** Editor finds a relevant passage that the original evidence did not include
+- **THEN** the return note gives the source and the exact excerpt to the specialist
+- **AND** Editor can check the resulting revision against that page
+- **AND** the return does not change the original Reader result or its coverage
 
-#### Scenario: A repair citation contains incorrect context
+#### Scenario: A saved page is unavailable during review
 
-- **WHEN** the quote matches the saved page but one context fragment does not
-- **THEN** the citation tool identifies the failed context field and text, and states whether it is missing or repeated
-- **AND** the specialist can correct the fragment from the saved page and retry within the return's budget
-- **AND** the rejected call adds no evidence reference
+- **WHEN** a returned group proposes a new fact and the saved page is missing or has changed
+- **THEN** that page cannot confirm the fact
+- **AND** the return note alone cannot authorize the change
 
 ### Requirement: Reader keeps usable quotations from a partial reply
 

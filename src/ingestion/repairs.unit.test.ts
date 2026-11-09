@@ -5,14 +5,13 @@ import { fixtureDependencies, fixtureTargets, set } from "@/test/ingestion";
 import { CatalogAttempt } from "./attempt";
 import { createIngestionData, type CatalogResearchInput } from "./contracts";
 import { bindEvidence } from "./evidence/contracts";
-import { assignedGroups, type GroupOwner } from "./groups";
+import { proposalGroup, type GroupOwner, type ReturnRequest } from "./groups";
 import { loadResearchContext } from "./research/context";
 import { classificationReplySchema } from "./roles/classification/contracts";
 import { generalOutputSchema } from "./roles/general/contracts";
 import { linksOutputSchema } from "./roles/links/contracts";
 import { ticketsOutputSchema } from "./roles/tickets/contracts";
 import type { RoleConversation } from "./roles/invoke";
-import type { ReviewDecision } from "./roles/editor/contracts";
 
 const sourceUrl = "https://example.org/";
 const date = "2026-11-01T00:00:00Z";
@@ -97,15 +96,8 @@ function fixture(scope?: CatalogResearchInput["scope"]) {
     loadContext,
     general: () => repairs.general(attempt, data, signal),
     before: () => repairs.beforeReview(attempt, data, targets, signal),
-    after: (...decisions: ReviewDecision[]) =>
-      repairs.afterReview(
-        attempt,
-        data,
-        targets,
-        assignedGroups(scope, targets),
-        decisions,
-        signal,
-      ),
+    after: (...requests: ReturnRequest[]) =>
+      repairs.afterReview(attempt, data, targets, requests, signal),
   };
 }
 
@@ -124,8 +116,8 @@ function revision(output: unknown) {
 function returnGroup(
   path: string,
   note = "Check the saved source.",
-): ReviewDecision {
-  return { path, note, decision: "return" };
+): ReturnRequest {
+  return { group: proposalGroup(path)!, note };
 }
 
 it.each([
@@ -199,7 +191,7 @@ it.each(["size", "dates", "target"] as const)(
           }
         : original;
     const fixed = fixtureTargets(f.event.id);
-    fixed.currentOrNextEdition!.fields.sizeEstimate = set(2000);
+    fixed.currentOrNextEdition!.fields.sizeEstimate = set(2000, undefined, []);
     const revise = f.capture("general", raw, fixed);
     if (kind === "size") {
       await expect(f.general()).resolves.toMatchObject({
@@ -226,7 +218,8 @@ it.each(["valid", "unknown reference", "outside scope"] as const)(
       kind === "outside scope" ? undefined : set("bad-url"),
       set(ticketLink),
     );
-    const fixed = links(set(sourceUrl), 12);
+    const repairedWebsite = set(sourceUrl, undefined, []);
+    const fixed = links(repairedWebsite, 12);
     const revise = f.capture(
       "links",
       original,
@@ -236,7 +229,7 @@ it.each(["valid", "unknown reference", "outside scope"] as const)(
     );
     if (kind === "valid") {
       await expect(f.before()).resolves.toMatchObject({
-        links: links(set(sourceUrl), set(ticketLink)),
+        links: links(repairedWebsite, set(ticketLink)),
       });
       expect(revise.mock.calls[0][0]).toMatchObject({
         groups: [
@@ -390,7 +383,7 @@ it.each(["term", "reuse Edition"] as const)(
   },
 );
 
-it.each(["supported removal", "uncited removal", "unknown slug"] as const)(
+it.each(["uncited removal", "unknown slug", "unknown evidence"] as const)(
   "checks %s in a Classification group returned by Editor",
   async (kind) => {
     const f = fixture();
@@ -409,12 +402,9 @@ it.each(["supported removal", "uncited removal", "unknown slug"] as const)(
       currentOrNextEdition: { classification: set({ genres: [genre.slug] }) },
       ...diagnostics,
     };
-    const change = set({
-      genres: kind === "unknown slug" ? ["unknown-term"] : [],
-    });
-    if (kind === "uncited removal") {
-      change.evidenceIds = [];
-    }
+    const genres = kind === "unknown slug" ? ["unknown-term"] : [];
+    const evidenceIds = kind === "unknown evidence" ? ["missing"] : [];
+    const change = set({ genres }, undefined, evidenceIds);
     const revised = {
       ...original,
       currentOrNextEdition: { classification: change },
@@ -422,23 +412,24 @@ it.each(["supported removal", "uncited removal", "unknown slug"] as const)(
     const revise = f.capture("classification", original, revised);
 
     await f.before();
-    if (kind === "supported removal") {
+    if (kind === "uncited removal") {
       expect((await f.after(returnGroup(path))).classification).toEqual({
         ...original,
-        currentOrNextEdition: { classification: set([term.id]) },
+        currentOrNextEdition: {
+          classification: { ...change, value: [term.id] },
+        },
       });
       expect(f.repairs.raw("classification")).toEqual(revised);
     } else {
       await expect(f.after(returnGroup(path))).rejects.toThrow(
-        kind === "unknown slug"
-          ? "unknown-term"
-          : "Missing or unknown evidence reference",
+        kind === "unknown slug" ? "unknown-term" : "unknown evidence reference",
       );
       expect(f.repairs.raw("classification")).toEqual(original);
-      expect(f.repairs.records[0].failure).toMatchObject({
-        code: "invalid_plan",
-        field: path,
-      });
+      expect(f.repairs.records[0].failure).toMatchObject(
+        kind === "unknown slug"
+          ? { code: "invalid_plan", field: path }
+          : { code: "invalid_candidate" },
+      );
     }
     expect(revise).toHaveBeenCalledOnce();
   },

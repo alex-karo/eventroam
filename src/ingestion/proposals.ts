@@ -1,6 +1,12 @@
 import { hasEventFieldCheck } from "./roles/assignment";
 import { earlierEdition, proposedChronology } from "./research/guards";
-import { atPath, setPath } from "./groups";
+import {
+  assignedGroups,
+  atPath,
+  locationGroupPath,
+  proposalGroups,
+  setPath,
+} from "./groups";
 import { requireSupport, type FrozenCorpus } from "./evidence/contracts";
 import type { ResearchContext } from "./research/context";
 import type { CatalogResearchInput } from "./contracts";
@@ -62,28 +68,33 @@ function inspectProposalSupport(
   value: unknown,
   corpus: FrozenCorpus,
   cited: Set<string>,
+  returnedChanges: ReadonlySet<unknown>,
 ) {
   if (!value || typeof value !== "object") {
     return;
   }
   if (Array.isArray(value)) {
-    value.forEach((part) => inspectProposalSupport(part, corpus, cited));
+    value.forEach((part) =>
+      inspectProposalSupport(part, corpus, cited, returnedChanges),
+    );
     return;
   }
   const record = value as Record<string, unknown>;
-  if (Array.isArray(record.evidenceIds)) {
-    requireSupport(record.evidenceIds as string[], corpus, true);
-    (record.evidenceIds as string[]).forEach((id) => cited.add(id));
-  }
-  if (record.action === "clear" || record.action === "set") {
+  const change = record.action === "clear" || record.action === "set";
+  if (change || Array.isArray(record.evidenceIds)) {
+    const ids = (record.evidenceIds ?? []) as string[];
     requireSupport(
-      (record.evidenceIds ?? []) as string[],
+      ids,
       corpus,
-      !!record.reuseFrom || Array.isArray(record.value),
+      !change ||
+        returnedChanges.has(value) ||
+        !!record.reuseFrom ||
+        Array.isArray(record.value),
     );
+    ids.forEach((id) => cited.add(id));
   }
   Object.values(record).forEach((part) =>
-    inspectProposalSupport(part, corpus, cited),
+    inspectProposalSupport(part, corpus, cited, returnedChanges),
   );
 }
 
@@ -91,6 +102,7 @@ function validateLocationSupport(
   location: MaterializedLocation,
   points: RegisteredPoint[],
   corpus: FrozenCorpus,
+  returnedPaths?: ReadonlySet<string>,
 ) {
   for (const slot of editionSlotNames) {
     const fields = location.slots[slot];
@@ -103,7 +115,11 @@ function validateLocationSupport(
     const locationOutput = points
       .filter((point) => point.kind === "source")
       .flatMap((point) => point.evidenceIds ?? []);
-    requireSupport(location.support[slot] ?? [], corpus, !changedText);
+    requireSupport(
+      location.support[slot] ?? [],
+      corpus,
+      !changedText || returnedPaths?.has(locationGroupPath(slot)),
+    );
     locationOutput.forEach((id) => requireSupport([id], corpus));
   }
 }
@@ -152,9 +168,10 @@ export function assembleProposals(
     context: ResearchContext;
     input: CatalogResearchInput;
     originalTargets?: Targets;
+    returnedPaths?: ReadonlySet<string>;
   },
 ): StageResult<PreparedProposals> {
-  const { targets, corpus, context, input } = options;
+  const { targets, corpus, context, input, returnedPaths } = options;
   const diagnostics: PlanDiagnostics = {
     ...diagnosticsOnly(targets),
     unresolved: [
@@ -176,8 +193,21 @@ export function assembleProposals(
   };
   try {
     const cited = new Set(Object.values(options.location.support).flat());
-    inspectProposalSupport(submitted, corpus, cited);
-    validateLocationSupport(options.location, options.points, corpus);
+    const returnedChanges = new Set(
+      assignedGroups(input.scope, targets).flatMap(
+        ({ owner, path, rawPath }) =>
+          owner !== "location" && returnedPaths?.has(path)
+            ? [atPath(submitted[owner], rawPath)]
+            : [],
+      ),
+    );
+    inspectProposalSupport(submitted, corpus, cited, returnedChanges);
+    validateLocationSupport(
+      options.location,
+      options.points,
+      corpus,
+      returnedPaths,
+    );
     if (
       !targets.currentOrNextEdition &&
       (options.tickets || options.links.currentOrNextEdition)
@@ -216,6 +246,7 @@ export function assembleProposals(
           event,
           context,
           corpus,
+          returnedPaths?.has(`${slot}.fields.classification`),
         );
       }
     }
@@ -344,7 +375,7 @@ export function applyReview(
       delete accepted.location.slots[slot];
       continue;
     }
-    if (review.get(`${slot}.fields.location`)?.decision === "reject") {
+    if (review.get(locationGroupPath(slot))?.decision === "reject") {
       const old = accepted.location.slots[slot];
       if (old) {
         accepted.location.slots[slot] = Object.fromEntries(
@@ -360,11 +391,10 @@ export function applyReview(
       delete accepted.location.reusedFrom?.[slot];
     }
   }
-  for (const { path, decision } of review.values()) {
+  for (const { owner, path } of proposalGroups) {
     if (
-      decision === "reject" &&
-      path.includes(".fields.") &&
-      !path.endsWith(".fields.location") &&
+      owner !== "location" &&
+      review.get(path)?.decision === "reject" &&
       atPath(accepted.plan, path) !== undefined
     ) {
       setPath(accepted.plan, path, undefined);

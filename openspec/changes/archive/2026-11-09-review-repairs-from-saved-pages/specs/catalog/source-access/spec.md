@@ -1,0 +1,77 @@
+## ADDED Requirements
+
+### Requirement: Saved source support retains context and identity
+
+A source-based change SHALL retain enough source context to identify its meaning and applicable Event or Edition. A matching quote SHALL NOT prove factual support by itself. Missing, ambiguous, or unrelated source references SHALL NOT authorize a change. The same source passage can support more than one field. Editor SHALL have read-only access to all saved Markdown pages of the current run, including uncited pages, with source identity checks. A returning specialist SHALL receive its return note and keep access to the evidence in its original input. It SHALL have no tools to search saved pages or to create new evidence references. A repair SHALL NOT fetch new pages or start discovery.
+
+#### Scenario: The same passage supports two fields
+
+- **WHEN** one passage establishes a venue and supports the Event description
+- **THEN** both changes can use the same source passage without treating it as independent sources
+
+#### Scenario: A quotation is ambiguous
+
+- **WHEN** a reference cannot identify which repeated passage supports the claim
+- **THEN** it is not accepted as attributable support and the limitation remains visible
+
+#### Scenario: A quotation concerns another year
+
+- **WHEN** a quote exists but concerns another Edition
+- **THEN** it does not support changing the selected Edition
+
+#### Scenario: A page description omits a condition
+
+- **WHEN** a page description leaves out an eligibility condition or table qualification
+- **THEN** a ticket change must still respect the original source condition
+
+#### Scenario: A compact reference identifies a long passage
+
+- **WHEN** extraction identifies a passage by its unique literal opening and closing text
+- **THEN** saved support retains the complete original passage and its required context
+- **AND** ambiguous, reversed, partially overlapping, or unmatched boundaries do not authorize a change
+
+#### Scenario: The opening text is already the complete quotation
+
+- **WHEN** unique literal opening text already contains the unique closing text as its exact suffix, including identical boundaries
+- **THEN** the complete opening text can be bound as a normal literal quotation within the same size limit
+- **AND** other partial overlaps remain invalid
+
+#### Scenario: A quotation contains one extra wire escape
+
+- **WHEN** a supplied quote or context has no literal match and contains a literal escaped newline or doubled backslash before Markdown punctuation
+- **THEN** code may restore those escapes only if the whole resulting string has one exact source match
+- **AND** saved evidence contains the exact original source text and span
+- **AND** existing ambiguous literal matches, invented prices and unsupported text are not repaired
+
+#### Scenario: A processing input omits empty metadata
+
+- **WHEN** a downstream input omits empty context or optional metadata
+- **THEN** all nonempty qualifications and the complete supporting passage remain available
+- **AND** saved source provenance remains inspectable
+
+#### Scenario: A saved-source search has no complete match
+
+- **WHEN** Editor searches saved source text and receives no matches or shortened matching lines
+- **THEN** that result alone does not establish that a fact or qualification is absent
+- **AND** a proposed change still needs applicable source support
+
+#### Scenario: Editor finds a passage that Reader missed
+
+- **WHEN** Editor finds a relevant passage that the original evidence did not include
+- **THEN** the return note gives the source and the exact excerpt to the specialist
+- **AND** Editor can check the resulting revision against that page
+- **AND** the return does not change the original Reader result or its coverage
+
+#### Scenario: A saved page is unavailable during review
+
+- **WHEN** a returned group proposes a new fact and the saved page is missing or has changed
+- **THEN** that page cannot confirm the fact
+- **AND** the return note alone cannot authorize the change
+
+## REMOVED Requirements
+
+### Requirement: Source support retains context and identity
+
+**Reason**: The replacement keeps the source support rules and removes the obsolete repair citation scenarios.
+
+**Migration**: Apply Saved source support retains context and identity to future runs. Existing reports can retain their evidence.

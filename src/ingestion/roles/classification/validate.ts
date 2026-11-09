@@ -31,6 +31,7 @@ export function checkedClassification(
   event: SavedEvent | undefined,
   context: ResearchContext,
   corpus: FrozenCorpus,
+  allowEmptyEvidence = false,
 ) {
   const saved = event?.editions.find(
     (edition) => edition.editionKey === target.editionKey,
@@ -44,12 +45,12 @@ export function checkedClassification(
     if (!earlierEdition(earlier, chronology)) {
       throw new Error("Invalid classification reuse Edition");
     }
-    requireSupport(classification.evidenceIds, corpus);
+    requireSupport(classification.evidenceIds, corpus, allowEmptyEvidence);
   } else if (
     classification.value.some((id) => !retained.has(id)) ||
     [...retained].some((id) => !classification.value.includes(id))
   ) {
-    requireSupport(classification.evidenceIds, corpus);
+    requireSupport(classification.evidenceIds, corpus, allowEmptyEvidence);
   }
   const { retained: termIds, removed } = normalizeProposedAssignments(
     classification.value,
@@ -66,13 +67,12 @@ export function checkedClassification(
 }
 function classificationGroupRule(
   group: ProposalGroup,
-  { reply, ctx, available }: GroupValidationInput,
+  options: GroupValidationInput,
 ) {
-  const slot = editionSlotNames.find((slot) =>
-    group.path.startsWith(slot + "."),
-  );
-  if (!slot) {
-    return missingChangeEvidence(reply.raw, group);
+  const { reply, ctx, returnedPaths } = options;
+  const { target: slot } = group;
+  if (slot === "event") {
+    return missingChangeEvidence(group, options);
   }
   const target = ctx.targets?.[slot];
   const change = atPath(reply.raw, group.rawPath) as
@@ -99,10 +99,14 @@ function classificationGroupRule(
       ctx.context.terms,
     );
     if (!errors.length) {
-      checkedClassification(target, resolved, event, ctx.context, {
-        ...ctx.corpus,
-        evidence: available,
-      });
+      checkedClassification(
+        target,
+        resolved,
+        event,
+        ctx.context,
+        ctx.corpus,
+        returnedPaths?.has(group.path),
+      );
       return;
     }
   } catch (error) {

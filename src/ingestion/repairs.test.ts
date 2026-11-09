@@ -67,11 +67,32 @@ function editorReply(
   answer: (
     prompt: ReturnType<typeof providerPrompt>,
     index: number,
-  ) => ReturnType<typeof review>,
+    call: Parameters<GenerateRole>[2],
+  ) => ReturnType<typeof review> | Promise<ReturnType<typeof review>>,
 ) {
   let index = 0;
-  return vi.fn<GenerateRole>(async (_role, raw) =>
-    answer(JSON.parse(raw), index++),
+  return vi.fn<GenerateRole>(async (_role, raw, call) =>
+    answer(JSON.parse(raw), index++, call),
+  );
+}
+
+async function grepSavedPage(
+  call: Parameters<GenerateRole>[2],
+  pattern: string,
+) {
+  const tool = call.tools?.mastra_workspace_grep as {
+    execute: (input: unknown, context: unknown) => Promise<string>;
+  };
+  return tool.execute(
+    {
+      path: "s1.md",
+      pattern,
+      contextLines: 3,
+      maxCount: 5,
+      caseSensitive: true,
+      includeHidden: false,
+    },
+    {},
   );
 }
 
@@ -233,13 +254,19 @@ it("repairs Wacken tickets before the first Editor review", async () => {
   const f = fixture(page, { name: "Wacken Open Air", selection });
   f.f.edition(f.event, { editionKey: "2027", editionYear: 2027 });
   const invalid = set({ variants: [], basePrice: null }, "Empty offer list");
-  const editor = editorReply((prompt) => {
+  const editor = editorReply(async (prompt, _index, call) => {
     expect(requests).toHaveLength(2);
     expect(prompt.reviewPaths).toContainEqual({
       path: ticketsPath,
       required: true,
       allowed: ["approve", "reject", "return"],
     });
+    expect(prompt.repairs).toMatchObject([
+      { trigger: "validation", revision: { evidenceIds: [] } },
+    ]);
+    const saved = await grepSavedPage(call, "Preis: 364");
+    expect(saved).toContain(quote);
+    expect(saved).toContain("Wacken Open Air 2027");
     return review(prompt);
   });
   const { run, requests } = f.model(
@@ -248,6 +275,7 @@ it("repairs Wacken tickets before the first Editor review", async () => {
       if (!index) {
         return reply(body, tickets(invalid));
       }
+      expect(body.tools ?? []).toEqual([]);
       expect(prompt.groups).toMatchObject([
         {
           path: ticketsPath,
@@ -258,7 +286,7 @@ it("repairs Wacken tickets before the first Editor review", async () => {
       expect(JSON.stringify(body.messages.slice(0, -1))).toContain(
         invalid.reason,
       );
-      return reply(body, tickets(price(364, "EUR")));
+      return reply(body, tickets({ ...price(364, "EUR"), evidenceIds: [] }));
     },
     { editor },
   );
@@ -271,7 +299,7 @@ it("repairs Wacken tickets before the first Editor review", async () => {
       trigger: "validation",
       target: { eventId: f.event.id, editionKey: "2027" },
       decision: { decision: "approve" },
-      evidence: [{ quote }],
+      evidence: [],
     },
   ]);
   expect(f.saved().editions[0].priceDetails).toMatchObject([
@@ -281,12 +309,14 @@ it("repairs Wacken tickets before the first Editor review", async () => {
 
 it("returns Roskilde tickets with the exact note and preserves the approved link", async () => {
   const page = await capturedPage("roskilde");
+  const quote =
+    "Alle otte dage på Roskilde Festival 2027\n\n2650\n\nkr. inkl. billetgebyr.";
   const f = fixture(page, {
     name: "Roskilde Festival",
-    selection: 2,
+    selection: { start: 32, end: 34 },
   });
   const note =
-    "  Check s1, Smart Ticket: 524 kr. om måneden plus 100,- i gebyr. Keep the supported full pass.\n";
+    "  Remove the payment plan. From s1.md\n524\n\nkr. om måneden plus 100,- i gebyr\n";
   const link = "https://www.roskilde-festival.dk/da/billetter";
   const question = {
     field: ticketsPath,
@@ -304,6 +334,10 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
       },
     ]);
     expect(prompt.prepared).not.toHaveProperty("plan");
+    expect(prompt.repairs[0].note).toBe(note);
+    expect(prompt.repairs[0]).not.toHaveProperty("evidence");
+    expect(prompt.repairs[0].evidenceIds).toEqual(["s1-e1"]);
+    expect(prompt.evidence).toMatchObject([{ id: "s1-e1", quote }]);
     return review(prompt);
   });
   const { run } = f.model(
@@ -321,9 +355,6 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
       expect(prompt.groups).toEqual([
         expect.objectContaining({ path: ticketsPath, note }),
       ]);
-      expect(JSON.stringify(body.messages.slice(0, -1))).toContain(
-        "Smart Ticket instalment",
-      );
       return reply(body, tickets(fullPass, [question]));
     },
     {
@@ -342,7 +373,14 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
   expect(editor).toHaveBeenCalledTimes(2);
   expect(result).toMatchObject({
     researchStatus: "partial",
-    repairs: [{ path: ticketsPath, note, trigger: "editor" }],
+    repairs: [
+      {
+        path: ticketsPath,
+        note,
+        trigger: "editor",
+        evidence: [{ id: "s1-e1" }],
+      },
+    ],
   });
   expect(result.unresolved).toContainEqual({
     message: `currentTickets: ${question.message}`,
@@ -354,97 +392,120 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
   ]);
 });
 
-it("shares three ticket returns between validation and Editor", async () => {
-  const quote = "Full pass EUR 130.";
-  const f = fixture(`Example Fest 2027. ${quote}`);
-  const citationId = "s1-repair-1";
-  const revisedPrice = (amount: number) => ({
-    ...price(amount, "EUR"),
-    evidenceIds: [citationId],
-  });
+it.each(["instagram", "event.fields.links.socials.instagram"])(
+  "keeps the Event links check open after repairing the website (%s)",
+  async (field) => {
+    const url = "https://example.org/festival";
+    const f = fixture(`Example Fest 2027. Official website: ${url}`);
+    const path = "event.fields.links.website";
+    const question = { field, message: "The Instagram account is uncertain." };
+    const editor = editorReply((prompt, index) =>
+      index
+        ? review(prompt)
+        : review(prompt, {
+            path,
+            decision: "return",
+            note: "Check the official website.",
+          }),
+    );
+    const { run } = f.model(
+      "links",
+      (body, index) =>
+        reply(body, {
+          event: { website: index ? set(url) : undefined, socials: {} },
+          currentOrNextEdition: {},
+          checks: fixtureChecks(["eventLinks", "currentLinks"]),
+          omitted: [],
+          unresolved: index ? [] : [question],
+        }),
+      { editor },
+    );
+    const result = await run();
+    expect(result.errors).toEqual([]);
+    expect(result).toMatchObject({
+      researchStatus: "partial",
+      repairs: [{ path, owner: "links", decision: { decision: "approve" } }],
+    });
+    expect(result.unresolved).toContainEqual(question);
+    expect(result.unresolved).toContainEqual({
+      message: `eventLinks: ${question.message}`,
+    });
+    expect(f.saved().links).toContainEqual(expect.objectContaining({ url }));
+  },
+);
+
+it("shares the return limit and rejects a ticket price for another Edition", async () => {
+  const f = fixture(
+    "Example Fest 2027\nFull pass EUR 130.\n\nExample Fest 2026\nFull pass EUR 120.",
+    { selection: 1 },
+  );
+  const link = "https://example.org/tickets";
+  const revision = { ...price(120, "EUR"), evidenceIds: [] };
   const question = {
     field: ticketsPath,
     message: "The full pass price remains unconfirmed.",
   };
-  const editor = editorReply((prompt, index) => {
-    const path = prompt.reviewPaths.find(
-      (entry: ReviewPath) => entry.path === ticketsPath,
-    );
-    expect(path).toEqual({
-      path: ticketsPath,
-      required: true,
-      allowed:
-        index < 2 ? ["approve", "reject", "return"] : ["approve", "reject"],
-    });
-    if (index > 0) {
-      expect(prompt.reviewPaths).toEqual([path]);
-      expect(prompt.evidence).toEqual([
-        expect.objectContaining({ id: citationId, quote }),
-      ]);
-      expect(prompt.returnedGroups).toMatchObject([
-        { path: ticketsPath, proposal: { evidenceIds: [citationId] } },
-      ]);
-      expect(prompt.repairs.slice(1)).toHaveLength(index);
-      for (const repair of prompt.repairs.slice(1)) {
-        expect(repair.evidenceIds).toEqual([citationId]);
-        expect(repair).not.toHaveProperty("evidence");
-      }
+  const editor = editorReply(async (prompt, index, call) => {
+    if (index < 2) {
+      return review(prompt, {
+        path: ticketsPath,
+        decision: "return",
+        note: "Use the 2027 price in s1.md.\nFull pass EUR 130.",
+      });
     }
-    return index < 2
-      ? review(prompt, {
-          path: ticketsPath,
-          decision: "return",
-          note: `Use the saved price. Review ${index + 1}.`,
-        })
-      : review(prompt);
+    expect(prompt.reviewPaths).toEqual([
+      { path: ticketsPath, required: true, allowed: ["approve", "reject"] },
+    ]);
+    expect(prompt.returnedGroups).toEqual([
+      { path: ticketsPath, proposal: revision },
+    ]);
+    expect(await grepSavedPage(call, "Full pass EUR 120")).toContain(
+      "Example Fest 2026",
+    );
+    return review(prompt, {
+      path: ticketsPath,
+      decision: "reject",
+      note: "The EUR 120 pass on s1.md is for the 2026 Edition.",
+    });
   });
   const { run, requests } = f.model(
     "tickets",
-    (body, index, prompt) => {
+    (body, index) => {
       if (index === 0) {
         return reply(body, tickets(set({ variants: [], basePrice: null })));
       }
       if (index === 1) {
         return reply(body, tickets(null, [question]));
       }
-      expect(prompt.groups).toMatchObject([
-        {
-          path: ticketsPath,
-          original: index === 4 ? revisedPrice(120) : null,
-          note: `Use the saved price. Review ${index === 4 ? 2 : 1}.`,
-        },
-      ]);
-      if (index === 2) {
-        return modelReply(null, {
-          id: "cite-price",
-          name: "citeSavedPassage",
-          args: { sourceId: "s1", quote },
-        });
-      }
-      if (index === 3) {
-        expect(toolResult(body, "cite-price")).toContain(citationId);
-      }
-      return reply(body, tickets(revisedPrice(index === 3 ? 120 : 130)));
+      return reply(body, tickets(revision));
     },
-    { editor },
+    {
+      editor,
+      links: {
+        event: { socials: {} },
+        currentOrNextEdition: { tickets: set(link) },
+        checks: fixtureChecks(["eventLinks", "currentLinks"]),
+        omitted: [],
+        unresolved: [],
+      },
+    },
   );
   const result = await run();
   expect(result.errors).toEqual([]);
-  expect(requests).toHaveLength(5);
+  expect(requests).toHaveLength(4);
   expect(editor).toHaveBeenCalledTimes(3);
   expect(result.repairs).toMatchObject([
     { trigger: "validation", omissionReason: question.message },
-    { trigger: "editor", evidence: [{ id: citationId, quote }] },
-    { trigger: "editor", evidence: [{ id: citationId, quote }] },
+    { trigger: "editor", evidence: [] },
+    { trigger: "editor", original: revision, decision: { decision: "reject" } },
   ]);
-  expect(result.researchStatus).toBe("success");
-  expect(result.unresolved).toEqual([]);
-  expect(f.saved().editions[0].priceDetails).toMatchObject([
-    { amount: 130, currency: "EUR" },
-  ]);
+  expect(result.unresolved).not.toContainEqual(question);
+  const [edition] = f.saved().editions;
+  expect(edition.links).toContainEqual(expect.objectContaining({ url: link }));
+  expect(edition.priceDetails).toHaveLength(0);
 });
 
-it("revises one of two Location slots with a new venue citation", async () => {
+it("revises one of two Location slots from a saved excerpt in the note", async () => {
   const quote = "The venue is Vale do Tejo.";
   const editions =
     "Example Fest took place at Vale Antigo in 2026. Example Fest 2027 is from July 1 to July 3.";
@@ -461,7 +522,7 @@ it("revises one of two Location slots with a new venue citation", async () => {
     evidenceIds: general.evidenceIds,
     fields: {},
   };
-  const note = "Use the venue spelling on s1.";
+  const note = `Use the venue spelling in s1.md.\n${quote}`;
   const geocode = vi.fn(async () => ({
     status: "success" as const,
     direction: "forward" as const,
@@ -483,21 +544,21 @@ it("revises one of two Location slots with a new venue citation", async () => {
     ],
   }));
   let original: LocationOutput;
-  const editor = editorReply((prompt, index) => {
+  const editor = editorReply(async (prompt, index, call) => {
     if (!index) {
       return review(prompt, { path: locationPath, decision: "return", note });
     }
+    expect(await grepSavedPage(call, "The venue is")).toContain(quote);
     expect(prompt.returnedGroups).toMatchObject([
       {
         path: locationPath,
         proposal: { venueName: { value: "Vale do Tejo" } },
-        evidenceIds: ["s1-repair-1"],
       },
     ]);
     expect(prompt.evidence).toContainEqual(
-      expect.objectContaining({ id: "s1-repair-1" }),
+      expect.objectContaining({ id: "s1-e1", quote: editions }),
     );
-    expect(prompt.repairs[0].evidenceIds).toEqual(["s1-repair-1"]);
+    expect(prompt.repairs[0].evidenceIds).toEqual([]);
     return review(prompt);
   });
   const { run, requests } = f.model(
@@ -537,56 +598,18 @@ it("revises one of two Location slots with a new venue citation", async () => {
         };
         return reply(body, original);
       }
-      if (index === 2) {
-        expect(
-          body.tools?.map(({ function: tool }) => tool.name),
-        ).not.toContain("geocode");
-        expect(body.messages.slice(0, 2)).toEqual(
-          requests[0].messages.slice(0, 2),
-        );
-        expect(body.messages).toContainEqual(
-          expect.objectContaining({
-            tool_calls: [expect.objectContaining({ id: marker })],
-          }),
-        );
-        expect(toolResult(body, marker)).toContain("pointIds");
-        expect(prompt.groups).toMatchObject([{ path: locationPath, note }]);
-        return modelReply(null, {
-          id: "grep",
-          name: "mastra_workspace_grep",
-          args: {
-            path: "s1.md",
-            pattern: "venue",
-            contextLines: 1,
-            maxCount: 1,
-            caseSensitive: false,
-            includeHidden: false,
-          },
-        });
-      }
-      if (index === 3) {
-        expect(toolResult(body, "grep")).toContain(quote);
-        return modelReply(null, {
-          id: "failed-cite",
-          name: "citeSavedPassage",
-          args: { sourceId: "s1", quote, context: ["Incorrect context"] },
-        });
-      }
-      if (index === 4) {
-        expect(toolResult(body, "failed-cite")).toContain(
-          "context[0] has no literal match",
-        );
-        expect(toolResult(body, "failed-cite")).toContain("Incorrect context");
-        expect(JSON.stringify(body.messages[0].content)).toContain(
-          "copy the exact source text and retry",
-        );
-        return modelReply(null, {
-          id: "cite",
-          name: "citeSavedPassage",
-          args: { sourceId: "s1", quote },
-        });
-      }
-      expect(toolResult(body, "cite")).toContain("s1-repair-1");
+      expect(index).toBe(2);
+      expect(body.tools ?? []).toEqual([]);
+      expect(body.messages.slice(0, 2)).toEqual(
+        requests[0].messages.slice(0, 2),
+      );
+      expect(body.messages).toContainEqual(
+        expect.objectContaining({
+          tool_calls: [expect.objectContaining({ id: marker })],
+        }),
+      );
+      expect(toolResult(body, marker)).toContain("pointIds");
+      expect(prompt.groups).toMatchObject([{ path: locationPath, note }]);
       if (original.decision.status !== "ready") {
         throw new Error("Missing Location");
       }
@@ -596,7 +619,7 @@ it("revises one of two Location slots with a new venue citation", async () => {
         value: "Vale do Tejo",
         reason: "Saved spelling",
       };
-      slot.evidenceIds = ["s1-repair-1"];
+      slot.evidenceIds = [];
       return reply(body, {
         decision: { ...original.decision, previousEdition: null },
       });
@@ -611,7 +634,7 @@ it("revises one of two Location slots with a new venue citation", async () => {
       workflowStorage: storage,
     });
     expect(result.errors).toEqual([]);
-    expect(result.repairs?.[0].evidence).toMatchObject([{ quote }]);
+    expect(result.repairs?.[0]).toMatchObject({ note, evidence: [] });
     expect(geocode).toHaveBeenCalledOnce();
     const saved = f.saved().editions;
     expect(saved).toContainEqual(

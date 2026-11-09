@@ -16,7 +16,7 @@ import { LOCATION_PROMPT_VERSION, locationOutputSchema } from "./contracts";
 import type { LocationInput } from "./input";
 import { prepareInitialGeocoding } from "./initial";
 import { locationInstructions } from "./prompt";
-import { savedCitationInstructions } from "../../evidence/repair";
+import { returnInstructions } from "../prompts";
 import {
   LocationCountryConflictError,
   LocationValidationError,
@@ -161,7 +161,7 @@ function captureLocationReply(
         raw,
         schema: locationOutputSchema,
         ...(history && {
-          revise: (input, tools, signal) =>
+          revise: (input, signal) =>
             invokeRole({
               role: "location",
               version: LOCATION_PROMPT_VERSION,
@@ -172,8 +172,6 @@ function captureLocationReply(
               config: locationModelConfig(config),
               tracing,
               signal,
-              tools,
-              steps: 6,
               messages: history,
             }),
         }),
@@ -217,10 +215,7 @@ export async function resolveLocation(
   });
   const runner = createRoleModelRunner(tracing);
   let messages: FullOutput["messages"] | undefined;
-  const instructions =
-    locationInstructions +
-    "\nIf the workflow returns a group, revise only that group from saved pages and cite any new passage with citeSavedPassage. " +
-    savedCitationInstructions;
+  const instructions = locationInstructions + returnInstructions;
 
   try {
     await prepareInitialGeocoding(input, session);

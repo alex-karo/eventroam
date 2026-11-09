@@ -1,6 +1,8 @@
 import type { CheckFinding } from "./contracts";
 import type { CatalogResearchInput } from "../contracts";
+import { isEventFieldCheck, type GroupOwner } from "../groups";
 import type { ResearchContext } from "../research/context";
+import type { Targets } from "./general/contracts";
 
 export function buildAssignment(
   input: CatalogResearchInput,
@@ -95,10 +97,10 @@ export function buildAssignment(
 
 /** Interpretation checks belong to the role that can assess their meaning. */
 export function assignedRoleChecks(
-  role: "general" | "tickets" | "classification" | "links",
+  role: Exclude<GroupOwner, "location">,
   input: CatalogResearchInput,
-  targets?: import("./general/contracts").Targets,
-) {
+  targets?: Targets,
+): string[] {
   const current = input.mode === "refresh" && input.scope === "current";
   const hasNext = !!targets?.currentOrNextEdition;
   if (role === "general") {
@@ -126,7 +128,5 @@ export function assignedRoleChecks(
 }
 
 export function hasEventFieldCheck(checks: CheckFinding[]) {
-  return checks.some(
-    ({ check }) => check === "description" || check === "eventLinks",
-  );
+  return checks.some(({ check }) => isEventFieldCheck(check));
 }

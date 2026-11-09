@@ -99,11 +99,7 @@ function logStep(
 export type RoleConversation = {
   raw: unknown;
   schema: z.ZodType;
-  revise?: (
-    input: unknown,
-    tools: ToolsInput,
-    signal: AbortSignal,
-  ) => Promise<RoleExecution>;
+  revise?: (input: unknown, signal: AbortSignal) => Promise<RoleExecution>;
 };
 
 function repairableRole(role: Role): role is GroupOwner {
@@ -356,13 +352,13 @@ function validateCompletedReply<T>(
       raw: normalized,
       schema: options.schema,
       ...(history && {
-        revise: (input, tools, signal) =>
+        revise: (input, signal) =>
           invokeRole({
             ...options,
             input,
-            tools,
+            tools: undefined,
             signal,
-            steps: 6,
+            steps: 1,
             messages: history,
             capture: undefined,
           }),
@@ -378,8 +374,6 @@ function validateCompletedReply<T>(
     : validateSchema(options.schema, normalized, role);
 }
 
-export const roleInputCharacterLimit = 400000;
-
 function rolePrompt(
   input: unknown,
   hasHistory: boolean,
@@ -393,7 +387,7 @@ function rolePrompt(
         }
       : input,
   );
-  if (prompt.length > roleInputCharacterLimit) {
+  if (prompt.length > 400000) {
     throw new ResearchLimitError("context");
   }
   return prompt;

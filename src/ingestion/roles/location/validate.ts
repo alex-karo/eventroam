@@ -1,5 +1,6 @@
 import { isAssignedCountryCode } from "@/catalog/domain/country-codes";
 import { z } from "zod";
+import { locationGroupPath } from "../../groups";
 import { pointSchema } from "../../tools/geocode/contracts";
 import { editionSlotNames } from "../../research/contracts";
 import type { GeocodingSession } from "../../tools/geocode/tool";
@@ -156,10 +157,7 @@ function materializePoint(
   }
   let precision = point.precision;
   if (coords.action === "reusePrevious") {
-    if (
-      point.kind !== "previousPoint" ||
-      session.targets[slot]?.previousPointId !== id
-    ) {
+    if (point.kind !== "previousPoint") {
       throw new LocationValidationError("Invalid historical previousPoint");
     }
     previousPoints.push(point);
@@ -183,8 +181,9 @@ export function validateLocation(
   raw: unknown,
   input: LocationInput,
   session: PointContext,
+  returnedPaths?: ReadonlySet<string>,
 ): MaterializedLocation {
-  const result = validateLocationReply(raw, input, session);
+  const result = validateLocationReply(raw, input, session, returnedPaths);
   if (result.status === "rejected") {
     throw new LocationValidationError("Location rejected the item");
   }
@@ -195,6 +194,7 @@ export function validateLocationReply(
   raw: unknown,
   input: LocationInput,
   session: PointContext,
+  returnedPaths?: ReadonlySet<string>,
 ):
   | { status: "rejected"; reason: string }
   | { status: "success"; materialized: MaterializedLocation } {
@@ -232,9 +232,10 @@ export function validateLocationReply(
     );
     if (
       plan.evidenceIds.some((id) => !ids.has(id)) ||
-      (locationTextFields.some(
-        (field) => plan.fields[field].action !== "keep",
-      ) &&
+      (!returnedPaths?.has(locationGroupPath(slot)) &&
+        locationTextFields.some(
+          (field) => plan.fields[field].action !== "keep",
+        ) &&
         !plan.evidenceIds.length)
     ) {
       throw new LocationValidationError(

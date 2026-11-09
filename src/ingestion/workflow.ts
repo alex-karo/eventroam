@@ -22,9 +22,10 @@ import type { RoleOptions } from "./roles/options";
 import {
   assembleProposals,
   applyReview,
+  type PreparedProposals,
   type SpecialistOutputs,
 } from "./proposals";
-import { assignedGroups } from "./groups";
+import { assignedGroups, type ProposalGroup } from "./groups";
 import { reviewPaths, reviewReturns } from "./roles/editor/review";
 import type { ReviewDecisions } from "./roles/editor/contracts";
 import { repairDiagnostic } from "./repairs";
@@ -665,13 +666,10 @@ export function createCatalogIngestionWorkflow(
     outputs: SpecialistOutputs,
     originalTargets?: Targets,
   ) {
-    const corpus = owned.repairs.corpus(data.corpus!);
     const rawLocation = owned.repairs.raw("location");
     if (rawLocation) {
-      data.location.materialized = owned.repairs.materializeLocation(
-        rawLocation,
-        corpus.evidence,
-      );
+      data.location.materialized =
+        owned.repairs.materializeLocation(rawLocation);
       data.location.status = "success";
       data.location.errors = [];
     }
@@ -689,10 +687,11 @@ export function createCatalogIngestionWorkflow(
         unresolved: [],
       },
       points: data.location.points,
-      corpus,
+      corpus: data.corpus!,
       context: data.context!,
       input: owned.input,
       originalTargets,
+      returnedPaths: owned.repairs.returnedPaths,
     });
     if (data.prepared.status !== "continue") {
       data.outcome = "failed";
@@ -807,28 +806,30 @@ export function createCatalogIngestionWorkflow(
       let prepared = data.prepared.value;
       const originalTargets = prepared.targets;
       const groups = assignedGroups(owned.input.scope, originalTargets);
-      const runReview = (targeted?: Set<string>) =>
+      const runReview = (
+        prepared: PreparedProposals,
+        targetedGroups?: readonly ProposalGroup[],
+      ) =>
         owned.track(
           runEditor(
-            {
-              ...roleOptions(owned, data, signal),
-              corpus: owned.repairs.corpus(data.corpus!),
-            },
+            roleOptions(owned, data, signal),
             prepared,
             reviewPaths(
               prepared,
-              groups,
+              targetedGroups ?? groups,
               owned.repairs.returnCounts,
               (owner) => owned.repairs.canReturn(owner),
-              targeted,
+              !!targetedGroups,
             ),
-            targeted
-              ? owned.repairs.records.filter(({ path }) => targeted.has(path))
+            targetedGroups
+              ? owned.repairs.records.filter(({ path }) =>
+                  targetedGroups.some((group) => group.path === path),
+                )
               : owned.repairs.records,
-            !!targeted,
+            targetedGroups,
           ),
         );
-      const execution = await runReview();
+      const execution = await runReview(prepared);
       data.specialists.editor = execution;
       data.editor = {
         status: execution.status,
@@ -852,9 +853,9 @@ export function createCatalogIngestionWorkflow(
         execution.output.decisions.map((entry) => [entry.path, entry]),
       );
       for (
-        let returned = reviewReturns(review);
+        let returned = reviewReturns(review, groups);
         returned.length;
-        returned = reviewReturns(review)
+        returned = reviewReturns(review, groups)
       ) {
         try {
           const firstRecord = owned.repairs.records.length;
@@ -863,7 +864,6 @@ export function createCatalogIngestionWorkflow(
               owned,
               data,
               originalTargets,
-              groups,
               returned,
               signal,
             ),
@@ -884,9 +884,11 @@ export function createCatalogIngestionWorkflow(
             return revised;
           }
           prepared = revised.value;
-          const targeted = await runReview(
-            new Set(returned.map(({ path }) => path)),
+          // Keep the assignment order for Editor.
+          const returnedGroups = groups.filter((group) =>
+            returned.some((request) => request.group === group),
           );
+          const targeted = await runReview(prepared, returnedGroups);
           if (targeted.status !== "success" || !targeted.output) {
             data.errors.push(...targeted.errors);
             data.editor.status = "failed";

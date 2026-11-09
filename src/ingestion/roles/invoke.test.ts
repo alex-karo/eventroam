@@ -91,7 +91,7 @@ it.each([
   },
 );
 
-it("reads the final Links revision after tool use when the wire schema fails", async () => {
+it("reads a tool-free Links revision when the wire schema fails", async () => {
   const initial = {
     event: { website: null, socials: {} },
     currentOrNextEdition: { tickets: null },
@@ -103,13 +103,6 @@ it("reads the final Links revision after tool use when the wire schema fails", a
   const fetch = vi
     .fn()
     .mockResolvedValueOnce(modelReply(JSON.stringify(initial)))
-    .mockResolvedValueOnce(
-      modelReply("Check the saved page.", {
-        id: "lookup",
-        name: "lookup",
-        args: {},
-      }),
-    )
     .mockResolvedValueOnce(modelReply(JSON.stringify(revised)));
   vi.stubGlobal("fetch", fetch);
   const budget = createResearchBudget();
@@ -126,22 +119,22 @@ it("reads the final Links revision after tool use when the wire schema fails", a
       model: "fixture/model",
       limits: budget.limits,
     },
+    tools: {
+      lookup: createTool({
+        id: "lookup",
+        description: "Read the saved page.",
+        inputSchema: z.object({}),
+        execute: async () => "Official website",
+      }),
+    },
     capture: (_role, conversation) => {
       captured = conversation;
     },
   });
-  const lookup = createTool({
-    id: "lookup",
-    description: "Read the saved page.",
-    inputSchema: z.object({}),
-    execute: async () => "Official website",
-  });
-  const revision = await captured!.revise!(
-    {},
-    { lookup },
-    new AbortController().signal,
-  );
-  expect(fetch).toHaveBeenCalledTimes(3);
+  const revision = await captured!.revise!({}, new AbortController().signal);
+  expect(fetch).toHaveBeenCalledTimes(2);
+  const request = JSON.parse(String(fetch.mock.calls[1][1]?.body));
+  expect(request.tools ?? []).toEqual([]);
   expect(revision).toMatchObject({
     status: "success",
     output: { currentOrNextEdition: { tickets: 12 } },
