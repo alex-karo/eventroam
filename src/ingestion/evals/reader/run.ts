@@ -31,13 +31,6 @@ export async function executeReaderCase(
     experimentId,
   );
   try {
-    if (
-      source.markdown.length + limits.inputReserveCharacters >
-        limits.pageInputCharacters ||
-      limits.readerCalls < 1
-    ) {
-      throw new ResearchLimitError("context");
-    }
     const execution = await readSource({
       input: {
         assignment: {
@@ -51,8 +44,13 @@ export async function executeReaderCase(
       config,
       tracing,
       outputTokens: limits.readerOutputTokens,
+      inputLimits: limits,
+      reserveCall: () => limits.readerCalls > 0,
       reserveCorrection: () => limits.readerCalls > 1,
     });
+    if (execution.status === "not_run") {
+      throw new ResearchLimitError("context");
+    }
     return {
       ...scoreReader(item, execution),
       runId,

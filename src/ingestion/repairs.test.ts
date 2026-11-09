@@ -361,6 +361,17 @@ it("shares three ticket returns between validation and Editor", async () => {
     });
     if (index > 0) {
       expect(prompt.reviewPaths).toEqual([path]);
+      expect(prompt.evidence).toEqual([
+        expect.objectContaining({ id: citationId, quote }),
+      ]);
+      expect(prompt.returnedGroups).toMatchObject([
+        { path: ticketsPath, proposal: { evidenceIds: [citationId] } },
+      ]);
+      expect(prompt.repairs.slice(1)).toHaveLength(index);
+      for (const repair of prompt.repairs.slice(1)) {
+        expect(repair.evidenceIds).toEqual([citationId]);
+        expect(repair).not.toHaveProperty("evidence");
+      }
     }
     return index < 2
       ? review(prompt, {
@@ -463,11 +474,13 @@ it("revises one of two Location slots with a new venue citation", async () => {
       {
         path: locationPath,
         proposal: { venueName: { value: "Vale do Tejo" } },
+        evidenceIds: ["s1-repair-1"],
       },
     ]);
-    expect(prompt.prepared.basis.evidence).toContainEqual(
+    expect(prompt.evidence).toContainEqual(
       expect.objectContaining({ id: "s1-repair-1" }),
     );
+    expect(prompt.repairs[0].evidenceIds).toEqual(["s1-repair-1"]);
     return review(prompt);
   });
   const { run, requests } = f.model(

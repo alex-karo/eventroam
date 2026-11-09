@@ -17,6 +17,7 @@ import type { Targets } from "@/ingestion/roles/general/contracts";
 import type { CheckFinding } from "@/ingestion/roles/contracts";
 import type { ClassificationOutput } from "@/ingestion/roles/classification/contracts";
 import { topics } from "@/ingestion/evidence/contracts";
+import type { SegmentSelection } from "@/ingestion/evidence/segments";
 import {
   runCatalogResearch,
   createCatalogIngestionWorkflow,
@@ -101,6 +102,17 @@ export function approveFixtureReview(paths: ReviewPath[]): {
   };
 }
 
+export function fixtureReaderOutput(quote: string | SegmentSelection) {
+  return {
+    overview: "Explicit fixture source",
+    coverage: { found: [], notPublished: [] },
+    topics: [...topics],
+    statedYears: [],
+    limitations: [],
+    evidence: [{ quote, topics: [...topics] }],
+  };
+}
+
 /** These answers use the current role contracts. Each override is one role response. */
 export function fixtureRoleGenerator(
   responses: Partial<Record<Role, unknown | GenerateRole>> = {},
@@ -114,14 +126,7 @@ export function fixtureRoleGenerator(
         : response;
     }
     if (role === "reader") {
-      return {
-        overview: "Explicit fixture source",
-        coverage: { found: [], notPublished: [] },
-        topics: [...topics],
-        statedYears: [],
-        limitations: [],
-        evidence: [{ quote: data.page, topics: [...topics] }],
-      };
+      return fixtureReaderOutput(data.page);
     }
     if (role === "research") {
       await fixtureTool(call, "inspectPage", {

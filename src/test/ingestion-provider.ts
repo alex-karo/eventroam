@@ -1,4 +1,8 @@
-import { fixtureRoleGenerator, fixtureLocationPlan } from "./ingestion";
+import {
+  fixtureRoleGenerator,
+  fixtureLocationPlan,
+  fixtureReaderOutput,
+} from "./ingestion";
 import type { GenerateRole, Role } from "@/ingestion/roles/invoke";
 import { createResearchBudget } from "@/ingestion/runtime/budget";
 
@@ -92,6 +96,15 @@ export function providerRole(body: ObjectValue) {
   }
   return "tickets";
 }
+
+export function wholeNumberedPage(page: string) {
+  const end = Number([...page.matchAll(/^(\d+)\|/gm)].at(-1)?.[1]);
+  if (!end) {
+    throw new Error("Reader fixture needs a numbered page");
+  }
+  return end === 1 ? 1 : { start: 1, end };
+}
+
 /** Fill optional transport slots with null, as required by strict provider schemas. */
 export function modelWireFixture(value: unknown, schema: ObjectValue): unknown {
   if (value == null) {
@@ -153,6 +166,8 @@ export async function fixtureRoleForProvider(
     role === "location"
       ? fixtureLocationPlan(prompt)
       : await fixtureRoleGenerator({
+          reader: async () =>
+            fixtureReaderOutput(wholeNumberedPage(prompt.page)),
           research: async (_role: unknown, raw: string) => ({
             checks: JSON.parse(raw).checks.map(({ key }: { key: string }) => ({
               check: key,

@@ -3,7 +3,13 @@ import { mkdtemp, rm, readFile, readdir, writeFile } from "node:fs/promises";
 import { noopObserve } from "@mastra/core/tools";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { bindEvidence, evidencePacket, type Evidence } from "./contracts";
+import {
+  bindEvidence,
+  bindSelectedEvidence,
+  evidencePacket,
+  type Evidence,
+} from "./contracts";
+import { segmentPage } from "./segments";
 import { readerOutputSchema } from "../roles/reader/contracts";
 import { savedCitation } from "./repair";
 import {
@@ -13,6 +19,82 @@ import {
 } from "./storage";
 
 describe("saved source evidence", () => {
+  it("binds the selected occurrence and restores original Markdown for its context", () => {
+    const price = "  \\+ Handling fee €5  ";
+    const passage = `${price}\r\n\r\n[Buy a pass](../tickets)`;
+    const page = `🎪\r\n# 2026\r\n${price}\r\n# 2027\r\n${passage}\r\n`;
+    const { numbered, spans } = segmentPage(page);
+    expect(numbered).toBe(
+      `1|🎪\r\n2|# 2026\r\n3|${price}\r\n4|# 2027\r\n5|${price}\r\n\r\n6|[Buy a pass](../tickets)\r\n`,
+    );
+    const bound = bindSelectedEvidence(
+      "s1",
+      page,
+      {
+        limitations: [],
+        evidence: [
+          {
+            quote: { start: 5, end: 6 },
+            context: [4],
+            topics: ["tickets", "links"],
+            editionClues: [],
+            uncertainty: null,
+          },
+          { quote: 5, topics: ["tickets"] },
+          { quote: { start: 6, end: 5 }, topics: ["tickets"] },
+          {
+            quote: 5,
+            context: [7],
+            topics: ["tickets"],
+            editionClues: [],
+            uncertainty: null,
+          },
+        ],
+      },
+      "https://example.org/info/",
+      spans,
+    );
+    expect(bound.evidence).toMatchObject([
+      {
+        quote: passage,
+        span: {
+          start: page.lastIndexOf(price),
+          end: page.length - 2,
+        },
+        context: [{ quote: "# 2027", span: spans[3] }],
+        anchors: [{ url: "https://example.org/tickets", label: "Buy a pass" }],
+      },
+      { quote: price, span: spans[4] },
+    ]);
+    expect(bound.limitations).toEqual([
+      "Quotation 3 or its context has an invalid segment selection",
+      "Quotation 4 or its context has an invalid segment selection",
+    ]);
+  });
+
+  it("splits long lines without breaking Unicode or accepting oversized passages", () => {
+    const page = `${"x".repeat(1999)}🎪${"y".repeat(24000)}`;
+    const { spans, numbered } = segmentPage(page);
+    expect(numbered).toContain("\n2|🎪");
+    expect(spans.map(({ start, end }) => page.slice(start, end)).join("")).toBe(
+      page,
+    );
+    const bound = bindSelectedEvidence(
+      "s1",
+      page,
+      {
+        limitations: [],
+        evidence: [
+          { quote: { start: 1, end: spans.length }, topics: ["identity"] },
+        ],
+      },
+      "https://example.org/",
+      spans,
+    );
+    expect(bound.evidence).toEqual([]);
+    expect(bound.limitations).toHaveLength(1);
+  });
+
   it("restores empty metadata for short items and retains required context for full items", () => {
     const page = "# 2027\nFull pass €100.\nChildren enter free.";
     const short = { quote: "Full pass €100.", topics: ["tickets"] };

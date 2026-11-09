@@ -1,10 +1,14 @@
-import { evidencePacket, topics } from "../../evidence/contracts";
+import {
+  evidencePacket,
+  topics,
+  type Evidence,
+} from "../../evidence/contracts";
 import { savedPages, savedSearchInstructions } from "../../evidence/repair";
 import type { PreparedProposals } from "../../proposals";
 import type { RepairRecord } from "../../repairs";
 import { editionSlotNames } from "../../research/contracts";
 import { buildAssignment } from "../assignment";
-import { invokeRole } from "../invoke";
+import { invokeRole, roleInputCharacterLimit } from "../invoke";
 import { roleInvocationOptions, type RoleOptions } from "../options";
 import { PROMPT_VERSIONS } from "../versions";
 import type { ReviewPath } from "./contracts";
@@ -23,19 +27,36 @@ export async function runEditor(
     options.corpus,
     options.signal,
   );
-  const cited = new Set(
-    repairs.flatMap(({ evidence }) => evidence?.map(({ id }) => id) ?? []),
+  const { evidence: proposalEvidence, ...basis } = prepared.basis;
+  const repairEvidence = repairs.flatMap(({ evidence }) => evidence ?? []);
+  const cited = new Set(repairEvidence.map(({ id }) => id));
+  const returnedGroups = targeted
+    ? paths.map(({ path }) => {
+        const slot = editionSlotNames.find(
+          (slot) => path === `${slot}.fields.location`,
+        );
+        const evidenceIds = slot ? prepared.location.support[slot] : undefined;
+        for (const id of evidenceIds ?? []) {
+          cited.add(id);
+        }
+        return {
+          path,
+          proposal: groupProposal(prepared, path) ?? null,
+          ...(evidenceIds?.length && { evidenceIds }),
+        };
+      })
+    : undefined;
+  const currentEvidence = new Map(
+    proposalEvidence
+      .filter(({ id }) => !targeted || cited.has(id))
+      .map((item) => [item.id, item]),
   );
-  for (const slot of editionSlotNames) {
-    if (paths.some(({ path }) => path === `${slot}.fields.location`)) {
-      for (const id of prepared.location.support[slot] ?? []) {
-        cited.add(id);
-      }
+  const earlierEvidence = new Map<string, Evidence>();
+  for (const item of repairEvidence) {
+    if (!currentEvidence.has(item.id)) {
+      earlierEvidence.set(item.id, item);
     }
   }
-  const evidence = targeted
-    ? prepared.basis.evidence.filter(({ id }) => cited.has(id))
-    : prepared.basis.evidence;
   const schema = reviewSchema(paths);
   return invokeRole({
     ...roleInvocationOptions(options, "editor"),
@@ -53,12 +74,12 @@ export async function runEditor(
       permissions: buildAssignment(options.input, options.context).permissions,
       sourceFiles,
       reviewPaths: paths,
-      repairs,
+      repairs: repairs.map(({ evidence, ...repair }) => ({
+        ...repair,
+        ...(evidence && { evidenceIds: evidence.map(({ id }) => id) }),
+      })),
       ...(targeted && {
-        returnedGroups: paths.map(({ path }) => ({
-          path,
-          proposal: groupProposal(prepared, path) ?? null,
-        })),
+        returnedGroups,
         fixedEditions: {
           previousEdition: prepared.targets.previousEdition,
           currentOrNextEdition: prepared.targets.currentOrNextEdition,
@@ -74,13 +95,21 @@ export async function runEditor(
           reason: prepared.targets.reason,
           evidenceIds: prepared.targets.evidenceIds,
         },
-        basis: {
-          ...prepared.basis,
-          evidence: evidencePacket({ ...options.corpus, evidence }, topics, {
-            anchors: true,
-          }).evidence,
-        },
+        basis,
       },
+      evidence: [
+        ...evidencePacket(
+          { ...options.corpus, evidence: [...currentEvidence.values()] },
+          topics,
+          { anchors: true },
+        ).evidence,
+        // Earlier repair passages count toward the full role input limit.
+        ...evidencePacket(
+          { ...options.corpus, evidence: [...earlierEvidence.values()] },
+          topics,
+          { anchors: true, maxCharacters: roleInputCharacterLimit },
+        ).evidence,
+      ],
     },
     schema,
     validateReply: (reply) => validateEditorReply(schema, reply),

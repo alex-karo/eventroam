@@ -378,6 +378,8 @@ function validateCompletedReply<T>(
     : validateSchema(options.schema, normalized, role);
 }
 
+export const roleInputCharacterLimit = 400000;
+
 function rolePrompt(
   input: unknown,
   hasHistory: boolean,
@@ -391,7 +393,7 @@ function rolePrompt(
         }
       : input,
   );
-  if (prompt.length > 400000) {
+  if (prompt.length > roleInputCharacterLimit) {
     throw new ResearchLimitError("context");
   }
   return prompt;

@@ -1,9 +1,19 @@
-import { bindEvidence } from "../../evidence/contracts";
-import { invokeRole } from "../invoke";
+import { bindEvidence, bindSelectedEvidence } from "../../evidence/contracts";
+import { segmentPage } from "../../evidence/segments";
+import { invokeRole, type RoleExecution } from "../invoke";
 import { PROMPT_VERSIONS } from "../versions";
-import { readerOutputSchema } from "./contracts";
+import {
+  readerOutputSchema,
+  readerSelectionSchema,
+  type ReaderOutput,
+  type ReaderSelectionOutput,
+} from "./contracts";
 import { readerInstructions } from "./prompt";
-import { validateReaderReply } from "./validate";
+import { validateReaderReply, validateReaderSelection } from "./validate";
+
+type ReaderExecution = RoleExecution<ReaderOutput | ReaderSelectionOutput> & {
+  bound: ReturnType<typeof bindEvidence> | null;
+};
 
 export async function readSource(
   options: Omit<
@@ -21,25 +31,85 @@ export async function readSource(
       source: { id: string; finalUrl: string; markdown?: undefined };
       page: string;
     };
+    inputLimits?: {
+      pageInputCharacters: number;
+      inputReserveCharacters: number;
+    };
+    reserveCall?: () => boolean;
   },
-) {
-  const execution = await invokeRole({
+): Promise<ReaderExecution> {
+  const { source, page } = options.input;
+  const version = PROMPT_VERSIONS.reader;
+  const skipped = (skipReason: string): ReaderExecution => ({
+    status: "not_run",
+    modelResponse: null,
+    errors: [],
+    model: options.config.model,
+    promptVersion: version,
+    durationMs: 0,
+    skipReason,
+    bound: null,
+  });
+  const oversized =
+    "Whole page exceeds Reader input limit; no page portion was processed";
+  const limit = options.inputLimits
+    ? options.inputLimits.pageInputCharacters -
+      options.inputLimits.inputReserveCharacters
+    : Infinity;
+  if (page.length > limit) {
+    return skipped(oversized);
+  }
+
+  // Injected generators replay the literal format used by saved eval fixtures.
+  const segments = options.generate ? null : segmentPage(page);
+  const input = { ...options.input, page: segments?.numbered ?? page };
+  if (JSON.stringify(input).length > limit) {
+    return skipped(oversized);
+  }
+  if (options.reserveCall?.() === false) {
+    return skipped(
+      "The Reader call limit or run deadline left the whole page unprocessed",
+    );
+  }
+
+  const invocation = {
     ...options,
-    config: { ...options.config, reasoningEffort: "medium" },
-    role: "reader",
-    version: PROMPT_VERSIONS.reader,
+    input,
+    config: { ...options.config, reasoningEffort: "medium" as const },
+    role: "reader" as const,
+    version,
     instructions: readerInstructions,
     cacheInstructions: true,
-    schema: readerOutputSchema,
-    validateReply: validateReaderReply,
-  });
-  if (execution.status !== "success" || !execution.output) {
-    return { ...execution, bound: null };
+  };
+  if (!segments) {
+    const execution = await invokeRole({
+      ...invocation,
+      schema: readerOutputSchema,
+      validateReply: validateReaderReply,
+    });
+    return {
+      ...execution,
+      bound: execution.output
+        ? bindEvidence(source.id, page, execution.output, source.finalUrl)
+        : null,
+    };
   }
-  const { source, page } = options.input;
+
+  const execution = await invokeRole({
+    ...invocation,
+    schema: readerSelectionSchema,
+    validateReply: validateReaderSelection,
+  });
   return {
     ...execution,
-    output: execution.output,
-    bound: bindEvidence(source.id, page, execution.output, source.finalUrl),
+    bound: execution.output
+      ? bindSelectedEvidence(
+          source.id,
+          page,
+          execution.output,
+          source.finalUrl,
+          segments.spans,
+        )
+      : null,
   };
 }

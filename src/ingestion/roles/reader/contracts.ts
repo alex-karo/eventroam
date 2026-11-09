@@ -50,7 +50,7 @@ const contextualReaderEvidence = readerEvidence.extend({
     .describe("Briefly explain the ambiguity, normally under 1000 characters.")
     .nullable(),
 });
-export const readerOutputSchema = z.strictObject({
+const readerPageResult = z.strictObject({
   overview: z
     .string()
     .min(1)
@@ -104,10 +104,38 @@ export const readerOutputSchema = z.strictObject({
     .describe(
       "Actual extraction problems only, such as cut or unreadable source content. Return [] for absent optional facts, unmentioned topics or explicit nonpublication.",
     ),
-  // Keep full metadata first so native schema handling retains required null values.
+});
+
+// Recorded and injected replies keep the literal format used when they were captured.
+export const readerOutputSchema = readerPageResult.extend({
   evidence: z
     .array(z.union([contextualReaderEvidence, readerEvidence]))
     .max(150),
 });
 export type ReaderOutput = z.infer<typeof readerOutputSchema>;
 export type ReaderEvidence = z.infer<typeof contextualReaderEvidence>;
+
+const segmentId = z.int().positive();
+const segmentSelection = z.union([
+  segmentId,
+  z.strictObject({ start: segmentId, end: segmentId }),
+]);
+const selectedEvidence = readerEvidence.extend({
+  quote: segmentSelection.describe(
+    "One segment ID or an inclusive range of segment IDs in page order.",
+  ),
+});
+const contextualSelection = contextualReaderEvidence.extend({
+  quote: selectedEvidence.shape.quote,
+  context: z
+    .array(segmentSelection)
+    .max(24)
+    .describe(
+      "Separate segment selections for any needed heading, year or condition outside the quote.",
+    ),
+});
+export const readerSelectionSchema = readerPageResult.extend({
+  // Keep full metadata first so native schema handling retains required null values.
+  evidence: z.array(z.union([contextualSelection, selectedEvidence])).max(150),
+});
+export type ReaderSelectionOutput = z.infer<typeof readerSelectionSchema>;

@@ -12,7 +12,7 @@ import type { PreparedProposals } from "../../proposals";
 import { initialDiagnostics } from "../../stage";
 import { runEditor } from "./agent";
 
-it("uses native Mastra grep with all saved source files and hash checks", async () => {
+it("shares proposal and repair evidence by ID and checks saved source hashes", async () => {
   const root = await mkdtemp(join(tmpdir(), "eventroam-editor-context-"));
   try {
     const body = "Before the quote.\nFestival in the park.\nAfter the quote.";
@@ -96,6 +96,14 @@ it("uses native Mastra grep with all saved source files and hash checks", async 
         points: [],
       },
     };
+    const earlierRepair = {
+      path: "event.fields.description",
+      owner: "classification" as const,
+      target: { eventId: null },
+      trigger: "validation" as const,
+      note: "Check the description",
+      original: null,
+    };
     const budget = createResearchBudget();
     const execution = await runEditor(
       {
@@ -122,9 +130,22 @@ it("uses native Mastra grep with all saved source files and hash checks", async 
             expect(input.currentDate).toBe("2026-11-01T00:00:00Z");
             expect(input).not.toHaveProperty("decisionShape");
             expect(input.prepared.unresolved).toEqual(prepared.unresolved);
-            expect(input.prepared.basis.evidence[0].quote).toBe(
-              bound.evidence[0].quote,
+            expect(input.prepared.identity.evidenceIds).toEqual([
+              bound.evidence[0].id,
+            ]);
+            expect(input.prepared.basis).toEqual({
+              savedEvent: null,
+              points: [],
+            });
+            expect(input.evidence).toEqual(
+              bound.evidence.map(({ id, quote }) =>
+                expect.objectContaining({ id, quote }),
+              ),
             );
+            expect(input.repairs).toEqual([
+              { ...earlierRepair, evidenceIds: [bound.evidence[1].id] },
+              { ...earlierRepair, evidenceIds: [bound.evidence[0].id] },
+            ]);
             expect(Object.keys(call.tools!)).toEqual(["mastra_workspace_grep"]);
             expect(input.sourceFiles).toEqual([
               {
@@ -197,7 +218,10 @@ it("uses native Mastra grep with all saved source files and hash checks", async 
         required: true,
         allowed: ["approve", "reject"],
       })),
-      [],
+      [
+        { ...earlierRepair, evidence: [bound.evidence[1]] },
+        { ...earlierRepair, evidence: [bound.evidence[0]] },
+      ],
     );
     expect(execution.status).toBe("success");
   } finally {

@@ -6,7 +6,11 @@ import {
   set,
   fixtureChecks,
 } from "./ingestion";
-import { fixtureRoleForProvider, providerRole } from "./ingestion-provider";
+import {
+  fixtureRoleForProvider,
+  providerRole,
+  wholeNumberedPage,
+} from "./ingestion-provider";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -179,7 +183,9 @@ export async function runTraceFixture(
           prompt.page.length <= 24000
             ? [
                 {
-                  quote: prompt.page,
+                  quote: injected
+                    ? prompt.page
+                    : wholeNumberedPage(prompt.page),
                   topics: [
                     "identity",
                     "dates",

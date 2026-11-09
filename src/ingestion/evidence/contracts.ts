@@ -1,7 +1,12 @@
 import { pageLinks } from "./links";
+import { segmentSpan } from "./segments";
 import { ResearchLimitError } from "../runtime/budget";
 import type { SourceReadMetadata } from "../tools/read-page/contracts";
-import type { ReaderEvidence, ReaderOutput } from "../roles/reader/contracts";
+import type {
+  ReaderEvidence,
+  ReaderOutput,
+  ReaderSelectionOutput,
+} from "../roles/reader/contracts";
 export const topics = [
   "identity",
   "description",
@@ -72,57 +77,101 @@ export function bindEvidence(
   output: Pick<ReaderOutput, "evidence" | "limitations">,
   sourceUrl: string,
 ) {
+  return bindPassages(
+    sourceId,
+    body,
+    output,
+    sourceUrl,
+    (quote) => literalSpan(body, quote),
+    "has no unique literal match",
+  );
+}
+
+function literalSpan(body: string, quote: ReaderEvidence["quote"]) {
+  if (typeof quote === "string") {
+    return literalMatch(body, quote).span;
+  }
+  const opening = literalMatch(body, quote.start);
+  const closing = literalMatch(body, quote.end);
+  const start = opening.span;
+  const end = closing.span;
+  if (
+    !start ||
+    !end ||
+    (end.start < start.end && !opening.quote.endsWith(closing.quote)) ||
+    end.end - start.start > 24000
+  ) {
+    return null;
+  }
+  return uniqueSpan(body, body.slice(start.start, end.end));
+}
+
+export function bindSelectedEvidence(
+  sourceId: string,
+  body: string,
+  output: Pick<ReaderSelectionOutput, "evidence" | "limitations">,
+  sourceUrl: string,
+  segments: readonly Span[],
+) {
+  return bindPassages(
+    sourceId,
+    body,
+    output,
+    sourceUrl,
+    (selection) => segmentSpan(segments, selection),
+    "has an invalid segment selection",
+  );
+}
+
+function bindPassages<Selection>(
+  sourceId: string,
+  body: string,
+  output: {
+    evidence: {
+      quote: Selection;
+      context?: Selection[];
+      topics: Evidence["topics"];
+      editionClues?: string[];
+      uncertainty?: string | null;
+    }[];
+    limitations: string[];
+  },
+  sourceUrl: string,
+  resolve: (selection: Selection) => Span | null,
+  invalid: string,
+) {
   const evidence: Evidence[] = [];
   const limitations = [...output.limitations];
-  for (const [index, supplied] of output.evidence.entries()) {
-    if (!supplied.topics.length) {
+  for (const [index, item] of output.evidence.entries()) {
+    if (!item.topics.length) {
       limitations.push(`Quotation ${index + 1} has no topic`);
       continue;
     }
-    const item = {
-      context: [],
-      editionClues: [],
-      uncertainty: null,
-      ...supplied,
-    };
-    let quote =
-      typeof item.quote === "string"
-        ? literalMatch(body, item.quote).quote
-        : null;
-    if (typeof item.quote !== "string") {
-      const opening = literalMatch(body, item.quote.start);
-      const closing = literalMatch(body, item.quote.end);
-      const start = opening.span;
-      const end = closing.span;
-      if (
-        start &&
-        end &&
-        (end.start >= start.end || opening.quote.endsWith(closing.quote)) &&
-        end.end - start.start <= 24000
-      ) {
-        quote = body.slice(start.start, end.end);
-      }
-    }
-    const span = quote ? uniqueSpan(body, quote) : null;
-    const context = item.context.map((quote) => literalMatch(body, quote));
-    if (!quote || !span || context.some((item) => !item.span)) {
-      limitations.push(
-        `Quotation ${index + 1} or its context has no unique literal match`,
-      );
+    const span = resolve(item.quote);
+    const contextSpans = (item.context ?? []).map(resolve);
+    if (!span || !contextSpans.every((part) => part !== null)) {
+      limitations.push(`Quotation ${index + 1} or its context ${invalid}`);
       continue;
     }
+    const quote = body.slice(span.start, span.end);
+    const context = contextSpans.map((span) => ({
+      quote: body.slice(span.start, span.end),
+      span,
+    }));
     const anchors = pageLinks(
       [quote, ...context.map((part) => part.quote)].join("\n\n"),
       sourceUrl,
     );
     evidence.push({
-      ...item,
       quote,
       anchors,
       id: `${sourceId}-e${index + 1}`,
       sourceId,
       span,
-      context: context as Evidence["context"],
+      context,
+      topics: item.topics,
+      editionClues: item.editionClues ?? [],
+      uncertainty: item.uncertainty ?? null,
     });
   }
   return { evidence, limitations };
