@@ -12,7 +12,7 @@ Evals measure catalog quality and protect specific workflow behavior. They use f
 
 ## Run evals
 
-`pnpm run catalog:eval --help` lists options. The default runs five main cases once. Main runs the complete ingestion flow in a fresh in-memory catalog. Workflow regressions use dry runs. Isolated Location, Reader, and Classification cases use fixed inputs. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. Run the model-backed cases through the CLI. CI runs automated tests and excludes eval sources and the eval CLI from application coverage.
+`pnpm run catalog:eval --help` lists options. The default runs each main case once. Main runs the complete ingestion flow in a fresh in-memory catalog. Workflow regressions use dry runs. Isolated Location, Reader, and Classification cases use fixed inputs. Pages, searches, date, taxonomy, and geocoding come from fixed fixtures. Only model calls use the network and can incur charges. Run the model-backed cases through the CLI. CI runs automated tests and excludes eval sources and the eval CLI from application coverage.
 
 Set `OPENROUTER_API_KEY` for the default agent model. The Classification group and `--all` also need this key for the separate description scorer, even when another provider runs the agents. With another agent provider, main runs can use the key to include description format scores.
 
@@ -100,7 +100,7 @@ The [archived `SQLITE_BUSY_SNAPSHOT` issue](archive/known-issues/2026-10-27-mast
 
 Main cases measure the final catalog after the full Research → General → specialists, including Location → Editor → writer flow. Each attempt starts from a fresh disposable catalog. Regression cases check a specific behavior through the pipeline, an Editor handoff, or direct Location, Reader, or Classification execution. Keep their results separate; do not combine them into one quality average.
 
-Source origin is a different property. Both main and regression cases can use captured or synthetic sources. Fill, verify and correct are separate tasks, even when they use the same pages. A blocked-source case can pass by returning the expected failure and preserving the catalog.
+Source origin is a different property. Both main and regression cases can use captured or synthetic sources. Fill, verify and correct are separate tasks, even when they use the same pages. The Afro Nation Portugal pipeline regression expects a source failure, an unresolved question, and no catalog changes.
 
 Add a case for a distinct task or an observed failure. Reuse pages when useful, but avoid cases that repeat the same input and checks without adding coverage. Use the CLI group selection to see the current cases.
 
@@ -141,7 +141,7 @@ Regressions use the same pass/fail check format as main conditions. They expose 
 
 Define workflow, Editor and Location regression checks in the case directory's `checks.ts`: catalog mutations, source-check results, tool use, and Location decisions. Use plain TypeScript conditions and small helpers. JSON files hold inputs, source references, geocoding responses and captured role results. They have no `expectations` block or comparison language. The loader rejects an unregistered evaluator in every group before model calls. Dataset revisions include the check code; saved outputs retain each check's result and message. Expected values do not enter model input.
 
-Editor handoff fixtures use schema version 5. Each fixture fixes the ordered page reads, Reader outputs, collection result and proposals from General, Tickets, Classification and Links. Normal collection still binds literal quotations and saves source artifacts. Editor and eligible Location execution use the configured model. Editor returns decisions by path. A group can return only when its owner has a live conversation. The scorer fails an unexpected return during a fixed handoff. Controlled workflow tests cover native specialist continuation and malformed first replies. Before provider setup, the loader checks source order, unique destinations, captured roles, literal quotations and references within each role's evidence packet.
+Editor handoff fixtures use schema version 6. Each fixture fixes the ordered page reads, Reader outputs, collection result and proposals from General, Tickets, Classification and Links. Store Classification proposals with the same vocabulary slugs as model replies. Normal collection still binds literal quotations and saves source artifacts. Editor and eligible Location execution use the configured model. Editor returns decisions by path. A group can return only when its owner has a live conversation. The scorer fails an unexpected return during a fixed handoff. Controlled workflow tests cover native specialist continuation and malformed first replies. Before provider setup, the loader checks source order, unique destinations, captured roles, literal quotations and references within each role's evidence packet.
 
 Pipeline checks use dry-run changes. Match saved Editions by their declared key or year, and new Editions through writer references. A correct value already in the seed does not satisfy a required mutation. Check individual offer or link fields when other fields are outside the case boundary. Direct Location checks distinguish changed coordinates, preserved coordinates, point actions and unresolved questions. Completion and correction require an actual change; preservation requires the saved point and precision to stay unchanged.
 
@@ -149,7 +149,7 @@ Checks of a selected Edition's dates and year can resolve an omitted proposal fr
 
 ## Accept variation through explicit alternatives
 
-Accept source-supported URL, address, classification and price alternatives. URL comparison normalizes the host and default port; a matching host does not make all paths or queries valid. Avoid fuzzy matching for dates, prices and URLs.
+Accept source-supported URL, address, classification and price alternatives. URL comparison normalizes the host and default port and ignores a single trailing slash in the path. Queries and fragments still need to match. Avoid fuzzy matching for dates, prices and URLs.
 
 Link alternatives are choices. Extra or duplicate official links of a checked kind fail.
 
@@ -161,7 +161,7 @@ Main requires `scheduled` for its dated festival announcements. Ingestion uses `
 
 We do not require full coverage of additional data. Unlisted new fields are unchecked: they earn no credit and cannot establish that the model was correct. This limit keeps the scorer small; inspect outputs when investigating errors or extending coverage.
 
-For saved Editions, populated fields remain protected unless a case declares a supported change. Empty optional fields without expectations can be filled without credit or failure. For an unclassified saved Edition, a supported subset of the explicitly allowed historical terms is valid; those optional additions do not become a completeness requirement. Required fields, identities, publication and coordinate rules stay protected. Keep stricter case conditions where needed: Glastonbury preserves its saved programme and draft Event; the blocked Afro Nation case preserves its whole Event.
+For saved Editions, populated fields remain protected unless a case declares a supported change. Empty optional fields without expectations can be filled without credit or failure. For an unclassified saved Edition, a supported subset of the explicitly allowed historical terms is valid; those optional additions do not become a completeness requirement. Required fields, identities, publication and coordinate rules stay protected. Glastonbury also preserves its saved programme and draft Event.
 
 A useful collection can have partial Research and a failed catalog outcome after General refuses Event identity. Keep the no-write, source-policy and identity-guidance checks. A size-only case does not certify collection completeness. Historical-gap checks need historical context and preservation of the unchecked record, not an exact Edition key.
 
@@ -201,7 +201,7 @@ The current page URL comes from source metadata. Reader need not extract a link 
 
 The three scores are `scenario-success`, `evidence-recall` (complete requirements divided by declared requirements) and `literal-validity` (accepted quotations divided by returned quotations, zero for an empty output). A scenario passes only when all requirements are available in accepted evidence and structural checks pass. Literal validity is diagnostic: discarding an extra quotation does not fail the scenario if accepted evidence still meets every requirement. A discarded required fact receives no recall credit. The readable fixtures require no model-reported extraction limitations or unsupported nonpublication claims and require nonempty navigation coverage.
 
-Saved output retains all binding limitations. A passing Reader case establishes useful required evidence, not complete production processing. Production still marks a source limited after any binding failure and can report partial research. Full-flow evals check the effect on final quality and task outcomes. Reader does not gain a repair call or relaxed source matching. Identical boundaries, or a complete opening with its exact closing suffix, can identify a full quotation. Extra wire escapes can be restored only when the supplied text has no match and the complete restored text matches the source exactly once. Changed facts, ambiguous matches and invalid ranges remain rejected.
+Saved output retains all binding limitations. A passing Reader case establishes that the required evidence is available. Production marks a source limited after a binding failure and can report partial research. Full-flow evals check the effect on final quality and task outcomes. The isolated cases use the production schema correction and Reader call allowance. Identical boundaries, or a complete opening with its exact closing suffix, can identify a full quotation. Extra wire escapes can be restored only when the supplied text has no match and the complete restored text matches the source exactly once. Code discards untagged quotations, changed facts, ambiguous matches, and invalid ranges.
 
 CLI output also shows unique source characters covered and extracted characters including repeated context. These are diagnostics, not pass thresholds: copying a whole page is not evidence of efficient extraction. The checks cover only the named passages and metadata conditions. They do not establish exhaustive recall, semantic accuracy of the overview or coverage wording, absence of all irrelevant material, or downstream catalog quality.
 

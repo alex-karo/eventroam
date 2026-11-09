@@ -3,12 +3,8 @@ import { mkdtemp, rm, readFile, readdir, writeFile } from "node:fs/promises";
 import { noopObserve } from "@mastra/core/tools";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  bindEvidence,
-  evidencePacket,
-  readerOutputSchema,
-  type Evidence,
-} from "./contracts";
+import { bindEvidence, evidencePacket, type Evidence } from "./contracts";
+import { readerOutputSchema } from "../roles/reader/contracts";
 import { savedCitation } from "./repair";
 import {
   createCorpusStorage,

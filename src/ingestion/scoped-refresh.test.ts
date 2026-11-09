@@ -515,7 +515,11 @@ test.each([true, false])(
             currentOrNextEdition: reuse
               ? {
                   classification: {
-                    ...set(terms.map((term) => term.id)),
+                    ...set({
+                      eventType: "festival",
+                      format: "openair",
+                      topics: ["music"],
+                    }),
                     reuseFrom: { editionKey: "source-row", reason },
                   },
                 }

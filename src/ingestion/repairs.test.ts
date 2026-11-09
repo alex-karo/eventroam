@@ -24,9 +24,9 @@ import {
 } from "@/test/ingestion-provider";
 import type { ResearchDependencies } from "./contracts";
 import { topics } from "./evidence/contracts";
-import type { LocationInput } from "./location/input";
-import type { LocationOutput } from "./location/contracts";
-import type { ReviewDecision, ReviewPath } from "./review";
+import type { LocationInput } from "./roles/location/input";
+import type { LocationOutput } from "./roles/location/contracts";
+import type { ReviewDecision, ReviewPath } from "./roles/editor/contracts";
 import { ProposalRepairs } from "./repairs";
 import type { GenerateRole, Role } from "./roles/invoke";
 import { DEFAULT_RESEARCH_LIMITS } from "./runtime/budget";
@@ -380,7 +380,13 @@ it.each(["instagram", "event.fields.links.socials.instagram"])(
 );
 
 it("shares three ticket returns between validation and Editor", async () => {
-  const f = fixture("Example Fest 2027. Full pass EUR 130.");
+  const quote = "Full pass EUR 130.";
+  const f = fixture(`Example Fest 2027. ${quote}`);
+  const citationId = "s1-repair-1";
+  const revisedPrice = (amount: number) => ({
+    ...price(amount, "EUR"),
+    evidenceIds: [citationId],
+  });
   const question = {
     field: ticketsPath,
     message: "The full pass price remains unconfirmed.",
@@ -418,22 +424,32 @@ it("shares three ticket returns between validation and Editor", async () => {
       expect(prompt.groups).toMatchObject([
         {
           path: ticketsPath,
-          original: index === 2 ? null : price(120, "EUR"),
-          note: `Use the saved price. Review ${index - 1}.`,
+          original: index === 4 ? revisedPrice(120) : null,
+          note: `Use the saved price. Review ${index === 4 ? 2 : 1}.`,
         },
       ]);
-      return reply(body, tickets(price(100 + index * 10, "EUR")));
+      if (index === 2) {
+        return modelReply(null, {
+          id: "cite-price",
+          name: "citeSavedPassage",
+          args: { sourceId: "s1", quote },
+        });
+      }
+      if (index === 3) {
+        expect(toolResult(body, "cite-price")).toContain(citationId);
+      }
+      return reply(body, tickets(revisedPrice(index === 3 ? 120 : 130)));
     },
     { editor },
   );
   const result = await run();
   expect(result.errors).toEqual([]);
-  expect(requests).toHaveLength(4);
+  expect(requests).toHaveLength(5);
   expect(editor).toHaveBeenCalledTimes(3);
   expect(result.repairs).toMatchObject([
     { trigger: "validation", omissionReason: question.message },
-    { trigger: "editor" },
-    { trigger: "editor" },
+    { trigger: "editor", evidence: [{ id: citationId, quote }] },
+    { trigger: "editor", evidence: [{ id: citationId, quote }] },
   ]);
   expect(result.researchStatus).toBe("success");
   expect(result.unresolved).toEqual([]);
@@ -442,11 +458,23 @@ it("shares three ticket returns between validation and Editor", async () => {
   ]);
 });
 
-it("continues Location with geocode history and binds a new venue citation", async () => {
+it("revises one of two Location slots with a new venue citation", async () => {
   const quote = "The venue is Vale do Tejo.";
-  const f = fixture(`Example Fest 2027.\n\n${quote}`, {
-    quote: "Example Fest 2027.",
+  const editions =
+    "Example Fest took place at Vale Antigo in 2026. Example Fest 2027 is from July 1 to July 3.";
+  const f = fixture(`${editions}\n\n${quote}`, { quote: editions });
+  const previous = f.f.edition(f.event, {
+    editionKey: "2026",
+    startsOn: "2026-07-01",
+    endsOn: "2026-07-03",
   });
+  const general = fixtureTargets(f.event.id);
+  general.previousEdition = {
+    editionKey: previous.editionKey,
+    reason: general.reason,
+    evidenceIds: general.evidenceIds,
+    fields: {},
+  };
   const note = "Use the venue spelling on s1.";
   const geocode = vi.fn(async () => ({
     status: "success" as const,
@@ -499,6 +527,13 @@ it("continues Location with geocode history and binds a new venue citation", asy
         if (original.decision.status !== "ready") {
           throw new Error("Missing Location");
         }
+        const previousSlot = original.decision.previousEdition!;
+        previousSlot.fields.venueName = {
+          action: "set",
+          value: "Vale Antigo",
+          reason: "The source names this venue.",
+        };
+        previousSlot.evidenceIds = ["s1-e1"];
         const slot = original.decision.currentOrNextEdition!;
         slot.fields.venueName = {
           action: "set",
@@ -574,9 +609,11 @@ it("continues Location with geocode history and binds a new venue citation", asy
         reason: "Saved spelling",
       };
       slot.evidenceIds = ["s1-repair-1"];
-      return reply(body, original);
+      return reply(body, {
+        decision: { ...original.decision, previousEdition: null },
+      });
     },
-    { editor },
+    { editor, general },
   );
   const storage = createWorkflowStorage({ path: ":memory:" });
   const clear = vi.spyOn(ProposalRepairs.prototype, "clear");
@@ -588,11 +625,18 @@ it("continues Location with geocode history and binds a new venue citation", asy
     expect(result.errors).toEqual([]);
     expect(result.repairs?.[0].evidence).toMatchObject([{ quote }]);
     expect(geocode).toHaveBeenCalledOnce();
-    expect(f.saved().editions[0]).toMatchObject({
-      venueName: "Vale do Tejo",
-      latitude: 38.7,
-      longitude: -9.1,
-    });
+    const saved = f.saved().editions;
+    expect(saved).toContainEqual(
+      expect.objectContaining({ editionKey: "2026", venueName: "Vale Antigo" }),
+    );
+    expect(saved).toContainEqual(
+      expect.objectContaining({
+        editionKey: "2027",
+        venueName: "Vale do Tejo",
+        latitude: 38.7,
+        longitude: -9.1,
+      }),
+    );
     expect(clear).toHaveBeenCalledOnce();
     expect(
       (clear.mock.contexts[0] as ProposalRepairs).raw("location"),
@@ -732,7 +776,7 @@ it.each(["reject target", "revise date"] as const)(
           previousEdition: null,
           currentOrNextEdition: {
             classification: {
-              ...set([term.id]),
+              ...set({ eventType: term.slug }),
               reuseFrom: {
                 editionKey: donor.editionKey,
                 reason: "Programme continuity",

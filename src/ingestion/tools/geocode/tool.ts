@@ -2,9 +2,9 @@ import { coordinatePair } from "../read-page/maps";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import type { ResearchBudget } from "../../runtime/budget";
-import type { RegisteredPoint } from "../../location/contracts";
-import type { LocationInput } from "../../location/input";
-import { distanceKm } from "../../location/geometry";
+import type { RegisteredPoint } from "../../roles/location/contracts";
+import type { LocationInput } from "../../roles/location/input";
+import { distanceKm } from "../../roles/location/geometry";
 import { editionSlotNames } from "../../research/contracts";
 import {
   forwardInputSchema,

@@ -59,9 +59,15 @@ export function normalizeUrl(value: string) {
   try {
     const url = new URL(value);
     return value.replace(
-      /^[^:]+:\/\/([^/?#]*)/,
-      (_, authority: string) =>
-        `${url.protocol}//${authority.slice(0, authority.lastIndexOf("@") + 1)}${url.host}`,
+      /^[^:]+:\/\/([^/?#]*)([^?#]*)/,
+      (_, authority: string, pathname: string) => {
+        const credentials = authority.slice(0, authority.lastIndexOf("@") + 1);
+        const path =
+          pathname.endsWith("/") && !pathname.endsWith("//")
+            ? pathname.slice(0, -1)
+            : pathname;
+        return `${url.protocol}//${credentials}${url.host}${path}`;
+      },
     );
   } catch {
     return value;

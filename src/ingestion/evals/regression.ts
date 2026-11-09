@@ -1,6 +1,7 @@
 import type { PipelineEvalCase } from "./fixtures";
 import type { CatalogResearchResult } from "../contracts";
 import { researchContext } from "./research";
+import { checks as afroNation } from "./cases/afro-nation-portugal/checks";
 import { checks as scopeCurrentOngoing } from "./cases/scope-current-ongoing/checks";
 import { checks as scopeCurrentLocalDay } from "./cases/scope-current-local-day/checks";
 import { checks as scopeCurrentStableKey } from "./cases/scope-current-stable-key/checks";
@@ -27,6 +28,7 @@ export type RegressionContext = ReturnType<typeof researchContext> & {
 export type RegressionEvaluator = (context: RegressionContext) => Check[];
 
 const evaluators: Record<string, RegressionEvaluator> = {
+  ...afroNation,
   ...scopeCurrentOngoing,
   ...scopeCurrentLocalDay,
   ...scopeCurrentStableKey,

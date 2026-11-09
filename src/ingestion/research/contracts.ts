@@ -1,8 +1,4 @@
 import { z } from "zod";
-import { currency } from "@/catalog/domain/price";
-import { ticketAvailabilities } from "@/catalog/domain/vocabulary";
-import { majorToMinor } from "./money";
-
 export const editionKeySchema = z
   .string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
@@ -15,94 +11,6 @@ const diagnosticMessage = z
   .trim()
   .min(1)
   .describe("Use a short factual message, normally under 500 characters.");
-const amount = z.number().nonnegative();
-const monetaryAmount = (code: string, value: number) => {
-  try {
-    majorToMinor(value, code);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-export const dateBlockSchema = z
-  .object({
-    startsOn: z.iso.date(),
-    endsOn: z.iso.date(),
-    state: z.enum(["provisional", "confirmed"]),
-  })
-  .strict()
-  .refine(
-    (value) => value.endsOn >= value.startsOn,
-    "End date precedes start date",
-  );
-const paidBase = z
-  .object({
-    kind: z.enum(["exact", "from", "range"]),
-    currency,
-    minAmount: amount,
-    maxAmount: amount,
-    coverage: z.literal("full_programme"),
-    qualification: z.string().trim().min(1).max(500).optional(),
-  })
-  .strict()
-  .superRefine((value, ctx) => {
-    if (
-      value.kind === "range"
-        ? value.maxAmount <= value.minAmount
-        : value.maxAmount !== value.minAmount
-    ) {
-      ctx.addIssue({ code: "custom", message: "Invalid base price bounds" });
-    }
-    for (const field of ["minAmount", "maxAmount"] as const) {
-      if (!monetaryAmount(value.currency, value[field])) {
-        ctx.addIssue({
-          code: "custom",
-          path: [field],
-          message: "Invalid currency precision or amount range",
-        });
-      }
-    }
-  });
-const freeBase = z
-  .object({
-    kind: z.literal("free"),
-    coverage: z.literal("full_programme"),
-    qualification: z.string().trim().min(1).max(500).optional(),
-  })
-  .strict();
-export const researchBasePriceSchema = z.union([freeBase, paidBase]);
-export const ticketOfferSchema = z
-  .object({
-    label: z.string().trim().min(1).max(250),
-    amount: amount.optional(),
-    currency: currency.optional(),
-    terms: z.string().trim().min(1).max(1000).optional(),
-    availability: z.enum(ticketAvailabilities).optional(),
-  })
-  .strict()
-  .superRefine((value, ctx) => {
-    if (
-      value.amount !== 0 &&
-      (value.amount === undefined) !== (value.currency === undefined)
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Amount and currency must be supplied together",
-      });
-    }
-    if (
-      value.amount !== undefined &&
-      value.currency !== undefined &&
-      !monetaryAmount(value.currency, value.amount)
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["amount"],
-        message: "Invalid currency precision or amount range",
-      });
-    }
-  });
 export const researchQuestionSchema = z
   .object({
     message: diagnosticMessage.describe(

@@ -156,10 +156,3 @@ export function fillConditions({ event, next, created, report }: MainContext) {
     ),
   ];
 }
-
-export function preservedConditions({ event, created }: MainContext) {
-  return [
-    check("editions.identity", created.length === 0),
-    check("publication", event?.publicationState === "draft"),
-  ];
-}

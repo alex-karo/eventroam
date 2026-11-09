@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { specialistResultsSchema } from "./specialist-results";
-import { emptyLocationExecution } from "./location/execution";
+import { emptyLocationExecution } from "./roles/location/execution";
 const idle = {
   status: "not_run",
   errors: [],

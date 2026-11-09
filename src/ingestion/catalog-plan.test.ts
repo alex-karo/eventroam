@@ -2,7 +2,7 @@ import { assert, expect, test } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { prepareCatalogPlan } from "./catalog-plan";
-import { initialDiagnostics } from "./proposals";
+import { initialDiagnostics } from "./stage";
 import {
   readResearchEvent,
   readResearchCatalog,
@@ -227,26 +227,54 @@ test("Tickets converts base prices to minor units and retains free concessions w
   expect(again.errors).toEqual([]);
   expect(again.changes).toEqual([]);
 });
-test("Classification replaces refuted assignments and omits no saved terms by accident", async () => {
-  const f = fixture();
-  const terms = f.fx.festivalTerms();
-  terms.forEach((term) => f.fx.assignTerm(f.edition, term));
-  const result = await runFixtureResearch(f.refresh, {
-    ...f.deps,
-    generateRoles: {
-      classification: async () => ({
-        previousEdition: null,
-        currentOrNextEdition: { classification: set([]) },
-        checks: [],
-        unresolved: [],
-      }),
-    },
-  });
-  expect(result.errors).toEqual([]);
-  expect(readResearchEvent(f.client, f.event.id)!.editions[0].terms).toEqual(
-    [],
-  );
-});
+test.each(["replace", "clear"])(
+  "Classification can %s genres and keep the other saved facets",
+  async (change) => {
+    const f = fixture();
+    const terms = f.fx.festivalTerms();
+    const savedGenre = f.fx.term({ slug: "old-test-genre" });
+    const genre = f.fx.term({
+      id: "imported-genre-17",
+      slug: "new-test-genre",
+    });
+    [...terms, savedGenre].forEach((term) => f.fx.assignTerm(f.edition, term));
+    const result = await runFixtureResearch(f.refresh, {
+      ...f.deps,
+      generateRoles: {
+        classification: async (_role, raw) => {
+          const prompt = JSON.parse(raw);
+          expect(prompt.vocabulary.genres).toContainEqual({ slug: genre.slug });
+          expect(
+            prompt.targets.currentOrNextEdition.saved.terms,
+          ).toContainEqual({
+            facet: "genre",
+            slug: savedGenre.slug,
+          });
+          expect(raw).not.toContain(genre.id);
+          expect(raw).not.toContain(savedGenre.id);
+          return {
+            previousEdition: null,
+            currentOrNextEdition: {
+              classification: set({
+                genres: change === "replace" ? [genre.slug] : [],
+                format: null,
+              }),
+            },
+            checks: [],
+            unresolved: [],
+          };
+        },
+      },
+    });
+    expect(result.errors).toEqual([]);
+    const saved = readResearchEvent(f.client, f.event.id)!.editions[0];
+    expect(saved.terms.map(({ id }) => id).sort()).toEqual(
+      [...terms, ...(change === "replace" ? [genre] : [])]
+        .map(({ id }) => id)
+        .sort(),
+    );
+  },
+);
 test("Location relocation preserves omitted Tickets and independent General fields", async () => {
   const f = fixture();
   const result = await runFixtureResearch(f.refresh, {
@@ -460,7 +488,6 @@ test("a draft with complete facts and only event_type has no planned publication
 
 test("a publishable historical Edition publishes the Event while an undated next Edition stays draft", async () => {
   const { client } = testDatabase();
-  const terms = testFixtures(client).festivalTerms();
   const general = fixtureTargets();
   general.previousEdition = {
     ...general.currentOrNextEdition!,
@@ -480,7 +507,13 @@ test("a publishable historical Edition publishes the Event while an undated next
     ...fixtureDependencies({
       general,
       classification: {
-        previousEdition: { classification: set(terms.map((term) => term.id)) },
+        previousEdition: {
+          classification: set({
+            eventType: "festival",
+            format: "openair",
+            topics: ["music"],
+          }),
+        },
         currentOrNextEdition: {},
         checks: [],
         unresolved: [],

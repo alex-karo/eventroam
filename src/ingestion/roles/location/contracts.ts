@@ -1,0 +1,101 @@
+import { z } from "zod";
+import { pointSchema } from "../../tools/geocode/contracts";
+
+export const LOCATION_PROMPT_VERSION = "catalog-location-v29";
+export const locationTextFields = [
+  "venueName",
+  "venueAddress",
+  "locality",
+  "administrativeArea",
+  "countryCode",
+] as const;
+export const precisionSchema = z.enum([
+  "exact",
+  "approximate",
+  "locality",
+  "region",
+]);
+export type Precision = z.infer<typeof precisionSchema>;
+const reason = z
+  .string()
+  .trim()
+  .min(1)
+  .describe(
+    "Explain the location decision or question in 1-3 short sentences, normally under 2000 characters.",
+  );
+function textAction(value: z.ZodString) {
+  return z.discriminatedUnion("action", [
+    z.strictObject({ action: z.literal("set"), value, reason }),
+    z.strictObject({ action: z.literal("keep"), reason }),
+    z.strictObject({ action: z.literal("clear"), reason }),
+  ]);
+}
+export const locationFieldsSchema = z.strictObject({
+  venueName: textAction(z.string().trim().min(1).max(250)),
+  venueAddress: textAction(z.string().trim().min(1).max(500)),
+  locality: textAction(z.string().trim().min(1).max(250)),
+  administrativeArea: textAction(z.string().trim().min(1).max(250)),
+  countryCode: textAction(z.string().regex(/^[A-Z]{2}$/)),
+});
+export const coordinateDecisionSchema = z.discriminatedUnion("action", [
+  z.strictObject({ action: z.literal("keep"), reason }),
+  z.strictObject({ action: z.literal("clear"), reason }),
+  z.strictObject({
+    action: z.literal("reusePrevious"),
+    reason,
+  }),
+  z.strictObject({
+    action: z.literal("select"),
+    pointId: z.string().min(1),
+    precision: precisionSchema,
+    reason,
+  }),
+]);
+export const locationSlotSchema = z.strictObject({
+  fields: locationFieldsSchema,
+  evidenceIds: z.array(z.string().min(1)).max(100),
+  coordinates: coordinateDecisionSchema,
+  unresolved: z
+    .array(
+      z.strictObject({ message: reason, field: z.string().min(1).nullable() }),
+    )
+    .max(30),
+});
+export const locationOutputSchema = z.strictObject({
+  decision: z.discriminatedUnion("status", [
+    z.strictObject({
+      status: z.literal("ready"),
+      previousEdition: locationSlotSchema.nullable(),
+      currentOrNextEdition: locationSlotSchema.nullable(),
+    }),
+    z.strictObject({ status: z.literal("rejected"), reason }),
+  ]),
+});
+export type LocationOutput = z.infer<typeof locationOutputSchema>;
+export type LocationSlot = z.infer<typeof locationSlotSchema>;
+export type LocationFields = z.infer<typeof locationFieldsSchema>;
+export type Point = z.infer<typeof pointSchema>;
+export const registeredPointSchema = pointSchema.extend({
+  id: z.string(),
+  evidenceIds: z.array(z.string()).optional(),
+  kind: z.enum(["target", "previousPoint", "source", "candidate"]),
+  precision: precisionSchema,
+  editionKey: z.string().optional(),
+  editionId: z.string().optional(),
+  version: z.number().int().positive().optional(),
+  countryCode: z.string().optional(),
+  provider: z.literal("geoapify").optional(),
+  placeId: z.string().optional(),
+  label: z.string().optional(),
+  objectType: z.enum(["venue", "locality", "region", "unknown"]).optional(),
+  comparisons: z
+    .array(
+      z.strictObject({
+        slot: z.enum(["previousEdition", "currentOrNextEdition"]),
+        targetKm: z.number().nonnegative().nullable(),
+        previousPointKm: z.number().nonnegative().nullable(),
+      }),
+    )
+    .optional(),
+});
+export type RegisteredPoint = z.infer<typeof registeredPointSchema>;

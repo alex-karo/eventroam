@@ -1,6 +1,6 @@
 {
   "id": "afro-nation-portugal-blocked",
-  "suite": "main",
+  "suite": "regression",
   "origin": "captured",
   "task": "verify",
   "todayUtc": "2026-10-08",

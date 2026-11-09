@@ -1,8 +1,6 @@
 import type { EvalSuite } from "../fixtures";
 import { check, scenarioResult } from "../checks";
-import { bindEvidence } from "../../evidence/contracts";
-import type { Evidence, ReaderOutput } from "../../evidence/contracts";
-import type { RoleExecution } from "../../roles/invoke";
+import type { readSource } from "../../roles/reader/agent";
 import { checkEvidence } from "./checks";
 import { szigetReader } from "./sziget";
 import { roskildeReader } from "./roskilde";
@@ -53,20 +51,15 @@ export type ReaderEvalCase = ReturnType<typeof readerCases>[number];
 
 export function scoreReader(
   item: ReaderEvalCase,
-  execution: RoleExecution<ReaderOutput>,
+  { bound, ...execution }: Awaited<ReturnType<typeof readSource>>,
 ) {
   const source = item.reader.source;
   const output = execution.output;
-  const bound = output
-    ? bindEvidence("s1", source.markdown, output, source.finalUrl)
-    : { evidence: [] as Evidence[], limitations: [] as string[] };
-  const evidenceChecks = checkEvidence(
-    item.reader.requirements,
-    bound.evidence,
-  );
-  const accepted = bound.evidence.length;
+  const { evidence, limitations } = bound ?? { evidence: [], limitations: [] };
+  const evidenceChecks = checkEvidence(item.reader.requirements, evidence);
+  const accepted = evidence.length;
   const supplied = output?.evidence.length ?? 0;
-  const ranges = bound.evidence
+  const ranges = evidence
     .flatMap((item) => [item.span, ...item.context.map((part) => part.span)])
     .sort((a, b) => a.start - b.start);
   let coveredCharacters = 0;
@@ -78,8 +71,8 @@ export function scoreReader(
   return {
     reader: {
       execution,
-      evidence: bound.evidence,
-      limitations: bound.limitations,
+      evidence,
+      limitations,
       recall: {
         found: evidenceChecks.filter((check) => check.passed).length,
         expected: evidenceChecks.length,
@@ -87,7 +80,7 @@ export function scoreReader(
       binding: { accepted, supplied },
       sourceCharacters: source.markdown.length,
       coveredCharacters,
-      extractedCharacters: bound.evidence.reduce(
+      extractedCharacters: evidence.reduce(
         (sum, item) =>
           sum +
           item.quote.length +

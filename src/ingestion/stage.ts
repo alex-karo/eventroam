@@ -46,3 +46,32 @@ export function diagnosticsOnly({
     eventNameMismatch,
   };
 }
+export const initialDiagnostics = (): PlanDiagnostics => ({
+  validation: { structural: "passed", target: "passed" },
+  errors: [],
+  unresolved: [],
+  eventNameMismatch: null,
+});
+export function rejectProposal(
+  diagnostics: PlanDiagnostics,
+  message: string,
+  code:
+    "invalid_plan" | "editor_rejected" | "country_conflict" = "invalid_plan",
+  url?: string,
+): StageResult<never> {
+  return {
+    status: "reject",
+    diagnostics: {
+      ...diagnosticsOnly(diagnostics),
+      errors: [
+        ...diagnostics.errors,
+        {
+          code,
+          stage: code === "editor_rejected" ? "editor" : "validation",
+          message,
+          ...(url ? { url } : {}),
+        },
+      ],
+    },
+  };
+}

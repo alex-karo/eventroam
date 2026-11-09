@@ -221,7 +221,7 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
       generateRoles: {
         editor: async (role, prompt, context) => {
           const review = (await deps.generateRole(role, prompt, context)) as {
-            decisions: import("@/ingestion/review").ReviewDecision[];
+            decisions: import("@/ingestion/roles/editor/contracts").ReviewDecision[];
           };
           Object.assign(
             review.decisions.find(({ path }) => path === "event.target")!,

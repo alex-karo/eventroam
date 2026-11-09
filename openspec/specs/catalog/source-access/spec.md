@@ -58,7 +58,7 @@ If direct retrieval cannot check an assigned fact, configured alternate retrieva
 
 ### Requirement: Research stays within a shared run budget
 
-Source reads, discovery, research, editing, Location, and geocoding SHALL share a bounded run budget and deadline. The system SHALL allow relevant follow-up pages while time remains without an independent fixed page-count or link-depth cap. Initial forward and reverse geocoding requests and agent geocode calls SHALL share one finite Event-level call limit. Agent calls SHALL count even on cache hits; sharing a prepared result between Edition slots SHALL NOT count as another call. Each uncached call SHALL make at most one HTTP request without automatic retries. All work SHALL observe cancellation. At a hard limit without a usable result, the system SHALL retain the limit reason, source-read history, and available model questions. Available usage metrics SHALL follow the optional observability contract. It SHALL NOT require or invent a complete list of unfinished checks. A budget limit SHALL NOT turn an unread source into a verified absence.
+Source reads, discovery, Reader, research, editing, Location, and geocoding SHALL share one bounded run budget and use the same deadline. The system SHALL allow relevant follow-up pages while time remains without an independent fixed page-count or link-depth cap. Initial forward and reverse geocoding requests and agent geocode calls SHALL share one finite Event-level call limit. Agent calls SHALL count even on cache hits; sharing a prepared result between Edition slots SHALL NOT count as another call. Each uncached call SHALL make at most one HTTP request without automatic retries. All work SHALL observe cancellation. At a hard limit without a usable result, the system SHALL retain the limit reason, source-read history, and available model questions. Available usage metrics SHALL follow the optional observability contract. It SHALL NOT require or invent a complete list of unfinished checks. A budget limit SHALL NOT turn an unread source into a verified absence.
 
 #### Scenario: A relevant linked page remains available
 
@@ -120,11 +120,11 @@ Discovery SHALL return bounded, unique, valid HTTP(S) candidates with titles and
 ### Requirement: Discovery is limited to material source needs
 
 Discovery MUST serve an unknown official source, source recovery, a material identity or date conflict, an essential missing Edition fact, or a concrete festival place for an inspected ongoing or announced next Edition.
-Research MUST use relevant known links and prior results before another search.
+Research MUST use relevant known links before searching and use relevant results before repeating a search for the same need. Research SHOULD use one targeted query for facts expected on the same page. Research MAY search in parallel for independent source needs.
 Edition fact and place discovery MUST concern an Edition supported by inspected evidence.
 Essential facts MUST concern Edition identification, dates, or publication requirements.
 A known country alone SHALL NOT end place discovery when the festival place remains vague. Research SHALL first use useful travel, location or contact leads. A venue with city or area, a source-supported address or a map point SHALL be sufficient. Place discovery SHALL stop when that goal is met, the organizer explicitly withholds the place, no useful permitted step remains, or the shared budget ends. An absent venue SHALL NOT prevent publication. Other missing optional facts or an unannounced next Edition alone MUST NOT justify search.
-Current source-recovery restrictions MUST still apply. Search count SHALL depend on the unresolved permitted need within the shared budget, not a universal one-query limit.
+Current source-recovery restrictions MUST still apply. Search count SHALL depend on the unresolved permitted need and the shared budget.
 
 #### Scenario: Official sources contain no next announcement
 
@@ -444,6 +444,26 @@ A source-based change SHALL retain enough source context to identify its meaning
 - **THEN** the citation tool identifies the failed context field and text, and states whether it is missing or repeated
 - **AND** the specialist can correct the fragment from the saved page and retry within the return's budget
 - **AND** the rejected call adds no evidence reference
+
+### Requirement: Reader keeps usable quotations from a partial reply
+
+A Reader quotation SHALL have at least one topic to become evidence. If a quotation has no topics, ingestion SHALL omit it, record a source limitation, and keep other quotations that pass validation. An empty topic list at page level is valid.
+
+#### Scenario: A page reply includes an untagged quotation
+
+- **WHEN** Reader returns one untagged quotation and one uniquely matched quotation with a topic
+- **THEN** the source has limited processing and retains the tagged quotation
+- **AND** the untagged quotation alone does not stop collection
+
+### Requirement: Reader can correct an invalid page reply
+
+When a completed Reader reply fails the page response schema, ingestion SHALL allow one correction call with the same saved Markdown and the failed rules if the call allowance and deadline permit it. If there is no correction call left or the correction fails, ingestion SHALL record the source failure and stop the attempt before catalog writes.
+
+#### Scenario: Reader exceeds the coverage list bound
+
+- **WHEN** Reader returns too many coverage labels and a Reader call remains
+- **THEN** the correction request identifies the bound and uses the same saved page
+- **AND** a valid second reply can supply evidence for that page
 
 ### Requirement: Saved sources support later validation
 

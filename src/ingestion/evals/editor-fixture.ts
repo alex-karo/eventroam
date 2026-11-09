@@ -1,19 +1,17 @@
 import { z } from "zod";
-import { bindEvidence, readerOutputSchema } from "../evidence/contracts";
-import { proposalPermissions } from "../groups";
-import {
-  roleEvidenceTopics,
-  collectionOutputSchema,
-  generalOutputSchema,
-  ticketsOutputSchema,
-  classificationOutputSchema,
-  linksOutputSchema,
-} from "../roles/contracts";
+import { bindEvidence } from "../evidence/contracts";
+import { readerOutputSchema } from "../roles/reader/contracts";
+import { roleEvidenceTopics } from "../roles/contracts";
+import { collectionOutputSchema } from "../roles/research/contracts";
+import { generalOutputSchema } from "../roles/general/contracts";
+import { ticketsOutputSchema } from "../roles/tickets/contracts";
+import { classificationReplySchema } from "../roles/classification/contracts";
+import { linksOutputSchema } from "../roles/links/contracts";
 import type { ResearchDependencies } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
 
 export const roleHandoffSchema = z.strictObject({
-  schemaVersion: z.literal(5),
+  schemaVersion: z.literal(6),
   provenance: z.string().min(1),
   pages: z
     .array(
@@ -28,7 +26,7 @@ export const roleHandoffSchema = z.strictObject({
   roles: z.strictObject({
     general: generalOutputSchema.optional(),
     tickets: ticketsOutputSchema.optional(),
-    classification: classificationOutputSchema.optional(),
+    classification: classificationReplySchema.optional(),
     links: linksOutputSchema.optional(),
   }),
 });
@@ -116,8 +114,7 @@ export function assertEditorFixture(item: PipelineEvalCase) {
       throw new Error(`${item.id}: missing fixed ${role} input`);
     }
     const topics: readonly string[] =
-      role === "classification" &&
-      proposalPermissions(item.input.scope).eventFields
+      role === "classification" && item.input.scope !== "current"
         ? [...roleEvidenceTopics.classification, "location"]
         : roleEvidenceTopics[role];
     const allowed = new Set(

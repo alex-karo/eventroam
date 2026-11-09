@@ -3,8 +3,9 @@ import { assertMainCase } from "./main";
 import { assertRegressionCase } from "./regression";
 import { assertLocationCase } from "./location";
 import { roleHandoffSchema, assertEditorFixture } from "./editor-fixture";
-import { bindEvidence, readerOutputSchema } from "../evidence/contracts";
-import { locationInputSchema } from "../location/input";
+import { bindEvidence } from "../evidence/contracts";
+import { readerOutputSchema } from "../roles/reader/contracts";
+import { locationInputSchema } from "../roles/location/input";
 import {
   geocodingRequestSchema,
   geocodingResultSchema,

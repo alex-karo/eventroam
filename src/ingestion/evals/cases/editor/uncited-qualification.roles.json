@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "provenance": "Fixed source-backed proposals cite only the homepage. A separate saved eligibility notice requires validation with native grep. Research, Reader and specialists use fixed outputs; Editor and eligible Location stay live.",
   "pages": [
     {
@@ -147,7 +147,13 @@
       "currentOrNextEdition": {
         "classification": {
           "action": "set",
-          "value": ["validation:festival", "validation:music"],
+          "value": {
+            "eventType": "festival",
+            "format": null,
+            "topics": ["music"],
+            "genres": [],
+            "cultures": []
+          },
           "reason": "The official page describes Sound Trail as a music festival. No specific music genre or substantial outdoor programme is established by the inspected page.",
           "evidenceIds": ["s1-e1"]
         }

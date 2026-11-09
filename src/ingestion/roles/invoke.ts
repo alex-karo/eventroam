@@ -1,6 +1,11 @@
-import { Agent, type ToolsInput } from "@mastra/core/agent";
+import {
+  Agent,
+  type AgentExecutionOptions,
+  type ToolsInput,
+} from "@mastra/core/agent";
 import { Mastra } from "@mastra/core/mastra";
 import { noopLogger } from "@mastra/core/logger";
+import type { AnySpan } from "@mastra/core/observability";
 import { z } from "zod";
 import type { ResearchConfig } from "../runtime/config";
 import type { ResearchBudget } from "../runtime/budget";
@@ -16,8 +21,10 @@ import {
 } from "../runtime/openrouter";
 import { shrinkText, type ResearchLogger } from "../runtime/logging";
 import type { FullOutput } from "@mastra/core/stream";
-import type { GroupOwner } from "../groups";
+import { record, type GroupOwner } from "../groups";
 import { classifyModelError } from "../runtime/model-errors";
+import { validateSchema, type ReplyValidation } from "./validation";
+import { normalizeRoleWire } from "./wire";
 
 export type Role =
   | "research"
@@ -89,29 +96,6 @@ function logStep(
   }
 }
 
-function checkGeneration(
-  generated: { object?: unknown; finishReason?: string },
-  providerError: unknown,
-  startedSteps: number,
-  ordinarySteps: number,
-) {
-  if (
-    !generated.object &&
-    (generated.finishReason === "error" ||
-      generated.finishReason === "retry") &&
-    providerError
-  ) {
-    throw providerError;
-  }
-  if (
-    !generated.object &&
-    startedSteps >= ordinarySteps &&
-    generated.finishReason === "tool-calls"
-  ) {
-    throw new ResearchLimitError("steps");
-  }
-}
-
 export type RoleConversation = {
   raw: unknown;
   schema: z.ZodType;
@@ -122,70 +106,61 @@ export type RoleConversation = {
   ) => Promise<RoleExecution>;
 };
 
-export function repairableRole(role: Role): role is GroupOwner {
+function repairableRole(role: Role): role is GroupOwner {
   return role !== "research" && role !== "reader" && role !== "editor";
 }
 
-function acceptRoleOutput<T>(
-  execution: RoleExecution<T>,
-  schema: z.ZodType<T>,
-  role: Role,
-  normalized: unknown,
-) {
-  const parsed = schema.safeParse(normalized);
-  if (!parsed.success) {
-    execution.errors.push({
-      code: role === "editor" ? "invalid_plan" : "invalid_candidate",
-      stage: role === "editor" ? "editor" : "research",
-      message: `${role}: ${parsed.error.issues
-        .slice(0, 3)
-        .map((issue) => `${issue.path.join(".")}:${issue.code}`)
-        .join(", ")}`,
-    });
-  } else {
-    execution.output = parsed.data;
-    execution.status = "success";
-  }
-}
-
-type RoleInvocation<T> = {
+type RoleModelOptions<T> = {
   role: Role;
-  version: string;
   instructions: string;
   cacheInstructions?: boolean;
-  input: unknown;
   schema: z.ZodType<T>;
-  normalizeOutput?: (value: unknown) => unknown;
   budget: ResearchBudget;
   config: ResearchConfig;
-  signal?: AbortSignal;
-  tracing?: RunObservability;
-  generate?: GenerateRole;
   tools?: ToolsInput;
   steps?: number;
-  deadline?: number;
   outputTokens?: number;
-  capture?: (role: GroupOwner, conversation: RoleConversation) => void;
   messages?: FullOutput["messages"];
 };
 
-async function generateNativeReply<T>(
-  options: RoleInvocation<T>,
+type RoleInvocation<T> = RoleModelOptions<T> & {
+  version: string;
+  input: unknown;
+  validateReply?: (value: unknown) => ReplyValidation<T>;
+  reserveCorrection?: () => boolean;
+  signal?: AbortSignal;
+  tracing?: RunObservability;
+  generate?: GenerateRole;
+  capture?: (role: GroupOwner, conversation: RoleConversation) => void;
+};
+
+type MastraReplyOptions = RoleModelOptions<unknown> & {
+  prompt: string;
+  signal: AbortSignal;
+  agentKey?: string;
+  parentSpan?: AnySpan;
+  log?: ResearchLogger;
+  retryUnavailable: boolean;
+  recoverRaw: boolean;
+  toolCallConcurrency?: AgentExecutionOptions["toolCallConcurrency"];
+};
+
+async function generateMastraReply(
   runtime: Mastra,
-  prompt: string,
-  signal: AbortSignal,
-  execution: RoleExecution<T>,
-): Promise<FullOutput["messages"] | undefined> {
-  const { role, budget, config, tracing } = options;
+  tracing: RunObservability | undefined,
+  options: MastraReplyOptions,
+) {
+  const { role, budget, config, signal, prompt, messages, log } = options;
   let providerError: unknown;
   let unavailableAttempts = 0;
   let startedSteps = 0;
-  let modelLog = tracing?.log?.child({ stage: role, step: 0, attempt: 0 });
+  let modelLog = log?.child({ stage: role, step: 0, attempt: 0 });
   const ordinarySteps = options.steps ?? 1;
-  const wireSchema =
-    role === "general"
-      ? z.strictObject({ result: options.schema })
-      : options.schema;
+  const outputAllowance =
+    options.outputTokens ?? budget.limits.modelOutputTokens;
+  const retries = options.retryUnavailable
+    ? MAX_PROVIDER_UNAVAILABLE_RETRIES
+    : 0;
   const { model, instructions, providerOptions } = createResearchModelOptions(
     config,
     options,
@@ -197,59 +172,61 @@ async function generateNativeReply<T>(
     model,
     tools: options.tools,
     errorProcessorDefaults: false,
-    maxProcessorRetries: MAX_PROVIDER_UNAVAILABLE_RETRIES,
-    errorProcessors: [
-      providerUnavailableRetry(
-        budget,
-        () => {
-          unavailableAttempts += 1;
-          startedSteps -= 1;
-        },
-        tracing?.log,
-      ),
-    ],
+    maxProcessorRetries: retries,
+    errorProcessors: retries
+      ? [
+          providerUnavailableRetry(
+            budget,
+            () => {
+              unavailableAttempts += 1;
+              startedSteps -= 1;
+            },
+            log,
+          ),
+        ]
+      : undefined,
   });
-  runtime.addAgent(agent, `festival-${role}`);
+  runtime.addAgent(agent, options.agentKey);
   tracing?.observability.setLogger({ logger: tracing.logger });
   const generated = await agent.generate(
-    options.messages
-      ? [...options.messages, { role: "user", content: prompt }]
-      : prompt,
+    messages ? [...messages, { role: "user", content: prompt }] : prompt,
     {
       runId: tracing?.options.metadata.runId,
       tracingOptions: tracing?.options,
-      tracingContext: tracing?.root ? { currentSpan: tracing.root } : undefined,
+      tracingContext: options.parentSpan
+        ? { currentSpan: options.parentSpan }
+        : undefined,
       structuredOutput: {
-        schema: modelOutputSchema(wireSchema),
+        schema: modelOutputSchema(options.schema),
         errorStrategy: "warn",
         logger: noopLogger,
       },
-      maxSteps: ordinarySteps + MAX_PROVIDER_UNAVAILABLE_RETRIES,
-      stopWhen: ({ steps }: { steps: unknown[] }) =>
-        steps.length - unavailableAttempts >= ordinarySteps,
-      toolCallConcurrency: { limit: 3, strategy: "called" },
+      maxSteps: ordinarySteps + retries,
+      stopWhen: retries
+        ? ({ steps }: { steps: unknown[] }) =>
+            steps.length - unavailableAttempts >= ordinarySteps
+        : undefined,
+      toolCallConcurrency: options.toolCallConcurrency,
       providerOptions,
       modelSettings: {
-        maxOutputTokens:
-          options.outputTokens ?? budget.limits.modelOutputTokens,
+        maxOutputTokens: outputAllowance,
         maxRetries: 0,
         timeout: {
-          totalMs: Math.max(
-            1,
-            (options.deadline ?? budget.deadline) - Date.now(),
-          ),
+          totalMs: Math.max(1, budget.remaining().durationMs),
         },
       },
       abortSignal: signal,
-      onError: ({ error }) => {
-        providerError = error;
-      },
-      onStepFinish: (step) => logStep(modelLog, step),
+      onError: retries
+        ? ({ error }) => {
+            providerError = error;
+          }
+        : undefined,
+      onStepFinish: log ? (step) => logStep(modelLog, step) : undefined,
       prepareStep: () => {
         signal.throwIfAborted();
         budget.consumeModelCall();
         startedSteps += 1;
-        modelLog = tracing?.log?.child({
+        modelLog = log?.child({
           stage: role,
           step: startedSteps,
           attempt: startedSteps + unavailableAttempts,
@@ -258,8 +235,7 @@ async function generateNativeReply<T>(
           model: config.model,
           reasoningEffort: config.reasoningEffort,
           serviceTier: config.serviceTier,
-          outputAllowance:
-            options.outputTokens ?? budget.limits.modelOutputTokens,
+          outputAllowance,
           remaining: budget.remaining(),
         });
         return startedSteps >= ordinarySteps
@@ -268,38 +244,108 @@ async function generateNativeReply<T>(
       },
     },
   );
-  execution.modelResponse = {
-    text: generated.text ?? null,
-    object:
-      repairableRole(role) && generated.finishReason === "stop"
-        ? completedObject(generated)
-        : (generated.object ?? null),
+  const completed = generated.finishReason === "stop";
+  return {
+    modelResponse: {
+      text: generated.text ?? null,
+      object:
+        options.recoverRaw && completed
+          ? completedObject(generated)
+          : (generated.object ?? null),
+    },
+    finishReason: generated.finishReason,
+    messages:
+      completed && generated.messages.length ? generated.messages : undefined,
+    providerError,
+    stepLimitReached: startedSteps >= ordinarySteps,
   };
-  checkGeneration(generated, providerError, startedSteps, ordinarySteps);
-  if (repairableRole(role) && generated.finishReason !== "stop") {
-    throw new Error(
-      `The ${role} response did not finish: ${generated.finishReason}`,
-    );
-  }
-  if (generated.finishReason === "stop" && generated.messages.length) {
-    return generated.messages;
-  }
 }
 
-function acceptCompletedReply<T>(
+export function createRoleModelRunner(tracing?: RunObservability) {
+  let runtime: Mastra | undefined;
+  return {
+    generate(options: MastraReplyOptions) {
+      runtime ??=
+        tracing?.mastra ??
+        new Mastra({ logger: false, loggerOptions: { export: false } });
+      return generateMastraReply(runtime, tracing, options);
+    },
+    async close() {
+      if (runtime && !tracing) {
+        await runtime.shutdown();
+      }
+    },
+  };
+}
+
+async function generateReply<T>(
+  options: RoleInvocation<T>,
+  runner: ReturnType<typeof createRoleModelRunner>,
+  prompt: string,
+  signal: AbortSignal,
+  execution: RoleExecution<T>,
+  history: FullOutput["messages"] | undefined,
+  correction: boolean,
+): Promise<FullOutput["messages"] | undefined> {
+  const { role, budget, tracing } = options;
+  if (options.generate) {
+    budget.consumeModelCall();
+    const raw = await options.generate(role, prompt, {
+      budget,
+      abortSignal: signal,
+      tools: options.tools,
+    });
+    execution.modelResponse = { text: null, object: raw ?? null };
+    return;
+  }
+  const recoverRaw = repairableRole(role) || !!options.validateReply;
+  const generated = await runner.generate({
+    ...options,
+    schema:
+      role === "general"
+        ? z.strictObject({ result: options.schema })
+        : options.schema,
+    prompt,
+    signal,
+    messages: history,
+    agentKey: correction ? `festival-${role}-correction` : undefined,
+    parentSpan: tracing?.root,
+    log: tracing?.log,
+    retryUnavailable: true,
+    recoverRaw,
+    toolCallConcurrency: { limit: 3, strategy: "called" },
+  });
+  execution.modelResponse = generated.modelResponse;
+  const { finishReason, providerError, stepLimitReached } = generated;
+  if (!generated.modelResponse.object) {
+    if (
+      providerError &&
+      (finishReason === "error" || finishReason === "retry")
+    ) {
+      throw providerError;
+    }
+    if (stepLimitReached && finishReason === "tool-calls") {
+      throw new ResearchLimitError("steps");
+    }
+  }
+  if (recoverRaw && finishReason !== "stop") {
+    throw new Error(`The ${role} response did not finish: ${finishReason}`);
+  }
+  return generated.messages;
+}
+
+function validateCompletedReply<T>(
   options: RoleInvocation<T>,
   execution: RoleExecution<T>,
   messages: FullOutput["messages"] | undefined,
-) {
+): ReplyValidation<T> {
   const { role } = options;
   const object = execution.modelResponse?.object;
   const raw =
     role === "general" && !options.generate
       ? (object as { result?: unknown } | null)?.result
       : object;
-  const normalized = options.normalizeOutput
-    ? options.normalizeOutput(raw)
-    : raw;
+  const normalized = normalizeRoleWire(role, raw);
   if (
     repairableRole(role) &&
     normalized != null &&
@@ -323,12 +369,32 @@ function acceptCompletedReply<T>(
       }),
     });
   }
+  // Group revisions are validated against their requested scope before merge.
   if (options.messages && normalized != null) {
-    execution.output = normalized as T;
-    execution.status = "success";
-  } else {
-    acceptRoleOutput(execution, options.schema, role, normalized);
+    return { status: "accepted", output: normalized as T };
   }
+  return options.validateReply
+    ? options.validateReply(normalized)
+    : validateSchema(options.schema, normalized, role);
+}
+
+function rolePrompt(
+  input: unknown,
+  hasHistory: boolean,
+  validationFeedback?: { instructions: string; errors: ResearchError[] },
+) {
+  const prompt = JSON.stringify(
+    validationFeedback
+      ? {
+          ...(!hasHistory && (record(input) ?? { input })),
+          validationFeedback,
+        }
+      : input,
+  );
+  if (prompt.length > 400000) {
+    throw new ResearchLimitError("context");
+  }
+  return prompt;
 }
 
 export async function invokeRole<T>(
@@ -344,48 +410,56 @@ export async function invokeRole<T>(
     promptVersion: options.version,
     durationMs: 0,
   };
-  let runtime: Mastra | undefined;
-  let messages: FullOutput["messages"] | undefined;
+  const runner = createRoleModelRunner(tracing);
   try {
     budget.assertTime();
     const signal = AbortSignal.any([
       ...(options.signal ? [options.signal] : []),
-      AbortSignal.timeout(
-        Math.max(1, (options.deadline ?? budget.deadline) - Date.now()),
-      ),
+      AbortSignal.timeout(Math.max(1, budget.deadline - Date.now())),
     ]);
-    signal.throwIfAborted();
-    const prompt = JSON.stringify(options.input);
-    if (prompt.length > 400000) {
-      throw new ResearchLimitError("context");
-    }
-    if (options.generate) {
-      budget.consumeModelCall();
-      const raw = await options.generate(role, prompt, {
-        budget,
-        abortSignal: signal,
-        tools: options.tools,
-      });
-      execution.modelResponse = { text: null, object: raw ?? null };
-    } else {
-      runtime =
-        tracing?.mastra ??
-        new Mastra({ logger: false, loggerOptions: { export: false } });
-      messages = await generateNativeReply(
-        options,
-        runtime,
-        prompt,
+    let history = options.messages;
+    let validationFeedback:
+      { instructions: string; errors: ResearchError[] } | undefined;
+    for (;;) {
+      signal.throwIfAborted();
+      const correcting = validationFeedback !== undefined;
+      const attempt = correcting
+        ? { ...options, steps: 1, tools: undefined }
+        : options;
+      const messages = await generateReply(
+        attempt,
+        runner,
+        rolePrompt(options.input, !!history, validationFeedback),
         signal,
         execution,
+        history,
+        correcting,
       );
+      signal.throwIfAborted();
+      const result = validateCompletedReply(options, execution, messages);
+      if (result.status === "accepted") {
+        execution.output = result.output;
+        execution.status = "success";
+        break;
+      }
+      if (
+        result.status !== "retry" ||
+        correcting ||
+        options.reserveCorrection?.() === false
+      ) {
+        execution.errors.push(...result.errors);
+        break;
+      }
+      const { instructions, errors } = result;
+      tracing?.log?.info("Model reply correction requested", {
+        stage: role,
+        errors,
+      });
+      validationFeedback = { instructions, errors };
+      history = messages;
     }
-    signal.throwIfAborted();
-    acceptCompletedReply(options, execution, messages);
   } catch (error) {
-    const classified = classifyModelError(
-      error,
-      options.deadline ?? budget.deadline,
-    );
+    const classified = classifyModelError(error, budget.deadline);
     if (
       !classified.limit &&
       options.signal?.aborted &&
@@ -402,9 +476,7 @@ export async function invokeRole<T>(
     });
   } finally {
     execution.durationMs = Date.now() - started;
-    if (runtime && !tracing) {
-      await runtime.shutdown();
-    }
+    await runner.close();
   }
   return execution;
 }

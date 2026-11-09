@@ -3,7 +3,11 @@ import { ResearchLimitError, type ResearchBudget } from "../runtime/budget";
 import type { ResearchConfig } from "../runtime/config";
 import type { ResearchDependencies } from "../contracts";
 import { readPage } from "./read-page/read";
-import { searchWeb, discoveryHttpStatus } from "./search-web/search";
+import {
+  searchWeb,
+  discoveryHttpStatus,
+  type SearchWebOptions,
+} from "./search-web/search";
 import type { ReadPageResult } from "./read-page/contracts";
 import type { SearchWebResult } from "./search-web/contracts";
 import type { KnownSourceLink } from "./contracts";
@@ -117,6 +121,7 @@ export function createSourceSession(
   const search = async (
     query: string,
     operation: SourceLogContext & { tool?: boolean } = {},
+    tracing?: SearchWebOptions["tracing"],
   ) => {
     const started = Date.now();
     const context = { stage: "discovery", ...operation };
@@ -143,6 +148,7 @@ export function createSourceSession(
         budget,
         config,
         log: operationLog,
+        tracing,
         ai: {
           ...ai,
           ...(operation.traceId ? { traceId: operation.traceId } : {}),

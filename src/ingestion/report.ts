@@ -1,7 +1,8 @@
 import type { PlanDiagnostics } from "./stage";
-import type { LocationExecution } from "./location/agent";
+import type { LocationExecution } from "./roles/location/agent";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
+import { eventLinksCheck, isSocialLinkField, proposalGroup } from "./groups";
 import type { ResearchBudgetSnapshot } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
 import type { SourceReadMetadata } from "./tools/read-page/contracts";
@@ -10,18 +11,15 @@ import {
   type ResearchQuestion,
 } from "./research/contracts";
 import type { ReadyCatalogPlan } from "./catalog-plan";
-import type { EditorExecution } from "./roles/editor-execution";
+import type { EditorExecution } from "./roles/editor/execution";
 import type { RoleExecution } from "./roles/invoke";
-import type {
-  CheckFinding,
-  CollectionOutput,
-  GeneralOutput,
-} from "./roles/contracts";
+import { type CheckFinding } from "./roles/contracts";
+import { type CollectionOutput } from "./roles/research/contracts";
+import { type GeneralOutput } from "./roles/general/contracts";
 import type { FrozenCorpus } from "./evidence/contracts";
-import { eventLinksCheck, isSocialLinkField, proposalGroup } from "./groups";
 import { buildAssignment, assignedRoleChecks } from "./roles/assignment";
 import { PROMPT_VERSIONS } from "./roles/versions";
-import { LOCATION_PROMPT_VERSION } from "./location/contracts";
+import { LOCATION_PROMPT_VERSION } from "./roles/location/contracts";
 
 export type ReportInput = {
   traceId?: string;

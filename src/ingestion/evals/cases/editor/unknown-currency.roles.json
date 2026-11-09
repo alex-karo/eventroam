@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "provenance": "Normalized source-known-offers-blocked-checkout research from narrow-current-verify-2026-10-15T11-47-11-170Z.json. The ticket terms retain the amount with unknown currency. The Edition ticket link uses the inspected overview. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: fc2d9fed-1ac5-4337-87fc-691723a3b0fc:s1. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings. Editor and eligible Location run live. Empty page-coverage lists isolate Editor review from Research navigation.",
   "pages": [
     {
@@ -152,7 +152,13 @@
       "currentOrNextEdition": {
         "classification": {
           "action": "set",
-          "value": ["validation:festival", "validation:music"],
+          "value": {
+            "eventType": "festival",
+            "format": null,
+            "topics": ["music"],
+            "genres": [],
+            "cultures": []
+          },
           "reason": "The official page describes Sound Trail as a music festival. No specific music genre or substantial outdoor programme is established by the inspected page.",
           "evidenceIds": ["s1-e1"]
         }

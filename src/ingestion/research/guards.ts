@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { readResearchCountryBaseline } from "@/catalog/read/research";
 import type { CatalogResearchInput } from "../contracts";
-import type { Targets } from "../roles/contracts";
+import type { Targets } from "../roles/general/contracts";
 import type { ResearchCatalog } from "./context";
 
 type SavedEditions = ResearchCatalog[number]["editions"];
@@ -53,4 +53,34 @@ export function assertRefreshBaseline(
   ) {
     throw new Error("Refresh country baseline changed during research");
   }
+}
+
+export function proposedChronology(
+  target:
+    Pick<NonNullable<Targets["currentOrNextEdition"]>, "fields"> | undefined,
+  saved: SavedEditions[number] | undefined,
+) {
+  const dates = target?.fields.dates;
+  const range = dates?.action === "set" ? dates.value : saved;
+  const year = target?.fields.year;
+  return {
+    startsOn: dates?.action === "clear" ? null : (range?.startsOn ?? null),
+    endsOn: dates?.action === "clear" ? null : (range?.endsOn ?? null),
+    editionYear:
+      year?.action === "set" ? year.value : (saved?.editionYear ?? null),
+  };
+}
+
+export function earlierEdition(
+  donor: ReturnType<typeof proposedChronology> | undefined,
+  target: ReturnType<typeof proposedChronology>,
+) {
+  if (!donor) {
+    return false;
+  }
+  return donor.endsOn && target.startsOn
+    ? donor.endsOn < target.startsOn
+    : donor.editionYear != null &&
+        target.editionYear != null &&
+        donor.editionYear < target.editionYear;
 }

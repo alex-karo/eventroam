@@ -1,12 +1,8 @@
+import type { CheckFinding } from "./contracts";
 import type { CatalogResearchInput } from "../contracts";
-import {
-  assignedGroups,
-  generalCheckBySlot,
-  proposalPermissions,
-  type GroupOwner,
-} from "../groups";
+import { assignedGroups, generalCheckBySlot, type GroupOwner } from "../groups";
 import type { ResearchContext } from "../research/context";
-import type { Targets } from "./contracts";
+import type { Targets } from "./general/contracts";
 
 export function buildAssignment(
   input: CatalogResearchInput,
@@ -91,7 +87,11 @@ export function buildAssignment(
     },
     knownLinks: context.knownLinks,
     currentDate: context.currentDate,
-    permissions: proposalPermissions(input.scope),
+    permissions: {
+      eventFields: !current,
+      previousEdition: !current,
+      currentOrNextEdition: true,
+    },
   };
 }
 
@@ -100,25 +100,33 @@ export function assignedRoleChecks(
   role: Exclude<GroupOwner, "location">,
   input: CatalogResearchInput,
   targets?: Targets,
-) {
+): string[] {
+  const current = input.mode === "refresh" && input.scope === "current";
   if (role === "general") {
     return [
       "identity",
       "currentAnnouncement",
       generalCheckBySlot.currentOrNextEdition,
-      ...(proposalPermissions(input.scope).previousEdition
-        ? [generalCheckBySlot.previousEdition]
-        : []),
+      ...(!current ? [generalCheckBySlot.previousEdition] : []),
     ];
   }
-  const groups = assignedGroups(input.scope, targets).filter(
+  const groups = assignedGroups(current ? "current" : "full", targets).filter(
     (group) => group.owner === role,
   );
   if (role === "classification") {
-    // Keep the Edition checks ahead of the Event description check.
+    // List Edition checks before the Event description check.
     groups.sort(
       (a, b) => Number(a.target === "event") - Number(b.target === "event"),
     );
   }
-  return [...new Set(groups.map(({ check }) => check))];
+  const checks = groups
+    .map(({ check }) => check)
+    .filter((check) => check !== undefined);
+  return [...new Set(checks)];
+}
+
+export function hasEventFieldCheck(checks: CheckFinding[]) {
+  return checks.some(
+    ({ check }) => check === "description" || check === "eventLinks",
+  );
 }
