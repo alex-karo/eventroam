@@ -11,7 +11,7 @@ import {
   descriptionFields,
   type DescriptionFormat,
 } from "@/ingestion/evals/description-format";
-import { reasonSchema } from "@/ingestion/roles/contracts";
+import { reviewOutput } from "@/ingestion/review";
 
 type EvalRun = Awaited<ReturnType<typeof runCatalogEvals>>;
 type EvalGroupResult = EvalRun["groups"][number];
@@ -103,25 +103,6 @@ const descriptionProposals = z.object({
   description: proposal,
   shortDescription: proposal,
 });
-const decision = z.object({
-  decision: z.enum(["approve", "reject"]),
-  reason: reasonSchema,
-});
-const descriptionReview = z.object({
-  item: decision.optional(),
-  event: z
-    .object({
-      target: decision.optional(),
-      fields: z
-        .object({
-          description: decision.optional(),
-          shortDescription: decision.optional(),
-        })
-        .optional(),
-    })
-    .optional(),
-});
-
 function catalogDescriptionResult(
   original: string | null | undefined,
   saved: string | null | undefined,
@@ -150,23 +131,33 @@ function printDescriptionResults(value: EvalCaseOutput, output: Output) {
   const proposals = descriptionProposals.safeParse(
     report.classificationResponse?.object,
   ).data;
-  const review = descriptionReview.safeParse(
-    report.editorResponse?.object,
-  ).data;
+  const decisions =
+    reviewOutput.safeParse(report.editorResponse?.object).data?.decisions ?? [];
+  const review = new Map(decisions.map((entry) => [entry.path, entry]));
+  for (const repair of report.repairs ?? []) {
+    if (repair.decision) {
+      review.set(repair.path, repair.decision);
+    }
+  }
   const original = before?.find((event) => event.id === report.eventId);
   const saved = after?.find((event) => event.id === report.eventId);
-  const blocked = [review?.item, review?.event?.target].find(
+  const blocked = [review.get("item"), review.get("event.target")].find(
     (decision) => decision?.decision === "reject",
   );
   for (const field of descriptionFields) {
-    const action = proposals?.[field]?.action;
+    const repair = report.repairs?.find(
+      ({ path }) => path === `event.fields.${field}`,
+    );
+    const action =
+      repair?.revision === null
+        ? undefined
+        : (proposal.safeParse(repair?.revision).data?.action ??
+          proposals?.[field]?.action);
     const result =
-      (action ? blocked : undefined) ?? review?.event?.fields?.[field];
+      (action ? blocked : undefined) ?? review.get(`event.fields.${field}`);
     const catalog = catalogDescriptionResult(original?.[field], saved?.[field]);
     const reason =
-      result?.decision === "reject"
-        ? ` (${JSON.stringify(result.reason)})`
-        : "";
+      result?.decision === "reject" ? ` (${JSON.stringify(result.note)})` : "";
     const format = formatProbability(value.descriptionFormat?.fields[field]);
     const formatSuffix = format ? ", format " + format : "";
     output(

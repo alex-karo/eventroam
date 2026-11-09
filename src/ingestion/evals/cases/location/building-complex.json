@@ -97,11 +97,7 @@
           "id": "currentOrNextEdition-location-venue",
           "sourceId": "synthetic-hallowindie-2025-location",
           "quote": "Hallowindie 2025 takes place at Palacio de Congresos y Exposiciones de León, in León, Spain.",
-          "context": [
-            {
-              "quote": "Synthetic location statement based on the captured catalog description. This is not a quotation captured from the festival website."
-            }
-          ],
+          "context": [],
           "topics": ["location"],
           "editionClues": ["hallowindie-2025"],
           "uncertainty": null,

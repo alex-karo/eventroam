@@ -73,6 +73,7 @@ export function sziget(context: MainContext) {
         termIds: [
           "validation:festival",
           "validation:music",
+          "validation:openair",
           // experience.md describes recurring electronic music and links the 2026 programme.
           ...(previous?.terms.some(
             (term) => term.id === "catalog:term:genre:electronic",

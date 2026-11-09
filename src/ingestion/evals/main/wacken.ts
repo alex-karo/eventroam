@@ -59,10 +59,11 @@ export function wacken(context: MainContext) {
           previous?.displayName === "Wacken Open Air 2026"
             ? "Wacken Open Air 2026"
             : "W:O:A 2026",
-        // aftermovie.md also supports metal; this optional addition is valid.
+        // aftermovie.md names Wacken Open Air 2026 and also supports metal.
         termIds: [
           "validation:festival",
           "validation:music",
+          "validation:openair",
           ...termIds(previous, ["genre"]).filter(
             (id) => id === "catalog:term:genre:metal",
           ),

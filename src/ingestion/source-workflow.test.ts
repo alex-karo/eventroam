@@ -9,30 +9,9 @@ import { createWorkflowStorage } from "./runtime/workflow-storage";
 import type { GenerateRole } from "./roles/invoke";
 import type { CollectionOutput } from "./roles/contracts";
 import { locationTextFields } from "./location/contracts";
-import { z } from "zod";
-import { reviewSchema } from "./proposals";
+import { approveFixtureReview } from "@/test/ingestion";
 
 afterEach(() => vi.unstubAllEnvs());
-function approve(schema: Record<string, unknown>): unknown {
-  if (schema.type === "null") {
-    return null;
-  }
-  const properties = schema.properties as
-    Record<string, Record<string, unknown>> | undefined;
-  if (properties?.decision) {
-    return { decision: "approve", reason: "Fixture confirms the proposal" };
-  }
-  if (schema.type === "array") {
-    return [];
-  }
-  return Object.fromEntries(
-    Object.entries(properties ?? {}).map(([key, value]) => [
-      key,
-      approve(value),
-    ]),
-  );
-}
-
 async function fixture(
   options: {
     invalidTickets?: boolean;
@@ -205,7 +184,7 @@ async function fixture(
         unresolved: [],
       };
     }
-    return approve(z.toJSONSchema(reviewSchema(input.prepared)));
+    return approveFixtureReview(input.reviewPaths);
   };
   try {
     const result = await runCatalogResearch(

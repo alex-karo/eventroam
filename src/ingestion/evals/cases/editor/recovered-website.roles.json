@@ -132,8 +132,8 @@
     "classification": {
       "description": {
         "action": "set",
-        "value": "Recurring outdoor music festival held at Castlewellan Grounds in Northern Ireland.",
-        "reason": "The official programme identifies Harbor Echo as the recurring Castlewellan festival and describes its 2027 programme as outdoor music.",
+        "value": "An outdoor music festival held at Castlewellan Grounds in Northern Ireland.",
+        "reason": "The official programme describes outdoor music at Castlewellan Grounds.",
         "evidenceIds": ["s2-e1", "s2-e2"]
       },
       "previousEdition": null,

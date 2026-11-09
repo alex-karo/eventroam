@@ -11,6 +11,7 @@ import { createCatalogRunTrace, type CatalogRunTrace } from "./runtime/tracing";
 import { PROMPT_VERSIONS } from "./roles/versions";
 import { logCompletion, reportEventId } from "./workflow-logging";
 import { RunPersistenceError } from "./runs";
+import { ProposalRepairs } from "./repairs";
 import type { SourceSession } from "./tools/session";
 import type { Collection } from "./evidence/collection";
 import {
@@ -31,6 +32,7 @@ export class CatalogAttempt {
   readonly config: ResearchConfig;
   readonly budget: ResearchBudget;
   readonly started = Date.now();
+  readonly repairs = new ProposalRepairs();
   readonly ingestionRunId: string;
   collection: Collection | null = null;
   trace?: CatalogRunTrace;
@@ -117,6 +119,7 @@ export class CatalogAttempt {
       specialists: data.specialists,
       corpus: data.corpus,
       editor: data.editor,
+      repairs: this.repairs.records,
       location: data.location,
       applied: data.applied,
       errors: data.errors,
@@ -227,6 +230,7 @@ export class CatalogAttempt {
   async cleanup(report?: CatalogResearchResult) {
     this.cleanupPromise ??= (async () => {
       await this.settle();
+      this.repairs.clear();
       try {
         await this.trace?.finish(report);
       } catch {

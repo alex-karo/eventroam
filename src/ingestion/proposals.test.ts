@@ -1,15 +1,13 @@
+import { assignedGroups } from "./groups";
+import { reviewSchema, reviewPaths, type ReviewDecision } from "./review";
+import { approveFixtureReview } from "@/test/ingestion";
 import { expect, it } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { applyCatalogItem } from "@/catalog/write/apply-operation";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { loadResearchContext } from "./research/context";
-import {
-  validateGeneral,
-  assembleProposals,
-  applyReview,
-  reviewSchema,
-} from "./proposals";
+import { validateGeneral, assembleProposals, applyReview } from "./proposals";
 import {
   generalOutputSchema,
   ticketsOutputSchema,
@@ -337,43 +335,86 @@ it("Editor decisions have exact fixed keys and cannot replace values", () => {
   if (p.status !== "continue") {
     throw new Error("Rejected fixture");
   }
-  const approve = (schema: Record<string, unknown>): unknown => {
-    if (schema.type === "null") {
-      return null;
-    }
-    if (schema.type === "array") {
-      return [];
-    }
-    const properties = schema.properties as Record<
-      string,
-      Record<string, unknown>
-    >;
-    if (properties.decision) {
-      return { decision: "approve", reason: "Supported" };
-    }
-    return Object.fromEntries(
-      Object.entries(properties).map(([key, value]) => [key, approve(value)]),
-    );
-  };
-  const raw = approve(awaitSchema(p.value)) as Record<string, unknown>;
-  expect(applyReview(p.value, raw).status).toBe("continue");
-  expect(applyReview(p.value, { ...raw, pointRefs: [] }).status).toBe("reject");
+  const paths = reviewPaths(
+    p.value,
+    assignedGroups(undefined, p.value.targets),
+    new Map(),
+    () => true,
+  );
+  const schema = reviewSchema(paths);
+  const raw = approveFixtureReview(paths);
+  expect(schema.safeParse(raw).success).toBe(true);
+  const fixedPaths = reviewPaths(
+    p.value,
+    assignedGroups(undefined, p.value.targets),
+    new Map(),
+    () => false,
+  );
+  expect(fixedPaths.map(({ path }) => path)).toEqual(
+    paths.filter(({ required }) => required).map(({ path }) => path),
+  );
+  expect(fixedPaths.every(({ allowed }) => !allowed.includes("return"))).toBe(
+    true,
+  );
   expect(
-    applyReview(p.value, {
-      ...raw,
-      item: { decision: "approve", reason: "Supported", value: "replacement" },
-    }).status,
-  ).toBe("reject");
-  expect(
-    applyReview(p.value, {
-      ...raw,
-      item: { decision: "reject", reason: "Wrong identity" },
-    }).status,
-  ).toBe("reject");
+    applyReview(
+      p.value,
+      new Map(raw.decisions.map((entry) => [entry.path, entry])),
+    ).status,
+  ).toBe("continue");
+  for (const invalid of [
+    { ...raw, unresolved: [] },
+    {
+      decisions: [
+        { ...raw.decisions[0], value: "replacement" },
+        ...raw.decisions.slice(1),
+      ],
+    },
+    { decisions: [...raw.decisions, raw.decisions[0]] },
+    { decisions: raw.decisions.slice(1) },
+    {
+      decisions: [
+        { ...raw.decisions[0], decision: "return" },
+        ...raw.decisions.slice(1),
+      ],
+    },
+    {
+      decisions: [
+        { ...raw.decisions[0], note: "   " },
+        ...raw.decisions.slice(1),
+      ],
+    },
+    {
+      decisions: [
+        ...raw.decisions,
+        { path: "unassigned", decision: "return", note: "Reason" },
+      ],
+    },
+  ]) {
+    expect(schema.safeParse(invalid).success).toBe(false);
+  }
 });
-import { z } from "zod";
-const awaitSchema = (p: Parameters<typeof reviewSchema>[0]) =>
-  z.toJSONSchema(reviewSchema(p)) as Record<string, unknown>;
+
+function approved(prepared: Parameters<typeof reviewPaths>[0]) {
+  const paths = reviewPaths(
+    prepared,
+    assignedGroups(undefined, prepared.targets),
+    new Map(),
+    () => true,
+  );
+  return new Map(
+    approveFixtureReview(paths).decisions.map((entry) => [entry.path, entry]),
+  );
+}
+
+function rejectPath(
+  review: Map<string, ReviewDecision>,
+  path: string,
+  note: string,
+) {
+  review.set(path, { path, decision: "reject", note });
+}
+
 it("builds concrete assignments with current exclusions", () => {
   const f = fixture();
   const current = buildAssignment({ ...f.input, scope: "current" }, f.context);
@@ -391,6 +432,22 @@ it("builds concrete assignments with current exclusions", () => {
   expect(buildAssignment(f.input, f.context).permissions.eventFields).toBe(
     true,
   );
+  const prepared = f.assemble();
+  if (prepared.status !== "continue") {
+    throw new Error("Rejected fixture");
+  }
+  const groups = assignedGroups("current", f.targets);
+  const paths = reviewPaths(prepared.value, groups, new Map(), () => true);
+  expect(paths.some(({ path }) => path.startsWith("event.fields."))).toBe(
+    false,
+  );
+  const review = approveFixtureReview(paths);
+  review.decisions.push({
+    path: "event.fields.links.website",
+    decision: "return",
+    note: "Check the official site.",
+  });
+  expect(reviewSchema(paths).safeParse(review).success).toBe(false);
 });
 
 it("rejects unknown classification reuse and removes reuse after its target is rejected", () => {
@@ -423,14 +480,8 @@ it("rejects unknown classification reuse and removes reuse after its target is r
   if (prepared.status !== "continue") {
     throw new Error("Fixture rejected");
   }
-  const review = approveReview(awaitSchema(prepared.value)) as Record<
-    string,
-    unknown
-  >;
-  (review.previousEdition as { target: unknown }).target = {
-    decision: "reject",
-    reason: "Wrong festival year",
-  };
+  const review = approved(prepared.value);
+  rejectPath(review, "previousEdition.target", "Wrong festival year");
   const accepted = applyReview(prepared.value, review);
   expect(accepted.status).toBe("continue");
   if (accepted.status !== "continue") {
@@ -442,28 +493,6 @@ it("rejects unknown classification reuse and removes reuse after its target is r
     accepted.value.plan.currentOrNextEdition?.fields.classification,
   ).toBeUndefined();
 });
-
-function approveReview(schema: Record<string, unknown>): unknown {
-  if (schema.type === "null") {
-    return null;
-  }
-  if (schema.type === "array") {
-    return [];
-  }
-  const properties = schema.properties as Record<
-    string,
-    Record<string, unknown>
-  >;
-  if (properties.decision) {
-    return { decision: "approve", reason: "Supported" };
-  }
-  return Object.fromEntries(
-    Object.entries(properties).map(([key, value]) => [
-      key,
-      approveReview(value),
-    ]),
-  );
-}
 
 function freeTickets(evidenceIds: string[]): TicketsOutput {
   return ticketsOutputSchema.parse({
@@ -511,10 +540,7 @@ it("writes reviewed free admission without ticket offers", () => {
   expect(prepared.value.basis.evidence.map((item) => item.id)).toContain(
     "s1-e2",
   );
-  const accepted = applyReview(
-    prepared.value,
-    approveReview(awaitSchema(prepared.value)),
-  );
+  const accepted = applyReview(prepared.value, approved(prepared.value));
   if (accepted.status !== "continue") {
     throw new Error("Free admission review rejected");
   }
@@ -620,13 +646,8 @@ it("keeps approved Location reuse when only donor classification is rejected", (
     reusedFrom: { currentOrNextEdition: donor },
     unresolved: [],
   };
-  const review = approveReview(awaitSchema(p)) as {
-    previousEdition: { fields: { classification: unknown } };
-  };
-  review.previousEdition.fields.classification = {
-    decision: "reject",
-    reason: "Wrong genre",
-  };
+  const review = approved(p);
+  rejectPath(review, "previousEdition.fields.classification", "Wrong genre");
   const accepted = applyReview(p, review);
   expect(accepted.status).toBe("continue");
   if (accepted.status !== "continue") {

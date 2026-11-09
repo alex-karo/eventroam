@@ -69,7 +69,7 @@ The Event page SHALL show classifications from its selected published Edition on
 ### Requirement: Ingestion classification updates are edition-specific
 
 Research MUST attach each complete classification finding to one Edition and retain unchallenged saved terms.
-If the editor accepts or corrects classification, it MUST use the complete list.
+If Editor approves classification, ingestion MUST use the complete list from Classification.
 The host MUST normalize redundant ancestors before replacement.
 Replacement MUST affect only that Edition. It MUST NOT create Event defaults or change sibling Editions.
 An omitted classification MUST preserve current assignments.
@@ -119,7 +119,7 @@ For a new selected current Edition, ingestion SHALL assess inspected announcemen
 
 ### Requirement: Ingestion removes redundant classification ancestors
 
-For an accepted or corrected complete classification, ingestion MUST remove each selected term with a selected descendant at any depth.
+For a complete classification list that Editor approves, ingestion MUST remove each selected term with a selected descendant at any depth.
 It MUST preserve the remaining terms and MUST NOT add descendants.
 Normalization MUST precede catalog operations. Invalid IDs, duplicates, and invalid facet counts MUST still fail validation.
 The report MUST explain normalization in changed-assignment diffs, including previews. Direct catalog writes MUST retain the ancestor validation rule.
@@ -143,12 +143,12 @@ The report MUST explain normalization in changed-assignment diffs, including pre
 
 #### Scenario: Classification is kept or omitted
 
-- **WHEN** the editor keeps classification or supplies no classification action
+- **WHEN** Editor rejects a classification change or Classification omits the list
 - **THEN** ingestion preserves saved assignments without normalization writes
 
 #### Scenario: An invalid list reaches preparation
 
-- **WHEN** the list contains an unknown ID, duplicate ID, or excess terms in a single-valued facet
+- **WHEN** the final list contains an unknown ID, duplicate ID, or excess terms in a single-valued facet
 - **THEN** ingestion rejects the item without writes
 - **AND** ancestor normalization does not hide the invalid input
 
@@ -209,17 +209,19 @@ Both models MUST receive the same facet limits. `gathering` MUST mean a main pro
 - **WHEN** either model starts
 - **THEN** its instructions limit `event_type` and `format` to one each, while `topic`, `genre`, and `culture` allow multiple terms
 
-### Requirement: The editor resolves classification count conflicts
+### Requirement: Classification revises lists with excess facet terms
 
-Editor instructions MUST prohibit accepting excess facet terms. They MUST direct supported corrections through a complete `set` with a reason; otherwise keep or omit classification and report uncertainty. The host MUST NOT select a type automatically. Invalid final lists MUST produce no catalog operations.
+Validation MUST return a list with excess known facet terms to Classification under the group return rules. Classification MUST supply a supported complete list or omit it and report uncertainty. Ingestion MUST NOT select a term automatically. An invalid final list MUST produce no catalog operations.
 
 #### Scenario: Research supplies two event types
 
 - **GIVEN** a research finding with both `festival` and `gathering`
-- **WHEN** the editor supplies a supported complete list with `festival` as its only `event_type`
-- **THEN** preparation uses the corrected list for that Edition, including its other terms
+- **WHEN** validation returns the group and Classification supplies a supported complete list with `festival` as its only `event_type`
+- **THEN** Editor reviews the revised list, including its other terms
+- **AND** approval affects only that Edition
 
 #### Scenario: Evidence does not resolve the type
 
-- **WHEN** the evidence cannot support a choice between the proposed types
-- **THEN** editor instructions direct it to keep or omit classification and report an unresolved question
+- **WHEN** Classification cannot support a choice between the proposed types
+- **THEN** it omits classification and reports an unresolved question
+- **AND** review of the omission preserves the saved assignments

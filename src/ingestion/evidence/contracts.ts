@@ -160,7 +160,7 @@ export function uniqueSpan(body: string, quote: string): Span | null {
 }
 
 /** Restore one extra wire escape only when the complete source text matches. */
-function literalMatch(body: string, supplied: string) {
+export function literalMatch(body: string, supplied: string) {
   let quote = supplied;
   let span = uniqueSpan(body, quote);
   if (!span && !body.includes(supplied)) {

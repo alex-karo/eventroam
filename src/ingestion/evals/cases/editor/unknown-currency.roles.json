@@ -1,6 +1,6 @@
 {
   "schemaVersion": 5,
-  "provenance": "Exact normalized source-known-offers-blocked-checkout research from narrow-current-verify-2026-10-15T11-47-11-170Z.json; preserves unknown-currency amount in terms. Adapted to fixed domain roles. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: fc2d9fed-1ac5-4337-87fc-691723a3b0fc:s1. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
+  "provenance": "Normalized source-known-offers-blocked-checkout research from narrow-current-verify-2026-10-15T11-47-11-170Z.json. The ticket terms retain the amount with unknown currency. The Edition ticket link uses the inspected overview. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: fc2d9fed-1ac5-4337-87fc-691723a3b0fc:s1. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings. Editor and eligible Location run live. Empty page-coverage lists isolate Editor review from Research navigation.",
   "pages": [
     {
       "url": "https://sound-trail.example/",
@@ -167,9 +167,9 @@
       "currentOrNextEdition": {
         "tickets": {
           "action": "set",
-          "value": "https://sound-trail.example/checkout",
-          "reason": "Captured official source association",
-          "evidenceIds": ["s1-e2", "s1-e3", "s1-e4", "s1-e5"]
+          "value": "https://sound-trail.example/",
+          "reason": "The official overview lists the published offers for the 2027 Edition.",
+          "evidenceIds": ["s1-e1", "s1-e2", "s1-e3"]
         }
       },
       "omitted": [],

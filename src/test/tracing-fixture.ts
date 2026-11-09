@@ -463,11 +463,17 @@ function rejectedEditorFixture(
     return candidate;
   }
   return {
-    ...candidate,
-    item: {
-      decision: "reject",
-      reason: "Research concerns a different same-name festival",
-    },
+    decisions: (
+      candidate.decisions as import("@/ingestion/review").ReviewDecision[]
+    ).map((entry) =>
+      entry.path === "item"
+        ? {
+            ...entry,
+            decision: "reject",
+            note: "Research concerns a different same-name festival",
+          }
+        : entry,
+    ),
   };
 }
 

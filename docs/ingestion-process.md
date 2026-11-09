@@ -36,8 +36,8 @@ Each attempt uses this fixed Mastra graph. Workflow retries and restart are disa
 | `collect-sources` | Research chooses sources; freeze the source list and evidence after admitted work settles. |
 | `general-facts` | General confirms identity and selects the two Edition slots. A confirmed duplicate add stops here. Runs without a known Edition stop here too. |
 | `tickets`, `classification`, `location`, `links` | Four independent parallel branches use the same frozen corpus and shared deadline. |
-| `assemble-proposals` | Validate fixed proposals and attach saved values and point records. |
-| `review-proposals` | Editor approves or rejects submitted fields and groups. |
+| `assemble-proposals` | Validate proposals, return repairable groups and attach saved values and point records. |
+| `review-proposals` | Editor approves, rejects or returns groups. Review returned groups separately, then apply the complete review once. |
 | `prepare-catalog-plan` | Prepare operations from approved proposals. |
 | `apply-catalog-item` | Preview or atomically apply operations. |
 | `build-report`, `finalize-run` | Save the report, return a bounded summary, and release owned resources. |
@@ -99,7 +99,7 @@ A missing optional value can remain unknown without failure. An unfinished assig
 | Classification | Fixed targets, saved terms and history, vocabulary and relevant evidence. Add and full also receive saved descriptions. | Complete term lists and optional festival descriptions on add and full. Term reuse includes an earlier Edition key and a continuity reason. | None |
 | Location | Fixed targets, saved places, literal evidence, registered points and prepared reverse context. | Complete place decisions and registered point selection. | Forward `geocode` |
 | Links | Fixed public slots, saved links, permissions and link evidence. No Tickets output. | Event website/social actions and current-or-next ticket link; omitted candidates and reasons. | None |
-| Editor | Submitted proposals, cited evidence, saved values with owners and versions, registered points, and a list of all saved Markdown pages of the run with URLs and available overviews. | Approve/reject at every supplied fixed key; no replacement values. | Native Mastra workspace grep |
+| Editor | Submitted proposals, eligible omissions, review paths, cited evidence, saved values, registered points and saved Markdown paths. | One decision and note per required path, plus any eligible omission it returns. | Native Mastra workspace grep |
 
 See [role contracts](../src/ingestion/roles/contracts.ts), [proposal assembly](../src/ingestion/proposals.ts), and [catalog preparation](../src/ingestion/catalog-plan.ts). Quotes use code-assigned IDs beside their text. Models do not calculate line numbers or join separate saved-state reference arrays.
 
@@ -107,7 +107,7 @@ Research reports source acquisition separately from interpretation. Each assigne
 
 Decision reasons, owner questions, source summaries and diagnostics use length guidance in field descriptions instead of hard character limits. The same rule applies to Reader overviews, coverage labels, scope hints, uncertainty, year labels, limitations and literal boundary text. Required nonempty text, exact quotation matching, catalog field validation and context budgets still apply.
 
-Reader returns only `quote` and `topics` for self-contained evidence. It adds `context`, `editionClues` and `uncertainty` together when any is needed. Code restores empty metadata before binding and storage. Context that cannot be matched still invalidates its whole evidence item. General receives its identity task, field permissions, check keys and relevant saved facts, without other roles' instructions, prices, taxonomy or coordinates. Editor receives its decision schema through structured output, without a second copy in its user input. Links lists only material ambiguous candidates in `omitted`, not routine rejected navigation or unrelated URLs; supported social accounts still need a proposal or ambiguity explanation.
+Reader returns only `quote` and `topics` for self-contained evidence. It adds `context`, `editionClues` and `uncertainty` together when any is needed. Code restores empty metadata before binding and storage. Context that cannot be matched still invalidates its whole evidence item. General receives its identity task, field permissions, check keys and relevant saved facts, without other roles' instructions, prices, taxonomy or coordinates. Editor receives the allowed decision paths and actions. Links lists only material ambiguous candidates in `omitted`, not routine rejected navigation or unrelated URLs; supported social accounts still need a proposal or ambiguity explanation.
 
 ### Choose the refresh target
 
@@ -143,7 +143,15 @@ Links works independently from Tickets. It owns one Event website, social slots,
 
 ### Accepting research values
 
-Editor uses the same fixed currentDate as General and Location, not saved record timestamps. It only approves or rejects submitted values. It receives cited source text. It uses native Mastra workspace grep when a submitted proposal needs more source context. Code lists all saved Markdown paths of the current run, with URLs and available overviews, in a read-only workspace. Bodies are not added to the initial prompt. Editor can validate a proposal against an uncited page. Code checks the source hash before each search. Only exact listed file paths are permitted. A saved but unprocessed page remains unverified until its relevant text is inspected. The native regex search returns matching lines, line numbers and requested context; missing or shortened matches do not prove absence. An exact anchored quote can still refer to the wrong Edition or an office. Editor cannot research, rewrite values, geocode, or start a correction loop.
+Editor uses the same fixed date as General and Location. It approves or rejects submitted values. When a saved source gives a specific reason to revisit a group, Editor can return the group to its owner with a note that includes the relevant text. Editor can also return an eligible omission. The specialist decides the value under its original instructions.
+
+Review decisions use paths such as `event.fields.shortDescription`, `currentOrNextEdition.fields.tickets` and `currentOrNextEdition.fields.links.tickets`. General owns common Edition facts. Classification owns terms and both descriptions. Tickets owns ticket prices and variants. Links owns website, social and ticket URLs. Location owns each Edition's place. Item and target decisions allow approval or rejection. Edition selection stays fixed.
+
+Validation can return a group before the first Editor review if the rule identifies its owner and group. The workflow first checks the whole reply for invalid targets, country conflicts and unknown references. Each group can return up to three times. Validation can use one return before review. Editor can use the remaining returns. The workflow sends one request per owner in each round and merges only the requested groups. The first review includes validation repairs. After each Editor return, a separate review decides only the groups returned in that round. At the limit, Editor approves or rejects the group. An omission after a return needs a question for that exact path. It preserves the saved value and leaves the applicable check open.
+
+Editor checks proposals against their evidence, saved values and related proposals. It also checks concrete gaps in assigned groups, even when a specialist omits the value. If the evidence leaves a specific issue open, Editor searches a relevant saved page when the result can change an allowed decision. It returns an eligible group with the source and an exact excerpt when the evidence supports a correction or fills a gap. An inconclusive search leaves the question open.
+
+Editor and returning specialists use native workspace grep. The workspace lists exact file paths, URLs and available overviews. Code checks each source hash before search or citation. Returning specialists can cite a unique literal passage from these pages. A failed citation identifies each missing or repeated quote or context fragment. The specialist can copy the correct text from the saved page and retry within the same return's budget. The workflow validates the new reference with the proposal and keeps the Reader corpus intact. Location can use a previously registered point. The return does not start geocoding or fetch more pages.
 
 ## Resolve location
 
@@ -185,7 +193,7 @@ Use [saved source evidence](ingestion-tools.md#saved-source-evidence) to inspect
 
 The current report separates research, editor, and Location status from the catalog outcome. It includes old/new changes with reasons, errors by stage, unresolved questions, source summaries, retrieval history, limits, and workload. Add and refresh retain the fixed run date; refresh also retains scope.
 
-Raw model responses remain available, including invalid editor output. Returned unchanged facts can be inspected there. Omitted facts preserve saved values; they do not prove that a check was complete. Actual mutations and reasons also appear in the writer audit. No-op checks create no audit.
+Raw model responses remain available, including invalid Editor output. Report version 7 can record each return with its path, owner, trigger, note and available result. The workflow releases the native conversation when the attempt ends. Reports and workflow history keep the decisions and evidence used in the attempt. Omitted facts preserve saved values. Actual mutations and reasons also appear in the writer audit. No-op checks create no audit.
 
 Every started attempt has a private `ingestion_runs` row and durable `runId`. Studio saves the final report automatically. Open the workflow's build-report step to inspect it. Current consumers reject older report versions. See [ingestion runs](../openspec/specs/catalog/ingestion-runs/spec.md) and `src/ingestion/report.ts` for the exact report shape.
 

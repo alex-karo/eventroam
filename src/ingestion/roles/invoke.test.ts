@@ -1,10 +1,70 @@
 import { z } from "zod";
+import { createTool } from "@mastra/core/tools";
+import { modelReply } from "@/test/ingestion-provider";
 import { normalizeRoleWire } from "./wire";
 import { afterEach, expect, it, vi } from "vitest";
-import { invokeRole } from "./invoke";
-import { generalOutputSchema } from "./contracts";
+import { invokeRole, type RoleConversation } from "./invoke";
+import { generalOutputSchema, linksOutputSchema } from "./contracts";
 import { createResearchBudget } from "../runtime/budget";
 afterEach(() => vi.unstubAllGlobals());
+
+it("reads the final Links revision after tool use when the wire schema fails", async () => {
+  const initial = {
+    event: { website: null, socials: {} },
+    currentOrNextEdition: { tickets: null },
+    checks: [],
+    omitted: [],
+    unresolved: [],
+  };
+  const revised = { ...initial, currentOrNextEdition: { tickets: 12 } };
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(modelReply(JSON.stringify(initial)))
+    .mockResolvedValueOnce(
+      modelReply("Check the saved page.", {
+        id: "lookup",
+        name: "lookup",
+        args: {},
+      }),
+    )
+    .mockResolvedValueOnce(modelReply(JSON.stringify(revised)));
+  vi.stubGlobal("fetch", fetch);
+  const budget = createResearchBudget();
+  let captured: RoleConversation | undefined;
+  await invokeRole({
+    role: "links",
+    version: "test",
+    instructions: "Check the website.",
+    input: {},
+    schema: linksOutputSchema,
+    normalizeOutput: (value) => normalizeRoleWire("links", value),
+    budget,
+    config: {
+      apiKey: "fixture",
+      model: "fixture/model",
+      limits: budget.limits,
+    },
+    capture: (_role, conversation) => {
+      captured = conversation;
+    },
+  });
+  const lookup = createTool({
+    id: "lookup",
+    description: "Read the saved page.",
+    inputSchema: z.object({}),
+    execute: async () => "Official website",
+  });
+  const revision = await captured!.revise!(
+    {},
+    { lookup },
+    new AbortController().signal,
+  );
+  expect(fetch).toHaveBeenCalledTimes(3);
+  expect(revision).toMatchObject({
+    status: "success",
+    output: { currentOrNextEdition: { tickets: 12 } },
+  });
+});
 it("uses an object transport envelope for General and retains the actual response", async () => {
   const domain = {
     decision: "duplicate",
@@ -19,22 +79,7 @@ it("uses an object transport envelope for General and retains the actual respons
     expect(schema.type).toBe("object");
     expect(schema.required).toEqual(["result"]);
     expect(schema.properties.result.anyOf).toHaveLength(3);
-    return Response.json({
-      id: "fixture",
-      object: "chat.completion",
-      created: 1,
-      model: "fixture/model",
-      choices: [
-        {
-          index: 0,
-          message: {
-            role: "assistant",
-            content: JSON.stringify({ result: domain }),
-          },
-          finish_reason: "stop",
-        },
-      ],
-    });
+    return modelReply(JSON.stringify({ result: domain }));
   });
   vi.stubGlobal("fetch", fetch);
   const budget = createResearchBudget();

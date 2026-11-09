@@ -378,7 +378,7 @@ For anchors retained after page cleanup, the source reader SHALL keep nonempty v
 
 ### Requirement: Source support retains context and identity
 
-A source-based change SHALL retain enough source context to identify its meaning and applicable Event or Edition. A matching quote SHALL NOT prove factual support by itself. Missing, ambiguous, or unrelated source references SHALL NOT authorize a change. The same source passage can support more than one field. Validation of submitted changes SHALL have read-only access to all saved Markdown pages of the current run, including uncited pages, with source identity checks. This access SHALL NOT permit new research or replacement values.
+A source-based change SHALL retain enough source context to identify its meaning and applicable Event or Edition. A matching quote SHALL NOT prove factual support by itself. Missing, ambiguous, or unrelated source references SHALL NOT authorize a change. The same source passage can support more than one field. Editor and the specialist revising a group SHALL have read-only access to all saved Markdown pages of the current run, including uncited pages, with source identity checks. The specialist SHALL be able to cite an applicable passage from those pages to support a revision within the assignment. A repair SHALL NOT fetch new pages or start discovery.
 
 #### Scenario: The same passage supports two fields
 
@@ -430,6 +430,20 @@ A source-based change SHALL retain enough source context to identify its meaning
 - **WHEN** validation searches saved source text and receives no matches or shortened matching lines
 - **THEN** that result alone does not establish that a fact or qualification is absent
 - **AND** a proposed change still needs applicable source support
+
+#### Scenario: A repair cites a passage Reader missed
+
+- **WHEN** a specialist revising a group cites a relevant passage that the original evidence did not include
+- **THEN** the repair can cite it once its exact text and required context are bound to that page for this run
+- **AND** a missing or changed source body cannot supply that evidence
+- **AND** the repair does not replace the original Reader result or change the collection's coverage
+
+#### Scenario: A repair citation contains incorrect context
+
+- **WHEN** the quote matches the saved page but one context fragment does not
+- **THEN** the citation tool identifies the failed context field and text, and states whether it is missing or repeated
+- **AND** the specialist can correct the fragment from the saved page and retry within the return's budget
+- **AND** the rejected call adds no evidence reference
 
 ### Requirement: Saved sources support later validation
 

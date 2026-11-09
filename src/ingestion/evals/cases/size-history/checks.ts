@@ -21,10 +21,11 @@ function descriptionChecks(
       "research.descriptions.content",
       texts.every(
         (text) =>
-          text && !excluded.test(text) && !withoutEditionDetails.test(text),
-      ) &&
-        /River Festival/i.test(texts[1] ?? "") &&
-        expected.test(texts.join(" ")),
+          text &&
+          !/River Festival/i.test(text) &&
+          !excluded.test(text) &&
+          !withoutEditionDetails.test(text),
+      ) && expected.test(texts.join(" ")),
       "Propose two current descriptions without historical attendance or Edition details",
     ),
     check(
@@ -32,11 +33,11 @@ function descriptionChecks(
       report.editorStatus === "success" &&
         changes.event(
           "description",
-          (value) => typeof value === "string" && value === texts[0],
+          (value) => typeof value === "string" && value === texts[0]?.trim(),
         ) &&
         changes.event(
           "short_description",
-          (value) => typeof value === "string" && value === texts[1],
+          (value) => typeof value === "string" && value === texts[1]?.trim(),
         ),
       "Editor approves both descriptions for the catalog",
     ),
