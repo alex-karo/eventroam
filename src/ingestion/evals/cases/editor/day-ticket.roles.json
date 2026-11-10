@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 6,
-  "provenance": "Captured editor-day-ticket research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 17fea566-18fa-40b1-b812-d34db24348d6:s1, 17fea566-18fa-40b1-b812-d34db24348d6:s2, 17fea566-18fa-40b1-b812-d34db24348d6:s4. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. The Partoutbillet passage was restored as a literal quotation from the supplied ticket page. Its captured Reader quotation failed binding; this fixed Editor input now cites the source-backed passage explicitly. The obsolete binding limitation was removed. The Instagram and Facebook links use the cited official URLs. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
+  "schemaVersion": 7,
+  "provenance": "Captured editor-day-ticket research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Fixed Reader selections use source-backed artifacts from the standard-tier 2026-11-02 run. Some excerpts extend to source segment boundaries. Captures: 17fea566-18fa-40b1-b812-d34db24348d6:s1, 17fea566-18fa-40b1-b812-d34db24348d6:s2, 17fea566-18fa-40b1-b812-d34db24348d6:s4. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. The Partoutbillet passage was restored as a literal quotation from the supplied ticket page. Its captured Reader quotation failed binding; this fixed Editor input now cites the source-backed passage explicitly. The obsolete binding limitation was removed. The Instagram and Facebook links use the cited official URLs. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
   "pages": [
     {
       "url": "https://www.roskilde-festival.dk/",
@@ -24,35 +24,41 @@
         ],
         "evidence": [
           {
-            "quote": "26. juni – 3. juli 2027. Uafhængig og non-profit. Køb Smart Ticket til Roskilde Festival 2027 allerede nu.",
+            "quote": 4,
             "topics": ["description", "dates", "status", "classification"]
           },
           {
-            "quote": "[26/6 – 3/7 2027](https://www.roskilde-festival.dk/)",
+            "quote": 9,
             "topics": ["dates", "links"]
           },
           {
-            "quote": "Vælg mellem partoutbillet, endagsbillet og todagesbillet – eller Smart Ticket med fem rater á 524 kr.\n\n[Køb billet her](https://www.roskilde-festival.dk/billetter)",
+            "quote": {
+              "start": 29,
+              "end": 30
+            },
             "topics": ["tickets", "links"]
           },
           {
-            "quote": "[30.09.2026 Program RF27: De første 18 navne er klar!Tame Impala, Caroline Polachek, Kacey Musgraves, Underscores, Patti Smith Quartet og 13 andre navne er klar til næste sommer. Køb din billet nu.](https://www.roskilde-festival.dk/nyheder/rf27-de-foerste-18-navne-er-klar)",
+            "quote": 35,
             "topics": ["dates", "status", "links"]
           },
           {
-            "quote": "[Nyheder](https://www.roskilde-festival.dk/nyheder)\n\n[Billetter](https://www.roskilde-festival.dk/billetter)\n\n[Program](https://www.roskilde-festival.dk/program)\n\n[Bliv frivillig](https://www.roskilde-festival.dk/bliv-frivillig)\n\n[Køb RF-merch](https://shop.roskilde-festival.dk/)\n\n[Camping](https://www.roskilde-festival.dk/camping)\n\n[Kontakt os](https://www.roskilde-festival.dk/kontakt)\n\n[Find praktisk info](https://faq.roskilde-festival.dk/hc/da)\n\n<https://www.instagram.com/roskildefestival/>\n\n<https://www.tiktok.com/@roskildefestival>\n\n<https://www.facebook.com/orangefeeling>\n\n<https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW>\n\n<https://dk.linkedin.com/company/roskilde-festival>",
+            "quote": {
+              "start": 13,
+              "end": 25
+            },
             "topics": ["links"]
           },
           {
-            "quote": "[Om os – og vores formål](https://www.roskilde-festival.dk/festival-med-formaal)",
+            "quote": 61,
             "topics": ["description", "links"]
           },
           {
-            "quote": "[Roskilde Festival Gruppen](https://roskildefestivalgruppen.dk/da/)",
+            "quote": 66,
             "topics": ["identity", "links"]
           },
           {
-            "quote": "©2026 Roskilde Festival Gruppen",
+            "quote": 83,
             "topics": ["dates", "identity"]
           }
         ],
@@ -74,39 +80,63 @@
         ],
         "evidence": [
           {
-            "quote": "[26/6 – 3/7 2027](https://www.roskilde-festival.dk/)",
+            "quote": 9,
             "topics": ["identity", "dates", "links"]
           },
           {
-            "quote": "## Smart Ticket\n\nFordel betalingen for en partoutbillet til RF27 over fem måneder. Deadline: 26. november.\n\n524\n\nkr. om måneden plus 100,- i gebyr\n\n[Køb her](https://ticket.roskilde-festival.dk/da/3e9u8rgkhdlw9dg/products)",
+            "quote": {
+              "start": 36,
+              "end": 40
+            },
             "topics": ["tickets"]
           },
           {
-            "quote": "## Todagesbillet\n\nMix og match de dage, der passer dig bedst, og få dobbelt så meget festival som en endagsbillet.\n\n2230\n\nkr. inkl. billetgebyr.\n\n[Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=7g0tvpp)",
+            "quote": {
+              "start": 41,
+              "end": 45
+            },
             "topics": ["tickets"]
           },
           {
-            "quote": "## Onsdag\n\nEndagsbillet til onsdag\n\n1530\n\nkr. inkl. billetgebyr.\n\n[Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=2rrklcf)",
+            "quote": {
+              "start": 56,
+              "end": 60
+            },
             "topics": ["tickets"]
           },
           {
-            "quote": "## Torsdag\n\nEndagsbillet til torsdag\n\n1530\n\nkr. inkl. billetgebyr.\n\n[Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=pjkf5p5)",
+            "quote": {
+              "start": 61,
+              "end": 65
+            },
             "topics": ["tickets"]
           },
           {
-            "quote": "## Fredag\n\nEndagsbillet til fredag\n\n1530\n\nkr. inkl. billetgebyr.\n\n[Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=n9tcbkm)",
+            "quote": {
+              "start": 66,
+              "end": 70
+            },
             "topics": ["tickets"]
           },
           {
-            "quote": "## Lørdag\n\nEndagsbillet til lørdag\n\n1530\n\nkr. inkl. billetgebyr.\n\n[Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=9rdr0dv)",
+            "quote": {
+              "start": 71,
+              "end": 75
+            },
             "topics": ["tickets"]
           },
           {
-            "quote": "[Nyheder](https://www.roskilde-festival.dk/nyheder)\n\n[Billetter](https://www.roskilde-festival.dk/billetter)\n\n[Program](https://www.roskilde-festival.dk/program)\n\n[Bliv frivillig](https://www.roskilde-festival.dk/bliv-frivillig)\n\n[Køb RF-merch](https://shop.roskilde-festival.dk/)\n\n[Camping](https://www.roskilde-festival.dk/camping)\n\n[Kontakt os](https://www.roskilde-festival.dk/kontakt)\n\n[Find praktisk info](https://faq.roskilde-festival.dk/hc/da)\n\n<https://www.instagram.com/roskildefestival/>\n\n<https://www.tiktok.com/@roskildefestival>\n\n<https://www.facebook.com/orangefeeling>\n\n<https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW>\n\n<https://dk.linkedin.com/company/roskilde-festival>",
+            "quote": {
+              "start": 13,
+              "end": 25
+            },
             "topics": ["links"]
           },
           {
-            "quote": "## Partoutbillet\n\nAlle otte dage på Roskilde Festival 2027\n\n2650\n\nkr. inkl. billetgebyr.\n\n[Køb her](https://ticket.roskilde-festival.dk/da/vgkw6td2h3rrfkv/products?c=fz3fh09)",
+            "quote": {
+              "start": 31,
+              "end": 35
+            },
             "topics": ["tickets", "dates"]
           }
         ],
@@ -128,15 +158,21 @@
         ],
         "evidence": [
           {
-            "quote": "[26/6 – 3/7 2027](https://www.roskilde-festival.dk/)",
+            "quote": 9,
             "topics": ["identity", "dates", "links"]
           },
           {
-            "quote": "**Adresse under festivalen:**  \nRoskilde Festival  \nFestivalpladsen  \nDarupvej 19  \n4000 Roskilde",
+            "quote": {
+              "start": 45,
+              "end": 49
+            },
             "topics": ["identity", "location"]
           },
           {
-            "quote": "[Instagram](https://www.instagram.com/roskildefestival/)\n- [TikTok](https://www.tiktok.com/@roskildefestival)\n- [Facebook](https://www.facebook.com/orangefeeling)\n- [Spotify](https://open.spotify.com/playlist/3BeLkBX5h44oWg2umtoExW)\n- [LinkedIn](https://dk.linkedin.com/company/roskilde-festival)",
+            "quote": {
+              "start": 74,
+              "end": 78
+            },
             "topics": ["links"]
           }
         ],

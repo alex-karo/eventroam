@@ -17,6 +17,7 @@ import type { Targets } from "@/ingestion/roles/general/contracts";
 import type { CheckFinding } from "@/ingestion/roles/contracts";
 import type { ClassificationOutput } from "@/ingestion/roles/classification/contracts";
 import { topics } from "@/ingestion/evidence/contracts";
+import type { SegmentSelection } from "@/ingestion/evidence/segments";
 import {
   runCatalogResearch,
   createCatalogIngestionWorkflow,
@@ -101,6 +102,14 @@ export function approveFixtureReview(paths: ReviewPath[]): {
   };
 }
 
+export function wholeNumberedPage(page: string): SegmentSelection {
+  const end = Number([...page.matchAll(/^(\d+)\|/gm)].at(-1)?.[1]);
+  if (!end) {
+    throw new Error("Reader fixture needs a numbered page");
+  }
+  return end === 1 ? 1 : { start: 1, end };
+}
+
 /** These answers use the current role contracts. Each override is one role response. */
 export function fixtureRoleGenerator(
   responses: Partial<Record<Role, unknown | GenerateRole>> = {},
@@ -120,7 +129,9 @@ export function fixtureRoleGenerator(
         topics: [...topics],
         statedYears: [],
         limitations: [],
-        evidence: [{ quote: data.page, topics: [...topics] }],
+        evidence: [
+          { quote: wholeNumberedPage(data.page), topics: [...topics] },
+        ],
       };
     }
     if (role === "research") {

@@ -137,6 +137,8 @@ export type ResearchDependencies = {
   config?: ResearchConfig;
   /** Freeze the domain date in reproducible evaluations. */
   todayUtc?: string;
+  /** Replay recorded source evidence in evaluations. */
+  readSource?: import("./roles/reader/agent").ReadSource;
   generateLocation?: GenerateLocation;
   geocodingClient?: GeocodingClient;
   readPage?: typeof readPage;

@@ -101,23 +101,23 @@
         "limitations": [],
         "evidence": [
           {
-            "quote": "Official open-air music festival, Portugal. Both distinct Editions take place at River Grounds in River Town, Portugal. Each has its own programme. Numbers from one Edition do not establish size for the other.",
+            "quote": 2,
             "topics": ["identity", "description", "location"]
           },
           {
-            "quote": "- Historical Edition: October 10\u201312, 2026. This Edition took place on those dates and is now complete. Its 2025 counterpart had about 7,500 participants, including volunteers. The organizer expects a similar scale for this 2026 Edition with the same programme and grounds. No current attendance total is published.",
+            "quote": 3,
             "topics": ["dates", "status", "size"]
           },
           {
-            "quote": "- Unknown Edition: November 1\u20133, 2026. This Edition is announced and scheduled. No participant or attendance estimates, including historical comparisons, are published.",
+            "quote": 4,
             "topics": ["dates", "status", "size"]
           },
           {
-            "quote": "The regular programme at the most recent festival combined camping, participant-led workshops and night-time dancing.",
+            "quote": 5,
             "topics": ["classification"]
           },
           {
-            "quote": "Programme dates exclude camping and sales windows. This is the complete available festival information. No additional announcements, social accounts, coordinates, ticket categories, prices or ticket shop are published here.",
+            "quote": 6,
             "topics": ["dates", "tickets", "links"]
           }
         ]

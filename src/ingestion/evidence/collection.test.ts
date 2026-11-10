@@ -6,6 +6,8 @@ import { createCollection } from "./collection";
 import { createSourceSession } from "../tools/session";
 import { createResearchBudget } from "../runtime/budget";
 import type { GenerateRole } from "../roles/invoke";
+import { wholeNumberedPage } from "@/test/ingestion";
+import { segmentPage } from "./segments";
 
 it("shares a complete inspection, reserves concurrent Reader calls and freezes after settlement", async () => {
   const root = await mkdtemp(join(tmpdir(), "eventroam-collection-"));
@@ -43,7 +45,7 @@ it("shares a complete inspection, reserves concurrent Reader calls and freezes a
         limitations: [],
         evidence: [
           {
-            quote: input.page,
+            quote: wholeNumberedPage(input.page),
             context: [],
             topics: ["identity", "description"],
             editionClues: ["2027"],
@@ -200,11 +202,11 @@ function collectionFixture(
   };
 }
 
-it("keeps usable Reader quotations when other quotations have no topic or literal match", async () => {
+it("keeps usable Reader quotations when other quotations have no topic or valid segment", async () => {
   const root = await mkdtemp(join(tmpdir(), "eventroam-partial-reader-"));
   try {
     const page = "# Festival\n\nCookies\n\nTickets cost €20.";
-    const { collection, generate } = collectionFixture(root, page, 10000);
+    const { collection, generate } = collectionFixture(root, page, 10000, 1);
     generate.mockResolvedValueOnce({
       overview: "Festival tickets",
       coverage: { found: ["Ticket price"], notPublished: [] },
@@ -212,9 +214,17 @@ it("keeps usable Reader quotations when other quotations have no topic or litera
       statedYears: [],
       limitations: [],
       evidence: [
-        { quote: "Cookies", topics: [] },
-        { quote: "Tickets cost €10.", topics: ["tickets"] },
-        { quote: "Tickets cost €20.", topics: ["tickets"] },
+        { quote: 2, topics: [] },
+        { quote: 4, topics: ["tickets"] },
+        { quote: 0, topics: ["tickets"] },
+        {
+          quote: 3,
+          context: [{ start: -1, end: 2 }],
+          editionClues: [],
+          uncertainty: null,
+          topics: ["tickets"],
+        },
+        { quote: 3, topics: ["tickets"] },
       ],
     });
 
@@ -224,11 +234,13 @@ it("keeps usable Reader quotations when other quotations have no topic or litera
     expect(result.processing).toBe("limited");
     expect(result.limitations).toEqual([
       "Quotation 1 has no topic",
-      "Quotation 2 or its context has no unique literal match",
+      "Quotation 2 or its context has an invalid segment selection",
+      "Quotation 3 or its context has an invalid segment selection",
+      "Quotation 4 or its context has an invalid segment selection",
     ]);
     expect(corpus.evidence).toEqual([
       expect.objectContaining({
-        id: `${result.sourceId}-e3`,
+        id: `${result.sourceId}-e5`,
         quote: "Tickets cost €20.",
         topics: ["tickets"],
       }),
@@ -262,7 +274,7 @@ it.each([
         topics: ["tickets"],
         statedYears: [],
         limitations: [],
-        evidence: [{ quote: "Tickets cost €20.", topics: ["tickets"] }],
+        evidence: [{ quote: 2, topics: ["tickets"] }],
       };
       generate
         .mockResolvedValueOnce({
@@ -277,9 +289,9 @@ it.each([
         })
         .mockImplementationOnce(async (_role, prompt) => {
           expect(JSON.parse(prompt)).toMatchObject({
-            page,
+            page: "1|# Festival\n\n2|Tickets cost €20.",
             validationFeedback: {
-              instructions: expect.stringContaining("same Markdown"),
+              instructions: expect.stringContaining("same numbered page"),
               errors: [
                 expect.objectContaining({
                   message: expect.stringMatching(
@@ -323,7 +335,7 @@ it("gives Reader the full page and reuses a redirected source for later inspecti
     const generate = vi.fn<GenerateRole>(async (role, prompt, call) => {
       expect(role).toBe("reader");
       expect(call.tools).toBeUndefined();
-      expect(JSON.parse(prompt).page).toBe(page);
+      expect(JSON.parse(prompt).page).toBe(segmentPage(page).numbered);
       return {
         overview: "Price table for 2027",
         coverage: { found: [], notPublished: [] },
@@ -332,8 +344,8 @@ it("gives Reader the full page and reuses a redirected source for later inspecti
         limitations: [],
         evidence: [
           {
-            quote: "| Pass | €100 |\n| Day | €50 |",
-            context: ["# Tickets 2027", "Includes tax."],
+            quote: { start: 10002, end: 10003 },
+            context: [1, 10004],
             topics: ["tickets"],
             editionClues: ["2027"],
             uncertainty: null,

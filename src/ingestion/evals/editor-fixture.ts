@@ -1,24 +1,25 @@
 import { z } from "zod";
-import { bindEvidence } from "../evidence/contracts";
-import { readerOutputSchema } from "../roles/reader/contracts";
+import { bindFixtureEvidence } from "./fixed-reader";
 import { roleEvidenceTopics } from "../roles/contracts";
+import { replyReferences } from "../roles/proposal-validation";
 import { collectionOutputSchema } from "../roles/research/contracts";
 import { generalOutputSchema } from "../roles/general/contracts";
 import { ticketsOutputSchema } from "../roles/tickets/contracts";
 import { classificationReplySchema } from "../roles/classification/contracts";
 import { linksOutputSchema } from "../roles/links/contracts";
+import { readerSelectionSchema } from "../roles/reader/contracts";
 import type { ResearchDependencies } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
 
 export const roleHandoffSchema = z.strictObject({
-  schemaVersion: z.literal(6),
+  schemaVersion: z.literal(7),
   provenance: z.string().min(1),
   pages: z
     .array(
       z.strictObject({
         url: z.url(),
         sourceId: z.string().min(1),
-        reader: readerOutputSchema.optional(),
+        reader: readerSelectionSchema.optional(),
       }),
     )
     .min(1),
@@ -30,18 +31,6 @@ export const roleHandoffSchema = z.strictObject({
     links: linksOutputSchema.optional(),
   }),
 });
-
-function support(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.flatMap(support);
-  }
-  if (!value || typeof value !== "object") {
-    return [];
-  }
-  return Object.entries(value).flatMap(([key, part]) =>
-    key === "evidenceIds" ? (part as string[]) : support(part),
-  );
-}
 
 /** Check fixed citations before the CLI starts any model calls. */
 export function assertEditorFixture(item: PipelineEvalCase) {
@@ -67,16 +56,7 @@ export function assertEditorFixture(item: PipelineEvalCase) {
         `${item.id}: missing fixed Reader output for ${page.url}`,
       );
     }
-    const bound = bindEvidence(
-      page.sourceId,
-      source.markdown,
-      page.reader,
-      source.finalUrl,
-    );
-    if (bound.evidence.length !== page.reader.evidence.length) {
-      throw new Error(`${item.id}: fixed quotation does not match ${page.url}`);
-    }
-    return bound.evidence;
+    return bindFixtureEvidence(item.id, page.sourceId, source, page.reader);
   });
   const urls = fixture.pages.map((page) => page.url);
   const destinations = fixture.pages.map(
@@ -122,13 +102,17 @@ export function assertEditorFixture(item: PipelineEvalCase) {
         .filter((item) => item.topics.some((topic) => topics.includes(topic)))
         .map((item) => item.id),
     );
-    if (support(fixture.roles[role]).some((id) => !allowed.has(id))) {
+    if (
+      replyReferences(fixture.roles[role], "evidenceIds").some(
+        (id) => typeof id !== "string" || !allowed.has(id),
+      )
+    ) {
       throw new Error(`${item.id}: unknown fixed ${role} citation`);
     }
   }
 }
 
-/** Run normal collection and binding with fixed inputs; Editor and Location stay live. */
+/** Replay Research and specialist replies for the Editor handoff. */
 export function editorFixtureRoles(
   item: PipelineEvalCase,
 ): ResearchDependencies["generateRoles"] {
@@ -157,24 +141,6 @@ export function editorFixtureRoles(
         }
       }
       return structuredClone(fixture.collection);
-    },
-    reader: async (_role, prompt) => {
-      const input = JSON.parse(prompt);
-      const page = fixture.pages.find(
-        (page) => page.sourceId === input.source.id,
-      );
-      const source = item.sources.find(
-        (source) => source.attemptedUrl === page?.url,
-      );
-      if (
-        !page?.reader ||
-        !source ||
-        source.markdown !== input.page ||
-        source.finalUrl !== input.source.finalUrl
-      ) {
-        throw new Error(`${item.id}: unexpected fixed Reader input`);
-      }
-      return structuredClone(page.reader);
     },
     ...Object.fromEntries(
       (

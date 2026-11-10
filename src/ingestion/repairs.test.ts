@@ -14,6 +14,7 @@ import {
   fixtureTargets,
   runFixtureResearch,
   set,
+  wholeNumberedPage,
 } from "@/test/ingestion";
 import {
   modelReply,
@@ -24,6 +25,7 @@ import {
 } from "@/test/ingestion-provider";
 import type { ResearchDependencies } from "./contracts";
 import { topics } from "./evidence/contracts";
+import { segmentPage, type SegmentSelection } from "./evidence/segments";
 import type { LocationInput } from "./roles/location/input";
 import type { LocationOutput } from "./roles/location/contracts";
 import type { ReviewDecision, ReviewPath } from "./roles/editor/contracts";
@@ -139,7 +141,13 @@ beforeEach(async () => {
   };
 });
 
-function fixture(page: string, { name = "Example Fest", quote = page } = {}) {
+function fixture(
+  page: string,
+  {
+    name = "Example Fest",
+    selection,
+  }: { name?: string; selection?: SegmentSelection } = {},
+) {
   const { client } = testDatabase();
   const f = testFixtures(client);
   const event = f.event({ canonicalName: name });
@@ -165,14 +173,19 @@ function fixture(page: string, { name = "Example Fest", quote = page } = {}) {
     answers: Parameters<typeof fixtureDependencies>[0] = {},
   ) {
     const defaults = fixtureDependencies({
-      reader: {
+      reader: async (_role: Role, prompt: string) => ({
         overview: name,
         coverage: { found: [], notPublished: [] },
         topics,
         statedYears: [],
         limitations: [],
-        evidence: [{ quote, topics }],
-      },
+        evidence: [
+          {
+            quote: selection ?? wholeNumberedPage(JSON.parse(prompt).page),
+            topics,
+          },
+        ],
+      }),
       ...answers,
     });
     const requests: ProviderRequest[] = [];
@@ -234,7 +247,11 @@ function capturedPage(festival: "roskilde" | "wacken") {
 it("repairs Wacken tickets before the first Editor review", async () => {
   const page = await capturedPage("wacken");
   const quote = "Preis: 364 € zzgl. 2 € Ticketgebühr";
-  const f = fixture(page, { name: "Wacken Open Air", quote });
+  const selection =
+    segmentPage(page).spans.findIndex(
+      ({ start, end }) => page.slice(start, end) === quote,
+    ) + 1;
+  const f = fixture(page, { name: "Wacken Open Air", selection });
   f.f.edition(f.event, { editionKey: "2027", editionYear: 2027 });
   const invalid = set({ variants: [], basePrice: null }, "Empty offer list");
   const editor = editorReply(async (prompt, _index, call) => {
@@ -294,7 +311,10 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
   const page = await capturedPage("roskilde");
   const quote =
     "Alle otte dage på Roskilde Festival 2027\n\n2650\n\nkr. inkl. billetgebyr.";
-  const f = fixture(page, { name: "Roskilde Festival", quote });
+  const f = fixture(page, {
+    name: "Roskilde Festival",
+    selection: { start: 32, end: 34 },
+  });
   const note =
     "  Remove the payment plan. From s1.md\n524\n\nkr. om måneden plus 100,- i gebyr\n";
   const link = "https://www.roskilde-festival.dk/da/billetter";
@@ -316,9 +336,8 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
     expect(prompt.prepared).not.toHaveProperty("plan");
     expect(prompt.repairs[0].note).toBe(note);
     expect(prompt.repairs[0]).not.toHaveProperty("evidence");
-    expect(prompt.prepared.basis.evidence).toMatchObject([
-      { id: "s1-e1", quote },
-    ]);
+    expect(prompt.repairs[0].evidenceIds).toEqual(["s1-e1"]);
+    expect(prompt.evidence).toMatchObject([{ id: "s1-e1", quote }]);
     return review(prompt);
   });
   const { run } = f.model(
@@ -418,7 +437,7 @@ it.each(["instagram", "event.fields.links.socials.instagram"])(
 it("shares the return limit and rejects a ticket price for another Edition", async () => {
   const f = fixture(
     "Example Fest 2027\nFull pass EUR 130.\n\nExample Fest 2026\nFull pass EUR 120.",
-    { quote: "Example Fest 2027" },
+    { selection: 1 },
   );
   const link = "https://example.org/tickets";
   const revision = { ...price(120, "EUR"), evidenceIds: [] };
@@ -490,7 +509,7 @@ it("revises one of two Location slots from a saved excerpt in the note", async (
   const quote = "The venue is Vale do Tejo.";
   const editions =
     "Example Fest took place at Vale Antigo in 2026. Example Fest 2027 is from July 1 to July 3.";
-  const f = fixture(`${editions}\n\n${quote}`, { quote: editions });
+  const f = fixture(`${editions}\n\n${quote}`, { selection: 1 });
   const previous = f.f.edition(f.event, {
     editionKey: "2026",
     startsOn: "2026-07-01",
@@ -536,9 +555,10 @@ it("revises one of two Location slots from a saved excerpt in the note", async (
         proposal: { venueName: { value: "Vale do Tejo" } },
       },
     ]);
-    expect(prompt.prepared.basis.evidence).toContainEqual(
+    expect(prompt.evidence).toContainEqual(
       expect.objectContaining({ id: "s1-e1", quote: editions }),
     );
+    expect(prompt.repairs[0].evidenceIds).toEqual([]);
     return review(prompt);
   });
   const { run, requests } = f.model(

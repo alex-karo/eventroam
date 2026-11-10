@@ -48,7 +48,10 @@ export function createCollection(options: {
   sources: SourceSession;
   budget: ResearchBudget;
   config: ResearchConfig;
-  deps: Pick<ResearchDependencies, "generateRole" | "generateRoles">;
+  deps: Pick<
+    ResearchDependencies,
+    "generateRole" | "generateRoles" | "readSource"
+  >;
   assignment: unknown;
   signal?: AbortSignal;
   tracing?: RunObservability;
@@ -149,53 +152,44 @@ export function createCollection(options: {
           return source;
         }
         source.leads = pageLinks(read.markdown, read.finalUrl);
-        if (
-          read.markdown.length + limits.inputReserveCharacters >
-          limits.pageInputCharacters
-        ) {
+        const execution = await (options.deps.readSource ?? readSource)({
+          input: {
+            assignment: options.assignment,
+            source: { id: source.id, ...read, markdown: undefined },
+            page: read.markdown,
+          },
+          budget,
+          config: options.config,
+          signal,
+          tracing: options.tracing,
+          generate:
+            options.deps.generateRoles?.reader ?? options.deps.generateRole,
+          outputTokens: limits.readerOutputTokens,
+          inputLimits: limits,
+          reserveCall: reserveReaderCall,
+          reserveCorrection: reserveReaderCall,
+        });
+        if (execution.skipReason) {
+          source.limitations.push(execution.skipReason);
+          return source;
+        }
+        source.readerResponse = execution.modelResponse;
+        if (!execution.bound || !execution.output) {
+          source.processing = "failed";
           source.limitations.push(
-            "Whole page exceeds Reader input limit; no page portion was processed",
+            ...execution.errors.map((error) => error.message),
           );
-        } else if (!reserveReaderCall()) {
-          source.limitations.push(
-            "The Reader call limit or run deadline left the whole page unprocessed",
-          );
+          errors.push(...execution.errors);
+          fatal = true;
         } else {
-          const execution = await readSource({
-            input: {
-              assignment: options.assignment,
-              source: { id: source.id, ...read, markdown: undefined },
-              page: read.markdown,
-            },
-            budget,
-            config: options.config,
-            signal,
-            tracing: options.tracing,
-            generate:
-              options.deps.generateRoles?.reader ?? options.deps.generateRole,
-            outputTokens: limits.readerOutputTokens,
-            reserveCorrection: reserveReaderCall,
-          });
-          source.readerResponse = execution.modelResponse;
-          if (!execution.bound) {
-            source.processing = "failed";
-            source.limitations.push(
-              ...execution.errors.map((error) => error.message),
-            );
-            errors.push(...execution.errors);
-            fatal = true;
-          } else {
-            const { bound } = execution;
-            source.overview = execution.output.overview;
-            source.coverage = execution.output.coverage;
-            source.topics = execution.output.topics;
-            source.statedYears = execution.output.statedYears;
-            source.limitations = bound.limitations;
-            source.processing = bound.limitations.length
-              ? "limited"
-              : "complete";
-            await storage.saveEvidence(source, bound.evidence);
-          }
+          const { bound, output } = execution;
+          source.overview = output.overview;
+          source.coverage = output.coverage;
+          source.topics = output.topics;
+          source.statedYears = output.statedYears;
+          source.limitations = bound.limitations;
+          source.processing = bound.limitations.length ? "limited" : "complete";
+          await storage.saveEvidence(source, bound.evidence);
         }
         return source;
       })();

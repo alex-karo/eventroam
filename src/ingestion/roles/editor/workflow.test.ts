@@ -120,7 +120,7 @@ test("all interpretation roles receive the same date and Editor receives fixed p
     if (role === "editor") {
       expect(prompt.prepared).not.toHaveProperty("targets");
       expect(prompt.prepared.plan.currentOrNextEdition.editionKey).toBe("2027");
-      expect(prompt.prepared.basis.evidence).not.toEqual([]);
+      expect(prompt.evidence).not.toEqual([]);
     }
     return defaults(role, raw, call);
   };

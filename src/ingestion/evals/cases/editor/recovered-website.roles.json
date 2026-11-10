@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 6,
-  "provenance": "Exact search-wrong-official research from narrow-current-main-merge.json; openai/gpt-6-luna, narrow-current-focused-search-v1; provider wire-null omission normalized, findings unchanged. Adapted to fixed domain roles. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 5550e1f9-71d5-4c92-9a11-b608a2cd0606:s1, d49da0ea-52fe-4649-ada1-711ae62fe65a:s3. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
+  "schemaVersion": 7,
+  "provenance": "Exact search-wrong-official research from narrow-current-main-merge.json; openai/gpt-6-luna, narrow-current-focused-search-v1; provider wire-null omission normalized, findings unchanged. Adapted to fixed domain roles. Fixed Reader selections use source-backed artifacts from the standard-tier 2026-11-02 run. Some excerpts extend to source segment boundaries. Captures: 5550e1f9-71d5-4c92-9a11-b608a2cd0606:s1, d49da0ea-52fe-4649-ada1-711ae62fe65a:s3. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
   "pages": [
     {
       "url": "https://harborechoaustralia.com/",
@@ -14,11 +14,14 @@
         ],
         "evidence": [
           {
-            "quote": "# Harbor Echo Australia\nThis festival is in Byron Bay, Australia, on 1–3 February 2027.",
+            "quote": {
+              "start": 1,
+              "end": 2
+            },
             "topics": ["identity", "dates", "location"]
           },
           {
-            "quote": "It is unrelated to Harbor Echo in Castlewellan, Northern Ireland.",
+            "quote": 2,
             "topics": ["identity", "location"]
           }
         ],
@@ -47,11 +50,11 @@
         "limitations": [],
         "evidence": [
           {
-            "quote": "Harbor Echo is the Castlewellan festival in Northern Ireland, United Kingdom. Our official website is https://harborechofestival.co.uk/. We are unrelated to the Australian Harbor Echo festival.",
+            "quote": 2,
             "topics": ["identity", "location", "links"]
           },
           {
-            "quote": "Confirmed outdoor music programme: 23–30 January 2027 at Castlewellan Grounds, Festival Lane, Castlewellan, Northern Ireland, United Kingdom. All programme admission is free; no booking or paid ticket categories. No other editions are announced. No participant estimate is published. These details are complete; no further relevant pages are linked.",
+            "quote": 3,
             "topics": [
               "description",
               "dates",
@@ -63,7 +66,7 @@
             ]
           },
           {
-            "quote": "The January 2027 programme will be the first Edition. No Edition has yet taken place.",
+            "quote": 4,
             "topics": ["dates", "status"]
           }
         ],

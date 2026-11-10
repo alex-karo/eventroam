@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 6,
-  "provenance": "Captured editor-clear research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract; Event link finding removed for current scope. Adapted to fixed domain roles. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 6573f83d-d4a9-4865-af49-73b3f5c1b160:s1, 6573f83d-d4a9-4865-af49-73b3f5c1b160:s4. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
+  "schemaVersion": 7,
+  "provenance": "Captured editor-clear research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract; Event link finding removed for current scope. Adapted to fixed domain roles. Fixed Reader selections use source-backed artifacts from the standard-tier 2026-11-02 run. Some excerpts extend to source segment boundaries. Captures: 6573f83d-d4a9-4865-af49-73b3f5c1b160:s1, 6573f83d-d4a9-4865-af49-73b3f5c1b160:s4. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
   "pages": [
     {
       "url": "https://www.roskilde-festival.dk/",
@@ -23,27 +23,36 @@
         ],
         "evidence": [
           {
-            "quote": "# Billetsalget er i gang!\n\nVælg mellem partoutbillet, endagsbillet og todagesbillet – eller Smart Ticket med fem rater á 524 kr.\n\n[Køb billet her](https://www.roskilde-festival.dk/billetter)",
+            "quote": {
+              "start": 28,
+              "end": 30
+            },
             "topics": ["status", "tickets", "links"]
           },
           {
-            "quote": "[26/6 – 3/7 2027](https://www.roskilde-festival.dk/)",
+            "quote": 9,
             "topics": ["dates", "identity", "links"]
           },
           {
-            "quote": "\"og:description\": \"26. juni – 3. juli 2027. Uafhængig og non-profit. Køb Smart Ticket til Roskilde Festival 2027 allerede nu.\"",
+            "quote": 4,
             "topics": ["dates", "description", "identity", "tickets"]
           },
           {
-            "quote": "[30.09.2026 Program RF27: De første 18 navne er klar!Tame Impala, Caroline Polachek, Kacey Musgraves, Underscores, Patti Smith Quartet og 13 andre navne er klar til næste sommer. Køb din billet nu.](https://www.roskilde-festival.dk/nyheder/rf27-de-foerste-18-navne-er-klar)",
+            "quote": 35,
             "topics": ["classification", "size", "dates", "tickets", "links"]
           },
           {
-            "quote": "[Billetter](https://www.roskilde-festival.dk/billetter)\n\n[Program](https://www.roskilde-festival.dk/program)",
+            "quote": {
+              "start": 14,
+              "end": 15
+            },
             "topics": ["tickets", "links"]
           },
           {
-            "quote": "<https://www.instagram.com/roskildefestival/>\n\n<https://www.tiktok.com/@roskildefestival>\n\n<https://www.facebook.com/orangefeeling>",
+            "quote": {
+              "start": 21,
+              "end": 23
+            },
             "topics": ["links"]
           }
         ],
@@ -66,19 +75,28 @@
         ],
         "evidence": [
           {
-            "quote": "[26/6 – 3/7 2027](https://www.roskilde-festival.dk/)",
+            "quote": 4,
             "topics": ["dates", "links"]
           },
           {
-            "quote": "# Kontakt Roskilde Festival\n\nHar du spørgsmål eller brug for hjælp?",
+            "quote": {
+              "start": 16,
+              "end": 17
+            },
             "topics": ["identity", "description"]
           },
           {
-            "quote": "[Billetter](https://www.roskilde-festival.dk/billetter)\n\n[Program](https://www.roskilde-festival.dk/program)",
+            "quote": {
+              "start": 8,
+              "end": 9
+            },
             "topics": ["links"]
           },
           {
-            "quote": "**Sekretariatskontor:**  \nRoskilde Festival  \nRabalderstræde 7, 4.  \n4000 Roskilde",
+            "quote": {
+              "start": 29,
+              "end": 32
+            },
             "topics": ["location"],
             "context": [],
             "editionClues": [],

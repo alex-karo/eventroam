@@ -24,8 +24,9 @@ export async function runEditor(
     options.corpus,
     options.signal,
   );
+  const { evidence: proposalEvidence, ...basis } = prepared.basis;
   const cited = new Set([
-    ...(targetedGroups ? [] : prepared.basis.evidence.map(({ id }) => id)),
+    ...(targetedGroups ? [] : proposalEvidence.map(({ id }) => id)),
     ...repairs.flatMap(({ original, evidence }) => [
       ...replyReferences(original, "evidenceIds"),
       ...(evidence?.map(({ id }) => id) ?? []),
@@ -33,14 +34,17 @@ export async function runEditor(
   ]);
   const returnedGroups = [];
   for (const group of targetedGroups ?? []) {
-    if (group.owner === "location") {
-      for (const id of prepared.location.support[group.target] ?? []) {
-        cited.add(id);
-      }
+    const evidenceIds =
+      group.owner === "location"
+        ? prepared.location.support[group.target]
+        : undefined;
+    for (const id of evidenceIds ?? []) {
+      cited.add(id);
     }
     returnedGroups.push({
       path: group.path,
       proposal: groupProposal(prepared, group) ?? null,
+      ...(evidenceIds?.length && { evidenceIds }),
     });
   }
   const evidence = options.corpus.evidence.filter(({ id }) => cited.has(id));
@@ -59,7 +63,10 @@ export async function runEditor(
       permissions: buildAssignment(options.input, options.context).permissions,
       sourceFiles,
       reviewPaths: paths,
-      repairs: repairs.map((entry) => ({ ...entry, evidence: undefined })),
+      repairs: repairs.map(({ evidence, ...repair }) => ({
+        ...repair,
+        ...(evidence && { evidenceIds: evidence.map(({ id }) => id) }),
+      })),
       ...(targetedGroups && {
         returnedGroups,
         fixedEditions: {
@@ -80,13 +87,12 @@ export async function runEditor(
           reason: prepared.targets.reason,
           evidenceIds: prepared.targets.evidenceIds,
         },
-        basis: {
-          ...prepared.basis,
-          evidence: evidencePacket({ ...options.corpus, evidence }, topics, {
-            anchors: true,
-          }).evidence,
-        },
+        basis,
       },
+      evidence: evidencePacket({ ...options.corpus, evidence }, topics, {
+        anchors: true,
+        includeSourceUrl: false,
+      }).evidence,
     },
     schema,
     validateReply: (reply) => validateEditorReply(schema, reply),

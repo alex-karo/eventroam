@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 6,
-  "provenance": "Captured editor-valid-update research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Fixed Reader passages are copied from source-backed artifacts from the standard-tier 2026-11-02 run. Captures: 17470331-0d9d-443d-8f60-3f8532d2d3d5:s1, 17470331-0d9d-443d-8f60-3f8532d2d3d5:s2, 17470331-0d9d-443d-8f60-3f8532d2d3d5:s8, 17470331-0d9d-443d-8f60-3f8532d2d3d5:s3. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
+  "schemaVersion": 7,
+  "provenance": "Captured editor-valid-update research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract. Adapted to fixed domain roles. Fixed Reader selections use source-backed artifacts from the standard-tier 2026-11-02 run. Some excerpts extend to source segment boundaries. Captures: 17470331-0d9d-443d-8f60-3f8532d2d3d5:s1, 17470331-0d9d-443d-8f60-3f8532d2d3d5:s2, 17470331-0d9d-443d-8f60-3f8532d2d3d5:s8, 17470331-0d9d-443d-8f60-3f8532d2d3d5:s3. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
   "pages": [
     {
       "url": "https://www.szigetfestival.com/",
@@ -26,34 +26,46 @@
         ],
         "evidence": [
           {
-            "quote": "# Relive the best moments of 2026\n\n[Watch the aftermovie](https://szigetfestival.com/en/aftermovie)",
+            "quote": {
+              "start": 24,
+              "end": 25
+            },
             "topics": ["identity", "status", "links"]
           },
           {
-            "quote": "[2027 10 - 14 AUG](https://szigetfestival.com/en/)",
+            "quote": 13,
             "topics": ["dates", "status", "links"]
           },
           {
-            "quote": "###### Be part of Sziget 2027\n\n5-day Pass\n\n### € 349\n\n+handling fee € 23\n\n[BUY NOW](https://szi.gt/5daypass_2027)\n\n21&Under 5-day Pass\n\n### € 279\n\n\\+ handling fee € 18\n\n[BUY NOW](https://szi.gt/21andUnderPass_2027)\n\nVIP 5-day Pass\n\n### € 569\n\n\\+ handling fee € 37\n\n[BUY NOW](https://szi.gt/VIP_5day_2027)\n\n[CHECK THEM ALL](https://szigetfestival.com/en/tickets)",
+            "quote": {
+              "start": 27,
+              "end": 40
+            },
             "topics": ["tickets", "dates", "links"]
           },
           {
-            "quote": "## BEST MOMENTS OF 2026\n\nWe’re bursting with joy—because we just lived the time of our lives with hundreds of thousands of Szitizens in this August. You gave us laughter, music, magic, and memories we’ll carry forever. Want the proof?\n\n[SEE THE BEST MOMENTS](https://szigetfestival.com/en/gallery)",
+            "quote": {
+              "start": 41,
+              "end": 43
+            },
             "topics": ["description", "status", "size", "links"]
           },
           {
-            "quote": "meta:\n  description: \"Sziget Festival 2026 Budapest. Join The Island of Freedom to explore all kinds of magic and unexpected surprises.\"\n  \"og:description\": \"Join The Island of Freedom await you with all kinds of unexpected surprises.\"\n  \"og:title\": \"Sziget Festival 2027, Budapest\"",
+            "quote": {
+              "start": 3,
+              "end": 6
+            },
             "topics": ["identity", "description", "location", "dates"],
             "context": [],
             "editionClues": [],
             "uncertainty": "Metadata conflicts on the festival year: the description names 2026, while the Open Graph title names 2027. The page’s title and promotional content identify the advertised edition as 2027."
           },
           {
-            "quote": "<https://www.facebook.com/SzigetFestival> <https://instagram.com/szigetofficial/> <http://www.youtube.com/user/szigetofficial> <https://www.tiktok.com/@szigetofficial/> <https://open.spotify.com/user/szigetfestivalofficial> <https://szigetfestival.com/en/newsletter>",
+            "quote": 161,
             "topics": ["links"]
           },
           {
-            "quote": "[Discover Sziget](https://szigetfestival.com/en/experience) [The Island of Freedom](https://szigetfestival.com/en/experience) [Sziget TV](https://szigetfestival.com/en/stream) [Best moments](https://szigetfestival.com/en/gallery)",
+            "quote": 16,
             "topics": ["description", "links"]
           }
         ],
@@ -77,19 +89,19 @@
         ],
         "evidence": [
           {
-            "quote": "title: \"Tickets - #SZIGET2027\"",
+            "quote": 2,
             "topics": ["identity"]
           },
           {
-            "quote": "[2027 10 - 14 AUG](https://szigetfestival.com/en/)",
+            "quote": 10,
             "topics": ["dates", "links"]
           },
           {
-            "quote": "[Discover Sziget](https://szigetfestival.com/en/experience) [The Island of Freedom](https://szigetfestival.com/en/experience) [Sziget TV](https://szigetfestival.com/en/stream) [Best moments](https://szigetfestival.com/en/gallery)",
+            "quote": 13,
             "topics": ["description", "links"]
           },
           {
-            "quote": "<https://www.facebook.com/SzigetFestival> <https://instagram.com/szigetofficial/> <https://www.youtube.com/user/szigetofficial> <https://www.tiktok.com/@szigetofficial/> <https://open.spotify.com/user/szigetfestivalofficial> <https://szigetfestival.com/en/newsletter>",
+            "quote": 38,
             "topics": ["links"]
           }
         ],
@@ -112,38 +124,42 @@
         ],
         "evidence": [
           {
-            "quote": "[2027 10 - 14 AUG](https://szigetfestival.com/en/)",
+            "quote": 11,
             "topics": ["dates", "links"],
-            "context": ["title: \"Travel - #SZIGET2027\""],
+            "context": [2],
             "editionClues": [],
             "uncertainty": "The page header announces 2027 dates, while other travel promotions on the page refer to 2026."
           },
           {
-            "quote": "Sziget Festival takes place on Óbuda Island, right in the heart of Budapest.**  \nThe official address is: [*Május 9. park, Budapest, Hungary, 1033.*](https://maps.app.goo.gl/chG26FXpJ9WkJwGw8)",
+            "quote": {
+              "start": 26,
+              "end": 27
+            },
             "topics": ["identity", "location"]
           },
           {
-            "quote": "Sziget Festival app",
+            "quote": 7,
             "topics": ["identity"]
           },
           {
-            "quote": "## GETTING TO SZIGET IS EASIER THAN YOU THINK\n\nWhether you’re arriving by plane, bus, train, car, or even bike, Budapest offers smooth and convenient connections from all directions. The city’s major transport hubs — including its international airport, railway stations, and coach terminals — make it simple to reach Sziget from almost any country.\n\nAnd once you’re in Budapest, getting to the Island of Freedom is just as effortless — the festival is easily accessible with several well-connected local transport options.",
+            "quote": {
+              "start": 39,
+              "end": 41
+            },
             "topics": ["description", "location"]
           },
           {
-            "quote": "<https://www.facebook.com/SzigetFestival> <https://instagram.com/szigetofficial/> <http://www.youtube.com/user/szigetofficial> <https://www.tiktok.com/@szigetofficial/> <https://open.spotify.com/user/szigetfestivalofficial> <https://szigetfestival.com/en/newsletter>",
+            "quote": 91,
             "topics": ["links"]
           },
           {
-            "quote": "<https://gyereksziget.hu/><https://gourmetfesztival.hu/en/>",
+            "quote": 88,
             "topics": ["links"]
           },
           {
-            "quote": "Register on the link below by 31 July, 2026.",
+            "quote": 48,
             "topics": ["dates"],
-            "context": [
-              "Cycle2Sziget at least 250kms and be our guest at the Camping of Nations and get a raincoat for your seat!"
-            ],
+            "context": [],
             "editionClues": [],
             "uncertainty": "This is a travel-promotion deadline, not a festival date."
           }
@@ -176,22 +192,25 @@
         ],
         "evidence": [
           {
-            "quote": "# Frequently Asked <br> Questions\n\nSearch\n\n#### Online check-in\n\n#### Sziget Festival 2027\n\n#### General tickets\n\n#### Camping & accommodation\n\n#### Health & Safety\n\n#### Cashless payment at the festival\n\n#### Getting a refund\n\n## Online check-in\n\nOnline check-in\n\nOnline check-in will open 90 days prior to the festival.\n\n[Sign up for our newsletter](https://szigetfestival.com/en/sziget-newsletter) or [download our mobile app](https://szigetfestival.com/en/mobileapp) to get notified once it’s open.\n\n## Sziget Festival 2027\n\nWhat are the dates for Sziget 2027?\n\n**Mark your calendars, Szitizens!** ? Sziget Festival 2027 is ON from **10–14 August** – Tuesday to Saturday (yeah, the party goes ‘til Sunday morning). Five unforgettable days, one perfect week. Fly in, vibe hard, dance through Saturday, and be back in your own bed by Sunday – ready for that chill, recovery or working mode on Monday.\n\nWho will be performing at Sziget Festival 2027?\n\nArtists will be announced later.  [Sign up here](https://szigetfestival.com/en/sziget-newsletter) to be the first to know.",
+            "quote": {
+              "start": 22,
+              "end": 39
+            },
             "topics": ["identity", "description", "dates", "status", "links"],
             "context": [],
             "editionClues": [],
             "uncertainty": "The 2027 FAQ section gives dates and says performers will be announced later, but does not name a venue or describe the programme beyond this."
           },
           {
-            "quote": "Please make sure you buy tickets from our [webshop](https://szigetfestival.com/en/tickets), travel and hotel packages (incl. a 6-day Pass) at [Festival Travel’s website](https://order.festival.travel/festival/sziget-festival-2025/) or at the Main Entrance (during opening hours) during the festival, otherwise we cannot guarantee the validity of your ticket.",
+            "quote": 42,
             "topics": ["tickets", "links", "location"]
           },
           {
-            "quote": "[2027 10 - 14 AUG](https://szigetfestival.com/en/)",
+            "quote": 11,
             "topics": ["dates", "links"]
           },
           {
-            "quote": "<https://www.facebook.com/SzigetFestival> <https://instagram.com/szigetofficial/> <http://www.youtube.com/user/szigetofficial> <https://www.tiktok.com/@szigetofficial/> <https://open.spotify.com/user/szigetfestivalofficial> <https://szigetfestival.com/en/newsletter>",
+            "quote": 241,
             "topics": ["links"]
           }
         ],

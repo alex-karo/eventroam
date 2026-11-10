@@ -1,7 +1,11 @@
 import { pageLinks } from "./links";
+import { segmentSpan } from "./segments";
 import { ResearchLimitError } from "../runtime/budget";
 import type { SourceReadMetadata } from "../tools/read-page/contracts";
-import type { ReaderEvidence, ReaderOutput } from "../roles/reader/contracts";
+import type {
+  ReaderEvidence,
+  ReaderSelectionOutput,
+} from "../roles/reader/contracts";
 export const topics = [
   "identity",
   "description",
@@ -29,9 +33,9 @@ export type Source = SourceReadMetadata & {
   evidencePath?: string;
   processing: "unprocessed" | "complete" | "limited" | "failed";
   overview?: string;
-  coverage?: ReaderOutput["coverage"];
+  coverage?: ReaderSelectionOutput["coverage"];
   leads?: { url: string; label: string }[];
-  topics?: ReaderOutput["topics"];
+  topics?: ReaderSelectionOutput["topics"];
   statedYears?: string[];
   limitations: string[];
   readerResponse?: { text: string | null; object: unknown } | null;
@@ -41,9 +45,19 @@ export type FrozenCorpus = {
   sources: Source[];
   evidence: Evidence[];
 };
+type PageEvidence<Selection> = {
+  evidence: {
+    quote: Selection;
+    context?: Selection[];
+    topics: Evidence["topics"];
+    editionClues?: string[];
+    uncertainty?: string | null;
+  }[];
+  limitations: string[];
+};
 
 /** The string index is a half-open UTF-16 offset, as used by String.slice. */
-export function uniqueSpan(body: string, quote: string): Span | null {
+function uniqueSpan(body: string, quote: string): Span | null {
   const start = body.indexOf(quote);
   if (start < 0 || body.indexOf(quote, start + 1) !== -1) {
     return null;
@@ -51,78 +65,80 @@ export function uniqueSpan(body: string, quote: string): Span | null {
   return { start, end: start + quote.length };
 }
 
-/** Restore one extra wire escape only when the complete source text matches. */
-export function literalMatch(body: string, supplied: string) {
-  let quote = supplied;
-  let span = uniqueSpan(body, quote);
-  if (!span && !body.includes(supplied)) {
-    quote = supplied
-      .replace(/(?<!\\)\\n/g, "\n")
-      .replace(/(?<!\\)\\\\([!-\/:-@[-`{-~])/g, (match, punctuation: string) =>
-        punctuation === "\\" ? match : `\\${punctuation}`,
-      );
-    span = uniqueSpan(body, quote);
-  }
-  return { quote, span };
-}
-
+/** Bind quotations stored in fixed eval inputs. */
 export function bindEvidence(
   sourceId: string,
   body: string,
-  output: Pick<ReaderOutput, "evidence" | "limitations">,
+  output: PageEvidence<string>,
   sourceUrl: string,
+) {
+  return bindPassages(
+    sourceId,
+    body,
+    output,
+    sourceUrl,
+    (quote) => uniqueSpan(body, quote),
+    "has no unique literal match",
+  );
+}
+
+export function bindSelectedEvidence(
+  sourceId: string,
+  body: string,
+  output: Pick<ReaderSelectionOutput, "evidence" | "limitations">,
+  sourceUrl: string,
+  segments: readonly Span[],
+) {
+  return bindPassages(
+    sourceId,
+    body,
+    output,
+    sourceUrl,
+    (selection) => segmentSpan(segments, selection),
+    "has an invalid segment selection",
+  );
+}
+
+function bindPassages<Selection>(
+  sourceId: string,
+  body: string,
+  output: PageEvidence<Selection>,
+  sourceUrl: string,
+  resolve: (selection: Selection) => Span | null,
+  invalid: string,
 ) {
   const evidence: Evidence[] = [];
   const limitations = [...output.limitations];
-  for (const [index, supplied] of output.evidence.entries()) {
-    if (!supplied.topics.length) {
+  for (const [index, item] of output.evidence.entries()) {
+    if (!item.topics.length) {
       limitations.push(`Quotation ${index + 1} has no topic`);
       continue;
     }
-    const item = {
-      context: [],
-      editionClues: [],
-      uncertainty: null,
-      ...supplied,
-    };
-    let quote =
-      typeof item.quote === "string"
-        ? literalMatch(body, item.quote).quote
-        : null;
-    if (typeof item.quote !== "string") {
-      const opening = literalMatch(body, item.quote.start);
-      const closing = literalMatch(body, item.quote.end);
-      const start = opening.span;
-      const end = closing.span;
-      if (
-        start &&
-        end &&
-        (end.start >= start.end || opening.quote.endsWith(closing.quote)) &&
-        end.end - start.start <= 24000
-      ) {
-        quote = body.slice(start.start, end.end);
-      }
-    }
-    const span = quote ? uniqueSpan(body, quote) : null;
-    const context = item.context.map((quote) => literalMatch(body, quote));
-    if (!quote || !span || context.some((item) => !item.span)) {
-      limitations.push(
-        `Quotation ${index + 1} or its context has no unique literal match`,
-      );
+    const span = resolve(item.quote);
+    const contextSpans = (item.context ?? []).map(resolve);
+    if (!span || !contextSpans.every((part) => part !== null)) {
+      limitations.push(`Quotation ${index + 1} or its context ${invalid}`);
       continue;
     }
+    const quote = body.slice(span.start, span.end);
+    const context = contextSpans.map((span) => ({
+      quote: body.slice(span.start, span.end),
+      span,
+    }));
     const anchors = pageLinks(
       [quote, ...context.map((part) => part.quote)].join("\n\n"),
       sourceUrl,
     );
     evidence.push({
-      ...item,
       quote,
       anchors,
       id: `${sourceId}-e${index + 1}`,
       sourceId,
       span,
-      context: context as Evidence["context"],
+      context,
+      topics: item.topics,
+      editionClues: item.editionClues ?? [],
+      uncertainty: item.uncertainty ?? null,
     });
   }
   return { evidence, limitations };
@@ -131,39 +147,36 @@ export function bindEvidence(
 export function evidencePacket(
   corpus: FrozenCorpus,
   selected: readonly (typeof topics)[number][],
-  options: { anchors?: boolean; maxCharacters?: number } = {},
+  options: { anchors?: boolean; includeSourceUrl?: boolean } = {},
 ) {
   const evidence = corpus.evidence.filter((item) =>
     item.topics.some((topic) => selected.includes(topic)),
   );
   const packet = {
     version: corpus.version,
-    evidence: evidence.map((item) => {
-      const source = corpus.sources.find(
-        (source) => source.id === item.sourceId,
-      )!;
-      return {
-        id: item.id,
-        sourceId: item.sourceId,
-        quote: item.quote,
-        ...(item.context.length
-          ? { context: item.context.map(({ quote }) => ({ quote })) }
-          : {}),
-        topics: item.topics,
-        ...(item.editionClues.length
-          ? { editionClues: item.editionClues }
-          : {}),
-        ...(item.uncertainty ? { uncertainty: item.uncertainty } : {}),
-        ...(options.anchors && item.anchors.length
-          ? { anchors: item.anchors }
-          : {}),
+    evidence: evidence.map((item) => ({
+      id: item.id,
+      sourceId: item.sourceId,
+      quote: item.quote,
+      ...(item.context.length
+        ? { context: item.context.map(({ quote }) => ({ quote })) }
+        : {}),
+      topics: item.topics,
+      ...(item.editionClues.length ? { editionClues: item.editionClues } : {}),
+      ...(item.uncertainty ? { uncertainty: item.uncertainty } : {}),
+      ...(options.anchors && item.anchors.length
+        ? { anchors: item.anchors }
+        : {}),
+      ...(options.includeSourceUrl !== false && {
         source: {
-          finalUrl: source.finalUrl,
+          finalUrl: corpus.sources.find(
+            (source) => source.id === item.sourceId,
+          )!.finalUrl,
         },
-      };
-    }),
+      }),
+    })),
   };
-  if (JSON.stringify(packet).length > (options.maxCharacters ?? 240000)) {
+  if (JSON.stringify(packet).length > 240000) {
     throw new ResearchLimitError("context");
   }
   return packet;

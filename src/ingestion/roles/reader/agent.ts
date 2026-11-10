@@ -1,45 +1,109 @@
-import { bindEvidence } from "../../evidence/contracts";
-import { invokeRole } from "../invoke";
+import { bindSelectedEvidence } from "../../evidence/contracts";
+import { segmentPage } from "../../evidence/segments";
+import { invokeRole, type RoleExecution } from "../invoke";
+import { validateSchema } from "../validation";
 import { PROMPT_VERSIONS } from "../versions";
-import { readerOutputSchema } from "./contracts";
+import { readerSelectionSchema, type ReaderSelectionOutput } from "./contracts";
 import { readerInstructions } from "./prompt";
-import { validateReaderReply } from "./validate";
 
-export async function readSource(
-  options: Omit<
-    Parameters<typeof invokeRole>[0],
-    | "role"
-    | "version"
-    | "instructions"
-    | "schema"
-    | "cacheInstructions"
-    | "validateReply"
-    | "input"
-  > & {
-    input: {
-      assignment: unknown;
-      source: { id: string; finalUrl: string; markdown?: undefined };
-      page: string;
-    };
-  },
-) {
+type ReaderOptions = Omit<
+  Parameters<typeof invokeRole>[0],
+  | "role"
+  | "version"
+  | "instructions"
+  | "schema"
+  | "cacheInstructions"
+  | "validateReply"
+  | "input"
+> & {
+  input: {
+    assignment: unknown;
+    source: { id: string; finalUrl: string; markdown?: undefined };
+    page: string;
+  };
+  inputLimits?: {
+    pageInputCharacters: number;
+    inputReserveCharacters: number;
+  };
+  reserveCall?: () => boolean;
+};
+
+type BoundEvidence = ReturnType<typeof bindSelectedEvidence>;
+type ReaderExecution<T> = RoleExecution<T> & { bound: BoundEvidence | null };
+export type ReadSource = (
+  options: ReaderOptions,
+) => Promise<ReaderExecution<Omit<ReaderSelectionOutput, "evidence">>>;
+
+const oversized =
+  "Whole page exceeds Reader input limit; no page portion was processed";
+
+function readerInputLimit(limits: ReaderOptions["inputLimits"]) {
+  return limits
+    ? limits.pageInputCharacters - limits.inputReserveCharacters
+    : Infinity;
+}
+
+function skippedReader(
+  model: string,
+  skipReason: string,
+): ReaderExecution<never> {
+  return {
+    status: "not_run",
+    modelResponse: null,
+    errors: [],
+    model,
+    promptVersion: PROMPT_VERSIONS.reader,
+    durationMs: 0,
+    skipReason,
+    bound: null,
+  };
+}
+
+export async function readSource(options: ReaderOptions) {
+  const { source, page } = options.input;
+  const limit = readerInputLimit(options.inputLimits);
+  if (page.length > limit) {
+    return skippedReader(options.config.model, oversized);
+  }
+
+  const { numbered, spans } = segmentPage(page);
+  const input = { ...options.input, page: numbered };
+  if (numbered.length > limit || JSON.stringify(input).length > limit) {
+    return skippedReader(options.config.model, oversized);
+  }
+  if (options.reserveCall?.() === false) {
+    return skippedReader(
+      options.config.model,
+      "The Reader call limit or run deadline left the whole page unprocessed",
+    );
+  }
   const execution = await invokeRole({
     ...options,
+    input,
     config: { ...options.config, reasoningEffort: "medium" },
     role: "reader",
     version: PROMPT_VERSIONS.reader,
     instructions: readerInstructions,
     cacheInstructions: true,
-    schema: readerOutputSchema,
-    validateReply: validateReaderReply,
+    schema: readerSelectionSchema,
+    validateReply: (reply) =>
+      validateSchema(
+        readerSelectionSchema,
+        reply,
+        "reader",
+        "Fix the listed fields. Return a complete result for the same numbered page. Keep each valid segment selection with its topics and context.",
+      ),
   });
-  if (execution.status !== "success" || !execution.output) {
-    return { ...execution, bound: null };
-  }
-  const { source, page } = options.input;
   return {
     ...execution,
-    output: execution.output,
-    bound: bindEvidence(source.id, page, execution.output, source.finalUrl),
+    bound: execution.output
+      ? bindSelectedEvidence(
+          source.id,
+          page,
+          execution.output,
+          source.finalUrl,
+          spans,
+        )
+      : null,
   };
 }

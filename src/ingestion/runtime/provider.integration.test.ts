@@ -125,6 +125,28 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+test("Reader counts segment IDs and JSON encoding against the page allowance", async () => {
+  const reserveCall = vi.fn(() => true);
+  const result = await readSource({
+    input: {
+      assignment: {},
+      source: { id: "s1", finalUrl: "https://example.org/" },
+      page: "A\n".repeat(100),
+    },
+    config,
+    budget: createResearchBudget(),
+    inputLimits: {
+      // The numbered page fits in 500 characters before JSON encoding.
+      pageInputCharacters: 600,
+      inputReserveCharacters: 100,
+    },
+    reserveCall,
+  });
+  expect(result.status).toBe("not_run");
+  expect(result.skipReason).toContain("Whole page exceeds Reader input limit");
+  expect(reserveCall).not.toHaveBeenCalled();
+});
+
 test.each([
   { model: "fixture/provider-model", cacheInstructions: true },
   { model: "openai/gpt-6-luna", cacheInstructions: true },
@@ -144,11 +166,11 @@ test.each([
       statedYears: ["2027"],
       limitations: [],
       evidence: [
-        { quote: "Full pass €100.", topics: ["tickets"] },
+        { quote: 2, topics: ["tickets"] },
         {
-          quote: "Children enter free.",
+          quote: { start: 3, end: 4 },
           topics: ["tickets"],
-          context: ["# 2027"],
+          context: [1],
           editionClues: [],
           uncertainty: null,
         },
@@ -172,7 +194,7 @@ test.each([
       const input = {
         assignment: { requestedName: "Festival", currentDate: "2026-11-04" },
         source: { id: `s${year}`, finalUrl: `https://example.org/${year}` },
-        page: `# ${year}\nFull pass €100.\nChildren enter free.`,
+        page: `# ${year}\nFull pass €100.\nChildren under 12\nenter free.`,
       };
       const result = await readSource({
         input,
@@ -181,6 +203,17 @@ test.each([
       });
       expect(result.status).toBe("success");
       expect(result.output).toEqual(output);
+      expect(result.modelResponse?.object).toEqual(output);
+      expect(result.bound).toMatchObject({
+        limitations: [],
+        evidence: [
+          { quote: "Full pass €100." },
+          {
+            quote: "Children under 12\nenter free.",
+            context: [{ quote: `# ${year}` }],
+          },
+        ],
+      });
       expect(request.prompt_cache_options).toEqual(
         cacheInstructions ? { mode: "explicit" } : undefined,
       );
@@ -197,7 +230,13 @@ test.each([
               ]
             : readerInstructions,
         },
-        { role: "user", content: JSON.stringify(input) },
+        {
+          role: "user",
+          content: JSON.stringify({
+            ...input,
+            page: `1|# ${year}\n2|Full pass €100.\n3|Children under 12\n4|enter free.`,
+          }),
+        },
       ]);
     }
   },

@@ -3,9 +3,9 @@ import { assertMainCase } from "./main";
 import { assertRegressionCase } from "./regression";
 import { assertLocationCase } from "./location";
 import { roleHandoffSchema, assertEditorFixture } from "./editor-fixture";
-import { bindEvidence } from "../evidence/contracts";
-import { readerOutputSchema } from "../roles/reader/contracts";
+import { bindFixtureEvidence } from "./fixed-reader";
 import { locationInputSchema } from "../roles/location/input";
+import { readerSelectionSchema } from "../roles/reader/contracts";
 import {
   geocodingRequestSchema,
   geocodingResultSchema,
@@ -77,7 +77,7 @@ const source = z.strictObject({
   status: z.enum(["ok", "unsupported", "failed"]),
   reasonCode: z.string().optional(),
   markdown: z.string(),
-  readerOutput: readerOutputSchema.optional(),
+  readerOutput: readerSelectionSchema.optional(),
 });
 const commonCaseSchema = z.strictObject({
   id: z.string().min(1),
@@ -244,15 +244,9 @@ export function loadEvalSuite(): EvalSuite {
     throw new Error("Duplicate eval case ID");
   }
   for (const item of suite.cases) {
-    for (const { markdown, finalUrl, readerOutput } of item.sources) {
-      if (
-        readerOutput &&
-        bindEvidence("s1", markdown, readerOutput, finalUrl).evidence.length !==
-          readerOutput.evidence.length
-      ) {
-        throw new Error(
-          `${item.id}: fixed Reader quotation does not match ${finalUrl}`,
-        );
+    for (const source of item.sources) {
+      if (source.readerOutput) {
+        bindFixtureEvidence(item.id, "s1", source, source.readerOutput);
       }
     }
     if (item.suite === "main") {

@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import { mkdtemp, rm, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { bindEvidence, evidencePacket } from "./contracts";
-import { readerOutputSchema } from "../roles/reader/contracts";
+import {
+  bindEvidence,
+  bindSelectedEvidence,
+  evidencePacket,
+} from "./contracts";
+import { segmentPage } from "./segments";
+import { readerSelectionSchema } from "../roles/reader/contracts";
 import {
   createCorpusStorage,
   readCanonicalSource,
@@ -11,25 +16,107 @@ import {
 } from "./storage";
 
 describe("saved source evidence", () => {
+  it("binds the selected occurrence and restores original Markdown for its context", () => {
+    const price = "  \\+ Handling fee €5  ";
+    const passage = `${price}\r\n\r\n[Buy a pass](../tickets)`;
+    const page = `🎪\r\n# 2026\r\n${price}\r\n# 2027\r\n${passage}\r\n`;
+    const { numbered, spans } = segmentPage(page);
+    expect(numbered).toBe(
+      `1|🎪\r\n2|# 2026\r\n3|${price}\r\n4|# 2027\r\n5|${price}\r\n\r\n6|[Buy a pass](../tickets)\r\n`,
+    );
+    const bound = bindSelectedEvidence(
+      "s1",
+      page,
+      {
+        limitations: [],
+        evidence: [
+          {
+            quote: { start: 5, end: 6 },
+            context: [4],
+            topics: ["tickets", "links"],
+            editionClues: [],
+            uncertainty: null,
+          },
+          { quote: 5, topics: ["tickets"] },
+          { quote: { start: 6, end: 5 }, topics: ["tickets"] },
+          {
+            quote: 5,
+            context: [7],
+            topics: ["tickets"],
+            editionClues: [],
+            uncertainty: null,
+          },
+        ],
+      },
+      "https://example.org/info/",
+      spans,
+    );
+    expect(bound.evidence).toMatchObject([
+      {
+        quote: passage,
+        span: {
+          start: page.lastIndexOf(price),
+          end: page.length - 2,
+        },
+        context: [{ quote: "# 2027", span: spans[3] }],
+        anchors: [{ url: "https://example.org/tickets", label: "Buy a pass" }],
+      },
+      { quote: price, span: spans[4] },
+    ]);
+    expect(bound.limitations).toEqual([
+      "Quotation 3 or its context has an invalid segment selection",
+      "Quotation 4 or its context has an invalid segment selection",
+    ]);
+  });
+
+  it("splits long lines without breaking Unicode or accepting oversized passages", () => {
+    const page = `${"x".repeat(1999)}🎪${"y".repeat(24000)}`;
+    const { spans, numbered } = segmentPage(page);
+    expect(numbered).toContain("\n2|🎪");
+    expect(spans.map(({ start, end }) => page.slice(start, end)).join("")).toBe(
+      page,
+    );
+    const bound = bindSelectedEvidence(
+      "s1",
+      page,
+      {
+        limitations: [],
+        evidence: [
+          { quote: { start: 1, end: spans.length }, topics: ["identity"] },
+        ],
+      },
+      "https://example.org/",
+      spans,
+    );
+    expect(bound.evidence).toEqual([]);
+    expect(bound.limitations).toHaveLength(1);
+  });
+
   it("restores empty metadata for short items and retains required context for full items", () => {
     const page = "# 2027\nFull pass €100.\nChildren enter free.";
-    const short = { quote: "Full pass €100.", topics: ["tickets"] };
+    const short = { quote: 2, topics: ["tickets"] };
     const full = {
-      quote: "Children enter free.",
+      quote: 3,
       topics: ["tickets"],
-      context: ["# 2027"],
+      context: [1],
       editionClues: [],
       uncertainty: "Age limit is not stated.",
     };
-    const output = readerOutputSchema.parse({
+    const output = readerSelectionSchema.parse({
       overview: "Admission offers",
       coverage: { found: [], notPublished: [] },
       topics: ["tickets"],
       statedYears: ["2027"],
       limitations: [],
-      evidence: [short, full, { ...full, context: ["# Missing"] }],
+      evidence: [short, full, { ...full, context: [4] }],
     });
-    const bound = bindEvidence("s1", page, output, "https://example.org/");
+    const bound = bindSelectedEvidence(
+      "s1",
+      page,
+      output,
+      "https://example.org/",
+      segmentPage(page).spans,
+    );
     expect(output.evidence[0]).toEqual(short);
     expect(bound.evidence).toHaveLength(2);
     expect(bound.evidence[0]).toMatchObject({
@@ -45,11 +132,9 @@ describe("saved source evidence", () => {
   });
 
   it("retains literal evidence when navigation text exceeds length guidance", () => {
-    const start = `Start ${"a".repeat(251)}`;
-    const end = `End ${"b".repeat(251)}`;
-    const page = `${start}\nFull pass €100.\n${end}`;
+    const page = "Start\nFull pass €100.\nEnd";
     const longText = "Source detail. ".repeat(150);
-    const output = readerOutputSchema.parse({
+    const output = readerSelectionSchema.parse({
       overview: longText,
       coverage: { found: [longText], notPublished: [longText] },
       topics: ["tickets"],
@@ -57,7 +142,7 @@ describe("saved source evidence", () => {
       limitations: [longText],
       evidence: [
         {
-          quote: { start, end },
+          quote: { start: 1, end: 3 },
           topics: ["tickets"],
           context: [],
           editionClues: [longText],
@@ -65,7 +150,13 @@ describe("saved source evidence", () => {
         },
       ],
     });
-    const bound = bindEvidence("s1", page, output, "https://example.org/");
+    const bound = bindSelectedEvidence(
+      "s1",
+      page,
+      output,
+      "https://example.org/",
+      segmentPage(page).spans,
+    );
     expect(output.overview).toBe(longText);
     expect(output.coverage.found).toEqual([longText]);
     expect(output.coverage.notPublished).toEqual([longText]);
@@ -79,7 +170,7 @@ describe("saved source evidence", () => {
     });
   });
 
-  it("recovers a complete passage between literal boundaries, with links and conditions", () => {
+  it("recovers a complete segment range with links and conditions", () => {
     const passage =
       "## Festival passes 2027\n" +
       "Weekend admission and camping.\n".repeat(200) +
@@ -87,27 +178,25 @@ describe("saved source evidence", () => {
       "Includes tax. Children under 12 enter free with an adult.\n" +
       "* Mandatory booking fee: €5 per order.";
     const page = `🎪\nUnrelated text\n${passage}\nOther content`;
-    const bounds = {
-      start: "## Festival passes 2027",
-      end: "* Mandatory booking fee: €5 per order.",
-    };
-    const output = readerOutputSchema.parse({
-      overview: "Festival admission conditions",
-      coverage: { found: [], notPublished: [] },
-      topics: ["tickets"],
-      statedYears: ["2027"],
+    const output = {
       limitations: [],
       evidence: [
         {
-          quote: bounds,
+          quote: { start: 3, end: 206 },
           context: [],
           topics: ["tickets", "links"],
           editionClues: [],
           uncertainty: null,
         },
       ],
-    });
-    const bound = bindEvidence("s1", page, output, "https://example.org/info/");
+    } satisfies Parameters<typeof bindSelectedEvidence>[2];
+    const bound = bindSelectedEvidence(
+      "s1",
+      page,
+      output,
+      "https://example.org/info/",
+      segmentPage(page).spans,
+    );
     expect(bound.limitations).toEqual([]);
     expect(bound.evidence[0].quote).toBe(passage);
     expect(
@@ -116,75 +205,49 @@ describe("saved source evidence", () => {
     expect(bound.evidence[0].anchors).toEqual([
       { url: "https://example.org/tickets", label: "Buy a pass" },
     ]);
-    expect(output.evidence[0].quote).toEqual(bounds);
   });
 
-  it.each([
-    String.raw`## Passes 2027\nFull pass €100 \\+ handling fee €18.`,
-    {
-      start: "## Passes 2027",
-      end: String.raw`Full pass €100 \\+ handling fee €18.`,
-    },
-  ])(
-    "binds an extra wire escape only to complete original text: %j",
-    (quote) => {
-      const page =
-        "## Passes 2027\nFull pass €100 \\+ handling fee €18.\nConditions apply.";
-      const output = readerOutputSchema.parse({
-        overview: "Admission with a mandatory fee",
-        coverage: { found: [], notPublished: [] },
-        topics: ["tickets"],
-        statedYears: ["2027"],
-        limitations: [],
-        evidence: [{ quote, topics: ["tickets"] }],
-      });
-      const bound = bindEvidence("s1", page, output, "https://example.org/");
-      expect(bound.limitations).toEqual([]);
-      expect(bound.evidence[0].quote).toBe(
-        page.split("\n").slice(0, 2).join("\n"),
-      );
-      const span = bound.evidence[0].span;
-      expect(page.slice(span.start, span.end)).toBe(bound.evidence[0].quote);
-    },
-  );
+  it("requires exact text in fixed quotations", () => {
+    const quote = String.raw`## Passes 2027\nFull pass €100 \\+ handling fee €18.`;
+    const page =
+      "## Passes 2027\nFull pass €100 \\+ handling fee €18.\nConditions apply.";
+    const bound = bindEvidence(
+      "s1",
+      page,
+      { limitations: [], evidence: [{ quote, topics: ["tickets"] }] },
+      "https://example.org/",
+    );
+    expect(bound.limitations).toEqual([
+      "Quotation 1 or its context has no unique literal match",
+    ]);
+    expect(bound.evidence).toEqual([]);
+  });
 
   it("preserves literal backslashes when the supplied text already matches", () => {
     const quote = String.raw`A literal \\+ sequence`;
-    const output = readerOutputSchema.parse({
-      overview: "A literal source sequence",
-      coverage: { found: [], notPublished: [] },
-      topics: ["description"],
-      statedYears: [],
-      limitations: [],
-      evidence: [{ quote, topics: ["description"] }],
-    });
-    expect(
-      bindEvidence("s1", quote, output, "https://example.org/").evidence[0]
-        .quote,
-    ).toBe(quote);
+    const bound = bindEvidence(
+      "s1",
+      quote,
+      { limitations: [], evidence: [{ quote, topics: ["description"] }] },
+      "https://example.org/",
+    );
+    expect(bound.evidence[0].quote).toBe(quote);
   });
 
-  it("resolves reference links from restored literal context", () => {
-    const output = readerOutputSchema.parse({
-      overview: "A festival pass link",
-      coverage: { found: [], notPublished: [] },
-      topics: ["links"],
-      statedYears: ["2027"],
-      limitations: [],
-      evidence: [
-        {
-          quote: "[Pass][buy]",
-          topics: ["links"],
-          context: [String.raw`# 2027\n[buy]: /shop`],
-          editionClues: [],
-          uncertainty: null,
-        },
-      ],
-    });
+  it("resolves reference links from fixed context", () => {
     const bound = bindEvidence(
       "s1",
       "[Pass][buy]\n\n# 2027\n[buy]: /shop",
-      output,
+      {
+        limitations: [],
+        evidence: [
+          {
+            quote: "[Pass][buy]",
+            topics: ["links"],
+            context: ["# 2027\n[buy]: /shop"],
+          },
+        ],
+      },
       "https://example.org/",
     );
     expect(bound.limitations).toEqual([]);
@@ -195,95 +258,23 @@ describe("saved source evidence", () => {
   });
 
   it.each([
+    ["an invented price", "Pass €100.\nFee €5.", "Pass €110.\nFee €5."],
     [
-      "identical boundaries",
-      { start: "Full pass €100.", end: "Full pass €100." },
-    ],
-    ["a closing suffix", { start: "Full pass €100.", end: "€100." }],
-  ])("accepts a complete literal opening with %s", (_name, quote) => {
-    const page = "# 2027\nFull pass €100.\nOther content";
-    const output = readerOutputSchema.parse({
-      overview: "A festival pass",
-      coverage: { found: [], notPublished: [] },
-      topics: ["tickets"],
-      statedYears: ["2027"],
-      limitations: [],
-      evidence: [
-        {
-          quote,
-          topics: ["tickets"],
-          context: ["# 2027"],
-          editionClues: [],
-          uncertainty: null,
-        },
-      ],
-    });
-    const bound = bindEvidence("s1", page, output, "https://example.org/");
-    expect(bound.limitations).toEqual([]);
-    expect(bound.evidence[0]).toMatchObject({
-      quote: "Full pass €100.",
-      context: [{ quote: "# 2027" }],
-    });
-    const span = bound.evidence[0].span;
-    expect(page.slice(span.start, span.end)).toBe("Full pass €100.");
-  });
-
-  it.each([
-    ["ambiguous start", "Start\nStart\nEnd", { start: "Start", end: "End" }],
-    ["ambiguous end", "Start\nEnd\nEnd", { start: "Start", end: "End" }],
-    ["missing boundary", "Start\nEnd", { start: "Absent", end: "End" }],
-    ["reversed boundaries", "End\nStart", { start: "Start", end: "End" }],
-    ["overlapping boundaries", "StartEnd", { start: "StartE", end: "tEnd" }],
-    [
-      "a repeated complete opening",
-      "Pass €100.\nPass €100.",
-      { start: "Pass €100.", end: "Pass €100." },
-    ],
-    ["an invented price", "Pass €100.", { start: "Pass €110.", end: "€110." }],
-    [
-      "a repaired but invented price",
-      "Pass €100.\nFee €5.",
-      String.raw`Pass €110.\nFee €5.`,
-    ],
-    [
-      "a repeated repaired quote",
+      "a repeated quote",
       "Pass €100.\nFee €5.\nPass €100.\nFee €5.",
-      String.raw`Pass €100.\nFee €5.`,
-    ],
-    [
-      "a repeated original quote",
-      String.raw`Fee \\+ €5. repeated: Fee \\+ €5. versus Fee \+ €5.`,
-      String.raw`Fee \\+ €5.`,
-    ],
-    [
-      "a suffix over the limit",
-      "x".repeat(24001),
-      { start: "x".repeat(24001), end: "x".repeat(24001) },
-    ],
-    [
-      "span over the limit",
-      `Start${"x".repeat(24000)}End`,
-      { start: "Start", end: "End" },
+      "Pass €100.\nFee €5.",
     ],
   ])("rejects %s and keeps other evidence", (_name, body, quote) => {
-    const output = readerOutputSchema.parse({
-      overview: "A source page",
-      coverage: { found: [], notPublished: [] },
-      topics: ["tickets"],
-      statedYears: [],
-      limitations: [],
-      evidence: [quote, "A valid short quote"].map((quote) => ({
-        quote,
-        context: [],
-        topics: ["tickets"],
-        editionClues: [],
-        uncertainty: null,
-      })),
-    });
     const bound = bindEvidence(
       "s1",
       `${body}\nA valid short quote`,
-      output,
+      {
+        limitations: [],
+        evidence: [
+          { quote, topics: ["tickets"] },
+          { quote: "A valid short quote", topics: ["tickets"] },
+        ],
+      },
       "https://example.org/",
     );
     expect(bound.limitations).toHaveLength(1);
@@ -292,7 +283,7 @@ describe("saved source evidence", () => {
     expect(bound.evidence[0].id).toBe("s1-e2");
   });
 
-  it("requires nonempty literal boundaries and a strict boundary object", () => {
+  it("requires integer segment IDs and a strict range object", () => {
     const output = {
       overview: "A source page",
       coverage: { found: [], notPublished: [] },
@@ -301,7 +292,7 @@ describe("saved source evidence", () => {
       limitations: [],
       evidence: [
         {
-          quote: { start: "Start", end: "End" },
+          quote: { start: 1, end: 2 },
           context: [],
           topics: ["tickets"],
           editionClues: [],
@@ -310,11 +301,14 @@ describe("saved source evidence", () => {
       ],
     };
     for (const quote of [
-      { start: "", end: "End" },
-      { start: "Start", end: "End", extra: true },
+      "A literal quote",
+      { start: "Start", end: "End" },
+      1.5,
+      { start: 1, end: 2.5 },
+      { start: 1, end: 2, extra: true },
     ]) {
       expect(
-        readerOutputSchema.safeParse({
+        readerSelectionSchema.safeParse({
           ...output,
           evidence: [{ ...output.evidence[0], quote }],
         }).success,
@@ -325,23 +319,24 @@ describe("saved source evidence", () => {
   it("derives only usable destinations from matched quotes and literal context", () => {
     const page =
       "Newsletter [Radio]()\n\n[Pass][buy]\n\n[buy]: ../shop?edition=2027";
-    const output = readerOutputSchema.parse({
-      overview: "A ticket link and an empty radio link",
-      coverage: { found: [], notPublished: [] },
-      topics: ["links"],
-      statedYears: ["2027"],
-      limitations: [],
-      evidence: [
-        {
-          quote: "Newsletter [Radio]()\n\n[Pass][buy]",
-          context: ["[buy]: ../shop?edition=2027"],
-          topics: ["links"],
-          editionClues: ["2027"],
-          uncertainty: null,
-        },
-      ],
-    });
-    const bound = bindEvidence("s1", page, output, "https://example.org/info/");
+    const bound = bindSelectedEvidence(
+      "s1",
+      page,
+      {
+        limitations: [],
+        evidence: [
+          {
+            quote: { start: 1, end: 2 },
+            context: [3],
+            topics: ["links"],
+            editionClues: ["2027"],
+            uncertainty: null,
+          },
+        ],
+      },
+      "https://example.org/info/",
+      segmentPage(page).spans,
+    );
     const corpus = {
       version: "test",
       evidence: bound.evidence,
@@ -397,44 +392,29 @@ describe("saved source evidence", () => {
       "🎪\n# 2027\n" +
       "Background\n".repeat(10000) +
       "| Full | €100 |\n| Day | €50 |\n\nIncludes tax.\nSame\nSame";
-    const output = readerOutputSchema.parse({
-      overview: "A price page",
-      coverage: { found: [], notPublished: [] },
-      topics: ["tickets"],
-      statedYears: ["2027"],
-      limitations: [],
-      evidence: [
-        {
-          quote: "| Full | €100 |\n| Day | €50 |",
-          context: ["# 2027", "Includes tax."],
-          topics: ["tickets", "description"],
-          editionClues: ["2027"],
-          uncertainty: null,
-        },
-        {
-          quote: "Same",
-          context: [],
-          topics: ["tickets"],
-          editionClues: [],
-          uncertainty: null,
-        },
-        {
-          quote: "# 2027 Includes tax.",
-          context: [],
-          topics: ["tickets"],
-          editionClues: [],
-          uncertainty: null,
-        },
-        {
-          quote: "Includes tax.",
-          context: ["Missing heading"],
-          topics: ["tickets"],
-          editionClues: [],
-          uncertainty: null,
-        },
-      ],
-    });
-    const bound = bindEvidence("s1", page, output, "https://example.org/");
+    const bound = bindEvidence(
+      "s1",
+      page,
+      {
+        limitations: [],
+        evidence: [
+          {
+            quote: "| Full | €100 |\n| Day | €50 |",
+            context: ["# 2027", "Includes tax."],
+            topics: ["tickets", "description"],
+            editionClues: ["2027"],
+          },
+          { quote: "Same", topics: ["tickets"] },
+          { quote: "# 2027 Includes tax.", topics: ["tickets"] },
+          {
+            quote: "Includes tax.",
+            context: ["Missing heading"],
+            topics: ["tickets"],
+          },
+        ],
+      },
+      "https://example.org/",
+    );
     expect(bound.evidence).toHaveLength(1);
     const item = bound.evidence[0];
     expect(page.slice(item.span.start, item.span.end)).toBe(item.quote);

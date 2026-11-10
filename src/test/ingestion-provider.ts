@@ -92,6 +92,7 @@ export function providerRole(body: ObjectValue) {
   }
   return "tickets";
 }
+
 /** Fill optional transport slots with null, as required by strict provider schemas. */
 export function modelWireFixture(value: unknown, schema: ObjectValue): unknown {
   if (value == null) {
