@@ -359,19 +359,26 @@ Valid comparisons SHALL use the same group, selected cases, inputs, expectations
 
 ### Requirement: Explicit model selection applies to every stage
 
-The eval option `--model X` SHALL select X for every executed model call in each selected group, overriding the Location environment setting. Without the option, existing environment selection SHALL apply. Experiment metadata SHALL record the resolved model settings.
+The eval option `--model X` SHALL select X for every executed agent model call in each selected group, overriding the Location environment setting. Without the option, existing environment selection SHALL apply. Experiment metadata SHALL record the resolved model settings. The separate PPLX Decider description scorer SHALL continue to use OpenRouter and its own model, regardless of `--model`.
 
 #### Scenario: Explicit model overrides the Location environment
 
 - **WHEN** `CATALOG_LOCATION_MODEL` names Y and an eval runs with `--model X`
-- **THEN** each executed model call uses X
+- **THEN** each executed agent model call uses X
 - **AND** this applies to both `--all` and `--location-only` runs
 
 #### Scenario: No explicit model is supplied
 
 - **WHEN** an eval runs without `--model`
-- **THEN** all calls except place-resolution calls use `OPENROUTER_MODEL` or its default
+- **THEN** all agent calls except place-resolution calls use `OPENROUTER_MODEL` or its default
 - **AND** Location uses `CATALOG_LOCATION_MODEL` when set, otherwise the same model
+
+#### Scenario: Codex uses the current local login
+
+- **WHEN** an eval runs with `--model codex/X` without external proxy settings
+- **THEN** agent calls use model X with the current file-backed Codex login
+- **AND** the eval does not change Codex storage or refresh session tokens
+- **AND** PPLX Decider uses its own model and the original OpenRouter key
 
 ### Requirement: Eval usage inspection separates usage from quality
 

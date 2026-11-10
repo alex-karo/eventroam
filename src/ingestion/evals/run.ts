@@ -36,6 +36,7 @@ import {
 import { RunPersistenceError, persistenceFailureReport } from "../runs";
 import { runCatalogResearch, type CatalogResearchResult } from "../workflow";
 import { evaluationConfig } from "./config";
+import { prepareCodexProxy } from "./codex-proxy";
 import { PROMPT_VERSIONS } from "../roles/versions";
 import type { ReadPageResult } from "../tools/read-page/contracts";
 import type { SearchWebResult } from "../tools/search-web/contracts";
@@ -461,6 +462,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
   if (!Number.isSafeInteger(repeat) || repeat < 1 || repeat > 20) {
     throw new Error("repeat must be 1–20");
   }
+  await using proxy = await prepareCodexProxy(options);
   const store = await createEvalStore();
   const observations = await createEvalObservability();
   try {
@@ -479,7 +481,7 @@ export async function runCatalogEvals(options: EvalOptions = {}) {
         );
       }
     }
-    const config = evaluationConfig(options);
+    const config = evaluationConfig(options, proxy.environment);
     const metadata = {
       ...workflowIdentity(),
       label: options.label?.trim() || null,
