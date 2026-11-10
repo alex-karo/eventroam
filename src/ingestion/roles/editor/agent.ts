@@ -49,6 +49,14 @@ export async function runEditor(
   }
   const evidence = options.corpus.evidence.filter(({ id }) => cited.has(id));
   const schema = reviewSchema(paths);
+  const needsVocabulary =
+    !targetedGroups ||
+    paths.some(
+      ({ path }) =>
+        path.endsWith(".classification") ||
+        path === "event.fields.description" ||
+        path === "event.fields.shortDescription",
+    );
   return invokeRole({
     ...roleInvocationOptions(options, "editor"),
     role: "editor",
@@ -74,7 +82,7 @@ export async function runEditor(
           currentOrNextEdition: prepared.targets.currentOrNextEdition,
         },
       }),
-      vocabulary: options.context.terms,
+      ...(needsVocabulary && { vocabulary: options.context.terms }),
       prepared: {
         ...(!targetedGroups && {
           plan: prepared.plan,

@@ -324,6 +324,7 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
   };
   const editor = editorReply((prompt, index) => {
     if (!index) {
+      expect(prompt.vocabulary).toEqual(expect.any(Array));
       return review(prompt, { path: ticketsPath, decision: "return", note });
     }
     expect(prompt.reviewPaths).toEqual([
@@ -334,6 +335,7 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
       },
     ]);
     expect(prompt.prepared).not.toHaveProperty("plan");
+    expect(prompt).not.toHaveProperty("vocabulary");
     expect(prompt.repairs[0].note).toBe(note);
     expect(prompt.repairs[0]).not.toHaveProperty("evidence");
     expect(prompt.repairs[0].evidenceIds).toEqual(["s1-e1"]);
