@@ -291,7 +291,7 @@ if (
     .catch((error: unknown) => {
       const message =
         error instanceof Error &&
-        /^(OPENROUTER_|Unknown eval|Unknown or incompatible|Use one of|Missing value for|repeat must be|(?:Main|Regression|Reader) case needs|Eval storage must)/.test(
+        /^(OPENROUTER_|CODEX_PROXY|Unknown eval|Unknown or incompatible|Use one of|Missing value for|repeat must be|(?:Main|Regression|Reader) case needs|Eval storage must)/.test(
           error.message,
         )
           ? error.message

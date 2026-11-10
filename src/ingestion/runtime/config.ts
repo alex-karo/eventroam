@@ -3,6 +3,7 @@ import { DEFAULT_RESEARCH_LIMITS, type ResearchLimits } from "./budget";
 export interface ResearchConfig {
   apiKey: string;
   model: string;
+  codexProxyUrl?: string;
   locationModel?: string;
   geoapifyKey?: string;
   reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
