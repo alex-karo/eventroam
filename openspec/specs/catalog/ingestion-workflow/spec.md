@@ -352,11 +352,13 @@ Ingestion MUST request three to five sentences for the detailed text and one or 
 
 Editor SHALL be able to return an assigned group or omission to its owner with its note as written. The note MAY contain facts and excerpts from saved sources. Each group for a selected target SHALL have at most three returns per Event attempt. Validation can use one of these returns before review. Editor can use the remaining returns. Ingestion SHALL send one request per owner with all eligible groups in each round. Returns SHALL use the attempt's budget and deadline.
 
-Editor SHALL check assigned groups for unsupported claims and concrete gaps, including eligible omissions. If the supplied evidence leaves a specific issue open, Editor SHALL search a relevant saved page when the result can change an allowed decision. When the evidence supports a correction or fills a gap and the group can return, Editor SHALL return it with the source and an exact excerpt. If the search is inconclusive, Editor SHALL leave the question open and judge submitted values on their evidence.
+Editor SHALL check assigned groups for unsupported claims and concrete gaps, including eligible omissions. Editor SHALL search a relevant saved page when the result can change an allowed decision and the issue concerns conflicting Editions, years or programme days, a concrete missing ticket offer or price with a likely source on a named saved page, or competing ticket links with uncertain destination or scope. Editor SHALL decide other groups from the supplied evidence. If the search is inconclusive, Editor SHALL leave the question open and judge submitted values on their evidence.
 
-#### Scenario: The saved page answers a question about an omitted value
+Editor SHALL return Links only when a saved source establishes the exact applicable replacement URL. An equivalent official destination for the correct Edition and scope SHALL NOT require a return. Editor SHALL return Tickets only for a supported change to an offer, price or admission term, or to remove a material error while keeping supported offers. A possible extra offer, unassigned structured price or unknown availability alone SHALL NOT require a return. A return note SHALL identify the supported correction and include the relevant source and exact excerpt when a saved passage supports it.
 
-- **WHEN** a specialist leaves a concrete question about an omitted value in its assignment
+#### Scenario: The saved page answers a question about an omitted ticket offer
+
+- **WHEN** Tickets leaves a concrete question about an omitted offer or price in its assignment
 - **AND** a relevant saved page contains the answer and the group can return
 - **THEN** Editor searches the saved page for the answer
 - **AND** the group owner receives the source and exact excerpt in the return note
@@ -383,7 +385,7 @@ Ingestion SHALL check the revision for an item refusal, a conflict in target, id
 
 ### Requirement: Editor reviews the result of each return
 
-Editor SHALL decide each valid revision or omission. After a validation return, the first review SHALL include the returned group. After each editorial return, a separate review SHALL cover only the returned groups and include the reason for return and relevant evidence. Before approving new or changed facts in a returned group, Editor SHALL check the applicable saved page for those facts and their context. The return note can help Editor find the passage. If Editor cannot confirm a fact, it SHALL reject the group or return it with the issue when a return is available. Editor can return a group again when it has a return left. After three returns, Editor SHALL approve or reject the group. Approval or rejection of a valid omission SHALL preserve the saved field.
+Editor SHALL decide each valid revision or omission. After a validation return, the first review SHALL include the returned group. After each editorial return, a separate review SHALL cover only the returned groups and include the reason for return and relevant evidence. Before approving new or changed facts in a returned group, Editor SHALL check their source passages for the Event, Edition and conditions. The return note can help Editor find the passage but SHALL NOT prove a new fact on its own. Editor SHALL repeat a saved-page search only when the revision adds a new source fact or the relevant conflict remains unresolved. If Editor cannot confirm a material fact, it SHALL reject the group or return it with a specific supported correction when a return is available. A second Links or Tickets return SHALL state the supported change the first revision missed and how the specialist can make it. Editor SHALL settle the group when the last note and revision have exhausted the same evidence. After three returns, Editor SHALL approve or reject the group. Approval or rejection of a valid omission SHALL preserve the saved field.
 
 #### Scenario: A group reaches the return limit
 
