@@ -51,12 +51,7 @@ export async function runEditor(
   const schema = reviewSchema(paths);
   const needsVocabulary =
     !targetedGroups ||
-    paths.some(
-      ({ path }) =>
-        path.endsWith(".classification") ||
-        path === "event.fields.description" ||
-        path === "event.fields.shortDescription",
-    );
+    targetedGroups.some(({ owner }) => owner === "classification");
   return invokeRole({
     ...roleInvocationOptions(options, "editor"),
     role: "editor",
