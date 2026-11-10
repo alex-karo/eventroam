@@ -283,7 +283,7 @@ describe("saved source evidence", () => {
     expect(bound.evidence[0].id).toBe("s1-e2");
   });
 
-  it("requires positive segment IDs and a strict range object", () => {
+  it("requires integer segment IDs and a strict range object", () => {
     const output = {
       overview: "A source page",
       coverage: { found: [], notPublished: [] },
@@ -303,7 +303,8 @@ describe("saved source evidence", () => {
     for (const quote of [
       "A literal quote",
       { start: "Start", end: "End" },
-      { start: 0, end: 2 },
+      1.5,
+      { start: 1, end: 2.5 },
       { start: 1, end: 2, extra: true },
     ]) {
       expect(

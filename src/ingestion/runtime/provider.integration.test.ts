@@ -136,7 +136,8 @@ test("Reader counts segment IDs and JSON encoding against the page allowance", a
     config,
     budget: createResearchBudget(),
     inputLimits: {
-      pageInputCharacters: 500,
+      // The numbered page fits in 500 characters before JSON encoding.
+      pageInputCharacters: 600,
       inputReserveCharacters: 100,
     },
     reserveCall,

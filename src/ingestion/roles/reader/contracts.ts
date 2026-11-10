@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { topics } from "../../evidence/contracts";
 
-const segmentId = z.int().positive();
+// Binding checks whether each ID exists on the page.
+const segmentId = z.int();
 const segmentSelection = z.union([
   segmentId,
   z.strictObject({ start: segmentId, end: segmentId }),

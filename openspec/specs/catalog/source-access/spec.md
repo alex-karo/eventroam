@@ -443,7 +443,7 @@ A Reader quotation SHALL have at least one topic to become evidence. If a quotat
 
 #### Scenario: A page reply includes an untagged quotation
 
-- **WHEN** Reader returns one untagged quotation and one uniquely matched quotation with a topic
+- **WHEN** Reader returns one untagged quotation and one quotation with a topic and a valid segment selection
 - **THEN** the source has limited processing and retains the tagged quotation
 - **AND** the untagged quotation alone does not stop collection
 

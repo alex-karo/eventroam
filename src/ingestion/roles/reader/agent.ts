@@ -59,16 +59,16 @@ function skippedReader(
   };
 }
 
-export async function invokeReader<T>(
-  options: ReaderOptions &
-    Pick<Parameters<typeof invokeRole<T>>[0], "schema" | "validateReply">,
-  bind: (output: T) => BoundEvidence,
-): Promise<ReaderExecution<T>> {
+export async function readSource(options: ReaderOptions) {
+  const { source, page } = options.input;
   const limit = readerInputLimit(options.inputLimits);
-  if (
-    options.input.page.length > limit ||
-    JSON.stringify(options.input).length > limit
-  ) {
+  if (page.length > limit) {
+    return skippedReader(options.config.model, oversized);
+  }
+
+  const { numbered, spans } = segmentPage(page);
+  const input = { ...options.input, page: numbered };
+  if (numbered.length > limit || JSON.stringify(input).length > limit) {
     return skippedReader(options.config.model, oversized);
   }
   if (options.reserveCall?.() === false) {
@@ -79,38 +79,31 @@ export async function invokeReader<T>(
   }
   const execution = await invokeRole({
     ...options,
+    input,
     config: { ...options.config, reasoningEffort: "medium" },
     role: "reader",
     version: PROMPT_VERSIONS.reader,
     instructions: readerInstructions,
     cacheInstructions: true,
+    schema: readerSelectionSchema,
+    validateReply: (reply) =>
+      validateSchema(
+        readerSelectionSchema,
+        reply,
+        "reader",
+        "Fix the listed fields. Return a complete result for the same numbered page. Keep each valid segment selection with its topics and context.",
+      ),
   });
   return {
     ...execution,
-    bound: execution.output ? bind(execution.output) : null,
+    bound: execution.output
+      ? bindSelectedEvidence(
+          source.id,
+          page,
+          execution.output,
+          source.finalUrl,
+          spans,
+        )
+      : null,
   };
-}
-
-export async function readSource(options: ReaderOptions) {
-  const { source, page } = options.input;
-  if (page.length > readerInputLimit(options.inputLimits)) {
-    return skippedReader(options.config.model, oversized);
-  }
-  const { numbered, spans } = segmentPage(page);
-  return invokeReader(
-    {
-      ...options,
-      input: { ...options.input, page: numbered },
-      schema: readerSelectionSchema,
-      validateReply: (reply) =>
-        validateSchema(
-          readerSelectionSchema,
-          reply,
-          "reader",
-          "Fix the listed fields. Return a complete result for the same numbered page. Keep each valid segment selection with its topics and context.",
-        ),
-    },
-    (output) =>
-      bindSelectedEvidence(source.id, page, output, source.finalUrl, spans),
-  );
 }

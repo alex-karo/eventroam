@@ -206,7 +206,7 @@ it("keeps usable Reader quotations when other quotations have no topic or valid 
   const root = await mkdtemp(join(tmpdir(), "eventroam-partial-reader-"));
   try {
     const page = "# Festival\n\nCookies\n\nTickets cost €20.";
-    const { collection, generate } = collectionFixture(root, page, 10000);
+    const { collection, generate } = collectionFixture(root, page, 10000, 1);
     generate.mockResolvedValueOnce({
       overview: "Festival tickets",
       coverage: { found: ["Ticket price"], notPublished: [] },
@@ -216,6 +216,14 @@ it("keeps usable Reader quotations when other quotations have no topic or valid 
       evidence: [
         { quote: 2, topics: [] },
         { quote: 4, topics: ["tickets"] },
+        { quote: 0, topics: ["tickets"] },
+        {
+          quote: 3,
+          context: [{ start: -1, end: 2 }],
+          editionClues: [],
+          uncertainty: null,
+          topics: ["tickets"],
+        },
         { quote: 3, topics: ["tickets"] },
       ],
     });
@@ -227,10 +235,12 @@ it("keeps usable Reader quotations when other quotations have no topic or valid 
     expect(result.limitations).toEqual([
       "Quotation 1 has no topic",
       "Quotation 2 or its context has an invalid segment selection",
+      "Quotation 3 or its context has an invalid segment selection",
+      "Quotation 4 or its context has an invalid segment selection",
     ]);
     expect(corpus.evidence).toEqual([
       expect.objectContaining({
-        id: `${result.sourceId}-e3`,
+        id: `${result.sourceId}-e5`,
         quote: "Tickets cost €20.",
         topics: ["tickets"],
       }),
