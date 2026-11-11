@@ -43,7 +43,10 @@ export function pageLinks(markdown: string, baseUrl: string) {
         }
       });
       seen.add(url.href);
-      leads.push({ url: url.href, label: label.slice(0, 200) });
+      // Do not split a UTF-16 surrogate pair at the limit.
+      // DuckDB rejects trace JSON with an unpaired surrogate.
+      const labelEnd = (label.codePointAt(199) ?? 0) > 0xffff ? 199 : 200;
+      leads.push({ url: url.href, label: label.slice(0, labelEnd) });
     } catch {
       // An invalid destination cannot be inspected.
     }
