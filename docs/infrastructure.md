@@ -16,7 +16,7 @@ infrastructure configuration. Use the procedures below for application container
 
 Set `PUBLIC_APEX_ORIGIN` and `PUBLIC_FESTIVALS_ORIGIN` to the public HTTPS origins. Local defaults are `http://localhost:3000` and `http://festivals.localhost:3000`. Compose maps these from `EVENTROAM_PUBLIC_APEX_ORIGIN` and `EVENTROAM_PUBLIC_FESTIVALS_ORIGIN`. Configured hosts control site selection and absolute identity URLs.
 
-Each host serves `/robots.txt` and `/sitemap.xml`. The [website discoverability spec](../openspec/specs/website/discoverability/spec.md) defines metadata, indexing, sitemap contents, and Event JSON-LD eligibility. Use [HTTP smoke checks](testing.md) to check the built application.
+Each host serves `/robots.txt` and `/sitemap.xml`. Use [routes and scope](project-structure.md#routes-and-scope) to find metadata, indexing, sitemap, and Event JSON-LD code. Use [HTTP smoke checks](testing.md) to check the built application.
 
 After deployment, verify ownership of both hosts in Google Search Console. Submit each host's sitemap and inspect representative root, Event, and Edition URLs. Check canonicals, indexing state, and structured-data reports. These account actions and real-data updates are separate from application checks.
 
@@ -150,7 +150,7 @@ Before replacing a database:
 3. Verify the backup with `PRAGMA integrity_check`.
 4. For a disposable database, recreate fictional data with `pnpm run db:fixtures`. Use `pnpm run db:migrate` for an empty catalog with starter vocabulary.
 
-Historical reports remain opaque storage. See the [ingestion runs spec](../openspec/specs/catalog/ingestion-runs/spec.md) for supported report versions.
+Historical reports remain opaque storage. See the [report contracts](../src/ingestion/report.ts) for supported report versions.
 
 For transfers between the local machine and the remote Compose volume, see
 [Catalog pull and push](#catalog-pull-and-push).

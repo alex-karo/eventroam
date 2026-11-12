@@ -33,8 +33,9 @@ jobs:
       - run: pnpm run format:check
       - run: pnpm run docs:check
       - run: pnpm run test:db-transfer
-      - name: Validate implemented OpenSpec specs
-        run: pnpm exec openspec validate --specs --strict
+      - run: pnpm run test:openspec
+      - name: Validate active change plans
+        run: pnpm run openspec:validate -- --draft
       - run: pnpm run test:coverage
       - name: Coverage summary
         if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}

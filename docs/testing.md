@@ -10,7 +10,7 @@ tags: [development]
 
 Choose the [common checks](development.md#common-checks) that apply to your change.
 
-CI validates main OpenSpec specs with `pnpm exec openspec validate --specs --strict`, allowing active changes to start with a proposal only. `pnpm run openspec:validate` also validates active changes and requires their delta specs to be ready.
+CI runs `pnpm run openspec:validate -- --draft` and `pnpm run test:openspec`. Draft mode permits a complete planning prefix and checks existing documents. Full `pnpm run openspec:validate` requires proposal, design, and tasks for each active change, with requirements and a separate Acceptance criteria list in the proposal. Normal validation permits unfinished implementation tasks; archive requires completion. Workflow tests use temporary roots and native OpenSpec without changing project history. See [change checks and archive](change-workflow.md#validate-and-archive-changes).
 
 Run `pnpm run build` then `pnpm run test:site` for the public-site HTTP smoke checks. The smoke runner starts the built app on a free local port with a temporary validated catalog and runtime public origins. It makes HTTP requests with a crawler user agent; it does not start a browser or use an owner database.
 

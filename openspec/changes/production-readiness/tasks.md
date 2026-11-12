@@ -23,4 +23,4 @@ Use [design decisions](design.md#decisions) for implementation details and the [
 ## 4. Integration
 
 - [x] 4.1 Run relevant type, lint, dependency, unit/transport, image build/smoke, documentation, and OpenSpec checks. Verify operation without a source checkout and record platform limits.
-- [x] 4.2 After verification, sync delta specs and update main-spec purpose and project status text for hosted Studio. Pass `pnpm run openspec:validate` and `pnpm run docs:check`.
+- [x] 4.2 After verification, update the proposal, current guides, and project status text for hosted Studio. Pass `pnpm run openspec:validate` and `pnpm run docs:check`.

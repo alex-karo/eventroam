@@ -1,7 +1,7 @@
 ---
 name: openspec-update-change
 description: Revise existing OpenSpec planning artifacts and keep them consistent. Use for "openspec update change" or "opsx update". For the openspec update CLI command, run that command instead. Do not edit code.
-allowed-tools: Bash(openspec:*)
+allowed-tools: Bash(openspec:*) Bash(pnpm:*)
 license: MIT
 compatibility: Requires the OpenSpec CLI.
 metadata:
@@ -14,7 +14,9 @@ Revise a change's existing planning artifacts and keep them consistent. Do not e
 
 **Store selection:** A store is a separate OpenSpec repository registered on this machine. If the user names a store, or the work uses one, run `openspec store list --json`. Use its registered ID. Keep `--store <id>` throughout this workflow. Use it with these commands: `new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `schemas`, and `view`. Add the flag to each applicable example below before you run it. For example, use `openspec status --change "<name>" --json --store "<id>"`. Other commands do not accept the flag. Keep it in follow-up commands suggested by the CLI. Without a selected store, commands use the nearest local `openspec/` root.
 
-**Project check:** These steps require an existing OpenSpec project. Before the first write, run `openspec list --json` and read `root`. Add `--store <id>` when a store is selected. Writes include `new change`, `archive`, `sync specs`, and artifact edits. A root object means the project is set up. `"root": null` means no OpenSpec root is available. A write such as `openspec new change` can create one as a side effect. The missing-root result also has a nonzero exit code. Read the JSON; do not retry or work around this result.
+For the project validation and archive commands below, run `pnpm` from the resolved `root.path`. These scripts do not accept `--store`. Check that the selected root contains the project scripts; do not run them in another repository.
+
+**Project check:** These steps require an existing OpenSpec project. Before the first write, run `openspec list --json` and read `root`. Add `--store <id>` when a store is selected. Writes include `new change`, `archive`, and artifact edits. A root object means the project is set up. `"root": null` means no OpenSpec root is available. A write such as `openspec new change` can create one as a side effect. The missing-root result also has a nonzero exit code. Read the JSON; do not retry or work around this result.
 
 There is one exception to the missing-root result. A `status` error can start with `Declared in` or `Invalid store declaration in`. If it names this project's `openspec/config.yaml` or `config.yml`, the project declares a store. The machine cannot resolve that store because its registration or declaration is invalid. Stop before writing. Show the error's `message` and `fix`. Do not use the missing-root branches below.
 
@@ -52,14 +54,14 @@ This workflow revises existing artifacts. Step 4 permits a new file only within 
    openspec status --change "<name>" --json
    ```
    Parse the JSON to understand current state. The response includes:
-   - `schemaName`: The workflow schema being used (e.g., "spec-driven")
+   - `schemaName`: The workflow schema being used (e.g., "review-driven")
    - `artifacts`: Array of artifacts with their status ("done", "skipped", "ready", "blocked")
    - `isPlanningComplete`: Boolean indicating if all planning artifacts are complete. Older CLI versions expose the same value as `isComplete`.
    - `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`: path and scope context. Use these instead of assuming repo-local paths.
 
    Use the artifact IDs and paths from the active schema. Do not assume names or special-case a schema. Custom schemas must work unchanged.
 
-   Edit files from `artifactPaths.<id>.existingOutputPaths`. The CLI expands globs, such as `specs/**/*.md`, into concrete paths there. Do not write to a glob `resolvedOutputPath`; it is a pattern, not a file.
+   Edit files from `artifactPaths.<id>.existingOutputPaths`. The CLI expands globs, such as `notes/**/*.md`, into concrete paths there. Do not write to a glob `resolvedOutputPath`; it is a pattern, not a file.
 
 3. **Understand the request**
    - If the user asked for a specific revision ("the design now uses X"), that is the starting edit.
@@ -68,9 +70,10 @@ This workflow revises existing artifacts. Step 4 permits a new file only within 
 4. **Read and reconcile**
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Draft the requested edit in the conversation. Do not write files yet; step 5 controls every write. Check every other artifact against the draft. A change to a later artifact can require a change to an earlier artifact. Dependency order can help you choose a reading order. It does not restrict which artifacts you can revise.
+   - For `review-driven`, reconcile proposal, design, and tasks. Keep added or changed requirements as short observable results for users, operators, or external consumers, with a separate Acceptance criteria section and no WHEN/THEN scenarios. Move internal mechanisms and test fixtures to design or tasks, preserving accepted behavior. Remove former spec inventories; summarize scope in What Changes. The CLI-generated `skip_specs: true` marker does not waive proposal requirements.
    - Note everything that is now inconsistent, missing, or contradictory.
    - Propose revisions to files in `existingOutputPaths`. For an artifact with no files and status `ready` or `blocked`, report that it is missing. Point to `openspec instructions "<artifact-id>" --change "<name>" --json` for creation instructions. Leave `skipped` artifacts unchanged. Do not call them missing or send them to the continue workflow.
-   - A glob artifact, such as `specs/**/*.md`, becomes `done` when at least one file matches. The continue workflow handles only `ready` artifacts. To add a missing file to a glob artifact with nonempty `existingOutputPaths`:
+   - A glob artifact, such as `notes/**/*.md`, becomes `done` when at least one file matches. The continue workflow handles only `ready` artifacts. To add a missing file to a glob artifact with nonempty `existingOutputPaths`:
      1. Run `openspec instructions "<artifact-id>" --change "<name>" --json`. Use `instruction` and `template`. Apply `context` and `rules` without copying them into the file. If the response says `skipped: true`, do not create it. Read current dependency files from disk. If a required non-skipped dependency is missing, stop and ask the user to restore it.
      2. Choose a new concrete path inside `changeRoot` that matches `artifactPaths.<id>.outputPath`. Resolve symlinks in parent directories. Check that the target remains inside `changeRoot` and does not exist. Do not use the glob `resolvedOutputPath` as a target.
      3. Include the new file in step 5's proposed revisions and create it only after the user confirms.
@@ -90,6 +93,7 @@ This workflow revises existing artifacts. Step 4 permits a new file only within 
 6. **Review material planning changes**
    - If requirements or the solution changed before implementation, use the repository's `plan-review` skill before reporting readiness. Routine wording edits need no separate review.
    - Apply review corrections through step 5 within the authorized scope. Recheck affected decisions once, then report unresolved decisions. Do not repeat review cycles, create a review artifact, or start implementation.
+   - Run `pnpm run openspec:validate -- "<name>"` after the revisions. Add `--draft` only for an incomplete planning prefix. Report structural failures separately from review findings.
 
 7. **Point to the next step (guidance only - NEVER act on it)**
    - For an artifact with empty `existingOutputPaths` and status `ready` or `blocked`, run `openspec status --change "<name>" --json`. Identify the next artifact and point to `openspec instructions "<artifact-id>" --change "<name>" --json` for creation instructions.

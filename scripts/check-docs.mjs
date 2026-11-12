@@ -104,9 +104,7 @@ function localTarget(root, from, href) {
 
 export function checkDocs(root = defaultRoot) {
   const errors = [];
-  const markdown = ["docs", "specs"].flatMap((directory) =>
-    markdownFiles(path.join(root, directory)),
-  );
+  const markdown = markdownFiles(path.join(root, "docs"));
   const concepts = markdown.filter(
     (file) => !["index.md", "log.md"].includes(path.basename(file)),
   );

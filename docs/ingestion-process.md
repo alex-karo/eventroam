@@ -80,7 +80,7 @@ For an existing Event, the run first reads a saved official-site link, or anothe
 
 `readPage` retrieves Markdown, including supported My Maps points, source labels and years. Collection saves this text and gives it to Reader. Research receives a compact `inspectPage` result with the source identity, overview, page coverage, navigation leads, retrieval and processing outcomes, limitations and remaining budget. Coverage names collected information and explicit statements of nonpublication. Location coverage distinguishes a collected festival venue/address from only a town, country or office. Research does not seek the same place again merely because the short label omits its literal value or Edition year; Location checks the full quotation. Page silence is unknown. This helps Research choose pages; it does not support catalog changes or remove required checks. Research does not receive the page body. Reader extracts evidence without choosing a venue or Edition. A readable page can still have a limitation, so inspect its reason code and notices.
 
-See the [source reader guide](source-reader.md) for extraction, Firecrawl fallback, map support, caching, response limits, and checks. The [source-access spec](../openspec/specs/catalog/source-access/spec.md) defines the contract.
+See the [source reader guide](source-reader.md) for extraction, Firecrawl fallback, map support, caching, response limits, and checks.
 
 ### Choose facts and editions
 
@@ -191,7 +191,7 @@ By default, the writer previews changes and rolls them back. The private run row
 
 Changes for one Event are saved together or rolled back together. If one proposed value fails validation, no other proposed change for that Event is saved. A normal update keeps a published record published. Complete eligible drafts can publish; incomplete ones stay drafts.
 
-Use the [publication spec](../openspec/specs/catalog/publication/spec.md) to check why an Edition can publish or must stay a draft.
+Use the [publication rules](../src/catalog/domain/festival-edition-publication.ts) to check why an Edition can publish or must stay a draft.
 
 ## Review the report
 
@@ -201,7 +201,7 @@ The current report separates research, editor, and Location status from the cata
 
 Raw model responses remain available, including invalid Editor output. Report version 7 can record each return with its path, owner, trigger, note and available result. The workflow releases the native conversation when the attempt ends. Reports and workflow history keep the decisions and evidence used in the attempt. Omitted facts preserve saved values. Actual mutations and reasons also appear in the writer audit. No-op checks create no audit.
 
-Every started attempt has a private `ingestion_runs` row and durable `runId`. Studio saves the final report automatically. Open the workflow's build-report step to inspect it. Current consumers reject older report versions. See [ingestion runs](../openspec/specs/catalog/ingestion-runs/spec.md) and `src/ingestion/report.ts` for the exact report shape.
+Every started attempt has a private `ingestion_runs` row and durable `runId`. Studio saves the final report automatically. Open the workflow's build-report step to inspect it. Current consumers reject older report versions. See [report contracts](../src/ingestion/report.ts) and `src/ingestion/report.ts` for the exact report shape.
 
 With `--apply`, success and partial results use the atomic writer. Failed research, editing or required Location writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research, editor, Location or write failure exits nonzero. A write failure rolls back the entire Event item. The report retains research status, prepared operations, available raw research, editor and Location responses, source summaries, any name mismatch, and the write error. Applied `changes` stays empty; a separate proposed diff is not required. A partial result with no changes remains visibly partial/unchanged.
 
@@ -244,7 +244,7 @@ Native tool spans retain their standard results. Application logs retain retriev
 
 Pino writes JSON to stderr and Mastra forwards calls to Studio Logs. Delivery uses native Mastra behavior. Events outside SDK contexts can have no top-level correlation; application log data retains the durable `runId`. Completed model commentary and returned reasoning are separate events, each limited to 4,000 Unicode code points. Studio assistant tools use the same logging configuration without enabling chat traces.
 
-The workflow ends its root after report construction, settles children, then attempts flush before shutdown. Studio keeps its store open across attempts. SDK observability warnings and errors use native messages; application lifecycle guards retain fixed codes. Telemetry remains best effort and does not change model requests, budgets, retries, catalog writes, reports, scoring or exit status. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) and `src/ingestion/runtime/` for the contract and implementation.
+The workflow ends its root after report construction, settles children, then attempts flush before shutdown. Studio keeps its store open across attempts. SDK observability warnings and errors use native messages; application lifecycle guards retain fixed codes. Telemetry remains best effort and does not change model requests, budgets, retries, catalog writes, reports, scoring or exit status. See the [diagnostic tools](ingestion-tools.md#local-trace-inspection) and `src/ingestion/runtime/` for the contract and implementation.
 
 ### Execution metrics
 
@@ -257,7 +257,7 @@ Native metrics describe eligible agent, model, and tool operations. They do not 
 - Cancellation and HTTP failure can leave partial usage. Metric presence does not prove a complete bill.
 - Reports keep budget counters and do not calculate replacement cost totals. Historical runs are not backfilled.
 
-Use the [total-token query](ingestion-tools.md#local-trace-inspection) to inspect saved metrics without running research. The store has no automatic retention. See the [diagnostics contract](../openspec/specs/operations/ingestion-diagnostics/spec.md) for details.
+Use the [total-token query](ingestion-tools.md#local-trace-inspection) to inspect saved metrics without running research. The store has no automatic retention.
 
 ## Add research notes
 

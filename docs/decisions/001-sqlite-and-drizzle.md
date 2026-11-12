@@ -11,7 +11,7 @@ tags: [database, architecture]
 Status: Accepted  
 Date: 2026-10-01
 
-Implementation update (2026-10-15): All value and business-relationship validation now belongs to application code. SQLite retains keys, uniqueness, NOT NULL, and four audit/URL-alias immutability triggers. See [storage integrity](../../openspec/specs/operations/storage-integrity/spec.md).
+Implementation update (2026-10-15): All value and business-relationship validation now belongs to application code. SQLite retains keys, uniqueness, NOT NULL, and four audit/URL-alias immutability triggers. See [database rules](../project-structure.md#database-operations).
 
 Implementation update (2026-10-07): Business validation now lives in shared catalog domain validators; SQLite retains structural constraints and immutable history.
 

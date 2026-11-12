@@ -36,7 +36,7 @@ To disable all new browser analytics after deployment, open both links once:
 
 Set the choice on each origin. Use `?analytics=on` to allow cookies or `?analytics=basic` to restore basic capture. Clearing site storage returns to basic mode and shows the banner. If storage is blocked, the banner choice applies to the current page only. Events collected before opt-out can finish delivery and remain in PostHog.
 
-Let the SDK handle consent transitions and page views. Use the [website privacy spec](../openspec/specs/website/privacy/spec.md) for consent behavior and the [analytics client](../src/site/analytics-client.ts) for SDK settings.
+Let the SDK handle consent transitions and page views. See the [analytics client](../src/site/analytics-client.ts) for consent behavior and SDK settings. Choices apply per origin and propagate to other open tabs. Rejection or full opt-out removes stored analytics identity. Keep search text, private evidence, query strings, and URL fragments out of analytics events.
 
 ## Current storage settings
 

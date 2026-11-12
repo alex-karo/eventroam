@@ -4,7 +4,7 @@ Eventroam is a worldwide event catalog in English. See the [README](README.md) f
 
 ## Change workflow
 
-Use fast track for clear, local changes with low risk, including small changes to behavior. Implement the change and run focused checks. Edit the relevant main spec directly if the change affects an existing requirement or adds a durable rule.
+Use fast track for clear, local changes with low risk, including small changes to behavior. Implement the change and run focused checks. Update current guides when the change affects their steps or a lasting rule. Fast track needs no planning artifacts.
 
 Use full OpenSpec when the user asks for it or the work meets one of these conditions.
 
@@ -18,7 +18,7 @@ Correct statements that the change makes inaccurate. Add information only when r
 
 ## Project references
 
-Use the [main OpenSpec specs](openspec/specs/) for current contracts. They are grouped by `catalog/`, `website/`, and `operations/`. Check the code for exact behavior. [Active changes](openspec/changes/) describe approved future work. [Draft proposals](docs/proposals/) hold open choices.
+Use code, tests, and current guides for implemented behavior. [Active changes](openspec/changes/) use `proposal.md → design.md → tasks.md`. Keep added or changed requirements as short bullets about results for users, operators, or external consumers. Put observable checks in a separate `Acceptance criteria` section, without WHEN/THEN scenarios. Keep implementation details in design and tasks; do not group proposal changes by former spec names. Archived proposals are history, not a current product contract. [Draft proposals](docs/proposals/) hold open choices. Use `pnpm run openspec:archive -- <name>` to archive; do not sync specs or use upstream delta validation.
 
 Use the [development guide](docs/development.md) for local setup and commands. Use the [documentation index](docs/index.md) to find other guides.
 
@@ -26,4 +26,4 @@ Use the [development guide](docs/development.md) for local setup and commands. U
 
 Keep business validation and extensible vocabularies in application code. Do not add SQL `CHECK` constraints or business validation triggers. SQLite enforces keys, uniqueness, `NOT NULL`, and immutability for audit history and public URL aliases.
 
-Reuse operation validators. Validate related state in the write transaction. Use applicable shared validation in fixture loaders and normal test helpers. Prefer existing operation guarantees over duplicate storage row schemas. Follow [storage integrity](openspec/specs/operations/storage-integrity/spec.md) for schema changes.
+Reuse operation validators. Validate related state in the write transaction. Use applicable shared validation in fixture loaders and normal test helpers. Prefer existing operation guarantees over duplicate storage row schemas. Follow [database rules](docs/project-structure.md#database-operations) for schema changes.

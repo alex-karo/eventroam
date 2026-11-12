@@ -1,11 +1,11 @@
 ---
 name: project-cleanup
-description: Find and apply cleanup after Eventroam spec implementation. Remove unnecessary code and tests, check native framework features, and ask before substantial changes or requirement changes.
+description: Find and apply cleanup after Eventroam change implementation. Remove unnecessary code and tests, check native framework features, and ask before substantial changes or requirement changes.
 ---
 
 # Project Cleanup
 
-Use after spec implementation, before final verification and archive, or on a
+Use after change implementation, before final verification and archive, or on a
 feature the user names. Find, apply, and check safe cleanup; do not stop at
 recommendations. For an explicit review-only request, report without edits.
 Remove complexity before reorganizing it. No changes is a valid result.
@@ -13,7 +13,7 @@ Remove complexity before reorganizing it. No changes is a valid result.
 ## Scope and evidence
 
 Read project instructions and the documentation index. Identify the accepted
-requirements, owning specs, and affected execution paths and consumers. Preserve
+requirements, change proposal, and affected execution paths and consumers. Preserve
 unrelated edits. A rule in an agent-written artifact alone does not prove user
 acceptance; check the decision context.
 
@@ -71,7 +71,7 @@ it while waiting. Leave the dependent change unapplied until approval. Do not
 ask again for a change already approved in this conversation.
 
 For approved behavior changes, follow the project's OpenSpec workflow unless
-the user chose another workflow. Keep code, tests, specs, and affected docs aligned.
+the user chose another workflow. Keep code, tests, change plans, and affected docs aligned.
 
 ## Check and report
 
@@ -82,7 +82,7 @@ duplicate mechanisms, and new complexity. Repeat only for a concrete remaining
 problem. Cleanup does not replace code review or OpenSpec verification.
 
 Compare with the saved base: added/removed lines, net change, and files
-added/removed. Separate application code, tests, docs/specs, and material
+added/removed. Separate application code, tests, docs/plans, and material
 generated-file or lockfile changes. Test deletion must not hide application-code
 growth. If code grows, remove unnecessary additions or show a concrete benefit,
 such as fewer paths or less state. Apply the approval rules above if the benefit

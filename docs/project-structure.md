@@ -55,8 +55,7 @@ src/
 
 commands/                     # Catalog research CLI, migrations, development fixtures
 public/                       # Local website assets, catalog preview, and licensed fonts
-openspec/specs/               # Implemented behavior, grouped by catalog/, website/ and operations/
-openspec/changes/             # Approved future work; delta specs use matching domain paths
+openspec/changes/             # Change plans: proposal, design, tasks; dated archive
 docs/                         # Project documentation
 data/                         # Ignored local database and runtime data
 ```
@@ -68,7 +67,7 @@ Create additional folders when code needs them. Unit and integration tests live 
 - **Routes and presentation:** `app → features → components`. Routes resolve request parameters and site context, load public data, and compose features. Shared components do not import features.
 - **Public reads:** `app/site server → catalog/read → db`. Queries enforce publication rules and load composite responses in short read transactions. Web requests open existing SQLite databases read-only. Browser code imports public contracts and pure rules, never database queries or row types.
 - **Catalog writes:** `commands → catalog/write → db`. The writer validates operations and applies versions, publication changes, audit records, and operation receipts in transactions. Collection uses grouped operations with rollback-based dry-run, versions, and atomic item commits.
-- **Collection:** `catalog CLI → Studio API → ingestion → catalog/read (private context), catalog/write`. Source adapters and model calls stay outside Next.js. Ingestion prepares operations and sends them to the catalog writer. See the [ingestion workflow](../openspec/specs/catalog/ingestion-workflow/spec.md) for the evidence and review rules.
+- **Collection:** `catalog CLI → Studio API → ingestion → catalog/read (private context), catalog/write`. Source adapters and model calls stay outside Next.js. Ingestion prepares operations and sends them to the catalog writer. See the [ingestion process](ingestion-process.md) for the evidence and review rules.
 - **Pure logic:** `catalog/domain`, `catalog/operations`, and `features/discovery/model` have no React, Next.js, or storage dependency.
 
 ESLint enforces these import boundaries. The writer runs without Next.js. Avoid exports that mix browser-safe contracts with server query implementations.
@@ -114,7 +113,7 @@ Studio owns the catalog connection and storage providers for direct runs and man
 
 ## Discovery
 
-Discovery loads complete public summaries for the active scope and applies the same filtering rules on direct server entry and in the browser. The map displays the coordinate-bearing subset of list results; moving the map does not fetch or filter inventory. Full details load on selection. See the [discovery contract](../openspec/specs/website/discovery/spec.md) and [catalog records](../openspec/specs/catalog/records/spec.md).
+Discovery loads complete public summaries for the active scope and applies the same filtering rules on direct server entry and in the browser. The map displays the coordinate-bearing subset of list results; moving the map does not fetch or filter inventory. Full details load on selection. See the [discovery rules](../src/features/discovery/model/discovery.ts) and [catalog contracts](../src/catalog/read/contracts.ts).
 
 ## Routes and scope
 
@@ -124,11 +123,15 @@ Discovery loads complete public summaries for the active scope and applies the s
 - `components/catalog/` owns shared fact, ticket, link and history views.
 - `site/server/metadata.ts` and `structured-data.ts` build metadata and optional Event JSON-LD. `app/robots.ts` and `app/sitemap.ts` serve current crawler output.
 
-Behavior belongs in the [routing](../openspec/specs/website/routing/spec.md), [festival detail](../openspec/specs/website/festival-details/spec.md), [project presentation](../openspec/specs/website/project-presentation/spec.md), and [discoverability](../openspec/specs/website/discoverability/spec.md) specs. Use [Testing](testing.md) for built-site HTTP checks.
+Current behavior is implemented in the [site configuration](../src/site/site.ts), [detail pages](../src/features/event-details), [project presentation](../src/features/project-presentation), and [metadata code](../src/site/server/metadata.ts). Use [Testing](testing.md) for built-site HTTP checks.
 
 ## Database operations
 
-`commands/catalog-db.ts` runs reviewed migrations and fictional development fixtures. Release the application, writer, and schema as one compatible version. See [Infrastructure](infrastructure.md) for migration and transfer procedures. See [storage integrity](../openspec/specs/operations/storage-integrity/spec.md) for validation and database rules.
+`commands/catalog-db.ts` runs reviewed migrations and fictional development fixtures. Release the application, writer, and schema as one compatible version. See [Infrastructure](infrastructure.md) for migration and transfer procedures.
+
+Keep value validation and extensible vocabularies in application code. SQLite enforces keys, uniqueness, NOT NULL, and immutable catalog-change history and public URL aliases. Do not add business CHECK constraints or validation triggers. Reuse operation validators in supported writes, fixtures, and normal test helpers. Validate related stored state in the write transaction. A rejected write must leave no partial mutation, audit entry, or receipt. Catalog changes and receipts commit atomically.
+
+Ingestion finalization must affect exactly one matching running attempt; it must not overwrite a finalized attempt.
 
 ## Future additions
 

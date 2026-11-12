@@ -1,7 +1,7 @@
 ---
 type: Research
 title: Eventroam competitor scan
-description: Dated competitor observations; current specifications supersede earlier recommendations.
+description: Dated competitor observations; later product decisions supersede earlier recommendations.
 status: stable
 tags: [research, competitors]
 ---

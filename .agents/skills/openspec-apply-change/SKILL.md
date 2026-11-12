@@ -1,7 +1,7 @@
 ---
 name: openspec-apply-change
 description: Implement tasks from an OpenSpec change. Use to start or continue implementation. Also use for "openspec apply", "opsx apply", or "openspec implement".
-allowed-tools: Bash(openspec:*)
+allowed-tools: Bash(openspec:*) Bash(pnpm:*)
 license: MIT
 compatibility: Requires the OpenSpec CLI.
 metadata:
@@ -14,7 +14,9 @@ Implement tasks from an OpenSpec change.
 
 **Store selection:** A store is a separate OpenSpec repository registered on this machine. If the user names a store, or the work uses one, run `openspec store list --json`. Use its registered ID. Keep `--store <id>` throughout this workflow. Use it with these commands: `new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `schemas`, and `view`. Add the flag to each applicable example below before you run it. For example, use `openspec status --change "<name>" --json --store "<id>"`. Other commands do not accept the flag. Keep it in follow-up commands suggested by the CLI. Without a selected store, commands use the nearest local `openspec/` root.
 
-**Project check:** These steps require an existing OpenSpec project. Before the first write, run `openspec list --json` and read `root`. Add `--store <id>` when a store is selected. Writes include `new change`, `archive`, `sync specs`, and artifact edits. A root object means the project is set up. `"root": null` means no OpenSpec root is available. A write such as `openspec new change` can create one as a side effect. The missing-root result also has a nonzero exit code. Read the JSON; do not retry or work around this result.
+For the project validation and archive commands below, run `pnpm` from the resolved `root.path`. These scripts do not accept `--store`. Check that the selected root contains the project scripts; do not run them in another repository.
+
+**Project check:** These steps require an existing OpenSpec project. Before the first write, run `openspec list --json` and read `root`. Add `--store <id>` when a store is selected. Writes include `new change`, `archive`, and artifact edits. A root object means the project is set up. `"root": null` means no OpenSpec root is available. A write such as `openspec new change` can create one as a side effect. The missing-root result also has a nonzero exit code. Read the JSON; do not retry or work around this result.
 
 There is one exception to the missing-root result. A `status` error can start with `Declared in` or `Invalid store declaration in`. If it names this project's `openspec/config.yaml` or `config.yml`, the project declares a store. The machine cannot resolve that store because its registration or declaration is invalid. Stop before writing. Show the error's `message` and `fix`. Do not use the missing-root branches below.
 
@@ -43,9 +45,9 @@ Do not run `openspec init` until the user requests setup. Do not create `openspe
    openspec status --change "<name>" --json
    ```
    Parse the JSON to understand:
-   - `schemaName`: The workflow being used (e.g., "spec-driven")
+   - `schemaName`: The workflow being used (e.g., "review-driven")
    - `planningHome`, `changeRoot`, and `actionContext`: planning scope and edit constraints
-   - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
+   - Which artifact contains the tasks (typically "tasks" for review-driven, check status for others)
 
 3. **Get apply instructions**
 
@@ -54,7 +56,7 @@ Do not run `openspec init` until the user requests setup. Do not create `openspe
    ```
 
    This returns:
-   - `contextFiles`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
+   - `contextFiles`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/design/tasks or tests/implementation/docs)
    - Progress (total, complete, remaining)
    - Task list with status, source path, and source line
    - Dynamic instruction based on current state
@@ -85,11 +87,13 @@ Do not run `openspec init` until the user requests setup. Do not create `openspe
 
    Read every file path listed under `contextFiles` from the apply instructions output.
    The files depend on the schema being used:
-   - **spec-driven**: proposal, specs, design, tasks
+   - **review-driven**: proposal, design, tasks
    - Other schemas: follow the contextFiles from CLI output
 
    Do not copy `context` or `operationGuidance` verbatim into implementation
    files or planning artifacts unless the user separately asks for that content.
+
+   For `review-driven`, run `pnpm run openspec:validate -- "<name>"` before implementation. Resolve failures before proceeding. The CLI-generated `skip_specs: true` marker does not waive proposal requirements.
 
 5. **Show current progress**
 
@@ -113,7 +117,7 @@ Do not run `openspec init` until the user requests setup. Do not create `openspe
    **Pause if:**
    - Task is unclear → ask for clarification
    - Implementation reveals a design issue → suggest updating artifacts
-   - The task needs work outside the specs or tasks, or requires a reduction, deferral, or exception → explain and ask. Do not change scope silently.
+   - The task needs work outside the proposal requirements or tasks, or requires a reduction, deferral, or exception → explain and ask. Do not change scope silently.
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 

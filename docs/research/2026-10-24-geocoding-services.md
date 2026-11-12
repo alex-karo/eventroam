@@ -16,7 +16,7 @@ Convert an address or a venue name into coordinates during owner-run ingestion. 
 
 Eventroam covers festivals and burning-like gatherings worldwide. Inputs can include rural venues, fields, campsites, and incomplete addresses. Address lookup and venue-name search must be assessed separately. A nearby town is not an exact match for a festival site.
 
-The [runtime decision](../decisions/002-runtime-and-tooling.md) selects Mapbox for map display but leaves the ingestion geocoder open. The [catalog records spec](../../openspec/specs/catalog/records/spec.md) requires coordinates and precision to agree. A provider choice must preserve these rules.
+The [runtime decision](../decisions/002-runtime-and-tooling.md) selects Mapbox for map display but leaves the ingestion geocoder open. The [location validation](../../src/ingestion/roles/location/validate.ts) checks that coordinates and precision agree. A provider choice must preserve these rules.
 
 ## Provider findings
 

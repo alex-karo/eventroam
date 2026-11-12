@@ -65,7 +65,7 @@ See [common checks](docs/development.md#common-checks) before submitting a chang
 - [Development guide](docs/development.md) — environment setup, commands, testing, and local Studio.
 - [Ingestion process](docs/ingestion-process.md) — workflow, source rules, and reports.
 - [Project structure](docs/project-structure.md) — code layout and dependency boundaries.
-- [OpenSpec](openspec/specs/) — implemented behavior; [active changes](openspec/changes/) describe approved future work.
+- [Change workflow](docs/change-workflow.md) — [active changes](openspec/changes/) use proposal, design, and tasks; proposals hold short requirements and acceptance criteria, and archives record past work.
 - [Documentation index](docs/index.md) — current guides and historical records.
 
 ## License
