@@ -58,6 +58,40 @@ pnpm run catalog:eval --case reader-date-correction --model opencode-go/gpt-6-lu
 
 This Reader case uses the Go key for all model calls. For other cases, check whether the selection also uses the OpenRouter description scorer. The model flag overrides the Location model. Searches and page reads use the eval fixtures.
 
+To run agents with the current local Codex login, select `--model codex/<model>`. Leave `CODEX_PROXY_URL` and `CODEX_PROXY_KEY` blank or unset:
+
+```sh
+pnpm run catalog:eval --case reader-date-correction --model codex/gpt-6-luna
+pnpm run catalog:eval --case classification-river-format-change --model codex/gpt-6-luna
+```
+
+The command reads the current access token from `${CODEX_HOME}/auth.json`, or `~/.codex/auth.json` by default. It starts a private [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) container through `compose.codex.yaml` on an available loopback port with a generated client key. No separate proxy login, key, or start command is needed. Mastra continues to run fixture tools and validate structured output. PPLX Decider continues to use OpenRouter and `OPENROUTER_API_KEY`; the second command needs this key.
+
+Start a local Docker engine with Docker Compose installed before you run the command. On the first run, Compose pulls the CLIProxyAPI 8.0.64 image, pinned by digest for arm64 and amd64. Later runs use the cached image. The command starts and removes its own Compose project; no separate `docker compose up` command is needed.
+
+Each run reads the login again, so a token updated by Codex is used on the next run. The command does not write to Codex storage or copy its refresh token. Codex keeps ownership of session refresh. If the access token has expired, use Codex to refresh the session or run `codex login`, then retry. A run keeps its initial token; it does not switch accounts during an experiment.
+
+Automatic setup needs file-backed credentials. If Codex stores the login only in the OS keyring, create a file-backed login first:
+
+```sh
+codex -c 'cli_auth_credentials_store="file"' login
+```
+
+The command stores temporary credentials in a private directory and removes them after completion, failure, SIGINT, or SIGTERM. The container mounts only this temporary directory, with read-only access. Concurrent commands use separate Compose projects and containers. SIGKILL or power loss can leave a container and temporary files; these contain no refresh token and their access token still expires. Docker must remain available during cleanup. A cleanup error identifies the Compose project: use `docker ps -a --filter label=com.docker.compose.project=<project>` to find its containers, then `docker rm -f <container>` to remove them.
+
+To use an external proxy instead, set nonblank `CODEX_PROXY_URL` or `CODEX_PROXY_KEY`. This disables automatic setup and local login access. The external route requires `CODEX_PROXY_KEY`; its default URL is `http://127.0.0.1:8317/v1`.
+
+For a separately managed proxy, follow the [CLIProxyAPI setup guide](https://github.com/router-for-me/CLIProxyAPIDocs/blob/main/docs/en/introduction/quick-start.md).
+
+Set these values in the project's local `.env`. `CODEX_PROXY_KEY` must match the proxy's client key. It is separate from both the Codex login and the OpenRouter key:
+
+```dotenv
+CODEX_PROXY_URL=http://127.0.0.1:8317/v1
+CODEX_PROXY_KEY=replace-with-a-local-key
+```
+
+Codex agent calls use the subscription's usage limits. Both routes ignore `OPENROUTER_SERVICE_TIER` and send the configured reasoning effort through the OpenAI provider options. Without `--model codex/...`, agent routing stays unchanged.
+
 ### Results and failures
 
 Results are saved as Mastra datasets, experiments, and scores. The eval command writes no separate JSON report. Each workflow result contains one current ingestion report in `output.report`; main also retains `before`, `after`, and `quality`. Direct Location retains its actual execution, observations, run ID, and available trace ID without a fabricated workflow report. A returned failure report is scored against the case.

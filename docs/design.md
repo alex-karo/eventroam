@@ -100,7 +100,9 @@ Keep input labels above fields. Keep long values readable in the filter pickers.
 
 Use a light map with low visual noise. Keep place names readable. Use Violet for festival points and clusters, with a thin white border. The selected point has a larger circle and an extra Violet ring with a white gap. Keep its outer diameter at 20 px. Check contrast against land and water. Preserve cluster counts, location precision, and accessible selection behavior.
 
-On desktop and tablet, the selected preview is a white panel with the same date, type, and status treatments as the full page. Show all available facts and links without an expand or collapse control. Keep its close control visible. Use a small violet Open page text link with the new-page icon, rather than a filled primary button. Both the title and Open page links open a new tab. Provide clear loading and error states. On mobile, keep selection feedback and the Open page link in the results sheet. Missing coordinates must not remove an otherwise eligible event from the list. Moving the map must not change result eligibility.
+On desktop and tablet, the selected preview is a white panel with the same date, type, and status treatments as the full page. Show all available facts and links without an expand or collapse control. Keep its close control visible. Use a small violet Open page text link with the new-page icon. Both the title and Open page links open a new tab. Provide clear loading and error states.
+
+On mobile, show the selected card in place of the results list in the bottom sheet. Start each new selection with name, dates, place, and Open page. Provide expand, collapse, and close controls. Expansion shows types, music, known size, base price, and external links. Keep the header and Open page outside the scrolling content. Keep part of the map visible. Closing the card restores the list view and scroll position. Keep catalog errors and Retry accessible while the card is open. Missing coordinates must not remove an otherwise eligible event from the list. Moving the map must not change result eligibility.
 
 ### Event details and images
 

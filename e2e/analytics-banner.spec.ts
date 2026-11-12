@@ -61,6 +61,7 @@ test("catalog retry stays usable with the banner and a selected map card", async
     .click();
   const selected = page.getByRole("button", {
     name: "Show on map: Fictional Atlantic Sounds 2027",
+    includeHidden: true,
   });
   await expect(selected).toHaveAttribute("aria-pressed", "true");
   unavailable = false;

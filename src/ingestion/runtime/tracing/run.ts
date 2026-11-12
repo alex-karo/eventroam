@@ -60,6 +60,7 @@ export async function createCatalogRunTrace(
               editorStatus: report.editorStatus,
               locationStatus: report.locationStatus,
               outcome: report.outcome,
+              errors: report.errors,
             }
           : undefined,
       });

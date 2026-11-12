@@ -15,8 +15,19 @@ export const MAX_PROVIDER_UNAVAILABLE_RETRIES = 3;
 
 /** Ordinary model calls have no web plugin. Discovery is isolated in searchWeb. */
 export function createResearchModel(
-  config: Pick<ResearchConfig, "apiKey" | "model">,
+  config: Pick<ResearchConfig, "apiKey" | "model" | "codexProxyUrl">,
 ) {
+  if (config.model.startsWith("codex/")) {
+    if (!config.codexProxyUrl) {
+      throw new Error("CODEX_PROXY_URL is required for Codex models");
+    }
+    return {
+      id: config.model as `codex/${string}`,
+      url: config.codexProxyUrl,
+      apiKey: config.apiKey,
+      api: "responses" as const,
+    };
+  }
   if (config.model.startsWith("opencode-go/")) {
     return {
       id: config.model as `opencode-go/${string}`,
@@ -36,6 +47,17 @@ export function createResearchModel(
 export function researchProviderOptions(
   config: Pick<ResearchConfig, "model" | "reasoningEffort" | "serviceTier">,
 ) {
+  if (config.model.startsWith("codex/")) {
+    return {
+      openai: {
+        store: false,
+        ...(config.reasoningEffort && {
+          reasoningEffort: config.reasoningEffort,
+        }),
+      },
+      openrouter: {},
+    };
+  }
   if (config.model.startsWith("opencode-go/")) {
     return {
       openai: {

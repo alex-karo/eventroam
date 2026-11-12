@@ -1,4 +1,5 @@
 import type { AnySpan } from "@mastra/core/observability";
+import { getErrorFromUnknown } from "@mastra/core/error";
 import type { RunObservability } from "../observability/runtime";
 export type TraceFields = {
   name: string;
@@ -31,10 +32,26 @@ export function observeTrace(
 export function traceFailure(
   tracing: RunObservability | undefined,
   code: string,
-  span: AnySpan | undefined = tracing?.root,
+  options: {
+    span?: AnySpan;
+    error?: unknown;
+    metadata?: Record<string, unknown>;
+  } = {},
 ) {
   try {
-    span?.error({ error: new Error(code), endSpan: false });
+    const span = options.span ?? tracing?.root;
+    // A later summary must not replace an observed cause.
+    if (!span || (options.error === undefined && span.errorInfo)) {
+      return;
+    }
+    span.error({
+      error: getErrorFromUnknown(options.error, {
+        fallbackMessage: code,
+        supportSerialization: false,
+      }),
+      metadata: { failure: { code, ...options.metadata } },
+      endSpan: false,
+    });
   } catch {
     tracing?.diagnose("trace_export_failed");
   }

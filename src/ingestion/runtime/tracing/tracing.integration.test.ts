@@ -12,6 +12,7 @@ import {
   readTraceRows,
   runTraceFixture as executeTraceFixture,
   TRACE_ERROR,
+  TRACE_TRANSPORT,
   TRACE_CANDIDATE,
   TRACE_SOURCE_BODY,
   TRACE_PUBLIC_URL,
@@ -169,11 +170,25 @@ test.each(["http", "abort"] as const)(
       (metric) => metric.name === "mastra_model_total_input_tokens",
     );
     expect(tokens).toMatchObject({ value: 10, runId: result.runId });
-    expect(JSON.parse(root.error as string)).toMatchObject({
-      message: expect.any(String),
+    const error = JSON.parse(root.error as string);
+    expect(error.message).not.toBe("research_failed");
+    expect(error.stack).not.toContain("at traceFailure");
+    expect(JSON.parse(root.metadata as string).failure).toMatchObject({
+      code: "research_failed",
+      role: "research",
+      model: "fixture/provider-model",
+      ...(ending === "http" ? { httpStatus: 503 } : { limit: "time" }),
     });
+    if (ending === "http") {
+      expect(error.message).toContain(TRACE_TRANSPORT);
+      expect(error.details).toMatchObject({
+        statusCode: 503,
+        isRetryable: true,
+      });
+    }
     expect(JSON.parse(root.output as string)).toMatchObject({
       researchStatus: "failed",
+      errors: result.errors,
     });
   },
   15_000,
@@ -388,6 +403,7 @@ test.each([
       editorStatus: traced.result.editorStatus,
       locationStatus: traced.result.locationStatus,
       outcome: traced.result.outcome,
+      errors: traced.result.errors,
     });
     if (scenario === "cached") {
       const reads = spans.filter(

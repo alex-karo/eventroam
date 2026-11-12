@@ -120,7 +120,7 @@ function observeGeocoding(
       },
     });
     if (observation.result.status === "error") {
-      traceFailure(tracing, "geocoding_failed", requestSpan);
+      traceFailure(tracing, "geocoding_failed", { span: requestSpan });
     }
     try {
       requestSpan?.end();
@@ -310,7 +310,7 @@ export async function resolveLocation(
       output: { status: execution.status, geocodingCalls: session.calls },
     });
     if (execution.status === "failed") {
-      traceFailure(tracing, "location_failed", span);
+      traceFailure(tracing, "location_failed", { span });
     }
     try {
       span?.end();
