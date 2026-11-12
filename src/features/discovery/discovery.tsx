@@ -371,6 +371,8 @@ export function Discovery({
     }
   }, [selectedEligible]);
   function selectResult(id: string, selectionSource: "list" | "map") {
+    saveContext();
+    pendingListScroll.current = listScroll.current;
     posthog.capture("edition_details_selected", {
       selection_source: selectionSource,
     });
@@ -510,7 +512,10 @@ export function Discovery({
             onChange={(from, to) => apply({ ...applied, from, to }, "months")}
           />
         </div>
-        <div className={`discovery-results-shell view-${view}`}>
+        <div
+          className={`discovery-results-shell view-${view}`}
+          data-selected={selectedId !== null}
+        >
           <div className="results-panel">
             <div className="results-heading" ref={resultsHeading}>
               <h1>
@@ -593,6 +598,7 @@ export function Discovery({
             )}
           </section>
           <SelectedPreview
+            key={selectedId}
             detailState={detailState}
             panelRef={detailPanel}
             onClose={closeDetail}
