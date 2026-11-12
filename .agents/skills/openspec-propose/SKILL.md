@@ -1,7 +1,7 @@
 ---
 name: openspec-propose
 description: Create a new OpenSpec change and its required planning artifacts. Use for a complete proposal before implementation. Also use for "openspec propose" or "opsx propose".
-allowed-tools: Bash(openspec:*)
+allowed-tools: Bash(openspec:*) Bash(pnpm:*)
 license: MIT
 compatibility: Requires the OpenSpec CLI.
 metadata:
@@ -14,13 +14,12 @@ Propose a new change. Create the change and its required planning artifacts.
 
 **Planning boundary**: This workflow creates planning artifacts only. The initial request authorizes planning only, even if it also asks for implementation. Do not edit project code or start the apply workflow. After presenting the artifacts, stop. Wait for a new user request before implementation.
 
-Create the artifacts defined by the selected schema. The `spec-driven` schema uses:
-- proposal.md (what & why)
-- `specs/<capability-path>/spec.md` (what the system must do - a delta, not the main spec)
+Create the artifacts defined by the selected schema. The project's `review-driven` schema uses:
+- proposal.md (what & why, added or changed requirements, and acceptance criteria)
 - design.md (how)
 - tasks.md (implementation steps)
 
-`<capability-path>` is relative to `specs/`, for example, `user-auth` or `identity/user-auth`. Keep the full path of an existing capability. Use the project's directory structure for new capabilities.
+Use `proposal.md → design.md → tasks.md`. Keep added or changed requirements as short bullets under `Requirements` in the proposal. Put observable completion checks in a separate `Acceptance criteria` section. State results for users, operators, or external consumers and check those results. Keep internal mechanisms and test fixtures in design and tasks; technical details belong in the proposal only for a requested external contract. Summarize scope in `What Changes`, without former spec names or a New behavior / Changed behavior inventory. Use plain statements without WHEN/THEN scenarios; IDs and MUST/SHALL are not required. This project has no main specs or delta specs. The CLI-generated `skip_specs: true` marker does not waive proposal requirements.
 
 When the user is ready to implement, they must start the apply workflow explicitly.
 
@@ -28,7 +27,9 @@ When the user is ready to implement, they must start the apply workflow explicit
 
 **Store selection:** A store is a separate OpenSpec repository registered on this machine. If the user names a store, or the work uses one, run `openspec store list --json`. Use its registered ID. Keep `--store <id>` throughout this workflow. Use it with these commands: `new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `schemas`, and `view`. Add the flag to each applicable example below before you run it. For example, use `openspec status --change "<name>" --json --store "<id>"`. Other commands do not accept the flag. Keep it in follow-up commands suggested by the CLI. Without a selected store, commands use the nearest local `openspec/` root.
 
-**Project check:** These steps require an existing OpenSpec project. Before the first write, run `openspec list --json` and read `root`. Add `--store <id>` when a store is selected. Writes include `new change`, `archive`, `sync specs`, and artifact edits. A root object means the project is set up. `"root": null` means no OpenSpec root is available. A write such as `openspec new change` can create one as a side effect. The missing-root result also has a nonzero exit code. Read the JSON; do not retry or work around this result.
+For the project validation and archive commands below, run `pnpm` from the resolved `root.path`. These scripts do not accept `--store`. Check that the selected root contains the project scripts; do not run them in another repository.
+
+**Project check:** These steps require an existing OpenSpec project. Before the first write, run `openspec list --json` and read `root`. Add `--store <id>` when a store is selected. Writes include `new change`, `archive`, and artifact edits. A root object means the project is set up. `"root": null` means no OpenSpec root is available. A write such as `openspec new change` can create one as a side effect. The missing-root result also has a nonzero exit code. Read the JSON; do not retry or work around this result.
 
 There is one exception to the missing-root result. A `status` error can start with `Declared in` or `Invalid store declaration in`. If it names this project's `openspec/config.yaml` or `config.yml`, the project declares a store. The machine cannot resolve that store because its registration or declaration is invalid. Stop before writing. Show the error's `message` and `fix`. Do not use the missing-root branches below.
 
@@ -120,7 +121,7 @@ Do not run `openspec init` until the user requests setup. Do not create `openspe
       - Read completed dependency files again from disk before each artifact. Do not use conversation memory as a substitute; the user can change those files.
       - **Inspect the relevant project before drafting**: Read `context` and `rules` first. Then inspect relevant implementation, tests, configuration, and documentation outside `openspec/`. Keep inspection read-only and proportional to the change. Reuse findings for later artifacts; inspect more only as needed.
         - Identify the target project from the request and context. The planning home can be separate from the code. If the target is unclear, ask. For a new or non-code project, inspect the available structure and documents. If source is unavailable, report the limit. Ask when that limit affects the plan materially.
-        - Base scope, the solution, and tasks on the evidence. Separate observed behavior from assumptions and proposed changes. Report conflicts with existing specs instead of choosing a source without explanation.
+        - Base scope, the solution, and tasks on the evidence. Separate observed behavior from assumptions and proposed changes. Report conflicts with current code, tests, guides, or accepted decisions instead of choosing a source without explanation.
         - Resolve general project questions now. Do not add generic "explore the codebase" or "make a plan" implementation tasks. Tie later investigation to a specific unresolved question.
       - If `instruction` requires a skill or command, use it to create the artifact. Then check that the output file exists at `resolvedOutputPath`.
       - Otherwise, use `template` to write the artifact to `resolvedOutputPath`. For a glob pattern, use `instruction` to select a concrete file path.
@@ -129,11 +130,11 @@ Do not run `openspec init` until the user requests setup. Do not create `openspe
 
    b. **Continue until every artifact in the required set exists (not just `apply.requires`)**
       - After creating each artifact, re-run `openspec status --change "<name>" --json`
-      - Build the required set from `applyRequires` and all direct and indirect `requires` dependencies in `status --json`. For `spec-driven`, this includes proposal, specs, design, and tasks. Leave artifacts outside that set unchanged.
-      - `status` checks file existence only. A `done` artifact in `applyRequires` does not prove that its dependencies exist. For example, writing `tasks.md` early marks `tasks` done while `specs` was never written. Build the required set from `requires`, regardless of status. A `done` artifact still lists its dependencies.
+      - Build the required set from `applyRequires` and all direct and indirect `requires` dependencies in `status --json`. For `review-driven`, this includes proposal, design, and tasks. Leave artifacts outside that set unchanged.
+      - `status` checks file existence only. A `done` artifact in `applyRequires` does not prove that its dependencies exist. For example, writing `tasks.md` early marks `tasks` done while `proposal` was never written. Build the required set from `requires`, regardless of status. A `done` artifact still lists its dependencies.
       - An artifact with `status: "skipped"` is satisfied. The change declares `skip_specs` in `.openspec.yaml`, so its files must not exist. Do not create them.
       - Create every artifact in the required set that is missing, then re-check - creating one can unblock others
-      - Skip an artifact if status reports `skipped`, or its own `instruction` makes it conditional. Run `openspec instructions <artifact-id> --change "<name>" --json` before deciding on a conditional skip. The instruction must say it is optional, for example, "create only if...". `spec-driven` permits a conditional `design.md`; specs require the explicit `skipped` status. Report a deliberate skip and do not reconsider it.
+      - Skip an artifact if status reports `skipped`, or its own `instruction` makes it conditional. Run `openspec instructions <artifact-id> --change "<name>" --json` before deciding on a conditional skip. The instruction must say it is optional, for example, "create only if...". `review-driven` requires all three planning artifacts; `skip_specs` does not skip any of them. Report a deliberate skip and do not reconsider it.
       - If only a skipped conditional dependency blocks a required artifact, create the dependent artifact despite its `blocked` state.
       - Stop when every artifact in the required set is `done`, `skipped`, or was deliberately skipped
 
@@ -142,6 +143,9 @@ Do not run `openspec init` until the user requests setup. Do not create `openspe
       - Then continue with creation
 
 7. **Show final status**
+
+   Run `pnpm run openspec:validate -- "<name>"` to check the completed plan. Use `--draft` only while the planning artifacts form an incomplete prefix. Report validation failures before claiming readiness.
+
    ```bash
    openspec status --change "<name>"
    ```

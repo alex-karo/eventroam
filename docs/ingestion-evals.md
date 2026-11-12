@@ -8,7 +8,7 @@ tags: [catalog, ingestion, evals]
 
 # Ingestion evals
 
-Evals measure catalog quality and protect specific workflow behavior. They use fixed inputs so that model comparisons can separate model changes from changes to source websites. This guide covers commands, result inspection, and case maintenance. The [evaluation spec](../openspec/specs/operations/ingestion-evaluation/spec.md) defines the current contract.
+Evals measure catalog quality and protect specific workflow behavior. They use fixed inputs so that model comparisons can separate model changes from changes to source websites. This guide covers commands, result inspection, and case maintenance. Use the [evaluation code](../src/ingestion/evals) for exact case and scoring behavior.
 
 ## Run evals
 

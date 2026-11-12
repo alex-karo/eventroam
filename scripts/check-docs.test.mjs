@@ -8,14 +8,13 @@ import { checkDocs } from "./check-docs.mjs";
 function fixture(t) {
   const root = mkdtempSync(path.join(tmpdir(), "eventroam-docs-"));
   mkdirSync(path.join(root, "docs"));
-  mkdirSync(path.join(root, "specs"));
   const write = (name, content) =>
     writeFileSync(path.join(root, name), content, "utf8");
   write(
-    "specs/topic.md",
-    "---\ntype: Specification\ntitle: Topic\ndescription: A useful topic.\nstatus: stable\n---\n\n# Topic\n\nSee [index](../docs/index.md).\n",
+    "docs/topic.md",
+    "---\ntype: Guide\ntitle: Topic\ndescription: A useful topic.\nstatus: stable\n---\n\n# Topic\n\nSee [index](index.md).\n",
   );
-  write("docs/index.md", "# Docs\n\n- [Topic](../specs/topic.md)\n");
+  write("docs/index.md", "# Docs\n\n- [Topic](topic.md)\n");
   write("AGENTS.md", "# Agent\n\nSee [docs](docs/index.md).\n");
   t.after(() => rmSync(root, { recursive: true, force: true }));
   return { root, write };
@@ -32,18 +31,18 @@ test("accepts indexed documents and ignores external links", (t) => {
 
 test("rejects missing or invalid frontmatter", (t) => {
   const { root, write } = fixture(t);
-  write("specs/topic.md", "# Topic\n");
+  write("docs/topic.md", "# Topic\n");
   assert.match(checkDocs(root).errors.join("\n"), /missing YAML frontmatter/);
   write(
-    "specs/topic.md",
-    "---\ntype: Specification\ntitle: Topic\ndescription: A useful topic.\nstatus: approved\n---\n\n# Topic\n",
+    "docs/topic.md",
+    "---\ntype: Guide\ntitle: Topic\ndescription: A useful topic.\nstatus: approved\n---\n\n# Topic\n",
   );
   assert.match(
     checkDocs(root).errors.join("\n"),
     /status must be draft, stable, or deprecated/,
   );
   write(
-    "specs/topic.md",
+    "docs/topic.md",
     "---\ntitle: Topic\ndescription: A useful topic.\nstatus: stable\n---\n\n# Topic\n",
   );
   assert.match(
@@ -51,8 +50,8 @@ test("rejects missing or invalid frontmatter", (t) => {
     /type must be a non-empty string/,
   );
   write(
-    "specs/topic.md",
-    "---\ntype: Specification\ntitle: Wrong title\ndescription: A useful topic.\nstatus: stable\n---\n\n# Topic\n",
+    "docs/topic.md",
+    "---\ntype: Guide\ntitle: Wrong title\ndescription: A useful topic.\nstatus: stable\n---\n\n# Topic\n",
   );
   assert.match(
     checkDocs(root).errors.join("\n"),
@@ -84,10 +83,7 @@ test("checks links in nested index files without requiring metadata", (t) => {
 
 test("checks reference links and counts them toward index coverage", (t) => {
   const { root, write } = fixture(t);
-  write(
-    "docs/index.md",
-    "# Docs\n\n[Topic][topic]\n\n[topic]: ../specs/topic.md\n",
-  );
+  write("docs/index.md", "# Docs\n\n[Topic][topic]\n\n[topic]: topic.md\n");
   assert.deepEqual(checkDocs(root), { errors: [], count: 1 });
   write(
     "AGENTS.md",
@@ -98,7 +94,7 @@ test("checks reference links and counts them toward index coverage", (t) => {
 
 test("checks shortcut references and counts them toward index coverage", (t) => {
   const { root, write } = fixture(t);
-  write("docs/index.md", "# Docs\n\n[Topic]\n\n[Topic]: ../specs/topic.md\n");
+  write("docs/index.md", "# Docs\n\n[Topic]\n\n[Topic]: topic.md\n");
   assert.deepEqual(checkDocs(root), { errors: [], count: 1 });
   write(
     "AGENTS.md",
@@ -147,13 +143,13 @@ test("resolves references from the first definition outside code", (t) => {
       "[Topic][TOPIC] and [Topic][] and [Topic].",
       "",
       "```md",
-      "[topic]: ../specs/missing-fenced.md",
+      "[topic]: missing-fenced.md",
       "```",
       "",
-      "    [topic]: ../specs/missing-indented.md",
+      "    [topic]: missing-indented.md",
       "",
-      "[topic]: ../specs/topic.md",
-      "[TOPIC]: ../specs/missing-duplicate.md",
+      "[topic]: topic.md",
+      "[TOPIC]: missing-duplicate.md",
       "",
     ].join("\n"),
   );

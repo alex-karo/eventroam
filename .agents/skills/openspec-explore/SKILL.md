@@ -1,7 +1,7 @@
 ---
 name: openspec-explore
 description: Explore ideas, problems, and requirements before or during an OpenSpec change. Use for discussion and investigation without implementation. Also use for "openspec explore" or "opsx explore".
-allowed-tools: Bash(openspec:*)
+allowed-tools: Bash(openspec:*) Bash(pnpm:*)
 license: MIT
 compatibility: Requires the OpenSpec CLI.
 metadata:
@@ -18,7 +18,9 @@ Enter explore mode. Investigate the problem, use useful visual explanations, and
 
 **Store selection:** A store is a separate OpenSpec repository registered on this machine. If the user names a store, or the work uses one, run `openspec store list --json`. Use its registered ID. Keep `--store <id>` throughout this workflow. Use it with these commands: `new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `schemas`, and `view`. Add the flag to each applicable example below before you run it. For example, use `openspec status --change "<name>" --json --store "<id>"`. Other commands do not accept the flag. Keep it in follow-up commands suggested by the CLI. Without a selected store, commands use the nearest local `openspec/` root.
 
-**Project check:** These steps require an existing OpenSpec project. Before the first write, run `openspec list --json` and read `root`. Add `--store <id>` when a store is selected. Writes include `new change`, `archive`, `sync specs`, and artifact edits. A root object means the project is set up. `"root": null` means no OpenSpec root is available. A write such as `openspec new change` can create one as a side effect. The missing-root result also has a nonzero exit code. Read the JSON; do not retry or work around this result.
+For the project validation and archive commands below, run `pnpm` from the resolved `root.path`. These scripts do not accept `--store`. Check that the selected root contains the project scripts; do not run them in another repository.
+
+**Project check:** These steps require an existing OpenSpec project. Before the first write, run `openspec list --json` and read `root`. Add `--store <id>` when a store is selected. Writes include `new change`, `archive`, and artifact edits. A root object means the project is set up. `"root": null` means no OpenSpec root is available. A write such as `openspec new change` can create one as a side effect. The missing-root result also has a nonzero exit code. Read the JSON; do not retry or work around this result.
 
 There is one exception to the missing-root result. A `status` error can start with `Declared in` or `Invalid store declaration in`. If it names this project's `openspec/config.yaml` or `config.yml`, the project declares a store. The machine cannot resolve that store because its registration or declaration is invalid. Stop before writing. Show the error's `message` and `fix`. Do not use the missing-root branches below.
 
@@ -125,13 +127,7 @@ This tells you:
 - Their names and task status
 - What the user might be working on
 
-This is the *change* list. To list the project's existing capabilities, run:
-```bash
-openspec list --specs
-```
-Add `--json` for IDs and requirement counts. Append `--store "<id>"` only for a registered standalone store. This command lists existing capabilities; `openspec list` alone does not. For an overview, run `openspec show "<spec-id>" --type spec --json --no-scenarios` with the same store flag. It returns the Purpose and requirement descriptions. Keep `--type spec` to distinguish a spec from a change with the same name.
-
-The filtered result is only an overview. Before a coverage or behavior decision, read each relevant spec with all its scenarios. Use `openspec show "<spec-id>" --type spec` with the same store flag.
+This is the *change* list. This project has no main specs. Use current code, tests, and guides for implemented behavior. Read the relevant proposal for short added or changed requirements and its separate Acceptance criteria section. Archived proposals record history; they do not define the current product contract.
 
 Use the returned `root.path` to read `<root.path>/openspec/config.yaml` or `config.yml`. If neither exists, continue without this file:
 - `context`: project background - tech stack, conventions, constraints
@@ -153,6 +149,8 @@ An explicit user request to capture exploration supplies confirmation for that c
 3. Follow the returned `template` and `instruction`. Read completed dependency files from `dependencies`. Apply `context` and `rules` without copying them into the file. If the instruction delegates creation to a skill or command, use it. Otherwise, write to `resolvedOutputPath`. For a glob pattern, use the instruction to select a concrete path. Check that the concrete output exists.
 4. After each artifact, run `openspec status --change "<name>" --json` with the selected `--store "<id>"` when applicable. Continue until all requested artifacts are `done`, `skipped`, or deliberately skipped under their own conditions. Report deliberate skips and do not reconsider them. If recorded conditional skips are the only missing dependencies, get the dependent artifact's instructions despite its `blocked` state. Use `openspec instructions "<artifact-id>" --change "<name>" --json` with the same flag, then create it with step 3. If another unrequested prerequisite blocks it, explain the dependency and ask before extending scope.
 
+For `review-driven`, capture artifacts in `proposal → design → tasks` order. Keep requirements as short observable results for users, operators, or external consumers and acceptance criteria in their own section, without WHEN/THEN scenarios. Keep internal mechanisms in design and tasks. Summarize scope without former spec names or a New behavior / Changed behavior inventory. The CLI-generated `skip_specs: true` marker does not waive proposal requirements. After capture, run `pnpm run openspec:validate -- "<name>" --draft`; use full validation when all three artifacts exist.
+
 Complete the requested capture without requiring another workflow command from the user. If the request only starts a change, stop after CLI creation and show its status. After capture, stop and explain where work continues. `$openspec-propose (Codex) or /openspec-propose (other agents)` creates remaining planning artifacts. `$openspec-apply-change (Codex) or /openspec-apply-change (other agents)` implements the change once tasks exist. Capture does not authorize implementation.
 
 ### When a change exists
@@ -170,12 +168,10 @@ If the user mentions a change or you detect one is relevant:
 
 3. **Offer to capture when decisions are made**
 
-   `<capability-path>` is relative to `specs/`, for example, `user-auth` or `identity/user-auth`. Keep the full existing path. Use the project's directory structure for new capabilities.
-
     | Insight Type               | Where to Capture                    |
     |----------------------------|-------------------------------------|
-    | New requirement discovered | `specs/<capability-path>/spec.md` |
-    | Requirement changed        | `specs/<capability-path>/spec.md` |
+    | New requirement discovered | `proposal.md` |
+    | Requirement changed        | `proposal.md` |
     | Design decision made       | `design.md`                       |
     | Scope changed              | `proposal.md`                     |
     | New work identified        | `tasks.md`                        |
@@ -183,7 +179,7 @@ If the user mentions a change or you detect one is relevant:
 
    Example offers:
    - "That's a design decision. Capture it in design.md?"
-   - "This is a new requirement. Add it to specs?"
+   - "This is a new requirement. Add it to proposal.md?"
    - "This changes scope. Update the proposal?"
 
 4. **The user decides** - Offer and move on. Don't pressure. Don't auto-capture.

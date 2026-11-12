@@ -2,7 +2,7 @@
 
 ## Context
 
-Size: Medium. The website reads SQLite; local Studio runs `mastra dev` with a separate DuckDB store. Production images, startup commands, and health checks are missing. See [proposal.md](proposal.md) for scope and the delta specs for behavior.
+Size: Medium. The website reads SQLite; local Studio runs `mastra dev` with a separate DuckDB store. Production images, startup commands, and health checks are missing. See [proposal.md](proposal.md) for scope, requirements, and acceptance criteria.
 
 ## Goals / Non-Goals
 
@@ -52,6 +52,10 @@ Listen at fixed `0.0.0.0:4111`; keep local `catalog:studio` at `127.0.0.1:4111`.
 
 Use `createNodeServer` from `@mastra/deployer/server` with production mode and bundled Studio assets. Reuse its worker startup, signal handling, bounded HTTP drain, and Mastra shutdown instead of a separate HTTP wrapper or lifecycle implementation. Disable unused browser-stream support. Preserve existing owner operations, execution prerequisites, and unsupported-execution guards; inspection needs no model key. Verify that shutdown closes storage.
 
+Reuse the [existing execution and saved-state rules](../../../docs/ingestion-process.md#inspect-saved-runs). Preview saves its report without catalog, version, audit, or receipt writes. Explicit apply starts a fresh attempt; each selected Event has its own execution. Keep validation before external work, URL-only add input, republish-off defaults, cancellation, and concurrent-run isolation. Reads and schedules start no ingestion. Cancellation preserves known commits and safe failures, stops later writes, and attempts failed finalization without replay.
+
+Retain allowed input, step results and times, execution/run IDs, real trace relationships, and separate research, validation, write, and report outcomes. Keep allowed final model responses, private evidence references, and optional usage observations. Exclude request context, credentials, authenticated provider URLs, prompts, page bodies, transport payloads, live resources, and raw exceptions from saved execution state. Do not refetch missing artifacts.
+
 ### Data and migrations
 
 Store `/data/eventroam.sqlite` and `/data/mastra-observability.duckdb` with their WAL and shared-memory files in the named volume. Supply the initial database files before starting services; normal startup does not populate them. Permit required writes by the non-root runtime user. Keep website reads through `openReadDatabase`, validated Studio writes, and one owner per DuckDB file.
@@ -68,7 +72,7 @@ Keep application tests separate from the image startup check:
 
 | Check | Required coverage |
 | --- | --- |
-| Configuration review | Check Compose input mappings, fixed database paths, volume use, and network exposure against the release spec. |
+| Configuration review | Check Compose input mappings, fixed database paths, volume use, and network exposure against the proposal. |
 | Offline transport, outside Docker | Run the existing fixture through the production server setup and Mastra lifecycle. Check inspection without a model key, preview/apply, cancellation, unsupported execution, and storage closure. |
 | Website health, outside Docker | Use real SQLite files to check valid, missing, and incompatible schemas, generic responses, and no catalog creation or mutation. |
 | Images | Build both targets, prepare an empty test catalog with one explicit migration, and wait for both container health checks to pass. |
@@ -86,6 +90,6 @@ Use one local/CI Compose smoke script with a random project and an isolated temp
 
 Verify image startup using an empty catalog in an isolated named volume: migrate with services stopped, then start both images and wait for their health checks.
 
-Document Compose inputs and commands in the current guides, including the Mapbox gate. Keep existing local input names. Document commands, inputs, the external authentication prerequisite, storage permissions, replacement, and single DuckDB ownership. Align ADR 001 with deferred recovery tests while preserving WAL rules; record verified images and commands in ADR 002. Sync main specs and status text only after implementation verification. Ingress authentication, external secret-store mappings, and Mapbox account controls remain outside this change.
+Document Compose inputs and commands in the current guides, including the Mapbox gate. Keep existing local input names. Document commands, inputs, the external authentication prerequisite, storage permissions, replacement, and single DuckDB ownership. Align ADR 001 with deferred recovery tests while preserving WAL rules; record verified images and commands in ADR 002. Update current guides and status text after implementation verification. Ingress authentication, external secret-store mappings, and Mapbox account controls remain outside this change.
 
 Keep prior images for code rollback only while schema and DuckDB formats remain compatible. An incompatible migration needs a compatible saved data copy; image rollback does not reverse data changes.

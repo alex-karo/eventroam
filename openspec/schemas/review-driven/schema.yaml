@@ -1,146 +1,35 @@
 name: review-driven
-version: 1
-description: Spec-driven workflow with proportionate plans and clear engineering decisions
+version: 3
+description: Change planning with a proposal, design, and tasks
 artifacts:
   - id: proposal
     generates: proposal.md
-    description: Initial proposal document outlining the change
+    description: Problem, changed requirements, acceptance criteria, and impact
     template: proposal.md
     instruction: |
-      Create the proposal document that establishes WHY this change is needed.
-      Start from the requested outcome and a concrete before/after example when useful.
-      Distinguish requested outcomes, existing contracts and newly proposed guarantees.
-      Writing a guarantee into a proposal or spec does not itself establish user acceptance.
-
-      Sections:
-      - **Why**: State the problem or opportunity and why it matters now.
-      - **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
-      - **Capabilities**: Identify which specs will be created or modified:
-        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<capability-path>/spec.md`. Name each capability for a durable system behavior (for example, `user-auth`), not the work in this change (for example, `add-login-endpoint`). Choose a cohesive boundary that can own related requirements as the system evolves; avoid broad catch-all capabilities. Use kebab-case for path segments you introduce (e.g., `user-auth` or `identity/user-auth`) and follow the project's existing spec organization.
-        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Use the exact existing path under `openspec/specs/`. For each capability, add **Before** and **After** bullets, usually one short sentence each. State the current behavior from the main spec and the proposed behavior. Note any known difference between the main spec and the implementation. Describe only the behavior that changes; leave detailed conditions and scenarios in the delta spec. Leave empty if no requirement changes.
-      - **Impact**: Affected code, APIs, dependencies, or systems.
-
-      IMPORTANT: The Capabilities section is critical. It creates the contract between
-      proposal and specs phases. Research existing specs before filling this in:
-      run `openspec list --specs` for the project's capability inventory, then
-      `openspec show "<spec-id>" --type spec --json --no-scenarios` for any that
-      look related - that returns a capability's purpose and requirement texts
-      without pulling whole spec files into context. Append `--store "<id>"` to
-      both commands only for a registered standalone store, and keep `--type
-      spec`: a change and a spec sharing a name is otherwise an ambiguous-item
-      error. `openspec list` without `--specs` lists in-flight changes, not
-      specs - it never shows what the project already covers. Reuse an existing
-      capability's exact path instead of introducing a near-duplicate name.
-      The filtered read is only an overview. Before deciding what is already
-      covered or what should change, read each relevant spec in full, including
-      scenarios, with `openspec show "<spec-id>" --type spec` (same `--store` rule).
-      Each capability listed here will need a corresponding spec file.
-
-      Every change must either declare at least one capability (new or
-      modified) or explicitly opt out of specs: `openspec validate` rejects a
-      change with zero deltas unless the change's `.openspec.yaml` sets
-      `skip_specs: true`. Use `skip_specs: true` only when no spec-level
-      behavior changes (pure refactor, tooling, docs) - specs describe
-      behavior, so if behavior does not change, no spec should change either.
-      Do not invent a requirement just to satisfy validation.
-
-      Keep implementation details in design.md.
+      Explain why the change is needed and what result the user wants.
+      Use Why, What Changes, Requirements, Acceptance criteria, and Impact.
+      State scope and exclusions when needed.
+      Use a concrete before/after example when it helps.
+      Check the current code, tests, and guides before describing current behavior.
+      Distinguish requested outcomes, accepted rules, and new proposed guarantees.
+      Writing a guarantee does not establish user acceptance.
+      Describe only added or changed requirements as short bullets under Requirements.
+      State the result for a user, operator, or external consumer, not how to build it.
+      Put checks of those observable results in a separate Acceptance criteria section.
+      Keep internal data structures, execution steps, and test fixtures in design or tasks.
+      Name a technical detail here only when it defines a requested external contract.
+      Summarize scope in What Changes; do not add a spec inventory or group changes by
+      former spec names under New behavior, Changed behavior, or Affected areas.
+      Use plain statements. Do not use WHEN/THEN scenarios or require IDs and MUST/SHALL.
+      Include failure or boundary cases only when they define distinct behavior.
+      Keep existing behavior by reference to current code, tests, and guides.
+      Do not restate the whole product or copy requirements into another file.
+      Use consistent domain terms. Keep implementation choices in design.md.
+      Trace significant obligations to the request, an accepted rule, or an explicit decision.
+      Resolve material scope choices before treating them as accepted constraints.
+      Requirements for removed behavior state the expected result after removal.
     requires: []
-
-  - id: specs
-    generates: "specs/**/*.md"
-    description: Detailed specifications for the change
-    template: spec.md
-    instruction: |
-      Create specification files that define WHAT the system should do.
-
-      A spec defines only behavior that a user, operator, or another system can
-      observe. This includes public interfaces and operational results, not only UI.
-      Trace significant new obligations to the requested outcome, an existing
-      contract or an explicitly proposed decision. Do not turn an implementation
-      convenience or a defensive assumption into a requirement merely to justify
-      the chosen design. Resolve material scope choices before treating them as
-      accepted implementation constraints.
-
-      Good spec content:
-      - Observable behavior users or downstream systems rely on
-      - Inputs, outputs, and error conditions
-      - External constraints (security, privacy, reliability, compatibility)
-      - Scenarios that can be tested or explicitly validated
-
-      Avoid in specs:
-      - Internal class/function names
-      - Library or framework choices
-      - Storage layout, private data shapes, and internal orchestration
-      - Step-by-step implementation details
-      - Detailed execution plans (those belong in design.md or tasks.md)
-
-      Quick test: if the implementation can change without changing externally
-      visible behavior, the implementation choice does not belong in the spec.
-      Keep data shapes and signatures in code. Link to their source definitions
-      when needed; use the design's Contracts section for proposed code changes.
-      Keep observable validation rules, errors, and value meaning in the spec.
-      Public names and values belong here when consumers depend on them.
-
-      Use consistent domain terms. Give each requirement a name that states its
-      behavior. Give each scenario a concrete trigger and observable result.
-      Include failure and boundary cases when they define different behavior;
-      do not enumerate internal branches. Avoid vague results such as "works
-      correctly". Require exact UI text only when that text is part of the contract.
-
-      Create one spec file per capability listed in the proposal's Capabilities section.
-      `<capability-path>` is the spec directory relative to `specs/` (for example,
-      `user-auth` or `identity/user-auth`). Preserve the full path:
-      - New capabilities: use the exact path from the proposal at `specs/<capability-path>/spec.md`. Any path segment newly introduced in the proposal must be kebab-case. Follow the project's existing organization; do not add a new domain level when the project uses a flat layout.
-      - Modified capabilities: use the exact existing path from `openspec/specs/<capability-path>/` when creating the delta at `specs/<capability-path>/spec.md`. Run `openspec list --specs` to confirm that path before writing the delta, appending `--store "<id>"` only for a registered standalone store - a mistyped or invented path targets a capability that does not exist rather than the one you meant. Do not move or rename the capability.
-
-      There must be at least one spec file unless the change's `.openspec.yaml`
-      sets `skip_specs: true` (no spec-level behavior change) - `openspec validate`
-      rejects a zero-delta change without that marker. If the proposal lists no
-      capabilities and `skip_specs` is not set, revisit the proposal first.
-
-      Delta operations (use ## headers):
-      - **ADDED Requirements**: New capabilities
-      - **MODIFIED Requirements**: Changed behavior - MUST include full updated content
-      - **REMOVED Requirements**: Deprecated features - MUST include **Reason** and **Migration**
-      - **RENAMED Requirements**: Name changes only - use FROM:/TO: format
-
-      Format requirements:
-      - Each requirement: `### Requirement: <name>` followed by description
-      - Use SHALL/MUST for normative requirements (avoid should/may)
-      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
-      - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
-      - Every requirement MUST have at least one scenario.
-      - Keep each requirement's description (the text between `### Requirement:` and its first scenario) to 500 characters or fewer. `openspec validate` flags longer descriptions once they reach the main spec. This is an informational hint, not an error. When writing a new requirement, state one behavior per requirement: move examples and edge cases into scenarios, and split a requirement that covers several behaviors into separate `### Requirement:` blocks, each with its own scenarios. Under MODIFIED, keep the existing requirement block whole; never split, trim or rewrite existing text just to meet the length.
-
-      New capabilities only: the delta spec's first section is `## Purpose` -
-      one or two sentences (50+ characters, or `openspec validate --strict`
-      reports it as too brief) describing what the capability is for. Archive
-      copies it into the main spec it creates; without it the new main spec is
-      left with a `TBD ... Update Purpose after archive` placeholder to fill in
-      by hand. Do NOT add `## Purpose` to a delta for an existing capability -
-      that spec already has one and the delta's is ignored. To change an
-      existing capability's Purpose - including a leftover `TBD` placeholder -
-      edit `<planningHome.root>/openspec/specs/<capability-path>/spec.md`
-      directly. `planningHome.root` comes from the `openspec instructions ...
-      --json` response. Always use it rather than a repo-relative path: it
-      resolves to the store whenever the change lives in one - whether that
-      came from `--store`, a project `store:` pointer, or a global default
-      store - and to the current repository otherwise. Do not try to work out
-      which case applies; the field already has.
-
-      MODIFIED requirements workflow:
-      1. Locate the existing requirement in `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (the same store-aware root as above)
-      2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
-      3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
-      4. Ensure header text matches exactly (whitespace-insensitive)
-
-      Common pitfall: Using MODIFIED with partial content loses detail at archive time.
-      If adding new concerns without changing existing behavior, use ADDED instead.
-
-      Specs should be testable - each scenario is a potential test case.
-    requires:
-      - proposal
 
   - id: design
     generates: design.md
@@ -159,7 +48,7 @@ artifacts:
         Use labeled bullets, short paragraphs, or a small Mermaid diagram as needed.
         Combine text and a diagram when useful. Do not require fixed labels or a diagram.
         Make the overview clear without reading code or later sections.
-        Put supporting detail in the sections below. Link to the proposal and specs
+        Put supporting detail in the sections below. Link to the proposal
         for full motivation and behavior rules.
       - Contracts: Show changed data shapes and signatures as short fenced code
         blocks with a language tag. Use TypeScript for application types. Mark code
@@ -167,7 +56,7 @@ artifacts:
         only when it helps explain the change. Code owns the exact structure; do
         not repeat fields in prose or copy full schemas. Add brief prose only for
         semantics the code cannot express, such as omission versus null. Reference
-        specs for observable validation rules and errors. Cover stored-data
+        the proposal for observable validation rules and errors. Cover stored-data
         transitions only when relevant. Omit this section if contracts do not change.
       - Architecture: Show the execution or data flow, module boundaries, and ownership
         of decisions, validation, and writes. Name removed paths or abstractions.
@@ -190,7 +79,7 @@ artifacts:
         and test work avoided. These are proposals, not permission to change requirements.
         Compare removing a mechanism with reorganizing it; check actual dependency
         capabilities before retaining application-owned copies of their rules.
-        Do not reject a simpler option solely because a newly drafted spec requires
+        Do not reject a simpler option solely because a newly drafted proposal requires
         the more complex behavior. Omit alternatives when none are useful.
       - Risks and validation: Connect each material risk to a focused check or evidence.
         Include migration, recovery, or rollout details only when needed.
@@ -205,7 +94,7 @@ artifacts:
 
       Keep design.md as one coherent description of the current solution.
       Fold corrections into the relevant sections. Do not append correction logs.
-      Update affected proposal, specs, and tasks when an approved decision changes.
+      Update the proposal and tasks when an approved decision changes.
       Write or revise TL;DR after the detailed design. Keep it first in the file.
       Check that it agrees with the details and introduces no conflicting decisions.
       Before handoff, check the outcome, main flow, ownership, and reasons for added mechanisms.
@@ -265,7 +154,7 @@ artifacts:
       - [ ] 2.3 Document the export API in docs/export.md and verify the documented command runs as written
       ```
 
-      Reference specs for what needs to be built, design for how to build it.
+      Reference the proposal for what needs to be built, design for how to build it.
 
       Match task detail to scope, dependencies, and material risks in design.md.
       Use a few focused steps for a simple change. Group related outcomes when
@@ -273,7 +162,7 @@ artifacts:
       that spans components. Use no size categories, fixed task counts, or time estimates.
       Each task should describe one reviewable outcome and how to check it. Do not hide
       many unrelated actions in a long checkbox to make the plan look short. Reference
-      design details and spec scenarios instead of repeating them in each task.
+      design details and acceptance criteria instead of repeating them in each task.
       For proposed test scenarios, identify a meaningful failure they would detect
       and check existing coverage before adding fixtures or another integration matrix.
       Prefer testing the application's use of a dependency over reproducing its own
@@ -283,14 +172,15 @@ artifacts:
       Before presenting a substantive plan as ready, follow the repository's
       plan-review skill at .agents/skills/plan-review/SKILL.md for review and reporting.
       Apply supported revisions within the authorized planning scope after review.
-      Do not add a review artifact or start implementation.
+      Do not add a review artifact. Start implementation only when the user authorizes it.
     requires:
-      - specs
       - design
 
 apply:
-  requires: [ design, tasks ]
+  requires: [proposal, design, tasks]
   tracks: tasks.md
   instruction: |
-    Read context files, work through pending tasks, mark complete as you go.
-    Pause if you hit blockers or need clarification.
+    Read the proposal, design, and tasks. Implement pending tasks and mark them complete.
+    Validate with pnpm run openspec:validate -- <change-name>.
+    Run code review and project cleanup before final verification against the proposal.
+    Archive only with pnpm run openspec:archive -- <change-name>.

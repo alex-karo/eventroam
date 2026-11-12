@@ -134,7 +134,7 @@ History has no automatic deletion. With Studio running, delete a completed entry
 curl -X DELETE http://127.0.0.1:4111/api/workflows/catalog-ingestion/runs/EXECUTION_ID
 ```
 
-To clear all history, stop Studio and other writers, then remove only the workflow SQLite file and its sidecars. Catalog data and reports remain. See the [diagnostics spec](../openspec/specs/operations/ingestion-diagnostics/spec.md) for the full history contract.
+To clear all history, stop Studio and other writers, then remove only the workflow SQLite file and its sidecars. Catalog data and reports remain. See the [diagnostic tools](ingestion-tools.md#local-trace-inspection) for the full history contract.
 
 ## Local trace inspection
 

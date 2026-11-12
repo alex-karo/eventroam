@@ -6,38 +6,34 @@ The catalog uses one Event summary for both the festival page and its search and
 
 ## What Changes
 
-- **BREAKING** Replace the Event `summary` field with two independently optional fields.
+- **BREAKING** Replace the single Event summary with separate detailed and short descriptions.
 - Ingestion writes both texts from the latest known festival format and any announced changes.
 - Ingestion requires evidence of at least one completed, ongoing or announced Edition. Without it, the run ends without catalog changes and records the reason.
 - The website uses the available text for either purpose. If both fields are empty, it builds a neutral sentence from public catalog data.
 
-## Capabilities
+## Requirements
 
-### Modified Capabilities
+- An Event has independently optional detailed and short descriptions. Each can be set, cleared, or accepted without the other; missing text does not block creation or eligible publication.
+- Add and full refresh produce three to five detailed sentences and one or two short sentences in English, without the festival name. Leave unsupported text empty.
+- Descriptions explain the latest supported festival format and announced changes. Exclude obsolete history, temporary Edition facts, promotional claims, and invented experiences.
+- Ingestion needs a selected Edition or a saved scheduled or announced Edition. A specific announcement can qualify without complete dates; annual recurrence alone cannot. Without qualifying evidence, leave the catalog unchanged and report the reason.
+- Add and full refresh keep the latest completed and ongoing or nearest announced Edition separate. Current refresh updates only its selected current or next Edition, leaving festival descriptions and unrelated history unchanged.
+- A current refresh with a qualifying saved Edition but no selected target can finish unchanged. Unresolved research remains visibly incomplete; do not add historical research only to fill the empty selection.
+- Public pages prefer detailed text, then short text, then a neutral sentence from public facts. Historical Edition pages use the current festival text.
+- Search and social previews prefer short text and lead with the public name. Edition previews retain year, date qualifications, and status; structured data uses the displayed festival text. Missing text adds no publication or indexing gate.
+- Developers can assess both descriptions independently in main eval and inspect Classification proposals separately. A text match probability of at least 80% passes; lower scores count as missing required facts.
 
-- `catalog/records`
-  - **Before**: An Event owns one summary.
-  - **After**: It owns optional `description` and `shortDescription` fields.
-- `catalog/ingestion-workflow`
-  - **Before**: Add requests a short factual summary.
-  - **After**: Add checks both descriptions. Ingestion needs a selected Edition or a saved Edition with `scheduled` or `announced` status.
-- `catalog/refresh-scope`
-  - **Before**: Full refresh checks the summary.
-  - **After**: Full refresh checks both fields. Current refresh handles Edition facts only. Known completed history without a current or next Edition allows a normal end without updates.
-- `catalog/publication`
-  - **Before**: Public reads expose the summary for detail pages.
-  - **After**: Public reads supply the descriptions for page text and metadata.
-- `website/festival-details`
-  - **Before**: Detail pages show the Event summary.
-  - **After**: They prefer the detailed text, then the short text, then an automatic description. Historical pages show the current festival text in About the festival.
-- `website/discoverability`
-  - **Before**: Event metadata describes the festival and its history. The site uses the summary when present.
-  - **After**: Event and Edition search and social descriptions lead with the public name. Edition descriptions include dates and status. Both prefer the short festival text.
-- `operations/ingestion-evaluation`
-  - **Before**: Main eval shows description proposals, Editor decisions, and writes.
-  - **After**: Main eval reports the match probability for each assessed text. A result below 80% fails the case as a missing required fact.
-  - A direct Classification eval checks Edition categories and both text proposals from fixed evidence.
+## Acceptance criteria
+
+- Existing summaries remain available as detailed text after migration. Setting or clearing one description leaves the other intact, and review can accept one while rejecting the other.
+- Generated texts meet the requested lengths, reflect supported current features and announced changes, and omit temporary Edition details or unsupported claims. Missing descriptions still permit eligible records.
+- Add/full can save the two selected Editions without mixing facts, preferring an ongoing Edition over a later announcement. Current refresh leaves Event data and unrelated Editions unchanged.
+- No qualifying Edition produces an insufficient-information report and no catalog or publication changes. A specific undated announcement or qualifying saved Edition permits processing; annual recurrence alone does not.
+- With a qualifying saved Edition, a current run with no selection finishes unchanged without extra historical work. Unresolved selection retains incomplete checks and questions; a completed absence check alone does not make research incomplete.
+- Detailed, short, and automatic text appear correctly on Event and Edition pages without filling stored fields. Historical About text stays current while historical dates and status remain specific to that Edition.
+- Search and social descriptions agree, avoid duplicate names, and retain Edition dates and status. Eligible structured data uses the rendered text; insufficient confirmed facts omit it without changing indexing.
+- Separate Classification results show expected categories and both text assessments. Missing or low text assessments fail that check. Main eval reports each text separately and distinguishes missing text, missing references, and provider failures.
 
 ## Impact
 
-The change affects stored Event records, catalog operations, ingestion role inputs and completion rules, public reads and website metadata. Rules for category reuse between Editions remain unchanged.
+Readers see separate page and preview text. Owners can review each description independently, and developers get separate text assessments. Storage, ingestion, public reads, and website metadata change; existing identity, publication, history navigation, place precision, and Edition category reuse rules remain applicable.

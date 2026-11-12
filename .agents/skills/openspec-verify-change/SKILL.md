@@ -1,7 +1,7 @@
 ---
 name: openspec-verify-change
 description: Check that an implementation matches its OpenSpec artifacts before archive. Use to check completion, correctness, and design agreement. Also use for "openspec verify" or "opsx verify".
-allowed-tools: Bash(openspec:*)
+allowed-tools: Bash(openspec:*) Bash(pnpm:*)
 license: MIT
 compatibility: Requires the OpenSpec CLI.
 metadata:
@@ -10,11 +10,13 @@ metadata:
   generatedBy: "1.14.0"
 ---
 
-Verify that an implementation matches the change artifacts (specs, tasks, design).
+Verify that an implementation matches the change artifacts (proposal, tasks, design).
 
 **Store selection:** A store is a separate OpenSpec repository registered on this machine. If the user names a store, or the work uses one, run `openspec store list --json`. Use its registered ID. Keep `--store <id>` throughout this workflow. Use it with these commands: `new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `schemas`, and `view`. Add the flag to each applicable example below before you run it. For example, use `openspec status --change "<name>" --json --store "<id>"`. Other commands do not accept the flag. Keep it in follow-up commands suggested by the CLI. Without a selected store, commands use the nearest local `openspec/` root.
 
-**Project check:** These steps require an existing OpenSpec project. Before the first write, run `openspec list --json` and read `root`. Add `--store <id>` when a store is selected. Writes include `new change`, `archive`, `sync specs`, and artifact edits. A root object means the project is set up. `"root": null` means no OpenSpec root is available. A write such as `openspec new change` can create one as a side effect. The missing-root result also has a nonzero exit code. Read the JSON; do not retry or work around this result.
+For the project validation and archive commands below, run `pnpm` from the resolved `root.path`. These scripts do not accept `--store`. Check that the selected root contains the project scripts; do not run them in another repository.
+
+**Project check:** These steps require an existing OpenSpec project. Before the first write, run `openspec list --json` and read `root`. Add `--store <id>` when a store is selected. Writes include `new change`, `archive`, and artifact edits. A root object means the project is set up. `"root": null` means no OpenSpec root is available. A write such as `openspec new change` can create one as a side effect. The missing-root result also has a nonzero exit code. Read the JSON; do not retry or work around this result.
 
 There is one exception to the missing-root result. A `status` error can start with `Declared in` or `Invalid store declaration in`. If it names this project's `openspec/config.yaml` or `config.yml`, the project declares a store. The machine cannot resolve that store because its registration or declaration is invalid. Stop before writing. Show the error's `message` and `fix`. Do not use the missing-root branches below.
 
@@ -47,7 +49,7 @@ Do not run `openspec init` until the user requests setup. Do not create `openspe
    openspec status --change "<name>" --json
    ```
    Parse the JSON to understand:
-   - `schemaName`: The workflow being used (e.g., "spec-driven")
+   - `schemaName`: The workflow being used (e.g., "review-driven")
    - `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`: path and scope context
    - Which artifacts exist for this change
 
@@ -64,19 +66,19 @@ Do not run `openspec init` until the user requests setup. Do not create `openspe
 4. **Initialize verification report structure**
 
    Create a report structure with three dimensions:
-   - **Completeness**: Track tasks and spec coverage
-   - **Correctness**: Track requirement implementation and scenario coverage
+   - **Completeness**: Track tasks and requirement coverage
+   - **Correctness**: Track requirement implementation and acceptance criteria coverage
    - **Coherence**: Track design adherence and pattern consistency
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
-   Verification gives advice. Respect `skip_specs: true`, optional designs, and schemas without task tracking. Do not require intentionally omitted or optional artifacts to obtain a clean report. `Not verified` describes missing evidence, not a new archive prerequisite. Archive retains its own checks and confirmation rules.
+   Verification gives advice. Respect optional artifacts and schemas without task tracking. In `review-driven`, proposal, design, and tasks are required. The CLI-generated `skip_specs: true` marker does not waive proposal checks. Do not require intentionally omitted or optional artifacts to obtain a clean report. `Not verified` describes missing evidence, not a new archive prerequisite. Archive retains its own checks and confirmation rules.
 
-   Use **Not applicable** for checks absent from the schema or intentionally skipped by artifact status. For removal-only or rename-only changes, the correctness checks are also **Not applicable**; see step 6. Exclude these checks from skipped-check counts and the readiness assessment. Use **Not verified** when a check applies but evidence is missing or unusable.
+   Use **Not applicable** for checks absent from the schema or intentionally skipped by artifact status. Exclude these checks from skipped-check counts and the readiness assessment. Use **Not verified** when a check applies but evidence is missing or unusable.
 
    If only task evidence is available, check task completion only. Mark all other applicable checks, including **Code Pattern Consistency**, as not verified. Use the reason "Only task evidence available".
 
-   If artifacts are unreadable or unusable, mark the affected checks as not verified and give the reason. Check what the remaining evidence supports. Do not report a partially checked input set as fully verified. Missing requirements affect Spec Coverage and Requirement Implementation Mapping. Missing scenarios affect Scenario Coverage; missing design decisions affect Design Adherence.
+   If artifacts are unreadable or unusable, mark the affected checks as not verified and give the reason. Check what the remaining evidence supports. Do not report a partially checked input set as fully verified. Missing requirements affect Requirement Coverage and Requirement Implementation Mapping. Missing acceptance criteria affect Acceptance Criteria Coverage; missing design decisions affect Design Adherence.
 
 5. **Verify Completeness**
 
@@ -90,54 +92,36 @@ Do not run `openspec init` until the user requests setup. Do not create `openspe
      - Add a CRITICAL issue for each listed incomplete task. Compare `progress.remaining` with the number of listed tasks where `done` is false. If `progress.remaining` is greater, also report incomplete checkboxes without descriptions. Recommend descriptions and completion for those tasks. Do not infer full completion from the listed tasks alone.
      - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
 
-   **Spec Coverage**:
-   - If status skips specs with `skip_specs: true`, report spec-dependent checks as not applicable. Do the same if the schema defines no spec artifact.
-   - Otherwise, use the active schema's artifact IDs in `contextFiles`. If `contextFiles.specs` is absent or empty, three checks are not verified: **Spec Coverage**, **Requirement Implementation Mapping**, and **Scenario Coverage**. Do not report these checks as passed.
-   - If delta specs exist in `contextFiles.specs`:
-     - Read every `### Requirement:` and `FROM:`/`TO:` pair under `## RENAMED Requirements`. Record its operation section: `## ADDED`, `## MODIFIED`, `## REMOVED`, or `## RENAMED Requirements`. The section determines the check.
-     - For each ADDED or MODIFIED requirement (for MODIFIED, check the text in the delta, not the old wording):
-       - Search codebase for keywords related to the requirement
-       - Assess if implementation likely exists
-     - If ADDED or MODIFIED requirements appear unimplemented:
-       - Add CRITICAL issue: "Requirement not found: <requirement name>"
-       - Recommendation: "Implement requirement X: <description>"
-     - For each REMOVED requirement, the change asks for the behavior to be gone, so invert the check:
-       - Search the code for the removed behavior. Matches in `openspec/` or docs alone do not prove that behavior remains. Code used only for the Migration note or an ADDED requirement also does not prove it. Report any path that still provides the removed behavior, including one shared with an ADDED requirement.
-       - Finding no implementation is the expected result. Never report a REMOVED requirement as "Requirement not found" or recommend implementing it.
-       - If the behavior is still present:
-         - Add CRITICAL issue: "Removed requirement still implemented: <requirement name>"
-         - Recommendation: "Remove the remaining implementation at <file>:<lines>, following the requirement's Migration note if it has one"
-     - For each RENAMED entry (`FROM:`/`TO:`), check that TO keeps the original behavior. The name changes; the behavior does not:
-       - Do not report FROM as missing. Do not require code symbols, identifiers, or file names to be renamed.
-       - If the TO name also appears under MODIFIED, its behavior is checked there against the MODIFIED text; skip it here.
-       - Otherwise, read the baseline at `<planningHome.root>/openspec/specs/<capability-path>/spec.md`, using the delta's full capability path. Read FROM, or TO if sync already removed FROM. Use its body and scenarios as evidence for the unchanged behavior.
-       - Search codebase for that behavior and assess if it is still implemented.
-       - If it appears unimplemented:
-         - Add CRITICAL issue: "Renamed requirement not found: <TO name>"
-         - Recommendation: "Restore the behavior of <TO name> (renamed from <FROM name>); a rename must not change behavior"
-       - If the baseline is missing or unreadable, report **Spec Coverage** as not verified for that entry. Give the reason. Do not count an unchecked rename as passed.
+   **Requirement Coverage**:
+   - For `review-driven`, read requirements and acceptance criteria from the proposal even when `.openspec.yaml` declares `skip_specs: true`. There is no separate requirements artifact.
+   - Use the active schema's artifact IDs in `contextFiles`. If `contextFiles.proposal` is absent, empty, unreadable, or unusable, three checks are not verified: **Requirement Coverage**, **Requirement Implementation Mapping**, and **Acceptance Criteria Coverage**. Do not report these checks as passed.
+   - Run `pnpm run openspec:validate -- "<name>"`. Report structural failures separately from implementation findings. Use `--draft` only to inspect an incomplete planning prefix; it does not prove readiness.
+   - Read the short requirement bullets under `## Requirements` and the separate `## Acceptance criteria` list in the proposal. Check observable results for users, operators, or external consumers; use design for internal mechanisms. Report misplaced implementation details separately from missing behavior. Do not require IDs, MUST/SHALL, or WHEN/THEN scenarios.
+   - For each requirement:
+     - Search the codebase for related behavior and assess whether implementation exists.
+     - Check the required result after a removal or rename, as stated in the proposal. Do not recommend restoring behavior that the proposal removes.
+     - If the required result appears unimplemented:
+       - Add CRITICAL issue: "Requirement not found: <text and location>"
+       - Recommendation: "Implement requirement: <description>"
 
 6. **Verify Correctness**
 
-   If readable deltas contain requirements and only REMOVED or RENAMED operations, report **Requirement Implementation Mapping** and **Scenario Coverage** as **Not applicable**. Spec Coverage supplies the removal and rename checks, including baseline behavior for each rename. Do not count these correctness checks as unverified. A delta with no parseable requirements is unusable evidence, not a removal-only change. For that case, report both correctness checks as not verified.
-
    **Requirement Implementation Mapping**:
-   - For each ADDED or MODIFIED requirement from delta specs, use the checks below. Spec Coverage handles REMOVED and RENAMED entries without MODIFIED blocks:
+   - For each requirement in the proposal, use the checks below:
      - Search codebase for implementation evidence
      - If found, note file paths and line ranges
      - Assess if implementation matches requirement intent
      - If divergence detected:
-       - Add WARNING: "Implementation may diverge from spec: <details>"
+       - Add WARNING: "Implementation may diverge from proposal: <details>"
        - Recommendation: "Review <file>:<lines> against requirement X"
 
-   **Scenario Coverage**:
-   - For each scenario under an ADDED or MODIFIED requirement in delta specs (marked with "#### Scenario:"):
+   **Acceptance Criteria Coverage**:
+   - For each bullet in the proposal's separate `## Acceptance criteria` section:
      - Check if conditions are handled in code
-     - Check if tests exist covering the scenario
-     - If scenario appears uncovered:
-       - Add WARNING: "Scenario not covered: <scenario name>"
-       - Recommendation: "Add test or implementation for scenario: <description>"
-   - Skip scenarios under a REMOVED requirement; that behavior is meant to be gone.
+     - Check if tests or other checks cover the acceptance criterion
+     - If an acceptance criterion appears uncovered:
+       - Add WARNING: "Acceptance criterion not covered: <text and location>"
+       - Recommendation: "Add test or implementation for acceptance criterion: <description>"
 
 7. **Verify Coherence**
 
@@ -173,20 +157,18 @@ Do not run `openspec init` until the user requests setup. Do not create `openspe
    | Coherence    | Followed/Issues  |
    ```
 
-   In each Status cell, report completed checks and `Not verified (<reason>)` for each skipped check. If all applicable checks in a dimension were skipped, start with `Not verified`. Do not count a skipped or partially verified check as passed. Count only ADDED and MODIFIED requirements in N. Report REMOVED and RENAMED separately, for example, "1 removal confirmed, 1 rename verified". For a removal-only or rename-only change, use `Not applicable (no ADDED or MODIFIED requirements)` in the Correctness cell.
+   In each Status cell, report completed checks and `Not verified (<reason>)` for each skipped check. If all applicable checks in a dimension were skipped, start with `Not verified`. Do not count a skipped or partially verified check as passed. Count the proposal requirements in N. Identify requirements and acceptance criteria by their text and source location when reporting coverage and missing evidence.
 
    **Issues by Priority**:
 
    1. **CRITICAL** (Must fix before archive):
       - Incomplete tasks
       - Missing requirement implementations
-      - Removed requirements still implemented
-      - Renamed requirements whose behavior is no longer implemented
       - Each with specific, actionable recommendation
 
    2. **WARNING** (Should fix):
-      - Spec/design divergences
-      - Missing scenario coverage
+      - Proposal/design divergences
+      - Missing acceptance criteria coverage
       - Each with specific recommendation
 
    3. **SUGGESTION** (Nice to fix):

@@ -8,7 +8,7 @@ tags: [website, routing, seo]
 
 # Website routing and indexing defaults
 
-The [website discoverability specification](../../openspec/specs/website/discoverability/spec.md) defines implemented metadata, indexing, and crawler behavior. The [scoped website specification](../../openspec/specs/website/routing/spec.md) owns host mapping, redirects, and discovery query rules. Remaining proposals below extend these contracts.
+Use [routes and scope](../project-structure.md#routes-and-scope) to find the current host, redirect, metadata, and crawler code. Remaining proposals below extend current behavior.
 
 ## Site hierarchy and later scopes
 
@@ -26,7 +26,7 @@ An explicit home-scope migration preserves the same IDs and redirects the old UR
 
 ## Cross-scope links, canonical URLs, and redirects
 
-The existing two-host routing and the first-launch metadata policy remain in their owning OpenSpec documents. These proposals extend that baseline to future scopes, identity merges, and home-scope moves; they are not additional requirements for `public-site-launch`.
+The current [website source map](../project-structure.md#routes-and-scope) identifies the two-host routing and first-launch metadata code. These proposals extend that baseline to future scopes, identity merges, and home-scope moves; they are not additional requirements for `public-site-launch`.
 
 Each public Event and Edition has exactly one canonical absolute URL on its Event's home scope. An eligible result discovered on another scope links directly to that canonical address; the destination visibly identifies its home scope. A known public record requested at the equivalent path on another launched scope redirects permanently to its canonical host. The apex can likewise redirect a recognized detail path rather than serve another copy; unknown paths return `404`.
 
@@ -40,4 +40,4 @@ Detail-page filter/view/tracking parameters do not alter identity or content; ca
 
 ## Crawlability and indexing
 
-The [discoverability specification](../../openspec/specs/website/discoverability/spec.md) defines indexability, per-host crawler routes, metadata, supported Event JSON-LD, public visibility, and historical links. New content pages and curated country or genre landing pages remain separate future work; specify their indexing policy when their content and routes are selected.
+Use the [website source map](../project-structure.md#routes-and-scope) for indexability, crawler routes, metadata, and Event JSON-LD. New content pages and curated country or genre landing pages remain separate future work; specify their indexing policy when their content and routes are selected.

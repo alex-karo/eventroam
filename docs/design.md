@@ -10,7 +10,7 @@ tags: [design, website]
 
 Signal is the selected design direction for Eventroam. It combines a precise technical layout with the character of music and travel. Visitors use the catalog to compare events by date and place, then read event details.
 
-The catalog and project presentation use these shared rules. Check sizes and color pairs in the browser when you apply the design. Use the [current OpenSpec specs](../openspec/specs/) for behavior and the [change workflow](change-workflow.md#choose-a-workflow) to choose how to make a change.
+The catalog and project presentation use these shared rules. Check sizes and color pairs in the browser when you apply the design. Use code, tests, and current guides for behavior and the [change workflow](change-workflow.md#choose-a-workflow) to choose how to make a change.
 
 ## Reference and adaptation
 
@@ -70,7 +70,7 @@ Only floating panels need a soft shadow: start with `0 12px 32px rgb(21 21 34 / 
 
 ## Page layout
 
-Place the discovery controls above the list and map. Use the [discovery spec](../openspec/specs/website/discovery/spec.md) for the controls and result views. On desktop, start with a 360 px results panel on the left. On tablets, start with 300 px.
+Place the discovery controls above the list and map. Use the [discovery component](../src/features/discovery/discovery.tsx) for the controls and result views. On desktop, start with a 360 px results panel on the left. On tablets, start with 300 px.
 
 Keep the header compact, approximately 64 px on desktop. Keep filter access visible and prevent panels from covering required map attribution. Allow the list and panels to scroll within their available space. Hide footer result counts on mobile; keep the footer links visible.
 
@@ -94,7 +94,7 @@ Use Lavender for the selected row, with a Violet side rule and a pressed state o
 
 Primary action: Ink with white text. Secondary action: Surface with a Control border. Selected option: Lavender with Ink text and a Violet border. Preserve visible focus on all states. Disabled controls must still be readable and must expose their disabled state.
 
-Keep input labels above fields. Keep long values readable in the filter pickers. Follow the [discovery spec](../openspec/specs/website/discovery/spec.md) for pending and applied values, button summaries, and filter actions.
+Keep input labels above fields. Keep long values readable in the filter pickers. Use the [filter panel](../src/features/discovery/components/filter-panel.tsx) for pending and applied values, button summaries, and filter actions.
 
 ### Map and preview
 

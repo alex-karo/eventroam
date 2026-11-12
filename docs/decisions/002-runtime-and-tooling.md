@@ -16,7 +16,7 @@ Date: 2026-10-01
 
 Eventroam needs one English-language application with crawlable Event/Edition pages, a shared map/list catalog, and a local SQLite database. The owner requested the latest stable Node.js and a concrete tooling selection before scaffolding. [ADR 001](001-sqlite-and-drizzle.md) already selects SQLite and Drizzle; this decision implements the direction in the [development guide](../development.md).
 
-The backend supplies all discovery summaries, with full details loaded when a visitor opens a result. Map movement does not request another geographic subset. Desktop displays map and list together; smaller screens offer an easy switch between them. The precise division of filter execution between browser and server is a discovery-contract decision, not a reason to add another service. [Discovery](../../openspec/specs/website/discovery/spec.md) owns the behavior.
+The backend supplies all discovery summaries, with full details loaded when a visitor opens a result. Map movement does not request another geographic subset. Desktop displays map and list together; smaller screens offer an easy switch between them. The precise division of filter execution between browser and server is a discovery-contract decision, not a reason to add another service. The [discovery rules](../../src/features/discovery/model/discovery.ts) implement that behavior.
 
 ## Decision
 
@@ -24,7 +24,7 @@ Use one Next.js application, one package, and one dependency lockfile. Use the N
 
 ### Runtime and dependency baseline
 
-Dependency versions below were checked on 2026-10-01 against official documentation and publisher package metadata. On 2026-10-11, the owner selected Node.js 26.11.1; the locally installed release supplies npm 11.20.0. On 2026-10-27, the owner selected pnpm to share package storage across worktrees. Direct package releases and lint peer dependencies were checked again on 2026-10-27. TypeScript 6 and ESLint 9 remain required by the lint plugins. OpenSpec stays at 1.14.0: version 1.15.0 adds a 500-character requirement limit that fails strict validation for 12 current specs. Upgrade it after the requirements are split without changing their meaning. Recheck releases and peer dependencies during upgrades.
+Dependency versions below were checked on 2026-10-01 against official documentation and publisher package metadata. On 2026-10-11, the owner selected Node.js 26.11.1; the locally installed release supplies npm 11.20.0. On 2026-10-27, the owner selected pnpm to share package storage across worktrees. Direct package releases and lint peer dependencies were checked again on 2026-10-27. TypeScript 6 and ESLint 9 remain required by the lint plugins. OpenSpec is pinned to 1.14.0. The project now uses proposal checks and its local schema; see the [change workflow](../change-workflow.md). Check those commands and the native integration tests before an upgrade. Recheck releases and peer dependencies during upgrades.
 
 | Area | Selection | Reason and source |
 | --- | --- | --- |
@@ -77,7 +77,7 @@ Review stable release updates as maintenance changes. The Node policy remains la
 
 ## Deferred decisions
 
-- The original decision deferred agent execution and AI/source tooling. Owner-initiated local research has since been implemented with Mastra, OpenRouter, bounded HTTP reads and optional Firecrawl; its current boundaries are in the [project structure](../project-structure.md#ingestion-ownership), [ingestion workflow](../../openspec/specs/catalog/ingestion-workflow/spec.md), and [source access spec](../../openspec/specs/catalog/source-access/spec.md). Hosted Studio execution is available through the production image with external ingress authentication. Scheduling remains deferred.
+- The original decision deferred agent execution and AI/source tooling. Owner-initiated local research has since been implemented with Mastra, OpenRouter, bounded HTTP reads and optional Firecrawl; its current boundaries are in the [project structure](../project-structure.md#ingestion-ownership), [ingestion process](../ingestion-process.md), and [source reader guide](../source-reader.md). Hosted Studio execution is available through the production image with external ingress authentication. Scheduling remains deferred.
 - The exact Mapbox style, token values, budget limits, and any ingestion geocoder remain open. The v1 locality/country filter can use catalog fields without a geocoding service. Configure the selected style, tokens, attribution, and usage monitoring before public deployment.
 - Production hosting vendor, ingress/TLS tooling, backup destination/schedule, and monitoring service remain deployment decisions. Supporting several scope hostnames does not require a multi-service deployment.
 - Discovery payload schemas are implemented in the application. The confirmed requirement is all summaries with details on selection and no map-area fetching; the current application filters the complete scope summary set in the browser with shared server-rendering rules.

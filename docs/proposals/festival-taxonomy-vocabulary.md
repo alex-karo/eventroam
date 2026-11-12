@@ -8,7 +8,7 @@ tags: [taxonomy, festivals]
 
 # Festival taxonomy vocabulary proposal
 
-This document holds the selected starter terms and their assignment guidance. Ordinary catalog migrations load all 71 starter terms, including 56 genres. Implemented facet and classification behavior belongs to OpenSpec. Launch-data review may refine the vocabulary later.
+This document holds the selected starter terms and their assignment guidance. Ordinary catalog migrations load all 71 starter terms, including 56 genres. Code, tests, and current guides describe implemented facets and classifications. Launch-data review may refine the vocabulary later.
 
 Status: Starter vocabulary implemented in migrations; launch-data review pending, version 0.5
 
@@ -22,7 +22,7 @@ Historical implementation note (2026-10-11): Fresh development and eval vocabula
 
 ## 1 Context and outcome
 
-This proposal defines starter vocabulary and future evidence rules for classifying each Edition. [Edition classification](../../openspec/specs/catalog/classification/spec.md) owns implemented facet and assignment behavior, while [publication and details](../../openspec/specs/catalog/publication/spec.md) owns current scope and public visibility. The [rival research](../research/2026-09-19-filters-and-classification.md) informed the vocabulary, but its Event-inheritance proposal is superseded. This proposal does not select public filters or expand the catalog to concerts, conferences, retreats, or club nights.
+This proposal defines starter vocabulary and future evidence rules for classifying each Edition. The [classification code](../../src/catalog/domain/classification.ts) defines facets and assignments. The [publication code](../../src/catalog/domain/festival-edition-publication.ts) checks publication eligibility. The [rival research](../research/2026-09-19-filters-and-classification.md) informed the vocabulary, but its Event-inheritance proposal is superseded. This proposal does not select public filters or expand the catalog to concerts, conferences, retreats, or club nights.
 
 ## 2 Facets and starter terms
 
@@ -55,7 +55,7 @@ Choose the type that best matches the organizer's description and programme. A f
 
 Naming note (2026-10-11): `format/openair` replaces the former `format/outdoor` in application publication checks and fresh fixture vocabularies. The starter migration adds `format/openair` but does not rename or reassign the former `format/outdoor` in existing catalogs.
 
-Preserve raw source wording. “Hybrid” may mean online plus in-person. Physical format is optional for publication. An unknown format remains unassigned. Apply the [classification rules](../../openspec/specs/catalog/classification/spec.md#requirement-format-describes-the-setting-of-the-main-programme) to programme evidence, official names, and support facilities.
+Preserve raw source wording. “Hybrid” may mean online plus in-person. Physical format is optional for publication. An unknown format remains unassigned. Apply the [ingestion classification rules](../../src/ingestion/roles/classification/rules.ts) to programme evidence, official names, and support facilities.
 
 ### Programme topics
 

@@ -12,22 +12,22 @@ The review procedure in `SKILL.md` also works with other plan formats.
    Do not impose the current default schema on an older change.
 3. Get instructions for each artifact under review:
    `npm exec -- openspec instructions <artifact> --change "<name>" --json`.
-   Artifact examples include `proposal`, `specs`, `design`, and `tasks`.
+   Artifact examples include `proposal`, `design`, and `tasks`.
    Use `instruction`, `template`, `context`, and `rules` as review criteria when present.
    Apply the [project writing guide](../../../../docs/change-workflow.md#plan-a-behavior-change) to new or revised text. Keep unchanged historical headings.
    Do not override the selected schema with `--schema`.
    Read schema source only if the response is unavailable or incomplete.
    For `review-driven`, use the local [schema](../../../../openspec/schemas/review-driven/schema.yaml) as the fallback.
-4. Read the original request, relevant main specs, and accepted decisions before the proposed solution.
-5. Read the available proposal, design, delta specs, and tasks at the returned paths.
-6. When useful, run `npm exec -- openspec validate "<name>" --type change --strict`.
+4. Read the original request, affected code, tests, current guides, and accepted decisions before the proposed solution.
+5. Read the available proposal, design, and tasks at the returned paths.
+6. When useful, run `pnpm run openspec:validate -- "<name>"` from the resolved project root (add `--draft` for an incomplete planning prefix).
    Report structural failures separately from engineering findings.
 
 ## Check behavior and agreement
 
-- Compare delta specs with the main specs for unintended behavior loss.
-  Check each modified requirement against its complete main spec block, including all scenarios.
-- Check that the proposal, delta specs, design, and tasks agree on scope and behavior.
+- Compare proposal requirements with the request, accepted decisions, and current behavior for unintended behavior loss.
+  Check short results for users, operators, or external consumers and the separate Acceptance criteria section. Acceptance criteria check those results; internal mechanisms and test fixtures belong in design or tasks. Report misplaced implementation details and inventories of former specs without changing accepted behavior. Do not require WHEN/THEN scenarios or IDs.
+- Check that the proposal, design, and tasks agree on scope and behavior.
   Check that tasks cover the planned behavior and its verification.
 - Check that the design overview agrees with the details and that diagrams match the design.
 

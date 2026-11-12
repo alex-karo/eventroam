@@ -4,10 +4,13 @@ context: |
   Eventroam is an English-language worldwide event catalog. Initial scope covers
   open-air music festivals and burning-like gatherings.
   Read README.md for public sites and deployment status.
-  Main specs describe implemented behavior. Approved future work belongs in
-  active changes; unresolved decisions belong in docs/proposals/.
-  Group spec capabilities under catalog/, website/, or operations/ by domain.
-  Match each change delta's capability path to its main spec path.
+  Code, tests, and current guides describe implemented behavior.
+  Each active change has proposal.md, design.md, and tasks.md.
+  The proposal holds short added or changed requirements and a separate Acceptance criteria section.
+  Archived proposals are history, not a current product contract.
+  Unresolved decisions belong in docs/proposals/.
+  Use project validation and archive commands from docs/change-workflow.md.
+  The CLI-generated skip_specs marker skips upstream deltas only; it never waives proposal requirements.
   Use ASD-STE100 Simplified Technical English for all artifacts.
   Use short sentences and common words. State one idea per sentence and name
   the component that acts. Keep technical names, OpenSpec headings, and keywords exact.
@@ -17,9 +20,11 @@ context: |
 
 # Apply these writing rules to each change's selected schema.
 rules:
-  specs:
-    - Describe only behavior that a user, operator, or another system can observe. Keep implementation choices in design and data shapes and signatures in code.
-    - Keep observable validation rules, errors, and value meaning in specs. Use consistent domain terms and concrete WHEN/THEN results.
+  proposal:
+    - Describe only added or changed results for users, operators, or external consumers in short Requirements bullets. Use a separate Acceptance criteria section to check those results.
+    - Use plain statements without WHEN/THEN scenarios. IDs and MUST/SHALL are not required. Keep implementation choices in design and exact data shapes in code.
+    - Keep internal data structures, execution steps, and test fixtures in design or tasks. Include a technical detail in the proposal only when it defines a requested external contract.
+    - Use What Changes to summarize scope. Do not group changes by former spec names or add a New behavior / Changed behavior inventory.
   design:
     - Keep TL;DR first. Make it a compact, structured overview of the result, core idea, and main flow or responsibilities. Use labeled bullets, short paragraphs, or a small Mermaid diagram as needed. Put supporting detail in the sections below.
     - Write or revise TL;DR after the detailed design. Check that it agrees with the details and makes sense on its own. A simple design can contain only TL;DR if no further detail is needed.
