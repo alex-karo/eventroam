@@ -148,6 +148,8 @@ CATALOG_LOGGING=true CATALOG_TRACING=true pnpm run catalog:studio
 
 In Studio, open Observability → Logs, Traces or Metrics. Studio uses `CATALOG_OBSERVABILITY_DATABASE_PATH`, which defaults to `data/mastra-observability.duckdb`. Ingestion traces and metrics use the native workflow run ID. Trace metadata also contains the durable `ingestionRunId`; application logs and reports retain that durable ID. For standalone evaluation recording, see the [eval guide](ingestion-evals.md#usage-and-storage-failures). The [ingestion guide](ingestion-process.md#execution-metrics) describes metric eligibility, recorded fields, cost semantics and privacy boundaries.
 
+Open the `catalog-ingestion` root span to inspect failures. Its `ERROR` retains the available model exception message and stack. Its `metadata.failure` identifies the error code, role, model, and available HTTP status, provider code, retry flag, or exhausted limit. Its `OUTPUT.errors` contains the report errors, including validation messages when no exception occurred. Earlier traces keep their recorded fields.
+
 With Studio running, use the native Mastra CLI to inspect saved records without model credentials or a research run:
 
 ```sh

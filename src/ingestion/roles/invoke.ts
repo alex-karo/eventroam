@@ -463,7 +463,15 @@ export async function invokeRole<T>(
     ) {
       throw error;
     }
-    traceFailure(tracing, "research_failed");
+    traceFailure(tracing, "research_failed", {
+      error,
+      metadata: {
+        role,
+        model: config.model,
+        ...classified.diagnostic,
+        ...(classified.limit ? { limit: classified.limit.limit } : {}),
+      },
+    });
     execution.errors.push({
       code: classified.limit ? "limit_reached" : "model_failed",
       stage: options.role === "editor" ? "editor" : "research",
