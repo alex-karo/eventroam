@@ -423,8 +423,10 @@ test("selected preview shows all facts and opens both page links in a new tab", 
   expect(card.text()).toContain("Estimated size: 5,000 people");
   expect(card.text()).toContain("Tickets: Free");
   expect(card.find('a[href="https://festival.example/"]')).toHaveLength(1);
-  expect(card.find("button")).toHaveLength(1);
-  expect(card.find("button").attr("aria-label")).toBe("Close details");
+  expect(
+    card.find('button[aria-label="Expand details"]').attr("aria-expanded"),
+  ).toBe("false");
+  expect(card.find('button[aria-label="Close details"]')).toHaveLength(1);
   const pageLinks = card.find("h2 a, .view-edition");
   expect(pageLinks).toHaveLength(2);
   pageLinks.each((_, link) => {

@@ -128,7 +128,7 @@ export function DiscoveryMap({
   useEffect(() => {
     cameraInteracted.current = onCameraInteraction;
   }, [onCameraInteraction]);
-  const preserveManualCamera = useCallback(() => {
+  const preserveCurrentCamera = useCallback(() => {
     preserveCamera.current = true;
     cameraInteracted.current();
   }, []);
@@ -162,6 +162,8 @@ export function DiscoveryMap({
     ) {
       return;
     }
+    // The card can change the container size before its observer runs.
+    instance.resize();
     const rect = element.getBoundingClientRect();
     const projected = instance.project(coords);
     const workspace = element.closest(".discovery-stage");
@@ -191,13 +193,27 @@ export function DiscoveryMap({
           : rect.bottom,
     };
     const card = cardRef.current;
+    const cardRect = card?.getClientRects().length
+      ? card.getBoundingClientRect()
+      : null;
+    const obstruction = wide
+      ? cardRect
+      : element.parentElement
+          ?.querySelector('[aria-label="Map controls"]')
+          ?.getBoundingClientRect();
     const offset = selectionOffset(
       { x: projected.x + rect.left, y: projected.y + rect.top },
       available,
-      card?.getClientRects().length ? card.getBoundingClientRect() : null,
+      obstruction ?? null,
     );
     if (Math.abs(offset.x) > 0.5 || Math.abs(offset.y) > 0.5) {
-      instance.panBy([offset.x, offset.y], { duration: 0 });
+      instance.panTo(coords, {
+        offset: [
+          projected.x - offset.x - element.clientWidth / 2,
+          projected.y - offset.y - element.clientHeight / 2,
+        ],
+        duration: 0,
+      });
     }
   }, [cardRef, updateSelectedMarker]);
   const [error, setError] = useState<string | null>(null);
@@ -205,8 +221,22 @@ export function DiscoveryMap({
     select.current = onSelect;
   }, [onSelect]);
   useEffect(() => {
+    const previous = latestSummaries.current.find(
+      (item) => item.id === selectedId,
+    );
+    const next = summaries.find((item) => item.id === selectedId);
+    if (
+      selectedId === latestSelected.current &&
+      previous &&
+      next &&
+      (previous.latitude !== next.latitude ||
+        previous.longitude !== next.longitude)
+    ) {
+      // A catalog refresh can also resize the map when its error notice closes.
+      preserveCurrentCamera();
+    }
     latestSummaries.current = summaries;
-  }, [summaries]);
+  }, [summaries, selectedId, preserveCurrentCamera]);
   useEffect(() => {
     latestSelected.current = selectedId;
   }, [selectedId]);
@@ -354,7 +384,7 @@ export function DiscoveryMap({
         selectedMarker.current = new gl.Marker({ element: markerElement });
         instance.on("movestart", (event) => {
           if (event.originalEvent) {
-            preserveManualCamera();
+            preserveCurrentCamera();
           }
         });
         instance.on("moveend", () => {
@@ -529,7 +559,7 @@ export function DiscoveryMap({
       map.current = null;
     };
     // The map instance persists through filter and view changes.
-  }, [token, style, fitInitially, revealSelection, preserveManualCamera]);
+  }, [token, style, fitInitially, revealSelection, preserveCurrentCamera]);
 
   useEffect(() => {
     const instance = map.current;
@@ -587,7 +617,7 @@ export function DiscoveryMap({
           <button
             type="button"
             onClick={() => {
-              preserveManualCamera();
+              preserveCurrentCamera();
               map.current?.zoomIn();
             }}
             aria-label="Zoom in"
@@ -597,7 +627,7 @@ export function DiscoveryMap({
           <button
             type="button"
             onClick={() => {
-              preserveManualCamera();
+              preserveCurrentCamera();
               map.current?.zoomOut();
             }}
             aria-label="Zoom out"

@@ -6,15 +6,17 @@ const field = "Fictional Field Days 2027";
 const fieldEvent = "Fictional Field Days";
 const card = (page: Page) => page.locator(".detail-panel");
 const fieldRow = (page: Page) =>
-  page.getByRole("button", { name: `Select ${field}`, exact: true });
+  page.getByRole("button", {
+    name: `Select ${field}`,
+    exact: true,
+    includeHidden: true,
+  });
 const fieldPage = (page: Page) =>
-  page.getByRole("link", { name: `Open page for ${field}`, exact: true });
+  card(page).getByRole("link", { name: "Open page", exact: true });
 
 async function expectField(page: Page) {
   await expect(fieldRow(page)).toHaveAttribute("aria-pressed", "true");
-  if (!(await page.locator(".sheet-toggle").isVisible())) {
-    await expect(card(page).getByRole("heading")).toHaveText(fieldEvent);
-  }
+  await expect(card(page).getByRole("heading")).toHaveText(fieldEvent);
 }
 async function selectField(page: Page) {
   await fieldRow(page).click();
@@ -132,8 +134,24 @@ for (const width of [320, 390]) {
     const expanded = await page.locator(".results-panel").boundingBox();
     expect(expanded!.height).toBeGreaterThan(compact!.height);
     await selectField(page);
-    await expect(card(page)).toBeHidden();
-    await fieldPage(page).scrollIntoViewIfNeeded();
+    await expect(card(page)).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "List results" }),
+    ).toBeHidden();
+    await expect(card(page).locator(".preview-date")).toContainText(
+      "1–3 Jul 2027",
+    );
+    await expect(
+      card(page).getByText("Example Valley, Portugal", { exact: false }),
+    ).toBeVisible();
+    await expect(card(page).getByText("From €69.90")).toBeHidden();
+    await card(page).getByRole("button", { name: "Expand details" }).click();
+    await expect(card(page).getByText("From €69.90")).toBeVisible();
+    await expect(
+      card(page).getByRole("link", { name: "Festival website", exact: true }),
+    ).toBeVisible();
+    await card(page).getByRole("button", { name: "Collapse details" }).click();
+    await expect(card(page).getByText("From €69.90")).toBeHidden();
     await expect(fieldPage(page)).toBeInViewport();
     await expect(
       page.getByRole("region", { name: "Map results" }),
@@ -155,8 +173,83 @@ for (const width of [320, 390]) {
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
+    await details.close();
+    await card(page).getByRole("button", { name: "Close details" }).click();
+    await expect(fieldRow(page)).toBeFocused();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(
+      page.getByRole("region", { name: "List results" }),
+    ).toBeVisible();
   });
 }
+
+test("a short mobile card keeps its controls and page action reachable with a long title and a catalog error", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  const name =
+    "Fictional Festival of Independent Music and Arts with Performances from Across Portugal";
+  await page.route("**/api/discovery", (route) =>
+    route.fulfill({ status: 503, body: "Unavailable" }),
+  );
+  await page.route("**/api/discovery/*", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({
+      json: { ...(await response.json()), eventName: name },
+    });
+  });
+  await page.goto(query);
+  const retry = page.getByRole("button", { name: "Retry", exact: true });
+  await expect(retry).toBeVisible();
+  await fieldRow(page).click();
+  const selected = card(page);
+  await expect(selected.getByRole("heading")).toHaveText(name);
+
+  for (const action of [null, "Expand details", "Collapse details"]) {
+    if (action) {
+      await selected.getByRole("button", { name: action }).click();
+    }
+    await expect
+      .poll(() =>
+        selected.evaluate((element) => {
+          const panel = element.getBoundingClientRect();
+          const header = element
+            .querySelector(".card-header")!
+            .getBoundingClientRect();
+          const footer = element
+            .querySelector(".card-footer")!
+            .getBoundingClientRect();
+          const body = element.querySelector(".card-scroll")!;
+          const padding = getComputedStyle(body);
+          return {
+            headerInside:
+              header.top >= panel.top && header.bottom <= panel.bottom,
+            footerInside:
+              footer.top >= panel.top && footer.bottom <= panel.bottom,
+            bodyHasRoom:
+              body.clientHeight -
+                parseFloat(padding.paddingTop) -
+                parseFloat(padding.paddingBottom) >
+              0,
+          };
+        }),
+      )
+      .toMatchObject({
+        headerInside: true,
+        footerInside: true,
+        bodyHasRoom: true,
+      });
+  }
+
+  const popup = page.waitForEvent("popup");
+  await fieldPage(page).click();
+  const details = await popup;
+  await expect(details.getByRole("heading", { level: 1 })).toHaveText(field);
+  await details.close();
+  await retry.click();
+  await selected.getByRole("button", { name: "Close details" }).click();
+  await expect(fieldRow(page)).toBeFocused();
+});
 
 test("reload clears a selection removed from eligible results", async ({
   page,
@@ -233,7 +326,6 @@ test("mobile history restores list scroll at each sheet height", async ({
   const toggle = page.locator(".sheet-toggle");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await selectField(page);
   await page
     .getByRole("link", {
       name: "Open page for Fictional Rhône Sessions 2027",
@@ -248,13 +340,11 @@ test("mobile history restores list scroll at each sheet height", async ({
   expect(compactScroll).toBeGreaterThan(0);
   await page.goBack();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await expectField(page);
   await expect
     .poll(() => column.evaluate((element) => element.scrollTop))
     .toBeCloseTo(expandedScroll, 0);
   await page.goForward();
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await expectField(page);
   await expect
     .poll(() => column.evaluate((element) => element.scrollTop))
     .toBeCloseTo(compactScroll, 0);

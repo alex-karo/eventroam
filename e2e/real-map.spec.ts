@@ -42,6 +42,7 @@ async function expectClearSelection(page: Page) {
         ".results-panel",
         ".discovery-controls",
         ".discovery-months",
+        '[aria-label="Map controls"]',
       ]) {
         const panel = await page.locator(selector).boundingBox();
         if (!panel) {
@@ -62,6 +63,61 @@ async function expectClearSelection(page: Page) {
     .toBe(true);
 }
 
+test("a mobile tap opens the bottom card and keeps the selected point clear", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "mobile", "This checks touch selection.");
+  await page.goto("/?from=2027-01-01&to=2027-12-31&country=PT");
+  await expect
+    .poll(() => camera(page))
+    .toMatchObject({ zoom: expect.any(Number) });
+  const card = page.getByRole("region", { name: "Selected edition details" });
+  await page
+    .getByRole("button", {
+      name: "Show on map: Fictional Atlantic Sounds 2027",
+    })
+    .click();
+  await expect(card.getByRole("heading")).toHaveText(
+    "Fictional Atlantic Sounds",
+  );
+  await expectClearSelection(page);
+  const marker = (await page.locator(".selected-map-point").boundingBox())!;
+  const selectedMap = (await page.locator(".map-canvas").boundingBox())!;
+  await card.getByRole("button", { name: "Close details" }).click();
+  const map = (await page.locator(".map-canvas").boundingBox())!;
+  await expect
+    .poll(
+      async () =>
+        (await page.locator(".mapboxgl-canvas").boundingBox())?.height,
+    )
+    .toBeCloseTo(map.height, 0);
+  const before = await camera(page);
+
+  await page.touchscreen.tap(
+    marker.x + marker.width / 2,
+    marker.y + marker.height / 2 + (map.height - selectedMap.height) / 2,
+  );
+  await expect(card.getByRole("heading")).toHaveText(
+    "Fictional Atlantic Sounds",
+  );
+  await expect(
+    card.getByRole("link", { name: "Open page", exact: true }),
+  ).toBeInViewport();
+  await expect(page.getByRole("region", { name: "List results" })).toBeHidden();
+  await expectClearSelection(page);
+  expect((await camera(page)).zoom).toBeCloseTo(before.zoom, 6);
+
+  await card.getByRole("button", { name: "Expand details" }).click();
+  await expectClearSelection(page);
+  expect((await camera(page)).zoom).toBeCloseTo(before.zoom, 6);
+  const expanded = await camera(page);
+  await card.getByRole("button", { name: "Close details" }).click();
+  await expect(
+    page.getByRole("region", { name: "List results" }),
+  ).toBeVisible();
+  expect(await camera(page)).toEqual(expanded);
+});
+
 test("selecting a point covered by the results reveals it between overlays", async ({
   page,
 }, info) => {
@@ -73,6 +129,7 @@ test("selecting a point covered by the results reveals it between overlays", asy
     .toMatchObject({ zoom: expect.any(Number) });
   const select = page.getByRole("button", {
     name: "Show on map: Fictional Atlantic Sounds 2027",
+    includeHidden: true,
   });
   await select.click();
   await expect(page.locator(".detail-panel h2")).toHaveText(
@@ -153,13 +210,18 @@ for (const change of ["moved", "removed"] as const) {
     await page
       .getByRole("button", {
         name: "Show on map: Fictional Atlantic Sounds 2027",
+        includeHidden: true,
       })
       .click();
     await expect(
       page.getByRole("button", {
         name: "Show on map: Fictional Atlantic Sounds 2027",
+        includeHidden: true,
       }),
     ).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".detail-panel h2")).toHaveText(
+      "Fictional Atlantic Sounds",
+    );
     const point = page.locator(".selected-map-point");
     await expect(point).toBeInViewport();
     await expect
@@ -180,6 +242,7 @@ for (const change of ["moved", "removed"] as const) {
     await expect(
       page.getByRole("button", {
         name: `${change === "removed" ? "Select" : "Show on map:"} Fictional Atlantic Sounds 2027`,
+        includeHidden: true,
       }),
     ).toHaveAttribute("aria-pressed", "true");
   });
@@ -190,11 +253,13 @@ test("opening an edition tab preserves a camera panned away from the selection",
   await page.goto("/?from=2027-01-01&to=2027-12-31");
   const select = page.getByRole("button", {
     name: "Show on map: Fictional Atlantic Sounds 2027",
+    includeHidden: true,
   });
   await select.click();
   await expect(
     page.getByRole("button", {
       name: "Show on map: Fictional Atlantic Sounds 2027",
+      includeHidden: true,
     }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect
@@ -234,16 +299,16 @@ test("opening an edition tab preserves a camera panned away from the selection",
   await expect(
     page.getByRole("button", {
       name: "Show on map: Fictional Atlantic Sounds 2027",
+      includeHidden: true,
     }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(point).toHaveCount(1);
   await expect.poll(() => renderedCamera(page)).toEqual(rendered);
   if (info.project.name === "mobile") {
-    await page.locator(".sheet-toggle").click();
-    await expect(page.locator(".sheet-toggle")).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
+    await page.getByRole("button", { name: "Expand details" }).click();
+    await expect(
+      page.getByRole("button", { name: "Collapse details" }),
+    ).toHaveAttribute("aria-expanded", "true");
   } else {
     const viewport = page.viewportSize()!;
     await page.setViewportSize({ ...viewport, height: viewport.height + 40 });
@@ -259,6 +324,7 @@ test("opening an edition tab preserves a camera panned away from the selection",
   await expect(
     page.getByRole("button", {
       name: "Show on map: Fictional Atlantic Sounds 2027",
+      includeHidden: true,
     }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(point).toBeInViewport();
@@ -291,11 +357,13 @@ test("clustered selection stays visible and preserves the camera when opening de
   await page
     .getByRole("button", {
       name: "Show on map: Fictional Atlantic Sounds 2027",
+      includeHidden: true,
     })
     .click();
   await expect(
     page.getByRole("button", {
       name: "Show on map: Fictional Atlantic Sounds 2027",
+      includeHidden: true,
     }),
   ).toHaveAttribute("aria-pressed", "true");
   const point = page.locator(".selected-map-point");
@@ -308,20 +376,17 @@ test("clustered selection stays visible and preserves the camera when opening de
   await page
     .getByRole("button", {
       name: "Show on map: Fictional Atlantic Sounds 2027",
+      includeHidden: true,
     })
     .click();
-  await expect(
-    page.getByRole("link", {
-      name: "Open page for Fictional Atlantic Sounds 2027",
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(page.locator(".detail-panel .view-edition")).toBeVisible();
   const details = await openEdition(page, "Fictional Atlantic Sounds 2027");
   await expect(details.locator(".location-canvas canvas")).toBeVisible();
   await details.close();
   await expect(
     page.getByRole("button", {
       name: "Show on map: Fictional Atlantic Sounds 2027",
+      includeHidden: true,
     }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect.poll(() => camera(page)).toMatchObject({ zoom: selected.zoom });
@@ -342,11 +407,13 @@ test("marker hover resumes after close and unlocated selection leaves the camera
   await page
     .getByRole("button", {
       name: "Show on map: Fictional Atlantic Sounds 2027",
+      includeHidden: true,
     })
     .click();
   await expect(
     page.getByRole("button", {
       name: "Show on map: Fictional Atlantic Sounds 2027",
+      includeHidden: true,
     }),
   ).toHaveAttribute("aria-pressed", "true");
   const point = await page.locator(".selected-map-point").boundingBox();
@@ -366,6 +433,7 @@ test("marker hover resumes after close and unlocated selection leaves the camera
   await expect(
     page.getByRole("button", {
       name: "Show on map: Fictional Atlantic Sounds 2027",
+      includeHidden: true,
     }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".mapboxgl-popup")).toHaveCount(0);
@@ -392,11 +460,13 @@ test.describe("with the analytics banner", () => {
     await page
       .getByRole("button", {
         name: "Show on map: Fictional Atlantic Sounds 2027",
+        includeHidden: true,
       })
       .click();
     await expect(
       page.getByRole("button", {
         name: "Show on map: Fictional Atlantic Sounds 2027",
+        includeHidden: true,
       }),
     ).toHaveAttribute("aria-pressed", "true");
     await expectClearSelection(page);

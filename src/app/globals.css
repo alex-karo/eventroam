@@ -1044,6 +1044,9 @@ a:focus-visible {
 .card-controls button:hover {
   background: var(--tint);
 }
+.card-controls .card-expand {
+  display: none;
+}
 .card-controls .fact-icon {
   margin: 0;
 }
@@ -1845,8 +1848,67 @@ body {
   .discovery-results-shell.view-map .discovery-notices {
     padding: 8px;
   }
+  .discovery:has(.detail-panel) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(min-content, 1fr) auto;
+  }
+  .discovery-stage:has(.detail-panel) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(min-content, 1fr);
+  }
+  .discovery-results-shell[data-selected="true"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(120px, 1fr) auto minmax(min-content, 1fr);
+  }
+  .discovery-results-shell:has(.detail-panel[data-expanded="true"]) {
+    grid-template-rows: minmax(120px, 1fr) auto minmax(min-content, 2fr);
+  }
   .detail-panel {
+    display: grid;
+    grid-template-rows: auto minmax(3rem, 1fr) auto;
+    position: relative;
+    order: 2;
+    top: auto;
+    right: auto;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    min-height: min-content;
+    grid-row: 3;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 16px #15152218;
+  }
+  .detail-panel .card-scroll {
+    /* Keep long facts out of the card's minimum height. */
+    contain: size;
+  }
+  .card-controls .card-expand {
+    display: inline-flex;
+  }
+  .detail-panel[data-expanded="false"] .card-more {
     display: none;
+  }
+  .discovery-results-shell[data-selected="true"] .results-panel,
+  .discovery-results-shell[data-selected="true"] .list-column {
+    display: contents;
+  }
+  .discovery-results-shell[data-selected="true"] .results-heading,
+  .discovery-results-shell[data-selected="true"] .list-region {
+    display: none;
+  }
+  .discovery-results-shell[data-selected="true"] .discovery-notices {
+    order: 1;
+    grid-row: 2;
+    min-height: 0;
+    max-height: 25dvh;
+    overflow-y: auto;
+  }
+  .discovery-results-shell[data-selected="true"] .map-region {
+    grid-row: 1;
+    min-height: 120px;
   }
   .discovery-footer {
     gap: 0 24px;

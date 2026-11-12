@@ -1,5 +1,5 @@
 import { DateBlock } from "@/components/catalog/date-block";
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 import type { DetailState } from "@/features/discovery/hooks/use-selected-edition";
 import { editionPath } from "@/site/site";
 import { isPastEdition } from "@/catalog/domain/dates";
@@ -26,6 +26,7 @@ export function SelectedPreview({
   onRetry: (id: string) => void;
   now: Date;
 }>) {
+  const [expanded, setExpanded] = useState(false);
   if (detailState.status === "idle") {
     return null;
   }
@@ -36,6 +37,7 @@ export function SelectedPreview({
     <section
       ref={panelRef}
       className="detail-panel"
+      data-expanded={expanded}
       aria-live="polite"
       aria-label="Selected edition details"
     >
@@ -55,6 +57,17 @@ export function SelectedPreview({
           )}
         </h2>
         <div className="card-controls">
+          <button
+            className="card-expand"
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            aria-expanded={expanded}
+            aria-controls="selected-edition-more"
+            aria-label={expanded ? "Collapse details" : "Expand details"}
+            title={expanded ? "Collapse details" : "Expand details"}
+          >
+            <Icon name={expanded ? "chevron-down" : "chevron-up"} />
+          </button>
           <button
             type="button"
             onClick={onClose}
@@ -85,17 +98,23 @@ export function SelectedPreview({
               </div>
             </div>
             <Location edition={detail} />
-            <Terms edition={detail} />
-            <Size edition={detail} />
-            <TicketPrice edition={detail} now={now} />
-            <ExternalLinks
-              links={detail.links}
-              historicalYear={
-                isPastEdition(detail, now) ? detail.year : undefined
-              }
-            />
           </>
         )}
+        <div id="selected-edition-more" className="card-more">
+          {detail && (
+            <>
+              <Terms edition={detail} />
+              <Size edition={detail} />
+              <TicketPrice edition={detail} now={now} />
+              <ExternalLinks
+                links={detail.links}
+                historicalYear={
+                  isPastEdition(detail, now) ? detail.year : undefined
+                }
+              />
+            </>
+          )}
+        </div>
       </div>
       {detail && (
         <footer className="card-footer">

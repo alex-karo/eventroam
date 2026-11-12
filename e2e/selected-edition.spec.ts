@@ -1,19 +1,13 @@
 import { openFilter } from "./discovery-controls";
 import { expect, test, type Page, type Route } from "./fixtures";
 
-test.beforeEach(async ({}, info) => {
-  test.skip(
-    info.project.name === "mobile",
-    "The preview is a desktop and tablet panel.",
-  );
-});
-
 const year = "/?from=2027-01-01&to=2027-12-31";
 const preview = (page: Page) =>
   page.getByRole("region", { name: "Selected edition details" });
 const details = (page: Page, name: string) =>
   page.getByRole("button", {
     name: `${name.includes("Field Days") ? "Select" : "Show on map:"} ${name}`,
+    includeHidden: true,
   });
 
 async function fulfillAndSettle(page: Page, route: Route) {
@@ -44,7 +38,7 @@ test("a month that excludes the selected edition keeps month focus", async ({
 
 test("a late first response cannot replace a newer selection", async ({
   page,
-}) => {
+}, info) => {
   const pending: Route[] = [];
   await page.route("**/api/discovery/*", (route) => {
     pending.push(route);
@@ -53,6 +47,9 @@ test("a late first response cannot replace a newer selection", async ({
 
   await details(page, "Fictional Atlantic Sounds 2027").click();
   await expect.poll(() => pending.length).toBe(1);
+  if (info.project.name === "mobile") {
+    await preview(page).getByRole("button", { name: "Close details" }).click();
+  }
   await details(page, "Fictional Field Days 2027").click();
   await expect.poll(() => pending.length).toBe(2);
 
@@ -127,4 +124,41 @@ test("retry keeps the original opener and Escape closes filters before details",
   await page.keyboard.press("Escape");
   await expect(preview(page)).toHaveCount(0);
   await expect(opener).toBeFocused();
+});
+
+test("closing a mobile card restores the list view and scroll position", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "mobile", "This checks the mobile card.");
+  await page.setViewportSize({ width: 390, height: 568 });
+  await page.goto(`${year}&view=list`);
+  const last = details(page, "Fictional Rhône Sessions 2027");
+  await last.scrollIntoViewIfNeeded();
+  const column = page.locator(".list-column");
+  const scroll = await column.evaluate((element) => element.scrollTop);
+  expect(scroll).toBeGreaterThan(0);
+
+  await last.click();
+  const card = preview(page);
+  await expect(card.getByRole("heading")).toHaveText(
+    "Fictional Rhône Sessions",
+  );
+  await expect(page.getByRole("region", { name: "List results" })).toBeHidden();
+  await card.getByRole("button", { name: "Expand details" }).click();
+  await card.getByRole("button", { name: "Close details" }).click();
+
+  await expect(last).toBeFocused();
+  await expect(page.locator(".sheet-toggle")).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  await expect
+    .poll(() => column.evaluate((element) => element.scrollTop))
+    .toBeCloseTo(scroll, 0);
+  await expect(page).toHaveURL(`${year}&view=list`);
+
+  await last.click();
+  await expect(
+    card.getByRole("button", { name: "Expand details" }),
+  ).toHaveAttribute("aria-expanded", "false");
 });

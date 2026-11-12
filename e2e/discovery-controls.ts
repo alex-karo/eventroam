@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 export async function openFilter(
   page: Page,
@@ -26,9 +26,17 @@ export async function clearFilters(page: Page) {
 }
 
 export async function openEdition(page: Page, name: string) {
+  let link = page.getByRole("link", {
+    name: `Open page for ${name}`,
+    exact: true,
+    includeHidden: true,
+  });
+  if (!(await link.isVisible())) {
+    const href = await link.getAttribute("href");
+    link = page.locator(".detail-panel .view-edition");
+    await expect(link).toHaveAttribute("href", href!);
+  }
   const popup = page.waitForEvent("popup");
-  await page
-    .getByRole("link", { name: `Open page for ${name}`, exact: true })
-    .click();
+  await link.click();
   return popup;
 }
