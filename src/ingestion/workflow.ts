@@ -1154,6 +1154,7 @@ export function createCatalogIngestionWorkflow(
     return saved;
   }
   const historyControl = {
+    activeCount: () => attempts.size,
     async assertCanStart(store: WorkflowsStorage, runId: string) {
       if (attempts.has(runId)) {
         throw new Error("Ingestion attempt already active");

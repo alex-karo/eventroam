@@ -33,6 +33,7 @@ jobs:
       - run: pnpm run format:check
       - run: pnpm run docs:check
       - run: pnpm run test:db-transfer
+      - run: pnpm run test:backup
       - run: pnpm run test:openspec
       - name: Validate active change plans
         run: pnpm run openspec:validate -- --draft
