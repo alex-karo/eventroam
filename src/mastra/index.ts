@@ -11,6 +11,7 @@ import { createStudioJobs } from "./jobs";
 import { createApplicationLogger } from "../ingestion/runtime/logging";
 import { createAssistantLogging } from "./catalog-assistant/logging";
 import { catalogEditApproval } from "./catalog-assistant/edit-approval";
+import { createMaintenanceControl } from "./maintenance";
 
 const chatPath = chatDatabasePath();
 const { workflow, storage } = await studioResources();
@@ -20,9 +21,11 @@ const chat = await createChatMemory(chatPath).catch(async () => {
 });
 const logging = createAssistantLogging();
 const assistant = createCatalogAssistant(chat.memory, undefined, logging);
+const maintenance = createMaintenanceControl();
 const jobs = createStudioJobs(
   workflow,
   logging && createApplicationLogger(logging),
+  maintenance,
 );
 
 export const mastra = new Mastra(
@@ -49,6 +52,7 @@ mastra.setServer({
   ...mastra.getServer(),
   apiRoutes: [jobs.route],
   middleware: [
+    maintenance.middleware,
     catalogEditApproval(assistant),
     ingestionExecutionGuard(workflow.historyControl, storage),
   ],

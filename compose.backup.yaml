@@ -1,0 +1,35 @@
+services:
+  database:
+    image: ${EVENTROAM_BACKUP_IMAGE:?Run this file through backup.sh.}
+    entrypoint: [node, commands/backup.mjs]
+    network_mode: none
+    mem_limit: 1g
+    cpus: 1
+    volumes:
+      - data:/data
+  restic:
+    image: restic/restic:0.19.1
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        : "$${RESTIC_REPOSITORY:?Set RESTIC_REPOSITORY in the deployment env file.}"
+        : "$${AWS_DEFAULT_REGION:?Set AWS_DEFAULT_REGION in the deployment env file.}"
+        : "$${AWS_ACCESS_KEY_ID:?Set AWS_ACCESS_KEY_ID in the deployment env file.}"
+        : "$${AWS_SECRET_ACCESS_KEY:?Set AWS_SECRET_ACCESS_KEY in the deployment env file.}"
+        exec restic --insecure-no-password --no-cache --retry-lock 5m "$$@"
+      - restic
+    environment:
+      - RESTIC_REPOSITORY
+      - AWS_DEFAULT_REGION
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+    mem_limit: 768m
+    cpus: 1
+    volumes:
+      - data:/data:ro
+
+volumes:
+  data:
+    external: true
+    name: eventroam_data

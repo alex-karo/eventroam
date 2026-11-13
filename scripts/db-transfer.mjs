@@ -18,6 +18,8 @@ function shellQuote(value) {
 function remoteScript(direction, worker, withMastra) {
   const code = `${worker}\nmain(process.argv.slice(1)).catch(error => { console.error(error.message); process.exitCode = 1; });`;
   return `set -euo pipefail
+exec 9>/var/lock/eventroam-maintenance.lock
+flock -n 9 || { echo 'Eventroam maintenance is already running.' >&2; exit 1; }
 find_service() {
   local ids
   ids=$(docker ps -aq --filter label=com.docker.compose.project=eventroam --filter label=com.docker.compose.service="$1" --filter label=com.docker.compose.oneoff=False)

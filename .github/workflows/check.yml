@@ -33,6 +33,7 @@ jobs:
       - run: pnpm run format:check
       - run: pnpm run docs:check
       - run: pnpm run test:db-transfer
+      - run: pnpm run test:backup
       - run: pnpm run test:openspec
       - name: Validate active change plans
         run: pnpm run openspec:validate -- --draft
@@ -47,5 +48,9 @@ jobs:
           name: test-coverage
           path: coverage/
           retention-days: 14
+      - name: Set up Docker Compose
+        uses: docker/setup-compose-action@v2
+        with:
+          version: v5.7.1
       - name: Build images and check Compose
         run: pnpm run docker:smoke

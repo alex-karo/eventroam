@@ -34,7 +34,8 @@
     "docker:smoke": "node scripts/compose-smoke.mjs",
     "db:pull": "node --env-file-if-exists=.env scripts/db-transfer.mjs pull",
     "db:push": "node --env-file-if-exists=.env scripts/db-transfer.mjs push",
-    "test:db-transfer": "node --test scripts/db-transfer.test.mjs"
+    "test:db-transfer": "node --test scripts/db-transfer.test.mjs",
+    "test:backup": "node --test scripts/backup.test.mjs"
   },
   "dependencies": {
     "@mastra/core": "1.79.0",
