@@ -4,6 +4,8 @@ umask 077
 
 # This lock is shared with Compose and database transfer commands.
 exec 9>/var/lock/eventroam-maintenance.lock
+chgrp docker /var/lock/eventroam-maintenance.lock
+chmod 0660 /var/lock/eventroam-maintenance.lock
 flock -n 9 || { echo 'Eventroam maintenance is already running.' >&2; exit 1; }
 
 mode=${1:-run}
@@ -45,17 +47,20 @@ application() {
   docker compose --env-file /dev/null -f "$app_dir/compose.yaml" -p eventroam "$@"
 }
 restart_services() {
-  local result=0 service
+  local result=0 service pending=()
   if [[ $paused == true ]]; then
-    job database resume || result=1
-    paused=false
+    if job database resume; then paused=false; else result=1; fi
   fi
   if (( ${#running[@]} )); then
     for service in "${running[@]}"; do
-      application start --wait --wait-timeout 120 "$service" >/dev/null || result=1
+      if ! application start --wait --wait-timeout 120 "$service" >/dev/null; then
+        pending+=("$service")
+        result=1
+      fi
     done
   fi
   running=()
+  if (( ${#pending[@]} )); then running=("${pending[@]}"); fi
   return "$result"
 }
 finish() {
@@ -63,7 +68,7 @@ finish() {
   trap - EXIT
   # Stop a surviving backup worker before opening the application files again.
   docker rm -f "$job_container" >/dev/null 2>&1 || true
-  restart_services || result=1
+  restart_services || { result=1; restart_services || true; }
   rm -rf -- "$tmp_dir"
   exit "$result"
 }
@@ -103,8 +108,8 @@ fi
 for service in web studio; do
   if [[ $(docker inspect -f '{{.State.Running}}' "${!service}") == true ]]; then running+=("$service"); fi
 done
-job database pause
 paused=true
+job database pause
 if [[ $(docker inspect -f '{{.State.Running}}' "$studio") == true ]]; then
   docker exec "$studio" node commands/backup.mjs drain
 fi

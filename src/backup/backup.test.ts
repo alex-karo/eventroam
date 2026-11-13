@@ -10,11 +10,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import Database from "better-sqlite3";
-import { DuckDBStore } from "@mastra/duckdb";
+import { DuckDBConnection, DuckDBStore } from "@mastra/duckdb";
 import { LibSQLStore } from "@mastra/libsql";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
 import { applyRetention } from "./retention";
+import { checkDatabases } from "./storage";
 
 const day = 86_400_000;
 const old = (days: number) => new Date(Date.now() - days * day).toISOString();
@@ -172,4 +173,64 @@ test("Mastra and file-age retention preserve recent and durable data", async ({
   } finally {
     await db.close();
   }
+});
+
+test("prepare and verify reject a DuckDB read error after the first chunk", async ({
+  onTestFinished,
+}) => {
+  const root = mkdtempSync(join(tmpdir(), "eventroam-backup-scan-"));
+  onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+  for (const name of [
+    "eventroam",
+    "mastra-workflows",
+    "mastra-chat",
+    "mastra-evals",
+  ]) {
+    const db = new Database(join(root, `${name}.sqlite`));
+    db.exec("CREATE TABLE data (id INTEGER)");
+    db.close();
+  }
+  const db = new DuckDBConnection({
+    path: join(root, "mastra-observability.duckdb"),
+    threads: 1,
+    memoryLimit: "512MB",
+  });
+  try {
+    await db.execute('CREATE SCHEMA "source""data"');
+    await db.execute(
+      'CREATE TABLE "source""data"."saved""rows" AS SELECT i FROM range(5000) t(i)',
+    );
+    await db.execute("CHECKPOINT");
+  } finally {
+    await db.close();
+  }
+  const connect = DuckDBConnection.prototype.getConnection;
+  let reads = 0;
+  const spy = vi
+    .spyOn(DuckDBConnection.prototype, "getConnection")
+    .mockImplementation(async function (this: DuckDBConnection) {
+      const connection = await connect.call(this);
+      const stream = connection.stream.bind(connection);
+      vi.spyOn(connection, "stream").mockImplementation(async (...args) => {
+        const result = await stream(...args);
+        const fetch = result.fetchChunk.bind(result);
+        let chunks = 0;
+        vi.spyOn(result, "fetchChunk").mockImplementation(async () => {
+          reads++;
+          if (chunks++ > 0) {
+            throw new Error("Unreadable DuckDB data block");
+          }
+          return fetch();
+        });
+        return result;
+      });
+      return connection;
+    });
+  onTestFinished(() => spy.mockRestore());
+  for (const checkpoint of [true, false]) {
+    await expect(checkDatabases(root, checkpoint)).rejects.toThrow(
+      "Unreadable DuckDB data block",
+    );
+  }
+  expect(reads).toBe(4);
 });

@@ -51,7 +51,31 @@ export async function checkDatabases(root: string, checkpoint: boolean) {
       memoryLimit: "512MB",
     });
     try {
-      await db.query("SELECT count(*) FROM information_schema.tables");
+      const tables = await db.query<{
+        table_catalog: string;
+        table_schema: string;
+        table_name: string;
+      }>(
+        "SELECT table_catalog, table_schema, table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE'",
+      );
+      const connection = await db.getConnection();
+      try {
+        for (const table of tables) {
+          const identifier = [
+            table.table_catalog,
+            table.table_schema,
+            table.table_name,
+          ]
+            .map((part) => `"${part.replaceAll('"', '""')}"`)
+            .join(".");
+          const result = await connection.stream(`SELECT * FROM ${identifier}`);
+          while ((await result.fetchChunk())?.rowCount) {
+            // Read and discard each chunk to keep memory use bounded.
+          }
+        }
+      } finally {
+        connection.closeSync();
+      }
       if (checkpoint) {
         await db.execute("CHECKPOINT");
       }

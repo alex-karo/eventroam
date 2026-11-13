@@ -119,6 +119,8 @@ The host command uses `/var/lock/eventroam-maintenance.lock`. Eventroam Compose
 deployments, one-shot commands through the wrapper, and `db:pull`/`db:push` use
 the same lock. A competing operation fails before it changes the data. Do not
 start unmanaged database commands or use manual container controls during a job.
+The backup sets the lock group to `docker` with mode `0660`. This lets transfer
+accounts in that group open the lock. Backup output keeps the private `077` umask.
 
 The job follows this sequence:
 
@@ -129,7 +131,8 @@ The job follows this sequence:
    hour for active ingestion and write requests, including response streams, to finish. If it
    stays busy, clear the pause and report failure without stopping the services.
 3. Stop the running database users. Check SQLite integrity and foreign keys,
-   truncate SQLite WAL files, checkpoint DuckDB, and close all maintenance
+   truncate SQLite WAL files, stream all DuckDB base tables to check their data,
+   checkpoint DuckDB, and close all maintenance
    connections. Restart the read-only website after this
    preparation; Studio remains stopped for upload and local cleanup.
 4. Back up the stable files directly to S3. No second full local DuckDB copy is
@@ -146,6 +149,7 @@ The job follows this sequence:
    containers without changing their settings and waits for their health checks.
    Keep a previously stopped Studio stopped. Normal
    failures also restore this service state and report a nonzero result.
+   The exit handler retries failed pause cleanup and service starts.
 7. Run `forget --keep-within 6m --prune` for the stable `eventroam` host and tag,
    then `restic check`. These operations run after application startup. A failure
    appears in the existing Komodo Action status and logs.
