@@ -133,7 +133,7 @@ The job follows this sequence:
    hour for active ingestion and write requests, including response streams, to finish. If it
    stays busy, clear the pause and report failure without stopping the services.
 3. Stop the running database users. Check SQLite integrity and foreign keys,
-   truncate SQLite WAL files, stream all DuckDB base tables to check their data,
+   truncate SQLite WAL files, scan all values in DuckDB base tables,
    checkpoint DuckDB, and close all maintenance
    connections. Restart the read-only website after this
    preparation; Studio remains stopped for upload and local cleanup.

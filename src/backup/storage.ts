@@ -68,7 +68,10 @@ export async function checkDatabases(root: string, checkpoint: boolean) {
           ]
             .map((part) => `"${part.replaceAll('"', '""')}"`)
             .join(".");
-          const result = await connection.stream(`SELECT * FROM ${identifier}`);
+          // Scan all values while keeping large payloads out of result buffers.
+          const result = await connection.stream(
+            `SELECT bit_xor(hash(COLUMNS(*))) FROM ${identifier}`,
+          );
           while ((await result.fetchChunk())?.rowCount) {
             // Read and discard each chunk to keep memory use bounded.
           }
