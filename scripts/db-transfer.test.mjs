@@ -60,14 +60,20 @@ function fixture(t) {
 const {spawnSync} = require('node:child_process');
 let command = process.argv.at(-1);
 command = command.replaceAll('/data/', process.env.TEST_ROOT + '/remote/');
-command = command.replaceAll('/var/lock/eventroam-maintenance.lock', process.env.TEST_ROOT + '/maintenance.lock');
+command = command.replaceAll('/etc/komodo/stacks/eventroam', process.env.TEST_ROOT + '/remote');
 const result = spawnSync('bash', ['-c', command], {stdio:'inherit'});
 process.exit(result.status ?? 1);
 `,
   );
   writeTool(
     "flock",
-    "process.exit(process.env.TEST_LOCKED === 'true' ? 1 : 0);",
+    `
+const fs = require('node:fs');
+const lock = fs.fstatSync(9);
+const project = fs.statSync(process.env.TEST_ROOT + '/remote');
+if (!lock.isDirectory() || lock.dev !== project.dev || lock.ino !== project.ino) process.exit(2);
+process.exit(process.env.TEST_LOCKED === 'true' ? 1 : 0);
+`,
   );
   writeTool(
     "docker",

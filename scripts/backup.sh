@@ -2,16 +2,14 @@
 set -euo pipefail
 umask 077
 
-# This lock is shared with Compose and database transfer commands.
-exec 9>/var/lock/eventroam-maintenance.lock
-chgrp docker /var/lock/eventroam-maintenance.lock
-chmod 0660 /var/lock/eventroam-maintenance.lock
+app_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+# Compose and database transfer commands lock this same directory.
+exec 9<"$app_dir"
 flock -n 9 || { echo 'Eventroam maintenance is already running.' >&2; exit 1; }
 
 mode=${1:-run}
 shift "$(( $# > 0 ? 1 : 0 ))"
 case "$mode" in run|verify|restic|resume) ;; *) echo 'Expected run, verify SNAPSHOT DIRECTORY, restic ARGS, or resume.' >&2; exit 1 ;; esac
-app_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 env_file=$app_dir/.env
 compose_file=$app_dir/compose.backup.yaml
 # Use the deployed inputs rather than S3 settings from the calling shell.

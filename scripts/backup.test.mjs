@@ -6,7 +6,6 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -32,8 +31,16 @@ function fixture(t, exit = 0, studio = true, failures = {}) {
     writeFileSync(path, `#!${process.execPath} --\n${code}`);
     chmodSync(path, 0o700);
   };
-  tool("flock", "process.exit(0);");
-  tool("chgrp", "process.exit(process.argv[2] === 'docker' ? 0 : 1);");
+  tool(
+    "flock",
+    `
+const fs = require('node:fs');
+const lock = fs.fstatSync(9);
+const project = fs.statSync(process.env.TEST_ROOT);
+if (!lock.isDirectory() || lock.dev !== project.dev || lock.ino !== project.ino) process.exit(2);
+process.exit(process.env.TEST_LOCKED === 'true' ? 1 : 0);
+`,
+  );
   tool(
     "docker",
     `
@@ -80,15 +87,13 @@ process.exit(code);
   const script = join(root, "scripts/backup.sh");
   writeFileSync(
     script,
-    readFileSync(new URL("./backup.sh", import.meta.url), "utf8").replaceAll(
-      "/var/lock/eventroam-maintenance.lock",
-      join(root, "maintenance.lock"),
-    ),
+    readFileSync(new URL("./backup.sh", import.meta.url), "utf8"),
   );
   const env = {
     ...process.env,
     PATH: `${root}:${process.env.PATH}`,
     TEST_STATE: state,
+    TEST_ROOT: root,
     TEST_BACKUP_EXIT: String(exit),
   };
   const run = () =>
@@ -97,8 +102,17 @@ process.exit(code);
       encoding: "utf8",
       timeout: 15000,
     });
-  return { root, run, state: () => JSON.parse(readFileSync(state)) };
+  return { root, run, env, state: () => JSON.parse(readFileSync(state)) };
 }
+
+test("a locked project stops backup before Docker or database work", (t) => {
+  const f = fixture(t);
+  f.env.TEST_LOCKED = "true";
+  const result = f.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /maintenance is already running/);
+  assert.deepEqual(f.state().calls, []);
+});
 
 test("a successful backup precedes cleanup, restart, and repository retention", (t) => {
   for (const studio of [true, false]) {
@@ -106,10 +120,6 @@ test("a successful backup precedes cleanup, restart, and repository retention", 
       result = f.run();
     assert.equal(result.status, 0, result.stderr);
     const state = f.state();
-    assert.equal(
-      statSync(join(f.root, "maintenance.lock")).mode & 0o777,
-      0o660,
-    );
     assert.equal(state.umask, 0o077);
     for (const args of state.calls.filter((x) => x[0] === "compose")) {
       assert.equal(

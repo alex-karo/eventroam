@@ -115,12 +115,14 @@ does not pass these variables.
 
 ## Daily operation
 
-The host command uses `/var/lock/eventroam-maintenance.lock`. Eventroam Compose
-deployments, one-shot commands through the wrapper, and `db:pull`/`db:push` use
-the same lock. A competing operation fails before it changes the data. Do not
-start unmanaged database commands or use manual container controls during a job.
-The backup sets the lock group to `docker` with mode `0660`. This lets transfer
-accounts in that group open the lock. Backup output keeps the private `077` umask.
+The host command locks the project directory `/etc/komodo/stacks/eventroam`.
+Eventroam Compose deployments, one-shot commands through the wrapper, and
+`db:pull`/`db:push` lock the same directory. Each command opens it read-only;
+no lock file or group setup is required. A competing operation fails before it
+changes the data. Do not remove or recreate the checkout while a job runs:
+a replacement directory would have a separate lock. Do not start unmanaged
+database commands or use manual container controls during a job.
+Backup output keeps the private `077` umask.
 
 The job follows this sequence:
 
