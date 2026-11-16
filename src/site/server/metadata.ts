@@ -16,15 +16,32 @@ export function pageMetadata(
   title: string,
   description: string,
   url: string,
-  index = true,
+  {
+    index = true,
+    image = "eventroam",
+  }: { index?: boolean; image?: "eventroam" | "festivals" } = {},
 ): Metadata {
+  const socialImage = {
+    url: new URL(`/social/${image}.png`, url).href,
+    width: 1200,
+    height: 630,
+    type: "image/png",
+    alt:
+      image === "festivals"
+        ? "Eventroam. Find your next festival."
+        : "Eventroam. A catalog of structured data.",
+  };
   return {
     title,
     description,
     alternates: { canonical: url },
     robots: { index, follow: true },
-    openGraph: { type: "website", title, description, url },
-    twitter: { card: "summary", title, description },
+    openGraph: {
+      type: "website",
+      siteName: "Eventroam",
+      url,
+      images: [socialImage],
+    },
   };
 }
 
@@ -38,6 +55,7 @@ export function eventMetadata(event: PublicEvent, origin: string): Metadata {
     `${event.name} | Eventroam`,
     startsWithName ? text : `${event.name}. ${text}`,
     `${origin}${eventPath(event.slug)}`,
+    { image: "festivals" },
   );
 }
 
@@ -64,5 +82,6 @@ export function editionMetadata(
     `${event.name} ${edition.year} | ${status} | Eventroam`,
     `${name}, ${edition.year}. ${status}.${postponement} ${tentative}${dateLabel}: ${dates}. ${text}`,
     `${origin}${editionPath(event.slug, edition.key)}`,
+    { image: "festivals" },
   );
 }
