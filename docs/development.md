@@ -34,6 +34,10 @@ Studio processes background ingestion while `pnpm run catalog:studio` is running
 
 See the [analytics guide](analytics.md) for PostHog settings, events, campaign links, and browser opt-out.
 
+## Brand images
+
+Edit [icon.svg](../src/app/icon.svg) for the logo and [generate-brand-assets.mjs](../scripts/generate-brand-assets.mjs) for social card text and layout. Run `pnpm run brand:generate` to update the ICO, device icons, avatar, and social cards. Commit the generated images with their sources. The website serves these files directly; the build does not generate them.
+
 ## Common checks
 
 Run checks that apply to your change:
