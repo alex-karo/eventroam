@@ -4,6 +4,7 @@ export type PublicEdition = {
   key: string;
   eventSlug: string;
   eventName: string;
+  shortDescription: string | null;
   name: string | null;
   year: number;
   startsOn: string;

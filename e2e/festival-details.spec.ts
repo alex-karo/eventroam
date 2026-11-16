@@ -12,7 +12,7 @@ const fieldRow = (page: Page) =>
     includeHidden: true,
   });
 const fieldPage = (page: Page) =>
-  card(page).getByRole("link", { name: "Open page", exact: true });
+  card(page).getByRole("link", { name: "View festival", exact: true });
 
 async function expectField(page: Page) {
   await expect(fieldRow(page)).toHaveAttribute("aria-pressed", "true");
@@ -364,14 +364,14 @@ test("desktop preview shows all facts and opens pages in new tabs", async ({
     .getByRole("link", { name: "Festival website", exact: true })
     .press("Tab");
   await expect(
-    card(page).getByRole("link", { name: "Visitor information", exact: true }),
+    card(page).getByRole("link", { name: "Tickets", exact: true }),
   ).toBeFocused();
   await expect(
-    card(page).getByRole("link", { name: "Open page", exact: true }),
+    card(page).getByRole("link", { name: "View festival", exact: true }),
   ).toBeInViewport();
   for (const link of [
     card(page).getByRole("link", { name: fieldEvent, exact: true }),
-    card(page).getByRole("link", { name: "Open page", exact: true }),
+    card(page).getByRole("link", { name: "View festival", exact: true }),
   ]) {
     const popup = page.waitForEvent("popup");
     await link.click();

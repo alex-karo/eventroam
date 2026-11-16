@@ -16,6 +16,7 @@ const edition: PublicEdition = {
   key: "2027",
   eventSlug: "test-event",
   eventName: "Test Event",
+  shortDescription: null,
   name: null,
   year: 2027,
   startsOn: "2027-07-01",

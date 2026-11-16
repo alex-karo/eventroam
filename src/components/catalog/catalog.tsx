@@ -47,13 +47,18 @@ export function Dates({
 export function Location({
   edition,
   showPrecision = false,
-}: Readonly<{ edition: PublicEdition; showPrecision?: boolean }>) {
+  compact = false,
+}: Readonly<{
+  edition: PublicEdition;
+  showPrecision?: boolean;
+  compact?: boolean;
+}>) {
   const located = edition.latitude !== null && edition.longitude !== null;
   return (
     <p className="fact">
       <Icon name="place" />
       <span>
-        {placeName(edition)}
+        {placeName(edition, compact)}
         {showPrecision &&
           located &&
           edition.coordinatePrecision !== "exact" &&
@@ -154,10 +159,10 @@ export function TicketPrice({
     </p>
   );
 }
-export function Terms({ edition }: Readonly<{ edition: PublicEdition }>) {
-  return edition.terms.length > 0 ? (
+export function Terms({ terms }: Readonly<{ terms: PublicEdition["terms"] }>) {
+  return terms.length > 0 ? (
     <ul className="fact-tags" aria-label="Festival types and music">
-      {edition.terms
+      {terms
         .toSorted(
           (a, b) => Number(b.facet === "genre") - Number(a.facet === "genre"),
         )
@@ -172,12 +177,16 @@ export function Terms({ edition }: Readonly<{ edition: PublicEdition }>) {
     </ul>
   ) : null;
 }
-export function Size({ edition }: Readonly<{ edition: PublicEdition }>) {
+export function Size({
+  edition,
+  showLabel = true,
+}: Readonly<{ edition: PublicEdition; showLabel?: boolean }>) {
   return edition.sizeEstimate !== null ? (
     <p className="fact">
       <Icon name="people" />
-      <span>
-        Estimated size: {edition.sizeEstimate.toLocaleString("en")} people
+      <span title={showLabel ? undefined : "Estimated number of people"}>
+        {showLabel ? "Estimated size: " : "≈"}
+        {edition.sizeEstimate.toLocaleString("en")} people
       </span>
     </p>
   ) : null;

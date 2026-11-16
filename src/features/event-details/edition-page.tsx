@@ -72,7 +72,7 @@ export function EditionDetailsPage({
             <DateBlock date={edition.startsOn} />
             <div className="edition-heading">
               <h1>{edition.name ?? `${event.name} ${edition.year}`}</h1>
-              <Terms edition={edition} />
+              <Terms terms={edition.terms} />
             </div>
           </div>
           <div className="edition-overview">
