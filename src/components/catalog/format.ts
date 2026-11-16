@@ -41,16 +41,13 @@ export function placeName(
     PublicEdition,
     "venueName" | "locality" | "administrativeArea" | "countryCode"
   >,
+  compact = false,
 ) {
+  const places = compact
+    ? [edition.locality || edition.administrativeArea || edition.venueName]
+    : [edition.venueName, edition.locality, edition.administrativeArea];
   return [
-    ...new Set(
-      [
-        edition.venueName,
-        edition.locality,
-        edition.administrativeArea,
-        countryName(edition.countryCode),
-      ].filter(Boolean),
-    ),
+    ...new Set([...places, countryName(edition.countryCode)].filter(Boolean)),
   ].join(", ");
 }
 export function basePrice(edition: PublicEdition): string | null {

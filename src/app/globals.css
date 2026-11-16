@@ -988,10 +988,10 @@ a:focus-visible {
 .detail-panel {
   position: absolute;
   z-index: 4;
-  top: 62px;
+  top: 104px;
   right: 14px;
-  width: min(360px, calc(100vw - 28px));
-  max-height: calc(100% - 76px);
+  width: min(360px, calc(100% - var(--results-width) - 72px));
+  max-height: calc(100% - 220px);
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -1004,18 +1004,13 @@ a:focus-visible {
 .detail-panel p {
   margin: 7px 0;
 }
-.detail-panel ul {
-  margin: 5px 0 10px;
-  padding-left: 20px;
-}
 .card-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: 8px;
   flex: none;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--line);
+  padding: 16px 20px 0;
 }
 .detail-panel .card-header h2 {
   margin: 0;
@@ -1023,7 +1018,7 @@ a:focus-visible {
   max-height: 5.4em;
   overflow-y: auto;
   overflow-wrap: anywhere;
-  font: 700 20px/1.25 var(--font-sans);
+  font: 700 24px/1.25 var(--font-sans);
   letter-spacing: -0.5px;
 }
 .card-controls {
@@ -1054,7 +1049,7 @@ a:focus-visible {
   flex: 1 1 auto;
   overflow-y: auto;
   min-height: 0;
-  padding: 14px 18px;
+  padding: 8px 20px 20px;
   overscroll-behavior: contain;
   overflow-wrap: anywhere;
 }
@@ -1063,24 +1058,52 @@ a:focus-visible {
 }
 .card-footer {
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   flex: none;
-  padding: 8px 14px;
-  border-top: 1px solid var(--line);
+  padding: 0 20px 20px;
 }
 .detail-panel .view-edition {
   display: inline-flex;
-  min-height: 32px;
+  flex: 1;
+  min-width: 124px;
+  min-height: 44px;
   align-items: center;
-  gap: 6px;
-  padding: 4px 0;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--panel-radius);
+  background: var(--accent);
   line-height: 20px;
-  font-size: 13px;
-  color: var(--accent);
+  font-size: 14px;
+  color: white;
   font-weight: 500;
 }
+.detail-panel .view-edition:hover {
+  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
+  text-decoration: none;
+}
 .view-edition .fact-icon {
+  width: 16px;
+  height: 16px;
   margin: 0;
+}
+.detail-panel .external-links-icons {
+  flex: 0 1 auto;
+  width: auto;
+  gap: 4px;
+  padding: 0;
+}
+.external-links-icons .external-link {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: var(--panel-radius);
+}
+.external-links-icons .fact-icon {
+  width: 18px;
+  height: 18px;
 }
 .date-facts {
   display: flex;
@@ -1108,25 +1131,6 @@ a:focus-visible {
   color: var(--muted);
   font-size: 0.85em;
 }
-.card-date-facts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 8px;
-}
-.card-date-facts .fact {
-  flex: 1 1 220px;
-}
-.card-date-facts .edition-state {
-  margin: 0 0 4px 30px;
-  font-size: 0.8em;
-  color: var(--muted);
-}
-.card-date-facts .state-cancelled,
-.card-date-facts .state-postponed {
-  color: var(--error);
-  font-weight: 700;
-}
 .price-amount {
   font-size: 1.08em;
 }
@@ -1145,9 +1149,6 @@ a:focus-visible {
 .fact-tags .term-general {
   border-color: transparent;
   color: var(--muted);
-}
-.detail-panel .fact-tags {
-  padding: 0;
 }
 .selected-map-point {
   box-sizing: border-box;
@@ -1281,20 +1282,58 @@ a:focus-visible {
   margin-top: 8px;
   font-size: 14px;
 }
+.preview-facts {
+  display: grid;
+  gap: 12px;
+}
+.detail-panel .fact {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+}
+.detail-panel .fact > .fact-icon {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+}
 .preview-date {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
+  gap: 6px;
 }
-.preview-date .edition-date {
-  margin-top: 8px;
+.preview-date .fact {
+  font-size: 15px;
 }
-.preview-date .fact-icon {
+.detail-panel .preview-date .edition-state {
+  margin: 0 0 0 28px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.detail-panel .preview-date .state-cancelled,
+.detail-panel .preview-date .state-postponed {
+  color: var(--error);
+  font-weight: 700;
+}
+.detail-panel .card-more:empty {
   display: none;
 }
-.preview-date .edition-state {
-  margin-left: 0;
+.detail-panel .fact-tags {
+  margin: 0 0 18px;
+}
+.detail-panel .fact-tags .term-genre {
+  border-color: transparent;
+  border-radius: var(--panel-radius);
+  padding: 3px 9px;
+  font-size: 12px;
+}
+.detail-panel .preview-summary {
+  margin: 20px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
 }
 @media (max-width: 740px) {
   .catalog.edition-details {
@@ -1640,11 +1679,6 @@ body {
   background: var(--tint);
   box-shadow: inset 3px 0 var(--accent);
 }
-.detail-panel {
-  top: 104px;
-  max-height: calc(100% - 220px);
-  width: min(320px, calc(100% - var(--results-width) - 72px));
-}
 .discovery-footer {
   flex: none;
   display: flex;
@@ -1695,7 +1729,7 @@ body {
   .detail-panel {
     top: 104px;
     right: 16px;
-    width: min(280px, calc(100% - 348px));
+    width: min(320px, calc(100% - 348px));
   }
   .filter-trigger-value {
     max-width: 90px;
@@ -1851,12 +1885,12 @@ body {
   .discovery:has(.detail-panel) {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(min-content, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
   }
   .discovery-stage:has(.detail-panel) {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(min-content, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
   .discovery-results-shell[data-selected="true"] {
     display: grid;
@@ -1884,6 +1918,17 @@ body {
   .detail-panel .card-scroll {
     /* Keep long facts out of the card's minimum height. */
     contain: size;
+    padding: 8px 16px 16px;
+  }
+  .detail-panel .card-header {
+    padding: 8px 16px 0;
+  }
+  .detail-panel .card-header h2 {
+    max-height: 2.5em;
+    font-size: 20px;
+  }
+  .detail-panel .card-footer {
+    padding: 0 16px 12px;
   }
   .card-controls .card-expand {
     display: inline-flex;

@@ -57,10 +57,12 @@ export function ExternalLinks({
   links,
   historicalYear,
   primaryUrl,
+  iconsOnly = false,
 }: Readonly<{
   links: PublicEdition["links"];
   historicalYear?: number;
   primaryUrl?: string;
+  iconsOnly?: boolean;
 }>) {
   if (!links.length) {
     return null;
@@ -69,7 +71,12 @@ export function ExternalLinks({
     (a, b) => Number(b.url === primaryUrl) - Number(a.url === primaryUrl),
   );
   return (
-    <div className="external-links" aria-label="External links">
+    <div
+      className={
+        iconsOnly ? "external-links external-links-icons" : "external-links"
+      }
+      aria-label="External links"
+    >
       {named.map((link, index) => {
         let icon = link.kind;
         if (link.kind === "ticketing") {
@@ -95,7 +102,7 @@ export function ExternalLinks({
             aria-label={link.name}
           >
             <Icon name={icon} />
-            <span>{link.name}</span>
+            {!iconsOnly && <span>{link.name}</span>}
           </a>
         );
       })}

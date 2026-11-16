@@ -9,6 +9,7 @@ const edition: PublicEdition = {
   soldOut: false,
   ...testFixtures().build.summary({ id: "edition-1" }),
   eventId: "event-1",
+  shortDescription: null,
   venueAddress: null,
   latitude: null,
   longitude: null,
