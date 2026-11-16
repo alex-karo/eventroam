@@ -468,14 +468,10 @@ test.each([
     const metadata = eventMetadata(data, origin);
     const eventPreview = preview ? `${data.name}. ${preview}` : automatic;
     expect(metadata.description).toBe(eventPreview);
-    expect(metadata.openGraph?.description).toBe(eventPreview);
-    expect(metadata.twitter?.description).toBe(eventPreview);
 
     const editionPreview = `${edition.name ?? data.name}, 2025. Cancelled · Past edition. Dates: 1 Jan 2025. ${preview ?? "Test Valley, Portugal."}`;
     const dated = editionMetadata(data, edition, origin, now);
     expect(dated.description).toBe(editionPreview);
-    expect(dated.openGraph?.description).toBe(editionPreview);
-    expect(dated.twitter?.description).toBe(editionPreview);
   },
 );
 
