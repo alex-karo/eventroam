@@ -354,6 +354,21 @@ export function createCatalogIngestionWorkflow(
           ? `${owned.deps.todayUtc}T12:00:00.000Z`
           : new Date(owned.started).toISOString(),
       );
+      if (data.context.inputDuplicate) {
+        const match = data.context.inputDuplicate;
+        owned.trace?.setEventName(match.matchedName);
+        data.researchValidation = {
+          status: "skip",
+          diagnostics: {
+            ...initialDiagnostics(),
+            matchedEventId: match.eventId,
+            validation: { structural: "passed", target: "not_run" },
+          },
+        };
+        data.outcome = "skipped";
+        data.report = buildResearchReport(owned.reportInput(data));
+        return data.context;
+      }
       if (owned.input.mode === "refresh") {
         owned.trace?.setEventName(data.context.catalog[0].canonicalName);
         const saved = data.context.catalog[0].editions;

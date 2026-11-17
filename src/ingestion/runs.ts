@@ -288,7 +288,7 @@ export function hasHostFailure(result: CatalogResearchResult) {
 
 /** Output diagnostics do not pretend the still-running row was finalized. */
 export function persistenceFailureReport(error: RunPersistenceError) {
-  return error.report
+  const report = error.report
     ? {
         ...error.report,
         runId: error.runId,
@@ -302,4 +302,8 @@ export function persistenceFailureReport(error: RunPersistenceError) {
         ],
       }
     : undefined;
+  if (report) {
+    delete report.inputDuplicate;
+  }
+  return report;
 }

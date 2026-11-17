@@ -145,3 +145,72 @@ test("sends the full add note and reports a history storage failure safely", asy
     await studio.close();
   }
 });
+
+test.each([true, false])(
+  "an early duplicate summary exits successfully (preview=%s)",
+  async (dryRun) => {
+    const studio = await localServer(async (req, res) => {
+      const runId = new URL(req.url!, "http://localhost").searchParams.get(
+        "runId",
+      );
+      const { inputData } = JSON.parse(await text(req));
+      expect(inputData).toEqual({
+        mode: "add",
+        input: "Example Fest, us",
+        dryRun,
+        republish: false,
+      });
+      res.end(
+        JSON.stringify({
+          status: "success",
+          result: {
+            engineRunId: runId,
+            ingestionRunId: "early-run",
+            mode: "add",
+            dryRun,
+            outcome: "skipped",
+            researchStatus: "success",
+            editorStatus: "not_run",
+            locationStatus: "not_run",
+            persistenceStatus: "completed",
+            eventId: "saved-event",
+            scope: null,
+            errorCodes: [],
+          },
+        }),
+      );
+    });
+    const stdout = vi.fn();
+    try {
+      expect(
+        await executeCatalogCommand(
+          [
+            "add",
+            "--input",
+            "Example Fest, us",
+            "--json",
+            "--url",
+            studio.url,
+            ...(dryRun ? [] : ["--apply"]),
+          ],
+          { stdout, stderr: vi.fn() },
+        ),
+      ).toBe(0);
+      expect(JSON.parse(stdout.mock.calls[0][0])).toMatchObject({
+        dryRun,
+        failures: [],
+        results: [
+          {
+            outcome: "skipped",
+            eventId: "saved-event",
+            researchStatus: "success",
+            editorStatus: "not_run",
+            persistenceStatus: "completed",
+          },
+        ],
+      });
+    } finally {
+      await studio.close();
+    }
+  },
+);

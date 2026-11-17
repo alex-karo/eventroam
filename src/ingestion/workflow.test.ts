@@ -80,6 +80,188 @@ const input = {
   initiatedBy: "fixture-owner",
 };
 
+test.each([
+  { support: "country", dryRun: true },
+  { support: "country", dryRun: false },
+  { support: "url", dryRun: true },
+  { support: "url", dryRun: false },
+])(
+  "early $support duplicate skips all source, model, and writer work (dryRun=$dryRun)",
+  async ({ support, dryRun }) => {
+    const { client } = fixture();
+    const fx = testFixtures(client);
+    const event = fx.event({
+      canonicalName: "Example Fest",
+      aliases: ["Sample Party"],
+    });
+    fx.edition(event, { countryCode: support === "country" ? "US" : null });
+    if (support === "url") {
+      fx.eventLink(event, { url: "https://example.com/", official: true });
+    }
+    const before = catalogState(client);
+    const readPage = vi.fn();
+    const searchWeb = vi.fn();
+    const readSource = vi.fn();
+    const generateRole = vi.fn();
+    const generateLocation = vi.fn();
+    const apply = vi.spyOn(applyModule, "applyCatalogItem");
+    const report = await runCatalogResearch(
+      {
+        ...input,
+        dryRun,
+        input:
+          support === "country"
+            ? "Sample Party, us"
+            : "Example Fest [site](https://example.com/)",
+      },
+      {
+        client,
+        readPage,
+        searchWeb,
+        readSource,
+        generateRole,
+        generateLocation,
+      },
+    );
+    expect(report).toMatchObject({
+      schemaVersion: 7,
+      outcome: "skipped",
+      researchStatus: "success",
+      eventId: event.id,
+      inputDuplicate: {
+        eventId: event.id,
+        matchedName: support === "country" ? "Sample Party" : "Example Fest",
+        support:
+          support === "country"
+            ? { countryCode: "US" }
+            : { officialUrl: "https://example.com/" },
+      },
+      budget: { pages: 0, searches: 0, modelCalls: 0 },
+      sources: [],
+      operations: [],
+      receipts: [],
+      changes: [],
+      modelResponse: null,
+      editorStatus: "not_run",
+      locationStatus: "not_run",
+    });
+    for (const external of [
+      readPage,
+      searchWeb,
+      readSource,
+      generateRole,
+      generateLocation,
+      apply,
+    ]) {
+      expect(external).not.toHaveBeenCalled();
+    }
+    expect(catalogState(client)).toEqual(before);
+    expect(
+      client
+        .prepare("SELECT status,event_id FROM ingestion_runs WHERE id=?")
+        .get(report.runId),
+    ).toEqual({ status: "completed", event_id: event.id });
+  },
+);
+
+test("registered workflow returns a successful early-skip summary", async () => {
+  const { client } = fixture();
+  const fx = testFixtures(client);
+  const event = fx.event({ canonicalName: "Example Fest" });
+  fx.edition(event, { countryCode: "US" });
+  const generateRole = vi.fn();
+  const workflow = createCatalogIngestionWorkflow(async () => ({
+    deps: { client, generateRole },
+  }));
+  const run = await workflow.createRun({ runId: "early-skip" });
+  const result = await run.start({
+    inputData: studioIngestionInputSchema.parse({
+      mode: "add",
+      input: "Example Fest, us",
+    }),
+  });
+  expect(result.status).toBe("success");
+  if (result.status !== "success") {
+    return;
+  }
+  expect(result.result).toMatchObject({
+    outcome: "skipped",
+    researchStatus: "success",
+    persistenceStatus: "completed",
+    eventId: event.id,
+    editorStatus: "not_run",
+    locationStatus: "not_run",
+    errorCodes: [],
+  });
+  expect(generateRole).not.toHaveBeenCalled();
+});
+
+test("an unresolved duplicate note reaches collection unchanged", async () => {
+  const { client } = fixture();
+  const fx = testFixtures(client);
+  fx.edition(fx.event({ canonicalName: "Example Fest" }), {
+    countryCode: null,
+  });
+  const note =
+    "  Example Fest, us, [website](https://example.com/en/index)\nKeep this note.  ";
+  const base = dependencies();
+  const collect = vi.fn(base.generateRole!);
+  const report = await runCatalogResearch(
+    { ...input, input: note },
+    { client, generateRoles: { research: collect } },
+  );
+  expect(collect).toHaveBeenCalled();
+  expect(JSON.parse(collect.mock.calls[0][1]).researchNote).toBe(note);
+  expect(report).not.toHaveProperty("inputDuplicate");
+});
+
+test.each(["report", "persistence"])(
+  "early duplicate retains the current %s failure path",
+  async (stage) => {
+    const { client } = fixture();
+    const fx = testFixtures(client);
+    fx.edition(fx.event({ canonicalName: "Example Fest" }), {
+      countryCode: "US",
+    });
+    const generateRole = vi.fn();
+    if (stage === "report") {
+      vi.spyOn(reportModule, "buildResearchReport").mockImplementationOnce(
+        () => {
+          throw new Error("SECRET");
+        },
+      );
+      const report = await runCatalogResearch(
+        { ...input, input: "Example Fest, us" },
+        { client, generateRole },
+      );
+      expect(report).toMatchObject({
+        outcome: "failed",
+        researchStatus: "failed",
+      });
+      expect(report).not.toHaveProperty("inputDuplicate");
+      expect(report.errors.map(({ code }) => code)).toContain(
+        "workflow_failed",
+      );
+    } else {
+      vi.spyOn(runsModule, "finalizeIngestionRun").mockImplementationOnce(
+        (_client, runId, report) => {
+          throw new RunPersistenceError(runId, report);
+        },
+      );
+      await expect(
+        runCatalogResearch(
+          { ...input, input: "Example Fest, us" },
+          { client, generateRole },
+        ),
+      ).rejects.toThrow(RunPersistenceError);
+      expect(client.prepare("SELECT status FROM ingestion_runs").get()).toEqual(
+        { status: "running" },
+      );
+    }
+    expect(generateRole).not.toHaveBeenCalled();
+  },
+);
+
 function dependencies() {
   return {
     ...fixtureDependencies(),

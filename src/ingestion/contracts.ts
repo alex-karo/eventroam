@@ -14,6 +14,7 @@ import {
 import type { GeocodingClient } from "./tools/geocode/contracts";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { ResearchContext } from "./research/context";
+import type { InputDuplicateMatch } from "./research/input-duplicate";
 import {
   emptyEditorExecution,
   type EditorExecution,
@@ -65,6 +66,8 @@ export type CatalogResearchResult = {
     "created" | "updated" | "published" | "unchanged" | "skipped" | "failed";
   eventId?: string;
   researchStatus: ResearchStatus;
+  /** A successful skip based on the request and saved catalog, without source reads. */
+  inputDuplicate?: InputDuplicateMatch;
   /** Final model output before normalization. */
   modelResponse: { text: string | null; object: unknown } | null;
   classificationResponse: RoleExecution["modelResponse"];

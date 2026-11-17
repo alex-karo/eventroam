@@ -197,7 +197,7 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
   const { submitAddJobs } = await import("../../../../ingestion/jobs/store");
   const db = testDatabase();
   const batch = submitAddJobs(db.client, {
-    inputs: ["x".repeat(70000), ...Array(9).fill("Event research note")],
+    inputs: ["x".repeat(70000), ...Array(11).fill("Event research note")],
   });
   const jobs = db.client
     .prepare("SELECT id FROM ingestion_jobs ORDER BY position")
@@ -326,6 +326,34 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
         }),
       );
   }
+  const supports = [
+    { countryCode: "US" },
+    { officialUrl: "https://example.com/" },
+  ];
+  for (const [index, support] of supports.entries()) {
+    db.client
+      .prepare(
+        "INSERT INTO ingestion_runs(id,job_id,event_id,mode,status,started_at,input_json,report_json) VALUES(?,?,?,'add','completed','2026-11-04','{\"dryRun\":false}',?)",
+      )
+      .run(
+        `early-${index}`,
+        jobs[10 + index],
+        "existing",
+        JSON.stringify({
+          schemaVersion: 7,
+          outcome: "skipped",
+          researchStatus: "success",
+          eventId: "existing",
+          inputDuplicate: {
+            eventId: "existing",
+            matchedName: "Example Fest",
+            support,
+          },
+          modelResponse: null,
+          sources: [],
+        }),
+      );
+  }
   const sql = readFileSync(
     new URL(
       "../../skills/catalog-sql/references/inspect-add-batch.sql",
@@ -334,7 +362,7 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
     "utf8",
   ).trim();
   const result = queryCatalog(db.path, { sql, parameters: [batch.batchId] });
-  expect(result).toMatchObject({ ok: true, rowCount: 10, truncated: false });
+  expect(result).toMatchObject({ ok: true, rowCount: 12, truncated: false });
   if (!result.ok) {
     throw new Error("Expected valid query");
   }
@@ -342,7 +370,7 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
     Object.fromEntries(result.columns.map((column, i) => [column, row[i]])),
   );
   expect(rows.map((row) => row.position)).toEqual([
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
   ]);
   expect(rows[0]).toMatchObject({
     preview: 1,
@@ -360,6 +388,7 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
     outcome: "skipped",
     identityDecision: "duplicate",
     reportedEventId: "existing",
+    inputDuplicate: null,
   });
   expect(rows[3]).toMatchObject({
     outcome: "failed",
@@ -406,5 +435,30 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
       proposedCreation: 1,
       changedCreation: 0,
     });
+  }
+  for (const [index, support] of supports.entries()) {
+    expect(rows[10 + index]).toMatchObject({
+      runStatus: "completed",
+      researchStatus: "success",
+      outcome: "skipped",
+      reportedEventId: "existing",
+      identityDecision: null,
+    });
+    expect(JSON.parse(rows[10 + index].inputDuplicate as string)).toEqual({
+      eventId: "existing",
+      matchedName: "Example Fest",
+      support,
+    });
+    const run = queryCatalog(db.path, {
+      sql: INSPECT_RUN_SQL,
+      parameters: [`early-${index}`],
+    });
+    expect(run).toMatchObject({ ok: true, rowCount: 1 });
+    if (!run.ok) {
+      throw new Error("Expected valid single-run query");
+    }
+    expect(
+      JSON.parse(run.rows[0][run.columns.indexOf("inputDuplicate")] as string),
+    ).toEqual({ eventId: "existing", matchedName: "Example Fest", support });
   }
 });

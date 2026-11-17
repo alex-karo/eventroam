@@ -19,6 +19,77 @@ import {
 
 const failed = { checks: [], unresolved: [] };
 
+test("queued country and URL duplicate skips complete without external work", async () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  const event = fx.event({ canonicalName: "Example Fest" });
+  fx.edition(event, { countryCode: "US" });
+  fx.eventLink(event, { url: "https://example.com/", official: true });
+  submitAddJobs(client, {
+    inputs: ["Example Fest, us", "Example Fest https://example.com/"],
+    dryRun: false,
+  });
+  const generateRole = vi.fn();
+  const readPage = vi.fn();
+  const controller = new AbortController();
+  const reports: Awaited<ReturnType<typeof runFixtureResearch>>[] = [];
+  const work = processJobs({
+    client,
+    signal: controller.signal,
+    execute: async (job) => {
+      const input = jobWorkflowInput(job);
+      if (input.mode !== "add") {
+        throw new Error("Expected an add job");
+      }
+      reports.push(
+        await runFixtureResearch(
+          { ...input, actor: "test" },
+          { client, jobId: job.id, generateRole, readPage },
+        ),
+      );
+    },
+  });
+  try {
+    await expect
+      .poll(
+        () =>
+          client
+            .prepare("SELECT count(*) FROM ingestion_jobs WHERE status='done'")
+            .pluck()
+            .get(),
+        { timeout: 5000 },
+      )
+      .toBe(2);
+  } finally {
+    controller.abort();
+    await work;
+  }
+  expect(reports.map((report) => report.inputDuplicate?.support)).toEqual([
+    { countryCode: "US" },
+    { officialUrl: "https://example.com/" },
+  ]);
+  expect(
+    client
+      .prepare(
+        "SELECT status,event_id,job_id FROM ingestion_runs ORDER BY rowid",
+      )
+      .all(),
+  ).toEqual([
+    { status: "completed", event_id: event.id, job_id: expect.any(String) },
+    { status: "completed", event_id: event.id, job_id: expect.any(String) },
+  ]);
+  for (const report of reports) {
+    expect(report).toMatchObject({
+      outcome: "skipped",
+      researchStatus: "success",
+      sources: [],
+      budget: { pages: 0, searches: 0, modelCalls: 0 },
+    });
+  }
+  expect(generateRole).not.toHaveBeenCalled();
+  expect(readPage).not.toHaveBeenCalled();
+});
+
 test.each(["before-attempt", "after-finalize"])(
   "restart at %s preserves completed writes and earlier attempts",
   async (phase) => {

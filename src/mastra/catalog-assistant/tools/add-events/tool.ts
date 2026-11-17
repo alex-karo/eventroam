@@ -13,7 +13,7 @@ export function createAddEventsTool(
   return createTool({
     id: "add_events",
     description:
-      "Submit one to 200 complete descriptions for background add. All text is search leads. dryRun defaults to preview; false applies. One selection per execution. Returns batch ID and accepted count. Read progress and reports through query_catalog.",
+      "Submit one to 200 complete descriptions for background add. A complete name or alias plus a clear country code or full official URL can skip one saved Event before source reads. Other text supplies search leads; new facts need inspected sources. dryRun defaults to preview; false applies. One selection per execution. Returns batch ID and accepted count. Read progress and reports through query_catalog.",
     inputSchema: addJobsInputSchema,
     execute: async (input, context) =>
       submitSelection(

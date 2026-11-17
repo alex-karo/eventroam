@@ -31,7 +31,7 @@ Each attempt uses this fixed Mastra graph. Workflow retries and restart are disa
 
 | Step | Responsibility |
 | --- | --- |
-| `initialize-run`, `load-context` | Validate the request, create the durable attempt, and load catalog context. |
+| `initialize-run`, `load-context` | Validate the request and create the durable attempt. Check add notes for a known Event before source work; otherwise load catalog context. |
 | `read-initial-source` | Save the initial source and run Reader. |
 | `collect-sources` | Research chooses sources; freeze the source list and evidence after admitted work settles. |
 | `general-facts` | General confirms identity and selects the two Edition slots. A confirmed duplicate add stops here. Runs without a known Edition stop here too. |
@@ -69,6 +69,14 @@ Current assumes a prior full run established Event identity/shared links. It omi
 ## Load catalog context
 
 `refresh` loads current facts and saved links for each selected Event. `add` loads catalog context to check whether the festival already exists. Research receives shared evidence/output rules plus only its add, full or current assignment; omitted refresh scope selects full. The full prompt does not include current-only stop/completion exceptions.
+
+Before Reader or any source or model call, add checks the complete saved Event name and aliases in the note. Country and URL are optional extra signals. One name candidate with a matching known country can return `skipped` without a URL. A full official Event URL can resolve a name candidate when country is absent or unknown. A name alone or shared hostname is insufficient. Missing country keeps a candidate in consideration. Conflicting signals, conflicting saved countries, and unresolved candidates continue ordinary research.
+
+Country input uses an assigned two-letter code as a complete comma-, semicolon-, or line-separated field, or after `country:`. Case does not matter. For example, `example fest, us` can skip one saved US Event. Text inside matched names and URL tokens supplies no country code. Other country wording stays available for ordinary research. Several explicit countries prevent an early skip.
+
+The check compares full official Event URLs, including social links. A different path, such as saved `https://example.com/` and supplied `https://example.com/en/index`, does not block a unique name-and-country match. A shared host alone cannot resolve a match. An exact URL for a different Event is a conflict.
+
+This local check reads names, country codes, and relevant link fields. An early match loads no full catalog or Edition history. It trusts the note and saved catalog without fresh source confirmation. Incorrect input or different Events with the same name and country can cause a wrong skip. Use refresh to update an existing Event. If the shortcut does not apply, the full original note reaches ordinary collection. New Events still use the current full catalog context for General.
 
 ## Research and propose facts
 
@@ -201,9 +209,11 @@ Use [saved source evidence](ingestion-tools.md#saved-source-evidence) to inspect
 
 The current report separates research, editor, and Location status from the catalog outcome. It includes old/new changes with reasons, errors by stage, unresolved questions, source summaries, retrieval history, limits, and workload. Add and refresh retain the fixed run date; refresh also retains scope.
 
+An early add skip has optional `inputDuplicate` with the Event ID, matched name or alias, and supporting `countryCode` or full `officialUrl`. Report version 7 stays the same; older reports can omit this field. Here, `researchStatus: "success"` means the early rule completed. Research, Reader, General, Editor, and Location do no work. Source lists, model responses, operations, receipts, and changes are empty, and page, search, and model-call counts are zero. The durable attempt completes with the existing Event ID in preview and apply. This report records a request/catalog match; a General duplicate records a decision from inspected sources. Failed and missing reports remain distinct.
+
 Raw model responses remain available, including invalid Editor output. Report version 7 can record each return with its path, owner, trigger, note and available result. The workflow releases the native conversation when the attempt ends. Reports and workflow history keep the decisions and evidence used in the attempt. Omitted facts preserve saved values. Actual mutations and reasons also appear in the writer audit. No-op checks create no audit.
 
-Every started attempt has a private `ingestion_runs` row and durable `runId`. Studio saves the final report automatically. Open the workflow's build-report step to inspect it. Current consumers reject older report versions. See [report contracts](../src/ingestion/report.ts) and `src/ingestion/report.ts` for the exact report shape.
+Every started attempt has a private `ingestion_runs` row and durable `runId`. Studio saves the final report automatically. Open the workflow's build-report step to inspect an ordinary report. An early report is in load-context and the final saved state. Current consumers reject older report versions. See [report contracts](../src/ingestion/report.ts) and `src/ingestion/report.ts` for the exact report shape.
 
 With `--apply`, success and partial results use the atomic writer. Failed research, editing or required Location writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research, editor, Location or write failure exits nonzero. A write failure rolls back the entire Event item. The report retains research status, prepared operations, available raw research, editor and Location responses, source summaries, any name mismatch, and the write error. Applied `changes` stays empty; a separate proposed diff is not required. A partial result with no changes remains visibly partial/unchanged.
 
@@ -263,7 +273,7 @@ Use the [total-token query](ingestion-tools.md#local-trace-inspection) to inspec
 
 ## Add research notes
 
-Add accepts one complete free-text note through CLI --input or Studio input. A name, URL, coordinates, and tentative details are search leads. The collector receives the full note. General and the page reader use inspected evidence and do not receive the raw note as an Event name.
+Add accepts one complete free-text note through CLI --input or Studio input. The [early duplicate check](#load-catalog-context) can use a complete name or alias with country or URL support to skip a saved Event. This is an exception to the search-leads rule for skipping only. Other notes reach the collector unchanged. New facts need inspected evidence. General and the page reader use that evidence and do not receive the raw note as an Event name.
 
 A map page that repeats a supplied pin, or a reverse lookup that names its city, does not establish where the festival takes place. Without independent place evidence or a supported point, coordinates stay empty. If another source confirms only the Edition city, Location can use a registered city point with locality precision and leave the venue unresolved.
 

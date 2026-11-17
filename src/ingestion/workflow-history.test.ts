@@ -186,6 +186,63 @@ test.each([
   },
 );
 
+test.each([
+  [
+    "before finalization",
+    "json_extract(NEW.snapshot, '$.value.data.report.inputDuplicate.eventId') IS NOT NULL",
+    false,
+  ],
+  [
+    "after finalization",
+    "json_extract(NEW.snapshot, '$.context.\"finalize-run\".status') = 'success'",
+    true,
+  ],
+] as const)(
+  "history failure %s preserves the correct early-match result",
+  async (_stage, condition, finalized) => {
+    const f = fixture();
+    testFixtures(f.database.client).edition(f.event, { countryCode: "US" });
+    const storage = createWorkflowStorage({ path: f.path });
+    await storage.init();
+    failWrites(f.path, condition);
+    try {
+      const error = await runCatalogResearch(
+        {
+          mode: "add",
+          input: `${f.event.canonicalName}, us`,
+          actor: "catalog-research",
+          dryRun: false,
+        },
+        { ...f.deps, workflowStorage: storage },
+      ).catch((reason: unknown) => reason);
+      expect(error).toBeInstanceOf(WorkflowHistoryError);
+      const rows = f.database.client
+        .prepare("SELECT status, report_json FROM ingestion_runs")
+        .all() as { status: string; report_json: string }[];
+      expect(rows).toHaveLength(1);
+      const report = JSON.parse(rows[0].report_json);
+      expect(report).toEqual((error as WorkflowHistoryError).report);
+      expect(rows[0].status).toBe(finalized ? "completed" : "failed");
+      expect(report).toMatchObject({
+        outcome: finalized ? "skipped" : "failed",
+        researchStatus: finalized ? "success" : "failed",
+      });
+      if (finalized) {
+        expect(report.inputDuplicate).toMatchObject({ eventId: f.event.id });
+        expect(report.errors).toEqual([]);
+      } else {
+        expect(report.inputDuplicate).toBeUndefined();
+        expect(report.errors).toContainEqual(
+          expect.objectContaining({ code: "workflow_failed" }),
+        );
+      }
+      expect(f.deps.generateRole).not.toHaveBeenCalled();
+    } finally {
+      await storage.close();
+    }
+  },
+);
+
 test("native snapshots retain input, IDs and model text while dropping separate request context", async () => {
   const f = fixture();
   const workflow = createCatalogIngestionWorkflow(async () => ({

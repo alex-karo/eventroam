@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import {
   events,
@@ -10,6 +10,47 @@ import {
 } from "@/db/schema";
 
 export type ResearchEvent = NonNullable<ReturnType<typeof readResearchEvent>>;
+
+/** Private name lookup for add requests; no Edition or link data. */
+export function readResearchNames(client: Database.Database) {
+  return drizzle(client)
+    .select({
+      id: events.id,
+      canonicalName: events.canonicalName,
+      aliases: events.aliases,
+    })
+    .from(events)
+    .orderBy(asc(events.id))
+    .all();
+}
+
+/** Only distinct known countries for the name candidates. */
+export function readResearchCountries(
+  client: Database.Database,
+  eventIds: string[],
+) {
+  return drizzle(client)
+    .selectDistinct({
+      eventId: editions.eventId,
+      countryCode: editions.countryCode,
+    })
+    .from(editions)
+    .where(
+      and(inArray(editions.eventId, eventIds), isNotNull(editions.countryCode)),
+    )
+    .all();
+}
+
+/** Includes other Events so that conflicting input URLs can be detected. */
+export function readResearchOfficialLinks(client: Database.Database) {
+  return drizzle(client)
+    .select({ eventId: externalLinks.eventId, url: externalLinks.url })
+    .from(externalLinks)
+    .where(
+      and(eq(externalLinks.official, true), isNotNull(externalLinks.eventId)),
+    )
+    .all();
+}
 
 /** Only the fields used by the atomic refresh country guard; null means no Event. */
 export function readResearchCountryBaseline(

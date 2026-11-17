@@ -142,6 +142,9 @@ export class CatalogAttempt {
   }
 
   fail(data: IngestionData, cancelled = false) {
+    if (!this.finalization && data.report?.inputDuplicate) {
+      data.report = null;
+    }
     if (this.finalization || data.report) {
       return;
     }
