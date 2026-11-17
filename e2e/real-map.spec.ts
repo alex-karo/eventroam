@@ -207,6 +207,10 @@ for (const change of ["moved", "removed"] as const) {
     await page.goto("/?from=2027-01-01&to=2027-12-31&country=PT");
     const retry = page.getByRole("button", { name: "Retry", exact: true });
     await expect(retry).toBeVisible();
+    await expect(
+      page.getByRole("checkbox", { name: "Follow map" }),
+    ).toBeEnabled();
+    await page.getByRole("checkbox", { name: "Follow map" }).uncheck();
     await page
       .getByRole("button", {
         name: "Show on map: Fictional Atlantic Sounds 2027",
@@ -251,6 +255,10 @@ test("opening an edition tab preserves a camera panned away from the selection",
   page,
 }, info) => {
   await page.goto("/?from=2027-01-01&to=2027-12-31");
+  await expect(
+    page.getByRole("checkbox", { name: "Follow map" }),
+  ).toBeEnabled();
+  await page.getByRole("checkbox", { name: "Follow map" }).uncheck();
   const select = page.getByRole("button", {
     name: "Show on map: Fictional Atlantic Sounds 2027",
     includeHidden: true,
@@ -318,6 +326,9 @@ test("opening an edition tab preserves a camera panned away from the selection",
   expect(restored.longitude).toBeCloseTo(saved.longitude, 5);
   expect(restored.latitude).toBeCloseTo(saved.latitude, 5);
   expect(restored.zoom).toBeCloseTo(saved.zoom, 6);
+  await expect(
+    page.getByRole("checkbox", { name: "Follow map", includeHidden: true }),
+  ).not.toBeChecked();
 
   await page.keyboard.press("Escape");
   await select.click();
@@ -340,8 +351,13 @@ test("clustered selection stays visible and preserves the camera when opening de
       json: {
         ...data,
         summaries: data.summaries.map(
-          (item: { latitude: number | null; longitude: number | null }) =>
-            item.latitude === null
+          (item: {
+            eventSlug: string;
+            latitude: number | null;
+            longitude: number | null;
+          }) =>
+            item.latitude === null ||
+            item.eventSlug === "fictional-rhone-sessions"
               ? item
               : { ...item, latitude: 38.7223, longitude: -9.1393 },
         ),
@@ -353,6 +369,11 @@ test("clustered selection stays visible and preserves the camera when opening de
   await expect
     .poll(() => camera(page))
     .toMatchObject({ zoom: expect.any(Number) });
+  const outsideCluster = page.getByRole("button", {
+    name: "Show on map: Fictional Rhône Sessions 2027",
+    includeHidden: true,
+  });
+  await expect(outsideCluster).toHaveCount(1);
   const before = await camera(page);
   await page
     .getByRole("button", {
@@ -393,6 +414,21 @@ test("clustered selection stays visible and preserves the camera when opening de
   const restored = await camera(page);
   expect(restored.latitude).toBeCloseTo(selected.latitude, 5);
   expect(restored.longitude).toBeCloseTo(selected.longitude, 5);
+  const marker = (await point.boundingBox())!;
+  const selectedMap = (await page.locator(".map-canvas").boundingBox())!;
+  await page.keyboard.press("Escape");
+  const fullMap = (await page.locator(".map-canvas").boundingBox())!;
+  await page.mouse.click(
+    marker.x + marker.width / 2,
+    marker.y + marker.height / 2 + (fullMap.height - selectedMap.height) / 2,
+  );
+  await expect
+    .poll(async () => (await camera(page)).zoom)
+    .toBeGreaterThan(selected.zoom);
+  await expect(outsideCluster).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "2 festivals in map area",
+  );
 });
 
 test("marker hover resumes after close and unlocated selection leaves the camera unchanged", async ({
@@ -438,12 +474,71 @@ test("marker hover resumes after close and unlocated selection leaves the camera
   ).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".mapboxgl-popup")).toHaveCount(0);
   const before = await camera(page);
+  await page.getByRole("checkbox", { name: "Follow map" }).uncheck();
   await page
     .getByRole("button", { name: "Select Fictional Field Days 2027" })
     .click();
   await expect(card.getByRole("heading")).toHaveText("Fictional Field Days");
   await expect(page.locator(".selected-map-point")).toHaveCount(0);
   expect(await camera(page)).toEqual(before);
+});
+
+test("follow mode keeps layout changes stable and an empty area can recover with the same filters", async ({
+  page,
+}, info) => {
+  await page.goto("/?from=2027-01-01&to=2027-12-31&country=PT");
+  const follow = page.getByRole("checkbox", { name: "Follow map" });
+  await expect(follow).toBeEnabled();
+  await expect(follow).toBeChecked();
+  const heading = page.getByRole("heading", { level: 1 });
+  await expect(heading).toContainText("in map area");
+  const rows = page.locator(".edition-list li");
+  const initial = await rows.count();
+  if (info.project.name === "mobile") {
+    await page.getByRole("button", { name: "Expand list" }).click();
+    await expect(rows).toHaveCount(initial);
+    await page.getByRole("button", { name: "Show map" }).click();
+    await expect(rows).toHaveCount(initial);
+  }
+  await page
+    .getByRole("button", {
+      name: "Show on map: Fictional Atlantic Sounds 2027",
+    })
+    .click();
+  const card = page.getByRole("region", { name: "Selected edition details" });
+  await expect(card.getByRole("heading")).toHaveText(
+    "Fictional Atlantic Sounds",
+  );
+  await expect(rows).toHaveCount(initial);
+  for (let i = 0; i < 8; i++) {
+    const before = await camera(page);
+    await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+    await expect.poll(() => camera(page)).not.toEqual(before);
+  }
+  const map = (await page.locator(".map-canvas").boundingBox())!;
+  const startX =
+    info.project.name === "mobile" ? map.x + 30 : map.x + map.width - 80;
+  const endX =
+    info.project.name === "mobile"
+      ? map.x + map.width - 30
+      : map.x + map.width / 2;
+  await page.mouse.move(startX, map.y + map.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(endX, map.y + map.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await expect(rows).toHaveCount(0);
+  await expect(card).toBeVisible();
+  await card.getByRole("button", { name: "Close details" }).click();
+  await expect(page.getByText("No events in this map area.")).toBeVisible();
+  await follow.uncheck();
+  await expect(rows).not.toHaveCount(0);
+  await expect(page).toHaveURL(/country=PT/);
+  await expect(page).toHaveURL(/from=2027-01-01/);
+  await page.reload();
+  await expect(follow).toBeEnabled();
+  await expect(follow).not.toBeChecked();
+  await follow.check();
+  await expect(rows).toHaveCount(0);
 });
 
 test.describe("with the analytics banner", () => {
@@ -470,6 +565,12 @@ test.describe("with the analytics banner", () => {
       }),
     ).toHaveAttribute("aria-pressed", "true");
     await expectClearSelection(page);
+    const devBadge = page.getByRole("button", {
+      name: "Collapse issues badge",
+    });
+    if (await devBadge.isVisible()) {
+      await devBadge.click();
+    }
     await banner.getByRole("button", { name: "Disable analytics" }).click();
     await expect(banner).toHaveCount(0);
     await expectClearSelection(page);

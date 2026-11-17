@@ -18,6 +18,7 @@ const snapshot: DiscoveryVisit = {
   camera: { latitude: 38, longitude: -9, zoom: 8 },
   scroll: 125,
   selectedId: "edition",
+  followMap: false,
 };
 beforeEach(() => {
   sessionStorage.clear();
@@ -71,6 +72,17 @@ test("unrelated history entries and invalid snapshots are not restored", () => {
   );
   expect(beginVisit().visit).toBeNull();
   expect(window.location.search).toBe("?country=ES");
+});
+test("older visits default follow mode to on and invalid flags reject the snapshot", () => {
+  const key = `eventroam:discovery:${window.location.origin}:old`;
+  const old = { ...snapshot } as Partial<DiscoveryVisit>;
+  delete old.followMap;
+  sessionStorage.setItem(key, JSON.stringify(old));
+  expect(readVisit("old")).toEqual({ ...snapshot, followMap: true });
+  for (const followMap of [null, "false", 0]) {
+    sessionStorage.setItem(key, JSON.stringify({ ...snapshot, followMap }));
+    expect(readVisit("old")).toBeNull();
+  }
 });
 test("disabled storage keeps discovery usable", () => {
   const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
