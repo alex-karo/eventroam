@@ -210,11 +210,15 @@ test("attempt insertion or association failure prevents all external work", asyn
 test("restarted add skips a committed duplicate with two linked attempts and later items still execute", async () => {
   const { client } = testDatabase();
   submitAddJobs(client, {
-    inputs: ["Example Fest", "Unclear Event", "https://other.test/"],
+    inputs: [
+      "Example Fest https://example.org/",
+      "Unclear Event",
+      "https://other.test/",
+    ],
     dryRun: false,
   });
   const job = nextJob(client)!;
-  const run = (selected: typeof job, duplicate = false) => {
+  const run = (selected: typeof job) => {
     const input = jobWorkflowInput(selected);
     if (input.mode !== "add") {
       throw new Error("Expected an add job");
@@ -225,21 +229,19 @@ test("restarted add skips a committed duplicate with two linked attempts and lat
         client,
         jobId: selected.id,
         ...fixtureDependencies({
-          general: async (_role: unknown, prompt: string) => {
+          links: {
+            event: { website: set("https://example.org/"), socials: {} },
+            currentOrNextEdition: {},
+            omitted: [],
+            checks: [],
+            unresolved: [],
+          },
+          general: async () => {
             if (selected.position === 1) {
               return {
                 decision: "uncertain",
                 reason: "Clues are ambiguous",
                 unresolved: [],
-              };
-            }
-            if (duplicate) {
-              return {
-                decision: "duplicate",
-                eventId: JSON.parse(prompt).candidates[0].id,
-                observedEventName: "Example Fest",
-                reason: "Inspected source confirms the saved name",
-                evidenceIds: ["s1-e1"],
               };
             }
             const targets = fixtureTargets();
@@ -254,7 +256,7 @@ test("restarted add skips a committed duplicate with two linked attempts and lat
   const first = await run(job);
   expect(first.outcome).not.toBe("failed");
   expect(client.prepare("SELECT count(*) FROM events").pluck().get()).toBe(1);
-  const repeated = await run(nextJob(client)!, true);
+  const repeated = await run(nextJob(client)!);
   expect(repeated).toMatchObject({
     outcome: "skipped",
     eventId: first.eventId,

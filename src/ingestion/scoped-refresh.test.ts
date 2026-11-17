@@ -198,7 +198,7 @@ test.each(["full", "current"] as const)(
       const prompt = JSON.parse(raw);
       expect(prompt.assignment.currentDate).toBe("2026-10-11T12:00:00.000Z");
       expect(prompt.assignment.permissions.eventFields).toBe(scope === "full");
-      expect(prompt.candidates[0].editions[0]).toMatchObject({
+      expect(prompt.savedEvent.editions[0]).toMatchObject({
         editionKey: "source-row",
         countryCode: "IE",
         startsOn: "2026-06-01",

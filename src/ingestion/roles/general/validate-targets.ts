@@ -60,27 +60,6 @@ export function checkRefreshCountries(
   }
 }
 
-function duplicateSupported(
-  event: SavedEvent,
-  ids: string[],
-  corpus: FrozenCorpus,
-) {
-  const support = corpus.evidence.filter((item) => ids.includes(item.id));
-  const name = event.canonicalName.trim().toLocaleLowerCase();
-  if (support.some((item) => item.quote.toLocaleLowerCase().includes(name))) {
-    return true;
-  }
-  const hosts = event.links
-    .filter((link) => link.kind === "official_site")
-    .map((link) => new URL(link.url).hostname.replace(/^www\./, ""));
-  return support.some((item) => {
-    const source = corpus.sources.find((source) => source.id === item.sourceId);
-    return (
-      !!source &&
-      hosts.includes(new URL(source.finalUrl).hostname.replace(/^www\./, ""))
-    );
-  });
-}
 function validateTemporalTargets(
   output: Targets,
   event: SavedEvent | undefined,
@@ -147,13 +126,10 @@ export function validateGeneral(
   const diagnostics = initialDiagnostics();
   const proposedEventId = "eventId" in output ? output.eventId : null;
   const event = context.catalog.find(
-    ({ id }) => id === (input.eventId ?? proposedEventId),
+    ({ id }) => input.mode === "refresh" && id === input.eventId,
   );
   if (proposedEventId && proposedEventId !== event?.id) {
-    return rejectProposal(
-      diagnostics,
-      "Event is outside the assigned candidates",
-    );
+    return rejectProposal(diagnostics, "Event is outside the assigned target");
   }
   const countryRejection = checkRefreshCountries(
     output,
@@ -184,24 +160,6 @@ export function validateGeneral(
     return rejectProposal(
       diagnostics,
       "Identity needs inspected source support",
-    );
-  }
-  if (output.decision === "duplicate") {
-    if (input.mode !== "add" || !event) {
-      return rejectProposal(diagnostics, "Invalid duplicate decision");
-    }
-    if (!duplicateSupported(event, output.evidenceIds, corpus)) {
-      return rejectProposal(
-        diagnostics,
-        "Duplicate identity is not supported by the cited source",
-      );
-    }
-    return { status: "skip", diagnostics };
-  }
-  if (input.mode === "add" && event) {
-    return rejectProposal(
-      diagnostics,
-      "An existing Event requires an explicit duplicate decision",
     );
   }
   if (input.mode === "refresh" && !event) {

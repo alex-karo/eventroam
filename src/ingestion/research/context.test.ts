@@ -55,20 +55,23 @@ test.each(["country", "url"] as const)(
   },
 );
 
-test("an unresolved add keeps ordinary context, and refresh bypasses the early check", () => {
+test("an unresolved add loads no saved Events, and refresh loads only its target", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const event = fx.event({ canonicalName: "Example Fest" });
   const edition = fx.edition(event, { countryCode: "US" });
   fx.eventLink(event, { url: "https://example.com/", official: true });
+  fx.edition(fx.event({ canonicalName: "Unrelated Festival" }));
   const names = vi.spyOn(reads, "readResearchNames");
+  const fullEvent = vi.spyOn(reads, "readResearchEvent");
   const add = loadResearchContext(client, {
     mode: "add",
     input: "Example Fest",
     actor: "test",
   });
   expect(add).not.toHaveProperty("inputDuplicate");
-  expect(add.catalog[0].editions[0].id).toBe(edition.id);
+  expect(add.catalog).toEqual([]);
+  expect(fullEvent).not.toHaveBeenCalled();
   expect(add.terms.length).toBeGreaterThan(0);
   expect(add.knownLinks).toEqual([]);
   names.mockClear();
@@ -79,7 +82,11 @@ test("an unresolved add keeps ordinary context, and refresh bypasses the early c
   });
   expect(names).not.toHaveBeenCalled();
   expect(refresh).not.toHaveProperty("inputDuplicate");
-  expect(refresh.catalog).toEqual(add.catalog);
+  expect(refresh.catalog).toHaveLength(1);
+  expect(refresh.catalog[0]).toMatchObject({
+    id: event.id,
+    editions: [expect.objectContaining({ id: edition.id })],
+  });
   expect(refresh.knownLinks).toContainEqual({
     url: "https://example.com/",
     owner: "event",

@@ -62,7 +62,7 @@ export function buildAssignment(
     identityTask:
       input.mode === "refresh"
         ? "Confirm the supplied Event and select targets, or return uncertain if identity cannot be established. A match with this Event is expected and is not a duplicate add."
-        : "Compare the proposed Event with catalog candidates. Return duplicate only for a confirmed existing Event; otherwise select targets or return uncertain.",
+        : "Establish the Event identity from inspected sources and select targets, or return uncertain if identity cannot be established. Duplicate checks run before source collection. Return eventId null for add.",
     identityContext: {
       requestedName: savedEvent?.canonicalName,
       eventId: input.eventId ?? null,
@@ -80,10 +80,6 @@ export function buildAssignment(
           ) ?? [],
         ),
       ],
-      knownNames: context.catalog.map((event) => ({
-        id: event.id,
-        name: event.canonicalName,
-      })),
     },
     knownLinks: context.knownLinks,
     currentDate: context.currentDate,

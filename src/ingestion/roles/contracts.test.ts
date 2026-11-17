@@ -1,9 +1,6 @@
 import { expect, it } from "vitest";
 import { collectionOutputSchema } from "./research/contracts";
-import {
-  generalOutputSchema,
-  refreshGeneralOutputSchema,
-} from "./general/contracts";
+import { generalOutputSchema } from "./general/contracts";
 import { ticketBlockSchema } from "./tickets/contracts";
 
 const collected = { check: "identity", blocker: null, sourceIds: ["s1"] };
@@ -70,7 +67,7 @@ it.each([
   expect(collectionOutputSchema.safeParse(output).success).toBe(false);
 });
 
-it("allows duplicate adds but excludes a duplicate decision during refresh", () => {
+it("excludes duplicate decisions from General", () => {
   const duplicate = {
     decision: "duplicate",
     eventId: "existing",
@@ -78,10 +75,9 @@ it("allows duplicate adds but excludes a duplicate decision during refresh", () 
     reason: "Official identity matches",
     evidenceIds: ["s1-e1"],
   };
-  expect(generalOutputSchema.safeParse(duplicate).success).toBe(true);
-  expect(refreshGeneralOutputSchema.safeParse(duplicate).success).toBe(false);
+  expect(generalOutputSchema.safeParse(duplicate).success).toBe(false);
   expect(
-    refreshGeneralOutputSchema.safeParse({
+    generalOutputSchema.safeParse({
       decision: "uncertain",
       reason: "Source identity is unclear",
       unresolved: [],
@@ -116,9 +112,9 @@ it("allows an unsupported past candidate to stay null without losing the support
     ],
     unresolved: [],
   };
-  expect(refreshGeneralOutputSchema.parse(output)).toEqual(output);
+  expect(generalOutputSchema.parse(output)).toEqual(output);
   expect(
-    refreshGeneralOutputSchema.safeParse({
+    generalOutputSchema.safeParse({
       ...output,
       previousEdition: { ...next, editionKey: "saved-2026", evidenceIds: [] },
     }).success,

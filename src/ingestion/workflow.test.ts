@@ -80,6 +80,52 @@ const input = {
   initiatedBy: "fixture-owner",
 };
 
+test("add keeps the same General input with thousands of unrelated saved Editions", async () => {
+  const { client } = fixture();
+  const deps = dependencies();
+  const prompts: string[] = [];
+  const generateRole: NonNullable<typeof deps.generateRole> = async (
+    role,
+    prompt,
+    call,
+  ) => {
+    if (role === "general") {
+      const data = JSON.parse(prompt);
+      // Each run has its own source artifact paths and corpus hash.
+      delete data.corpus.version;
+      prompts.push(JSON.stringify(data));
+      expect(data).not.toHaveProperty("candidates");
+      expect(prompt).not.toContain("Unrelated Festival");
+      expect(prompt).not.toContain("knownNames");
+    }
+    return deps.generateRole(role, prompt, call);
+  };
+  const run = () =>
+    runCatalogResearch(
+      { ...input, dryRun: true },
+      { ...deps, client, generateRole, todayUtc: "2026-11-01" },
+    );
+  const small = await run();
+  expect(small.outcome).not.toBe("failed");
+  const fx = testFixtures(client);
+  client.transaction(() => {
+    for (let index = 0; index < 1000; index++) {
+      const event = fx.event({ canonicalName: `Unrelated Festival ${index}` });
+      fx.edition(event, { startsOn: "2026-07-01", endsOn: "2026-07-03" });
+      fx.edition(event);
+    }
+  })();
+  const large = await run();
+  expect(large.outcome).toBe(small.outcome);
+  expect(large.errors).toEqual([]);
+  expect(large.workload.savedEditions).toBe(0);
+  expect(prompts).toHaveLength(2);
+  expect(prompts[1]).toBe(prompts[0]);
+  expect(client.prepare("SELECT count(*) FROM events").pluck().get()).toBe(
+    1000,
+  );
+});
+
 test.each([
   { support: "country", dryRun: true },
   { support: "country", dryRun: false },
@@ -599,20 +645,18 @@ test.each(["update", "serialization"] as const)(
     if (failure === "update") {
       client.exec("DROP TRIGGER refuse_finish");
     }
-    const duplicateOutput = {
-      decision: "duplicate",
-      eventId: readResearchCatalog(client)[0].id,
-      observedEventName: "Example Fest",
-      reason,
-      evidenceIds: ["s1-e1"],
-    };
-    const fresh = await runCatalogResearch(input, {
-      client,
-      ...dependencies(),
-      generateRoles: { general: async () => duplicateOutput },
-    });
+    const fresh = await runCatalogResearch(
+      { ...input, input: "Example Fest, pt" },
+      {
+        client,
+        ...dependencies(),
+        generateRoles: { general: model },
+      },
+    );
     expect(fresh.runId).not.toBe(persistence.runId);
     expect(fresh.outcome).toBe("skipped");
+    expect(fresh.inputDuplicate?.support).toEqual({ countryCode: "PT" });
+    expect(model).toHaveBeenCalledOnce();
     expect(
       client
         .prepare("SELECT * FROM ingestion_runs WHERE id=?")
