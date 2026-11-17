@@ -42,7 +42,7 @@ export function failProposal(
   });
 }
 
-export function failGroupIssue({ group, rule }: GroupIssue): never {
+export function groupDiagnostic({ group, rule }: GroupIssue): ResearchError {
   const code = {
     general: "invalid_candidate",
     tickets: "invalid_candidate",
@@ -50,7 +50,12 @@ export function failGroupIssue({ group, rule }: GroupIssue): never {
     classification: "invalid_plan",
     location: "location_failed",
   } as const;
-  failProposal(rule, group.path, code[group.owner]);
+  return {
+    code: code[group.owner],
+    stage: group.owner === "location" ? "location" : "validation",
+    field: group.path,
+    message: rule,
+  };
 }
 
 export function replyReferences(value: unknown, key: string): unknown[] {

@@ -128,7 +128,9 @@ export function validateLocationGroups(options: GroupValidationInput) {
       for (const slot of editionSlotNames) {
         if (
           location.input[slot] &&
-          (!only || only.has(locationGroupPath(slot)))
+          (!only ||
+            only.has(locationGroupPath(slot)) ||
+            atPath(reply.raw, `decision.${slot}`) != null)
         ) {
           checkLocationBoundary(reply.raw, slot, location);
         }

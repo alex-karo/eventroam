@@ -5,6 +5,7 @@ import {
   checkGroups,
   validateProposalBoundary,
   type GroupValidationInput,
+  type GroupIssue,
   failProposal,
   RepairFailure,
   selectedEvent,
@@ -13,6 +14,7 @@ import {
 } from "../proposal-validation";
 import {
   festivalCountriesSchema,
+  dateBlockSchema,
   type GeneralOutput,
   type Targets,
 } from "./contracts";
@@ -81,6 +83,7 @@ export function validateGeneralReply(
 export function requireFixedGeneralTargets(
   raw: unknown,
   ctx: ProposalValidationContext,
+  issues: readonly GroupIssue[] = [],
 ) {
   const targets = ctx.targets!;
   if (
@@ -93,8 +96,23 @@ export function requireFixedGeneralTargets(
   ) {
     failProposal("General changed the fixed identity or target");
   }
+  const checked = structuredClone(raw);
+  for (const { group } of issues) {
+    if (group.owner !== "general" || !group.rawPath.endsWith(".dates")) {
+      continue;
+    }
+    // Keep a valid end date for the temporal slot check.
+    // The local date error must still be repaired or rejected.
+    const end = dateBlockSchema.shape.endsOn.safeParse(
+      atPath(raw, `${group.rawPath}.value.endsOn`),
+    );
+    setPath(checked, group.rawPath, {
+      action: "set",
+      value: { endsOn: end.success ? end.data : undefined },
+    });
+  }
   const result = validateGeneral(
-    raw as Targets,
+    checked as Targets,
     ctx.context,
     ctx.input,
     ctx.corpus,
