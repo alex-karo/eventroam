@@ -115,7 +115,7 @@ Studio owns the catalog connection and storage providers for direct runs and man
 
 ## Discovery
 
-Discovery loads complete public summaries for the active scope and applies the same filtering rules on direct server entry and in the browser. The map displays the coordinate-bearing subset of list results; moving the map does not fetch or filter inventory. Full details load on selection. See the [discovery rules](../src/features/discovery/model/discovery.ts) and [catalog contracts](../src/catalog/read/contracts.ts).
+Discovery loads complete public summaries for the active scope and applies the same filter rules on direct server entry and in the browser. The map keeps all located filter results. `Follow map` is on by default and limits the list and displayed counts to the map area after user movement ends. Turning it off, or an unavailable map, shows all filter results. Map movement makes no catalog requests. The visit saves the follow setting and camera; the restored map supplies a fresh area. Full details load on selection. See the [discovery rules](../src/features/discovery/model/discovery.ts), [area filter](../src/features/discovery/model/map-area.ts), and [catalog contracts](../src/catalog/read/contracts.ts).
 
 ## Routes and scope
 

@@ -33,8 +33,9 @@ import {
   type LocationValidationContext,
 } from "./roles/location/group-validation";
 import type { LocationInput } from "./roles/location/input";
+import { locationTextFields } from "./roles/location/contracts";
 import {
-  failGroupIssue,
+  groupDiagnostic,
   failProposal,
   RepairFailure,
   replyReferences,
@@ -285,6 +286,52 @@ export class ProposalRepairs {
     trigger: RepairRecord["trigger"],
     signal: AbortSignal,
   ) {
+    let pending = requests;
+    while (pending.length) {
+      const issues = await this.reviseGroups(
+        owner,
+        pending,
+        groups,
+        ctx,
+        trigger,
+        signal,
+      );
+      const counts = this.returnCounts;
+      pending = this.validationRequests(issues)
+        .filter(({ group }) => {
+          if ((counts.get(group.path) ?? 0) < MAX_GROUP_RETURNS) {
+            return true;
+          }
+          const entry = this.records.findLast(
+            ({ path }) => path === group.path,
+          )!;
+          entry.decision = {
+            path: group.path,
+            decision: "reject",
+            note: entry.failure!.message,
+          };
+          return false;
+        })
+        .map((request) => {
+          const note = requests.find(
+            ({ group }) => group.path === request.group.path,
+          )!.note;
+          return {
+            ...request,
+            note: `${note}\nValidation feedback:\n${request.note}`,
+          };
+        });
+    }
+  }
+
+  private async reviseGroups(
+    owner: GroupOwner,
+    requests: ReturnRequest[],
+    groups: ProposalGroup[],
+    ctx: ProposalValidationContext,
+    trigger: RepairRecord["trigger"],
+    signal: AbortSignal,
+  ) {
     const original = this.replies.get(owner);
     const counts = this.returnCounts;
     const records = requests.map(({ group, note }): RepairRecord => {
@@ -298,13 +345,16 @@ export class ProposalRepairs {
           editionKey: ctx.targets?.[slot]?.editionKey,
         }),
       };
+      const previous = this.records.findLast(({ path }) => path === group.path);
       return {
         owner,
         path: group.path,
         target,
         trigger,
         note,
-        original: atPath(original?.raw, group.rawPath) ?? null,
+        original: previous?.failure
+          ? (previous.revision ?? null)
+          : (atPath(original?.raw, group.rawPath) ?? null),
       };
     });
     this.records.push(...records);
@@ -340,7 +390,7 @@ export class ProposalRepairs {
         }
         failProposal(`${owner}: no usable revision`, records[0].path);
       }
-      this.mergeRevision(
+      return this.mergeRevision(
         owner,
         original,
         revision.output,
@@ -387,11 +437,22 @@ export class ProposalRepairs {
       reply: { schema: original.schema, raw: revision },
       only,
     });
-    if (owner === "general") {
-      requireFixedGeneralTargets(revision, ctx);
+    for (const { group } of requests) {
+      if (owner === "location" || atPath(revision, group.rawPath) != null) {
+        continue;
+      }
+      const reason = this.questions(revision, group.path)[0]?.message;
+      if (typeof reason !== "string" || !reason.trim()) {
+        issues.push({
+          group,
+          rule:
+            "An omitted revision needs a reason for its exact group path: " +
+            group.path,
+        });
+      }
     }
-    if (issues.length) {
-      failGroupIssue(issues[0]);
+    if (owner === "general") {
+      requireFixedGeneralTargets(revision, ctx, issues);
     }
     const merged = structuredClone(original.raw);
     for (const [index, { group }] of requests.entries()) {
@@ -399,20 +460,74 @@ export class ProposalRepairs {
       const entry = records[index];
       const support = new Set(replyReferences(value, "evidenceIds"));
       entry.evidence = ctx.corpus.evidence.filter(({ id }) => support.has(id));
-      setPath(merged, group.rawPath, value);
-      this.mergeQuestions(merged, revision, entry, value == null);
+      if (!issues.some((issue) => issue.group.path === group.path)) {
+        setPath(merged, group.rawPath, value);
+        this.mergeQuestions(merged, revision, entry, value == null);
+      }
     }
-    const { parsed, issues: checked } = validate({
+    for (const { group } of issues) {
+      this.dropGroup(merged, group);
+    }
+    const checked = validate({
       ...validation,
       reply: { schema: original.schema, raw: merged },
     });
-    if (checked.length) {
-      failGroupIssue(checked[0]);
+    for (const issue of checked.issues) {
+      if (!only.has(issue.group.path)) {
+        throw new RepairFailure(groupDiagnostic(issue));
+      }
+      issues.push(issue);
+      this.dropGroup(merged, issue.group);
+    }
+    const { parsed, issues: remaining } = checked.issues.length
+      ? validate({
+          ...validation,
+          reply: { schema: original.schema, raw: merged },
+        })
+      : checked;
+    if (remaining.length) {
+      throw new RepairFailure(groupDiagnostic(remaining[0]));
     }
     if (owner === "general") {
-      requireFixedGeneralTargets(merged, ctx);
+      requireFixedGeneralTargets(merged, ctx, issues);
     }
     original.raw = parsed.data;
+    for (const entry of records) {
+      const issue = issues.find(({ group }) => group.path === entry.path);
+      if (issue) {
+        entry.failure = groupDiagnostic(issue);
+      }
+    }
+    return issues;
+  }
+
+  private dropGroup(raw: unknown, group: ProposalGroup) {
+    const reason = "The returned group did not pass validation";
+    setPath(
+      raw,
+      group.rawPath,
+      group.owner === "location"
+        ? {
+            fields: Object.fromEntries(
+              locationTextFields.map((field) => [
+                field,
+                { action: "keep", reason },
+              ]),
+            ),
+            coordinates: { action: "keep", reason },
+            evidenceIds: [],
+            unresolved: [],
+          }
+        : undefined,
+    );
+  }
+
+  private questions(raw: unknown, path: string) {
+    const answer = (record(raw)?.unresolved as unknown[]) ?? [];
+    return answer.flatMap((item) => {
+      const question = record(item);
+      return question?.field === path ? [question] : [];
+    });
   }
 
   private mergeQuestions(
@@ -425,19 +540,9 @@ export class ProposalRepairs {
       return;
     }
     const questions = (record(merged)?.unresolved as unknown[]) ?? [];
-    const answer = (record(raw)?.unresolved as unknown[]) ?? [];
-    const supplied = answer.filter(
-      (item) => record(item)?.field === entry.path,
-    );
+    const supplied = this.questions(raw, entry.path);
     if (omitted) {
-      const reason = record(supplied[0])?.message;
-      if (typeof reason !== "string" || !reason.trim()) {
-        failProposal(
-          "An omitted revision needs a reason for its exact group",
-          entry.path,
-        );
-      }
-      entry.omissionReason = reason.trim();
+      entry.omissionReason = (supplied[0].message as string).trim();
     }
     record(merged)!.unresolved = [
       ...questions.filter((item) => record(item)?.field !== entry.path),

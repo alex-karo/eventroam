@@ -4,6 +4,7 @@ export type DiscoveryVisit = {
   camera: Camera | null;
   scroll: number;
   selectedId: string | null;
+  followMap: boolean;
 };
 const stateKey = "eventroamDiscovery";
 const storagePrefix = "eventroam:discovery:";
@@ -36,7 +37,8 @@ export function readVisit(token: string | null): DiscoveryVisit | null {
     if (
       !Number.isFinite(value.scroll) ||
       value.scroll < 0 ||
-      !(value.selectedId === null || typeof value.selectedId === "string")
+      !(value.selectedId === null || typeof value.selectedId === "string") ||
+      (value.followMap !== undefined && typeof value.followMap !== "boolean")
     ) {
       return null;
     }
@@ -58,6 +60,7 @@ export function readVisit(token: string | null): DiscoveryVisit | null {
       camera: c,
       scroll: value.scroll,
       selectedId: value.selectedId,
+      followMap: value.followMap ?? true,
     };
   } catch {
     return null;

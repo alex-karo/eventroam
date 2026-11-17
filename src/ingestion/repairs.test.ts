@@ -224,8 +224,8 @@ function fixture(
     return {
       deps,
       requests,
-      run: (overrides?: Partial<ResearchDependencies>) =>
-        runFixtureResearch(input, { ...deps, ...overrides }),
+      run: (overrides?: Partial<ResearchDependencies>, dryRun = false) =>
+        runFixtureResearch({ ...input, dryRun }, { ...deps, ...overrides }),
     };
   }
   return {
@@ -259,7 +259,7 @@ it("repairs Wacken tickets before the first Editor review", async () => {
     expect(prompt.reviewPaths).toContainEqual({
       path: ticketsPath,
       required: true,
-      allowed: ["approve", "reject", "return"],
+      allowed: ["approve", "return"],
     });
     expect(prompt.repairs).toMatchObject([
       { trigger: "validation", revision: { evidenceIds: [] } },
@@ -331,7 +331,7 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
       {
         path: ticketsPath,
         required: true,
-        allowed: ["approve", "reject", "return"],
+        allowed: ["approve", "return"],
       },
     ]);
     expect(prompt.prepared).not.toHaveProperty("plan");
@@ -436,240 +436,516 @@ it.each(["instagram", "event.fields.links.socials.instagram"])(
   },
 );
 
-it("shares the return limit and rejects a ticket price for another Edition", async () => {
-  const f = fixture(
-    "Example Fest 2027\nFull pass EUR 130.\n\nExample Fest 2026\nFull pass EUR 120.",
-    { selection: 1 },
-  );
-  const link = "https://example.org/tickets";
-  const revision = { ...price(120, "EUR"), evidenceIds: [] };
-  const question = {
-    field: ticketsPath,
-    message: "The full pass price remains unconfirmed.",
-  };
-  const editor = editorReply(async (prompt, index, call) => {
-    if (index < 2) {
-      return review(prompt, {
-        path: ticketsPath,
-        decision: "return",
-        note: "Use the 2027 price in s1.md.\nFull pass EUR 130.",
-      });
-    }
-    expect(prompt.reviewPaths).toEqual([
-      { path: ticketsPath, required: true, allowed: ["approve", "reject"] },
-    ]);
-    expect(prompt.returnedGroups).toEqual([
-      { path: ticketsPath, proposal: revision },
-    ]);
-    expect(await grepSavedPage(call, "Full pass EUR 120")).toContain(
-      "Example Fest 2026",
+it.each(["approve", "reject"] as const)(
+  "shares the return limit and can %s the final ticket revision",
+  async (decision) => {
+    const f = fixture(
+      "Example Fest 2027\nFull pass EUR 130.\n\nExample Fest 2026\nFull pass EUR 120.",
+      { selection: 1 },
     );
-    return review(prompt, {
-      path: ticketsPath,
-      decision: "reject",
-      note: "The EUR 120 pass on s1.md is for the 2026 Edition.",
-    });
-  });
-  const { run, requests } = f.model(
-    "tickets",
-    (body, index) => {
-      if (index === 0) {
-        return reply(body, tickets(set({ variants: [], basePrice: null })));
-      }
-      if (index === 1) {
-        return reply(body, tickets(null, [question]));
-      }
-      return reply(body, tickets(revision));
-    },
-    {
-      editor,
-      links: {
-        event: { socials: {} },
-        currentOrNextEdition: { tickets: set(link) },
-        checks: fixtureChecks(["eventLinks", "currentLinks"]),
-        omitted: [],
-        unresolved: [],
-      },
-    },
-  );
-  const result = await run();
-  expect(result.errors).toEqual([]);
-  expect(requests).toHaveLength(4);
-  expect(editor).toHaveBeenCalledTimes(3);
-  expect(result.repairs).toMatchObject([
-    { trigger: "validation", omissionReason: question.message },
-    { trigger: "editor", evidence: [] },
-    { trigger: "editor", original: revision, decision: { decision: "reject" } },
-  ]);
-  expect(result.unresolved).not.toContainEqual(question);
-  const [edition] = f.saved().editions;
-  expect(edition.links).toContainEqual(expect.objectContaining({ url: link }));
-  expect(edition.priceDetails).toHaveLength(0);
-});
-
-it("revises one of two Location slots from a saved excerpt in the note", async () => {
-  const quote = "The venue is Vale do Tejo.";
-  const editions =
-    "Example Fest took place at Vale Antigo in 2026. Example Fest 2027 is from July 1 to July 3.";
-  const f = fixture(`${editions}\n\n${quote}`, { selection: 1 });
-  const previous = f.f.edition(f.event, {
-    editionKey: "2026",
-    startsOn: "2026-07-01",
-    endsOn: "2026-07-03",
-  });
-  const general = fixtureTargets(f.event.id);
-  general.previousEdition = {
-    editionKey: previous.editionKey,
-    reason: general.reason,
-    evidenceIds: general.evidenceIds,
-    fields: {},
-  };
-  const note = `Use the venue spelling in s1.md.\n${quote}`;
-  const geocode = vi.fn(async () => ({
-    status: "success" as const,
-    direction: "forward" as const,
-    candidates: [
-      {
-        latitude: 38.7,
-        longitude: -9.1,
-        label: "Vale do Tejo",
-        name: "Vale do Tejo",
-        countryCode: "PT",
-        objectType: "venue" as const,
-        placeId: null,
-        locality: null,
-        address: null,
-        originalType: null,
-        category: null,
-        confidence: null,
-      },
-    ],
-  }));
-  let original: LocationOutput;
-  const editor = editorReply(async (prompt, index, call) => {
-    if (!index) {
-      return review(prompt, { path: locationPath, decision: "return", note });
-    }
-    expect(await grepSavedPage(call, "The venue is")).toContain(quote);
-    expect(prompt.returnedGroups).toMatchObject([
-      {
-        path: locationPath,
-        proposal: { venueName: { value: "Vale do Tejo" } },
-      },
-    ]);
-    expect(prompt.evidence).toContainEqual(
-      expect.objectContaining({ id: "s1-e1", quote: editions }),
-    );
-    expect(prompt.repairs[0].evidenceIds).toEqual([]);
-    return review(prompt);
-  });
-  const { run, requests } = f.model(
-    "location",
-    (body, index, prompt) => {
+    const link = "https://example.org/tickets";
+    const revision = {
+      ...price(decision === "approve" ? 130 : 120, "EUR"),
+      evidenceIds: [],
+    };
+    const priorRevision = { ...price(120, "EUR"), evidenceIds: [] };
+    const editor = editorReply(async (prompt, index, call) => {
       if (!index) {
-        return modelReply(null, {
-          id: marker,
-          name: "geocode",
-          args: { query: "Vale de Tejo", countryCode: "PT" },
+        return review(prompt, {
+          path: ticketsPath,
+          decision: "return",
+          note: "Use the 2027 price in s1.md.\nFull pass EUR 130.",
         });
       }
-      if (index === 1) {
-        original = fixtureLocationPlan(prompt as LocationInput);
+      expect(prompt.reviewPaths).toEqual([
+        { path: ticketsPath, required: true, allowed: ["approve", "reject"] },
+      ]);
+      expect(prompt.returnedGroups).toEqual([
+        { path: ticketsPath, proposal: revision },
+      ]);
+      expect(await grepSavedPage(call, "Full pass EUR 120")).toContain(
+        "Example Fest 2026",
+      );
+      return review(prompt, {
+        path: ticketsPath,
+        decision,
+        note:
+          decision === "approve"
+            ? "The EUR 130 pass is for 2027."
+            : "The EUR 120 pass on s1.md is for the 2026 Edition.",
+      });
+    });
+    const { run, requests } = f.model(
+      "tickets",
+      (body, index) => {
+        if (index < 2) {
+          return reply(body, tickets(set({ variants: [], basePrice: null })));
+        }
+        return reply(body, tickets(index === 2 ? priorRevision : revision));
+      },
+      {
+        editor,
+        links: {
+          event: { socials: {} },
+          currentOrNextEdition: { tickets: set(link) },
+          checks: fixtureChecks(["eventLinks", "currentLinks"]),
+          omitted: [],
+          unresolved: [],
+        },
+      },
+    );
+    const result = await run();
+    expect(result.errors).toEqual([]);
+    expect(requests).toHaveLength(4);
+    expect(editor).toHaveBeenCalledTimes(2);
+    expect(result.repairs).toMatchObject([
+      { trigger: "validation", failure: { field: ticketsPath } },
+      { trigger: "validation", evidence: [] },
+      { trigger: "editor", original: priorRevision, decision: { decision } },
+    ]);
+    expect(result.researchStatus).toBe("success");
+    expect(result.unresolved).toEqual([]);
+    const [edition] = f.saved().editions;
+    expect(edition.links).toContainEqual(
+      expect.objectContaining({ url: link }),
+    );
+    expect(edition.priceDetails).toHaveLength(decision === "approve" ? 1 : 0);
+  },
+);
+
+it.each(["correct", "withdraw"] as const)(
+  "returns the first disputed classification and accepts its %s reply",
+  async (kind) => {
+    const f = fixture(
+      "Example Fest 2027 is a music festival. Its setting is not confirmed.",
+    );
+    const terms = f.f.festivalTerms();
+    const path = "currentOrNextEdition.fields.classification";
+    const reason = "There is no supported replacement classification.";
+    const editor = editorReply((prompt, index) => {
+      if (!index) {
+        expect(prompt.reviewPaths).toContainEqual({
+          path,
+          required: true,
+          allowed: ["approve", "return"],
+        });
+        expect(prompt.reviewPaths).toContainEqual({
+          path: "event.fields.description",
+          required: false,
+          allowed: ["return"],
+        });
+        return review(prompt, {
+          path,
+          decision: "return",
+          note: "Remove the unsupported setting. Keep the supported festival and music terms, or withdraw the group if unsupported.",
+        });
+      }
+      if (kind === "withdraw") {
+        expect(prompt.returnedGroups).toEqual([{ path, proposal: null }]);
+        expect(prompt.repairs[0].omissionReason).toBe(reason);
+      }
+      return review(prompt);
+    });
+    const { run, requests } = f.model(
+      "classification",
+      (body, index) =>
+        reply(body, {
+          previousEdition: null,
+          currentOrNextEdition:
+            index && kind === "withdraw"
+              ? {}
+              : {
+                  classification: set({
+                    eventType: "festival",
+                    topics: ["music"],
+                    ...(index ? {} : { format: "openair" }),
+                  }),
+                },
+          checks: fixtureChecks(["description", "currentClassification"]),
+          unresolved:
+            index && kind === "withdraw"
+              ? [{ field: path, message: reason }]
+              : [],
+        }),
+      { editor },
+    );
+    const result = await run();
+    expect(result.errors).toEqual([]);
+    expect(requests).toHaveLength(2);
+    expect(editor).toHaveBeenCalledTimes(2);
+    expect(result.repairs).toMatchObject([
+      { path, decision: { decision: "approve" } },
+    ]);
+    expect(
+      f
+        .saved()
+        .editions[0].terms.map(({ id }) => id)
+        .sort(),
+    ).toEqual(
+      kind === "withdraw"
+        ? []
+        : terms
+            .filter(({ facet }) => facet !== "format")
+            .map(({ id }) => id)
+            .sort(),
+    );
+  },
+);
+
+it.each(["new", "saved", "preview", "fatal"] as const)(
+  "keeps the corrected ticket link after social repair failures (%s)",
+  async (kind) => {
+    const ticketPath = "currentOrNextEdition.fields.links.tickets";
+    const socialPaths = ["instagram", "facebook", "youtube"].map(
+      (name) => `event.fields.links.socials.${name}`,
+    );
+    const corrected = "https://example.org/tickets";
+    const note =
+      "From s1.md: Ticket overview: https://example.org/tickets. Use this supported overview. Withdraw the unsupported social accounts.";
+    const disputed = "https://instagram.com/disputed";
+    const savedSocial = "https://instagram.com/saved";
+    const savedTicket = "https://example.org/saved-tickets";
+    const f = fixture(
+      "Example Fest 2027. Ticket overview: https://example.org/tickets.",
+    );
+    if (kind !== "new") {
+      const edition = f.f.edition(f.event, {
+        editionKey: "2027",
+        editionYear: 2027,
+      });
+      f.f.link({ edition }, { kind: "ticketing", url: savedTicket });
+      f.f.link({ event: f.event }, { kind: "instagram", url: savedSocial });
+    }
+    const before = f.saved();
+    const editor = editorReply((prompt, index) => {
+      if (!index) {
+        return review(
+          prompt,
+          ...[ticketPath, ...socialPaths].map((path) => ({
+            path,
+            decision: "return" as const,
+            note,
+          })),
+        );
+      }
+      expect(prompt.reviewPaths).toEqual([
+        { path: ticketPath, required: true, allowed: ["approve", "return"] },
+      ]);
+      expect(prompt.returnedGroups).toMatchObject([
+        { path: ticketPath, proposal: set(corrected) },
+      ]);
+      return review(prompt);
+    });
+    const { run, requests } = f.model(
+      "links",
+      (body, index, prompt) => {
+        if (index > 1) {
+          expect(
+            prompt.groups.map(({ path }: { path: string }) => path),
+          ).toEqual(socialPaths);
+          for (const group of prompt.groups) {
+            expect(group.note).toContain(note);
+            expect(group.note).toContain("Validation feedback:");
+          }
+        }
+        return reply(body, {
+          event: {
+            socials: index
+              ? {}
+              : {
+                  instagram: set(disputed),
+                  facebook: set("https://facebook.com/disputed"),
+                  youtube: set("https://youtube.com/disputed"),
+                },
+          },
+          currentOrNextEdition: {
+            tickets: set(index ? corrected : "https://example.org/product"),
+          },
+          checks: fixtureChecks(["eventLinks", "currentLinks"]).map(
+            (check) => ({
+              ...check,
+              evidenceIds: kind === "fatal" && index ? ["missing"] : [],
+            }),
+          ),
+          omitted: [],
+          unresolved: [],
+        });
+      },
+      { editor },
+    );
+    const result = await run(undefined, kind === "preview");
+    const lifecycle = f.client
+      .prepare("SELECT status FROM ingestion_runs WHERE id=?")
+      .get(result.runId);
+    if (kind === "fatal") {
+      expect(result.outcome).toBe("failed");
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          message: expect.stringContaining("unknown evidence"),
+        }),
+      );
+      expect(result.operations).toEqual([]);
+      expect(result.receipts).toEqual([]);
+      expect(f.saved()).toEqual(before);
+      expect(lifecycle).toEqual({ status: "failed" });
+      return;
+    }
+    expect(result.errors).toEqual([]);
+    expect(requests).toHaveLength(4);
+    expect(editor).toHaveBeenCalledTimes(2);
+    expect(result.outcome).toBe(kind === "new" ? "created" : "updated");
+    expect(result.researchStatus).toBe("partial");
+    expect(lifecycle).toEqual({ status: "completed" });
+    expect(
+      result.repairs?.filter(({ path }) => path === ticketPath),
+    ).toMatchObject([{ decision: { decision: "approve" } }]);
+    for (const path of socialPaths) {
+      const records = result.repairs!.filter((entry) => entry.path === path);
+      expect(records).toHaveLength(3);
+      expect(records.at(-1)).toMatchObject({
+        path,
+        decision: { path, decision: "reject" },
+        failure: {
+          field: path,
+          message: expect.stringContaining("exact group path"),
+        },
+      });
+      expect(result.unresolved).toContainEqual({
+        field: path,
+        message: records.at(-1)!.failure!.message,
+      });
+    }
+    expect(JSON.stringify(result.operations)).toContain(corrected);
+    expect(result.receipts.length).toBeGreaterThan(0);
+    expect(result.changes).toContainEqual(
+      expect.objectContaining({
+        newValue: expect.arrayContaining([
+          expect.objectContaining({ url: corrected }),
+        ]),
+      }),
+    );
+    if (kind === "preview") {
+      expect(f.saved()).toEqual(before);
+    } else {
+      const saved = f.saved();
+      expect(saved.editions[0].links).toContainEqual(
+        expect.objectContaining({ url: corrected }),
+      );
+      expect(
+        saved.links
+          .filter(({ kind }) =>
+            ["instagram", "facebook", "youtube"].includes(kind),
+          )
+          .map(({ url }) => url),
+      ).toEqual(kind === "new" ? [] : [savedSocial]);
+      expect(JSON.stringify(saved)).not.toContain(disputed);
+    }
+  },
+);
+
+it.each(["omitted peer", "conflicting peer"] as const)(
+  "checks the other Location slot during a venue revision: %s",
+  async (kind) => {
+    const quote = "The venue is Vale do Tejo.";
+    const editions =
+      "Example Fest took place at Vale Antigo in 2026. Example Fest 2027 is from July 1 to July 3.";
+    const f = fixture(`${editions}\n\n${quote}`, { selection: 1 });
+    const previous = f.f.edition(f.event, {
+      editionKey: "2026",
+      startsOn: "2026-07-01",
+      endsOn: "2026-07-03",
+    });
+    const general = fixtureTargets(f.event.id);
+    general.previousEdition = {
+      editionKey: previous.editionKey,
+      reason: general.reason,
+      evidenceIds: general.evidenceIds,
+      fields: {},
+    };
+    const before = f.saved();
+    const note = `Use the venue spelling in s1.md.\n${quote}`;
+    const geocode = vi.fn(async () => ({
+      status: "success" as const,
+      direction: "forward" as const,
+      candidates: [
+        {
+          latitude: 38.7,
+          longitude: -9.1,
+          label: "Vale do Tejo",
+          name: "Vale do Tejo",
+          countryCode: "PT",
+          objectType: "venue" as const,
+          placeId: null,
+          locality: null,
+          address: null,
+          originalType: null,
+          category: null,
+          confidence: null,
+        },
+      ],
+    }));
+    let original: LocationOutput;
+    const editor = editorReply(async (prompt, index, call) => {
+      if (!index) {
+        return review(prompt, { path: locationPath, decision: "return", note });
+      }
+      expect(await grepSavedPage(call, "The venue is")).toContain(quote);
+      expect(prompt.returnedGroups).toMatchObject([
+        {
+          path: locationPath,
+          proposal: { venueName: { value: "Vale do Tejo" } },
+        },
+      ]);
+      expect(prompt.evidence).toContainEqual(
+        expect.objectContaining({ id: "s1-e1", quote: editions }),
+      );
+      expect(prompt.repairs[0].evidenceIds).toEqual([]);
+      return review(prompt);
+    });
+    const { run, requests } = f.model(
+      "location",
+      (body, index, prompt) => {
+        if (!index) {
+          return modelReply(null, {
+            id: marker,
+            name: "geocode",
+            args: { query: "Vale de Tejo", countryCode: "PT" },
+          });
+        }
+        if (index === 1) {
+          original = fixtureLocationPlan(prompt as LocationInput);
+          if (original.decision.status !== "ready") {
+            throw new Error("Missing Location");
+          }
+          const previousSlot = original.decision.previousEdition!;
+          previousSlot.fields.venueName = {
+            action: "set",
+            value: "Vale Antigo",
+            reason: "The source names this venue.",
+          };
+          previousSlot.evidenceIds = ["s1-e1"];
+          const slot = original.decision.currentOrNextEdition!;
+          slot.fields.venueName = {
+            action: "set",
+            value: "Vale de Tejo",
+            reason: "First interpretation",
+          };
+          slot.evidenceIds = ["s1-e1"];
+          slot.coordinates = {
+            action: "select",
+            precision: "exact",
+            reason: "Venue candidate",
+            pointId: JSON.parse(toolResult(body, marker)).pointIds[0],
+          };
+          return reply(body, original);
+        }
+        expect(index).toBe(2);
+        expect(body.tools ?? []).toEqual([]);
+        expect(body.messages.slice(0, 2)).toEqual(
+          requests[0].messages.slice(0, 2),
+        );
+        expect(body.messages).toContainEqual(
+          expect.objectContaining({
+            tool_calls: [expect.objectContaining({ id: marker })],
+          }),
+        );
+        expect(toolResult(body, marker)).toContain("pointIds");
+        expect(prompt.groups).toMatchObject([{ path: locationPath, note }]);
         if (original.decision.status !== "ready") {
           throw new Error("Missing Location");
         }
-        const previousSlot = original.decision.previousEdition!;
-        previousSlot.fields.venueName = {
-          action: "set",
-          value: "Vale Antigo",
-          reason: "The source names this venue.",
-        };
-        previousSlot.evidenceIds = ["s1-e1"];
         const slot = original.decision.currentOrNextEdition!;
         slot.fields.venueName = {
           action: "set",
-          value: "Vale de Tejo",
-          reason: "First interpretation",
+          value: "Vale do Tejo",
+          reason: "Saved spelling",
         };
-        slot.evidenceIds = ["s1-e1"];
-        slot.coordinates = {
-          action: "select",
-          precision: "exact",
-          reason: "Venue candidate",
-          pointId: JSON.parse(toolResult(body, marker)).pointIds[0],
-        };
-        return reply(body, original);
-      }
-      expect(index).toBe(2);
-      expect(body.tools ?? []).toEqual([]);
-      expect(body.messages.slice(0, 2)).toEqual(
-        requests[0].messages.slice(0, 2),
-      );
-      expect(body.messages).toContainEqual(
-        expect.objectContaining({
-          tool_calls: [expect.objectContaining({ id: marker })],
-        }),
-      );
-      expect(toolResult(body, marker)).toContain("pointIds");
-      expect(prompt.groups).toMatchObject([{ path: locationPath, note }]);
-      if (original.decision.status !== "ready") {
-        throw new Error("Missing Location");
-      }
-      const slot = original.decision.currentOrNextEdition!;
-      slot.fields.venueName = {
-        action: "set",
-        value: "Vale do Tejo",
-        reason: "Saved spelling",
-      };
-      slot.evidenceIds = [];
-      return reply(body, {
-        decision: { ...original.decision, previousEdition: null },
+        slot.evidenceIds = [];
+        if (kind === "conflicting peer") {
+          original.decision.previousEdition!.fields.countryCode = {
+            action: "set",
+            value: "ES",
+            reason: "Conflicting country",
+          };
+        }
+        return reply(body, {
+          decision: {
+            ...original.decision,
+            previousEdition:
+              kind === "omitted peer"
+                ? null
+                : original.decision.previousEdition,
+          },
+        });
+      },
+      { editor, general },
+    );
+    const storage = createWorkflowStorage({ path: ":memory:" });
+    const clear = vi.spyOn(ProposalRepairs.prototype, "clear");
+    try {
+      const result = await run({
+        geocodingClient: geocode,
+        workflowStorage: storage,
       });
-    },
-    { editor, general },
-  );
-  const storage = createWorkflowStorage({ path: ":memory:" });
-  const clear = vi.spyOn(ProposalRepairs.prototype, "clear");
-  try {
-    const result = await run({
-      geocodingClient: geocode,
-      workflowStorage: storage,
-    });
-    expect(result.errors).toEqual([]);
-    expect(result.repairs?.[0]).toMatchObject({ note, evidence: [] });
-    expect(geocode).toHaveBeenCalledOnce();
-    const saved = f.saved().editions;
-    expect(saved).toContainEqual(
-      expect.objectContaining({ editionKey: "2026", venueName: "Vale Antigo" }),
-    );
-    expect(saved).toContainEqual(
-      expect.objectContaining({
-        editionKey: "2027",
-        venueName: "Vale do Tejo",
-        latitude: 38.7,
-        longitude: -9.1,
-      }),
-    );
-    expect(clear).toHaveBeenCalledOnce();
-    expect(
-      (clear.mock.contexts[0] as ProposalRepairs).raw("location"),
-    ).toBeUndefined();
-    const domain = (await storage.getStore("workflows"))!;
-    const snapshot = await domain.loadWorkflowSnapshot({
-      workflowName: "catalog-ingestion",
-      runId: result.runId!,
-    });
-    expect(snapshot).toBeDefined();
-    expect(JSON.stringify(snapshot)).not.toContain(marker);
-    expect(
-      JSON.stringify(
-        f.client.prepare("SELECT report_json FROM ingestion_runs").get(),
-      ),
-    ).not.toContain(marker);
-  } finally {
-    await storage.close();
-  }
-});
+      expect(geocode).toHaveBeenCalledOnce();
+      if (kind === "conflicting peer") {
+        expect(result.outcome).toBe("failed");
+        expect(result.errors).toContainEqual(
+          expect.objectContaining({
+            code: "country_conflict",
+            editionKey: "2026",
+          }),
+        );
+        expect(result.repairs?.[0]).toMatchObject({
+          path: locationPath,
+          revision: {
+            fields: { venueName: { action: "set", value: "Vale do Tejo" } },
+          },
+        });
+        expect(result.operations).toEqual([]);
+        expect(result.receipts).toEqual([]);
+        expect(f.saved()).toEqual(before);
+        expect(editor).toHaveBeenCalledOnce();
+      } else {
+        expect(result.errors).toEqual([]);
+        expect(result.repairs?.[0]).toMatchObject({ note, evidence: [] });
+        const saved = f.saved().editions;
+        expect(saved).toContainEqual(
+          expect.objectContaining({
+            editionKey: "2026",
+            venueName: "Vale Antigo",
+          }),
+        );
+        expect(saved).toContainEqual(
+          expect.objectContaining({
+            editionKey: "2027",
+            venueName: "Vale do Tejo",
+            latitude: 38.7,
+            longitude: -9.1,
+          }),
+        );
+      }
+      expect(clear).toHaveBeenCalledOnce();
+      expect(
+        (clear.mock.contexts[0] as ProposalRepairs).raw("location"),
+      ).toBeUndefined();
+      const domain = (await storage.getStore("workflows"))!;
+      const snapshot = await domain.loadWorkflowSnapshot({
+        workflowName: "catalog-ingestion",
+        runId: result.runId!,
+      });
+      expect(snapshot).toBeDefined();
+      expect(JSON.stringify(snapshot)).not.toContain(marker);
+      expect(
+        JSON.stringify(
+          f.client.prepare("SELECT report_json FROM ingestion_runs").get(),
+        ),
+      ).not.toContain(marker);
+    } finally {
+      await storage.close();
+    }
+  },
+);
 
 it("cancels a specialist return before writing and releases the conversation", async () => {
   const f = fixture("Example Fest announces a full pass and a July programme.");
@@ -721,7 +997,12 @@ it("cancels a specialist return before writing and releases the conversation", a
   ).toBeUndefined();
 });
 
-it.each(["reject target", "revise date"] as const)(
+it.each([
+  "reject target",
+  "revise date",
+  "invalid omission",
+  "invalid dates",
+] as const)(
   "preserves an independent change when Editor decides to %s",
   async (kind) => {
     const f = fixture(
@@ -775,11 +1056,24 @@ it.each(["reject target", "revise date"] as const)(
         const answer = fixtureTargets(f.event.id);
         answer.unresolved = [question(index)];
         if (index) {
-          answer.currentOrNextEdition!.fields.dates = set({
-            startsOn: "2027-06-01",
-            endsOn: "2027-06-03",
-            state: "confirmed",
-          });
+          if (kind === "invalid dates") {
+            answer.currentOrNextEdition!.fields.dates = set({
+              startsOn: "bad-date",
+              endsOn: "2027-07-03",
+              state: "confirmed",
+            });
+          } else if (kind === "invalid omission") {
+            delete answer.currentOrNextEdition!.fields.dates;
+            answer.unresolved = [
+              { field: "dates", message: "Dates are not confirmed." },
+            ];
+          } else {
+            answer.currentOrNextEdition!.fields.dates = set({
+              startsOn: "2027-06-01",
+              endsOn: "2027-06-03",
+              state: "confirmed",
+            });
+          }
         }
         return reply(body, { result: answer });
       },
@@ -836,6 +1130,16 @@ it.each(["reject target", "revise date"] as const)(
       expect(current).toBeUndefined();
       expect(result.repairs).toBeUndefined();
       expect(requests).toHaveLength(1);
+    } else if (kind === "invalid omission" || kind === "invalid dates") {
+      expect(current).toBeUndefined();
+      expect(requests).toHaveLength(4);
+      expect(editor).toHaveBeenCalledOnce();
+      expect(result.researchStatus).toBe("partial");
+      expect(result.repairs).toHaveLength(3);
+      expect(result.repairs?.at(-1)).toMatchObject({
+        path: datesPath,
+        decision: { decision: "reject" },
+      });
     } else {
       expect(result.unresolved).toContainEqual({
         message: `currentDates: ${question(1).message}`,

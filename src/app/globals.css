@@ -1517,6 +1517,33 @@ body {
   color: var(--muted);
   font-size: 12px;
 }
+.results-heading .results-area {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+.follow-map {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  width: fit-content;
+  font-size: 12px;
+  cursor: pointer;
+}
+.follow-map input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.follow-map:has(:disabled) {
+  color: var(--muted);
+  cursor: default;
+}
 .discovery .sheet-toggle {
   display: none;
 }
@@ -1844,6 +1871,7 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    flex-wrap: wrap;
   }
   .results-heading::before {
     content: "";
@@ -1856,7 +1884,13 @@ body {
     background: var(--line);
   }
   .results-heading h1 {
+    flex: 1;
+    min-width: 0;
     font-size: 20px;
+  }
+  .results-heading .follow-map {
+    flex-basis: 100%;
+    min-height: 44px;
   }
   .results-heading p {
     display: none;

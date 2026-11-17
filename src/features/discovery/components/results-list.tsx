@@ -11,12 +11,14 @@ export function ResultsList({
   error,
   onSelect,
   onClear,
+  areaEmpty = false,
 }: Readonly<{
   results: DiscoverySummary[];
   selectedId: string | null;
   error: string | null;
   onSelect: (id: string) => void;
   onClear: () => void;
+  areaEmpty?: boolean;
 }>) {
   return (
     <section className="list-region" aria-label="List results">
@@ -98,11 +100,20 @@ export function ResultsList({
           </ul>
         ) : (
           <div className="notice empty-results">
-            <p>No events match these filters.</p>
-            <button type="button" onClick={onClear}>
-              <Icon name="reset" />
-              Clear all filters
-            </button>
+            {areaEmpty ? (
+              <>
+                <p>No events in this map area.</p>
+                <p>Move the map or turn Follow map off to see more events.</p>
+              </>
+            ) : (
+              <>
+                <p>No events match these filters.</p>
+                <button type="button" onClick={onClear}>
+                  <Icon name="reset" />
+                  Clear all filters
+                </button>
+              </>
+            )}
           </div>
         ))}
     </section>
