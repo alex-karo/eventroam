@@ -11,7 +11,7 @@ The [proposal](proposal.md) defines the required results. This design changes th
 
 ## Contracts
 
-[ReviewPath](../../../src/ingestion/roles/editor/contracts.ts) and the model decision shape stay in use. Code changes the allowed decisions for field groups:
+[ReviewPath](../../../../src/ingestion/roles/editor/contracts.ts) and the model decision shape stay in use. Code changes the allowed decisions for field groups:
 
 ```ts
 // Proposed policy for a required field group.
@@ -22,17 +22,17 @@ const allowed = canReturnGroup
 
 `canReturnGroup` uses the existing live conversation and shared per-path count. Item and target paths retain `approve` and `reject`. An absent optional group is still optional and permits only `return`. A previously returned omission can be approved after its exact-path reason passes validation.
 
-Keep the existing `SpecialistOutputs` result from [ProposalRepairs](../../../src/ingestion/repairs.ts). Store a final code rejection in the affected group's latest `RepairRecord.decision`. Keep its diagnostic in `failure`. The workflow reads these existing records instead of receiving a separate rejection list.
+Keep the existing `SpecialistOutputs` result from [ProposalRepairs](../../../../src/ingestion/repairs.ts). Store a final code rejection in the affected group's latest `RepairRecord.decision`. Keep its diagnostic in `failure`. The workflow reads these existing records instead of receiving a separate rejection list.
 
 Use existing `GroupIssue`, `RepairRecord`, and `ReviewDecision` data. Use `GroupIssue` for each local error, including a missing exact-path omission reason. Move that check from the throwing merge step into scoped group validation. A diagnostic field or message alone does not establish that an error is local. Unmapped errors remain fatal.
 
 Each requested group has a final result before this call returns. Read the latest record for each path to find final code rejections. An earlier failed attempt that later recovers is history, not a final rejection. The caller derives usable revisions from the requested groups minus final rejections. Keep the existing assignment order.
 
-Keep [CatalogResearchResult](../../../src/ingestion/contracts.ts) at its current shape. Existing repair records hold attempts, local failures, omission reasons, and final decisions. Existing unresolved items and research status describe unfinished work. No historical report or catalog migration is needed.
+Keep [CatalogResearchResult](../../../../src/ingestion/contracts.ts) at its current shape. Existing repair records hold attempts, local failures, omission reasons, and final decisions. Existing unresolved items and research status describe unfinished work. No historical report or catalog migration is needed.
 
 ## Architecture
 
-The current [review loop](../../../src/ingestion/workflow.ts), [group validators](../../../src/ingestion/roles/proposal-validation.ts), and [applyReview](../../../src/ingestion/proposals.ts) already own most of the required behavior. Change their control flow at the points where a field rejection or repair exception currently ends useful work.
+The current [review loop](../../../../src/ingestion/workflow.ts), [group validators](../../../../src/ingestion/roles/proposal-validation.ts), and [applyReview](../../../../src/ingestion/proposals.ts) already own most of the required behavior. Change their control flow at the points where a field rejection or repair exception currently ends useful work.
 
 ```mermaid
 flowchart TD
@@ -54,7 +54,7 @@ The diagram follows one group. Other groups retain their own results. The workfl
 
 ### Review routing
 
-Change [reviewPaths](../../../src/ingestion/roles/editor/review.ts) and [Editor instructions](../../../src/ingestion/roles/editor/prompt.ts) together. A submitted field proposal can be repaired by changing its value or withdrawing it. While its owner and allowance are available, Editor uses `approve` or `return`. Code exposes `reject` when a return is unavailable or the limit is reached.
+Change [reviewPaths](../../../../src/ingestion/roles/editor/review.ts) and [Editor instructions](../../../../src/ingestion/roles/editor/prompt.ts) together. A submitted field proposal can be repaired by changing its value or withdrawing it. While its owner and allowance are available, Editor uses `approve` or `return`. Code exposes `reject` when a return is unavailable or the limit is reached.
 
 Editor compares `prepared.plan` with saved state. Saved state is context, not a second proposal to repair. An already correct current proposal needs no return. An absent optional social value is not an error. Editor returns an omission only for a concrete supported correction that the field can represent.
 
@@ -82,9 +82,9 @@ The existing maximum is three specialist returns per path. Validation, semantic 
 
 Seed final code rejections from the latest repair records into the review map. Do this before the first Editor review and after each later repair call. Exclude those groups from further model review. Send all usable revisions, including explained withdrawals, to Editor. In the first review, include usable validation repairs. In later rounds, review only revised groups. Merge these decisions with earlier independent approvals. Keep code rejections in the map when final decisions are copied to the repair records.
 
-Only final group decisions reach [applyReview](../../../src/ingestion/proposals.ts). A returned group that later fails cannot fall back to its original disputed value. Reuse existing removal rules: optional field rejection preserves saved data, temporal rejection removes its Edition, and rejected reuse premises remove their dependent changes. Keep whole classification, ticket, date, and Location groups indivisible.
+Only final group decisions reach [applyReview](../../../../src/ingestion/proposals.ts). A returned group that later fails cannot fall back to its original disputed value. Reuse existing removal rules: optional field rejection preserves saved data, temporal rejection removes its Edition, and rejected reuse premises remove their dependent changes. Keep whole classification, ticket, date, and Location groups indivisible.
 
-Prepare operations once from the remaining accepted plan. Keep existing publication rules, donor version checks, baseline checks, and [applyCatalogItem](../../../src/catalog/write/apply-operation.ts). A database error rolls back the whole transaction. Independent validation does not mean separate commits.
+Prepare operations once from the remaining accepted plan. Keep existing publication rules, donor version checks, baseline checks, and [applyCatalogItem](../../../../src/catalog/write/apply-operation.ts). A database error rolls back the whole transaction. Independent validation does not mean separate commits.
 
 ## Key decisions
 
@@ -122,6 +122,6 @@ Invalid initial required output remains outside local recovery. This includes th
 - **The last valid revision is rejected because its count reached three:** test acceptance at that boundary, shared validation and Editor counts, and exhaustion with repeated local errors. A settled withdrawal and an untouched optional omission also need checks against unnecessary calls.
 - **Reports hide dropped work or mark a recovered issue as final failure:** add final per-path decisions, reasons, partial research, receipts, and lifecycle assertions to the mixed-success case. Add recovered-status assertions to the return-limit case. Keep these checks in the fixtures that already exercise the repair result.
 
-Extend existing [repair unit tests](../../../src/ingestion/repairs.unit.test.ts), [repair workflow tests](../../../src/ingestion/repairs.test.ts), and [Editor tests](../../../src/ingestion/roles/editor/workflow.test.ts). Existing tests already cover ordinary valid repair, batch counts, and cancellation. Reuse [proposal dependency tests](../../../src/ingestion/proposals.test.ts) and the independent-change case in the repair workflow tests. Test the new connection from code rejection to `applyReview` without copying the dependency matrix. Reuse [workflow tests](../../../src/ingestion/workflow.test.ts) for general preview/apply agreement and catalog, audit, and receipt rollback. Add a preview check for the mixed repair path, not another general writer suite. Change expected routing where needed and add only missing failure cases. Use deterministic model replies and disposable catalog fixtures. Paid evals, production writes, and historical replays are not required for implementation validation.
+Extend existing [repair unit tests](../../../../src/ingestion/repairs.unit.test.ts), [repair workflow tests](../../../../src/ingestion/repairs.test.ts), and [Editor tests](../../../../src/ingestion/roles/editor/workflow.test.ts). Existing tests already cover ordinary valid repair, batch counts, and cancellation. Reuse [proposal dependency tests](../../../../src/ingestion/proposals.test.ts) and the independent-change case in the repair workflow tests. Test the new connection from code rejection to `applyReview` without copying the dependency matrix. Reuse [workflow tests](../../../../src/ingestion/workflow.test.ts) for general preview/apply agreement and catalog, audit, and receipt rollback. Add a preview check for the mixed repair path, not another general writer suite. Change expected routing where needed and add only missing failure cases. Use deterministic model replies and disposable catalog fixtures. Paid evals, production writes, and historical replays are not required for implementation validation.
 
-Update the implemented rules in [the ingestion process guide](../../../docs/ingestion-process.md) and report inspection steps in [the tools guide](../../../docs/ingestion-tools.md) during implementation. No data migration or automatic recovery step is part of rollout.
+Update the implemented rules in [the ingestion process guide](../../../../docs/ingestion-process.md) and report inspection steps in [the tools guide](../../../../docs/ingestion-tools.md) during implementation. No data migration or automatic recovery step is part of rollout.
