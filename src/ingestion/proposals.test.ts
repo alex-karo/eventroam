@@ -211,7 +211,7 @@ it("passes questions from all specialists to Editor without changing General", (
   expect(result.value.plan.unresolved).toEqual(expected);
   expect(checked.value.unresolved).toEqual([question("General question")]);
 });
-it("requires an explicit supported duplicate decision for add", () => {
+it("rejects unassigned Event IDs and unsupported identity", () => {
   const f = fixture();
   expect(
     validateGeneral(
@@ -221,20 +221,6 @@ it("requires an explicit supported duplicate decision for add", () => {
       f.corpus,
     ).status,
   ).toBe("reject");
-  expect(
-    validateGeneral(
-      {
-        decision: "duplicate",
-        eventId: f.targets.eventId!,
-        observedEventName: "Example Festival",
-        reason: "Same festival",
-        evidenceIds: ["s1-e1"],
-      },
-      f.context,
-      { mode: "add", actor: "test" },
-      f.corpus,
-    ).status,
-  ).toBe("skip");
   const unknown = { ...f.targets, eventId: "outside" };
   expect(validateGeneral(unknown, f.context, f.input, f.corpus).status).toBe(
     "reject",

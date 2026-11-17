@@ -9,12 +9,15 @@ import {
   roleInvocationOptions,
   type RoleOptions,
 } from "../options";
-import { generalOutputSchema, refreshGeneralOutputSchema } from "./contracts";
+import { generalOutputSchema } from "./contracts";
 import { generalInstructions } from "./prompt";
 
 export function runGeneral(options: RoleOptions) {
   const { identityTask, identityContext, currentDate, permissions } =
     buildAssignment(options.input, options.context);
+  const savedEvent = options.context.catalog.find(
+    (event) => event.id === options.input.eventId,
+  );
   return invokeRole({
     ...roleInvocationOptions(options, "general"),
     role: "general",
@@ -23,16 +26,16 @@ export function runGeneral(options: RoleOptions) {
     input: {
       assignment: { identityTask, identityContext, currentDate, permissions },
       assignedChecks: assignedRoleChecks("general", options.input),
-      candidates: options.context.catalog.map((event) => ({
-        id: event.id,
-        canonicalName: event.canonicalName,
-        aliases: event.aliases,
-        version: event.version,
-        publicationState: event.publicationState,
-        links: event.links
+      savedEvent: savedEvent && {
+        id: savedEvent.id,
+        canonicalName: savedEvent.canonicalName,
+        aliases: savedEvent.aliases,
+        version: savedEvent.version,
+        publicationState: savedEvent.publicationState,
+        links: savedEvent.links
           .filter((link) => link.official)
           .map(({ kind, url }) => ({ kind, url })),
-        editions: event.editions.map((edition) => ({
+        editions: savedEvent.editions.map((edition) => ({
           ...editionChronology(edition),
           id: edition.id,
           eventId: edition.eventId,
@@ -47,12 +50,9 @@ export function runGeneral(options: RoleOptions) {
           venueAddress: edition.venueAddress,
           publicationState: edition.publicationState,
         })),
-      })),
+      },
       corpus: evidencePacket(options.corpus, roleEvidenceTopics.general),
     },
-    schema:
-      options.input.mode === "refresh"
-        ? refreshGeneralOutputSchema
-        : generalOutputSchema,
+    schema: generalOutputSchema,
   });
 }

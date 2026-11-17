@@ -84,7 +84,7 @@ test.each([
     expect(readResearchCatalog(client)[0].slug).toMatch(slug);
   },
 );
-test("duplicate add stops all role proposals before writes and retains the observed name", async () => {
+test("a removed General duplicate decision fails without catalog writes", async () => {
   const f = fixture();
   const before = readResearchEvent(f.client, f.event.id);
   const result = await runFixtureResearch(input, {
@@ -99,9 +99,9 @@ test("duplicate add stops all role proposals before writes and retains the obser
       }),
     },
   });
-  expect(result.outcome).toBe("skipped");
+  expect(result.outcome).toBe("failed");
   expect(result.operations).toEqual([]);
-  expect(result.eventNameMismatch?.observedName).toBe("Revised name");
+  expect(result.errors).not.toEqual([]);
   expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
 });
 test("Ingestion maps grouped facts and reasons without renaming the saved Event", async () => {

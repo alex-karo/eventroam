@@ -142,18 +142,16 @@ it("reads a tool-free Links revision when the wire schema fails", async () => {
 });
 it("uses an object transport envelope for General and retains the actual response", async () => {
   const domain = {
-    decision: "duplicate",
-    eventId: "event",
-    observedEventName: "Festival",
-    reason: "Official identity",
-    evidenceIds: ["s1-e1"],
+    decision: "uncertain",
+    reason: "Official identity is not established",
+    unresolved: [],
   };
   const fetch = vi.fn(async (_input: unknown, init?: RequestInit) => {
     const request = JSON.parse(String(init?.body));
     const schema = request.response_format.json_schema.schema;
     expect(schema.type).toBe("object");
     expect(schema.required).toEqual(["result"]);
-    expect(schema.properties.result.anyOf).toHaveLength(3);
+    expect(schema.properties.result.anyOf).toHaveLength(2);
     return modelReply(JSON.stringify({ result: domain }));
   });
   vi.stubGlobal("fetch", fetch);

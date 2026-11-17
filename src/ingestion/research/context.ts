@@ -1,9 +1,5 @@
 import type Database from "better-sqlite3";
-import {
-  readResearchCatalog,
-  readResearchEvent,
-  readResearchTerms,
-} from "@/catalog/read/research";
+import { readResearchEvent, readResearchTerms } from "@/catalog/read/research";
 import type { CatalogResearchInput } from "../contracts";
 import type { KnownSourceLink } from "../tools/contracts";
 import {
@@ -35,7 +31,7 @@ export function loadResearchContext(
   if (input.eventId && !target) {
     throw new Error("Event not found");
   }
-  const catalog = target ? [target] : readResearchCatalog(client);
+  const catalog = target ? [target] : [];
   const terms = readResearchTerms(client);
   const knownLinks: KnownSourceLink[] = [
     ...(target?.links.map(({ url, kind, official }) => ({
@@ -62,7 +58,9 @@ export function loadResearchContext(
   };
 }
 
-export type ResearchCatalog = ReturnType<typeof readResearchCatalog>;
+export type ResearchCatalog = NonNullable<
+  ReturnType<typeof readResearchEvent>
+>[];
 
 export type ResearchContext = {
   catalog: ResearchCatalog;

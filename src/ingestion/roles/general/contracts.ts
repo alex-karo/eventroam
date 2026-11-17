@@ -62,11 +62,6 @@ export const festivalCountriesSchema = z
   );
 export const generalOutputSchema = z.discriminatedUnion("decision", [
   z.strictObject({
-    decision: z.literal("duplicate"),
-    ...identity,
-    eventId: z.string().min(1),
-  }),
-  z.strictObject({
     decision: z.literal("uncertain"),
     reason: reasonSchema,
     unresolved: questionsSchema,
@@ -89,10 +84,6 @@ export const generalOutputSchema = z.discriminatedUnion("decision", [
     checks: checksSchema,
     unresolved: questionsSchema,
   }),
-]);
-export const refreshGeneralOutputSchema = z.discriminatedUnion("decision", [
-  generalOutputSchema.options[1],
-  generalOutputSchema.options[2],
 ]);
 export type GeneralOutput = z.infer<typeof generalOutputSchema>;
 export type Targets = Extract<GeneralOutput, { decision: "targets" }>;

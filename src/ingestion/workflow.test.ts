@@ -599,20 +599,18 @@ test.each(["update", "serialization"] as const)(
     if (failure === "update") {
       client.exec("DROP TRIGGER refuse_finish");
     }
-    const duplicateOutput = {
-      decision: "duplicate",
-      eventId: readResearchCatalog(client)[0].id,
-      observedEventName: "Example Fest",
-      reason,
-      evidenceIds: ["s1-e1"],
-    };
-    const fresh = await runCatalogResearch(input, {
-      client,
-      ...dependencies(),
-      generateRoles: { general: async () => duplicateOutput },
-    });
+    const fresh = await runCatalogResearch(
+      { ...input, input: "Example Fest, pt" },
+      {
+        client,
+        ...dependencies(),
+        generateRoles: { general: model },
+      },
+    );
     expect(fresh.runId).not.toBe(persistence.runId);
     expect(fresh.outcome).toBe("skipped");
+    expect(fresh.inputDuplicate?.support).toEqual({ countryCode: "PT" });
+    expect(model).toHaveBeenCalledOnce();
     expect(
       client
         .prepare("SELECT * FROM ingestion_runs WHERE id=?")

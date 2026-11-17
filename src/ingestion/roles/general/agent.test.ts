@@ -99,32 +99,40 @@ it.each(["add", "full", "current"] as const)(
           expect(data.assignedChecks).toContain("currentDates");
           expect(data.assignedChecks).not.toContain("currentTickets");
           expect(data.assignedChecks).not.toContain("description");
-          expect(data.candidates[0]).not.toHaveProperty("description");
-          expect(data.candidates[0]).toMatchObject({
-            id: event.id,
-            version: event.version,
-            aliases: event.aliases,
-            links: [{ kind: "official_site", url: "https://example.org/" }],
-          });
-          expect(data.candidates[0].editions[0]).toMatchObject({
-            id: edition.id,
-            eventId: event.id,
-            editionKey: "import-next",
-            sizeEstimate: 12000,
-            countryCode: edition.countryCode,
-            dateState: edition.dateState,
-            timeZone: "Europe/Lisbon",
-          });
-          for (const field of [
-            "priceDetails",
-            "priceMinMinor",
-            "terms",
-            "latitude",
-            "longitude",
-            "createdAt",
-            "updatedAt",
-          ]) {
-            expect(data.candidates[0].editions[0]).not.toHaveProperty(field);
+          expect(data).not.toHaveProperty("candidates");
+          expect(data.assignment.identityContext).not.toHaveProperty(
+            "knownNames",
+          );
+          if (mode === "add") {
+            expect(data).not.toHaveProperty("savedEvent");
+          } else {
+            expect(data.savedEvent).not.toHaveProperty("description");
+            expect(data.savedEvent).toMatchObject({
+              id: event.id,
+              version: event.version,
+              aliases: event.aliases,
+              links: [{ kind: "official_site", url: "https://example.org/" }],
+            });
+            expect(data.savedEvent.editions[0]).toMatchObject({
+              id: edition.id,
+              eventId: event.id,
+              editionKey: "import-next",
+              sizeEstimate: 12000,
+              countryCode: edition.countryCode,
+              dateState: edition.dateState,
+              timeZone: "Europe/Lisbon",
+            });
+            for (const field of [
+              "priceDetails",
+              "priceMinMinor",
+              "terms",
+              "latitude",
+              "longitude",
+              "createdAt",
+              "updatedAt",
+            ]) {
+              expect(data.savedEvent.editions[0]).not.toHaveProperty(field);
+            }
           }
           return {
             decision: "uncertain",

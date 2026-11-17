@@ -145,15 +145,6 @@ export async function runTraceFixture(
       if (scenario === "invalid") {
         return { unsafe: TRACE_CANDIDATE };
       }
-      if (scenario === "skipped") {
-        return {
-          decision: "duplicate",
-          eventId: event.id,
-          observedEventName: general.observedEventName,
-          reason: TRACE_CANDIDATE,
-          evidenceIds: ["s1-e1"],
-        };
-      }
       const prompt = JSON.parse(raw);
       return {
         ...general,
@@ -309,7 +300,7 @@ export async function runTraceFixture(
       {
         mode: scenario === "skipped" ? "add" : "refresh",
         ...(scenario === "skipped"
-          ? { input: TRACE_PUBLIC_MARKER }
+          ? { input: `${TRACE_PUBLIC_MARKER} https://example.org/initial` }
           : { eventId: event.id }),
         actor: "test",
         initiatedBy: "test",
