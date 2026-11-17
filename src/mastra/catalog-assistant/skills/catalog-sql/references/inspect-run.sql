@@ -4,5 +4,7 @@ SELECT id AS ingestionRunId, event_id, mode, status, started_at, finished_at,
   json_extract(report_json, '$.schemaVersion') AS schemaVersion,
   json_extract(input_json, '$.dryRun') AS dryRun,
   json_extract(report_json, '$.outcome') AS outcome,
-  json_extract(report_json, '$.researchStatus') AS researchStatus
+  json_extract(report_json, '$.researchStatus') AS researchStatus,
+  json_extract(report_json, '$.eventId') AS reportedEventId,
+  json_extract(report_json, '$.inputDuplicate') AS inputDuplicate
 FROM ingestion_runs WHERE id = ?

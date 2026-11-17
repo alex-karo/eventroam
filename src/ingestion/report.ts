@@ -170,6 +170,18 @@ export function buildResearchReport({
     researchStatus = "failed";
   }
 
+  const inputDuplicate =
+    input.mode === "add" &&
+    outcome === "skipped" &&
+    errors.length === 0 &&
+    context?.inputDuplicate &&
+    diagnostics?.matchedEventId === context.inputDuplicate.eventId
+      ? context.inputDuplicate
+      : undefined;
+  if (inputDuplicate) {
+    researchStatus = "success";
+  }
+
   const eventId =
     diagnostics?.matchedEventId ?? references.event ?? input.eventId;
   return {
@@ -194,6 +206,7 @@ export function buildResearchReport({
     mode: input.mode,
     outcome,
     researchStatus,
+    ...(inputDuplicate ? { inputDuplicate } : {}),
     eventId,
     modelResponse: general.modelResponse ?? null,
     classificationResponse: specialists.classification?.modelResponse ?? null,

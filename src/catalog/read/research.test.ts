@@ -9,7 +9,19 @@ import {
   readResearchCatalog,
   readResearchEvent,
   readResearchCountryBaseline,
+  readResearchNames,
 } from "@/catalog/read/research";
+
+test("name lookup includes aliases and Events without Editions or links", () => {
+  const client = testDatabase().client;
+  const event = testFixtures(client).event({
+    canonicalName: "Example Fest",
+    aliases: ["Sample Party"],
+  });
+  expect(readResearchNames(client)).toEqual([
+    { id: event.id, canonicalName: "Example Fest", aliases: ["Sample Party"] },
+  ]);
+});
 
 test("country baseline distinguishes missing Events from empty ones and scopes saved countries to the target", () => {
   const client = testDatabase().client;

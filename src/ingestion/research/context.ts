@@ -6,12 +6,29 @@ import {
 } from "@/catalog/read/research";
 import type { CatalogResearchInput } from "../contracts";
 import type { KnownSourceLink } from "../tools/contracts";
+import {
+  findInputDuplicate,
+  type InputDuplicateMatch,
+} from "./input-duplicate";
 
 export function loadResearchContext(
   client: Database.Database,
   input: CatalogResearchInput,
   currentDate = new Date().toISOString(),
-) {
+): ResearchContext {
+  const inputDuplicate =
+    input.mode === "add" && input.input
+      ? findInputDuplicate(client, input.input)
+      : null;
+  if (inputDuplicate) {
+    return {
+      catalog: [],
+      terms: [],
+      knownLinks: [],
+      currentDate,
+      inputDuplicate,
+    };
+  }
   const target = input.eventId
     ? readResearchEvent(client, input.eventId)
     : null;
@@ -47,4 +64,10 @@ export function loadResearchContext(
 
 export type ResearchCatalog = ReturnType<typeof readResearchCatalog>;
 
-export type ResearchContext = ReturnType<typeof loadResearchContext>;
+export type ResearchContext = {
+  catalog: ResearchCatalog;
+  terms: ReturnType<typeof readResearchTerms>;
+  knownLinks: KnownSourceLink[];
+  currentDate: string;
+  inputDuplicate?: InputDuplicateMatch;
+};
