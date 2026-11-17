@@ -2,11 +2,14 @@ import type { CatalogResearchInput } from "../contracts";
 import type { FrozenCorpus } from "../evidence/contracts";
 import {
   atPath,
-  isEventFieldCheck,
+  assignedGroups,
+  proposalGroups,
   record,
   type GroupOwner,
   type ProposalGroup,
 } from "../groups";
+import { effectiveScope } from "../scope";
+import { assignedRoleChecks } from "./assignment";
 import type { ResearchError } from "../research/contracts";
 import type { ResearchContext } from "../research/context";
 import type { Targets } from "./general/contracts";
@@ -96,26 +99,41 @@ export function requireKnownReferences(
   }
 }
 
-function requireAssignedEventFields(
+export function requireAssignedProposals(
   owner: GroupOwner,
   raw: unknown,
-  ctx: ProposalValidationContext,
+  input: CatalogResearchInput,
+  targets?: Targets,
 ) {
-  if (ctx.input.scope !== "current") {
-    return;
+  const groups = assignedGroups(effectiveScope(input), targets).filter(
+    (group) => group.owner === owner,
+  );
+  const allowed = new Set(groups.map(({ path }) => path));
+  for (const group of proposalGroups.filter((group) => group.owner === owner)) {
+    const value = atPath(raw, group.rawPath);
+    if (value != null && !allowed.has(group.path)) {
+      failProposal(
+        `${owner}: ${group.path} is outside the assignment`,
+        group.path,
+      );
+    }
   }
   const checks = atPath(raw, "checks");
-  const eventCheck =
-    Array.isArray(checks) &&
-    checks.some((finding) => isEventFieldCheck(String(record(finding)?.check)));
-  if (
-    eventCheck ||
-    atPath(raw, "description") ||
-    atPath(raw, "shortDescription") ||
-    atPath(raw, "event.website") ||
-    Object.keys(record(atPath(raw, "event.socials")) ?? {}).length
-  ) {
-    failProposal(`${owner}: Event fields are outside the assignment`);
+  if (owner !== "location" && Array.isArray(checks)) {
+    const allowedChecks = new Set(
+      assignedRoleChecks(
+        owner,
+        input,
+        owner === "general" ? undefined : targets,
+      ),
+    );
+    if (
+      checks.some(
+        (finding) => !allowedChecks.has(String(record(finding)?.check)),
+      )
+    ) {
+      failProposal(`${owner}: check is outside the assignment`);
+    }
   }
 }
 
@@ -204,7 +222,10 @@ export function validateProposalBoundary(
     ctx.corpus.sources.map(({ id }) => id),
     "source",
   );
-  if (owner !== "general") {
-    requireAssignedEventFields(owner, reply.raw, ctx);
-  }
+  requireAssignedProposals(
+    owner,
+    reply.raw,
+    ctx.input,
+    owner === "general" ? undefined : (ctx.targets ?? undefined),
+  );
 }

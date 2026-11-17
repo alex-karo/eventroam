@@ -123,9 +123,7 @@ it("shares proposal and repair evidence by ID and checks saved source hashes", a
           client: testDatabase().client,
           generateRole: async (_role, prompt, call) => {
             const input = JSON.parse(prompt);
-            expect(input.vocabulary).toEqual([
-              { id: "opaque-id", facet: "genre", slug: "jazz", parentId: null },
-            ]);
+            expect(input).not.toHaveProperty("vocabulary");
             expect(input.currentDate).toBe("2026-11-01T00:00:00Z");
             expect(input).not.toHaveProperty("decisionShape");
             expect(input.prepared.unresolved).toEqual(prepared.unresolved);

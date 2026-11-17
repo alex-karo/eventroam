@@ -9,8 +9,11 @@ type SavedEditions = ResearchCatalog[number]["editions"];
 export function editionEligibility(
   targets: Pick<Targets, "previousEdition" | "currentOrNextEdition">,
   saved: SavedEditions | undefined,
-  scope: CatalogResearchInput["scope"],
-): "continue" | "skipped" | "unchanged" {
+  mode: CatalogResearchInput["mode"],
+): "continue" | "skipped" {
+  if (mode === "refresh") {
+    return "continue";
+  }
   if (
     !targets.previousEdition &&
     !targets.currentOrNextEdition &&
@@ -20,9 +23,6 @@ export function editionEligibility(
     )
   ) {
     return "skipped";
-  }
-  if (scope === "current" && !targets.currentOrNextEdition) {
-    return "unchanged";
   }
   return "continue";
 }

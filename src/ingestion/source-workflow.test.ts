@@ -295,7 +295,7 @@ it("keeps a long source blocker partial even when specialists verify their check
   const { result } = await fixture({
     research: (output) => ({
       checks: output.checks.map((check) =>
-        check.check === "currentLocation"
+        check.check === "currentOrNextEdition.fields.location"
           ? { ...check, blocker: explanation }
           : check,
       ),
@@ -306,7 +306,7 @@ it("keeps a long source blocker partial even when specialists verify their check
   expect(result.researchStatus).toBe("partial");
   expect(result.unresolved).toContainEqual(question);
   expect(result.unresolved).toContainEqual({
-    message: `currentLocation: ${explanation}`,
+    message: `currentOrNextEdition.fields.location: ${explanation}`,
   });
   expect(
     result.sourceSummaries.some((source) =>
@@ -320,7 +320,7 @@ it("does not treat a specialist finding as a completed missing collection check"
     research: (output) => ({
       ...output,
       checks: output.checks.filter(
-        (check) => check.check !== "currentClassification",
+        (check) => check.check !== "currentOrNextEdition.fields.classification",
       ),
     }),
   });
@@ -328,18 +328,20 @@ it("does not treat a specialist finding as a completed missing collection check"
   expect(result.outcome).toBe("created");
   expect(result.researchStatus).toBe("partial");
   expect(result.unresolved).toContainEqual({
-    message: "Collection check currentClassification was not returned.",
+    message:
+      "Collection check currentOrNextEdition.fields.classification was not returned.",
   });
 });
 
 it("keeps a semantic check unfinished without an acquisition blocker", async () => {
   const { result } = await fixture({
-    unfinishedCheck: "currentClassification",
+    unfinishedCheck: "currentOrNextEdition.fields.classification",
   });
   expect(result.errors).toEqual([]);
   expect(result.researchStatus).toBe("partial");
   expect(result.unresolved).toContainEqual({
-    message: "currentClassification: Fixture completes interpretation",
+    message:
+      "currentOrNextEdition.fields.classification: Fixture completes interpretation",
   });
 });
 
@@ -361,7 +363,7 @@ it("retains an unfinished collection cause without a source or a separate owner 
     sourceUnavailable: true,
     research: (output) => ({
       checks: output.checks.map((check) =>
-        check.check === "currentTickets"
+        check.check === "currentOrNextEdition.fields.tickets"
           ? {
               check: check.check,
               sourceIds: [],
@@ -376,7 +378,7 @@ it("retains an unfinished collection cause without a source or a separate owner 
   expect(result.researchStatus).toBe("failed");
   expect(calls).not.toContain("general");
   expect(result.unresolved).toContainEqual({
-    message: `currentTickets: ${explanation}`,
+    message: `currentOrNextEdition.fields.tickets: ${explanation}`,
   });
 });
 

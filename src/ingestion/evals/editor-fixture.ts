@@ -10,9 +10,10 @@ import { linksOutputSchema } from "../roles/links/contracts";
 import { readerSelectionSchema } from "../roles/reader/contracts";
 import type { ResearchDependencies } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
+import { assignedGroups } from "../groups";
 
 export const roleHandoffSchema = z.strictObject({
-  schemaVersion: z.literal(7),
+  schemaVersion: z.literal(8),
   provenance: z.string().min(1),
   pages: z
     .array(
@@ -90,11 +91,23 @@ export function assertEditorFixture(item: PipelineEvalCase) {
   for (const role of Object.keys(
     roleEvidenceTopics,
   ) as (keyof typeof roleEvidenceTopics)[]) {
-    if (fixture.roles.general?.decision === "targets" && !fixture.roles[role]) {
+    const targets =
+      fixture.roles.general?.decision === "targets"
+        ? fixture.roles.general
+        : undefined;
+    const groups = assignedGroups(item.input.scope, targets);
+    if (
+      targets &&
+      groups.some(({ owner }) => owner === role) &&
+      !fixture.roles[role]
+    ) {
       throw new Error(`${item.id}: missing fixed ${role} input`);
     }
     const topics: readonly string[] =
-      role === "classification" && item.input.scope !== "current"
+      role === "classification" &&
+      groups.some(
+        ({ owner, target }) => owner === "classification" && target === "event",
+      )
         ? [...roleEvidenceTopics.classification, "location"]
         : roleEvidenceTopics[role];
     const allowed = new Set(

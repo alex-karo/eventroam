@@ -8,6 +8,8 @@ import type { FrozenCorpus } from "../../evidence/contracts";
 import { evidencePacket } from "../../evidence/contracts";
 import { precisionSchema } from "./contracts";
 import { previousPoint } from "./geometry";
+import { normalizedScopeSchema, effectiveScope } from "../../scope";
+import { isAssigned } from "../../groups";
 const placeSchema = z.strictObject({
   venueName: z.string().nullable(),
   venueAddress: z.string().nullable(),
@@ -44,7 +46,7 @@ export const locationInputSchema = z.strictObject({
     summary: z.string().nullable(),
     format: z.array(z.string()),
   }),
-  scope: z.enum(["full", "current"]).nullable(),
+  scope: normalizedScopeSchema,
   currentDate: z.string(),
   countryBaseline: z.string().nullable(),
   sources: z.array(
@@ -83,7 +85,7 @@ export function buildLocationInput(
       summary: event?.description ?? null,
       format: [],
     },
-    scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
+    scope: effectiveScope(input),
     currentDate: context.currentDate,
     countryBaseline:
       history.find((edition) => edition.countryCode)?.countryCode ?? null,
@@ -117,7 +119,7 @@ export function buildLocationInput(
   };
   for (const slot of editionSlotNames) {
     const selected = targets[slot];
-    if (!selected) {
+    if (!selected || !isAssigned(input, `${slot}.fields.location`)) {
       continue;
     }
     const saved =

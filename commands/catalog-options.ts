@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util";
+import { scopePresetSchema } from "../src/ingestion/scope";
 import { addInputSchema } from "../src/ingestion/add-input";
-import { eventIdSchema, refreshScopeSchema } from "../src/ingestion/invocation";
+import { eventIdSchema } from "../src/ingestion/invocation";
 
 export const catalogUsage = `Usage: pnpm run catalog <add|refresh> [options]
   add      --input <description>
@@ -68,7 +69,7 @@ export function parseCatalogOptions(args: string[]) {
       throw new Error("Provide --event.");
     }
   }
-  const scope = refreshScopeSchema.safeParse(values.scope ?? "full");
+  const scope = scopePresetSchema.safeParse(values.scope ?? "full");
   if (!scope.success || (mode === "add" && values.scope !== undefined)) {
     throw new Error("--scope requires refresh and full or current.");
   }

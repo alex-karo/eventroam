@@ -7,6 +7,7 @@ import {
   startStudioFixture,
   STUDIO_FIXTURE_EVENT_ID,
 } from "../test/studio-fixture";
+import { normalizeScope, type ScopeDefinition } from "../ingestion/scope";
 
 type Fixture = Awaited<ReturnType<typeof startStudioFixture>>;
 let fixture: Fixture;
@@ -126,7 +127,7 @@ test("native create and stream expose preview, then apply under a fresh ingestio
   expect(afterPreview).toHaveLength(1);
   expect(afterPreview[0].status).toBe("completed");
   expect(JSON.parse(afterPreview[0].report_json as string).schemaVersion).toBe(
-    7,
+    8,
   );
   const catalog = new Database(fixture.catalogPath, { readonly: true });
   try {
@@ -184,6 +185,49 @@ test("native create and stream expose preview, then apply under a fresh ingestio
   expect(await inspection.text()).not.toContain(
     "PRIVATE_STUDIO_FIXTURE_SENTINEL",
   );
+}, 60_000);
+
+test("native stream accepts task scope and saves its direct definition", async () => {
+  const scope: ScopeDefinition = {
+    version: 1,
+    tasks: [
+      {
+        target: "event",
+        fields: ["description", "shortDescription"],
+        instruction: "Describe the event format.",
+      },
+    ],
+  };
+  const before = rows(fixture).length;
+  const started = await run(fixture, {
+    mode: "refresh",
+    input: { eventId: STUDIO_FIXTURE_EVENT_ID, scope },
+  });
+  expect(started.response.status, started.text).toBe(200);
+  expect(streamResult(started.text)).toMatchObject({
+    scope,
+    outcome: "unchanged",
+  });
+  const stored = rows(fixture);
+  expect(stored).toHaveLength(before + 1);
+  const attempt = stored.at(-1)!;
+  expect(JSON.parse(attempt.input_json as string)).toMatchObject({
+    scope,
+    normalizedScope: normalizeScope(scope),
+  });
+  expect(JSON.parse(attempt.report_json as string)).toMatchObject({
+    schemaVersion: 8,
+    normalizedScope: normalizeScope(scope),
+    targets: {
+      previousEdition: { status: "not_run" },
+      currentOrNextEdition: { status: "not_run" },
+    },
+    skipped: expect.arrayContaining([
+      expect.objectContaining({ role: "tickets" }),
+      expect.objectContaining({ role: "location" }),
+      expect.objectContaining({ role: "links" }),
+    ]),
+  });
 }, 60_000);
 
 test("graph inspection needs no catalog and execution does not create one", async () => {

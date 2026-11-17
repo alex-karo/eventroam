@@ -1,3 +1,7 @@
+import {
+  assignedRoleChecks,
+  buildAssignment,
+} from "@/ingestion/roles/assignment";
 import { Mastra } from "@mastra/core/mastra";
 import { createWorkflowStorage } from "@/ingestion/runtime/workflow-storage";
 import { trackFixtureWorkflowStore } from "./workflow-stores";
@@ -37,7 +41,7 @@ export function clear(reason = fixtureReason, evidenceIds = fixtureEvidence) {
   return { action: "clear" as const, reason, evidenceIds };
 }
 export function fixtureTargets(eventId: string | null = null): Targets {
-  return {
+  const result: Targets = {
     decision: "targets",
     eventId,
     observedEventName: "Example Fest",
@@ -57,14 +61,13 @@ export function fixtureTargets(eventId: string | null = null): Targets {
         }),
       },
     },
-    checks: fixtureChecks([
-      "identity",
-      "currentAnnouncement",
-      "currentDates",
-      "previousCompletedEdition",
-    ]),
+    checks: [],
     unresolved: [],
   };
+  result.checks = fixtureChecks(
+    assignedRoleChecks("general", { mode: "refresh", actor: "fixture" }),
+  );
+  return result;
 }
 export function fixtureChecks(
   keys: string[],
@@ -110,6 +113,35 @@ export function wholeNumberedPage(page: string): SegmentSelection {
   return end === 1 ? 1 : { start: 1, end };
 }
 
+function fixtureGeneral(data: {
+  assignment: ReturnType<typeof buildAssignment>;
+  assignedChecks: string[];
+}) {
+  const result = fixtureTargets(data.assignment.identityContext.eventId);
+  result.observedEventName =
+    data.assignment.identityContext.requestedName ?? "Example Fest";
+  for (const slot of ["previousEdition", "currentOrNextEdition"] as const) {
+    if (!data.assignment.permissions[slot]) {
+      result[slot] = null;
+    }
+    const target = result[slot];
+    if (target) {
+      const selector =
+        slot === "previousEdition" ? "latestCompleted" : "currentOrNext";
+      const fields = new Set<string>(
+        data.assignment.scope.tasks
+          .filter((task) => task.target === selector)
+          .flatMap((task) => task.fields),
+      );
+      target.fields = Object.fromEntries(
+        Object.entries(target.fields).filter(([field]) => fields.has(field)),
+      );
+    }
+  }
+  result.checks = fixtureChecks(data.assignedChecks);
+  return result;
+}
+
 /** These answers use the current role contracts. Each override is one role response. */
 export function fixtureRoleGenerator(
   responses: Partial<Record<Role, unknown | GenerateRole>> = {},
@@ -148,11 +180,7 @@ export function fixtureRoleGenerator(
       };
     }
     if (role === "general") {
-      const result = fixtureTargets(data.assignment.identityContext.eventId);
-      result.observedEventName =
-        data.assignment.identityContext.requestedName ?? "Example Fest";
-      result.checks = fixtureChecks(data.assignedChecks);
-      return result;
+      return fixtureGeneral(data);
     }
     if (role === "editor") {
       return approveFixtureReview(data.reviewPaths);

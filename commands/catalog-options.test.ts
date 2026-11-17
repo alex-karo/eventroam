@@ -27,6 +27,26 @@ test("help is available without a command", () => {
   expect(parseCatalogOptions(["--help"])).toEqual({ help: true });
 });
 
+test("refresh CLI accepts presets and rejects a custom scope object", () => {
+  for (const scope of ["full", "current"]) {
+    expect(
+      parseCatalogOptions(["refresh", "--event", "event-id", "--scope", scope]),
+    ).toMatchObject({ scope });
+  }
+  expect(() =>
+    parseCatalogOptions([
+      "refresh",
+      "--event",
+      "event-id",
+      "--scope",
+      JSON.stringify({
+        version: 1,
+        tasks: [{ target: "event", fields: ["description"] }],
+      }),
+    ]),
+  ).toThrow();
+});
+
 test("add accepts names, URLs, and full multiline notes but rejects blank or old flags", () => {
   for (const input of [
     "Festival",

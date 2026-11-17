@@ -1,3 +1,4 @@
+import { effectiveScope } from "./scope";
 import { studioIngestionInputSchema } from "./invocation";
 import {
   studioIngestionResultSchema,
@@ -71,6 +72,7 @@ import type {
 import { readyCatalogPlan, catalogWriteOutcome } from "./pipeline";
 import { buildResearchReport } from "./report";
 import { reportEventId, attemptedCatalogFields } from "./workflow-logging";
+import { MAX_ROLE_INPUT_CHARACTERS } from "./runtime/budget";
 
 const specialistRoles = [
   "tickets",
@@ -83,15 +85,11 @@ type SpecialistRole = (typeof specialistRoles)[number];
 function specialistApplies(
   role: SpecialistRole,
   targets: Pick<Targets, "previousEdition" | "currentOrNextEdition">,
-  scope: CatalogResearchInput["scope"],
+  input: CatalogResearchInput,
 ) {
-  if (role === "links" || (role === "classification" && scope !== "current")) {
-    return true;
-  }
-  if (role === "tickets") {
-    return !!targets.currentOrNextEdition;
-  }
-  return !!(targets.previousEdition || targets.currentOrNextEdition);
+  return assignedGroups(effectiveScope(input), targets).some(
+    ({ owner }) => owner === role,
+  );
 }
 
 function sourceErrorCode(source: { status: string; reasonCode?: string }) {
@@ -397,6 +395,16 @@ export function createCatalogIngestionWorkflow(
       if (data.report) {
         return null;
       }
+      const assignment = buildAssignment(owned.input, data.context!);
+      if (JSON.stringify(assignment).length > MAX_ROLE_INPUT_CHARACTERS) {
+        data.errors.push({
+          code: "limit_reached",
+          stage: "research",
+          message: "Research context limit exhausted",
+        });
+        data.outcome = "failed";
+        return null;
+      }
       owned.sources = createSourceSession(
         owned.budget,
         owned.config,
@@ -404,7 +412,6 @@ export function createCatalogIngestionWorkflow(
         owned.deps,
         owned.trace?.log,
       );
-      const assignment = buildAssignment(owned.input, data.context!);
       owned.collection = createCollection({
         runId: owned.ingestionRunId,
         startedAt: owned.started,
@@ -413,6 +420,12 @@ export function createCatalogIngestionWorkflow(
         config: owned.config,
         deps: owned.deps,
         assignment: {
+          scope: assignment.scope,
+          checks: assignment.checks,
+          instructions: assignment.instructions,
+          permissions: assignment.permissions,
+          identityTask: assignment.identityTask,
+          identityContext: assignment.identityContext,
           requestedName: assignment.identityContext.requestedName,
           currentDate: assignment.currentDate,
         },
@@ -534,7 +547,7 @@ export function createCatalogIngestionWorkflow(
         const eligibility = editionEligibility(
           data.researchValidation.value,
           saved?.editions,
-          owned.input.scope,
+          owned.input.mode,
         );
         if (eligibility !== "continue") {
           data.outcome = eligibility;
@@ -544,6 +557,16 @@ export function createCatalogIngestionWorkflow(
             field: "edition",
             message: "Insufficient information about editions",
           });
+        }
+        if (
+          owned.input.mode === "refresh" &&
+          !data.researchValidation.value.previousEdition &&
+          !data.researchValidation.value.currentOrNextEdition &&
+          !effectiveScope(owned.input).tasks.some(
+            ({ target }) => target === "event",
+          )
+        ) {
+          data.outcome = "unchanged";
         }
       }
       return { execution: data.general, targets: data.researchValidation };
@@ -564,18 +587,23 @@ export function createCatalogIngestionWorkflow(
           data.researchValidation?.status === "continue"
             ? data.researchValidation.value
             : null;
+        const hasAssignedWork =
+          targets && specialistApplies(role, targets, owned.input);
         if (
           !targets ||
           data.report ||
           data.outcome !== null ||
-          !specialistApplies(role, targets, owned.input.scope)
+          !hasAssignedWork
         ) {
           if (role === "location") {
             return stepSchema.parse(emptyLocationExecution());
           }
           return {
             status: "not_run",
-            skipReason: "No assigned target",
+            skipReason:
+              hasAssignedWork || !targets
+                ? "Stage was not reached."
+                : "No assigned work for a bound target.",
             modelResponse: null,
             errors: [],
             model: owned.config.model,
@@ -648,7 +676,7 @@ export function createCatalogIngestionWorkflow(
   ) {
     for (const [role, output] of Object.entries(outputs)) {
       const execution = data.specialists[role];
-      if (execution && output) {
+      if (execution && output && execution.status !== "not_run") {
         data.specialists[role] = {
           ...execution,
           status: "success",
@@ -749,7 +777,7 @@ export function createCatalogIngestionWorkflow(
         ),
       ];
       for (const role of specialistRoles) {
-        if (!specialistApplies(role, targets, owned.input.scope)) {
+        if (!specialistApplies(role, targets, owned.input)) {
           continue;
         }
         const execution = results[role];
@@ -805,7 +833,10 @@ export function createCatalogIngestionWorkflow(
       }
       let prepared = data.prepared.value;
       const originalTargets = prepared.targets;
-      const groups = assignedGroups(owned.input.scope, originalTargets);
+      const groups = assignedGroups(
+        effectiveScope(owned.input),
+        originalTargets,
+      );
       const review: ReviewDecisions = new Map();
       const collectRepairRejections = () => {
         const latest = new Map(

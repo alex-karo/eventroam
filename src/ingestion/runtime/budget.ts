@@ -1,5 +1,7 @@
 export type ResearchLimit = "time" | "searches" | "context" | "steps";
 
+export const MAX_ROLE_INPUT_CHARACTERS = 400_000;
+
 export interface ResearchLimits {
   searches: number;
   agentSteps: number;

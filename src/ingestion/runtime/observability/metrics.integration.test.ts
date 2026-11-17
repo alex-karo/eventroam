@@ -304,7 +304,7 @@ test("a metric storage failure cannot change the durable report or catalog outco
   });
 
   expect(observed.result).toMatchObject({
-    schemaVersion: 7,
+    schemaVersion: 8,
     classificationResponse: baseline.result.classificationResponse,
     locationResponse: baseline.result.locationResponse,
     locationStatus: baseline.result.locationStatus,

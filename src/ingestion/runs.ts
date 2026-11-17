@@ -1,7 +1,15 @@
 import { jobWorkflowInput, type IngestionJob } from "./jobs/store";
 import { addInputSchema } from "./add-input";
-import { eventIdSchema, refreshScopeSchema } from "./invocation";
+import { eventIdSchema } from "./invocation";
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
+import {
+  normalizeScope,
+  normalizedScopeSchema,
+  scopeRequestSchema,
+  type ScopeRequest,
+  type NormalizedScope,
+} from "./scope";
 import type Database from "better-sqlite3";
 import { z } from "zod";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
@@ -20,7 +28,7 @@ const limitsSchema = z.object(
 );
 const invocationSchema = z.object({
   mode: z.enum(["add", "refresh"]),
-  scope: refreshScopeSchema.optional(),
+  scope: scopeRequestSchema.optional(),
   input: addInputSchema.optional(),
   eventId: eventIdSchema.optional(),
   actor: nonempty.max(200),
@@ -31,6 +39,7 @@ const invocationSchema = z.object({
 });
 const configSchema = z.object({
   apiKey: z.string().trim().min(1),
+  codexProxyUrl: z.url().optional(),
   model: nonempty.refine((value) => !value.endsWith(":online")),
   locationModel: nonempty
     .refine((value) => !value.endsWith(":online"))
@@ -72,6 +81,9 @@ export function validateRunInvocation(
     input: {
       ...parsed,
       ...(parsed.mode === "refresh" ? { scope: parsed.scope ?? "full" } : {}),
+      normalizedScope: normalizeScope(
+        parsed.mode === "refresh" ? parsed.scope : "full",
+      ),
     },
     config: configSchema.parse(config) as ResearchConfig,
   };
@@ -79,7 +91,8 @@ export function validateRunInvocation(
 
 export type StoredRunInput = {
   mode: string;
-  scope?: "full" | "current";
+  scope?: ScopeRequest;
+  normalizedScope: NormalizedScope;
   input?: string;
   eventId?: string;
   actor: string;
@@ -101,6 +114,7 @@ export function storedRunInput(
   return {
     mode: input.mode,
     ...(input.mode === "refresh" ? { scope: input.scope ?? "full" } : {}),
+    normalizedScope: input.normalizedScope ?? normalizeScope(input.scope),
     ...(input.input !== undefined ? { input: input.input } : {}),
     ...(input.eventId ? { eventId: input.eventId } : {}),
     actor: input.actor,
@@ -148,6 +162,7 @@ export class RunPersistenceError extends Error {
 }
 
 const storedInputSchema = invocationSchema.extend({
+  normalizedScope: normalizedScopeSchema,
   mode: nonempty,
   limits: limitsSchema.required(),
   model: nonempty,
@@ -191,7 +206,7 @@ export function startIngestionRun(
               (expected.mode === "add" ? expected.input : undefined) ||
             parsed.eventId !== refresh?.eventId ||
             eventId !== (refresh?.eventId ?? null) ||
-            parsed.scope !== refresh?.scope ||
+            !isDeepStrictEqual(parsed.scope, refresh?.scope) ||
             parsed.dryRun !== expected.dryRun ||
             parsed.republish
           ) {
@@ -229,7 +244,7 @@ export function finalizeIngestionRun(
   try {
     if (
       client.inTransaction ||
-      report.schemaVersion !== 7 ||
+      report.schemaVersion !== 8 ||
       report.runId !== runId
     ) {
       throw new Error();

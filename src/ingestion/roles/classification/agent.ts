@@ -1,10 +1,12 @@
 import { evidencePacket } from "../../evidence/contracts";
 import { roleEvidenceTopics } from "../contracts";
 import { invokeRole, type RoleExecution } from "../invoke";
-import { returnInstructions } from "../prompts";
+import { boundary, returnInstructions } from "../prompts";
 import { PROMPT_VERSIONS } from "../versions";
 import { z } from "zod";
 import { assignedRoleChecks } from "../assignment";
+import { assignedGroups, isAssigned } from "../../groups";
+import { effectiveScope } from "../../scope";
 import type { Targets } from "../general/contracts";
 import {
   editionChronology,
@@ -33,40 +35,66 @@ export async function runClassification(
   options: RoleOptions,
   targets: Targets,
 ): Promise<RoleExecution<ClassificationOutput>> {
-  const describeFestival = options.input.scope !== "current";
+  const groups = assignedGroups(effectiveScope(options.input), targets).filter(
+    ({ owner }) => owner === "classification",
+  );
+  const describeFestival = groups.some(({ target }) => target === "event");
+  const classify = groups.some(({ target }) => target !== "event");
   const { terms } = options.context;
   const saved = options.context.catalog.find(
     (event) => event.id === (options.input.eventId ?? targets.eventId),
   );
-  const output = describeFestival
-    ? classificationReplySchema
-    : classificationReplySchema.omit({
-        description: true,
-        shortDescription: true,
-      });
+  const output = classificationReplySchema.pick({
+    ...(isAssigned(options.input, "event.fields.description") && {
+      description: true,
+    }),
+    ...(isAssigned(options.input, "event.fields.shortDescription") && {
+      shortDescription: true,
+    }),
+    checks: true,
+    unresolved: true,
+  });
+  const roleTargets = {
+    ...targets,
+    previousEdition: groups.some(({ target }) => target === "previousEdition")
+      ? targets.previousEdition
+      : null,
+    currentOrNextEdition: groups.some(
+      ({ target }) => target === "currentOrNextEdition",
+    )
+      ? targets.currentOrNextEdition
+      : null,
+  };
   const { output: reply, ...execution } = await invokeRole({
     ...roleInvocationOptions(options, "classification"),
     role: "classification",
     version: PROMPT_VERSIONS.classification,
     instructions:
-      (describeFestival
-        ? descriptionInstructions + "\n" + classificationInstructions
-        : classificationInstructions) + returnInstructions,
+      (describeFestival ? descriptionInstructions : "") +
+      (classify ? "\n" + classificationInstructions : "") +
+      "\n" +
+      boundary +
+      returnInstructions,
     input: {
+      scope: effectiveScope(options.input),
       assignedChecks: assignedRoleChecks(
         "classification",
         options.input,
         targets,
       ),
-      targets: targetContext(options, targets, classificationHistory),
-      history: saved?.editions.map(classificationHistory),
+      targets: targetContext(options, roleTargets, classificationHistory),
+      ...(classify && { history: saved?.editions.map(classificationHistory) }),
       ...(describeFestival && {
         savedDescriptions: {
-          description: saved?.description ?? null,
-          shortDescription: saved?.shortDescription ?? null,
+          ...(isAssigned(options.input, "event.fields.description") && {
+            description: saved?.description ?? null,
+          }),
+          ...(isAssigned(options.input, "event.fields.shortDescription") && {
+            shortDescription: saved?.shortDescription ?? null,
+          }),
         },
       }),
-      vocabulary: classificationVocabulary(terms),
+      ...(classify && { vocabulary: classificationVocabulary(terms) }),
       corpus: evidencePacket(
         options.corpus,
         describeFestival
@@ -75,10 +103,10 @@ export async function runClassification(
       ),
     },
     schema: output.extend({
-      previousEdition: targets.previousEdition
+      previousEdition: roleTargets.previousEdition
         ? classificationReplySchema.shape.previousEdition
         : z.null(),
-      currentOrNextEdition: targets.currentOrNextEdition
+      currentOrNextEdition: roleTargets.currentOrNextEdition
         ? classificationReplySchema.shape.currentOrNextEdition
         : z.null(),
     }),

@@ -34,8 +34,8 @@ Each attempt uses this fixed Mastra graph. Workflow retries and restart are disa
 | `initialize-run`, `load-context` | Validate the request, create the durable attempt, and load catalog context. |
 | `read-initial-source` | Save the initial source and run Reader. |
 | `collect-sources` | Research chooses sources; freeze the source list and evidence after admitted work settles. |
-| `general-facts` | General confirms identity and selects the two Edition slots. A confirmed duplicate add stops here. Runs without a known Edition stop here too. |
-| `tickets`, `classification`, `location`, `links` | Four independent parallel branches use the same frozen corpus and shared deadline. |
+| `general-facts` | General confirms identity and selects only requested Edition slots. A confirmed duplicate add stops here. Add retains its Edition prerequisite; refresh can continue with independent Event work. |
+| `tickets`, `classification`, `location`, `links` | Assigned owners run in parallel with the same frozen corpus and shared deadline. A branch without eligible assigned fields does no model or geocoding work. |
 | `assemble-proposals` | Validate proposals, return repairable groups and attach saved values and point records. |
 | `review-proposals` | Editor approves, rejects or returns groups. Review returned groups separately, then apply the complete review once. |
 | `prepare-catalog-plan` | Prepare operations from approved proposals. |
@@ -62,13 +62,57 @@ pnpm run catalog refresh --event EVENT_ID
 pnpm run catalog refresh --event EVENT_ID --event ANOTHER_EVENT_ID --scope current
 ```
 
-`add` researches one note about a possible Event and creates it only when new. A recognized existing Event returns `skipped` and its ID without changes; use `refresh` to update it. `refresh` researches distinct Events independently. Add and `--scope full` (default) check both festival descriptions, shared links, the latest completed Edition, and the ongoing or nearest announced future Edition. Both Edition slots may create new records. `--scope current` checks only the ongoing or nearest announced future Edition. Other saved history and farther future Editions provide context for matching, country checks, and classification reuse. A run needs a selected Edition or a saved Edition with `scheduled` or `announced` status. If neither condition holds, it stops before specialists and reports “Insufficient information about editions”. Current scope with a qualifying saved Edition and no selected target reports an unchanged catalog. Unresolved selection can still make research partial.
+`add` researches one note about a possible Event and creates it only when new. A recognized existing Event returns `skipped` and its ID without changes; use `refresh` to update it. Add keeps its existing Edition prerequisite and uses the full assignment internally. External add input accepts no scope.
 
-Current assumes a prior full run established Event identity/shared links. It omits Event findings and focuses on Edition dates, schedule status, location, tickets, and classification. Size, precise coordinates, and detailed address are optional checks. `check` is unsupported. The database must already exist and be migrated. See the [ingestion tools](ingestion-tools.md#cli-research) for setup and options, or its [Studio instructions](ingestion-tools.md#local-studio-ingestion) for the workflow form.
+`refresh` researches distinct Events independently. CLI `--scope` accepts the `full` and `current` presets, with `full` as the default. Custom objects enter through Studio, assistant, or job submission. `check` is unsupported. The database must already exist and be migrated. See [ingestion tools](ingestion-tools.md#cli-research) for setup and input options.
+
+### Research scope
+
+A scope is a typed task object or a preset name. The assistant builds it from the owner's ordinary request before it submits work. The owner does not need to write structured input. This description-only scope works without an Edition:
+
+```json
+{
+  "version": 1,
+  "tasks": [{ "target": "event", "fields": ["description"] }]
+}
+```
+
+Each task has one string target, a nonempty field list, an optional `instruction`, and optional `required` (default `true`). Omit the instruction to use standard field rules. A supplied instruction must not be blank. Its text passes unchanged through the applicable agents. Instructions add detail and grant no extra fields or targets. Unknown properties, versions, selectors, wrong-entity fields, and repeated target/field pairs fail before any attempt or external call. An invalid batch creates no jobs.
+
+| Target | Allowed fields |
+| --- | --- |
+| `event` | `description`, `shortDescription`, `links.website`, `links.socials.instagram`, `links.socials.facebook`, `links.socials.youtube`, `links.socials.tiktok`, `links.socials.x`, `links.socials.other` |
+| `currentOrNext`, `latestCompleted` | `year`, `displayName`, `scheduleStatus`, `sizeEstimate`, `dates`, `classification`, `location` |
+| `currentOrNext` only | `tickets`, `links.tickets` |
+
+Descriptions and each link slot are independent fields. Dates include the complete date pair and certainty. Classification, location, and tickets keep their complete-group rules. Location includes place text and coordinates, but not time zone. A task with several fields produces a separate completion result for each field.
+
+Several tasks can use the same selector. They share one Edition binding. For example:
+
+```json
+{
+  "version": 1,
+  "tasks": [
+    { "target": "currentOrNext", "fields": ["dates", "scheduleStatus"], "instruction": "Check the complete programme dates." },
+    { "target": "currentOrNext", "fields": ["sizeEstimate"], "required": false }
+  ]
+}
+```
+
+Optional work uses supported facts found during assigned work. Missing optional facts cause no extra discovery and do not make research partial. Required means that the assigned check must complete; it does not require an invented value for an unpublished fact.
+
+Both presets are task data and use the same validators and execution rules:
+
+- `full`: all Event fields, both temporal selectors, all allowed Edition fields, and current/next ticket fields.
+- `current`: all current/next Edition fields, including tickets and the ticket link; no Event or historical fields.
+
+In both presets, `sizeEstimate` is optional. The location group keeps detailed address and coordinates optional. Field definitions are in [scope.ts](../src/ingestion/scope.ts).
+
+Jobs retain the submitted preset name or custom object. At execution, one `NormalizedScope` keeps the task order and text, defaults each `required` value, and adds no missing instruction. The attempt saves it directly in `input_json.normalizedScope` before external work. A restarted job creates a fresh attempt: a preset uses the deployed definition at that time; a custom request keeps its submitted values and order. Dispatch checks the request and execution settings by value inside the attempt transaction. Earlier attempt scope and reports remain unchanged. Temporal selection uses each attempt's date and evidence.
 
 ## Load catalog context
 
-`refresh` loads current facts and saved links for each selected Event. `add` loads catalog context to check whether the festival already exists. Research receives shared evidence/output rules plus only its add, full or current assignment; omitted refresh scope selects full. The full prompt does not include current-only stop/completion exceptions.
+`refresh` loads current facts and saved links for each selected Event. `add` loads catalog context to check whether the festival already exists. Research receives the fixed normalized scope, standard field rules, and supplied task instructions. The first Reader receives that assignment before navigation. Later roles derive fields, checks, context, and output schemas from the same assignment. Task order does not change field keys or target references.
 
 ## Research and propose facts
 
@@ -76,7 +120,7 @@ A supported announcement with a complete current programme date range uses `sche
 
 ### Find and read sources
 
-For an existing Event, the run first reads a saved official-site link, or another saved link if needed. Research uses `inspectPage` for relevant known links and prior results first. `searchWeb` is permitted for an unknown, inaccessible, or wrong official source; a material identity/date conflict; an essential identification, date, or publication-required gap in an already evidenced Edition; or a concrete place for the ongoing or announced next festival. Permission does not require a search. An empty Edition slot or absent announcement alone does not justify search. A recurring Event description alone does not establish a specific past Edition for a search. Missing optional prices or size alone does not justify search. Explicit evidence that no next Edition is announced can complete the check. For place discovery, read useful travel, location or contact leads first, then use targeted search even if the country is known. Stop at a venue with city or area, a source-supported address or a map point. A field or forest needs no street address. Also stop when the organizer explicitly withholds the venue, no useful permitted step remains, or the shared budget ends. The missing venue does not prevent publication. An office, hotel or parking area is not the festival site without source support. Stop when the relevant question is resolved. Current stops on an identity contradiction and requests full; it does not discover a replacement website. Search highlights are leads. Inspect destination pages before using their facts. Search and page reads share the run limits. OpenRouter's Exa plugin and default search mode remain in use.
+For an existing Event, the run first reads a saved official-site link, or another saved link if needed. Research uses `inspectPage` for relevant known links and prior results first. `searchWeb` is permitted for an unknown, inaccessible, or wrong official source; a material identity/date conflict; an essential identification, date, or publication-required gap in an already evidenced Edition; or a concrete place for the ongoing or announced next festival. Permission does not require a search. An empty Edition slot or absent announcement alone does not justify search. A recurring Event description alone does not establish a specific past Edition for a search. Missing optional prices or size alone does not justify search. Explicit evidence that no next Edition is announced can complete the check. For place discovery, read useful travel, location or contact leads first, then use targeted search even if the country is known. Stop at a venue with city or area, a source-supported address or a map point. A field or forest needs no street address. Also stop when the organizer explicitly withholds the venue, no useful permitted step remains, or the shared budget ends. The missing venue does not prevent publication. An office, hotel or parking area is not the festival site without source support. Stop when the relevant question is resolved. Every refresh can recover a needed official source within the same discovery limits. Recovery alone grants no website write; `event.fields.links.website` must be assigned to change it. Search highlights are leads. Inspect destination pages before using their facts. Search and page reads share the run limits. OpenRouter's Exa plugin and default search mode remain in use.
 
 Research must copy supplied and returned URLs exactly into `inspectPage`. It must not shorten, translate or rewrite their paths.
 
@@ -88,32 +132,32 @@ See the [source reader guide](source-reader.md) for extraction, Firecrawl fallba
 
 General selects identity and temporal targets from source evidence. Field specialists propose values. Models return domain decisions, check findings and unresolved questions. Code creates execution statuses, safe errors, skip reasons and report completion status. A verified unchanged field counts as completed work; a missing proposal does not certify a check. Each assigned role must account for its own checks.
 
-A missing optional value can remain unknown without failure. An unfinished assigned check makes usable research partial. If General cannot confirm Event identity after useful collection, research remains partial, the catalog outcome is failed and no changes are prepared or written. Failed required output or no usable evidence stops writes. Source-verified values can remain useful after an unrelated retrieval failure.
+A missing optional value can remain unknown without failure or extra discovery. An unfinished required check makes usable research partial. Independent supported Event work can proceed when Edition selection is unresolved. If General cannot confirm Event identity after useful collection, research remains partial, the catalog outcome is failed and no changes are prepared or written. Failed required output or no usable evidence stops writes. Source-verified values can remain useful after an unrelated retrieval failure.
 
 ### Agent contracts
 
 | Agent | Input and prompt purpose | Output | Tools |
 | --- | --- | --- | --- |
-| Research | Concrete collection instructions, permitted sources, checks, page overviews, page coverage and remaining budget. No raw mode or scope. | Check keys, source IDs and nullable source acquisition blockers; distinct owner questions. | `inspectPage`, permitted `searchWeb` |
-| Reader | One whole canonical page with numbered segments and extraction instructions. | Page overview, found information, explicit nonpublication, topics, years and segment selections. Code restores the literal passages and derives anchors. | None |
+| Research | Fixed task scope, collection instructions, permitted sources, checks, page overviews, page coverage and remaining budget. | Check keys, source IDs and nullable source acquisition blockers; distinct owner questions. | `inspectPage`, permitted `searchWeb` |
+| Reader | One whole canonical page with numbered segments, fixed task scope and extraction instructions. Keep necessary identity, temporal and observed country context. | Page overview, found information, explicit nonpublication, topics, years and segment selections. Code restores the literal passages and derives anchors. | None |
 | General | Identity candidates, saved chronology, assigned permissions and relevant evidence. | Identity decision, duplicate or uncertain decision, fixed Edition targets and common facts. | None |
 | Tickets | Current or next target, saved ticket block and ticket evidence. | One complete observed variants/base-price replacement, or omission. | None |
-| Classification | Fixed targets, saved terms and history, vocabulary and relevant evidence. Add and full also receive saved descriptions. | Complete term lists and optional festival descriptions on add and full. Term reuse includes an earlier Edition key and a continuity reason. | None |
+| Classification | Assigned fields and fixed targets, relevant saved context and evidence. Classification work receives terms and vocabulary; description-only work does not. | Complete assigned term lists and independent assigned descriptions. Term reuse includes an earlier Edition key and a continuity reason. | None |
 | Location | Fixed targets, saved places, literal evidence, registered points and prepared reverse context. | Complete place decisions and registered point selection. | Forward `geocode` |
 | Links | Fixed public slots, saved links, permissions and link evidence. No Tickets output. | Event website/social actions and current-or-next ticket link; omitted candidates and reasons. | None |
 | Editor | Submitted proposals, eligible omissions, review paths, cited evidence, saved values, registered points and saved Markdown paths. | One decision and note per required path, plus any eligible omission it returns. | Native Mastra workspace grep |
 
 See [agent code and ownership](project-structure.md#ingestion-ownership), [proposal assembly](../src/ingestion/proposals.ts), and [catalog preparation](../src/ingestion/catalog-plan.ts). Code assigns an evidence ID to each bound quotation. Editor receives one list of passages by ID. Proposed facts and repair records refer to entries in that list by `evidenceIds`.
 
-Research reports source acquisition separately from interpretation. Each assigned collection check contains its key, relevant source IDs and `blocker`. A null blocker means no specific acquisition gap remains; it does not certify semantic sufficiency. A non-null blocker is a short text reason. Its field description recommends at most 300 characters; longer reasons remain valid and are retained in full. It names the source need and cause, such as an inaccessible source, unread lead, unprocessed text, missing required source or unresolved source conflict. It has no type or category. Only the affected check receives that blocker. General and specialists assess the full evidence and saved context. Missing fresh genre names or broader description alone does not require another source. A specialist finding cannot remove a real collection blocker. Missing collection checks still make research partial. Code copies a blocked check key and cause into the report's unresolved items, even when no informative source summary is available. Separate model questions contain only a short message for an owner decision; they do not repeat check gaps or select fields or Editions. Research has no completion summary or empty evidence-reference arrays. General and specialists retain their source support and interpretation reasons. Saved evidence and report completion rules stay in use.
+Research reports source acquisition separately from interpretation. Each assigned collection check contains its key, relevant source IDs and `blocker`. A null blocker means no specific acquisition gap remains; it does not certify semantic sufficiency. A non-null blocker is a short text reason. Its field description recommends at most 300 characters; longer reasons remain valid and are retained in full. It names the source need and cause, such as an inaccessible source, unread lead, unprocessed text, missing required source or unresolved source conflict. It has no type or category. Only the affected check receives that blocker. General and specialists assess the full evidence and saved context. Missing fresh genre names or broader description alone does not require another source. A specialist finding cannot remove a real collection blocker. Missing required collection checks still make research partial. Field checks use proposal paths such as `event.fields.description`; `identity` and requested `<slot>.select` checks cover identity and selection. `description` and `shortDescription` have distinct keys. No unassigned field needs a finding. Code copies a blocked check key and cause into the report's unresolved items, even when no informative source summary is available. Separate model questions contain only a short message for an owner decision; they do not repeat check gaps or select fields or Editions. Research has no completion summary or empty evidence-reference arrays. General and specialists retain their source support and interpretation reasons. Saved evidence and report completion rules stay in use.
 
 Decision reasons, owner questions, source summaries and diagnostics use length guidance in field descriptions instead of hard character limits. The same rule applies to Reader overviews, coverage labels, scope hints, uncertainty, year labels and limitations. Required nonempty text, exact source binding, catalog field validation and context budgets still apply.
 
-Reader returns only `quote` and `topics` for self-contained evidence. It adds `context`, `editionClues` and `uncertainty` together when any is needed. Code fills empty metadata when it binds the passages. An invalid context selection discards the whole evidence item. General receives its identity task, field permissions, check keys and relevant saved facts, without other roles' instructions, prices, taxonomy or coordinates. Editor receives the allowed decision paths and actions. Links lists only material ambiguous candidates in `omitted`, not routine rejected navigation or unrelated URLs; supported social accounts still need a proposal or ambiguity explanation.
+Reader returns only `quote` and `topics` for self-contained evidence. It adds `context`, `editionClues` and `uncertainty` together when any is needed. Code fills empty metadata when it binds the passages. An invalid context selection discards the whole evidence item. General receives the fixed scope, identity task, field permissions, check keys and relevant saved facts. Its saved context excludes prices, taxonomy and coordinates. Editor receives the allowed decision paths and actions. Links lists only material ambiguous candidates in `omitted`, not routine rejected navigation or unrelated URLs; supported social accounts still need a proposal or ambiguity explanation.
 
 ### Choose the refresh target
 
-General receives the fixed date, saved Edition keys, dates and time zones, relevant literal evidence, and concrete field permissions. It chooses the latest actually completed Edition and the ongoing Edition, otherwise the nearest supported announced future Edition. Keys stay stable across date corrections. Different realizations in one year can have separate keys. Saved history supplies context, not source proof.
+General receives the fixed date, saved Edition keys, dates and time zones, relevant literal evidence, and concrete field permissions. For `latestCompleted`, it chooses the latest actually completed Edition in `previousEdition`. For `currentOrNext`, it chooses the ongoing Edition, otherwise the nearest supported announced future Edition, in `currentOrNextEdition`. Unassigned slots do no selection. Several tasks for a selector share one binding through specialists, Location, Editor and returns. References use these slot names, without request IDs or list positions. Keys stay stable across date corrections. Different realizations in one year can have separate keys. Saved history supplies context, not source proof.
 
 Ongoing wins through the inclusive local final day; otherwise select the nearest supported future start. Ties, overlaps, uncertain ordering/matching remain unresolved. A sole future year-only announcement can qualify. Keys remain stable across corrected dates/years.
 
@@ -121,11 +165,9 @@ Several programme periods of one realization use one key, the first start date, 
 
 A cancelled or postponed Edition without a completed programme cannot be previous. An explicit statement that the applicable past programme ended can establish completion unless other evidence shows cancellation or an unresolved postponement. `EventRescheduled` metadata alone does not contradict completion. A completed programme with a complete date range uses `scheduled`, including when the saved status needs correction from `postponed`. Completion determines the previous slot; `completed` is not a schedule status. An active cancellation or a postponement without replacement dates is excluded from current/next, even when saved dates are in the future. If no eligible candidate remains, that slot is null and excluded saved Editions stay unchanged. Supported replacements retain the matched key.
 
-Run full before current to establish Event identity and shared links; this is an operating precondition, with no stored flag or run-history check.
+A null requested slot is `absent` when the selection check confirms absence, or `unresolved` when selection remains open. Unrequested slots are `not_run`. Different selectors cannot bind the same Edition. A scope or fixed-target violation rejects the whole item. Selection by a saved Edition ID is unsupported; the assistant explains this limit and does not substitute a temporal selector. `tickets` and `links.tickets` with `latestCompleted` fail before research.
 
-Current permits targeted discovery for an unresolved material date conflict another publication-required Edition fact or a concrete festival place. It does not permit replacement-site recovery after an identity contradiction or discovery for other missing optional details. Current does not repeat that identity audit. A supported venue, locality or programme change within the saved country does not alone contradict Event identity or require full refresh. An absent saved locality is unknown. Source evidence must still establish the Event name and association; an explicit unrelated Event or country conflict remains a refusal. If inspected material clearly contradicts identity, current returns failed/null with an identity question requesting full, without replacement-site discovery, editing or writes. Unavailable sources are diagnosed without website recovery.
-
-Full retains wrong-site discovery and association inspection; search snippets/name matches are insufficient. Verified recovery can correct the Event website. An unresolved material identity contradiction prevents all writes/publication: full returns partial with useful target findings, otherwise failed/null.
+Saved history can support matching and interpretation, but grants no writes to unassigned records or fields. Supporting identity, temporal and observed country context can travel with the evidence. Identity and country contradictions still stop all writes. Every refresh can recover an official source needed for its assigned work; there is no prior-full requirement for current.
 
 ### Preserve or replace values
 
@@ -137,7 +179,7 @@ Dates, each ticket block, classification and each location bundle are indivisibl
 
 Classification supplies one vocabulary slug for `eventType` and `format`, and lists of slugs for `topics`, `genres` and `cultures`. An omitted or null field keeps its saved terms. An empty list clears a field that accepts a list. Added or removed terms need source evidence. If evidence refutes a saved type or format and supports no replacement, Classification reports the conflict in `unresolved`. The application resolves slugs to term IDs and builds the complete term list for Editor. Explicit `reuseFrom: { editionKey, reason }` identifies an eligible earlier saved Edition of this Event and explains continuity. It need not be the nearest Edition. Preparation validates facets before removing redundant ancestors and records a deterministic explanation.
 
-On add and full, Classification also reviews both festival descriptions, including full refresh with empty target slots when a saved Edition passes the gate. Classification writes three to five sentences about the current format and atmosphere for the detailed text and one or two sentences about the current format for the short text. It uses the present tense and omits the festival name from both texts. Use the latest known format unless sources announce a change. Leave dates, lineups, prices, directions, attendance and one-time details in Edition data. Each optional field has its own proposal and Editor decision.
+Classification reviews only assigned descriptions, including Event-only work with no Edition target. Add and the full preset assign both descriptions. Classification writes three to five sentences about the current format and atmosphere for the detailed text and one or two sentences about the current format for the short text. It uses the present tense and omits the festival name from both texts. Use the latest known format unless sources announce a change. Leave dates, lineups, prices, directions, attendance and one-time details in Edition data. Each description has its own proposal, check and Editor decision.
 
 Tickets processes only `currentOrNextEdition`, including an ongoing festival. Historical ticket blocks stay unchanged. A supported replacement contains supported ordinary admission variants and a nullable base price. Payment-plan offers and terms are excluded. Their details do not require owner questions or keep ticket checks unfinished. Admission prices are not calculated from payments. Concessions, day tickets and upgrades cannot establish the full-programme base price. No supported replacement means preservation of the whole saved block, including any old URLs. New ingestion offers have no URL field. Other catalog operations retain their offer URL support.
 
@@ -167,7 +209,7 @@ Returning specialists use their original input and the return note. The note can
 
 ## Resolve location
 
-Location runs in parallel with Tickets, Classification and Links after General. It receives both selected targets, evidence, saved places and the saved detailed description when available. Code prepares reverse context for a saved target point, or its unique eligible earlier `previousPoint`. Forward queries belong to Location.
+Location runs in parallel with Tickets, Classification and Links after General. It receives only selected targets with an assigned location group, the fixed scope, evidence, saved places and the saved detailed description when available. Without an assigned location group, Location and geocoding do no work. Code prepares reverse context for a saved target point, or its unique eligible earlier `previousPoint`. Forward queries belong to Location.
 
 Initial requests and agent calls share six geocoding calls, a cache, cancellation and the run deadline. Location has at most eight model steps. `CATALOG_LOCATION_MODEL` defaults to the normal model. Missing credentials return bounded unavailable context.
 
@@ -179,7 +221,7 @@ When an independent source establishes the Edition place, a matching selected fo
 
 ## Validate the proposal
 
-The system checks shape and same-slot keys. Current requires `previousEdition:null` and no description or shared-link findings or actions. Classification omits both description fields from its current-scope schema. Code checks scope again after joining the specialist results. The two slots bound returned Editions; saved context has no Edition-count limit. Temporal choice, factual meaning and completeness remain model decisions assessed by evals.
+The system checks shape, assigned fields and fixed slot keys in original and revised proposals. Dynamic schemas expose assigned output fields. Code checks scope again after joining results and when it prepares catalog operations. Replacement operations can retain unassigned sibling links; only logical changes need permission. Editor returns cannot add a field or change a target. The two slots bound returned Editions; saved context has no Edition-count limit. Temporal choice, factual meaning and completeness remain model decisions assessed by evals.
 
 Conflicting saved countries fail before source or model calls (`country_baseline_conflict`). General cites the countries where sources place the festival, even when both Edition slots are empty. The system compares those countries with the saved Edition countries before Editor. A conflict stops the whole refresh (`country_conflict`). The report names the countries and links to the source. Final Location actions also fail if they replace or clear a known country. Correcting a saved country requires a separate authorized correction.
 
@@ -195,7 +237,9 @@ By default, the writer previews changes and rolls them back. The private run row
 
 ## Save changes
 
-Changes for one Event are saved together or rolled back together. If one proposed value fails validation, no other proposed change for that Event is saved. A normal update keeps a published record published. Complete eligible drafts can publish; incomplete ones stay drafts.
+Changes for one Event are saved together or rolled back together. If one proposed value fails validation, no other proposed change for that Event is saved. A normal update keeps a published record published. Complete eligible drafts can publish; incomplete ones stay drafts. A temporal target can reuse a saved Edition or create a new one when its assigned facts meet existing creation rules. The run does not fill omitted fields to satisfy a dependency. A proposed scheduled Edition without complete dates rejects the whole item. Ordinary unresolved work can leave independent supported changes available.
+
+Only accepted assigned Editions use normal publication rules, including unchanged eligible targets. Their parent Event can publish. Unrelated saved Editions do not trigger publication. Event-only work preserves Event and Edition publication state, even with a published saved child. Preview and republish controls remain stronger than these rules. Current without a usable target makes no catalog changes. Full can update Event fields without a usable Edition. Scope has no separate creation, publication or recovery controls.
 
 Use the [publication rules](../src/catalog/domain/festival-edition-publication.ts) to check why an Edition can publish or must stay a draft.
 
@@ -203,11 +247,11 @@ Use the [publication rules](../src/catalog/domain/festival-edition-publication.t
 
 Use [saved source evidence](ingestion-tools.md#saved-source-evidence) to inspect canonical pages and Reader output. Keep these artifacts private.
 
-The current report separates research, editor, and Location status from the catalog outcome. It includes old/new changes with reasons, errors by stage, unresolved questions, source summaries, retrieval history, limits, and workload. Add and refresh retain the fixed run date; refresh also retains scope.
+Report version 8 stores the normalized scope directly, target outcomes under `previousEdition` and `currentOrNextEdition`, separate `checks.collection` and `checks.interpretation` results, and skipped roles with reasons. Target outcomes are `bound`, `absent`, `unresolved`, or `not_run`; bound targets retain their key and available ID. It separates research, editor, and Location status from the catalog outcome. It includes old/new changes with reasons, errors by stage, unresolved questions, source summaries, retrieval history, limits, and workload. Add and refresh retain the fixed run date; refresh also retains scope.
 
-Raw model responses remain available, including invalid Editor output. Report version 7 can record each return with its path, owner, trigger, note and available result. A final local failure has an exact-path unresolved item and makes research partial, even if the original role check was verified. An earlier failure that later recovers remains in repair history without making research partial by itself. A run can complete with partial research and saved independent changes. Its catalog outcome, operations and receipts describe the actual result. The workflow releases the native conversation when the attempt ends. Reports and workflow history keep the decisions and evidence used in the attempt. Omitted facts preserve saved values. Actual mutations and reasons also appear in the writer audit. No-op checks create no audit.
+Raw model responses remain available, including invalid Editor output. Versions 7 and 8 can record each return with its path, owner, trigger, note and available result. A final local failure has an exact-path unresolved item and makes required research partial, even if the original role check was verified. An earlier failure that later recovers remains in repair history without making research partial by itself. A run can complete with partial research and saved independent changes. Its catalog outcome, operations and receipts describe the actual result. The workflow releases the native conversation when the attempt ends. Reports and workflow history keep the decisions and evidence used in the attempt. Omitted facts preserve saved values. Actual mutations and reasons also appear in the writer audit. No-op checks create no audit.
 
-Every started attempt has a private `ingestion_runs` row and durable `runId`. Studio saves the final report automatically. Open the workflow's build-report step to inspect it. Current consumers reject older report versions. See [report contracts](../src/ingestion/report.ts) and `src/ingestion/report.ts` for the exact report shape.
+Every started attempt has a private `ingestion_runs` row and durable `runId`. Studio saves the final report automatically. Open the workflow's build-report step to inspect it. Saved-report inspection supports versions 7 and 8 and reports unsupported versions explicitly. Version 7 keeps its original check keys and meaning; no normalized scope is invented for old rows. See [report contracts](../src/ingestion/report.ts) for new reports and the [SQL skill](../src/mastra/catalog-assistant/skills/catalog-sql/SKILL.md) for saved inspection.
 
 With `--apply`, success and partial results use the atomic writer. Failed research, editing or required Location writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research, editor, Location or write failure exits nonzero. A write failure rolls back the entire Event item. The report retains research status, prepared operations, available raw research, editor and Location responses, source summaries, any name mismatch, and the write error. Applied `changes` stays empty; a separate proposed diff is not required. A partial result with no changes remains visibly partial/unchanged.
 
@@ -244,7 +288,7 @@ Logs and traces help diagnose execution. They are optional and best effort. They
 - The workflow root has the fixed name `catalog-ingestion`. Metadata identifies the Event, mode, native workflow run ID and durable ingestion run ID, with experiment IDs when available. Output copies only `researchStatus`, `editorStatus`, `locationStatus` and catalog `outcome`. Workflow steps and the report hold phase, validation and Edition details.
 - Keep diagnostics private. Native spans and SDK logs can retain prompts, messages, model responses, tool results and errors. Mastra's standard `SensitiveDataFilter` redacts supported span secret fields; arbitrary text and logs have no general redaction guarantee. The application does not attach configuration credentials. Canonical source files are required private artifacts.
 
-In Studio trace lists, use **Columns → Add metadata column** to show `eventName`, `scope`, and `outcome`. Add runs use the requested name and null scope. Refresh runs use the saved canonical name after context loads; their scope is `full` or `current`. Outcome comes from the available final report. For an apply run, `published` means the run published an Event or Edition. For a dry run, it means the preview passed publication checks; catalog changes were rolled back. Outcome does not describe the current publication state of every record. Old traces are not rewritten.
+In Studio trace lists, use **Columns → Add metadata column** to show `eventName`, `scope`, and `outcome`. Add runs use the requested name and null scope. Refresh runs use the saved canonical name after context loads; their submitted scope is a preset name or custom task object. The report and attempt input hold the effective normalized definition. Outcome comes from the available final report. For an apply run, `published` means the run published an Event or Edition. For a dry run, it means the preview passed publication checks; catalog changes were rolled back. Outcome does not describe the current publication state of every record. Old traces are not rewritten.
 
 Native tool spans retain their standard results. Application logs retain retrieval status, reason codes, method, URLs, caching and processing coverage. The workflow records initial source inspection as a separate step. No processor restores custom span fields after SDK completion.
 
@@ -274,3 +318,9 @@ A map page that repeats a supplied pin, or a reverse lookup that names its city,
 ## Studio catalog chat
 
 Use the [catalog assistant](ingestion-tools.md#studio-catalog-assistant) to find and add Events, refresh saved Events, and inspect reports. See [Background execution](ingestion-tools.md#background-execution) for batch progress and cancellation.
+
+## Deploy the scope contract
+
+Deploy the workflow, assistant tools, prompts, fixtures, report inspection queries and guides together. Use one Studio server for the queue. Stop the old server and back up private catalog and workflow storage before the update. No database schema migration is needed.
+
+An older worker cannot execute saved custom requests or interpret version 8 reports. Before rollback, stop queue execution and keep the backup. Inspect pending and interrupted jobs before starting an older worker; do not let it consume custom jobs. Preset names remain valid requests, but new attempts use the preset and execution rules of the deployed worker. Keep version 8 history available to a compatible reader.

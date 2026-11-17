@@ -6,7 +6,9 @@ import {
   finalizeIngestionRun,
   storedRunInput,
   RunPersistenceError,
+  validateRunInvocation,
 } from "./runs";
+import { createResearchModel } from "./runtime/openrouter";
 import {
   fixtureDependencies,
   runFixtureResearch as runCatalogResearch,
@@ -17,6 +19,33 @@ const settings = storedRunInput(
   { apiKey: "secret", model: "fixture", limits: DEFAULT_RESEARCH_LIMITS },
   DEFAULT_RESEARCH_LIMITS,
 );
+
+test("invocation retains the Codex proxy URL for model setup without storing credentials", () => {
+  const { client } = testDatabase();
+  const config = {
+    apiKey: "fixture-proxy-key",
+    model: "codex/gpt-6-luna",
+    codexProxyUrl: "http://127.0.0.1:8317/v1",
+    limits: DEFAULT_RESEARCH_LIMITS,
+  };
+  const accepted = validateRunInvocation(
+    client,
+    { mode: "add", input: "Test", actor: "owner" },
+    config,
+  );
+  expect(createResearchModel(accepted.config)).toMatchObject({
+    url: config.codexProxyUrl,
+    apiKey: config.apiKey,
+    api: "responses",
+  });
+  const stored = storedRunInput(
+    accepted.input,
+    accepted.config,
+    DEFAULT_RESEARCH_LIMITS,
+  );
+  expect(stored).not.toHaveProperty("apiKey");
+  expect(stored).not.toHaveProperty("codexProxyUrl");
+});
 
 test("fresh storage has 10 columns, no Event foreign key and accepts future mode names", () => {
   const { client } = testDatabase();
@@ -243,7 +272,7 @@ test("a new run leaves historical report JSON unchanged", async () => {
       }),
     },
   );
-  expect(result.schemaVersion).toBe(7);
+  expect(result.schemaVersion).toBe(8);
   expect(result.currentDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   expect(
     client.prepare("SELECT report_json FROM ingestion_runs WHERE id=?").get(id),

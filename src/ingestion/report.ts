@@ -2,7 +2,9 @@ import type { PlanDiagnostics } from "./stage";
 import type { LocationExecution } from "./roles/location/agent";
 import type { applyCatalogItem } from "@/catalog/write/apply-operation";
 import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
-import { eventLinksCheck, isSocialLinkField, proposalGroup } from "./groups";
+import { assignedGroups } from "./groups";
+import { effectiveScope, requestsSlot } from "./scope";
+import { editionSlotNames } from "./research/contracts";
 import type { ResearchBudgetSnapshot } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
 import type { SourceReadMetadata } from "./tools/read-page/contracts";
@@ -15,7 +17,7 @@ import type { EditorExecution } from "./roles/editor/execution";
 import type { RoleExecution } from "./roles/invoke";
 import { type CheckFinding } from "./roles/contracts";
 import { type CollectionOutput } from "./roles/research/contracts";
-import { type GeneralOutput } from "./roles/general/contracts";
+import { type GeneralOutput, type Targets } from "./roles/general/contracts";
 import type { FrozenCorpus } from "./evidence/contracts";
 import { buildAssignment, assignedRoleChecks } from "./roles/assignment";
 import { PROMPT_VERSIONS } from "./roles/versions";
@@ -33,6 +35,7 @@ export type ReportInput = {
   outcome: CatalogResearchResult["outcome"];
   research: RoleExecution<CollectionOutput>;
   general: RoleExecution<GeneralOutput>;
+  targets: Targets | null;
   corpus: FrozenCorpus | null;
   specialists: Record<string, RoleExecution>;
   editor: EditorExecution;
@@ -59,6 +62,7 @@ export function buildResearchReport({
   outcome,
   research,
   general,
+  targets,
   specialists,
   corpus,
   editor,
@@ -97,68 +101,100 @@ export function buildResearchReport({
         plan?.explanations[change.operationKey]?.[field.field] ?? [],
     })),
   );
-  const targets =
+  const generalTargets =
     general.output?.decision === "targets" ? general.output : null;
+  const scope = effectiveScope(input);
+  const groups = assignedGroups(scope, targets ?? undefined);
   const assignment = context ? buildAssignment(input, context) : null;
   const collectionChecks = research.output?.checks ?? [];
   const missingCollectionChecks =
     assignment?.checks.filter(
       (assigned) =>
+        assigned.mandatory &&
         !collectionChecks.some((check) => check.check === assigned.key),
     ) ?? [];
+  const locationChecks = groups
+    .filter(({ owner, target }) => owner === "location" && !!targets?.[target])
+    .map(({ path, target }): CheckFinding => ({
+      check: path,
+      finding: location.status === "success" ? "verified" : "unfinished",
+      explanation:
+        location.status === "success"
+          ? "Location assessed the assigned group."
+          : "Location interpretation did not complete.",
+      evidenceIds:
+        location.materialized?.support[
+          target as "previousEdition" | "currentOrNextEdition"
+        ] ?? [],
+      sourceIds: [],
+    }));
   const checks = [
-    ...(targets?.checks ?? []),
+    ...(generalTargets?.checks ?? []),
     ...Object.values(specialists).flatMap(
       (execution) =>
         (execution.output as { checks?: CheckFinding[] } | undefined)?.checks ??
         [],
     ),
+    ...locationChecks,
   ];
-  const roleGaps = targets
+  const requiredChecks = new Set(
+    assignment?.checks
+      .filter(({ mandatory }) => mandatory)
+      .map(({ key }) => key),
+  );
+  const requiredCheck = (key: string) => requiredChecks.has(key);
+  const roleGaps = generalTargets
     ? (["general", "tickets", "classification", "links"] as const).flatMap(
         (role) => {
           const execution = role === "general" ? general : specialists[role];
           const findings =
             (execution?.output as { checks?: CheckFinding[] } | undefined)
               ?.checks ?? [];
-          return assignedRoleChecks(role, input, targets).flatMap((key) => {
-            const repaired = repairs?.filter(
-              (entry) =>
-                entry.owner === role &&
-                proposalGroup(entry.path)?.check === key,
-            );
-            if (repaired?.length) {
-              const question = unresolved.find(
-                ({ field }) =>
-                  field &&
-                  (repaired.some(({ path }) => field === path) ||
-                    (key === eventLinksCheck && isSocialLinkField(field))),
-              );
+          return assignedRoleChecks(role, input, generalTargets).flatMap(
+            (key) => {
+              if (!requiredCheck(key)) {
+                return [];
+              }
+              const question = unresolved.find(({ field }) => field === key);
               if (question?.message) {
                 return [{ message: `${key}: ${question.message}` }];
               }
-            }
-            const finding = findings.find(
-              (check) => check.check === key && check.finding === "unfinished",
-            );
-            if (finding) {
-              return [{ message: `${key}: ${finding.explanation}` }];
-            }
-            return findings.some(
-              (check) => check.check === key && check.finding === "verified",
-            )
-              ? []
-              : [{ message: `Interpretation check ${key} was not returned.` }];
-          });
+              const finding = findings.find(
+                (check) =>
+                  check.check === key && check.finding === "unfinished",
+              );
+              if (finding) {
+                return [{ message: `${key}: ${finding.explanation}` }];
+              }
+              return findings.some(
+                (check) => check.check === key && check.finding === "verified",
+              )
+                ? []
+                : [
+                    {
+                      message: `Interpretation check ${key} was not returned.`,
+                    },
+                  ];
+            },
+          );
         },
       )
     : [];
+  roleGaps.push(
+    ...locationChecks.flatMap(({ check, finding, explanation }) =>
+      requiredCheck(check) && finding === "unfinished"
+        ? [{ message: `${check}: ${explanation}` }]
+        : [],
+    ),
+  );
   const usable = !!corpus?.evidence.length;
   const incomplete =
-    failedGroups.length > 0 ||
+    failedGroups.some(({ path }) => requiredCheck(path)) ||
     general.output?.decision === "uncertain" ||
     roleGaps.length > 0 ||
-    collectionChecks.some((check) => check.blocker !== null) ||
+    collectionChecks.some(
+      (check) => requiredCheck(check.check) && check.blocker !== null,
+    ) ||
     missingCollectionChecks.length > 0 ||
     corpus?.sources.some(
       (source) => source.status === "ok" && source.processing !== "complete",
@@ -173,9 +209,88 @@ export function buildResearchReport({
   const eventId =
     diagnostics?.matchedEventId ?? references.event ?? input.eventId;
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     ...(traceId ? { traceId } : {}),
     scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
+    normalizedScope: scope,
+    targets: Object.fromEntries(
+      editionSlotNames.map((slot) => {
+        const target = targets?.[slot];
+        const finding = targets?.checks.find(
+          ({ check }) => check === `${slot}.select`,
+        );
+        const saved = context?.catalog
+          .find(({ id }) => id === eventId)
+          ?.editions.find(
+            ({ editionKey }) => editionKey === target?.editionKey,
+          );
+        if (target) {
+          return [
+            slot,
+            {
+              status: "bound",
+              editionKey: target.editionKey,
+              ...((saved?.id ?? references[`edition_${slot}`]) && {
+                editionId: saved?.id ?? references[`edition_${slot}`],
+              }),
+              reason: target.reason,
+              evidenceIds: target.evidenceIds,
+            },
+          ];
+        }
+        if (!requestsSlot(input, slot)) {
+          return [
+            slot,
+            {
+              status: "not_run",
+              reason: "Target is not assigned.",
+              evidenceIds: [],
+            },
+          ];
+        }
+        if (!targets) {
+          return [
+            slot,
+            {
+              status: generalTargets ? "unresolved" : "not_run",
+              reason: generalTargets
+                ? (diagnostics?.errors[0]?.message ??
+                  "Target selection was not accepted.")
+                : "Selection did not run to completion.",
+              evidenceIds: [],
+            },
+          ];
+        }
+        return [
+          slot,
+          {
+            status: finding?.finding === "verified" ? "absent" : "unresolved",
+            reason: finding?.explanation ?? "Selection is unresolved.",
+            evidenceIds: finding?.evidenceIds ?? [],
+          },
+        ];
+      }),
+    ) as CatalogResearchResult["targets"],
+    checks: { collection: collectionChecks, interpretation: checks },
+    skipped: ["tickets", "classification", "links", "location"].flatMap(
+      (role) => {
+        const execution = role === "location" ? location : specialists[role];
+        return !execution || execution.status === "not_run"
+          ? [
+              {
+                role,
+                reason:
+                  (execution && "skipReason" in execution
+                    ? execution.skipReason
+                    : undefined) ??
+                  (groups.some(({ owner }) => owner === role)
+                    ? "Stage was not reached."
+                    : "No assigned work for a bound target."),
+              },
+            ]
+          : [];
+      },
+    ),
     currentDate: context?.currentDate ?? null,
     limits,
     workload: {

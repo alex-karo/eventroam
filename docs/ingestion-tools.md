@@ -60,13 +60,28 @@ Run `pnpm run catalog:studio`, open `http://127.0.0.1:4111` in the built-in Brow
 }
 ```
 
-In Form view, choose `add` and replace the contents of the text box under Input with your note. For `refresh`, fill in Event Id and optionally choose Scope. The default scope is full. You can also paste either example into JSON view.
+In Form view, choose `add` and replace the contents of the text box under Input with your note. For `refresh`, fill in Event Id and optionally choose Scope. The default scope is full. Use JSON view for a custom task object. CLI accepts only full/current presets; Studio and job submission accept either a preset or an object. For example:
+
+```json
+{
+  "mode": "refresh",
+  "input": {
+    "eventId": "EVENT_ID",
+    "scope": { "version": 1, "tasks": [{ "target": "event", "fields": ["description"] }] }
+  },
+  "dryRun": false
+}
+```
+
+See [research scope](ingestion-process.md#research-scope) for fields, optional instructions and shared selectors. Add input remains a complete note.
 
 Preview is the default. Inspect intermediate results and the final report in the workflow view. Use native cancellation while a run is active; after interruption, start a fresh run. Per-step execution, resume, restart, and time travel are unsupported. See the [workflow steps](ingestion-process.md#workflow-steps) for the shared CLI/Studio lifecycle.
 
 ## Studio catalog assistant
 
 Open Agents → `catalog-assistant` in Studio. Ask it to find or add Events, select saved Events, preview or run a refresh, correct saved fields, or explain saved results. Follow-up references use the selected conversation. An explicit refresh request permits ingestion without a second confirmation. A direct edit always needs approval on its card. Unclear targets or write intent require clarification.
+
+For a request such as “Research only the description of Example Festival”, the assistant builds the description-only object before submission. “Research its description and Instagram” uses two independent fields in an Event task. A general refresh uses full; a complete current/next Edition refresh can use current. The owner need not write structured input. Instructions are omitted unless extra research detail is needed. Research by a saved Edition ID is unsupported; the assistant explains this and does not substitute a temporal selector. Supplying a correction uses direct edit; asking for source research uses scoped ingestion. Queue and chat always keep republish off.
 
 `search_web({query})` uses Exa through OpenRouter with a shared search allowance and deadline for each chat execution. Search needs an OpenRouter key when called. Missing search credentials do not block job submission or saved status reads when chat uses another provider.
 
@@ -96,7 +111,7 @@ Conversation memory is bounded; older messages can leave the active context whil
 
 Use `pnpm exec tsx src/test/studio-fixture.ts success` for an offline Studio fixture. It uses temporary storage and a deterministic provider, with no paid research. Its chat model tests the assistant's tool protocol.
 
-Use the [catalog SQL skill](../src/mastra/catalog-assistant/skills/catalog-sql/SKILL.md) for report queries. Costly queries can block other Studio work even if they return few rows. Studio runs them without a hard timeout or active-query cancellation. Report analysis uses saved evidence.
+Use the [catalog SQL skill](../src/mastra/catalog-assistant/skills/catalog-sql/SKILL.md) for report queries. Costly queries can block other Studio work even if they return few rows. Studio runs them without a hard timeout or active-query cancellation. Report analysis uses saved evidence. The inspect-run query checks the report version and reports unsupported_report_version explicitly. Versions 7 and 8 remain readable with their original meanings. Version 8 adds the normalized scope, target outcomes, field-path checks in separate collection and interpretation lists, and skip reasons. Use the skill's run-scope query for these fields. Do not invent this data for version 7. Stored input retains both the submitted request and, for new attempts, normalizedScope. Reports contain no replacement token or cost totals.
 
 ## Background execution
 
@@ -104,7 +119,7 @@ Studio processes accepted jobs in its own server process. Run `pnpm run catalog:
 
 Chat saves a fixed batch of 1–200 items in one transaction. A refresh batch contains distinct existing Event IDs. An add batch contains complete notes. Preview is the default. Explicit write intent selects apply. Refresh scope defaults to full and republish stays off. The response contains `batchId` and `acceptedCount`. Check the saved attempts for results. Each item gets one private `ingestion_jobs` row. Jobs store settings, queue state, and creation time. Attempts, timing, reports, and errors remain in `ingestion_runs`. Its nullable `job_id` links queued attempts.
 
-Each job stores an explicit `mode` and a JSON value in `input`. Add jobs store the full note as a string. Refresh jobs store an object with `eventId` and `scope`. One batch has one operation and fixed preview settings. Submission validates the entire selection and saves it atomically.
+Each job stores an explicit `mode` and a JSON value in `input`. Add jobs store the full note as a string. Refresh jobs store an object with `eventId` and the submitted `scope` preset name or custom task object. Custom tasks keep their order, fields, instructions and required values. Each attempt expands a preset at execution and saves its effective normalized definition before external work; earlier attempt input and reports stay fixed. One batch has one operation and fixed preview settings. Submission validates the entire selection and saves it atomically.
 
 Studio executes one queued job at a time through its registered `catalog-ingestion` workflow. The workflow form and queue use the same graph and storage providers. Queued runs appear in Recent runs. With tracing or logging enabled, Studio serves their diagnostics from its open DuckDB store.
 

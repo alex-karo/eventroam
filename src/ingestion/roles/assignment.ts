@@ -1,6 +1,6 @@
-import type { CheckFinding } from "./contracts";
 import type { CatalogResearchInput } from "../contracts";
-import { isEventFieldCheck, type GroupOwner } from "../groups";
+import { assignedGroups, fieldAssignments, type GroupOwner } from "../groups";
+import { effectiveScope, requestsSlot } from "../scope";
 import type { ResearchContext } from "../research/context";
 import type { Targets } from "./general/contracts";
 
@@ -8,57 +8,48 @@ export function buildAssignment(
   input: CatalogResearchInput,
   context: ResearchContext,
 ) {
-  const current = input.mode === "refresh" && input.scope === "current";
+  const scope = effectiveScope(input);
   const savedEvent = context.catalog.find(
     (event) => event.id === input.eventId,
   );
+  const fields = fieldAssignments(scope);
   const checks = [
-    "identity",
-    "currentAnnouncement",
-    "currentDates",
-    "currentLocation",
-    "currentTickets",
-    "currentClassification",
-    "currentLinks",
-    ...(!current
-      ? ["previousCompletedEdition", "description", "eventLinks"]
-      : []),
+    {
+      key: "identity",
+      mandatory: true,
+      instruction:
+        "Establish the official Event identity and report observed country contradictions.",
+    },
+    ...(["previousEdition", "currentOrNextEdition"] as const)
+      .filter((slot) => requestsSlot(input, slot))
+      .map((slot) => {
+        const mandatory = fields.some(
+          ({ group, required }) => group.target === slot && required,
+        );
+        const selectionInstruction =
+          slot === "previousEdition"
+            ? "Collect dated history and completion statements for the latest actually completed festival. Do not audit every year."
+            : "Find the ongoing or nearest announced festival. Distinguish confirmed absence from unfinished selection.";
+        return {
+          key: `${slot}.select`,
+          mandatory,
+          instruction: mandatory
+            ? selectionInstruction
+            : "Use only facts found during required work to select this optional target. Do no extra discovery. Leave the target null when the evidence does not establish it.",
+        };
+      }),
+    ...fields.map(({ group, required, instruction }) => ({
+      key: group.path,
+      mandatory: required,
+      instruction: instruction ?? standardFieldInstruction(group.path),
+    })),
   ];
   return {
-    instructions: current
-      ? "Inspect the saved official sources. Collect the ongoing festival or nearest announced future festival, dates, status, place, tickets, ticket overview and programme. Do not audit Event fields or history. Do not find a replacement website. Stop on a material identity contradiction and request a full refresh. Targeted discovery for unresolved programme dates, another publication-required Edition fact or a concrete festival place is permitted; other missing optional details do not permit discovery."
-      : "Inspect relevant known official sources. Collect identity, description, public links, latest actually completed festival and ongoing or nearest announced future festival, dates, place and programme. Collect tickets only for the ongoing or next festival. Use permitted discovery only when needed. Do not infer an unannounced festival.",
+    scope,
+    instructions:
+      "Inspect official sources for the assigned fields and requested selectors only. Keep identity, temporal and observed country context. Recover an official source when assigned work needs it. Use optional facts found during assigned work without extra discovery. Instructions add detail but grant no new fields or targets. Do not infer an unannounced festival.",
     ...(input.mode === "add" ? { researchNote: input.input } : {}),
-    checks: checks.map((key) => ({
-      key,
-      mandatory: true,
-      instruction: {
-        identity: "Establish the official Event identity.",
-        currentAnnouncement:
-          "Find the ongoing or nearest announced festival; record an explicit absence of announcement.",
-        currentDates:
-          "Collect the full festival dates and their year, not a news publication date.",
-        currentLocation:
-          "Find the concrete festival place for the ongoing or announced next festival, even when its country is known. Read useful travel, getting-here or contact leads before targeted search within the shared budget. A venue with city or area, source-supported address or map point is sufficient; no street address is required for a field or forest. Stop when the place is concrete, explicitly not announced, or no useful permitted step remains. Missing venue does not prevent publication. Distinguish the festival site from an office, hotel or parking area.",
-        currentTickets:
-          "Inspect the current official ticket overview, with admission prices, mandatory fees, pass duration and conditions. Exclude payment plans; do not inspect pages only for payment-plan terms.",
-        currentClassification:
-          "Collect available programme, physical setting and continuity statements from relevant known pages and useful leads. Classification decides whether these support new or retained terms; missing fresh genre names alone does not require another source.",
-        currentLinks:
-          "Find the official ticket overview and relevant public Edition links.",
-        previousCompletedEdition:
-          "Collect dated history or recap passages and their completion statements. General decides which programme is the latest completed festival; do not require its result before completing collection. Do not audit every archive year.",
-        description:
-          "Collect material about the current festival format, including any announced changes.",
-        eventLinks:
-          "Collect official website and social account links from the Event site.",
-      }[key],
-    })),
-    sourcePolicy: {
-      discoveryAllowed: true,
-      recoverWebsite: !current,
-      historicalTickets: false,
-    },
+    checks,
     identityTask:
       input.mode === "refresh"
         ? "Confirm the supplied Event and select targets, or return uncertain if identity cannot be established. A match with this Event is expected and is not a duplicate add."
@@ -88,9 +79,9 @@ export function buildAssignment(
     knownLinks: context.knownLinks,
     currentDate: context.currentDate,
     permissions: {
-      eventFields: !current,
-      previousEdition: !current,
-      currentOrNextEdition: true,
+      eventFields: scope.tasks.some(({ target }) => target === "event"),
+      previousEdition: requestsSlot(input, "previousEdition"),
+      currentOrNextEdition: requestsSlot(input, "currentOrNextEdition"),
     },
   };
 }
@@ -101,32 +92,46 @@ export function assignedRoleChecks(
   input: CatalogResearchInput,
   targets?: Targets,
 ): string[] {
-  const current = input.mode === "refresh" && input.scope === "current";
-  const hasNext = !!targets?.currentOrNextEdition;
-  if (role === "general") {
-    return [
-      "identity",
-      "currentAnnouncement",
-      "currentDates",
-      ...(!current ? ["previousCompletedEdition"] : []),
-    ];
-  }
-  if (role === "tickets") {
-    return hasNext ? ["currentTickets"] : [];
-  }
-  if (role === "classification") {
-    return [
-      ...(targets?.previousEdition ? ["previousClassification"] : []),
-      ...(hasNext ? ["currentClassification"] : []),
-      ...(!current ? ["description"] : []),
-    ];
-  }
   return [
-    ...(!current ? ["eventLinks"] : []),
-    ...(hasNext ? ["currentLinks"] : []),
+    ...(role === "general"
+      ? [
+          "identity",
+          ...(["previousEdition", "currentOrNextEdition"] as const)
+            .filter((slot) => requestsSlot(input, slot))
+            .map((slot) => `${slot}.select`),
+        ]
+      : []),
+    ...assignedGroups(effectiveScope(input), targets)
+      .filter(({ owner }) => owner === role)
+      .map(({ path }) => path),
   ];
 }
 
-export function hasEventFieldCheck(checks: CheckFinding[]) {
-  return checks.some(({ check }) => isEventFieldCheck(check));
+function standardFieldInstruction(path: string): string {
+  const field = path.split(".fields.")[1];
+  if (field === "description" || field === "shortDescription") {
+    return "Collect material about the current festival format, including announced changes.";
+  }
+  if (field === "dates" || field === "year" || field === "scheduleStatus") {
+    return "Collect the complete programme dates, their year, cancellation and postponement. A news date is not a programme date.";
+  }
+  if (field === "location") {
+    return "Find the concrete festival place. Read useful travel, getting-here or contact leads before targeted search. A venue with a city or area is sufficient; detailed address and coordinates are optional. Distinguish the festival site from an office, hotel or parking area.";
+  }
+  if (field === "classification") {
+    return "Collect programme, physical setting and continuity statements. Missing fresh genre names alone does not require another source.";
+  }
+  if (field === "tickets") {
+    return "Inspect full-programme admission, mandatory fees, pass duration and conditions. Exclude payment plans and pages only about payment-plan terms.";
+  }
+  if (field === "sizeEstimate") {
+    return "Use supported participant estimates. Do not derive attendance from ticket capacity or social account followers.";
+  }
+  if (field === "links.tickets") {
+    return "Find the official ticket overview link without auditing admission prices.";
+  }
+  if (field.startsWith("links.")) {
+    return "Collect the assigned official website or social account link from official sources.";
+  }
+  return "Use inspected official evidence and the standard field rules. Preserve unsupported saved values.";
 }

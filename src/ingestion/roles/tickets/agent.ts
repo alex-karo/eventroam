@@ -4,6 +4,7 @@ import { invokeRole } from "../invoke";
 import { returnInstructions } from "../prompts";
 import { PROMPT_VERSIONS } from "../versions";
 import { assignedRoleChecks } from "../assignment";
+import { effectiveScope } from "../../scope";
 import type { Targets } from "../general/contracts";
 import {
   editionChronology,
@@ -25,6 +26,7 @@ export function runTickets(options: RoleOptions, targets: Targets) {
     version: PROMPT_VERSIONS.tickets,
     instructions: ticketsInstructions + returnInstructions,
     input: {
+      scope: effectiveScope(options.input),
       assignedChecks: assignedRoleChecks("tickets", options.input, targets),
       currentDate: options.context.currentDate,
       target: selected

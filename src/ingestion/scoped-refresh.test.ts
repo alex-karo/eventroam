@@ -45,7 +45,14 @@ function fixture(countryCode: string | null = "IE") {
     client,
     readPage,
     generateRole,
-    generateRoles: { general: async () => general },
+    generateRoles: {
+      general: async (_role: string, raw: string) => ({
+        ...general,
+        checks: general.checks.filter(({ check }) =>
+          JSON.parse(raw).assignedChecks.includes(check),
+        ),
+      }),
+    },
     todayUtc: "2026-10-11",
   };
   const input = {
@@ -205,7 +212,12 @@ test.each(["full", "current"] as const)(
         endsOn: "2026-06-03",
         timeZone: "America/Los_Angeles",
       });
-      return f.general;
+      return {
+        ...f.general,
+        checks: f.general.checks.filter(({ check }) =>
+          prompt.assignedChecks.includes(check),
+        ),
+      };
     };
     const result = await runCatalogResearch(
       { ...f.input, scope, dryRun: true },
@@ -422,7 +434,15 @@ test.each(["verified", "unfinished"] as const)(
     const f = fixture();
     const before = readResearchEvent(f.client, f.event.id);
     f.general.checks = fixtureChecks(
-      ["identity", "currentAnnouncement", "currentDates"],
+      [
+        "identity",
+        "currentOrNextEdition.select",
+        "currentOrNextEdition.fields.year",
+        "currentOrNextEdition.fields.dates",
+        "currentOrNextEdition.fields.scheduleStatus",
+        "currentOrNextEdition.fields.displayName",
+        "currentOrNextEdition.fields.sizeEstimate",
+      ],
       finding,
     );
     if (finding === "unfinished") {
@@ -450,27 +470,39 @@ test.each(["verified", "unfinished"] as const)(
     noWrites(f);
   },
 );
-test.each(["previousCompletedEdition", "latestCompletedEdition"])(
-  "current status ignores an unassigned unfinished %s check",
+test.each(["previousEdition.select", "latestCompletedEdition"])(
+  "current rejects an unassigned unfinished %s check",
   async (check) => {
     const f = fixture();
     const before = readResearchEvent(f.client, f.event.id);
     const question = { message: "Which historical Edition took place?" };
     f.general.checks = [
-      ...fixtureChecks(["identity", "currentAnnouncement", "currentDates"]),
+      ...fixtureChecks([
+        "identity",
+        "currentOrNextEdition.select",
+        "currentOrNextEdition.fields.year",
+        "currentOrNextEdition.fields.dates",
+        "currentOrNextEdition.fields.scheduleStatus",
+        "currentOrNextEdition.fields.displayName",
+        "currentOrNextEdition.fields.sizeEstimate",
+      ]),
       ...fixtureChecks([check], "unfinished"),
     ];
     f.general.unresolved = [question];
     const result = await runCatalogResearch(
       { ...f.input, scope: "current" },
-      f.deps,
+      { ...f.deps, generateRoles: { general: async () => f.general } },
     );
     expect(result).toMatchObject({
-      outcome: "unchanged",
+      outcome: "failed",
       researchStatus: "success",
       operations: [],
     });
-    expect(result.unresolved).toContainEqual(question);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        message: "general: check is outside the assignment",
+      }),
+    );
     expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
     noWrites(f);
   },
@@ -544,7 +576,7 @@ test.each([true, false])(
 );
 
 test.each(["add", "full", "current"] as const)(
-  "%s stops before specialists without a selected or qualifying saved Edition",
+  "%s keeps its Edition prerequisite rule without a selected or qualifying saved Edition",
   async (scope) => {
     const f = fixture();
     f.client.prepare("DELETE FROM editions WHERE id = ?").run(f.old.id);
@@ -563,18 +595,21 @@ test.each(["add", "full", "current"] as const)(
     }
     const result = await runCatalogResearch(input, f.deps);
     expect(result).toMatchObject({
-      outcome: "skipped",
+      outcome: scope === "add" ? "skipped" : "unchanged",
       operations: [],
-      classificationResponse: null,
-      editorStatus: "not_run",
+      editorStatus: scope === "full" ? "success" : "not_run",
       locationStatus: "not_run",
     });
-    expect(result.unresolved).toContainEqual({
-      field: "edition",
-      message: "Insufficient information about editions",
-    });
+    if (scope === "add") {
+      expect(result.unresolved).toContainEqual({
+        field: "edition",
+        message: "Insufficient information about editions",
+      });
+    }
     expect(f.deps.generateRole.mock.calls.map(([role]) => role).sort()).toEqual(
-      ["reader", "research"],
+      scope === "full"
+        ? ["classification", "editor", "links", "reader", "research"]
+        : ["reader", "research"],
     );
     noWrites(f);
   },
@@ -599,7 +634,10 @@ test("full refresh assigns descriptions with a saved Edition and no selected tar
   expect(result.workload.returnedEditions).toBe(0);
   expect(classification).toHaveBeenCalledOnce();
   expect(JSON.parse(classification.mock.calls[0][1])).toMatchObject({
-    assignedChecks: ["description"],
+    assignedChecks: [
+      "event.fields.description",
+      "event.fields.shortDescription",
+    ],
     savedDescriptions: {
       description: "Saved",
       shortDescription: null,

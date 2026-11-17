@@ -8,6 +8,60 @@ import { createChatMemory } from "./memory";
 
 afterEach(() => vi.unstubAllEnvs());
 
+test("ordinary scoped requests cross the native chat tool protocol without structured owner input", async () => {
+  const db = testDatabase();
+  const eventId = testFixtures().event().id;
+  vi.stubEnv("DATABASE_PATH", db.path);
+  const chat = await createChatMemory(join(dirname(db.path), "chat.sqlite"));
+  const assistant = createCatalogAssistant(
+    chat.memory,
+    createAssistantFixtureModel(),
+  );
+  const cases = [
+    {
+      text: `update only description for ${eventId}`,
+      scope: {
+        version: 1,
+        tasks: [{ target: "event", fields: ["description"] }],
+      },
+    },
+    {
+      text: `update description and Instagram for ${eventId}`,
+      scope: {
+        version: 1,
+        tasks: [
+          {
+            target: "event",
+            fields: ["description", "links.socials.instagram"],
+          },
+        ],
+      },
+    },
+    { text: `update current Edition for ${eventId}`, scope: "current" },
+  ];
+  try {
+    for (const [index, item] of cases.entries()) {
+      const output = await assistant.generate(item.text, {
+        memory: { thread: `scope-${index}`, resource: "owner" },
+      });
+      expect(output.text).toContain('"acceptedCount":1');
+      const stored = db.client
+        .prepare(
+          "SELECT input,dry_run FROM ingestion_jobs ORDER BY rowid DESC LIMIT 1",
+        )
+        .get() as { input: string; dry_run: number };
+      expect(JSON.parse(stored.input)).toEqual({ eventId, scope: item.scope });
+      expect(stored.dry_run).toBe(0);
+    }
+    expect(
+      db.client.prepare("SELECT count(*) FROM ingestion_jobs").pluck().get(),
+    ).toBe(3);
+  } finally {
+    await chat.memory.settled();
+    await chat.storage.close();
+  }
+});
+
 test("agent protocol supports selection, conversation follow-ups, preview, explicit apply and SQL report analysis", async () => {
   const db = testDatabase(),
     fixtures = testFixtures();
@@ -92,6 +146,14 @@ test("agent protocol supports selection, conversation follow-ups, preview, expli
     expect(analyzed.text).toContain("partial");
     expect(analyzed.text).toContain("unchanged");
     expect(analyzed.text).toContain("proposed");
+    db.client
+      .prepare(
+        "INSERT INTO ingestion_runs(id,mode,status,started_at,input_json,report_json) SELECT 'version-eight',mode,status,started_at,input_json,json_set(report_json,'$.schemaVersion',8) FROM ingestion_runs WHERE id='saved-run'",
+      )
+      .run();
+    const modern = await ask("analyze run version-eight");
+    expect(modern.text).toContain("partial");
+    expect(modern.text).toContain("unchanged");
     expect(
       db.client.prepare("SELECT count(*) AS n FROM ingestion_jobs").get(),
     ).toEqual({ n: 2 });

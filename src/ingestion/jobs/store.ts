@@ -2,11 +2,8 @@ import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { z } from "zod";
 import { addInputSchema } from "../add-input";
-import {
-  eventIdSchema,
-  ingestionTargetSchema,
-  refreshScopeSchema,
-} from "../invocation";
+import { eventIdSchema, ingestionTargetSchema } from "../invocation";
+import { scopeRequestSchema } from "../scope";
 
 export const refreshInputSchema = z.strictObject({
   eventIds: z
@@ -17,7 +14,7 @@ export const refreshInputSchema = z.strictObject({
       (ids) => new Set(ids).size === ids.length,
       "Event IDs must be distinct",
     ),
-  scope: refreshScopeSchema.default("full"),
+  scope: scopeRequestSchema.default("full"),
   dryRun: z.boolean().default(true),
 });
 export const addJobsInputSchema = z.strictObject({
@@ -60,6 +57,7 @@ export class JobStorageError extends Error {
       | "selection_consumed"
       | "batch_not_found"
       | "job_storage_unavailable",
+    readonly issues?: z.ZodError["issues"],
   ) {
     super(code);
   }
@@ -115,7 +113,7 @@ export function submitJobs(
 ) {
   const parsed = refreshInputSchema.safeParse(requested);
   if (!parsed.success) {
-    throw new JobStorageError("invalid_selection");
+    throw new JobStorageError("invalid_selection", parsed.error.issues);
   }
   const { eventIds, scope, dryRun } = parsed.data;
   return submitSelection(

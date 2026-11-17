@@ -1,3 +1,4 @@
+import { effectiveScope } from "../../scope";
 import { assignedGroups, atPath, record, setPath } from "../../groups";
 import { editionSlotNames } from "../../research/contracts";
 import { editionEligibility } from "../../research/guards";
@@ -44,7 +45,7 @@ export function validateGeneralReply(
       return { targets: countryRejection, groups: [], issues: [] };
     }
   }
-  const groups = assignedGroups(input.scope, raw as Targets).filter(
+  const groups = assignedGroups(effectiveScope(input), raw as Targets).filter(
     ({ owner }) => owner === "general",
   );
   const { parsed, issues } = validateGeneralGroups({
@@ -71,7 +72,7 @@ export function validateGeneralReply(
   if (targets.status === "continue" && issues.length) {
     const event = selectedEvent({ ...ctx, targets: targets.value });
     if (
-      editionEligibility(targets.value, event?.editions, input.scope) !==
+      editionEligibility(targets.value, event?.editions, input.mode) !==
       "continue"
     ) {
       return { targets, groups, issues: [] };

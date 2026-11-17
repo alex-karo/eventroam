@@ -8,7 +8,8 @@ import {
   type PlanDiagnostics,
   type StageResult,
 } from "../../stage";
-import { hasEventFieldCheck } from "../assignment";
+import { requestsSlot } from "../../scope";
+import { requireAssignedProposals } from "../proposal-validation";
 import type { GeneralOutput, Targets } from "./contracts";
 
 type SavedEvent = ResearchContext["catalog"][number];
@@ -124,11 +125,11 @@ function validateTargetAssignment(
   output: Targets,
   input: CatalogResearchInput,
 ) {
-  if (
-    input.scope === "current" &&
-    (output.previousEdition || hasEventFieldCheck(output.checks))
-  ) {
-    throw new Error("Current refresh cannot address Event fields or history");
+  requireAssignedProposals("general", output, input);
+  for (const slot of editionSlotNames) {
+    if (output[slot] && !requestsSlot(input, slot)) {
+      throw new Error(`${slot} is outside the assignment`);
+    }
   }
   if (
     output.previousEdition?.editionKey ===

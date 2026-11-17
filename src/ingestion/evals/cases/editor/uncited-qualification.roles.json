@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "provenance": "Fixed source-backed proposals cite only the homepage. A separate saved eligibility notice requires validation with native grep. Research, Reader and specialists use fixed outputs; Editor and eligible Location stay live.",
   "pages": [
     {

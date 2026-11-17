@@ -99,7 +99,7 @@ async function grepSavedPage(
 function tickets(block: unknown, unresolved: unknown[] = []) {
   return {
     currentOrNextEdition: { tickets: block },
-    checks: fixtureChecks(["currentTickets"]),
+    checks: fixtureChecks(["currentOrNextEdition.fields.tickets"]),
     unresolved,
   };
 }
@@ -324,7 +324,15 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
   };
   const editor = editorReply((prompt, index) => {
     if (!index) {
-      expect(prompt.vocabulary).toEqual(expect.any(Array));
+      if (
+        prompt.reviewPaths.some(({ path }: ReviewPath) =>
+          path.endsWith(".fields.classification"),
+        )
+      ) {
+        expect(prompt.vocabulary).toEqual(expect.any(Array));
+      } else {
+        expect(prompt).not.toHaveProperty("vocabulary");
+      }
       return review(prompt, { path: ticketsPath, decision: "return", note });
     }
     expect(prompt.reviewPaths).toEqual([
@@ -364,7 +372,16 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
       links: {
         event: { socials: {} },
         currentOrNextEdition: { tickets: set(link) },
-        checks: fixtureChecks(["eventLinks", "currentLinks"]),
+        checks: fixtureChecks([
+          "event.fields.links.website",
+          "event.fields.links.socials.instagram",
+          "event.fields.links.socials.facebook",
+          "event.fields.links.socials.youtube",
+          "event.fields.links.socials.tiktok",
+          "event.fields.links.socials.x",
+          "event.fields.links.socials.other",
+          "currentOrNextEdition.fields.links.tickets",
+        ]),
         omitted: [],
         unresolved: [],
       },
@@ -385,7 +402,7 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
     ],
   });
   expect(result.unresolved).toContainEqual({
-    message: `currentTickets: ${question.message}`,
+    message: `currentOrNextEdition.fields.tickets: ${question.message}`,
   });
   const [edition] = f.saved().editions;
   expect(edition.links).toContainEqual(expect.objectContaining({ url: link }));
@@ -394,7 +411,7 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
   ]);
 });
 
-it.each(["instagram", "event.fields.links.socials.instagram"])(
+it.each(["event.fields.links.socials.instagram"])(
   "keeps the Event links check open after repairing the website (%s)",
   async (field) => {
     const url = "https://example.org/festival";
@@ -416,7 +433,16 @@ it.each(["instagram", "event.fields.links.socials.instagram"])(
         reply(body, {
           event: { website: index ? set(url) : undefined, socials: {} },
           currentOrNextEdition: {},
-          checks: fixtureChecks(["eventLinks", "currentLinks"]),
+          checks: fixtureChecks([
+            "event.fields.links.website",
+            "event.fields.links.socials.instagram",
+            "event.fields.links.socials.facebook",
+            "event.fields.links.socials.youtube",
+            "event.fields.links.socials.tiktok",
+            "event.fields.links.socials.x",
+            "event.fields.links.socials.other",
+            "currentOrNextEdition.fields.links.tickets",
+          ]),
           omitted: [],
           unresolved: index ? [] : [question],
         }),
@@ -430,7 +456,7 @@ it.each(["instagram", "event.fields.links.socials.instagram"])(
     });
     expect(result.unresolved).toContainEqual(question);
     expect(result.unresolved).toContainEqual({
-      message: `eventLinks: ${question.message}`,
+      message: `event.fields.links.socials.instagram: ${question.message}`,
     });
     expect(f.saved().links).toContainEqual(expect.objectContaining({ url }));
   },
@@ -488,7 +514,16 @@ it.each(["approve", "reject"] as const)(
         links: {
           event: { socials: {} },
           currentOrNextEdition: { tickets: set(link) },
-          checks: fixtureChecks(["eventLinks", "currentLinks"]),
+          checks: fixtureChecks([
+            "event.fields.links.website",
+            "event.fields.links.socials.instagram",
+            "event.fields.links.socials.facebook",
+            "event.fields.links.socials.youtube",
+            "event.fields.links.socials.tiktok",
+            "event.fields.links.socials.x",
+            "event.fields.links.socials.other",
+            "currentOrNextEdition.fields.links.tickets",
+          ]),
           omitted: [],
           unresolved: [],
         },
@@ -561,7 +596,11 @@ it.each(["correct", "withdraw"] as const)(
                     ...(index ? {} : { format: "openair" }),
                   }),
                 },
-          checks: fixtureChecks(["description", "currentClassification"]),
+          checks: fixtureChecks([
+            "event.fields.description",
+            "event.fields.shortDescription",
+            "currentOrNextEdition.fields.classification",
+          ]),
           unresolved:
             index && kind === "withdraw"
               ? [{ field: path, message: reason }]
@@ -661,12 +700,19 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
           currentOrNextEdition: {
             tickets: set(index ? corrected : "https://example.org/product"),
           },
-          checks: fixtureChecks(["eventLinks", "currentLinks"]).map(
-            (check) => ({
-              ...check,
-              evidenceIds: kind === "fatal" && index ? ["missing"] : [],
-            }),
-          ),
+          checks: fixtureChecks([
+            "event.fields.links.website",
+            "event.fields.links.socials.instagram",
+            "event.fields.links.socials.facebook",
+            "event.fields.links.socials.youtube",
+            "event.fields.links.socials.tiktok",
+            "event.fields.links.socials.x",
+            "event.fields.links.socials.other",
+            "currentOrNextEdition.fields.links.tickets",
+          ]).map((check) => ({
+            ...check,
+            evidenceIds: kind === "fatal" && index ? ["missing"] : [],
+          })),
           omitted: [],
           unresolved: [],
         });
@@ -1090,13 +1136,26 @@ it.each([
               },
             },
           },
-          checks: fixtureChecks(["description", "currentClassification"]),
+          checks: fixtureChecks([
+            "event.fields.description",
+            "event.fields.shortDescription",
+            "currentOrNextEdition.fields.classification",
+          ]),
           unresolved: [],
         },
         links: {
           event: { website: set(link), socials: {} },
           currentOrNextEdition: {},
-          checks: fixtureChecks(["eventLinks", "currentLinks"]),
+          checks: fixtureChecks([
+            "event.fields.links.website",
+            "event.fields.links.socials.instagram",
+            "event.fields.links.socials.facebook",
+            "event.fields.links.socials.youtube",
+            "event.fields.links.socials.tiktok",
+            "event.fields.links.socials.x",
+            "event.fields.links.socials.other",
+            "currentOrNextEdition.fields.links.tickets",
+          ]),
           omitted: [],
           unresolved: [],
         },
@@ -1142,7 +1201,7 @@ it.each([
       });
     } else {
       expect(result.unresolved).toContainEqual({
-        message: `currentDates: ${question(1).message}`,
+        message: `currentOrNextEdition.fields.dates: ${question(1).message}`,
       });
       expect(current).toMatchObject({
         startsOn: "2027-06-01",

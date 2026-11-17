@@ -1,5 +1,4 @@
 import { createTool } from "@mastra/core/tools";
-import { z } from "zod";
 import type { Collection } from "../../evidence/collection";
 import type { SourceSession } from "../../tools/session";
 import {
@@ -25,14 +24,8 @@ export async function collectResearch(
     description:
       "Discover sources only when the assignment permits discovery. Search is bounded by the shared allowance.",
     inputSchema: searchWebInputSchema,
-    outputSchema: z.union([
-      searchWebOutputSchema,
-      z.strictObject({ outcome: z.literal("not_permitted") }),
-    ]),
+    outputSchema: searchWebOutputSchema,
     execute: async ({ query }, context) => {
-      if (!assignment.sourcePolicy.discoveryAllowed) {
-        return { outcome: "not_permitted" as const };
-      }
       options.collection.signal.throwIfAborted();
       const span = context?.tracingContext?.currentSpan;
       const correlation = {

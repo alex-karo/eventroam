@@ -1,6 +1,11 @@
 import { catalogEditApproval } from "../../../mastra/catalog-assistant/edit-approval";
 import { fixtureRoleForProvider } from "../../ingestion-provider";
-import { fixtureDescriptionRole, fixtureTargets, set } from "../../ingestion";
+import {
+  fixtureDescriptionRole,
+  fixtureRoleGenerator,
+  set,
+} from "../../ingestion";
+import type { GenerateRole } from "../../../ingestion/roles/invoke";
 import Database from "better-sqlite3";
 import { createCatalogAssistant } from "../../../mastra/catalog-assistant";
 import { createAssistantLogging } from "../../../mastra/catalog-assistant/logging";
@@ -19,14 +24,13 @@ import { createWorkflowStorage } from "../../../ingestion/runtime/workflow-stora
 import { ingestionExecutionGuard } from "../../../mastra/ingestion-guard";
 
 export const OFFLINE_SENTINEL = "PRIVATE_STUDIO_FIXTURE_SENTINEL";
-const eventId = "00000000-0000-4000-8000-000000000001";
 const scenario = process.env.STUDIO_FIXTURE_SCENARIO ?? "success";
 
-const general = {
-  ...fixtureTargets(eventId),
+const general: GenerateRole = async (role, prompt, call) => ({
+  ...((await fixtureRoleGenerator()(role, prompt, call)) as object),
   observedEventName: "Studio Fixture Festival",
   reason: OFFLINE_SENTINEL,
-};
+});
 const classification = fixtureDescriptionRole({
   description: set(
     "Live music takes place outdoors. The programme includes workshops. Visitors can join group activities.",

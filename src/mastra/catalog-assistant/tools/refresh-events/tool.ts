@@ -13,7 +13,7 @@ export function createRefreshEventsTool(
   return createTool({
     id: "refresh_events",
     description:
-      "Submit one to 200 distinct existing Events for background refresh. dryRun defaults to preview; false applies. One selection per execution. Returns batch ID and accepted count. Read progress and reports through query_catalog.",
+      "Submit one to 200 distinct existing Events for background refresh. dryRun defaults to preview; false applies. Use full/current presets or a typed scope task object for requested fields. One selection per execution. Returns batch ID and accepted count. Read progress and reports through query_catalog.",
     inputSchema: refreshInputSchema,
     execute: async (input, context) =>
       submitSelection(

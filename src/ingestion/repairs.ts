@@ -1,3 +1,4 @@
+import { effectiveScope } from "./scope";
 import type { CatalogAttempt } from "./attempt";
 import type { IngestionData } from "./contracts";
 import type { Evidence } from "./evidence/contracts";
@@ -166,7 +167,7 @@ export class ProposalRepairs {
     signal: AbortSignal,
   ) {
     const ctx = this.context(owned, data, targets);
-    const groups = assignedGroups(owned.input.scope, targets);
+    const groups = assignedGroups(effectiveScope(owned.input), targets);
     const issues: GroupIssue[] = [];
     const specialists = [
       "tickets",
@@ -207,7 +208,7 @@ export class ProposalRepairs {
     signal: AbortSignal,
   ) {
     const ctx = this.context(owned, data, targets);
-    const groups = assignedGroups(owned.input.scope, targets);
+    const groups = assignedGroups(effectiveScope(owned.input), targets);
     await this.returnGroups(requests, groups, ctx, "editor", signal);
     return this.checkedSpecialistOutputs(ctx);
   }
@@ -217,9 +218,6 @@ export class ProposalRepairs {
   ): SpecialistOutputs {
     // Read each reply after its role schema and group checks pass.
     const links = this.raw("links") as LinksOutput | undefined;
-    if (!links) {
-      throw new Error("Missing validated Links reply");
-    }
     const classification = this.raw("classification") as
       ClassificationReply | undefined;
     return {
@@ -232,7 +230,13 @@ export class ProposalRepairs {
             ctx.context.terms,
           )
         : null,
-      links,
+      links: links ?? {
+        event: { socials: {} },
+        currentOrNextEdition: null,
+        omitted: [],
+        checks: [],
+        unresolved: [],
+      },
     };
   }
 

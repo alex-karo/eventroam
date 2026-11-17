@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { addInputSchema } from "./add-input";
+import { scopeRequestSchema } from "./scope";
 
 export const eventIdSchema = z.string().trim().min(1).max(500);
-export const refreshScopeSchema = z.enum(["current", "full"]);
 
 const addTarget = z.strictObject({
   mode: z.literal("add"),
@@ -10,7 +10,7 @@ const addTarget = z.strictObject({
 });
 const refreshTarget = z.strictObject({
   mode: z.literal("refresh"),
-  input: z.strictObject({ eventId: eventIdSchema, scope: refreshScopeSchema }),
+  input: z.strictObject({ eventId: eventIdSchema, scope: scopeRequestSchema }),
 });
 
 export const ingestionTargetSchema = z.discriminatedUnion("mode", [
@@ -24,7 +24,7 @@ export const studioIngestionInputSchema = z
     input: z.union([
       addTarget.shape.input,
       refreshTarget.shape.input.extend({
-        scope: refreshScopeSchema.default("full"),
+        scope: scopeRequestSchema.default("full"),
       }),
     ]),
     dryRun: z.boolean().default(true),

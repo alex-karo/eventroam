@@ -20,6 +20,8 @@ import {
   type StageResult,
 } from "./stage";
 import { majorToMinor } from "./roles/tickets/money";
+import { isAssigned } from "./groups";
+import { assertCatalogScope } from "./catalog-scope";
 type CombinedEditionPlan = NonNullable<
   ApplicationPlan["currentOrNextEdition"]
 > & {
@@ -260,7 +262,10 @@ export function prepareCatalogPlan(
   const location = result.location;
   const plan: CombinedPlan = structuredClone(result.plan);
   for (const slot of editionSlotNames) {
-    if (!!plan[slot] !== !!location.slots[slot]) {
+    if (
+      (!!plan[slot] && isAssigned(input, `${slot}.fields.location`)) !==
+      !!location.slots[slot]
+    ) {
       return planInvalid(result, slot, "Location target mismatch");
     }
     if (plan[slot]) {
@@ -272,15 +277,15 @@ export function prepareCatalogPlan(
 
   const eventRef = event?.id ?? "$event";
   prepareEvent(plan.event!, event, result.eventName, add);
-  let willPublishEdition = false;
-  for (const [index, slot] of editionSlotNames.entries()) {
+  let hasEligibleEdition = false;
+  for (const slot of editionSlotNames) {
     const edition = plan[slot];
     if (!edition) {
       continue;
     }
     const outcome = prepareEdition(
       edition,
-      index,
+      slot,
       event,
       eventRef,
       input,
@@ -294,18 +299,21 @@ export function prepareCatalogPlan(
         `Edition ${edition.editionKey} needs a start date and an end date for status scheduled.`,
       );
     }
-    if (outcome === "publish") {
-      willPublishEdition = true;
+    if (outcome === "allows-parent-publication") {
+      hasEligibleEdition = true;
     }
   }
-  if (
-    mayPublish(event, input.republish) &&
-    (willPublishEdition ||
-      event?.editions.some(
-        (edition) => edition.publicationState === "published",
-      ))
-  ) {
+  if (mayPublish(event, input.republish) && hasEligibleEdition) {
     add({ kind: "publishEvent", id: eventRef }, {}, event?.version ?? 1);
+  }
+  try {
+    assertCatalogScope(result.operations, input, event, plan);
+  } catch (error) {
+    return planInvalid(
+      result,
+      "scope",
+      error instanceof Error ? error.message : "Scope violation",
+    );
   }
   return { status: "continue", value: result };
 }
@@ -363,16 +371,16 @@ function prepareEvent(
 
 function prepareEdition(
   edition: CombinedEditionPlan,
-  index: number,
+  slot: (typeof editionSlotNames)[number],
   event: Event | undefined,
   eventRef: string,
   input: CatalogResearchInput,
   terms: Term[],
   add: AddOperation,
-): "missing-schedule-dates" | "publish" | "prepared" {
+): "missing-schedule-dates" | "allows-parent-publication" | "prepared" {
   const key = edition.editionKey;
   const saved = event?.editions.find((item) => item.editionKey === key);
-  const id = saved?.id ?? `$edition_${index}`;
+  const id = saved?.id ?? `$edition_${slot}`;
   const version = saved?.version ?? 1;
   const { values, reasons } = fieldsToValues(edition.fields);
   const next = { ...saved, ...values };
@@ -445,7 +453,13 @@ function prepareEdition(
     )
   ) {
     add({ kind: "publishEdition", id }, {}, version);
-    return "publish";
+    return "allows-parent-publication";
   }
-  return "prepared";
+  return saved?.publicationState === "published" &&
+    festivalEditionRules.isPublishable(
+      next,
+      terms.filter((term) => nextTerms.includes(term.id)),
+    )
+    ? "allows-parent-publication"
+    : "prepared";
 }

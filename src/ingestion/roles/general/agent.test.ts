@@ -84,6 +84,7 @@ it.each(["add", "full", "current"] as const)(
             "identityContext",
             "identityTask",
             "permissions",
+            "scope",
           ]);
           expect(data.corpus.evidence).toEqual(
             expect.arrayContaining([
@@ -96,8 +97,12 @@ it.each(["add", "full", "current"] as const)(
           expect(data.assignment.permissions.eventFields).toBe(
             mode !== "current",
           );
-          expect(data.assignedChecks).toContain("currentDates");
-          expect(data.assignedChecks).not.toContain("currentTickets");
+          expect(data.assignedChecks).toContain(
+            "currentOrNextEdition.fields.year",
+          );
+          expect(data.assignedChecks).not.toContain(
+            "currentOrNextEdition.fields.tickets",
+          );
           expect(data.assignedChecks).not.toContain("description");
           expect(data.candidates[0]).not.toHaveProperty("description");
           expect(data.candidates[0]).toMatchObject({

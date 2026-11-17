@@ -11,6 +11,7 @@ import { PROMPT_VERSIONS } from "../versions";
 import type { ReviewPath } from "./contracts";
 import { editorInstructions } from "./prompt";
 import { groupProposal } from "./review";
+import { effectiveScope } from "../../scope";
 import { reviewSchema, validateEditorReply } from "./validate";
 
 export async function runEditor(
@@ -49,9 +50,9 @@ export async function runEditor(
   }
   const evidence = options.corpus.evidence.filter(({ id }) => cited.has(id));
   const schema = reviewSchema(paths);
-  const needsVocabulary =
-    !targetedGroups ||
-    targetedGroups.some(({ owner }) => owner === "classification");
+  const needsVocabulary = paths.some(({ path }) =>
+    path.endsWith(".fields.classification"),
+  );
   return invokeRole({
     ...roleInvocationOptions(options, "editor"),
     role: "editor",
@@ -62,6 +63,7 @@ export async function runEditor(
         ? "\nThis is a targeted review. The proposals are in returnedGroups. Use fixedEditions only as context. Do not review any other group or target."
         : ""),
     input: {
+      scope: effectiveScope(options.input),
       currentDate: options.context.currentDate,
       permissions: buildAssignment(options.input, options.context).permissions,
       sourceFiles,

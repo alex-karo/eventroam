@@ -454,11 +454,9 @@ it("builds concrete assignments with current exclusions", () => {
   const f = fixture();
   const current = buildAssignment({ ...f.input, scope: "current" }, f.context);
   expect(current).not.toHaveProperty("mode");
-  expect(current).not.toHaveProperty("scope");
-  expect(current.sourcePolicy).toMatchObject({
-    discoveryAllowed: true,
-    recoverWebsite: false,
-  });
+  expect(
+    current.scope.tasks.every(({ target }) => target === "currentOrNext"),
+  ).toBe(true);
   expect(current.permissions).toEqual({
     eventFields: false,
     previousEdition: false,
@@ -732,7 +730,7 @@ it.each(["description", "shortDescription", "description check"] as const)(
           field === "description check"
             ? [
                 {
-                  check: "description",
+                  check: "event.fields.description",
                   finding: "verified",
                   explanation: "The festival is open-air.",
                   evidenceIds: ["s1-e1"],
@@ -747,7 +745,12 @@ it.each(["description", "shortDescription", "description check"] as const)(
       status: "reject",
       diagnostics: {
         errors: [
-          { message: "Current refresh cannot address Event descriptions" },
+          {
+            message:
+              field === "description check"
+                ? "classification: check is outside the assignment"
+                : `classification: event.fields.${field} is outside the assignment`,
+          },
         ],
       },
     });

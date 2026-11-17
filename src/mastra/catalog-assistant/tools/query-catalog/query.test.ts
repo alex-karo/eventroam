@@ -9,6 +9,7 @@ import {
   INSPECT_RUN_SQL,
   INSPECT_RUN_STATE_SQL,
   RUN_EVIDENCE_SQL,
+  RUN_SCOPE_SQL,
 } from "@/test/catalog-sql";
 
 test("SQLite accepts joins, CTEs, comments, parameters, and metadata reads", () => {
@@ -178,7 +179,8 @@ test("report SQL examples inspect absent, unfinished, malformed, unfamiliar and 
   });
   expect(mapped("future")).toMatchObject({
     schemaVersion: 999,
-    outcome: "invented",
+    reportError: "unsupported_report_version",
+    outcome: null,
   });
   expect(mapped("valid")).toMatchObject({
     dryRun: 0,
@@ -191,6 +193,92 @@ test("report SQL examples inspect absent, unfinished, malformed, unfamiliar and 
   expect(
     queryCatalog(db.path, { sql: RUN_EVIDENCE_SQL, parameters: ["invalid"] }),
   ).toEqual({ ok: false, error: "query_rejected" });
+});
+
+test("scope inspection keeps version 7 meaning and reads version 8 fields without preset expansion", () => {
+  const db = testDatabase();
+  const scope = {
+    version: 1,
+    tasks: [{ target: "event", fields: ["description"], required: true }],
+  };
+  const insert = db.client.prepare(
+    "INSERT INTO ingestion_runs(id,mode,status,started_at,input_json,report_json) VALUES (?,'refresh','completed','2026-11-17',?,?)",
+  );
+  const old = {
+    schemaVersion: 7,
+    outcome: "unchanged",
+    modelResponse: {
+      object: { checks: [{ check: "currentDates", finding: "verified" }] },
+    },
+  };
+  insert.run("old", JSON.stringify({ scope: "current" }), JSON.stringify(old));
+  const modern = {
+    schemaVersion: 8,
+    outcome: "updated",
+    normalizedScope: scope,
+    targets: {
+      previousEdition: { status: "not_run" },
+      currentOrNextEdition: { status: "not_run" },
+    },
+    checks: {
+      collection: [{ check: "event.fields.description", blocker: null }],
+      interpretation: [
+        { check: "event.fields.description", finding: "verified" },
+      ],
+    },
+    skipped: [{ role: "location", reason: "No assigned work" }],
+  };
+  insert.run(
+    "new",
+    JSON.stringify({ scope, normalizedScope: scope }),
+    JSON.stringify(modern),
+  );
+  insert.run("future", "{}", JSON.stringify({ ...modern, schemaVersion: 999 }));
+  const inspect = (id: string) => {
+    const result = queryCatalog(db.path, {
+      sql: RUN_SCOPE_SQL,
+      parameters: [id],
+    });
+    if (!result.ok) {
+      throw new Error("Expected scope query");
+    }
+    return Object.fromEntries(
+      result.columns.map((key, index) => [key, result.rows[0][index]]),
+    );
+  };
+  expect(inspect("old")).toMatchObject({
+    schemaVersion: 7,
+    submittedScope: "current",
+    normalizedScope: null,
+    targets: null,
+    collectionChecks: null,
+    interpretationChecks: null,
+    skipped: null,
+    reportError: null,
+  });
+  const current = inspect("new");
+  expect(JSON.parse(current.normalizedScope as string)).toEqual(scope);
+  expect(JSON.parse(current.collectionChecks as string)).toEqual(
+    modern.checks.collection,
+  );
+  expect(JSON.parse(current.interpretationChecks as string)).toEqual(
+    modern.checks.interpretation,
+  );
+  expect(JSON.parse(current.targets as string)).toEqual(modern.targets);
+  expect(JSON.parse(current.skipped as string)).toEqual(modern.skipped);
+  expect(inspect("future")).toMatchObject({
+    reportError: "unsupported_report_version",
+    normalizedScope: null,
+    collectionChecks: null,
+  });
+  expect(
+    JSON.parse(
+      db.client
+        .prepare("SELECT report_json FROM ingestion_runs WHERE id='old'")
+        .pluck()
+        .get() as string,
+    ),
+  ).toEqual(old);
 });
 
 test("add status SQL distinguishes proposed creation, published creation, skips, failed matches, and missing reports", async () => {
@@ -403,7 +491,7 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
       schemaVersion,
       outcome: null,
       editorRejected: 0,
-      proposedCreation: 1,
+      proposedCreation: schemaVersion === 7 ? 1 : 0,
       changedCreation: 0,
     });
   }

@@ -18,7 +18,7 @@ const final = {
   checks: [
     { check: "identity", blocker: null, sourceIds: ["s1"] },
     {
-      check: "currentTickets",
+      check: "currentOrNextEdition.fields.tickets",
       sourceIds: ["s2"],
       blocker: "Ticket page is blocked.",
     },

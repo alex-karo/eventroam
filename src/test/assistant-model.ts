@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { ScopeRequest } from "@/ingestion/scope";
 import { MastraLanguageModelV2Mock } from "@mastra/core/test-utils/llm-mock";
 import {
   BATCH_COUNTS_SQL,
@@ -141,7 +142,10 @@ function inspectRunReply(value: unknown, runId: string) {
     text = "The run is unknown.";
   } else if (!result.rows[0][6]) {
     text = "The attempt exists without a saved final report.";
-  } else if (!result.rows[0][7] || result.rows[0][8] !== 7) {
+  } else if (
+    !result.rows[0][7] ||
+    ![7, 8].includes(Number(result.rows[0][8]))
+  ) {
     text = "The report JSON or version cannot be interpreted.";
   } else {
     call = {
@@ -171,6 +175,20 @@ function reportStateReply(result: unknown): string {
     return "The stored JSON cannot be interpreted.";
   }
   return "The report query failed. Its outcome cannot be confirmed.";
+}
+
+// eslint-disable-next-line sonarjs/function-return-type -- Scope accepts a preset or a task object.
+function fixtureScope(owner: string): ScopeRequest {
+  if (/\bdescription\b/i.test(owner)) {
+    const fields: ("description" | "links.socials.instagram")[] = [
+      "description",
+    ];
+    if (/\bInstagram\b/i.test(owner)) {
+      fields.push("links.socials.instagram");
+    }
+    return { version: 1, tasks: [{ target: "event", fields }] };
+  }
+  return /\bcurrent\b/i.test(owner) ? "current" : "full";
 }
 
 function initialReply(
@@ -225,7 +243,7 @@ function initialReply(
         input: {
           eventIds: ids,
           dryRun: !/\bupdate\b/i.test(owner),
-          scope: "full",
+          scope: fixtureScope(owner),
         },
       };
     }

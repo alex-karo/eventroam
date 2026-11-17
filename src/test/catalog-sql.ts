@@ -17,6 +17,10 @@ export const RUN_EVIDENCE_SQL = readFileSync(
   new URL("run-evidence.sql", references),
   "utf8",
 ).trim();
+export const RUN_SCOPE_SQL = readFileSync(
+  new URL("run-scope.sql", references),
+  "utf8",
+).trim();
 export const BATCH_COUNTS_SQL = readFileSync(
   new URL("batch-counts.sql", references),
   "utf8",

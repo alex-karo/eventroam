@@ -1,4 +1,5 @@
-import { hasEventFieldCheck } from "./roles/assignment";
+import { effectiveScope } from "./scope";
+import { requireAssignedProposals } from "./roles/proposal-validation";
 import { earlierEdition, proposedChronology } from "./research/guards";
 import {
   assignedGroups,
@@ -126,31 +127,13 @@ function validateLocationSupport(
 function eventFields(
   classification: ClassificationOutput | null,
   links: LinksOutput,
-  scope: CatalogResearchInput["scope"],
 ): NonNullable<ApplicationPlan["event"]>["fields"] {
   const { description, shortDescription } = classification ?? {};
-  if (scope !== "current") {
-    return {
-      ...(description && { description }),
-      ...(shortDescription && { shortDescription }),
-      links: links.event,
-    };
-  }
-  if (
-    description ||
-    shortDescription ||
-    (classification && hasEventFieldCheck(classification.checks))
-  ) {
-    throw new Error("Current refresh cannot address Event descriptions");
-  }
-  if (
-    links.event.website ||
-    Object.keys(links.event.socials).length ||
-    hasEventFieldCheck(links.checks)
-  ) {
-    throw new Error("Event links are outside the assignment");
-  }
-  return {};
+  return {
+    ...(description && { description }),
+    ...(shortDescription && { shortDescription }),
+    links: links.event,
+  };
 }
 
 export type SpecialistOutputs = {
@@ -158,6 +141,30 @@ export type SpecialistOutputs = {
   classification: ClassificationOutput | null;
   links: LinksOutput;
 };
+
+function assertAssignedScope(
+  submitted: SpecialistOutputs & { general: Targets },
+  location: MaterializedLocation,
+  input: CatalogResearchInput,
+) {
+  const targets = submitted.general;
+  for (const [owner, raw] of Object.entries(submitted)) {
+    requireAssignedProposals(
+      owner as "general" | "tickets" | "classification" | "links",
+      raw,
+      input,
+      targets,
+    );
+  }
+  const assigned = new Set(
+    assignedGroups(effectiveScope(input), targets).map(({ path }) => path),
+  );
+  for (const slot of editionSlotNames) {
+    if (location.slots[slot] && !assigned.has(locationGroupPath(slot))) {
+      throw new Error(`${slot}.fields.location is outside the assignment`);
+    }
+  }
+}
 
 export function assembleProposals(
   options: SpecialistOutputs & {
@@ -192,9 +199,10 @@ export function assembleProposals(
     links: options.links,
   };
   try {
+    assertAssignedScope(submitted, options.location, input);
     const cited = new Set(Object.values(options.location.support).flat());
     const returnedChanges = new Set(
-      assignedGroups(input.scope, targets).flatMap(
+      assignedGroups(effectiveScope(input), targets).flatMap(
         ({ owner, path, rawPath }) =>
           owner !== "location" && returnedPaths?.has(path)
             ? [atPath(submitted[owner], rawPath)]
@@ -218,7 +226,7 @@ export function assembleProposals(
       status: "ready",
       event: {
         reason: targets.reason,
-        fields: eventFields(options.classification, options.links, input.scope),
+        fields: eventFields(options.classification, options.links),
       },
       previousEdition: structuredClone(targets.previousEdition),
       currentOrNextEdition: structuredClone(targets.currentOrNextEdition),

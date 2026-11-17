@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { locationExecutionSchema } from "./roles/location/execution";
 import { researchErrorSchema } from "./research/contracts";
+import { scopeRequestSchema } from "./scope";
 
 export const studioIngestionResultSchema = z.strictObject({
   engineRunId: z.string(),
@@ -19,7 +20,7 @@ export const studioIngestionResultSchema = z.strictObject({
   editorStatus: z.enum(["success", "failed", "not_run"]),
   persistenceStatus: z.enum(["completed", "failed"]),
   eventId: z.string().nullable(),
-  scope: z.enum(["full", "current"]).nullable(),
+  scope: scopeRequestSchema.nullable(),
   locationStatus: locationExecutionSchema.shape.status,
   errorCodes: z.array(researchErrorSchema.shape.code),
 });

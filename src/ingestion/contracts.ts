@@ -1,4 +1,5 @@
 import type { Targets } from "./roles/general/contracts";
+import type { ScopeRequest, NormalizedScope } from "./scope";
 import type { CollectionOutput } from "./roles/research/contracts";
 import type { PlanDiagnostics } from "./stage";
 import type { RoleExecution } from "./roles/invoke";
@@ -39,7 +40,9 @@ import type {
 
 export type CatalogResearchInput = {
   mode: "add" | "refresh";
-  scope?: "full" | "current";
+  scope?: ScopeRequest;
+  /** Set once by the attempt before any external work. */
+  normalizedScope?: NormalizedScope;
   input?: string;
   eventId?: string;
   actor: string;
@@ -50,8 +53,24 @@ export type CatalogResearchInput = {
 };
 
 export type CatalogResearchResult = {
-  schemaVersion: 7;
+  schemaVersion: 8;
   scope: NonNullable<CatalogResearchInput["scope"]> | null;
+  normalizedScope: NormalizedScope;
+  targets: Record<
+    "previousEdition" | "currentOrNextEdition",
+    {
+      status: "bound" | "absent" | "unresolved" | "not_run";
+      editionKey?: string;
+      editionId?: string;
+      reason: string;
+      evidenceIds: string[];
+    }
+  >;
+  checks: {
+    collection: CollectionOutput["checks"];
+    interpretation: import("./roles/contracts").CheckFinding[];
+  };
+  skipped: { role: string; reason: string }[];
   currentDate: string | null;
   limits: ResearchLimits;
   workload: {

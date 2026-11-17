@@ -44,6 +44,9 @@ export function submitSelection(
         error instanceof JobStorageError
           ? error.code
           : "job_storage_unavailable",
+      ...(error instanceof JobStorageError && error.issues
+        ? { issues: error.issues }
+        : {}),
     });
   } finally {
     client?.close();

@@ -8,7 +8,7 @@ import { ticketBlockSchema } from "./tickets/contracts";
 
 const collected = { check: "identity", blocker: null, sourceIds: ["s1"] };
 const blocked = {
-  check: "currentTickets",
+  check: "currentOrNextEdition.fields.tickets",
   sourceIds: ["s2"],
   blocker: "The ticket page is blocked.",
 };
@@ -106,7 +106,7 @@ it("allows an unsupported past candidate to stay null without losing the support
     currentOrNextEdition: next,
     checks: [
       {
-        check: "previousCompletedEdition",
+        check: "previousEdition.select",
         finding: "unfinished",
         explanation:
           "The saved dates do not prove that the festival took place.",

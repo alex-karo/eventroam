@@ -12,6 +12,7 @@ import { locationInputSchema, type LocationInput } from "./input";
 import { prepareInitialGeocoding } from "./initial";
 import { validateLocation } from "./validate";
 import { resolveLocation } from "./agent";
+import { normalizeScope } from "../../scope";
 afterEach(() => vi.unstubAllGlobals());
 
 test("the native Location request includes the independent location evidence rule", async () => {
@@ -61,7 +62,7 @@ test("the native Location request includes the independent location evidence rul
 function input(): LocationInput {
   return locationInputSchema.parse({
     festival: { name: "Festival", summary: null, format: ["open_air"] },
-    scope: "full",
+    scope: normalizeScope("full"),
     currentDate: "2026-10-25T12:00:00Z",
     countryBaseline: "PT",
     sources: [

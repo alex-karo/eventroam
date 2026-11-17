@@ -7,6 +7,7 @@ import { testFixtures } from "@/test/fixtures";
 import { assistantExecutionContext } from "../../execution-context";
 import { createRefreshEventsTool } from "./tool";
 import { createCancelBatchTool } from "../cancel-batch/tool";
+import type { ScopeRequest } from "../../../../ingestion/scope";
 
 function context() {
   const requestContext = new RequestContext();
@@ -32,6 +33,43 @@ function setup(n = 3) {
     );
   return { db, eventIds, tool, execute };
 }
+
+test.each<ScopeRequest>([
+  "current",
+  { version: 1, tasks: [{ target: "event", fields: ["description"] }] },
+  {
+    version: 1,
+    tasks: [
+      {
+        target: "event",
+        fields: ["description", "links.socials.instagram"],
+        instruction: "Use the official programme and profile.",
+      },
+    ],
+  },
+])(
+  "refresh tool keeps a preset or custom scope in each job: %j",
+  async (scope) => {
+    const fixture = setup(2);
+    const requestContext = context();
+    expect(
+      await fixture.tool.execute!(
+        { eventIds: fixture.eventIds, scope, dryRun: false },
+        { requestContext, observe: noopObserve },
+      ),
+    ).toMatchObject({ ok: true, acceptedCount: 2 });
+    expect(requestContext.get("submissionConsumed")).toBe(true);
+    const jobs = fixture.db.client
+      .prepare("SELECT input, dry_run FROM ingestion_jobs ORDER BY position")
+      .all();
+    expect(jobs).toEqual(
+      fixture.eventIds.map((eventId) => ({
+        input: JSON.stringify({ eventId, scope }),
+        dry_run: 0,
+      })),
+    );
+  },
+);
 
 test("invalid input does not consume the selection; acceptance needs no queue loop or credentials", async () => {
   const fixture = setup(),

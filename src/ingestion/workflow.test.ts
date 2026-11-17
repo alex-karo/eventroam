@@ -1113,7 +1113,7 @@ test.each([
     },
   },
 ])(
-  "Location $name preserves successful Research and stops all writes",
+  "Location $name keeps collection findings, leaves required interpretation partial and stops all writes",
   async ({ decision, status, error }) => {
     const prepare = vi.spyOn(prepareModule, "prepareCatalogPlan");
     const { client } = fixture();
@@ -1126,7 +1126,17 @@ test.each([
         generateLocation: async () => ({ decision }),
       },
     );
-    expect(result.researchStatus).toBe("success");
+    expect(result.researchStatus).toBe("partial");
+    expect(result.checks.collection.length).toBeGreaterThan(0);
+    expect(
+      result.checks.collection.every(({ blocker }) => blocker === null),
+    ).toBe(true);
+    expect(result.checks.interpretation).toContainEqual(
+      expect.objectContaining({
+        check: "currentOrNextEdition.fields.location",
+        finding: "unfinished",
+      }),
+    );
     expect(prepare).not.toHaveBeenCalled();
     expect(result.locationStatus).toBe(status);
     expect(result.locationResponse?.object).toEqual({ decision });
@@ -1186,7 +1196,7 @@ test("a recoverable geocoding failure and Location question permit a ticket upda
               },
             }),
           },
-          checks: fixtureChecks(["currentTickets"]),
+          checks: fixtureChecks(["currentOrNextEdition.fields.tickets"]),
           unresolved: [],
         }),
       },

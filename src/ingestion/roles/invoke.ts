@@ -10,7 +10,10 @@ import { z } from "zod";
 import type { ResearchConfig } from "../runtime/config";
 import type { ResearchBudget } from "../runtime/budget";
 import { traceFailure } from "../runtime/tracing";
-import { ResearchLimitError } from "../runtime/budget";
+import {
+  MAX_ROLE_INPUT_CHARACTERS,
+  ResearchLimitError,
+} from "../runtime/budget";
 import type { ResearchError } from "../research/contracts";
 import type { RunObservability } from "../runtime/observability/runtime";
 import { completedObject, modelOutputSchema } from "../runtime/model-output";
@@ -387,7 +390,7 @@ function rolePrompt(
         }
       : input,
   );
-  if (prompt.length > 400000) {
+  if (prompt.length > MAX_ROLE_INPUT_CHARACTERS) {
     throw new ResearchLimitError("context");
   }
   return prompt;

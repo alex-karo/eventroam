@@ -112,6 +112,10 @@ export class CatalogAttempt {
       limits: this.budget.limits,
       research: data.research,
       general: data.general,
+      targets:
+        data.researchValidation?.status === "continue"
+          ? data.researchValidation.value
+          : null,
       specialists: data.specialists,
       corpus: data.corpus,
       editor: data.editor,
