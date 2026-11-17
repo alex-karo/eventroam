@@ -29,6 +29,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 - [Ingestion tools](ingestion-tools.md) — CLI, Studio, saved runs, and diagnostics.
 - [Source reader](source-reader.md) — page extraction, map evidence, fallback, and checks for `readPage`.
 - [Infrastructure](infrastructure.md) — application containers, deployment inputs, and database maintenance and transfers.
+- [Backups and retention](backups.md) — daily S3 snapshots at 09:00 UTC, local cleanup, activation, and recovery.
 - [Ingestion process](ingestion-process.md) — plain-language steps for festival research and catalog updates, including [location rules](ingestion-process.md#resolve-location).
 - [Ingestion evals](ingestion-evals.md) — commands, Studio experiments, case design, scoring, fixtures, and model comparison.
 - [Project structure](project-structure.md) — directories and dependency boundaries.

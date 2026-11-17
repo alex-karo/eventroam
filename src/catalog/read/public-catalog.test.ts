@@ -82,6 +82,7 @@ test("on-demand discovery details obey publication and schedule gates", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);
   const { editions } = fx.publishedEvent({
+    event: { shortDescription: "Live music outdoors. Camping is available." },
     editions: [
       { editionKey: "2027", scheduleStatus: "scheduled" },
       {
@@ -97,7 +98,10 @@ test("on-demand discovery details obey publication and schedule gates", () => {
     ],
   });
   const [current, history, cancelled] = editions;
-  expect(publicEditionById(client, current.id)?.key).toBe("2027");
+  expect(publicEditionById(client, current.id)).toMatchObject({
+    key: "2027",
+    shortDescription: "Live music outdoors. Camping is available.",
+  });
   expect(publicEditionById(client, history.id)?.key).toBe("2025");
   expect(publicEditionById(client, cancelled.id)).toBeNull();
   expect(publicEditionById(client, "missing")).toBeNull();

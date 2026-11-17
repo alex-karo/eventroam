@@ -247,6 +247,64 @@ test("postponement preserves previous dates and only changes its edition", () =>
   ).toBe(other.version);
 });
 
+test.each(["confirmed", "provisional"] as const)(
+  "replacement dates preserve Edition identity, date certainty and history (%s)",
+  (dateState) => {
+    const { client } = testDatabase();
+    const fx = testFixtures(client);
+    const edition = fx.publishedEdition(fx.event(), {
+      editionKey: "2027",
+      startsOn: "2027-06-25",
+      endsOn: "2027-06-27",
+      dateState,
+      scheduleStatus: "postponed",
+    });
+    const note =
+      "The organizer announced replacement programme dates for the same Edition. Source: https://example.org/new-dates";
+    applyCatalogOperation(client, {
+      operationKey: "test:replacement-dates",
+      actor: "owner",
+      kind: "updateEdition",
+      id: edition.id,
+      expectedVersion: edition.version,
+      data: {
+        startsOn: "2027-07-02",
+        endsOn: "2027-07-04",
+        scheduleStatus: "scheduled",
+      },
+      note,
+    });
+    expect(
+      client
+        .prepare(
+          "SELECT edition_key,starts_on,ends_on,date_state,schedule_status FROM editions WHERE id=?",
+        )
+        .get(edition.id),
+    ).toEqual({
+      edition_key: "2027",
+      starts_on: "2027-07-02",
+      ends_on: "2027-07-04",
+      date_state: dateState,
+      schedule_status: "scheduled",
+    });
+    const history = client
+      .prepare(
+        "SELECT note, changed_fields FROM catalog_changes WHERE operation_key=?",
+      )
+      .get("test:replacement-dates") as {
+      note: string;
+      changed_fields: string;
+    };
+    expect(history.note).toBe(note);
+    expect(JSON.parse(history.changed_fields)).toContainEqual({
+      field: "schedule_status",
+      oldPresent: true,
+      oldValue: "postponed",
+      newValue: "scheduled",
+    });
+  },
+);
+
 test("invalid changes roll back, stale writes fail, replay is idempotent and payload mismatch fails", () => {
   const client = testDatabase().client;
   const fx = testFixtures(client);

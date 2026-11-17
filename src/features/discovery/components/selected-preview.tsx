@@ -1,5 +1,5 @@
-import { DateBlock } from "@/components/catalog/date-block";
 import { useState, type RefObject } from "react";
+import type { PublicEdition } from "@/catalog/read/contracts";
 import type { DetailState } from "@/features/discovery/hooks/use-selected-edition";
 import { editionPath } from "@/site/site";
 import { isPastEdition } from "@/catalog/domain/dates";
@@ -13,6 +13,32 @@ import {
 } from "@/components/catalog/catalog";
 import { Icon } from "@/components/catalog/icons";
 import { ExternalLinks } from "@/components/catalog/external-links";
+
+function previewLinks(links: PublicEdition["links"]) {
+  const selected: PublicEdition["links"] = [];
+  for (const kind of [
+    "official_site",
+    "ticketing",
+    "facebook",
+    "instagram",
+    "youtube",
+    "tiktok",
+    "x",
+  ]) {
+    const link = links.find(
+      (link) =>
+        link.kind === kind && !selected.some(({ url }) => url === link.url),
+    );
+    if (link) {
+      selected.push(link);
+    }
+    if (selected.length === 3) {
+      break;
+    }
+  }
+  return selected;
+}
+
 export function SelectedPreview({
   detailState,
   panelRef,
@@ -33,6 +59,7 @@ export function SelectedPreview({
   const selectedId = detailState.id;
   const detail = detailState.status === "ready" ? detailState.data : null;
   const path = detail ? editionPath(detail.eventSlug, detail.key) : "";
+  const description = detail?.shortDescription?.trim();
   return (
     <section
       ref={panelRef}
@@ -78,7 +105,7 @@ export function SelectedPreview({
           </button>
         </div>
       </header>
-      <div className="card-scroll">
+      <div id="selected-edition-more" className="card-scroll">
         {detailState.status === "loading" && <p>Loading edition details…</p>}
         {detailState.status === "error" && (
           <div role="alert">
@@ -90,31 +117,26 @@ export function SelectedPreview({
         )}
         {detail && (
           <>
-            <div className="preview-date">
-              <DateBlock date={detail.startsOn} />
-              <div className="card-date-facts">
+            <Terms
+              terms={detail.terms.filter(({ facet }) => facet === "genre")}
+            />
+            <div className="preview-facts">
+              <div className="preview-date">
                 <Dates edition={detail} />
-                <Status edition={detail} now={now} />
+                {(detail.status !== "scheduled" ||
+                  isPastEdition(detail, now)) && (
+                  <Status edition={detail} now={now} />
+                )}
+              </div>
+              <Location edition={detail} compact />
+              <Size edition={detail} showLabel={false} />
+              <div className="card-more">
+                <TicketPrice edition={detail} now={now} />
               </div>
             </div>
-            <Location edition={detail} />
+            {description && <p className="preview-summary">{description}</p>}
           </>
         )}
-        <div id="selected-edition-more" className="card-more">
-          {detail && (
-            <>
-              <Terms edition={detail} />
-              <Size edition={detail} />
-              <TicketPrice edition={detail} now={now} />
-              <ExternalLinks
-                links={detail.links}
-                historicalYear={
-                  isPastEdition(detail, now) ? detail.year : undefined
-                }
-              />
-            </>
-          )}
-        </div>
       </div>
       {detail && (
         <footer className="card-footer">
@@ -125,8 +147,15 @@ export function SelectedPreview({
             rel="noopener noreferrer"
             title="Open festival page in a new tab"
           >
-            Open page <Icon name="new-page" />
+            View festival <Icon name="new-page" />
           </a>
+          <ExternalLinks
+            links={previewLinks(detail.links)}
+            iconsOnly
+            historicalYear={
+              isPastEdition(detail, now) ? detail.year : undefined
+            }
+          />
         </footer>
       )}
     </section>

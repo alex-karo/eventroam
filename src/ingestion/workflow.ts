@@ -806,6 +806,18 @@ export function createCatalogIngestionWorkflow(
       let prepared = data.prepared.value;
       const originalTargets = prepared.targets;
       const groups = assignedGroups(owned.input.scope, originalTargets);
+      const review: ReviewDecisions = new Map();
+      const collectRepairRejections = () => {
+        const latest = new Map(
+          owned.repairs.records.map((entry) => [entry.path, entry]),
+        );
+        for (const { path, decision } of latest.values()) {
+          if (decision?.decision === "reject") {
+            review.set(path, decision);
+          }
+        }
+      };
+      collectRepairRejections();
       const runReview = (
         prepared: PreparedProposals,
         targetedGroups?: readonly ProposalGroup[],
@@ -816,7 +828,9 @@ export function createCatalogIngestionWorkflow(
             prepared,
             reviewPaths(
               prepared,
-              targetedGroups ?? groups,
+              (targetedGroups ?? groups).filter(
+                ({ path }) => review.get(path)?.decision !== "reject",
+              ),
               owned.repairs.returnCounts,
               (owner) => owned.repairs.canReturn(owner),
               !!targetedGroups,
@@ -849,9 +863,9 @@ export function createCatalogIngestionWorkflow(
         data.outcome = "failed";
         return execution;
       }
-      const review: ReviewDecisions = new Map(
-        execution.output.decisions.map((entry) => [entry.path, entry]),
-      );
+      for (const entry of execution.output.decisions) {
+        review.set(entry.path, entry);
+      }
       for (
         let returned = reviewReturns(review, groups);
         returned.length;
@@ -868,6 +882,7 @@ export function createCatalogIngestionWorkflow(
               signal,
             ),
           );
+          collectRepairRejections();
           recordSpecialistOutputs(data, outputs);
           const general = owned.repairs.raw("general") as Targets;
           const revised = assemble(
@@ -885,9 +900,14 @@ export function createCatalogIngestionWorkflow(
           }
           prepared = revised.value;
           // Keep the assignment order for Editor.
-          const returnedGroups = groups.filter((group) =>
-            returned.some((request) => request.group === group),
+          const returnedGroups = groups.filter(
+            (group) =>
+              review.get(group.path)?.decision !== "reject" &&
+              returned.some((request) => request.group === group),
           );
+          if (!returnedGroups.length) {
+            continue;
+          }
           const targeted = await runReview(prepared, returnedGroups);
           if (targeted.status !== "success" || !targeted.output) {
             data.errors.push(...targeted.errors);
@@ -1154,6 +1174,7 @@ export function createCatalogIngestionWorkflow(
     return saved;
   }
   const historyControl = {
+    activeCount: () => attempts.size,
     async assertCanStart(store: WorkflowsStorage, runId: string) {
       if (attempts.has(runId)) {
         throw new Error("Ingestion attempt already active");

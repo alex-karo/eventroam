@@ -72,6 +72,18 @@ export function buildResearchReport({
   started,
   finished,
 }: ReportInput): CatalogResearchResult {
+  const latestRepairs = new Map(repairs?.map((entry) => [entry.path, entry]));
+  const failedGroups = [...latestRepairs.values()].filter(
+    ({ failure, decision }) => failure && decision?.decision === "reject",
+  );
+  unresolved = [
+    ...unresolved,
+    ...failedGroups.map(({ path, target, failure }) => ({
+      field: path,
+      ...(target.editionKey && { editionKey: target.editionKey }),
+      message: failure!.message,
+    })),
+  ];
   const operations = plan?.operations ?? [];
   const receipts = applied?.operations ?? [];
   const references = applied?.references ?? {};
@@ -143,6 +155,7 @@ export function buildResearchReport({
     : [];
   const usable = !!corpus?.evidence.length;
   const incomplete =
+    failedGroups.length > 0 ||
     general.output?.decision === "uncertain" ||
     roleGaps.length > 0 ||
     collectionChecks.some((check) => check.blocker !== null) ||

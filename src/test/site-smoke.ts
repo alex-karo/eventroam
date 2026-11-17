@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { cp } from "node:fs/promises";
 import { createServer } from "node:net";
 import { request } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
@@ -78,15 +79,36 @@ function checkMetadata(html: string, url: string, title: string) {
     $("meta[property='og:description']").attr("content"),
     $("meta[name='description']").attr("content"),
   );
-  assert.equal($("meta[name='twitter:card']").attr("content"), "summary");
+  assert.equal(
+    $("meta[name='twitter:card']").attr("content"),
+    "summary_large_image",
+  );
   assert.equal($("meta[name='twitter:title']").attr("content"), title);
   assert.equal(
     $("meta[name='twitter:description']").attr("content"),
     $("meta[name='description']").attr("content"),
   );
+  const origin = new URL(url).origin;
+  const image = `${origin}/social/${origin === festivals ? "festivals" : "eventroam"}.png`;
+  assert.equal($("meta[property='og:image']").attr("content"), image);
+  assert.equal($("meta[name='twitter:image']").attr("content"), image);
+  assert.equal($("meta[property='og:image:width']").attr("content"), "1200");
+  assert.equal($("meta[property='og:image:height']").attr("content"), "630");
   assert.equal(
-    $("meta[property='og:image'], meta[name='twitter:image']").length,
-    0,
+    $("meta[property='og:image:type']").attr("content"),
+    "image/png",
+  );
+  assert.equal($("meta[property='og:site_name']").attr("content"), "Eventroam");
+  assert($("meta[property='og:image:alt']").attr("content"));
+  assert.equal(
+    $("meta[name='twitter:image:alt']").attr("content"),
+    $("meta[property='og:image:alt']").attr("content"),
+  );
+  assert.equal($("link[rel='icon'][href^='/favicon.ico']").length, 1);
+  assert.equal($("link[rel='icon'][href^='/icon.svg']").length, 1);
+  assert.equal(
+    $("link[rel='apple-touch-icon'][href^='/apple-icon.png']").length,
+    1,
   );
   assert(!$("meta[name='robots']").attr("content")?.includes("noindex"));
   return $;
@@ -137,6 +159,8 @@ async function main() {
     url: "https://example.org/PRIVATE_VALUE",
   });
   const port = await availablePort();
+  // The deployment also copies public assets into the standalone output.
+  await cp("public", ".next/standalone/public", { recursive: true });
   const server = spawn(process.execPath, [".next/standalone/server.js"], {
     env: {
       ...process.env,
@@ -220,6 +244,20 @@ async function main() {
       `Smoke Festival ${futureYear} | Scheduled | Eventroam`,
     );
     for (const origin of [apex, festivals]) {
+      for (const [path, contentType] of [
+        ["/favicon.ico", "image/x-icon"],
+        ["/icon.svg", "image/svg+xml"],
+        ["/apple-icon.png", "image/png"],
+        ["/brand/icon-192.png", "image/png"],
+        ["/brand/icon-512.png", "image/png"],
+        ["/social/avatar.png", "image/png"],
+        ["/social/eventroam.png", "image/png"],
+        ["/social/festivals.png", "image/png"],
+      ]) {
+        const asset = await httpGet(port, origin, path);
+        assert.equal(asset.status, 200, `${origin}${path}`);
+        assert.equal(asset.contentType?.split(";")[0], contentType, path);
+      }
       const privacy = checkMetadata(
         await get(origin, "/privacy"),
         `${origin}/privacy`,

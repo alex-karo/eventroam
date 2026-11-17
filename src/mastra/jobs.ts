@@ -4,11 +4,13 @@ import { processJobs } from "../ingestion/jobs/processor";
 import { openJobCatalog } from "../ingestion/jobs/store";
 import type { ResearchLogger } from "../ingestion/runtime/logging";
 import type { createStudioIngestionWorkflow } from "./ingestion";
+import type { MaintenanceControl } from "./maintenance";
 
 /** Studio owns one queue loop and closes it before shared storage. */
 export function createStudioJobs(
   workflow: ReturnType<typeof createStudioIngestionWorkflow>,
   log?: ResearchLogger,
+  maintenance?: MaintenanceControl,
 ) {
   const controller = new AbortController();
   let status: "idle" | "running" | "unavailable" | "stopped" = "idle";
@@ -47,7 +49,11 @@ export function createStudioJobs(
       pending = processJobs({
         client,
         signal: controller.signal,
-        execute: (job, signal) => workflow.executeJob(job, signal, log),
+        paused: maintenance?.paused,
+        execute: (job, signal) =>
+          maintenance
+            ? maintenance.run(() => workflow.executeJob(job, signal, log))
+            : workflow.executeJob(job, signal, log),
         log,
       })
         .catch(unavailable)
@@ -61,7 +67,17 @@ export function createStudioJobs(
     route: registerApiRoute("/ingestion-queue", {
       method: "GET",
       handler: async (c) =>
-        c.json({ status }, status === "running" ? 200 : 503),
+        c.json(
+          {
+            status,
+            ...(maintenance && {
+              paused: maintenance.paused(),
+              active:
+                maintenance.active + workflow.historyControl.activeCount(),
+            }),
+          },
+          status === "running" ? 200 : 503,
+        ),
     }),
     stop,
   };

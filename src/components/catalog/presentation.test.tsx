@@ -7,7 +7,7 @@ import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import { publicEvent } from "@/catalog/read/public-catalog";
 import { Dates, Location } from "./catalog";
-import { dateRange } from "./format";
+import { dateRange, placeName } from "./format";
 import { ExternalLinks, namedLinks } from "./external-links";
 import { EditionDetailsPage } from "@/features/event-details/edition-page";
 import { editionMetadata, eventMetadata } from "@/site/server/metadata";
@@ -70,6 +70,27 @@ test("facts have readable dates, inclusive duration, country names, and decorati
   expect(place).toContain('aria-hidden="true"');
   expect(place).not.toContain("null");
 });
+
+test.each([
+  ["Test Region", "Test Region, Portugal"],
+  [null, "Festival grounds, Portugal"],
+] as const)(
+  "compact place without a locality (%s)",
+  (administrativeArea, expected) => {
+    expect(
+      placeName(
+        {
+          locality: null,
+          administrativeArea,
+          venueName: "Festival grounds",
+          countryCode: "PT",
+        },
+        true,
+      ),
+    ).toBe(expected);
+  },
+);
+
 test("link groups deduplicate URLs, distinguish repeated hosts, and name historical tickets", () => {
   const links = [
     { kind: "ticketing", url: "https://example.org/a", label: null },
@@ -399,13 +420,31 @@ test("additional official sites use an information icon and retain distinct name
   expect(output).toContain('aria-label="Tickets"');
 });
 
-test("selected preview shows all facts and opens both page links in a new tab", () => {
+test("selected preview shows compact facts, short text, and named link icons", () => {
   const edition = {
     ...event().editions[0],
-    terms: [{ facet: "genre", name: "Electronic" }],
+    shortDescription: "Live music outdoors. Camping is available.",
+    venueName: "Festival grounds",
+    administrativeArea: "Test Region",
+    terms: [
+      { facet: "genre", name: "Electronic" },
+      { facet: "topic", name: "Music" },
+    ],
     sizeEstimate: 5000,
     priceKind: "free",
-    links: [{ kind: "website", url: "https://festival.example/", label: null }],
+    links: [
+      { kind: "instagram", url: "https://instagram.com/example", label: null },
+      { kind: "facebook", url: "https://facebook.com/example", label: null },
+      { kind: "ticketing", url: "https://festival.example/", label: null },
+      { kind: "ticketing", url: "https://tickets.example/", label: null },
+      { kind: "official_site", url: "https://festival.example/", label: null },
+      {
+        kind: "official_site",
+        url: "https://festival.example/info",
+        label: null,
+      },
+      { kind: "ticketing", url: "https://tickets.example/other", label: null },
+    ],
   };
   const $ = load(
     renderToStaticMarkup(
@@ -420,9 +459,23 @@ test("selected preview shows all facts and opens both page links in a new tab", 
   );
   const card = $(".detail-panel");
   expect(card.text()).toContain("Electronic");
-  expect(card.text()).toContain("Estimated size: 5,000 people");
+  expect(card.text()).toContain("≈5,000 people");
   expect(card.text()).toContain("Tickets: Free");
-  expect(card.find('a[href="https://festival.example/"]')).toHaveLength(1);
+  expect(card.text()).toContain("Test Valley, Portugal");
+  expect(card.text()).not.toMatch(/Festival grounds|Test Region|Scheduled/);
+  expect(card.find(".fact-tags").text()).toBe("Electronic");
+  expect(card.find(".preview-summary").text()).toBe(edition.shortDescription);
+  const external = card.find(".card-footer .external-link");
+  expect(external).toHaveLength(3);
+  expect(external.eq(0).attr("aria-label")).toBe("Official site");
+  expect(external.eq(1).attr("aria-label")).toBe("Tickets");
+  expect(external.eq(2).attr("aria-label")).toBe("Facebook");
+  expect(external.eq(0).attr("href")).toBe("https://festival.example/");
+  expect(external.eq(1).attr("href")).toBe("https://tickets.example/");
+  expect(external.eq(2).attr("href")).toBe("https://facebook.com/example");
+  expect(external.text()).toBe("");
+  expect(card.find('a[href="https://instagram.com/example"]')).toHaveLength(0);
+  expect(card.find(".view-edition").text()).toContain("View festival");
   expect(
     card.find('button[aria-label="Expand details"]').attr("aria-expanded"),
   ).toBe("false");
@@ -435,6 +488,66 @@ test("selected preview shows all facts and opens both page links in a new tab", 
     expect($(link).attr("href")).not.toContain("discovery=");
   });
 });
+
+test.each([
+  {
+    kinds: ["instagram", "official_site", "ticketing"],
+    expected: ["Official site", "Tickets", "Instagram"],
+  },
+  {
+    kinds: ["x", "youtube", "instagram", "tiktok", "facebook"],
+    expected: ["Facebook", "Instagram", "YouTube"],
+  },
+  { kinds: ["other"], expected: [] },
+])(
+  "selected preview fills link slots in order ($kinds)",
+  ({ kinds, expected }) => {
+    const edition = {
+      ...event().editions[0],
+      links: kinds.map((kind) => ({
+        kind,
+        url: `https://example.org/${kind}`,
+        label: null,
+      })),
+    };
+    const $ = load(
+      renderToStaticMarkup(
+        <SelectedPreview
+          detailState={{ status: "ready", id: edition.id, data: edition }}
+          panelRef={createRef<HTMLElement>()}
+          onClose={() => undefined}
+          onRetry={() => undefined}
+          now={new Date("2026-10-01")}
+        />,
+      ),
+    );
+    expect(
+      $(".card-footer .external-link")
+        .map((_, link) => $(link).attr("aria-label"))
+        .get(),
+    ).toEqual(expected);
+    expect($(".view-edition")).toHaveLength(1);
+  },
+);
+
+test.each([null, "  "])(
+  "selected preview omits missing short text (%s)",
+  (shortDescription) => {
+    const edition = { ...event().editions[0], shortDescription };
+    const $ = load(
+      renderToStaticMarkup(
+        <SelectedPreview
+          detailState={{ status: "ready", id: edition.id, data: edition }}
+          panelRef={createRef<HTMLElement>()}
+          onClose={() => undefined}
+          onRetry={() => undefined}
+          now={new Date("2026-10-01")}
+        />,
+      ),
+    );
+    expect($(".preview-summary")).toHaveLength(0);
+  },
+);
 
 test.each([
   ["Detailed text.", "Short text.", "Detailed text.", "Short text."],
@@ -468,14 +581,10 @@ test.each([
     const metadata = eventMetadata(data, origin);
     const eventPreview = preview ? `${data.name}. ${preview}` : automatic;
     expect(metadata.description).toBe(eventPreview);
-    expect(metadata.openGraph?.description).toBe(eventPreview);
-    expect(metadata.twitter?.description).toBe(eventPreview);
 
     const editionPreview = `${edition.name ?? data.name}, 2025. Cancelled · Past edition. Dates: 1 Jan 2025. ${preview ?? "Test Valley, Portugal."}`;
     const dated = editionMetadata(data, edition, origin, now);
     expect(dated.description).toBe(editionPreview);
-    expect(dated.openGraph?.description).toBe(editionPreview);
-    expect(dated.twitter?.description).toBe(editionPreview);
   },
 );
 

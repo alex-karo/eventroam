@@ -1,0 +1,75 @@
+{
+  "id": "schedule-status-postponed",
+  "suite": "regression",
+  "origin": "synthetic",
+  "task": "Check schedule status for River Festival",
+  "todayUtc": "2026-11-14",
+  "provenance": {
+    "kind": "synthetic-schedule-status-regression",
+    "note": "Synthetic postponement notice with a complete saved old date range. No replacement dates are known. No live source fallback."
+  },
+  "input": {
+    "mode": "refresh",
+    "scope": "current",
+    "eventId": "schedule-status-river",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "schedule-status-river",
+      "slug": "river-festival",
+      "canonicalName": "River Festival",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://schedule-fixture.example/river",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "river-2027",
+          "editionKey": "2027",
+          "editionYear": 2027,
+          "startsOn": "2027-06-25",
+          "endsOn": "2027-06-27",
+          "dateState": "confirmed",
+          "scheduleStatus": "scheduled",
+          "countryCode": "PT",
+          "termIds": ["validation:festival", "validation:music"]
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://schedule-fixture.example/river",
+      "finalUrl": "https://schedule-fixture.example/river",
+      "retrievedAt": "2026-11-13T12:00:00Z",
+      "method": "http",
+      "status": "ok",
+      "markdownFile": "postponed.md",
+      "readerOutput": {
+        "overview": "The festival is postponed and replacement dates will be announced later.",
+        "coverage": {
+          "found": ["Festival dates and schedule status"],
+          "notPublished": []
+        },
+        "topics": ["identity", "dates", "status"],
+        "statedYears": ["2027"],
+        "limitations": [],
+        "evidence": [
+          {
+            "quote": {
+              "start": 1,
+              "end": 3
+            },
+            "topics": ["identity", "dates", "status"]
+          }
+        ]
+      }
+    }
+  ]
+}

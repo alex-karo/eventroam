@@ -122,6 +122,10 @@
     "location/official-venue-point.json",
     "search-policy/concrete-place.json",
     "search-policy/withheld-place.json",
-    "editor/uncited-qualification.json"
+    "editor/uncited-qualification.json",
+    "schedule-status/jazz.json",
+    "schedule-status/jazz-editor.json",
+    "schedule-status/marco.json",
+    "schedule-status/postponed.json"
   ]
 }

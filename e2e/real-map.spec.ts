@@ -101,7 +101,7 @@ test("a mobile tap opens the bottom card and keeps the selected point clear", as
     "Fictional Atlantic Sounds",
   );
   await expect(
-    card.getByRole("link", { name: "Open page", exact: true }),
+    card.getByRole("link", { name: "View festival", exact: true }),
   ).toBeInViewport();
   await expect(page.getByRole("region", { name: "List results" })).toBeHidden();
   await expectClearSelection(page);

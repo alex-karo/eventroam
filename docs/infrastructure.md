@@ -87,12 +87,13 @@ Run `pnpm run docker:smoke` to build both targets, prepare an empty test catalog
 
 Use [Catalog pull and push](#catalog-pull-and-push) to replace the catalog. Follow the transfer prerequisites and plan for downtime.
 
-Automatic backup schedules and recovery drills are deferred to the next iteration. Retained images permit code rollback only while catalog schema and DuckDB formats stay compatible. Image rollback does not reverse data changes; an incompatible migration needs a compatible saved data copy.
+This repository owns the backup script, its tests, and the temporary Compose tasks. The private infrastructure repository supplies the Komodo schedule at 09:00 UTC, S3 inputs, and the command that runs the application script. See [Backups and retention](backups.md) for activation, local cleanup, and recovery. The job needs S3 inputs and an initial repository setup. Local age cleanup runs after a complete current backup. Restore checks are manual. Retained images permit code rollback only while catalog schema and DuckDB formats stay compatible. Image rollback does not reverse data changes; an incompatible migration needs a compatible saved data copy.
 
 ## Catalog pull and push
 
 Stop local Next.js, Studio, and catalog commands first. Run one transfer at a
-time. Keep other database users and deployment jobs stopped. The remote host
+time. Transfers and the production backup use the same host maintenance lock.
+Keep other database users and deployment jobs stopped. The remote host
 must have one web container and one Studio container in the `eventroam` Compose
 project. Studio must use a named volume at `/data`.
 

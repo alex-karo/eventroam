@@ -56,6 +56,7 @@ function publicRows(
       editionKey: editions.editionKey,
       eventSlug: events.slug,
       eventName: events.canonicalName,
+      shortDescription: events.shortDescription,
       name: editions.displayName,
       year: editions.editionYear,
       startsOn: editions.startsOn,

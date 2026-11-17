@@ -57,14 +57,14 @@ export async function generateMetadata({
       "Festivals | Eventroam",
       "Find festivals by date, country, music genre, duration, and estimated size. Explore the list and map, with links to published editions.",
       `${origins.festivals}/${query}`,
-      !normalized,
+      { index: !normalized, image: "festivals" },
     );
   } catch {
     return pageMetadata(
       "Invalid festival filters | Eventroam",
       "Check the festival filters or clear them to return to festival discovery.",
       `${origins.festivals}/`,
-      false,
+      { index: false, image: "festivals" },
     );
   }
 }

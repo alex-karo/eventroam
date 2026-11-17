@@ -147,24 +147,40 @@ it.each([
   const editor = kind === "editor omission" || kind === "unrelated question";
   const revise = f.capture("tickets", raw, kind === "repeat" ? raw : omitted);
   const result = editor ? f.after(returnGroup(ticketsPath)) : f.before();
-  const error = {
-    repeat: "empty offer list",
-    "unknown evidence": "unknown evidence",
-    "unrelated question": "exact group",
-  };
-  if (kind in error) {
-    await expect(result).rejects.toThrow(error[kind as keyof typeof error]);
-  } else {
+  if (kind === "unknown evidence") {
+    await expect(result).rejects.toThrow("unknown evidence");
+  } else if (kind === "editor omission") {
     expect((await result).tickets).toEqual(omitted);
     expect(f.repairs.records[0]).toMatchObject({
       path: ticketsPath,
       omissionReason: question.message,
     });
+  } else {
+    expect((await result).tickets?.currentOrNextEdition).toEqual({});
+    expect(f.repairs.records.at(-1)).toMatchObject({
+      path: ticketsPath,
+      failure: {
+        field: ticketsPath,
+        message: expect.stringContaining(
+          kind === "repeat" ? "empty offer list" : "exact group",
+        ),
+      },
+      decision: { path: ticketsPath, decision: "reject" },
+    });
+    expect(revise.mock.calls[1][0]).toMatchObject({
+      groups: [
+        {
+          path: ticketsPath,
+          note: expect.stringContaining(
+            kind === "repeat" ? "empty offer list" : ticketsPath,
+          ),
+        },
+      ],
+    });
   }
-  expect(revise).toHaveBeenCalledTimes(kind === "unknown evidence" ? 0 : 1);
-  if (kind === "repeat") {
-    expect(f.repairs.records[0].failure).toMatchObject({ field: ticketsPath });
-  }
+  expect(revise).toHaveBeenCalledTimes(
+    kind === "unknown evidence" ? 0 : kind === "editor omission" ? 1 : 3,
+  );
 });
 
 it.each(["size", "dates", "target"] as const)(
@@ -281,6 +297,159 @@ it("batches Links groups and limits returns for each path", async () => {
   expect(f.repairs.returnCounts.get(ticketLinkPath)).toBe(1);
 });
 
+it("keeps a valid peer and retries only the local omission error", async () => {
+  const f = fixture();
+  const socialPath = "event.fields.links.socials.instagram";
+  const original = links(set(sourceUrl), set("https://example.org/product"));
+  original.event.socials = { instagram: set("https://instagram.com/disputed") };
+  const corrected = links(
+    set("https://example.org/unrequested"),
+    set(ticketLink),
+  );
+  const revise = f.capture("links", original, corrected);
+  revise.mockImplementation(async () => ({
+    status: "success",
+    output:
+      revise.mock.calls.length === 1
+        ? corrected
+        : links(undefined, set("https://example.org/unrequested-ticket")),
+    modelResponse: null,
+    errors: [],
+    model: "fixture",
+    promptVersion: "fixture",
+    durationMs: 0,
+  }));
+
+  const result = await f.after(
+    returnGroup(socialPath),
+    returnGroup(ticketLinkPath),
+  );
+  expect(result.links).toEqual(links(set(sourceUrl), set(ticketLink)));
+  expect(revise).toHaveBeenCalledTimes(3);
+  for (const [request] of revise.mock.calls.slice(1)) {
+    expect(request).toMatchObject({
+      groups: [{ path: socialPath, note: expect.stringContaining(socialPath) }],
+    });
+  }
+  expect(
+    f.repairs.records.filter(({ path }) => path === ticketLinkPath),
+  ).toMatchObject([{ revision: set(ticketLink) }]);
+  expect(
+    f.repairs.records.find(({ path }) => path === ticketLinkPath)?.failure,
+  ).toBeUndefined();
+  expect(f.repairs.records.at(-1)).toMatchObject({
+    path: socialPath,
+    decision: { decision: "reject", path: socialPath },
+  });
+});
+
+it("continues another owner after a local validation repair is exhausted", async () => {
+  const f = fixture();
+  const invalidTickets = {
+    ...diagnostics,
+    currentOrNextEdition: { tickets: set({ variants: [], basePrice: null }) },
+  };
+  const tickets = f.capture("tickets", invalidTickets, invalidTickets);
+  const link = f.capture("links", links(set("bad-url")), links(set(sourceUrl)));
+  const result = await f.before();
+  expect(result.tickets?.currentOrNextEdition).toEqual({});
+  expect(result.links).toEqual(links(set(sourceUrl)));
+  expect(tickets).toHaveBeenCalledTimes(3);
+  expect(link).toHaveBeenCalledOnce();
+  expect(f.repairs.records.at(-1)).toMatchObject({ path: websitePath });
+  expect(f.repairs.records.at(-1)?.failure).toBeUndefined();
+});
+
+it.each([
+  "target",
+  "reference",
+  "country",
+  "temporal role",
+  "temporal role with an invalid start",
+] as const)(
+  "stops a General revision with a valid peer and a fatal %s error",
+  async (kind) => {
+    const f = fixture();
+    f.f.edition(f.event, { editionKey: "2027", countryCode: "PT" });
+    f.loadContext();
+    const original = fixtureTargets(f.event.id);
+    const revised = structuredClone(original);
+    revised.currentOrNextEdition!.fields.sizeEstimate = set(2000);
+    if (kind === "target") {
+      revised.currentOrNextEdition!.editionKey = "changed";
+    } else if (kind === "reference") {
+      revised.checks[0].sourceIds = ["missing"];
+    } else if (kind === "country") {
+      revised.festivalCountries = [
+        { countryCode: "ES", evidenceIds: ["s1-e1"] },
+      ];
+    } else {
+      revised.currentOrNextEdition!.fields.dates = set({
+        startsOn: kind === "temporal role" ? "2025-07-01" : "bad-date",
+        endsOn: "2025-07-03",
+        state: "confirmed",
+      });
+    }
+    const revise = f.capture("general", original, revised);
+    const message = {
+      target: "fixed identity or target",
+      reference: "unknown source",
+      country: "country",
+      "temporal role": "has ended",
+      "temporal role with an invalid start": "has ended",
+    }[kind];
+    await expect(
+      f.after(
+        returnGroup("currentOrNextEdition.fields.sizeEstimate"),
+        returnGroup("currentOrNextEdition.fields.dates"),
+      ),
+    ).rejects.toThrow(message);
+    expect(revise).toHaveBeenCalledOnce();
+    expect(f.repairs.raw("general")).toEqual(original);
+  },
+);
+
+it("repairs a local General date error and keeps the valid peer revision", async () => {
+  const f = fixture();
+  const original = fixtureTargets(f.event.id);
+  const revised = structuredClone(original);
+  revised.currentOrNextEdition!.fields.sizeEstimate = set(2000);
+  revised.currentOrNextEdition!.fields.dates = set({
+    startsOn: "bad-date",
+    endsOn: "2027-07-03",
+    state: "confirmed",
+  });
+  const corrected = structuredClone(original);
+  corrected.currentOrNextEdition!.fields.dates = set({
+    startsOn: "2027-07-01",
+    endsOn: "2027-07-03",
+    state: "confirmed",
+  });
+  const revise = f.capture("general", original, revised);
+  revise.mockImplementationOnce(revision(revised));
+  revise.mockImplementationOnce(revision(corrected));
+
+  await f.after(
+    returnGroup("currentOrNextEdition.fields.sizeEstimate"),
+    returnGroup("currentOrNextEdition.fields.dates"),
+  );
+  expect(f.repairs.raw("general")).toEqual({
+    ...corrected,
+    currentOrNextEdition: {
+      ...corrected.currentOrNextEdition,
+      fields: {
+        ...corrected.currentOrNextEdition!.fields,
+        sizeEstimate: set(2000),
+      },
+    },
+  });
+  expect(revise).toHaveBeenCalledTimes(2);
+  expect(revise.mock.calls[1][0]).toMatchObject({
+    groups: [{ path: "currentOrNextEdition.fields.dates" }],
+  });
+  expect(f.repairs.records.at(-1)?.failure).toBeUndefined();
+});
+
 it.each(["omit", "excess"] as const)(
   "batches Classification conflicts: %s",
   async (kind) => {
@@ -320,10 +489,13 @@ it.each(["omit", "excess"] as const)(
     );
     const diagnostic = "classification.value.eventType:invalid_type";
     if (kind === "excess") {
-      await expect(f.before()).rejects.toThrow(diagnostic);
-      expect(f.repairs.records[0].failure).toMatchObject({
-        field: previousPath,
-        code: "invalid_plan",
+      expect((await f.before()).classification).toMatchObject({
+        previousEdition: {},
+        currentOrNextEdition: {},
+      });
+      expect(f.repairs.records.at(-2)).toMatchObject({
+        failure: { field: previousPath, code: "invalid_plan" },
+        decision: { path: previousPath, decision: "reject" },
       });
     } else {
       expect((await f.before()).classification).toEqual({
@@ -332,7 +504,7 @@ it.each(["omit", "excess"] as const)(
       });
       expect(f.repairs.records[0].omissionReason).toBe(reason);
     }
-    expect(revise).toHaveBeenCalledOnce();
+    expect(revise).toHaveBeenCalledTimes(kind === "excess" ? 3 : 1);
     expect(revise.mock.calls[0][0]).toMatchObject({
       groups: [previousPath, currentPath].map((path) => ({
         path,
@@ -420,17 +592,23 @@ it.each(["uncited removal", "unknown slug", "unknown evidence"] as const)(
         },
       });
       expect(f.repairs.raw("classification")).toEqual(revised);
-    } else {
+    } else if (kind === "unknown evidence") {
       await expect(f.after(returnGroup(path))).rejects.toThrow(
-        kind === "unknown slug" ? "unknown-term" : "unknown evidence reference",
+        "unknown evidence reference",
       );
       expect(f.repairs.raw("classification")).toEqual(original);
-      expect(f.repairs.records[0].failure).toMatchObject(
-        kind === "unknown slug"
-          ? { code: "invalid_plan", field: path }
-          : { code: "invalid_candidate" },
-      );
+      expect(f.repairs.records[0].failure).toMatchObject({
+        code: "invalid_candidate",
+      });
+    } else {
+      expect((await f.after(returnGroup(path))).classification).toMatchObject({
+        currentOrNextEdition: {},
+      });
+      expect(f.repairs.records.at(-1)).toMatchObject({
+        failure: { code: "invalid_plan", field: path },
+        decision: { decision: "reject", path },
+      });
     }
-    expect(revise).toHaveBeenCalledOnce();
+    expect(revise).toHaveBeenCalledTimes(kind === "unknown slug" ? 3 : 1);
   },
 );

@@ -12,10 +12,11 @@ export async function processJobs(options: {
     signal: AbortSignal,
   ) => Promise<void | { failed: boolean }>;
   log?: ResearchLogger;
+  paused?: () => boolean;
 }) {
   const { client, signal, execute, log } = options;
   while (!signal.aborted) {
-    const job = nextJob(client);
+    const job = options.paused?.() ? undefined : nextJob(client);
     if (!job) {
       await delay(1000, undefined, { signal }).catch((error) => {
         if (!signal.aborted) {

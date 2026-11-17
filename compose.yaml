@@ -1,5 +1,12 @@
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   web:
+    logging: *logging
     build:
       context: .
       target: web
@@ -18,6 +25,7 @@ services:
       - "3000"
     restart: unless-stopped
   studio:
+    logging: *logging
     build:
       context: .
       target: studio
@@ -29,6 +37,8 @@ services:
       CATALOG_EVAL_DATABASE_PATH: /data/mastra-evals.sqlite
       CATALOG_WORKFLOW_DATABASE_PATH: /data/mastra-workflows.sqlite
       CATALOG_CHAT_DATABASE_PATH: /data/mastra-chat.sqlite
+      CATALOG_SOURCE_DIRECTORY: /data/ingestion-sources
+      CATALOG_MAINTENANCE_FILE: /data/.eventroam-maintenance
       OPENROUTER_API_KEY: ${EVENTROAM_OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${EVENTROAM_OPENROUTER_MODEL:-}
       OPENROUTER_SERVICE_TIER: ${EVENTROAM_OPENROUTER_SERVICE_TIER:-}

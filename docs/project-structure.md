@@ -51,9 +51,11 @@ src/
 ├── mastra/                    # Studio registration and production server
 │   └── catalog-assistant/     # Discovery, catalog chat, job control, memory and SQL skill
 ├── db/                        # Schema, connections, and SQL migrations
+├── backup/                    # Database checks and local retention
 └── test/                      # Temporary databases and data builders
 
-commands/                     # Catalog research CLI, migrations, development fixtures
+commands/                     # Catalog CLI, migrations, backup maintenance, development fixtures
+scripts/                      # Build, checks, host backup, and database transfers
 public/                       # Local website assets, catalog preview, and licensed fonts
 openspec/changes/             # Change plans: proposal, design, tasks; dated archive
 docs/                         # Project documentation

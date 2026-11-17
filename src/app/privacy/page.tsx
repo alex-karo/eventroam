@@ -9,6 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
     "Privacy policy | Eventroam",
     "How Eventroam uses website data and how to control analytics.",
     `${origins[site]}/privacy`,
+    { image: site === "festivals" ? "festivals" : "eventroam" },
   );
 }
 

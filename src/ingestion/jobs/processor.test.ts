@@ -17,6 +17,45 @@ function setup(n = 4) {
   return { ...db, eventIds, ...submitJobs(db.client, { eventIds }) };
 }
 
+test("a backup pause completes the active job and leaves the next job pending", async () => {
+  const { client } = setup(2);
+  const controller = new AbortController();
+  let paused = false;
+  let complete!: () => void;
+  const started: string[] = [];
+  const work = processJobs({
+    client,
+    signal: controller.signal,
+    paused: () => paused,
+    execute: async (job) => {
+      started.push(job.id);
+      await new Promise<void>((resolve) => {
+        complete = resolve;
+      });
+    },
+  });
+  await expect.poll(() => started.length).toBe(1);
+  paused = true;
+  complete();
+  await expect
+    .poll(() =>
+      client
+        .prepare("SELECT count(*) FROM ingestion_jobs WHERE status='done'")
+        .pluck()
+        .get(),
+    )
+    .toBe(1);
+  expect(started).toHaveLength(1);
+  expect(
+    client
+      .prepare("SELECT count(*) FROM ingestion_jobs WHERE status='pending'")
+      .pluck()
+      .get(),
+  ).toBe(1);
+  controller.abort();
+  await work;
+});
+
 test("a malformed stored target ends independently and the next job runs", async () => {
   const { client, eventIds } = setup(2);
   client.prepare("UPDATE ingestion_jobs SET mode='add' WHERE position=0").run();

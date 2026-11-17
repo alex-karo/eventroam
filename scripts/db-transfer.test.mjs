@@ -60,8 +60,19 @@ function fixture(t) {
 const {spawnSync} = require('node:child_process');
 let command = process.argv.at(-1);
 command = command.replaceAll('/data/', process.env.TEST_ROOT + '/remote/');
+command = command.replaceAll('/etc/komodo/stacks/eventroam', process.env.TEST_ROOT + '/remote');
 const result = spawnSync('bash', ['-c', command], {stdio:'inherit'});
 process.exit(result.status ?? 1);
+`,
+  );
+  writeTool(
+    "flock",
+    `
+const fs = require('node:fs');
+const lock = fs.fstatSync(9);
+const project = fs.statSync(process.env.TEST_ROOT + '/remote');
+if (!lock.isDirectory() || lock.dev !== project.dev || lock.ino !== project.ino) process.exit(2);
+process.exit(process.env.TEST_LOCKED === 'true' ? 1 : 0);
 `,
   );
   writeTool(
@@ -139,6 +150,15 @@ async function readStore(file, duckdb) {
     db.close();
   }
 }
+
+test("transfer cannot overlap the production maintenance job", (t) => {
+  const fx = fixture(t);
+  fx.env.TEST_LOCKED = "true";
+  const result = fx.run("pull");
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /maintenance is already running/);
+  assert.equal(existsSync(join(fx.root, "calls.jsonl")), false);
+});
 
 function seedMastra(fx) {
   const files = [

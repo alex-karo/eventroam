@@ -347,6 +347,31 @@ it("Editor decisions have exact fixed keys and cannot replace values", () => {
   const schema = reviewSchema(paths);
   const raw = approveFixtureReview(paths);
   expect(schema.safeParse(raw).success).toBe(true);
+  const classificationPath = "currentOrNextEdition.fields.classification";
+  expect(paths).toContainEqual({
+    path: classificationPath,
+    required: true,
+    allowed: ["approve", "return"],
+  });
+  expect(paths).toContainEqual({
+    path: "event.fields.links.socials.instagram",
+    required: false,
+    allowed: ["return"],
+  });
+  const lastPaths = reviewPaths(
+    p.value,
+    assignedGroups(undefined, p.value.targets),
+    new Map([[classificationPath, 3]]),
+    () => true,
+  );
+  expect(lastPaths).toContainEqual({
+    path: classificationPath,
+    required: true,
+    allowed: ["approve", "reject"],
+  });
+  expect(
+    reviewSchema(lastPaths).safeParse(approveFixtureReview(lastPaths)).success,
+  ).toBe(true);
   const fixedPaths = reviewPaths(
     p.value,
     assignedGroups(undefined, p.value.targets),
@@ -392,6 +417,13 @@ it("Editor decisions have exact fixed keys and cannot replace values", () => {
         ...raw.decisions,
         { path: "unassigned", decision: "return", note: "Reason" },
       ],
+    },
+    {
+      decisions: raw.decisions.map((entry) =>
+        entry.path === classificationPath
+          ? { ...entry, decision: "reject" }
+          : entry,
+      ),
     },
   ]) {
     expect(schema.safeParse(invalid).success).toBe(false);
