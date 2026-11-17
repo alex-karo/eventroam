@@ -11,7 +11,7 @@ See the [proposal](proposal.md) for the changed behavior and acceptance criteria
 
 ## Contracts
 
-Proposed addition to [ResearchContext](../../../src/ingestion/research/context.ts) and [CatalogResearchResult](../../../src/ingestion/contracts.ts):
+Proposed addition to [ResearchContext](../../../../src/ingestion/research/context.ts) and [CatalogResearchResult](../../../../src/ingestion/contracts.ts):
 
 ```typescript
 type InputDuplicateMatch = {
@@ -26,7 +26,7 @@ type InputDuplicateMatch = {
 
 The context field records the local match. The report field is present only for an early skip that completed without errors. Absence does not establish that research ran; old reports can also omit it. Ordinary General duplicate decisions keep their current output.
 
-Keep report version 7. This addition is optional and does not change existing fields or enums. [Run finalization](../../../src/ingestion/runs.ts) accepts version 7, and the catalog query tool reads report JSON through SQL. Existing saved reports need no conversion.
+Keep report version 7. This addition is optional and does not change existing fields or enums. [Run finalization](../../../../src/ingestion/runs.ts) accepts version 7, and the catalog query tool reads report JSON through SQL. Existing saved reports need no conversion.
 
 For an early skip, report construction sets `researchStatus: "success"`. Here, success means the add request completed under the early-match rule. It does not claim that sources were read. The new field makes that basis explicit. Research, General, Editor, and Location remain `not_run`, with null model responses. Source lists, operations, receipts, and changes are empty. Page, search, and model-call counters are zero.
 
@@ -48,9 +48,9 @@ flowchart TD
     Skip --> Finish[Finalize durable attempt]
 ```
 
-Put the private database reads in `catalog/read` and the matching rule in `ingestion/research`. Extend [loadResearchContext](../../../src/ingestion/research/context.ts) to run the check before `readResearchCatalog` or taxonomy reads. On a match, return the fixed run date, empty catalog/terms/knownLinks, and `inputDuplicate`. The check reads distinct country codes from saved Editions, but does not load full Edition history.
+Put the private database reads in `catalog/read` and the matching rule in `ingestion/research`. Extend [loadResearchContext](../../../../src/ingestion/research/context.ts) to run the check before `readResearchCatalog` or taxonomy reads. On a match, return the fixed run date, empty catalog/terms/knownLinks, and `inputDuplicate`. The check reads distinct country codes from saved Editions, but does not load full Edition history.
 
-In the existing [load-context phase](../../../src/ingestion/workflow.ts), copy the matched Event ID into skip diagnostics, set the outcome, and build the report. Mark source identity validation as `not_run`. Reuse the existing terminal-report guards and finalization. Do not create synthetic General output or source evidence. CLI, Studio, and queued jobs already use this workflow.
+In the existing [load-context phase](../../../../src/ingestion/workflow.ts), copy the matched Event ID into skip diagnostics, set the outcome, and build the report. Mark source identity validation as `not_run`. Reuse the existing terminal-report guards and finalization. Do not create synthetic General output or source evidence. CLI, Studio, and queued jobs already use this workflow.
 
 ## Key decisions
 
@@ -62,9 +62,9 @@ Keep distinct Event IDs. Repeated names, aliases, or links for one Event do not 
 
 ### Use country when it is clear
 
-The first version recognizes an assigned two-letter country code as a complete comma-, semicolon-, or line-separated field, or after a `country:` label. Case does not matter. Thus `example fest, us` supplies `US`. Exclude matched name spans and URL tokens from this parsing. Reuse [isAssignedCountryCode](../../../src/catalog/domain/country-codes.ts); add no second country list. Other country wording stays in the note for ordinary research. Do not infer a country from a hostname, map pin, or model call. Several distinct explicit country codes make the early check unresolved.
+The first version recognizes an assigned two-letter country code as a complete comma-, semicolon-, or line-separated field, or after a `country:` label. Case does not matter. Thus `example fest, us` supplies `US`. Exclude matched name spans and URL tokens from this parsing. Reuse [isAssignedCountryCode](../../../../src/catalog/domain/country-codes.ts); add no second country list. Other country wording stays in the note for ordinary research. Do not infer a country from a hostname, map pin, or model call. Several distinct explicit country codes make the early check unresolved.
 
-The catalog stores country on [Editions](../../../src/db/schema.ts), not on the Event. Read the distinct non-null country codes for each name candidate. No codes means unknown. One code can support the country match. Several codes make that candidate unresolved for an early skip.
+The catalog stores country on [Editions](../../../../src/db/schema.ts), not on the Event. Read the distinct non-null country codes for each name candidate. No codes means unknown. One code can support the country match. Several codes make that candidate unresolved for an early skip.
 
 With a clear request country, remove candidates whose sole known country differs. Keep candidates with unknown or conflicting saved countries. Missing country is not a mismatch. An exact official URL can still resolve a candidate with unknown country. It cannot override a known country conflict.
 
@@ -107,7 +107,7 @@ Requests for new Events still load the full catalog for General and can exceed i
 
 ### Update report consumers
 
-The [catalog-sql skill](../../../src/mastra/catalog-assistant/skills/catalog-sql/SKILL.md) currently recognizes a duplicate only through General output. Its [add-batch query](../../../src/mastra/catalog-assistant/skills/catalog-sql/references/inspect-add-batch.sql) exposes the identity decision from `modelResponse`. An early skip has no such response.
+The [catalog-sql skill](../../../../src/mastra/catalog-assistant/skills/catalog-sql/SKILL.md) currently recognizes a duplicate only through General output. Its [add-batch query](../../../../src/mastra/catalog-assistant/skills/catalog-sql/references/inspect-add-batch.sql) exposes the identity decision from `modelResponse`. An early skip has no such response.
 
 Expose `inputDuplicate` separately in that query. Update the skill to distinguish country-supported and URL-supported note/catalog skips from a duplicate confirmed by inspected sources. Require outcome `skipped` and agreement between the report Event ID and the match Event ID for the early label. Keep unknown and failed attempts distinct. Cover both support forms and the current source-confirmed path in the existing query tests.
 
