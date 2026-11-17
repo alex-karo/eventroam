@@ -46,11 +46,15 @@ export function reviewPaths(
     const count = returnCounts.get(path) ?? 0;
     const required =
       targeted || count > 0 || groupProposal(prepared, group) !== undefined;
-    const allowed: ReviewPath["allowed"] = required
-      ? ["approve", "reject"]
-      : [];
-    if (count < MAX_GROUP_RETURNS && canReturn(owner)) {
+    const canReturnGroup = count < MAX_GROUP_RETURNS && canReturn(owner);
+    const allowed: ReviewPath["allowed"] = [];
+    if (required) {
+      allowed.push("approve");
+    }
+    if (canReturnGroup) {
       allowed.push("return");
+    } else if (required) {
+      allowed.push("reject");
     }
     if (allowed.length) {
       add(path, required, allowed);
