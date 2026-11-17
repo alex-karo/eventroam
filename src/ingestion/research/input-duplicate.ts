@@ -14,15 +14,6 @@ export type InputDuplicateMatch = {
 
 type NameRow = ReturnType<typeof readResearchNames>[number];
 type NameCandidate = { eventId: string; matchedName: string };
-type Span = { start: number; end: number };
-
-function maskSpans(text: string, spans: Span[]) {
-  const characters = text.split("");
-  for (const { start, end } of spans) {
-    characters.fill("\0", start, end);
-  }
-  return characters.join("");
-}
 
 function markdownUrlToken(token: string) {
   let depth = 0;
@@ -39,30 +30,30 @@ function markdownUrlToken(token: string) {
   return token;
 }
 
-function inputUrls(note: string) {
-  const spans: Span[] = [];
-  const urls: string[] = [];
-  for (const match of note.matchAll(/https?:\/\/(?:(?!\]\()[^\s<>"`])+/giu)) {
-    let token = match[0];
-    // Keep balanced URL parentheses and stop at the Markdown wrapper.
-    if (note.slice(match.index - 2, match.index) === "](") {
-      token = markdownUrlToken(token);
-    }
-    spans.push({ start: match.index, end: match.index + token.length });
-    try {
-      urls.push(new URL(token).href);
-    } catch {
-      // Mask invalid URL tokens too. Their path cannot supply an Event name.
-    }
-  }
-  return { spans, urls: [...new Set(urls)] };
+function extractUrls(note: string) {
+  const urls = new Set<string>();
+  const text = note.replace(
+    /https?:\/\/(?:(?!\]\()[^\s<>"`])+/giu,
+    (match: string, offset: number) => {
+      const token =
+        note.slice(offset - 2, offset) === "]("
+          ? markdownUrlToken(match)
+          : match;
+      try {
+        urls.add(new URL(token).href);
+      } catch {
+        // Invalid URL text cannot supply an Event name or country.
+      }
+      return "\0".repeat(token.length) + match.slice(token.length);
+    },
+  );
+  return { text, urls: [...urls] };
 }
 
 export function findInputNameCandidates(input: string, rows: NameRow[]) {
-  const note = input.normalize("NFC");
-  const { spans: urlSpans, urls } = inputUrls(note);
-  const nameText = maskSpans(note, urlSpans).toLowerCase();
-  const nameSpans: Span[] = [];
+  const { text, urls } = extractUrls(input.normalize("NFC"));
+  const nameText = text.toLowerCase();
+  const countryText = nameText.split("");
   const candidates: NameCandidate[] = [];
   for (const row of rows) {
     let matchedName: string | undefined;
@@ -85,17 +76,14 @@ export function findInputNameCandidates(input: string, rows: NameRow[]) {
       );
       for (const match of nameText.matchAll(pattern)) {
         matchedName ??= name;
-        nameSpans.push({
-          start: match.index,
-          end: match.index + match[0].length,
-        });
+        countryText.fill("\0", match.index, match.index + match[0].length);
       }
     }
     if (matchedName !== undefined) {
       candidates.push({ eventId: row.id, matchedName });
     }
   }
-  return { candidates, urls, countryText: maskSpans(nameText, nameSpans) };
+  return { candidates, urls, countryText: countryText.join("") };
 }
 
 function inputCountries(text: string) {
@@ -192,26 +180,27 @@ function findUrlSupportedDuplicate(
   let supported: InputDuplicateMatch | undefined;
   for (const url of urls) {
     const exact = links.filter((link) => link.url === url);
+    if (!exact.length) {
+      continue;
+    }
     const named = candidates.filter((candidate) =>
       exact.some((link) => link.eventId === candidate.eventId),
     );
-    if (exact.length && !named.length) {
+    if (named.length !== 1) {
       return null;
     }
-    for (const candidate of named) {
-      // Several countries or different Event IDs leave the match unresolved.
-      if (
-        candidate.countries.length > 1 ||
-        (supported && supported.eventId !== candidate.eventId)
-      ) {
-        return null;
-      }
-      supported = {
-        eventId: candidate.eventId,
-        matchedName: candidate.matchedName,
-        support: { officialUrl: url },
-      };
+    const candidate = named[0];
+    if (
+      candidate.countries.length > 1 ||
+      (supported && supported.eventId !== candidate.eventId)
+    ) {
+      return null;
     }
+    supported = {
+      eventId: candidate.eventId,
+      matchedName: candidate.matchedName,
+      support: { officialUrl: url },
+    };
   }
   return supported;
 }

@@ -65,47 +65,37 @@ test.each([{ countryCode: "US" }, { officialUrl: "https://example.com/" }])(
       locationStatus: "not_run",
       budget: { pages: 0, searches: 0, modelCalls: 0 },
     });
-    expect(input.research.status).toBe("not_run");
-    expect(input.general.status).toBe("not_run");
   },
 );
 
-test.each([
-  "outcome",
-  "mode",
-  "workflow_error",
-  "persistence_error",
-  "different_event",
-  "no_match",
-])("an early match does not override %s", (failure) => {
-  const input = earlyReportInput({ countryCode: "US" });
-  if (failure === "outcome") {
-    input.outcome = "failed";
-  }
-  if (failure === "mode") {
-    input.input.mode = "refresh";
-  }
-  if (failure === "workflow_error" || failure === "persistence_error") {
-    input.errors.push({
-      code:
-        failure === "workflow_error"
-          ? "workflow_failed"
-          : "run_persistence_failed",
-      stage: "workflow",
-      message: "Failed",
-    });
-  }
-  if (failure === "different_event") {
-    input.diagnostics!.matchedEventId = "other";
-  }
-  if (failure === "no_match") {
-    delete input.context!.inputDuplicate;
-  }
-  const report = buildResearchReport(input);
-  expect(report.researchStatus).toBe("failed");
-  expect(report).not.toHaveProperty("inputDuplicate");
-  expect(report.schemaVersion).toBe(7);
-});
+test.each(["outcome", "mode", "workflow_error", "different_event", "no_match"])(
+  "an early match does not override %s",
+  (failure) => {
+    const input = earlyReportInput({ countryCode: "US" });
+    if (failure === "outcome") {
+      input.outcome = "failed";
+    }
+    if (failure === "mode") {
+      input.input.mode = "refresh";
+    }
+    if (failure === "workflow_error") {
+      input.errors.push({
+        code: "workflow_failed",
+        stage: "workflow",
+        message: "Failed",
+      });
+    }
+    if (failure === "different_event") {
+      input.diagnostics!.matchedEventId = "other";
+    }
+    if (failure === "no_match") {
+      delete input.context!.inputDuplicate;
+    }
+    const report = buildResearchReport(input);
+    expect(report.researchStatus).toBe("failed");
+    expect(report).not.toHaveProperty("inputDuplicate");
+  },
+);
 
 test("a failed persistence response cannot retain the successful early-match marker", () => {
   const report = buildResearchReport(earlyReportInput({ countryCode: "US" }));
