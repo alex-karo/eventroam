@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "./fixtures";
-import { openEdition } from "./discovery-controls";
+import { collapseDevBadge, openEdition } from "./discovery-controls";
 test.skip(
   process.env.E2E_REAL_MAP !== "1",
   "Needs an opt-in local Mapbox token.",
@@ -565,12 +565,7 @@ test.describe("with the analytics banner", () => {
       }),
     ).toHaveAttribute("aria-pressed", "true");
     await expectClearSelection(page);
-    const devBadge = page.getByRole("button", {
-      name: "Collapse issues badge",
-    });
-    if (await devBadge.isVisible()) {
-      await devBadge.click();
-    }
+    await collapseDevBadge(page);
     await banner.getByRole("button", { name: "Disable analytics" }).click();
     await expect(banner).toHaveCount(0);
     await expectClearSelection(page);

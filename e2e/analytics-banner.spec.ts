@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { openEdition } from "./discovery-controls";
+import { collapseDevBadge, openEdition } from "./discovery-controls";
 import { preferenceKey } from "../src/site/analytics";
 
 test.use({ showAnalyticsBanner: true });
@@ -17,6 +17,7 @@ for (const [label, value] of [
       name: "Analytics choice",
     });
     await expect(banner).toBeVisible();
+    await collapseDevBadge(page);
     await banner.getByRole("button", { name: label, exact: true }).click();
     await expect(banner).toHaveCount(0);
     expect(
@@ -68,6 +69,7 @@ test("catalog retry stays usable with the banner and a selected map card", async
   await retry.click();
   await expect(retry).toHaveCount(0);
   await expect(selected).toHaveAttribute("aria-pressed", "true");
+  await collapseDevBadge(page);
   await banner.getByRole("button", { name: "Disable analytics" }).click();
   await expect(banner).toHaveCount(0);
   const details = await openEdition(page, "Fictional Atlantic Sounds 2027");

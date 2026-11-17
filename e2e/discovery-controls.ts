@@ -1,5 +1,12 @@
 import { expect, type Page } from "@playwright/test";
 
+export async function collapseDevBadge(page: Page) {
+  const badge = page.getByRole("button", { name: "Collapse issues badge" });
+  if (await badge.isVisible()) {
+    await badge.click();
+  }
+}
+
 export async function openFilter(
   page: Page,
   group: "Where" | "Music" | "More",
