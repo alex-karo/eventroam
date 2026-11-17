@@ -11,6 +11,7 @@ type Values = {
   starts_on: string | null;
   ends_on: string | null;
   date_state: string | null;
+  schedule_status: string;
   country_code: string | null;
   locality: string | null;
   venue_name: string | null;

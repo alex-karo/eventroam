@@ -1,0 +1,118 @@
+{
+  "id": "schedule-status-jazz",
+  "suite": "regression",
+  "origin": "captured",
+  "task": "Check schedule status for Jazz in the Park",
+  "todayUtc": "2026-11-14",
+  "provenance": {
+    "kind": "captured-schedule-status-regression",
+    "note": "Source excerpts keep the original text from the production audit of 2026-11-14. Navigation and unrelated text are omitted. Saved catalog state and fixed Reader selections isolate schedule status. No live source fallback. Both source URLs are saved links so Research can inspect the excerpts without search. The 2026 excerpt includes its programme heading and closure statement from the same captured page (original lines 232, 234, 272-277, 361 and 427)."
+  },
+  "input": {
+    "mode": "refresh",
+    "scope": "full",
+    "eventId": "event:20854faa5bc92fc3dc3a",
+    "actor": "catalog-research",
+    "initiatedBy": "eval",
+    "dryRun": true
+  },
+  "initial": {
+    "event": {
+      "id": "event:20854faa5bc92fc3dc3a",
+      "slug": "jazz-in-the-park",
+      "canonicalName": "Jazz in the Park",
+      "links": [
+        {
+          "kind": "official_site",
+          "url": "https://bilete.jazzinthepark.ro/",
+          "official": true
+        },
+        {
+          "kind": "other",
+          "url": "https://www.iabilet.ro/bilete-jazz-in-the-park-2026-112018/",
+          "official": true
+        }
+      ],
+      "editions": [
+        {
+          "id": "edition:20854faa5bc92fc3dc3a",
+          "editionKey": "2026",
+          "editionYear": 2026,
+          "startsOn": "2026-06-05",
+          "endsOn": "2026-06-07",
+          "dateState": "confirmed",
+          "scheduleStatus": "postponed",
+          "countryCode": "RO",
+          "termIds": ["validation:festival", "validation:music"]
+        },
+        {
+          "id": "8ed1a089-8cc1-4ac5-bb77-c6ecde56889e",
+          "editionKey": "2027",
+          "editionYear": 2027,
+          "startsOn": "2027-06-25",
+          "endsOn": "2027-06-27",
+          "dateState": "confirmed",
+          "scheduleStatus": "postponed",
+          "countryCode": "RO",
+          "termIds": ["validation:festival", "validation:music"]
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "attemptedUrl": "https://bilete.jazzinthepark.ro/",
+      "finalUrl": "https://bilete.jazzinthepark.ro/",
+      "retrievedAt": "2026-11-13T03:25:11.753Z",
+      "method": "http",
+      "status": "ok",
+      "markdownFile": "jazz-2027.md",
+      "readerOutput": {
+        "overview": "Jazz in the Park 2027 ticket page with dates and EventRescheduled metadata.",
+        "coverage": {
+          "found": ["Festival dates and schedule status"],
+          "notPublished": []
+        },
+        "topics": ["identity", "dates", "status"],
+        "statedYears": ["2027"],
+        "limitations": [],
+        "evidence": [
+          {
+            "quote": {
+              "start": 1,
+              "end": 9
+            },
+            "topics": ["identity", "dates", "status"]
+          }
+        ]
+      }
+    },
+    {
+      "attemptedUrl": "https://www.iabilet.ro/bilete-jazz-in-the-park-2026-112018/",
+      "finalUrl": "https://www.iabilet.ro/bilete-jazz-in-the-park-2026-112018/",
+      "retrievedAt": "2026-11-13T03:27:52.807Z",
+      "method": "http",
+      "status": "ok",
+      "markdownFile": "jazz-2026.md",
+      "readerOutput": {
+        "overview": "The Jazz in the Park 2026 page identifies its programme dates, says the event ended, and links to 2027 tickets.",
+        "coverage": {
+          "found": ["Festival dates and schedule status"],
+          "notPublished": []
+        },
+        "topics": ["identity", "dates", "status"],
+        "statedYears": ["2026", "2027"],
+        "limitations": [],
+        "evidence": [
+          {
+            "quote": {
+              "start": 1,
+              "end": 8
+            },
+            "topics": ["identity", "dates", "status"]
+          }
+        ]
+      }
+    }
+  ]
+}

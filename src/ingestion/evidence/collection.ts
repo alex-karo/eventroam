@@ -225,7 +225,7 @@ export function createCollection(options: {
     tool: createTool({
       id: "inspectPage",
       description:
-        "Inspect one permitted source. Return a page overview, page-local coverage, lead URLs and processing limits. Independent URLs can be inspected in parallel.",
+        "Inspect one permitted source. Copy the full supplied URL exactly; do not rewrite its path. Return a page overview, page-local coverage, lead URLs and processing limits. Independent URLs can be inspected in parallel.",
       inputSchema: z.strictObject({ url: sourceUrlSchema }),
       outputSchema: z.json(),
       execute: async ({ url }, context) => {
