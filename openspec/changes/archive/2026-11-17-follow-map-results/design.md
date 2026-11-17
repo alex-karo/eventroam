@@ -35,7 +35,7 @@ of at least 360 degrees accepts every longitude. Each summary remains one row.
 The helper preserves input order and excludes summaries without coordinates.
 
 Keep the map adapter's existing `onCameraChange` callback. Proposed additions to
-its [props](../../../src/features/discovery/map/discovery-map.tsx):
+its [props](../../../../src/features/discovery/map/discovery-map.tsx):
 
 ```ts
 followMap: boolean;
@@ -47,7 +47,7 @@ unavailable and suspends the area constraint. The existing camera callback keeps
 its current role, including saving camera changes caused by layout or selection.
 The adapter reads its current bounds when follow mode turns on.
 
-Extend [DiscoveryVisit](../../../src/site/discovery-context.ts) with the proposed
+Extend [DiscoveryVisit](../../../../src/site/discovery-context.ts) with the proposed
 field below:
 
 ```ts
@@ -70,7 +70,7 @@ flowchart LR
     Area --> List[List and displayed counts]
 ```
 
-[Discovery](../../../src/features/discovery/discovery.tsx) owns the switch and one
+[Discovery](../../../../src/features/discovery/discovery.tsx) owns the switch and one
 runtime search area. A null area also identifies an unavailable map. Discovery
 passes the full normal result set to the map. It uses that same set to decide
 whether a selected card is still eligible. It passes only the area result set to

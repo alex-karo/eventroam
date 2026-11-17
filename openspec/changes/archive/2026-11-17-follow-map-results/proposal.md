@@ -58,5 +58,5 @@ This change adds no catalog fields or server search endpoint.
 
 Discovery users get an area-based list by default. The discovery UI, map adapter,
 visit state, focused tests, and the discovery paragraph in the
-[project structure guide](../../../docs/project-structure.md) will change.
+[project structure guide](../../../../docs/project-structure.md) will change.
 The current filter rules and public catalog payload stay in place.
