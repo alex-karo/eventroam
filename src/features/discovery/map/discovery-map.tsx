@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
   useRef,
   useState,
   type RefObject,
@@ -13,6 +14,7 @@ import type { FeatureCollection, Point } from "geojson";
 import { dateRange } from "@/components/catalog/format";
 import { Icon } from "@/components/catalog/icons";
 import type { Camera } from "@/site/discovery-context";
+import type { MapArea } from "../model/map-area";
 import { selectionOffset } from "./selection-visibility";
 import styles from "./discovery-map.module.css";
 
@@ -25,7 +27,28 @@ type Props = {
   preserveSelectionCamera: boolean;
   onCameraChange: (camera: Camera) => void;
   onCameraInteraction: () => void;
+  followMap: boolean;
+  onAreaChange: (area: MapArea | null) => void;
 };
+
+function isAreaMovement(event: {
+  originalEvent?: { type: string };
+  followMapArea?: boolean;
+}) {
+  const original = event.originalEvent;
+  return (
+    event.followMapArea === true ||
+    Boolean(
+      original &&
+      ![
+        "resize",
+        "orientationchange",
+        "fullscreenchange",
+        "webkitfullscreenchange",
+      ].includes(original.type),
+    )
+  );
+}
 
 export function hasMapPoint(summary: DiscoverySummary) {
   return summary.latitude !== null && summary.longitude !== null;
@@ -106,25 +129,24 @@ export function DiscoveryMap({
   preserveSelectionCamera,
   onCameraChange,
   onCameraInteraction,
+  followMap,
+  onAreaChange,
 }: Readonly<Props>) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const popup = useRef<mapboxgl.Popup | null>(null);
-  const select = useRef(onSelect);
+  const select = useEffectEvent(onSelect);
   const latestSummaries = useRef(summaries);
   const latestSelected = useRef(selectedId);
   const initialFitPending = useRef(true);
   const selectedMarker = useRef<mapboxgl.Marker | null>(null);
   const cameraToRestore = useRef(restoreCamera);
-  const cameraChanged = useRef(onCameraChange);
+  const cameraChanged = useEffectEvent(onCameraChange);
   const cameraInteracted = useRef(onCameraInteraction);
   const preserveCamera = useRef(preserveSelectionCamera);
   useEffect(() => {
     preserveCamera.current = preserveSelectionCamera;
   }, [preserveSelectionCamera]);
-  useEffect(() => {
-    cameraChanged.current = onCameraChange;
-  }, [onCameraChange]);
   useEffect(() => {
     cameraInteracted.current = onCameraInteraction;
   }, [onCameraInteraction]);
@@ -217,9 +239,23 @@ export function DiscoveryMap({
     }
   }, [cardRef, updateSelectedMarker]);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    select.current = onSelect;
-  }, [onSelect]);
+  const reportArea = useEffectEvent(() => {
+    const instance = map.current;
+    const bounds =
+      !error && !initialFitPending.current && instance?.getSource("editions")
+        ? instance.getBounds()
+        : null;
+    onAreaChange(
+      bounds
+        ? {
+            west: bounds.getWest(),
+            east: bounds.getEast(),
+            south: bounds.getSouth(),
+            north: bounds.getNorth(),
+          }
+        : null,
+    );
+  });
   useEffect(() => {
     const previous = latestSummaries.current.find(
       (item) => item.id === selectedId,
@@ -244,6 +280,9 @@ export function DiscoveryMap({
   const style =
     process.env.NEXT_PUBLIC_MAPBOX_STYLE ||
     "mapbox://styles/mapbox/streets-v12";
+  useEffect(() => {
+    reportArea();
+  }, [followMap, error, token]);
 
   function showPreview(id: string | null) {
     const summary = latestSummaries.current.find((item) => item.id === id);
@@ -268,10 +307,13 @@ export function DiscoveryMap({
   const fitResults = useCallback(() => {
     const instance = map.current;
     const bounds = mapBounds(latestSummaries.current);
-    if (!instance || !bounds) {
+    if (!instance) {
       return;
     }
     initialFitPending.current = false;
+    if (!bounds) {
+      return;
+    }
     instance.fitBounds(
       [
         [bounds.west, bounds.south],
@@ -313,15 +355,17 @@ export function DiscoveryMap({
     ) {
       if (cameraToRestore.current) {
         const camera = cameraToRestore.current;
+        initialFitPending.current = false;
         map.current.jumpTo({
           center: [camera.longitude, camera.latitude],
           zoom: camera.zoom,
         });
-        initialFitPending.current = false;
       } else {
         fitResults();
       }
+      return true;
     }
+    return false;
   }, [fitResults]);
 
   useEffect(() => {
@@ -356,7 +400,7 @@ export function DiscoveryMap({
     ) {
       source.getClusterExpansionZoom(clusterId, (error, zoom) => {
         if (!error && instance && zoom !== null && zoom !== undefined) {
-          instance.easeTo({ center, zoom });
+          instance.easeTo({ center, zoom }, { followMapArea: true });
         }
       });
     }
@@ -383,20 +427,23 @@ export function DiscoveryMap({
         markerElement.setAttribute("aria-hidden", "true");
         selectedMarker.current = new gl.Marker({ element: markerElement });
         instance.on("movestart", (event) => {
-          if (event.originalEvent) {
+          if (isAreaMovement(event)) {
             preserveCurrentCamera();
           }
         });
-        instance.on("moveend", () => {
+        instance.on("moveend", (event) => {
           if (!instance || initialFitPending.current) {
             return;
           }
           const center = instance.getCenter();
-          cameraChanged.current({
+          cameraChanged({
             longitude: center.lng,
             latitude: center.lat,
             zoom: instance.getZoom(),
           });
+          if (isAreaMovement(event)) {
+            reportArea();
+          }
         });
         popup.current = new gl.Popup({
           closeButton: false,
@@ -406,7 +453,9 @@ export function DiscoveryMap({
         });
         observer = new ResizeObserver(() => {
           instance?.resize();
-          fitInitially();
+          if (fitInitially()) {
+            reportArea();
+          }
           revealSelection();
         });
         observer.observe(container.current);
@@ -514,7 +563,7 @@ export function DiscoveryMap({
             }
             const id = feature.properties?.id;
             if (typeof id === "string") {
-              select.current(id);
+              select(id);
             }
           });
           instance.on("mousemove", "point-hit-targets", (event) => {
@@ -539,6 +588,7 @@ export function DiscoveryMap({
             });
           }
           fitInitially();
+          reportArea();
           showPreview(null);
           revealSelection();
           setError(null);
@@ -568,7 +618,9 @@ export function DiscoveryMap({
         mapFeatures(summaries),
       );
     }
-    fitInitially();
+    if (fitInitially()) {
+      reportArea();
+    }
     showPreview(null);
     updateSelectedMarker();
   }, [summaries, fitInitially, updateSelectedMarker]);
@@ -593,12 +645,13 @@ export function DiscoveryMap({
   }, [selectedId, preserveSelectionCamera, cardRef, revealSelection]);
   useEffect(() => {
     cameraToRestore.current = restoreCamera;
-    if (restoreCamera && map.current) {
+    if (restoreCamera && map.current?.getSource("editions")) {
       initialFitPending.current = false;
       map.current.jumpTo({
         center: [restoreCamera.longitude, restoreCamera.latitude],
         zoom: restoreCamera.zoom,
       });
+      reportArea();
     }
   }, [restoreCamera]);
 
@@ -618,7 +671,7 @@ export function DiscoveryMap({
             type="button"
             onClick={() => {
               preserveCurrentCamera();
-              map.current?.zoomIn();
+              map.current?.zoomIn({}, { followMapArea: true });
             }}
             aria-label="Zoom in"
           >
@@ -628,7 +681,7 @@ export function DiscoveryMap({
             type="button"
             onClick={() => {
               preserveCurrentCamera();
-              map.current?.zoomOut();
+              map.current?.zoomOut({}, { followMapArea: true });
             }}
             aria-label="Zoom out"
           >

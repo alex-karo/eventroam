@@ -15,6 +15,7 @@ import {
   type Filters,
 } from "@/features/discovery/model/discovery";
 import type { DiscoverySummary, Genre } from "@/catalog/read/contracts";
+import { filterMapArea, type MapArea } from "./model/map-area";
 import { MonthStrip } from "@/features/discovery/components/month-strip";
 import { Icon } from "@/components/catalog/icons";
 import {
@@ -77,6 +78,9 @@ export function Discovery({
   const [loadError, setLoadError] = useState(false);
   const [panel, setPanel] = useState<FilterGroup | null>(null);
   const [view, setView] = useState<"map" | "list">(initialView);
+  const [followMap, setFollowMap] = useState(true);
+  const [mapArea, setMapArea] = useState<MapArea | null>(null);
+  const activeArea = followMap ? mapArea : null;
   const resultsHeading = useRef<HTMLDivElement>(null);
   const {
     state: detailState,
@@ -112,6 +116,7 @@ export function Discovery({
       camera: camera.current,
       scroll: listScroll.current,
       selectedId,
+      followMap,
     };
     saveVisit(token, next);
   }
@@ -137,6 +142,7 @@ export function Discovery({
     camera.current = visit?.camera ?? null;
     setRestoreCamera(visit?.camera ?? null);
     setPreserveSelectionCamera(!!visit?.camera);
+    setFollowMap(visit?.followMap ?? true);
     listScroll.current = visit?.scroll ?? 0;
     pendingListScroll.current = listScroll.current;
     const eligible =
@@ -179,13 +185,15 @@ export function Discovery({
     };
   }, [view, visitToken, selectedId, applied]);
   const today = useMemo(() => new Date(initialNow), [initialNow]);
-  const preview = useMemo(
-    () =>
-      panel
-        ? previewFilters(catalog.summaries, pending, catalog.genres, today)
-        : null,
-    [panel, catalog.summaries, pending, catalog.genres, today],
-  );
+  const preview = useMemo(() => {
+    if (!panel) {
+      return null;
+    }
+    const summaries = activeArea
+      ? filterMapArea(catalog.summaries, activeArea)
+      : catalog.summaries;
+    return previewFilters(summaries, pending, catalog.genres, today);
+  }, [panel, activeArea, catalog.summaries, pending, catalog.genres, today]);
   const panelButton = useRef<HTMLButtonElement>(null);
   function restoreFilterFocus() {
     const opener = panelButton.current;
@@ -223,7 +231,7 @@ export function Discovery({
     if (visitReady) {
       saveCurrentContext();
     }
-  }, [visitReady, visitToken, selectedId, applied, view]);
+  }, [visitReady, visitToken, selectedId, applied, view, followMap]);
   const load = useCallback(() => {
     const request = ++latest.current;
     return fetch("/api/discovery", { cache: "no-store" })
@@ -354,9 +362,14 @@ export function Discovery({
     // closePanel always uses the applied filters at the moment the panel opened.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panel, applied, selectedId, closeDetail]);
-  const results = invalidUrl
-    ? []
-    : filterSummaries(catalog.summaries, applied, catalog.genres, today);
+  const results = useMemo(
+    () =>
+      invalidUrl
+        ? []
+        : filterSummaries(catalog.summaries, applied, catalog.genres, today),
+    [invalidUrl, catalog.summaries, applied, catalog.genres, today],
+  );
+  const listResults = activeArea ? filterMapArea(results, activeArea) : results;
   const selectedEligible =
     !selectedId || results.some((item) => item.id === selectedId);
   const clearIneligibleSelection = useEffectEvent(() =>
@@ -379,8 +392,9 @@ export function Discovery({
     setPreserveSelectionCamera(false);
     void selectEdition(id);
   }
-  const eventLabel = results.length === 1 ? "event" : "events";
-  const mapped = results.filter(hasMapPoint).length;
+  const eventLabel = listResults.length === 1 ? "event" : "events";
+  const resultStatus = `${listResults.length} ${eventLabel}${activeArea ? " in map area" : ""}`;
+  const mapped = listResults.filter(hasMapPoint).length;
   const active = filterSelections(applied, catalog.genres);
   const groupSelections = {
     where: active.filter((item) => ["countries", "place"].includes(item.field)),
@@ -519,8 +533,11 @@ export function Discovery({
           <div className="results-panel">
             <div className="results-heading" ref={resultsHeading}>
               <h1>
-                {results.length}{" "}
-                {results.length === 1 ? "festival" : "festivals"}
+                {listResults.length}{" "}
+                {listResults.length === 1 ? "festival" : "festivals"}
+                {activeArea && (
+                  <span className="results-area"> in map area</span>
+                )}
               </h1>
               <button
                 type="button"
@@ -533,6 +550,20 @@ export function Discovery({
                 <Icon name={view === "list" ? "chevron-down" : "chevron-up"} />
               </button>
               <p>Select a festival to show it on the map.</p>
+              <label className="follow-map">
+                <input
+                  type="checkbox"
+                  checked={followMap}
+                  disabled={mapArea === null}
+                  onChange={(event) => setFollowMap(event.target.checked)}
+                  aria-describedby="follow-map-help"
+                />
+                Follow map
+              </label>
+              <span id="follow-map-help" className="sr-only">
+                Limit the list to the map area. Turn off to include events
+                without map locations.
+              </span>
             </div>
             <div
               id="festival-results"
@@ -572,7 +603,8 @@ export function Discovery({
                 </div>
               )}
               <ResultsList
-                results={results}
+                results={listResults}
+                areaEmpty={Boolean(activeArea) && results.length > 0}
                 selectedId={selectedId}
                 error={urlError}
                 onSelect={(id) => selectResult(id, "list")}
@@ -590,6 +622,8 @@ export function Discovery({
                 restoreCamera={restoreCamera}
                 preserveSelectionCamera={preserveSelectionCamera}
                 onCameraInteraction={() => setPreserveSelectionCamera(true)}
+                followMap={followMap}
+                onAreaChange={setMapArea}
                 onCameraChange={(next) => {
                   camera.current = next;
                   saveContext();
@@ -610,13 +644,13 @@ export function Discovery({
       <footer className="discovery-footer">
         <div className="results-status" role="status" aria-live="polite">
           <span className="results-count">
-            {invalidUrl ? "Invalid filters" : `${results.length} ${eventLabel}`}
+            {invalidUrl ? "Invalid filters" : resultStatus}
           </span>
-          {results.length > 0 && (
+          {listResults.length > 0 && (
             <span className="results-geography">
               On map: {mapped} ·{" "}
               <span title="Map location unavailable">Not mapped</span>:{" "}
-              {results.length - mapped}
+              {listResults.length - mapped}
             </span>
           )}
         </div>
