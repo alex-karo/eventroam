@@ -58,7 +58,7 @@
     "classification": {
       "description": {
         "action": "set",
-        "value": "This is an open-air music festival. Camping is part of the festival setting. The regular programme includes participant-led workshops and night-time dancing.",
+        "value": "This is an open-air music festival. It combines camping with participant-led workshops. There is dancing at night.",
         "reason": "The official page identifies the format and the regular programme.",
         "evidenceIds": ["s1-e1", "s1-e4"]
       },
