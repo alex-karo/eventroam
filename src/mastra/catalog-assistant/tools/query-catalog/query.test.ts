@@ -203,7 +203,7 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
     .prepare("SELECT id FROM ingestion_jobs ORDER BY position")
     .pluck()
     .all() as string[];
-  const { fixtureDependencies, runFixtureResearch } =
+  const { fixtureDependencies, fixtureReview, runFixtureResearch } =
     await import("@/test/ingestion");
   const { DEFAULT_RESEARCH_LIMITS } =
     await import("../../../../ingestion/runtime/budget");
@@ -219,19 +219,12 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
       },
       ...deps,
       generateRoles: {
-        editor: async (role, prompt, context) => {
-          const review = (await deps.generateRole(role, prompt, context)) as {
-            decisions: import("@/ingestion/roles/editor/contracts").ReviewDecision[];
-          };
-          Object.assign(
-            review.decisions.find(({ path }) => path === "event.target")!,
-            {
-              decision: "reject",
-              note: "Creation was declined because identity is unresolved.",
-            },
-          );
-          return review;
-        },
+        editor: async (_role, prompt) =>
+          fixtureReview(JSON.parse(prompt), {
+            path: "event.target",
+            decision: "reject",
+            note: "Creation was declined because identity is unresolved.",
+          }),
       },
     },
   );

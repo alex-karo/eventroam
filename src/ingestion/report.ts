@@ -77,7 +77,19 @@ export function buildResearchReport({
     ({ failure, decision }) => failure && decision?.decision === "reject",
   );
   unresolved = [
-    ...unresolved,
+    ...unresolved.filter(({ field, editionKey, message }) => {
+      const repair = field ? latestRepairs.get(field) : undefined;
+      const reason = repair?.omissionReason?.trim();
+      const settled =
+        repair &&
+        reason &&
+        repair.decision?.decision === "approve" &&
+        !repair.failure &&
+        repair.revision == null &&
+        (editionKey === undefined || editionKey === repair.target.editionKey) &&
+        message.trim() === reason;
+      return !settled;
+    }),
     ...failedGroups.map(({ path, target, failure }) => ({
       field: path,
       ...(target.editionKey && { editionKey: target.editionKey }),

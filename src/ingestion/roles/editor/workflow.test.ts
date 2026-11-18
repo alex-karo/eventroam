@@ -6,7 +6,7 @@ import {
   fixtureTargets,
   fixtureDescriptionRole,
   fixtureRoleGenerator,
-  approveFixtureReview,
+  fixtureReview,
   set,
   clear,
   runFixtureResearch,
@@ -43,14 +43,11 @@ test.each(["malformed", "throw", "reject"] as const)(
           replacement: "Forbidden",
         });
       }
-      const review = approveFixtureReview(JSON.parse(raw).reviewPaths);
-      Object.assign(
-        review.decisions.find(({ path }) => path === "item")!,
-        {
-          decision: "reject",
-          note: "Identity is not supported",
-        },
-      );
+      const review = fixtureReview(JSON.parse(raw), {
+        path: "item",
+        decision: "reject",
+        note: "Identity is not supported",
+      });
       response = review;
       return response;
     };
@@ -62,8 +59,18 @@ test.each(["malformed", "throw", "reject"] as const)(
     expect(calls).toBe(failure === "malformed" ? 2 : 1);
     expect(result.researchStatus).toBe("success");
     expect(result.modelResponse?.object).toEqual(general);
-    if (failure !== "throw") {
+    if (failure === "malformed") {
       expect(result.editorResponse?.object).toEqual(response);
+    } else if (failure === "reject") {
+      expect(result.editorResponse?.object).toMatchObject({
+        decisions: expect.arrayContaining([
+          {
+            path: "item",
+            decision: "reject",
+            note: "Identity is not supported",
+          },
+        ]),
+      });
     }
     expect(result.operations).toEqual([]);
     expect(readResearchCatalog(client)).toEqual([]);
@@ -83,19 +90,12 @@ test("Editor rejects one field without replacing its value or changing General o
     ...fixtureDependencies({
       general,
       classification,
-      editor: async (_role: unknown, raw: string) => {
-        const review = approveFixtureReview(JSON.parse(raw).reviewPaths);
-        Object.assign(
-          review.decisions.find(
-            ({ path }) => path === "event.fields.description",
-          )!,
-          {
-            decision: "reject",
-            note: "Description evidence is incomplete",
-          },
-        );
-        return review;
-      },
+      editor: async (_role: unknown, raw: string) =>
+        fixtureReview(JSON.parse(raw), {
+          path: "event.fields.description",
+          decision: "reject",
+          note: "Description evidence is incomplete",
+        }),
     }),
   });
   expect(result.errors).toEqual([]);

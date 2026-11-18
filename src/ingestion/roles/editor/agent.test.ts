@@ -1,5 +1,5 @@
 import { testDatabase } from "@/test/database";
-import { approveFixtureReview } from "@/test/ingestion";
+import { fixtureReview } from "@/test/ingestion";
 import { expect, it } from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -205,7 +205,7 @@ it("shares proposal and repair evidence by ID and checks saved source hashes", a
             await expect(
               tool.execute({ ...request, path: "s2.md" }, {}),
             ).rejects.toThrow("hash mismatch");
-            return approveFixtureReview(input.reviewPaths);
+            return fixtureReview(input);
           },
         },
       },

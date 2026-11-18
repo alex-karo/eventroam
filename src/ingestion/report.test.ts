@@ -109,3 +109,51 @@ test("a failed persistence response cannot retain the successful early-match mar
     message: "Ingestion run persistence failed",
   });
 });
+
+test("an earlier withdrawal cannot settle the question after a later failed repair", () => {
+  const input = earlyReportInput({ countryCode: "US" });
+  input.outcome = "unchanged";
+  const path = "currentOrNextEdition.fields.sizeEstimate";
+  const question = { field: path, message: "No supported estimate." };
+  const earlier = {
+    path,
+    owner: "general" as const,
+    target: { eventId: "fest", editionKey: "2027" },
+    trigger: "editor" as const,
+    note: "Verify the estimate.",
+    original: null,
+    revision: null,
+    omissionReason: question.message,
+    decision: {
+      path,
+      decision: "approve" as const,
+      note: "Preserve the saved value.",
+    },
+  };
+  input.unresolved = [question];
+  input.repairs = [
+    earlier,
+    {
+      ...earlier,
+      omissionReason: undefined,
+      failure: {
+        code: "invalid_candidate",
+        stage: "validation",
+        message: "The revision has no reason for its omission.",
+      },
+      decision: {
+        path,
+        decision: "reject",
+        note: "The last revision was invalid.",
+      },
+    },
+  ];
+  expect(buildResearchReport(input).unresolved).toEqual([
+    question,
+    {
+      field: path,
+      editionKey: "2027",
+      message: "The revision has no reason for its omission.",
+    },
+  ]);
+});

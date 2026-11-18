@@ -449,17 +449,14 @@ function rejectedEditorFixture(
     return candidate;
   }
   return {
-    decisions: (
-      candidate.decisions as import("@/ingestion/roles/editor/contracts").ReviewDecision[]
-    ).map((entry) =>
-      entry.path === "item"
-        ? {
-            ...entry,
-            decision: "reject",
-            note: "Research concerns a different same-name festival",
-          }
-        : entry,
-    ),
+    ...candidate,
+    decisions: {
+      ...(candidate.decisions as Record<string, unknown>),
+      item: {
+        decision: "reject",
+        note: "Research concerns a different same-name festival",
+      },
+    },
   };
 }
 

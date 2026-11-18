@@ -1,8 +1,8 @@
 import { assignedGroups } from "./groups";
-import { reviewSchema } from "./roles/editor/validate";
+import { editorReviewContract } from "./roles/editor/validate";
 import { reviewPaths } from "./roles/editor/review";
 import { type ReviewDecision } from "./roles/editor/contracts";
-import { approveFixtureReview } from "@/test/ingestion";
+import { fixtureReview } from "@/test/ingestion";
 import { expect, it } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
@@ -20,6 +20,7 @@ import type { TicketsOutput } from "./roles/tickets/contracts";
 import type { FrozenCorpus } from "./evidence/contracts";
 import { buildAssignment } from "./roles/assignment";
 import { prepareCatalogPlan } from "./catalog-plan";
+import { modelOutputSchema } from "./runtime/model-output";
 
 function fixture(returnedPaths?: ReadonlySet<string>) {
   const db = testDatabase();
@@ -330,19 +331,33 @@ it("Editor decisions have exact fixed keys and cannot replace values", () => {
     new Map(),
     () => true,
   );
-  const schema = reviewSchema(paths);
-  const raw = approveFixtureReview(paths);
+  const { schema, ...input } = editorReviewContract(paths);
+  const raw = fixtureReview(input);
+  const missingPath = "event.fields.links.socials.instagram";
+  const missingRequest = { path: missingPath, note: "Use the cited URL." };
   expect(schema.safeParse(raw).success).toBe(true);
+  expect(
+    schema.safeParse({ ...raw, missingReturns: [missingRequest] }).success,
+  ).toBe(true);
   const classificationPath = "currentOrNextEdition.fields.classification";
-  expect(paths).toContainEqual({
+  expect(input.reviewPaths).toContainEqual({
     path: classificationPath,
-    required: true,
     allowed: ["approve", "return"],
   });
-  expect(paths).toContainEqual({
-    path: "event.fields.links.socials.instagram",
-    required: false,
-    allowed: ["return"],
+  expect(input.missingGroups).toContain(missingPath);
+  expect(modelOutputSchema(schema)).toMatchObject({
+    required: ["decisions", "missingReturns"],
+    properties: {
+      decisions: {
+        required: input.reviewPaths.map(({ path }) => path),
+        properties: {
+          item: { properties: { decision: { enum: ["approve", "reject"] } } },
+        },
+      },
+      missingReturns: {
+        items: { properties: { path: { enum: input.missingGroups } } },
+      },
+    },
   });
   const lastPaths = reviewPaths(
     p.value,
@@ -355,9 +370,6 @@ it("Editor decisions have exact fixed keys and cannot replace values", () => {
     required: true,
     allowed: ["approve", "reject"],
   });
-  expect(
-    reviewSchema(lastPaths).safeParse(approveFixtureReview(lastPaths)).success,
-  ).toBe(true);
   const fixedPaths = reviewPaths(
     p.value,
     assignedGroups(undefined, p.value.targets),
@@ -370,47 +382,39 @@ it("Editor decisions have exact fixed keys and cannot replace values", () => {
   expect(fixedPaths.every(({ allowed }) => !allowed.includes("return"))).toBe(
     true,
   );
-  expect(
-    applyReview(
-      p.value,
-      new Map(raw.decisions.map((entry) => [entry.path, entry])),
-    ).status,
-  ).toBe("continue");
+  const fixed = editorReviewContract(fixedPaths);
+  expect(fixed.schema.safeParse(fixtureReview(fixed)).success).toBe(true);
+  expect(modelOutputSchema(fixed.schema)).toMatchObject({
+    required: ["decisions"],
+  });
+  const { item, ...withoutItem } = raw.decisions;
   for (const invalid of [
     { ...raw, unresolved: [] },
+    { ...raw, decisions: withoutItem },
+    { ...raw, decisions: { ...raw.decisions, [missingPath]: item } },
     {
-      decisions: [
-        { ...raw.decisions[0], value: "replacement" },
-        ...raw.decisions.slice(1),
-      ],
-    },
-    { decisions: [...raw.decisions, raw.decisions[0]] },
-    { decisions: raw.decisions.slice(1) },
-    {
-      decisions: [
-        { ...raw.decisions[0], decision: "return" },
-        ...raw.decisions.slice(1),
-      ],
+      ...raw,
+      decisions: { ...raw.decisions, item: { ...item, value: "replacement" } },
     },
     {
-      decisions: [
-        { ...raw.decisions[0], note: "   " },
-        ...raw.decisions.slice(1),
-      ],
+      ...raw,
+      decisions: { ...raw.decisions, item: { ...item, decision: "return" } },
     },
+    { ...raw, decisions: { ...raw.decisions, item: { ...item, note: "   " } } },
     {
-      decisions: [
+      ...raw,
+      decisions: {
         ...raw.decisions,
-        { path: "unassigned", decision: "return", note: "Reason" },
-      ],
+        [classificationPath]: { ...item, decision: "reject" },
+      },
     },
+    { ...raw, missingReturns: [{ ...missingRequest, path: "unassigned" }] },
     {
-      decisions: raw.decisions.map((entry) =>
-        entry.path === classificationPath
-          ? { ...entry, decision: "reject" }
-          : entry,
-      ),
+      ...raw,
+      missingReturns: [{ ...missingRequest, path: classificationPath }],
     },
+    { ...raw, missingReturns: [{ ...missingRequest, decision: "approve" }] },
+    { ...raw, missingReturns: [missingRequest, missingRequest] },
   ]) {
     expect(schema.safeParse(invalid).success).toBe(false);
   }
@@ -423,8 +427,13 @@ function approved(prepared: Parameters<typeof reviewPaths>[0]) {
     new Map(),
     () => true,
   );
-  return new Map(
-    approveFixtureReview(paths).decisions.map((entry) => [entry.path, entry]),
+  return new Map<string, ReviewDecision>(
+    paths
+      .filter(({ required }) => required)
+      .map(({ path }) => [
+        path,
+        { path, decision: "approve", note: "Explicit fixture review" },
+      ]),
   );
 }
 
@@ -462,13 +471,18 @@ it("builds concrete assignments with current exclusions", () => {
   expect(paths.some(({ path }) => path.startsWith("event.fields."))).toBe(
     false,
   );
-  const review = approveFixtureReview(paths);
-  review.decisions.push({
-    path: "event.fields.links.website",
-    decision: "return",
-    note: "Check the official site.",
-  });
-  expect(reviewSchema(paths).safeParse(review).success).toBe(false);
+  const contract = editorReviewContract(paths);
+  expect(
+    contract.schema.safeParse({
+      ...fixtureReview(contract),
+      missingReturns: [
+        {
+          path: "event.fields.links.website",
+          note: "Check the official site.",
+        },
+      ],
+    }).success,
+  ).toBe(false);
 });
 
 it("rejects unknown classification reuse and removes reuse after its target is rejected", () => {

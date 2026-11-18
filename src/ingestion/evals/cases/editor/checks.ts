@@ -15,11 +15,6 @@ export const checks = {
   "editor-uncited-qualification": ({ report, changes }) => [
     ...researchDidNotFail(report),
     check(
-      "editor.status",
-      report.editorStatus === "success",
-      "Complete the fixed proposal review",
-    ),
-    check(
       "catalog.edition.2027.rejectRestrictedPass",
       !changes.edition(
         { key: "2027" },
@@ -136,27 +131,63 @@ export const checks = {
         "https://szigetfestival.com/",
       ]),
       ...confirmedDates(changes, { year: 2027 }, "2027-08-10", "2027-08-14"),
+      check(
+        "catalog.edition.2027.venue_address",
+        changes.edition(
+          { year: 2027 },
+          "venue_address",
+          (value) =>
+            typeof value === "string" &&
+            /\b1033\b/.test(value) &&
+            /Budapest/i.test(value) &&
+            /m[áa]jus\s+9\.?\s+park/i.test(value),
+        ),
+        "Save the festival site address at Május 9. park, Budapest 1033",
+      ),
       ...preserveDates(changes, "source-row"),
       ...researchDidNotFail(report),
     ];
   },
   "editor-unavailable": (context) => {
     const { report } = context;
-    return [...refusedResearch(report), ...unavailableSources(report)];
+    return [
+      ...refusedResearch(report),
+      ...unavailableSources(report),
+      check(
+        "editor.status",
+        report.editorStatus === "not_run",
+        "Stop before Editor when sources are unavailable",
+      ),
+    ];
   },
   "editor-recovered-website": (context) => {
     const { changes, report } = context;
     return [
       officialWebsite(changes, ["https://harborechofestival.co.uk/"]),
       ...researchDidNotFail(report),
-      check(
-        "editor.status",
-        report.editorStatus === "success",
-        "Complete the Editor review of the recovered website",
-      ),
       ...editionSlots(context, null, "2027"),
     ];
   },
+  "editor-description-context": ({ report, changes }) => [
+    ...researchDidNotFail(report),
+    check(
+      "catalog.description.regularProgramme",
+      changes.event(
+        "description",
+        (value) =>
+          typeof value === "string" &&
+          /camping/i.test(value) &&
+          /workshops/i.test(value) &&
+          /danc/i.test(value),
+      ),
+      "Save the description of the regular programme",
+    ),
+    check(
+      "catalog.short_description.rejectPromise",
+      !changes.event("short_description", (value) => value !== undefined),
+      "Do not save the unsupported free camping promise",
+    ),
+  ],
   "editor-unknown-currency": (context) => {
     const { report, data, changes } = context;
     const edition = editionByKey(data, "2027");

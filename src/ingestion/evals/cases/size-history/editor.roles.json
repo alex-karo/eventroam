@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 7,
+  "provenance": "Fixed review input from the size-history source. The short text adds a promise that the source does not make.",
+  "pages": [
+    {
+      "url": "https://size-fixture.example/festival",
+      "sourceId": "s1",
+      "reader": {
+        "overview": "The festival page gives the setting, Edition dates and regular programme.",
+        "coverage": { "found": [], "notPublished": [] },
+        "topics": [
+          "identity",
+          "description",
+          "location",
+          "dates",
+          "status",
+          "classification"
+        ],
+        "statedYears": ["2026"],
+        "limitations": [],
+        "evidence": [
+          { "quote": 2, "topics": ["identity", "description", "location"] },
+          { "quote": 3, "topics": ["dates", "status"] },
+          { "quote": 4, "topics": ["dates", "status"] },
+          { "quote": 5, "topics": ["classification"] }
+        ]
+      }
+    }
+  ],
+  "collection": { "checks": [], "unresolved": [] },
+  "roles": {
+    "general": {
+      "decision": "targets",
+      "eventId": "size-event",
+      "observedEventName": "River Festival",
+      "reason": "The official page identifies the festival and its site in Portugal.",
+      "evidenceIds": ["s1-e1"],
+      "previousEdition": {
+        "editionKey": "historical",
+        "reason": "The October programme took place on the saved dates.",
+        "evidenceIds": ["s1-e2"],
+        "fields": {}
+      },
+      "currentOrNextEdition": {
+        "editionKey": "unknown",
+        "reason": "The official page confirms the November programme.",
+        "evidenceIds": ["s1-e3"],
+        "fields": {}
+      },
+      "checks": [],
+      "unresolved": []
+    },
+    "tickets": {
+      "currentOrNextEdition": {},
+      "checks": [],
+      "unresolved": []
+    },
+    "classification": {
+      "description": {
+        "action": "set",
+        "value": "This is an open-air music festival. Camping is part of the festival setting. The regular programme includes participant-led workshops and night-time dancing.",
+        "reason": "The official page identifies the format and the regular programme.",
+        "evidenceIds": ["s1-e1", "s1-e4"]
+      },
+      "shortDescription": {
+        "action": "set",
+        "value": "An open-air music festival with free camping for every visitor.",
+        "reason": "The official page mentions camping in the programme.",
+        "evidenceIds": ["s1-e1", "s1-e4"]
+      },
+      "previousEdition": {},
+      "currentOrNextEdition": {},
+      "checks": [],
+      "unresolved": []
+    },
+    "links": {
+      "event": { "socials": {} },
+      "currentOrNextEdition": {},
+      "omitted": [],
+      "checks": [],
+      "unresolved": []
+    }
+  }
+}
