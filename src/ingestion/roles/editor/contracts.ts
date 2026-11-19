@@ -16,8 +16,7 @@ export const reviewOutput = z.strictObject({
 export type ReviewOutput = z.infer<typeof reviewOutput>;
 export type ReviewDecision = ReviewOutput["decisions"][number];
 export type ReviewDecisions = Map<string, ReviewDecision>;
-export type ReviewPath = {
-  path: string;
-  required: boolean;
-  allowed: ReviewDecision["decision"][];
+export type ReviewScope = {
+  reviewPaths: { path: string; allowed: ReviewDecision["decision"][] }[];
+  missingGroups: string[];
 };

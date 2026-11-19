@@ -210,11 +210,13 @@ it("shares proposal and repair evidence by ID and checks saved source hashes", a
         },
       },
       prepared,
-      ["item", "event.target"].map((path) => ({
-        path,
-        required: true,
-        allowed: ["approve", "reject"],
-      })),
+      {
+        reviewPaths: ["item", "event.target"].map((path) => ({
+          path,
+          allowed: ["approve", "reject"],
+        })),
+        missingGroups: [],
+      },
       [
         { ...earlierRepair, evidence: [bound.evidence[1]] },
         { ...earlierRepair, evidence: [bound.evidence[0]] },

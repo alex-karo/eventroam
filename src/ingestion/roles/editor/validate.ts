@@ -1,19 +1,16 @@
 import { z } from "zod";
 import { validateSchema } from "../validation";
-import { reviewNote, type ReviewDecision, type ReviewPath } from "./contracts";
+import { reviewNote, type ReviewDecision, type ReviewScope } from "./contracts";
 
 type EditorReply = {
   decisions: Record<string, Omit<ReviewDecision, "path">>;
   missingReturns?: Pick<ReviewDecision, "path" | "note">[];
 };
 
-export function editorReviewContract(paths: readonly ReviewPath[]) {
-  const reviewPaths = paths
-    .filter(({ required }) => required)
-    .map(({ path, allowed }) => ({ path, allowed }));
-  const missingGroups = paths
-    .filter(({ required }) => !required)
-    .map(({ path }) => path);
+export function editorReplySchema({
+  reviewPaths,
+  missingGroups,
+}: ReviewScope): z.ZodType<EditorReply> {
   const decisions = z.strictObject(
     Object.fromEntries(
       reviewPaths.map(({ path, allowed }) => [
@@ -22,6 +19,9 @@ export function editorReviewContract(paths: readonly ReviewPath[]) {
       ]),
     ),
   );
+  if (!missingGroups.length) {
+    return z.strictObject({ decisions });
+  }
   const missingReturns = z
     .array(z.strictObject({ path: z.enum(missingGroups), note: reviewNote }))
     .superRefine((requests, ctx) => {
@@ -37,14 +37,11 @@ export function editorReviewContract(paths: readonly ReviewPath[]) {
         seen.add(path);
       }
     });
-  const schema: z.ZodType<EditorReply> = missingGroups.length
-    ? z.strictObject({ decisions, missingReturns })
-    : z.strictObject({ decisions });
-  return { reviewPaths, missingGroups, schema };
+  return z.strictObject({ decisions, missingReturns });
 }
 
 export function validateEditorReply(
-  schema: ReturnType<typeof editorReviewContract>["schema"],
+  schema: z.ZodType<EditorReply>,
   reply: unknown,
 ) {
   return validateSchema(

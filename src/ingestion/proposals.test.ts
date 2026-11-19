@@ -1,6 +1,6 @@
 import { assignedGroups } from "./groups";
-import { editorReviewContract } from "./roles/editor/validate";
-import { reviewPaths } from "./roles/editor/review";
+import { editorReplySchema } from "./roles/editor/validate";
+import { reviewScope } from "./roles/editor/review";
 import { type ReviewDecision } from "./roles/editor/contracts";
 import { fixtureReview } from "@/test/ingestion";
 import { expect, it } from "vitest";
@@ -325,13 +325,13 @@ it("Editor decisions have exact fixed keys and cannot replace values", () => {
   if (p.status !== "continue") {
     throw new Error("Rejected fixture");
   }
-  const paths = reviewPaths(
+  const input = reviewScope(
     p.value,
     assignedGroups(undefined, p.value.targets),
     new Map(),
     () => true,
   );
-  const { schema, ...input } = editorReviewContract(paths);
+  const schema = editorReplySchema(input);
   const raw = fixtureReview(input);
   const missingPath = "event.fields.links.socials.instagram";
   const missingRequest = { path: missingPath, note: "Use the cited URL." };
@@ -359,32 +359,32 @@ it("Editor decisions have exact fixed keys and cannot replace values", () => {
       },
     },
   });
-  const lastPaths = reviewPaths(
+  const lastScope = reviewScope(
     p.value,
     assignedGroups(undefined, p.value.targets),
     new Map([[classificationPath, 3]]),
     () => true,
   );
-  expect(lastPaths).toContainEqual({
+  expect(lastScope.reviewPaths).toContainEqual({
     path: classificationPath,
-    required: true,
     allowed: ["approve", "reject"],
   });
-  const fixedPaths = reviewPaths(
+  const fixedScope = reviewScope(
     p.value,
     assignedGroups(undefined, p.value.targets),
     new Map(),
     () => false,
   );
-  expect(fixedPaths.map(({ path }) => path)).toEqual(
-    paths.filter(({ required }) => required).map(({ path }) => path),
+  expect(fixedScope.reviewPaths.map(({ path }) => path)).toEqual(
+    input.reviewPaths.map(({ path }) => path),
   );
-  expect(fixedPaths.every(({ allowed }) => !allowed.includes("return"))).toBe(
-    true,
-  );
-  const fixed = editorReviewContract(fixedPaths);
-  expect(fixed.schema.safeParse(fixtureReview(fixed)).success).toBe(true);
-  expect(modelOutputSchema(fixed.schema)).toMatchObject({
+  expect(fixedScope.missingGroups).toEqual([]);
+  expect(
+    fixedScope.reviewPaths.every(({ allowed }) => !allowed.includes("return")),
+  ).toBe(true);
+  const fixedSchema = editorReplySchema(fixedScope);
+  expect(fixedSchema.safeParse(fixtureReview(fixedScope)).success).toBe(true);
+  expect(modelOutputSchema(fixedSchema)).toMatchObject({
     required: ["decisions"],
   });
   const { item, ...withoutItem } = raw.decisions;
@@ -420,20 +420,18 @@ it("Editor decisions have exact fixed keys and cannot replace values", () => {
   }
 });
 
-function approved(prepared: Parameters<typeof reviewPaths>[0]) {
-  const paths = reviewPaths(
+function approved(prepared: Parameters<typeof reviewScope>[0]) {
+  const { reviewPaths } = reviewScope(
     prepared,
     assignedGroups(undefined, prepared.targets),
     new Map(),
     () => true,
   );
   return new Map<string, ReviewDecision>(
-    paths
-      .filter(({ required }) => required)
-      .map(({ path }) => [
-        path,
-        { path, decision: "approve", note: "Explicit fixture review" },
-      ]),
+    reviewPaths.map(({ path }) => [
+      path,
+      { path, decision: "approve", note: "Explicit fixture review" },
+    ]),
   );
 }
 
@@ -467,14 +465,15 @@ it("builds concrete assignments with current exclusions", () => {
     throw new Error("Rejected fixture");
   }
   const groups = assignedGroups("current", f.targets);
-  const paths = reviewPaths(prepared.value, groups, new Map(), () => true);
-  expect(paths.some(({ path }) => path.startsWith("event.fields."))).toBe(
-    false,
-  );
-  const contract = editorReviewContract(paths);
+  const scope = reviewScope(prepared.value, groups, new Map(), () => true);
+  const paths = [
+    ...scope.reviewPaths.map(({ path }) => path),
+    ...scope.missingGroups,
+  ];
+  expect(paths.some((path) => path.startsWith("event.fields."))).toBe(false);
   expect(
-    contract.schema.safeParse({
-      ...fixtureReview(contract),
+    editorReplySchema(scope).safeParse({
+      ...fixtureReview(scope),
       missingReturns: [
         {
           path: "event.fields.links.website",

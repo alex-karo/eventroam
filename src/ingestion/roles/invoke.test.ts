@@ -6,7 +6,8 @@ import { invokeRole, type RoleConversation } from "./invoke";
 import { generalOutputSchema } from "./general/contracts";
 import { linksOutputSchema } from "./links/contracts";
 import { createResearchBudget } from "../runtime/budget";
-import { editorReviewContract, validateEditorReply } from "./editor/validate";
+import type { ReviewScope } from "./editor/contracts";
+import { editorReplySchema, validateEditorReply } from "./editor/validate";
 afterEach(() => vi.unstubAllGlobals());
 
 it.each([
@@ -25,10 +26,11 @@ it.each([
 ])(
   "validates the Editor correction after native tool use ($status)",
   async ({ first, feedback, decision, status }) => {
-    const paths = [
-      { path: "item", required: true, allowed: ["approve" as const] },
-    ];
-    const { schema, ...input } = editorReviewContract(paths);
+    const input: ReviewScope = {
+      reviewPaths: [{ path: "item", allowed: ["approve"] }],
+      missingGroups: [],
+    };
+    const schema = editorReplySchema(input);
     const corrected = {
       decisions: { item: { decision, note: "The source confirms this." } },
     };

@@ -26,7 +26,7 @@ import {
   type SpecialistOutputs,
 } from "./proposals";
 import { assignedGroups, type ProposalGroup } from "./groups";
-import { reviewPaths, reviewReturns } from "./roles/editor/review";
+import { reviewScope, reviewReturns } from "./roles/editor/review";
 import type { ReviewDecisions } from "./roles/editor/contracts";
 import { repairDiagnostic } from "./repairs";
 import { prepareCatalogPlan } from "./catalog-plan";
@@ -841,11 +841,12 @@ export function createCatalogIngestionWorkflow(
           runEditor(
             roleOptions(owned, data, signal),
             prepared,
-            reviewPaths(
+            reviewScope(
               prepared,
-              (targetedGroups ?? groups).filter(
-                ({ path }) => review.get(path)?.decision !== "reject",
-              ),
+              targetedGroups ??
+                groups.filter(
+                  ({ path }) => review.get(path)?.decision !== "reject",
+                ),
               owned.repairs.returnCounts,
               (owner) => owned.repairs.canReturn(owner),
               !!targetedGroups,
