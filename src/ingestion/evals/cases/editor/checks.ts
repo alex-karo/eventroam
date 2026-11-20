@@ -102,22 +102,22 @@ export const checks = {
     const { report, changes } = context;
     return [
       check(
-        "catalog.edition.source-row.venue_address.set.1",
+        "catalog.edition.source-row.venue_address.set",
         changes.edition(
           { key: "source-row" },
           "venue_address",
-          (value) => value === null,
+          (value) => value === "Darupvej 19",
         ),
-        "Set source-row venue address by clearing it",
+        "Replace the saved office address with Darupvej 19",
       ),
       check(
         "catalog.edition.source-row.country_code.preserve.1",
         !changes.edition(
           { key: "source-row" },
           "country_code",
-          (value) => value !== "DK" && value != null,
+          (value) => value !== "DK",
         ),
-        'Keep source-row country equal to "DK" when supplied',
+        "Preserve the saved country code DK",
       ),
       ...researchDidNotFail(report),
     ];

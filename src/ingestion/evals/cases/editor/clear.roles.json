@@ -1,6 +1,6 @@
 {
   "schemaVersion": 7,
-  "provenance": "Captured editor-clear research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract; Event link finding removed for current scope. Adapted to fixed domain roles. Fixed Reader selections use source-backed artifacts from the standard-tier 2026-11-02 run. Some excerpts extend to source segment boundaries. Captures: 6573f83d-d4a9-4865-af49-73b3f5c1b160:s1, 6573f83d-d4a9-4865-af49-73b3f5c1b160:s4. Collection reads only the fixed pages. Captured proposals have explicit citations and retain their unchecked findings; they make no new claim of complete research. No model is called for Research, Reader or the captured specialists. Editor and eligible Location still run. Legacy retrieval-gap wording was changed to describe the fixed input coverage; no new retrieval failure is asserted. Page-coverage lists are empty because these fixed inputs test Editor, not Research navigation.",
+  "provenance": "Captured editor-clear research from openspec/changes/ingestion-editor/evaluation/final-full-rerun.json; openai/gpt-6-luna, editor-findings-v1; 2026-10-11T23:36:14.179Z; classification migrated to editor-findings-v2 complete-list contract; Event link finding removed for current scope. Adapted to fixed domain roles. The homepage selections use capture 6573f83d-d4a9-4865-af49-73b3f5c1b160:s1. The full contact page from the Roskilde case supplies the office and festival address passages. The fixed Location reply uses both passages. Only Editor calls a model.",
   "pages": [
     {
       "url": "https://www.roskilde-festival.dk/",
@@ -66,41 +66,44 @@
       "url": "https://www.roskilde-festival.dk/kontakt",
       "sourceId": "s2",
       "reader": {
-        "overview": "The contact page identifies Roskilde Festival and links to its 2027 dates, ticket and programme pages, but provides no festival details about tickets, programme, or venue. The captured page ends after the office address.",
+        "overview": "The contact page identifies Roskilde Festival, links to the 2027 festival and gives separate office and festival addresses.",
         "topics": ["identity", "dates", "location", "links"],
         "statedYears": ["2027"],
         "limitations": [
-          "The source is a contact page, not a festival information page; it does not state admission offers, ticket prices, programme details, or festival grounds.",
-          "The captured page is cut off after the office address."
+          "The contact page gives links to ticket and programme information."
         ],
         "evidence": [
           {
-            "quote": 4,
+            "quote": 9,
             "topics": ["dates", "links"]
           },
           {
             "quote": {
-              "start": 16,
-              "end": 17
+              "start": 28,
+              "end": 29
             },
             "topics": ["identity", "description"]
           },
           {
             "quote": {
-              "start": 8,
-              "end": 9
+              "start": 14,
+              "end": 15
             },
             "topics": ["links"]
           },
           {
             "quote": {
-              "start": 29,
-              "end": 32
+              "start": 41,
+              "end": 44
             },
-            "topics": ["location"],
-            "context": [],
-            "editionClues": [],
-            "uncertainty": "This is the secretariat office address, not stated as the festival venue."
+            "topics": ["location"]
+          },
+          {
+            "quote": {
+              "start": 45,
+              "end": 49
+            },
+            "topics": ["location"]
           }
         ],
         "coverage": {
@@ -159,11 +162,6 @@
           "field": "tickets"
         },
         {
-          "message": "The fixed contact page identifies the saved address as a secretariat office. The fixed inputs do not establish the actual 2027 festival venue or address.",
-          "editionKey": "source-row",
-          "field": "venueName"
-        },
-        {
           "message": "The fixed inputs provide no detailed 2027 programme for a full classification check.",
           "editionKey": "source-row",
           "field": "classification"
@@ -209,6 +207,44 @@
       "omitted": [],
       "checks": [],
       "unresolved": []
+    },
+    "location": {
+      "decision": {
+        "status": "ready",
+        "previousEdition": null,
+        "currentOrNextEdition": {
+          "fields": {
+            "venueName": {
+              "action": "keep",
+              "reason": "The contact page identifies the site by its address."
+            },
+            "venueAddress": {
+              "action": "set",
+              "value": "Darupvej 19",
+              "reason": "The page lists the saved address for the office. It lists Darupvej 19 for the festival."
+            },
+            "locality": {
+              "action": "set",
+              "value": "Roskilde",
+              "reason": "The festival address lists 4000 Roskilde."
+            },
+            "administrativeArea": {
+              "action": "keep",
+              "reason": "The contact page gives the street address and locality."
+            },
+            "countryCode": {
+              "action": "keep",
+              "reason": "The saved Edition is in Denmark."
+            }
+          },
+          "evidenceIds": ["s2-e4", "s2-e5"],
+          "coordinates": {
+            "action": "keep",
+            "reason": "The contact page gives address text."
+          },
+          "unresolved": []
+        }
+      }
     }
   }
 }

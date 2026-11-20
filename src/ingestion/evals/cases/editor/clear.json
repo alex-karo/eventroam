@@ -2,7 +2,7 @@
   "id": "editor-clear",
   "suite": "regression",
   "origin": "synthetic",
-  "task": "Check editor clear",
+  "task": "Replace a saved office address with the festival address",
   "input": {
     "mode": "refresh",
     "eventId": "event:87b1f34093d76b709011",
@@ -52,16 +52,15 @@
     {
       "attemptedUrl": "https://www.roskilde-festival.dk/kontakt",
       "finalUrl": "https://www.roskilde-festival.dk/kontakt",
-      "retrievedAt": "2026-10-04T00:50:16.361Z",
+      "retrievedAt": "2026-10-30T01:31:56.361Z",
       "method": "http",
       "status": "ok",
-      "markdownFile": "office-partial.md",
-      "reasonCode": "Captured contact page cut off after the office address"
+      "markdownFile": "../roskilde/contact.md"
     }
   ],
   "provenance": {
     "kind": "captured-source-editor-regression",
-    "note": "Reuses captured pages with controlled saved catalog state. Unavailable injects retrieval failure; clear truncates captured contact text to its office section. Editor input now uses fixed source-backed Reader passages and explicit proposal citations. Research and Reader do not call a model."
+    "note": "This case uses captured Roskilde pages and a saved office address. A fixed Location reply proposes the festival address and cites the two address passages separately."
   },
   "roleHandoffFile": "clear.roles.json"
 }
