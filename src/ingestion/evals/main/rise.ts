@@ -67,13 +67,15 @@ function supportedOffer(offer: Edition["priceDetails"][number]) {
           /\blift[ -]pass\b/i.test(details);
   }
   // faq.md announces a music-only day ticket without a price.
+  const hasPriceInDetails =
+    /[$£€]\s*\d|\b(?:USD|EUR|GBP)\s*\d|\d\s*(?:USD|EUR|GBP)\b/i.test(details);
   return (
     amount == null &&
     currency == null &&
     /\bday ticket\b/i.test(label) &&
     (offer.availability ?? "unknown") === "unknown" &&
     /\bmusic[ -]only\b/i.test(details) &&
-    !/[$£€]\s*\d/.test(details)
+    !hasPriceInDetails
   );
 }
 
