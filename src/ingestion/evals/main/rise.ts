@@ -73,7 +73,7 @@ function supportedOffer(offer: Edition["priceDetails"][number]) {
     /\bday ticket\b/i.test(label) &&
     (offer.availability ?? "unknown") === "unknown" &&
     /\bmusic[ -]only\b/i.test(details) &&
-    !/[$£€]\s*\d/.test(terms ?? "")
+    !/[$£€]\s*\d/.test(details)
   );
 }
 
