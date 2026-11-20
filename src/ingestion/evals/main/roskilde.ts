@@ -60,7 +60,11 @@ export function roskilde(context: MainContext) {
     correctness: [
       // news.md confirms the completed 2026 music festival.
       savedEditions(context.original, event, {
-        termIds: ["validation:festival", "validation:music"],
+        termIds: [
+          "validation:festival",
+          "validation:music",
+          "validation:openair",
+        ],
         publicationState: "published",
         locality: "Roskilde",
         latitude: 55.64152,
@@ -71,6 +75,7 @@ export function roskilde(context: MainContext) {
       classification(next, [
         "catalog:term:genre:electronic",
         "catalog:term:genre:metal",
+        "validation:openair",
       ]),
       ...offerChecks(
         next,

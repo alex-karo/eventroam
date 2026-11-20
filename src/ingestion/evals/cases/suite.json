@@ -86,6 +86,7 @@
     "editor/clear.json",
     "editor/unavailable.json",
     "editor/valid-update.json",
+    "size-history/editor.json",
     "size-evidence/case.json",
     "size-history/case.json",
     "size-history/announced-move.json",

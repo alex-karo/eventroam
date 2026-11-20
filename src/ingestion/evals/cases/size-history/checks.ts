@@ -8,12 +8,22 @@ import {
   selectedEditionDates,
 } from "../../research";
 
+function changedDescriptions({ item, report }: RegressionContext) {
+  const changes = report.changes.filter(
+    ({ subject }) => subject === item.initial.event.id,
+  );
+  return ["description", "short_description"].map((field) => {
+    const value = changes.find((change) => change.field === field)?.newValue;
+    return typeof value === "string" ? value.trim() : "";
+  });
+}
+
 function descriptionChecks(
-  { report, data, changes }: RegressionContext,
+  { report }: RegressionContext,
+  texts: string[],
   expected: RegExp,
   excluded: RegExp,
 ) {
-  const texts = [data?.description?.value, data?.shortDescription?.value];
   const withoutEditionDetails =
     /7[, .]?500|202[56]|volunteers?|tickets?|prices?|has (included|featured|offered)|previously/i;
   return [
@@ -26,19 +36,11 @@ function descriptionChecks(
           !excluded.test(text) &&
           !withoutEditionDetails.test(text),
       ) && expected.test(texts.join(" ")),
-      "Propose two current descriptions without historical attendance or Edition details",
+      "Save two current descriptions without historical attendance or Edition details",
     ),
     check(
       "catalog.descriptions.editor",
-      report.editorStatus === "success" &&
-        changes.event(
-          "description",
-          (value) => typeof value === "string" && value === texts[0]?.trim(),
-        ) &&
-        changes.event(
-          "short_description",
-          (value) => typeof value === "string" && value === texts[1]?.trim(),
-        ),
+      report.editorStatus === "success" && texts.every(Boolean),
       "Editor approves both descriptions for the catalog",
     ),
   ];
@@ -51,6 +53,7 @@ export const checks = {
     return [
       ...descriptionChecks(
         context,
+        changedDescriptions(context),
         /workshops?|camping|danc/i,
         /free camping|nonstop|non-stop/i,
       ),
@@ -125,15 +128,13 @@ export const checks = {
     ];
   },
   "description-announced-move": (context) => {
-    const { data } = context;
+    const texts = changedDescriptions(context);
     const urban = /urban|city|square/i;
     return [
-      ...descriptionChecks(context, urban, /forest|camping|jazz/i),
+      ...descriptionChecks(context, texts, urban, /forest|camping|jazz/i),
       check(
         "research.descriptions.announcedMove",
-        [data?.description?.value, data?.shortDescription?.value].every(
-          (text) => text && urban.test(text),
-        ),
+        texts.every((text) => urban.test(text)),
         "Both descriptions use the announced urban setting",
       ),
     ];

@@ -8,7 +8,7 @@ import {
   type ReturnRequest,
 } from "../../groups";
 import { editionSlotNames } from "../../research/contracts";
-import type { ReviewDecisions, ReviewPath } from "./contracts";
+import type { ReviewDecisions, ReviewScope } from "./contracts";
 
 export function groupProposal(
   prepared: PreparedProposals,
@@ -19,25 +19,26 @@ export function groupProposal(
     : atPath(prepared.plan, group.path);
 }
 
-export function reviewPaths(
+export function reviewScope(
   prepared: PreparedProposals,
   groups: readonly ProposalGroup[],
   returnCounts: ReadonlyMap<string, number>,
   canReturn: (owner: GroupOwner) => boolean,
   targeted = false,
-): ReviewPath[] {
-  const choices: ReviewPath[] = [];
-  const add = (
-    path: string,
-    required: boolean,
-    allowed: ReviewPath["allowed"],
-  ) => choices.push({ path, required, allowed });
+): ReviewScope {
+  const reviewPaths: ReviewScope["reviewPaths"] = [];
+  const missingGroups: string[] = [];
   if (!targeted) {
-    add("item", true, ["approve", "reject"]);
-    add("event.target", true, ["approve", "reject"]);
+    reviewPaths.push(
+      { path: "item", allowed: ["approve", "reject"] },
+      { path: "event.target", allowed: ["approve", "reject"] },
+    );
     for (const slot of editionSlotNames) {
       if (prepared.plan[slot]) {
-        add(`${slot}.target`, true, ["approve", "reject"]);
+        reviewPaths.push({
+          path: `${slot}.target`,
+          allowed: ["approve", "reject"],
+        });
       }
     }
   }
@@ -47,20 +48,16 @@ export function reviewPaths(
     const required =
       targeted || count > 0 || groupProposal(prepared, group) !== undefined;
     const canReturnGroup = count < MAX_GROUP_RETURNS && canReturn(owner);
-    const allowed: ReviewPath["allowed"] = [];
     if (required) {
-      allowed.push("approve");
-    }
-    if (canReturnGroup) {
-      allowed.push("return");
-    } else if (required) {
-      allowed.push("reject");
-    }
-    if (allowed.length) {
-      add(path, required, allowed);
+      reviewPaths.push({
+        path,
+        allowed: ["approve", canReturnGroup ? "return" : "reject"],
+      });
+    } else if (canReturnGroup) {
+      missingGroups.push(path);
     }
   }
-  return choices;
+  return { reviewPaths, missingGroups };
 }
 export function rejectedItem(review: ReviewDecisions) {
   return [review.get("item"), review.get("event.target")].find(

@@ -6,6 +6,7 @@ import {
   finalizeIngestionRun,
   storedRunInput,
   RunPersistenceError,
+  validateRunInvocation,
 } from "./runs";
 import {
   fixtureDependencies,
@@ -17,6 +18,22 @@ const settings = storedRunInput(
   { apiKey: "secret", model: "fixture", limits: DEFAULT_RESEARCH_LIMITS },
   DEFAULT_RESEARCH_LIMITS,
 );
+
+test("run validation keeps the Codex proxy URL", () => {
+  const { client } = testDatabase();
+  const codexProxyUrl = "http://127.0.0.1:8317/v1";
+  const { config } = validateRunInvocation(
+    client,
+    { mode: "add", input: "Test", actor: "owner" },
+    {
+      apiKey: "test",
+      model: "codex/gpt-6-luna",
+      codexProxyUrl,
+      limits: DEFAULT_RESEARCH_LIMITS,
+    },
+  );
+  expect(config.codexProxyUrl).toBe(codexProxyUrl);
+});
 
 test("fresh storage has 10 columns, no Event foreign key and accepts future mode names", () => {
   const { client } = testDatabase();

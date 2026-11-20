@@ -4,22 +4,22 @@ import type { ProposalGroup } from "../../groups";
 import type { PreparedProposals } from "../../proposals";
 import type { RepairRecord } from "../../repairs";
 import { buildAssignment } from "../assignment";
-import { invokeRole } from "../invoke";
+import { invokeRole, type RoleExecution } from "../invoke";
 import { roleInvocationOptions, type RoleOptions } from "../options";
 import { replyReferences } from "../proposal-validation";
 import { PROMPT_VERSIONS } from "../versions";
-import type { ReviewPath } from "./contracts";
+import type { ReviewOutput, ReviewScope } from "./contracts";
 import { editorInstructions } from "./prompt";
 import { groupProposal } from "./review";
-import { reviewSchema, validateEditorReply } from "./validate";
+import { editorReplySchema, validateEditorReply } from "./validate";
 
 export async function runEditor(
   options: RoleOptions,
   prepared: PreparedProposals,
-  paths: ReviewPath[],
+  scope: ReviewScope,
   repairs: RepairRecord[],
   targetedGroups?: readonly ProposalGroup[],
-) {
+): Promise<RoleExecution<ReviewOutput>> {
   const { sourceFiles, tools } = await savedPages(
     options.corpus,
     options.signal,
@@ -48,11 +48,11 @@ export async function runEditor(
     });
   }
   const evidence = options.corpus.evidence.filter(({ id }) => cited.has(id));
-  const schema = reviewSchema(paths);
+  const schema = editorReplySchema(scope);
   const needsVocabulary =
     !targetedGroups ||
     targetedGroups.some(({ owner }) => owner === "classification");
-  return invokeRole({
+  const { output: reply, ...execution } = await invokeRole({
     ...roleInvocationOptions(options, "editor"),
     role: "editor",
     version: PROMPT_VERSIONS.editor,
@@ -65,7 +65,7 @@ export async function runEditor(
       currentDate: options.context.currentDate,
       permissions: buildAssignment(options.input, options.context).permissions,
       sourceFiles,
-      reviewPaths: paths,
+      ...scope,
       repairs: repairs.map(({ evidence, ...repair }) => ({
         ...repair,
         ...(evidence && { evidenceIds: evidence.map(({ id }) => id) }),
@@ -102,4 +102,27 @@ export async function runEditor(
     tools,
     steps: 6,
   });
+  if (!reply) {
+    return execution;
+  }
+  const output: ReviewOutput = {
+    decisions: [
+      ...Object.entries(reply.decisions).map(([path, decision]) => ({
+        path,
+        ...decision,
+      })),
+      ...(reply.missingReturns ?? []).map((request) => ({
+        ...request,
+        decision: "return" as const,
+      })),
+    ],
+  };
+  return {
+    ...execution,
+    output,
+    modelResponse: {
+      text: execution.modelResponse?.text ?? null,
+      object: output,
+    },
+  };
 }

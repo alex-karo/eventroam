@@ -7,6 +7,8 @@ import { generalOutputSchema } from "../roles/general/contracts";
 import { ticketsOutputSchema } from "../roles/tickets/contracts";
 import { classificationReplySchema } from "../roles/classification/contracts";
 import { linksOutputSchema } from "../roles/links/contracts";
+import { locationOutputSchema } from "../roles/location/contracts";
+import { locationEvidenceTopics } from "../roles/location/input";
 import { readerSelectionSchema } from "../roles/reader/contracts";
 import type { ResearchDependencies } from "../contracts";
 import type { PipelineEvalCase } from "./fixtures";
@@ -29,8 +31,14 @@ export const roleHandoffSchema = z.strictObject({
     tickets: ticketsOutputSchema.optional(),
     classification: classificationReplySchema.optional(),
     links: linksOutputSchema.optional(),
+    location: locationOutputSchema.optional(),
   }),
 });
+
+const fixtureEvidenceTopics = {
+  ...roleEvidenceTopics,
+  location: locationEvidenceTopics,
+};
 
 /** Check fixed citations before the CLI starts any model calls. */
 export function assertEditorFixture(item: PipelineEvalCase) {
@@ -88,22 +96,26 @@ export function assertEditorFixture(item: PipelineEvalCase) {
     }
   }
   for (const role of Object.keys(
-    roleEvidenceTopics,
-  ) as (keyof typeof roleEvidenceTopics)[]) {
-    if (fixture.roles.general?.decision === "targets" && !fixture.roles[role]) {
+    fixtureEvidenceTopics,
+  ) as (keyof typeof fixtureEvidenceTopics)[]) {
+    const reply = fixture.roles[role];
+    if (role === "location" && !reply) {
+      continue;
+    }
+    if (fixture.roles.general?.decision === "targets" && !reply) {
       throw new Error(`${item.id}: missing fixed ${role} input`);
     }
     const topics: readonly string[] =
       role === "classification" && item.input.scope !== "current"
         ? [...roleEvidenceTopics.classification, "location"]
-        : roleEvidenceTopics[role];
+        : fixtureEvidenceTopics[role];
     const allowed = new Set(
       evidence
         .filter((item) => item.topics.some((topic) => topics.includes(topic)))
         .map((item) => item.id),
     );
     if (
-      replyReferences(fixture.roles[role], "evidenceIds").some(
+      replyReferences(reply, "evidenceIds").some(
         (id) => typeof id !== "string" || !allowed.has(id),
       )
     ) {

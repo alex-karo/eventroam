@@ -58,6 +58,13 @@ export const locationInputSchema = z.strictObject({
 });
 export type LocationInput = z.infer<typeof locationInputSchema>;
 export type LocationTarget = z.infer<typeof targetSchema>;
+export const locationEvidenceTopics = [
+  "location",
+  "description",
+  "dates",
+  "identity",
+] as const;
+
 export function buildLocationInput(
   targets: Targets,
   corpus: FrozenCorpus,
@@ -71,12 +78,7 @@ export function buildLocationInput(
     event?.editions.map((edition) =>
       savedLocationSchema.strip().parse(edition),
     ) ?? [];
-  const packet = evidencePacket(corpus, [
-    "location",
-    "description",
-    "dates",
-    "identity",
-  ]);
+  const packet = evidencePacket(corpus, locationEvidenceTopics);
   const result: LocationInput = {
     festival: {
       name: targets.observedEventName,

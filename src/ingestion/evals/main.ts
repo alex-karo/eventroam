@@ -25,7 +25,7 @@ const descriptionReferences = new Map<string, string>([
   // glastonbury/areas.md lists music stages, theatre, and circus.
   [
     "glastonbury",
-    "A music and performing arts festival with many stages and areas.",
+    "A festival whose main programme combines live music and performing arts such as theatre and circus. Stages and festival areas are examples of how the programme is presented.",
   ],
   // rise/stages.md and rise/location.md describe electronic music at a ski resort.
   [

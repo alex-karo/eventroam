@@ -1,10 +1,7 @@
 import { Mastra } from "@mastra/core/mastra";
 import { createWorkflowStorage } from "@/ingestion/runtime/workflow-storage";
 import { trackFixtureWorkflowStore } from "./workflow-stores";
-import type {
-  ReviewPath,
-  ReviewDecision,
-} from "@/ingestion/roles/editor/contracts";
+import type { ReviewDecision } from "@/ingestion/roles/editor/contracts";
 import { locationTextFields } from "@/ingestion/roles/location/contracts";
 import type { LocationInput } from "@/ingestion/roles/location/input";
 import type {
@@ -88,17 +85,33 @@ export async function fixtureTool(
   };
   return tool.execute(args, {});
 }
-export function approveFixtureReview(paths: ReviewPath[]): {
-  decisions: ReviewDecision[];
-} {
+export function fixtureReview(
+  {
+    reviewPaths,
+    missingGroups = [],
+  }: { reviewPaths: { path: string }[]; missingGroups?: string[] },
+  ...overrides: ReviewDecision[]
+) {
+  const decisions: Record<
+    string,
+    Omit<ReviewDecision, "path">
+  > = Object.fromEntries(
+    reviewPaths.map(({ path }) => [
+      path,
+      { decision: "approve", note: "Explicit fixture review" },
+    ]),
+  );
+  const missingReturns = [];
+  for (const { path, decision, note } of overrides) {
+    if (missingGroups.includes(path)) {
+      missingReturns.push({ path, note });
+    } else {
+      decisions[path] = { decision, note };
+    }
+  }
   return {
-    decisions: paths
-      .filter(({ required }) => required)
-      .map(({ path }) => ({
-        path,
-        decision: "approve",
-        note: "Explicit fixture review",
-      })),
+    decisions,
+    ...(missingGroups.length ? { missingReturns } : {}),
   };
 }
 
@@ -155,7 +168,7 @@ export function fixtureRoleGenerator(
       return result;
     }
     if (role === "editor") {
-      return approveFixtureReview(data.reviewPaths);
+      return fixtureReview(data);
     }
     const checks = fixtureChecks(data.assignedChecks ?? []);
     if (role === "tickets") {

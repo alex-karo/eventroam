@@ -383,6 +383,7 @@ async function executeCase(
   }
   const connection = seedDatabase(suite, item);
   const workflowStorage = createWorkflowStorage({ path: ":memory:" });
+  const fixedLocation = item.roleHandoff?.roles.location;
   try {
     const before =
       item.suite === "main"
@@ -403,6 +404,9 @@ async function executeCase(
           ...fixedSources(item, item.todayUtc ?? suite.todayUtc, calls),
           readSource: fixedReader(item),
           generateRoles: editorFixtureRoles(item),
+          generateLocation: fixedLocation
+            ? async () => structuredClone(fixedLocation)
+            : undefined,
         },
       );
     } catch (error) {

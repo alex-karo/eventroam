@@ -1,49 +1,53 @@
+import { z } from "zod";
 import { validateSchema } from "../validation";
-import { reviewOutput, type ReviewPath } from "./contracts";
+import { reviewNote, type ReviewDecision, type ReviewScope } from "./contracts";
 
-export function reviewSchema(paths: ReviewPath[]) {
-  const byPath = new Map(paths.map((entry) => [entry.path, entry]));
-  return reviewOutput.superRefine(({ decisions }, ctx) => {
-    const seen = new Set<string>();
-    for (const [index, { path, decision }] of decisions.entries()) {
-      const allowed = byPath.get(path)?.allowed;
-      if (!allowed || seen.has(path)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["decisions", index, "path"],
-          message: allowed
-            ? `Keep only one decision for ${path}.`
-            : `Remove ${path}. Use only the supplied review paths.`,
-        });
-      } else if (!allowed.includes(decision)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["decisions", index, "decision"],
-          message: `Use an allowed decision for ${path}. Choose ${allowed.join(" or ")}.`,
-        });
+type EditorReply = {
+  decisions: Record<string, Omit<ReviewDecision, "path">>;
+  missingReturns?: Pick<ReviewDecision, "path" | "note">[];
+};
+
+export function editorReplySchema({
+  reviewPaths,
+  missingGroups,
+}: ReviewScope): z.ZodType<EditorReply> {
+  const decisions = z.strictObject(
+    Object.fromEntries(
+      reviewPaths.map(({ path, allowed }) => [
+        path,
+        z.strictObject({ decision: z.enum(allowed), note: reviewNote }),
+      ]),
+    ),
+  );
+  if (!missingGroups.length) {
+    return z.strictObject({ decisions });
+  }
+  const missingReturns = z
+    .array(z.strictObject({ path: z.enum(missingGroups), note: reviewNote }))
+    .superRefine((requests, ctx) => {
+      const seen = new Set<string>();
+      for (const [index, { path }] of requests.entries()) {
+        if (seen.has(path)) {
+          ctx.addIssue({
+            code: "custom",
+            path: [index, "path"],
+            message: `Keep only one request for ${path}.`,
+          });
+        }
+        seen.add(path);
       }
-      seen.add(path);
-    }
-    for (const entry of paths) {
-      if (entry.required && !seen.has(entry.path)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["decisions"],
-          message: `Add the required decision for ${entry.path}. Choose ${entry.allowed.join(" or ")}.`,
-        });
-      }
-    }
-  });
+    });
+  return z.strictObject({ decisions, missingReturns });
 }
 
 export function validateEditorReply(
-  schema: ReturnType<typeof reviewSchema>,
+  schema: z.ZodType<EditorReply>,
   reply: unknown,
 ) {
   return validateSchema(
     schema,
     reply,
     "editor",
-    "Correct the listed errors. Return the complete decision list for the same review paths. Use the supplied evidence and any saved-page results from this review.",
+    "Correct the listed errors. Return the complete reply for the same review paths and missing groups. Use the supplied evidence and saved-page results from this review.",
   );
 }

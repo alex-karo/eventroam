@@ -6,11 +6,12 @@ import { readResearchCatalog } from "@/catalog/read/research";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import {
-  approveFixtureReview,
+  fixtureReview as review,
   createFixtureIngestionWorkflow,
   fixtureChecks,
   fixtureDependencies,
   fixtureLocationPlan,
+  fixtureRoleGenerator,
   fixtureTargets,
   runFixtureResearch,
   set,
@@ -28,7 +29,7 @@ import { topics } from "./evidence/contracts";
 import { segmentPage, type SegmentSelection } from "./evidence/segments";
 import type { LocationInput } from "./roles/location/input";
 import type { LocationOutput } from "./roles/location/contracts";
-import type { ReviewDecision, ReviewPath } from "./roles/editor/contracts";
+import type { ReviewDecision } from "./roles/editor/contracts";
 import { ProposalRepairs } from "./repairs";
 import type { GenerateRole, Role } from "./roles/invoke";
 import { DEFAULT_RESEARCH_LIMITS } from "./runtime/budget";
@@ -46,21 +47,6 @@ function reply(body: ProviderRequest, value: unknown) {
       modelWireFixture(value, body.response_format.json_schema.schema),
     ),
   );
-}
-
-function review(
-  prompt: { reviewPaths: ReviewPath[] },
-  ...overrides: ReviewDecision[]
-) {
-  const overridden = new Set(overrides.map(({ path }) => path));
-  return {
-    decisions: [
-      ...approveFixtureReview(prompt.reviewPaths).decisions.filter(
-        ({ path }) => !overridden.has(path),
-      ),
-      ...overrides,
-    ],
-  };
 }
 
 function editorReply(
@@ -258,7 +244,6 @@ it("repairs Wacken tickets before the first Editor review", async () => {
     expect(requests).toHaveLength(2);
     expect(prompt.reviewPaths).toContainEqual({
       path: ticketsPath,
-      required: true,
       allowed: ["approve", "return"],
     });
     expect(prompt.repairs).toMatchObject([
@@ -330,10 +315,10 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
     expect(prompt.reviewPaths).toEqual([
       {
         path: ticketsPath,
-        required: true,
         allowed: ["approve", "return"],
       },
     ]);
+    expect(prompt.missingGroups).toEqual([]);
     expect(prompt.prepared).not.toHaveProperty("plan");
     expect(prompt).not.toHaveProperty("vocabulary");
     expect(prompt.repairs[0].note).toBe(note);
@@ -458,7 +443,7 @@ it.each(["approve", "reject"] as const)(
         });
       }
       expect(prompt.reviewPaths).toEqual([
-        { path: ticketsPath, required: true, allowed: ["approve", "reject"] },
+        { path: ticketsPath, allowed: ["approve", "reject"] },
       ]);
       expect(prompt.returnedGroups).toEqual([
         { path: ticketsPath, proposal: revision },
@@ -513,7 +498,13 @@ it.each(["approve", "reject"] as const)(
   },
 );
 
-it.each(["correct", "withdraw"] as const)(
+it.each([
+  "correct",
+  "withdraw",
+  "unfinished",
+  "other questions",
+  "blocked",
+] as const)(
   "returns the first disputed classification and accepts its %s reply",
   async (kind) => {
     const f = fixture(
@@ -522,25 +513,26 @@ it.each(["correct", "withdraw"] as const)(
     const terms = f.f.festivalTerms();
     const path = "currentOrNextEdition.fields.classification";
     const reason = "There is no supported replacement classification.";
+    const otherQuestions = [
+      { field: path, editionKey: "2026", message: reason },
+      { field: path, message: "Which of the remaining terms applies?" },
+    ];
+    const withdraw = kind !== "correct";
+    const defaults = fixtureRoleGenerator();
     const editor = editorReply((prompt, index) => {
       if (!index) {
         expect(prompt.reviewPaths).toContainEqual({
           path,
-          required: true,
           allowed: ["approve", "return"],
         });
-        expect(prompt.reviewPaths).toContainEqual({
-          path: "event.fields.description",
-          required: false,
-          allowed: ["return"],
-        });
+        expect(prompt.missingGroups).toContain("event.fields.description");
         return review(prompt, {
           path,
           decision: "return",
           note: "Remove the unsupported setting. Keep the supported festival and music terms, or withdraw the group if unsupported.",
         });
       }
-      if (kind === "withdraw") {
+      if (withdraw) {
         expect(prompt.returnedGroups).toEqual([{ path, proposal: null }]);
         expect(prompt.repairs[0].omissionReason).toBe(reason);
       }
@@ -552,7 +544,7 @@ it.each(["correct", "withdraw"] as const)(
         reply(body, {
           previousEdition: null,
           currentOrNextEdition:
-            index && kind === "withdraw"
+            index && withdraw
               ? {}
               : {
                   classification: set({
@@ -561,34 +553,114 @@ it.each(["correct", "withdraw"] as const)(
                     ...(index ? {} : { format: "openair" }),
                   }),
                 },
-          checks: fixtureChecks(["description", "currentClassification"]),
+          checks: [
+            ...fixtureChecks(["description"]),
+            ...fixtureChecks(
+              ["currentClassification"],
+              kind === "unfinished" ? "unfinished" : "verified",
+            ),
+          ],
           unresolved:
-            index && kind === "withdraw"
-              ? [{ field: path, message: reason }]
+            index && withdraw
+              ? [
+                  { field: path, message: reason },
+                  ...(kind === "other questions" ? otherQuestions : []),
+                ]
               : [],
         }),
-      { editor },
+      {
+        editor,
+        ...(kind === "blocked" && {
+          research: (async (role, prompt, call) => {
+            const result = (await defaults(role, prompt, call)) as {
+              checks: { blocker: string | null }[];
+            };
+            result.checks[0].blocker = "An additional source is unavailable.";
+            return result;
+          }) satisfies GenerateRole,
+        }),
+      },
     );
     const result = await run();
     expect(result.errors).toEqual([]);
     expect(requests).toHaveLength(2);
     expect(editor).toHaveBeenCalledTimes(2);
     expect(result.repairs).toMatchObject([
-      { path, decision: { decision: "approve" } },
+      {
+        path,
+        decision: { decision: "approve" },
+        ...(withdraw && { omissionReason: reason }),
+      },
     ]);
+    expect(result.researchStatus).toBe(
+      kind === "correct" || kind === "withdraw" ? "success" : "partial",
+    );
+    expect(result.unresolved).not.toContainEqual({
+      field: path,
+      message: reason,
+    });
+    if (kind === "other questions") {
+      expect(result.unresolved).toEqual(expect.arrayContaining(otherQuestions));
+    }
     expect(
       f
         .saved()
         .editions[0].terms.map(({ id }) => id)
         .sort(),
     ).toEqual(
-      kind === "withdraw"
+      withdraw
         ? []
         : terms
             .filter(({ facet }) => facet !== "format")
             .map(({ id }) => id)
             .sort(),
     );
+  },
+);
+
+it.each(["approve", "withdraw"] as const)(
+  "saves only the reviewed description result after %s",
+  async (result) => {
+    const f = fixture("Example Fest is a music festival with dance workshops.");
+    const path = "event.fields.description";
+    const original = "Every visitor gets free camping.";
+    const revised = "This music festival hosts dance workshops.";
+    const reason = "Withdraw the disputed text.";
+    const editor = editorReply((prompt, index) =>
+      index
+        ? review(prompt)
+        : review(prompt, {
+            path,
+            decision: "return",
+            note: "Remove the free camping promise.",
+          }),
+    );
+    const { run } = f.model(
+      "classification",
+      (body, index) =>
+        reply(body, {
+          previousEdition: null,
+          currentOrNextEdition: {},
+          checks: fixtureChecks(["description", "currentClassification"]),
+          unresolved:
+            index && result === "withdraw"
+              ? [{ field: path, message: reason }]
+              : [],
+          ...((!index || result === "approve") && {
+            description: set(index ? revised : original),
+          }),
+        }),
+      { editor },
+    );
+    const report = await run();
+    expect(report.errors).toEqual([]);
+    expect(report.classificationResponse?.object).toMatchObject({
+      description: { value: original },
+    });
+    expect(f.saved().description).toBe(result === "approve" ? revised : null);
+    expect(
+      report.changes.filter(({ field }) => field === "description"),
+    ).toMatchObject(result === "approve" ? [{ newValue: revised }] : []);
   },
 );
 
@@ -619,6 +691,9 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
     const before = f.saved();
     const editor = editorReply((prompt, index) => {
       if (!index) {
+        if (kind === "new") {
+          expect(prompt.missingGroups).toContain(ticketPath);
+        }
         return review(
           prompt,
           ...[ticketPath, ...socialPaths].map((path) => ({
@@ -629,7 +704,7 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
         );
       }
       expect(prompt.reviewPaths).toEqual([
-        { path: ticketPath, required: true, allowed: ["approve", "return"] },
+        { path: ticketPath, allowed: ["approve", "return"] },
       ]);
       expect(prompt.returnedGroups).toMatchObject([
         { path: ticketPath, proposal: set(corrected) },
@@ -659,7 +734,9 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
                 },
           },
           currentOrNextEdition: {
-            tickets: set(index ? corrected : "https://example.org/product"),
+            ...((index || kind !== "new") && {
+              tickets: set(index ? corrected : "https://example.org/product"),
+            }),
           },
           checks: fixtureChecks(["eventLinks", "currentLinks"]).map(
             (check) => ({

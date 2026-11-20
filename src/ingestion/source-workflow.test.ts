@@ -9,7 +9,7 @@ import { createWorkflowStorage } from "./runtime/workflow-storage";
 import type { GenerateRole } from "./roles/invoke";
 import type { CollectionOutput } from "./roles/research/contracts";
 import { locationTextFields } from "./roles/location/contracts";
-import { approveFixtureReview, wholeNumberedPage } from "@/test/ingestion";
+import { fixtureReview, wholeNumberedPage } from "@/test/ingestion";
 
 afterEach(() => vi.unstubAllEnvs());
 async function fixture(
@@ -184,7 +184,7 @@ async function fixture(
         unresolved: [],
       };
     }
-    return approveFixtureReview(input.reviewPaths);
+    return fixtureReview(input);
   };
   try {
     const result = await runCatalogResearch(

@@ -27,7 +27,7 @@ it.each([classificationInstructions, editorInstructions])(
 
 it("preserves a free concession without a currency beside paid admission", () => {
   expect(ticketsInstructions).toContain(
-    "For an explicitly free offer, retain amount: 0; currency is optional.",
+    "For an explicitly free offer, set amount to 0. Currency is optional for a free offer.",
   );
   const block = {
     variants: [

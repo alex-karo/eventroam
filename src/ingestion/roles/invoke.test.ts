@@ -6,33 +6,33 @@ import { invokeRole, type RoleConversation } from "./invoke";
 import { generalOutputSchema } from "./general/contracts";
 import { linksOutputSchema } from "./links/contracts";
 import { createResearchBudget } from "../runtime/budget";
-import { reviewSchema, validateEditorReply } from "./editor/validate";
+import type { ReviewScope } from "./editor/contracts";
+import { editorReplySchema, validateEditorReply } from "./editor/validate";
 afterEach(() => vi.unstubAllGlobals());
 
 it.each([
   {
-    first: { decisions: [] },
-    feedback: "Add the required decision for item",
+    first: { decisions: {} },
+    feedback: "decisions.item",
     decision: "approve",
     status: "success",
   },
   {
     first: { decisions: 42 },
-    feedback: "expected array",
+    feedback: "expected object",
     decision: "return",
     status: "failed",
   },
 ])(
   "validates the Editor correction after native tool use ($status)",
   async ({ first, feedback, decision, status }) => {
-    const paths = [
-      { path: "item", required: true, allowed: ["approve" as const] },
-    ];
-    const schema = reviewSchema(paths);
+    const input: ReviewScope = {
+      reviewPaths: [{ path: "item", allowed: ["approve"] }],
+      missingGroups: [],
+    };
+    const schema = editorReplySchema(input);
     const corrected = {
-      decisions: [
-        { path: "item", decision, note: "The source confirms this." },
-      ],
+      decisions: { item: { decision, note: "The source confirms this." } },
     };
     const savedResult = "Only guests over 18 are eligible.";
     const lookup = createTool({
@@ -63,7 +63,7 @@ it.each([
       role: "editor",
       version: "test",
       instructions: "Review the item using the saved source.",
-      input: { reviewPaths: paths },
+      input,
       schema,
       validateReply: (reply) => validateEditorReply(schema, reply),
       budget,
@@ -85,7 +85,7 @@ it.each([
       expect(result.output).toBeUndefined();
       expect(result.errors[0]).toMatchObject({
         code: "invalid_plan",
-        message: expect.stringContaining("Choose approve"),
+        message: expect.stringContaining("decisions.item.decision"),
       });
     }
   },

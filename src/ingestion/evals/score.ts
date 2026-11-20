@@ -19,14 +19,13 @@ export function scoreCase(
       !hasHostFailure(result),
       "Host workflow or run persistence failed",
     ),
-    ...(item.roleHandoff
+    ...(item.roleHandoff && item.id !== "editor-unavailable"
       ? [
           check(
-            "editor.fixed-handoff",
-            !reviewOutput
-              .safeParse(result.editorResponse?.object)
-              .data?.decisions.some(({ decision }) => decision === "return"),
-            "Editor requested a return during a fixed handoff",
+            "editor.status",
+            result.editorStatus === "success" &&
+              reviewOutput.safeParse(result.editorResponse?.object).success,
+            "Complete Editor review with a valid reply",
           ),
         ]
       : []),

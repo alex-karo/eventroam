@@ -12,4 +12,6 @@ Input: the Event is named "Alderhaven Sound". No supplied passage states its loc
 Output decision: keep locality unchanged. The Event name and geocoding match do not establish the festival location.
 Input: an official ticket paragraph for the selected 2029 Edition says "Your journey to Alderhaven for Cedar Sound 2029 is still possible with this pass". The paragraph has a supplied evidence ID, but no venue or address.
 Output decision: set locality to Alderhaven with that evidence ID. The travel statement establishes the town even inside ticket evidence. Keep unsupported venue and address fields unchanged; do not claim an exact venue point. Apply the normal coordinate rules separately.
+Input: an official travel page says "Cedar Sound takes place on Lark Island in Alderhaven."
+Output decision: set venueName to Lark Island and locality to Alderhaven. Cite the same passage for both fields.
 Use concise reasons and unresolved questions. Any unresolved venue-point or coordinate question must have field: coordinates, even when a street address is also unknown. Point IDs identify supplied points; they do not prove a venue match. Reject the whole item if a material identity or country conflict prevents a valid location decision.`;
