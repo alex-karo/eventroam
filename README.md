@@ -38,6 +38,16 @@ flowchart TD
 
 The website reads published data. Studio runs ingestion and keeps source evidence, run history, and reports in private storage.
 
+To explore the architecture map, run this command from the repository root after `pnpm install`.
+
+```sh
+pnpm run docs:architecture
+```
+
+Open the local URL shown in the terminal. The map opens on **Festival ingestion**. Follow one request from source selection through review to the catalog and the private run report. **Research** chooses pages to inspect. **Reader** selects passages from each page. From either role, open **Evidence and editorial review** to follow those passages through General, the specialists, and Editor. From **Workflow run**, open **System architecture** to see how Studio and the public site use the catalog.
+
+Edit the [model and views](docs/architecture/) to update the map. To share a copy, run `pnpm run docs:architecture:build` and send `dist/architecture/index.html`. The file opens in a browser.
+
 ## Ingestion
 
 The owner starts research through the CLI or Studio. The workflow reads sources and collects evidence before it proposes catalog changes. Editor reviews those proposals before the catalog writer validates and applies them. Preview is the default. An explicit apply request allows catalog writes.

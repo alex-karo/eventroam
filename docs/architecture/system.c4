@@ -1,0 +1,48 @@
+views {
+  view modules {
+    title 'System architecture'
+    description 'The web and Studio share one SQLite catalog. Select Ingestion workflow to follow a festival run.'
+
+    include visitor, owner, sources, eventroam.cli, eventroam.web, eventroam.catalog
+    include
+      eventroam.studio.entry with {
+        title 'Workflow entry'
+      }
+    include
+      eventroam.studio.assistant with {
+        title 'Catalog assistant'
+      }
+    include
+      eventroam.studio.ingestion with {
+        navigateTo index
+      }
+    include
+      eventroam.studio.assistant -> eventroam.catalog with {
+        multiple true
+      }
+    exclude eventroam.studio.researchRead -> eventroam.catalog
+    exclude eventroam.studio.writer -> eventroam.catalog
+
+    style * {
+      size small
+      padding xsmall
+      textSize large
+    }
+    style visitor, owner, sources, eventroam.cli {
+      size xsmall
+    }
+    style eventroam.studio.assistant {
+      color secondary
+    }
+    rank source {
+      visitor, owner
+    }
+    rank sink {
+      eventroam.catalog, sources
+    }
+    rank same {
+      eventroam.studio.assistant, eventroam.studio.entry
+    }
+    autoLayout TopBottom 24 75 ortho
+  }
+}

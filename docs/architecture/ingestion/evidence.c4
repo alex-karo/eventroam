@@ -1,0 +1,24 @@
+model {
+  extend eventroam.studio.ingestion {
+    research -> reader 'Request a page' {
+      description 'Research calls inspectPage with a URL. The tool fetches the page with readPage, saves the Markdown, and sends numbered segments to Reader. The workflow can also inspect a saved link before Research starts. It prefers the official site.'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/workflow.ts 'Read initial source'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/tools/session.ts 'Select the first source'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/evidence/collection.ts 'Inspect and save pages'
+    }
+
+    reader -> research 'Summary and links' {
+      description 'The tool returns the source ID, page summary, coverage, links, retrieval status, and remaining budget. Research uses this information to choose the next page and report missing sources.'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/evidence/collection.ts 'Build the compact result'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/roles/research/contracts.ts 'Research output'
+    }
+
+    reader -> general 'Exact quotes' {
+      description 'Code uses the selected segment IDs to copy exact quotations into a private evidence file for each page. After Research finishes, the workflow waits for pending reads and fixes the set of sources and quotations for General and the specialists.'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/evidence/contracts.ts 'Bind exact passages'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/evidence/storage.ts 'Save pages and quotations'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/evidence/collection.ts 'Freeze the corpus'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/workflow.ts 'Pass evidence to General'
+    }
+  }
+}

@@ -14,6 +14,8 @@ Ingestion finds or refreshes festival facts in the catalog. An owner starts each
 
 ## Process at a glance
 
+Open the [architecture map](../README.md#architecture) for **Festival ingestion**. Select **Sequence** to see how Research uses page summaries and links to choose the next page, then compare the default preview with an explicit apply. From **Reader**, open **Evidence and editorial review** to follow the selected passages through General, the four specialists, and Editor.
+
 1. [Start a run](#start-a-run) — choose a festival or existing Event.
 2. [Load catalog context](#load-catalog-context) — get current facts and saved links.
 3. [Research and propose facts](#research-and-propose-facts) — read pages and suggest edition-specific changes.

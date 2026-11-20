@@ -1,0 +1,206 @@
+specification {
+  element person {
+    style {
+      shape person
+      color gray
+    }
+  }
+  element external {
+    style {
+      color gray
+    }
+  }
+  element system {
+    style {
+      color gray
+    }
+  }
+  element app
+  element module
+  element data {
+    style {
+      color green
+    }
+  }
+  element stage {
+    style {
+      color secondary
+    }
+  }
+  element database {
+    style {
+      shape cylinder
+      color green
+    }
+  }
+}
+
+model {
+  visitor = person 'Visitor'
+  owner = person 'Catalog owner'
+  sources = external 'Festival sources' {
+    description 'Organizer websites, ticket pages, and other public sources.'
+  }
+
+  eventroam = system 'Eventroam' {
+    cli = app 'Catalog CLI' {
+      description 'Runs locally and calls the Studio workflow API.'
+      link https://github.com/alex-karo/eventroam/blob/main/commands/catalog.ts 'commands/catalog.ts'
+    }
+
+    web = app 'Public web app' {
+      technology 'Next.js'
+      summary 'Reads published records for the public sites.'
+      description 'Serves eventroam.org and festivals.eventroam.org. Festival discovery and detail pages read published records.'
+      link https://github.com/alex-karo/eventroam/blob/main/src/catalog/read/public-catalog.ts 'Public catalog queries'
+      link https://github.com/alex-karo/eventroam/blob/main/src/app/page.tsx 'src/app/page.tsx'
+
+      routes = module 'Public routes' {
+        description 'Select the site by host and load data for pages and discovery endpoints.'
+        link https://github.com/alex-karo/eventroam/blob/main/src/app/page.tsx 'Home route'
+        link https://github.com/alex-karo/eventroam/blob/main/src/app/api/discovery/route.ts 'Discovery API'
+        link https://github.com/alex-karo/eventroam/blob/main/src/site/server/public-request.ts 'Site and detail requests'
+      }
+      features = module 'Public features' {
+        description 'Show the project site, discovery list and map, and event and edition pages.'
+        link https://github.com/alex-karo/eventroam/tree/main/src/features 'src/features'
+      }
+      publicRead = module 'Public catalog queries' {
+        description 'Return published records and data for public pages and endpoints.'
+        link https://github.com/alex-karo/eventroam/blob/main/src/catalog/read/discovery.ts 'Discovery queries'
+        link https://github.com/alex-karo/eventroam/blob/main/src/catalog/read/public-catalog.ts 'Public detail queries'
+      }
+    }
+
+    studio = app 'Mastra Studio' {
+      description 'Runs ingestion from the workflow form, the CLI, or a chat job. The catalog assistant can also read records and save approved edits.'
+      link https://github.com/alex-karo/eventroam/blob/main/src/mastra/index.ts 'Studio registration'
+      link https://github.com/alex-karo/eventroam/blob/main/src/mastra/jobs.ts 'Chat job runner'
+
+      entry = module 'Studio workflow entry' {
+        summary 'Starts add and refresh runs from the form, CLI, or queue.'
+        description 'The CLI and Studio form start a run directly. The Studio queue worker starts one run per job.'
+        link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/jobs/store.ts 'Add and refresh job queue'
+        link https://github.com/alex-karo/eventroam/blob/main/src/mastra/index.ts 'Workflow registration'
+        link https://github.com/alex-karo/eventroam/blob/main/src/mastra/jobs.ts 'Chat job runner'
+      }
+      assistant = module 'Studio catalog assistant' {
+        summary 'Reads catalog data and saves approved edits.'
+        description 'Uses query_catalog to read catalog facts and private reports. An approved edit_catalog card calls applyCatalogEdit directly. It checks each target and saves it in its own transaction.'
+        link https://github.com/alex-karo/eventroam/blob/main/src/mastra/catalog-assistant/tools/index.ts 'Chat tool registration'
+        link https://github.com/alex-karo/eventroam/blob/main/src/mastra/catalog-assistant/tools/query-catalog/query.ts 'Read-only query code'
+        link https://github.com/alex-karo/eventroam/blob/main/src/mastra/catalog-assistant/tools/edit-catalog/tool.ts 'Edit card and approval'
+        link https://github.com/alex-karo/eventroam/blob/main/src/catalog/write/direct-edit.ts 'Direct catalog writer'
+      }
+      ingestion = module 'Ingestion workflow' {
+        summary 'Researches festivals and prepares catalog changes.'
+        description 'Loads private catalog context, collects evidence, and sends approved operations to the writer. The default preview rolls back changes. Apply commits one festival at a time.'
+        link https://github.com/alex-karo/eventroam/blob/main/src/catalog/write/apply-operation.ts 'Catalog writer'
+        link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/workflow.ts 'src/ingestion/workflow.ts'
+        link https://github.com/alex-karo/eventroam/blob/main/docs/ingestion-process.md 'Ingestion process guide'
+
+        run = module 'Workflow run' {
+          summary 'Runs one add or refresh request.'
+          description 'Refresh loads facts and links for the selected Event. Add first checks the note for a local catalog match. A match skips source work and goes straight to the private report. A run that continues can inspect an initial link before Research starts.'
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/workflow.ts 'Workflow steps'
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/research/context.ts 'Load catalog context'
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/research/input-duplicate.ts 'Check for a local match'
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/attempt.ts 'Run and report storage'
+        }
+        research = stage 'Research' {
+          summary 'Chooses the next page to inspect.'
+          description 'Research uses page summaries and links to choose pages with inspectPage. It can use searchWeb when the assignment permits a search. It reports which sources it checked, what it could not find, and questions for the owner.'
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/roles/research/agent.ts 'Research agent'
+        }
+        reader = stage 'Reader' {
+          summary 'Selects numbered passages from one page.'
+          description 'Reader gets one saved page with numbered segments. It selects segments and reports what the page covers. Code uses the segment IDs to copy the exact passages from that page.'
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/roles/reader/agent.ts 'Reader and passage binding'
+        }
+        proposalReview = stage 'Proposals and review' {
+          summary 'General selects targets. Specialists propose facts. Editor reviews them.'
+          description 'General confirms the Event and selects target Editions. Assigned specialists propose changes in parallel. Editor checks the proposals against evidence and saved values. Operation preparation uses approved changes.'
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/workflow.ts 'Ingestion workflow'
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/proposals.ts 'Assemble proposals and apply review'
+        }
+        proposals = stage 'Parallel specialists' {
+          description 'After General selects targets, assigned specialists use the same frozen evidence and return separate proposals.'
+          link https://github.com/alex-karo/eventroam/tree/main/src/ingestion/roles 'Specialist roles'
+        }
+        editor = stage 'Editor' {
+          summary 'Check evidence and saved values. Return disputed fields when eligible.'
+          description '''
+            Validation joins the assigned results and can send a group back to its owner before review. A missing or failed required result stops the run.
+            Editor can search saved pages. It approves supported field proposals and returns disputed groups while an owner can revise them and a return remains. If a return is unavailable, it approves or rejects the field. It can also return a missing field when the evidence supports a specific correction.
+            A rejected identity stops the item. A rejected Edition premise removes the target and its dependent changes. A rejected or unresolved optional fact keeps its saved value.
+          '''
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/proposals.ts 'Assemble proposals and apply review'
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/roles/editor/agent.ts 'Editor inputs and evidence'
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/roles/editor/review.ts 'Allowed decisions'
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/roles/editor/prompt.ts 'Review and return rules'
+        }
+        planner = stage 'Operation preparation' {
+          summary 'Prepare catalog operations.'
+          description 'Prepares catalog operations from approved changes and checks publication rules.'
+          link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/catalog-plan.ts 'Catalog plan'
+        }
+      }
+      researchRead = module 'Research catalog queries' {
+        description 'Load saved event facts, editions, and links for ingestion.'
+        link https://github.com/alex-karo/eventroam/blob/main/src/catalog/read/research.ts 'src/catalog/read/research.ts'
+      }
+      writer = module 'Catalog writer' {
+        description 'Validates operation batches and handles publication, audit records, and receipts in a transaction.'
+        link https://github.com/alex-karo/eventroam/blob/main/src/catalog/write/apply-operation.ts 'src/catalog/write/apply-operation.ts'
+      }
+    }
+
+    catalog = database 'SQLite catalog' {
+      summary 'Stores festival records and private run reports.'
+      description 'Studio and the public web app share this SQLite file. Studio saves the report in the ingestion_runs row for each finished attempt. The public web app reads published records.'
+      link https://github.com/alex-karo/eventroam/blob/main/src/db/schema.ts 'Catalog schema'
+      link https://github.com/alex-karo/eventroam/blob/main/compose.yaml 'Shared data volume'
+
+      records = data 'Festival records' {
+        summary 'The public site reads published Events and Editions.'
+        description 'The writer keeps the changes for one Event in one transaction. Records can stay in draft. Only published records appear on public pages.'
+        link https://github.com/alex-karo/eventroam/blob/main/src/catalog/read/public-catalog.ts 'Public catalog reads'
+        link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/catalog-plan.ts 'Publication decisions'
+      }
+      reports = data 'Private run report' {
+        summary 'Stores the outcome, source summaries, and errors in SQLite.'
+        description 'Finalization writes the report into the ingestion_runs row for this attempt. It saves the report separately from the catalog changes, including when a run stops early.'
+        link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/report.ts 'Build the run report'
+        link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/runs.ts 'Save the run report'
+      }
+    }
+  }
+
+  visitor -> eventroam.web 'Browses both sites'
+  owner -> eventroam.cli 'Runs catalog commands'
+  owner -> eventroam.studio.entry 'Uses the Studio form'
+  owner -> eventroam.studio.assistant 'Uses Studio chat'
+  eventroam.cli -> eventroam.studio.entry 'Calls the workflow API'
+
+  eventroam.web.routes -> eventroam.web.features 'Renders pages with loaded data'
+  eventroam.web.routes -> eventroam.web.publicRead 'Loads discovery and details'
+  eventroam.web.publicRead -> eventroam.catalog 'Reads published records'
+  eventroam.studio.assistant -> eventroam.studio.entry 'Queues jobs' {
+    description 'A chat request queues add or refresh jobs. The Studio worker starts one ingestion run for each job it processes.'
+  }
+  eventroam.studio.assistant -> eventroam.catalog 'Reads with query_catalog'
+  eventroam.studio.assistant -> eventroam.catalog 'Writes approved edits' {
+    description 'The edit_catalog tool sends the approved changes to applyCatalogEdit.'
+  }
+  eventroam.studio.entry -> eventroam.studio.ingestion 'Starts a run'
+  eventroam.studio.ingestion -> eventroam.studio.researchRead 'Loads saved context'
+  eventroam.studio.researchRead -> eventroam.catalog 'Queries saved events and editions'
+  eventroam.studio.ingestion -> eventroam.catalog 'Reads facts and saves results' {
+    description 'The workflow reads saved facts and writes a private run report. An explicit apply can also commit changes to festival records.'
+  }
+  eventroam.studio.ingestion.research -> sources 'Inspects source pages' {
+    description 'The inspectPage tool fetches pages through readPage.'
+  }
+  eventroam.studio.ingestion -> eventroam.studio.writer 'Sends prepared operations'
+  eventroam.studio.writer -> eventroam.catalog 'Previews or commits changes'
+}
