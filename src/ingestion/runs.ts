@@ -32,6 +32,7 @@ const invocationSchema = z.object({
 const configSchema = z.object({
   apiKey: z.string().trim().min(1),
   model: nonempty.refine((value) => !value.endsWith(":online")),
+  codexProxyUrl: z.string().trim().min(1).optional(),
   locationModel: nonempty
     .refine((value) => !value.endsWith(":online"))
     .optional(),
