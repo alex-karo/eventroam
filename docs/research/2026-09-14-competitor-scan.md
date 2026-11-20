@@ -8,11 +8,11 @@ tags: [research, competitors]
 
 # Eventroam competitor scan
 
-Date: 2026-09-14
+Initial scan on 2026-09-14.
 
 ## Scope
 
-This is an initial product and data-model review of ten festival-discovery rivals:
+The review covers eleven festival discovery products.
 
 - [Festmap](https://festmap.org/)
 - [Allfest](https://allfest.ru/) (Russian)
@@ -24,6 +24,7 @@ This is an initial product and data-model review of ten festival-discovery rival
 - [Festival Networks](https://festivalnetworks.com/)
 - [FestT](https://festt.io/en)
 - [FestivalFinder.eu](https://www.festivalfinder.eu/)
+- [Festivoo](https://festivoo.no/)
 
 The review focuses on discovery, filters, event pages, occurrence modeling, provenance, submissions, and ideas relevant to Eventroam's first vertical slice. Counts and site behavior are point-in-time observations and should not be treated as permanent facts.
 
@@ -41,6 +42,7 @@ The review focuses on discovery, filters, event pages, occurrence modeling, prov
 | Festival Networks | Curated European guide with an AI concierge | Natural-language discovery and a manually reviewed submission promise | Festival facts lack public provenance and can conflict with official sources |
 | FestT | Lineup-driven discovery and compatibility scoring | Artist-to-festival matching, map/list integration, and rich facet pages | Generated editorial and travel content can contradict structured data |
 | FestivalFinder.eu | European arts-festival directory and professional network | Explicit organization/edition model with approval and historical editions | Some recurring schedules are intentionally flattened into broad date ranges |
+| Festivoo | European music festival guide and planner | Official sources and separate check dates for edition details and ticket prices | Limited access to past editions from the festival pages reviewed |
 
 ## Findings by rival
 
@@ -250,9 +252,30 @@ Risks to avoid:
 - Copying stale promotional descriptions into a new edition without cross-field validation.
 - Making every rich intake field mandatory in the MVP.
 
+### Festivoo
+
+Reviewed on 2026-11-20.
+
+Festivoo helps people find European music festivals through a map and search by artist or festival. The home page invites suggestions and marks Tomorrowland's dates as unconfirmed. The iOS app supports favorites, shared plans, and calendar export. [Festivoo home page](https://festivoo.no/), [App Store listing](https://apps.apple.com/no/app/festivoo/id6813999731).
+
+The Festningen page links to the organizer and shows when Festivoo checked the edition. The ticket section links to the seller and shows the last successful price check and the last attempt to check the price. Festivoo labels the map location for Festningen at venue level and Kappa FuturFestival at city level. [Festningen](https://festivoo.no/festival/festningen), [Kappa FuturFestival](https://festivoo.no/festival/kappa-futurfestival-italy).
+
+The main Festningen URL shows the 2027 edition. Soppgirobygget's artist page lists the 2026 edition in its performance history and gives a source. The festival page offers a calendar file that keeps the dates from the time of export. [Festningen](https://festivoo.no/festival/festningen), [Soppgirobygget](https://festivoo.no/artist/soppgirobygget).
+
+**Ideas to study**
+
+- Show the organizer source and the date of the last check for each edition. Give ticket prices a separate source and check date.
+- Link artists to upcoming Occurrences and keep sources for past appearances.
+- Mark dates as unconfirmed and label the precision of map locations.
+
+**Risks to avoid**
+
+- Making past editions hard to find from the main festival page.
+- Letting visitors rely on an old calendar export after dates change.
+
 ## Product opportunity for Eventroam
 
-None of the ten reviewed products clearly combines all four of these properties:
+Eventroam can combine four properties that appear across the reviewed products.
 
 1. A useful map with an equivalent crawlable list.
 2. Stable pages for both durable Events and dated Occurrences.
@@ -272,6 +295,7 @@ That combination is a credible initial differentiation for Eventroam.
 - **Festival Networks:** natural-language discovery translated into a small result set.
 - **FestT:** artist/lineup relationships and strong map-to-detail-page navigation.
 - **FestivalFinder.eu:** a durable festival plus approved edition model and rich practical facets.
+- **Festivoo** shows separate sources and check dates for edition facts and ticket prices.
 
 ## Patterns to avoid
 
