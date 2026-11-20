@@ -8,6 +8,7 @@ const localities = ["Les 2 Alpes", "Les Deux Alpes"];
 const festival = "validation:festival";
 const music = "validation:music";
 const snowSports = "validation:topic:snow-sports";
+const packagePricesUsd = [1035.42, 1141.86, 1242.78, 1381.02];
 
 function savedEditionFacts(
   year: string,
@@ -41,13 +42,12 @@ function point(edition: Edition | undefined) {
 }
 
 function supportedOffer(offer: Edition["priceDetails"][number]) {
-  const { label, amount, currency, url } = offer;
+  const { label, amount, currency, terms, url } = offer;
   if (url != null) {
     return false;
   }
   const packageOffer = /\bpackage\b/i.test(label);
-  const terms = offer.terms?.replaceAll(",", "") ?? "";
-  const details = `${label} ${terms}`;
+  const details = `${label} ${terms ?? ""}`;
   // lineup.md advertises packages from GBP 899. This is not the base admission price.
   if (amount === 899 && currency === "GBP") {
     return (
@@ -58,23 +58,23 @@ function supportedOffer(offer: Edition["priceDetails"][number]) {
   if (amount === 0) {
     return currency == null && /\b(?:PA|personal assistant)\b/i.test(label);
   }
-  if (amount != null || currency != null) {
-    return false;
+  // This case treats the dollar prices in tickets.md and packages.md as USD.
+  if (currency === "USD" && amount != null) {
+    return packageOffer
+      ? packagePricesUsd.includes(amount)
+      : [620.7].includes(amount) &&
+          /\b(?:ticket|pass)\b/i.test(label) &&
+          /\blift[ -]pass\b/i.test(details);
   }
   // faq.md announces a music-only day ticket without a price.
-  if (/\bday ticket\b/i.test(label)) {
-    return (
-      (offer.availability ?? "unknown") === "unknown" &&
-      /\bmusic[ -]only\b/i.test(details) &&
-      !/[$£€]\s*\d/.test(terms)
-    );
-  }
-  // packages.md and tickets.md show dollar amounts without an ISO currency.
-  return packageOffer
-    ? /\$\s*(?:1035\.42|1141\.86|1242\.78|1381\.02)\b/.test(terms)
-    : /\b(?:ticket|pass)\b/i.test(label) &&
-        /\blift[ -]pass\b/i.test(details) &&
-        /\$\s*620\.70\b/.test(terms);
+  return (
+    amount == null &&
+    currency == null &&
+    /\bday ticket\b/i.test(label) &&
+    (offer.availability ?? "unknown") === "unknown" &&
+    /\bmusic[ -]only\b/i.test(details) &&
+    !/[$£€]\s*\d/.test(terms ?? "")
+  );
 }
 
 export function rise(context: MainContext) {
