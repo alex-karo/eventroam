@@ -10,7 +10,7 @@ import { buildAssignment } from "../assignment";
 import { invokeRole } from "../invoke";
 import type { RoleOptions } from "../options";
 import { PROMPT_VERSIONS } from "../versions";
-import { collectionOutputSchema } from "./contracts";
+import { buildCollectionOutputSchema } from "./contracts";
 import { researchInstructions } from "./prompt";
 
 export async function collectResearch(
@@ -66,7 +66,9 @@ export async function collectResearch(
       inspectedPages: options.collection.navigationPages(),
       remaining: options.budget.remaining(),
     },
-    schema: collectionOutputSchema,
+    schema: buildCollectionOutputSchema(
+      assignment.checks.map(({ key }) => key),
+    ),
     budget: options.budget,
     config:
       options.config.reasoningEffort === "low"
