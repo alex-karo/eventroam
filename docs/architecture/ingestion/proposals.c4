@@ -1,0 +1,52 @@
+model {
+  extend eventroam.studio.ingestion {
+    general = stage 'General' {
+      summary 'Confirms the Event and selects target Editions.'
+      description '''
+        For add, establishes Event identity from inspected sources. For refresh, checks the source identity against the selected Event.
+        Selects Edition targets from the frozen evidence. The workflow stops here if General cannot confirm identity.
+        It needs a selected Edition or a saved scheduled or announced Edition.
+        A current-only refresh also needs a selected current or next Edition.
+      '''
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/roles/general/agent.ts 'General agent'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/roles/general/prompt.ts 'Identity and Edition rules'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/research/guards.ts 'Edition eligibility'
+    }
+  }
+
+  extend eventroam.studio.ingestion.proposals {
+    tickets = stage 'Tickets' {
+      summary 'Ticket options and base price.'
+      description 'Checks ticket options and base price for the current or next Edition.'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/roles/tickets/agent.ts 'Tickets agent'
+    }
+
+    classification = stage 'Classification' {
+      summary 'Edition terms and festival descriptions.'
+      description 'Proposes Edition terms. Also checks festival descriptions for add and full refresh.'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/roles/classification/agent.ts 'Classification agent'
+    }
+
+    location = stage 'Location' {
+      summary 'Festival sites and map points.'
+      description 'Checks places for the selected Editions and uses geocoding to find supported map points.'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/roles/location/execution.ts 'Location execution'
+    }
+
+    links = stage 'Links' {
+      summary 'Website, social and ticket links.'
+      description 'Checks assigned website, social, and ticket links. A current-only refresh checks only the ticket link.'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/roles/links/agent.ts 'Links agent'
+    }
+  }
+
+  eventroam.studio.ingestion.general -> eventroam.studio.ingestion.proposals.tickets
+  eventroam.studio.ingestion.general -> eventroam.studio.ingestion.proposals.classification
+  eventroam.studio.ingestion.general -> eventroam.studio.ingestion.proposals.location
+  eventroam.studio.ingestion.general -> eventroam.studio.ingestion.proposals.links
+
+  eventroam.studio.ingestion.proposals.tickets -> eventroam.studio.ingestion.editor
+  eventroam.studio.ingestion.proposals.classification -> eventroam.studio.ingestion.editor
+  eventroam.studio.ingestion.proposals.location -> eventroam.studio.ingestion.editor
+  eventroam.studio.ingestion.proposals.links -> eventroam.studio.ingestion.editor
+}

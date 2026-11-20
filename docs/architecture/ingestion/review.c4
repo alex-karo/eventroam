@@ -1,0 +1,41 @@
+model {
+  extend eventroam.studio.ingestion {
+    repair = stage 'Targeted repair' {
+      summary 'Owners revise only returned groups. Up to three returns per group.'
+      description 'Send one request per owner each round. Merge valid revisions and retry only groups with local errors. Validation, Editor returns, and local corrections share the three-return limit. Reject a group if a local error remains at the limit. Editor can approve a supported revision or an explained withdrawal that keeps the saved value.'
+      link https://github.com/alex-karo/eventroam/blob/main/src/ingestion/repairs.ts 'Group repairs'
+    }
+
+    editor -> repair 'Return groups'
+    repair -> editor 'Review revisions'
+    editor -> planner 'Approved changes' {
+      description 'Apply the complete review once. Pass only approved changes to operation preparation.'
+    }
+  }
+}
+
+views {
+  view refresh of eventroam.studio.ingestion {
+    title 'Evidence and editorial review'
+    description 'Research chooses pages. Reader selects passages. The workflow freezes the exact evidence before General runs. The specialists run in parallel. Only approved changes reach operation preparation.'
+
+    include research, reader, general
+    include proposals.tickets, proposals.classification, proposals.location, proposals.links
+    include editor, repair
+    include
+      planner with {
+        navigateTo index
+      }
+    style * {
+      size small
+      padding xsmall
+      textSize large
+    }
+    style editor, repair {
+      color amber
+    }
+    rank same { research, reader }
+    rank same { repair, editor, planner }
+    autoLayout TopBottom 20 25
+  }
+}

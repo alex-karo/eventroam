@@ -1,0 +1,97 @@
+views {
+  dynamic view index {
+    title 'Festival ingestion'
+    description 'Follow an add or refresh through source work and catalog review. A local match can skip an add before source work and go straight to the private run report.'
+
+    eventroam.studio.ingestion.run <- eventroam.catalog.records 'Add check or refresh context' {
+      notes 'The CLI and Studio form start a run directly. For chat, the worker starts a run for each queued job. For add, the workflow checks the note against saved Event names and aliases. A clear local match supported by country or a full official URL skips Reader, Research, and General. For refresh, the workflow loads facts and links for the selected Event.'
+    }
+    opt 'Refresh or add without a local match' {
+      opt 'A saved link is available' {
+        eventroam.studio.ingestion.run -> eventroam.studio.ingestion.reader 'Inspect a saved link' {
+          notes 'The workflow prefers the saved official link. Page inspection saves its Markdown and sends numbered segments to Reader. Research receives the initial page summary before choosing more pages.'
+        }
+      }
+      eventroam.studio.ingestion.run -> eventroam.studio.ingestion.research 'Assign source checks' {
+        notes 'When the run continues to source work, Research gets its checks, summaries of pages already inspected, and the remaining budget. For an add request, it also gets the original note.'
+      }
+      loop 'Inspect permitted pages' {
+        eventroam.studio.ingestion.research -> eventroam.studio.ingestion.reader 'Request a page' {
+          notes 'Research gives inspectPage a source URL. The tool fetches the page and saves its Markdown.'
+        }
+        sources -> eventroam.studio.ingestion.reader 'Fetched page text' {
+          notes 'After a successful read, page inspection gives Reader the numbered page text. Reader selects passages that support a fact.'
+        }
+        eventroam.studio.ingestion.research <- eventroam.studio.ingestion.reader 'Summary and links' {
+          notes 'The tool returns the page summary, what it covers, links to other pages, and the remaining budget. Research uses this information to choose its next step.'
+        }
+      }
+      eventroam.studio.ingestion.reader -> eventroam.studio.ingestion.proposalReview 'Exact quotes' {
+        notes 'Reader returns segment IDs. Collection binds them to exact page text, waits for admitted work to finish, and freezes the evidence. General selects the Event and Editions. Tickets, Classification, Location, and Links then propose facts in parallel.'
+      }
+      eventroam.studio.ingestion.proposalReview -> eventroam.studio.writer 'Approved operations' {
+        notes 'Editor checks proposals against saved values and cited evidence. It returns disputed field groups to their owners while an eligible return remains. The planner turns approved changes into operations and checks publication rules.'
+      }
+      alt {
+        when 'Preview (default)' {
+          eventroam.studio.writer -> eventroam.catalog.records 'Roll back preview'
+        }
+        else 'Explicit apply' {
+          eventroam.studio.writer -> eventroam.catalog.records 'Commit on apply' {
+            notes 'Apply starts a fresh run. The writer commits the changes for one Event in one transaction. A failure rolls back that Event. Publication rules determine which records become public.'
+          }
+        }
+      }
+    }
+    eventroam.studio.ingestion.run -> eventroam.catalog.reports 'Save report' {
+      notes 'The workflow also builds a report if it skips the festival or if a stage fails. Finalization saves the report in the ingestion_runs row for this attempt, separately from any changes to festival records.'
+    }
+
+    include
+      eventroam.studio.ingestion.run with {
+        summary 'CLI, Studio form, or chat job.'
+        navigateTo modules
+      }
+    include
+      sources with {
+        summary 'Organizer and ticket sites.'
+      }
+    include
+      eventroam.studio.ingestion.research with {
+        navigateTo refresh
+      }
+    include
+      eventroam.studio.ingestion.reader with {
+        navigateTo refresh
+      }
+    include
+      eventroam.studio.ingestion.proposalReview with {
+        summary 'General, specialists, and Editor.'
+        navigateTo refresh
+      }
+    include
+      eventroam.studio.writer with {
+        title 'Preview or apply'
+        summary 'Preview is the default.'
+        color amber
+      }
+    include
+      eventroam.catalog.records with {
+        summary 'Visitors see published records.'
+        navigateTo modules
+      }
+    include
+      eventroam.catalog.reports with {
+        summary 'Outcome, source summaries, and errors.'
+      }
+    style * {
+      size xsmall
+      padding xsmall
+      textSize large
+    }
+    style eventroam.studio.ingestion.research, eventroam.studio.ingestion.reader {
+      size small
+    }
+    autoLayout TopBottom 12 42
+  }
+}
