@@ -488,7 +488,6 @@ export function createCatalogIngestionWorkflow(
       }
       const invalidSummary = validateResearchSummary(
         data.research.output,
-        buildAssignment(owned.input, data.context!),
         data.corpus.sources,
       );
       if (invalidSummary) {

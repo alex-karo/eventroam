@@ -7,6 +7,7 @@ import {
   returned,
   selectedEditionDates,
 } from "../../research";
+import { searchCount } from "../../tool-use";
 
 function changedDescriptions({ item, report }: RegressionContext) {
   const changes = report.changes.filter(
@@ -105,6 +106,11 @@ export const checks = {
         "Do not set unknown participant estimate to null",
       ),
       researchStatus(context, "success"),
+      check(
+        "toolUse.maxSearches",
+        searchCount(context.calls) === 0,
+        "Use zero searches when the page covers both Editions",
+      ),
       ...editionSlots(context, "historical", "unknown"),
       returned(
         "research.historical.dates",

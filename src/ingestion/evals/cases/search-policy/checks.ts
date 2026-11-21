@@ -15,8 +15,8 @@ export const checks = {
     researchStatus(context, "success"),
     check(
       "toolUse.placeSearch",
-      searchCount(context.calls) >= 1,
-      "Search for the festival place despite a known country",
+      searchCount(context.calls) === 1,
+      "Search once for the festival place despite a known country",
     ),
     readBeforeSearch(
       context.calls,
