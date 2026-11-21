@@ -27,13 +27,18 @@ export async function collectResearch(
     inputSchema: searchWebInputSchema,
     outputSchema: z.union([
       searchWebOutputSchema,
-      z.strictObject({ outcome: z.literal("not_permitted") }),
+      z.strictObject({
+        outcome: z.enum(["not_permitted", "collection_failed"]),
+      }),
     ]),
     execute: async ({ query }, context) => {
       if (!assignment.sourcePolicy.discoveryAllowed) {
         return { outcome: "not_permitted" as const };
       }
       options.collection.signal.throwIfAborted();
+      if (options.collection.fatal) {
+        return { outcome: "collection_failed" as const };
+      }
       const span = context?.tracingContext?.currentSpan;
       const correlation = {
         stage: "source",

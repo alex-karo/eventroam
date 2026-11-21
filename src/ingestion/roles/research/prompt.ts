@@ -9,7 +9,7 @@ Read known sources first
 searchWeb
 Search only after inspecting relevant known links and useful leads. Require sourcePolicy.discoveryAllowed, remaining budget and one open need below.
 - Recover an unknown, blocked or wrong official source if sourcePolicy.recoverWebsite is true. Read a known correct replacement first. Stop when an inspected official page confirms the Event and its official association, even if the homepage is blocked.
-- Resolve a material date conflict about one programme that needs independent confirmation. Separate Editions, separate weekends and explained local/UTC differences do not conflict. Collect the local dates and explanation.
+- Resolve a material date conflict about one programme that needs independent confirmation. Separate Editions and separate weekends do not conflict.
 - Confirm an essential fact about an Edition with source support. This includes identity, dates, country or proof a past programme took place. A past schedule does not prove completion.
 - Find the concrete place for the ongoing or announced next Edition, even if the country is known. Use applicable saved place and follow currentLocation for leads and place criteria. Stop at a concrete place unless a conflict or processing gap remains. Use a travel or contact address only if the source places the programme there.
 
