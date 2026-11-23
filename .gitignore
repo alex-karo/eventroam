@@ -58,6 +58,9 @@ web_modules/
 # Optional eslint cache
 .eslintcache
 
+# Repowise index and output
+/.repowise/
+
 # Optional stylelint cache
 .stylelintcache
 
