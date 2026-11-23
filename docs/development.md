@@ -52,6 +52,21 @@ pnpm run docs:check
 
 Use `pnpm run format:check` for application formatting and `pnpm run openspec:validate` for OpenSpec edits. See [Testing](testing.md) for browser tests, coverage, fixtures, and CI differences. See the [change workflow](change-workflow.md) when you use full OpenSpec or need help choosing a workflow.
 
+## Code hotspots
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and use a POSIX shell to run [Repowise](https://github.com/repowise-dev/repowise) locally.
+
+```sh
+npm run code:hotspots
+npm run code:health -- --file src/ingestion/workflow.ts
+```
+
+The hotspot report groups files with high recent Git activity by component. The health report shows the score, metrics, and findings for the selected file. Omit `--file` for a repository summary.
+
+The first run downloads the pinned Repowise version and builds an index from source files and Git history. Later runs update the index. Each worktree stores its index in the ignored `.repowise/` directory. Analysis runs offline. New indexes have editor integration and Git hook setup disabled.
+
+To save the hotspot report as JSON, run `npm run code:hotspots -- --format json --out .repowise/hotspots.json`. With `pnpm run`, pass flags directly after the script name.
+
 ## Task guides
 
 | Task                                                         | Read                                      |
