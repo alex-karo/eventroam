@@ -122,7 +122,6 @@ test("finalization preserves normalized report, zero/unknown values and guards t
     },
   );
   const id = startIngestionRun(client, settings, Date.now(), null);
-  expect(report.runId).not.toBe(id);
   const final = {
     ...report,
     runId: id,
@@ -146,7 +145,7 @@ test("finalization preserves normalized report, zero/unknown values and guards t
     ).toEqual(pending);
   }
   const invalidReports = [
-    report,
+    { ...final, runId: "another-run" },
     { ...final, mode: "refresh" },
     ...[-1, 1.5].map((pages) => ({
       ...final,

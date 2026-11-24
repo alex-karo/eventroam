@@ -36,7 +36,7 @@ Run `pnpm run test:coverage` for unit and integration coverage of application an
 
 ## Mutation testing
 
-Run `pnpm run test:mutation` locally to check if tests detect changes to the catalog date, edition, and price rules. Stryker changes one part of the code at a time in a temporary copy. It runs all tests in `src/ingestion/`, the Studio ingestion tests, and selected catalog, database, discovery, and fixture tests.
+Run `pnpm run test:mutation` locally to check if tests detect changes to the catalog date, edition, and price rules. The [Vitest filter](../tooling/vitest.mutation.config.mts) selects which tests Stryker can use. Per-test coverage lets Stryker rerun just the tests that cover a mutation when possible.
 
 Open `reports/mutation/mutation.html` to see each change. Start with changes marked `Survived` that would cause incorrect behavior. Add a test for the input that shows the error.
 

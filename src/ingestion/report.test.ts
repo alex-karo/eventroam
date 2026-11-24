@@ -45,7 +45,6 @@ function earlyReportInput(support: InputDuplicateMatch["support"]) {
   };
   data.researchValidation = { status: "skip", diagnostics };
   data.outcome = "skipped";
-  run.runId = "early-run";
   return { data, diagnostics, run };
 }
 
@@ -128,7 +127,7 @@ test("a failed persistence response cannot retain the successful early-match mar
   const { data, run } = earlyReportInput({ countryCode: "US" });
   const report = buildResearchReport(data, run);
   const failed = persistenceFailureReport(
-    new RunPersistenceError("early-run", report),
+    new RunPersistenceError(run.runId, report),
   );
   expect(failed).not.toHaveProperty("inputDuplicate");
   expect(failed?.errors).toContainEqual({

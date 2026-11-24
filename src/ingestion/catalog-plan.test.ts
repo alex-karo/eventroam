@@ -65,7 +65,7 @@ function fixture(scheduleStatus: "announced" | "scheduled" = "announced") {
   };
   return { client, fx, event, edition, general, refresh, deps };
 }
-test.each([
+test.each<[string, string | RegExp]>([
   ["Sónar", "sonar"],
   ["So\u0301nar", "sonar"],
   ["Ｆｅｓｔ ２０２７", "fest-2027"],
@@ -77,9 +77,9 @@ test.each([
   async (name, slug) => {
     const { client } = testDatabase();
     const general = fixtureTargets();
-    general.observedEventName = name as string;
+    general.observedEventName = name;
     const result = await runFixtureResearch(
-      { ...input, input: name as string },
+      { ...input, input: name },
       { client, ...fixtureDependencies({ general }) },
     );
     expect(result.errors).toEqual([]);
@@ -679,20 +679,13 @@ test.each([
 ])(
   "refresh leaves a $start Event $end with republish=$republish",
   async ({ start, republish, end, publish }) => {
-    const f = fixture("scheduled");
-    for (const term of f.fx.festivalTerms()) {
-      f.fx.assignTerm(f.edition, term);
-    }
-    applyCatalogOperation(f.client, {
-      kind: "publishEdition",
-      id: f.edition.id,
-      expectedVersion: f.edition.version,
-      actor: "owner",
-      operationKey: "test:publish-edition",
+    const { client } = testDatabase();
+    const { event } = testFixtures(client).publishedEvent({
+      event: { canonicalName: "Example Fest" },
+      editions: [{ editionKey: "2027", endsOn: "2027-07-03" }],
     });
-    const event = f.fx.publishEvent(f.event);
     if (start === "withdrawn") {
-      applyCatalogOperation(f.client, {
+      applyCatalogOperation(client, {
         kind: "withdrawEvent",
         id: event.id,
         expectedVersion: event.version,
@@ -702,8 +695,14 @@ test.each([
     }
 
     const result = await runFixtureResearch(
-      { ...f.refresh, republish },
-      f.deps,
+      {
+        mode: "refresh",
+        eventId: event.id,
+        actor: input.actor,
+        republish,
+        dryRun: false,
+      },
+      { ...fixtureDependencies(), client, todayUtc: "2026-11-01" },
     );
 
     expect(result.errors).toEqual([]);
@@ -712,6 +711,6 @@ test.each([
         .map((operation) => operation.kind)
         .filter((kind) => kind === "publishEvent" || kind === "publishEdition"),
     ).toEqual(publish ? ["publishEvent"] : []);
-    expect(readResearchEvent(f.client, event.id)!.publicationState).toBe(end);
+    expect(readResearchEvent(client, event.id)!.publicationState).toBe(end);
   },
 );
