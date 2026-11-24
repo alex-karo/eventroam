@@ -566,8 +566,8 @@ test.each(["update", "serialization"] as const)(
     if (failure === "serialization") {
       const original = reportModule.buildResearchReport;
       vi.spyOn(reportModule, "buildResearchReport").mockImplementationOnce(
-        (input) => {
-          const report = original(input);
+        (...args) => {
+          const report = original(...args);
           const object: Record<string, unknown> = {};
           object.self = object;
           report.modelResponse = { text: null, object };
@@ -1003,9 +1003,9 @@ test("cancellation after a confirmed write preserves the committed catalog", asy
   let cancellation: Promise<void> | undefined;
   const original = reportModule.buildResearchReport;
   vi.spyOn(reportModule, "buildResearchReport").mockImplementationOnce(
-    (value) => {
+    (...args) => {
       cancellation = run.cancel();
-      return original(value);
+      return original(...args);
     },
   );
   await run.start({
@@ -1015,6 +1015,7 @@ test("cancellation after a confirmed write preserves the committed catalog", asy
       dryRun: false,
     }),
   });
+  expect(cancellation).toBeDefined();
   await cancellation;
   expect(readResearchCatalog(client)).toHaveLength(1);
   const row = client

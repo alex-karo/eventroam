@@ -1,12 +1,12 @@
 import { expect, it, vi } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
-import { fixtureDependencies, fixtureTargets, set } from "@/test/ingestion";
-import { CatalogAttempt } from "./attempt";
-import { createIngestionData, type CatalogResearchInput } from "./contracts";
-import { bindEvidence } from "./evidence/contracts";
+import { fixtureTargets, set } from "@/test/ingestion";
+import type { CatalogResearchInput } from "./contracts";
+import { bindEvidence, type FrozenCorpus } from "./evidence/contracts";
 import { proposalGroup, type GroupOwner, type ReturnRequest } from "./groups";
-import { loadResearchContext } from "./research/context";
+import { ProposalRepairs } from "./repairs";
+import { loadResearchContext, type ResearchContext } from "./research/context";
 import { classificationReplySchema } from "./roles/classification/contracts";
 import { generalOutputSchema } from "./roles/general/contracts";
 import { linksOutputSchema } from "./roles/links/contracts";
@@ -20,6 +20,11 @@ const ticketLinkPath = "currentOrNextEdition.fields.links.tickets";
 const ticketsPath = "currentOrNextEdition.fields.tickets";
 const ticketLink = "https://example.org/tickets";
 const diagnostics = { checks: [], unresolved: [] };
+const editorFailure = {
+  code: "model_failed",
+  stage: "editor",
+  message: "Targeted Editor fixture failure",
+} as const;
 const schemas = {
   classification: classificationReplySchema,
   general: generalOutputSchema,
@@ -36,22 +41,13 @@ function links(website?: unknown, tickets?: unknown) {
   };
 }
 
-function fixture(scope?: CatalogResearchInput["scope"]) {
-  const { client } = testDatabase();
-  const f = testFixtures(client);
-  const event = f.event({ canonicalName: "Example Fest" });
-  const input = {
-    mode: "refresh" as const,
-    eventId: event.id,
-    actor: "test",
-    scope,
-  };
-  const { generateRole } = fixtureDependencies();
-  const attempt = new CatalogAttempt(event.id, input, { client, generateRole });
-  const targets = fixtureTargets(event.id);
-  const data = createIngestionData();
+function repairFixture(
+  input: CatalogResearchInput,
+  getContext: () => ResearchContext,
+) {
+  const targets = fixtureTargets(input.eventId);
   const body = "Example Fest, July 2027.";
-  data.corpus = {
+  const corpus: FrozenCorpus = {
     version: "fixture",
     sources: [
       {
@@ -76,12 +72,9 @@ function fixture(scope?: CatalogResearchInput["scope"]) {
     ).evidence,
   };
   const signal = new AbortController().signal;
-  const repairs = attempt.repairs;
+  const repairs = new ProposalRepairs();
   repairs.capture("links", { raw: links(), schema: linksOutputSchema });
-  function loadContext() {
-    data.context = loadResearchContext(client, input, date);
-  }
-  loadContext();
+  const context = () => ({ corpus, context: getContext(), input });
   function capture(owner: keyof typeof schemas, raw: unknown, output: unknown) {
     const revise = revision(output);
     repairs.capture(owner, { raw, revise, schema: schemas[owner] });
@@ -91,14 +84,41 @@ function fixture(scope?: CatalogResearchInput["scope"]) {
     capture,
     repairs,
     targets,
+    general: () => repairs.general(context(), signal),
+    before: () => repairs.beforeReview({ ...context(), targets }, signal),
+    after: (...requests: ReturnRequest[]) =>
+      repairs.afterReview({ ...context(), targets }, requests, signal),
+  };
+}
+
+function fixture(scope?: CatalogResearchInput["scope"]) {
+  const { client } = testDatabase();
+  const f = testFixtures(client);
+  const event = f.event({ canonicalName: "Example Fest" });
+  const input = {
+    mode: "refresh" as const,
+    eventId: event.id,
+    actor: "test",
+    scope,
+  };
+  let context = loadResearchContext(client, input, date);
+  return {
+    ...repairFixture(input, () => context),
     event,
     f,
-    loadContext,
-    general: () => repairs.general(attempt, data, signal),
-    before: () => repairs.beforeReview(attempt, data, targets, signal),
-    after: (...requests: ReturnRequest[]) =>
-      repairs.afterReview(attempt, data, targets, requests, signal),
+    loadContext() {
+      context = loadResearchContext(client, input, date);
+    },
   };
+}
+
+function generalFixture() {
+  return repairFixture({ mode: "add", actor: "test" }, () => ({
+    catalog: [],
+    knownLinks: [],
+    terms: [],
+    currentDate: date,
+  }));
 }
 
 function revision(output: unknown) {
@@ -146,7 +166,9 @@ it.each([
   };
   const editor = kind === "editor omission" || kind === "unrelated question";
   const revise = f.capture("tickets", raw, kind === "repeat" ? raw : omitted);
-  const result = editor ? f.after(returnGroup(ticketsPath)) : f.before();
+  const result = editor
+    ? f.after(returnGroup(ticketsPath)).then(({ outputs }) => outputs)
+    : f.before();
   if (kind === "unknown evidence") {
     await expect(result).rejects.toThrow("unknown evidence");
   } else if (kind === "editor omission") {
@@ -186,8 +208,8 @@ it.each([
 it.each(["size", "dates", "target"] as const)(
   "only returns General validation errors with a fixed Edition: %s",
   async (kind) => {
-    const f = fixture();
-    const original = fixtureTargets(f.event.id);
+    const f = generalFixture();
+    const original = structuredClone(f.targets);
     original.currentOrNextEdition!.fields.sizeEstimate = set(-1);
     if (kind === "dates") {
       original.currentOrNextEdition!.fields.dates = set({
@@ -206,13 +228,13 @@ it.each(["size", "dates", "target"] as const)(
             },
           }
         : original;
-    const fixed = fixtureTargets(f.event.id);
+    const fixed = structuredClone(f.targets);
     fixed.currentOrNextEdition!.fields.sizeEstimate = set(2000, undefined, []);
     const revise = f.capture("general", raw, fixed);
     if (kind === "size") {
       await expect(f.general()).resolves.toMatchObject({
-        status: "continue",
-        value: fixed,
+        targets: { status: "continue", value: fixed },
+        revisedOutput: fixed,
       });
       expect(revise.mock.calls[0][0]).toMatchObject({
         groups: [{ path: "currentOrNextEdition.fields.sizeEstimate" }],
@@ -281,9 +303,16 @@ it("batches Links groups and limits returns for each path", async () => {
     returnGroup(websitePath, "Check the official site."),
     returnGroup(ticketLinkPath, "Read the ticket overview."),
   ];
-  await expect(f.after(...requests)).resolves.toMatchObject({
-    links: { ...fixed, unresolved: [question] },
-  });
+  const first = await f.after(...requests);
+  expect(first.outputs.links).toEqual({ ...fixed, unresolved: [question] });
+  expect(first.records.map(({ path }) => path)).toEqual([
+    websitePath,
+    ticketLinkPath,
+  ]);
+  const second = await f.after(requests[0]);
+  expect(second.records).toMatchObject([
+    { path: websitePath, note: requests[0].note },
+  ]);
   expect(revise.mock.calls[0][0]).toMatchObject({
     groups: [
       { path: websitePath, note: requests[0].note },
@@ -291,10 +320,19 @@ it("batches Links groups and limits returns for each path", async () => {
     ],
   });
   await f.after(requests[0]);
-  await f.after(requests[0]);
   await expect(f.after(requests[0])).rejects.toThrow("no returns left");
   expect(revise).toHaveBeenCalledTimes(3);
   expect(f.repairs.returnCounts.get(ticketLinkPath)).toBe(1);
+
+  second.recordEditorFailure(editorFailure);
+  expect(f.repairs.records.map(({ path, failure }) => [path, failure])).toEqual(
+    [
+      [websitePath, undefined],
+      [ticketLinkPath, undefined],
+      [websitePath, editorFailure],
+      [websitePath, undefined],
+    ],
+  );
 });
 
 it("keeps a valid peer and retries only the local omission error", async () => {
@@ -324,7 +362,7 @@ it("keeps a valid peer and retries only the local omission error", async () => {
     returnGroup(socialPath),
     returnGroup(ticketLinkPath),
   );
-  expect(result.links).toEqual(links(set(sourceUrl), set(ticketLink)));
+  expect(result.outputs.links).toEqual(links(set(sourceUrl), set(ticketLink)));
   expect(revise).toHaveBeenCalledTimes(3);
   for (const [request] of revise.mock.calls.slice(1)) {
     expect(request).toMatchObject({
@@ -341,6 +379,11 @@ it("keeps a valid peer and retries only the local omission error", async () => {
     path: socialPath,
     decision: { decision: "reject", path: socialPath },
   });
+
+  result.recordEditorFailure(editorFailure);
+  expect(f.repairs.records.map(({ failure }) => failure)).toEqual(
+    Array(4).fill(editorFailure),
+  );
 });
 
 it("continues another owner after a local validation repair is exhausted", async () => {
@@ -372,7 +415,7 @@ it.each([
     const f = fixture();
     f.f.edition(f.event, { editionKey: "2027", countryCode: "PT" });
     f.loadContext();
-    const original = fixtureTargets(f.event.id);
+    const original = f.targets;
     const revised = structuredClone(original);
     revised.currentOrNextEdition!.fields.sizeEstimate = set(2000);
     if (kind === "target") {
@@ -410,8 +453,8 @@ it.each([
 );
 
 it("repairs a local General date error and keeps the valid peer revision", async () => {
-  const f = fixture();
-  const original = fixtureTargets(f.event.id);
+  const f = generalFixture();
+  const original = f.targets;
   const revised = structuredClone(original);
   revised.currentOrNextEdition!.fields.sizeEstimate = set(2000);
   revised.currentOrNextEdition!.fields.dates = set({
@@ -429,11 +472,11 @@ it("repairs a local General date error and keeps the valid peer revision", async
   revise.mockImplementationOnce(revision(revised));
   revise.mockImplementationOnce(revision(corrected));
 
-  await f.after(
+  const { generalTargets } = await f.after(
     returnGroup("currentOrNextEdition.fields.sizeEstimate"),
     returnGroup("currentOrNextEdition.fields.dates"),
   );
-  expect(f.repairs.raw("general")).toEqual({
+  expect(generalTargets).toEqual({
     ...corrected,
     currentOrNextEdition: {
       ...corrected.currentOrNextEdition,
@@ -585,12 +628,14 @@ it.each(["uncited removal", "unknown slug", "unknown evidence"] as const)(
 
     await f.before();
     if (kind === "uncited removal") {
-      expect((await f.after(returnGroup(path))).classification).toEqual({
-        ...original,
-        currentOrNextEdition: {
-          classification: { ...change, value: [term.id] },
+      expect((await f.after(returnGroup(path))).outputs.classification).toEqual(
+        {
+          ...original,
+          currentOrNextEdition: {
+            classification: { ...change, value: [term.id] },
+          },
         },
-      });
+      );
       expect(f.repairs.raw("classification")).toEqual(revised);
     } else if (kind === "unknown evidence") {
       await expect(f.after(returnGroup(path))).rejects.toThrow(
@@ -601,7 +646,9 @@ it.each(["uncited removal", "unknown slug", "unknown evidence"] as const)(
         code: "invalid_candidate",
       });
     } else {
-      expect((await f.after(returnGroup(path))).classification).toMatchObject({
+      expect(
+        (await f.after(returnGroup(path))).outputs.classification,
+      ).toMatchObject({
         currentOrNextEdition: {},
       });
       expect(f.repairs.records.at(-1)).toMatchObject({

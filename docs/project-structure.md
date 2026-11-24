@@ -95,6 +95,9 @@ Paths below are relative to `src/ingestion/` unless stated otherwise. Read code 
 | Saved sources and frozen corpus                                | `evidence/`                                           |
 | Scope and country checks                                       | `research/guards.ts`                                  |
 | Source tools, shared budgets and network access                | `tools/`                                              |
+| Proposal groups and specialist check assignments               | `groups.ts`, `roles/assignment.ts`                    |
+| Owner replies, return counts and repair history                | `repairs.ts`                                          |
+| Workflow steps for proposal assembly and Editor returns       | `proposal-stages.ts`                                  |
 | Proposal assembly and application of Editor decisions          | `proposals.ts`                                        |
 | Writer-operation preparation                                   | `catalog-plan.ts`                                     |
 | Place fields, coordinate selection and earlier-point checks    | `roles/location/`, `tools/geocode/`                   |
