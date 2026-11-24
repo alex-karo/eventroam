@@ -7,6 +7,7 @@ import {
   readResearchEvent,
   readResearchCatalog,
 } from "@/catalog/read/research";
+import { applyCatalogOperation } from "@/catalog/write/apply-operation";
 import {
   fixtureDependencies,
   fixtureTargets,
@@ -64,19 +65,21 @@ function fixture(scheduleStatus: "announced" | "scheduled" = "announced") {
   };
   return { client, fx, event, edition, general, refresh, deps };
 }
-test.each([
+test.each<[string, string | RegExp]>([
   ["Sónar", "sonar"],
   ["So\u0301nar", "sonar"],
   ["Ｆｅｓｔ ２０２７", "fest-2027"],
   ["音楽祭", /^event-[a-f0-9]{12}$/],
+  ["Example Fest!", /^example-fest$/],
+  ["a".repeat(101), /^a{100}$/],
 ])(
   "creates %s with a normalized slug and unchanged name",
   async (name, slug) => {
     const { client } = testDatabase();
     const general = fixtureTargets();
-    general.observedEventName = name as string;
+    general.observedEventName = name;
     const result = await runFixtureResearch(
-      { ...input, input: name as string },
+      { ...input, input: name },
       { client, ...fixtureDependencies({ general }) },
     );
     expect(result.errors).toEqual([]);
@@ -188,21 +191,26 @@ test("explicit date, point and size clears preserve the saved time zone and coun
 });
 test("Tickets converts base prices to minor units and retains free concessions without currency", async () => {
   const f = fixture();
+  const reason = "The organizer lists the admission prices";
   const tickets = {
     currentOrNextEdition: {
-      tickets: set({
-        variants: [
-          { label: "Weekend", amount: 100.5, currency: "EUR" },
-          { label: "Children", amount: 0 },
-        ],
-        basePrice: {
-          kind: "exact",
-          currency: "EUR",
-          minAmount: 100.5,
-          maxAmount: 100.5,
-          coverage: "full_programme",
+      tickets: set(
+        {
+          variants: [
+            { label: "Weekend", amount: 100.5, currency: "EUR" },
+            { label: "Children", amount: 0 },
+          ],
+          basePrice: {
+            kind: "exact",
+            currency: "EUR",
+            minAmount: 100.5,
+            maxAmount: 100.5,
+            coverage: "full_programme",
+            qualification: "Before the event",
+          },
         },
-      }),
+        reason,
+      ),
     },
     checks: [],
     unresolved: [],
@@ -222,10 +230,49 @@ test("Tickets converts base prices to minor units and retains free concessions w
       currency: "EUR",
     }),
   );
+  for (const field of [
+    "price_details",
+    "price_kind",
+    "price_currency",
+    "price_min_minor",
+    "price_max_minor",
+    "price_coverage",
+    "price_qualification",
+  ]) {
+    expect(result.changes).toContainEqual(
+      expect.objectContaining({
+        subject: f.edition.id,
+        field,
+        explanations: [reason],
+      }),
+    );
+  }
   tickets.currentOrNextEdition.tickets.value.variants.reverse();
   const again = await runFixtureResearch(f.refresh, deps);
   expect(again.errors).toEqual([]);
   expect(again.changes).toEqual([]);
+});
+test("Tickets keeps individual offers when the base price is unknown", async () => {
+  const f = fixture();
+  const offer = { label: "Friday", amount: 30, currency: "EUR" };
+
+  const result = await runFixtureResearch(f.refresh, {
+    ...f.deps,
+    generateRoles: {
+      tickets: async () => ({
+        currentOrNextEdition: {
+          tickets: set({ variants: [offer], basePrice: null }),
+        },
+        checks: [],
+        unresolved: [],
+      }),
+    },
+  });
+
+  expect(result.errors).toEqual([]);
+  const saved = readResearchEvent(f.client, f.event.id)!.editions[0];
+  expect(saved.priceKind).toBeNull();
+  expect(saved.priceDetails).toContainEqual(expect.objectContaining(offer));
 });
 test.each(["replace", "clear"])(
   "Classification can %s genres and keep the other saved facets",
@@ -327,6 +374,51 @@ test("Links clear only the official website and keep other link kinds", async ()
     readResearchEvent(f.client, f.event.id)!.links.map((link) => link.kind),
   ).toEqual(["instagram"]);
 });
+test.each([
+  { url: "https://example.org/", label: "Official website" },
+  { url: "https://example.org/new", label: null },
+  { url: "https://instagram.com/example", label: null },
+])(
+  "preserves an official website label only for the same kind and URL ($url)",
+  async ({ url, label }) => {
+    const f = fixture();
+    const socialUrl = "https://instagram.com/example";
+    const socialLabel = "Community profile";
+    f.fx.eventLink(f.event, {
+      kind: "official_site",
+      url: "https://example.org/",
+      label: "Official website",
+    });
+    f.fx.eventLink(f.event, {
+      kind: "instagram",
+      url: socialUrl,
+      label: socialLabel,
+    });
+    const result = await runFixtureResearch(f.refresh, {
+      ...f.deps,
+      generateRoles: {
+        links: async () => ({
+          event: { website: set(url), socials: {} },
+          currentOrNextEdition: {},
+          checks: [],
+          unresolved: [],
+          omitted: [],
+        }),
+      },
+    });
+    expect(result.errors).toEqual([]);
+    expect(readResearchEvent(f.client, f.event.id)!.links).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "official_site", url, label }),
+        expect.objectContaining({
+          kind: "instagram",
+          url: socialUrl,
+          label: socialLabel,
+        }),
+      ]),
+    );
+  },
+);
 test("writer rejection rolls back links, data, audit entries and receipts together", async () => {
   const f = fixture();
   f.client.exec(
@@ -384,6 +476,30 @@ test("rejects a new scheduled Edition without dates before writing any changes",
   expect(result.receipts).toEqual([]);
   expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
 });
+test.each(["starts_on", "ends_on"])(
+  "rejects scheduling an Edition when the saved %s is missing",
+  async (missing) => {
+    const f = fixture();
+    f.client
+      .prepare(`UPDATE editions SET ${missing} = NULL WHERE id = ?`)
+      .run(f.edition.id);
+    f.general.currentOrNextEdition!.fields.scheduleStatus = set("scheduled");
+    const before = readResearchEvent(f.client, f.event.id);
+
+    const result = await runFixtureResearch(f.refresh, f.deps);
+
+    expect(result.outcome).toBe("failed");
+    expect(result.errors).toContainEqual({
+      code: "invalid_plan",
+      stage: "validation",
+      field: "currentOrNextEdition.fields.dates",
+      message:
+        "Edition 2027 needs a start date and an end date for status scheduled.",
+    });
+    expect(result.operations).toEqual([]);
+    expect(readResearchEvent(f.client, f.event.id)).toEqual(before);
+  },
+);
 test("accepts scheduled status when the Edition keeps its saved dates", async () => {
   const f = fixture();
   f.general.currentOrNextEdition!.fields.scheduleStatus = set("scheduled");
@@ -430,6 +546,19 @@ test("cancellation changes schedule status while omission preserves size", async
   });
   const again = await runFixtureResearch(f.refresh, f.deps);
   expect(again.changes).toEqual([]);
+});
+test("refresh publishes an eligible draft Event and Edition with saved terms", async () => {
+  const f = fixture("scheduled");
+  for (const term of f.fx.festivalTerms()) {
+    f.fx.assignTerm(f.edition, term);
+  }
+
+  const result = await runFixtureResearch(f.refresh, f.deps);
+
+  expect(result.errors).toEqual([]);
+  const saved = readResearchEvent(f.client, f.event.id)!;
+  expect(saved.publicationState).toBe("published");
+  expect(saved.editions[0].publicationState).toBe("published");
 });
 test("a draft with complete facts and only event_type has no planned publication", () => {
   const f = fixture();
@@ -542,3 +671,46 @@ test("a publishable historical Edition publishes the Event while an undated next
     saved.editions.find((e) => e.editionKey === "2027")!.publicationState,
   ).toBe("draft");
 });
+
+test.each([
+  { start: "withdrawn", republish: false, end: "withdrawn", publish: false },
+  { start: "withdrawn", republish: true, end: "published", publish: true },
+  { start: "published", republish: true, end: "published", publish: false },
+])(
+  "refresh leaves a $start Event $end with republish=$republish",
+  async ({ start, republish, end, publish }) => {
+    const { client } = testDatabase();
+    const { event } = testFixtures(client).publishedEvent({
+      event: { canonicalName: "Example Fest" },
+      editions: [{ editionKey: "2027", endsOn: "2027-07-03" }],
+    });
+    if (start === "withdrawn") {
+      applyCatalogOperation(client, {
+        kind: "withdrawEvent",
+        id: event.id,
+        expectedVersion: event.version,
+        actor: "owner",
+        operationKey: "test:withdraw-event",
+      });
+    }
+
+    const result = await runFixtureResearch(
+      {
+        mode: "refresh",
+        eventId: event.id,
+        actor: input.actor,
+        republish,
+        dryRun: false,
+      },
+      { ...fixtureDependencies(), client, todayUtc: "2026-11-01" },
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(
+      result.operations
+        .map((operation) => operation.kind)
+        .filter((kind) => kind === "publishEvent" || kind === "publishEdition"),
+    ).toEqual(publish ? ["publishEvent"] : []);
+    expect(readResearchEvent(client, event.id)!.publicationState).toBe(end);
+  },
+);

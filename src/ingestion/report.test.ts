@@ -1,12 +1,14 @@
 import { expect, test } from "vitest";
 import { createIngestionData } from "./contracts";
+import type { Source } from "./evidence/contracts";
 import { buildResearchReport, type ReportRun } from "./report";
+import { buildAssignment } from "./roles/assignment";
 import { createResearchBudget } from "./runtime/budget";
 import { initialDiagnostics } from "./stage";
 import { persistenceFailureReport, RunPersistenceError } from "./runs";
 import type { InputDuplicateMatch } from "./research/input-duplicate";
 
-function earlyReportInput(support: InputDuplicateMatch["support"]) {
+function reportInput() {
   const data = createIngestionData();
   const budget = createResearchBudget({}, () => 0);
   data.context = {
@@ -14,17 +16,10 @@ function earlyReportInput(support: InputDuplicateMatch["support"]) {
     terms: [],
     knownLinks: [],
     currentDate: "2028-01-01T12:00:00.000Z",
-    inputDuplicate: { eventId: "fest", matchedName: "Example Fest", support },
   };
-  const diagnostics = {
-    ...initialDiagnostics(),
-    matchedEventId: "fest",
-    validation: { structural: "passed", target: "not_run" } as const,
-  };
-  data.researchValidation = { status: "skip", diagnostics };
-  data.outcome = "skipped";
+  data.outcome = "unchanged";
   const run: ReportRun = {
-    runId: "early-run",
+    runId: "test-run",
     input: { mode: "add", input: "Example Fest, us", actor: "test" },
     config: { model: "fixture" },
     limits: budget.limits,
@@ -33,7 +28,39 @@ function earlyReportInput(support: InputDuplicateMatch["support"]) {
     started: 0,
     finished: 1,
   };
+  return { data, run };
+}
+
+function earlyReportInput(support: InputDuplicateMatch["support"]) {
+  const { data, run } = reportInput();
+  data.context!.inputDuplicate = {
+    eventId: "fest",
+    matchedName: "Example Fest",
+    support,
+  };
+  const diagnostics = {
+    ...initialDiagnostics(),
+    matchedEventId: "fest",
+    validation: { structural: "passed", target: "not_run" } as const,
+  };
+  data.researchValidation = { status: "skip", diagnostics };
+  data.outcome = "skipped";
   return { data, diagnostics, run };
+}
+
+function source(id: string, overview: string): Source {
+  const url = `https://example.com/${id}`;
+  return {
+    id,
+    processing: "complete",
+    status: "ok",
+    method: "http",
+    attemptedUrl: url,
+    finalUrl: url,
+    retrievedAt: "2027-01-01T00:00:00Z",
+    overview,
+    limitations: [],
+  };
 }
 
 test.each([{ countryCode: "US" }, { officialUrl: "https://example.com/" }])(
@@ -100,7 +127,7 @@ test("a failed persistence response cannot retain the successful early-match mar
   const { data, run } = earlyReportInput({ countryCode: "US" });
   const report = buildResearchReport(data, run);
   const failed = persistenceFailureReport(
-    new RunPersistenceError("early-run", report),
+    new RunPersistenceError(run.runId, report),
   );
   expect(failed).not.toHaveProperty("inputDuplicate");
   expect(failed?.errors).toContainEqual({
@@ -158,4 +185,99 @@ test("an earlier withdrawal cannot settle the question after a later failed repa
       message: "The revision has no reason for its omission.",
     },
   ]);
+});
+
+test("each source summary includes only findings for that source", () => {
+  const { data, run } = reportInput();
+  const travel = source("travel", "Travel guide.");
+  const tickets = source("tickets", "Ticket guide.");
+  data.corpus = {
+    version: "fixture",
+    sources: [travel, tickets],
+    evidence: [],
+  };
+  data.research = {
+    ...data.research,
+    status: "success",
+    output: {
+      checks: [
+        {
+          check: "currentLocation",
+          sourceIds: [travel.id],
+          blocker: "The directions page is unavailable.",
+        },
+        { check: "currentTickets", sourceIds: [tickets.id], blocker: null },
+      ],
+      unresolved: [],
+    },
+  };
+  data.specialists = {
+    tickets: {
+      ...data.research,
+      output: {
+        checks: [
+          {
+            check: "currentTickets",
+            sourceIds: [tickets.id],
+            finding: "verified",
+            explanation: "Tickets start at €25.",
+          },
+        ],
+      },
+    },
+  };
+
+  expect(buildResearchReport(data, run).sourceSummaries).toEqual([
+    {
+      url: travel.finalUrl,
+      information: "Travel guide. The directions page is unavailable.",
+    },
+    {
+      url: tickets.finalUrl,
+      information: "Ticket guide. Tickets start at €25.",
+    },
+  ]);
+});
+
+test("a source with limited processing makes research partial", () => {
+  const { data, run } = reportInput();
+  const complete = source("programme", "Dates and tickets.");
+  const limited: Source = {
+    ...source("travel", "Travel guide."),
+    processing: "limited",
+    limitations: ["The page content was cut short."],
+  };
+  const quote = "The festival runs from July 1 to 3.";
+  data.research = {
+    ...data.research,
+    status: "success",
+    output: {
+      checks: buildAssignment(run.input, data.context!).checks.map(
+        ({ key }) => ({ check: key, sourceIds: [complete.id], blocker: null }),
+      ),
+      unresolved: [],
+    },
+  };
+  data.corpus = {
+    version: "fixture",
+    sources: [complete],
+    evidence: [
+      {
+        id: "programme-e1",
+        sourceId: complete.id,
+        quote,
+        span: { start: 0, end: quote.length },
+        context: [],
+        anchors: [],
+        topics: ["dates"],
+        editionClues: [],
+        uncertainty: null,
+      },
+    ],
+  };
+
+  expect(buildResearchReport(data, run).researchStatus).toBe("success");
+
+  data.corpus.sources.push(limited);
+  expect(buildResearchReport(data, run).researchStatus).toBe("partial");
 });

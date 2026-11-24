@@ -61,6 +61,8 @@ function savedEvent(countries: (string | null)[] = ["US"]) {
 
 test.each([
   "example fest, us",
+  "Example Fest, us ",
+  "Example Fest, us, zz",
   "Sample Party; US",
   "Example Fest\nUS",
   "Please add Example Fest country: us",
@@ -78,9 +80,11 @@ test.each([
   "Example Fest",
   "Example Fest, United States",
   "Example Fest us",
+  "Example Fest, usgb",
   "Example Fest, zz",
   "Example Fest, us, gb",
   "Example Fest country: us; country: gb",
+  "Example https://example.org/ Fest, us",
   "Example Fest https://example.com/us",
   "Example Fest, https://example.com/, usgb",
   "https://example.com/, us",

@@ -68,13 +68,18 @@ test.each([
   { dateState: "confirmed" },
   { scheduleStatus: "scheduled" },
   { startsOn: "2027-01-01" },
-  { ...dated, endsOn: "2027-05-01" },
   { coordinatePrecision: "exact" },
   { latitude: 38, longitude: -9 },
   { latitude: 38, coordinatePrecision: "exact" },
   { latitude: 91, longitude: 0, coordinatePrecision: "exact" },
 ])("inconsistent edition is rejected: %j", (record) => {
   expect(() => festivalEditionRules.validateRecord(record)).toThrow();
+});
+
+test("edition validation reports an end date before the start date", () => {
+  expect(() =>
+    festivalEditionRules.validateRecord({ ...dated, endsOn: "2027-05-01" }),
+  ).toThrow("End date precedes start date");
 });
 
 test("one policy selects both the required fields and the required facets", () => {

@@ -34,6 +34,12 @@ UI tests use `e2e/fixtures.ts` to set the analytics choice to disabled before th
 
 Run `pnpm run test:coverage` for unit and integration coverage of application and command TypeScript, including unimported files. E2E, test helpers, declaration files, and child-process coverage from Studio and tracing fixtures are excluded. Reports go to ignored `coverage/`; CI publishes totals and retains the HTML `test-coverage` artifact for 14 days. Coverage thresholds are not enforced. React tests use a per-file `// @vitest-environment jsdom` directive and React Testing Library; other tests use Node.
 
+## Mutation testing
+
+Run `pnpm run test:mutation` locally to check if tests detect changes to the catalog date, edition, and price rules. The [Vitest filter](../tooling/vitest.mutation.config.mts) selects which tests Stryker can use. Per-test coverage lets Stryker rerun just the tests that cover a mutation when possible.
+
+Open `reports/mutation/mutation.html` to see each change. Start with changes marked `Survived` that would cause incorrect behavior. Add a test for the input that shows the error.
+
 ## Test data
 
 Tests live beside their implementation. Use `testDatabase()` for a fresh migrated temporary database and `testFixtures()` from `src/test/fixtures.ts` for typed builders and inserts. Cleanup is automatic.

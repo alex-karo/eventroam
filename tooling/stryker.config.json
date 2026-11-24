@@ -1,0 +1,31 @@
+{
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "tooling/vitest.mutation.config.mts",
+    "pool": "forks",
+    "related": false
+  },
+  "mutate": [
+    "src/catalog/domain/dates.ts",
+    "src/catalog/domain/edition-rules.ts",
+    "src/catalog/domain/price.ts"
+  ],
+  "ignorePatterns": [
+    "**",
+    "!src/**",
+    "!commands/catalog.ts",
+    "!commands/catalog-options.ts",
+    "!package.json",
+    "!tsconfig.json",
+    "!vitest.config.mts",
+    "!tooling/vitest.mutation.config.mts",
+    "/src/mastra/public/data"
+  ],
+  "concurrency": 3,
+  "reporters": ["clear-text", "progress", "html", "json"],
+  "clearTextReporter": {
+    "reportTests": false,
+    "reportMutants": false
+  }
+}

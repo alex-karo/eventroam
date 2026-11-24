@@ -26,6 +26,8 @@ coverage
 *.lcov
 /playwright-report/
 /test-results/
+/.stryker-tmp/
+/reports/mutation/
 
 # nyc test coverage
 .nyc_output

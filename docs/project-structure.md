@@ -134,6 +134,8 @@ Current behavior is implemented in the [site configuration](../src/site/site.ts)
 
 `commands/catalog-db.ts` runs reviewed migrations and fictional development fixtures. Release the application, writer, and schema as one compatible version. See [Infrastructure](infrastructure.md) for migration and transfer procedures.
 
+Run `pnpm exec drizzle-kit generate --config tooling/drizzle.config.ts` from the project root to generate a migration from schema changes.
+
 Keep value validation and extensible vocabularies in application code. SQLite enforces keys, uniqueness, NOT NULL, and immutable catalog-change history and public URL aliases. Do not add business CHECK constraints or validation triggers. Reuse operation validators in supported writes, fixtures, and normal test helpers. Validate related stored state in the write transaction. A rejected write must leave no partial mutation, audit entry, or receipt. Catalog changes and receipts commit atomically.
 
 Ingestion finalization must affect exactly one matching running attempt; it must not overwrite a finalized attempt.
