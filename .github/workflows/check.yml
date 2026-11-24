@@ -54,3 +54,24 @@ jobs:
           version: v5.7.1
       - name: Build images and check Compose
         run: pnpm run docker:smoke
+
+  code-health:
+    name: Repowise code health
+    if: github.event_name == 'pull_request' || (!github.event.created && !github.event.deleted)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: repowise-dev/repowise@b9e9f97eb368ecdbf93fb57b11a5b9de53961b0b # v0.62.0
+        env:
+          REPOWISE_OFFLINE: '1'
+        with:
+          version: '0.62.0'
+          checks: health
+          base: >-
+            ${{ github.event_name == 'pull_request'
+                && format('{0}...HEAD', github.event.pull_request.base.sha)
+                || format('{0}..HEAD', github.event.before) }}
