@@ -1,5 +1,3 @@
-import type { CatalogAttempt } from "./attempt";
-import type { IngestionData } from "./contracts";
 import type { Evidence } from "./evidence/contracts";
 import {
   assignedGroups,
@@ -56,6 +54,13 @@ const validators = {
   location: validateLocationGroups,
 } satisfies Record<GroupOwner, (options: GroupValidationInput) => unknown>;
 
+type RepairContext = Omit<ProposalValidationContext, "location" | "targets">;
+type TargetedRepairContext = RepairContext & { targets: Targets };
+type GeneralRepairResult = {
+  targets: StageResult<Targets & PlanDiagnostics>;
+  revisedOutput?: Targets;
+};
+
 export type RepairRecord = {
   path: string;
   owner: GroupOwner;
@@ -72,6 +77,15 @@ export type RepairRecord = {
 
 function ownGroups(groups: ProposalGroup[], owner: GroupOwner) {
   return groups.filter((group) => group.owner === owner);
+}
+
+function checkedGeneralTargets(raw: unknown): Targets {
+  // The merge checks the role schema before it saves the reply.
+  const output = raw as GeneralOutput | undefined;
+  if (output?.decision !== "targets") {
+    throw new Error("Missing validated General targets");
+  }
+  return output;
 }
 
 export class ProposalRepairs {
@@ -117,20 +131,22 @@ export class ProposalRepairs {
     return this.replies.get(owner)?.revise !== undefined;
   }
 
-  materializeLocation(raw: unknown) {
-    return materializeLocationReply(raw, this.location!, this.returnedPaths);
+  materializeLocation() {
+    const raw = this.raw("location");
+    if (raw) {
+      return materializeLocationReply(raw, this.location!, this.returnedPaths);
+    }
   }
 
   async general(
-    owned: CatalogAttempt,
-    data: IngestionData,
+    context: RepairContext,
     signal: AbortSignal,
-  ): Promise<StageResult<Targets & PlanDiagnostics> | undefined> {
+  ): Promise<GeneralRepairResult | undefined> {
     const reply = this.replies.get("general");
     if (!reply?.raw) {
       return;
     }
-    const ctx = this.context(owned, data, null);
+    const ctx = { ...context, targets: null };
     const { targets, groups, issues, output } = validateGeneralReply(
       reply,
       ctx,
@@ -139,7 +155,7 @@ export class ProposalRepairs {
       if (output) {
         reply.raw = output;
       }
-      return targets;
+      return { targets };
     }
     await this.dispatch(
       "general",
@@ -149,24 +165,21 @@ export class ProposalRepairs {
       "validation",
       signal,
     );
-    const repaired = this.raw("general") as GeneralOutput;
-    data.general = {
-      ...data.general,
-      status: "success",
-      output: repaired,
-      errors: [],
+    const revisedOutput = checkedGeneralTargets(reply.raw);
+    return {
+      targets: validateGeneral(
+        revisedOutput,
+        ctx.context,
+        ctx.input,
+        ctx.corpus,
+      ),
+      revisedOutput,
     };
-    return validateGeneral(repaired, ctx.context, owned.input, ctx.corpus);
   }
 
-  async beforeReview(
-    owned: CatalogAttempt,
-    data: IngestionData,
-    targets: Targets,
-    signal: AbortSignal,
-  ) {
-    const ctx = this.context(owned, data, targets);
-    const groups = assignedGroups(owned.input.scope, targets);
+  async beforeReview(context: TargetedRepairContext, signal: AbortSignal) {
+    const ctx = { ...context, location: this.location };
+    const groups = assignedGroups(ctx.input.scope, ctx.targets);
     const issues: GroupIssue[] = [];
     const specialists = [
       "tickets",
@@ -200,16 +213,31 @@ export class ProposalRepairs {
   }
 
   async afterReview(
-    owned: CatalogAttempt,
-    data: IngestionData,
-    targets: Targets,
+    context: TargetedRepairContext,
     requests: ReturnRequest[],
     signal: AbortSignal,
   ) {
-    const ctx = this.context(owned, data, targets);
-    const groups = assignedGroups(owned.input.scope, targets);
+    const ctx = { ...context, location: this.location };
+    const groups = assignedGroups(ctx.input.scope, ctx.targets);
+    const start = this.records.length;
     await this.returnGroups(requests, groups, ctx, "editor", signal);
-    return this.checkedSpecialistOutputs(ctx);
+    const end = this.records.length;
+    const records: readonly Readonly<RepairRecord>[] = this.records.slice(
+      start,
+      end,
+    );
+    return {
+      outputs: this.checkedSpecialistOutputs(ctx),
+      records,
+      generalTargets: records.some(({ owner }) => owner === "general")
+        ? checkedGeneralTargets(this.replies.get("general")?.raw)
+        : undefined,
+      recordEditorFailure: (failure: ResearchError | undefined) => {
+        for (let index = start; index < end; index++) {
+          this.records[index].failure = failure;
+        }
+      },
+    };
   }
 
   private checkedSpecialistOutputs(
@@ -233,20 +261,6 @@ export class ProposalRepairs {
           )
         : null,
       links,
-    };
-  }
-
-  private context(
-    owned: CatalogAttempt,
-    data: IngestionData,
-    targets: Targets | null,
-  ): ProposalValidationContext {
-    return {
-      corpus: data.corpus!,
-      targets,
-      context: data.context!,
-      input: owned.input,
-      location: this.location,
     };
   }
 
