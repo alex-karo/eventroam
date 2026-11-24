@@ -16,6 +16,7 @@ Every substantive file under `docs/` has OKF-style `type`, `title`, `description
 
 ## Draft proposals
 
+- [Ingestion workflow refactoring plan](proposals/ingestion-workflow-refactor.md) — implemented changes and open choices for proposal repairs.
 - [Remaining release decisions](proposals/release-open-decisions.md) — unresolved launch-data, ingestion, and storage choices.
 - [Website routing and indexing defaults](proposals/website-routing-and-indexing.md) — remaining future-page and cross-scope proposals; current SEO is implemented in [metadata code](../src/site/server/metadata.ts).
 - [Festival taxonomy vocabulary proposal](proposals/festival-taxonomy-vocabulary.md) — starter terms loaded by catalog migrations and assignment guidance.

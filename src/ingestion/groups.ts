@@ -118,10 +118,10 @@ export function proposalGroup(path: string) {
 
 export function assignedGroups(
   scope: CatalogResearchInput["scope"],
-  targets: Pick<Targets, EditionSlot>,
+  targets?: Pick<Targets, EditionSlot>,
 ): ProposalGroup[] {
   return proposalGroups.filter(({ target }) =>
-    target === "event" ? scope !== "current" : Boolean(targets[target]),
+    target === "event" ? scope !== "current" : Boolean(targets?.[target]),
   );
 }
 

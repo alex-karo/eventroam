@@ -1,101 +1,68 @@
-import type { PlanDiagnostics } from "./stage";
-import type { LocationExecution } from "./roles/location/agent";
-import type { applyCatalogItem } from "@/catalog/write/apply-operation";
-import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
+import type {
+  CatalogResearchInput,
+  CatalogResearchResult,
+  IngestionData,
+} from "./contracts";
 import { eventLinksCheck, isSocialLinkField, proposalGroup } from "./groups";
-import type { ResearchBudgetSnapshot } from "./runtime/budget";
+import type { ResearchBudgetSnapshot, ResearchLimits } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
 import type { SourceReadMetadata } from "./tools/read-page/contracts";
-import {
-  type ResearchError,
-  type ResearchQuestion,
-} from "./research/contracts";
-import type { ReadyCatalogPlan } from "./catalog-plan";
-import type { EditorExecution } from "./roles/editor/execution";
-import type { RoleExecution } from "./roles/invoke";
-import { type CheckFinding } from "./roles/contracts";
-import { type CollectionOutput } from "./roles/research/contracts";
-import { type GeneralOutput } from "./roles/general/contracts";
-import type { FrozenCorpus } from "./evidence/contracts";
+import type { ResearchQuestion } from "./research/contracts";
+import type { CheckFinding } from "./roles/contracts";
+import type { RepairRecord } from "./repairs";
+import { preparationDiagnostics, readyCatalogPlan } from "./pipeline";
 import { buildAssignment, assignedRoleChecks } from "./roles/assignment";
 import { PROMPT_VERSIONS } from "./roles/versions";
 import { LOCATION_PROMPT_VERSION } from "./roles/location/contracts";
+import type { Targets } from "./roles/general/contracts";
 
-export type ReportInput = {
-  traceId?: string;
-  context: import("./research/context").ResearchContext | null;
-  limits: import("./runtime/budget").ResearchLimits;
+export type ReportRun = {
   runId: string;
+  traceId?: string;
   input: CatalogResearchInput;
-  config: ResearchConfig;
-  diagnostics: PlanDiagnostics | null;
-  plan: ReadyCatalogPlan | null;
-  outcome: CatalogResearchResult["outcome"];
-  research: RoleExecution<CollectionOutput>;
-  general: RoleExecution<GeneralOutput>;
-  corpus: FrozenCorpus | null;
-  specialists: Record<string, RoleExecution>;
-  editor: EditorExecution;
-  repairs?: import("./repairs").RepairRecord[];
-  location: LocationExecution;
-  applied: ReturnType<typeof applyCatalogItem> | null;
-  errors: ResearchError[];
-  unresolved: ResearchQuestion[];
-  reads: SourceReadMetadata[];
+  config: Pick<ResearchConfig, "model" | "locationModel" | "reasoningEffort">;
+  limits: ResearchLimits;
+  repairs: readonly RepairRecord[];
   budget: ResearchBudgetSnapshot;
   started: number;
   finished: number;
 };
 
-export function buildResearchReport({
-  runId,
-  traceId,
-  context,
-  limits,
-  input,
-  config,
-  diagnostics,
-  plan,
-  outcome,
-  research,
-  general,
-  specialists,
-  corpus,
-  editor,
-  repairs,
-  location,
-  applied,
-  errors,
-  unresolved,
-  reads,
-  budget,
-  started,
-  finished,
-}: ReportInput): CatalogResearchResult {
-  const latestRepairs = new Map(repairs?.map((entry) => [entry.path, entry]));
-  const failedGroups = [...latestRepairs.values()].filter(
-    ({ failure, decision }) => failure && decision?.decision === "reject",
+export function buildResearchReport(
+  data: Readonly<IngestionData>,
+  {
+    runId,
+    traceId,
+    input,
+    config,
+    limits,
+    repairs,
+    budget,
+    started,
+    finished,
+  }: ReportRun,
+): CatalogResearchResult {
+  const {
+    context,
+    research,
+    general,
+    specialists,
+    corpus,
+    editor,
+    location,
+    applied,
+    errors,
+    reads,
+  } = data;
+  const diagnostics = preparationDiagnostics(data);
+  const plan = readyCatalogPlan(data);
+  const outcome = data.outcome ?? "failed";
+  const { researchStatus, unresolved, inputDuplicate } = assessResearch(
+    data,
+    input,
+    repairs,
+    diagnostics?.matchedEventId,
   );
-  unresolved = [
-    ...unresolved.filter(({ field, editionKey, message }) => {
-      const repair = field ? latestRepairs.get(field) : undefined;
-      const reason = repair?.omissionReason?.trim();
-      const settled =
-        repair &&
-        reason &&
-        repair.decision?.decision === "approve" &&
-        !repair.failure &&
-        repair.revision == null &&
-        (editionKey === undefined || editionKey === repair.target.editionKey) &&
-        message.trim() === reason;
-      return !settled;
-    }),
-    ...failedGroups.map(({ path, target, failure }) => ({
-      field: path,
-      ...(target.editionKey && { editionKey: target.editionKey }),
-      message: failure!.message,
-    })),
-  ];
   const operations = plan?.operations ?? [];
   const receipts = applied?.operations ?? [];
   const references = applied?.references ?? {};
@@ -111,14 +78,8 @@ export function buildResearchReport({
   );
   const targets =
     general.output?.decision === "targets" ? general.output : null;
-  const assignment = context ? buildAssignment(input, context) : null;
   const collectionChecks = research.output?.checks ?? [];
-  const missingCollectionChecks =
-    assignment?.checks.filter(
-      (assigned) =>
-        !collectionChecks.some((check) => check.check === assigned.key),
-    ) ?? [];
-  const checks = [
+  const interpretationChecks = [
     ...(targets?.checks ?? []),
     ...Object.values(specialists).flatMap(
       (execution) =>
@@ -126,74 +87,6 @@ export function buildResearchReport({
         [],
     ),
   ];
-  const roleGaps = targets
-    ? (["general", "tickets", "classification", "links"] as const).flatMap(
-        (role) => {
-          const execution = role === "general" ? general : specialists[role];
-          const findings =
-            (execution?.output as { checks?: CheckFinding[] } | undefined)
-              ?.checks ?? [];
-          return assignedRoleChecks(role, input, targets).flatMap((key) => {
-            const repaired = repairs?.filter(
-              (entry) =>
-                entry.owner === role &&
-                proposalGroup(entry.path)?.check === key,
-            );
-            if (repaired?.length) {
-              const question = unresolved.find(
-                ({ field }) =>
-                  field &&
-                  (repaired.some(({ path }) => field === path) ||
-                    (key === eventLinksCheck && isSocialLinkField(field))),
-              );
-              if (question?.message) {
-                return [{ message: `${key}: ${question.message}` }];
-              }
-            }
-            const finding = findings.find(
-              (check) => check.check === key && check.finding === "unfinished",
-            );
-            if (finding) {
-              return [{ message: `${key}: ${finding.explanation}` }];
-            }
-            return findings.some(
-              (check) => check.check === key && check.finding === "verified",
-            )
-              ? []
-              : [{ message: `Interpretation check ${key} was not returned.` }];
-          });
-        },
-      )
-    : [];
-  const usable = !!corpus?.evidence.length;
-  const incomplete =
-    failedGroups.length > 0 ||
-    general.output?.decision === "uncertain" ||
-    roleGaps.length > 0 ||
-    collectionChecks.some((check) => check.blocker !== null) ||
-    missingCollectionChecks.length > 0 ||
-    corpus?.sources.some(
-      (source) => source.status === "ok" && source.processing !== "complete",
-    );
-  let researchStatus: "failed" | "partial" | "success" = incomplete
-    ? "partial"
-    : "success";
-  if (!usable || research.status !== "success") {
-    researchStatus = "failed";
-  }
-
-  const inputDuplicate =
-    input.mode === "add" &&
-    outcome === "skipped" &&
-    errors.length === 0 &&
-    context?.inputDuplicate &&
-    diagnostics?.matchedEventId === context.inputDuplicate.eventId
-      ? context.inputDuplicate
-      : undefined;
-  if (inputDuplicate) {
-    researchStatus = "success";
-  }
-
   const eventId =
     diagnostics?.matchedEventId ?? references.event ?? input.eventId;
   return {
@@ -223,7 +116,7 @@ export function buildResearchReport({
     modelResponse: general.modelResponse ?? null,
     classificationResponse: specialists.classification?.modelResponse ?? null,
     editorResponse: editor.modelResponse,
-    ...(repairs?.length && {
+    ...(repairs.length > 0 && {
       repairs: repairs.map((entry) => ({
         ...entry,
         target: {
@@ -248,23 +141,13 @@ export function buildResearchReport({
           ...collectionChecks
             .filter((check) => check.sourceIds.includes(source.id))
             .flatMap((check) => (check.blocker ? [check.blocker] : [])),
-          ...checks
+          ...interpretationChecks
             .filter((check) => check.sourceIds.includes(source.id))
             .map((check) => check.explanation),
         ].join(" "),
       })),
     errors,
-    unresolved: [
-      ...unresolved,
-      ...roleGaps.filter(
-        (gap) => !unresolved.some((item) => item.message === gap.message),
-      ),
-      ...(research.output
-        ? missingCollectionChecks.map(({ key }) => ({
-            message: `Collection check ${key} was not returned.`,
-          }))
-        : []),
-    ],
+    unresolved,
     eventNameMismatch: diagnostics?.eventNameMismatch ?? null,
     budget,
     locationResponse: location.modelResponse,
@@ -280,6 +163,156 @@ export function buildResearchReport({
     promptVersion: PROMPT_VERSIONS.general,
     durationMs: finished - started,
   };
+}
+
+function assessResearch(
+  data: Readonly<IngestionData>,
+  input: CatalogResearchInput,
+  repairs: readonly RepairRecord[],
+  matchedEventId: string | undefined,
+) {
+  const { context, corpus, errors, general, outcome, research } = data;
+  const latestRepairs = new Map(repairs.map((entry) => [entry.path, entry]));
+  const { openQuestions, repairFailures } = repairQuestions(
+    data.unresolved,
+    latestRepairs,
+  );
+  const questions = [...openQuestions, ...repairFailures];
+  const collectionChecks = research.output?.checks ?? [];
+  const missingCollectionChecks = context
+    ? buildAssignment(input, context).checks.filter(
+        ({ key }) => !collectionChecks.some((check) => check.check === key),
+      )
+    : [];
+  const roleGaps =
+    general.output?.decision === "targets"
+      ? interpretationQuestions(
+          input,
+          general.output,
+          data,
+          [...latestRepairs.values()],
+          questions,
+        )
+      : [];
+  const incomplete =
+    repairFailures.length > 0 ||
+    general.output?.decision === "uncertain" ||
+    roleGaps.length > 0 ||
+    collectionChecks.some((check) => check.blocker !== null) ||
+    missingCollectionChecks.length > 0 ||
+    corpus?.sources.some(
+      (source) => source.status === "ok" && source.processing !== "complete",
+    );
+  const duplicate = context?.inputDuplicate;
+  const inputDuplicate =
+    input.mode === "add" &&
+    outcome === "skipped" &&
+    errors.length === 0 &&
+    duplicate &&
+    matchedEventId === duplicate.eventId
+      ? duplicate
+      : undefined;
+  let researchStatus: CatalogResearchResult["researchStatus"];
+  if (inputDuplicate) {
+    researchStatus = "success";
+  } else if (!corpus?.evidence.length || research.status !== "success") {
+    researchStatus = "failed";
+  } else {
+    researchStatus = incomplete ? "partial" : "success";
+  }
+
+  return {
+    researchStatus,
+    inputDuplicate,
+    unresolved: [
+      ...questions,
+      ...roleGaps.filter(
+        (gap) => !questions.some((item) => item.message === gap.message),
+      ),
+      ...(research.output
+        ? missingCollectionChecks.map(({ key }) => ({
+            message: `Collection check ${key} was not returned.`,
+          }))
+        : []),
+    ],
+  };
+}
+
+function repairQuestions(
+  questions: readonly ResearchQuestion[],
+  latestRepairs: ReadonlyMap<string, RepairRecord>,
+) {
+  const openQuestions = questions.filter(({ field, editionKey, message }) => {
+    const repair = field ? latestRepairs.get(field) : undefined;
+    const reason = repair?.omissionReason?.trim();
+    const settled =
+      repair &&
+      reason &&
+      repair.decision?.decision === "approve" &&
+      !repair.failure &&
+      repair.revision == null &&
+      (editionKey === undefined || editionKey === repair.target.editionKey) &&
+      message.trim() === reason;
+    return !settled;
+  });
+  const repairFailures = [...latestRepairs.values()].flatMap(
+    ({ path, target, failure, decision }) =>
+      failure && decision?.decision === "reject"
+        ? [
+            {
+              field: path,
+              ...(target.editionKey && { editionKey: target.editionKey }),
+              message: failure.message,
+            },
+          ]
+        : [],
+  );
+  return { openQuestions, repairFailures };
+}
+
+function interpretationQuestions(
+  input: CatalogResearchInput,
+  targets: Targets,
+  { general, specialists }: Readonly<IngestionData>,
+  repairs: readonly RepairRecord[],
+  unresolved: readonly ResearchQuestion[],
+) {
+  return (["general", "tickets", "classification", "links"] as const).flatMap(
+    (role) => {
+      const execution = role === "general" ? general : specialists[role];
+      const findings =
+        (execution?.output as { checks?: CheckFinding[] } | undefined)
+          ?.checks ?? [];
+      return assignedRoleChecks(role, input, targets).flatMap((key) => {
+        const repaired = repairs.filter(
+          (entry) =>
+            entry.owner === role && proposalGroup(entry.path)?.check === key,
+        );
+        if (repaired.length) {
+          const question = unresolved.find(
+            ({ field }) =>
+              field &&
+              (repaired.some(({ path }) => field === path) ||
+                (key === eventLinksCheck && isSocialLinkField(field))),
+          );
+          if (question?.message) {
+            return [{ message: `${key}: ${question.message}` }];
+          }
+        }
+        const finding = findings.find(
+          (check) => check.check === key && check.finding === "unfinished",
+        );
+        if (finding) {
+          return [{ message: `${key}: ${finding.explanation}` }];
+        }
+        return findings.some(
+          (check) => check.check === key && check.finding === "verified",
+        )
+          ? []
+          : [{ message: `Interpretation check ${key} was not returned.` }];
+      });
+    },
+  );
 }
 
 function safeSource(read: SourceReadMetadata) {

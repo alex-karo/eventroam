@@ -4,7 +4,7 @@ import type {
   ResearchDependencies,
   IngestionData,
 } from "./contracts";
-import { preparationDiagnostics, readyCatalogPlan } from "./pipeline";
+import { preparationDiagnostics } from "./pipeline";
 import { createResearchBudget, type ResearchBudget } from "./runtime/budget";
 import { loadResearchConfig, type ResearchConfig } from "./runtime/config";
 import { createCatalogRunTrace, type CatalogRunTrace } from "./runtime/tracing";
@@ -14,7 +14,7 @@ import { RunPersistenceError } from "./runs";
 import { ProposalRepairs } from "./repairs";
 import type { SourceSession } from "./tools/session";
 import type { Collection } from "./evidence/collection";
-import { buildResearchReport, type ReportInput } from "./report";
+import { buildResearchReport } from "./report";
 import {
   validateRunInvocation,
   storedRunInput,
@@ -97,34 +97,19 @@ export class CatalogAttempt {
     });
   }
 
-  reportInput(data: IngestionData): ReportInput {
-    return {
+  buildReport(data: Readonly<IngestionData>): CatalogResearchResult {
+    const traceId = this.trace?.tracing.root?.traceId;
+    return buildResearchReport(data, {
       runId: this.ingestionRunId,
-      ...(this.trace?.tracing.root?.traceId
-        ? { traceId: this.trace.tracing.root.traceId }
-        : {}),
+      ...(traceId ? { traceId } : {}),
       input: this.input,
       config: this.config,
-      diagnostics: preparationDiagnostics(data),
-      plan: readyCatalogPlan(data),
-      outcome: data.outcome ?? "failed",
-      context: data.context,
       limits: this.budget.limits,
-      research: data.research,
-      general: data.general,
-      specialists: data.specialists,
-      corpus: data.corpus,
-      editor: data.editor,
       repairs: this.repairs.records,
-      location: data.location,
-      applied: data.applied,
-      errors: data.errors,
-      unresolved: data.unresolved,
-      reads: data.reads,
       budget: this.budget.snapshot(),
       started: this.started,
       finished: Date.now(),
-    };
+    });
   }
 
   track<T>(work: Promise<T>): Promise<T> {
@@ -165,7 +150,7 @@ export class CatalogAttempt {
       stage: "workflow",
       message: cancelled ? "Ingestion cancelled" : "Ingestion workflow failed",
     });
-    data.report = buildResearchReport(this.reportInput(data));
+    data.report = this.buildReport(data);
   }
 
   /** All engine failure paths use the same settlement and terminal persistence. */
@@ -190,7 +175,7 @@ export class CatalogAttempt {
     this.finalization ??= Promise.resolve().then(async () => {
       await this.settle();
       try {
-        data.report ??= buildResearchReport(this.reportInput(data));
+        data.report ??= this.buildReport(data);
         const result = finalizeIngestionRun(
           this.deps.client,
           this.ingestionRunId,
