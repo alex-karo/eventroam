@@ -52,7 +52,7 @@ pnpm run docs:check
 
 Use `pnpm run format:check` for application formatting and `pnpm run openspec:validate` for OpenSpec edits. See [Testing](testing.md) for browser tests, coverage, fixtures, and CI differences. See the [change workflow](change-workflow.md) when you use full OpenSpec or need help choosing a workflow.
 
-## Code hotspots
+## Code health
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and use a POSIX shell to run [Repowise](https://github.com/repowise-dev/repowise) locally.
 
@@ -66,6 +66,16 @@ The hotspot report groups files with high recent Git activity by component. The 
 The first run downloads the pinned Repowise version and builds an index from source files and Git history. Later runs update the index. Each worktree stores its index in the ignored `.repowise/` directory. Analysis runs offline. New indexes have editor integration and Git hook setup disabled.
 
 To save the hotspot report as JSON, run `npm run code:hotspots -- --format json --out .repowise/hotspots.json`. With `pnpm run`, pass flags directly after the script name.
+
+The Repowise CI job checks changed files in pull requests and pushes to `main`. It compares the pull request head with its merge base, or the push head with the previous tip of `main`. New high or critical code structure findings on changed lines outside test files fail the job. Repowise reports findings as GitHub annotations. This check needs only Git history.
+
+For pull requests from branches in this repository, Repowise posts one summary comment and updates it after each run.
+
+To check committed changes locally, update `origin/main` and run this command:
+
+```sh
+npm run code:repowise -- health check origin/main...HEAD
+```
 
 ## Task guides
 
