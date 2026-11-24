@@ -29,6 +29,15 @@ export const checks = {
         "Use zero searches when only the past Edition outcome is unknown",
       ),
       check(
+        "toolUse.readHistoryArchive",
+        context.calls.some(
+          (call) =>
+            call.tool === "readPage" &&
+            call.url === "https://scope-fixture.example/blocked-archive",
+        ),
+        "Read the linked history archive",
+      ),
+      check(
         "research.unresolved.historic-weekend",
         report.unresolved.some((question) =>
           /histor|archive|2025|previous|past edition/i.test(question.message),
