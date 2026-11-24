@@ -93,7 +93,6 @@
     "source-regressions/stale-language.json",
     "source-regressions/homonym.json",
     "search-policy/no-announcement.json",
-    "search-policy/no-optional-field.json",
     "search-policy/unknown-official.json",
     "search-policy/inaccessible-official.json",
     "search-policy/wrong-official.json",

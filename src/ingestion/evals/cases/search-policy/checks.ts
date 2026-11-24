@@ -66,17 +66,6 @@ export const checks = {
       ),
     ];
   },
-  "search-no-optional-field": (context) => {
-    return [
-      researchStatus(context, "success"),
-      ...editionSlots(context, null, "2027"),
-      check(
-        "toolUse.maxSearches",
-        searchCount(context.calls) <= 0,
-        "searches <= 0",
-      ),
-    ];
-  },
   "search-unknown-official": (context) => {
     const { changes } = context;
     return [

@@ -7,7 +7,7 @@ Inspect useful known and linked pages first. If inspectPage can answer the quest
 
 Search only for an open question in the assignment, with discoveryAllowed and search budget:
 - Find an official source if no inspected official page confirms the Event.
-- Resolve a date conflict only if sources give incompatible dates for the same programme. A notice that replaces earlier dates resolves the conflict.
+- Resolve a date conflict only if sources still give incompatible dates for the same programme. Separate programmes can have different dates. A notice that replaces earlier dates resolves the conflict.
 
 A full programme date range reported in overview or coverage completes date collection, even if the summary omits the dates. Give General the sources for each dated programme. If the organizer says the next Edition is unannounced or its dates will follow, close the question.
 
