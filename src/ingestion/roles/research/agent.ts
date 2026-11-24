@@ -20,20 +20,15 @@ export async function collectResearch(
   },
 ) {
   const assignment = buildAssignment(options.input, options.context);
-  let searchedThisStep = false;
   const search = createTool({
     id: "searchWeb",
     description:
-      "Takes a web search query and returns candidate source URLs, titles, and available excerpts.",
+      "Takes a web search query and returns candidate source URLs, titles, and available excerpts. Max 1 call per step.",
     inputSchema: searchWebInputSchema,
     outputSchema: z.union([
       searchWebOutputSchema,
       z.strictObject({
-        outcome: z.enum([
-          "not_permitted",
-          "collection_failed",
-          "already_searched_this_step",
-        ]),
+        outcome: z.enum(["not_permitted", "collection_failed"]),
       }),
     ]),
     execute: async ({ query }, context) => {
@@ -44,11 +39,6 @@ export async function collectResearch(
       if (options.collection.fatal) {
         return { outcome: "collection_failed" as const };
       }
-      if (searchedThisStep) {
-        return { outcome: "already_searched_this_step" as const };
-      }
-      // Reserve the search before awaiting the provider.
-      searchedThisStep = true;
       const span = context?.tracingContext?.currentSpan;
       const correlation = {
         stage: "source",
@@ -93,9 +83,6 @@ export async function collectResearch(
     tracing: options.tracing,
     generate: options.deps.generateRoles?.research ?? options.deps.generateRole,
     tools: { inspectPage: options.collection.tool, searchWeb: search },
-    onModelStepStart: () => {
-      searchedThisStep = false;
-    },
     steps: options.budget.limits.agentSteps,
   });
 }

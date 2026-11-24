@@ -95,7 +95,7 @@ Use known and linked sources to determine whether a past Edition took place. Lea
 
 Collect the country, town, venue, address and coordinates from inspected pages, including useful travel and contact links. An office, hotel or parking area qualifies only if the source places the programme there. Publication requires an established country. Town, venue, address and coordinates are optional.
 
-Use one query for the open question and inspect useful results. The tool sends at most one search per model step. A repeat needs an open question and a different likely source. Use search highlights as leads and read destination pages for evidence. Search and page reads share the run limits. A fatal collection error blocks further requests to the search provider. Search uses the OpenRouter Exa plugin in its default mode.
+The `searchWeb` description asks for at most one call per model step. A repeat needs an open question and a different likely source. Use search highlights as leads and read destination pages for evidence. Search and page reads share the run limits. A fatal collection error blocks further requests to the search provider. Search uses the OpenRouter Exa plugin in its default mode.
 
 Research must copy supplied and returned URLs exactly into `inspectPage`. It must not shorten, translate or rewrite their paths.
 

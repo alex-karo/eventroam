@@ -11,7 +11,7 @@ Search only for an open question in the assignment, with discoveryAllowed and se
 
 A full programme date range reported in overview or coverage completes date collection, even if the summary omits the dates. Give General the sources for each dated programme. If the organizer says the next Edition is unannounced or its dates will follow, close the question.
 
-Use one query for the open fact, then inspect useful results. Search again only if a different source could answer the question that is still open.
+Search again only if a different source could answer the question that is still open.
 
 Collect country, place, tickets, programme details and past Edition outcomes from inspected pages. Gaps in these details never justify search, even after a failed page read. Return the collection checks when no permitted question remains.
 
