@@ -14,41 +14,27 @@ export const checks = {
     ...editionSlots(context, null, "2027"),
     researchStatus(context, "success"),
     check(
-      "toolUse.placeSearch",
-      searchCount(context.calls) === 1,
-      "Search once for the festival place despite a known country",
-    ),
-    readBeforeSearch(
-      context.calls,
-      "https://harborechofestival.co.uk/visitor-guide",
-      2,
-    ),
-    check(
-      "toolUse.readPlace",
-      context.calls.some(
-        (call) =>
-          call.tool === "readPage" &&
-          call.url === "https://harborechofestival.co.uk/visitor-guide",
-      ),
-      "Inspect the discovered visitor guide",
+      "toolUse.noPlaceSearch",
+      searchCount(context.calls) === 0,
+      "Skip search when only place details are missing",
     ),
     check(
       "catalog.edition.2027.venue",
-      context.changes.edition(
+      !context.changes.edition(
         { key: "2027" },
         "venue_name",
-        (value) => value === "Castlewellan Grounds",
+        (value) => value != null,
       ),
-      "Set the source-supported festival venue",
+      "Leave the unsupported venue empty",
     ),
     check(
       "catalog.edition.2027.locality",
-      context.changes.edition(
+      !context.changes.edition(
         { key: "2027" },
         "locality",
-        (value) => value === "Castlewellan",
+        (value) => value != null,
       ),
-      "Set the source-supported locality",
+      "Leave the unsupported locality empty",
     ),
   ],
   "search-withheld-place": (context) => [

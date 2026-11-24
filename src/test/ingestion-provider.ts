@@ -17,7 +17,7 @@ export type ProviderRequest = {
 
 export function modelReply(
   content: string | null,
-  tool?: { id: string; name: string; args: unknown },
+  ...tools: { id: string; name: string; args: unknown }[]
 ) {
   return Response.json({
     id: "fixture",
@@ -30,20 +30,18 @@ export function modelReply(
         message: {
           role: "assistant",
           content,
-          ...(tool && {
-            tool_calls: [
-              {
-                id: tool.id,
-                type: "function",
-                function: {
-                  name: tool.name,
-                  arguments: JSON.stringify(tool.args),
-                },
+          ...(tools.length && {
+            tool_calls: tools.map((tool) => ({
+              id: tool.id,
+              type: "function",
+              function: {
+                name: tool.name,
+                arguments: JSON.stringify(tool.args),
               },
-            ],
+            })),
           }),
         },
-        finish_reason: tool ? "tool_calls" : "stop",
+        finish_reason: tools.length ? "tool_calls" : "stop",
       },
     ],
   });

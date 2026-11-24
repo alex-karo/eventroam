@@ -448,10 +448,7 @@ it("builds concrete assignments with current exclusions", () => {
   const current = buildAssignment({ ...f.input, scope: "current" }, f.context);
   expect(current).not.toHaveProperty("mode");
   expect(current).not.toHaveProperty("scope");
-  expect(current.sourcePolicy).toMatchObject({
-    discoveryAllowed: true,
-    recoverWebsite: false,
-  });
+  expect(current.sourcePolicy.discoveryAllowed).toBe(true);
   expect(current.permissions).toEqual({
     eventFields: false,
     previousEdition: false,

@@ -84,9 +84,18 @@ A supported announcement with a complete current programme date range uses `sche
 
 ### Find and read sources
 
-For an existing Event, the run first reads a saved official-site link, or another saved link if needed. Research uses `inspectPage` for relevant known links and prior results first. `searchWeb` is permitted for an unknown, inaccessible, or wrong official source; a material identity/date conflict; an essential identification, date, or publication-required gap in an already evidenced Edition; or a concrete place for the ongoing or announced next festival. Permission does not require a search. An empty Edition slot or absent announcement alone does not justify search. A recurring Event description alone does not establish a specific past Edition for a search. Missing optional prices or size alone does not justify search. Explicit evidence that no next Edition is announced can complete the check. For place discovery, read useful travel, location or contact leads first, then use targeted search even if the country is known. Stop at a venue with city or area, a source-supported address or a map point. A field or forest needs no street address. Also stop when the organizer explicitly withholds the venue, no useful permitted step remains, or the shared budget ends. The missing venue does not prevent publication. An office, hotel or parking area is not the festival site without source support. Stop when the relevant question is resolved. Current stops on an identity contradiction and requests full; it does not discover a replacement website. Search highlights are leads. Inspect destination pages before using their facts. Search and page reads share the run limits. OpenRouter's Exa plugin and default search mode remain in use.
+For an existing Event, the run first reads a saved official-site link, or another saved link if needed. Research completes relevant known and linked page reads before using `searchWeb`. Search needs remaining budget and one question the inspected pages leave open.
 
-Use one targeted query per source need. Inspect promising results before searching again for the same need. A further search needs an open, permitted question and a different plausible source or route to the evidence. A fatal collection error blocks further requests to the search provider.
+- Find an official source if no inspected official page confirms the Event.
+- Resolve incompatible dates for the same programme. A notice that replaces earlier dates resolves the conflict.
+
+A full programme range reported in the overview or coverage completes date collection. General uses the collected sources to select the Edition. An explicit notice from the organizer that the next Edition is unannounced or its dates will follow closes the date question. Gather ticket, programme, and other optional details from known and linked pages.
+
+Use known and linked sources to determine whether a past Edition took place. Leave its outcome unresolved if those sources provide no confirmation.
+
+Collect the country, town, venue, address and coordinates from inspected pages, including useful travel and contact links. An office, hotel or parking area qualifies only if the source places the programme there. Publication requires an established country. Town, venue, address and coordinates are optional.
+
+Use one query for the open question and inspect useful results. The tool sends at most one search per model step. A repeat needs an open question and a different likely source. Use search highlights as leads and read destination pages for evidence. Search and page reads share the run limits. A fatal collection error blocks further requests to the search provider. Search uses the OpenRouter Exa plugin in its default mode.
 
 Research must copy supplied and returned URLs exactly into `inspectPage`. It must not shorten, translate or rewrite their paths.
 
@@ -133,9 +142,9 @@ A cancelled or postponed Edition without a completed programme cannot be previou
 
 Run full before current to establish Event identity and shared links; this is an operating precondition, with no stored flag or run-history check.
 
-Current permits targeted discovery for an unresolved material date conflict within one programme, another publication-required Edition fact or a concrete festival place. It does not permit replacement-site recovery after an identity contradiction or discovery for other missing optional details. Current does not repeat that identity audit. A supported venue, locality or programme change within the saved country does not alone contradict Event identity or require full refresh. An absent saved locality is unknown. Source evidence must still establish the Event name and association; an explicit unrelated Event or country conflict remains a refusal. If inspected material clearly contradicts identity, current returns failed/null with an identity question requesting full, without replacement-site discovery, editing or writes. Unavailable sources are diagnosed without website recovery.
+Current applies the search rules above to the ongoing or next Edition. A supported venue, locality or programme change within the saved country does not alone contradict Event identity or require full refresh. An absent saved locality is unknown. Source evidence must still establish the Event name and association. If a material identity or country conflict remains, current stops before editing and requests a full refresh.
 
-Full retains wrong-site discovery and association inspection; search snippets/name matches are insufficient. Verified recovery can correct the Event website. An unresolved material identity contradiction prevents all writes/publication: full returns partial with useful target findings, otherwise failed/null.
+Full can correct the Event website after an inspected page confirms its official association. An unresolved material identity contradiction blocks writes and publication. Full returns partial with useful target findings, otherwise failed/null.
 
 ### Preserve or replace values
 

@@ -114,6 +114,7 @@ type RoleModelOptions<T> = {
   budget: ResearchBudget;
   config: ResearchConfig;
   tools?: ToolsInput;
+  onModelStepStart?: () => void;
   steps?: number;
   outputTokens?: number;
   messages?: FullOutput["messages"];
@@ -221,6 +222,7 @@ async function generateMastraReply(
       prepareStep: () => {
         signal.throwIfAborted();
         budget.consumeModelCall();
+        options.onModelStepStart?.();
         startedSteps += 1;
         modelLog = log?.child({
           stage: role,

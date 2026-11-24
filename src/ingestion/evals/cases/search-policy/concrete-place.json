@@ -2,11 +2,11 @@
   "id": "search-concrete-place",
   "suite": "regression",
   "origin": "synthetic",
-  "task": "Check festival place concrete-place",
+  "task": "Keep the festival Edition when only its country is known",
   "todayUtc": "2026-10-15",
   "provenance": {
     "kind": "synthetic-search-policy",
-    "note": "Synthetic place discovery with a known country. No live source or search fallback."
+    "note": "The official announcement names the country. A visitor guide with the venue is available only through search. No live source or search fallback."
   },
   "input": {
     "mode": "refresh",
