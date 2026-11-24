@@ -1,13 +1,10 @@
 import type { RegressionCaseDefinition } from "../../regression";
-import {
-  researchStatus,
-  editionByYear,
-  returned,
-  omittedEventFields,
-  oneNewEdition,
-} from "../../research";
 import { check } from "../../checks";
-import { included2027Terms, preserveEventFields } from "./checks";
+import {
+  included2027Terms,
+  new2027ResearchChecks,
+  preserveEventFields,
+} from "./checks";
 import { narrowFixture, summer2026 } from "./fixture";
 
 export const narrowCurrentChangedCase: RegressionCaseDefinition = {
@@ -18,8 +15,7 @@ export const narrowCurrentChangedCase: RegressionCaseDefinition = {
     "Synthetic official announcements isolate scope and continuity decisions. The main programme is split evenly between indoor and open-air stages; no live source fallback.",
   ),
   evaluate(context) {
-    const { data, changes } = context;
-    const edition = editionByYear(data, 2027);
+    const { changes } = context;
     const expectedTerms = [
       "validation:festival",
       "validation:mixed",
@@ -50,17 +46,7 @@ export const narrowCurrentChangedCase: RegressionCaseDefinition = {
         ),
         "Exclude unsupported classification for 2027",
       ),
-      researchStatus(context, "success"),
-      oneNewEdition(context, 2027),
-      ...expectedTerms.map((term) =>
-        returned("research.2027.classification", edition?.classification, term),
-      ),
-      returned("research.2027.dates", edition?.dates, {
-        startsOn: "2027-06-04",
-        endsOn: "2027-06-05",
-        state: "confirmed",
-      }),
-      ...omittedEventFields(data),
+      ...new2027ResearchChecks(context, expectedTerms),
     ];
   },
 };

@@ -1,5 +1,13 @@
 import { check } from "../../checks";
 import type { CatalogChanges } from "../../changes";
+import {
+  editionByYear,
+  omittedEventFields,
+  oneNewEdition,
+  researchStatus,
+  returned,
+  type ResearchContext,
+} from "../../research";
 
 export function included2027Terms(changes: CatalogChanges, terms: string[]) {
   return terms.map((term, index) =>
@@ -28,5 +36,25 @@ export function preserveEventFields(changes: CatalogChanges) {
       !changes.event("links", (value) => value != null),
       "Preserve Event links",
     ),
+  ];
+}
+
+export function new2027ResearchChecks(
+  context: ResearchContext,
+  expectedTerms: string[],
+) {
+  const edition = editionByYear(context.data, 2027);
+  return [
+    researchStatus(context, "success"),
+    oneNewEdition(context, 2027),
+    ...expectedTerms.map((term) =>
+      returned("research.2027.classification", edition?.classification, term),
+    ),
+    returned("research.2027.dates", edition?.dates, {
+      startsOn: "2027-06-04",
+      endsOn: "2027-06-05",
+      state: "confirmed",
+    }),
+    ...omittedEventFields(context.data),
   ];
 }

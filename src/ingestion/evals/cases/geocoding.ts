@@ -20,15 +20,18 @@ export function candidate(
   details: Candidate & Partial<Omit<GeoCandidate, keyof Candidate>>,
 ): GeoCandidate {
   return {
-    placeId: null,
-    name: null,
-    countryCode: null,
-    locality: null,
-    address: null,
-    originalType: null,
-    category: null,
-    confidence: null,
-    ...details,
+    latitude: details.latitude,
+    longitude: details.longitude,
+    label: details.label,
+    objectType: details.objectType,
+    placeId: details.placeId ?? null,
+    name: details.name ?? null,
+    countryCode: details.countryCode ?? null,
+    locality: details.locality ?? null,
+    address: details.address ?? null,
+    originalType: details.originalType ?? null,
+    category: details.category ?? null,
+    confidence: details.confidence ?? null,
   };
 }
 
@@ -46,17 +49,17 @@ export function forward(
 }
 
 export function reverse(
-  queriedPoint: Point,
+  { latitude, longitude }: Point,
   nearby: GeoCandidate | null,
   distanceKm: number | null,
   provenance?: string,
 ): GeocodingFixture {
   return {
-    request: { direction: "reverse", ...queriedPoint },
+    request: { direction: "reverse", latitude, longitude },
     response: {
       status: "success",
       direction: "reverse",
-      queriedPoint,
+      queriedPoint: { latitude, longitude },
       nearby,
       distanceKm,
     },

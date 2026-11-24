@@ -22,13 +22,22 @@ export function sourceReplay(
     "finalUrl" | "method" | "status" | "reasonCode" | "readerOutput"
   > = {},
 ): SourceReplay {
+  const {
+    finalUrl = attemptedUrl,
+    method = "http",
+    status = "ok",
+    reasonCode,
+    readerOutput,
+  } = overrides;
+
   return {
     attemptedUrl,
-    finalUrl: attemptedUrl,
+    finalUrl,
     retrievedAt,
     markdownFile,
-    method: "http",
-    status: "ok",
-    ...overrides,
+    method,
+    status,
+    ...(reasonCode === undefined ? {} : { reasonCode }),
+    ...(readerOutput === undefined ? {} : { readerOutput }),
   };
 }
