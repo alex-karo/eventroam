@@ -2,9 +2,9 @@ import type { LocationExecution } from "../roles/location/agent";
 import type { LocationOutput } from "../roles/location/contracts";
 import type { LocationTarget } from "../roles/location/input";
 import type { MaterializedLocation } from "../roles/location/validate";
-import type { LocationEvalCase } from "./fixtures";
+import type { LocationCaseFile, LocationEvalCase } from "./fixtures";
 import type { Check } from "./checks";
-import { checks } from "./cases/location/checks";
+import { findCaseDefinition, isLocationDefinition } from "./cases/suite";
 
 type Point = { latitude: number; longitude: number; precision: string };
 
@@ -65,19 +65,21 @@ function locationContext(item: LocationEvalCase, execution: LocationExecution) {
 export type LocationContext = ReturnType<typeof locationContext>;
 export type LocationEvaluator = (context: LocationContext) => Check[];
 
-export function assertLocationCase(item: LocationEvalCase) {
-  if (!Object.hasOwn(checks, item.id)) {
-    throw new Error(
-      `Regression case needs a registered Location evaluator: ${item.id}`,
-    );
-  }
-}
+export type LocationCaseDefinition = {
+  fixture: LocationCaseFile;
+  moduleUrl: string;
+  evaluate: LocationEvaluator;
+};
 
 export function checkLocationCase(
   item: LocationEvalCase,
   execution: LocationExecution,
 ) {
-  return checks[item.id as keyof typeof checks](
-    locationContext(item, execution),
-  );
+  const definition = findCaseDefinition(item.id);
+  if (!definition || !isLocationDefinition(definition)) {
+    throw new Error(
+      `Regression case needs a registered Location evaluator: ${item.id}`,
+    );
+  }
+  return definition.evaluate(locationContext(item, execution));
 }

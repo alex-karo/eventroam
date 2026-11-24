@@ -1,59 +1,20 @@
-import type { PipelineEvalCase } from "./fixtures";
+import type { MainPipelineCaseFile, PipelineEvalCase } from "./fixtures";
+import { findCaseDefinition } from "./cases/suite";
 import type { CatalogResearchResult } from "../contracts";
-import { mainContext, type Catalog } from "./main/context";
-import { roskilde } from "./main/roskilde";
-import { wacken } from "./main/wacken";
-import { sziget } from "./main/sziget";
-import { glastonbury } from "./main/glastonbury";
-import { rise } from "./main/rise";
+import { mainContext, type Catalog, type MainContext } from "./main/context";
 import { evaluate, fact } from "./main/facts";
 import {
   assessDescriptionFormat,
   minimumDescriptionFormat,
 } from "./description-format";
 
-const evaluators = {
-  roskilde,
-  wacken,
-  sziget,
-  glastonbury,
-  rise,
-};
 export type MainScore = ReturnType<typeof evaluate>;
-
-const descriptionReferences = new Map<string, string>([
-  // glastonbury/areas.md lists music stages, theatre, and circus.
-  [
-    "glastonbury",
-    "A festival whose main programme combines live music and performing arts such as theatre and circus. Stages and festival areas are examples of how the programme is presented.",
-  ],
-  // rise/stages.md and rise/location.md describe electronic music at a ski resort.
-  [
-    "rise",
-    "A winter festival that combines electronic music and snow sports at a ski resort, with outdoor stages and indoor venues.",
-  ],
-  // roskilde/about.md describes the concerts and communal camping.
-  ["roskilde", "A music festival with concerts and a large camping community."],
-  // sziget/experience.md describes the varied music and arts programme.
-  [
-    "sziget",
-    "A large music and arts festival with a varied programme across multiple venues.",
-  ],
-  // wacken/page.md describes an open-air festival for heavy metal fans.
-  ["wacken", "An open-air music festival centred on heavy metal and its fans."],
-]);
-
-export function assertMainCase(item: PipelineEvalCase) {
-  if (
-    !Object.hasOwn(evaluators, item.id) ||
-    item.location ||
-    item.roleHandoff
-  ) {
-    throw new Error(
-      `Main case needs a registered pipeline evaluator: ${item.id}`,
-    );
-  }
-}
+export type MainCaseDefinition = {
+  fixture: MainPipelineCaseFile;
+  moduleUrl: string;
+  evaluate: (context: MainContext) => Parameters<typeof evaluate>[0];
+  descriptionReference: string;
+};
 
 export async function evaluateMainCase(
   item: PipelineEvalCase,
@@ -61,12 +22,18 @@ export async function evaluateMainCase(
   after: Catalog,
   report: CatalogResearchResult,
 ) {
+  const definition = findCaseDefinition(item.id);
+  if (!definition || !("descriptionReference" in definition)) {
+    throw new Error(
+      `Main case needs a registered pipeline evaluator: ${item.id}`,
+    );
+  }
   const context = mainContext(item, before, after, report);
   const descriptionFormat = await assessDescriptionFormat(
-    descriptionReferences.get(item.id),
+    definition.descriptionReference,
     context.event,
   );
-  const checks = evaluators[item.id as keyof typeof evaluators](context);
+  const checks = definition.evaluate(context);
   const formatFacts = Object.entries(descriptionFormat.fields).flatMap(
     ([field, probability]) => {
       if (typeof probability !== "number") {

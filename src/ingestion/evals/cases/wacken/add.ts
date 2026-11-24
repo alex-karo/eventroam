@@ -1,15 +1,11 @@
-import type { EvalCase, RegressionPipelineEvalCase } from "../../fixtures";
-import type { RegressionEvaluator } from "../../regression";
+import type { RegressionCaseDefinition } from "../../regression";
 import { check } from "../../checks";
 import { researchDidNotFail } from "../../research";
+import { wackenCase } from "./case";
 
-export function wackenAddCase(cases: EvalCase[]): RegressionPipelineEvalCase {
-  const parent = cases.find((item) => item.id === "wacken");
-  if (!parent || parent.location) {
-    throw new Error("Wacken add needs the Wacken pipeline fixture");
-  }
-  return {
-    ...parent,
+export const wackenAddCase = {
+  fixture: {
+    ...wackenCase.fixture,
     id: "wacken-add",
     suite: "regression",
     task: "Add Wacken from a free text note and confirm its location from sources",
@@ -38,11 +34,9 @@ export function wackenAddCase(cases: EvalCase[]): RegressionPipelineEvalCase {
       kind: "captured-sources-with-synthetic-add-note",
       note: "Reuse all Wacken source responses, geocoding responses and the fixed date without changes. The owner note and unrelated catalog seed are synthetic. The note has incorrect dates and a Hamburg pin but does not name a country. No Wacken record exists before the dry run. No live source fallback is used.",
     },
-  };
-}
-
-export const checks = {
-  "wacken-add": ({ item, report, calls }) => {
+  },
+  moduleUrl: wackenCase.moduleUrl,
+  evaluate: ({ item, report, calls }) => {
     const creations = report.operations.filter(
       (op) => op.kind === "createEvent",
     );
@@ -140,4 +134,4 @@ export const checks = {
       ),
     ];
   },
-} satisfies Record<string, RegressionEvaluator>;
+} satisfies RegressionCaseDefinition;
