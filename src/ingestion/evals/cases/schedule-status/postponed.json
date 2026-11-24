@@ -52,12 +52,15 @@
       "status": "ok",
       "markdownFile": "postponed.md",
       "readerOutput": {
-        "overview": "The festival is postponed and replacement dates will be announced later.",
+        "overview": "River Festival in Portugal is postponed. The June 2027 dates are withdrawn and replacement dates will be announced later.",
         "coverage": {
-          "found": ["Festival dates and schedule status"],
-          "notPublished": []
+          "found": [
+            "River Festival in Portugal",
+            "Withdrawn 2027 festival dates"
+          ],
+          "notPublished": ["Replacement dates for the postponed 2027 festival"]
         },
-        "topics": ["identity", "dates", "status"],
+        "topics": ["identity", "dates", "status", "location"],
         "statedYears": ["2027"],
         "limitations": [],
         "evidence": [
@@ -66,7 +69,7 @@
               "start": 1,
               "end": 3
             },
-            "topics": ["identity", "dates", "status"]
+            "topics": ["identity", "dates", "status", "location"]
           }
         ]
       }

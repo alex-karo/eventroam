@@ -10,7 +10,7 @@ import { buildAssignment } from "../assignment";
 import { invokeRole } from "../invoke";
 import type { RoleOptions } from "../options";
 import { PROMPT_VERSIONS } from "../versions";
-import { collectionOutputSchema } from "./contracts";
+import { buildCollectionOutputSchema } from "./contracts";
 import { researchInstructions } from "./prompt";
 
 export async function collectResearch(
@@ -23,17 +23,22 @@ export async function collectResearch(
   const search = createTool({
     id: "searchWeb",
     description:
-      "Discover sources only when the assignment permits discovery. Search is bounded by the shared allowance.",
+      "Takes a web search query and returns candidate source URLs, titles, and available excerpts. Max 1 call per step.",
     inputSchema: searchWebInputSchema,
     outputSchema: z.union([
       searchWebOutputSchema,
-      z.strictObject({ outcome: z.literal("not_permitted") }),
+      z.strictObject({
+        outcome: z.enum(["not_permitted", "collection_failed"]),
+      }),
     ]),
     execute: async ({ query }, context) => {
       if (!assignment.sourcePolicy.discoveryAllowed) {
         return { outcome: "not_permitted" as const };
       }
       options.collection.signal.throwIfAborted();
+      if (options.collection.fatal) {
+        return { outcome: "collection_failed" as const };
+      }
       const span = context?.tracingContext?.currentSpan;
       const correlation = {
         stage: "source",
@@ -66,7 +71,9 @@ export async function collectResearch(
       inspectedPages: options.collection.navigationPages(),
       remaining: options.budget.remaining(),
     },
-    schema: collectionOutputSchema,
+    schema: buildCollectionOutputSchema(
+      assignment.checks.map(({ key }) => key),
+    ),
     budget: options.budget,
     config:
       options.config.reasoningEffort === "low"

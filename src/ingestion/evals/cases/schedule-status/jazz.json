@@ -68,9 +68,9 @@
       "status": "ok",
       "markdownFile": "jazz-2027.md",
       "readerOutput": {
-        "overview": "Jazz in the Park 2027 ticket page with dates and EventRescheduled metadata.",
+        "overview": "The Jazz in the Park ticket page gives the full 25–27 June 2027 programme dates and includes EventRescheduled metadata.",
         "coverage": {
-          "found": ["Festival dates and schedule status"],
+          "found": ["Complete 2027 festival programme date range"],
           "notPublished": []
         },
         "topics": ["identity", "dates", "status"],
@@ -97,7 +97,10 @@
       "readerOutput": {
         "overview": "The Jazz in the Park 2026 page identifies its programme dates, says the event ended, and links to 2027 tickets.",
         "coverage": {
-          "found": ["Festival dates and schedule status"],
+          "found": [
+            "Complete 2026 programme date range",
+            "2026 festival ended"
+          ],
           "notPublished": []
         },
         "topics": ["identity", "dates", "status"],

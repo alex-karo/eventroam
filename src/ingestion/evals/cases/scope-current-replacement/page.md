@@ -1,6 +1,6 @@
 # River Festival
 
-Official open-air music festival, Portugal. All public programme takes place at River Grounds. Programme dates below exclude camping and sales windows.
+Official open-air music festival, Portugal. All public programme takes place at River Grounds in River Town. Programme dates below exclude camping and sales windows.
 
 First weekend October 4–5 is explicitly cancelled with no replacement. The replacement weekend was incorrectly listed as cancelled: organizers confirm it is scheduled, moved from October 20–21 to October 6–7, 2026, keeping the same edition identity. Later weekend October 25–26 remains scheduled.
 

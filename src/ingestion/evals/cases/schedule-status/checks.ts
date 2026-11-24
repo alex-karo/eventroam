@@ -2,6 +2,7 @@ import { check, contains } from "../../checks";
 import { preserveDates } from "../../changes";
 import type { RegressionContext, RegressionEvaluator } from "../../regression";
 import { editionSlots, researchDidNotFail } from "../../research";
+import { searchCount } from "../../tool-use";
 
 function scheduled(context: RegressionContext, keys: string[]) {
   const { item, report, changes } = context;
@@ -60,7 +61,14 @@ const jazz: RegressionEvaluator = (context) => [
 ];
 
 export const checks = {
-  "schedule-status-jazz": jazz,
+  "schedule-status-jazz": (context) => [
+    ...jazz(context),
+    check(
+      "toolUse.maxSearches",
+      searchCount(context.calls) === 0,
+      "Use zero searches when known pages cover both programmes",
+    ),
+  ],
   "schedule-status-jazz-editor": (context) => [
     ...jazz(context),
     ...["previousEdition", "currentOrNextEdition"].map((slot) =>
@@ -93,6 +101,11 @@ export const checks = {
     ...researchDidNotFail(context.report),
     ...editionSlots(context, null, null),
     ...preserveDates(context.changes, "2027"),
+    check(
+      "toolUse.maxSearches",
+      searchCount(context.calls) === 0,
+      "Use zero searches when the organizer says new dates will follow",
+    ),
     check(
       "catalog.editions.noReplacement",
       context.report.operations.length === 0,

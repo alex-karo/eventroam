@@ -11,7 +11,7 @@ import {
   wholeNumberedPage,
 } from "@/test/ingestion";
 import { CatalogAttempt } from "./attempt";
-import { createIngestionData } from "./contracts";
+import { createIngestionData, type ResearchDependencies } from "./contracts";
 import * as runsModule from "./runs";
 import { afterEach, expect, test, vi } from "vitest";
 import { Run, Workflow } from "@mastra/core/workflows";
@@ -566,8 +566,8 @@ test.each(["update", "serialization"] as const)(
     if (failure === "serialization") {
       const original = reportModule.buildResearchReport;
       vi.spyOn(reportModule, "buildResearchReport").mockImplementationOnce(
-        (input) => {
-          const report = original(input);
+        (...args) => {
+          const report = original(...args);
           const object: Record<string, unknown> = {};
           object.self = object;
           report.modelResponse = { text: null, object };
@@ -1003,9 +1003,9 @@ test("cancellation after a confirmed write preserves the committed catalog", asy
   let cancellation: Promise<void> | undefined;
   const original = reportModule.buildResearchReport;
   vi.spyOn(reportModule, "buildResearchReport").mockImplementationOnce(
-    (value) => {
+    (...args) => {
       cancellation = run.cancel();
-      return original(value);
+      return original(...args);
     },
   );
   await run.start({
@@ -1015,6 +1015,7 @@ test("cancellation after a confirmed write preserves the committed catalog", asy
       dryRun: false,
     }),
   });
+  expect(cancellation).toBeDefined();
   await cancellation;
   expect(readResearchCatalog(client)).toHaveLength(1);
   const row = client
@@ -1790,6 +1791,56 @@ test.each([
     expect(readResearchCatalog(client)).toEqual([]);
   },
 );
+test("blocks further web searches after a fatal Reader error", async () => {
+  const { client, readPage } = fixture();
+  const query = "Example Fest official programme";
+  const searchWeb = vi.fn<NonNullable<ResearchDependencies["searchWeb"]>>(
+    async (query, { budget }) => {
+      budget.consumeSearch();
+      return {
+        query,
+        candidates: [{ url, title: "Example Fest programme", highlights: [] }],
+        retrievedAt: source.retrievedAt,
+      };
+    },
+  );
+  const report = await runCatalogResearch(
+    { ...input, dryRun: true },
+    {
+      client,
+      readPage,
+      searchWeb,
+      generateRoles: {
+        reader: async () => {
+          throw new Error("Fixture Reader error");
+        },
+        research: async (_role, _prompt, context) => {
+          const first = await fixtureTool(context, "searchWeb", { query });
+          expect(first).toMatchObject({ candidates: [{ url }] });
+          const page = await fixtureTool(context, "inspectPage", { url });
+          expect(page).toMatchObject({ retrieval: "ok", processing: "failed" });
+          const next = await fixtureTool(context, "searchWeb", {
+            query: "Example Fest alternate official source",
+          });
+          expect(next).toEqual({ outcome: "collection_failed" });
+          return { checks: [], unresolved: [] };
+        },
+      },
+    },
+  );
+  expect(searchWeb).toHaveBeenCalledExactlyOnceWith(query, expect.anything());
+  expect(report).toMatchObject({
+    outcome: "failed",
+    budget: { searches: 1 },
+    errors: [
+      expect.objectContaining({
+        code: "model_failed",
+        message: "reader execution failed",
+      }),
+    ],
+  });
+});
+
 test.each(["provider", "budget"] as const)(
   "Research %s failure retains safe diagnostics and writes nothing",
   async (failure) => {

@@ -18,7 +18,7 @@ import { linksOutputSchema } from "./roles/links/contracts";
 import type { Targets } from "./roles/general/contracts";
 import type { TicketsOutput } from "./roles/tickets/contracts";
 import type { FrozenCorpus } from "./evidence/contracts";
-import { buildAssignment } from "./roles/assignment";
+import { assignedRoleChecks, buildAssignment } from "./roles/assignment";
 import { prepareCatalogPlan } from "./catalog-plan";
 import { modelOutputSchema } from "./runtime/model-output";
 
@@ -448,10 +448,7 @@ it("builds concrete assignments with current exclusions", () => {
   const current = buildAssignment({ ...f.input, scope: "current" }, f.context);
   expect(current).not.toHaveProperty("mode");
   expect(current).not.toHaveProperty("scope");
-  expect(current.sourcePolicy).toMatchObject({
-    discoveryAllowed: true,
-    recoverWebsite: false,
-  });
+  expect(current.sourcePolicy.discoveryAllowed).toBe(true);
   expect(current.permissions).toEqual({
     eventFields: false,
     previousEdition: false,
@@ -482,6 +479,42 @@ it("builds concrete assignments with current exclusions", () => {
       ],
     }).success,
   ).toBe(false);
+});
+
+it("keeps specialist check order and Editor group order", () => {
+  const f = fixture();
+  const input = { ...f.input, scope: "full" as const };
+  const targets: Targets = {
+    ...f.targets,
+    previousEdition: {
+      editionKey: "2026",
+      reason: "Latest completed Edition",
+      evidenceIds: ["s1-e2"],
+      fields: {},
+    },
+  };
+  expect(assignedRoleChecks("classification", input, targets)).toEqual([
+    "previousClassification",
+    "currentClassification",
+    "description",
+  ]);
+  expect(assignedRoleChecks("links", input, targets)).toEqual([
+    "eventLinks",
+    "currentLinks",
+  ]);
+  expect(assignedRoleChecks("tickets", input, targets)).toEqual([
+    "currentTickets",
+  ]);
+  expect(
+    assignedGroups(input.scope, targets)
+      .filter(({ owner }) => owner === "classification")
+      .map(({ path }) => path),
+  ).toEqual([
+    "event.fields.description",
+    "event.fields.shortDescription",
+    "previousEdition.fields.classification",
+    "currentOrNextEdition.fields.classification",
+  ]);
 });
 
 it("rejects unknown classification reuse and removes reuse after its target is rejected", () => {

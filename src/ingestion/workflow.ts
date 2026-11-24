@@ -5,8 +5,12 @@ import {
 } from "./workflow-result";
 import { researchErrorSchema } from "./research/contracts";
 import {
+  assignedSpecialists,
+  specialistFailures,
   specialistResultsSchema,
+  specialistRoles,
   specialistStateSchema,
+  type SpecialistRole,
 } from "./specialist-results";
 import { logPreparation } from "./workflow-logging";
 import { createCollection } from "./evidence/collection";
@@ -16,21 +20,15 @@ import { runGeneral } from "./roles/general/agent";
 import { runTickets } from "./roles/tickets/agent";
 import { runClassification } from "./roles/classification/agent";
 import { runLinks } from "./roles/links/agent";
-import { runEditor } from "./roles/editor/agent";
 import { validateResearchSummary } from "./roles/research/validate";
 import type { RoleOptions } from "./roles/options";
 import {
-  assembleProposals,
-  applyReview,
-  type PreparedProposals,
-  type SpecialistOutputs,
-} from "./proposals";
-import { assignedGroups, type ProposalGroup } from "./groups";
-import { reviewScope, reviewReturns } from "./roles/editor/review";
-import type { ReviewDecisions } from "./roles/editor/contracts";
+  assemblePreparedProposals,
+  recordSpecialistOutputs,
+  reviewPreparedProposals,
+} from "./proposal-stages";
 import { repairDiagnostic } from "./repairs";
 import { prepareCatalogPlan } from "./catalog-plan";
-import type { Targets } from "./roles/general/contracts";
 import { initialDiagnostics, stageDiagnostics } from "./stage";
 import {
   emptyLocationExecution,
@@ -69,30 +67,7 @@ import type {
   SourceReadMetadata,
 } from "./tools/read-page/contracts";
 import { readyCatalogPlan, catalogWriteOutcome } from "./pipeline";
-import { buildResearchReport } from "./report";
 import { reportEventId, attemptedCatalogFields } from "./workflow-logging";
-
-const specialistRoles = [
-  "tickets",
-  "classification",
-  "location",
-  "links",
-] as const;
-type SpecialistRole = (typeof specialistRoles)[number];
-
-function specialistApplies(
-  role: SpecialistRole,
-  targets: Pick<Targets, "previousEdition" | "currentOrNextEdition">,
-  scope: CatalogResearchInput["scope"],
-) {
-  if (role === "links" || (role === "classification" && scope !== "current")) {
-    return true;
-  }
-  if (role === "tickets") {
-    return !!targets.currentOrNextEdition;
-  }
-  return !!(targets.previousEdition || targets.currentOrNextEdition);
-}
 
 function sourceErrorCode(source: { status: string; reasonCode?: string }) {
   if (source.status === "unsupported") {
@@ -366,7 +341,7 @@ export function createCatalogIngestionWorkflow(
           },
         };
         data.outcome = "skipped";
-        data.report = buildResearchReport(owned.reportInput(data));
+        data.report = owned.buildReport(data);
         return data.context;
       }
       if (owned.input.mode === "refresh") {
@@ -382,7 +357,7 @@ export function createCatalogIngestionWorkflow(
             },
           ];
           data.outcome = "failed";
-          data.report = buildResearchReport(owned.reportInput(data));
+          data.report = owned.buildReport(data);
           return data.context;
         }
       }
@@ -409,9 +384,6 @@ export function createCatalogIngestionWorkflow(
     "read-initial-source",
     "Save and inspect the initial official source",
     async (owned, data, signal) => {
-      if (data.report) {
-        return null;
-      }
       owned.sources = createSourceSession(
         owned.budget,
         owned.config,
@@ -446,7 +418,7 @@ export function createCatalogIngestionWorkflow(
     "collect-sources",
     "Navigate sources, finish collection and freeze evidence",
     async (owned, data, signal) => {
-      if (data.report || !owned.collection) {
+      if (!owned.collection) {
         return null;
       }
       try {
@@ -488,7 +460,6 @@ export function createCatalogIngestionWorkflow(
       }
       const invalidSummary = validateResearchSummary(
         data.research.output,
-        buildAssignment(owned.input, data.context!),
         data.corpus.sources,
       );
       if (invalidSummary) {
@@ -506,16 +477,32 @@ export function createCatalogIngestionWorkflow(
     "general-facts",
     "Confirm identity and select Edition targets",
     async (owned, data, signal) => {
-      if (data.report || data.outcome === "failed") {
+      if (data.outcome === "failed") {
         return null;
       }
       data.general = await owned.track(
         runGeneral(roleOptions(owned, data, signal)),
       );
       try {
-        data.researchValidation =
-          (await owned.track(owned.repairs.general(owned, data, signal))) ??
-          null;
+        const result = await owned.track(
+          owned.repairs.general(
+            {
+              corpus: data.corpus!,
+              context: data.context!,
+              input: owned.input,
+            },
+            signal,
+          ),
+        );
+        if (result?.revisedOutput) {
+          data.general = {
+            ...data.general,
+            status: "success",
+            output: result.revisedOutput,
+            errors: [],
+          };
+        }
+        data.researchValidation = result?.targets ?? null;
       } catch (error) {
         data.errors.push(repairDiagnostic(error));
         data.outcome = "failed";
@@ -583,7 +570,7 @@ export function createCatalogIngestionWorkflow(
           !targets ||
           data.report ||
           data.outcome !== null ||
-          !specialistApplies(role, targets, owned.input.scope)
+          !assignedSpecialists(owned.input.scope, targets).includes(role)
         ) {
           if (role === "location") {
             return stepSchema.parse(emptyLocationExecution());
@@ -657,85 +644,13 @@ export function createCatalogIngestionWorkflow(
         }
       },
     });
-  function recordSpecialistOutputs(
-    data: IngestionData,
-    outputs: SpecialistOutputs,
-  ) {
-    for (const [role, output] of Object.entries(outputs)) {
-      const execution = data.specialists[role];
-      if (execution && output) {
-        data.specialists[role] = {
-          ...execution,
-          status: "success",
-          output,
-          errors: [],
-        };
-      }
-    }
-  }
-
-  function assemble(
-    owned: CatalogAttempt,
-    data: IngestionData,
-    targets: Targets & import("./stage").PlanDiagnostics,
-    outputs: SpecialistOutputs,
-    originalTargets?: Targets,
-  ) {
-    const rawLocation = owned.repairs.raw("location");
-    if (rawLocation) {
-      data.location.materialized =
-        owned.repairs.materializeLocation(rawLocation);
-      data.location.status = "success";
-      data.location.errors = [];
-    }
-    const oldQuestions =
-      data.prepared?.status === "continue"
-        ? data.prepared.value.unresolved
-        : targets.unresolved;
-    data.prepared = assembleProposals({
-      targets,
-      ...outputs,
-      location: data.location.materialized ?? {
-        support: {},
-        slots: {},
-        previousPoints: [],
-        unresolved: [],
-      },
-      points: data.location.points,
-      corpus: data.corpus!,
-      context: data.context!,
-      input: owned.input,
-      originalTargets,
-      returnedPaths: owned.repairs.returnedPaths,
-    });
-    if (data.prepared.status !== "continue") {
-      data.outcome = "failed";
-      data.errors.push(...data.prepared.diagnostics.errors);
-    } else {
-      data.unresolved = [
-        ...data.unresolved.filter(
-          (entry) =>
-            !oldQuestions.some(
-              (question) =>
-                question.message === entry.message &&
-                question.field === entry.field &&
-                question.editionKey === entry.editionKey,
-            ),
-        ),
-        ...data.prepared.value.unresolved,
-      ];
-    }
-    return data.prepared;
-  }
-
   const join = phase(
     "assemble-proposals",
     "Validate fixed proposals and return field errors to their owners",
     async (owned, data, signal, inputData) => {
       if (
         data.researchValidation?.status !== "continue" ||
-        data.outcome !== null ||
-        data.report
+        data.outcome !== null
       ) {
         return null;
       }
@@ -763,46 +678,31 @@ export function createCatalogIngestionWorkflow(
           "output" in execution ? execution.output.unresolved : [],
         ),
       ];
-      for (const role of specialistRoles) {
-        if (!specialistApplies(role, targets, owned.input.scope)) {
-          continue;
-        }
-        const execution = results[role];
-        if (
-          execution.status === "rejected" ||
-          (execution.status === "failed" &&
-            (!owned.repairs.raw(role) ||
-              execution.errors.some(({ code }) =>
-                [
-                  "model_failed",
-                  "limit_reached",
-                  "country_conflict",
-                  "workflow_failed",
-                ].includes(code),
-              ))) ||
-          execution.status === "not_run"
-        ) {
-          data.errors.push(...execution.errors);
-          if (!execution.errors.length) {
-            data.errors.push({
-              code: "workflow_failed",
-              stage: "workflow",
-              message: `Missing assigned ${role} result`,
-            });
-          }
-          data.outcome = "failed";
-        }
-      }
-      if (data.outcome === "failed") {
+      const failures = specialistFailures(
+        results,
+        assignedSpecialists(owned.input.scope, targets),
+        (role) => Boolean(owned.repairs.raw(role)),
+      );
+      if (failures.length) {
+        data.errors.push(...failures);
         data.unresolved.push(...firstQuestions);
+        data.outcome = "failed";
         return results;
       }
       try {
         const outputs = await owned.track(
-          owned.repairs.beforeReview(owned, data, targets, signal),
+          owned.repairs.beforeReview(
+            {
+              corpus: data.corpus!,
+              context: data.context!,
+              input: owned.input,
+              targets,
+            },
+            signal,
+          ),
         );
         recordSpecialistOutputs(data, outputs);
-        return assemble(owned, data, targets, outputs);
+        return assemblePreparedProposals(owned, data, targets, outputs);
       } catch (error) {
         data.errors.push(repairDiagnostic(error));
         data.unresolved.push(...firstQuestions);
@@ -814,148 +714,8 @@ export function createCatalogIngestionWorkflow(
   const edit = phase(
     "review-proposals",
     "Review proposals and return disputed groups to their owners",
-    async (owned, data, signal) => {
-      if (data.prepared?.status !== "continue" || data.outcome === "failed") {
-        return null;
-      }
-      let prepared = data.prepared.value;
-      const originalTargets = prepared.targets;
-      const groups = assignedGroups(owned.input.scope, originalTargets);
-      const review: ReviewDecisions = new Map();
-      const collectRepairRejections = () => {
-        const latest = new Map(
-          owned.repairs.records.map((entry) => [entry.path, entry]),
-        );
-        for (const { path, decision } of latest.values()) {
-          if (decision?.decision === "reject") {
-            review.set(path, decision);
-          }
-        }
-      };
-      collectRepairRejections();
-      const runReview = (
-        prepared: PreparedProposals,
-        targetedGroups?: readonly ProposalGroup[],
-      ) =>
-        owned.track(
-          runEditor(
-            roleOptions(owned, data, signal),
-            prepared,
-            reviewScope(
-              prepared,
-              targetedGroups ??
-                groups.filter(
-                  ({ path }) => review.get(path)?.decision !== "reject",
-                ),
-              owned.repairs.returnCounts,
-              (owner) => owned.repairs.canReturn(owner),
-              !!targetedGroups,
-            ),
-            targetedGroups
-              ? owned.repairs.records.filter(({ path }) =>
-                  targetedGroups.some((group) => group.path === path),
-                )
-              : owned.repairs.records,
-            targetedGroups,
-          ),
-        );
-      const execution = await runReview(prepared);
-      data.specialists.editor = execution;
-      data.editor = {
-        status: execution.status,
-        modelResponse: execution.modelResponse,
-        errors: execution.errors,
-      };
-      if (execution.status !== "success" || !execution.output) {
-        data.errors.push(...execution.errors);
-        logPreparation(
-          owned.trace?.log,
-          {
-            status: "reject",
-            diagnostics: { ...initialDiagnostics(), errors: execution.errors },
-          },
-          originalTargets,
-        );
-        data.outcome = "failed";
-        return execution;
-      }
-      for (const entry of execution.output.decisions) {
-        review.set(entry.path, entry);
-      }
-      for (
-        let returned = reviewReturns(review, groups);
-        returned.length;
-        returned = reviewReturns(review, groups)
-      ) {
-        try {
-          const firstRecord = owned.repairs.records.length;
-          const outputs = await owned.track(
-            owned.repairs.afterReview(
-              owned,
-              data,
-              originalTargets,
-              returned,
-              signal,
-            ),
-          );
-          collectRepairRejections();
-          recordSpecialistOutputs(data, outputs);
-          const general = owned.repairs.raw("general") as Targets;
-          const revised = assemble(
-            owned,
-            data,
-            {
-              ...stageDiagnostics(data.researchValidation!),
-              ...general,
-            },
-            outputs,
-            originalTargets,
-          );
-          if (revised.status !== "continue") {
-            return revised;
-          }
-          prepared = revised.value;
-          // Keep the assignment order for Editor.
-          const returnedGroups = groups.filter(
-            (group) =>
-              review.get(group.path)?.decision !== "reject" &&
-              returned.some((request) => request.group === group),
-          );
-          if (!returnedGroups.length) {
-            continue;
-          }
-          const targeted = await runReview(prepared, returnedGroups);
-          if (targeted.status !== "success" || !targeted.output) {
-            data.errors.push(...targeted.errors);
-            data.editor.status = "failed";
-            data.editor.errors.push(...targeted.errors);
-            data.outcome = "failed";
-            for (const entry of owned.repairs.records.slice(firstRecord)) {
-              entry.failure = targeted.errors[0];
-            }
-            return targeted;
-          }
-          for (const entry of targeted.output.decisions) {
-            review.set(entry.path, entry);
-          }
-        } catch (error) {
-          data.errors.push(repairDiagnostic(error));
-          data.outcome = "failed";
-          return null;
-        }
-      }
-      for (const entry of owned.repairs.records) {
-        entry.decision = review.get(entry.path);
-      }
-      signal.throwIfAborted();
-      data.editorValidation = applyReview(prepared, review);
-      logPreparation(owned.trace?.log, data.editorValidation, originalTargets);
-      if (data.editorValidation.status !== "continue") {
-        data.outcome = "failed";
-        data.errors.push(...data.editorValidation.diagnostics.errors);
-      }
-      return data.editorValidation;
-    },
+    (owned, data, signal) =>
+      reviewPreparedProposals(owned, data, roleOptions(owned, data, signal)),
   );
   const prepareOperations = phase(
     "prepare-catalog-plan",
@@ -1047,7 +807,7 @@ export function createCatalogIngestionWorkflow(
     "build-report",
     "Assemble the outcome and diagnostics",
     (owned, data) => {
-      data.report = buildResearchReport(owned.reportInput(data));
+      data.report = owned.buildReport(data);
       return data.report;
     },
   );

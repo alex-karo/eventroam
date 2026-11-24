@@ -1,51 +1,52 @@
 import { expect, test } from "vitest";
 import { createIngestionData } from "./contracts";
 import type { Source } from "./evidence/contracts";
-import { buildResearchReport, type ReportInput } from "./report";
+import { buildResearchReport, type ReportRun } from "./report";
 import { buildAssignment } from "./roles/assignment";
 import { createResearchBudget } from "./runtime/budget";
 import { initialDiagnostics } from "./stage";
 import { persistenceFailureReport, RunPersistenceError } from "./runs";
 import type { InputDuplicateMatch } from "./research/input-duplicate";
 
-function reportInput(): ReportInput {
-  const state = createIngestionData();
+function reportInput() {
+  const data = createIngestionData();
   const budget = createResearchBudget({}, () => 0);
-  return {
-    ...state,
+  data.context = {
+    catalog: [],
+    terms: [],
+    knownLinks: [],
+    currentDate: "2028-01-01T12:00:00.000Z",
+  };
+  data.outcome = "unchanged";
+  const run: ReportRun = {
     runId: "test-run",
     input: { mode: "add", input: "Example Fest, us", actor: "test" },
-    config: { apiKey: "fixture", model: "fixture", limits: budget.limits },
-    context: {
-      catalog: [],
-      terms: [],
-      knownLinks: [],
-      currentDate: "2028-01-01T12:00:00.000Z",
-    },
-    diagnostics: initialDiagnostics(),
-    plan: null,
-    outcome: "unchanged",
+    config: { model: "fixture" },
     limits: budget.limits,
+    repairs: [],
     budget: budget.snapshot(),
     started: 0,
     finished: 1,
   };
+  return { data, run };
 }
 
-function earlyReportInput(
-  support: InputDuplicateMatch["support"],
-): ReportInput {
-  const input = reportInput();
-  input.runId = "early-run";
-  input.context!.inputDuplicate = {
+function earlyReportInput(support: InputDuplicateMatch["support"]) {
+  const { data, run } = reportInput();
+  data.context!.inputDuplicate = {
     eventId: "fest",
     matchedName: "Example Fest",
     support,
   };
-  input.diagnostics!.matchedEventId = "fest";
-  input.diagnostics!.validation = { structural: "passed", target: "not_run" };
-  input.outcome = "skipped";
-  return input;
+  const diagnostics = {
+    ...initialDiagnostics(),
+    matchedEventId: "fest",
+    validation: { structural: "passed", target: "not_run" } as const,
+  };
+  data.researchValidation = { status: "skip", diagnostics };
+  data.outcome = "skipped";
+  run.runId = "early-run";
+  return { data, diagnostics, run };
 }
 
 function source(id: string, overview: string): Source {
@@ -66,8 +67,8 @@ function source(id: string, overview: string): Source {
 test.each([{ countryCode: "US" }, { officialUrl: "https://example.com/" }])(
   "reports a successful source-free skip with support %j",
   (support) => {
-    const input = earlyReportInput(support);
-    const report = buildResearchReport(input);
+    const { data, run } = earlyReportInput(support);
+    const report = buildResearchReport(data, run);
     expect(report).toMatchObject({
       schemaVersion: 7,
       outcome: "skipped",
@@ -97,34 +98,35 @@ test.each([{ countryCode: "US" }, { officialUrl: "https://example.com/" }])(
 test.each(["outcome", "mode", "workflow_error", "different_event", "no_match"])(
   "an early match does not override %s",
   (failure) => {
-    const input = earlyReportInput({ countryCode: "US" });
+    const { data, diagnostics, run } = earlyReportInput({ countryCode: "US" });
     if (failure === "outcome") {
-      input.outcome = "failed";
+      data.outcome = "failed";
     }
     if (failure === "mode") {
-      input.input.mode = "refresh";
+      run.input.mode = "refresh";
     }
     if (failure === "workflow_error") {
-      input.errors.push({
+      data.errors.push({
         code: "workflow_failed",
         stage: "workflow",
         message: "Failed",
       });
     }
     if (failure === "different_event") {
-      input.diagnostics!.matchedEventId = "other";
+      diagnostics.matchedEventId = "other";
     }
     if (failure === "no_match") {
-      delete input.context!.inputDuplicate;
+      delete data.context!.inputDuplicate;
     }
-    const report = buildResearchReport(input);
+    const report = buildResearchReport(data, run);
     expect(report.researchStatus).toBe("failed");
     expect(report).not.toHaveProperty("inputDuplicate");
   },
 );
 
 test("a failed persistence response cannot retain the successful early-match marker", () => {
-  const report = buildResearchReport(earlyReportInput({ countryCode: "US" }));
+  const { data, run } = earlyReportInput({ countryCode: "US" });
+  const report = buildResearchReport(data, run);
   const failed = persistenceFailureReport(
     new RunPersistenceError("early-run", report),
   );
@@ -137,8 +139,8 @@ test("a failed persistence response cannot retain the successful early-match mar
 });
 
 test("an earlier withdrawal cannot settle the question after a later failed repair", () => {
-  const input = earlyReportInput({ countryCode: "US" });
-  input.outcome = "unchanged";
+  const { data, run } = earlyReportInput({ countryCode: "US" });
+  data.outcome = "unchanged";
   const path = "currentOrNextEdition.fields.sizeEstimate";
   const question = { field: path, message: "No supported estimate." };
   const earlier = {
@@ -156,8 +158,8 @@ test("an earlier withdrawal cannot settle the question after a later failed repa
       note: "Preserve the saved value.",
     },
   };
-  input.unresolved = [question];
-  input.repairs = [
+  data.unresolved = [question];
+  run.repairs = [
     earlier,
     {
       ...earlier,
@@ -174,7 +176,9 @@ test("an earlier withdrawal cannot settle the question after a later failed repa
       },
     },
   ];
-  expect(buildResearchReport(input).unresolved).toEqual([
+  const report = buildResearchReport(data, run);
+  expect(report.repairs).toEqual(run.repairs);
+  expect(report.unresolved).toEqual([
     question,
     {
       field: path,
@@ -185,17 +189,16 @@ test("an earlier withdrawal cannot settle the question after a later failed repa
 });
 
 test("each source summary includes only findings for that source", () => {
-  const input = earlyReportInput({ countryCode: "US" });
-  input.outcome = "unchanged";
+  const { data, run } = reportInput();
   const travel = source("travel", "Travel guide.");
   const tickets = source("tickets", "Ticket guide.");
-  input.corpus = {
+  data.corpus = {
     version: "fixture",
     sources: [travel, tickets],
     evidence: [],
   };
-  input.research = {
-    ...input.research,
+  data.research = {
+    ...data.research,
     status: "success",
     output: {
       checks: [
@@ -209,9 +212,9 @@ test("each source summary includes only findings for that source", () => {
       unresolved: [],
     },
   };
-  input.specialists = {
+  data.specialists = {
     tickets: {
-      ...input.research,
+      ...data.research,
       output: {
         checks: [
           {
@@ -225,7 +228,7 @@ test("each source summary includes only findings for that source", () => {
     },
   };
 
-  expect(buildResearchReport(input).sourceSummaries).toEqual([
+  expect(buildResearchReport(data, run).sourceSummaries).toEqual([
     {
       url: travel.finalUrl,
       information: "Travel guide. The directions page is unavailable.",
@@ -238,7 +241,7 @@ test("each source summary includes only findings for that source", () => {
 });
 
 test("a source with limited processing makes research partial", () => {
-  const input = reportInput();
+  const { data, run } = reportInput();
   const complete = source("programme", "Dates and tickets.");
   const limited: Source = {
     ...source("travel", "Travel guide."),
@@ -246,17 +249,17 @@ test("a source with limited processing makes research partial", () => {
     limitations: ["The page content was cut short."],
   };
   const quote = "The festival runs from July 1 to 3.";
-  input.research = {
-    ...input.research,
+  data.research = {
+    ...data.research,
     status: "success",
     output: {
-      checks: buildAssignment(input.input, input.context!).checks.map(
+      checks: buildAssignment(run.input, data.context!).checks.map(
         ({ key }) => ({ check: key, sourceIds: [complete.id], blocker: null }),
       ),
       unresolved: [],
     },
   };
-  input.corpus = {
+  data.corpus = {
     version: "fixture",
     sources: [complete],
     evidence: [
@@ -274,8 +277,8 @@ test("a source with limited processing makes research partial", () => {
     ],
   };
 
-  expect(buildResearchReport(input).researchStatus).toBe("success");
+  expect(buildResearchReport(data, run).researchStatus).toBe("success");
 
-  input.corpus.sources.push(limited);
-  expect(buildResearchReport(input).researchStatus).toBe("partial");
+  data.corpus.sources.push(limited);
+  expect(buildResearchReport(data, run).researchStatus).toBe("partial");
 });

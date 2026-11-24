@@ -580,7 +580,7 @@ test.each(["add", "full", "current"] as const)(
   },
 );
 
-test("full refresh assigns descriptions with a saved Edition and no selected targets", async () => {
+test("full refresh assigns Event descriptions and links without selected targets", async () => {
   const f = fixture();
   const texts = {
     description: set("A gathering with music in the open air."),
@@ -596,6 +596,7 @@ test("full refresh assigns descriptions with a saved Edition and no selected tar
   );
   expect(result.outcome).toBe("updated");
   expect(result.errors).toEqual([]);
+  expect(result.locationStatus).toBe("not_run");
   expect(result.workload.returnedEditions).toBe(0);
   expect(classification).toHaveBeenCalledOnce();
   expect(JSON.parse(classification.mock.calls[0][1])).toMatchObject({
@@ -604,6 +605,14 @@ test("full refresh assigns descriptions with a saved Edition and no selected tar
       description: "Saved",
       shortDescription: null,
     },
+    targets: { previousEdition: null, currentOrNextEdition: null },
+  });
+  const specialistCalls = f.deps.generateRole.mock.calls.filter(
+    ([role]) => role === "links" || role === "tickets",
+  );
+  expect(specialistCalls.map(([role]) => role)).toEqual(["links"]);
+  expect(JSON.parse(specialistCalls[0][1])).toMatchObject({
+    assignedChecks: ["eventLinks"],
     targets: { previousEdition: null, currentOrNextEdition: null },
   });
   expect(readResearchEvent(f.client, f.event.id)).toMatchObject({

@@ -154,7 +154,7 @@ function fixture(
     dryRun: false,
   };
   function model(
-    nativeRole: Role,
+    nativeRole: Role | readonly Role[],
     handler: Handler,
     answers: Parameters<typeof fixtureDependencies>[0] = {},
   ) {
@@ -174,10 +174,12 @@ function fixture(
       }),
       ...answers,
     });
+    const nativeRoles =
+      typeof nativeRole === "string" ? [nativeRole] : nativeRole;
     const requests: ProviderRequest[] = [];
     vi.stubGlobal("fetch", async (_url: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body)) as ProviderRequest;
-      expect(providerRole(body)).toBe(nativeRole);
+      expect(nativeRoles).toContain(providerRole(body));
       requests.push(body);
       return handler(
         body,
@@ -201,11 +203,12 @@ function fixture(
       }),
       generateRoles: Object.fromEntries(
         roles
-          .filter((role) => role !== nativeRole)
+          .filter((role) => !nativeRoles.includes(role))
           .map((role) => [role, defaults.generateRole]),
       ),
-      generateLocation:
-        nativeRole === "location" ? undefined : defaults.generateLocation,
+      generateLocation: nativeRoles.includes("location")
+        ? undefined
+        : defaults.generateLocation,
     };
     return {
       deps,
@@ -372,10 +375,157 @@ it("returns Roskilde tickets with the exact note and preserves the approved link
   expect(result.unresolved).toContainEqual({
     message: `currentTickets: ${question.message}`,
   });
+  const saved = f.client
+    .prepare("SELECT report_json FROM ingestion_runs WHERE id=?")
+    .get(result.runId) as { report_json: string };
+  expect(JSON.parse(saved.report_json)).toEqual(result);
   const [edition] = f.saved().editions;
   expect(edition.links).toContainEqual(expect.objectContaining({ url: link }));
   expect(edition.priceDetails).toMatchObject([
     { amount: 2650, currency: "DKK" },
+  ]);
+});
+
+it("keeps the first Editor response when targeted review fails", async () => {
+  const f = fixture("Example Fest 2027. Full pass EUR 130.");
+  const before = f.saved();
+  const path = "currentOrNextEdition.fields.links.tickets";
+  const returned = {
+    path,
+    decision: "return",
+    note: "Check the ticket link.",
+  } as const;
+  const editor = editorReply((prompt, index) => {
+    if (index) {
+      throw new Error("Targeted Editor fixture failure");
+    }
+    return review(prompt, returned);
+  });
+  const { run, requests } = f.model(
+    ["tickets", "links"],
+    (body, _index, prompt) => {
+      if (providerRole(body) === "tickets") {
+        return reply(
+          body,
+          tickets(
+            prompt.groups
+              ? price(130, "EUR")
+              : set({ variants: [], basePrice: null }),
+          ),
+        );
+      }
+      return reply(body, {
+        event: { socials: {} },
+        currentOrNextEdition: {
+          tickets: set(
+            prompt.groups
+              ? "https://example.org/tickets"
+              : "https://example.org/product",
+          ),
+        },
+        checks: fixtureChecks(["eventLinks", "currentLinks"]),
+        omitted: [],
+        unresolved: [],
+      });
+    },
+    { editor },
+  );
+  const result = await run();
+
+  expect(requests).toHaveLength(4);
+  expect(editor).toHaveBeenCalledTimes(2);
+  const targetedPrompt = JSON.parse(editor.mock.calls[1][1]);
+  expect(targetedPrompt.reviewPaths).toEqual([
+    { path, allowed: ["approve", "return"] },
+  ]);
+  expect(result.editorResponse?.object).toMatchObject({
+    decisions: expect.arrayContaining([
+      returned,
+      expect.objectContaining({ path: ticketsPath, decision: "approve" }),
+    ]),
+  });
+  expect(result).toMatchObject({
+    editorStatus: "failed",
+    outcome: "failed",
+    operations: [],
+    receipts: [],
+  });
+  expect(result.repairs).toMatchObject([
+    { path: ticketsPath, trigger: "validation" },
+    {
+      path,
+      trigger: "editor",
+      failure: { code: "model_failed", stage: "editor" },
+    },
+  ]);
+  expect(result.repairs?.[0].failure).toBeUndefined();
+  expect(result.repairs?.[1].failure).toEqual(result.errors[0]);
+  expect(f.saved()).toEqual(before);
+  expect(f.client.prepare("SELECT * FROM catalog_changes").all()).toEqual([]);
+  expect(f.client.prepare("SELECT * FROM operation_receipts").all()).toEqual(
+    [],
+  );
+});
+
+it("keeps revised General dates during a later Tickets return", async () => {
+  const f = fixture("Example Fest runs from June 1 to 3, 2027. Pass EUR 130.");
+  const dates = set({
+    startsOn: "2027-06-01",
+    endsOn: "2027-06-03",
+    state: "confirmed" as const,
+  });
+  const returnDates = {
+    path: datesPath,
+    decision: "return",
+    note: "Check the announced dates.",
+  } as const;
+  const returnTickets = {
+    path: ticketsPath,
+    decision: "return",
+    note: "Check the announced price.",
+  } as const;
+  const editor = editorReply((prompt, index) => {
+    if (index === 0) {
+      return review(prompt, returnDates, returnTickets);
+    }
+    if (index === 1) {
+      return review(prompt, returnTickets);
+    }
+    return review(prompt);
+  });
+  let ticketRevisions = 0;
+  const { run } = f.model(
+    ["general", "tickets"],
+    (body, _index, prompt) => {
+      if (providerRole(body) === "tickets") {
+        const amount = prompt.groups ? 110 + 10 * ++ticketRevisions : 100;
+        return reply(body, tickets(price(amount, "EUR")));
+      }
+      const answer = fixtureTargets(f.event.id);
+      if (prompt.groups) {
+        answer.currentOrNextEdition!.fields.dates = dates;
+      }
+      return reply(body, { result: answer });
+    },
+    { editor },
+  );
+
+  const result = await run();
+  expect(result.errors).toEqual([]);
+  expect(result.repairs?.map(({ path }) => path)).toEqual([
+    datesPath,
+    ticketsPath,
+    ticketsPath,
+  ]);
+  expect(result.modelResponse?.object).toMatchObject({
+    result: {
+      currentOrNextEdition: {
+        fields: { dates: { value: { startsOn: "2027-07-01" } } },
+      },
+    },
+  });
+  expect(f.saved().editions).toMatchObject([
+    { startsOn: dates.value.startsOn, priceDetails: [{ amount: 130 }] },
   ]);
 });
 
