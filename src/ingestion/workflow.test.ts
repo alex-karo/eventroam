@@ -1015,6 +1015,7 @@ test("cancellation after a confirmed write preserves the committed catalog", asy
       dryRun: false,
     }),
   });
+  expect(cancellation).toBeDefined();
   await cancellation;
   expect(readResearchCatalog(client)).toHaveLength(1);
   const row = client
