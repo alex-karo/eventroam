@@ -162,6 +162,7 @@ export default defineConfig([
     "out/**",
     "node_modules/**",
     "coverage/**",
+    ".stryker-tmp/**",
     "data/**",
     "next-env.d.ts",
     // Vendored Mastra skill helper; preserve the upstream file and its digest.

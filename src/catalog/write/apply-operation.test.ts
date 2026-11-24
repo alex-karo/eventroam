@@ -5,6 +5,7 @@ import { testFixtures } from "@/test/fixtures";
 import {
   applyCatalogItem,
   applyCatalogOperation,
+  editionRow,
 } from "@/catalog/write/apply-operation";
 import type { CatalogOperation } from "@/catalog/operations/operation";
 
@@ -1219,14 +1220,18 @@ test("price variants validate amount and currency together and preserve audit va
     ...base,
     priceDetails: [
       {
-        label: "Weekend",
+        label: "  Weekend  ",
         amount: 180,
         currency: "EUR",
-        terms: "Camping extra",
+        terms: "  Camping extra  ",
       },
     ],
   });
   expect(applied.changed).toBe(true);
+  const savedPrices = [
+    { label: "Weekend", amount: 180, currency: "EUR", terms: "Camping extra" },
+  ];
+  expect(editionRow(client, edition.id).priceDetails).toEqual(savedPrices);
   const change = client
     .prepare(
       "SELECT changed_fields FROM catalog_changes WHERE operation_key='price:invalid'",
@@ -1236,14 +1241,7 @@ test("price variants validate amount and currency together and preserve audit va
     expect.objectContaining({
       field: "price_details",
       oldValue: [],
-      newValue: [
-        {
-          label: "Weekend",
-          amount: 180,
-          currency: "EUR",
-          terms: "Camping extra",
-        },
-      ],
+      newValue: savedPrices,
     }),
   );
   expect(() =>
@@ -1252,6 +1250,43 @@ test("price variants validate amount and currency together and preserve audit va
       priceDetails: [{ label: "Weekend", amount: 181, currency: "EUR" }],
     }),
   ).toThrow(/different payload/);
+});
+
+test("ticket links accept HTTP and reject other schemes even with HTTPS in the query", () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  const edition = fx.edition(fx.event());
+  const base = {
+    kind: "replacePriceBlock",
+    actor: "owner",
+    id: edition.id,
+    expectedVersion: edition.version,
+    basePrice: null,
+  } as const;
+
+  expect(() =>
+    applyCatalogOperation(client, {
+      ...base,
+      operationKey: "price:ftp-link",
+      priceDetails: [
+        {
+          label: "Weekend",
+          url: "ftp://example.org/tickets?reference=https://example.org/",
+        },
+      ],
+    }),
+  ).toThrow();
+  expect(editionRow(client, edition.id).priceDetails).toEqual([]);
+
+  const priceDetails = [
+    { label: "Weekend", url: "http://example.org/tickets" },
+  ];
+  applyCatalogOperation(client, {
+    ...base,
+    operationKey: "price:http-link",
+    priceDetails,
+  });
+  expect(editionRow(client, edition.id).priceDetails).toEqual(priceDetails);
 });
 
 test("price removal records old and new values without requiring a note", () => {
@@ -1354,6 +1389,34 @@ test.each([
     expect(snapshot()).toEqual(before);
   },
 );
+
+test("an edition update rejects an invalid longitude in the saved row", () => {
+  const { client } = testDatabase();
+  const fx = testFixtures(client);
+  const edition = fx.edition(fx.event(), {
+    latitude: 38,
+    longitude: -9,
+    coordinatePrecision: "exact",
+  });
+  client
+    .prepare("UPDATE editions SET longitude = 181 WHERE id = ?")
+    .run(edition.id);
+  const before = editionRow(client, edition.id);
+
+  expect(() =>
+    applyCatalogOperation(client, {
+      kind: "updateEdition",
+      operationKey: "invalid:stored-longitude",
+      actor: "test",
+      id: edition.id,
+      expectedVersion: edition.version,
+      data: { displayName: "Updated edition" },
+    }),
+  ).toThrow();
+  expect(editionRow(client, edition.id)).toEqual(before);
+  expect(count(client, "catalog_changes")).toBe(0);
+  expect(count(client, "operation_receipts")).toBe(0);
+});
 
 test("updates containing only undefined fields are idempotent no-ops", () => {
   const { client } = testDatabase();

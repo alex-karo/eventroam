@@ -1,19 +1,19 @@
 import { expect, test } from "vitest";
 import { createIngestionData } from "./contracts";
+import type { Source } from "./evidence/contracts";
 import { buildResearchReport, type ReportInput } from "./report";
+import { buildAssignment } from "./roles/assignment";
 import { createResearchBudget } from "./runtime/budget";
 import { initialDiagnostics } from "./stage";
 import { persistenceFailureReport, RunPersistenceError } from "./runs";
 import type { InputDuplicateMatch } from "./research/input-duplicate";
 
-function earlyReportInput(
-  support: InputDuplicateMatch["support"],
-): ReportInput {
+function reportInput(): ReportInput {
   const state = createIngestionData();
   const budget = createResearchBudget({}, () => 0);
   return {
     ...state,
-    runId: "early-run",
+    runId: "test-run",
     input: { mode: "add", input: "Example Fest, us", actor: "test" },
     config: { apiKey: "fixture", model: "fixture", limits: budget.limits },
     context: {
@@ -21,19 +21,45 @@ function earlyReportInput(
       terms: [],
       knownLinks: [],
       currentDate: "2028-01-01T12:00:00.000Z",
-      inputDuplicate: { eventId: "fest", matchedName: "Example Fest", support },
     },
-    diagnostics: {
-      ...initialDiagnostics(),
-      matchedEventId: "fest",
-      validation: { structural: "passed", target: "not_run" },
-    },
+    diagnostics: initialDiagnostics(),
     plan: null,
-    outcome: "skipped",
+    outcome: "unchanged",
     limits: budget.limits,
     budget: budget.snapshot(),
     started: 0,
     finished: 1,
+  };
+}
+
+function earlyReportInput(
+  support: InputDuplicateMatch["support"],
+): ReportInput {
+  const input = reportInput();
+  input.runId = "early-run";
+  input.context!.inputDuplicate = {
+    eventId: "fest",
+    matchedName: "Example Fest",
+    support,
+  };
+  input.diagnostics!.matchedEventId = "fest";
+  input.diagnostics!.validation = { structural: "passed", target: "not_run" };
+  input.outcome = "skipped";
+  return input;
+}
+
+function source(id: string, overview: string): Source {
+  const url = `https://example.com/${id}`;
+  return {
+    id,
+    processing: "complete",
+    status: "ok",
+    method: "http",
+    attemptedUrl: url,
+    finalUrl: url,
+    retrievedAt: "2027-01-01T00:00:00Z",
+    overview,
+    limitations: [],
   };
 }
 
@@ -156,4 +182,100 @@ test("an earlier withdrawal cannot settle the question after a later failed repa
       message: "The revision has no reason for its omission.",
     },
   ]);
+});
+
+test("each source summary includes only findings for that source", () => {
+  const input = earlyReportInput({ countryCode: "US" });
+  input.outcome = "unchanged";
+  const travel = source("travel", "Travel guide.");
+  const tickets = source("tickets", "Ticket guide.");
+  input.corpus = {
+    version: "fixture",
+    sources: [travel, tickets],
+    evidence: [],
+  };
+  input.research = {
+    ...input.research,
+    status: "success",
+    output: {
+      checks: [
+        {
+          check: "currentLocation",
+          sourceIds: [travel.id],
+          blocker: "The directions page is unavailable.",
+        },
+        { check: "currentTickets", sourceIds: [tickets.id], blocker: null },
+      ],
+      unresolved: [],
+    },
+  };
+  input.specialists = {
+    tickets: {
+      ...input.research,
+      output: {
+        checks: [
+          {
+            check: "currentTickets",
+            sourceIds: [tickets.id],
+            finding: "verified",
+            explanation: "Tickets start at €25.",
+          },
+        ],
+      },
+    },
+  };
+
+  expect(buildResearchReport(input).sourceSummaries).toEqual([
+    {
+      url: travel.finalUrl,
+      information: "Travel guide. The directions page is unavailable.",
+    },
+    {
+      url: tickets.finalUrl,
+      information: "Ticket guide. Tickets start at €25.",
+    },
+  ]);
+});
+
+test("a source with limited processing makes research partial", () => {
+  const input = reportInput();
+  const complete = source("programme", "Dates and tickets.");
+  const limited: Source = {
+    ...source("travel", "Travel guide."),
+    processing: "limited",
+    limitations: ["The page content was cut short."],
+  };
+  const quote = "The festival runs from July 1 to 3.";
+  input.research = {
+    ...input.research,
+    status: "success",
+    output: {
+      checks: buildAssignment(input.input, input.context!).checks.map(
+        ({ key }) => ({ check: key, sourceIds: [complete.id], blocker: null }),
+      ),
+      unresolved: [],
+    },
+  };
+  input.corpus = {
+    version: "fixture",
+    sources: [complete],
+    evidence: [
+      {
+        id: "programme-e1",
+        sourceId: complete.id,
+        quote,
+        span: { start: 0, end: quote.length },
+        context: [],
+        anchors: [],
+        topics: ["dates"],
+        editionClues: [],
+        uncertainty: null,
+      },
+    ],
+  };
+
+  expect(buildResearchReport(input).researchStatus).toBe("success");
+
+  input.corpus.sources.push(limited);
+  expect(buildResearchReport(input).researchStatus).toBe("partial");
 });

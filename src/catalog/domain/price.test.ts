@@ -8,6 +8,13 @@ const paid = {
   priceMaxMinor: 100,
   priceCoverage: "full_programme",
 };
+const free = {
+  priceKind: "free",
+  priceMinMinor: 0,
+  priceMaxMinor: 0,
+  priceCoverage: "full_programme",
+  priceCurrency: null,
+};
 
 test("price variants preserve the existing complete-block contract", () => {
   validateStoredPrice({});
@@ -21,13 +28,21 @@ test("price variants preserve the existing complete-block contract", () => {
     priceCoverage: "package",
   });
   validateStoredPrice({
-    priceKind: "free",
-    priceMinMinor: 0,
-    priceMaxMinor: 0,
-    priceCoverage: "full_programme",
-    priceCurrency: null,
+    ...free,
     priceQualification: "x".repeat(500),
   });
+});
+
+test("free admission accepts a short note and rejects one over 500 characters", () => {
+  expect(() =>
+    validateStoredPrice({
+      ...free,
+      priceQualification: "Registration required",
+    }),
+  ).not.toThrow();
+  expect(() =>
+    validateStoredPrice({ ...free, priceQualification: "x".repeat(501) }),
+  ).toThrow();
 });
 
 test.each([
@@ -45,7 +60,6 @@ test.each([
   { ...paid, priceCurrency: "EU" },
   { ...paid, priceCoverage: "future" },
   { ...paid, priceQualification: "x".repeat(501) },
-  { ...paid, priceKind: "free", priceMinMinor: 0, priceMaxMinor: 0 },
   {
     priceKind: "free",
     priceCurrency: null,
@@ -61,4 +75,10 @@ test.each([
   },
 ])("invalid stored price is rejected: %j", (record) => {
   expect(() => validateStoredPrice(record)).toThrow();
+});
+
+test("stored price validation reports currency on a free price", () => {
+  expect(() => validateStoredPrice({ ...free, priceCurrency: "EUR" })).toThrow(
+    "Free price cannot have currency",
+  );
 });

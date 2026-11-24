@@ -1,9 +1,11 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
+import { testFixtures } from "@/test/fixtures";
 import { DEFAULT_RESEARCH_LIMITS } from "./runtime/budget";
 import {
   startIngestionRun,
   finalizeIngestionRun,
+  persistenceFailureReport,
   storedRunInput,
   RunPersistenceError,
   validateRunInvocation,
@@ -33,6 +35,36 @@ test("run validation keeps the Codex proxy URL", () => {
     },
   );
   expect(config.codexProxyUrl).toBe(codexProxyUrl);
+});
+
+test("refresh with add input makes no run or model calls", async () => {
+  const { client } = testDatabase();
+  const event = testFixtures(client).event();
+  const dependencies = fixtureDependencies();
+  const generateRole = vi.fn(dependencies.generateRole);
+  const readPage = vi.fn(dependencies.readPage);
+
+  await expect(
+    runCatalogResearch(
+      {
+        mode: "refresh",
+        eventId: event.id,
+        input: "Example Fest",
+        actor: "owner",
+      },
+      { client, ...dependencies, generateRole, readPage },
+    ),
+  ).rejects.toThrow("refresh does not accept add input");
+
+  expect(client.prepare("SELECT id FROM ingestion_runs").all()).toEqual([]);
+  expect(generateRole).not.toHaveBeenCalled();
+  expect(readPage).not.toHaveBeenCalled();
+});
+
+test("a persistence error without a report returns no report", () => {
+  expect(
+    persistenceFailureReport(new RunPersistenceError("test-run")),
+  ).toBeUndefined();
 });
 
 test("fresh storage has 10 columns, no Event foreign key and accepts future mode names", () => {
@@ -90,6 +122,7 @@ test("finalization preserves normalized report, zero/unknown values and guards t
     },
   );
   const id = startIngestionRun(client, settings, Date.now(), null);
+  expect(report.runId).not.toBe(id);
   const final = {
     ...report,
     runId: id,
@@ -113,6 +146,7 @@ test("finalization preserves normalized report, zero/unknown values and guards t
     ).toEqual(pending);
   }
   const invalidReports = [
+    report,
     { ...final, mode: "refresh" },
     ...[-1, 1.5].map((pages) => ({
       ...final,

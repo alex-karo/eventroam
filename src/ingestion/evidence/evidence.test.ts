@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtemp, rm, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   bindEvidence,
   bindSelectedEvidence,
@@ -451,7 +452,7 @@ describe("saved source evidence", () => {
       );
       expect(
         sourceArtifactRoot({ CATALOG_SOURCE_DIRECTORY: "data/private" }),
-      ).toMatch(/eventroam\/data\/private$/);
+      ).toBe(fileURLToPath(new URL("../../../data/private", import.meta.url)));
     } finally {
       await rm(root, { recursive: true, force: true });
     }
