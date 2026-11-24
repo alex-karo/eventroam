@@ -69,6 +69,8 @@ To save the hotspot report as JSON, run `npm run code:hotspots -- --format json 
 
 The Repowise CI job checks changed files in pull requests and pushes to `main`. It compares the pull request head with its merge base, or the push head with the previous tip of `main`. New high or critical code structure findings on changed lines outside test files fail the job. Repowise reports findings as GitHub annotations. This check needs only Git history.
 
+For pull requests from branches in this repository, Repowise posts one summary comment and updates it after each run.
+
 To check committed changes locally, update `origin/main` and run this command:
 
 ```sh

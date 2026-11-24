@@ -58,6 +58,9 @@ jobs:
   code-health:
     name: Repowise code health
     if: github.event_name == 'pull_request' || (!github.event.created && !github.event.deleted)
+    permissions:
+      contents: read
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -71,6 +74,7 @@ jobs:
         with:
           version: '0.62.0'
           checks: health
+          comment: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           base: >-
             ${{ github.event_name == 'pull_request'
                 && format('{0}...HEAD', github.event.pull_request.base.sha)
