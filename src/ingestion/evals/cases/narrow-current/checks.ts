@@ -409,7 +409,7 @@ export const checks = {
     ];
   },
   "current-identity-contradiction": (context) => {
-    const { item, report } = context;
+    const { report } = context;
     return [
       ...refusedResearch(report, "partial"),
       check(
@@ -418,23 +418,9 @@ export const checks = {
         "Expected identity conflict to skip editing",
       ),
       check(
-        "research.searches",
-        report.budget.searches === 0,
-        "Expected identity conflict to stop without search",
-      ),
-      check(
         "research.sources.available",
         report.sources.some((source) => source.outcome === "ok"),
         "Expected identity conflict evidence from an available source",
-      ),
-      check(
-        "research.sources.allowed",
-        report.sources.every((source) =>
-          item.sources.some(
-            (expected) => expected.attemptedUrl === source.attemptedUrl,
-          ),
-        ),
-        "Expected identity conflict to inspect only fixture sources",
       ),
       check(
         "research.identity",

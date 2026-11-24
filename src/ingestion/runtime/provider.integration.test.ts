@@ -2,7 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { invokeRole } from "../roles/invoke";
-import { collectionOutputSchema } from "../roles/research/contracts";
+import { buildCollectionOutputSchema } from "../roles/research/contracts";
 import { createResearchBudget, DEFAULT_RESEARCH_LIMITS } from "./budget";
 import { loadResearchConfig } from "./config";
 import { sourceUrlSchema } from "../tools/contracts";
@@ -14,6 +14,8 @@ const config = {
   model: "fixture/provider-model",
   limits: DEFAULT_RESEARCH_LIMITS,
 };
+const assignedKeys = ["identity", "currentTickets"];
+const collectionOutputSchema = buildCollectionOutputSchema(assignedKeys);
 const final = {
   checks: [
     { check: "identity", blocker: null, sourceIds: ["s1"] },
@@ -350,6 +352,10 @@ test.each([null, "I will inspect the linked page."])(
     expect(requests).toHaveLength(2);
     expect(requests[0].tools).toBeDefined();
     expect(requests[1].tools).toBeUndefined();
+    expect(requests[1]).toHaveProperty(
+      "response_format.json_schema.schema.properties.checks.items.properties.check.enum",
+      assignedKeys,
+    );
     expect(JSON.stringify(requests[1].messages)).toContain(
       "Compact page overview",
     );

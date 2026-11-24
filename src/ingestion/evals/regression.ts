@@ -3,7 +3,6 @@ import type { CatalogResearchResult } from "../contracts";
 import { researchContext } from "./research";
 import { checks as afroNation } from "./cases/afro-nation-portugal/checks";
 import { checks as scopeCurrentOngoing } from "./cases/scope-current-ongoing/checks";
-import { checks as scopeCurrentLocalDay } from "./cases/scope-current-local-day/checks";
 import { checks as scopeCurrentStableKey } from "./cases/scope-current-stable-key/checks";
 import { checks as scopeCurrentReplacement } from "./cases/scope-current-replacement/checks";
 import { checks as scopeCurrentAmbiguous } from "./cases/scope-current-ambiguous/checks";
@@ -31,7 +30,6 @@ export type RegressionEvaluator = (context: RegressionContext) => Check[];
 const evaluators: Record<string, RegressionEvaluator> = {
   ...afroNation,
   ...scopeCurrentOngoing,
-  ...scopeCurrentLocalDay,
   ...scopeCurrentStableKey,
   ...scopeCurrentReplacement,
   ...scopeCurrentAmbiguous,

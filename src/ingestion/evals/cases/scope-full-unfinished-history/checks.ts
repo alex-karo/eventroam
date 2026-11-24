@@ -6,6 +6,7 @@ import {
   selectedEditionDates,
 } from "../../research";
 import { check } from "../../checks";
+import { searchCount } from "../../tool-use";
 
 export const checks = {
   "scope-full-unfinished-history": (context) => {
@@ -21,6 +22,20 @@ export const checks = {
           endsOn: "2026-10-11",
           state: "confirmed",
         },
+      ),
+      check(
+        "toolUse.noHistorySearch",
+        searchCount(context.calls) === 0,
+        "Use zero searches when only the past Edition outcome is unknown",
+      ),
+      check(
+        "toolUse.readHistoryArchive",
+        context.calls.some(
+          (call) =>
+            call.tool === "readPage" &&
+            call.url === "https://scope-fixture.example/blocked-archive",
+        ),
+        "Read the linked history archive",
       ),
       check(
         "research.unresolved.historic-weekend",
