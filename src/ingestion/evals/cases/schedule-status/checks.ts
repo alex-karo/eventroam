@@ -1,10 +1,11 @@
-import { check, contains } from "../../checks";
+import { check } from "../../checks";
 import { preserveDates } from "../../changes";
-import type { RegressionContext, RegressionEvaluator } from "../../regression";
-import { editionSlots, researchDidNotFail } from "../../research";
-import { searchCount } from "../../tool-use";
-
-function scheduled(context: RegressionContext, keys: string[]) {
+import type { RegressionContext } from "../../regression";
+import { researchDidNotFail } from "../../research";
+export function checkScheduledEditions(
+  context: RegressionContext,
+  keys: string[],
+) {
   const { item, report, changes } = context;
   return [
     ...researchDidNotFail(report),
@@ -23,7 +24,16 @@ function scheduled(context: RegressionContext, keys: string[]) {
     ...keys.flatMap((key) => {
       const saved = item.initial.event.editions.find(
         (edition) => edition.editionKey === key,
-      )!;
+      );
+      if (!saved) {
+        return [
+          check(
+            `catalog.${key}.savedEdition`,
+            false,
+            `Case "${item.id}" is missing Edition "${key}" in its initial catalog.`,
+          ),
+        ];
+      }
       return [
         ...preserveDates(changes, key),
         check(
@@ -54,62 +64,3 @@ function scheduled(context: RegressionContext, keys: string[]) {
     }),
   ];
 }
-
-const jazz: RegressionEvaluator = (context) => [
-  ...editionSlots(context, "2026", "2027"),
-  ...scheduled(context, ["2026", "2027"]),
-];
-
-export const checks = {
-  "schedule-status-jazz": (context) => [
-    ...jazz(context),
-    check(
-      "toolUse.maxSearches",
-      searchCount(context.calls) === 0,
-      "Use zero searches when known pages cover both programmes",
-    ),
-  ],
-  "schedule-status-jazz-editor": (context) => [
-    ...jazz(context),
-    ...["previousEdition", "currentOrNextEdition"].map((slot) =>
-      check(
-        `editor.${slot}.scheduleStatus`,
-        contains(context.report.editorResponse?.object, {
-          decisions: {
-            path: `${slot}.fields.scheduleStatus`,
-            decision: "approve",
-          },
-        }),
-        "Approve scheduled with the supported current dates",
-      ),
-    ),
-  ],
-  "schedule-status-marco": (context) => [
-    check(
-      "sources.replacementAnnouncement",
-      context.report.sources.some(
-        (source) =>
-          source.attemptedUrl === context.item.sources[1].attemptedUrl &&
-          source.outcome === "ok",
-      ),
-      "Inspect the supplied replacement announcement URL",
-    ),
-    ...editionSlots(context, null, "2026"),
-    ...scheduled(context, ["2026"]),
-  ],
-  "schedule-status-postponed": (context) => [
-    ...researchDidNotFail(context.report),
-    ...editionSlots(context, null, null),
-    ...preserveDates(context.changes, "2027"),
-    check(
-      "toolUse.maxSearches",
-      searchCount(context.calls) === 0,
-      "Use zero searches when the organizer says new dates will follow",
-    ),
-    check(
-      "catalog.editions.noReplacement",
-      context.report.operations.length === 0,
-      "Do not select or change an Edition with no replacement dates",
-    ),
-  ],
-} satisfies Record<string, RegressionEvaluator>;

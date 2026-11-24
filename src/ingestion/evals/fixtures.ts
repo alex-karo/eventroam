@@ -1,7 +1,5 @@
 import { addInputSchema } from "../add-input";
-import { assertMainCase } from "./main";
-import { assertRegressionCase } from "./regression";
-import { assertLocationCase } from "./location";
+import { evalCases, evalSuiteInfo } from "./cases/suite";
 import { roleHandoffSchema, assertEditorFixture } from "./editor-fixture";
 import { bindFixtureEvidence } from "./fixed-reader";
 import { locationInputSchema } from "../roles/location/input";
@@ -23,7 +21,6 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { catalogPriceBlockSchema } from "@/catalog/operations/operation";
-import { wackenAddCase } from "./cases/wacken/add";
 
 const link = z.object({
   kind: z.enum(linkKinds),
@@ -185,76 +182,60 @@ export type EvalSuite = z.infer<typeof evalSuiteSchema>;
 const sourceFilesSchema = z.array(
   source.omit({ markdown: true }).extend({ markdownFile: z.string().min(1) }),
 );
-const handoffFileSchema = z.string().min(1).optional();
-const caseFileSchema = z.union([
-  mainPipelineEvalCaseSchema.extend({
-    roleHandoffFile: handoffFileSchema,
-    sources: sourceFilesSchema,
-  }),
-  regressionPipelineEvalCaseSchema.extend({
-    roleHandoffFile: handoffFileSchema,
-    sources: sourceFilesSchema,
-  }),
-  locationEvalCaseSchema.extend({
-    roleHandoffFile: handoffFileSchema,
-    sources: sourceFilesSchema.default([]),
-  }),
-]);
-const suiteFileSchema = evalSuiteSchema.extend({
-  cases: z.array(z.string().min(1)).min(1),
+const mainPipelineCaseFileSchema = mainPipelineEvalCaseSchema.extend({
+  sources: sourceFilesSchema,
 });
+const regressionPipelineCaseFileSchema =
+  regressionPipelineEvalCaseSchema.extend({
+    sources: sourceFilesSchema,
+  });
+const locationCaseFileSchema = locationEvalCaseSchema.extend({
+  sources: sourceFilesSchema.default([]),
+});
+const caseFileSchema = z.union([
+  mainPipelineCaseFileSchema,
+  regressionPipelineCaseFileSchema,
+  locationCaseFileSchema,
+]);
+
+export type MainPipelineCaseFile = z.input<
+  typeof mainPipelineCaseFileSchema
+> & {
+  roleHandoff?: never;
+};
+export type RegressionPipelineCaseFile = z.input<
+  typeof regressionPipelineCaseFileSchema
+>;
+export type LocationCaseFile = z.input<typeof locationCaseFileSchema>;
+
+function readCaseFiles({ fixture, moduleUrl }: (typeof evalCases)[number]) {
+  const directory = dirname(fileURLToPath(moduleUrl));
+  const item = caseFileSchema.parse(fixture);
+  return {
+    ...item,
+    roleHandoff: item.roleHandoff,
+    sources: item.sources.map(({ markdownFile, ...metadata }) => ({
+      ...metadata,
+      markdown: readFileSync(resolve(directory, markdownFile), "utf8"),
+    })),
+  };
+}
 
 export function loadEvalSuite(): EvalSuite {
-  const path = fileURLToPath(new URL("./cases/suite.json", import.meta.url));
-  const manifest = suiteFileSchema.parse(
-    JSON.parse(readFileSync(path, "utf8")),
-  );
   const suite = evalSuiteSchema.parse({
-    ...manifest,
-    cases: manifest.cases.map((casePath) => {
-      const absolutePath = resolve(dirname(path), casePath);
-      const { roleHandoffFile, ...item } = caseFileSchema.parse(
-        JSON.parse(readFileSync(absolutePath, "utf8")),
-      );
-      return {
-        ...item,
-        roleHandoff: roleHandoffFile
-          ? roleHandoffSchema.parse(
-              JSON.parse(
-                readFileSync(
-                  resolve(dirname(absolutePath), roleHandoffFile),
-                  "utf8",
-                ),
-              ),
-            )
-          : undefined,
-        sources: item.sources.map(({ markdownFile, ...metadata }) => ({
-          ...metadata,
-          markdown: readFileSync(
-            resolve(dirname(absolutePath), markdownFile),
-            "utf8",
-          ),
-        })),
-      };
-    }),
+    ...evalSuiteInfo,
+    cases: evalCases.map(readCaseFiles),
   });
-  suite.cases.push(evalCaseSchema.parse(wackenAddCase(suite.cases)));
-  const ids = suite.cases.map((item) => item.id);
-  if (new Set(ids).size !== ids.length) {
-    throw new Error("Duplicate eval case ID");
-  }
   for (const item of suite.cases) {
     for (const source of item.sources) {
       if (source.readerOutput) {
         bindFixtureEvidence(item.id, "s1", source, source.readerOutput);
       }
     }
-    if (item.suite === "main") {
-      assertMainCase(item);
-    } else if (item.location) {
-      assertLocationCase(item);
-    } else {
-      assertRegressionCase(item);
+    if (item.suite === "main" && item.roleHandoff) {
+      throw new Error(`Main case cannot have a fixed role handoff: ${item.id}`);
+    }
+    if (item.suite === "regression" && !item.location) {
       assertEditorFixture(item);
     }
   }

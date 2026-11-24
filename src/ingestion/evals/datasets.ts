@@ -36,9 +36,9 @@ export function evalFileHash() {
       })
         .filter(
           (name) =>
-            (folder === "cases"
-              ? /\.(json|md|ts)$/.test(name)
-              : name.endsWith(".ts")) && !name.endsWith(".test.ts"),
+            !name.endsWith(".test.ts") &&
+            (name.endsWith(".ts") ||
+              (folder === "cases" && name.endsWith(".md"))),
         )
         .map((name) => join(folder, name)),
     ),
