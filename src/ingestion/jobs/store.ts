@@ -185,26 +185,26 @@ function submitSelection(
   });
 }
 
-export function nextJob(client: Database.Database): IngestionJob | undefined {
-  return write(client, () => {
-    const job = client
-      .prepare(
-        "SELECT * FROM ingestion_jobs WHERE status IN ('pending','running') ORDER BY created_at,batch_id,position LIMIT 1",
-      )
-      .get() as IngestionJob | undefined;
-    if (job?.status === "pending") {
-      const update = client
+export function nextJob(
+  client: Database.Database,
+  activeIds: Iterable<string> = [],
+): IngestionJob | undefined {
+  return write(
+    client,
+    () =>
+      client
         .prepare(
-          "UPDATE ingestion_jobs SET status='running' WHERE id=? AND status='pending'",
+          `UPDATE ingestion_jobs SET status='running'
+           WHERE id = (
+             SELECT id FROM ingestion_jobs
+             WHERE status IN ('pending','running')
+               AND id NOT IN (SELECT value FROM json_each(?))
+             ORDER BY created_at,batch_id,position LIMIT 1
+           )
+           RETURNING *`,
         )
-        .run(job.id);
-      if (update.changes !== 1) {
-        throw new Error("Job start failed");
-      }
-      job.status = "running";
-    }
-    return job;
-  });
+        .get(JSON.stringify([...activeIds])) as IngestionJob | undefined,
+  );
 }
 
 export function finishJob(client: Database.Database, jobId: string) {

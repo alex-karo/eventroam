@@ -79,7 +79,7 @@ Both servers preserve default preview, explicit apply, native cancellation, and 
 
 ### Health and image verification
 
-Both images include Node health probes. Website `GET /health` returns `200 {"status":"ok"}` for a readable public schema or generic `503 {"status":"unavailable"}`. It does not create or migrate a missing catalog. Studio uses its existing `GET /health`. Its `GET /ingestion-queue` returns 200 while the queue loop runs, or 503 when catalog storage is unavailable. These internal checks need no model or login inputs.
+Both images include Node health probes. Website `GET /health` returns `200 {"status":"ok"}` for a readable public schema or generic `503 {"status":"unavailable"}`. It does not create or migrate a missing catalog. Studio uses its existing `GET /health`. Its `GET /ingestion-queue` returns 200 while the queue runs. It returns 503 if catalog storage is unavailable or the [queue limit](ingestion-tools.md#background-execution) is invalid. These internal checks need no model or login inputs.
 
 Run `pnpm run docker:smoke` to build both targets, prepare an empty test catalog with one explicit migration, and wait for both container health checks to pass and check Studio queue startup with an empty queue and no provider keys. The script uses the application Compose file without host ports, a random project, and a temporary named volume. It supplies no owner data or provider credentials, makes no paid calls, and removes only its test project's containers and volume after success or failure. CI runs the same command instead of a separate host website build. Website health tests and full offline workflow execution remain outside the images.
 

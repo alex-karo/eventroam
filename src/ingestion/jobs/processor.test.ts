@@ -17,11 +17,11 @@ function setup(n = 4) {
   return { ...db, eventIds, ...submitJobs(db.client, { eventIds }) };
 }
 
-test("a backup pause completes the active job and leaves the next job pending", async () => {
-  const { client } = setup(2);
+test("a backup pause drains active jobs and leaves the next job pending", async () => {
+  const { client } = setup();
   const controller = new AbortController();
   let paused = false;
-  let complete!: () => void;
+  const complete: (() => void)[] = [];
   const started: string[] = [];
   const work = processJobs({
     client,
@@ -30,13 +30,13 @@ test("a backup pause completes the active job and leaves the next job pending", 
     execute: async (job) => {
       started.push(job.id);
       await new Promise<void>((resolve) => {
-        complete = resolve;
+        complete.push(resolve);
       });
     },
   });
-  await expect.poll(() => started.length).toBe(1);
+  expect(started).toHaveLength(3);
   paused = true;
-  complete();
+  complete.forEach((finish) => finish());
   await expect
     .poll(() =>
       client
@@ -44,8 +44,8 @@ test("a backup pause completes the active job and leaves the next job pending", 
         .pluck()
         .get(),
     )
-    .toBe(1);
-  expect(started).toHaveLength(1);
+    .toBe(3);
+  expect(started).toHaveLength(3);
   expect(
     client
       .prepare("SELECT count(*) FROM ingestion_jobs WHERE status='pending'")
@@ -87,12 +87,11 @@ test("a malformed stored target ends independently and the next job runs", async
   ).toBe(0);
 });
 
-test("one awaited loop preserves order, continues ordinary failures, and never overlaps", async () => {
+test("starts at most three jobs in queue order and fills a slot after an ordinary failure", async () => {
   const { client, eventIds } = setup();
   const controller = new AbortController();
   const started: string[] = [];
-  let active = 0,
-    maxActive = 0;
+  const complete: (() => void)[] = [];
   const work = processJobs({
     client,
     signal: controller.signal,
@@ -101,75 +100,86 @@ test("one awaited loop preserves order, continues ordinary failures, and never o
       if (input.mode === "refresh") {
         started.push(input.input.eventId);
       }
-      maxActive = Math.max(maxActive, ++active);
-      await delay(5);
-      active--;
-      if (started.length === 1) {
+      await new Promise<void>((resolve) => {
+        complete[job.position] = resolve;
+      });
+      if (job.position === 1) {
         throw new Error("Private workflow failure");
       }
     },
   });
-  await expect
-    .poll(() =>
+  try {
+    expect(started).toEqual(eventIds.slice(0, 3));
+    complete[1]();
+    await expect.poll(() => started.slice()).toEqual(eventIds);
+    expect(
       client
-        .prepare("SELECT count(*) n FROM ingestion_jobs WHERE status='done'")
+        .prepare("SELECT position FROM ingestion_jobs WHERE status='done'")
         .pluck()
-        .get(),
-    )
-    .toBe(4);
-  controller.abort();
-  await work;
-  expect(started).toEqual(eventIds);
-  expect(maxActive).toBe(1);
-  expect(
-    client.prepare("SELECT count(*) n FROM ingestion_runs").pluck().get(),
-  ).toBe(0);
+        .all(),
+    ).toEqual([1]);
+    complete.forEach((finish) => finish());
+    await expect
+      .poll(() =>
+        client
+          .prepare("SELECT count(*) FROM ingestion_jobs WHERE status='done'")
+          .pluck()
+          .get(),
+      )
+      .toBe(4);
+  } finally {
+    controller.abort();
+    complete.forEach((finish) => finish());
+    await work;
+  }
 });
 
 test("queue completion failure stops dispatch and leaves the job eligible after restart", async () => {
-  const { client } = setup(2);
+  const { client } = setup();
   const calls: string[] = [];
+  const cleaned: string[] = [];
   await expect(
     processJobs({
       client,
       signal: new AbortController().signal,
-      execute: async (job) => {
+      execute: async (job, signal) => {
         calls.push(job.id);
-        // Fail only queue writes; processing itself has ended.
-        client.pragma("query_only = ON");
+        if (job.position === 0) {
+          // Let the queue start the other jobs before the write fails.
+          await Promise.resolve();
+          client.pragma("query_only = ON");
+          return;
+        }
+        await delay(30000, undefined, { signal }).catch(() => {});
+        cleaned.push(job.id);
       },
     }),
   ).rejects.toThrow("job_storage_unavailable");
   client.pragma("query_only = OFF");
-  expect(calls).toHaveLength(1);
+  expect(calls).toHaveLength(3);
+  expect(cleaned).toEqual(calls.slice(1));
   expect(nextJob(client)?.id).toBe(calls[0]);
 });
 
-test("shutdown awaits active cleanup, leaves running, and never claims another job", async () => {
+test("shutdown awaits all active jobs and leaves their status running", async () => {
   const { client, batchId } = setup();
   const controller = new AbortController();
-  let cleanup = false;
-  let started!: () => void;
-  const entered = new Promise<void>((resolve) => {
-    started = resolve;
-  });
+  let cleaned = 0;
   const work = processJobs({
     client,
     signal: controller.signal,
     execute: async (_job, signal) => {
-      started();
       await delay(30000, undefined, { signal }).catch(() => {});
       await delay(5);
-      cleanup = true;
+      cleaned++;
     },
   });
-  await entered;
   controller.abort();
   controller.abort();
   await work;
-  expect(cleanup).toBe(true);
+  expect(cleaned).toBe(3);
   expect(cancelPendingJobs(client, batchId)).toMatchObject({
-    cancelledCount: 3,
+    cancelledCount: 1,
   });
   expect(
     client
@@ -178,7 +188,7 @@ test("shutdown awaits active cleanup, leaves running, and never claims another j
       )
       .all(),
   ).toEqual([
-    { status: "cancelled", n: 3 },
-    { status: "running", n: 1 },
+    { status: "cancelled", n: 1 },
+    { status: "running", n: 3 },
   ]);
 });
