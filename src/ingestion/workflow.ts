@@ -26,6 +26,7 @@ import {
   runLocationBranch,
   runSpecialistBranch,
   selectGeneralTargets,
+  specialistBranchOutputSchema,
   workflowRoleOptions,
 } from "./workflow-roles";
 import { Mastra } from "@mastra/core/mastra";
@@ -360,7 +361,7 @@ export function createCatalogIngestionWorkflow(
     createStep({
       id: role,
       inputSchema: stepSchema,
-      outputSchema: stepSchema,
+      outputSchema: specialistBranchOutputSchema,
       retries: 0,
       stateSchema: stepStateSchema,
       execute: async ({ runId, state, abortSignal }) => {

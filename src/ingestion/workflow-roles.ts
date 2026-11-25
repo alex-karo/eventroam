@@ -131,7 +131,7 @@ function assignedTargets(
     : null;
 }
 
-const branchOutputSchema = z.json();
+export const specialistBranchOutputSchema = z.json();
 type OrdinarySpecialist = Exclude<SpecialistRole, "location">;
 const specialistRunners: Record<
   OrdinarySpecialist,
@@ -168,7 +168,7 @@ export async function runSpecialistBranch(
     const execution = await owned.track(
       specialistRunners[role](options, targets),
     );
-    return branchOutputSchema.parse(execution);
+    return specialistBranchOutputSchema.parse(execution);
   } catch {
     return {
       status: "failed",
@@ -192,7 +192,7 @@ export async function runLocationBranch(
 ) {
   const targets = assignedTargets(owned, data, "location");
   if (!targets) {
-    return branchOutputSchema.parse(emptyLocationExecution());
+    return specialistBranchOutputSchema.parse(emptyLocationExecution());
   }
   try {
     const execution = await owned.track(
@@ -206,9 +206,9 @@ export async function runLocationBranch(
         owned.repairs.captureLocation,
       ),
     );
-    return branchOutputSchema.parse(execution);
+    return specialistBranchOutputSchema.parse(execution);
   } catch {
-    return branchOutputSchema.parse({
+    return specialistBranchOutputSchema.parse({
       ...emptyLocationExecution(),
       status: "failed",
       errors: [
