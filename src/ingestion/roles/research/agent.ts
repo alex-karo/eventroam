@@ -14,7 +14,7 @@ import { buildCollectionOutputSchema } from "./contracts";
 import { researchInstructions } from "./prompt";
 
 export async function collectResearch(
-  options: Omit<RoleOptions, "corpus"> & {
+  options: Pick<RoleOptions, "budget" | "config" | "deps" | "tracing"> & {
     assignment: ReturnType<typeof buildAssignment>;
     collection: Collection;
     sourceSession: SourceSession;

@@ -451,6 +451,7 @@ it("keeps the first Editor response when targeted review fails", async () => {
       expect.objectContaining({ path: ticketsPath, decision: "approve" }),
     ]),
   });
+  expect(result.editorResponse).not.toHaveProperty("text");
   expect(result).toMatchObject({
     editorStatus: "failed",
     outcome: "failed",
@@ -805,6 +806,40 @@ it.each([
     );
   },
 );
+
+it("keeps the failed Classification reply after a repair succeeds", async () => {
+  const f = fixture("Example Fest 2027 has a music programme.");
+  const genre = f.f.term({ facet: "genre", slug: "fixture-genre" });
+  const invalidSlug = "unknown-genre";
+  const { run } = f.model("classification", (body, index) =>
+    reply(body, {
+      previousEdition: null,
+      currentOrNextEdition: {
+        classification: set({ genres: [index ? genre.slug : invalidSlug] }),
+      },
+      checks: fixtureChecks(["description", "currentClassification"]),
+      unresolved: [],
+    }),
+  );
+
+  const result = await run();
+  expect(result.errors).toEqual([]);
+  expect(result.repairs).toMatchObject([
+    {
+      path: "currentOrNextEdition.fields.classification",
+      trigger: "validation",
+      decision: { decision: "approve" },
+    },
+  ]);
+  expect(result.classificationResponse).toMatchObject({
+    text: expect.stringContaining(invalidSlug),
+    object: {
+      currentOrNextEdition: {
+        classification: { value: { genres: [invalidSlug] } },
+      },
+    },
+  });
+});
 
 it.each(["approve", "withdraw"] as const)(
   "saves only the reviewed description result after %s",

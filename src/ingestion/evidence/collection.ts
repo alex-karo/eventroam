@@ -7,6 +7,7 @@ import type { SourceSession } from "../tools/session";
 import type { RunObservability } from "../runtime/observability/runtime";
 import type { CaptureStageMetric } from "../runtime/observability/stage-metrics";
 import { sourceUrlSchema } from "../tools/contracts";
+import type { ReadPageResult } from "../tools/read-page/contracts";
 import type { Evidence, FrozenCorpus, Source, Span } from "./contracts";
 import { createCorpusStorage } from "./storage";
 import { readSource } from "../roles/reader/agent";
@@ -149,6 +150,69 @@ export function createCollection(options: {
       },
     };
   }
+  async function processPage(read: ReadPageResult) {
+    const source = await storage.savePage(read);
+    if (read.status !== "ok") {
+      return source;
+    }
+    source.leads = pageLinks(read.markdown, read.finalUrl);
+    const readerStarted = performance.now();
+    let processing: Source["processing"] = "failed";
+    let evidence: Evidence[] | undefined;
+    try {
+      const execution = await (options.deps.readSource ?? readSource)({
+        input: {
+          assignment: options.assignment,
+          source: { id: source.id, ...read, markdown: undefined },
+          page: read.markdown,
+        },
+        budget,
+        config: options.config,
+        signal,
+        tracing: options.tracing,
+        generate:
+          options.deps.generateRoles?.reader ?? options.deps.generateRole,
+        outputTokens: limits.readerOutputTokens,
+        inputLimits: limits,
+        reserveCall: reserveReaderCall,
+        reserveCorrection: reserveReaderCall,
+      });
+      if (execution.skipReason) {
+        source.limitations.push(execution.skipReason);
+        processing = "unprocessed";
+        return source;
+      }
+      source.readerResponse = execution.modelResponse;
+      if (!execution.bound || !execution.output) {
+        source.processing = "failed";
+        source.limitations.push(
+          ...execution.errors.map((error) => error.message),
+        );
+        errors.push(...execution.errors);
+        fatal = true;
+      } else {
+        const { bound, output } = execution;
+        source.overview = output.overview;
+        source.coverage = output.coverage;
+        source.topics = output.topics;
+        source.statedYears = output.statedYears;
+        source.limitations = bound.limitations;
+        source.processing = bound.limitations.length ? "limited" : "complete";
+        await storage.saveEvidence(source, bound.evidence);
+        processing = source.processing;
+        evidence = bound.evidence;
+      }
+    } finally {
+      options.captureMetric?.("ingestion_reader_finished", {
+        source_id: source.id,
+        processing,
+        duration_ms: Math.round(performance.now() - readerStarted),
+        page_utf16_units: read.markdown.length,
+        ...(evidence && evidenceMetrics(evidence, read.markdown.length)),
+      });
+    }
+    return source;
+  }
   async function inspectPage(url: string) {
     if (closed) {
       throw new Error("Collection is closed");
@@ -175,71 +239,7 @@ export function createCollection(options: {
       if (finalPending) {
         return finalPending;
       }
-      const process = (async () => {
-        const source = await storage.savePage(read);
-        if (read.status !== "ok") {
-          return source;
-        }
-        source.leads = pageLinks(read.markdown, read.finalUrl);
-        const readerStarted = performance.now();
-        let processing: Source["processing"] = "failed";
-        let evidence: Evidence[] | undefined;
-        try {
-          const execution = await (options.deps.readSource ?? readSource)({
-            input: {
-              assignment: options.assignment,
-              source: { id: source.id, ...read, markdown: undefined },
-              page: read.markdown,
-            },
-            budget,
-            config: options.config,
-            signal,
-            tracing: options.tracing,
-            generate:
-              options.deps.generateRoles?.reader ?? options.deps.generateRole,
-            outputTokens: limits.readerOutputTokens,
-            inputLimits: limits,
-            reserveCall: reserveReaderCall,
-            reserveCorrection: reserveReaderCall,
-          });
-          if (execution.skipReason) {
-            source.limitations.push(execution.skipReason);
-            processing = "unprocessed";
-            return source;
-          }
-          source.readerResponse = execution.modelResponse;
-          if (!execution.bound || !execution.output) {
-            source.processing = "failed";
-            source.limitations.push(
-              ...execution.errors.map((error) => error.message),
-            );
-            errors.push(...execution.errors);
-            fatal = true;
-          } else {
-            const { bound, output } = execution;
-            source.overview = output.overview;
-            source.coverage = output.coverage;
-            source.topics = output.topics;
-            source.statedYears = output.statedYears;
-            source.limitations = bound.limitations;
-            source.processing = bound.limitations.length
-              ? "limited"
-              : "complete";
-            await storage.saveEvidence(source, bound.evidence);
-            processing = source.processing;
-            evidence = bound.evidence;
-          }
-        } finally {
-          options.captureMetric?.("ingestion_reader_finished", {
-            source_id: source.id,
-            processing,
-            duration_ms: Math.round(performance.now() - readerStarted),
-            page_utf16_units: read.markdown.length,
-            ...(evidence && evidenceMetrics(evidence, read.markdown.length)),
-          });
-        }
-        return source;
-      })();
+      const process = processPage(read);
       canonical.set(finalKey, process);
       const source = await process;
       cache.set(finalKey, source);

@@ -30,6 +30,8 @@ export function recordSpecialistOutputs(
     if (execution && output) {
       data.specialists[role] = {
         ...execution,
+        ...(role === "classification" &&
+          execution.status === "failed" && { responseFailed: true }),
         status: "success",
         output,
         errors: [],
@@ -47,6 +49,9 @@ export function assemblePreparedProposals(
 ) {
   const location = owned.repairs.materializeLocation();
   if (location) {
+    if (data.location.status === "failed") {
+      data.location.responseFailed = true;
+    }
     data.location.materialized = location;
     data.location.status = "success";
     data.location.errors = [];

@@ -121,7 +121,6 @@ test.each([
       outcome: "failed",
       editorStatus: "not_run",
       locationStatus: "not_run",
-      workload: { returnedEditions: 0 },
       operations: [],
       receipts: [],
     });
@@ -215,7 +214,6 @@ test.each(["full", "current"] as const)(
       researchStatus: "success",
       scope,
       currentDate: "2026-10-11T12:00:00.000Z",
-      workload: { savedEditions: 1, returnedEditions: 1 },
     });
     expect(readResearchEvent(f.client, f.event.id)!.description).toBe("Saved");
     noWrites(f);
@@ -413,7 +411,6 @@ test("full selects both Editions with more than twenty saved Editions", async ()
   f.general.currentOrNextEdition = fixtureTargets().currentOrNextEdition;
   const result = await runCatalogResearch(f.input, f.deps);
   expect(result.errors).toEqual([]);
-  expect(result.workload).toEqual({ savedEditions: 21, returnedEditions: 2 });
   expect(readResearchEvent(f.client, f.event.id)!.editions).toHaveLength(23);
 });
 test.each(["verified", "unfinished"] as const)(
@@ -597,7 +594,6 @@ test("full refresh assigns Event descriptions and links without selected targets
   expect(result.outcome).toBe("updated");
   expect(result.errors).toEqual([]);
   expect(result.locationStatus).toBe("not_run");
-  expect(result.workload.returnedEditions).toBe(0);
   expect(classification).toHaveBeenCalledOnce();
   expect(JSON.parse(classification.mock.calls[0][1])).toMatchObject({
     assignedChecks: ["description"],

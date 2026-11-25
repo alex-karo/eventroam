@@ -31,6 +31,7 @@ function execution<T extends z.ZodType>(output: T) {
     modelResponse: z
       .object({ text: z.string().nullable(), object: z.unknown() })
       .nullable(),
+    responseFailed: z.literal(true).optional(),
     errors: z.array(researchErrorSchema),
     model: z.string(),
     promptVersion: z.string(),

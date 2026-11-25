@@ -124,7 +124,7 @@ test.each([
       },
     );
     expect(report).toMatchObject({
-      schemaVersion: 7,
+      schemaVersion: 8,
       outcome: "skipped",
       researchStatus: "success",
       eventId: event.id,

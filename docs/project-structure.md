@@ -90,6 +90,8 @@ Paths below are relative to `src/ingestion/` unless stated otherwise. Read code 
 | -------------------------------------------------------------- | ----------------------------------------------------- |
 | Workflow and terminal cleanup                                  | `workflow.ts`, `attempt.ts`                           |
 | Stage results and write outcomes                               | `stage.ts`, `pipeline.ts`                            |
+| Research collection and its metrics                            | `research/collect-stage.ts`                            |
+| Catalog write and receipt metrics                              | `catalog-write-stage.ts`                              |
 | Saved context and shared diagnostics                           | `research/context.ts`, `research/contracts.ts`        |
 | Agent calls, prompts, schemas and validators                   | One folder per role under `roles/`                    |
 | Saved sources and frozen corpus                                | `evidence/`                                           |

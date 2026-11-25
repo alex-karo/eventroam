@@ -4,7 +4,11 @@ import { eventIdSchema, refreshScopeSchema } from "./invocation";
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import { z } from "zod";
-import type { CatalogResearchInput, CatalogResearchResult } from "./contracts";
+import {
+  INGESTION_REPORT_VERSION,
+  type CatalogResearchInput,
+  type CatalogResearchResult,
+} from "./contracts";
 import { DEFAULT_RESEARCH_LIMITS, type ResearchLimits } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
 import { PROMPT_VERSIONS } from "./roles/versions";
@@ -230,7 +234,7 @@ export function finalizeIngestionRun(
   try {
     if (
       client.inTransaction ||
-      report.schemaVersion !== 7 ||
+      report.schemaVersion !== INGESTION_REPORT_VERSION ||
       report.runId !== runId
     ) {
       throw new Error();

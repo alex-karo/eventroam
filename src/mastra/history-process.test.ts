@@ -79,11 +79,9 @@ test("CLI uses Studio storage and inspection can reopen completed and interrupte
       expect(steps["finalize-run"].output).toEqual(preview.results[0]);
       const report = steps["build-report"].output;
       expect(report).toEqual(JSON.parse(saved.report_json));
+      expect(report).not.toHaveProperty("workload");
       expect(report).toMatchObject({
-        workload: {
-          savedEditions: expect.any(Number),
-          returnedEditions: expect.any(Number),
-        },
+        schemaVersion: 8,
         budget: { pages: expect.any(Number), searches: expect.any(Number) },
         operations: expect.any(Array),
         receipts: expect.any(Array),
