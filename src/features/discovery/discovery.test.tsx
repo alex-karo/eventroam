@@ -6,6 +6,7 @@ import {
   fireEvent,
   render,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { testFixtures } from "@/test/fixtures";
@@ -158,6 +159,44 @@ test("the default area limits rows and pending counts while the map keeps all fi
   expect(window.location.search).toContain("country=PT");
   expect(mock.props!.summaries).toEqual(rows.slice(0, 3));
 });
+
+test.each(["visible", "hidden"] as const)(
+  "closing a filter after changing groups restores focus when the original opener is %s",
+  async (openerVisibility) => {
+    const { view } = await setup();
+    const toolbar = within(
+      view.getByRole("group", { name: "Discovery filters" }),
+    );
+    const where = toolbar.getByRole("button", { name: /^Where:/ });
+    const music = toolbar.getByRole("button", { name: "Music" });
+    const unrelated = document.createElement("button");
+    unrelated.className = "filter-trigger-genre";
+    view.container.prepend(unrelated);
+    if (openerVisibility === "visible") {
+      vi.spyOn(where, "getClientRects").mockReturnValue({
+        length: 1,
+      } as DOMRectList);
+    }
+
+    fireEvent.click(where);
+    const panel = within(view.getByRole("dialog", { name: "Filters" }));
+    expect(document.activeElement).toBe(
+      panel.getByRole("combobox", { name: "City or region" }),
+    );
+    fireEvent.click(panel.getByRole("button", { name: "Music" }));
+    const genreSearch = panel.getByRole("searchbox", { name: "Search genres" });
+    expect(document.activeElement).toBe(genreSearch);
+    where.hidden = openerVisibility === "hidden";
+
+    fireEvent.keyDown(genreSearch, { key: "Escape" });
+    expect(view.queryByRole("dialog", { name: "Filters" })).toBeNull();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        openerVisibility === "visible" ? where : music,
+      ),
+    );
+  },
+);
 
 test("an empty area uses the heading switch for recovery and normal filter-empty results retain reset", async () => {
   const { view } = await setup();

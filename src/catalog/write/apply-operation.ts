@@ -428,106 +428,99 @@ function updateSubject(
   };
 }
 
-function changePublication(
+function recordPublicationChange(
   client: Database.Database,
-  op: Extract<
-    CatalogOperation,
-    {
-      kind:
-        "publishEvent" | "publishEdition" | "withdrawEvent" | "withdrawEdition";
-    }
-  >,
+  op: CatalogOperationMeta & {
+    id: string;
+    expectedVersion: number;
+    omitAudit?: boolean;
+  },
+  subject: "event" | "edition",
+  changes: CatalogFieldChange[],
   now: string,
 ): CatalogOperationResult {
-  const isEvent = op.kind.endsWith("Event");
-  const target = op.kind.startsWith("publish") ? "published" : "withdrawn";
-  if (isEvent) {
-    const old = eventRow(client, op.id);
-    assert(old.version === op.expectedVersion, "Stale subject version");
+  const version = op.expectedVersion + 1;
+  writeChange(client, op, subject, op.id, version, changes, now);
+  return { id: op.id, version, changed: true };
+}
+
+function changeEventPublication(
+  client: Database.Database,
+  op: Extract<CatalogOperation, { kind: "publishEvent" | "withdrawEvent" }>,
+  now: string,
+): CatalogOperationResult {
+  const target = op.kind === "publishEvent" ? "published" : "withdrawn";
+  const old = eventRow(client, op.id);
+  assert(old.version === op.expectedVersion, "Stale subject version");
+  assert(
+    old.publicationState !== "draft" || target === "published",
+    "Cannot withdraw a draft",
+  );
+  if (target === "published") {
     assert(
-      old.publicationState !== "draft" || target === "published",
-      "Cannot withdraw a draft",
+      drizzle(client)
+        .select({ id: editions.id })
+        .from(editions)
+        .where(
+          and(
+            eq(editions.eventId, op.id),
+            eq(editions.publicationState, "published"),
+          ),
+        )
+        .get(),
+      "Event publication needs a published edition",
     );
-    if (target === "published") {
-      assert(
-        drizzle(client)
-          .select({ id: editions.id })
-          .from(editions)
-          .where(
-            and(
-              eq(editions.eventId, op.id),
-              eq(editions.publicationState, "published"),
-            ),
-          )
-          .get(),
-        "Event publication needs a published edition",
-      );
-      assert(
-        old.homeScope == null || old.homeScope === "festivals",
-        "Invalid home scope",
-      );
-    }
-    const values: Partial<EventValues> = {
-      publicationState: target,
-      ...(target === "published" && old.homeScope == null
-        ? { homeScope: "festivals" }
-        : {}),
-    };
-    const changes = diff(events, old, values);
-    if (!changes.length) {
-      return { id: op.id, version: op.expectedVersion, changed: false };
-    }
-    if (target === "published") {
-      reserveEventPaths(client, { ...old, ...values }, now);
-    }
-    bumpEvent(client, op.id, op.expectedVersion, values, now);
-    writeChange(
-      client,
-      op,
-      "event",
-      op.id,
-      op.expectedVersion + 1,
-      changes,
-      now,
-    );
-  } else {
-    const old = editionRow(client, op.id);
-    assert(old.version === op.expectedVersion, "Stale subject version");
     assert(
-      old.publicationState !== "draft" || target === "published",
-      "Cannot withdraw a draft",
-    );
-    if (target === "published") {
-      festivalEditionRules.validateRecord({
-        ...old,
-        publicationState: "published",
-      });
-      validateScope(client, op.id);
-    }
-    const values: Partial<EditionValues> = { publicationState: target };
-    const changes = diff(editions, old, values);
-    if (!changes.length) {
-      return { id: op.id, version: op.expectedVersion, changed: false };
-    }
-    if (target === "published") {
-      reserveEditionPath(client, old, now);
-    }
-    bumpEdition(client, op.id, op.expectedVersion, values, now);
-    writeChange(
-      client,
-      op,
-      "edition",
-      op.id,
-      op.expectedVersion + 1,
-      changes,
-      now,
+      old.homeScope == null || old.homeScope === "festivals",
+      "Invalid home scope",
     );
   }
-  return {
-    id: op.id,
-    version: op.expectedVersion + 1,
-    changed: true,
+  const values: Partial<EventValues> = {
+    publicationState: target,
+    ...(target === "published" && old.homeScope == null
+      ? { homeScope: "festivals" }
+      : {}),
   };
+  const changes = diff(events, old, values);
+  if (!changes.length) {
+    return { id: op.id, version: op.expectedVersion, changed: false };
+  }
+  if (target === "published") {
+    reserveEventPaths(client, { ...old, ...values }, now);
+  }
+  bumpEvent(client, op.id, op.expectedVersion, values, now);
+  return recordPublicationChange(client, op, "event", changes, now);
+}
+
+function changeEditionPublication(
+  client: Database.Database,
+  op: Extract<CatalogOperation, { kind: "publishEdition" | "withdrawEdition" }>,
+  now: string,
+): CatalogOperationResult {
+  const target = op.kind === "publishEdition" ? "published" : "withdrawn";
+  const old = editionRow(client, op.id);
+  assert(old.version === op.expectedVersion, "Stale subject version");
+  assert(
+    old.publicationState !== "draft" || target === "published",
+    "Cannot withdraw a draft",
+  );
+  if (target === "published") {
+    festivalEditionRules.validateRecord({
+      ...old,
+      publicationState: "published",
+    });
+    validateScope(client, op.id);
+  }
+  const values: Partial<EditionValues> = { publicationState: target };
+  const changes = diff(editions, old, values);
+  if (!changes.length) {
+    return { id: op.id, version: op.expectedVersion, changed: false };
+  }
+  if (target === "published") {
+    reserveEditionPath(client, old, now);
+  }
+  bumpEdition(client, op.id, op.expectedVersion, values, now);
+  return recordPublicationChange(client, op, "edition", changes, now);
 }
 
 function replacePriceBlock(
@@ -748,10 +741,11 @@ function applyOperation(
     case "updateEdition":
       return updateSubject(client, op, now);
     case "publishEvent":
-    case "publishEdition":
     case "withdrawEvent":
+      return changeEventPublication(client, op, now);
+    case "publishEdition":
     case "withdrawEdition":
-      return changePublication(client, op, now);
+      return changeEditionPublication(client, op, now);
     case "replacePriceBlock":
       return replacePriceBlock(client, op, now);
     case "replaceTerms":

@@ -1,10 +1,11 @@
 import type { CatalogAttempt } from "../attempt";
 import type { IngestionData } from "../contracts";
+import { createCollection } from "../evidence/collection";
 import { buildAssignment } from "../roles/assignment";
 import { collectResearch } from "../roles/research/agent";
 import { validateResearchSummary } from "../roles/research/validate";
 import type { StageMetrics } from "../runtime/observability/stage-metrics";
-import type { SourceSession } from "../tools/session";
+import { createSourceSession, type SourceSession } from "../tools/session";
 
 function sourceErrorCode(source: { status: string; reasonCode?: string }) {
   if (source.status === "unsupported") {
@@ -53,6 +54,40 @@ function researchMetrics(
       blocked_checks: checks.filter(({ blocker }) => blocker).length,
     }),
   };
+}
+
+export async function readInitialSource(
+  owned: CatalogAttempt,
+  data: IngestionData,
+  signal: AbortSignal,
+) {
+  owned.sources = createSourceSession(
+    owned.budget,
+    owned.config,
+    data.context!.knownLinks,
+    owned.deps,
+    owned.trace?.log,
+  );
+  const assignment = buildAssignment(owned.input, data.context!);
+  owned.collection = createCollection({
+    runId: owned.ingestionRunId,
+    startedAt: owned.started,
+    sources: owned.sources,
+    budget: owned.budget,
+    config: owned.config,
+    deps: owned.deps,
+    assignment: {
+      requestedName: assignment.identityContext.requestedName,
+      currentDate: assignment.currentDate,
+    },
+    signal,
+    tracing: owned.trace?.tracing,
+    captureMetric: owned.captureMetric,
+  });
+  if (owned.sources.initialUrl) {
+    await owned.track(owned.collection.inspectPage(owned.sources.initialUrl));
+  }
+  return { sources: owned.collection.sources };
 }
 
 export async function collectSourceEvidence(
