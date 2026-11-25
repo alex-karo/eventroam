@@ -224,15 +224,15 @@ Use the [publication rules](../src/catalog/domain/festival-edition-publication.t
 
 Use [saved source evidence](ingestion-tools.md#saved-source-evidence) to inspect canonical pages and Reader output. Keep these artifacts private.
 
-The current report separates research, editor, and Location status from the catalog outcome. It includes old/new changes with reasons, errors by stage, unresolved questions, source summaries, retrieval history, limits, and workload. Add and refresh retain the fixed run date; refresh also retains scope.
+The current report separates Research, Editor, and Location status from the catalog outcome. It includes field changes with reasons, errors by stage, unresolved questions, retrieval history, limits, and budget counts. Source summaries contain the source URL and Reader overview. Research blockers appear in unresolved questions. Add and refresh retain the fixed run date. Refresh also retains scope.
 
-An early add skip has optional `inputDuplicate` with the Event ID, matched name or alias, and supporting `countryCode` or full `officialUrl`. Report version 7 stays the same; older reports can omit this field. Here, `researchStatus: "success"` means the early rule completed. Research, Reader, General, Editor, and Location do no work. Source lists, model responses, operations, receipts, and changes are empty, and page, search, and model-call counts are zero. The durable attempt completes with the existing Event ID in preview and apply. This report records a request/catalog match. Older reports can contain a General duplicate decision from inspected sources; new runs check duplicates only before source collection. Failed and missing reports remain distinct.
+An early add skip has optional `inputDuplicate` with the Event ID, matched name or alias, and supporting `countryCode` or full `officialUrl`. Older reports can omit this field. Here, `researchStatus: "success"` means the early rule completed. Research, Reader, General, Editor, and Location do no work. Source lists, model responses, operations, receipts, and changes are empty, and page, search, and model-call counts are zero. The durable attempt completes with the existing Event ID in preview and apply. This report records a request/catalog match. Older reports can contain a General duplicate decision from inspected sources; new runs check duplicates only before source collection. Failed and missing reports remain distinct.
 
-Raw model responses remain available, including invalid Editor output. Report version 7 can record each return with its path, owner, trigger, note and available result. A final local failure has an exact-path unresolved item and makes research partial, even if the original role check was verified. An earlier failure that later recovers remains in repair history without making research partial by itself. A run can complete with partial research and saved independent changes. Its catalog outcome, operations and receipts describe the actual result. The workflow releases the native conversation when the attempt ends. Reports and workflow history keep the decisions and evidence used in the attempt. Omitted facts preserve saved values. Actual mutations and reasons also appear in the writer audit. No-op checks create no audit.
+Report version 8 keeps the response `object` for General, Classification, Editor, and Location. For response errors, it also keeps available `text`. Inspect workflow history for successful reply text when the provider returned it. The report can record each return with its path, owner, trigger, note and available result. A final local failure has an exact-path unresolved item and makes research partial, even if the original role check was verified. An earlier failure that later recovers remains in repair history without making research partial by itself. A run can complete with partial research and saved independent changes. Its catalog outcome, operations and receipts describe the actual result. The workflow releases the native conversation when the attempt ends. Reports and workflow history keep the decisions and evidence used in the attempt. Omitted facts preserve saved values. Actual mutations and reasons also appear in the writer audit. No-op checks create no audit.
 
-Every started attempt has a private `ingestion_runs` row and durable `runId`. Studio saves the final report automatically. Open the workflow's build-report step to inspect an ordinary report. An early report is in load-context and the final saved state. Current consumers reject older report versions. See [report contracts](../src/ingestion/report.ts) and `src/ingestion/report.ts` for the exact report shape.
+Every started attempt has a private `ingestion_runs` row and durable `runId`. Studio saves the final report automatically. Open the workflow's build-report step to inspect an ordinary report. An early report is in load-context and the final saved state. The catalog SQL skill supports report versions 7 and 8. See the [report contract](../src/ingestion/contracts.ts) for the current shape.
 
-With `--apply`, success and partial results use the atomic writer. Failed research, editing or required Location writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research, editor, Location or write failure exits nonzero. A write failure rolls back the entire Event item. The report retains research status, prepared operations, available raw research, editor and Location responses, source summaries, any name mismatch, and the write error. Applied `changes` stays empty; a separate proposed diff is not required. A partial result with no changes remains visibly partial/unchanged.
+With `--apply`, success and partial results use the atomic writer. Failed research, editing or required Location writes nothing. Partial alone exits zero, as does a skipped duplicate add. Research, editor, Location or write failure exits nonzero. A write failure rolls back the entire Event item. The report retains research status, prepared operations, available reply objects, source summaries, any name mismatch, and the write error. Applied `changes` stays empty; a separate proposed diff is not required. A partial result with no changes remains visibly partial/unchanged.
 
 Ordinary research retries only explicit OpenRouter `provider_unavailable` errors, at most three times with 10-second, 30-second, and 90-second exponential backoff within the same run deadline. A bounded Mastra iteration allowance preserves ordinary research capacity during those unavailable retries; observed request counts still include them. Other model errors are not retried; completed research steps and tool results are retained.
 
@@ -287,6 +287,29 @@ Native metrics describe eligible agent, model, and tool operations. They do not 
 - Reports keep budget counters and do not calculate replacement cost totals. Historical runs are not backfilled.
 
 Use the [total-token query](ingestion-tools.md#local-trace-inspection) to inspect saved metrics without running research. The store has no automatic retention.
+
+## Inspect ingestion metrics in PostHog
+
+Set `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` in production
+Studio. Leave them empty for local runs. `CATALOG_TRACING` controls AI traces
+separately.
+Use `run_id` to link stage events to the durable ingestion run. Filter by
+`mode`, `scope`, and `dry_run` to compare equivalent runs.
+
+| Event | How to read it |
+| --- | --- |
+| `ingestion_research_finished` | Average `pages_read` for unique URLs read successfully per run, including the initial source. Average `searches_completed` for completed provider searches per run. A completed search can return zero candidates. For coverage, sum `checks_with_evidence` and divide by the sum of `assigned_checks` on events that have `checks_with_evidence`. This includes zero coverage and excludes runs without a valid summary. Show the share of events with a valid summary next to coverage. A covered check has no blocker and cites a page with bound evidence. |
+| `ingestion_reader_finished` | One event per canonical page that reaches Reader. For `complete` or `limited` pages, average `evidence_count` and `marked_percent` to give each page equal weight. For the share of all processed text, divide the sum of `marked_utf16_units` by the sum of `page_utf16_units` and multiply by 100. Marked area includes quotes and context. Overlapping ranges count once. Skipped and failed pages have no coverage value. |
+| `ingestion_editor_finished` | One event per review with duration, review calls, and status. Review calls count Editor invocations. |
+| `ingestion_editor_group_reviewed` | For first-pass approval, use groups with `first_proposed=true` and a `first_decision`. Count the share with `first_decision=approve`. Track proposed groups without a first decision separately. `proposal_returns` counts returns of present proposals. `omission_returns` counts returns of missing proposals. Count one return per group per round when its owner revision starts, even if validation retries it. `validation_returns` counts returns before the first review. An approved group can still depend on other groups and on a successful catalog write. |
+| `ingestion_catalog_write_finished` | For actual catalog changes, filter by `dry_run=false` and sum `changed_operations`. Use `outcome` to group write results, including `unchanged` and `failed`. `changed_operation_kinds` lists the kind of each changed operation. |
+
+Events contain counts, fixed values, and technical IDs. They use no person
+profiles. The SDK sends queued events in the background when the queue reaches
+20 events or its 10-second timer expires. When the sender starts to shut down,
+it drops new events and gives the SDK up to two seconds to send pending events.
+Delivery is best effort. Use the catalog audit for confirmed writes when a
+stage event is missing. Eval experiments do not send stage events.
 
 ## Add research notes
 

@@ -312,7 +312,7 @@ it("keeps a long source blocker partial even when specialists verify their check
     result.sourceSummaries.some((source) =>
       source.information.includes(explanation),
     ),
-  ).toBe(true);
+  ).toBe(false);
 });
 
 it("does not treat a specialist finding as a completed missing collection check", async () => {

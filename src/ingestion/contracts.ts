@@ -3,7 +3,11 @@ import type { CollectionOutput } from "./roles/research/contracts";
 import type { PlanDiagnostics } from "./stage";
 import type { RoleExecution } from "./roles/invoke";
 import type { FrozenCorpus } from "./evidence/contracts";
-import type { PreparedProposals, AcceptedProposals } from "./proposals";
+import type {
+  PreparedProposals,
+  AcceptedProposals,
+  SpecialistOutputs,
+} from "./proposals";
 import type { ReadyCatalogPlan } from "./catalog-plan";
 import type { StageResult } from "./stage";
 import {
@@ -50,15 +54,15 @@ export type CatalogResearchInput = {
   limits?: Partial<ResearchLimits>;
 };
 
+export const INGESTION_REPORT_VERSION = 8;
+
+type ReportModelResponse = { text?: string | null; object: unknown } | null;
+
 export type CatalogResearchResult = {
-  schemaVersion: 7;
+  schemaVersion: typeof INGESTION_REPORT_VERSION;
   scope: NonNullable<CatalogResearchInput["scope"]> | null;
   currentDate: string | null;
   limits: ResearchLimits;
-  workload: {
-    savedEditions: number;
-    returnedEditions: number;
-  };
   /** Assigned by the host when an ingestion attempt starts. */
   runId?: string;
   mode: CatalogResearchInput["mode"];
@@ -69,9 +73,9 @@ export type CatalogResearchResult = {
   /** A successful skip based on the request and saved catalog, without source reads. */
   inputDuplicate?: InputDuplicateMatch;
   /** Final model output before normalization. */
-  modelResponse: { text: string | null; object: unknown } | null;
-  classificationResponse: RoleExecution["modelResponse"];
-  editorResponse: { text: string | null; object: unknown } | null;
+  modelResponse: ReportModelResponse;
+  classificationResponse: ReportModelResponse;
+  editorResponse: ReportModelResponse;
   editorStatus: EditorExecution["status"];
   repairs?: import("./repairs").RepairRecord[];
   editorPromptVersion: string;
@@ -101,7 +105,7 @@ export type CatalogResearchResult = {
     observedName: string;
   } | null;
   budget: ReturnType<ResearchBudget["snapshot"]>;
-  locationResponse: LocationExecution["modelResponse"];
+  locationResponse: ReportModelResponse;
   locationStatus: LocationExecution["status"];
   locationPromptVersion: string;
   locationModelVersion: string;
@@ -154,7 +158,7 @@ export type IngestionData = {
   discovery: SearchWebResult[];
   research: RoleExecution<CollectionOutput>;
   general: RoleExecution<import("./roles/general/contracts").GeneralOutput>;
-  specialists: Record<string, RoleExecution>;
+  specialists: Partial<Record<keyof SpecialistOutputs, RoleExecution>>;
   corpus: FrozenCorpus | null;
   prepared: StageResult<PreparedProposals> | null;
   editor: EditorExecution;

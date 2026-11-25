@@ -6,7 +6,7 @@ import {
   searchWebInputSchema,
   searchWebOutputSchema,
 } from "../../tools/search-web/contracts";
-import { buildAssignment } from "../assignment";
+import type { buildAssignment } from "../assignment";
 import { invokeRole } from "../invoke";
 import type { RoleOptions } from "../options";
 import { PROMPT_VERSIONS } from "../versions";
@@ -14,12 +14,13 @@ import { buildCollectionOutputSchema } from "./contracts";
 import { researchInstructions } from "./prompt";
 
 export async function collectResearch(
-  options: Omit<RoleOptions, "corpus"> & {
+  options: Pick<RoleOptions, "budget" | "config" | "deps" | "tracing"> & {
+    assignment: ReturnType<typeof buildAssignment>;
     collection: Collection;
     sourceSession: SourceSession;
   },
 ) {
-  const assignment = buildAssignment(options.input, options.context);
+  const { assignment } = options;
   const search = createTool({
     id: "searchWeb",
     description:

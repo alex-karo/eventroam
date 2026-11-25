@@ -111,6 +111,28 @@ test("discovery calls share search limits without reserving model capacity", asy
   expect(budget.snapshot()).toMatchObject({ searches: 2, modelCalls: 2 });
 });
 
+test.each([0, 1])(
+  "only counts provider searches with a result limit of %i",
+  async (searchResults) => {
+    const budget = createResearchBudget({ searchResults });
+    const fetch = vi.fn(async () =>
+      Response.json({ choices: [{ message: { content: "No results" } }] }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const sources = createSourceSession(
+      budget,
+      { apiKey: "fixture", model: "fixture", limits: budget.limits },
+      [],
+      {},
+    );
+
+    expect((await sources.searchWeb("Festival")).candidates).toEqual([]);
+    expect(sources.discovery).toHaveLength(1);
+    expect(sources.completedSearches).toBe(searchResults);
+    expect(fetch).toHaveBeenCalledTimes(searchResults);
+  },
+);
+
 test("reuses full source text for concurrent calls and redirect aliases", async () => {
   const budget = createResearchBudget();
   let release!: (result: ReadPageResult) => void;

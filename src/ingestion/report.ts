@@ -1,7 +1,8 @@
-import type {
-  CatalogResearchInput,
-  CatalogResearchResult,
-  IngestionData,
+import {
+  INGESTION_REPORT_VERSION,
+  type CatalogResearchInput,
+  type CatalogResearchResult,
+  type IngestionData,
 } from "./contracts";
 import { eventLinksCheck, isSocialLinkField, proposalGroup } from "./groups";
 import type { ResearchBudgetSnapshot, ResearchLimits } from "./runtime/budget";
@@ -44,7 +45,6 @@ export function buildResearchReport(
 ): CatalogResearchResult {
   const {
     context,
-    research,
     general,
     specialists,
     corpus,
@@ -76,46 +76,26 @@ export function buildResearchReport(
         plan?.explanations[change.operationKey]?.[field.field] ?? [],
     })),
   );
-  const targets =
-    general.output?.decision === "targets" ? general.output : null;
-  const collectionChecks = research.output?.checks ?? [];
-  const interpretationChecks = [
-    ...(targets?.checks ?? []),
-    ...Object.values(specialists).flatMap(
-      (execution) =>
-        (execution.output as { checks?: CheckFinding[] } | undefined)?.checks ??
-        [],
-    ),
-  ];
   const eventId =
     diagnostics?.matchedEventId ?? references.event ?? input.eventId;
   return {
-    schemaVersion: 7,
+    schemaVersion: INGESTION_REPORT_VERSION,
     ...(traceId ? { traceId } : {}),
     scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
     currentDate: context?.currentDate ?? null,
     limits,
-    workload: {
-      savedEditions:
-        context?.catalog.reduce(
-          (count, event) => count + event.editions.length,
-          0,
-        ) ?? 0,
-      returnedEditions: targets
-        ? [targets.previousEdition, targets.currentOrNextEdition].filter(
-            Boolean,
-          ).length
-        : 0,
-    },
     runId,
     mode: input.mode,
     outcome,
     researchStatus,
     ...(inputDuplicate ? { inputDuplicate } : {}),
     eventId,
-    modelResponse: general.modelResponse ?? null,
-    classificationResponse: specialists.classification?.modelResponse ?? null,
-    editorResponse: editor.modelResponse,
+    modelResponse: reportResponse(general),
+    classificationResponse: reportResponse(specialists.classification),
+    editorResponse: reportResponse({
+      modelResponse: editor.modelResponse,
+      status: editor.responseStatus ?? editor.status,
+    }),
     ...(repairs.length > 0 && {
       repairs: repairs.map((entry) => ({
         ...entry,
@@ -132,25 +112,15 @@ export function buildResearchReport(
     references,
     changes,
     sources: reads.map(safeSource),
-    sourceSummaries: (corpus?.sources ?? [])
-      .filter((source) => source.overview)
-      .map((source) => ({
-        url: source.finalUrl,
-        information: [
-          source.overview,
-          ...collectionChecks
-            .filter((check) => check.sourceIds.includes(source.id))
-            .flatMap((check) => (check.blocker ? [check.blocker] : [])),
-          ...interpretationChecks
-            .filter((check) => check.sourceIds.includes(source.id))
-            .map((check) => check.explanation),
-        ].join(" "),
-      })),
+    sourceSummaries: (corpus?.sources ?? []).flatMap(
+      ({ finalUrl, overview }) =>
+        overview ? [{ url: finalUrl, information: overview }] : [],
+    ),
     errors,
     unresolved,
     eventNameMismatch: diagnostics?.eventNameMismatch ?? null,
     budget,
-    locationResponse: location.modelResponse,
+    locationResponse: reportResponse(location),
     locationStatus: location.status,
     locationPromptVersion: LOCATION_PROMPT_VERSION,
     locationModelVersion: config.locationModel ?? config.model,
@@ -163,6 +133,20 @@ export function buildResearchReport(
     promptVersion: PROMPT_VERSIONS.general,
     durationMs: finished - started,
   };
+}
+
+function reportResponse(execution?: {
+  status: string;
+  responseFailed?: true;
+  modelResponse: { text: string | null; object: unknown } | null;
+}) {
+  const response = execution?.modelResponse;
+  if (!response) {
+    return null;
+  }
+  return execution.status === "success" && !execution.responseFailed
+    ? { object: response.object }
+    : response;
 }
 
 function assessResearch(

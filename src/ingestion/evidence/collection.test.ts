@@ -6,6 +6,7 @@ import { createCollection } from "./collection";
 import { createSourceSession } from "../tools/session";
 import { createResearchBudget } from "../runtime/budget";
 import type { GenerateRole } from "../roles/invoke";
+import type { CaptureStageMetric } from "../runtime/observability/stage-metrics";
 import { wholeNumberedPage } from "@/test/ingestion";
 import { segmentPage } from "./segments";
 
@@ -152,6 +153,38 @@ it("does not call Reader when the required source artifact cannot be saved", asy
   }
 });
 
+it("marks a source and its metric as failed when evidence cannot be saved", async () => {
+  const root = await mkdtemp(join(tmpdir(), "eventroam-evidence-failure-"));
+  try {
+    const { collection, generate, captureMetric } = collectionFixture(
+      root,
+      "Festival page.",
+      10000,
+    );
+    const generateReply = generate.getMockImplementation()!;
+    generate.mockImplementationOnce(async (...args) => {
+      const path = collection.sources[0].markdownPath!;
+      await writeFile(path.replace(/\.md$/, ".evidence.json"), "existing");
+      return generateReply(...args);
+    });
+
+    await expect(
+      collection.inspectPage("https://example.org/"),
+    ).rejects.toMatchObject({ code: "EEXIST" });
+    expect(collection.fatal).toBe(true);
+    const corpus = await collection.freeze();
+    expect(corpus.sources).toMatchObject([{ processing: "failed" }]);
+    expect(corpus.evidence).toEqual([]);
+    expect(captureMetric).toHaveBeenCalledWith(
+      "ingestion_reader_finished",
+      expect.objectContaining({ processing: "failed", source_id: "s1" }),
+    );
+    expect(captureMetric.mock.calls[0][1]).not.toHaveProperty("evidence_count");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 import { writeFile } from "node:fs/promises";
 import { readCanonicalSource } from "./storage";
 
@@ -181,8 +214,10 @@ function collectionFixture(
       markdown: typeof page === "string" ? page : page(url),
     }),
   });
+  const captureMetric = vi.fn<CaptureStageMetric>();
   return {
     generate,
+    captureMetric,
     collection: createCollection({
       runId: "test-run",
       startedAt: Date.now(),
@@ -191,6 +226,7 @@ function collectionFixture(
       config,
       deps: { generateRole: generate },
       assignment: {},
+      captureMetric,
       root,
       limits: {
         readerCalls,

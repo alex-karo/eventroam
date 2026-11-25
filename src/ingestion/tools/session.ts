@@ -180,6 +180,9 @@ export function createSourceSession(
   return {
     reads,
     discovery,
+    get completedSearches() {
+      return budget.limits.searchResults === 0 ? 0 : discovery.length;
+    },
     readPage: read,
     searchWeb: search,
     initialUrl,

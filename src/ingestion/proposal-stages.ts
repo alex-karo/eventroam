@@ -10,6 +10,7 @@ import {
 import { repairDiagnostic, type RepairRecord } from "./repairs";
 import { runEditor } from "./roles/editor/agent";
 import type { ReviewDecisions } from "./roles/editor/contracts";
+import { editorMetrics } from "./roles/editor/metrics";
 import { reviewReturns, reviewScope } from "./roles/editor/review";
 import type { Targets } from "./roles/general/contracts";
 import type { RoleOptions } from "./roles/options";
@@ -24,11 +25,14 @@ export function recordSpecialistOutputs(
   data: IngestionData,
   outputs: SpecialistOutputs,
 ) {
-  for (const [role, output] of Object.entries(outputs)) {
+  for (const role of ["tickets", "classification", "links"] as const) {
+    const output = outputs[role];
     const execution = data.specialists[role];
     if (execution && output) {
       data.specialists[role] = {
         ...execution,
+        ...(role === "classification" &&
+          execution.status === "failed" && { responseFailed: true }),
         status: "success",
         output,
         errors: [],
@@ -46,6 +50,9 @@ export function assemblePreparedProposals(
 ) {
   const location = owned.repairs.materializeLocation();
   if (location) {
+    if (data.location.status === "failed") {
+      data.location.responseFailed = true;
+    }
     data.location.materialized = location;
     data.location.status = "success";
     data.location.errors = [];
@@ -118,11 +125,15 @@ export async function reviewPreparedProposals(
   const groups = assignedGroups(input.scope, originalTargets);
   const review: ReviewDecisions = new Map();
   applyRepairRejections(review, repairs.records);
+  const metrics = owned.captureMetric
+    ? editorMetrics(owned.captureMetric, groups, prepared, review, repairs)
+    : undefined;
 
   async function runReview(
     proposals: PreparedProposals,
     targetedGroups?: readonly ProposalGroup[],
   ) {
+    metrics?.reviewCalled();
     const selectedGroups =
       targetedGroups ??
       groups.filter(({ path }) => review.get(path)?.decision !== "reject");
@@ -152,86 +163,101 @@ export async function reviewPreparedProposals(
     return execution;
   }
 
-  const execution = await runReview(prepared);
-  data.specialists.editor = execution;
-  data.editor = {
-    status: execution.status,
-    modelResponse: execution.modelResponse,
-    errors: execution.errors,
-  };
-  if (execution.status !== "success" || !execution.output) {
-    data.errors.push(...execution.errors);
-    logPreparation(
-      owned.trace?.log,
-      {
-        status: "reject",
-        diagnostics: { ...initialDiagnostics(), errors: execution.errors },
-      },
-      originalTargets,
-    );
-    data.outcome = "failed";
-    return execution;
-  }
-
-  for (
-    let returned = reviewReturns(review, groups);
-    returned.length;
-    returned = reviewReturns(review, groups)
-  ) {
-    try {
-      const round = await owned.track(
-        repairs.afterReview(repairContext, returned, signal),
-      );
-      applyRepairRejections(review, round.records);
-      recordSpecialistOutputs(data, round.outputs);
-      const revised = assemblePreparedProposals(
-        owned,
-        data,
+  try {
+    const execution = await runReview(prepared);
+    metrics?.firstReview(execution.output?.decisions);
+    data.editor = {
+      status: execution.status,
+      modelResponse: execution.modelResponse,
+      errors: execution.errors,
+    };
+    if (execution.status !== "success" || !execution.output) {
+      data.errors.push(...execution.errors);
+      logPreparation(
+        owned.trace?.log,
         {
-          ...stageDiagnostics(data.researchValidation!),
-          ...(round.generalTargets ?? prepared.targets),
+          status: "reject",
+          diagnostics: { ...initialDiagnostics(), errors: execution.errors },
         },
-        round.outputs,
         originalTargets,
       );
-      if (revised.status !== "continue") {
-        return revised;
-      }
-      prepared = revised.value;
-      const returnedPaths = new Set(returned.map(({ group }) => group.path));
-      const returnedGroups = groups.filter(
-        ({ path }) =>
-          returnedPaths.has(path) && review.get(path)?.decision !== "reject",
-      );
-      if (!returnedGroups.length) {
-        continue;
-      }
-
-      const targeted = await runReview(prepared, returnedGroups);
-      if (targeted.status !== "success" || !targeted.output) {
-        data.errors.push(...targeted.errors);
-        data.editor.status = "failed";
-        data.editor.errors.push(...targeted.errors);
-        data.outcome = "failed";
-        round.recordEditorFailure(targeted.errors[0]);
-        return targeted;
-      }
-    } catch (error) {
-      data.errors.push(repairDiagnostic(error));
       data.outcome = "failed";
-      return null;
+      return execution;
     }
-  }
 
-  for (const entry of repairs.records) {
-    entry.decision = review.get(entry.path);
+    for (
+      let returned = reviewReturns(review, groups);
+      returned.length;
+      returned = reviewReturns(review, groups)
+    ) {
+      try {
+        const round = await owned.track(
+          repairs.afterReview(
+            repairContext,
+            returned,
+            signal,
+            metrics?.trackReturns(prepared),
+          ),
+        );
+        applyRepairRejections(review, round.records);
+        recordSpecialistOutputs(data, round.outputs);
+        const revised = assemblePreparedProposals(
+          owned,
+          data,
+          {
+            ...stageDiagnostics(data.researchValidation!),
+            ...(round.generalTargets ?? prepared.targets),
+          },
+          round.outputs,
+          originalTargets,
+        );
+        if (revised.status !== "continue") {
+          return revised;
+        }
+        prepared = revised.value;
+        const returnedPaths = new Set(returned.map(({ group }) => group.path));
+        const returnedGroups = groups.filter(
+          ({ path }) =>
+            returnedPaths.has(path) && review.get(path)?.decision !== "reject",
+        );
+        if (!returnedGroups.length) {
+          continue;
+        }
+
+        const targeted = await runReview(prepared, returnedGroups);
+        if (targeted.status !== "success" || !targeted.output) {
+          data.errors.push(...targeted.errors);
+          data.editor = {
+            status: "failed",
+            modelResponse: targeted.modelResponse ?? data.editor.modelResponse,
+            ...(targeted.modelResponse === null && {
+              responseStatus: "success",
+            }),
+            errors: [...data.editor.errors, ...targeted.errors],
+          };
+          data.outcome = "failed";
+          round.recordEditorFailure(targeted.errors[0]);
+          return targeted;
+        }
+      } catch (error) {
+        data.errors.push(repairDiagnostic(error));
+        data.outcome = "failed";
+        return null;
+      }
+    }
+
+    for (const entry of repairs.records) {
+      entry.decision = review.get(entry.path);
+    }
+    signal.throwIfAborted();
+    data.editorValidation = applyReview(prepared, review);
+    logPreparation(owned.trace?.log, data.editorValidation, originalTargets);
+    if (data.editorValidation.status !== "continue") {
+      data.outcome = "failed";
+      data.errors.push(...data.editorValidation.diagnostics.errors);
+    }
+    return data.editorValidation;
+  } finally {
+    metrics?.finish(data.editorValidation?.status, signal.aborted);
   }
-  signal.throwIfAborted();
-  data.editorValidation = applyReview(prepared, review);
-  logPreparation(owned.trace?.log, data.editorValidation, originalTargets);
-  if (data.editorValidation.status !== "continue") {
-    data.outcome = "failed";
-    data.errors.push(...data.editorValidation.diagnostics.errors);
-  }
-  return data.editorValidation;
 }

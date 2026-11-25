@@ -48,6 +48,8 @@ export type RoleExecution<T = unknown> = {
   status: "success" | "failed" | "not_run";
   output?: T;
   modelResponse: { text: string | null; object: unknown } | null;
+  /** The saved reply failed before a repair changed the role status. */
+  responseFailed?: true;
   errors: ResearchError[];
   skipReason?: string;
   model: string;

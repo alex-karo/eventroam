@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, expect, it, vi } from "vitest";
+import { PostHog } from "posthog-node";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
@@ -126,6 +127,23 @@ beforeEach(async () => {
     await rm(sourceDirectory, { recursive: true, force: true });
   };
 });
+
+function captureStageMetrics() {
+  vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_stage_test");
+  vi.stubEnv("NEXT_PUBLIC_POSTHOG_HOST", "https://analytics.example.test");
+  return vi.spyOn(PostHog.prototype, "capture").mockImplementation(() => {});
+}
+
+function capturedGroupReviews(
+  capture: ReturnType<typeof captureStageMetrics>,
+  group: string,
+) {
+  return capture.mock.calls.flatMap(([{ event, properties }]) =>
+    event === "ingestion_editor_group_reviewed" && properties?.group === group
+      ? [properties]
+      : [],
+  );
+}
 
 function fixture(
   page: string,
@@ -414,19 +432,7 @@ it("keeps the first Editor response when targeted review fails", async () => {
           ),
         );
       }
-      return reply(body, {
-        event: { socials: {} },
-        currentOrNextEdition: {
-          tickets: set(
-            prompt.groups
-              ? "https://example.org/tickets"
-              : "https://example.org/product",
-          ),
-        },
-        checks: fixtureChecks(["eventLinks", "currentLinks"]),
-        omitted: [],
-        unresolved: [],
-      });
+      return ticketLinkReply(body, !!prompt.groups);
     },
     { editor },
   );
@@ -444,6 +450,7 @@ it("keeps the first Editor response when targeted review fails", async () => {
       expect.objectContaining({ path: ticketsPath, decision: "approve" }),
     ]),
   });
+  expect(result.editorResponse).not.toHaveProperty("text");
   expect(result).toMatchObject({
     editorStatus: "failed",
     outcome: "failed",
@@ -466,6 +473,107 @@ it("keeps the first Editor response when targeted review fails", async () => {
     [],
   );
 });
+
+function ticketLinkReply(body: ProviderRequest, revision: boolean) {
+  return reply(body, {
+    event: { socials: {} },
+    currentOrNextEdition: {
+      tickets: set(
+        revision
+          ? "https://example.org/tickets"
+          : "https://example.org/product",
+      ),
+    },
+    checks: fixtureChecks(["eventLinks", "currentLinks"]),
+    omitted: [],
+    unresolved: [],
+  });
+}
+
+it("preserves a failed targeted Editor reply and keeps the first-pass decision", async () => {
+  const capture = captureStageMetrics();
+  const f = fixture("Example Fest 2027. Full pass EUR 130.");
+  const path = "currentOrNextEdition.fields.links.tickets";
+  const object = { decisions: {} };
+  const text = JSON.stringify(object);
+  let editorCalls = 0;
+  const { run } = f.model(["links", "editor"], (body, _index, prompt) => {
+    if (providerRole(body) === "links") {
+      return ticketLinkReply(body, !!prompt.groups);
+    }
+    if (editorCalls++) {
+      return modelReply(text);
+    }
+    return reply(
+      body,
+      review(prompt, { path, decision: "return", note: "Check the link." }),
+    );
+  });
+
+  const result = await run();
+
+  expect(result).toMatchObject({ editorStatus: "failed", outcome: "failed" });
+  expect(result.editorResponse).toEqual({ text, object });
+  expect(capturedGroupReviews(capture, path)).toMatchObject([
+    {
+      first_decision: "return",
+      proposal_returns: 1,
+      final_result: "incomplete",
+    },
+  ]);
+});
+
+it.each([
+  { timing: "before", dispatched: 0 },
+  { timing: "after", dispatched: 1 },
+])(
+  "records Editor returns cancelled $timing dispatch",
+  async ({ timing, dispatched }) => {
+    const capture = captureStageMetrics();
+    const f = fixture("Example Fest 2027. Full pass EUR 130.");
+    const path = "currentOrNextEdition.fields.links.tickets";
+    const controller = new AbortController();
+    const afterReview = ProposalRepairs.prototype.afterReview;
+    vi.spyOn(ProposalRepairs.prototype, "afterReview").mockImplementation(
+      function (this: ProposalRepairs, context, requests, _signal, onStart) {
+        return afterReview.call(
+          this,
+          context,
+          requests,
+          controller.signal,
+          onStart,
+        );
+      },
+    );
+    if (timing === "before") {
+      controller.abort();
+    }
+    const { run, requests } = f.model(
+      "links",
+      (body, _index, prompt) => {
+        if (prompt.groups) {
+          controller.abort();
+        }
+        return ticketLinkReply(body, !!prompt.groups);
+      },
+      {
+        editor: editorReply((prompt) =>
+          review(prompt, { path, decision: "return", note: "Check the link." }),
+        ),
+      },
+    );
+
+    const result = await run();
+
+    expect(requests).toHaveLength(1 + dispatched);
+    expect(result.repairs).toMatchObject([
+      { path, failure: { message: "Repair cancelled" } },
+    ]);
+    expect(capturedGroupReviews(capture, path)).toMatchObject([
+      { first_decision: "return", proposal_returns: dispatched },
+    ]);
+  },
+);
 
 it("keeps revised General dates during a later Tickets return", async () => {
   const f = fixture("Example Fest runs from June 1 to 3, 2027. Pass EUR 130.");
@@ -657,6 +765,7 @@ it.each([
 ] as const)(
   "returns the first disputed classification and accepts its %s reply",
   async (kind) => {
+    const capture = captureStageMetrics();
     const f = fixture(
       "Example Fest 2027 is a music festival. Its setting is not confirmed.",
     );
@@ -742,6 +851,26 @@ it.each([
         ...(withdraw && { omissionReason: reason }),
       },
     ]);
+    expect(capture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "ingestion_editor_finished",
+        properties: expect.objectContaining({
+          status: "completed",
+          review_calls: 2,
+        }),
+      }),
+    );
+    expect(capturedGroupReviews(capture, path)).toMatchObject([
+      {
+        run_id: result.runId,
+        first_proposed: true,
+        first_decision: "return",
+        validation_returns: 0,
+        proposal_returns: 1,
+        omission_returns: 0,
+        final_result: withdraw ? "withdrawn" : "approved",
+      },
+    ]);
     expect(result.researchStatus).toBe(
       kind === "correct" || kind === "withdraw" ? "success" : "partial",
     );
@@ -767,6 +896,40 @@ it.each([
     );
   },
 );
+
+it("keeps the failed Classification reply after a repair succeeds", async () => {
+  const f = fixture("Example Fest 2027 has a music programme.");
+  const genre = f.f.term({ facet: "genre", slug: "fixture-genre" });
+  const invalidSlug = "unknown-genre";
+  const { run } = f.model("classification", (body, index) =>
+    reply(body, {
+      previousEdition: null,
+      currentOrNextEdition: {
+        classification: set({ genres: [index ? genre.slug : invalidSlug] }),
+      },
+      checks: fixtureChecks(["description", "currentClassification"]),
+      unresolved: [],
+    }),
+  );
+
+  const result = await run();
+  expect(result.errors).toEqual([]);
+  expect(result.repairs).toMatchObject([
+    {
+      path: "currentOrNextEdition.fields.classification",
+      trigger: "validation",
+      decision: { decision: "approve" },
+    },
+  ]);
+  expect(result.classificationResponse).toMatchObject({
+    text: expect.stringContaining(invalidSlug),
+    object: {
+      currentOrNextEdition: {
+        classification: { value: { genres: [invalidSlug] } },
+      },
+    },
+  });
+});
 
 it.each(["approve", "withdraw"] as const)(
   "saves only the reviewed description result after %s",
@@ -817,6 +980,7 @@ it.each(["approve", "withdraw"] as const)(
 it.each(["new", "saved", "preview", "fatal"] as const)(
   "keeps the corrected ticket link after social repair failures (%s)",
   async (kind) => {
+    const capture = captureStageMetrics();
     const ticketPath = "currentOrNextEdition.fields.links.tickets";
     const socialPaths = ["instagram", "facebook", "youtube"].map(
       (name) => `event.fields.links.socials.${name}`,
@@ -901,10 +1065,48 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
       { editor },
     );
     const result = await run(undefined, kind === "preview");
+    const metricEvents = capture.mock.calls.map(([event]) => event);
+    const groupEvents = metricEvents.filter(
+      ({ event }) => event === "ingestion_editor_group_reviewed",
+    );
+    expect(
+      groupEvents.filter(
+        ({ properties }) => properties?.group === socialPaths[0],
+      ),
+    ).toMatchObject([
+      {
+        properties: {
+          proposal_returns: 1,
+          omission_returns: 0,
+          final_result: kind === "fatal" ? "incomplete" : "rejected",
+        },
+      },
+    ]);
+    if (kind === "new") {
+      expect(
+        groupEvents.filter(
+          ({ properties }) => properties?.group === ticketPath,
+        ),
+      ).toMatchObject([
+        {
+          properties: {
+            first_proposed: false,
+            proposal_returns: 0,
+            omission_returns: 1,
+          },
+        },
+      ]);
+    }
     const lifecycle = f.client
       .prepare("SELECT status FROM ingestion_runs WHERE id=?")
       .get(result.runId);
     if (kind === "fatal") {
+      expect(metricEvents).toContainEqual(
+        expect.objectContaining({
+          event: "ingestion_editor_finished",
+          properties: expect.objectContaining({ status: "failed" }),
+        }),
+      );
       expect(result.outcome).toBe("failed");
       expect(result.errors).toContainEqual(
         expect.objectContaining({

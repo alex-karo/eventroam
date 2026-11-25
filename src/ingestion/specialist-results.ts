@@ -31,6 +31,7 @@ function execution<T extends z.ZodType>(output: T) {
     modelResponse: z
       .object({ text: z.string().nullable(), object: z.unknown() })
       .nullable(),
+    responseFailed: z.literal(true).optional(),
     errors: z.array(researchErrorSchema),
     model: z.string(),
     promptVersion: z.string(),
@@ -54,10 +55,7 @@ export const specialistResultsSchema = z.object({
 
 export const specialistStateSchema = specialistResultsSchema
   .omit({ location: true })
-  .partial()
-  .extend({
-    editor: execution(z.unknown().nonoptional()).optional(),
-  });
+  .partial();
 
 const fatalErrorCodes = new Set<ResearchError["code"]>([
   "model_failed",

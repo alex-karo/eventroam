@@ -8,6 +8,7 @@ export const locationExecutionSchema = z.strictObject({
   modelResponse: z
     .strictObject({ text: z.string().nullable(), object: z.unknown() })
     .nullable(),
+  responseFailed: z.literal(true).optional(),
   observations: z.array(geocodingObservationSchema),
   points: z.array(registeredPointSchema),
   materialized: materializedLocationSchema.nullable(),

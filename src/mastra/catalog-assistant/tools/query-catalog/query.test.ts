@@ -285,7 +285,7 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
         JSON.stringify({ dryRun: index === 0 }),
         report
           ? JSON.stringify({
-              schemaVersion: 7,
+              schemaVersion: index === 2 ? 7 : 8,
               operations: [],
               receipts: [],
               ...report,
@@ -372,18 +372,21 @@ test("add status SQL distinguishes proposed creation, published creation, skips,
     savedEventId: null,
   });
   expect(rows[1]).toMatchObject({
+    schemaVersion: 8,
     preview: 0,
     outcome: "published",
     changedCreation: 1,
     savedEventId: "created",
   });
   expect(rows[2]).toMatchObject({
+    schemaVersion: 7,
     outcome: "skipped",
     identityDecision: "duplicate",
     reportedEventId: "existing",
     inputDuplicate: null,
   });
   expect(rows[3]).toMatchObject({
+    schemaVersion: 8,
     outcome: "failed",
     editorRejected: 1,
     editorItemDecision: "approve",

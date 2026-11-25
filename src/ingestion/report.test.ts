@@ -69,12 +69,11 @@ test.each([{ countryCode: "US" }, { officialUrl: "https://example.com/" }])(
     const { data, run } = earlyReportInput(support);
     const report = buildResearchReport(data, run);
     expect(report).toMatchObject({
-      schemaVersion: 7,
+      schemaVersion: 8,
       outcome: "skipped",
       researchStatus: "success",
       eventId: "fest",
       inputDuplicate: { eventId: "fest", matchedName: "Example Fest", support },
-      workload: { savedEditions: 0, returnedEditions: 0 },
       sources: [],
       sourceSummaries: [],
       operations: [],
@@ -91,8 +90,60 @@ test.each([{ countryCode: "US" }, { officialUrl: "https://example.com/" }])(
       locationStatus: "not_run",
       budget: { pages: 0, searches: 0, modelCalls: 0 },
     });
+    expect(report).not.toHaveProperty("workload");
   },
 );
+
+test("compacts successful replies even when the run fails", () => {
+  const { data, run } = reportInput();
+  const modelResponse = { text: "Provider reply", object: { value: 1 } };
+  data.outcome = "failed";
+  data.general = { ...data.general, status: "success", modelResponse };
+  data.specialists.classification = data.general;
+  data.editor = {
+    ...data.editor,
+    status: "failed",
+    modelResponse,
+    responseStatus: "success",
+  };
+  data.location = { ...data.location, status: "success", modelResponse };
+
+  const report = buildResearchReport(data, run);
+  expect(report.editorStatus).toBe("failed");
+  const { object } = modelResponse;
+  for (const reply of [
+    report.modelResponse,
+    report.classificationResponse,
+    report.editorResponse,
+    report.locationResponse,
+  ]) {
+    expect(reply).toEqual({ object });
+  }
+  expect(data.general.modelResponse).toEqual(modelResponse);
+});
+
+test("keeps reply text for failed, rejected and recovered execution", () => {
+  const { data, run } = reportInput();
+  const modelResponse = { text: "Invalid provider reply", object: {} };
+  data.general = { ...data.general, status: "failed", modelResponse };
+  data.specialists.classification = {
+    ...data.general,
+    status: "success",
+    responseFailed: true,
+  };
+  data.editor = { ...data.editor, status: "failed", modelResponse };
+  data.location = { ...data.location, status: "rejected", modelResponse };
+
+  const report = buildResearchReport(data, run);
+  for (const reply of [
+    report.modelResponse,
+    report.classificationResponse,
+    report.editorResponse,
+    report.locationResponse,
+  ]) {
+    expect(reply).toEqual(modelResponse);
+  }
+});
 
 test.each(["outcome", "mode", "workflow_error", "different_event", "no_match"])(
   "an early match does not override %s",
@@ -187,13 +238,13 @@ test("an earlier withdrawal cannot settle the question after a later failed repa
   ]);
 });
 
-test("each source summary includes only findings for that source", () => {
+test("source summaries contain only nonempty Reader overviews", () => {
   const { data, run } = reportInput();
   const travel = source("travel", "Travel guide.");
   const tickets = source("tickets", "Ticket guide.");
   data.corpus = {
     version: "fixture",
-    sources: [travel, tickets],
+    sources: [travel, tickets, source("index", "")],
     evidence: [],
   };
   data.research = {
@@ -230,11 +281,11 @@ test("each source summary includes only findings for that source", () => {
   expect(buildResearchReport(data, run).sourceSummaries).toEqual([
     {
       url: travel.finalUrl,
-      information: "Travel guide. The directions page is unavailable.",
+      information: "Travel guide.",
     },
     {
       url: tickets.finalUrl,
-      information: "Ticket guide. Tickets start at €25.",
+      information: "Ticket guide.",
     },
   ]);
 });

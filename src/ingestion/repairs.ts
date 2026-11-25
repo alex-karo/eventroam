@@ -60,6 +60,7 @@ type GeneralRepairResult = {
   targets: StageResult<Targets & PlanDiagnostics>;
   revisedOutput?: Targets;
 };
+type OnReturnStarted = (requests: ReturnRequest[]) => void;
 
 export type RepairRecord = {
   path: string;
@@ -216,11 +217,19 @@ export class ProposalRepairs {
     context: TargetedRepairContext,
     requests: ReturnRequest[],
     signal: AbortSignal,
+    onReturnStarted?: OnReturnStarted,
   ) {
     const ctx = { ...context, location: this.location };
     const groups = assignedGroups(ctx.input.scope, ctx.targets);
     const start = this.records.length;
-    await this.returnGroups(requests, groups, ctx, "editor", signal);
+    await this.returnGroups(
+      requests,
+      groups,
+      ctx,
+      "editor",
+      signal,
+      onReturnStarted,
+    );
     const end = this.records.length;
     const records: readonly Readonly<RepairRecord>[] = this.records.slice(
       start,
@@ -278,6 +287,7 @@ export class ProposalRepairs {
     ctx: ProposalValidationContext,
     trigger: RepairRecord["trigger"],
     signal: AbortSignal,
+    onReturnStarted?: OnReturnStarted,
   ) {
     const byOwner = Map.groupBy(requests, ({ group }) => group.owner);
     for (const [owner, ownerRequests] of byOwner) {
@@ -288,6 +298,7 @@ export class ProposalRepairs {
         ctx,
         trigger,
         signal,
+        onReturnStarted,
       );
     }
   }
@@ -299,6 +310,7 @@ export class ProposalRepairs {
     ctx: ProposalValidationContext,
     trigger: RepairRecord["trigger"],
     signal: AbortSignal,
+    onReturnStarted?: OnReturnStarted,
   ) {
     let pending = requests;
     while (pending.length) {
@@ -309,7 +321,10 @@ export class ProposalRepairs {
         ctx,
         trigger,
         signal,
+        onReturnStarted,
       );
+      // Validation retries are part of the same return.
+      onReturnStarted = undefined;
       const counts = this.returnCounts;
       pending = this.validationRequests(issues)
         .filter(({ group }) => {
@@ -345,6 +360,7 @@ export class ProposalRepairs {
     ctx: ProposalValidationContext,
     trigger: RepairRecord["trigger"],
     signal: AbortSignal,
+    onReturnStarted?: OnReturnStarted,
   ) {
     const original = this.replies.get(owner);
     const counts = this.returnCounts;
@@ -381,6 +397,7 @@ export class ProposalRepairs {
           owner === "location" ? "location_failed" : "invalid_candidate",
         );
       }
+      onReturnStarted?.(requests);
       const revision = await original.revise(
         {
           instructions:

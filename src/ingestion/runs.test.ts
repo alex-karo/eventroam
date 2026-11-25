@@ -293,7 +293,7 @@ test("a new run leaves historical report JSON unchanged", async () => {
       }),
     },
   );
-  expect(result.schemaVersion).toBe(7);
+  expect(result.schemaVersion).toBe(8);
   expect(result.currentDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   expect(
     client.prepare("SELECT report_json FROM ingestion_runs WHERE id=?").get(id),
