@@ -1,8 +1,6 @@
 import { evidencePacket } from "../../evidence/contracts";
 import { roleEvidenceTopics } from "../contracts";
 import { invokeRole } from "../invoke";
-import { returnInstructions } from "../prompts";
-import { PROMPT_VERSIONS } from "../versions";
 import { z } from "zod";
 import { assignedRoleChecks, buildAssignment } from "../assignment";
 import type { Targets } from "../general/contracts";
@@ -13,15 +11,15 @@ import {
   type RoleOptions,
 } from "../options";
 import { linksOutputSchema } from "./contracts";
-import { linksInstructions } from "./prompt";
+import { LINKS_PROMPT_VERSION, linksInstructions } from "./prompt";
 
 export function runLinks(options: RoleOptions, targets: Targets) {
   const { permissions } = buildAssignment(options.input, options.context);
   return invokeRole({
     ...roleInvocationOptions(options, "links"),
     role: "links",
-    version: PROMPT_VERSIONS.links,
-    instructions: linksInstructions + returnInstructions,
+    version: LINKS_PROMPT_VERSION,
+    instructions: linksInstructions,
     input: {
       assignedChecks: assignedRoleChecks("links", options.input, targets),
       targets: targetContext(options, targets, (saved) => ({

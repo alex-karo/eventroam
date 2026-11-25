@@ -11,7 +11,7 @@ import {
   resolveLocation,
   type LocationExecution,
 } from "../roles/location/agent";
-import { LOCATION_PROMPT_VERSION } from "../roles/location/contracts";
+import { LOCATION_PROMPT_VERSION } from "../roles/location/prompt";
 import { createResearchBudget } from "../runtime/budget";
 import {
   createRunObservability,

@@ -9,9 +9,8 @@ import {
 import type { buildAssignment } from "../assignment";
 import { invokeRole } from "../invoke";
 import type { RoleOptions } from "../options";
-import { PROMPT_VERSIONS } from "../versions";
 import { buildCollectionOutputSchema } from "./contracts";
-import { researchInstructions } from "./prompt";
+import { RESEARCH_PROMPT_VERSION, researchInstructions } from "./prompt";
 
 export async function collectResearch(
   options: Pick<RoleOptions, "budget" | "config" | "deps" | "tracing"> & {
@@ -65,7 +64,7 @@ export async function collectResearch(
   });
   return invokeRole({
     role: "research",
-    version: PROMPT_VERSIONS.research,
+    version: RESEARCH_PROMPT_VERSION,
     instructions: researchInstructions,
     input: {
       ...assignment,

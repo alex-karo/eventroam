@@ -12,11 +12,10 @@ import type { ResearchConfig } from "../../runtime/config";
 import type { RunObservability } from "../../runtime/observability/runtime";
 import type { GeocodingClient } from "../../tools/geocode/contracts";
 import { createGeocodingSession } from "../../tools/geocode/tool";
-import { LOCATION_PROMPT_VERSION, locationOutputSchema } from "./contracts";
+import { locationOutputSchema } from "./contracts";
 import type { LocationInput } from "./input";
 import { prepareInitialGeocoding } from "./initial";
-import { locationInstructions } from "./prompt";
-import { returnInstructions } from "../prompts";
+import { LOCATION_PROMPT_VERSION, locationInstructions } from "./prompt";
 import {
   LocationCountryConflictError,
   LocationValidationError,
@@ -215,7 +214,6 @@ export async function resolveLocation(
   });
   const runner = createRoleModelRunner(tracing);
   let messages: FullOutput["messages"] | undefined;
-  const instructions = locationInstructions + returnInstructions;
 
   try {
     await prepareInitialGeocoding(input, session);
@@ -251,7 +249,7 @@ export async function resolveLocation(
       const output = await runner.generate({
         role: "location",
         agentKey: "festivalLocation",
-        instructions,
+        instructions: locationInstructions,
         prompt,
         signal: session.signal,
         schema: locationOutputSchema,
@@ -279,7 +277,7 @@ export async function resolveLocation(
       input,
       session,
       {
-        instructions,
+        instructions: locationInstructions,
         budget,
         config,
         tracing,

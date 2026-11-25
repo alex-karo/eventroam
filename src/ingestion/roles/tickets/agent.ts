@@ -1,8 +1,6 @@
 import { evidencePacket } from "../../evidence/contracts";
 import { roleEvidenceTopics } from "../contracts";
 import { invokeRole } from "../invoke";
-import { returnInstructions } from "../prompts";
-import { PROMPT_VERSIONS } from "../versions";
 import { assignedRoleChecks } from "../assignment";
 import type { Targets } from "../general/contracts";
 import {
@@ -12,7 +10,7 @@ import {
   type RoleOptions,
 } from "../options";
 import { ticketsOutputSchema } from "./contracts";
-import { ticketsInstructions } from "./prompt";
+import { TICKETS_PROMPT_VERSION, ticketsInstructions } from "./prompt";
 
 export function runTickets(options: RoleOptions, targets: Targets) {
   const selected = targetContext(options, targets).currentOrNextEdition;
@@ -22,8 +20,8 @@ export function runTickets(options: RoleOptions, targets: Targets) {
   return invokeRole({
     ...roleInvocationOptions(options, "tickets"),
     role: "tickets",
-    version: PROMPT_VERSIONS.tickets,
-    instructions: ticketsInstructions + returnInstructions,
+    version: TICKETS_PROMPT_VERSION,
+    instructions: ticketsInstructions,
     input: {
       assignedChecks: assignedRoleChecks("tickets", options.input, targets),
       currentDate: options.context.currentDate,

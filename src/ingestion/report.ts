@@ -14,7 +14,7 @@ import type { RepairRecord } from "./repairs";
 import { preparationDiagnostics, readyCatalogPlan } from "./pipeline";
 import { buildAssignment, assignedRoleChecks } from "./roles/assignment";
 import { PROMPT_VERSIONS } from "./roles/versions";
-import { LOCATION_PROMPT_VERSION } from "./roles/location/contracts";
+import { LOCATION_PROMPT_VERSION } from "./roles/location/prompt";
 import type { Targets } from "./roles/general/contracts";
 
 export type ReportRun = {
