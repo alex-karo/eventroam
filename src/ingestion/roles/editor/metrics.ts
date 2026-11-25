@@ -16,7 +16,7 @@ type GroupReview = {
 
 export function editorMetrics(
   capture: CaptureStageMetric,
-  groups: ProposalGroup[],
+  groups: readonly ProposalGroup[],
   prepared: PreparedProposals,
   review: ReviewDecisions,
   repairs: ProposalRepairs,

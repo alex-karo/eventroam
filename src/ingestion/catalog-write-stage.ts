@@ -44,12 +44,7 @@ export function writeCatalog(
             data.context!.catalog[0].editions,
           );
         }
-        assertLocationPreviousPoints(
-          client,
-          data.editorValidation?.status === "continue"
-            ? data.editorValidation.value.location.previousPoints
-            : [],
-        );
+        assertLocationPreviousPoints(client, plan.location.previousPoints);
       },
     });
     const { outcome, changedKinds } = summarizeCatalogWrite(plan, data.applied);

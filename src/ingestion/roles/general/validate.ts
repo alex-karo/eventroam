@@ -8,7 +8,6 @@ import {
   type GroupIssue,
   failProposal,
   RepairFailure,
-  selectedEvent,
   type ProposalValidationContext,
   type Reply,
 } from "../proposal-validation";
@@ -30,14 +29,14 @@ export function validateGeneralReply(
   ctx: ProposalValidationContext,
 ) {
   const { raw } = reply;
-  const { input, context, corpus } = ctx;
+  const { input, corpus, savedEvent } = ctx;
   if (
     festivalCountriesSchema.safeParse(record(raw)?.festivalCountries).success
   ) {
     const countryRejection = checkRefreshCountries(
       raw as GeneralOutput,
       input.mode,
-      selectedEvent(ctx),
+      savedEvent,
       corpus,
     );
     if (countryRejection) {
@@ -67,11 +66,10 @@ export function validateGeneralReply(
     failProposal("Invalid General target");
   }
   const output = candidate.data as GeneralOutput;
-  const targets = validateGeneral(output, context, input, corpus);
+  const targets = validateGeneral(output, ctx);
   if (targets.status === "continue" && issues.length) {
-    const event = selectedEvent({ ...ctx, targets: targets.value });
     if (
-      editionEligibility(targets.value, event?.editions, input.scope) !==
+      editionEligibility(targets.value, savedEvent?.editions, input.scope) !==
       "continue"
     ) {
       return { targets, groups, issues: [] };
@@ -111,12 +109,7 @@ export function requireFixedGeneralTargets(
       value: { endsOn: end.success ? end.data : undefined },
     });
   }
-  const result = validateGeneral(
-    checked as Targets,
-    ctx.context,
-    ctx.input,
-    ctx.corpus,
-  );
+  const result = validateGeneral(checked as Targets, ctx);
   if (result.status !== "continue") {
     throw new RepairFailure(
       result.diagnostics.errors[0] ?? {

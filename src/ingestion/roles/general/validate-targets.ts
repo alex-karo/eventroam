@@ -1,7 +1,8 @@
 import type { CatalogResearchInput } from "../../contracts";
 import { requireSupport, type FrozenCorpus } from "../../evidence/contracts";
 import { editionSlotNames } from "../../research/contracts";
-import type { ResearchContext } from "../../research/context";
+import type { SavedEvent } from "../options";
+import type { ProposalValidationContext } from "../proposal-validation";
 import {
   initialDiagnostics,
   rejectProposal,
@@ -11,7 +12,6 @@ import {
 import { hasEventFieldCheck } from "../assignment";
 import type { GeneralOutput, Targets } from "./contracts";
 
-type SavedEvent = ResearchContext["catalog"][number];
 export function checkRefreshCountries(
   output: GeneralOutput,
   mode: CatalogResearchInput["mode"],
@@ -101,10 +101,10 @@ function validateTemporalTargets(
 
 function validateTargetAssignment(
   output: Targets,
-  input: CatalogResearchInput,
+  scope: CatalogResearchInput["scope"],
 ) {
   if (
-    input.scope === "current" &&
+    scope === "current" &&
     (output.previousEdition || hasEventFieldCheck(output.checks))
   ) {
     throw new Error("Current refresh cannot address Event fields or history");
@@ -119,15 +119,19 @@ function validateTargetAssignment(
 }
 export function validateGeneral(
   output: GeneralOutput,
-  context: ResearchContext,
-  input: CatalogResearchInput,
-  corpus: FrozenCorpus,
+  {
+    currentDate,
+    input,
+    corpus,
+    savedEvent,
+  }: Pick<
+    ProposalValidationContext,
+    "currentDate" | "input" | "corpus" | "savedEvent"
+  >,
 ): StageResult<Targets & PlanDiagnostics> {
   const diagnostics = initialDiagnostics();
   const proposedEventId = "eventId" in output ? output.eventId : null;
-  const event = context.catalog.find(
-    ({ id }) => input.mode === "refresh" && id === input.eventId,
-  );
+  const event = input.mode === "refresh" ? savedEvent : undefined;
   if (proposedEventId && proposedEventId !== event?.id) {
     return rejectProposal(diagnostics, "Event is outside the assigned target");
   }
@@ -166,8 +170,8 @@ export function validateGeneral(
     return rejectProposal(diagnostics, "Refresh needs its saved Event");
   }
   try {
-    validateTargetAssignment(output, input);
-    validateTemporalTargets(output, event, context.currentDate, corpus);
+    validateTargetAssignment(output, input.scope);
+    validateTemporalTargets(output, event, currentDate, corpus);
   } catch (error) {
     return rejectProposal(
       diagnostics,

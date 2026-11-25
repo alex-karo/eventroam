@@ -13,6 +13,7 @@ import {
   type CaptureStageMetric,
 } from "./runtime/observability/stage-metrics";
 import { PROMPT_VERSIONS } from "./roles/versions";
+import type { SpecialistContext } from "./roles/options";
 import { logCompletion, reportEventId } from "./workflow-logging";
 import { RunPersistenceError } from "./runs";
 import { ProposalRepairs } from "./repairs";
@@ -36,6 +37,7 @@ export class CatalogAttempt {
   readonly ingestionRunId: string;
   readonly captureMetric?: CaptureStageMetric;
   collection: Collection | null = null;
+  specialistContext: SpecialistContext | null = null;
   trace?: CatalogRunTrace;
   sources: SourceSession | null = null;
   finalization?: Promise<CatalogResearchResult>;
@@ -138,6 +140,7 @@ export class CatalogAttempt {
   }
 
   fail(data: IngestionData, cancelled = false) {
+    this.specialistContext = null;
     if (!this.finalization && data.report?.inputDuplicate) {
       data.report = null;
     }
@@ -226,6 +229,7 @@ export class CatalogAttempt {
     this.cleanupPromise ??= (async () => {
       await this.settle();
       this.repairs.clear();
+      this.specialistContext = null;
       try {
         await this.trace?.finish(report);
       } catch {

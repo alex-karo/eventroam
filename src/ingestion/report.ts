@@ -4,7 +4,12 @@ import {
   type CatalogResearchResult,
   type IngestionData,
 } from "./contracts";
-import { eventLinksCheck, isSocialLinkField, proposalGroup } from "./groups";
+import {
+  assignedGroups,
+  eventLinksCheck,
+  isSocialLinkField,
+  proposalGroup,
+} from "./groups";
 import type { ResearchBudgetSnapshot, ResearchLimits } from "./runtime/budget";
 import type { ResearchConfig } from "./runtime/config";
 import type { SourceReadMetadata } from "./tools/read-page/contracts";
@@ -12,7 +17,12 @@ import type { ResearchQuestion } from "./research/contracts";
 import type { CheckFinding } from "./roles/contracts";
 import type { RepairRecord } from "./repairs";
 import { preparationDiagnostics, readyCatalogPlan } from "./pipeline";
-import { buildAssignment, assignedRoleChecks } from "./roles/assignment";
+import {
+  buildAssignment,
+  generalChecks,
+  refreshScope,
+  specialistChecks,
+} from "./roles/assignment";
 import { PROMPT_VERSIONS } from "./roles/versions";
 import { LOCATION_PROMPT_VERSION } from "./roles/location/contracts";
 import type { Targets } from "./roles/general/contracts";
@@ -261,13 +271,19 @@ function interpretationQuestions(
   repairs: readonly RepairRecord[],
   unresolved: readonly ResearchQuestion[],
 ) {
+  const scope = refreshScope(input);
+  const groups = assignedGroups(scope, targets);
   return (["general", "tickets", "classification", "links"] as const).flatMap(
     (role) => {
       const execution = role === "general" ? general : specialists[role];
       const findings =
         (execution?.output as { checks?: CheckFinding[] } | undefined)
           ?.checks ?? [];
-      return assignedRoleChecks(role, input, targets).flatMap((key) => {
+      const checks =
+        role === "general"
+          ? generalChecks(scope)
+          : specialistChecks(role, groups);
+      return checks.flatMap((key) => {
         const repaired = repairs.filter(
           (entry) =>
             entry.owner === role && proposalGroup(entry.path)?.check === key,

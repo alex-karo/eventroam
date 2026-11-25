@@ -4,7 +4,12 @@ import { testFixtures } from "@/test/fixtures";
 import { fixtureTargets, set } from "@/test/ingestion";
 import type { CatalogResearchInput } from "./contracts";
 import { bindEvidence, type FrozenCorpus } from "./evidence/contracts";
-import { proposalGroup, type GroupOwner, type ReturnRequest } from "./groups";
+import {
+  assignedGroups,
+  proposalGroup,
+  type GroupOwner,
+  type ReturnRequest,
+} from "./groups";
 import { ProposalRepairs } from "./repairs";
 import { loadResearchContext, type ResearchContext } from "./research/context";
 import { classificationReplySchema } from "./roles/classification/contracts";
@@ -12,6 +17,7 @@ import { generalOutputSchema } from "./roles/general/contracts";
 import { linksOutputSchema } from "./roles/links/contracts";
 import { ticketsOutputSchema } from "./roles/tickets/contracts";
 import type { RoleConversation } from "./roles/invoke";
+import { resolveSavedEditions } from "./roles/options";
 
 const sourceUrl = "https://example.org/";
 const date = "2026-11-01T00:00:00Z";
@@ -74,7 +80,19 @@ function repairFixture(
   const signal = new AbortController().signal;
   const repairs = new ProposalRepairs();
   repairs.capture("links", { raw: links(), schema: linksOutputSchema });
-  const context = () => ({ corpus, context: getContext(), input });
+  const context = () => {
+    const { catalog, currentDate, terms } = getContext();
+    return { corpus, currentDate, terms, savedEvent: catalog[0], input };
+  };
+  const targeted = () => {
+    const base = context();
+    return {
+      ...base,
+      targets,
+      groups: assignedGroups(input.scope, targets),
+      savedEditions: resolveSavedEditions(base.savedEvent, targets),
+    };
+  };
   function capture(owner: keyof typeof schemas, raw: unknown, output: unknown) {
     const revise = revision(output);
     repairs.capture(owner, { raw, revise, schema: schemas[owner] });
@@ -85,9 +103,9 @@ function repairFixture(
     repairs,
     targets,
     general: () => repairs.general(context(), signal),
-    before: () => repairs.beforeReview({ ...context(), targets }, signal),
+    before: () => repairs.beforeReview(targeted(), signal),
     after: (...requests: ReturnRequest[]) =>
-      repairs.afterReview({ ...context(), targets }, requests, signal),
+      repairs.afterReview(targeted(), requests, signal),
   };
 }
 

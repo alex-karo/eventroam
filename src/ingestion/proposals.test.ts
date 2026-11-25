@@ -18,7 +18,8 @@ import { linksOutputSchema } from "./roles/links/contracts";
 import type { Targets } from "./roles/general/contracts";
 import type { TicketsOutput } from "./roles/tickets/contracts";
 import type { FrozenCorpus } from "./evidence/contracts";
-import { assignedRoleChecks, buildAssignment } from "./roles/assignment";
+import { resolveSavedEditions } from "./roles/options";
+import { buildAssignment, specialistChecks } from "./roles/assignment";
 import { prepareCatalogPlan } from "./catalog-plan";
 import { modelOutputSchema } from "./runtime/model-output";
 
@@ -75,21 +76,40 @@ function fixture(returnedPaths?: ReadonlySet<string>) {
     checks: [],
     unresolved: [],
   };
+  const validation = {
+    currentDate: context.currentDate,
+    input,
+    corpus,
+    savedEvent: context.catalog[0],
+  };
+  const selection = (scope?: "current") => {
+    const savedEvent = context.catalog[0];
+    const checked = validateGeneral(targets, {
+      ...validation,
+      input: { ...input, scope },
+      savedEvent,
+    });
+    if (checked.status !== "continue") {
+      throw new Error("Fixture target rejected");
+    }
+    return {
+      targets: checked.value,
+      corpus,
+      savedEvent,
+      savedEditions: resolveSavedEditions(savedEvent, checked.value),
+      terms: context.terms,
+      groups: assignedGroups(scope, checked.value),
+      scope,
+    };
+  };
   const assemble = (
     selected = terms.map((term) => term.id),
     evidenceIds: string[] = [],
     reuseFrom?: { editionKey: string; reason: string },
     tickets: TicketsOutput | null = null,
-  ) => {
-    const checked = validateGeneral(targets, context, input, corpus);
-    if (checked.status !== "continue") {
-      throw new Error("Fixture target rejected");
-    }
-    return assembleProposals({
-      targets: checked.value,
-      corpus,
-      context,
-      input,
+  ) =>
+    assembleProposals({
+      selection: selection(),
       returnedPaths,
       points: [],
       location: { slots: {}, support: {}, previousPoints: [], unresolved: [] },
@@ -116,13 +136,14 @@ function fixture(returnedPaths?: ReadonlySet<string>) {
         unresolved: [],
       },
     });
-  };
   return {
     input,
     context,
+    validation,
     corpus,
     targets,
     terms,
+    selection,
     assemble,
     f,
     event,
@@ -162,15 +183,9 @@ it("passes questions from all specialists to Editor without changing General", (
     field: "tickets",
   });
   f.targets.unresolved = [question("General question")];
-  const checked = validateGeneral(f.targets, f.context, f.input, f.corpus);
-  if (checked.status !== "continue") {
-    throw new Error("Fixture target rejected");
-  }
+  const selection = f.selection();
   const result = assembleProposals({
-    targets: checked.value,
-    corpus: f.corpus,
-    context: f.context,
-    input: f.input,
+    selection,
     points: [],
     tickets: {
       currentOrNextEdition: {},
@@ -210,36 +225,26 @@ it("passes questions from all specialists to Editor without changing General", (
   ].map((role) => question(`${role} question`));
   expect(result.value.unresolved).toEqual(expected);
   expect(result.value.plan.unresolved).toEqual(expected);
-  expect(checked.value.unresolved).toEqual([question("General question")]);
+  expect(selection.targets.unresolved).toEqual([question("General question")]);
 });
 it("rejects unassigned Event IDs and unsupported identity", () => {
   const f = fixture();
   expect(
-    validateGeneral(
-      f.targets,
-      f.context,
-      { mode: "add", actor: "test" },
-      f.corpus,
-    ).status,
+    validateGeneral(f.targets, {
+      ...f.validation,
+      input: { mode: "add" },
+    }).status,
   ).toBe("reject");
   const unknown = { ...f.targets, eventId: "outside" };
-  expect(validateGeneral(unknown, f.context, f.input, f.corpus).status).toBe(
-    "reject",
-  );
+  expect(validateGeneral(unknown, f.validation).status).toBe("reject");
   expect(
-    validateGeneral(
-      { ...f.targets, evidenceIds: ["unknown"] },
-      f.context,
-      f.input,
-      f.corpus,
-    ).status,
+    validateGeneral({ ...f.targets, evidenceIds: ["unknown"] }, f.validation)
+      .status,
   ).toBe("reject");
   expect(
     validateGeneral(
       { decision: "uncertain", reason: "Identity unclear", unresolved: [] },
-      f.context,
-      { mode: "add", actor: "test" },
-      f.corpus,
+      { ...f.validation, input: { mode: "add" } },
     ).status,
   ).toBe("reject");
 });
@@ -493,20 +498,19 @@ it("keeps specialist check order and Editor group order", () => {
       fields: {},
     },
   };
-  expect(assignedRoleChecks("classification", input, targets)).toEqual([
+  const groups = assignedGroups(input.scope, targets);
+  expect(specialistChecks("classification", groups)).toEqual([
     "previousClassification",
     "currentClassification",
     "description",
   ]);
-  expect(assignedRoleChecks("links", input, targets)).toEqual([
+  expect(specialistChecks("links", groups)).toEqual([
     "eventLinks",
     "currentLinks",
   ]);
-  expect(assignedRoleChecks("tickets", input, targets)).toEqual([
-    "currentTickets",
-  ]);
+  expect(specialistChecks("tickets", groups)).toEqual(["currentTickets"]);
   expect(
-    assignedGroups(input.scope, targets)
+    groups
       .filter(({ owner }) => owner === "classification")
       .map(({ path }) => path),
   ).toEqual([
@@ -729,17 +733,9 @@ it("keeps approved Location reuse when only donor classification is rejected", (
 it.each(["description", "shortDescription", "description check"] as const)(
   "rejects a current-scope %s that reaches proposal assembly",
   (field) => {
-    const { input, context, corpus, targets } = fixture();
-    const scoped = { ...input, scope: "current" as const };
-    const checked = validateGeneral(targets, context, scoped, corpus);
-    if (checked.status !== "continue") {
-      throw new Error("Fixture target rejected");
-    }
+    const { selection } = fixture();
     const result = assembleProposals({
-      targets: checked.value,
-      context,
-      input: scoped,
-      corpus,
+      selection: selection("current"),
       points: [],
       location: { slots: {}, support: {}, previousPoints: [], unresolved: [] },
       tickets: null,

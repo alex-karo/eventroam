@@ -1667,6 +1667,42 @@ test("the public runner accumulates research in native state without runtime res
     expect(JSON.stringify(starts.mock.calls[0])).not.toContain(privateValue);
   }
   const stepOutput = (id: string) => engineResult.steps[id].output;
+  const generalOutput = stepOutput("general-facts");
+  expect(generalOutput).toMatchObject({
+    execution: { status: "success" },
+    targets: { status: "continue" },
+  });
+  const specialistOutputs = Object.fromEntries(
+    ["tickets", "classification", "links", "location"].map((role) => [
+      role,
+      stepOutput(role),
+    ]),
+  );
+  for (const [role, output] of Object.entries(specialistOutputs)) {
+    const { inputSchema, outputSchema } = workflow.steps[role];
+    expect(await inputSchema["~standard"].validate(generalOutput)).toEqual({
+      value: generalOutput,
+    });
+    expect(
+      await inputSchema["~standard"].validate({ targets: "invalid" }),
+    ).toHaveProperty("issues");
+    expect(await outputSchema["~standard"].validate(output)).toEqual({
+      value: output,
+    });
+    expect(
+      await outputSchema["~standard"].validate({ status: "invalid" }),
+    ).toHaveProperty("issues");
+  }
+  const joinInput = workflow.steps["assemble-proposals"].inputSchema;
+  const invalidJoinInput = {
+    ...specialistOutputs,
+    links: { status: "invalid" },
+  };
+  for (const outputs of [specialistOutputs, invalidJoinInput]) {
+    expect(await joinInput["~standard"].validate(outputs)).toEqual({
+      value: outputs,
+    });
+  }
   expect(stepOutput("load-context")).toHaveProperty("catalog");
   expect(stepOutput("collect-sources")).toHaveProperty("sources");
   expect(stepOutput("collect-sources")).not.toHaveProperty("prepared");

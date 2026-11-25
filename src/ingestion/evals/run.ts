@@ -4,6 +4,9 @@ import { evaluateMainCase, type MainScore } from "./main";
 import type { DescriptionFormat } from "./description-format";
 import { classificationCases, scoreClassification } from "./classification";
 import { runClassification } from "../roles/classification/agent";
+import { assignedGroups } from "../groups";
+import { refreshScope } from "../roles/assignment";
+import { resolveSavedEditions } from "../roles/options";
 import type { RoleExecution } from "../roles/invoke";
 import type { ClassificationOutput } from "../roles/classification/contracts";
 import { loadResearchContext } from "../research/context";
@@ -168,22 +171,32 @@ async function executeCase(
       let classification;
       try {
         const todayUtc = item.todayUtc ?? suite.todayUtc;
+        const context = loadResearchContext(
+          client,
+          item.input,
+          `${todayUtc}T00:00:00.000Z`,
+        );
+        const { targets, corpus } = item.classification;
+        const scope = refreshScope(item.input);
+        const savedEvent = context.catalog.at(0);
         classification = await runClassification(
           {
-            input: item.input,
-            context: loadResearchContext(
-              client,
-              item.input,
-              `${todayUtc}T00:00:00.000Z`,
-            ),
-            corpus: item.classification.corpus,
             budget: createResearchBudget(config.limits),
             config,
             deps: { client },
             signal: AbortSignal.timeout(config.limits.durationMs),
             tracing,
           },
-          item.classification.targets,
+          {
+            targets,
+            corpus,
+            savedEvent,
+            savedEditions: resolveSavedEditions(savedEvent, targets),
+            currentDate: context.currentDate,
+            terms: context.terms,
+            groups: assignedGroups(scope, targets),
+            scope,
+          },
         );
       } finally {
         client.close();

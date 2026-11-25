@@ -3,7 +3,7 @@ import { savedPages } from "../../evidence/saved-pages";
 import type { ProposalGroup } from "../../groups";
 import type { PreparedProposals } from "../../proposals";
 import type { RepairRecord } from "../../repairs";
-import { buildAssignment } from "../assignment";
+import { assignmentPermissions, refreshScope } from "../assignment";
 import { invokeRole, type RoleExecution } from "../invoke";
 import { roleInvocationOptions, type RoleOptions } from "../options";
 import { replyReferences } from "../proposal-validation";
@@ -63,7 +63,7 @@ export async function runEditor(
         : ""),
     input: {
       currentDate: options.context.currentDate,
-      permissions: buildAssignment(options.input, options.context).permissions,
+      permissions: assignmentPermissions(refreshScope(options.input)),
       sourceFiles,
       ...scope,
       repairs: repairs.map(({ evidence, ...repair }) => ({

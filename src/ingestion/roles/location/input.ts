@@ -1,10 +1,8 @@
 import { z } from "zod";
 import { scheduleStatuses } from "@/catalog/domain/vocabulary";
-import type { CatalogResearchInput } from "../../contracts";
-import type { ResearchContext } from "../../research/context";
-import type { Targets } from "../general/contracts";
+import type { SpecialistContext } from "../options";
 import { editionSlotNames } from "../../research/contracts";
-import type { FrozenCorpus } from "../../evidence/contracts";
+import { proposedChronology } from "../../research/guards";
 import { evidencePacket } from "../../evidence/contracts";
 import { precisionSchema } from "./contracts";
 import { previousPoint } from "./geometry";
@@ -65,15 +63,24 @@ export const locationEvidenceTopics = [
   "identity",
 ] as const;
 
-export function buildLocationInput(
-  targets: Targets,
-  corpus: FrozenCorpus,
-  context: ResearchContext,
-  input: CatalogResearchInput,
-): LocationInput {
-  const event = context.catalog.find(
-    (event) => event.id === (input.eventId ?? targets.eventId),
-  );
+type LocationEvidence = Pick<
+  SpecialistContext,
+  | "targets"
+  | "corpus"
+  | "currentDate"
+  | "savedEditions"
+  | "savedEvent"
+  | "scope"
+>;
+
+export function buildLocationInput({
+  targets,
+  corpus,
+  currentDate,
+  scope,
+  savedEditions,
+  savedEvent: event,
+}: LocationEvidence): LocationInput {
   const history =
     event?.editions.map((edition) =>
       savedLocationSchema.strip().parse(edition),
@@ -85,8 +92,8 @@ export function buildLocationInput(
       summary: event?.description ?? null,
       format: [],
     },
-    scope: input.mode === "refresh" ? (input.scope ?? "full") : null,
-    currentDate: context.currentDate,
+    scope: scope ?? null,
+    currentDate,
     countryBaseline:
       history.find((edition) => edition.countryCode)?.countryCode ?? null,
     sources: corpus.sources
@@ -122,23 +129,12 @@ export function buildLocationInput(
     if (!selected) {
       continue;
     }
-    const saved =
-      history.find((edition) => edition.editionKey === selected.editionKey) ??
-      null;
-    const dates = selected.fields.dates,
-      year = selected.fields.year,
-      status = selected.fields.scheduleStatus;
-    const selectedDates = dates?.action === "set" ? dates.value : saved;
-    const startsOn =
-      dates?.action === "clear" ? null : (selectedDates?.startsOn ?? null);
-    const endsOn =
-      dates?.action === "clear" ? null : (selectedDates?.endsOn ?? null);
+    const edition = savedEditions[slot];
+    const saved = edition ? savedLocationSchema.strip().parse(edition) : null;
+    const status = selected.fields.scheduleStatus;
     const target: LocationTarget = {
       editionKey: selected.editionKey,
-      editionYear:
-        year?.action === "set" ? year.value : (saved?.editionYear ?? null),
-      startsOn,
-      endsOn,
+      ...proposedChronology(selected, edition),
       scheduleStatus:
         status?.action === "set"
           ? status.value

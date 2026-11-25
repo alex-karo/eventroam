@@ -1,6 +1,6 @@
 import type { CatalogAttempt } from "./attempt";
 import type { IngestionData } from "./contracts";
-import { assignedGroups, type ProposalGroup } from "./groups";
+import type { ProposalGroup } from "./groups";
 import {
   applyReview,
   assembleProposals,
@@ -13,15 +13,14 @@ import type { ReviewDecisions } from "./roles/editor/contracts";
 import { editorMetrics } from "./roles/editor/metrics";
 import { reviewReturns, reviewScope } from "./roles/editor/review";
 import type { Targets } from "./roles/general/contracts";
-import type { RoleOptions } from "./roles/options";
+import type { RoleOptions, SpecialistContext } from "./roles/options";
 import {
-  assignedSpecialists,
   specialistFailures,
   specialistResultsSchema,
 } from "./specialist-results";
 import {
+  diagnosticsOnly,
   initialDiagnostics,
-  stageDiagnostics,
   type PlanDiagnostics,
 } from "./stage";
 import { logPreparation } from "./workflow-logging";
@@ -30,9 +29,10 @@ export async function prepareSpecialistProposals(
   owned: CatalogAttempt,
   data: IngestionData,
   signal: AbortSignal,
-  inputData?: unknown,
+  selection: SpecialistContext | null,
+  inputData: unknown,
 ) {
-  if (data.researchValidation?.status !== "continue" || data.outcome !== null) {
+  if (!selection || data.outcome !== null) {
     return null;
   }
   const parsed = specialistResultsSchema.safeParse(inputData);
@@ -46,7 +46,6 @@ export async function prepareSpecialistProposals(
     return null;
   }
   const results = parsed.data;
-  const targets = data.researchValidation.value;
   for (const role of ["tickets", "classification", "links"] as const) {
     data.specialists[role] = results[role];
   }
@@ -56,13 +55,13 @@ export async function prepareSpecialistProposals(
   const firstQuestions = [
     ...(data.location.materialized?.unresolved ?? []),
     ...Object.values(results).flatMap((execution) =>
-      "output" in execution ? execution.output.unresolved : [],
+      execution.status === "success" && "output" in execution
+        ? execution.output.unresolved
+        : [],
     ),
   ];
-  const failures = specialistFailures(
-    results,
-    assignedSpecialists(owned.input.scope, targets),
-    (role) => Boolean(owned.repairs.raw(role)),
+  const failures = specialistFailures(results, selection.specialists, (role) =>
+    Boolean(owned.repairs.raw(role)),
   );
   if (failures.length) {
     data.errors.push(...failures);
@@ -74,16 +73,13 @@ export async function prepareSpecialistProposals(
     const outputs = await owned.track(
       owned.repairs.beforeReview(
         {
-          corpus: data.corpus!,
-          context: data.context!,
+          ...selection,
           input: owned.input,
-          targets,
         },
         signal,
       ),
     );
-    recordSpecialistOutputs(data, outputs);
-    return assemblePreparedProposals(owned, data, targets, outputs);
+    return assemblePreparedProposals(owned, data, selection, outputs);
   } catch (error) {
     data.errors.push(repairDiagnostic(error));
     data.unresolved.push(...firstQuestions);
@@ -92,9 +88,12 @@ export async function prepareSpecialistProposals(
   }
 }
 
-function recordSpecialistOutputs(
+function assemblePreparedProposals(
+  owned: CatalogAttempt,
   data: IngestionData,
+  selection: SpecialistContext,
   outputs: SpecialistOutputs,
+  revisedTargets?: Targets & PlanDiagnostics,
 ) {
   for (const role of ["tickets", "classification", "links"] as const) {
     const output = outputs[role];
@@ -110,15 +109,6 @@ function recordSpecialistOutputs(
       };
     }
   }
-}
-
-function assemblePreparedProposals(
-  owned: CatalogAttempt,
-  data: IngestionData,
-  targets: Targets & PlanDiagnostics,
-  outputs: SpecialistOutputs,
-  originalTargets?: Targets,
-) {
   const location = owned.repairs.materializeLocation();
   if (location) {
     if (data.location.status === "failed") {
@@ -131,9 +121,10 @@ function assemblePreparedProposals(
   const oldQuestions =
     data.prepared?.status === "continue"
       ? data.prepared.value.unresolved
-      : targets.unresolved;
+      : selection.targets.unresolved;
   data.prepared = assembleProposals({
-    targets,
+    selection,
+    revisedTargets,
     ...outputs,
     location: data.location.materialized ?? {
       support: {},
@@ -142,10 +133,6 @@ function assemblePreparedProposals(
       unresolved: [],
     },
     points: data.location.points,
-    corpus: data.corpus!,
-    context: data.context!,
-    input: owned.input,
-    originalTargets,
     returnedPaths: owned.repairs.returnedPaths,
   });
   if (data.prepared.status !== "continue") {
@@ -185,15 +172,19 @@ export async function reviewPreparedProposals(
   data: IngestionData,
   options: RoleOptions,
 ) {
-  if (data.prepared?.status !== "continue" || data.outcome === "failed") {
+  const selection = owned.specialistContext;
+  if (
+    !selection ||
+    data.prepared?.status !== "continue" ||
+    data.outcome === "failed"
+  ) {
     return null;
   }
-  const { corpus, context, input, signal } = options;
+  const { input, signal } = options;
   const { repairs } = owned;
   let prepared = data.prepared.value;
-  const originalTargets = prepared.targets;
-  const repairContext = { corpus, context, input, targets: originalTargets };
-  const groups = assignedGroups(input.scope, originalTargets);
+  const { targets: originalTargets, groups } = selection;
+  const repairContext = { ...selection, input };
   const review: ReviewDecisions = new Map();
   applyRepairRejections(review, repairs.records);
   const metrics = owned.captureMetric
@@ -271,16 +262,15 @@ export async function reviewPreparedProposals(
           ),
         );
         applyRepairRejections(review, round.records);
-        recordSpecialistOutputs(data, round.outputs);
         const revised = assemblePreparedProposals(
           owned,
           data,
+          selection,
+          round.outputs,
           {
-            ...stageDiagnostics(data.researchValidation!),
+            ...diagnosticsOnly(originalTargets),
             ...(round.generalTargets ?? prepared.targets),
           },
-          round.outputs,
-          originalTargets,
         );
         if (revised.status !== "continue") {
           return revised;

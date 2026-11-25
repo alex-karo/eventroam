@@ -1,32 +1,42 @@
 import { evidencePacket } from "../../evidence/contracts";
+import { specialistChecks } from "../assignment";
 import { roleEvidenceTopics } from "../contracts";
 import { invokeRole } from "../invoke";
 import { returnInstructions } from "../prompts";
 import { PROMPT_VERSIONS } from "../versions";
-import { assignedRoleChecks } from "../assignment";
 import type { Targets } from "../general/contracts";
 import {
   editionChronology,
   roleInvocationOptions,
-  targetContext,
-  type RoleOptions,
+  targetEditionContext,
+  type RoleRuntimeOptions,
+  type SavedEdition,
+  type SpecialistContext,
 } from "../options";
 import { ticketsOutputSchema } from "./contracts";
 import { ticketsInstructions } from "./prompt";
 
-export function runTickets(options: RoleOptions, targets: Targets) {
-  const selected = targetContext(options, targets).currentOrNextEdition;
-  const saved = options.context.catalog
-    .find((event) => event.id === (options.input.eventId ?? targets.eventId))
-    ?.editions.find((edition) => edition.editionKey === selected?.editionKey);
+type TicketsInput = Pick<
+  SpecialistContext,
+  "corpus" | "currentDate" | "groups"
+> & {
+  target: Targets["currentOrNextEdition"];
+  saved: SavedEdition | undefined;
+};
+
+export function runTickets(
+  options: RoleRuntimeOptions,
+  { corpus, target, saved, groups, currentDate }: TicketsInput,
+) {
+  const selected = targetEditionContext(target, saved);
   return invokeRole({
     ...roleInvocationOptions(options, "tickets"),
     role: "tickets",
     version: PROMPT_VERSIONS.tickets,
     instructions: ticketsInstructions + returnInstructions,
     input: {
-      assignedChecks: assignedRoleChecks("tickets", options.input, targets),
-      currentDate: options.context.currentDate,
+      assignedChecks: specialistChecks("tickets", groups),
+      currentDate,
       target: selected
         ? {
             ...selected,
@@ -48,7 +58,7 @@ export function runTickets(options: RoleOptions, targets: Targets) {
             },
           }
         : null,
-      corpus: evidencePacket(options.corpus, roleEvidenceTopics.tickets),
+      corpus: evidencePacket(corpus, roleEvidenceTopics.tickets),
     },
     schema: ticketsOutputSchema,
   });

@@ -6,6 +6,7 @@ import {
 import { researchErrorSchema } from "./research/contracts";
 import {
   specialistRoles,
+  specialistResultsSchema,
   specialistStateSchema,
   type SpecialistRole,
 } from "./specialist-results";
@@ -26,7 +27,6 @@ import {
   runLocationBranch,
   runSpecialistBranch,
   selectGeneralTargets,
-  specialistBranchOutputSchema,
   workflowRoleOptions,
 } from "./workflow-roles";
 import { Mastra } from "@mastra/core/mastra";
@@ -37,6 +37,7 @@ import {
 } from "./runtime/workflow-storage";
 import { noopLogger } from "@mastra/core/logger";
 import { createStep, createWorkflow } from "@mastra/core/workflows";
+import type { InferPublicSchema } from "@mastra/core/schema";
 import { z } from "zod";
 import type {
   CatalogResearchInput,
@@ -52,6 +53,10 @@ import type {
   SourceReadMetadata,
 } from "./tools/read-page/contracts";
 import { writeCatalog } from "./catalog-write-stage";
+import {
+  generalPhaseOutputSchema,
+  specialistJoinInputSchema,
+} from "./workflow-step-schemas";
 
 export type {
   CatalogResearchInput,
@@ -244,21 +249,24 @@ export function createCatalogIngestionWorkflow(
         return { engineRunId: runId, ingestionRunId: owned.ingestionRunId };
       }),
   });
-  const phase = (
+  type PhaseOperation<Input = unknown> = (
+    owned: CatalogAttempt,
+    data: IngestionData,
+    signal: AbortSignal,
+    inputData: Input,
+  ) => unknown | Promise<unknown>;
+  const phaseWithSchemas = <Input extends z.ZodType, Output extends z.ZodType>(
     id: string,
     description: string,
-    execute: (
-      owned: CatalogAttempt,
-      data: IngestionData,
-      signal: AbortSignal,
-      inputData?: unknown,
-    ) => unknown | Promise<unknown>,
+    execute: PhaseOperation<InferPublicSchema<Input>>,
+    inputSchema: Input,
+    outputSchema: Output,
   ) =>
     createStep({
       id,
       description,
-      inputSchema: stepSchema,
-      outputSchema: stepSchema,
+      inputSchema,
+      outputSchema,
       retries: 0,
       stateSchema: stepStateSchema,
       execute: async ({ runId, state, setState, abortSignal, inputData }) => {
@@ -283,7 +291,7 @@ export function createCatalogIngestionWorkflow(
         );
         try {
           await setState({ data: serialize(data) });
-          return serialize(output ?? null) as z.infer<typeof stepSchema>;
+          return serialize(output ?? null) as InferPublicSchema<Output>;
         } catch (error) {
           // Unserializable state cannot replace the last completed native state.
           await owned.finalizeFailure(
@@ -294,6 +302,9 @@ export function createCatalogIngestionWorkflow(
         }
       },
     });
+  const phase = (id: string, description: string, execute: PhaseOperation) =>
+    phaseWithSchemas(id, description, execute, stepSchema, stepSchema);
+
   const loadContext = phase(
     "load-context",
     "Load the target and known catalog sources",
@@ -351,30 +362,50 @@ export function createCatalogIngestionWorkflow(
     "Navigate sources, finish collection and freeze evidence",
     collectSourceEvidence,
   );
-  const general = phase(
+  const general = phaseWithSchemas(
     "general-facts",
     "Confirm identity and select Edition targets",
     selectGeneralTargets,
+    stepSchema,
+    generalPhaseOutputSchema,
   );
   // Each branch returns a result without replacing shared state.
-  const specialist = (role: SpecialistRole) =>
+  const specialist = <Role extends SpecialistRole>(role: Role) =>
     createStep({
       id: role,
-      inputSchema: stepSchema,
-      outputSchema: specialistBranchOutputSchema,
+      inputSchema: generalPhaseOutputSchema,
+      outputSchema: specialistResultsSchema.shape[role],
       retries: 0,
       stateSchema: stepStateSchema,
-      execute: async ({ runId, state, abortSignal }) => {
+      execute: async ({ runId, abortSignal, inputData }) => {
         const owned = attempt(runId);
-        return role === "location"
-          ? runLocationBranch(owned, state.data, abortSignal)
-          : runSpecialistBranch(role, owned, state.data, abortSignal);
+        const targets =
+          inputData && !("status" in inputData) && inputData.targets;
+        const selection =
+          owned.specialistContext && targets && targets.status === "continue"
+            ? { ...owned.specialistContext, targets: targets.value }
+            : null;
+        const result = await (role === "location"
+          ? runLocationBranch(owned, selection, abortSignal)
+          : runSpecialistBranch(role, owned, selection, abortSignal));
+        return result as InferPublicSchema<
+          (typeof specialistResultsSchema.shape)[Role]
+        >;
       },
     });
-  const join = phase(
+  const join = phaseWithSchemas(
     "assemble-proposals",
     "Validate fixed proposals and return field errors to their owners",
-    prepareSpecialistProposals,
+    (owned, data, signal, inputData) =>
+      prepareSpecialistProposals(
+        owned,
+        data,
+        signal,
+        owned.specialistContext,
+        inputData,
+      ),
+    specialistJoinInputSchema,
+    stepSchema,
   );
   const edit = phase(
     "review-proposals",
