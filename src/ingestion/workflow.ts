@@ -66,7 +66,7 @@ import type {
   ReadPageResult,
   SourceReadMetadata,
 } from "./tools/read-page/contracts";
-import { readyCatalogPlan, catalogWriteOutcome } from "./pipeline";
+import { readyCatalogPlan, summarizeCatalogWrite } from "./pipeline";
 import { reportEventId, attemptedCatalogFields } from "./workflow-logging";
 
 function sourceErrorCode(source: { status: string; reasonCode?: string }) {
@@ -405,6 +405,7 @@ export function createCatalogIngestionWorkflow(
         },
         signal,
         tracing: owned.trace?.tracing,
+        captureMetric: owned.captureMetric,
       });
       if (owned.sources.initialUrl) {
         await owned.track(
@@ -421,56 +422,95 @@ export function createCatalogIngestionWorkflow(
       if (!owned.collection) {
         return null;
       }
+      const started = performance.now();
+      const assignment = buildAssignment(owned.input, data.context!);
+      let validSummary = false;
       try {
-        data.research = await owned.track(
-          collectResearch({
-            ...roleOptions(owned, data, signal),
-            collection: owned.collection,
-            sourceSession: owned.sources!,
-          }),
+        try {
+          data.research = await owned.track(
+            collectResearch({
+              ...roleOptions(owned, data, signal),
+              assignment,
+              collection: owned.collection,
+              sourceSession: owned.sources!,
+            }),
+          );
+        } finally {
+          data.corpus = await owned.collection.freeze();
+        }
+        data.errors.push(...data.research.errors, ...owned.collection.errors);
+        data.unresolved.push(...(data.research.output?.unresolved ?? []));
+        data.unresolved.push(
+          ...(data.research.output?.checks ?? []).flatMap((check) =>
+            check.blocker
+              ? [{ message: `${check.check}: ${check.blocker}` }]
+              : [],
+          ),
         );
+        if (
+          owned.collection.fatal ||
+          data.research.status !== "success" ||
+          !data.corpus.evidence.length
+        ) {
+          data.outcome = "failed";
+        }
+        for (const source of data.corpus.sources) {
+          if (source.status !== "ok") {
+            data.errors.push({
+              code: sourceErrorCode(source),
+              stage: "source",
+              url: source.attemptedUrl,
+              message: `Source retrieval ${source.reasonCode ?? source.status}`,
+            });
+          }
+        }
+        const invalidSummary = validateResearchSummary(
+          data.research.output,
+          data.corpus.sources,
+        );
+        if (invalidSummary) {
+          data.errors.push(invalidSummary);
+          data.outcome = "failed";
+        }
+        validSummary = data.research.status === "success" && !invalidSummary;
+        return {
+          collection: data.research,
+          sources: data.corpus.sources,
+          corpusVersion: data.corpus.version,
+        };
       } finally {
-        data.corpus = await owned.collection.freeze();
-      }
-      data.errors.push(...data.research.errors, ...owned.collection.errors);
-      data.unresolved.push(...(data.research.output?.unresolved ?? []));
-      data.unresolved.push(
-        ...(data.research.output?.checks ?? []).flatMap((check) =>
-          check.blocker
-            ? [{ message: `${check.check}: ${check.blocker}` }]
-            : [],
-        ),
-      );
-      if (
-        owned.collection.fatal ||
-        data.research.status !== "success" ||
-        !data.corpus.evidence.length
-      ) {
-        data.outcome = "failed";
-      }
-      for (const source of data.corpus.sources) {
-        if (source.status !== "ok") {
-          data.errors.push({
-            code: sourceErrorCode(source),
-            stage: "source",
-            url: source.attemptedUrl,
-            message: `Source retrieval ${source.reasonCode ?? source.status}`,
+        if (owned.captureMetric) {
+          const { reads, discovery } = owned.sources!;
+          const evidenceSources = new Set(
+            data.corpus?.evidence.map(({ sourceId }) => sourceId),
+          );
+          const checks = validSummary
+            ? data.research.output?.checks
+            : undefined;
+          const completed = validSummary && data.outcome !== "failed";
+          const outcome = completed ? "completed" : "failed";
+          owned.captureMetric("ingestion_research_finished", {
+            status: signal.aborted ? "cancelled" : outcome,
+            duration_ms: Math.round(performance.now() - started),
+            pages_read: new Set(
+              reads
+                .filter(({ status }) => status === "ok")
+                .map(({ finalUrl }) => finalUrl),
+            ).size,
+            pages_with_evidence: evidenceSources.size,
+            searches_completed: discovery.length,
+            assigned_checks: assignment.checks.length,
+            ...(checks && {
+              returned_checks: checks.length,
+              checks_with_evidence: checks.filter(
+                ({ blocker, sourceIds }) =>
+                  !blocker && sourceIds.some((id) => evidenceSources.has(id)),
+              ).length,
+              blocked_checks: checks.filter(({ blocker }) => blocker).length,
+            }),
           });
         }
       }
-      const invalidSummary = validateResearchSummary(
-        data.research.output,
-        data.corpus.sources,
-      );
-      if (invalidSummary) {
-        data.errors.push(invalidSummary);
-        data.outcome = "failed";
-      }
-      return {
-        collection: data.research,
-        sources: data.corpus.sources,
-        corpusVersion: data.corpus.version,
-      };
     },
   );
   const general = phase(
@@ -755,8 +795,21 @@ export function createCatalogIngestionWorkflow(
       if (!plan) {
         return;
       }
+      const started = performance.now();
+      const captureWrite = (
+        outcome: ReturnType<typeof summarizeCatalogWrite>["outcome"] | "failed",
+        kinds: ReturnType<typeof summarizeCatalogWrite>["changedKinds"] = [],
+      ) =>
+        owned.captureMetric?.("ingestion_catalog_write_finished", {
+          outcome,
+          duration_ms: Math.round(performance.now() - started),
+          planned_operations: plan.operations.length,
+          changed_operations: kinds.length,
+          changed_operation_kinds: kinds,
+        });
       if (!plan.operations.length) {
         data.outcome = "unchanged";
+        captureWrite(data.outcome);
         return;
       }
       try {
@@ -778,7 +831,12 @@ export function createCatalogIngestionWorkflow(
             );
           },
         });
-        data.outcome = catalogWriteOutcome(plan, data.applied);
+        const { outcome, changedKinds } = summarizeCatalogWrite(
+          plan,
+          data.applied,
+        );
+        data.outcome = outcome;
+        captureWrite(outcome, changedKinds);
         owned.trace?.tracing.setEventId(
           reportEventId(owned.input, plan, data.applied),
         );
@@ -789,6 +847,9 @@ export function createCatalogIngestionWorkflow(
           fields: attemptedCatalogFields(plan.operations),
         });
       } catch (error) {
+        if (!data.applied) {
+          captureWrite("failed");
+        }
         if (signal.aborted) {
           throw error;
         }

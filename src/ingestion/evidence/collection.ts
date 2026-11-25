@@ -5,8 +5,9 @@ import type { ResearchConfig } from "../runtime/config";
 import type { ResearchDependencies } from "../contracts";
 import type { SourceSession } from "../tools/session";
 import type { RunObservability } from "../runtime/observability/runtime";
+import type { CaptureStageMetric } from "../runtime/observability/stage-metrics";
 import { sourceUrlSchema } from "../tools/contracts";
-import type { FrozenCorpus, Source } from "./contracts";
+import type { Evidence, FrozenCorpus, Source, Span } from "./contracts";
 import { createCorpusStorage } from "./storage";
 import { readSource } from "../roles/reader/agent";
 import { pageLinks } from "./links";
@@ -42,6 +43,33 @@ export function evidenceLimits(env = process.env): EvidenceLimits {
   }
   return defaults;
 }
+
+function coveredLength(spans: Span[]) {
+  let end = 0;
+  let length = 0;
+  for (const span of spans.toSorted((a, b) => a.start - b.start)) {
+    if (span.end > end) {
+      length += span.end - Math.max(end, span.start);
+      end = span.end;
+    }
+  }
+  return length;
+}
+
+function evidenceMetrics(evidence: Evidence[], pageLength: number) {
+  const marked = coveredLength(
+    evidence.flatMap(({ span, context }) => [
+      span,
+      ...context.map((item) => item.span),
+    ]),
+  );
+  return {
+    evidence_count: evidence.length,
+    marked_utf16_units: marked,
+    ...(pageLength && { marked_percent: (100 * marked) / pageLength }),
+  };
+}
+
 export function createCollection(options: {
   runId: string;
   startedAt: number;
@@ -55,6 +83,7 @@ export function createCollection(options: {
   assignment: unknown;
   signal?: AbortSignal;
   tracing?: RunObservability;
+  captureMetric?: CaptureStageMetric;
   root?: string;
   limits?: EvidenceLimits;
 }) {
@@ -152,44 +181,62 @@ export function createCollection(options: {
           return source;
         }
         source.leads = pageLinks(read.markdown, read.finalUrl);
-        const execution = await (options.deps.readSource ?? readSource)({
-          input: {
-            assignment: options.assignment,
-            source: { id: source.id, ...read, markdown: undefined },
-            page: read.markdown,
-          },
-          budget,
-          config: options.config,
-          signal,
-          tracing: options.tracing,
-          generate:
-            options.deps.generateRoles?.reader ?? options.deps.generateRole,
-          outputTokens: limits.readerOutputTokens,
-          inputLimits: limits,
-          reserveCall: reserveReaderCall,
-          reserveCorrection: reserveReaderCall,
-        });
-        if (execution.skipReason) {
-          source.limitations.push(execution.skipReason);
-          return source;
-        }
-        source.readerResponse = execution.modelResponse;
-        if (!execution.bound || !execution.output) {
-          source.processing = "failed";
-          source.limitations.push(
-            ...execution.errors.map((error) => error.message),
-          );
-          errors.push(...execution.errors);
-          fatal = true;
-        } else {
-          const { bound, output } = execution;
-          source.overview = output.overview;
-          source.coverage = output.coverage;
-          source.topics = output.topics;
-          source.statedYears = output.statedYears;
-          source.limitations = bound.limitations;
-          source.processing = bound.limitations.length ? "limited" : "complete";
-          await storage.saveEvidence(source, bound.evidence);
+        const readerStarted = performance.now();
+        let processing: Source["processing"] = "failed";
+        let evidence: Evidence[] | undefined;
+        try {
+          const execution = await (options.deps.readSource ?? readSource)({
+            input: {
+              assignment: options.assignment,
+              source: { id: source.id, ...read, markdown: undefined },
+              page: read.markdown,
+            },
+            budget,
+            config: options.config,
+            signal,
+            tracing: options.tracing,
+            generate:
+              options.deps.generateRoles?.reader ?? options.deps.generateRole,
+            outputTokens: limits.readerOutputTokens,
+            inputLimits: limits,
+            reserveCall: reserveReaderCall,
+            reserveCorrection: reserveReaderCall,
+          });
+          if (execution.skipReason) {
+            source.limitations.push(execution.skipReason);
+            processing = "unprocessed";
+            return source;
+          }
+          source.readerResponse = execution.modelResponse;
+          if (!execution.bound || !execution.output) {
+            source.processing = "failed";
+            source.limitations.push(
+              ...execution.errors.map((error) => error.message),
+            );
+            errors.push(...execution.errors);
+            fatal = true;
+          } else {
+            const { bound, output } = execution;
+            source.overview = output.overview;
+            source.coverage = output.coverage;
+            source.topics = output.topics;
+            source.statedYears = output.statedYears;
+            source.limitations = bound.limitations;
+            source.processing = bound.limitations.length
+              ? "limited"
+              : "complete";
+            await storage.saveEvidence(source, bound.evidence);
+            processing = source.processing;
+            evidence = bound.evidence;
+          }
+        } finally {
+          options.captureMetric?.("ingestion_reader_finished", {
+            source_id: source.id,
+            processing,
+            duration_ms: Math.round(performance.now() - readerStarted),
+            page_utf16_units: read.markdown.length,
+            ...(evidence && evidenceMetrics(evidence, read.markdown.length)),
+          });
         }
         return source;
       })();

@@ -8,6 +8,10 @@ import { preparationDiagnostics } from "./pipeline";
 import { createResearchBudget, type ResearchBudget } from "./runtime/budget";
 import { loadResearchConfig, type ResearchConfig } from "./runtime/config";
 import { createCatalogRunTrace, type CatalogRunTrace } from "./runtime/tracing";
+import {
+  ingestionStageMetrics,
+  type CaptureStageMetric,
+} from "./runtime/observability/stage-metrics";
 import { PROMPT_VERSIONS } from "./roles/versions";
 import { logCompletion, reportEventId } from "./workflow-logging";
 import { RunPersistenceError } from "./runs";
@@ -30,6 +34,7 @@ export class CatalogAttempt {
   readonly started = Date.now();
   readonly repairs = new ProposalRepairs();
   readonly ingestionRunId: string;
+  readonly captureMetric?: CaptureStageMetric;
   collection: Collection | null = null;
   trace?: CatalogRunTrace;
   sources: SourceSession | null = null;
@@ -69,6 +74,12 @@ export class CatalogAttempt {
       this.input.mode === "add" ? null : this.input.eventId!,
       deps.jobId,
     );
+    if (!deps.experimentId) {
+      this.captureMetric = ingestionStageMetrics(
+        this.ingestionRunId,
+        this.input,
+      );
+    }
   }
 
   async initialize() {

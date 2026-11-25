@@ -288,6 +288,29 @@ Native metrics describe eligible agent, model, and tool operations. They do not 
 
 Use the [total-token query](ingestion-tools.md#local-trace-inspection) to inspect saved metrics without running research. The store has no automatic retention.
 
+## Inspect ingestion metrics in PostHog
+
+Set `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` in production
+Studio. Leave them empty for local runs. `CATALOG_TRACING` controls AI traces
+separately.
+Use `run_id` to link stage events to the durable ingestion run. Filter by
+`mode`, `scope`, and `dry_run` to compare equivalent runs.
+
+| Event | How to read it |
+| --- | --- |
+| `ingestion_research_finished` | Average `pages_read` for unique URLs read successfully per run, including the initial source. Average `searches_completed` for completed web searches per run. For coverage, sum `checks_with_evidence` and divide by the sum of `assigned_checks` on events that have `checks_with_evidence`. This includes zero coverage and excludes runs without a valid summary. Show the share of events with a valid summary next to coverage. A covered check has no blocker and cites a page with bound evidence. |
+| `ingestion_reader_finished` | One event per canonical page that reaches Reader. For `complete` or `limited` pages, average `evidence_count` and `marked_percent` to give each page equal weight. For the share of all processed text, divide the sum of `marked_utf16_units` by the sum of `page_utf16_units` and multiply by 100. Marked area includes quotes and context. Overlapping ranges count once. Skipped and failed pages have no coverage value. |
+| `ingestion_editor_finished` | One event per review with duration, review calls, and status. Review calls count Editor invocations. |
+| `ingestion_editor_group_reviewed` | For first-pass approval, use groups with `first_proposed=true` and a `first_decision`. Count the share with `first_decision=approve`. Track proposed groups without a first decision separately. `proposal_returns` counts returns of present proposals. `omission_returns` counts returns of missing proposals. Each dispatched Editor return counts once per group per round, even if validation retries it. `validation_returns` counts returns before the first review. An approved group can still depend on other groups and on a successful catalog write. |
+| `ingestion_catalog_write_finished` | For actual catalog changes, filter by `dry_run=false` and sum `changed_operations`. Use `outcome` to group write results, including `unchanged` and `failed`. `changed_operation_kinds` lists the kind of each changed operation. |
+
+Events contain counts, fixed values, and technical IDs. They use no person
+profiles. The SDK sends queued events in the background when the queue reaches
+20 events or its 10-second timer expires. At shutdown, Studio gives the SDK up
+to two seconds to send pending events. Delivery is best effort. Use the catalog
+audit for confirmed writes when a stage event is missing. Eval experiments do
+not send stage events.
+
 ## Add research notes
 
 Add accepts one complete free-text note through CLI --input or Studio input. The [early duplicate check](#load-catalog-context) can use a complete name or alias with country or URL support to skip a saved Event. This is an exception to the search-leads rule for skipping only. Other notes reach the collector unchanged. New facts need inspected evidence. General and the page reader use that evidence and do not receive the raw note as an Event name.

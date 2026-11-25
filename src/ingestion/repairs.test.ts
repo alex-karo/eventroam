@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, expect, it, vi } from "vitest";
+import { PostHog } from "posthog-node";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
@@ -126,6 +127,12 @@ beforeEach(async () => {
     await rm(sourceDirectory, { recursive: true, force: true });
   };
 });
+
+function captureStageMetrics() {
+  vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_stage_test");
+  vi.stubEnv("NEXT_PUBLIC_POSTHOG_HOST", "https://analytics.example.test");
+  return vi.spyOn(PostHog.prototype, "capture").mockImplementation(() => {});
+}
 
 function fixture(
   page: string,
@@ -657,6 +664,7 @@ it.each([
 ] as const)(
   "returns the first disputed classification and accepts its %s reply",
   async (kind) => {
+    const capture = captureStageMetrics();
     const f = fixture(
       "Example Fest 2027 is a music festival. Its setting is not confirmed.",
     );
@@ -742,6 +750,36 @@ it.each([
         ...(withdraw && { omissionReason: reason }),
       },
     ]);
+    expect(capture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "ingestion_editor_finished",
+        properties: expect.objectContaining({
+          status: "completed",
+          review_calls: 2,
+        }),
+      }),
+    );
+    expect(
+      capture.mock.calls
+        .map(([event]) => event)
+        .filter(
+          ({ event, properties }) =>
+            event === "ingestion_editor_group_reviewed" &&
+            properties?.group === path,
+        ),
+    ).toMatchObject([
+      {
+        properties: {
+          run_id: result.runId,
+          first_proposed: true,
+          first_decision: "return",
+          validation_returns: 0,
+          proposal_returns: 1,
+          omission_returns: 0,
+          final_result: withdraw ? "withdrawn" : "approved",
+        },
+      },
+    ]);
     expect(result.researchStatus).toBe(
       kind === "correct" || kind === "withdraw" ? "success" : "partial",
     );
@@ -817,6 +855,7 @@ it.each(["approve", "withdraw"] as const)(
 it.each(["new", "saved", "preview", "fatal"] as const)(
   "keeps the corrected ticket link after social repair failures (%s)",
   async (kind) => {
+    const capture = captureStageMetrics();
     const ticketPath = "currentOrNextEdition.fields.links.tickets";
     const socialPaths = ["instagram", "facebook", "youtube"].map(
       (name) => `event.fields.links.socials.${name}`,
@@ -901,10 +940,48 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
       { editor },
     );
     const result = await run(undefined, kind === "preview");
+    const metricEvents = capture.mock.calls.map(([event]) => event);
+    const groupEvents = metricEvents.filter(
+      ({ event }) => event === "ingestion_editor_group_reviewed",
+    );
+    expect(
+      groupEvents.filter(
+        ({ properties }) => properties?.group === socialPaths[0],
+      ),
+    ).toMatchObject([
+      {
+        properties: {
+          proposal_returns: 1,
+          omission_returns: 0,
+          final_result: kind === "fatal" ? "incomplete" : "rejected",
+        },
+      },
+    ]);
+    if (kind === "new") {
+      expect(
+        groupEvents.filter(
+          ({ properties }) => properties?.group === ticketPath,
+        ),
+      ).toMatchObject([
+        {
+          properties: {
+            first_proposed: false,
+            proposal_returns: 0,
+            omission_returns: 1,
+          },
+        },
+      ]);
+    }
     const lifecycle = f.client
       .prepare("SELECT status FROM ingestion_runs WHERE id=?")
       .get(result.runId);
     if (kind === "fatal") {
+      expect(metricEvents).toContainEqual(
+        expect.objectContaining({
+          event: "ingestion_editor_finished",
+          properties: expect.objectContaining({ status: "failed" }),
+        }),
+      );
       expect(result.outcome).toBe("failed");
       expect(result.errors).toContainEqual(
         expect.objectContaining({

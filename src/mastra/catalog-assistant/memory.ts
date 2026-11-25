@@ -8,6 +8,7 @@ import { Memory } from "@mastra/memory";
 import { observabilityDatabasePath } from "../../ingestion/runtime/observability/storage";
 import { createDiagnostics } from "../../ingestion/runtime/observability/diagnostics";
 import { flushObservability } from "../../ingestion/runtime/observability/runtime";
+import { shutdownIngestionStageMetrics } from "../../ingestion/runtime/observability/stage-metrics";
 
 export function chatDatabasePath(
   env: NodeJS.ProcessEnv = process.env,
@@ -104,6 +105,7 @@ export class StudioMastra extends Mastra {
         await super.shutdown(options);
       }
     } finally {
+      await shutdownIngestionStageMetrics();
       try {
         await this.chat.memory.settled();
       } finally {

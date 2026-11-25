@@ -1,7 +1,7 @@
 import { stageDiagnostics } from "./stage";
-import type { CatalogResearchResult, IngestionData } from "./contracts";
+import type { IngestionData } from "./contracts";
 import { type ReadyCatalogPlan } from "./catalog-plan";
-import type { applyCatalogItem } from "@/catalog/write/apply-operation";
+import type { CatalogItemResult } from "@/catalog/write/apply-operation";
 
 /** Read the last completed validation for diagnostics, never for flow control. */
 export function preparationDiagnostics(data: IngestionData) {
@@ -23,24 +23,26 @@ export function readyCatalogPlan(data: IngestionData) {
 }
 
 /** Only writer receipts determine which proposed operations changed the catalog. */
-export function catalogWriteOutcome(
+export function summarizeCatalogWrite(
   plan: ReadyCatalogPlan,
-  applied: ReturnType<typeof applyCatalogItem> | null,
-): CatalogResearchResult["outcome"] {
+  applied: CatalogItemResult,
+) {
   const changedKinds = plan.operations
-    .filter((_, index) => applied?.operations[index]?.changed)
+    .filter((_, index) => applied.operations[index]?.changed)
     .map((operation) => operation.kind);
+  let outcome: "published" | "created" | "updated" | "unchanged";
   if (
     changedKinds.includes("publishEvent") ||
     changedKinds.includes("publishEdition")
   ) {
-    return "published";
-  }
-  if (
+    outcome = "published";
+  } else if (
     changedKinds.includes("createEvent") ||
     changedKinds.includes("createEdition")
   ) {
-    return "created";
+    outcome = "created";
+  } else {
+    outcome = changedKinds.length ? "updated" : "unchanged";
   }
-  return changedKinds.length ? "updated" : "unchanged";
+  return { outcome, changedKinds };
 }
