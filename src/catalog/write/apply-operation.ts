@@ -428,6 +428,22 @@ function updateSubject(
   };
 }
 
+function recordPublicationChange(
+  client: Database.Database,
+  op: CatalogOperationMeta & {
+    id: string;
+    expectedVersion: number;
+    omitAudit?: boolean;
+  },
+  subject: "event" | "edition",
+  changes: CatalogFieldChange[],
+  now: string,
+): CatalogOperationResult {
+  const version = op.expectedVersion + 1;
+  writeChange(client, op, subject, op.id, version, changes, now);
+  return { id: op.id, version, changed: true };
+}
+
 function changeEventPublication(
   client: Database.Database,
   op: Extract<CatalogOperation, { kind: "publishEvent" | "withdrawEvent" }>,
@@ -473,12 +489,7 @@ function changeEventPublication(
     reserveEventPaths(client, { ...old, ...values }, now);
   }
   bumpEvent(client, op.id, op.expectedVersion, values, now);
-  writeChange(client, op, "event", op.id, op.expectedVersion + 1, changes, now);
-  return {
-    id: op.id,
-    version: op.expectedVersion + 1,
-    changed: true,
-  };
+  return recordPublicationChange(client, op, "event", changes, now);
 }
 
 function changeEditionPublication(
@@ -509,20 +520,7 @@ function changeEditionPublication(
     reserveEditionPath(client, old, now);
   }
   bumpEdition(client, op.id, op.expectedVersion, values, now);
-  writeChange(
-    client,
-    op,
-    "edition",
-    op.id,
-    op.expectedVersion + 1,
-    changes,
-    now,
-  );
-  return {
-    id: op.id,
-    version: op.expectedVersion + 1,
-    changed: true,
-  };
+  return recordPublicationChange(client, op, "edition", changes, now);
 }
 
 function replacePriceBlock(
