@@ -18,12 +18,7 @@ import {
   type SizeBand,
 } from "@/features/discovery/model/discovery";
 
-export type FilterGroup = "where" | "genre" | "more";
-const groupTitles = {
-  where: "Where",
-  genre: "Music",
-  more: "More",
-};
+import { filterGroups, type FilterGroup } from "./filter-groups";
 
 function toggle(values: string[], value: string) {
   return values.includes(value)
@@ -170,17 +165,15 @@ export function FilterPanel({
         </button>
       </div>
       <div className="filter-groups" role="group" aria-label="Filter groups">
-        {(["where", "genre", "more"] as FilterGroup[]).map((value) => (
+        {filterGroups.map(({ id, label, icon }) => (
           <button
             type="button"
-            key={value}
-            aria-pressed={group === value}
-            onClick={() => onGroupChange(value)}
+            key={id}
+            aria-pressed={group === id}
+            onClick={() => onGroupChange(id)}
           >
-            <Icon
-              name={{ where: "place", genre: "music", more: "sliders" }[value]}
-            />
-            {groupTitles[value]}
+            <Icon name={icon} />
+            {label}
           </button>
         ))}
       </div>

@@ -3,7 +3,8 @@ import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { emptyFilters } from "@/features/discovery/model/discovery";
-import { FilterPanel, type FilterGroup } from "./filter-panel";
+import { FilterPanel } from "./filter-panel";
+import type { FilterGroup } from "./filter-groups";
 
 beforeEach(() => {
   vi.stubGlobal("matchMedia", () => ({

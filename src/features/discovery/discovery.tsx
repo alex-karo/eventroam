@@ -1,12 +1,5 @@
 "use client";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useEffectEvent,
-} from "react";
+import { useEffect, useMemo, useRef, useState, useEffectEvent } from "react";
 import {
   emptyFilters,
   filterSummaries,
@@ -14,14 +7,17 @@ import {
   serializeFilters,
   type Filters,
 } from "@/features/discovery/model/discovery";
-import type { DiscoverySummary, Genre } from "@/catalog/read/contracts";
 import { filterMapArea, type MapArea } from "./model/map-area";
 import { MonthStrip } from "@/features/discovery/components/month-strip";
 import { Icon } from "@/components/catalog/icons";
+import { FilterPanel } from "@/features/discovery/components/filter-panel";
+import type { FilterGroup } from "@/features/discovery/components/filter-groups";
+import { DiscoveryNotices } from "@/features/discovery/components/discovery-notices";
+import { DiscoveryToolbar } from "@/features/discovery/components/discovery-toolbar";
 import {
-  FilterPanel,
-  type FilterGroup,
-} from "@/features/discovery/components/filter-panel";
+  useDiscoveryCatalog,
+  type DiscoveryCatalog,
+} from "@/features/discovery/hooks/use-discovery-catalog";
 import { ResultsList } from "@/features/discovery/components/results-list";
 import { SelectedPreview } from "@/features/discovery/components/selected-preview";
 import {
@@ -49,7 +45,6 @@ import {
 } from "@/features/discovery/model/filter-feedback";
 import posthog from "posthog-js";
 
-type Catalog = { summaries: DiscoverySummary[]; genres: Genre[] };
 export function Discovery({
   apexHref,
   festivalsHref,
@@ -61,13 +56,13 @@ export function Discovery({
 }: Readonly<{
   apexHref: string;
   festivalsHref: string;
-  initialCatalog: Catalog;
+  initialCatalog: DiscoveryCatalog;
   initialFilters: Filters;
   initialError: string | null;
   initialNow: string;
   initialView: "map" | "list";
 }>) {
-  const [catalog, setCatalog] = useState(initialCatalog);
+  const { catalog, loadError, retry } = useDiscoveryCatalog(initialCatalog);
   const [applied, setApplied] = useState(initialFilters);
   const [pending, setPending] = useState(initialFilters);
   const [query, setQuery] = useState(initialFilters.q);
@@ -75,7 +70,6 @@ export function Discovery({
   const [formError, setFormError] = useState<string | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const invalidUrl = urlError !== null;
-  const [loadError, setLoadError] = useState(false);
   const [panel, setPanel] = useState<FilterGroup | null>(null);
   const [view, setView] = useState<"map" | "list">(initialView);
   const [followMap, setFollowMap] = useState(true);
@@ -205,7 +199,6 @@ export function Discovery({
         ?.focus();
     }
   }
-  const latest = useRef(0);
   const countries = [...new Set(catalog.summaries.map((s) => s.countryCode))];
   // These are uppercase ISO codes, so code-unit order is intentional.
   // eslint-disable-next-line sonarjs/no-alphabetical-sort
@@ -232,35 +225,6 @@ export function Discovery({
       saveCurrentContext();
     }
   }, [visitReady, visitToken, selectedId, applied, view, followMap]);
-  const load = useCallback(() => {
-    const request = ++latest.current;
-    return fetch("/api/discovery", { cache: "no-store" })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Discovery is unavailable.");
-        }
-        return response.json() as Promise<Catalog>;
-      })
-      .then((next) => {
-        if (request !== latest.current) {
-          return;
-        }
-        setCatalog(next);
-        setLoadError(false);
-      })
-      .catch(() => {
-        if (request === latest.current) {
-          setLoadError(true);
-        }
-      });
-  }, []);
-  useEffect(() => {
-    const catalogRequests = latest;
-    void load();
-    return () => {
-      ++catalogRequests.current;
-    };
-  }, [load]);
   useEffect(() => {
     if (panel) {
       document
@@ -333,6 +297,7 @@ export function Discovery({
       setError(caught instanceof Error ? caught.message : "Invalid filters.");
     }
   }
+  const clearFilters = () => apply(emptyFilters());
   function switchView(next: "map" | "list") {
     if (next === view) {
       return;
@@ -395,17 +360,6 @@ export function Discovery({
   const eventLabel = listResults.length === 1 ? "event" : "events";
   const resultStatus = `${listResults.length} ${eventLabel}${activeArea ? " in map area" : ""}`;
   const mapped = listResults.filter(hasMapPoint).length;
-  const active = filterSelections(applied, catalog.genres);
-  const groupSelections = {
-    where: active.filter((item) => ["countries", "place"].includes(item.field)),
-    genre: active.filter((item) => item.field === "genres"),
-    more: active.filter((item) =>
-      ["date", "duration", "sizes"].includes(item.field),
-    ),
-  };
-  const secondaryGroups = new Set(
-    groupSelections.more.map((item) => item.field),
-  ).size;
   return (
     <div className="discovery">
       <header className="discovery-header">
@@ -419,90 +373,20 @@ export function Discovery({
         <span className="discovery-scope">Festivals</span>
       </header>
       <div className="discovery-stage">
-        <div className="discovery-controls">
-          <form
-            className="name-search"
-            role="search"
-            onSubmit={(event) => {
-              event.preventDefault();
-              apply({ ...applied, q: query }, "search");
-            }}
-          >
-            <label className="sr-only" htmlFor="name-search">
-              Search festival names
-            </label>
-            <input
-              id="name-search"
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setSearchError(null);
-              }}
-              aria-invalid={searchError ? true : undefined}
-              aria-describedby={searchError ? "search-error" : undefined}
-              placeholder="Find a festival…"
-            />
-            <button type="submit" aria-label="Search festival names">
-              <Icon name="search" />
-            </button>
-          </form>
-          <div
-            className="filter-toolbar"
-            role="group"
-            aria-label="Discovery filters"
-          >
-            {(["where", "genre", "more"] as FilterGroup[]).map((group) => {
-              const label = { where: "Where", genre: "Music", more: "More" }[
-                group
-              ];
-              const values = groupSelections[group];
-              const summary = values.map((item) => item.label).join(", ");
-              const name = summary ? `${label}: ${summary}` : label;
-              return (
-                <button
-                  key={group}
-                  className={`filter-trigger filter-trigger-${group}`}
-                  type="button"
-                  aria-expanded={panel === group}
-                  aria-controls="filter-panel"
-                  aria-label={name}
-                  title={name}
-                  data-active={values.length > 0}
-                  onClick={(event) => openPanel(group, event.currentTarget)}
-                >
-                  <Icon
-                    name={
-                      { where: "place", genre: "music", more: "sliders" }[group]
-                    }
-                  />
-                  <span className="filter-trigger-value">
-                    {group === "more" || !values.length
-                      ? label
-                      : values[0].label}
-                  </span>
-                  {group !== "more" &&
-                    values.length > 1 &&
-                    ` +${values.length - 1}`}
-                  {group === "more" &&
-                    secondaryGroups > 0 &&
-                    ` · ${secondaryGroups}`}
-                  <span className="filter-chevron">
-                    <Icon name="chevron-down" />
-                  </span>
-                </button>
-              );
-            })}
-            <button
-              className="clear-filters"
-              type="button"
-              aria-label="Clear all"
-              title="Clear all filters"
-              onClick={() => apply(emptyFilters())}
-            >
-              <Icon name="reset" />
-            </button>
-          </div>
-        </div>
+        <DiscoveryToolbar
+          applied={applied}
+          genres={catalog.genres}
+          panel={panel}
+          query={query}
+          searchError={searchError}
+          onQueryChange={(value) => {
+            setQuery(value);
+            setSearchError(null);
+          }}
+          onSearch={() => apply({ ...applied, q: query }, "search")}
+          onOpenPanel={openPanel}
+          onClear={clearFilters}
+        />
         {panel && (
           <FilterPanel
             group={panel}
@@ -571,44 +455,20 @@ export function Discovery({
               ref={listColumn}
               onScroll={saveContext}
             >
-              {(urlError || loadError || searchError) && (
-                <div className="discovery-notices">
-                  {searchError && (
-                    <div id="search-error" className="notice" role="alert">
-                      <p>{searchError}</p>
-                    </div>
-                  )}
-                  {urlError && (
-                    <div className="notice" role="alert">
-                      <p>{urlError}</p>
-                      <button
-                        type="button"
-                        onClick={() => apply(emptyFilters())}
-                      >
-                        Reset invalid filters
-                      </button>
-                    </div>
-                  )}
-                  {loadError && (
-                    <div className="notice" role="alert">
-                      <p>
-                        Could not refresh discovery results. Showing the last
-                        available list.
-                      </p>
-                      <button type="button" onClick={() => void load()}>
-                        Retry
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+              <DiscoveryNotices
+                searchError={searchError}
+                urlError={urlError}
+                loadError={loadError}
+                onClear={clearFilters}
+                onRetry={retry}
+              />
               <ResultsList
                 results={listResults}
                 areaEmpty={Boolean(activeArea) && results.length > 0}
                 selectedId={selectedId}
                 error={urlError}
                 onSelect={(id) => selectResult(id, "list")}
-                onClear={() => apply(emptyFilters())}
+                onClear={clearFilters}
               />
             </div>
           </div>
