@@ -19,20 +19,9 @@ import {
 } from "../runtime/observability/runtime";
 import { fixedGeocoding } from "./geocoding";
 import { scoreLocationCase } from "./score";
-import { validateCatalogValues } from "@/catalog/write/validate-values";
 import { randomUUID } from "node:crypto";
 import { Mastra } from "@mastra/core/mastra";
 import type { ItemWithScores } from "@mastra/core/datasets";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { openDatabase } from "@/db/connection";
-import { migrateCatalogConnection } from "@/db/migrate";
-import {
-  events,
-  externalLinks,
-  editionTerms,
-  editions,
-  taxonomyTerms,
-} from "@/db/schema";
 import { RunPersistenceError, persistenceFailureReport } from "../runs";
 import { runCatalogResearch, type CatalogResearchResult } from "../workflow";
 import { evaluationConfig } from "./config";
@@ -71,146 +60,7 @@ import {
 } from "./selection";
 import { readerCases, type ReaderEvalOutput } from "./reader";
 import { executeReaderCase } from "./reader/run";
-
-const timestamp = "2026-10-03T00:00:00.000Z";
-
-function ticketColumns(
-  tickets: PipelineEvalCase["initial"]["event"]["editions"][number]["tickets"],
-) {
-  const base = tickets?.basePrice;
-  return {
-    priceDetails: tickets?.priceDetails,
-    priceKind: base?.kind,
-    priceCurrency: base && "currency" in base ? base.currency : null,
-    priceMinMinor: base?.minMinor,
-    priceMaxMinor: base?.maxMinor,
-    priceCoverage: base?.coverage,
-    priceQualification: base?.qualification,
-  };
-}
-
-function seedDatabase(
-  suite: EvalSuite,
-  item: Pick<PipelineEvalCase, "initial">,
-) {
-  const connection = openDatabase(":memory:");
-  try {
-    migrateCatalogConnection(connection);
-    const db = drizzle(connection.client);
-    db.transaction(() => {
-      db.delete(taxonomyTerms).run();
-      for (const term of suite.terms) {
-        db.insert(taxonomyTerms)
-          .values(
-            validateCatalogValues(connection.client, "taxonomy_terms", term),
-          )
-          .run();
-      }
-      for (const initial of [
-        item.initial.event,
-        ...(item.initial.relatedEvents ?? []),
-      ]) {
-        db.insert(events)
-          .values(
-            validateCatalogValues(connection.client, "events", {
-              id: initial.id,
-              slug: initial.slug,
-              canonicalName: initial.canonicalName,
-              aliases: initial.aliases ?? [],
-              description: initial.description,
-              shortDescription: initial.shortDescription,
-              homeScope: initial.homeScope,
-              publicationState: initial.publicationState ?? "draft",
-              createdAt: timestamp,
-              updatedAt: timestamp,
-            }),
-          )
-          .run();
-        for (const link of initial.links ?? []) {
-          db.insert(externalLinks)
-            .values(
-              validateCatalogValues(connection.client, "external_links", {
-                id: `eval-link-${initial.id}-${link.kind}-${link.url}`,
-                eventId: initial.id,
-                kind: link.kind,
-                url: link.url,
-                label: link.label,
-                official: link.official ?? false,
-                createdAt: timestamp,
-                updatedAt: timestamp,
-              }),
-            )
-            .run();
-        }
-        for (const edition of initial.editions) {
-          db.insert(editions)
-            .values(
-              validateCatalogValues(connection.client, "editions", {
-                id: edition.id,
-                eventId: initial.id,
-                editionKey: edition.editionKey,
-                editionYear: edition.editionYear,
-                displayName: edition.displayName,
-                startsOn: edition.startsOn,
-                endsOn: edition.endsOn,
-                dateState:
-                  edition.dateState ??
-                  (edition.startsOn ? "confirmed" : "unknown"),
-                scheduleStatus:
-                  edition.scheduleStatus ??
-                  (edition.startsOn ? "scheduled" : "announced"),
-                publicationState: edition.publicationState ?? "draft",
-                countryCode: edition.countryCode,
-                locality: edition.locality,
-                administrativeArea: edition.administrativeArea,
-                timeZone: edition.timeZone,
-                sizeEstimate: edition.sizeEstimate,
-                venueName: edition.venueName,
-                venueAddress: edition.venueAddress,
-                latitude: edition.latitude,
-                longitude: edition.longitude,
-                coordinatePrecision: edition.coordinatePrecision,
-                ...ticketColumns(edition.tickets),
-                createdAt: timestamp,
-                updatedAt: timestamp,
-              }),
-            )
-            .run();
-          for (const termId of edition.termIds ?? []) {
-            db.insert(editionTerms)
-              .values(
-                validateCatalogValues(connection.client, "edition_terms", {
-                  editionId: edition.id,
-                  termId,
-                }),
-              )
-              .run();
-          }
-          for (const link of edition.links ?? []) {
-            db.insert(externalLinks)
-              .values(
-                validateCatalogValues(connection.client, "external_links", {
-                  id: `eval-link-${edition.id}-${link.kind}-${link.url}`,
-                  editionId: edition.id,
-                  kind: link.kind,
-                  url: link.url,
-                  label: link.label,
-                  official: link.official ?? false,
-                  createdAt: timestamp,
-                  updatedAt: timestamp,
-                }),
-              )
-              .run();
-          }
-        }
-      }
-    });
-    return connection;
-  } catch (error) {
-    connection.client.close();
-    throw error;
-  }
-}
+import { seedDatabase } from "./seed-database";
 
 function fixedSources(
   item: PipelineEvalCase,
