@@ -11,6 +11,7 @@ import type { ResearchError } from "../research/contracts";
 import type { ResearchContext } from "../research/context";
 import type { Targets } from "./general/contracts";
 import type { RoleConversation } from "./invoke";
+import type { SavedEvent, SpecialistContext } from "./options";
 import type { LocationValidationContext } from "./location/group-validation";
 
 export type Reply = Pick<RoleConversation, "raw" | "schema">;
@@ -18,8 +19,11 @@ export type GroupIssue = { group: ProposalGroup; rule: string };
 export type ProposalValidationContext = {
   corpus: FrozenCorpus;
   targets: Targets | null;
-  context: ResearchContext;
-  input: CatalogResearchInput;
+  currentDate: string;
+  terms: ResearchContext["terms"];
+  input: Pick<CatalogResearchInput, "mode" | "scope">;
+  savedEvent: SavedEvent | undefined;
+  savedEditions?: SpecialistContext["savedEditions"];
   location?: LocationValidationContext;
 };
 
@@ -68,12 +72,6 @@ export function replyReferences(value: unknown, key: string): unknown[] {
     }
     return replyReferences(entry, key);
   });
-}
-
-export function selectedEvent(ctx: ProposalValidationContext) {
-  return ctx.context.catalog.find(
-    ({ id }) => id === (ctx.input.eventId ?? ctx.targets?.eventId),
-  );
 }
 
 export function requireKnownReferences(

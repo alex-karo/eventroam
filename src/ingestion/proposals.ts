@@ -1,14 +1,7 @@
 import { hasEventFieldCheck } from "./roles/assignment";
 import { earlierEdition, proposedChronology } from "./research/guards";
-import {
-  assignedGroups,
-  atPath,
-  locationGroupPath,
-  proposalGroups,
-  setPath,
-} from "./groups";
+import { atPath, locationGroupPath, proposalGroups, setPath } from "./groups";
 import { requireSupport, type FrozenCorpus } from "./evidence/contracts";
-import type { ResearchContext } from "./research/context";
 import type { CatalogResearchInput } from "./contracts";
 import { editionSlotNames } from "./research/contracts";
 import type { ClassificationOutput } from "./roles/classification/contracts";
@@ -16,6 +9,7 @@ import { checkedClassification } from "./roles/classification/validate";
 import type { ReviewDecisions } from "./roles/editor/contracts";
 import { rejectedEdition, rejectedItem } from "./roles/editor/review";
 import type { Targets } from "./roles/general/contracts";
+import type { SavedEvent, SpecialistContext } from "./roles/options";
 import type { LinksOutput } from "./roles/links/contracts";
 import type { MaterializedLocation } from "./roles/location/validate";
 import type { RegisteredPoint } from "./roles/location/contracts";
@@ -58,7 +52,7 @@ export type PreparedProposals = PlanDiagnostics & {
   location: MaterializedLocation;
   targets: Targets;
   basis: {
-    savedEvent: ResearchContext["catalog"][number] | null;
+    savedEvent: SavedEvent | null;
     evidence: FrozenCorpus["evidence"];
     points: RegisteredPoint[];
   };
@@ -161,17 +155,33 @@ export type SpecialistOutputs = {
 
 export function assembleProposals(
   options: SpecialistOutputs & {
-    targets: Targets & PlanDiagnostics;
+    selection: Pick<
+      SpecialistContext,
+      | "targets"
+      | "corpus"
+      | "savedEvent"
+      | "savedEditions"
+      | "terms"
+      | "groups"
+      | "scope"
+    >;
+    revisedTargets?: Targets & PlanDiagnostics;
     location: MaterializedLocation;
     points: RegisteredPoint[];
-    corpus: FrozenCorpus;
-    context: ResearchContext;
-    input: CatalogResearchInput;
-    originalTargets?: Targets;
     returnedPaths?: ReadonlySet<string>;
   },
 ): StageResult<PreparedProposals> {
-  const { targets, corpus, context, input, returnedPaths } = options;
+  const { selection, returnedPaths } = options;
+  const {
+    targets: originalTargets,
+    corpus,
+    savedEvent,
+    savedEditions,
+    terms,
+    groups,
+    scope,
+  } = selection;
+  const targets = options.revisedTargets ?? originalTargets;
   const diagnostics: PlanDiagnostics = {
     ...diagnosticsOnly(targets),
     unresolved: [
@@ -182,9 +192,6 @@ export function assembleProposals(
       ...options.location.unresolved,
     ],
   };
-  const event =
-    context.catalog.find((event) => event.id === targets.eventId) ??
-    (input.eventId ? context.catalog[0] : undefined);
   const submitted = {
     general: targets,
     tickets: options.tickets,
@@ -194,11 +201,10 @@ export function assembleProposals(
   try {
     const cited = new Set(Object.values(options.location.support).flat());
     const returnedChanges = new Set(
-      assignedGroups(input.scope, targets).flatMap(
-        ({ owner, path, rawPath }) =>
-          owner !== "location" && returnedPaths?.has(path)
-            ? [atPath(submitted[owner], rawPath)]
-            : [],
+      groups.flatMap(({ owner, path, rawPath }) =>
+        owner !== "location" && returnedPaths?.has(path)
+          ? [atPath(submitted[owner], rawPath)]
+          : [],
       ),
     );
     inspectProposalSupport(submitted, corpus, cited, returnedChanges);
@@ -218,7 +224,7 @@ export function assembleProposals(
       status: "ready",
       event: {
         reason: targets.reason,
-        fields: eventFields(options.classification, options.links, input.scope),
+        fields: eventFields(options.classification, options.links, scope),
       },
       previousEdition: structuredClone(targets.previousEdition),
       currentOrNextEdition: structuredClone(targets.currentOrNextEdition),
@@ -241,10 +247,11 @@ export function assembleProposals(
       }
       if (classification) {
         target.fields.classification = checkedClassification(
-          options.originalTargets?.[slot] ?? target,
+          originalTargets[slot] ?? target,
           classification,
-          event,
-          context,
+          savedEvent,
+          savedEditions[slot],
+          terms,
           corpus,
           returnedPaths?.has(`${slot}.fields.classification`),
         );
@@ -259,7 +266,7 @@ export function assembleProposals(
         plan,
         location: options.location,
         basis: {
-          savedEvent: event ?? null,
+          savedEvent: savedEvent ?? null,
           evidence: corpus.evidence.filter((item) => cited.has(item.id)),
           points: options.points,
         },

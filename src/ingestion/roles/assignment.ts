@@ -1,8 +1,11 @@
 import type { CheckFinding } from "./contracts";
 import type { CatalogResearchInput } from "../contracts";
-import { assignedGroups, isEventFieldCheck, type GroupOwner } from "../groups";
+import {
+  isEventFieldCheck,
+  type GroupOwner,
+  type ProposalGroup,
+} from "../groups";
 import type { ResearchContext } from "../research/context";
-import type { Targets } from "./general/contracts";
 
 const currentCollectionChecks = {
   identity: "Establish the official Event identity.",
@@ -34,10 +37,9 @@ export function buildAssignment(
   input: CatalogResearchInput,
   context: ResearchContext,
 ) {
-  const current = input.mode === "refresh" && input.scope === "current";
-  const savedEvent = context.catalog.find(
-    (event) => event.id === input.eventId,
-  );
+  const savedEvent = context.catalog.at(0);
+  const permissions = assignmentPermissions(refreshScope(input));
+  const current = !permissions.eventFields;
   return {
     instructions: current
       ? "Inspect the saved official sources first. Follow the Research search rules for gaps. Collect dates and status for the ongoing or nearest announced future festival. Read available ticket and programme details from known and linked pages. Do not audit Event fields or history."
@@ -74,32 +76,42 @@ export function buildAssignment(
     },
     knownLinks: context.knownLinks,
     currentDate: context.currentDate,
-    permissions: {
-      eventFields: !current,
-      previousEdition: !current,
-      currentOrNextEdition: true,
-    },
+    permissions,
   };
 }
 
-/** Interpretation checks belong to the role that can assess their meaning. */
-export function assignedRoleChecks(
-  role: Exclude<GroupOwner, "location">,
-  input: CatalogResearchInput,
-  targets?: Targets,
+export function refreshScope(
+  input: Pick<CatalogResearchInput, "mode" | "scope">,
+) {
+  return input.mode === "refresh" ? input.scope : undefined;
+}
+
+export function assignmentPermissions(scope: CatalogResearchInput["scope"]) {
+  const current = scope === "current";
+  return {
+    eventFields: !current,
+    previousEdition: !current,
+    currentOrNextEdition: true,
+  };
+}
+
+export function generalChecks(scope: CatalogResearchInput["scope"]): string[] {
+  return [
+    "identity",
+    "currentAnnouncement",
+    "currentDates",
+    ...(scope !== "current" ? ["previousCompletedEdition"] : []),
+  ];
+}
+
+export function specialistChecks(
+  role: Exclude<GroupOwner, "location" | "general">,
+  assignments: readonly ProposalGroup[],
 ): string[] {
-  const scope = input.mode === "refresh" ? input.scope : undefined;
-  if (role === "general") {
-    return [
-      "identity",
-      "currentAnnouncement",
-      "currentDates",
-      ...(scope !== "current" ? ["previousCompletedEdition"] : []),
-    ];
-  }
-  const groups = assignedGroups(scope, targets)
-    .filter((group) => group.owner !== "location")
-    .filter(({ owner }) => owner === role);
+  const groups = assignments.filter(
+    (group): group is Exclude<ProposalGroup, { owner: "location" }> =>
+      group.owner === role,
+  );
   if (role === "classification") {
     // Classification lists Edition checks before the Event check.
     groups.sort(

@@ -3,7 +3,7 @@ import { roleEvidenceTopics } from "../contracts";
 import { invokeRole } from "../invoke";
 import { returnInstructions } from "../prompts";
 import { PROMPT_VERSIONS } from "../versions";
-import { assignedRoleChecks, buildAssignment } from "../assignment";
+import { buildAssignment, generalChecks, refreshScope } from "../assignment";
 import {
   editionChronology,
   roleInvocationOptions,
@@ -13,11 +13,9 @@ import { generalOutputSchema } from "./contracts";
 import { generalInstructions } from "./prompt";
 
 export function runGeneral(options: RoleOptions) {
+  const savedEvent = options.context.catalog.at(0);
   const { identityTask, identityContext, currentDate, permissions } =
     buildAssignment(options.input, options.context);
-  const savedEvent = options.context.catalog.find(
-    (event) => event.id === options.input.eventId,
-  );
   return invokeRole({
     ...roleInvocationOptions(options, "general"),
     role: "general",
@@ -25,7 +23,7 @@ export function runGeneral(options: RoleOptions) {
     instructions: generalInstructions + returnInstructions,
     input: {
       assignment: { identityTask, identityContext, currentDate, permissions },
-      assignedChecks: assignedRoleChecks("general", options.input),
+      assignedChecks: generalChecks(refreshScope(options.input)),
       savedEvent: savedEvent && {
         id: savedEvent.id,
         canonicalName: savedEvent.canonicalName,

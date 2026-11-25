@@ -1,16 +1,17 @@
 import { evidencePacket } from "../../evidence/contracts";
+import { assignmentPermissions, specialistChecks } from "../assignment";
 import { roleEvidenceTopics } from "../contracts";
 import { invokeRole, type RoleExecution } from "../invoke";
 import { returnInstructions } from "../prompts";
 import { PROMPT_VERSIONS } from "../versions";
 import { z } from "zod";
-import { assignedRoleChecks } from "../assignment";
-import type { Targets } from "../general/contracts";
 import {
   editionChronology,
   roleInvocationOptions,
   targetContext,
-  type RoleOptions,
+  type RoleRuntimeOptions,
+  type SpecialistContext,
+  type TargetContextSelection,
   type SavedEdition,
 } from "../options";
 import {
@@ -29,15 +30,33 @@ function classificationHistory(edition: SavedEdition) {
     terms: edition.terms.map(({ facet, slug }) => ({ facet, slug })),
   };
 }
+type ClassificationInput = Pick<
+  SpecialistContext,
+  | "corpus"
+  | "savedEvent"
+  | "savedEditions"
+  | "currentDate"
+  | "terms"
+  | "groups"
+  | "scope"
+> & {
+  targets: TargetContextSelection;
+};
+
 export async function runClassification(
-  options: RoleOptions,
-  targets: Targets,
+  options: RoleRuntimeOptions,
+  {
+    corpus,
+    targets,
+    groups,
+    scope,
+    savedEvent: saved,
+    savedEditions,
+    currentDate,
+    terms,
+  }: ClassificationInput,
 ): Promise<RoleExecution<ClassificationOutput>> {
-  const describeFestival = options.input.scope !== "current";
-  const { terms } = options.context;
-  const saved = options.context.catalog.find(
-    (event) => event.id === (options.input.eventId ?? targets.eventId),
-  );
+  const describeFestival = assignmentPermissions(scope).eventFields;
   const output = describeFestival
     ? classificationReplySchema
     : classificationReplySchema.omit({
@@ -53,12 +72,13 @@ export async function runClassification(
         ? descriptionInstructions + "\n" + classificationInstructions
         : classificationInstructions) + returnInstructions,
     input: {
-      assignedChecks: assignedRoleChecks(
-        "classification",
-        options.input,
+      assignedChecks: specialistChecks("classification", groups),
+      targets: targetContext(
         targets,
+        savedEditions,
+        currentDate,
+        classificationHistory,
       ),
-      targets: targetContext(options, targets, classificationHistory),
       history: saved?.editions.map(classificationHistory),
       ...(describeFestival && {
         savedDescriptions: {
@@ -68,7 +88,7 @@ export async function runClassification(
       }),
       vocabulary: classificationVocabulary(terms),
       corpus: evidencePacket(
-        options.corpus,
+        corpus,
         describeFestival
           ? [...roleEvidenceTopics.classification, "location"]
           : roleEvidenceTopics.classification,
@@ -89,7 +109,7 @@ export async function runClassification(
   try {
     return {
       ...execution,
-      output: materializeClassificationReply(reply, targets, saved, terms),
+      output: materializeClassificationReply(reply, savedEditions, terms),
     };
   } catch (error) {
     return {
