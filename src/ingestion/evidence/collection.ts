@@ -157,7 +157,6 @@ export function createCollection(options: {
     }
     source.leads = pageLinks(read.markdown, read.finalUrl);
     const readerStarted = performance.now();
-    let processing: Source["processing"] = "failed";
     let evidence: Evidence[] | undefined;
     try {
       const execution = await (options.deps.readSource ?? readSource)({
@@ -179,7 +178,6 @@ export function createCollection(options: {
       });
       if (execution.skipReason) {
         source.limitations.push(execution.skipReason);
-        processing = "unprocessed";
         return source;
       }
       source.readerResponse = execution.modelResponse;
@@ -199,13 +197,15 @@ export function createCollection(options: {
         source.limitations = bound.limitations;
         source.processing = bound.limitations.length ? "limited" : "complete";
         await storage.saveEvidence(source, bound.evidence);
-        processing = source.processing;
         evidence = bound.evidence;
       }
+    } catch (error) {
+      source.processing = "failed";
+      throw error;
     } finally {
       options.captureMetric?.("ingestion_reader_finished", {
         source_id: source.id,
-        processing,
+        processing: source.processing,
         duration_ms: Math.round(performance.now() - readerStarted),
         page_utf16_units: read.markdown.length,
         ...(evidence && evidenceMetrics(evidence, read.markdown.length)),

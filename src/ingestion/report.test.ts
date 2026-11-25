@@ -100,8 +100,12 @@ test("compacts successful replies even when the run fails", () => {
   data.outcome = "failed";
   data.general = { ...data.general, status: "success", modelResponse };
   data.specialists.classification = data.general;
-  data.specialists.editor = data.general;
-  data.editor = { ...data.editor, status: "failed", modelResponse };
+  data.editor = {
+    ...data.editor,
+    status: "failed",
+    modelResponse,
+    responseStatus: "success",
+  };
   data.location = { ...data.location, status: "success", modelResponse };
 
   const report = buildResearchReport(data, run);
@@ -127,7 +131,6 @@ test("keeps reply text for failed, rejected and recovered execution", () => {
     status: "success",
     responseFailed: true,
   };
-  data.specialists.editor = data.general;
   data.editor = { ...data.editor, status: "failed", modelResponse };
   data.location = { ...data.location, status: "rejected", modelResponse };
 

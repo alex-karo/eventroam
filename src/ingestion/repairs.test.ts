@@ -134,6 +134,17 @@ function captureStageMetrics() {
   return vi.spyOn(PostHog.prototype, "capture").mockImplementation(() => {});
 }
 
+function capturedGroupReviews(
+  capture: ReturnType<typeof captureStageMetrics>,
+  group: string,
+) {
+  return capture.mock.calls.flatMap(([{ event, properties }]) =>
+    event === "ingestion_editor_group_reviewed" && properties?.group === group
+      ? [properties]
+      : [],
+  );
+}
+
 function fixture(
   page: string,
   {
@@ -421,19 +432,7 @@ it("keeps the first Editor response when targeted review fails", async () => {
           ),
         );
       }
-      return reply(body, {
-        event: { socials: {} },
-        currentOrNextEdition: {
-          tickets: set(
-            prompt.groups
-              ? "https://example.org/tickets"
-              : "https://example.org/product",
-          ),
-        },
-        checks: fixtureChecks(["eventLinks", "currentLinks"]),
-        omitted: [],
-        unresolved: [],
-      });
+      return ticketLinkReply(body, !!prompt.groups);
     },
     { editor },
   );
@@ -474,6 +473,107 @@ it("keeps the first Editor response when targeted review fails", async () => {
     [],
   );
 });
+
+function ticketLinkReply(body: ProviderRequest, revision: boolean) {
+  return reply(body, {
+    event: { socials: {} },
+    currentOrNextEdition: {
+      tickets: set(
+        revision
+          ? "https://example.org/tickets"
+          : "https://example.org/product",
+      ),
+    },
+    checks: fixtureChecks(["eventLinks", "currentLinks"]),
+    omitted: [],
+    unresolved: [],
+  });
+}
+
+it("preserves a failed targeted Editor reply and keeps the first-pass decision", async () => {
+  const capture = captureStageMetrics();
+  const f = fixture("Example Fest 2027. Full pass EUR 130.");
+  const path = "currentOrNextEdition.fields.links.tickets";
+  const object = { decisions: {} };
+  const text = JSON.stringify(object);
+  let editorCalls = 0;
+  const { run } = f.model(["links", "editor"], (body, _index, prompt) => {
+    if (providerRole(body) === "links") {
+      return ticketLinkReply(body, !!prompt.groups);
+    }
+    if (editorCalls++) {
+      return modelReply(text);
+    }
+    return reply(
+      body,
+      review(prompt, { path, decision: "return", note: "Check the link." }),
+    );
+  });
+
+  const result = await run();
+
+  expect(result).toMatchObject({ editorStatus: "failed", outcome: "failed" });
+  expect(result.editorResponse).toEqual({ text, object });
+  expect(capturedGroupReviews(capture, path)).toMatchObject([
+    {
+      first_decision: "return",
+      proposal_returns: 1,
+      final_result: "incomplete",
+    },
+  ]);
+});
+
+it.each([
+  { timing: "before", dispatched: 0 },
+  { timing: "after", dispatched: 1 },
+])(
+  "records Editor returns cancelled $timing dispatch",
+  async ({ timing, dispatched }) => {
+    const capture = captureStageMetrics();
+    const f = fixture("Example Fest 2027. Full pass EUR 130.");
+    const path = "currentOrNextEdition.fields.links.tickets";
+    const controller = new AbortController();
+    const afterReview = ProposalRepairs.prototype.afterReview;
+    vi.spyOn(ProposalRepairs.prototype, "afterReview").mockImplementation(
+      function (this: ProposalRepairs, context, requests, _signal, onStart) {
+        return afterReview.call(
+          this,
+          context,
+          requests,
+          controller.signal,
+          onStart,
+        );
+      },
+    );
+    if (timing === "before") {
+      controller.abort();
+    }
+    const { run, requests } = f.model(
+      "links",
+      (body, _index, prompt) => {
+        if (prompt.groups) {
+          controller.abort();
+        }
+        return ticketLinkReply(body, !!prompt.groups);
+      },
+      {
+        editor: editorReply((prompt) =>
+          review(prompt, { path, decision: "return", note: "Check the link." }),
+        ),
+      },
+    );
+
+    const result = await run();
+
+    expect(requests).toHaveLength(1 + dispatched);
+    expect(result.repairs).toMatchObject([
+      { path, failure: { message: "Repair cancelled" } },
+    ]);
+    expect(capturedGroupReviews(capture, path)).toMatchObject([
+      { first_decision: "return", proposal_returns: dispatched },
+    ]);
+  },
+);
 
 it("keeps revised General dates during a later Tickets return", async () => {
   const f = fixture("Example Fest runs from June 1 to 3, 2027. Pass EUR 130.");
@@ -760,25 +860,15 @@ it.each([
         }),
       }),
     );
-    expect(
-      capture.mock.calls
-        .map(([event]) => event)
-        .filter(
-          ({ event, properties }) =>
-            event === "ingestion_editor_group_reviewed" &&
-            properties?.group === path,
-        ),
-    ).toMatchObject([
+    expect(capturedGroupReviews(capture, path)).toMatchObject([
       {
-        properties: {
-          run_id: result.runId,
-          first_proposed: true,
-          first_decision: "return",
-          validation_returns: 0,
-          proposal_returns: 1,
-          omission_returns: 0,
-          final_result: withdraw ? "withdrawn" : "approved",
-        },
+        run_id: result.runId,
+        first_proposed: true,
+        first_decision: "return",
+        validation_returns: 0,
+        proposal_returns: 1,
+        omission_returns: 0,
+        final_result: withdraw ? "withdrawn" : "approved",
       },
     ]);
     expect(result.researchStatus).toBe(

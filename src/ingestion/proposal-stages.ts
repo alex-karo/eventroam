@@ -25,7 +25,8 @@ export function recordSpecialistOutputs(
   data: IngestionData,
   outputs: SpecialistOutputs,
 ) {
-  for (const [role, output] of Object.entries(outputs)) {
+  for (const role of ["tickets", "classification", "links"] as const) {
+    const output = outputs[role];
     const execution = data.specialists[role];
     if (execution && output) {
       data.specialists[role] = {
@@ -165,7 +166,6 @@ export async function reviewPreparedProposals(
   try {
     const execution = await runReview(prepared);
     metrics?.firstReview(execution.output?.decisions);
-    data.specialists.editor = execution;
     data.editor = {
       status: execution.status,
       modelResponse: execution.modelResponse,
@@ -191,10 +191,14 @@ export async function reviewPreparedProposals(
       returned = reviewReturns(review, groups)
     ) {
       try {
-        const measureReturns = metrics?.watchReturns(prepared, returned);
-        const round = await owned
-          .track(repairs.afterReview(repairContext, returned, signal))
-          .finally(measureReturns);
+        const round = await owned.track(
+          repairs.afterReview(
+            repairContext,
+            returned,
+            signal,
+            metrics?.trackReturns(prepared),
+          ),
+        );
         applyRepairRejections(review, round.records);
         recordSpecialistOutputs(data, round.outputs);
         const revised = assemblePreparedProposals(
@@ -223,8 +227,14 @@ export async function reviewPreparedProposals(
         const targeted = await runReview(prepared, returnedGroups);
         if (targeted.status !== "success" || !targeted.output) {
           data.errors.push(...targeted.errors);
-          data.editor.status = "failed";
-          data.editor.errors.push(...targeted.errors);
+          data.editor = {
+            status: "failed",
+            modelResponse: targeted.modelResponse ?? data.editor.modelResponse,
+            ...(targeted.modelResponse === null && {
+              responseStatus: "success",
+            }),
+            errors: [...data.editor.errors, ...targeted.errors],
+          };
           data.outcome = "failed";
           round.recordEditorFailure(targeted.errors[0]);
           return targeted;

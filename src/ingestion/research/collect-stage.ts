@@ -3,6 +3,8 @@ import type { IngestionData } from "../contracts";
 import { buildAssignment } from "../roles/assignment";
 import { collectResearch } from "../roles/research/agent";
 import { validateResearchSummary } from "../roles/research/validate";
+import type { StageMetrics } from "../runtime/observability/stage-metrics";
+import type { SourceSession } from "../tools/session";
 
 function sourceErrorCode(source: { status: string; reasonCode?: string }) {
   if (source.status === "unsupported") {
@@ -11,6 +13,46 @@ function sourceErrorCode(source: { status: string; reasonCode?: string }) {
   return source.reasonCode?.includes("block")
     ? ("source_blocked" as const)
     : ("source_unavailable" as const);
+}
+
+function researchMetrics(
+  data: IngestionData,
+  sources: SourceSession,
+  options: {
+    started: number;
+    assignedChecks: number;
+    cancelled: boolean;
+    validSummary: boolean;
+  },
+): StageMetrics["ingestion_research_finished"] {
+  const evidenceSources = new Set(
+    data.corpus?.evidence.map(({ sourceId }) => sourceId),
+  );
+  const checks = options.validSummary
+    ? data.research.output?.checks
+    : undefined;
+  const completed = options.validSummary && data.outcome !== "failed";
+  const outcome = completed ? "completed" : "failed";
+  return {
+    status: options.cancelled ? "cancelled" : outcome,
+    duration_ms: Math.round(performance.now() - options.started),
+    pages_read: new Set(
+      sources.reads
+        .filter(({ status }) => status === "ok")
+        .map(({ finalUrl }) => finalUrl),
+    ).size,
+    pages_with_evidence: evidenceSources.size,
+    searches_completed: sources.completedSearches,
+    assigned_checks: options.assignedChecks,
+    ...(checks && {
+      returned_checks: checks.length,
+      checks_with_evidence: checks.filter(
+        ({ blocker, sourceIds }) =>
+          !blocker && sourceIds.some((id) => evidenceSources.has(id)),
+      ).length,
+      blocked_checks: checks.filter(({ blocker }) => blocker).length,
+    }),
+  };
 }
 
 export async function collectSourceEvidence(
@@ -80,34 +122,14 @@ export async function collectSourceEvidence(
       corpusVersion: data.corpus.version,
     };
   } finally {
-    if (captureMetric) {
-      const { reads, discovery } = sources;
-      const evidenceSources = new Set(
-        data.corpus?.evidence.map(({ sourceId }) => sourceId),
-      );
-      const checks = validSummary ? data.research.output?.checks : undefined;
-      const completed = validSummary && data.outcome !== "failed";
-      const outcome = completed ? "completed" : "failed";
-      captureMetric("ingestion_research_finished", {
-        status: signal.aborted ? "cancelled" : outcome,
-        duration_ms: Math.round(performance.now() - started),
-        pages_read: new Set(
-          reads
-            .filter(({ status }) => status === "ok")
-            .map(({ finalUrl }) => finalUrl),
-        ).size,
-        pages_with_evidence: evidenceSources.size,
-        searches_completed: discovery.length,
-        assigned_checks: assignment.checks.length,
-        ...(checks && {
-          returned_checks: checks.length,
-          checks_with_evidence: checks.filter(
-            ({ blocker, sourceIds }) =>
-              !blocker && sourceIds.some((id) => evidenceSources.has(id)),
-          ).length,
-          blocked_checks: checks.filter(({ blocker }) => blocker).length,
-        }),
-      });
-    }
+    captureMetric?.(
+      "ingestion_research_finished",
+      researchMetrics(data, sources, {
+        started,
+        assignedChecks: assignment.checks.length,
+        cancelled: signal.aborted,
+        validSummary,
+      }),
+    );
   }
 }

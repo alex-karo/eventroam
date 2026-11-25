@@ -5,7 +5,7 @@ import type { Source } from "../../evidence/contracts";
 import type { ProposalGroup } from "../../groups";
 import type { ReviewDecision } from "../../roles/editor/contracts";
 
-type StageMetrics = {
+export type StageMetrics = {
   ingestion_research_finished: {
     status: "completed" | "failed" | "cancelled";
     duration_ms: number;
@@ -57,7 +57,8 @@ export type CaptureStageMetric = <Event extends keyof StageMetrics>(
   properties: StageMetrics[Event],
 ) => void;
 
-let posthog: PostHog | undefined;
+// Null marks the start of shutdown.
+let posthog: PostHog | null | undefined;
 
 export function ingestionStageMetrics(
   runId: string,
@@ -70,6 +71,9 @@ export function ingestionStageMetrics(
   }
 
   return (event, properties) => {
+    if (posthog === null) {
+      return;
+    }
     try {
       posthog ??= new PostHog(key, {
         host,
@@ -97,7 +101,7 @@ export function ingestionStageMetrics(
 
 export async function shutdownIngestionStageMetrics() {
   const client = posthog;
-  posthog = undefined;
+  posthog = null;
   try {
     await client?.shutdown(2000);
   } catch {

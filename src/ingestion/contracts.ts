@@ -3,7 +3,11 @@ import type { CollectionOutput } from "./roles/research/contracts";
 import type { PlanDiagnostics } from "./stage";
 import type { RoleExecution } from "./roles/invoke";
 import type { FrozenCorpus } from "./evidence/contracts";
-import type { PreparedProposals, AcceptedProposals } from "./proposals";
+import type {
+  PreparedProposals,
+  AcceptedProposals,
+  SpecialistOutputs,
+} from "./proposals";
 import type { ReadyCatalogPlan } from "./catalog-plan";
 import type { StageResult } from "./stage";
 import {
@@ -154,7 +158,7 @@ export type IngestionData = {
   discovery: SearchWebResult[];
   research: RoleExecution<CollectionOutput>;
   general: RoleExecution<import("./roles/general/contracts").GeneralOutput>;
-  specialists: Record<string, RoleExecution>;
+  specialists: Partial<Record<keyof SpecialistOutputs, RoleExecution>>;
   corpus: FrozenCorpus | null;
   prepared: StageResult<PreparedProposals> | null;
   editor: EditorExecution;

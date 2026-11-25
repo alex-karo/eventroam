@@ -5,19 +5,9 @@ import { gunzipSync } from "node:zlib";
 import { beforeEach, expect, test, vi } from "vitest";
 import { readResearchCatalog } from "@/catalog/read/research";
 import type { GenerateRole } from "@/ingestion/roles/invoke";
-import {
-  createChatMemory,
-  StudioMastra,
-} from "@/mastra/catalog-assistant/memory";
+import type { ResearchDependencies } from "@/ingestion/contracts";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
-import {
-  fixtureDependencies,
-  fixtureTool,
-  fixtureUrl,
-  runFixtureResearch,
-} from "@/test/ingestion";
-import { shutdownIngestionStageMetrics } from "./stage-metrics";
 
 type SentEvent = {
   event: string;
@@ -25,7 +15,9 @@ type SentEvent = {
   properties: Record<string, unknown>;
 };
 
-beforeEach(() => {
+beforeEach(async () => {
+  vi.resetModules();
+  const { shutdownIngestionStageMetrics } = await import("./stage-metrics");
   const root = mkdtempSync(join(tmpdir(), "eventroam-stage-metrics-"));
   vi.stubEnv("CATALOG_SOURCE_DIRECTORY", root);
   vi.stubEnv("CATALOG_TRACING", "false");
@@ -60,9 +52,78 @@ function receiveEvents(rejectBatch = false) {
   return events;
 }
 
+function stageCoverageFixture({
+  fixtureDependencies,
+  fixtureTool,
+  fixtureUrl,
+}: typeof import("@/test/ingestion")) {
+  return {
+    ...fixtureDependencies({
+      reader: {
+        overview: "PRIVATE_OVERVIEW",
+        coverage: { found: [], notPublished: [] },
+        topics: ["dates"],
+        statedYears: ["2027"],
+        limitations: [],
+        evidence: [
+          {
+            quote: { start: 1, end: 2 },
+            context: [1, 3],
+            topics: ["identity", "dates", "location"],
+            editionClues: [],
+            uncertainty: null,
+          },
+          { quote: 2, topics: ["dates"] },
+        ],
+      },
+      research: (async (_role, prompt, call) => {
+        const { checks } = JSON.parse(prompt) as { checks: { key: string }[] };
+        const alias = `${fixtureUrl}alias`;
+        await fixtureTool(call, "searchWeb", { query: "PRIVATE_QUERY" });
+        for (const url of [fixtureUrl, alias, `${fixtureUrl}other`]) {
+          await fixtureTool(call, "inspectPage", { url });
+        }
+        return {
+          checks: checks.slice(0, -1).map(({ key }, index) => ({
+            check: key,
+            sourceIds: index === 1 ? [] : ["s1"],
+            blocker: index === 0 ? "PRIVATE_BLOCKER" : null,
+          })),
+          unresolved: [],
+        };
+      }) satisfies GenerateRole,
+    }),
+    readPage: async (url, { budget }) => {
+      budget.consumePage();
+      return {
+        attemptedUrl: url,
+        finalUrl: url.endsWith("/alias") ? fixtureUrl : url,
+        retrievedAt: "2026-11-01T00:00:00Z",
+        method: "http",
+        status: "ok",
+        markdown: page,
+      };
+    },
+    searchWeb: async (query, { budget }) => {
+      budget.consumeSearch();
+      budget.consumeSearch();
+      return {
+        query,
+        retrievedAt: "2026-11-01T00:00:00Z",
+        candidates: [
+          { url: fixtureUrl, title: "PRIVATE_TITLE", highlights: [] },
+        ],
+      };
+    },
+  } satisfies Partial<ResearchDependencies>;
+}
+
 test.each(["preview", "committed", "failed"] as const)(
   "records source work and writer receipts for a %s run",
   async (status) => {
+    const { createChatMemory, StudioMastra } =
+      await import("@/mastra/catalog-assistant/memory");
+    const fixtures = await import("@/test/ingestion");
     const { client, path } = testDatabase();
     if (status === "failed") {
       client.exec(
@@ -75,70 +136,12 @@ test.each(["preview", "committed", "failed"] as const)(
     }
     const events = receiveEvents(status === "committed");
     const dryRun = status === "preview";
-    const result = await runFixtureResearch(
+    const result = await fixtures.runFixtureResearch(
       { mode: "add", input: "Example Fest", actor: "PRIVATE_ACTOR", dryRun },
       {
         client,
         todayUtc: "2026-11-01",
-        ...fixtureDependencies({
-          reader: {
-            overview: "PRIVATE_OVERVIEW",
-            coverage: { found: [], notPublished: [] },
-            topics: ["dates"],
-            statedYears: ["2027"],
-            limitations: [],
-            evidence: [
-              {
-                quote: { start: 1, end: 2 },
-                context: [1, 3],
-                topics: ["identity", "dates", "location"],
-                editionClues: [],
-                uncertainty: null,
-              },
-              { quote: 2, topics: ["dates"] },
-            ],
-          },
-          research: (async (_role, prompt, call) => {
-            const { checks } = JSON.parse(prompt) as {
-              checks: { key: string }[];
-            };
-            const alias = `${fixtureUrl}alias`;
-            await fixtureTool(call, "searchWeb", { query: "PRIVATE_QUERY" });
-            for (const url of [fixtureUrl, alias, `${fixtureUrl}other`]) {
-              await fixtureTool(call, "inspectPage", { url });
-            }
-            return {
-              checks: checks.slice(0, -1).map(({ key }, index) => ({
-                check: key,
-                sourceIds: index === 1 ? [] : ["s1"],
-                blocker: index === 0 ? "PRIVATE_BLOCKER" : null,
-              })),
-              unresolved: [],
-            };
-          }) satisfies GenerateRole,
-        }),
-        readPage: async (url, { budget }) => {
-          budget.consumePage();
-          return {
-            attemptedUrl: url,
-            finalUrl: url.endsWith("/alias") ? fixtureUrl : url,
-            retrievedAt: "2026-11-01T00:00:00Z",
-            method: "http",
-            status: "ok",
-            markdown: page,
-          };
-        },
-        searchWeb: async (query, { budget }) => {
-          budget.consumeSearch();
-          budget.consumeSearch();
-          return {
-            query,
-            retrievedAt: "2026-11-01T00:00:00Z",
-            candidates: [
-              { url: fixtureUrl, title: "PRIVATE_TITLE", highlights: [] },
-            ],
-          };
-        },
+        ...stageCoverageFixture(fixtures),
       },
     );
     const failed = status === "failed";
@@ -242,6 +245,9 @@ test.each(["preview", "committed", "failed"] as const)(
 );
 
 test("records an unchanged write when the writer receipts have no changes", async () => {
+  const { fixtureDependencies, fixtureUrl, runFixtureResearch } =
+    await import("@/test/ingestion");
+  const { shutdownIngestionStageMetrics } = await import("./stage-metrics");
   const { client } = testDatabase();
   const fixtures = testFixtures(client);
   const event = fixtures.event({ canonicalName: "Example Fest" });
@@ -275,5 +281,32 @@ test("records an unchanged write when the writer receipts have no changes", asyn
         changed_operation_kinds: [],
       },
     },
+  ]);
+});
+
+test("sends queued events and drops events from the start of shutdown", async () => {
+  const { ingestionStageMetrics, shutdownIngestionStageMetrics } =
+    await import("./stage-metrics");
+  const events = receiveEvents();
+  const capture = ingestionStageMetrics("active-run", { mode: "add" })!;
+  const properties = {
+    status: "completed" as const,
+    duration_ms: 1,
+    review_calls: 1,
+  };
+  capture("ingestion_editor_finished", properties);
+
+  const shutdown = shutdownIngestionStageMetrics();
+  capture("ingestion_editor_finished", properties);
+  await shutdown;
+  capture("ingestion_editor_finished", properties);
+  ingestionStageMetrics("late-run", { mode: "add" })?.(
+    "ingestion_editor_finished",
+    properties,
+  );
+  await shutdownIngestionStageMetrics();
+
+  expect(events.map(({ distinct_id }) => distinct_id)).toEqual([
+    "ingestion:active-run",
   ]);
 });

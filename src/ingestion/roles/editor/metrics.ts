@@ -51,16 +51,9 @@ export function editorMetrics(
         }
       }
     },
-    watchReturns(proposals: PreparedProposals, requests: ReturnRequest[]) {
-      const start = repairs.records.length;
-      return () => {
-        const attempted = new Set(
-          repairs.records.slice(start).map(({ path }) => path),
-        );
+    trackReturns(proposals: PreparedProposals) {
+      return (requests: ReturnRequest[]) => {
         for (const { group } of requests) {
-          if (!attempted.has(group.path)) {
-            continue;
-          }
           const observation = observations.get(group.path)!;
           if (groupProposal(proposals, group) === undefined) {
             observation.omissionReturns += 1;
@@ -93,13 +86,8 @@ export function editorMetrics(
           proposalReturns,
           omissionReturns,
         } = observation;
-        if (
-          !proposed &&
-          !first &&
-          !validationReturns &&
-          !proposalReturns &&
-          !omissionReturns
-        ) {
+        const returns = validationReturns + proposalReturns + omissionReturns;
+        if (!proposed && !first && returns === 0) {
           continue;
         }
         const last = lastRepair.get(path);

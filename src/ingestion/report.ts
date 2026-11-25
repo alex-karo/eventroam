@@ -92,7 +92,10 @@ export function buildResearchReport(
     eventId,
     modelResponse: reportResponse(general),
     classificationResponse: reportResponse(specialists.classification),
-    editorResponse: reportResponse(specialists.editor ?? editor),
+    editorResponse: reportResponse({
+      modelResponse: editor.modelResponse,
+      status: editor.responseStatus ?? editor.status,
+    }),
     ...(repairs.length > 0 && {
       repairs: repairs.map((entry) => ({
         ...entry,
