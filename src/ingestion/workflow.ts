@@ -5,37 +5,29 @@ import {
 } from "./workflow-result";
 import { researchErrorSchema } from "./research/contracts";
 import {
-  assignedSpecialists,
-  specialistFailures,
-  specialistResultsSchema,
   specialistRoles,
   specialistStateSchema,
   type SpecialistRole,
 } from "./specialist-results";
 import { logPreparation } from "./workflow-logging";
-import { createCollection } from "./evidence/collection";
-import { buildAssignment } from "./roles/assignment";
-import { collectSourceEvidence } from "./research/collect-stage";
-import { runGeneral } from "./roles/general/agent";
-import { runTickets } from "./roles/tickets/agent";
-import { runClassification } from "./roles/classification/agent";
-import { runLinks } from "./roles/links/agent";
-import type { RoleOptions } from "./roles/options";
 import {
-  assemblePreparedProposals,
-  recordSpecialistOutputs,
+  collectSourceEvidence,
+  readInitialSource,
+} from "./research/collect-stage";
+import {
+  prepareSpecialistProposals,
   reviewPreparedProposals,
 } from "./proposal-stages";
-import { repairDiagnostic } from "./repairs";
 import { prepareCatalogPlan } from "./catalog-plan";
-import { initialDiagnostics, stageDiagnostics } from "./stage";
+import { initialDiagnostics } from "./stage";
+import { locationExecutionSchema } from "./roles/location/execution";
+import { countryBaselineConflict } from "./research/guards";
 import {
-  emptyLocationExecution,
-  locationExecutionSchema,
-} from "./roles/location/execution";
-import { resolveLocation } from "./roles/location/agent";
-import { buildLocationInput } from "./roles/location/input";
-import { countryBaselineConflict, editionEligibility } from "./research/guards";
+  runLocationBranch,
+  runSpecialistBranch,
+  selectGeneralTargets,
+  workflowRoleOptions,
+} from "./workflow-roles";
 import { Mastra } from "@mastra/core/mastra";
 import type { WorkflowsStorage } from "@mastra/core/storage";
 import {
@@ -54,7 +46,6 @@ import type {
 import { CatalogAttempt } from "./attempt";
 import { createIngestionData } from "./contracts";
 import { loadResearchContext } from "./research/context";
-import { createSourceSession } from "./tools/session";
 import type {
   ReadPageResult,
   SourceReadMetadata,
@@ -349,55 +340,10 @@ export function createCatalogIngestionWorkflow(
       return data.context;
     },
   );
-  const roleOptions = (
-    owned: CatalogAttempt,
-    data: IngestionData,
-    signal: AbortSignal,
-  ): RoleOptions => ({
-    input: owned.input,
-    context: data.context!,
-    corpus: data.corpus!,
-    budget: owned.budget,
-    config: owned.config,
-    deps: owned.deps,
-    signal,
-    tracing: owned.trace?.tracing,
-    capture: owned.repairs.capture,
-  });
   const readInitial = phase(
     "read-initial-source",
     "Save and inspect the initial official source",
-    async (owned, data, signal) => {
-      owned.sources = createSourceSession(
-        owned.budget,
-        owned.config,
-        data.context!.knownLinks,
-        owned.deps,
-        owned.trace?.log,
-      );
-      const assignment = buildAssignment(owned.input, data.context!);
-      owned.collection = createCollection({
-        runId: owned.ingestionRunId,
-        startedAt: owned.started,
-        sources: owned.sources,
-        budget: owned.budget,
-        config: owned.config,
-        deps: owned.deps,
-        assignment: {
-          requestedName: assignment.identityContext.requestedName,
-          currentDate: assignment.currentDate,
-        },
-        signal,
-        tracing: owned.trace?.tracing,
-        captureMetric: owned.captureMetric,
-      });
-      if (owned.sources.initialUrl) {
-        await owned.track(
-          owned.collection.inspectPage(owned.sources.initialUrl),
-        );
-      }
-      return { sources: owned.collection.sources };
-    },
+    readInitialSource,
   );
   const research = phase(
     "collect-sources",
@@ -407,83 +353,9 @@ export function createCatalogIngestionWorkflow(
   const general = phase(
     "general-facts",
     "Confirm identity and select Edition targets",
-    async (owned, data, signal) => {
-      if (data.outcome === "failed") {
-        return null;
-      }
-      data.general = await owned.track(
-        runGeneral(roleOptions(owned, data, signal)),
-      );
-      try {
-        const result = await owned.track(
-          owned.repairs.general(
-            {
-              corpus: data.corpus!,
-              context: data.context!,
-              input: owned.input,
-            },
-            signal,
-          ),
-        );
-        if (result?.revisedOutput) {
-          data.general = {
-            ...data.general,
-            ...(data.general.status === "failed" && { responseFailed: true }),
-            status: "success",
-            output: result.revisedOutput,
-            errors: [],
-          };
-        }
-        data.researchValidation = result?.targets ?? null;
-      } catch (error) {
-        data.errors.push(repairDiagnostic(error));
-        data.outcome = "failed";
-        return data.general;
-      }
-      if (!data.researchValidation) {
-        data.errors.push(...data.general.errors);
-        data.outcome = "failed";
-        return data.general;
-      }
-      const diagnostics = stageDiagnostics(data.researchValidation);
-      const saved = data.context!.catalog.find(
-        (event) => event.id === diagnostics.matchedEventId,
-      );
-      if (
-        owned.input.mode === "add" &&
-        data.researchValidation.status !== "reject" &&
-        data.general.output &&
-        data.general.output.decision !== "uncertain"
-      ) {
-        owned.trace?.setEventName(
-          saved?.canonicalName ?? data.general.output.observedEventName,
-        );
-      }
-      data.errors.push(...diagnostics.errors);
-      data.unresolved.push(...diagnostics.unresolved);
-      if (data.researchValidation.status !== "continue") {
-        data.outcome =
-          data.researchValidation.status === "skip" ? "skipped" : "failed";
-      } else {
-        const eligibility = editionEligibility(
-          data.researchValidation.value,
-          saved?.editions,
-          owned.input.scope,
-        );
-        if (eligibility !== "continue") {
-          data.outcome = eligibility;
-        }
-        if (eligibility === "skipped") {
-          data.unresolved.push({
-            field: "edition",
-            message: "Insufficient information about editions",
-          });
-        }
-      }
-      return { execution: data.general, targets: data.researchValidation };
-    },
+    selectGeneralTargets,
   );
-  // Branch steps return their own records. They do not race to replace shared state.
+  // Each branch returns a result without replacing shared state.
   const specialist = (role: SpecialistRole) =>
     createStep({
       id: role,
@@ -492,162 +364,26 @@ export function createCatalogIngestionWorkflow(
       retries: 0,
       stateSchema: stepStateSchema,
       execute: async ({ runId, state, abortSignal }) => {
-        const owned = attempt(runId),
-          data = state.data;
-        const targets =
-          data.researchValidation?.status === "continue"
-            ? data.researchValidation.value
-            : null;
-        if (
-          !targets ||
-          data.report ||
-          data.outcome !== null ||
-          !assignedSpecialists(owned.input.scope, targets).includes(role)
-        ) {
-          if (role === "location") {
-            return stepSchema.parse(emptyLocationExecution());
-          }
-          return {
-            status: "not_run",
-            skipReason: "No assigned target",
-            modelResponse: null,
-            errors: [],
-            model: owned.config.model,
-            promptVersion: role,
-            durationMs: 0,
-          };
-        }
-        const options = roleOptions(owned, data, abortSignal);
-        try {
-          const work = () => {
-            if (role === "location") {
-              return resolveLocation(
-                buildLocationInput(
-                  targets,
-                  data.corpus!,
-                  data.context!,
-                  owned.input,
-                ),
-                owned.budget,
-                owned.config,
-                owned.deps,
-                owned.trace?.tracing,
-                abortSignal,
-                owned.repairs.captureLocation,
-              );
-            }
-            if (role === "tickets") {
-              return runTickets(options, targets);
-            }
-            if (role === "classification") {
-              return runClassification(options, targets);
-            }
-            return runLinks(options, targets);
-          };
-          return stepSchema.parse(await owned.track<unknown>(work()));
-        } catch {
-          if (role === "location") {
-            return stepSchema.parse({
-              ...emptyLocationExecution(),
-              status: "failed",
-              errors: [
-                {
-                  code: "location_failed",
-                  stage: "location",
-                  message: "Location branch failed",
-                },
-              ],
-            });
-          }
-          return {
-            status: "failed",
-            modelResponse: null,
-            errors: [
-              {
-                code: "workflow_failed",
-                stage: "workflow",
-                message: `${role} branch failed`,
-              },
-            ],
-            model: owned.config.model,
-            promptVersion: role,
-            durationMs: 0,
-          };
-        }
+        const owned = attempt(runId);
+        return role === "location"
+          ? runLocationBranch(owned, state.data, abortSignal)
+          : runSpecialistBranch(role, owned, state.data, abortSignal);
       },
     });
   const join = phase(
     "assemble-proposals",
     "Validate fixed proposals and return field errors to their owners",
-    async (owned, data, signal, inputData) => {
-      if (
-        data.researchValidation?.status !== "continue" ||
-        data.outcome !== null
-      ) {
-        return null;
-      }
-      const parsed = specialistResultsSchema.safeParse(inputData);
-      if (!parsed.success) {
-        data.errors.push({
-          code: "workflow_failed",
-          stage: "workflow",
-          message: "Specialist results are missing or invalid",
-        });
-        data.outcome = "failed";
-        return null;
-      }
-      const results = parsed.data;
-      const targets = data.researchValidation.value;
-      for (const role of ["tickets", "classification", "links"] as const) {
-        data.specialists[role] = results[role];
-      }
-      if (results.location.status !== "not_run") {
-        data.location = results.location;
-      }
-      const firstQuestions = [
-        ...(data.location.materialized?.unresolved ?? []),
-        ...Object.values(results).flatMap((execution) =>
-          "output" in execution ? execution.output.unresolved : [],
-        ),
-      ];
-      const failures = specialistFailures(
-        results,
-        assignedSpecialists(owned.input.scope, targets),
-        (role) => Boolean(owned.repairs.raw(role)),
-      );
-      if (failures.length) {
-        data.errors.push(...failures);
-        data.unresolved.push(...firstQuestions);
-        data.outcome = "failed";
-        return results;
-      }
-      try {
-        const outputs = await owned.track(
-          owned.repairs.beforeReview(
-            {
-              corpus: data.corpus!,
-              context: data.context!,
-              input: owned.input,
-              targets,
-            },
-            signal,
-          ),
-        );
-        recordSpecialistOutputs(data, outputs);
-        return assemblePreparedProposals(owned, data, targets, outputs);
-      } catch (error) {
-        data.errors.push(repairDiagnostic(error));
-        data.unresolved.push(...firstQuestions);
-        data.outcome = "failed";
-        return results;
-      }
-    },
+    prepareSpecialistProposals,
   );
   const edit = phase(
     "review-proposals",
     "Review proposals and return disputed groups to their owners",
     (owned, data, signal) =>
-      reviewPreparedProposals(owned, data, roleOptions(owned, data, signal)),
+      reviewPreparedProposals(
+        owned,
+        data,
+        workflowRoleOptions(owned, data, signal),
+      ),
   );
   const prepareOperations = phase(
     "prepare-catalog-plan",

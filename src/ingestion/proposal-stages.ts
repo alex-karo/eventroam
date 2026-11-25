@@ -15,13 +15,84 @@ import { reviewReturns, reviewScope } from "./roles/editor/review";
 import type { Targets } from "./roles/general/contracts";
 import type { RoleOptions } from "./roles/options";
 import {
+  assignedSpecialists,
+  specialistFailures,
+  specialistResultsSchema,
+} from "./specialist-results";
+import {
   initialDiagnostics,
   stageDiagnostics,
   type PlanDiagnostics,
 } from "./stage";
 import { logPreparation } from "./workflow-logging";
 
-export function recordSpecialistOutputs(
+export async function prepareSpecialistProposals(
+  owned: CatalogAttempt,
+  data: IngestionData,
+  signal: AbortSignal,
+  inputData?: unknown,
+) {
+  if (data.researchValidation?.status !== "continue" || data.outcome !== null) {
+    return null;
+  }
+  const parsed = specialistResultsSchema.safeParse(inputData);
+  if (!parsed.success) {
+    data.errors.push({
+      code: "workflow_failed",
+      stage: "workflow",
+      message: "Specialist results are missing or invalid",
+    });
+    data.outcome = "failed";
+    return null;
+  }
+  const results = parsed.data;
+  const targets = data.researchValidation.value;
+  for (const role of ["tickets", "classification", "links"] as const) {
+    data.specialists[role] = results[role];
+  }
+  if (results.location.status !== "not_run") {
+    data.location = results.location;
+  }
+  const firstQuestions = [
+    ...(data.location.materialized?.unresolved ?? []),
+    ...Object.values(results).flatMap((execution) =>
+      "output" in execution ? execution.output.unresolved : [],
+    ),
+  ];
+  const failures = specialistFailures(
+    results,
+    assignedSpecialists(owned.input.scope, targets),
+    (role) => Boolean(owned.repairs.raw(role)),
+  );
+  if (failures.length) {
+    data.errors.push(...failures);
+    data.unresolved.push(...firstQuestions);
+    data.outcome = "failed";
+    return results;
+  }
+  try {
+    const outputs = await owned.track(
+      owned.repairs.beforeReview(
+        {
+          corpus: data.corpus!,
+          context: data.context!,
+          input: owned.input,
+          targets,
+        },
+        signal,
+      ),
+    );
+    recordSpecialistOutputs(data, outputs);
+    return assemblePreparedProposals(owned, data, targets, outputs);
+  } catch (error) {
+    data.errors.push(repairDiagnostic(error));
+    data.unresolved.push(...firstQuestions);
+    data.outcome = "failed";
+    return results;
+  }
+}
+
+function recordSpecialistOutputs(
   data: IngestionData,
   outputs: SpecialistOutputs,
 ) {
@@ -41,7 +112,7 @@ export function recordSpecialistOutputs(
   }
 }
 
-export function assemblePreparedProposals(
+function assemblePreparedProposals(
   owned: CatalogAttempt,
   data: IngestionData,
   targets: Targets & PlanDiagnostics,

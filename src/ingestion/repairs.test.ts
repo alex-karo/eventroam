@@ -757,14 +757,35 @@ it.each(["approve", "reject"] as const)(
 );
 
 it.each([
-  "correct",
-  "withdraw",
-  "unfinished",
-  "other questions",
-  "blocked",
+  { name: "correct", withdraw: false, researchStatus: "success" },
+  { name: "withdraw", withdraw: true, researchStatus: "success" },
+  {
+    name: "unfinished",
+    withdraw: true,
+    checkStatus: "unfinished",
+    researchStatus: "partial",
+  },
+  {
+    name: "other questions",
+    withdraw: true,
+    includeOtherQuestions: true,
+    researchStatus: "partial",
+  },
+  {
+    name: "blocked",
+    withdraw: true,
+    blocker: "An additional source is unavailable.",
+    researchStatus: "partial",
+  },
 ] as const)(
-  "returns the first disputed classification and accepts its %s reply",
-  async (kind) => {
+  "returns the first disputed classification and accepts its $name reply",
+  async ({
+    withdraw,
+    checkStatus,
+    includeOtherQuestions,
+    blocker,
+    researchStatus,
+  }) => {
     const capture = captureStageMetrics();
     const f = fixture(
       "Example Fest 2027 is a music festival. Its setting is not confirmed.",
@@ -776,7 +797,6 @@ it.each([
       { field: path, editionKey: "2026", message: reason },
       { field: path, message: "Which of the remaining terms applies?" },
     ];
-    const withdraw = kind !== "correct";
     const defaults = fixtureRoleGenerator();
     const editor = editorReply((prompt, index) => {
       if (!index) {
@@ -814,27 +834,24 @@ it.each([
                 },
           checks: [
             ...fixtureChecks(["description"]),
-            ...fixtureChecks(
-              ["currentClassification"],
-              kind === "unfinished" ? "unfinished" : "verified",
-            ),
+            ...fixtureChecks(["currentClassification"], checkStatus),
           ],
           unresolved:
             index && withdraw
               ? [
                   { field: path, message: reason },
-                  ...(kind === "other questions" ? otherQuestions : []),
+                  ...(includeOtherQuestions ? otherQuestions : []),
                 ]
               : [],
         }),
       {
         editor,
-        ...(kind === "blocked" && {
+        ...(blocker && {
           research: (async (role, prompt, call) => {
             const result = (await defaults(role, prompt, call)) as {
               checks: { blocker: string | null }[];
             };
-            result.checks[0].blocker = "An additional source is unavailable.";
+            result.checks[0].blocker = blocker;
             return result;
           }) satisfies GenerateRole,
         }),
@@ -871,14 +888,12 @@ it.each([
         final_result: withdraw ? "withdrawn" : "approved",
       },
     ]);
-    expect(result.researchStatus).toBe(
-      kind === "correct" || kind === "withdraw" ? "success" : "partial",
-    );
+    expect(result.researchStatus).toBe(researchStatus);
     expect(result.unresolved).not.toContainEqual({
       field: path,
       message: reason,
     });
-    if (kind === "other questions") {
+    if (includeOtherQuestions) {
       expect(result.unresolved).toEqual(expect.arrayContaining(otherQuestions));
     }
     expect(
@@ -977,9 +992,14 @@ it.each(["approve", "withdraw"] as const)(
   },
 );
 
-it.each(["new", "saved", "preview", "fatal"] as const)(
-  "keeps the corrected ticket link after social repair failures (%s)",
-  async (kind) => {
+it.each([
+  { name: "new", hasSavedLinks: false },
+  { name: "saved", hasSavedLinks: true },
+  { name: "preview", hasSavedLinks: true, preview: true },
+  { name: "fatal", hasSavedLinks: true, invalidEvidence: true },
+] as const)(
+  "keeps the corrected ticket link after social repair failures ($name)",
+  async ({ hasSavedLinks, preview = false, invalidEvidence = false }) => {
     const capture = captureStageMetrics();
     const ticketPath = "currentOrNextEdition.fields.links.tickets";
     const socialPaths = ["instagram", "facebook", "youtube"].map(
@@ -994,7 +1014,7 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
     const f = fixture(
       "Example Fest 2027. Ticket overview: https://example.org/tickets.",
     );
-    if (kind !== "new") {
+    if (hasSavedLinks) {
       const edition = f.f.edition(f.event, {
         editionKey: "2027",
         editionYear: 2027,
@@ -1005,7 +1025,7 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
     const before = f.saved();
     const editor = editorReply((prompt, index) => {
       if (!index) {
-        if (kind === "new") {
+        if (!hasSavedLinks) {
           expect(prompt.missingGroups).toContain(ticketPath);
         }
         return review(
@@ -1048,14 +1068,14 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
                 },
           },
           currentOrNextEdition: {
-            ...((index || kind !== "new") && {
+            ...((index || hasSavedLinks) && {
               tickets: set(index ? corrected : "https://example.org/product"),
             }),
           },
           checks: fixtureChecks(["eventLinks", "currentLinks"]).map(
             (check) => ({
               ...check,
-              evidenceIds: kind === "fatal" && index ? ["missing"] : [],
+              evidenceIds: invalidEvidence && index ? ["missing"] : [],
             }),
           ),
           omitted: [],
@@ -1064,44 +1084,28 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
       },
       { editor },
     );
-    const result = await run(undefined, kind === "preview");
-    const metricEvents = capture.mock.calls.map(([event]) => event);
-    const groupEvents = metricEvents.filter(
-      ({ event }) => event === "ingestion_editor_group_reviewed",
-    );
-    expect(
-      groupEvents.filter(
-        ({ properties }) => properties?.group === socialPaths[0],
-      ),
-    ).toMatchObject([
+    const result = await run(undefined, preview);
+    expect(capturedGroupReviews(capture, socialPaths[0])).toMatchObject([
       {
-        properties: {
-          proposal_returns: 1,
-          omission_returns: 0,
-          final_result: kind === "fatal" ? "incomplete" : "rejected",
-        },
+        proposal_returns: 1,
+        omission_returns: 0,
+        final_result: invalidEvidence ? "incomplete" : "rejected",
       },
     ]);
-    if (kind === "new") {
-      expect(
-        groupEvents.filter(
-          ({ properties }) => properties?.group === ticketPath,
-        ),
-      ).toMatchObject([
+    if (!hasSavedLinks) {
+      expect(capturedGroupReviews(capture, ticketPath)).toMatchObject([
         {
-          properties: {
-            first_proposed: false,
-            proposal_returns: 0,
-            omission_returns: 1,
-          },
+          first_proposed: false,
+          proposal_returns: 0,
+          omission_returns: 1,
         },
       ]);
     }
     const lifecycle = f.client
       .prepare("SELECT status FROM ingestion_runs WHERE id=?")
       .get(result.runId);
-    if (kind === "fatal") {
-      expect(metricEvents).toContainEqual(
+    if (invalidEvidence) {
+      expect(capture).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "ingestion_editor_finished",
           properties: expect.objectContaining({ status: "failed" }),
@@ -1122,7 +1126,7 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
     expect(result.errors).toEqual([]);
     expect(requests).toHaveLength(4);
     expect(editor).toHaveBeenCalledTimes(2);
-    expect(result.outcome).toBe(kind === "new" ? "created" : "updated");
+    expect(result.outcome).toBe(hasSavedLinks ? "updated" : "created");
     expect(result.researchStatus).toBe("partial");
     expect(lifecycle).toEqual({ status: "completed" });
     expect(
@@ -1153,7 +1157,7 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
         ]),
       }),
     );
-    if (kind === "preview") {
+    if (preview) {
       expect(f.saved()).toEqual(before);
     } else {
       const saved = f.saved();
@@ -1166,7 +1170,7 @@ it.each(["new", "saved", "preview", "fatal"] as const)(
             ["instagram", "facebook", "youtube"].includes(kind),
           )
           .map(({ url }) => url),
-      ).toEqual(kind === "new" ? [] : [savedSocial]);
+      ).toEqual(hasSavedLinks ? [savedSocial] : []);
       expect(JSON.stringify(saved)).not.toContain(disputed);
     }
   },
