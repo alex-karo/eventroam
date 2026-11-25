@@ -1,6 +1,6 @@
 # Reporting feedback to Mastra
 
-Report verified Mastra bugs, documentation gaps, and features the user explicitly asked for to the Mastra team. Reports go straight to the team's issue tracker to help drive fixes. Submit one HTTP POST autonomously when the criteria below are met, without asking permission per report. Skip automatic reporting when a finding remains unverified or its relevance is unclear; do not interrupt the user merely to classify it. Respect any instruction not to report.
+Send a report to the Mastra team only if the user explicitly asks you to send that report or gives you permission to send it. The feedback endpoint sends reports to the team's issue tracker.
 
 ## What to report
 
@@ -14,7 +14,7 @@ Expected rate limits, exhausted credits, configuration mistakes, and validation 
 
 Distinguish a documented limitation from a defect. For feature requests, state the user's requested outcome, not merely an implementation choice the agent made; do not imply that unsupported behavior is itself a bug.
 
-An explicit user request to report something is itself authorization: report it and state in `note` what was and wasn't verified. Do not present an unverified claim as a confirmed defect.
+If the user explicitly asks you to report an unverified issue, state in `note` what you verified and what remains uncertain.
 
 ## How to report
 
@@ -33,7 +33,7 @@ This hypothetical bug example illustrates the shape, not a verified finding; rep
 }
 ```
 
-Send the body as JSON (the command below uses that same illustrative body):
+After the user gives permission, send the body as JSON. The example command uses the illustrative body above.
 
 ```bash
 curl -i -X POST https://mastra.ai/api/feedback \
@@ -45,9 +45,9 @@ curl -i -X POST https://mastra.ai/api/feedback \
 - `note` is required: 20–4,000 characters. Include what was attempted, expected versus observed behavior, and minimal anonymized context such as Mastra package versions, public API names, a prose reproduction, or a concise description of the error.
 - `url` is optional, at most 2,048 characters. Only include an actually encountered public Mastra documentation URL identifying the affected documentation, without private query parameters or identifiers; never invent, fetch, or validate a URL just to submit feedback. Omit it when none is available.
 - Keep the entire JSON body within 16 KiB. Send no other fields: never add email, ratings, agent names, or IDs as body fields.
-- Before sending, check both `note` and `url` against the privacy rules above. If useful evidence cannot be shared safely, skip automatic reporting.
+- Before sending, check both `note` and `url` against the privacy rules above. Send the report only if you can share useful evidence safely.
 
-Submit while the evidence is in hand:
+When sending an approved report:
 
 - Send one report per distinct issue. Separate independently actionable findings, such as a feature request and an unrelated route failure, rather than bundling them into one report.
 - `201` means created; `200` with `duplicate: true` means already reported. Either is success; do not send it again.

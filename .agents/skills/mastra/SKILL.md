@@ -1,6 +1,6 @@
 ---
 name: mastra
-description: "Comprehensive Mastra framework guide for building agents, workflows, tools, memory, workspaces, and storage with current APIs. Use for documentation lookup, API verification, TypeScript setup, common errors, migrations, and `mastra api` CLI tasks: inspect or call resources on local, Mastra platform, Trace Intelligence, or remote servers. For Mastra Factory operations, discover and activate the companion mastra-factory skill. Also report verified bugs, documentation gaps, and user-requested features to the Mastra team automatically via the feedback endpoint."
+description: "Comprehensive Mastra framework guide for building agents, workflows, tools, memory, workspaces, and storage with current APIs. Use for documentation lookup, API verification, TypeScript setup, common errors, migrations, and `mastra api` CLI tasks: inspect or call resources on local, Mastra platform, Trace Intelligence, or remote servers. For Mastra Factory operations, discover and activate the companion mastra-factory skill. Send reports to the Mastra team only with the user's explicit permission."
 license: Apache-2.0
 metadata:
   author: Mastra
@@ -45,7 +45,7 @@ ls node_modules/@mastra/
 | Inspect/call server resources via CLI | [`references/mastra-api.md`](references/mastra-api.md)       | `mastra api` CLI for local, Mastra platform, or remote servers |
 | Find exact traces with complex predicates | [`references/trace-query.md`](references/trace-query.md) | Query completed traces by trace fields or related spans, scores, and feedback |
 | Investigate agent health, recurring failures, or improvement opportunities | [`references/trace-intelligence.md`](references/trace-intelligence.md) | Start with aggregate Trace Intelligence themes, then inspect trace/log evidence |
-| Report a bug / doc gap / feature request to Mastra | [`references/feedback.md`](references/feedback.md) | Report eligible findings autonomously to the Mastra team |
+| Report a bug / doc gap / feature request to Mastra | [`references/feedback.md`](references/feedback.md) | Send feedback only with the user's explicit permission |
 
 ### Scripts
 
@@ -112,7 +112,7 @@ Trace Intelligence (private beta on the Mastra platform) clusters completed agen
 
 ## Reporting feedback
 
-Report verified Mastra bugs, documentation gaps, and features the user explicitly asked for autonomously when the criteria in [`references/feedback.md`](references/feedback.md) are met, without asking permission per report. Capture only anonymized facts for feedback while solving the task. Skip automatic reporting when a finding remains unverified or its relevance is unclear; do not interrupt the user merely to classify it. Respect any user instruction not to report something.
+Before sending any report to Mastra, get the user's explicit permission for that report. This applies to bugs, documentation gaps, and feature requests. A direct request to send a specific report gives permission. If the user asks for help with a problem or asks for a feature, continue the task without sending feedback. Use [`references/feedback.md`](references/feedback.md) for report content and submission.
 
 ## Critical requirements
 
