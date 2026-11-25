@@ -52,6 +52,7 @@ export function FilterPanel({
   previewCount: number | null;
 }>) {
   const panelRef = useRef<HTMLDialogElement>(null);
+  const fields = useRef<Partial<Record<FilterGroup, HTMLElement | null>>>({});
   const [nativeError, setNativeError] = useState<string | null>(null);
   useEffect(() => {
     const dialog = panelRef.current!;
@@ -77,6 +78,9 @@ export function FilterPanel({
       dialog.close();
     };
   }, []);
+  useEffect(() => {
+    fields.current[group]?.querySelector<HTMLElement>("input, button")?.focus();
+  }, [group]);
   function checkNativeInputs() {
     const invalid =
       panelRef.current?.querySelector<HTMLInputElement>("input:invalid");
@@ -179,6 +183,9 @@ export function FilterPanel({
       </div>
       <div className="filter-fields">
         <fieldset
+          ref={(element) => {
+            fields.current.where = element;
+          }}
           hidden={group !== "where"}
           data-filter-group="where"
           aria-describedby={feedbackId}
@@ -194,6 +201,9 @@ export function FilterPanel({
         </fieldset>
 
         <fieldset
+          ref={(element) => {
+            fields.current.genre = element;
+          }}
           aria-describedby={feedbackId}
           hidden={group !== "genre"}
           data-filter-group="genre"
@@ -206,7 +216,13 @@ export function FilterPanel({
             onChange={(genres) => setPending({ ...pending, genres })}
           />
         </fieldset>
-        <div hidden={group !== "more"} data-filter-group="more">
+        <div
+          ref={(element) => {
+            fields.current.more = element;
+          }}
+          hidden={group !== "more"}
+          data-filter-group="more"
+        >
           <fieldset aria-describedby={feedbackId}>
             <legend>Dates</legend>
             <p>Matches events that overlap your dates.</p>

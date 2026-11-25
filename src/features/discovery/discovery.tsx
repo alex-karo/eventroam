@@ -1,49 +1,28 @@
 "use client";
-import { useEffect, useMemo, useRef, useState, useEffectEvent } from "react";
+
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import posthog from "posthog-js";
+import { DiscoveryNotices } from "./components/discovery-notices";
 import {
-  emptyFilters,
-  filterSummaries,
-  normalizeFilters,
-  serializeFilters,
-  type Filters,
-} from "@/features/discovery/model/discovery";
-import { filterMapArea, type MapArea } from "./model/map-area";
-import { MonthStrip } from "@/features/discovery/components/month-strip";
-import { Icon } from "@/components/catalog/icons";
-import { FilterPanel } from "@/features/discovery/components/filter-panel";
-import type { FilterGroup } from "@/features/discovery/components/filter-groups";
-import { DiscoveryNotices } from "@/features/discovery/components/discovery-notices";
-import { DiscoveryToolbar } from "@/features/discovery/components/discovery-toolbar";
+  DiscoveryResults,
+  ResultsStatus,
+} from "./components/discovery-results";
+import { DiscoveryToolbar } from "./components/discovery-toolbar";
+import { FilterPanel } from "./components/filter-panel";
+import { MonthStrip } from "./components/month-strip";
+import type { DiscoveryView } from "./hooks/discovery-url";
 import {
   useDiscoveryCatalog,
   type DiscoveryCatalog,
-} from "@/features/discovery/hooks/use-discovery-catalog";
-import { ResultsList } from "@/features/discovery/components/results-list";
-import { SelectedPreview } from "@/features/discovery/components/selected-preview";
-import {
-  DiscoveryMap,
-  hasMapPoint,
-} from "@/features/discovery/map/discovery-map";
+} from "./hooks/use-discovery-catalog";
+import { useDiscoveryFilters } from "./hooks/use-discovery-filters";
+import { useDiscoveryVisit } from "./hooks/use-discovery-visit";
+import { useSelectedEdition } from "./hooks/use-selected-edition";
+import { filterSummaries, type Filters } from "./model/discovery";
+import { previewFilters } from "./model/filter-feedback";
+import { filterMapArea, type MapArea } from "./model/map-area";
 
-import {
-  normalizeDiscoveryLocation,
-  pushDiscoveryFilters,
-  pushDiscoveryView,
-  readDiscoveryLocation,
-} from "@/features/discovery/hooks/discovery-url";
-import {
-  beginVisit,
-  historyVisitToken,
-  saveVisit,
-  type Camera,
-} from "@/site/discovery-context";
-import { useSelectedEdition } from "@/features/discovery/hooks/use-selected-edition";
-
-import {
-  filterSelections,
-  previewFilters,
-} from "@/features/discovery/model/filter-feedback";
-import posthog from "posthog-js";
+const searchErrorId = "search-error";
 
 export function Discovery({
   apexHref,
@@ -60,125 +39,54 @@ export function Discovery({
   initialFilters: Filters;
   initialError: string | null;
   initialNow: string;
-  initialView: "map" | "list";
+  initialView: DiscoveryView;
 }>) {
   const { catalog, loadError, retry } = useDiscoveryCatalog(initialCatalog);
-  const [applied, setApplied] = useState(initialFilters);
-  const [pending, setPending] = useState(initialFilters);
-  const [query, setQuery] = useState(initialFilters.q);
-  const [urlError, setUrlError] = useState(initialError);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const today = useMemo(() => new Date(initialNow), [initialNow]);
+  const filters = useDiscoveryFilters({
+    initialFilters,
+    initialError,
+    catalog,
+    today,
+  });
+  const { applied, pending, panel, urlError } = filters;
   const invalidUrl = urlError !== null;
-  const [panel, setPanel] = useState<FilterGroup | null>(null);
-  const [view, setView] = useState<"map" | "list">(initialView);
-  const [followMap, setFollowMap] = useState(true);
-  const [mapArea, setMapArea] = useState<MapArea | null>(null);
-  const activeArea = followMap ? mapArea : null;
-  const resultsHeading = useRef<HTMLDivElement>(null);
-  const {
-    state: detailState,
+  const viewToggle = useRef<HTMLButtonElement>(null);
+  const selection = useSelectedEdition(() => viewToggle.current);
+  const { selectedId } = selection;
+  const visit = useDiscoveryVisit({
+    initialView,
+    applied,
+    genres: catalog.genres,
     selectedId,
-    panelRef: detailPanel,
-    select: selectEdition,
-    close: closeDetail,
-  } = useSelectedEdition(
-    () => resultsHeading.current?.querySelector<HTMLElement>("button") ?? null,
-  );
-  const [visitToken, setVisitToken] = useState<string | null>(null);
-  const [visitReady, setVisitReady] = useState(false);
-  const [restoreCamera, setRestoreCamera] = useState<Camera | null>(null);
-  const [preserveSelectionCamera, setPreserveSelectionCamera] = useState(false);
-  const camera = useRef<Camera | null>(null);
-  const listColumn = useRef<HTMLDivElement>(null);
-  const listScroll = useRef(0);
-  const pendingListScroll = useRef<number | null>(null);
-  function saveContext() {
-    const token = historyVisitToken();
-    if (!token) {
-      return;
-    }
-    if (
-      listColumn.current?.clientHeight &&
-      pendingListScroll.current === null
-    ) {
-      listScroll.current = listColumn.current.scrollTop;
-    }
-    const rootUrl = `${window.location.pathname}${window.location.search}`;
-    const next = {
-      rootUrl,
-      camera: camera.current,
-      scroll: listScroll.current,
-      selectedId,
-      followMap,
-    };
-    saveVisit(token, next);
-  }
-  const saveCurrentContext = useEffectEvent(saveContext);
-  const restoreContext = useEffectEvent(() => {
-    const { token, visit } = beginVisit();
-    setVisitToken(token);
-    setVisitReady(true);
-    const location = readDiscoveryLocation(catalog.genres);
-    setView(location.view);
-    if (location.filters) {
-      setApplied(location.filters);
-      setPending(location.filters);
-      setQuery(location.filters.q);
-    }
-    setUrlError(location.error);
-    setFormError(null);
-    setSearchError(null);
-    setPanel(null);
-    if (location.filters && !location.error) {
-      normalizeDiscoveryLocation(serializeFilters(location.filters).toString());
-    }
-    camera.current = visit?.camera ?? null;
-    setRestoreCamera(visit?.camera ?? null);
-    setPreserveSelectionCamera(!!visit?.camera);
-    setFollowMap(visit?.followMap ?? true);
-    listScroll.current = visit?.scroll ?? 0;
-    pendingListScroll.current = listScroll.current;
-    const eligible =
-      location.filters && !location.error
+    restoreFilters: filters.restore,
+    restoreSelection(id, restoredFilters) {
+      const eligible = restoredFilters
         ? filterSummaries(
             catalog.summaries,
-            location.filters,
+            restoredFilters,
             catalog.genres,
-            new Date(initialNow),
+            today,
           )
         : [];
-    if (
-      visit?.selectedId &&
-      eligible.some((item) => item.id === visit.selectedId)
-    ) {
-      void selectEdition(visit.selectedId);
-    } else if (selectedId) {
-      closeDetail();
-    }
+      if (id && eligible.some((item) => item.id === id)) {
+        void selection.select(id);
+      } else if (selectedId) {
+        selection.close();
+      }
+    },
   });
-  const restoreListScroll = useEffectEvent(() => {
-    const column = listColumn.current;
-    if (column?.clientHeight && pendingListScroll.current !== null) {
-      const scroll = pendingListScroll.current;
-      pendingListScroll.current = null;
-      column.scrollTop = scroll;
-    }
-  });
-  useEffect(() => {
-    let frame = requestAnimationFrame(() => {
-      frame = requestAnimationFrame(restoreListScroll);
-    });
-    const observer = new ResizeObserver(restoreListScroll);
-    if (listColumn.current) {
-      observer.observe(listColumn.current);
-    }
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [view, visitToken, selectedId, applied]);
-  const today = useMemo(() => new Date(initialNow), [initialNow]);
+
+  const [mapArea, setMapArea] = useState<MapArea | null>(null);
+  const activeArea = visit.followMap ? mapArea : null;
+  const results = useMemo(
+    () =>
+      invalidUrl
+        ? []
+        : filterSummaries(catalog.summaries, applied, catalog.genres, today),
+    [invalidUrl, catalog.summaries, applied, catalog.genres, today],
+  );
+  const listResults = activeArea ? filterMapArea(results, activeArea) : results;
   const preview = useMemo(() => {
     if (!panel) {
       return null;
@@ -188,159 +96,37 @@ export function Discovery({
       : catalog.summaries;
     return previewFilters(summaries, pending, catalog.genres, today);
   }, [panel, activeArea, catalog.summaries, pending, catalog.genres, today]);
-  const panelButton = useRef<HTMLButtonElement>(null);
-  function restoreFilterFocus() {
-    const opener = panelButton.current;
-    if (opener?.isConnected && opener.getClientRects().length) {
-      opener.focus();
-    } else {
-      document
-        .querySelector<HTMLButtonElement>(`.filter-trigger-${panel ?? "where"}`)
-        ?.focus();
-    }
-  }
   const countries = [...new Set(catalog.summaries.map((s) => s.countryCode))];
-  // These are uppercase ISO codes, so code-unit order is intentional.
+  // Sort the uppercase ISO codes in code-unit order.
   // eslint-disable-next-line sonarjs/no-alphabetical-sort
   countries.sort();
-  useEffect(() => {
-    let active = true;
-    queueMicrotask(() => {
-      if (active) {
-        restoreContext();
-      }
-    });
-    const restore = () => restoreContext();
-    const save = () => saveCurrentContext();
-    window.addEventListener("popstate", restore);
-    window.addEventListener("pagehide", save);
-    return () => {
-      active = false;
-      window.removeEventListener("popstate", restore);
-      window.removeEventListener("pagehide", save);
-    };
-  }, []);
-  useEffect(() => {
-    if (visitReady) {
-      saveCurrentContext();
-    }
-  }, [visitReady, visitToken, selectedId, applied, view, followMap]);
-  useEffect(() => {
+
+  const closeOnEscape = useEffectEvent(() => {
     if (panel) {
-      document
-        .querySelector<HTMLElement>(
-          `#filter-panel [data-filter-group="${panel}"] input, #filter-panel [data-filter-group="${panel}"] button`,
-        )
-        ?.focus();
+      filters.closePanel();
+    } else {
+      selection.close();
     }
-  }, [panel]);
-  function closePanel() {
-    setPending(applied);
-    setPanel(null);
-    setFormError(null);
-    requestAnimationFrame(restoreFilterFocus);
-  }
-  function openPanel(group: FilterGroup, opener: HTMLButtonElement) {
-    if (panel === group) {
-      closePanel();
-      return;
-    }
-    panelButton.current = opener;
-    if (!panel) {
-      setPending(applied);
-      setFormError(null);
-    }
-    setPanel(group);
-  }
-  function apply(
-    next: Filters,
-    source: "search" | "filters" | "months" = "filters",
-  ) {
-    if (source === "search") {
-      setPanel(null);
-      setPending(applied);
-      setFormError(null);
-    }
-    try {
-      const valid = normalizeFilters(next, catalog.genres);
-      const resultCount = filterSummaries(
-        catalog.summaries,
-        valid,
-        catalog.genres,
-        today,
-      ).length;
-      const properties = {
-        active_filter_count: filterSelections(valid, catalog.genres).length,
-        has_search_query: Boolean(valid.q),
-        result_count: resultCount,
-      };
-      posthog.capture(
-        source === "search"
-          ? "discovery_search_submitted"
-          : "discovery_filters_applied",
-        properties,
-      );
-      saveContext();
-      setVisitToken(pushDiscoveryFilters(valid));
-      setApplied(valid);
-      setPending(valid);
-      setQuery(valid.q);
-      setUrlError(null);
-      setFormError(null);
-      setSearchError(null);
-      setPanel(null);
-      if (panel && source === "filters") {
-        requestAnimationFrame(restoreFilterFocus);
-      }
-    } catch (caught) {
-      const setError = source === "search" ? setSearchError : setFormError;
-      setError(caught instanceof Error ? caught.message : "Invalid filters.");
-    }
-  }
-  const clearFilters = () => apply(emptyFilters());
-  function switchView(next: "map" | "list") {
-    if (next === view) {
-      return;
-    }
-    saveContext();
-    pendingListScroll.current = listScroll.current;
-    posthog.capture("discovery_view_changed", { view: next });
-    setView(next);
-    setVisitToken(pushDiscoveryView(next));
-  }
+  });
   useEffect(() => {
     if (!panel && !selectedId) {
       return;
     }
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) {
-        return;
-      }
-      if (panel) {
-        closePanel();
-      } else {
-        closeDetail();
+      if (event.key === "Escape" && !event.defaultPrevented) {
+        closeOnEscape();
       }
     };
     window.addEventListener("keydown", onEscape);
     return () => window.removeEventListener("keydown", onEscape);
-    // closePanel always uses the applied filters at the moment the panel opened.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [panel, applied, selectedId, closeDetail]);
-  const results = useMemo(
-    () =>
-      invalidUrl
-        ? []
-        : filterSummaries(catalog.summaries, applied, catalog.genres, today),
-    [invalidUrl, catalog.summaries, applied, catalog.genres, today],
-  );
-  const listResults = activeArea ? filterMapArea(results, activeArea) : results;
+  }, [panel, selectedId]);
+
   const selectedEligible =
     !selectedId || results.some((item) => item.id === selectedId);
   const clearIneligibleSelection = useEffectEvent(() =>
-    closeDetail({
+    selection.close({
       restoreFocus:
-        detailPanel.current?.contains(document.activeElement) ?? false,
+        selection.panelRef.current?.contains(document.activeElement) ?? false,
     }),
   );
   useEffect(() => {
@@ -348,18 +134,16 @@ export function Discovery({
       clearIneligibleSelection();
     }
   }, [selectedEligible]);
-  function selectResult(id: string, selectionSource: "list" | "map") {
-    saveContext();
-    pendingListScroll.current = listScroll.current;
-    posthog.capture("edition_details_selected", {
-      selection_source: selectionSource,
-    });
-    setPreserveSelectionCamera(false);
-    void selectEdition(id);
+
+  function selectResult(id: string, source: "list" | "map") {
+    visit.saveAndKeepListScroll();
+    posthog.capture("edition_details_selected", { selection_source: source });
+    visit.setPreserveSelectionCamera(false);
+    void selection.select(id);
   }
-  const eventLabel = listResults.length === 1 ? "event" : "events";
-  const resultStatus = `${listResults.length} ${eventLabel}${activeArea ? " in map area" : ""}`;
-  const mapped = listResults.filter(hasMapPoint).length;
+
+  const clearFilters = () => filters.clear(visit.pushFilters);
+
   return (
     <div className="discovery">
       <header className="discovery-header">
@@ -377,143 +161,75 @@ export function Discovery({
           applied={applied}
           genres={catalog.genres}
           panel={panel}
-          query={query}
-          searchError={searchError}
-          onQueryChange={(value) => {
-            setQuery(value);
-            setSearchError(null);
-          }}
-          onSearch={() => apply({ ...applied, q: query }, "search")}
-          onOpenPanel={openPanel}
+          query={filters.query}
+          searchError={filters.searchError}
+          searchErrorId={searchErrorId}
+          triggers={filters.triggers}
+          onQueryChange={filters.changeQuery}
+          onSearch={() => filters.search(visit.pushFilters)}
+          onOpenPanel={filters.openPanel}
           onClear={clearFilters}
         />
         {panel && (
           <FilterPanel
             group={panel}
-            onGroupChange={setPanel}
+            onGroupChange={filters.setPanel}
             pending={pending}
-            setPending={setPending}
+            setPending={filters.setPending}
             countries={countries}
             summaries={catalog.summaries}
             genres={catalog.genres}
-            onApply={apply}
-            onCancel={closePanel}
-            error={preview?.error ?? formError}
+            onApply={(next) => filters.apply(next, visit.pushFilters)}
+            onCancel={filters.closePanel}
+            error={preview?.error ?? filters.formError}
             previewCount={preview?.count ?? null}
           />
         )}
         <div className="discovery-months">
           <MonthStrip
-            now={visitReady ? new Date() : null}
+            now={visit.visitReady ? new Date() : null}
             from={applied.from}
             to={applied.to}
-            onChange={(from, to) => apply({ ...applied, from, to }, "months")}
+            onChange={(from, to) =>
+              filters.apply(
+                { ...applied, from, to },
+                visit.pushFilters,
+                "months",
+              )
+            }
           />
         </div>
-        <div
-          className={`discovery-results-shell view-${view}`}
-          data-selected={selectedId !== null}
-        >
-          <div className="results-panel">
-            <div className="results-heading" ref={resultsHeading}>
-              <h1>
-                {listResults.length}{" "}
-                {listResults.length === 1 ? "festival" : "festivals"}
-                {activeArea && (
-                  <span className="results-area"> in map area</span>
-                )}
-              </h1>
-              <button
-                type="button"
-                className="sheet-toggle"
-                aria-expanded={view === "list"}
-                aria-controls="festival-results"
-                onClick={() => switchView(view === "list" ? "map" : "list")}
-              >
-                {view === "list" ? "Show map" : "Expand list"}
-                <Icon name={view === "list" ? "chevron-down" : "chevron-up"} />
-              </button>
-              <p>Select a festival to show it on the map.</p>
-              <label className="follow-map">
-                <input
-                  type="checkbox"
-                  checked={followMap}
-                  disabled={mapArea === null}
-                  onChange={(event) => setFollowMap(event.target.checked)}
-                  aria-describedby="follow-map-help"
-                />
-                Follow map
-              </label>
-              <span id="follow-map-help" className="sr-only">
-                Limit the list to the map area. Turn off to include events
-                without map locations.
-              </span>
-            </div>
-            <div
-              id="festival-results"
-              className="list-column"
-              ref={listColumn}
-              onScroll={saveContext}
-            >
-              <DiscoveryNotices
-                searchError={searchError}
-                urlError={urlError}
-                loadError={loadError}
-                onClear={clearFilters}
-                onRetry={retry}
-              />
-              <ResultsList
-                results={listResults}
-                areaEmpty={Boolean(activeArea) && results.length > 0}
-                selectedId={selectedId}
-                error={urlError}
-                onSelect={(id) => selectResult(id, "list")}
-                onClear={clearFilters}
-              />
-            </div>
-          </div>
-          <section className="map-region" aria-label="Map results">
-            {visitReady && (
-              <DiscoveryMap
-                summaries={results}
-                selectedId={selectedId}
-                onSelect={(id) => selectResult(id, "map")}
-                cardRef={detailPanel}
-                restoreCamera={restoreCamera}
-                preserveSelectionCamera={preserveSelectionCamera}
-                onCameraInteraction={() => setPreserveSelectionCamera(true)}
-                followMap={followMap}
-                onAreaChange={setMapArea}
-                onCameraChange={(next) => {
-                  camera.current = next;
-                  saveContext();
-                }}
-              />
-            )}
-          </section>
-          <SelectedPreview
-            key={selectedId}
-            detailState={detailState}
-            panelRef={detailPanel}
-            onClose={closeDetail}
-            onRetry={(id) => void selectEdition(id)}
-            now={today}
-          />
-        </div>
+        <DiscoveryResults
+          results={results}
+          listResults={listResults}
+          activeArea={activeArea}
+          mapArea={mapArea}
+          onAreaChange={setMapArea}
+          viewToggle={viewToggle}
+          selection={selection}
+          visit={visit}
+          onSelect={selectResult}
+          onClear={clearFilters}
+          urlError={urlError}
+          notices={
+            <DiscoveryNotices
+              searchError={filters.searchError}
+              searchErrorId={searchErrorId}
+              urlError={urlError}
+              loadError={loadError}
+              onClear={clearFilters}
+              onRetry={retry}
+            />
+          }
+          today={today}
+        />
       </div>
       <footer className="discovery-footer">
-        <div className="results-status" role="status" aria-live="polite">
-          <span className="results-count">
-            {invalidUrl ? "Invalid filters" : resultStatus}
-          </span>
-          {listResults.length > 0 && (
-            <span className="results-geography">
-              On map: {mapped} ·{" "}
-              <span title="Map location unavailable">Not mapped</span>:{" "}
-              {listResults.length - mapped}
-            </span>
-          )}
-        </div>
+        <ResultsStatus
+          results={listResults}
+          activeArea={activeArea}
+          invalidUrl={invalidUrl}
+        />
         <a href="/privacy">Privacy policy</a>
         <a href={apexHref}>About project</a>
       </footer>

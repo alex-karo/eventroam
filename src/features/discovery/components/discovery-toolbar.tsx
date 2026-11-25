@@ -1,4 +1,5 @@
 import { Icon } from "@/components/catalog/icons";
+import type { RefObject } from "react";
 import type { Genre } from "@/catalog/read/contracts";
 import type { Filters } from "../model/discovery";
 import { filterSelections } from "../model/filter-feedback";
@@ -10,6 +11,8 @@ export function DiscoveryToolbar({
   panel,
   query,
   searchError,
+  searchErrorId,
+  triggers,
   onQueryChange,
   onSearch,
   onOpenPanel,
@@ -20,6 +23,8 @@ export function DiscoveryToolbar({
   panel: FilterGroup | null;
   query: string;
   searchError: string | null;
+  searchErrorId: string;
+  triggers: RefObject<Partial<Record<FilterGroup, HTMLButtonElement | null>>>;
   onQueryChange: (value: string) => void;
   onSearch: () => void;
   onOpenPanel: (group: FilterGroup, opener: HTMLButtonElement) => void;
@@ -54,7 +59,7 @@ export function DiscoveryToolbar({
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           aria-invalid={searchError ? true : undefined}
-          aria-describedby={searchError ? "search-error" : undefined}
+          aria-describedby={searchError ? searchErrorId : undefined}
           placeholder="Find a festival…"
         />
         <button type="submit" aria-label="Search festival names">
@@ -73,6 +78,9 @@ export function DiscoveryToolbar({
           return (
             <button
               key={group}
+              ref={(button) => {
+                triggers.current[group] = button;
+              }}
               className={`filter-trigger filter-trigger-${group}`}
               type="button"
               aria-expanded={panel === group}

@@ -1,11 +1,13 @@
 export function DiscoveryNotices({
   searchError,
+  searchErrorId,
   urlError,
   loadError,
   onClear,
   onRetry,
 }: Readonly<{
   searchError: string | null;
+  searchErrorId: string;
   urlError: string | null;
   loadError: boolean;
   onClear: () => void;
@@ -18,7 +20,7 @@ export function DiscoveryNotices({
   return (
     <div className="discovery-notices">
       {searchError && (
-        <div id="search-error" className="notice" role="alert">
+        <div id={searchErrorId} className="notice" role="alert">
           <p>{searchError}</p>
         </div>
       )}
