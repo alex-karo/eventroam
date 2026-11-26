@@ -122,7 +122,7 @@ A missing optional value can remain unknown without failure. An unfinished assig
 | Classification | Fixed targets, saved terms and history, vocabulary and relevant evidence. Add and full also receive saved descriptions. | Complete term lists and optional festival descriptions on add and full. Term reuse includes an earlier Edition key and a continuity reason. | None |
 | Location | Fixed targets, saved places, literal evidence, registered points and prepared reverse context. | Complete place decisions and registered point selection. | Forward `geocode` |
 | Links | Fixed public slots, saved links, permissions and link evidence. No Tickets output. | Event website/social actions and current-or-next ticket link; omitted candidates and reasons. | None |
-| Editor | Submitted proposals, eligible omissions, review paths, cited evidence, saved values, registered points and saved Markdown paths. | One decision and note per required path, plus any eligible omission it returns. | Native Mastra workspace grep |
+| Editor | Submitted proposals, eligible omissions, review paths, cited evidence, saved values, registered points and saved Markdown paths. Classification and description reviews also receive collected programme evidence. | One decision and note per required path, plus any eligible omission it returns. | Native Mastra workspace grep |
 
 See [agent code and ownership](project-structure.md#ingestion-ownership), [proposal assembly](../src/ingestion/proposals.ts), and [catalog preparation](../src/ingestion/catalog-plan.ts). Code assigns an evidence ID to each bound quotation. Editor receives one list of passages by ID. Proposed facts and repair records refer to entries in that list by `evidenceIds`.
 

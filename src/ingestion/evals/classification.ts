@@ -1,4 +1,6 @@
+import { normalizeProposedAssignments } from "@/catalog/domain/classification";
 import { bindEvidence, type FrozenCorpus } from "../evidence/contracts";
+import type { ResearchContext } from "../research/context";
 import type { Targets } from "../roles/general/contracts";
 import type { ClassificationOutput } from "../roles/classification/contracts";
 import type { RoleExecution } from "../roles/invoke";
@@ -9,6 +11,7 @@ import {
   minimumDescriptionFormat,
 } from "./description-format";
 import type { EvalSuite } from "./fixtures";
+import { drinkClassificationCases } from "./cases/drink-topics";
 
 export function classificationCases(suite: EvalSuite) {
   const parent = suite.cases.find(
@@ -34,11 +37,16 @@ export function classificationCases(suite: EvalSuite) {
             "Confirmed 4–5 June 2027, New Grounds, Lisbon, Portugal. Both days are free, no tickets or paid categories. This is the only upcoming edition. The 2027 programme changes completely: exclusively metal music, with the main programme split evenly between enclosed indoor and open-air stages. The former electronic programme and exclusively open-air format have ended.",
           topics: ["dates", "classification", "description"],
         },
+        {
+          quote:
+            "The 2027 edition is a live metal music festival. Emerging bands perform on the indoor stages. The open-air stages feature extended live sets.",
+          topics: ["classification", "description"],
+        },
       ],
     },
     source.finalUrl,
   );
-  if (bound.limitations.length || bound.evidence.length !== 1) {
+  if (bound.limitations.length || bound.evidence.length !== 2) {
     throw new Error(
       "Classification evidence must match the River Festival source",
     );
@@ -100,9 +108,10 @@ export function classificationCases(suite: EvalSuite) {
           "catalog:term:genre:metal",
         ],
         descriptionReference:
-          "River Festival is a metal music festival with substantial programmes on both indoor and outdoor stages.",
+          "A live metal music festival split evenly between indoor and open-air stages. Emerging bands play indoors, and open-air stages host extended live sets.",
       },
     },
+    ...drinkClassificationCases(),
   ];
 }
 
@@ -115,9 +124,17 @@ const sentenceSegmenter = new Intl.Segmenter("en", { granularity: "sentence" });
 export async function scoreClassification(
   item: ClassificationEvalCase,
   execution: RoleExecution<ClassificationOutput>,
+  terms: ResearchContext["terms"],
 ) {
   const { expectedTerms, descriptionReference } = item.classification;
-  const actual = execution.output?.currentOrNextEdition?.classification?.value;
+  const proposed =
+    execution.output?.currentOrNextEdition?.classification?.value;
+  const actual = proposed
+    ? normalizeProposedAssignments(proposed, terms).retained
+    : [];
+  const allowNoClassification =
+    "allowNoClassification" in item.classification &&
+    item.classification.allowNoClassification;
   const texts = Object.fromEntries(
     descriptionFields.map((field) => {
       const proposal = execution.output?.[field];
@@ -139,38 +156,52 @@ export async function scoreClassification(
       ),
       check(
         "currentOrNextEdition.classification",
-        actual?.length === expectedTerms.length &&
-          expectedTerms.every((term) => actual.includes(term)),
-        `Expected ${expectedTerms.join(", ")}. Received ${actual?.join(", ") || "no categories"}.`,
+        (allowNoClassification && actual.length === 0) ||
+          (actual.length === expectedTerms.length &&
+            expectedTerms.every((term) => actual.includes(term))),
+        `Expected ${expectedTerms.join(", ")}${allowNoClassification ? " or no categories" : ""}. Received ${actual.join(", ") || "no categories"}.`,
       ),
-      ...descriptionFields.flatMap((field) => {
-        const probability = descriptionFormat.fields[field];
-        const format = check(
-          field,
-          typeof probability === "number" &&
-            probability >= minimumDescriptionFormat,
-          `Decider result: ${probability}. Required minimum is ${minimumDescriptionFormat}.`,
-        );
-        const text = texts[field];
-        if (!text) {
-          return [format];
-        }
-        const [min, max] = field === "description" ? [3, 5] : [1, 2];
-        const count = [...sentenceSegmenter.segment(text)].length;
-        return [
-          format,
-          check(
-            `${field}.length`,
-            count >= min && count <= max,
-            `Expected ${min}–${max} sentences. Received ${count}.`,
-          ),
-          check(
-            `${field}.festivalName`,
-            !text.toLowerCase().includes(festivalName),
-            "The text must omit the festival name.",
-          ),
-        ];
-      }),
+      ...("culinary" in item.classification && item.classification.culinary
+        ? [
+            check(
+              "description.culinary",
+              /\b(?:chef[- ]led workshops?|cooking|culinary (?:sessions?|classes|workshops?)|prepar(?:e|ing) regional dishes|learn(?:ing)? regional recipes)\b/i.test(
+                texts.description ?? "",
+              ),
+              "The full description must include the separate cooking programme.",
+            ),
+          ]
+        : []),
+      ...(descriptionReference
+        ? descriptionFields.flatMap((field) => {
+            const probability = descriptionFormat.fields[field];
+            const format = check(
+              field,
+              typeof probability === "number" &&
+                probability >= minimumDescriptionFormat,
+              `Decider result: ${probability}. Required minimum is ${minimumDescriptionFormat}.`,
+            );
+            const text = texts[field];
+            if (!text) {
+              return [format];
+            }
+            const [min, max] = field === "description" ? [3, 5] : [1, 2];
+            const count = [...sentenceSegmenter.segment(text)].length;
+            return [
+              format,
+              check(
+                `${field}.length`,
+                count >= min && count <= max,
+                `Expected ${min}–${max} sentences. Received ${count}.`,
+              ),
+              check(
+                `${field}.festivalName`,
+                !text.toLowerCase().includes(festivalName),
+                "The text must omit the festival name.",
+              ),
+            ];
+          })
+        : []),
     ]),
   };
 }

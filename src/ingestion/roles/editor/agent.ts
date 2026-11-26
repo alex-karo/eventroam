@@ -1,6 +1,6 @@
 import { evidencePacket, topics } from "../../evidence/contracts";
 import { savedPages } from "../../evidence/saved-pages";
-import type { ProposalGroup } from "../../groups";
+import { proposalGroup, type ProposalGroup } from "../../groups";
 import type { PreparedProposals } from "../../proposals";
 import type { RepairRecord } from "../../repairs";
 import { assignmentPermissions, refreshScope } from "../assignment";
@@ -47,7 +47,17 @@ export async function runEditor(
       ...(evidenceIds?.length && { evidenceIds }),
     });
   }
-  const evidence = options.corpus.evidence.filter(({ id }) => cited.has(id));
+  const reviewsProgramme = [
+    ...scope.reviewPaths.map(({ path }) => path),
+    ...scope.missingGroups,
+  ].some((path) => proposalGroup(path)?.owner === "classification");
+  const evidence = options.corpus.evidence.filter(
+    (item) =>
+      cited.has(item.id) ||
+      (reviewsProgramme &&
+        (item.topics.includes("classification") ||
+          item.topics.includes("description"))),
+  );
   const schema = editorReplySchema(scope);
   const needsVocabulary =
     !targetedGroups ||

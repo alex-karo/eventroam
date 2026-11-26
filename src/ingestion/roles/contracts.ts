@@ -5,7 +5,7 @@ import { researchQuestionSchema } from "../research/contracts";
 export const roleEvidenceTopics = {
   general: ["identity", "description", "dates", "status", "size", "location"],
   tickets: ["tickets", "dates", "identity", "location"],
-  classification: ["classification", "description", "dates"],
+  classification: ["classification", "description", "dates", "identity"],
   links: ["links", "tickets", "identity"],
 } as const satisfies Record<string, readonly (typeof topics)[number][]>;
 

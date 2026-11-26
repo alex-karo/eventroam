@@ -8,7 +8,7 @@ tags: [release, ingestion]
 
 # Remaining release decisions
 
-Validate discovery defaults and the [starter vocabulary](festival-taxonomy-vocabulary.md) against launch data before dependent work. Vocabulary loading is already part of `db:migrate`.
+Validate discovery defaults and the [taxonomy vocabulary](../../src/catalog/taxonomy.json) against launch data before dependent work. Run `pnpm run taxonomy:sync --apply` after migration to load the current vocabulary.
 
 The remaining [website/URL proposals](website-routing-and-indexing.md) describe future choices. See [routes and scope](../project-structure.md#routes-and-scope) for the current website implementation.
 

@@ -57,6 +57,13 @@
       "when": 1794184392230,
       "tag": "0007_edition_sell_out",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795711837209,
+      "tag": "0008_taxonomy_description",
+      "breakpoints": true
     }
   ]
 }

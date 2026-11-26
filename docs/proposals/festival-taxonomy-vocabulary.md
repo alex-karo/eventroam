@@ -8,7 +8,7 @@ tags: [taxonomy, festivals]
 
 # Festival taxonomy vocabulary proposal
 
-This document holds the selected starter terms and their assignment guidance. Ordinary catalog migrations load all 71 starter terms, including 56 genres. Code, tests, and current guides describe implemented facets and classifications. Launch-data review may refine the vocabulary later.
+The [maintained vocabulary](../../src/catalog/taxonomy.json) contains the current terms and their descriptions, including Wine and Beer under Food & drink. See [local database maintenance](../infrastructure.md#local-database-maintenance) to preview and apply vocabulary updates. The starter tables below record the original selection of 71 terms, including 56 genres.
 
 Status: Starter vocabulary implemented in migrations; launch-data review pending, version 0.5
 

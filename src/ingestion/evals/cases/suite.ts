@@ -166,48 +166,90 @@ export const evalSuiteInfo = {
       facet: "event_type",
       slug: "festival",
       name: "Festival",
+      description:
+        "The organizer presents and programmes the Edition as a festival.",
     },
     {
       id: "validation:openair",
       facet: "format",
       slug: "openair",
       name: "Open-air",
+      description:
+        "The main programme is primarily outdoors, even if some concerts take place on covered or enclosed stages. Open Air in the current official festival name is evidence of an open-air main programme.",
     },
     {
       id: "validation:music",
       facet: "topic",
       slug: "music",
       name: "Music",
+      description:
+        "Live or recorded performances form a substantial advertised programme.",
     },
     {
       id: "validation:topic:snow-sports",
       facet: "topic",
       slug: "snow-sports",
       name: "Snow sports",
+      description:
+        "Snow sports form a substantial programme, or an official festival package includes a ski pass valid during the Edition. A resort location or separate pass offer is insufficient.",
     },
     {
       id: "validation:topic:surfing",
       facet: "topic",
       slug: "surfing",
       name: "Surfing",
+      description:
+        "Surf competitions, demonstrations, lessons, or organized sessions form a substantial programme or participant offering. A seaside venue alone is insufficient.",
     },
     {
       id: "validation:topic:food-and-drink",
       facet: "topic",
       slug: "food-and-drink",
       name: "Food & drink",
+      description:
+        "Culinary demonstrations, chef-led sessions, cooking workshops, or tastings form a substantial programme. Ordinary food stalls, bars, or an incidental tasting are insufficient.",
+    },
+    {
+      id: "catalog:term:topic:wine",
+      facet: "topic",
+      slug: "wine",
+      name: "Wine",
+      parentId: "validation:topic:food-and-drink",
+      description:
+        "An official source describes a substantial wine programme for the selected Edition, such as tastings from several wineries. A festival name, ordinary bar, sponsor mention, or incidental tasting alone is insufficient.",
+    },
+    {
+      id: "catalog:term:topic:beer",
+      facet: "topic",
+      slug: "beer",
+      name: "Beer",
+      parentId: "validation:topic:food-and-drink",
+      description:
+        "An official source describes a substantial beer programme for the selected Edition, such as tastings from several breweries. A festival name, ordinary bar, sponsor mention, or incidental tasting alone is insufficient.",
     },
     {
       id: "validation:topic:outdoor",
       facet: "topic",
       slug: "outdoor",
       name: "Outdoor activities",
+      description:
+        "The organizer offers active outdoor recreation, such as guided hikes, climbing, or kayaking, as a substantial programme or organized participant activity. A natural setting or camping alone is insufficient.",
     },
     {
       id: "validation:mixed",
       facet: "format",
       slug: "mixed-indoor-outdoor",
       name: "Indoor and outdoor",
+      description:
+        "Both settings host substantial parts of the main programme and neither is clearly primary.",
+    },
+    {
+      id: "validation:indoor",
+      facet: "format",
+      slug: "indoor",
+      name: "Indoor",
+      description:
+        "Enclosed indoor spaces are the primary setting of the main programme.",
     },
   ],
 } satisfies Omit<EvalSuite, "cases">;
