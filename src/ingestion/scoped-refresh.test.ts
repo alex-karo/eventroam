@@ -602,6 +602,7 @@ test("full refresh assigns Event descriptions and links without selected targets
       shortDescription: null,
     },
     targets: { previousEdition: null, currentOrNextEdition: null },
+    history: [{ editionKey: f.old.editionKey }],
   });
   const specialistCalls = f.deps.generateRole.mock.calls.filter(
     ([role]) => role === "links" || role === "tickets",
@@ -609,6 +610,9 @@ test("full refresh assigns Event descriptions and links without selected targets
   expect(specialistCalls.map(([role]) => role)).toEqual(["links"]);
   expect(JSON.parse(specialistCalls[0][1])).toMatchObject({
     assignedChecks: ["eventLinks"],
+    savedEventLinks: [
+      { kind: "official_site", url: "https://fixture.example/festival" },
+    ],
     targets: { previousEdition: null, currentOrNextEdition: null },
   });
   expect(readResearchEvent(f.client, f.event.id)).toMatchObject({

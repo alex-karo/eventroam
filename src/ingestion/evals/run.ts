@@ -2,8 +2,16 @@ import { createWorkflowStorage } from "../runtime/workflow-storage";
 import { readResearchCatalog } from "@/catalog/read/research";
 import { evaluateMainCase, type MainScore } from "./main";
 import type { DescriptionFormat } from "./description-format";
-import { classificationCases, scoreClassification } from "./classification";
+import {
+  classificationCases,
+  scoreClassification,
+  type ClassificationEvalCase,
+} from "./classification";
 import { runClassification } from "../roles/classification/agent";
+import { assignedGroups } from "../groups";
+import { refreshScope } from "../roles/assignment";
+import { resolveSavedEditions } from "../roles/options";
+import { readSource } from "../roles/reader/agent";
 import type { RoleExecution } from "../roles/invoke";
 import type { ClassificationOutput } from "../roles/classification/contracts";
 import { loadResearchContext } from "../research/context";
@@ -39,7 +47,7 @@ import {
 import { scoreCase } from "./score";
 import { editorFixtureRoles } from "./editor-fixture";
 import { fixedReader } from "./fixed-reader";
-import type { ScenarioResult } from "./checks";
+import { check, scenarioResult, type ScenarioResult } from "./checks";
 import { createEvalScorers } from "./scorers";
 
 import type { EvalToolCall } from "./tool-use";
@@ -60,6 +68,7 @@ import {
 } from "./selection";
 import { readerCases, type ReaderEvalOutput } from "./reader";
 import { executeReaderCase } from "./reader/run";
+import { checkEvidence } from "./reader/checks";
 import { seedDatabase } from "./seed-database";
 
 function fixedSources(
@@ -137,6 +146,128 @@ export type EvalCaseOutput = {
     }
 );
 
+async function prepareClassificationEvidence(
+  fixture: ClassificationEvalCase["classification"],
+  currentDate: string,
+  runtime: Pick<
+    Parameters<typeof readSource>[0],
+    "budget" | "config" | "signal" | "tracing"
+  >,
+) {
+  const { targets } = fixture;
+  if (!("source" in fixture)) {
+    return { targets, corpus: fixture.corpus, readerChecks: [] };
+  }
+
+  const { markdown, ...source } = fixture.source;
+  const reader = await readSource({
+    ...runtime,
+    input: {
+      assignment: { requestedName: targets.observedEventName, currentDate },
+      source: { ...source, id: "s1" },
+      page: markdown,
+    },
+  });
+  const { evidence = [], limitations = [] } = reader.bound ?? {};
+  const evidenceIds = evidence.map(({ id }) => id);
+  return {
+    targets: {
+      ...targets,
+      evidenceIds,
+      currentOrNextEdition: {
+        ...targets.currentOrNextEdition!,
+        evidenceIds,
+      },
+    },
+    corpus: {
+      version: "classification-reader-eval-v1",
+      sources: [
+        { ...source, id: "s1", processing: "complete" as const, limitations },
+      ],
+      evidence,
+    },
+    readerChecks: [
+      check(
+        "reader.execution",
+        reader.status === "success" &&
+          limitations.length === 0 &&
+          evidence.length > 0,
+      ),
+      ...checkEvidence(fixture.requirements, evidence),
+    ],
+  };
+}
+
+async function executeClassificationCase(
+  suite: EvalSuite,
+  item: ClassificationEvalCase,
+  config: ReturnType<typeof evaluationConfig>,
+  experimentId?: string,
+  observabilityStore?: DuckDBStore,
+): Promise<EvalCaseOutput> {
+  const runId = `classification-eval-${randomUUID()}`;
+  const tracing = await createRunObservability(
+    item.input,
+    config.model,
+    runId,
+    [evalDatabasePath()],
+    observabilityStore,
+    experimentId,
+  );
+  try {
+    const { client } = seedDatabase(suite, item);
+    try {
+      const todayUtc = item.todayUtc ?? suite.todayUtc;
+      const currentDate = `${todayUtc}T00:00:00.000Z`;
+      const context = loadResearchContext(client, item.input, currentDate);
+      const runtime = {
+        budget: createResearchBudget(config.limits),
+        config,
+        signal: AbortSignal.timeout(config.limits.durationMs),
+        tracing,
+      };
+      const { targets, corpus, readerChecks } =
+        await prepareClassificationEvidence(
+          item.classification,
+          currentDate,
+          runtime,
+        );
+      const scope = refreshScope(item.input);
+      const savedEvent = context.catalog.at(0);
+      const classification = await runClassification(
+        { ...runtime, deps: { client } },
+        {
+          targets,
+          corpus,
+          savedEvent,
+          savedEditions: resolveSavedEditions(savedEvent, targets),
+          currentDate,
+          terms: context.terms,
+          groups: assignedGroups(scope, targets),
+          scope,
+        },
+      );
+      const { score, descriptionFormat } = await scoreClassification(
+        item,
+        classification,
+        context.terms,
+      );
+      return {
+        classification,
+        score: scenarioResult([...readerChecks, ...score.checks]),
+        descriptionFormat,
+        runId,
+        ...(tracing?.root?.traceId ? { traceId: tracing.root.traceId } : {}),
+        toolCalls: [],
+      };
+    } finally {
+      client.close();
+    }
+  } finally {
+    await finishRunObservability(tracing);
+  }
+}
+
 async function executeCase(
   suite: EvalSuite,
   item: SelectedEvalCase,
@@ -154,50 +285,13 @@ async function executeCase(
     );
   }
   if ("classification" in item) {
-    const runId = `classification-eval-${randomUUID()}`;
-    const tracing = await createRunObservability(
-      item.input,
-      config.model,
-      runId,
-      [evalDatabasePath()],
-      observabilityStore,
+    return executeClassificationCase(
+      suite,
+      item,
+      config,
       experimentId,
+      observabilityStore,
     );
-    try {
-      const { client } = seedDatabase(suite, item);
-      let classification;
-      try {
-        const todayUtc = item.todayUtc ?? suite.todayUtc;
-        classification = await runClassification(
-          {
-            input: item.input,
-            context: loadResearchContext(
-              client,
-              item.input,
-              `${todayUtc}T00:00:00.000Z`,
-            ),
-            corpus: item.classification.corpus,
-            budget: createResearchBudget(config.limits),
-            config,
-            deps: { client },
-            signal: AbortSignal.timeout(config.limits.durationMs),
-            tracing,
-          },
-          item.classification.targets,
-        );
-      } finally {
-        client.close();
-      }
-      return {
-        classification,
-        ...(await scoreClassification(item, classification)),
-        runId,
-        ...(tracing?.root?.traceId ? { traceId: tracing.root.traceId } : {}),
-        toolCalls: [],
-      };
-    } finally {
-      await finishRunObservability(tracing);
-    }
   }
   const calls: EvalToolCall[] = [];
   if (item.location) {

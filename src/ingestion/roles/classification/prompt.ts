@@ -1,10 +1,7 @@
 import { boundary, descriptionScopeRule, returnInstructions } from "../prompts";
 import { classificationInstructions as classificationRules } from "./rules";
 
-export const CLASSIFICATION_PROMPT_VERSION = "edition-classification-v35";
-
-// eslint-disable-next-line sonarjs/todo-tag -- This comment records a future database change.
-// TODO: Store a description for each taxonomy term in the database and pass it in the prompt vocabulary.
+export const CLASSIFICATION_PROMPT_VERSION = "edition-classification-v36";
 
 export const classificationInstructions = `## Edition terms
 
@@ -32,7 +29,6 @@ ${classificationRules}
 
 - Use specific descendants.
 - The application removes redundant ancestors after facet validation.
-- Do not treat a winter date as snow sports, a seaside site as surf, or food stalls as a food festival.
 - Check that each proposed change agrees with the evidence and reason.
 
 ## Supporting evidence
@@ -43,8 +39,6 @@ ${classificationRules}
 
 ## Programme topics and genres
 
-- Use topic/outdoor when the organizer offers active outdoor recreation as a substantial part of the programme or as an organized activity for participants.
-- Examples include guided hikes, climbing and kayaking.
 - For each Edition, check how the organizer describes the music of acts in its main programme.
 - Include a supplied genre when the description names that genre or one of its subgenres.
 - An artist name alone does not establish a genre.
@@ -74,7 +68,8 @@ const descriptionInstructions = `## Festival descriptions
 - Write one or two complete sentences for shortDescription.
 - In both texts, state what the festival combines and how the main programme is organized when known, such as music and arts across several venues or activities led by participants.
 - Use a few concrete programme examples.
-- When the official name supports an open-air main programme under the format rules, describe it as open-air in both texts.
+- Use the supported setting in both texts even if the format term stays unchanged.
+- When the programme has substantial culinary activities alongside a wine or beer programme, include the culinary activities in the full description and cite their evidence.
 - Describe scale without exact stage or show counts.
 - Leave the festival name out of both texts.
 

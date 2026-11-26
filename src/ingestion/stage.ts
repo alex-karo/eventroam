@@ -1,21 +1,35 @@
-import type { ResearchError, ResearchQuestion } from "./research/contracts";
+import { z } from "zod";
+import {
+  researchErrorSchema,
+  researchQuestionSchema,
+} from "./research/contracts";
 
-export type EventNameMismatch = {
-  eventId: string;
-  storedName: string;
-  observedName: string;
-};
-export type PlanDiagnostics = {
-  validation: {
-    structural: "passed" | "failed";
-    target: "passed" | "failed" | "not_run";
-  };
-  errors: ResearchError[];
-  validationIssues?: { code: string; field: string; stage: "validation" }[];
-  unresolved: ResearchQuestion[];
-  matchedEventId?: string;
-  eventNameMismatch: EventNameMismatch | null;
-};
+export const planDiagnosticsSchema = z.object({
+  validation: z.object({
+    structural: z.enum(["passed", "failed"]),
+    target: z.enum(["passed", "failed", "not_run"]),
+  }),
+  errors: z.array(researchErrorSchema),
+  validationIssues: z
+    .array(
+      z.object({
+        code: z.string(),
+        field: z.string(),
+        stage: z.literal("validation"),
+      }),
+    )
+    .optional(),
+  unresolved: z.array(researchQuestionSchema),
+  matchedEventId: z.string().optional(),
+  eventNameMismatch: z
+    .object({
+      eventId: z.string(),
+      storedName: z.string(),
+      observedName: z.string(),
+    })
+    .nullable(),
+});
+export type PlanDiagnostics = z.output<typeof planDiagnosticsSchema>;
 
 export type StageResult<T> =
   | { status: "continue"; value: T }

@@ -11,16 +11,13 @@ it.each([classificationInstructions, editorInstructions])(
       "at most one event_type and at most one format",
     );
     expect(instructions).toContain(
-      "main programme comes from participants' contributions",
+      "Apply the descriptions in the supplied vocabulary",
     );
     expect(instructions).toContain(
       "prefer festival if the organizer explicitly calls",
     );
     expect(instructions).toContain(
-      "primarily outdoors, even if some concerts take place on covered or enclosed stages",
-    );
-    expect(instructions).toContain(
-      "both settings host substantial parts of the main programme and neither is clearly primary",
+      "Give direct evidence about the current Edition's main programme setting priority over the festival name",
     );
   },
 );

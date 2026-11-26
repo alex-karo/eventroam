@@ -1,36 +1,55 @@
 import { evidencePacket } from "../../evidence/contracts";
+import { assignmentPermissions, specialistChecks } from "../assignment";
 import { roleEvidenceTopics } from "../contracts";
 import { invokeRole } from "../invoke";
 import { z } from "zod";
-import { assignedRoleChecks, buildAssignment } from "../assignment";
-import type { Targets } from "../general/contracts";
 import {
   editionChronology,
   roleInvocationOptions,
   targetContext,
-  type RoleOptions,
+  type RoleRuntimeOptions,
+  type SavedEvent,
+  type SpecialistContext,
+  type TargetContextSelection,
 } from "../options";
 import { linksOutputSchema } from "./contracts";
 import { LINKS_PROMPT_VERSION, linksInstructions } from "./prompt";
 
-export function runLinks(options: RoleOptions, targets: Targets) {
-  const { permissions } = buildAssignment(options.input, options.context);
+type LinksInput = Pick<
+  SpecialistContext,
+  "corpus" | "savedEditions" | "currentDate" | "groups" | "scope"
+> & {
+  targets: TargetContextSelection;
+  savedEventLinks: SavedEvent["links"] | undefined;
+};
+
+export function runLinks(
+  options: RoleRuntimeOptions,
+  {
+    corpus,
+    targets,
+    groups,
+    savedEventLinks,
+    savedEditions,
+    currentDate,
+    scope,
+  }: LinksInput,
+) {
+  const permissions = assignmentPermissions(scope);
   return invokeRole({
     ...roleInvocationOptions(options, "links"),
     role: "links",
     version: LINKS_PROMPT_VERSION,
     instructions: linksInstructions,
     input: {
-      assignedChecks: assignedRoleChecks("links", options.input, targets),
-      targets: targetContext(options, targets, (saved) => ({
+      assignedChecks: specialistChecks("links", groups),
+      targets: targetContext(targets, savedEditions, currentDate, (saved) => ({
         ...editionChronology(saved),
         links: saved.links,
       })),
       permissions,
-      savedEventLinks: options.context.catalog.find(
-        (event) => event.id === (options.input.eventId ?? targets.eventId),
-      )?.links,
-      corpus: evidencePacket(options.corpus, roleEvidenceTopics.links, {
+      savedEventLinks,
+      corpus: evidencePacket(corpus, roleEvidenceTopics.links, {
         anchors: true,
       }),
     },

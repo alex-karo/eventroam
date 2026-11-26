@@ -1,6 +1,6 @@
 import type { ResearchContext } from "../../research/context";
 import { editionSlotNames } from "../../research/contracts";
-import type { Targets } from "../general/contracts";
+import type { SavedEdition, SpecialistContext } from "../options";
 import {
   classificationFacets,
   maxClassificationTerms,
@@ -9,7 +9,6 @@ import {
   type ClassificationReplyChange,
 } from "./contracts";
 
-type SavedEvent = ResearchContext["catalog"][number];
 type Terms = ResearchContext["terms"];
 
 export function classificationVocabulary(terms: Terms) {
@@ -19,9 +18,10 @@ export function classificationVocabulary(terms: Terms) {
       field,
       terms
         .filter((term) => term.facet === facet)
-        .map(({ slug, parentId }) => ({
+        .map(({ slug, parentId, description }) => ({
           slug,
           parentSlug: parentId ? slugsById.get(parentId) : undefined,
+          ...(description != null && { description }),
         })),
     ]),
   );
@@ -29,13 +29,10 @@ export function classificationVocabulary(terms: Terms) {
 
 export function resolveClassificationChange(
   change: ClassificationReplyChange,
-  editionKey: string | undefined,
-  event: SavedEvent | undefined,
+  saved: SavedEdition | undefined,
   terms: Terms,
 ) {
-  const savedTerms =
-    event?.editions.find((edition) => edition.editionKey === editionKey)
-      ?.terms ?? [];
+  const savedTerms = saved?.terms ?? [];
   const unknown: string[] = [];
   const ids = classificationFacets.flatMap(([field, facet]) => {
     const selection = change.value[field];
@@ -71,8 +68,7 @@ export function resolveClassificationChange(
 
 export function materializeClassificationReply(
   reply: ClassificationReply,
-  targets: Targets | null,
-  event: SavedEvent | undefined,
+  savedEditions: SpecialistContext["savedEditions"],
   terms: Terms,
 ): ClassificationOutput {
   const output: ClassificationOutput = {
@@ -89,8 +85,7 @@ export function materializeClassificationReply(
       ? {
           classification: resolveClassificationChange(
             slot.classification,
-            targets?.[name]?.editionKey,
-            event,
+            savedEditions[name],
             terms,
           ),
         }

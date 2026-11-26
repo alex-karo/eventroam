@@ -24,11 +24,14 @@ function fixture(count = 3) {
     OPENROUTER_API_KEY: "",
   };
   const children: ChildProcessWithoutNullStreams[] = [];
-  function start(mode: string) {
+  function start(mode: string, concurrency?: number) {
     const child = spawn(
       process.execPath,
       ["--import", "tsx", resolve("src/test/jobs-studio.ts"), mode],
-      { env, stdio: "pipe" },
+      {
+        env: { ...env, CATALOG_JOB_CONCURRENCY: concurrency?.toString() },
+        stdio: "pipe",
+      },
     );
     children.push(child);
     let output = "";
@@ -60,26 +63,35 @@ async function studioUrl(
   return /STUDIO_URL (http:\/\/[^\s]+)/.exec(server.output())![1];
 }
 
-test("restart after SIGKILL uses a new native run and preserves earlier evidence", async () => {
-  const f = fixture();
+test("Studio applies its queue limit at startup and preserves attempts after restart", async () => {
+  const f = fixture(4);
   try {
-    const first = f.start("interrupt");
-    await expect.poll(first.output, { timeout: 15000 }).toContain("RESEARCH");
+    const first = f.start("interrupt", 2);
+    await expect
+      .poll(() => first.output().match(/^RESEARCH /gm)?.length, {
+        timeout: 15000,
+      })
+      .toBe(2);
     const url = await studioUrl(first);
     const firstHistory = await (
       await fetch(url + "/api/workflows/catalog-ingestion/runs")
     ).json();
-    const oldEngineRunId: string = firstHistory.runs[0].runId;
+    const oldEngineRunIds = firstHistory.runs.map(
+      (run: { runId: string }) => run.runId,
+    ) as string[];
+    expect(oldEngineRunIds).toHaveLength(2);
     const before = f.client
       .prepare("SELECT * FROM ingestion_runs ORDER BY rowid")
       .all();
     first.child.kill("SIGKILL");
     await first.exited;
-    const firstJob = f.client
-      .prepare("SELECT id,status FROM ingestion_jobs ORDER BY position LIMIT 1")
-      .get() as { id: string; status: string };
-    expect(firstJob.status).toBe("running");
-    const later = f.start("finish");
+    expect(
+      f.client
+        .prepare("SELECT status FROM ingestion_jobs ORDER BY position")
+        .pluck()
+        .all(),
+    ).toEqual(["running", "running", "pending", "pending"]);
+    const later = f.start("finish", Number.MAX_SAFE_INTEGER);
     await expect
       .poll(
         () =>
@@ -89,26 +101,16 @@ test("restart after SIGKILL uses a new native run and preserves earlier evidence
             .get(),
         { timeout: 20000 },
       )
-      .toBe(3);
+      .toBe(4);
     const laterUrl = await studioUrl(later);
     const history = await (
       await fetch(laterUrl + "/api/workflows/catalog-ingestion/runs")
     ).json();
-    expect(history.runs).toHaveLength(4);
-    expect(
-      new Set(history.runs.map((run: { runId: string }) => run.runId)).size,
-    ).toBe(history.runs.length);
-    const saved = await (
-      await fetch(
-        laterUrl + "/api/workflows/catalog-ingestion/runs/" + oldEngineRunId,
-      )
-    ).json();
-    expect(saved.runId).toBe(oldEngineRunId);
-    expect(
-      history.runs.filter(
-        (run: { runId: string }) => run.runId !== oldEngineRunId,
-      ),
-    ).toHaveLength(3);
+    const runIds = new Set<string>(
+      history.runs.map((run: { runId: string }) => run.runId),
+    );
+    expect(runIds.size).toBe(6);
+    expect([...runIds]).toEqual(expect.arrayContaining(oldEngineRunIds));
     later.child.kill("SIGTERM");
     expect(await later.exited).toBe(0);
     const calls = later
@@ -116,25 +118,27 @@ test("restart after SIGKILL uses a new native run and preserves earlier evidence
       .split("\n")
       .filter((line) => line.startsWith("RESEARCH "))
       .map((line) => JSON.parse(line.slice(9)));
-    expect(calls.map((call) => call.id)).toEqual(f.eventIds);
+    expect(calls.map((call) => call.id).sort()).toEqual(f.eventIds.toSorted());
     const after = f.client
       .prepare("SELECT * FROM ingestion_runs ORDER BY rowid")
       .all();
     expect(after.slice(0, before.length)).toEqual(before);
-    expect(after).toHaveLength(before.length + 3);
+    expect(after).toHaveLength(before.length + 4);
     expect(
       f.client
-        .prepare("SELECT count(*) FROM ingestion_runs WHERE job_id=?")
+        .prepare(
+          "SELECT count(*) FROM ingestion_jobs j JOIN ingestion_runs r ON r.job_id=j.id GROUP BY j.id ORDER BY j.position",
+        )
         .pluck()
-        .get(firstJob.id),
-    ).toBe(2);
+        .all(),
+    ).toEqual([2, 2, 1, 1]);
   } finally {
     await f.close();
   }
 }, 45000);
 
-test("SIGTERM stops queued work before HTTP drain, awaits cleanup, and preserves the running job", async () => {
-  const f = fixture();
+test("SIGTERM stops queued work before HTTP drain and preserves interrupted jobs", async () => {
+  const f = fixture(4);
   f.env.CATALOG_LOGGING = "true";
   f.env.CATALOG_TRACING = "true";
   try {
@@ -155,7 +159,7 @@ test("SIGTERM stops queued work before HTTP drain, awaits cleanup, and preserves
       body: JSON.stringify({
         inputData: {
           mode: "refresh",
-          input: { eventId: f.eventIds[2] },
+          input: { eventId: f.eventIds[3] },
           dryRun: true,
         },
       }),
@@ -196,17 +200,20 @@ test("SIGTERM stops queued work before HTTP drain, awaits cleanup, and preserves
       ]),
     );
 
-    const run = f.client
+    const runs = f.client
       .prepare(
         "SELECT status,report_json FROM ingestion_runs WHERE job_id IS NOT NULL",
       )
-      .get() as { status: string; report_json: string };
-    expect(run.status).toBe("failed");
-    expect(JSON.parse(run.report_json).errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "workflow_failed" }),
-      ]),
-    );
+      .all() as { status: string; report_json: string }[];
+    expect(runs).toHaveLength(3);
+    for (const run of runs) {
+      expect(run.status).toBe("failed");
+      expect(JSON.parse(run.report_json).errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "workflow_failed" }),
+        ]),
+      );
+    }
     expect(
       f.client
         .prepare(
@@ -214,8 +221,8 @@ test("SIGTERM stops queued work before HTTP drain, awaits cleanup, and preserves
         )
         .all(),
     ).toEqual([
-      { status: "pending", n: 2 },
-      { status: "running", n: 1 },
+      { status: "pending", n: 1 },
+      { status: "running", n: 3 },
     ]);
   } finally {
     await f.close();

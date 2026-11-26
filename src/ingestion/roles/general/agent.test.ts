@@ -5,6 +5,7 @@ import { loadResearchContext } from "../../research/context";
 import { bindEvidence } from "../../evidence/contracts";
 import { createResearchBudget } from "../../runtime/budget";
 import { runGeneral } from "./agent";
+import type { RoleOptions } from "../options";
 
 it.each(["add", "full", "current"] as const)(
   "keeps General identity and saved facts without other role instructions (%s)",
@@ -40,7 +41,7 @@ it.each(["add", "full", "current"] as const)(
     );
     const original = JSON.stringify(context);
     const budget = createResearchBudget();
-    const execution = await runGeneral({
+    const options: RoleOptions = {
       input,
       context,
       corpus: {
@@ -141,7 +142,8 @@ it.each(["add", "full", "current"] as const)(
           };
         },
       },
-    });
+    };
+    const execution = await runGeneral(options);
     expect(execution.status).toBe("success");
     expect(JSON.stringify(context)).toBe(original);
   },

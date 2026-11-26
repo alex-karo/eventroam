@@ -56,7 +56,7 @@ test("fresh migration creates the current catalog structure", () => {
   ]);
   expect(
     client.prepare("SELECT * FROM __drizzle_migrations").all(),
-  ).toHaveLength(8);
+  ).toHaveLength(9);
   expect(client.pragma("foreign_keys", { simple: true })).toBe(1);
   expect(client.pragma("foreign_key_check")).toEqual([]);
   expect(client.pragma("integrity_check", { simple: true })).toBe("ok");
@@ -191,9 +191,40 @@ test("repeating migration preserves data, journal and immutable history", () => 
   ).toThrow(/immutable/);
 });
 
+function restorePreTaxonomyDescriptionSchema(
+  client: ReturnType<typeof testDatabase>["client"],
+) {
+  client.exec(`
+    ALTER TABLE taxonomy_terms DROP COLUMN description;
+    DELETE FROM __drizzle_migrations
+      WHERE created_at = (SELECT max(created_at) FROM __drizzle_migrations);
+  `);
+}
+
+test("taxonomy description migration preserves terms and Edition assignments", () => {
+  const connection = testDatabase();
+  const { client, db } = connection;
+  const fx = testFixtures(client);
+  const edition = fx.edition(fx.event());
+  fx.assignTerm(edition, fx.term());
+  const terms = db.select().from(taxonomyTerms).orderBy(taxonomyTerms.id).all();
+  const assignments = client.prepare("SELECT * FROM edition_terms").all();
+  restorePreTaxonomyDescriptionSchema(client);
+
+  migrateCatalogConnection(connection);
+
+  expect(
+    db.select().from(taxonomyTerms).orderBy(taxonomyTerms.id).all(),
+  ).toEqual(terms);
+  expect(client.prepare("SELECT * FROM edition_terms").all()).toEqual(
+    assignments,
+  );
+});
+
 function restorePreSellOutSchema(
   client: ReturnType<typeof testDatabase>["client"],
 ) {
+  restorePreTaxonomyDescriptionSchema(client);
   client.exec(`
     ALTER TABLE editions DROP COLUMN sold_out_source_url;
     DELETE FROM __drizzle_migrations

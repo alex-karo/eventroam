@@ -22,7 +22,7 @@ After deployment, verify ownership of both hosts in Google Search Console. Submi
 
 ## Application containers
 
-One Dockerfile has `web` and `studio` targets. See `Dockerfile` for the pinned Node base image. Dependencies come from `pnpm-lock.yaml` and are installed for the target Linux architecture. The website uses Next standalone output. Studio includes its UI, Mastra's production Node server, and a separate migration command. No startup command runs migrations or loads fixtures.
+One Dockerfile has `web` and `studio` targets. See `Dockerfile` for the pinned Node base image. Dependencies come from `pnpm-lock.yaml` and are installed for the target Linux architecture. The website uses Next standalone output. Studio includes its UI, Mastra's production Node server, the migration command, and the taxonomy sync command. Run both catalog commands before startup.
 
 Before running these commands:
 
@@ -35,10 +35,11 @@ Before running these commands:
 docker compose build &&
 docker compose stop &&
 docker compose run --rm --no-deps studio node commands/migrate.mjs &&
+docker compose run --rm --no-deps studio node commands/sync-taxonomy.mjs --apply &&
 docker compose up -d --wait
 ```
 
-Missing diagnostic stores are created empty. The migration command can also create an empty catalog for a temporary check. It is repeatable and returns nonzero on failure.
+Missing diagnostic stores are created empty. The migration command applies the catalog migrations and adds indexes to the workflow history file. The first index build reads the saved workflow history while Studio is stopped. The command is repeatable and returns nonzero on failure.
 
 Compose declares one named volume, `data`, mounted at `/data` in both services. Keep the same Compose project name to retain it during recreation. Do not use `docker compose down --volumes` for retained data. The fixed container paths are:
 
@@ -79,7 +80,7 @@ Both servers preserve default preview, explicit apply, native cancellation, and 
 
 ### Health and image verification
 
-Both images include Node health probes. Website `GET /health` returns `200 {"status":"ok"}` for a readable public schema or generic `503 {"status":"unavailable"}`. It does not create or migrate a missing catalog. Studio uses its existing `GET /health`. Its `GET /ingestion-queue` returns 200 while the queue loop runs, or 503 when catalog storage is unavailable. These internal checks need no model or login inputs.
+Both images include Node health probes. Website `GET /health` returns `200 {"status":"ok"}` for a readable public schema or generic `503 {"status":"unavailable"}`. It does not create or migrate a missing catalog. Studio uses its existing `GET /health`. Its `GET /ingestion-queue` returns 200 while the queue runs. It returns 503 if catalog storage is unavailable or the [queue limit](ingestion-tools.md#background-execution) is invalid. These internal checks need no model or login inputs.
 
 Run `pnpm run docker:smoke` to build both targets, prepare an empty test catalog with one explicit migration, and wait for both container health checks to pass and check Studio queue startup with an empty queue and no provider keys. The script uses the application Compose file without host ports, a random project, and a temporary named volume. It supplies no owner data or provider credentials, makes no paid calls, and removes only its test project's containers and volume after success or failure. CI runs the same command instead of a separate host website build. Website health tests and full offline workflow execution remain outside the images.
 
@@ -141,6 +142,8 @@ needed migrations separately and check health after startup.
 ## Local database maintenance
 
 `pnpm run db:migrate` applies reviewed migrations to `DATABASE_PATH`, including the [starter taxonomy](proposals/festival-taxonomy-vocabulary.md). Existing terms and Edition assignments are preserved; new terms do not classify or publish records. `pnpm run db:fixtures` also loads fictional development data. Fixtures are separate from schema migrations and omit audit history. Normal catalog mutations must use the validated writer; seed loaders must use shared catalog validators.
+
+After migration, edit the [taxonomy vocabulary](../src/catalog/taxonomy.json) in Git. Use `pnpm run taxonomy:sync` to preview the changes for the same `DATABASE_PATH`. Run `pnpm run taxonomy:sync --apply` to save new terms, names, and optional descriptions. Review any reported parent differences. The command preserves stored parents, term IDs, unmanaged terms, and Edition assignments.
 
 Migration files live in `src/db/migrations/`. A database from the earlier nine-migration history must be recreated; `db:migrate` does not upgrade it.
 

@@ -42,20 +42,15 @@ export async function createEvalObservability() {
 
 export function evalDatabasePath(env: NodeJS.ProcessEnv = process.env) {
   const cwd = process.cwd();
-  const path = resolve(
+  const { evals: path, observability: observations } = diagnosticStoragePaths(
+    env,
     cwd,
-    env.CATALOG_EVAL_DATABASE_PATH?.trim() || "data/mastra-evals.sqlite",
   );
   const catalog = resolve(
     cwd,
     env.DATABASE_PATH?.trim() || "data/eventroam.sqlite",
   );
   const evalFiles = [path, `${path}-wal`, `${path}-shm`, `${path}-journal`];
-  const { observability: observations } = diagnosticStoragePaths(
-    env,
-    cwd,
-    evalFiles,
-  );
   const chat = resolve(
     cwd,
     env.CATALOG_CHAT_DATABASE_PATH?.trim() || "data/mastra-chat.sqlite",
@@ -89,9 +84,7 @@ export async function createStudioStorage(
   const evals = await createEvalStore(env);
   let diagnostics: { close(): Promise<void> } | undefined;
   try {
-    const observations = await createObservabilityStore(env, [
-      evalDatabasePath(env),
-    ]);
+    const observations = await createObservabilityStore(env);
     diagnostics = observations;
     const workflows = createWorkflowStorage({
       path: diagnosticStoragePaths(env).workflow,

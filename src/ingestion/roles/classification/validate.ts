@@ -5,13 +5,13 @@ import { editionSlotNames } from "../../research/contracts";
 import { earlierEdition, proposedChronology } from "../../research/guards";
 import type { ResearchContext } from "../../research/context";
 import type { Targets } from "../general/contracts";
+import type { SavedEdition, SavedEvent } from "../options";
 import {
   checkGroups,
   validateProposalBoundary,
   type GroupValidationInput,
   failProposal,
   missingChangeEvidence,
-  selectedEvent,
 } from "../proposal-validation";
 import type {
   ClassificationOutput,
@@ -19,23 +19,17 @@ import type {
 } from "./contracts";
 import { resolveClassificationChange } from "./terms";
 
-type SavedEvent = ResearchContext["catalog"][number];
 export function checkedClassification(
-  target: Pick<
-    NonNullable<Targets["currentOrNextEdition"]>,
-    "editionKey" | "fields"
-  >,
+  target: Pick<NonNullable<Targets["currentOrNextEdition"]>, "fields">,
   classification: NonNullable<
     NonNullable<ClassificationOutput["currentOrNextEdition"]>["classification"]
   >,
   event: SavedEvent | undefined,
-  context: ResearchContext,
+  saved: SavedEdition | undefined,
+  terms: ResearchContext["terms"],
   corpus: FrozenCorpus,
   allowEmptyEvidence = false,
 ) {
-  const saved = event?.editions.find(
-    (edition) => edition.editionKey === target.editionKey,
-  );
   const retained = new Set(saved?.terms.map((term) => term.id) ?? []);
   if (classification.reuseFrom) {
     const earlier = event?.editions.find(
@@ -54,7 +48,7 @@ export function checkedClassification(
   }
   const { retained: termIds, removed } = normalizeProposedAssignments(
     classification.value,
-    context.terms,
+    terms,
   );
   const normalization = removed.length
     ? ` Removed selected ancestor terms ${removed.join(", ")}; retained descendant terms ${termIds.join(", ")}.`
@@ -80,7 +74,8 @@ function classificationGroupRule(
   if (!target || !change) {
     return;
   }
-  const event = selectedEvent(ctx);
+  const event = ctx.savedEvent;
+  const saved = ctx.savedEditions?.[slot];
   const donorKey = change.reuseFrom?.editionKey;
   const errors: string[] = [];
   if (
@@ -92,18 +87,14 @@ function classificationGroupRule(
     );
   }
   try {
-    const resolved = resolveClassificationChange(
-      change,
-      target.editionKey,
-      event,
-      ctx.context.terms,
-    );
+    const resolved = resolveClassificationChange(change, saved, ctx.terms);
     if (!errors.length) {
       checkedClassification(
         target,
         resolved,
         event,
-        ctx.context,
+        saved,
+        ctx.terms,
         ctx.corpus,
         returnedPaths?.has(group.path),
       );

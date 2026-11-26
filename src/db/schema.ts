@@ -135,6 +135,7 @@ export const taxonomyTerms = sqliteTable(
     parentId: text("parent_id").references(
       (): SQLiteColumn => taxonomyTerms.id,
     ),
+    description: text("description"),
   },
   (t) => [uniqueIndex("taxonomy_terms_facet_slug_uq").on(t.facet, t.slug)],
 );

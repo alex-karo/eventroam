@@ -5,6 +5,7 @@ await build({
   entryPoints: [
     "commands/studio-start.ts",
     "commands/migrate.ts",
+    "commands/sync-taxonomy.ts",
     "commands/backup.ts",
   ],
   outdir: ".mastra/output/commands",

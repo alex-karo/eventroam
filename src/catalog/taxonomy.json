@@ -1,0 +1,422 @@
+[
+  {
+    "facet": "event_type",
+    "slug": "festival",
+    "name": "Festival",
+    "description": "The organizer presents and programmes the Edition as a festival. Duration, crowd size, or camping alone is insufficient."
+  },
+  {
+    "facet": "event_type",
+    "slug": "gathering",
+    "name": "Participatory gathering",
+    "description": "The main programme comes from participants' contributions. Community wording, workshops, or shared activities alone are insufficient."
+  },
+  {
+    "facet": "format",
+    "slug": "openair",
+    "name": "Open-air",
+    "description": "The main programme is primarily outdoors, even if some concerts take place on covered or enclosed stages. Open Air in the current official festival name is evidence of an open-air main programme."
+  },
+  {
+    "facet": "format",
+    "slug": "mixed-indoor-outdoor",
+    "name": "Mixed indoor/outdoor",
+    "description": "Both settings host substantial parts of the main programme and neither is clearly primary."
+  },
+  {
+    "facet": "format",
+    "slug": "indoor",
+    "name": "Indoor",
+    "description": "Enclosed indoor spaces are the primary setting of the main programme."
+  },
+  {
+    "facet": "topic",
+    "slug": "music",
+    "name": "Music",
+    "description": "Live or recorded performances form a substantial advertised programme."
+  },
+  {
+    "facet": "topic",
+    "slug": "arts",
+    "name": "Arts",
+    "description": "Installations, visual art, performance art, or other non-musical artistic activities form a substantial programme. Decoration alone is insufficient."
+  },
+  {
+    "facet": "topic",
+    "slug": "reenactment",
+    "name": "Historical reenactment",
+    "description": "The programme includes substantial re-creations of historical events or ways of life, such as living-history camps. Costumes or an isolated demonstration are insufficient."
+  },
+  {
+    "facet": "topic",
+    "slug": "wellness",
+    "name": "Wellness",
+    "description": "Guided practices such as yoga, meditation, or breathwork form a substantial programme. A single session or spa service is insufficient."
+  },
+  {
+    "facet": "topic",
+    "slug": "moto",
+    "name": "Motorcycling",
+    "description": "Motorcycle rides, displays, or hands-on riding form a substantial programme. Parking or an incidental ride is insufficient."
+  },
+  {
+    "facet": "topic",
+    "slug": "snow-sports",
+    "name": "Snow sports",
+    "description": "Snow sports form a substantial programme, or an official festival package includes a ski pass valid during the Edition. A resort location or separate pass offer is insufficient."
+  },
+  {
+    "facet": "topic",
+    "slug": "surfing",
+    "name": "Surfing",
+    "description": "Surf competitions, demonstrations, lessons, or organized sessions form a substantial programme or participant offering. A seaside venue alone is insufficient."
+  },
+  {
+    "facet": "topic",
+    "slug": "food-and-drink",
+    "name": "Food & drink",
+    "description": "Culinary demonstrations, chef-led sessions, cooking workshops, or tastings form a substantial programme. Ordinary food stalls, bars, or an incidental tasting are insufficient."
+  },
+  {
+    "facet": "topic",
+    "slug": "wine",
+    "name": "Wine",
+    "parentSlug": "food-and-drink",
+    "description": "An official source describes a substantial wine programme for the selected Edition, such as tastings from several wineries. A festival name, ordinary bar, sponsor mention, or incidental tasting alone is insufficient."
+  },
+  {
+    "facet": "topic",
+    "slug": "beer",
+    "name": "Beer",
+    "parentSlug": "food-and-drink",
+    "description": "An official source describes a substantial beer programme for the selected Edition, such as tastings from several breweries. A festival name, ordinary bar, sponsor mention, or incidental tasting alone is insufficient."
+  },
+  {
+    "facet": "topic",
+    "slug": "outdoor",
+    "name": "Outdoor activities",
+    "description": "The organizer offers active outdoor recreation, such as guided hikes, climbing, or kayaking, as a substantial programme or organized participant activity. A natural setting or camping alone is insufficient."
+  },
+  {
+    "facet": "genre",
+    "slug": "electronic",
+    "name": "Electronic"
+  },
+  {
+    "facet": "genre",
+    "slug": "rock",
+    "name": "Rock"
+  },
+  {
+    "facet": "genre",
+    "slug": "metal",
+    "name": "Metal"
+  },
+  {
+    "facet": "genre",
+    "slug": "punk",
+    "name": "Punk"
+  },
+  {
+    "facet": "genre",
+    "slug": "pop",
+    "name": "Pop"
+  },
+  {
+    "facet": "genre",
+    "slug": "hip-hop-rap",
+    "name": "Hip-hop / rap"
+  },
+  {
+    "facet": "genre",
+    "slug": "folk",
+    "name": "Folk"
+  },
+  {
+    "facet": "genre",
+    "slug": "jazz",
+    "name": "Jazz"
+  },
+  {
+    "facet": "genre",
+    "slug": "blues",
+    "name": "Blues"
+  },
+  {
+    "facet": "genre",
+    "slug": "soul-rnb",
+    "name": "Soul / R&B"
+  },
+  {
+    "facet": "genre",
+    "slug": "reggae",
+    "name": "Reggae"
+  },
+  {
+    "facet": "genre",
+    "slug": "country",
+    "name": "Country"
+  },
+  {
+    "facet": "genre",
+    "slug": "classical",
+    "name": "Classical"
+  },
+  {
+    "facet": "genre",
+    "slug": "ambient",
+    "name": "Ambient"
+  },
+  {
+    "facet": "genre",
+    "slug": "experimental",
+    "name": "Experimental"
+  },
+  {
+    "facet": "genre",
+    "slug": "funk",
+    "name": "Funk"
+  },
+  {
+    "facet": "genre",
+    "slug": "disco",
+    "name": "Disco"
+  },
+  {
+    "facet": "genre",
+    "slug": "ska",
+    "name": "Ska"
+  },
+  {
+    "facet": "genre",
+    "slug": "dub",
+    "name": "Dub"
+  },
+  {
+    "facet": "genre",
+    "slug": "dancehall",
+    "name": "Dancehall"
+  },
+  {
+    "facet": "genre",
+    "slug": "afrobeat",
+    "name": "Afrobeat",
+    "description": "Afrobeat is the funk, jazz, and West African band tradition. Require evidence for this style."
+  },
+  {
+    "facet": "genre",
+    "slug": "afrobeats",
+    "name": "Afrobeats",
+    "description": "Afrobeats refers to contemporary West African pop styles. Artist nationality alone is insufficient."
+  },
+  {
+    "facet": "culture",
+    "slug": "burning-like",
+    "name": "Burning-like",
+    "description": "The organizer describes a burn-inspired participation model, or the sources show an equivalent model with participant-created art, gifting, or communal self-reliance. Camping, fire imagery, or transformational marketing alone is insufficient."
+  },
+  {
+    "facet": "genre",
+    "slug": "house",
+    "name": "House",
+    "parentSlug": "electronic"
+  },
+  {
+    "facet": "genre",
+    "slug": "techno",
+    "name": "Techno",
+    "parentSlug": "electronic"
+  },
+  {
+    "facet": "genre",
+    "slug": "trance",
+    "name": "Trance",
+    "parentSlug": "electronic"
+  },
+  {
+    "facet": "genre",
+    "slug": "psytrance",
+    "name": "Psytrance",
+    "parentSlug": "electronic"
+  },
+  {
+    "facet": "genre",
+    "slug": "drum-and-bass",
+    "name": "Drum & bass",
+    "parentSlug": "electronic"
+  },
+  {
+    "facet": "genre",
+    "slug": "downtempo",
+    "name": "Downtempo",
+    "parentSlug": "electronic"
+  },
+  {
+    "facet": "genre",
+    "slug": "breakbeat",
+    "name": "Breakbeat",
+    "parentSlug": "electronic"
+  },
+  {
+    "facet": "genre",
+    "slug": "dubstep",
+    "name": "Dubstep",
+    "parentSlug": "electronic"
+  },
+  {
+    "facet": "genre",
+    "slug": "uk-garage",
+    "name": "UK Garage",
+    "parentSlug": "electronic"
+  },
+  {
+    "facet": "genre",
+    "slug": "jungle",
+    "name": "Jungle",
+    "parentSlug": "electronic"
+  },
+  {
+    "facet": "genre",
+    "slug": "hardstyle",
+    "name": "Hardstyle",
+    "parentSlug": "electronic"
+  },
+  {
+    "facet": "genre",
+    "slug": "alternative-rock",
+    "name": "Alternative Rock",
+    "parentSlug": "rock"
+  },
+  {
+    "facet": "genre",
+    "slug": "indie-rock",
+    "name": "Indie Rock",
+    "parentSlug": "rock"
+  },
+  {
+    "facet": "genre",
+    "slug": "psychedelic-rock",
+    "name": "Psychedelic Rock",
+    "parentSlug": "rock"
+  },
+  {
+    "facet": "genre",
+    "slug": "hard-rock",
+    "name": "Hard Rock",
+    "parentSlug": "rock"
+  },
+  {
+    "facet": "genre",
+    "slug": "heavy-metal",
+    "name": "Heavy Metal",
+    "parentSlug": "metal"
+  },
+  {
+    "facet": "genre",
+    "slug": "thrash-metal",
+    "name": "Thrash Metal",
+    "parentSlug": "metal"
+  },
+  {
+    "facet": "genre",
+    "slug": "death-metal",
+    "name": "Death Metal",
+    "parentSlug": "metal"
+  },
+  {
+    "facet": "genre",
+    "slug": "black-metal",
+    "name": "Black Metal",
+    "parentSlug": "metal"
+  },
+  {
+    "facet": "genre",
+    "slug": "doom-metal",
+    "name": "Doom Metal",
+    "parentSlug": "metal"
+  },
+  {
+    "facet": "genre",
+    "slug": "hardcore-punk",
+    "name": "Hardcore Punk",
+    "parentSlug": "punk"
+  },
+  {
+    "facet": "genre",
+    "slug": "deep-house",
+    "name": "Deep House",
+    "parentSlug": "house"
+  },
+  {
+    "facet": "genre",
+    "slug": "tech-house",
+    "name": "Tech House",
+    "parentSlug": "house"
+  },
+  {
+    "facet": "genre",
+    "slug": "progressive-house",
+    "name": "Progressive House",
+    "parentSlug": "house"
+  },
+  {
+    "facet": "genre",
+    "slug": "afro-house",
+    "name": "Afro House",
+    "parentSlug": "house"
+  },
+  {
+    "facet": "genre",
+    "slug": "organic-house",
+    "name": "Organic House",
+    "parentSlug": "house"
+  },
+  {
+    "facet": "genre",
+    "slug": "minimal-techno",
+    "name": "Minimal Techno",
+    "parentSlug": "techno"
+  },
+  {
+    "facet": "genre",
+    "slug": "hard-techno",
+    "name": "Hard Techno",
+    "parentSlug": "techno"
+  },
+  {
+    "facet": "genre",
+    "slug": "melodic-techno",
+    "name": "Melodic Techno",
+    "parentSlug": "techno"
+  },
+  {
+    "facet": "genre",
+    "slug": "goa-trance",
+    "name": "Goa Trance",
+    "parentSlug": "psytrance"
+  },
+  {
+    "facet": "genre",
+    "slug": "progressive-psytrance",
+    "name": "Progressive Psytrance",
+    "parentSlug": "psytrance"
+  },
+  {
+    "facet": "genre",
+    "slug": "darkpsy",
+    "name": "Darkpsy",
+    "parentSlug": "psytrance"
+  },
+  {
+    "facet": "genre",
+    "slug": "forest-psytrance",
+    "name": "Forest Psytrance",
+    "parentSlug": "psytrance"
+  },
+  {
+    "facet": "genre",
+    "slug": "hi-tech",
+    "name": "Hi-Tech",
+    "parentSlug": "psytrance"
+  }
+]

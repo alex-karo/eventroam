@@ -167,6 +167,8 @@ const evalSuiteSchema = z.object({
       facet: z.enum(facets),
       slug: z.string(),
       name: z.string(),
+      parentId: z.string().optional(),
+      description: z.string().optional(),
     }),
   ),
   cases: z.array(evalCaseSchema).min(1),

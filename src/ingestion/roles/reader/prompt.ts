@@ -1,4 +1,4 @@
-export const READER_PROMPT_VERSION = "source-reader-v50";
+export const READER_PROMPT_VERSION = "source-reader-v51";
 
 export const readerInstructions = `## Scope
 
@@ -72,7 +72,8 @@ export const readerInstructions = `## Scope
 
 ### Classification
 
-- For classification, retain passages that name programme types or genres, describe the music of programme acts, or establish where the main programme takes place.
+- For classification, retain passages that name programme types or genres, describe the music of programme acts, describe substantial programme activities, or establish where the main programme takes place.
+- Tag substantial programme activities for both classification and description.
 - Keep the relevant passage and its Edition context.
 - Omit unrelated biography and archive navigation.
 

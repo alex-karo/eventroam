@@ -6,7 +6,7 @@ import type { ResearchLogger } from "../ingestion/runtime/logging";
 import type { createStudioIngestionWorkflow } from "./ingestion";
 import type { MaintenanceControl } from "./maintenance";
 
-/** Studio owns one queue loop and closes it before shared storage. */
+/** Studio stops the queue processor before it closes shared storage. */
 export function createStudioJobs(
   workflow: ReturnType<typeof createStudioIngestionWorkflow>,
   log?: ResearchLogger,
@@ -15,14 +15,13 @@ export function createStudioJobs(
   const controller = new AbortController();
   let status: "idle" | "running" | "unavailable" | "stopped" = "idle";
   let pending: Promise<void> | undefined;
-  const unavailable = () => {
+  const unavailable = (
+    errorCode = "job_storage_unavailable",
+    message = "Check catalog storage.",
+  ) => {
     status = "unavailable";
-    log?.error("Ingestion queue unavailable", {
-      errorCode: "job_storage_unavailable",
-    });
-    process.stderr.write(
-      "Studio ingestion queue unavailable. Check catalog storage.\n",
-    );
+    log?.error("Ingestion queue unavailable", { errorCode });
+    process.stderr.write(`Studio ingestion queue unavailable. ${message}\n`);
   };
   const onSignal = () => {
     void stop().catch(() => {
@@ -41,6 +40,18 @@ export function createStudioJobs(
     if (status !== "idle" || controller.signal.aborted) {
       return;
     }
+    const setting = process.env.CATALOG_JOB_CONCURRENCY?.trim();
+    const concurrency = setting ? Number(setting) : undefined;
+    if (
+      concurrency !== undefined &&
+      (!Number.isSafeInteger(concurrency) || concurrency < 1)
+    ) {
+      unavailable(
+        "invalid_job_concurrency",
+        "CATALOG_JOB_CONCURRENCY must be a positive safe integer.",
+      );
+      return;
+    }
     try {
       const client = openJobCatalog(readDatabaseEnvironment().DATABASE_PATH);
       status = "running";
@@ -50,13 +61,14 @@ export function createStudioJobs(
         client,
         signal: controller.signal,
         paused: maintenance?.paused,
+        concurrency,
         execute: (job, signal) =>
           maintenance
             ? maintenance.run(() => workflow.executeJob(job, signal, log))
             : workflow.executeJob(job, signal, log),
         log,
       })
-        .catch(unavailable)
+        .catch(() => unavailable())
         .finally(() => client.close());
     } catch {
       unavailable();

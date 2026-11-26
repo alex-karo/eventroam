@@ -1,6 +1,5 @@
 import type { Evidence } from "./evidence/contracts";
 import {
-  assignedGroups,
   MAX_GROUP_RETURNS,
   atPath,
   record,
@@ -37,11 +36,11 @@ import {
   failProposal,
   RepairFailure,
   replyReferences,
-  selectedEvent,
   type GroupIssue,
   type GroupValidationInput,
   type ProposalValidationContext,
 } from "./roles/proposal-validation";
+import type { SpecialistContext } from "./roles/options";
 import type { TicketsOutput } from "./roles/tickets/contracts";
 import { validateTicketsReply } from "./roles/tickets/validate";
 import type { StageResult, PlanDiagnostics } from "./stage";
@@ -54,8 +53,15 @@ const validators = {
   location: validateLocationGroups,
 } satisfies Record<GroupOwner, (options: GroupValidationInput) => unknown>;
 
-type RepairContext = Omit<ProposalValidationContext, "location" | "targets">;
-type TargetedRepairContext = RepairContext & { targets: Targets };
+type RepairContext = Omit<
+  ProposalValidationContext,
+  "location" | "targets" | "savedEditions"
+>;
+type TargetedRepairContext = RepairContext & {
+  targets: Targets;
+  groups: readonly ProposalGroup[];
+  savedEditions: SpecialistContext["savedEditions"];
+};
 type GeneralRepairResult = {
   targets: StageResult<Targets & PlanDiagnostics>;
   revisedOutput?: Targets;
@@ -76,7 +82,7 @@ export type RepairRecord = {
   failure?: ResearchError;
 };
 
-function ownGroups(groups: ProposalGroup[], owner: GroupOwner) {
+function ownGroups(groups: readonly ProposalGroup[], owner: GroupOwner) {
   return groups.filter((group) => group.owner === owner);
 }
 
@@ -168,19 +174,14 @@ export class ProposalRepairs {
     );
     const revisedOutput = checkedGeneralTargets(reply.raw);
     return {
-      targets: validateGeneral(
-        revisedOutput,
-        ctx.context,
-        ctx.input,
-        ctx.corpus,
-      ),
+      targets: validateGeneral(revisedOutput, ctx),
       revisedOutput,
     };
   }
 
   async beforeReview(context: TargetedRepairContext, signal: AbortSignal) {
     const ctx = { ...context, location: this.location };
-    const groups = assignedGroups(ctx.input.scope, ctx.targets);
+    const { groups } = context;
     const issues: GroupIssue[] = [];
     const specialists = [
       "tickets",
@@ -220,7 +221,7 @@ export class ProposalRepairs {
     onReturnStarted?: OnReturnStarted,
   ) {
     const ctx = { ...context, location: this.location };
-    const groups = assignedGroups(ctx.input.scope, ctx.targets);
+    const { groups } = context;
     const start = this.records.length;
     await this.returnGroups(
       requests,
@@ -250,7 +251,7 @@ export class ProposalRepairs {
   }
 
   private checkedSpecialistOutputs(
-    ctx: ProposalValidationContext,
+    ctx: TargetedRepairContext,
   ): SpecialistOutputs {
     // Read each reply after its role schema and group checks pass.
     const links = this.raw("links") as LinksOutput | undefined;
@@ -264,9 +265,8 @@ export class ProposalRepairs {
       classification: classification
         ? materializeClassificationReply(
             classification,
-            ctx.targets,
-            selectedEvent(ctx),
-            ctx.context.terms,
+            ctx.savedEditions,
+            ctx.terms,
           )
         : null,
       links,
@@ -283,7 +283,7 @@ export class ProposalRepairs {
 
   private async returnGroups(
     requests: ReturnRequest[],
-    groups: ProposalGroup[],
+    groups: readonly ProposalGroup[],
     ctx: ProposalValidationContext,
     trigger: RepairRecord["trigger"],
     signal: AbortSignal,
@@ -370,7 +370,7 @@ export class ProposalRepairs {
       }
       const { target: slot } = group;
       const target = {
-        eventId: selectedEvent(ctx)?.id ?? null,
+        eventId: ctx.savedEvent?.id ?? null,
         ...(slot !== "event" && {
           editionKey: ctx.targets?.[slot]?.editionKey,
         }),

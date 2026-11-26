@@ -1,7 +1,5 @@
-import type { CatalogResearchInput } from "./contracts";
-import { assignedGroups } from "./groups";
+import type { ProposalGroup } from "./groups";
 import { researchErrorSchema, type ResearchError } from "./research/contracts";
-import type { Targets } from "./roles/general/contracts";
 import { z } from "zod";
 import { ticketsOutputSchema } from "./roles/tickets/contracts";
 import { classificationOutputSchema } from "./roles/classification/contracts";
@@ -16,17 +14,13 @@ export const specialistRoles = [
 ] as const;
 export type SpecialistRole = (typeof specialistRoles)[number];
 
-export function assignedSpecialists(
-  scope: CatalogResearchInput["scope"],
-  targets: Pick<Targets, "previousEdition" | "currentOrNextEdition">,
-) {
-  const groups = assignedGroups(scope, targets);
+export function assignedSpecialists(groups: readonly ProposalGroup[]) {
   return specialistRoles.filter((role) =>
     groups.some(({ owner }) => owner === role),
   );
 }
 
-function execution<T extends z.ZodType>(output: T) {
+export function roleExecutionSchema<T extends z.ZodType>(output: T) {
   const common = {
     modelResponse: z
       .object({ text: z.string().nullable(), object: z.unknown() })
@@ -47,9 +41,9 @@ function execution<T extends z.ZodType>(output: T) {
   ]);
 }
 export const specialistResultsSchema = z.object({
-  tickets: execution(ticketsOutputSchema),
-  classification: execution(classificationOutputSchema),
-  links: execution(linksOutputSchema),
+  tickets: roleExecutionSchema(ticketsOutputSchema),
+  classification: roleExecutionSchema(classificationOutputSchema),
+  links: roleExecutionSchema(linksOutputSchema),
   location: locationExecutionSchema,
 });
 

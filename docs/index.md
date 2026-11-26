@@ -46,6 +46,7 @@ These records explain past technology choices. Use the code, tests, and current 
 
 - [Studio and CLI evals share a DuckDB writer lock](known-issues/2026-10-27-studio-cli-duckdb-conflict.md) — affects standalone evals with logging or tracing enabled.
 - [Invalid Edition key rejects Wacken research](known-issues/2026-10-27-wacken-invalid-edition-key.md) — malformed model output rejects a full research result.
+- [Studio can stall while it reads workflow history](known-issues/2026-11-26-studio-workflow-history-indexes.md) — measured effect of two SQLite indexes and checks for production.
 
 ## Archived issues
 
@@ -54,6 +55,7 @@ These records explain past technology choices. Use the code, tests, and current 
 
 ## Research
 
+- [Event data and managed collection competitors](research/2026-11-26-event-data-competitors.md) — six offers, customer evidence, and limits relevant to Eventroam.
 - [Geocoding service research](research/2026-10-24-geocoding-services.md) — dated provider and community findings; selection and location tests remain open.
 - [Facebook and Instagram text access](research/2026-10-05-facebook-instagram-text-access.md) — dated retrieval checks and per-item costs for public posts.
 - [Competitor scan](research/2026-09-14-competitor-scan.md) — dated rival observations; later product decisions supersede recommendations.

@@ -6,7 +6,7 @@ import {
 } from "../prompts";
 import { classificationInstructions as classificationRules } from "../classification/rules";
 
-export const EDITOR_PROMPT_VERSION = "proposal-review-v81";
+export const EDITOR_PROMPT_VERSION = "proposal-review-v82";
 
 export const editorInstructions = `## Scope
 
@@ -96,7 +96,8 @@ ${descriptionScopeRule}
 
 - Approve a broadly accurate description that states the format and uses supported examples in its own words.
 - An official account of a completed Edition can support regular features that still apply.
-- Give direct evidence about where the current main programme takes place priority over a general description of the setting.
+- Apply the shared format rules below.
+- In the full description, check that a separate substantial culinary programme is included when the evidence supports it alongside a wine or beer programme.
 - Omit prices and programme dates from both texts.
 - A passage can support both a feature and its stated access terms.
 - Clear context can support a detail without repeating its exact label.
