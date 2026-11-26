@@ -38,7 +38,7 @@ docker compose run --rm --no-deps studio node commands/migrate.mjs &&
 docker compose up -d --wait
 ```
 
-Missing diagnostic stores are created empty. The migration command can also create an empty catalog for a temporary check. It is repeatable and returns nonzero on failure.
+Missing diagnostic stores are created empty. The migration command applies the catalog migrations and adds indexes to the workflow history file. The first index build reads the saved workflow history while Studio is stopped. The command is repeatable and returns nonzero on failure.
 
 Compose declares one named volume, `data`, mounted at `/data` in both services. Keep the same Compose project name to retain it during recreation. Do not use `docker compose down --volumes` for retained data. The fixed container paths are:
 

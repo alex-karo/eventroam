@@ -46,6 +46,7 @@ These records explain past technology choices. Use the code, tests, and current 
 
 - [Studio and CLI evals share a DuckDB writer lock](known-issues/2026-10-27-studio-cli-duckdb-conflict.md) — affects standalone evals with logging or tracing enabled.
 - [Invalid Edition key rejects Wacken research](known-issues/2026-10-27-wacken-invalid-edition-key.md) — malformed model output rejects a full research result.
+- [Studio can stall while it reads workflow history](known-issues/2026-11-26-studio-workflow-history-indexes.md) — measured effect of two SQLite indexes and checks for production.
 
 ## Archived issues
 
