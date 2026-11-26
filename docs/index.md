@@ -55,6 +55,7 @@ These records explain past technology choices. Use the code, tests, and current 
 
 ## Research
 
+- [Event data and managed collection competitors](research/2026-11-26-event-data-competitors.md) — six offers, customer evidence, and limits relevant to Eventroam.
 - [Geocoding service research](research/2026-10-24-geocoding-services.md) — dated provider and community findings; selection and location tests remain open.
 - [Facebook and Instagram text access](research/2026-10-05-facebook-instagram-text-access.md) — dated retrieval checks and per-item costs for public posts.
 - [Competitor scan](research/2026-09-14-competitor-scan.md) — dated rival observations; later product decisions supersede recommendations.
