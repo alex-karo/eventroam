@@ -1,6 +1,7 @@
 import type { Targets } from "../../roles/general/contracts";
 import { evidenceRequirement } from "../reader/checks";
 
+const festival = "validation:festival";
 const wine =
   "The 2027 wine programme offers tastings led by eight regional wineries on both days.";
 const cooking =
@@ -20,7 +21,9 @@ const scenarios = [
     name: "Vineyard Table Open Air",
     programme: [wine, cooking],
     passages: [wine, cooking],
-    terms: ["catalog:term:topic:wine", "validation:openair"],
+    expectedTermSets: [
+      [festival, "catalog:term:topic:wine", "validation:openair"],
+    ],
     descriptionReference:
       "An open-air festival with a substantial programme of wine tastings and separate chef-led cooking workshops.",
     culinary: true,
@@ -33,7 +36,9 @@ const scenarios = [
       `${indoors} Outside there are only entrances and parking.`,
     ],
     passages: [beer, indoors],
-    terms: ["catalog:term:topic:beer", "validation:indoor"],
+    expectedTermSets: [
+      [festival, "catalog:term:topic:beer", "validation:indoor"],
+    ],
     descriptionReference:
       "An indoor beer festival in enclosed exhibition halls, with guided tastings from independent breweries and brewing demonstrations.",
   },
@@ -42,21 +47,21 @@ const scenarios = [
     name: "Alder Wine Festival",
     programme: [],
     passages: [],
-    terms: [],
+    expectedTermSets: [[festival], []],
   },
   {
     id: "classification-drinks-incidental",
     name: "Alder Jazz Festival",
     programme: [bar],
     passages: [bar],
-    terms: ["validation:music"],
+    expectedTermSets: [[festival, "validation:music"]],
   },
   {
     id: "classification-beer-other-edition",
     name: "Mill Beer Festival",
     programme: [past],
     passages: [past],
-    terms: [],
+    expectedTermSets: [[festival], [festival, "catalog:term:topic:beer"], []],
   },
 ];
 
@@ -129,8 +134,7 @@ export function drinkClassificationCases() {
             ),
           ),
         ],
-        expectedTerms: ["validation:festival", ...scenario.terms],
-        allowNoClassification: scenario.terms.length === 0,
+        expectedTermSets: scenario.expectedTermSets,
         descriptionReference: scenario.descriptionReference,
         culinary: scenario.culinary,
       },

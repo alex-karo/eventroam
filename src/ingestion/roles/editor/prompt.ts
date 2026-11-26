@@ -6,7 +6,7 @@ import {
 } from "../prompts";
 import { classificationInstructions as classificationRules } from "../classification/rules";
 
-export const EDITOR_PROMPT_VERSION = "proposal-review-v82";
+export const EDITOR_PROMPT_VERSION = "proposal-review-v83";
 
 export const editorInstructions = `## Scope
 

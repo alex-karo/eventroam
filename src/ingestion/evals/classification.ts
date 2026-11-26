@@ -101,11 +101,13 @@ export function classificationCases(suite: EvalSuite) {
       classification: {
         targets,
         corpus,
-        expectedTerms: [
-          "validation:festival",
-          "validation:music",
-          "validation:mixed",
-          "catalog:term:genre:metal",
+        expectedTermSets: [
+          [
+            "validation:festival",
+            "validation:music",
+            "validation:mixed",
+            "catalog:term:genre:metal",
+          ],
         ],
         descriptionReference:
           "A live metal music festival split evenly between indoor and open-air stages. Emerging bands play indoors, and open-air stages host extended live sets.",
@@ -133,15 +135,18 @@ function checkClassificationTerms(
   } catch (error) {
     return check(path, false, `Invalid classification: ${String(error)}`);
   }
-  const { expectedTerms } = fixture;
-  const allowNoClassification =
-    "allowNoClassification" in fixture && fixture.allowNoClassification;
+  const { expectedTermSets } = fixture;
+  const expected = expectedTermSets
+    .map((terms) => terms.join(", ") || "no categories")
+    .join(" or ");
   return check(
     path,
-    (allowNoClassification && actual.length === 0) ||
-      (actual.length === expectedTerms.length &&
-        expectedTerms.every((term) => actual.includes(term))),
-    `Expected ${expectedTerms.join(", ")}${allowNoClassification ? " or no categories" : ""}. Received ${actual.join(", ") || "no categories"}.`,
+    expectedTermSets.some(
+      (terms) =>
+        actual.length === terms.length &&
+        terms.every((id) => actual.includes(id)),
+    ),
+    `Expected ${expected}. Received ${actual.join(", ") || "no categories"}.`,
   );
 }
 

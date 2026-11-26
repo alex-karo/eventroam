@@ -1,7 +1,7 @@
 import { boundary, descriptionScopeRule, returnInstructions } from "../prompts";
 import { classificationInstructions as classificationRules } from "./rules";
 
-export const CLASSIFICATION_PROMPT_VERSION = "edition-classification-v36";
+export const CLASSIFICATION_PROMPT_VERSION = "edition-classification-v37";
 
 export const classificationInstructions = `## Edition terms
 
