@@ -203,9 +203,11 @@ export async function scoreClassification(
     output?.currentOrNextEdition?.classification?.value,
     terms,
   );
+  const { description, shortDescription } = output ?? {};
   const texts = {
-    description: output?.description?.value ?? null,
-    shortDescription: output?.shortDescription?.value ?? null,
+    description: description?.action === "set" ? description.value : null,
+    shortDescription:
+      shortDescription?.action === "set" ? shortDescription.value : null,
   };
   const { checks, descriptionFormat } = await scoreClassificationDescriptions(
     item,
