@@ -1,9 +1,10 @@
+import { EventEmitter, once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 import type Database from "better-sqlite3";
 import type { ResearchLogger } from "../runtime/logging";
 import { finishJob, nextJob, type IngestionJob } from "./store";
 
-/** One loop per catalog. A saved running job starts again after process restart. */
+/** A saved running job starts again after process restart. */
 export async function processJobs(options: {
   client: Database.Database;
   signal: AbortSignal;
@@ -13,18 +14,20 @@ export async function processJobs(options: {
   ) => Promise<void | { failed: boolean }>;
   log?: ResearchLogger;
   paused?: () => boolean;
+  concurrency?: number;
 }) {
-  const { client, signal, execute, log } = options;
-  while (!signal.aborted) {
-    const job = options.paused?.() ? undefined : nextJob(client);
-    if (!job) {
-      await delay(1000, undefined, { signal }).catch((error) => {
-        if (!signal.aborted) {
-          throw error;
-        }
-      });
-      continue;
+  const { client, execute, log, concurrency = 3 } = options;
+  const stop = new AbortController();
+  const signal = AbortSignal.any([options.signal, stop.signal]);
+  const active = new Map<string, Promise<void>>();
+  const events = new EventEmitter();
+  const stopOnFailure = (error: unknown) => {
+    if (!signal.aborted) {
+      stop.abort(error);
     }
+  };
+
+  async function runJob(job: IngestionJob) {
     const started = performance.now();
     const fields = {
       batchId: job.batch_id,
@@ -56,5 +59,34 @@ export async function processJobs(options: {
       failed,
       durationMs: Math.round(performance.now() - started),
     });
+  }
+
+  try {
+    while (!signal.aborted) {
+      if (active.size >= concurrency) {
+        await once(events, "finished");
+        continue;
+      }
+      const job = options.paused?.()
+        ? undefined
+        : nextJob(client, active.keys());
+      if (!job) {
+        await delay(1000, undefined, { signal });
+        continue;
+      }
+      const work = runJob(job)
+        .catch(stopOnFailure)
+        .finally(() => {
+          active.delete(job.id);
+          events.emit("finished");
+        });
+      active.set(job.id, work);
+    }
+  } catch (error) {
+    stopOnFailure(error);
+  }
+  await Promise.all(active.values());
+  if (stop.signal.aborted) {
+    throw stop.signal.reason;
   }
 }
