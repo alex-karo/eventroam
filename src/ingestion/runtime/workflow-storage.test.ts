@@ -11,6 +11,7 @@ import {
   WorkflowHistoryError,
 } from "./workflow-storage";
 import { diagnosticStoragePaths } from "./storage-paths";
+import { migrateWorkflowStorage } from "./migrate-workflow-storage";
 import type { WorkflowRunState } from "@mastra/core/workflows";
 
 export function pendingSnapshot(runId: string): WorkflowRunState {
@@ -75,18 +76,70 @@ test("the pinned native adapter saves, closes and reopens only workflow tables",
   }
 });
 
+test.each([false, true])(
+  "workflow index migration is repeatable with existing history %s",
+  async (hasHistory) => {
+    const path = join(dirname(testDatabase().path), "workflows.sqlite");
+    const snapshot = pendingSnapshot("saved-run");
+    if (hasHistory) {
+      const storage = createWorkflowStorage({ path });
+      try {
+        await storage.init();
+        await (await storage.getStore("workflows"))!.persistWorkflowSnapshot({
+          workflowName: "catalog-ingestion",
+          runId: snapshot.runId,
+          snapshot,
+        });
+      } finally {
+        await storage.close();
+      }
+    }
+
+    await migrateWorkflowStorage(path);
+    await migrateWorkflowStorage(path);
+
+    const client = new Database(path, { readonly: true, fileMustExist: true });
+    try {
+      expect(
+        client
+          .prepare(
+            "SELECT name FROM sqlite_schema WHERE type = 'index' AND tbl_name = 'mastra_workflow_snapshot'",
+          )
+          .pluck()
+          .all(),
+      ).toEqual(
+        expect.arrayContaining([
+          "eventroam_workflow_snapshot_status_idx",
+          "eventroam_workflow_snapshot_recent_idx",
+        ]),
+      );
+      const saved = client
+        .prepare("SELECT json(snapshot) FROM mastra_workflow_snapshot")
+        .pluck()
+        .all() as string[];
+      expect(saved.map((value) => JSON.parse(value))).toEqual(
+        hasHistory ? [snapshot] : [],
+      );
+    } finally {
+      client.close();
+    }
+  },
+);
+
 test("diagnostic preflight resolves relative paths and rejects sidecars and aliases before writes", () => {
   const catalog = testDatabase().path;
   const root = dirname(catalog);
   const workflow = join(root, "workflows.sqlite");
   const observability = join(root, "observability.duckdb");
   const chat = join(root, "chat.sqlite");
+  const evals = join(root, "evals.sqlite");
   const env = {
     ...process.env,
     DATABASE_PATH: catalog,
     CATALOG_WORKFLOW_DATABASE_PATH: workflow,
     CATALOG_OBSERVABILITY_DATABASE_PATH: observability,
     CATALOG_CHAT_DATABASE_PATH: chat,
+    CATALOG_EVAL_DATABASE_PATH: evals,
   };
   expect(
     diagnosticStoragePaths(
@@ -112,6 +165,8 @@ test("diagnostic preflight resolves relative paths and rejects sidecars and alia
     `${chat}-wal`,
     `${chat}-shm`,
     `${chat}-journal`,
+    evals,
+    `${evals}-wal`,
   ]) {
     expect(() =>
       diagnosticStoragePaths(

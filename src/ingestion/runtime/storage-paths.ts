@@ -43,6 +43,10 @@ export function diagnosticStoragePaths(
     env.CATALOG_OBSERVABILITY_DATABASE_PATH?.trim() ||
       "data/mastra-observability.duckdb",
   );
+  const evals = resolve(
+    cwd,
+    env.CATALOG_EVAL_DATABASE_PATH?.trim() || "data/mastra-evals.sqlite",
+  );
   const protectedFiles = [
     ...sqliteFiles(
       resolve(cwd, env.DATABASE_PATH?.trim() || "data/eventroam.sqlite"),
@@ -54,6 +58,7 @@ export function diagnosticStoragePaths(
       ),
     ),
     ...sqliteFiles(resolve(cwd, "data/mastra-traces.sqlite")),
+    ...sqliteFiles(evals),
     ...(env.CATALOG_TRACE_DATABASE_PATH
       ? sqliteFiles(resolve(cwd, env.CATALOG_TRACE_DATABASE_PATH))
       : []),
@@ -72,5 +77,5 @@ export function diagnosticStoragePaths(
       "Diagnostic storage must be separate from catalog, historical and report files",
     );
   }
-  return { workflow, observability };
+  return { workflow, observability, evals };
 }
