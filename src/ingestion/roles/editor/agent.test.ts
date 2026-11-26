@@ -196,45 +196,11 @@ it("shares proposal and repair evidence by ID and checks saved source hashes", a
             const tool = call.tools!.mastra_workspace_grep as {
               execute: (input: unknown, context: unknown) => Promise<string>;
             };
-            const request = {
-              pattern: "Festival",
-              path: "s1.md",
-              contextLines: 1,
-              maxCount: 10,
-              caseSensitive: true,
-              includeHidden: false,
-            };
-            const output = await tool.execute(request, {});
-            expect(output).toContain("Festival in the park.");
-            expect(output).toContain("Before the quote.");
-            expect(output).toContain("After the quote.");
-            expect(
-              await tool.execute({ ...request, path: "s2.md" }, {}),
-            ).toContain("Unrelated Festival page.");
-            for (const path of [
-              ".",
-              "../outside.md",
-              "s3.md",
-              "s1.evidence.json",
-            ]) {
-              await expect(
-                tool.execute({ ...request, path }, {}),
-              ).rejects.toThrow("not saved in this run");
-            }
-            await writeFile(
+            await checkSavedPageSearch(
+              tool,
               source.markdownPath!,
-              (await readFile(source.markdownPath!, "utf8")) + "Changed",
-            );
-            await expect(tool.execute(request, {})).rejects.toThrow(
-              "hash mismatch",
-            );
-            await writeFile(
               other.markdownPath!,
-              (await readFile(other.markdownPath!, "utf8")) + "Changed",
             );
-            await expect(
-              tool.execute({ ...request, path: "s2.md" }, {}),
-            ).rejects.toThrow("hash mismatch");
             return fixtureReview(input);
           },
         },
@@ -257,3 +223,36 @@ it("shares proposal and repair evidence by ID and checks saved source hashes", a
     await rm(root, { recursive: true, force: true });
   }
 });
+
+async function checkSavedPageSearch(
+  tool: { execute: (input: unknown, context: unknown) => Promise<string> },
+  sourcePath: string,
+  otherPath: string,
+) {
+  const request = {
+    pattern: "Festival",
+    path: "s1.md",
+    contextLines: 1,
+    maxCount: 10,
+    caseSensitive: true,
+    includeHidden: false,
+  };
+  const output = await tool.execute(request, {});
+  expect(output).toContain("Festival in the park.");
+  expect(output).toContain("Before the quote.");
+  expect(output).toContain("After the quote.");
+  expect(await tool.execute({ ...request, path: "s2.md" }, {})).toContain(
+    "Unrelated Festival page.",
+  );
+  for (const path of [".", "../outside.md", "s3.md", "s1.evidence.json"]) {
+    await expect(tool.execute({ ...request, path }, {})).rejects.toThrow(
+      "not saved in this run",
+    );
+  }
+  await writeFile(sourcePath, (await readFile(sourcePath, "utf8")) + "Changed");
+  await expect(tool.execute(request, {})).rejects.toThrow("hash mismatch");
+  await writeFile(otherPath, (await readFile(otherPath, "utf8")) + "Changed");
+  await expect(tool.execute({ ...request, path: "s2.md" }, {})).rejects.toThrow(
+    "hash mismatch",
+  );
+}

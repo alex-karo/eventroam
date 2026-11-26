@@ -121,23 +121,38 @@ export type ClassificationEvalCase = ReturnType<
 
 const sentenceSegmenter = new Intl.Segmenter("en", { granularity: "sentence" });
 
-export async function scoreClassification(
-  item: ClassificationEvalCase,
-  execution: RoleExecution<ClassificationOutput>,
+function checkClassificationTerms(
+  fixture: ClassificationEvalCase["classification"],
+  proposed: string[] | undefined,
   terms: ResearchContext["terms"],
 ) {
-  const { expectedTerms, descriptionReference } = item.classification;
-  const proposed =
-    execution.output?.currentOrNextEdition?.classification?.value;
-  const actual = proposed
-    ? normalizeProposedAssignments(proposed, terms).retained
-    : [];
+  const path = "currentOrNextEdition.classification";
+  let actual: string[];
+  try {
+    actual = normalizeProposedAssignments(proposed ?? [], terms).retained;
+  } catch (error) {
+    return check(path, false, `Invalid classification: ${String(error)}`);
+  }
+  const { expectedTerms } = fixture;
   const allowNoClassification =
-    "allowNoClassification" in item.classification &&
-    item.classification.allowNoClassification;
+    "allowNoClassification" in fixture && fixture.allowNoClassification;
+  return check(
+    path,
+    (allowNoClassification && actual.length === 0) ||
+      (actual.length === expectedTerms.length &&
+        expectedTerms.every((term) => actual.includes(term))),
+    `Expected ${expectedTerms.join(", ")}${allowNoClassification ? " or no categories" : ""}. Received ${actual.join(", ") || "no categories"}.`,
+  );
+}
+
+async function scoreClassificationDescriptions(
+  item: ClassificationEvalCase,
+  output: ClassificationOutput | undefined,
+) {
+  const { descriptionReference } = item.classification;
   const texts = Object.fromEntries(
     descriptionFields.map((field) => {
-      const proposal = execution.output?.[field];
+      const proposal = output?.[field];
       return [field, proposal?.action === "set" ? proposal.value : null];
     }),
   );
@@ -145,7 +160,67 @@ export async function scoreClassification(
     descriptionReference,
     texts,
   );
-  const festivalName = item.initial.event.canonicalName.toLowerCase();
+  const checks = [];
+  if ("culinary" in item.classification && item.classification.culinary) {
+    checks.push(
+      check(
+        "description.culinary",
+        /\b(?:chef[- ]led workshops?|cooking|culinary (?:sessions?|classes|workshops?)|prepar(?:e|ing) regional dishes|learn(?:ing)? regional recipes)\b/i.test(
+          texts.description ?? "",
+        ),
+        "The full description must include the separate cooking programme.",
+      ),
+    );
+  }
+  if (descriptionReference) {
+    const festivalName = item.initial.event.canonicalName.toLowerCase();
+    for (const field of descriptionFields) {
+      const probability = descriptionFormat.fields[field];
+      checks.push(
+        check(
+          field,
+          typeof probability === "number" &&
+            probability >= minimumDescriptionFormat,
+          `Decider result: ${probability}. Required minimum is ${minimumDescriptionFormat}.`,
+        ),
+      );
+      const text = texts[field];
+      if (text) {
+        const [min, max] = field === "description" ? [3, 5] : [1, 2];
+        const count = [...sentenceSegmenter.segment(text)].length;
+        checks.push(
+          check(
+            `${field}.length`,
+            count >= min && count <= max,
+            `Expected ${min}–${max} sentences. Received ${count}.`,
+          ),
+          check(
+            `${field}.festivalName`,
+            !text.toLowerCase().includes(festivalName),
+            "The text must omit the festival name.",
+          ),
+        );
+      }
+    }
+  }
+  return { checks, descriptionFormat };
+}
+
+export async function scoreClassification(
+  item: ClassificationEvalCase,
+  execution: RoleExecution<ClassificationOutput>,
+  terms: ResearchContext["terms"],
+) {
+  const { output } = execution;
+  const classification = checkClassificationTerms(
+    item.classification,
+    output?.currentOrNextEdition?.classification?.value,
+    terms,
+  );
+  const { checks, descriptionFormat } = await scoreClassificationDescriptions(
+    item,
+    output,
+  );
   return {
     descriptionFormat,
     score: scenarioResult([
@@ -154,54 +229,8 @@ export async function scoreClassification(
         execution.status === "success" && execution.errors.length === 0,
         "Classification must return a valid result",
       ),
-      check(
-        "currentOrNextEdition.classification",
-        (allowNoClassification && actual.length === 0) ||
-          (actual.length === expectedTerms.length &&
-            expectedTerms.every((term) => actual.includes(term))),
-        `Expected ${expectedTerms.join(", ")}${allowNoClassification ? " or no categories" : ""}. Received ${actual.join(", ") || "no categories"}.`,
-      ),
-      ...("culinary" in item.classification && item.classification.culinary
-        ? [
-            check(
-              "description.culinary",
-              /\b(?:chef[- ]led workshops?|cooking|culinary (?:sessions?|classes|workshops?)|prepar(?:e|ing) regional dishes|learn(?:ing)? regional recipes)\b/i.test(
-                texts.description ?? "",
-              ),
-              "The full description must include the separate cooking programme.",
-            ),
-          ]
-        : []),
-      ...(descriptionReference
-        ? descriptionFields.flatMap((field) => {
-            const probability = descriptionFormat.fields[field];
-            const format = check(
-              field,
-              typeof probability === "number" &&
-                probability >= minimumDescriptionFormat,
-              `Decider result: ${probability}. Required minimum is ${minimumDescriptionFormat}.`,
-            );
-            const text = texts[field];
-            if (!text) {
-              return [format];
-            }
-            const [min, max] = field === "description" ? [3, 5] : [1, 2];
-            const count = [...sentenceSegmenter.segment(text)].length;
-            return [
-              format,
-              check(
-                `${field}.length`,
-                count >= min && count <= max,
-                `Expected ${min}–${max} sentences. Received ${count}.`,
-              ),
-              check(
-                `${field}.festivalName`,
-                !text.toLowerCase().includes(festivalName),
-                "The text must omit the festival name.",
-              ),
-            ];
-          })
-        : []),
+      classification,
+      ...checks,
     ]),
   };
 }

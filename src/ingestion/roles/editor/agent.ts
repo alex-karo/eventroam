@@ -1,4 +1,8 @@
-import { evidencePacket, topics } from "../../evidence/contracts";
+import {
+  evidencePacket,
+  topics,
+  type FrozenCorpus,
+} from "../../evidence/contracts";
 import { savedPages } from "../../evidence/saved-pages";
 import { proposalGroup, type ProposalGroup } from "../../groups";
 import type { PreparedProposals } from "../../proposals";
@@ -12,6 +16,28 @@ import type { ReviewOutput, ReviewScope } from "./contracts";
 import { editorInstructions } from "./prompt";
 import { groupProposal } from "./review";
 import { editorReplySchema, validateEditorReply } from "./validate";
+
+function selectReviewEvidence(
+  corpus: FrozenCorpus,
+  cited: ReadonlySet<unknown>,
+  scope: ReviewScope,
+) {
+  const reviewsProgramme = [
+    ...scope.reviewPaths.map(({ path }) => path),
+    ...scope.missingGroups,
+  ].some((path) => proposalGroup(path)?.owner === "classification");
+  const evidence = corpus.evidence.filter(
+    (item) =>
+      cited.has(item.id) ||
+      (reviewsProgramme &&
+        (item.topics.includes("classification") ||
+          item.topics.includes("description"))),
+  );
+  return evidencePacket({ ...corpus, evidence }, topics, {
+    anchors: true,
+    includeSourceUrl: false,
+  }).evidence;
+}
 
 export async function runEditor(
   options: RoleOptions,
@@ -47,17 +73,6 @@ export async function runEditor(
       ...(evidenceIds?.length && { evidenceIds }),
     });
   }
-  const reviewsProgramme = [
-    ...scope.reviewPaths.map(({ path }) => path),
-    ...scope.missingGroups,
-  ].some((path) => proposalGroup(path)?.owner === "classification");
-  const evidence = options.corpus.evidence.filter(
-    (item) =>
-      cited.has(item.id) ||
-      (reviewsProgramme &&
-        (item.topics.includes("classification") ||
-          item.topics.includes("description"))),
-  );
   const schema = editorReplySchema(scope);
   const needsVocabulary =
     !targetedGroups ||
@@ -102,10 +117,7 @@ export async function runEditor(
         },
         basis,
       },
-      evidence: evidencePacket({ ...options.corpus, evidence }, topics, {
-        anchors: true,
-        includeSourceUrl: false,
-      }).evidence,
+      evidence: selectReviewEvidence(options.corpus, cited, scope),
     },
     schema,
     validateReply: (reply) => validateEditorReply(schema, reply),

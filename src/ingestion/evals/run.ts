@@ -146,6 +146,58 @@ export type EvalCaseOutput = {
     }
 );
 
+async function prepareClassificationEvidence(
+  fixture: ClassificationEvalCase["classification"],
+  currentDate: string,
+  runtime: Pick<
+    Parameters<typeof readSource>[0],
+    "budget" | "config" | "signal" | "tracing"
+  >,
+) {
+  const { targets } = fixture;
+  if (!("source" in fixture)) {
+    return { targets, corpus: fixture.corpus, readerChecks: [] };
+  }
+
+  const { markdown, ...source } = fixture.source;
+  const reader = await readSource({
+    ...runtime,
+    input: {
+      assignment: { requestedName: targets.observedEventName, currentDate },
+      source: { ...source, id: "s1" },
+      page: markdown,
+    },
+  });
+  const { evidence = [], limitations = [] } = reader.bound ?? {};
+  const evidenceIds = evidence.map(({ id }) => id);
+  return {
+    targets: {
+      ...targets,
+      evidenceIds,
+      currentOrNextEdition: {
+        ...targets.currentOrNextEdition!,
+        evidenceIds,
+      },
+    },
+    corpus: {
+      version: "classification-reader-eval-v1",
+      sources: [
+        { ...source, id: "s1", processing: "complete" as const, limitations },
+      ],
+      evidence,
+    },
+    readerChecks: [
+      check(
+        "reader.execution",
+        reader.status === "success" &&
+          limitations.length === 0 &&
+          evidence.length > 0,
+      ),
+      ...checkEvidence(fixture.requirements, evidence),
+    ],
+  };
+}
+
 async function executeClassificationCase(
   suite: EvalSuite,
   item: ClassificationEvalCase,
@@ -168,72 +220,22 @@ async function executeClassificationCase(
       const todayUtc = item.todayUtc ?? suite.todayUtc;
       const currentDate = `${todayUtc}T00:00:00.000Z`;
       const context = loadResearchContext(client, item.input, currentDate);
-      const budget = createResearchBudget(config.limits);
-      const signal = AbortSignal.timeout(config.limits.durationMs);
-      const fixture = item.classification;
-      const readerChecks = [];
-      let { targets } = fixture;
-      let corpus;
-      if ("source" in fixture) {
-        const { markdown, ...source } = fixture.source;
-        const reader = await readSource({
-          input: {
-            assignment: {
-              requestedName: targets.observedEventName,
-              currentDate,
-            },
-            source: { ...source, id: "s1" },
-            page: markdown,
-          },
-          budget,
-          config,
-          signal,
-          tracing,
-        });
-        const { evidence = [], limitations = [] } = reader.bound ?? {};
-        readerChecks.push(
-          check(
-            "reader.execution",
-            reader.status === "success" &&
-              limitations.length === 0 &&
-              evidence.length > 0,
-          ),
-          ...checkEvidence(fixture.requirements, evidence),
+      const runtime = {
+        budget: createResearchBudget(config.limits),
+        config,
+        signal: AbortSignal.timeout(config.limits.durationMs),
+        tracing,
+      };
+      const { targets, corpus, readerChecks } =
+        await prepareClassificationEvidence(
+          item.classification,
+          currentDate,
+          runtime,
         );
-        const evidenceIds = evidence.map(({ id }) => id);
-        targets = {
-          ...targets,
-          evidenceIds,
-          currentOrNextEdition: {
-            ...targets.currentOrNextEdition!,
-            evidenceIds,
-          },
-        };
-        corpus = {
-          version: "classification-reader-eval-v1",
-          sources: [
-            {
-              ...source,
-              id: "s1",
-              processing: "complete" as const,
-              limitations,
-            },
-          ],
-          evidence,
-        };
-      } else {
-        corpus = fixture.corpus;
-      }
       const scope = refreshScope(item.input);
       const savedEvent = context.catalog.at(0);
       const classification = await runClassification(
-        {
-          budget,
-          config,
-          deps: { client },
-          signal,
-          tracing,
-        },
+        { ...runtime, deps: { client } },
         {
           targets,
           corpus,

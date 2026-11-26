@@ -77,6 +77,22 @@ function planSync(terms: Term[], entries: Entry[]) {
     }
   }
 
+  function planAddition(row: Term, parent: Term | undefined, key: string) {
+    if (rows.has(row.id)) {
+      throw new Error(`Taxonomy ID already in use for ${key}: ${row.id}`);
+    }
+    try {
+      validateTaxonomyTerm(row, parent);
+      validateTermAssignmentAncestry([row], rows);
+    } catch (error) {
+      throw new Error(`Invalid taxonomy parent for ${key}: ${String(error)}`, {
+        cause: error,
+      });
+    }
+    rows.set(row.id, row);
+    additions.push(row);
+  }
+
   function resolve(key: string): Term {
     const known = resolved.get(key);
     if (known) {
@@ -107,22 +123,7 @@ function planSync(terms: Term[], entries: Entry[]) {
     if (stored) {
       planUpdate(stored, values, parent?.id ?? null, parentKey);
     } else {
-      if (rows.has(row.id)) {
-        throw new Error(`Taxonomy ID already in use for ${key}: ${row.id}`);
-      }
-      try {
-        validateTaxonomyTerm(row, parent);
-        validateTermAssignmentAncestry([row], rows);
-      } catch (error) {
-        throw new Error(
-          `Invalid taxonomy parent for ${key}: ${String(error)}`,
-          {
-            cause: error,
-          },
-        );
-      }
-      rows.set(row.id, row);
-      additions.push(row);
+      planAddition(row, parent, key);
     }
     visiting.delete(key);
     resolved.set(key, row);
