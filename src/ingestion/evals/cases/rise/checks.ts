@@ -5,6 +5,7 @@ import type { Edition, MainContext } from "../../main/context";
 import { fact, linkFact } from "../../main/facts";
 
 const localities = ["Les 2 Alpes", "Les Deux Alpes"];
+const lesDeuxAlpesPoint = [45.0099949, 6.1237609, "locality"];
 const festival = "validation:festival";
 const music = "validation:music";
 const snowSports = "validation:topic:snow-sports";
@@ -124,9 +125,7 @@ export function rise(context: MainContext) {
         [true],
       ),
       // The geocoder supplies a locality point if the venue remains unresolved.
-      fact("edition.2025.point", previousPoint, [
-        [45.0099949, 6.1237609, "locality"],
-      ]),
+      fact("edition.2025.point", previousPoint, [lesDeuxAlpesPoint]),
       fact("edition.2026.displayName", current?.displayName, [
         "Rise 2026",
         "Rise Festival 2026",
@@ -184,7 +183,11 @@ export function rise(context: MainContext) {
       fact("edition.2026.scheduleStatus", current?.scheduleStatus, [
         "scheduled",
       ]),
-      fact("edition.2026.point", point(current), [point(savedCurrent)]),
+      // The sources confirm several venues in the same town and give no primary venue.
+      fact("edition.2026.point", point(current), [
+        point(savedCurrent),
+        lesDeuxAlpesPoint,
+      ]),
       fact(
         "edition.2026.classification",
         [termIds(current, coreFacets)],

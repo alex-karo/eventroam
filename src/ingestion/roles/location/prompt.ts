@@ -1,6 +1,6 @@
 import { returnInstructions } from "../prompts";
 
-export const LOCATION_PROMPT_VERSION = "catalog-location-v32";
+export const LOCATION_PROMPT_VERSION = "catalog-location-v36";
 
 export const locationInstructions = `## Scope and text fields
 
@@ -59,17 +59,19 @@ export const locationInstructions = `## Scope and text fields
 - Leave an absent country unchanged and record the question only when neither applicable source evidence, the saved baseline nor a matching selected candidate establishes it.
 - A timezone does not establish the venue country.
 
-## Geocoding queries
+## Find a map point
 
-- The initial reverse results are already supplied.
-- You choose forward queries from source evidence.
-- When a source names a festival venue and no suitable point exists, query that venue with its locality and country before querying only the town.
-- Do not add a venue name or description that the source did not supply.
-- Preserve source place names in queries; if a translated administrative-area query fails, try the venue name or locality and country without that area.
-- On the first reply, your only tool is forward geocode: use it for a useful refinement or alternate spelling when prepared results are unsuitable.
-- It is not web research.
-- Six calls per Event cover preparation and tools, including cache hits; at most eight model steps.
-- Never use old coordinates as search bias.
+- Follow the official and saved point rules below. A confirmed move makes the old venue point inapplicable.
+- On the first reply, use forward geocode if the source confirms a venue or town, no usable point is available, and calls remain. An empty list of prepared results means you still need to search.
+- If one venue represents the Edition, query the venue with its town and country first.
+- Before falling back to a town point, check the saved target point and the historical previousPoint for a usable venue point. If neither applies and no usable venue candidate exists, use a matching town result with objectType locality, even if it came from a venue query. If you have no such result, query the confirmed town without a venue name. Include the administrative area and country when known.
+- Save one call for a pending town lookup before you spend calls on more venue queries. Before returning keep or clear with no coordinates, make the required lookup if calls remain and you have not tried it yet.
+- If the first town lookup returns no usable result with objectType locality and calls remain, retry once with a different spelling of the same town when available. Use a spelling from source evidence or the locality field of a geocoder result for the same town. Changing only the area or country does not change the spelling.
+- Select a supported town point at locality precision. Keep the venue point unresolved when the town point is all you can establish.
+- If you know only the country or region, leave coordinates empty unless you already have a supported point for the Edition.
+- Use place names from the evidence or an alternate town spelling as described above. If a query with a translated administrative area fails, try the venue or town with the country alone.
+- Do not repeat an equivalent prepared or completed query. Never use old coordinates as search bias.
+- Forward geocode is the only tool on the first reply. Six calls per Event cover preparation and tool calls, including cache hits. Use at most eight model steps.
 
 ## Official venue coordinates
 
@@ -85,7 +87,7 @@ export const locationInstructions = `## Scope and text fields
 
 - Otherwise prefer an applicable saved target point, then its default historical previousPoint unless evidence contradicts continuity or supports a better correction.
 - A new geocoding result with the same venue name alone does not justify replacing an applicable saved point.
-- Except for official source coordinates above, require concrete evidence of a move, wrong object or mapping error before replacement.
+- Except for official source coordinates above or the several-venues exception below, require concrete evidence of a move, wrong object or mapping error before replacement.
 - A failed reverse or address request does not disprove the saved point; keep it and record any material unresolved discrepancy.
 - Keep never copies from history.
 
@@ -144,16 +146,7 @@ export const locationInstructions = `## Scope and text fields
 - Name overlap, confidence, provider order, centrality and distance are clues only.
 - An open-air festival can use a central city park.
 - A city result does not resolve a named venue.
-- Keep an applicable specific old point over a newer city result.
-
-## Locality fallback
-
-- A confirmed move makes the old point inapplicable; clearing it is not the end of the task when the new locality is known and calls remain.
-- If no applicable saved, previousPoint, source or venue candidate point exists and the locality is established, use remaining geocoding calls to query that locality with its administrative area and country, without the venue name, before leaving coordinates absent.
-- This is a refinement of supplied location text, not web research.
-- Do not repeat an equivalent prepared or completed query or exceed the call limit.
-- Select a supported city result with locality precision and an unresolved venue question.
-- This keeps the Edition visible on the map.
+- Keep an applicable saved venue point or reuse an applicable historical venue point over a newer city result, subject to the several-venues exception below.
 
 ## Several towns or venues
 
@@ -161,6 +154,7 @@ export const locationInstructions = `## Scope and text fields
 - Several venues require evidence for one primary or representative point.
 - A confirmed show at one venue does not make that venue the primary or representative point of the whole Edition.
 - If several venues share one supported locality and no primary venue or applicable saved point is established, select the locality point with locality precision and keep the venue choice unresolved.
+- If the evidence confirms several venues for this Edition, all in the same town, and establishes no primary or representative venue, you may replace this Edition's saved approximate point with a supported town point at locality precision. Use a matching town result or follow the town lookup rules above. Explain why the town point represents the whole Edition and cite the place evidence.
 - Otherwise preserve only applicable saved data and explain the unresolved choice.
 
 ## Examples

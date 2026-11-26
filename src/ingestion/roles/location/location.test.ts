@@ -265,6 +265,36 @@ test("short point IDs are local and candidate precision follows its object", asy
   });
   expect(() => validateLocation(raw, input(), first)).toThrow("Unknown");
 });
+test("a venue candidate cannot replace a saved point at locality precision", async () => {
+  const data = pointInput();
+  const session = createGeocodingSession(data, createResearchBudget(), {
+    client: async () => ({
+      ...forward,
+      candidates: [
+        {
+          ...forward.candidates[0],
+          label: "Central Park sports field",
+          objectType: "venue",
+          originalType: "amenity",
+          category: "sport.pitch",
+        },
+      ],
+    }),
+  });
+  const { pointIds } = await session.forward({
+    query: "Lisbon",
+    countryCode: "PT",
+  });
+  const raw = output();
+  Object.assign(raw.decision.currentOrNextEdition.coordinates, {
+    action: "select",
+    pointId: pointIds[0],
+    precision: "locality",
+  });
+  expect(() => validateLocation(raw, data, session)).toThrow(
+    "Precision conflicts with point type",
+  );
+});
 test("saved precision can only decrease for its own target", () => {
   const data = pointInput(),
     session = createGeocodingSession(data, createResearchBudget()),

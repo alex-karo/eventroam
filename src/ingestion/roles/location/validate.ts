@@ -120,6 +120,7 @@ function validateSelection(
   }
   if (
     (point.objectType === "locality" && precision !== "locality") ||
+    (precision === "locality" && point.objectType !== "locality") ||
     (point.objectType === "region" && precision !== "region") ||
     (point.objectType === "unknown" &&
       ["exact", "approximate"].includes(precision))
