@@ -136,7 +136,12 @@ export function readResearchTerms(client: Database.Database) {
       facet: taxonomyTerms.facet,
       slug: taxonomyTerms.slug,
       parentId: taxonomyTerms.parentId,
+      description: taxonomyTerms.description,
     })
     .from(taxonomyTerms)
-    .all();
+    .all()
+    .map(({ description, ...term }) => ({
+      ...term,
+      ...(description != null && { description }),
+    }));
 }

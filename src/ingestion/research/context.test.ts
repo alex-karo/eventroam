@@ -2,6 +2,9 @@ import { afterEach, expect, test, vi } from "vitest";
 import { testDatabase } from "@/test/database";
 import { testFixtures } from "@/test/fixtures";
 import * as reads from "@/catalog/read/research";
+import vocabulary from "@/catalog/taxonomy.json";
+import { syncTaxonomy } from "@/catalog/write/sync-taxonomy";
+import { classificationVocabulary } from "../roles/classification/terms";
 import { loadResearchContext } from "./context";
 
 afterEach(() => vi.restoreAllMocks());
@@ -93,4 +96,65 @@ test("an unresolved add loads no saved Events, and refresh loads only its target
     kind: "official_site",
     official: true,
   });
+});
+
+test("a run uses a snapshot of descriptions from the catalog vocabulary", () => {
+  const connection = testDatabase();
+  syncTaxonomy(connection, vocabulary, true);
+  const input = { mode: "add", input: "Example Fest", actor: "test" } as const;
+  const context = loadResearchContext(connection.client, input);
+  const classification = classificationVocabulary(context.terms);
+  expect(classification.eventType).toContainEqual(
+    expect.objectContaining({
+      slug: "gathering",
+      description: expect.stringContaining("participants' contributions"),
+    }),
+  );
+  expect(classification.format).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        slug: "openair",
+        description: expect.stringContaining(
+          "Open Air in the current official festival name",
+        ),
+      }),
+      expect.objectContaining({
+        slug: "mixed-indoor-outdoor",
+        description: expect.stringContaining("neither is clearly primary"),
+      }),
+    ]),
+  );
+  for (const slug of ["wine", "beer"]) {
+    expect(classification.topics).toContainEqual(
+      expect.objectContaining({
+        slug,
+        parentSlug: "food-and-drink",
+        description: expect.stringContaining("for the selected Edition"),
+      }),
+    );
+  }
+  expect(
+    classification.genres.find(({ slug }) => slug === "jazz"),
+  ).not.toHaveProperty("description");
+  expect(context.terms.find(({ slug }) => slug === "jazz")).not.toHaveProperty(
+    "description",
+  );
+
+  const revised = "An updated rule for open-air.";
+  syncTaxonomy(
+    connection,
+    vocabulary.map((term) =>
+      term.facet === "format" && term.slug === "openair"
+        ? { ...term, description: revised }
+        : term,
+    ),
+    true,
+  );
+  const nextRun = loadResearchContext(connection.client, input);
+  expect(
+    nextRun.terms.find(({ slug }) => slug === "openair")?.description,
+  ).toBe(revised);
+  expect(
+    context.terms.find(({ slug }) => slug === "openair")?.description,
+  ).not.toBe(revised);
 });

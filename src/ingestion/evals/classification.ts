@@ -1,14 +1,17 @@
+import { normalizeProposedAssignments } from "@/catalog/domain/classification";
 import { bindEvidence, type FrozenCorpus } from "../evidence/contracts";
+import type { ResearchContext } from "../research/context";
 import type { Targets } from "../roles/general/contracts";
 import type { ClassificationOutput } from "../roles/classification/contracts";
 import type { RoleExecution } from "../roles/invoke";
-import { check, scenarioResult } from "./checks";
+import { check, scenarioResult, type Check } from "./checks";
 import {
   assessDescriptionFormat,
   descriptionFields,
   minimumDescriptionFormat,
 } from "./description-format";
 import type { EvalSuite } from "./fixtures";
+import { drinkClassificationCases } from "./cases/drink-topics";
 
 export function classificationCases(suite: EvalSuite) {
   const parent = suite.cases.find(
@@ -34,11 +37,16 @@ export function classificationCases(suite: EvalSuite) {
             "Confirmed 4–5 June 2027, New Grounds, Lisbon, Portugal. Both days are free, no tickets or paid categories. This is the only upcoming edition. The 2027 programme changes completely: exclusively metal music, with the main programme split evenly between enclosed indoor and open-air stages. The former electronic programme and exclusively open-air format have ended.",
           topics: ["dates", "classification", "description"],
         },
+        {
+          quote:
+            "The 2027 edition is a live metal music festival. Emerging bands perform on the indoor stages. The open-air stages feature extended live sets.",
+          topics: ["classification", "description"],
+        },
       ],
     },
     source.finalUrl,
   );
-  if (bound.limitations.length || bound.evidence.length !== 1) {
+  if (bound.limitations.length || bound.evidence.length !== 2) {
     throw new Error(
       "Classification evidence must match the River Festival source",
     );
@@ -100,9 +108,10 @@ export function classificationCases(suite: EvalSuite) {
           "catalog:term:genre:metal",
         ],
         descriptionReference:
-          "River Festival is a metal music festival with substantial programmes on both indoor and outdoor stages.",
+          "A live metal music festival split evenly between indoor and open-air stages. Emerging bands play indoors, and open-air stages host extended live sets.",
       },
     },
+    ...drinkClassificationCases(),
   ];
 }
 
@@ -112,23 +121,98 @@ export type ClassificationEvalCase = ReturnType<
 
 const sentenceSegmenter = new Intl.Segmenter("en", { granularity: "sentence" });
 
-export async function scoreClassification(
-  item: ClassificationEvalCase,
-  execution: RoleExecution<ClassificationOutput>,
+function checkClassificationTerms(
+  fixture: ClassificationEvalCase["classification"],
+  proposed: string[] | undefined,
+  terms: ResearchContext["terms"],
 ) {
-  const { expectedTerms, descriptionReference } = item.classification;
-  const actual = execution.output?.currentOrNextEdition?.classification?.value;
-  const texts = Object.fromEntries(
-    descriptionFields.map((field) => {
-      const proposal = execution.output?.[field];
-      return [field, proposal?.action === "set" ? proposal.value : null];
-    }),
+  const path = "currentOrNextEdition.classification";
+  let actual: string[];
+  try {
+    actual = normalizeProposedAssignments(proposed ?? [], terms).retained;
+  } catch (error) {
+    return check(path, false, `Invalid classification: ${String(error)}`);
+  }
+  const { expectedTerms } = fixture;
+  const allowNoClassification =
+    "allowNoClassification" in fixture && fixture.allowNoClassification;
+  return check(
+    path,
+    (allowNoClassification && actual.length === 0) ||
+      (actual.length === expectedTerms.length &&
+        expectedTerms.every((term) => actual.includes(term))),
+    `Expected ${expectedTerms.join(", ")}${allowNoClassification ? " or no categories" : ""}. Received ${actual.join(", ") || "no categories"}.`,
   );
+}
+
+async function scoreClassificationDescriptions(
+  item: ClassificationEvalCase,
+  texts: Record<(typeof descriptionFields)[number], string | null>,
+) {
+  const { descriptionReference } = item.classification;
   const descriptionFormat = await assessDescriptionFormat(
     descriptionReference,
     texts,
   );
+  const checks: Check[] = [];
+  if (!descriptionReference) {
+    return { checks, descriptionFormat };
+  }
+
   const festivalName = item.initial.event.canonicalName.toLowerCase();
+  for (const field of descriptionFields) {
+    const probability = descriptionFormat.fields[field];
+    checks.push(
+      check(
+        field,
+        typeof probability === "number" &&
+          probability >= minimumDescriptionFormat,
+        `Decider result: ${probability}. Required minimum is ${minimumDescriptionFormat}.`,
+      ),
+    );
+    const text = texts[field];
+    if (!text) {
+      continue;
+    }
+    const [min, max] = field === "description" ? [3, 5] : [1, 2];
+    const count = [...sentenceSegmenter.segment(text)].length;
+    checks.push(
+      check(
+        `${field}.length`,
+        count >= min && count <= max,
+        `Expected ${min}–${max} sentences. Received ${count}.`,
+      ),
+      check(
+        `${field}.festivalName`,
+        !text.toLowerCase().includes(festivalName),
+        "The text must omit the festival name.",
+      ),
+    );
+  }
+  return { checks, descriptionFormat };
+}
+
+export async function scoreClassification(
+  item: ClassificationEvalCase,
+  execution: RoleExecution<ClassificationOutput>,
+  terms: ResearchContext["terms"],
+) {
+  const { output } = execution;
+  const classification = checkClassificationTerms(
+    item.classification,
+    output?.currentOrNextEdition?.classification?.value,
+    terms,
+  );
+  const { description, shortDescription } = output ?? {};
+  const texts = {
+    description: description?.action === "set" ? description.value : null,
+    shortDescription:
+      shortDescription?.action === "set" ? shortDescription.value : null,
+  };
+  const { checks, descriptionFormat } = await scoreClassificationDescriptions(
+    item,
+    texts,
+  );
   return {
     descriptionFormat,
     score: scenarioResult([
@@ -137,40 +221,19 @@ export async function scoreClassification(
         execution.status === "success" && execution.errors.length === 0,
         "Classification must return a valid result",
       ),
-      check(
-        "currentOrNextEdition.classification",
-        actual?.length === expectedTerms.length &&
-          expectedTerms.every((term) => actual.includes(term)),
-        `Expected ${expectedTerms.join(", ")}. Received ${actual?.join(", ") || "no categories"}.`,
-      ),
-      ...descriptionFields.flatMap((field) => {
-        const probability = descriptionFormat.fields[field];
-        const format = check(
-          field,
-          typeof probability === "number" &&
-            probability >= minimumDescriptionFormat,
-          `Decider result: ${probability}. Required minimum is ${minimumDescriptionFormat}.`,
-        );
-        const text = texts[field];
-        if (!text) {
-          return [format];
-        }
-        const [min, max] = field === "description" ? [3, 5] : [1, 2];
-        const count = [...sentenceSegmenter.segment(text)].length;
-        return [
-          format,
-          check(
-            `${field}.length`,
-            count >= min && count <= max,
-            `Expected ${min}–${max} sentences. Received ${count}.`,
-          ),
-          check(
-            `${field}.festivalName`,
-            !text.toLowerCase().includes(festivalName),
-            "The text must omit the festival name.",
-          ),
-        ];
-      }),
+      classification,
+      ...("culinary" in item.classification && item.classification.culinary
+        ? [
+            check(
+              "description.culinary",
+              /\b(?:chef[- ]led workshops?|cooking|culinary (?:sessions?|classes|workshops?)|prepar(?:e|ing) regional dishes|learn(?:ing)? regional recipes)\b/i.test(
+                texts.description ?? "",
+              ),
+              "The full description must include the separate cooking programme.",
+            ),
+          ]
+        : []),
+      ...checks,
     ]),
   };
 }

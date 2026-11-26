@@ -12,10 +12,11 @@ Use this guide to run ingestion and inspect results. Read the [ingestion process
 
 ## CLI research
 
-Start Studio with a migrated catalog and model credentials. Set `OPENROUTER_API_KEY` in `.env`. To select a separate catalog, set `DATABASE_PATH` for migration and Studio startup.
+Start Studio with a migrated catalog, the current taxonomy, and model credentials. Set `OPENROUTER_API_KEY` in `.env`. Use the same `DATABASE_PATH` for the migration, taxonomy sync, and Studio.
 
 ```sh
 DATABASE_PATH=./data/research.sqlite pnpm run db:migrate
+DATABASE_PATH=./data/research.sqlite pnpm run taxonomy:sync --apply
 DATABASE_PATH=./data/research.sqlite pnpm run catalog:studio
 ```
 

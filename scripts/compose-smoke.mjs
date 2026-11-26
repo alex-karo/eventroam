@@ -57,6 +57,10 @@ try {
   command(["build"]);
   // Prepare the empty test catalog before starting the services.
   worker("commands/migrate.mjs");
+  const sync = worker("commands/sync-taxonomy.mjs", "--apply");
+  if (!sync.includes("Taxonomy apply: 2 additions,")) {
+    throw new Error("Taxonomy sync did not add Wine and Beer: " + sync);
+  }
   command(["up", "-d", "--wait", "--wait-timeout", "60", "web", "studio"]);
   execStudio(
     'const response = await fetch("http://127.0.0.1:4111/ingestion-queue"); if (!response.ok) throw new Error("Studio queue unavailable");',

@@ -156,7 +156,7 @@ it("keeps the proposed order and explains the removal of an indirect ancestor to
   const child = f.f.term({ parentId: parent.id });
   const leaf = f.f.term({ parentId: child.id });
   const other = f.f.term();
-  f.context.terms.push(parent, child, leaf, other);
+  f.context.terms = loadResearchContext(f.client, f.input).terms;
   const result = f.assemble([other.id, parent.id, leaf.id], ["s1-e1"]);
   expect(result).toMatchObject({
     status: "continue",

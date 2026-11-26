@@ -22,7 +22,7 @@ After deployment, verify ownership of both hosts in Google Search Console. Submi
 
 ## Application containers
 
-One Dockerfile has `web` and `studio` targets. See `Dockerfile` for the pinned Node base image. Dependencies come from `pnpm-lock.yaml` and are installed for the target Linux architecture. The website uses Next standalone output. Studio includes its UI, Mastra's production Node server, and a separate migration command. No startup command runs migrations or loads fixtures.
+One Dockerfile has `web` and `studio` targets. See `Dockerfile` for the pinned Node base image. Dependencies come from `pnpm-lock.yaml` and are installed for the target Linux architecture. The website uses Next standalone output. Studio includes its UI, Mastra's production Node server, the migration command, and the taxonomy sync command. Run both catalog commands before startup.
 
 Before running these commands:
 
@@ -35,6 +35,7 @@ Before running these commands:
 docker compose build &&
 docker compose stop &&
 docker compose run --rm --no-deps studio node commands/migrate.mjs &&
+docker compose run --rm --no-deps studio node commands/sync-taxonomy.mjs --apply &&
 docker compose up -d --wait
 ```
 
@@ -141,6 +142,8 @@ needed migrations separately and check health after startup.
 ## Local database maintenance
 
 `pnpm run db:migrate` applies reviewed migrations to `DATABASE_PATH`, including the [starter taxonomy](proposals/festival-taxonomy-vocabulary.md). Existing terms and Edition assignments are preserved; new terms do not classify or publish records. `pnpm run db:fixtures` also loads fictional development data. Fixtures are separate from schema migrations and omit audit history. Normal catalog mutations must use the validated writer; seed loaders must use shared catalog validators.
+
+After migration, edit the [taxonomy vocabulary](../src/catalog/taxonomy.json) in Git. Use `pnpm run taxonomy:sync` to preview the changes for the same `DATABASE_PATH`. Run `pnpm run taxonomy:sync --apply` to save new terms, names, and optional descriptions. Review any reported parent differences. The command preserves stored parents, term IDs, unmanaged terms, and Edition assignments.
 
 Migration files live in `src/db/migrations/`. A database from the earlier nine-migration history must be recreated; `db:migrate` does not upgrade it.
 

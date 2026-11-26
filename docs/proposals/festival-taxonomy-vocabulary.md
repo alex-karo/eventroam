@@ -8,7 +8,7 @@ tags: [taxonomy, festivals]
 
 # Festival taxonomy vocabulary proposal
 
-This document holds the selected starter terms and their assignment guidance. Ordinary catalog migrations load all 71 starter terms, including 56 genres. Code, tests, and current guides describe implemented facets and classifications. Launch-data review may refine the vocabulary later.
+The [maintained vocabulary](../../src/catalog/taxonomy.json) contains the current terms and their descriptions, including Wine and Beer under Food & drink. See [local database maintenance](../infrastructure.md#local-database-maintenance) to preview and apply vocabulary updates. The starter tables below record the original selection of 71 terms, including 56 genres.
 
 Status: Starter vocabulary implemented in migrations; launch-data review pending, version 0.5
 
@@ -166,7 +166,7 @@ The term applies to official and independent events when supported. It makes no 
 6. **Replace only intentionally.** A missing label in a new extraction is not an instruction to delete an accepted assignment. Additions, removals, and complete set replacements use the domain's evidence, conflict, and owner-correction rules. A failed source fetch never clears terms. In ingestion, accept/set supplies a complete list. Preparation removes selected ancestors at any depth and keeps selected descendants and siblings. It rejects unknown IDs, duplicates, and single-value facet conflicts before this normalization. Broad-only terms remain valid. Omitted classification stays unchanged. Direct catalog writes still reject redundant ancestors.
 7. **Separate editions.** Research can explicitly reuse a comparable prior Edition's terms when inspected announcement evidence supports continuity. The finding must name the donor key and explain that basis. Refuted terms must be removed. Omission does not copy terms. Publication still uses the current catalog requirements. Updating one edition never changes another or supplies implicit Event defaults.
 
-Canonical term IDs and slugs remain stable. New terms require a deliberate curated vocabulary change, not automatic creation from extraction output. New term definitions belong in this file. Preserve a used term's meaning, facet, and parent; semantic changes use new terms and explicit, audited Edition reassignments under the domain rules. Display-label corrections preserve meaning and are recorded in the versioned vocabulary definition. No term-audit entity is introduced.
+Canonical term IDs and slugs remain stable. Add new terms through a reviewed change to the [maintained vocabulary](../../src/catalog/taxonomy.json). Preserve a used term's meaning, facet, and parent. For changes in meaning, add new terms and use explicit, audited Edition reassignments under the domain rules. Record display-label corrections in the maintained vocabulary.
 
 ## 4 Classification examples
 

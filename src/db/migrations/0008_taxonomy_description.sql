@@ -1,0 +1,1 @@
+ALTER TABLE `taxonomy_terms` ADD `description` text;

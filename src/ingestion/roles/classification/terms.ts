@@ -18,9 +18,10 @@ export function classificationVocabulary(terms: Terms) {
       field,
       terms
         .filter((term) => term.facet === facet)
-        .map(({ slug, parentId }) => ({
+        .map(({ slug, parentId, description }) => ({
           slug,
           parentSlug: parentId ? slugsById.get(parentId) : undefined,
+          ...(description != null && { description }),
         })),
     ]),
   );
