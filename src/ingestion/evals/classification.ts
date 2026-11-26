@@ -4,7 +4,7 @@ import type { ResearchContext } from "../research/context";
 import type { Targets } from "../roles/general/contracts";
 import type { ClassificationOutput } from "../roles/classification/contracts";
 import type { RoleExecution } from "../roles/invoke";
-import { check, scenarioResult } from "./checks";
+import { check, scenarioResult, type Check } from "./checks";
 import {
   assessDescriptionFormat,
   descriptionFields,
@@ -147,61 +147,47 @@ function checkClassificationTerms(
 
 async function scoreClassificationDescriptions(
   item: ClassificationEvalCase,
-  output: ClassificationOutput | undefined,
+  texts: Record<(typeof descriptionFields)[number], string | null>,
 ) {
   const { descriptionReference } = item.classification;
-  const texts = Object.fromEntries(
-    descriptionFields.map((field) => {
-      const proposal = output?.[field];
-      return [field, proposal?.action === "set" ? proposal.value : null];
-    }),
-  );
   const descriptionFormat = await assessDescriptionFormat(
     descriptionReference,
     texts,
   );
-  const checks = [];
-  if ("culinary" in item.classification && item.classification.culinary) {
+  const checks: Check[] = [];
+  if (!descriptionReference) {
+    return { checks, descriptionFormat };
+  }
+
+  const festivalName = item.initial.event.canonicalName.toLowerCase();
+  for (const field of descriptionFields) {
+    const probability = descriptionFormat.fields[field];
     checks.push(
       check(
-        "description.culinary",
-        /\b(?:chef[- ]led workshops?|cooking|culinary (?:sessions?|classes|workshops?)|prepar(?:e|ing) regional dishes|learn(?:ing)? regional recipes)\b/i.test(
-          texts.description ?? "",
-        ),
-        "The full description must include the separate cooking programme.",
+        field,
+        typeof probability === "number" &&
+          probability >= minimumDescriptionFormat,
+        `Decider result: ${probability}. Required minimum is ${minimumDescriptionFormat}.`,
       ),
     );
-  }
-  if (descriptionReference) {
-    const festivalName = item.initial.event.canonicalName.toLowerCase();
-    for (const field of descriptionFields) {
-      const probability = descriptionFormat.fields[field];
-      checks.push(
-        check(
-          field,
-          typeof probability === "number" &&
-            probability >= minimumDescriptionFormat,
-          `Decider result: ${probability}. Required minimum is ${minimumDescriptionFormat}.`,
-        ),
-      );
-      const text = texts[field];
-      if (text) {
-        const [min, max] = field === "description" ? [3, 5] : [1, 2];
-        const count = [...sentenceSegmenter.segment(text)].length;
-        checks.push(
-          check(
-            `${field}.length`,
-            count >= min && count <= max,
-            `Expected ${min}–${max} sentences. Received ${count}.`,
-          ),
-          check(
-            `${field}.festivalName`,
-            !text.toLowerCase().includes(festivalName),
-            "The text must omit the festival name.",
-          ),
-        );
-      }
+    const text = texts[field];
+    if (!text) {
+      continue;
     }
+    const [min, max] = field === "description" ? [3, 5] : [1, 2];
+    const count = [...sentenceSegmenter.segment(text)].length;
+    checks.push(
+      check(
+        `${field}.length`,
+        count >= min && count <= max,
+        `Expected ${min}–${max} sentences. Received ${count}.`,
+      ),
+      check(
+        `${field}.festivalName`,
+        !text.toLowerCase().includes(festivalName),
+        "The text must omit the festival name.",
+      ),
+    );
   }
   return { checks, descriptionFormat };
 }
@@ -217,9 +203,13 @@ export async function scoreClassification(
     output?.currentOrNextEdition?.classification?.value,
     terms,
   );
+  const texts = {
+    description: output?.description?.value ?? null,
+    shortDescription: output?.shortDescription?.value ?? null,
+  };
   const { checks, descriptionFormat } = await scoreClassificationDescriptions(
     item,
-    output,
+    texts,
   );
   return {
     descriptionFormat,
@@ -230,6 +220,17 @@ export async function scoreClassification(
         "Classification must return a valid result",
       ),
       classification,
+      ...("culinary" in item.classification && item.classification.culinary
+        ? [
+            check(
+              "description.culinary",
+              /\b(?:chef[- ]led workshops?|cooking|culinary (?:sessions?|classes|workshops?)|prepar(?:e|ing) regional dishes|learn(?:ing)? regional recipes)\b/i.test(
+                texts.description ?? "",
+              ),
+              "The full description must include the separate cooking programme.",
+            ),
+          ]
+        : []),
       ...checks,
     ]),
   };
