@@ -18,7 +18,7 @@ Reference: [Together AI analysis](https://getdesign.md/together.ai/design-md) an
 
 Use its contrast between dark and light surfaces, clear type hierarchy, small corner radii, and limited gradient treatment. The Eventroam adaptation uses a dark header above a light catalog and map. A date block connects the list and edition page. The selected preview uses a compact date row.
 
-The main visual feature is the event date beside a strong title. On an edition page, one coral-to-lavender gradient area can sit beside this block. Keep the gradient clear of text and controls. The discovery screen needs no large hero section. The project presentation uses a thin coral-to-lavender rule above its source-to-catalog example; the gradient does not carry data or status.
+The main visual feature is the event date beside a strong title. On an edition page, one coral-to-lavender gradient area can sit beside this block. Keep the gradient clear of text and controls. The discovery screen needs no large hero section. The project pages use a thin coral-to-lavender rule above the catalog preview and each service case.
 
 ## Color
 

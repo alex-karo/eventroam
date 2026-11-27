@@ -19,6 +19,15 @@ export const requestSite = cache(async () => {
   }
   return { site, origins };
 });
+
+export async function requestApexSite() {
+  const request = await requestSite();
+  if (request.site !== "apex") {
+    notFound();
+  }
+  return request;
+}
+
 export const requestDetail = cache(async (path: string) => {
   const { site, origins } = await requestSite();
   const { client } = openReadDatabase();

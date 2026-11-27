@@ -10,6 +10,8 @@ Keep the presentation on the server and move only the contact anchor into a clie
 
 ## Contracts
 
+See the [analytics guide](../../../docs/analytics.md) for the current contact destination.
+
 Use the installed SDK and the existing `promo_link_clicked` event:
 
 ```ts

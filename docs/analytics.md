@@ -20,7 +20,7 @@ Ingestion exports traces only when `CATALOG_TRACING=true` and both PostHog setti
 
 For Compose, set `EVENTROAM_POSTHOG_KEY` and `EVENTROAM_POSTHOG_HOST`. These supply browser build arguments and Studio runtime settings. Rebuild the web image after changing them. Compose enables ingestion tracing by default. Set `EVENTROAM_CATALOG_TRACING=false` to disable it.
 
-The project presentation records `promo_link_clicked` for LinkedIn contact links (`destination: "linkedin"`, `placement: "hero" | "footer"`) and the catalog link (`destination: "festivals"`, `placement: "example"`). These events record clicks, not activity on LinkedIn.
+The project pages record `promo_link_clicked` for email contact links (`destination: "email"`, `placement: "hero" | "footer"`) and links to the festival catalog (`destination: "festivals"`, `placement: "example"`). Earlier contact clicks have `destination: "linkedin"`. The event counts link clicks.
 
 Use these public links to separate GitHub traffic:
 
