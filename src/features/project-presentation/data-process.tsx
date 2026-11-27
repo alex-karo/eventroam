@@ -14,7 +14,7 @@ function StageArrow() {
 export function DataProcess({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <figure className={styles.figure}>
-      <figcaption className={styles.caption}>
+      <figcaption>
         <h2 className={styles.captionTitle}>
           From festival notices to a catalog update
         </h2>
@@ -96,7 +96,7 @@ export function DataProcess({ children }: Readonly<{ children: ReactNode }>) {
                 <dt>Status</dt>
                 <dd>
                   Postponed <span aria-hidden="true">→</span>
-                  <span className={styles.visuallyHidden}> to </span> Scheduled
+                  <span className="sr-only"> to </span> Scheduled
                 </dd>
               </div>
             </dl>

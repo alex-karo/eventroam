@@ -8,7 +8,7 @@
   color: var(--ink);
 }
 
-.figure .caption .captionTitle {
+.figure .captionTitle {
   font-size: clamp(24px, 3vw, 34px);
   line-height: 1.15;
   letter-spacing: -0.035em;
@@ -148,15 +148,6 @@
 .changed dd {
   color: var(--warning);
   font-weight: 700;
-}
-
-.visuallyHidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  clip-path: inset(50%);
-  overflow: hidden;
-  white-space: nowrap;
 }
 
 .connector {

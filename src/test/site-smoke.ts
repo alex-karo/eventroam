@@ -211,7 +211,7 @@ async function main() {
       "Structured data and custom agent pipelines | Eventroam",
     );
     const contactHref = "mailto:hello@eventroam.org";
-    function checkPromoContact(page: typeof apexPage) {
+    function checkPromoPage(page: typeof apexPage) {
       assert.equal(
         page("h2").filter((_, node) => page(node).text() === "Work with us")
           .length,
@@ -224,8 +224,21 @@ async function main() {
         assert(label.length > 0 && !label.includes("@"));
       }
       assert.equal(page("a[href*='eurockeennes.fr']").length, 0);
+      for (const link of page("a[href]")) {
+        const href = page(link).attr("href");
+        assert(href);
+        const url = new URL(href, apex);
+        const external =
+          url.origin !== apex &&
+          (url.protocol === "https:" || url.protocol === "http:");
+        assert.equal(
+          page(link).attr("target") ?? "_self",
+          external ? "_blank" : "_self",
+          href,
+        );
+      }
     }
-    checkPromoContact(apexPage);
+    checkPromoPage(apexPage);
     assert(apexPage(`a[href='${festivals}']`).length > 0);
     for (const [path, title] of [
       ["/data", "Data for your product | Eventroam"],
@@ -238,7 +251,7 @@ async function main() {
         title,
       );
       assert(servicePage("a[href='/']").length > 0);
-      checkPromoContact(servicePage);
+      checkPromoPage(servicePage);
       assert.equal((await httpGet(port, festivals, path)).status, 404);
     }
     const discoveryPage = checkMetadata(
