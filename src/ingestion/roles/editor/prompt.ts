@@ -6,7 +6,7 @@ import {
 } from "../prompts";
 import { classificationInstructions as classificationRules } from "../classification/rules";
 
-export const EDITOR_PROMPT_VERSION = "proposal-review-v83";
+export const EDITOR_PROMPT_VERSION = "proposal-review-v84";
 
 export const editorInstructions = `## Scope
 
@@ -166,10 +166,16 @@ ${descriptionScopeRule}
 
 ### Classification
 
-- Check each new term in the submitted value.
-- Require evidence for the selected Edition.
+- Review the normalized terms that Classification submitted.
+- Require evidence for each new term in the selected Edition.
 - Check the year of the cited programme and artist announcements before you approve new genres.
 - Retained saved terms need no new source.
+- Approve a supported selection even if other terms are unknown.
+- If a correction is needed, name the specific unsupported term in the return note and ask Classification to keep the supported terms.
+- Ask for withdrawal of the group only if no term can be supported.
+- Accept a supported topic/wine without topic/food-and-drink.
+  Normalization removes an ancestor when its descendant is selected.
+  Do not request a removed ancestor, including when both the wine and culinary programmes are substantial.
 
 ${classificationRules}
 

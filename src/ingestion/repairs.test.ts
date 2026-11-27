@@ -912,6 +912,147 @@ it.each([
   },
 );
 
+const wineClassificationPath = "currentOrNextEdition.fields.classification";
+const wineReturnNote =
+  "Remove the unsupported festival type. Keep the wine topic supported by the tastings.";
+
+function wineProviderReplies({
+  wine,
+  foodSlug,
+  proposedFestival,
+}: {
+  wine: { id: string; slug: string };
+  foodSlug: string;
+  proposedFestival?: { id: string; slug: string };
+}): Handler {
+  const firstTerms = proposedFestival
+    ? [proposedFestival.id, wine.id]
+    : [wine.id];
+  const returns: ReviewDecision[] = proposedFestival
+    ? [
+        {
+          path: wineClassificationPath,
+          decision: "return",
+          note: wineReturnNote,
+        },
+      ]
+    : [];
+  let eventType = proposedFestival?.slug;
+
+  return (body, _index, prompt) => {
+    if (providerRole(body) === "classification") {
+      const classification = set({
+        ...(eventType && { eventType }),
+        topics: [wine.slug, foodSlug],
+      });
+      eventType = undefined;
+      return reply(body, {
+        previousEdition: null,
+        currentOrNextEdition: { classification },
+        checks: fixtureChecks(["description", "currentClassification"]),
+        unresolved: [],
+      });
+    }
+
+    const instructions = JSON.stringify(
+      body.messages.find(({ role }) => role === "system")?.content,
+    );
+    expect(instructions).toContain(
+      "name the specific unsupported term in the return note",
+    );
+    expect(instructions).toContain(
+      "Accept a supported topic/wine without topic/food-and-drink",
+    );
+    if (prompt.returnedGroups) {
+      expect(prompt.returnedGroups).toMatchObject([
+        { path: wineClassificationPath, proposal: { value: [wine.id] } },
+      ]);
+      return reply(body, review(prompt));
+    }
+    expect(
+      prompt.prepared.plan.currentOrNextEdition.fields.classification.value,
+    ).toEqual(firstTerms);
+    return reply(body, review(prompt, ...returns));
+  };
+}
+
+it.each([
+  {
+    name: "Foire aux Vins de France (Sancerre)",
+    page: [
+      "Foire aux Vins de France 2026, les 24 et 25 octobre à Sancerre, France.",
+      "Durant ces deux jours vous pourrez déguster les vins des nombreux vignerons et vigneronnes venus spécialement de toute la France.",
+      "Vins, spiritueux, cidre et mets gourmands seront proposés à la dégustation et à la vente.",
+    ],
+    startsOn: "2026-10-24",
+    endsOn: "2026-10-25",
+    disputedType: false,
+  },
+  {
+    name: "Vitiloire",
+    page: [
+      "Vitiloire, les 30 et 31 mai 2026 à Tours, France.",
+      "Manifestation en cœur de ville et à ciel ouvert, dédiée à l’œnotourisme et à la gastronomie du Val de Loire.",
+      "Des stands et dégustations auprès de 140 viticulteurs.",
+      "Au sein du « Pavillon des Chefs », 10 chefs des meilleures tables de Tours et des environs cuisinent sous vos yeux.",
+    ],
+    startsOn: "2026-05-30",
+    endsOn: "2026-05-31",
+    disputedType: true,
+  },
+])("preserves the supported wine topic for $name", async (scenario) => {
+  const { name, page, startsOn, endsOn, disputedType } = scenario;
+  const f = fixture(page.join("\n"), { name });
+  const food = f.f.existingTerm("topic", "food-and-drink");
+  const wine = f.f.term({ facet: "topic", slug: "wine", parentId: food.id });
+  const festival = f.f.existingTerm("event_type", "festival");
+  const general = fixtureTargets(f.event.id);
+  general.observedEventName = name;
+  general.currentOrNextEdition = {
+    editionKey: "2026",
+    reason: "The source gives the current programme dates.",
+    evidenceIds: ["s1-e1"],
+    fields: {
+      year: set(2026),
+      dates: set({ startsOn, endsOn, state: "confirmed" }),
+    },
+  };
+  f.f.edition(f.event, {
+    editionKey: "2026",
+    editionYear: 2026,
+    countryCode: "FR",
+  });
+
+  const { run, requests } = f.model(
+    ["classification", "editor"],
+    wineProviderReplies({
+      wine,
+      foodSlug: food.slug,
+      proposedFestival: disputedType ? festival : undefined,
+    }),
+    { general },
+  );
+
+  const result = await run({ todayUtc: startsOn });
+  expect(result.errors).toEqual([]);
+  expect(result.repairs ?? []).toMatchObject(
+    disputedType
+      ? [
+          {
+            path: wineClassificationPath,
+            note: wineReturnNote,
+            decision: { decision: "approve" },
+          },
+        ]
+      : [],
+  );
+  expect(requests).toHaveLength(disputedType ? 4 : 2);
+  expect(f.saved().editions[0]).toMatchObject({
+    publicationState: "draft",
+    terms: [{ id: wine.id }],
+  });
+});
+
 it("keeps the failed Classification reply after a repair succeeds", async () => {
   const f = fixture("Example Fest 2027 has a music programme.");
   const genre = f.f.term({ facet: "genre", slug: "fixture-genre" });

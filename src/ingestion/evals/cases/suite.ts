@@ -60,6 +60,7 @@ import { jazzPipelineCase, jazzEditorCase } from "./schedule-status/jazz";
 import { scheduleStatusMarcoCase } from "./schedule-status/marco";
 import { scheduleStatusPostponedCase } from "./schedule-status/postponed";
 import { wackenAddCase } from "./wacken/add";
+import { bandolAddCase } from "./bandol/add";
 
 type CaseDefinition =
   MainCaseDefinition | RegressionCaseDefinition | LocationCaseDefinition;
@@ -124,6 +125,7 @@ export const evalCases: readonly CaseDefinition[] = [
   scheduleStatusMarcoCase,
   scheduleStatusPostponedCase,
   wackenAddCase,
+  bandolAddCase,
 ];
 
 const casesById = new Map(evalCases.map((item) => [item.fixture.id, item]));
