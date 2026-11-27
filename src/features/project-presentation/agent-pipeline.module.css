@@ -1,0 +1,151 @@
+.figure {
+  --stage-gap: 24px;
+  --review-ink: #793c2c;
+  --review-surface: #fcf0e9;
+  margin: 0 0 48px;
+  padding: clamp(16px, 3vw, 32px);
+  border: 1px solid var(--line);
+  border-radius: var(--panel-radius);
+  background: var(--surface);
+}
+
+.caption h2 + p {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+  column-gap: var(--stage-gap);
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  grid-row: span 2;
+  grid-template: subgrid / minmax(0, 1fr);
+}
+
+.card,
+.review {
+  min-width: 0;
+  padding: clamp(10px, 1.4vw, 16px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.card {
+  background: var(--canvas);
+}
+
+.flow .stage h3 {
+  margin: 6px 0;
+  color: var(--ink);
+  font-size: 17px;
+  letter-spacing: -0.02em;
+  text-wrap: initial;
+}
+
+.label {
+  color: var(--accent);
+  font: 500 12px/1.4 var(--font-mono);
+}
+
+.validation .card {
+  border-color: var(--tint);
+  background: var(--soft);
+}
+
+.output {
+  border-color: var(--tint);
+  background: var(--tint);
+}
+
+.nextStage {
+  position: absolute;
+  grid-row: 1 / 2;
+  inset-block: 0;
+  inset-inline-start: 100%;
+  width: var(--stage-gap);
+  margin-block: auto;
+  color: var(--accent);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.review {
+  position: relative;
+  width: calc(200% + var(--stage-gap));
+  margin-top: 14px;
+  border-color: #e3beb0;
+  background: var(--review-surface);
+}
+
+.review::before {
+  position: absolute;
+  bottom: 100%;
+  inset-inline-start: calc((100% - var(--stage-gap)) / 4);
+  height: 15px;
+  border-inline-start: 1px dashed var(--review-ink);
+  content: "";
+}
+
+.review .label {
+  margin-bottom: 4px;
+  color: var(--review-ink);
+}
+
+@media (max-width: 780px) {
+  .figure {
+    margin-bottom: 32px;
+  }
+
+  .flow {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    row-gap: var(--stage-gap);
+  }
+
+  .stage {
+    display: block;
+    grid-row: auto;
+  }
+
+  .validation {
+    border: 1px solid var(--tint);
+    border-radius: var(--radius);
+    background: var(--soft);
+  }
+
+  .validation .card {
+    border: 0;
+    background: transparent;
+  }
+
+  .review {
+    width: auto;
+    margin: 0 10px 10px;
+  }
+
+  .review::before {
+    content: none;
+  }
+
+  .nextStage {
+    grid-row: auto;
+    inset-block: calc(100% + 4px) auto;
+    inset-inline-start: calc(50% - var(--stage-gap) / 2);
+    transform: rotate(90deg);
+  }
+}

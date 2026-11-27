@@ -35,8 +35,8 @@ export async function generateMetadata({
   const { site, origins } = await requestSite();
   if (site !== "festivals") {
     return pageMetadata(
-      "Eventroam | A catalog of structured data",
-      "From web sources to one catalog, with agents to collect new records and update existing ones.",
+      "Structured data and custom agent pipelines | Eventroam",
+      "Get structured data for your product or build an agent pipeline to extract, check, and deliver updates from your sources.",
       `${origins.apex}/`,
     );
   }

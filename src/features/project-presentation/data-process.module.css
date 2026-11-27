@@ -1,0 +1,204 @@
+.figure {
+  --stage-title-height: 32px;
+  margin: 0 0 40px;
+  padding: clamp(16px, 3vw, 32px);
+  border: 1px solid var(--line);
+  border-radius: var(--panel-radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.figure .caption .captionTitle {
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+}
+
+.flow {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) clamp(28px, 4vw, 52px)
+    minmax(0, 1fr) clamp(28px, 4vw, 52px)
+    minmax(0, 1.25fr);
+  margin-top: 16px;
+}
+
+.stage {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+}
+
+.flow .stageTitle {
+  display: flex;
+  align-items: center;
+  min-height: var(--stage-title-height);
+  color: var(--muted);
+  font: 500 13px/1.3 var(--font-mono);
+  letter-spacing: normal;
+}
+
+.sources {
+  display: grid;
+  grid-template-rows: repeat(2, 1fr);
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.snippet,
+.checks,
+.record {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 15px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.snippet {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 12px clamp(10px, 1.4vw, 18px);
+  background: var(--canvas);
+}
+
+.snippet time,
+.fields dt {
+  color: var(--muted);
+  font: 500 12px/1.35 var(--font-mono);
+}
+
+.snippet p,
+.checks dd,
+.record p {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.snippet a,
+.checks a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.checks {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  border-color: var(--tint);
+  background: var(--soft);
+}
+
+.checks > div {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 12px clamp(12px, 1.4vw, 18px);
+}
+
+.checks > div + div {
+  border-top: 1px solid var(--line);
+}
+
+.checks dt,
+.record > strong {
+  font-weight: 700;
+}
+
+.checks dd,
+.fields,
+.fields dd {
+  margin: 0;
+}
+
+.record {
+  align-content: center;
+  display: grid;
+  gap: 8px;
+  padding: 12px clamp(12px, 1.4vw, 18px) 4px;
+  border-top: 3px solid var(--accent);
+}
+
+.record > strong {
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.fields > div {
+  display: grid;
+  grid-template-columns: 6ch minmax(0, 1fr);
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 8px;
+  border-top: 1px solid var(--line);
+}
+
+.fields .changed {
+  border-top-color: transparent;
+  border-radius: var(--radius);
+  background: var(--warning-surface);
+}
+
+.changed dd {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.connector {
+  display: grid;
+  place-items: center;
+  margin-top: var(--stage-title-height);
+  color: var(--accent);
+}
+
+.connector svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 800px) {
+  .figure {
+    margin-bottom: 24px;
+  }
+
+  .flow {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 12px;
+  }
+
+  .sources {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto;
+  }
+
+  .snippet {
+    align-content: start;
+  }
+
+  .connector {
+    height: 32px;
+    margin-top: 0;
+  }
+
+  .connector svg {
+    transform: rotate(90deg);
+  }
+}

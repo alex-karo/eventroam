@@ -8,7 +8,7 @@ type Props = {
   href: string;
   children: ReactNode;
 } & (
-  | { destination: "linkedin"; placement: "hero" | "footer" }
+  | { destination: "email"; placement: "hero" | "footer" }
   | { destination: "festivals"; placement: "example" }
 );
 
@@ -19,12 +19,14 @@ export function PromoLink({
   destination,
   placement,
 }: Readonly<Props>) {
+  const opensInNewTab = destination === "festivals";
+
   return (
     <a
       className={className}
       href={href}
-      target={destination === "linkedin" ? "_blank" : undefined}
-      rel={destination === "linkedin" ? "noopener noreferrer" : undefined}
+      target={opensInNewTab ? "_blank" : undefined}
+      rel={opensInNewTab ? "noopener noreferrer" : undefined}
       onClick={() =>
         posthog.capture("promo_link_clicked", {
           destination,

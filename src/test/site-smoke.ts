@@ -208,8 +208,39 @@ async function main() {
     const apexPage = checkMetadata(
       await get(apex, "/"),
       `${apex}/`,
-      "Eventroam | A catalog of structured data",
+      "Structured data and custom agent pipelines | Eventroam",
     );
+    const contactHref = "mailto:hello@eventroam.org";
+    function checkPromoContact(page: typeof apexPage) {
+      assert.equal(
+        page("h2").filter((_, node) => page(node).text() === "Work with us")
+          .length,
+        1,
+      );
+      const contacts = page(`a[href='${contactHref}']`);
+      assert(contacts.length > 0);
+      for (const contact of contacts) {
+        const label = page(contact).text().trim();
+        assert(label.length > 0 && !label.includes("@"));
+      }
+      assert.equal(page("a[href*='eurockeennes.fr']").length, 0);
+    }
+    checkPromoContact(apexPage);
+    assert(apexPage(`a[href='${festivals}']`).length > 0);
+    for (const [path, title] of [
+      ["/data", "Data for your product | Eventroam"],
+      ["/custom-systems", "Custom agent pipelines | Eventroam"],
+    ]) {
+      assert(apexPage(`a[href='${path}']`).length > 0);
+      const servicePage = checkMetadata(
+        await get(apex, path),
+        `${apex}${path}`,
+        title,
+      );
+      assert(servicePage("a[href='/']").length > 0);
+      checkPromoContact(servicePage);
+      assert.equal((await httpGet(port, festivals, path)).status, 404);
+    }
     const discoveryPage = checkMetadata(
       await get(festivals, "/"),
       `${festivals}/`,
@@ -309,6 +340,8 @@ async function main() {
         .get();
     assert.deepEqual(locations(await get(apex, "/sitemap.xml")), [
       `${apex}/`,
+      `${apex}/data`,
+      `${apex}/custom-systems`,
       `${apex}/privacy`,
     ]);
     assert.deepEqual(locations(await get(festivals, "/sitemap.xml")), [
